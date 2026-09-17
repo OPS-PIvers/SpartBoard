@@ -1994,7 +1994,12 @@
       "quiz": "Quiz",
       "videoActivity": "Activité Vidéo",
       "guidedLearning": "Apprentissage Guidé",
-      "miniApp": "Mini App"
+      "miniApp": "Mini App",
+      "flashcards": "Cartes mémoire"
+    },
+    "flashcardKind": {
+      "check": "Contrôle",
+      "study": "Révision"
     },
     "searchLabel": "Rechercher des devoirs",
     "searchPlaceholder": "Rechercher des devoirs…",
@@ -2677,7 +2682,8 @@
       "mcNeedsFour": "Le choix multiple nécessite au moins 4 cartes.",
       "questions": "Questions",
       "allCount": "Toutes ({{count}})",
-      "reset": "Réinitialiser la progression"
+      "reset": "Réinitialiser la progression",
+      "lockedNote": "Ton enseignant a choisi ces options pour ce contrôle."
     },
     "summary": {
       "complete": "Série {{round}} terminée",
@@ -2712,7 +2718,9 @@
       "continue": "Continuer",
       "override": "J'avais raison",
       "acceptedTitle": "Acceptée",
-      "acceptedHint": "Presque. Orthographe exacte :"
+      "acceptedHint": "Presque. Orthographe exacte :",
+      "flag": "Je pense que c’est juste",
+      "flagged": "Signalée à ton enseignant"
     },
     "test": {
       "complete": "Test terminé",
@@ -2733,6 +2741,43 @@
       "uppercase": "Utiliser les majuscules",
       "lowercase": "Utiliser les minuscules",
       "insert": "Insérer {{character}}"
+    },
+    "check": {
+      "readyTitle": "Prêt à rendre",
+      "readyFlashcards": "Toutes les cartes ont atteint l’objectif de ton enseignant. Rends ton travail pour terminer ce contrôle.",
+      "readyWrite": "Tu as bien répondu à toutes les cartes. Rends ton travail pour terminer ce contrôle.",
+      "flagged_one": "{{count}} réponse signalée à ton enseignant",
+      "flagged_other": "{{count}} réponses signalées à ton enseignant",
+      "submit": "Rendre",
+      "submitting": "Envoi…"
+    },
+    "assignment": {
+      "pageTitle": "{{title}} · Cartes mémoire",
+      "loading": "Chargement du devoir…",
+      "unavailableTitle": "Ce devoir n’est pas disponible",
+      "unavailableBody": "Vérifie le lien ou demande à ton enseignant s’il t’a été attribué.",
+      "back": "Retour à mes devoirs",
+      "check": "Contrôle",
+      "study": "Révision",
+      "opensTitle": "Pas encore ouvert",
+      "opensBody": "Ce devoir ouvre le {{date}}.",
+      "closedBanner": "Ce devoir a fermé le {{date}}. Tu peux continuer à réviser, mais ta progression n’est plus envoyée à ton enseignant.",
+      "endedBanner": "Ton enseignant a terminé ce devoir. Tu peux continuer à réviser, mais ta progression n’est plus envoyée à ton enseignant.",
+      "checkClosedTitle": "Ce contrôle est fermé",
+      "checkClosedBody": "Il ne peut plus être rendu. Demande plus de temps à ton enseignant si besoin.",
+      "submitError": "Ton contrôle n’a pas pu être envoyé. Réessaie.",
+      "submittedTitle": "Rendu",
+      "submittedAt": "Rendu le {{date}}",
+      "resultsHidden": "Ton enseignant partagera tes résultats plus tard.",
+      "score": "Score",
+      "mastered": "Tu maîtrises toutes les cartes.",
+      "rounds_one": "{{count}} tour",
+      "rounds_other": "{{count}} tours",
+      "studyTime": "{{minutes}} min de révision",
+      "missedTitle": "Revoir les cartes manquées",
+      "yourAnswer": "Ta réponse :",
+      "correctAnswer": "Bonne réponse :",
+      "allCorrect": "Toutes les réponses étaient justes."
     }
   },
   "studentAssignment": {

@@ -15,7 +15,8 @@ export type AssignmentTargetKind =
   | 'quiz'
   | 'video-activity'
   | 'guided-learning'
-  | 'mini-app';
+  | 'mini-app'
+  | 'flashcards';
 
 export interface SetAssignmentTargetsCallInput {
   assignmentId: string;

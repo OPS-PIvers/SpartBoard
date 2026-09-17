@@ -1994,7 +1994,12 @@
       "quiz": "Quiz",
       "videoActivity": "Videoaktivität",
       "guidedLearning": "Geführtes Lernen",
-      "miniApp": "Mini-App"
+      "miniApp": "Mini-App",
+      "flashcards": "Karteikarten"
+    },
+    "flashcardKind": {
+      "check": "Überprüfung",
+      "study": "Lernen"
     },
     "searchLabel": "Aufgaben durchsuchen",
     "searchPlaceholder": "Aufgaben durchsuchen…",
@@ -2677,7 +2682,8 @@
       "mcNeedsFour": "Multiple Choice benötigt mindestens 4 Karten.",
       "questions": "Fragen",
       "allCount": "Alle ({{count}})",
-      "reset": "Fortschritt zurücksetzen"
+      "reset": "Fortschritt zurücksetzen",
+      "lockedNote": "Deine Lehrkraft hat diese Optionen für diese Überprüfung festgelegt."
     },
     "summary": {
       "complete": "Runde {{round}} abgeschlossen",
@@ -2712,7 +2718,9 @@
       "continue": "Weiter",
       "override": "Meine Antwort war richtig",
       "acceptedTitle": "Akzeptiert",
-      "acceptedHint": "Fast richtig. Genaue Schreibweise:"
+      "acceptedHint": "Fast richtig. Genaue Schreibweise:",
+      "flag": "Ich glaube, das ist richtig",
+      "flagged": "Für deine Lehrkraft markiert"
     },
     "test": {
       "complete": "Test abgeschlossen",
@@ -2733,6 +2741,43 @@
       "uppercase": "Großbuchstaben verwenden",
       "lowercase": "Kleinbuchstaben verwenden",
       "insert": "{{character}} einfügen"
+    },
+    "check": {
+      "readyTitle": "Bereit zum Abgeben",
+      "readyFlashcards": "Alle Karten haben das Ziel deiner Lehrkraft erreicht. Gib ab, um diese Überprüfung abzuschließen.",
+      "readyWrite": "Du hast alle Karten richtig beantwortet. Gib ab, um diese Überprüfung abzuschließen.",
+      "flagged_one": "{{count}} Antwort für deine Lehrkraft markiert",
+      "flagged_other": "{{count}} Antworten für deine Lehrkraft markiert",
+      "submit": "Abgeben",
+      "submitting": "Wird abgegeben…"
+    },
+    "assignment": {
+      "pageTitle": "{{title}} · Karteikarten",
+      "loading": "Aufgabe wird geladen…",
+      "unavailableTitle": "Diese Aufgabe ist nicht verfügbar",
+      "unavailableBody": "Prüfe den Link oder frage deine Lehrkraft, ob sie dir zugewiesen ist.",
+      "back": "Zurück zu meinen Aufgaben",
+      "check": "Überprüfung",
+      "study": "Lernen",
+      "opensTitle": "Noch nicht geöffnet",
+      "opensBody": "Diese Aufgabe öffnet am {{date}}.",
+      "closedBanner": "Diese Aufgabe wurde am {{date}} geschlossen. Du kannst weiterlernen, aber dein Fortschritt geht nicht mehr an deine Lehrkraft.",
+      "endedBanner": "Deine Lehrkraft hat diese Aufgabe beendet. Du kannst weiterlernen, aber dein Fortschritt geht nicht mehr an deine Lehrkraft.",
+      "checkClosedTitle": "Diese Überprüfung ist geschlossen",
+      "checkClosedBody": "Sie kann nicht mehr abgegeben werden. Frage deine Lehrkraft, wenn du mehr Zeit brauchst.",
+      "submitError": "Deine Überprüfung konnte nicht abgegeben werden. Versuche es noch einmal.",
+      "submittedTitle": "Abgegeben",
+      "submittedAt": "Abgegeben am {{date}}",
+      "resultsHidden": "Deine Lehrkraft teilt deine Ergebnisse später.",
+      "score": "Punktzahl",
+      "mastered": "Du beherrschst alle Karten.",
+      "rounds_one": "{{count}} Runde",
+      "rounds_other": "{{count}} Runden",
+      "studyTime": "{{minutes}} Min. gelernt",
+      "missedTitle": "Falsche Karten wiederholen",
+      "yourAnswer": "Deine Antwort:",
+      "correctAnswer": "Richtige Antwort:",
+      "allCorrect": "Alle Antworten waren richtig."
     }
   },
   "studentAssignment": {

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Check, Star } from 'lucide-react';
+import { Check, Flag, Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { FlashcardCard, FlashcardSide } from '@/types';
 import {
@@ -23,6 +23,14 @@ interface WriteModeProps {
   onStar: (cardId: string) => void;
   onNextRound: () => void;
   onRestart?: () => void;
+  /** Check · Write: misses re-queue and "I was right" becomes a teacher flag. */
+  check?: WriteModeCheck;
+}
+
+export interface WriteModeCheck {
+  flaggedIds: string[];
+  onAnswer: (cardId: string, response: string, correct: boolean) => void;
+  onFlag: (cardId: string, response: string) => void;
 }
 
 interface WrongReview {
@@ -44,8 +52,10 @@ export const WriteMode: React.FC<WriteModeProps> = ({
   onStar,
   onNextRound,
   onRestart,
+  check,
 }) => {
   const { t } = useTranslation();
+  const [queue, setQueue] = useState(cards);
   const [index, setIndex] = useState(0);
   const [response, setResponse] = useState('');
   const [retype, setRetype] = useState('');
@@ -60,13 +70,16 @@ export const WriteMode: React.FC<WriteModeProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const retypeRef = useRef<HTMLInputElement>(null);
   const continueRef = useRef<HTMLButtonElement>(null);
-  const card = cards[index];
+  const card = queue[index];
   const answerLanguage =
     showFirst === 'term' ? definitionLanguage : termLanguage;
 
-  const advance = (isCorrect: boolean): void => {
+  const advance = (isCorrect: boolean, judged: string): void => {
     if (!card) return;
     onRecord(card.id, isCorrect);
+    check?.onAnswer(card.id, judged, isCorrect);
+    const nextQueue = check && !isCorrect ? [...queue, card] : queue;
+    if (nextQueue !== queue) setQueue(nextQueue);
     if (isCorrect) setCorrect((count) => count + 1);
     else setWrong((count) => count + 1);
     setResponse('');
@@ -74,7 +87,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
     setWrongReview(null);
     setAcceptedReview(null);
     setRetypeError(false);
-    if (index >= cards.length - 1) setSummary(true);
+    if (index >= nextQueue.length - 1) setSummary(true);
     else {
       setIndex((current) => current + 1);
       window.requestAnimationFrame(() => inputRef.current?.focus());
@@ -98,7 +111,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
       window.requestAnimationFrame(() => continueRef.current?.focus());
       return;
     }
-    advance(true);
+    advance(true, response);
   };
 
   const renderDiff = (review: WrongReview): React.ReactNode =>
@@ -125,11 +138,12 @@ export const WriteMode: React.FC<WriteModeProps> = ({
       language: answerLanguage,
       strict: true,
     });
-    if (result.result === 'exact') advance(false);
+    if (result.result === 'exact') advance(false, wrongReview.response);
     else setRetypeError(true);
   };
 
   if (summary) {
+    if (check) return null;
     return (
       <RoundSummary
         round={round}
@@ -173,7 +187,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
           )}
           style={{ fontSize: 'min(11px, 2.8cqmin)' }}
         >
-          {t(`flashcards.cards.${showFirst}`)} · {index + 1}/{cards.length}
+          {t(`flashcards.cards.${showFirst}`)} · {index + 1}/{queue.length}
         </div>
         <h2
           className="mx-auto max-w-[26ch] font-black leading-tight [text-wrap:balance]"
@@ -248,7 +262,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
           <button
             ref={continueRef}
             type="button"
-            onClick={() => advance(true)}
+            onClick={() => advance(true, acceptedReview.response)}
             className="mx-auto flex rounded-full bg-rose-600 font-black text-white transition hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300"
             style={{
               marginTop: 'min(12px, 3cqmin)',
@@ -414,20 +428,51 @@ export const WriteMode: React.FC<WriteModeProps> = ({
               >
                 {t('flashcards.write.continue')}
               </button>
-              <button
-                type="button"
-                onClick={() => advance(true)}
-                className={cx(
-                  'rounded-full font-bold underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300',
-                  dark ? 'text-white' : 'text-rose-800'
-                )}
-                style={{
-                  padding: 'min(8px, 2cqmin)',
-                  fontSize: 'min(11px, 3cqmin)',
-                }}
-              >
-                {t('flashcards.write.override')}
-              </button>
+              {check ? (
+                <button
+                  type="button"
+                  onClick={() => check.onFlag(card.id, wrongReview.response)}
+                  disabled={check.flaggedIds.includes(card.id)}
+                  aria-pressed={check.flaggedIds.includes(card.id)}
+                  className={cx(
+                    'inline-flex items-center rounded-full font-bold underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 disabled:no-underline',
+                    dark ? 'text-white' : 'text-rose-800'
+                  )}
+                  style={{
+                    gap: 'min(5px, 1.2cqmin)',
+                    padding: 'min(8px, 2cqmin)',
+                    fontSize: 'min(11px, 3cqmin)',
+                  }}
+                >
+                  <Flag
+                    aria-hidden="true"
+                    style={{
+                      width: 'min(14px, 3.4cqmin)',
+                      height: 'min(14px, 3.4cqmin)',
+                    }}
+                  />
+                  {t(
+                    check.flaggedIds.includes(card.id)
+                      ? 'flashcards.write.flagged'
+                      : 'flashcards.write.flag'
+                  )}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => advance(true, wrongReview.response)}
+                  className={cx(
+                    'rounded-full font-bold underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300',
+                    dark ? 'text-white' : 'text-rose-800'
+                  )}
+                  style={{
+                    padding: 'min(8px, 2cqmin)',
+                    fontSize: 'min(11px, 3cqmin)',
+                  }}
+                >
+                  {t('flashcards.write.override')}
+                </button>
+              )}
             </div>
           </form>
         </div>

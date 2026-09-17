@@ -7,6 +7,7 @@ import {
   MonitorPlay,
   Pencil,
   Plus,
+  Send,
   Share2,
   Trash2,
 } from 'lucide-react';
@@ -35,6 +36,7 @@ interface FlashcardLibraryProps {
   onEdit: (set: FlashcardSet) => void;
   onPresent: (set: FlashcardSet) => void;
   onShare: (set: FlashcardSet) => void;
+  onAssign: (set: FlashcardSet) => void;
   onDelete: (set: FlashcardSet) => void;
 }
 
@@ -66,6 +68,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onEdit,
   onPresent,
   onShare,
+  onAssign,
   onDelete,
 }) => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -232,6 +235,12 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
                     label: 'Present',
                     icon: MonitorPlay,
                     onClick: () => onPresent(set),
+                  },
+                  {
+                    id: 'assign',
+                    label: 'Assign',
+                    icon: Send,
+                    onClick: () => onAssign(set),
                   },
                   {
                     id: 'share',

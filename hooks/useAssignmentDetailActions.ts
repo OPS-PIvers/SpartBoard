@@ -64,6 +64,7 @@ const ASSIGNMENT_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   'video-activity': 'video_activity_assignments',
   'guided-learning': 'guided_learning_assignments',
   'mini-app': 'miniapp_assignments',
+  flashcards: 'flashcard_assignments',
 };
 
 const SESSION_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
@@ -71,6 +72,7 @@ const SESSION_COLLECTION_BY_KIND: Record<AssignmentKind, string> = {
   'video-activity': 'video_activity_sessions',
   'guided-learning': 'guided_learning_sessions',
   'mini-app': 'mini_app_sessions',
+  flashcards: 'flashcard_sessions',
 };
 
 export interface SaveAssignmentEditResult {

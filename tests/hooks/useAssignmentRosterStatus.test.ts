@@ -96,6 +96,27 @@ describe('useAssignmentRosterStatus', () => {
     expect(result.current.totalQuestions).toBeNull();
   });
 
+  it('derives flashcards statuses from progress docs: submitted only with a numeric submittedAt', async () => {
+    const { result } = renderHook(() =>
+      useAssignmentRosterStatus('flashcards', 'session-3')
+    );
+    const progressPath = 'flashcard_sessions/session-3/progress';
+    expect(collectionListeners.has(progressPath)).toBe(true);
+    expect(docListeners.size).toBe(0);
+
+    act(() => {
+      collectionListeners.get(progressPath)?.(
+        fakeSnapshot([
+          { id: 'uid-study', data: () => ({ round: 2 }) },
+          { id: 'uid-check', data: () => ({ submittedAt: 5, score: 8 }) },
+        ])
+      );
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.statusByUid.get('uid-study')).toBe('in-progress');
+    expect(result.current.statusByUid.get('uid-check')).toBe('submitted');
+  });
+
   it('returns the empty result and subscribes nothing when sessionId is absent', () => {
     const { result } = renderHook(() =>
       useAssignmentRosterStatus('quiz', null)

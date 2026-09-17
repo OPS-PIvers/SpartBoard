@@ -3148,6 +3148,9 @@ describe('index barrel — deployed export set', () => {
     'cleanupVideoActivityAssignmentPointers',
     'cleanupGuidedLearningAssignmentPointers',
     'cleanupMiniAppAssignmentPointers',
+    'cleanupFlashcardAssignmentPointers',
+    // Flashcards Check submission
+    'submitFlashcardCheckV1',
     // Organizations
     'createOrganizationInvites',
     'claimOrganizationInvite',

@@ -1,7 +1,18 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { CheckCircle2, RotateCcw, Sparkles, XCircle } from 'lucide-react';
+import {
+  CheckCircle2,
+  Loader2,
+  RotateCcw,
+  Sparkles,
+  XCircle,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { FlashcardCard, FlashcardSide, FlashcardTestType } from '@/types';
+import type {
+  FlashcardAnswerLogEntry,
+  FlashcardCard,
+  FlashcardSide,
+  FlashcardTestType,
+} from '@/types';
 import { matchFlashcardAnswer } from '@/utils/flashcardMatch';
 import { CharacterBar } from './PlayerPrimitives';
 import { cx, getFlashcardSides } from './playerUtils';
@@ -16,7 +27,21 @@ interface TestModeProps {
   testTypes: FlashcardTestType[];
   testCount: number | 'all';
   dark: boolean;
+  seed?: string;
   onRecordBatch: (answers: Array<{ cardId: string; correct: boolean }>) => void;
+  onComplete?: (result: {
+    types: FlashcardTestType[];
+    count: number;
+    score: number;
+  }) => void;
+  /** Check · Test: one attempt, graded by the server instead of reviewed here. */
+  check?: TestModeCheck;
+}
+
+export interface TestModeCheck {
+  submitting: boolean;
+  error?: string | null;
+  onSubmit: (answerLog: FlashcardAnswerLogEntry[]) => void;
 }
 
 interface TestQuestion {
@@ -161,9 +186,14 @@ export const TestMode: React.FC<TestModeProps> = ({
   testTypes,
   testCount,
   dark,
+  seed = 'test',
   onRecordBatch,
+  onComplete,
+  check,
 }) => {
   const { t } = useTranslation();
+  const isCheck = Boolean(check);
+  const checkRecordedRef = useRef(false);
   const [cycle, setCycle] = useState(0);
   const [retakeIds, setRetakeIds] = useState<string[] | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -180,9 +210,19 @@ export const TestMode: React.FC<TestModeProps> = ({
         showFirst,
         testTypes,
         retakeIds ? 'all' : testCount,
-        `${round}:${cycle}`
+        isCheck ? seed : `${seed}:${round}:${cycle}`
       ),
-    [cycle, pool, retakeIds, round, showFirst, testCount, testTypes]
+    [
+      isCheck,
+      cycle,
+      pool,
+      retakeIds,
+      round,
+      seed,
+      showFirst,
+      testCount,
+      testTypes,
+    ]
   );
   const answerLanguage =
     showFirst === 'term' ? definitionLanguage : termLanguage;
@@ -191,7 +231,7 @@ export const TestMode: React.FC<TestModeProps> = ({
   );
 
   const submit = (): void => {
-    if (!allAnswered) return;
+    if (!allAnswered || check?.submitting) return;
     const nextResults = questions.map((question) => {
       const sides = getFlashcardSides(question.card, showFirst);
       const response = answers[question.id] ?? '';
@@ -216,9 +256,27 @@ export const TestMode: React.FC<TestModeProps> = ({
         correct: match.result !== 'wrong',
       };
     });
-    onRecordBatch(
-      nextResults.map(({ cardId, correct }) => ({ cardId, correct }))
-    );
+    if (!check || !checkRecordedRef.current) {
+      checkRecordedRef.current = true;
+      onRecordBatch(
+        nextResults.map(({ cardId, correct }) => ({ cardId, correct }))
+      );
+    }
+    if (check) {
+      check.onSubmit(
+        questions.map((question) => ({
+          cardId: question.card.id,
+          type: question.type,
+          response: answers[question.id] ?? '',
+        }))
+      );
+      return;
+    }
+    onComplete?.({
+      types: [...new Set(questions.map((question) => question.type))],
+      count: nextResults.length,
+      score: nextResults.filter((result) => result.correct).length,
+    });
     setResults(nextResults);
   };
 
@@ -548,10 +606,25 @@ export const TestMode: React.FC<TestModeProps> = ({
           })}
         </div>
 
+        {check?.error && (
+          <p
+            role="alert"
+            className={cx(
+              'text-center font-bold',
+              dark ? 'text-rose-100' : 'text-rose-800'
+            )}
+            style={{
+              marginTop: 'min(14px, 3cqmin)',
+              fontSize: 'min(12px, 3.2cqmin)',
+            }}
+          >
+            {check.error}
+          </p>
+        )}
         <button
           type="button"
           onClick={submit}
-          disabled={!allAnswered}
+          disabled={!allAnswered || check?.submitting}
           className="mx-auto flex items-center rounded-full bg-rose-600 font-black text-white shadow-lg shadow-rose-600/20 transition hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-45"
           style={{
             gap: 'min(7px, 1.5cqmin)',
@@ -561,7 +634,16 @@ export const TestMode: React.FC<TestModeProps> = ({
             fontSize: 'min(13px, 3.4cqmin)',
           }}
         >
-          {allAnswered ? (
+          {check?.submitting ? (
+            <Loader2
+              aria-hidden="true"
+              className="animate-spin"
+              style={{
+                width: 'min(18px, 4cqmin)',
+                height: 'min(18px, 4cqmin)',
+              }}
+            />
+          ) : allAnswered ? (
             <CheckCircle2
               aria-hidden="true"
               style={{

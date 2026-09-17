@@ -1,4 +1,4 @@
-// useUnifiedAssignments — normalizes the four per-teacher assignment collections into one flat, sortable list for the Assignments hub (spec §5 D1). Read-only.
+// useUnifiedAssignments — normalizes the five per-teacher assignment collections into one flat, sortable list for the Assignments hub (spec §5 D1). Read-only.
 
 import { useMemo } from 'react';
 import {
@@ -8,13 +8,15 @@ import {
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useMiniAppAssignments } from '@/hooks/useMiniAppAssignments';
+import { useFlashcardAssignments } from '@/hooks/useFlashcardAssignments';
 import type { ClassRoster, StudentOverride, StudentTargetRef } from '@/types';
 
 export type AssignmentKind =
   | 'quiz'
   | 'video-activity'
   | 'guided-learning'
-  | 'mini-app';
+  | 'mini-app'
+  | 'flashcards';
 
 /** Lifecycle status for the hub's status filter chip; 'paused' only applies to quiz/video-activity kinds. */
 export type UnifiedAssignmentStatus = 'active' | 'paused' | 'inactive';
@@ -53,6 +55,8 @@ export interface UnifiedAssignmentRow {
   quizId?: string;
   /** Quiz rows only: the assignment's synced group id, when synced. */
   syncGroupId?: string;
+  /** Flashcards rows only: Check (collects a submission) or Study. */
+  flashcardKind?: 'check' | 'study';
 }
 
 /** Retroactive PLC results actions, forwarded from `useQuizAssignments`. */
@@ -88,6 +92,7 @@ export const useUnifiedAssignments = (
   const va = useVideoActivityAssignments(userId);
   const gl = useGuidedLearningAssignments(userId);
   const miniApp = useMiniAppAssignments(userId);
+  const flashcards = useFlashcardAssignments(userId);
 
   const rosterNamesById = useMemo(() => {
     const map = new Map<string, string>();
@@ -187,20 +192,58 @@ export const useUnifiedAssignments = (
       })
     );
 
-    return [...quizRows, ...vaRows, ...glRows, ...miniAppRows].sort(
-      (a, b) => b.createdAt - a.createdAt
+    const flashcardRows: UnifiedAssignmentRow[] = flashcards.assignments.map(
+      (a) => ({
+        id: a.id,
+        kind: 'flashcards',
+        title: a.setTitle,
+        className:
+          (a.rosterIds ?? []).some((id) => rosterNamesById.has(id)) ||
+          !a.periodNames?.length
+            ? resolveClassName(undefined, a.rosterIds, rosterNamesById)
+            : a.periodNames.join(', '),
+        status: a.status === 'ended' ? 'inactive' : 'active',
+        targetMode: a.targetMode === 'students' ? 'students' : 'class',
+        targetSkippedCount: a.targetSkippedCount ?? 0,
+        openAt: a.openAt,
+        closeAt: a.closeAt,
+        createdAt: a.createdAt,
+        sessionId: a.sessionId,
+        rosterIds: a.rosterIds,
+        periodNames: a.periodNames,
+        classIds: a.classIds,
+        targetStudents: a.targetStudents,
+        excludedTargets: a.excludedTargets,
+        overridesBySourcedId: a.overridesBySourcedId,
+        removedStudentRefs: a.removedStudentRefs,
+        flashcardKind: a.kind,
+      })
     );
+
+    return [
+      ...quizRows,
+      ...vaRows,
+      ...glRows,
+      ...miniAppRows,
+      ...flashcardRows,
+    ].sort((a, b) => b.createdAt - a.createdAt);
   }, [
     quiz.assignments,
     va.assignments,
     gl.assignments,
     miniApp.assignments,
+    flashcards.assignments,
     rosterNamesById,
   ]);
 
   return {
     rows,
-    loading: quiz.loading || va.loading || gl.loading || miniApp.loading,
+    loading:
+      quiz.loading ||
+      va.loading ||
+      gl.loading ||
+      miniApp.loading ||
+      flashcards.loading,
     quizPlcActions: {
       share: quiz.shareAssignmentWithPlc,
       stopSharing: quiz.stopSharingAssignmentWithPlc,

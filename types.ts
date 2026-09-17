@@ -5134,7 +5134,12 @@ export interface StudentOverride {
  * grouped across assignments per-student (spec §A3 non-goal).
  */
 export interface StudentAssignmentPointer {
-  kind: 'quiz' | 'video-activity' | 'guided-learning' | 'mini-app';
+  kind:
+    | 'quiz'
+    | 'video-activity'
+    | 'guided-learning'
+    | 'mini-app'
+    | 'flashcards';
   sessionId: string;
   teacherUid: string;
   classId: string;
@@ -7084,11 +7089,119 @@ export interface FlashcardCardProgress {
   w: number;
 }
 
-/** Device-local study state. Assignment-only fields are added in PR 3. */
+/** Study state shared by every progress adapter. */
 export interface FlashcardStudyState {
   cards: Record<string, FlashcardCardProgress>;
   starred: string[];
   round: number;
+}
+
+export type FlashcardAssignmentKind = 'check' | 'study';
+export type FlashcardMasteryThreshold = 2 | 3 | 4;
+export type FlashcardScoreVisibility = 'none' | 'score' | 'score-and-answers';
+
+/** One graded item in a Check submission; `correct` is written by the server. */
+export interface FlashcardAnswerLogEntry {
+  cardId: string;
+  response: string;
+  type?: FlashcardTestType;
+  attempts?: number;
+  correct?: boolean;
+}
+
+/** A student's "I think this is right" flag on a Check answer. */
+export interface FlashcardFlag {
+  cardId: string;
+  response: string;
+  accepted?: boolean;
+}
+
+/** Resumable Check · Write state: first try per card plus whether it is finished. */
+export interface FlashcardCheckWriteEntry {
+  response: string;
+  attempts: number;
+  done: boolean;
+  flagged?: boolean;
+}
+
+/** `flashcard_sessions/{assignmentId}`: what assigned students load. */
+export interface FlashcardSession {
+  id: string;
+  teacherUid: string;
+  setId: string;
+  title: string;
+  kind: FlashcardAssignmentKind;
+  checkMode?: FlashcardMode;
+  lockedSettings?: FlashcardModeSettings;
+  masteryThreshold?: FlashcardMasteryThreshold;
+  termLanguage: string;
+  definitionLanguage: string;
+  cards: FlashcardCard[];
+  classIds: string[];
+  classId?: string;
+  periodNames?: string[];
+  rosterIds?: string[];
+  status: 'active' | 'ended';
+  openAt?: number | null;
+  dueAt?: number | null;
+  closeAt?: number | null;
+  scoreVisibility?: FlashcardScoreVisibility;
+  scorePublishedAt?: number;
+  individualTargeting?: boolean;
+  createdAt: number;
+  endedAt?: number;
+}
+
+/** `users/{uid}/flashcard_assignments/{assignmentId}`: the teacher's record (id == session id). */
+export interface FlashcardAssignment {
+  id: string;
+  sessionId: string;
+  setId: string;
+  setTitle: string;
+  teacherUid: string;
+  kind: FlashcardAssignmentKind;
+  checkMode?: FlashcardMode;
+  status: 'active' | 'ended';
+  createdAt: number;
+  updatedAt: number;
+  endedAt?: number;
+  archivedAt?: number | null;
+  rosterIds?: string[];
+  classIds?: string[];
+  periodNames?: string[];
+  scoreVisibility?: FlashcardScoreVisibility;
+  targetMode?: 'class' | 'students';
+  targetStudents?: StudentTargetRef[];
+  targetGroupIds?: string[];
+  overridesBySourcedId?: Record<string, StudentOverride>;
+  excludedTargets?: StudentTargetRef[];
+  overridesByStudentUid?: Record<string, StudentOverride>;
+  targetSkippedCount?: number;
+  removedStudentRefs?: StudentTargetRef[];
+  openAt?: number | null;
+  closeAt?: number | null;
+  dueAt?: number | null;
+}
+
+/** `flashcard_sessions/{assignmentId}/progress/{studentUid}`. */
+export interface FlashcardProgress extends FlashcardStudyState {
+  classId: string;
+  studyMs: number;
+  modesUsed: FlashcardMode[];
+  tests: Array<{
+    at: number;
+    types: FlashcardTestType[];
+    count: number;
+    score: number;
+  }>;
+  lastActiveAt: number;
+  checkLog?: Record<string, FlashcardCheckWriteEntry>;
+  // Server-written only (Check):
+  submittedAt?: number;
+  score?: number;
+  total?: number;
+  answerLog?: FlashcardAnswerLogEntry[];
+  flags?: FlashcardFlag[];
 }
 
 /** Per-board state only. Set content lives in the teacher's Firestore library. */
@@ -7097,6 +7210,7 @@ export interface FlashcardsConfig {
   presentSetId?: string;
   presentShowFirst: FlashcardSide;
   presentShuffle: boolean;
+  lastRosterIdsBySetId?: Record<string, string[]>;
 }
 
 // Union of all widget configs

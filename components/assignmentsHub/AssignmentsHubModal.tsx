@@ -8,6 +8,7 @@ import {
   Film,
   Compass,
   Blocks,
+  Layers3,
   Search,
   X,
 } from 'lucide-react';
@@ -54,6 +55,11 @@ const KIND_META: Record<
     labelKey: 'assignmentsHub.kind.miniApp',
     fallback: 'Mini App',
   },
+  flashcards: {
+    icon: Layers3,
+    labelKey: 'assignmentsHub.kind.flashcards',
+    fallback: 'Flashcards',
+  },
 };
 
 const KIND_ORDER: AssignmentKind[] = [
@@ -61,6 +67,7 @@ const KIND_ORDER: AssignmentKind[] = [
   'video-activity',
   'guided-learning',
   'mini-app',
+  'flashcards',
 ];
 
 function formatWindowSummary(
@@ -123,6 +130,17 @@ const AssignmentRow: React.FC<{
       </div>
       <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-6 text-xs text-slate-500">
         <span>{t(meta.labelKey, { defaultValue: meta.fallback })}</span>
+        {row.flashcardKind && (
+          <span className="rounded-full bg-slate-100 px-1.5 py-px text-xxs font-bold text-slate-600">
+            {row.flashcardKind === 'check'
+              ? t('assignmentsHub.flashcardKind.check', {
+                  defaultValue: 'Check',
+                })
+              : t('assignmentsHub.flashcardKind.study', {
+                  defaultValue: 'Study',
+                })}
+          </span>
+        )}
         <span aria-hidden="true">·</span>
         <span className="truncate">{row.className}</span>
         {row.targetMode === 'students' && (

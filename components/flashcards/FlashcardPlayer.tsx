@@ -10,13 +10,17 @@ import {
   X,
 } from 'lucide-react';
 import type {
+  FlashcardAnswerLogEntry,
   FlashcardCard,
+  FlashcardCheckWriteEntry,
+  FlashcardFlag,
   FlashcardMode,
   FlashcardModeSettings,
   FlashcardStudyState,
   FlashcardTestType,
 } from '@/types';
 import {
+  DEFAULT_FLASHCARD_MASTERY_THRESHOLD,
   buildFlashcardRoundQueue,
   countMasteredFlashcards,
   isFlashcardMastered,
@@ -25,6 +29,7 @@ import type { FlashcardProgressAdapter } from './adapters';
 import { FlashcardsMode } from './FlashcardsMode';
 import { WriteMode } from './WriteMode';
 import { TestMode } from './TestMode';
+import { CheckSubmitPanel } from './PlayerPrimitives';
 import { cx } from './playerUtils';
 
 const DEFAULT_SETTINGS: FlashcardModeSettings = {
@@ -43,12 +48,44 @@ interface PlayerSession {
   roundCards: FlashcardCard[];
 }
 
+export interface FlashcardCheckSubmission {
+  answerLog: FlashcardAnswerLogEntry[];
+  flags: FlashcardFlag[];
+}
+
+/** Check assignments: one locked mode, then a single server-graded submission. */
+export interface FlashcardPlayerCheck {
+  mode: FlashcardMode;
+  masteryThreshold?: number;
+  initialCheckLog?: Record<string, FlashcardCheckWriteEntry>;
+  submitting: boolean;
+  error?: string | null;
+  onCheckWrite?: (cardId: string, entry: FlashcardCheckWriteEntry) => void;
+  onSubmit: (submission: FlashcardCheckSubmission) => void;
+}
+
+const checkWriteEntry = (
+  current: FlashcardCheckWriteEntry | undefined,
+  update: Partial<FlashcardCheckWriteEntry>
+): FlashcardCheckWriteEntry => {
+  const entry: FlashcardCheckWriteEntry = {
+    response: update.response ?? current?.response ?? '',
+    attempts: update.attempts ?? current?.attempts ?? 0,
+    done: update.done ?? current?.done ?? false,
+  };
+  if (update.flagged ?? current?.flagged) entry.flagged = true;
+  return entry;
+};
+
 export interface FlashcardPlayerProps {
   cards: FlashcardCard[];
   termLanguage: string;
   definitionLanguage: string;
   adapter: FlashcardProgressAdapter;
   initialSettings?: Partial<FlashcardModeSettings>;
+  /** Teacher-locked settings; only Shuffle stays editable, in Flashcards mode. */
+  lockedSettings?: FlashcardModeSettings;
+  check?: FlashcardPlayerCheck;
   allowedModes?: FlashcardMode[];
   theme?: 'light' | 'present';
   seed?: string;
@@ -80,7 +117,9 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
   definitionLanguage,
   adapter,
   initialSettings,
-  allowedModes = ['flashcards', 'write', 'test'],
+  lockedSettings,
+  check,
+  allowedModes: requestedModes = ['flashcards', 'write', 'test'],
   theme = 'light',
   seed = 'flashcards',
   onSettingsChange,
@@ -88,17 +127,26 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
 }) => {
   const { t } = useTranslation();
   const dark = theme === 'present';
-  const [settings, setSettings] = useState<FlashcardModeSettings>(() => ({
-    ...DEFAULT_SETTINGS,
-    ...initialSettings,
-    testTypes:
-      initialSettings?.testTypes && initialSettings.testTypes.length > 0
-        ? initialSettings.testTypes
-        : DEFAULT_SETTINGS.testTypes,
-  }));
+  const locked = Boolean(lockedSettings);
+  const allowedModes = check ? [check.mode] : requestedModes;
+  const masteryThreshold =
+    check?.masteryThreshold ?? DEFAULT_FLASHCARD_MASTERY_THRESHOLD;
+  const [settings, setSettings] = useState<FlashcardModeSettings>(() => {
+    const base = { ...DEFAULT_SETTINGS, ...initialSettings, ...lockedSettings };
+    return {
+      ...base,
+      testTypes:
+        base.testTypes.length > 0 ? base.testTypes : DEFAULT_SETTINGS.testTypes,
+      ...(check ? { favoritesOnly: false } : {}),
+      ...(check?.mode === 'flashcards' ? { hideMastered: true } : {}),
+    };
+  });
   const [mode, setMode] = useState<FlashcardMode>(
     allowedModes[0] ?? 'flashcards'
   );
+  const [checkLog, setCheckLog] = useState<
+    Record<string, FlashcardCheckWriteEntry>
+  >(() => check?.initialCheckLog ?? {});
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deckSignature, setDeckSignature] = useState(() =>
     cards
@@ -114,6 +162,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
       starred: study.starred,
       favoritesOnly: settings.favoritesOnly,
       hideMastered: settings.hideMastered,
+      masteryThreshold,
       shuffle: settings.shuffle,
       seed,
     });
@@ -132,6 +181,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
       starred: session.study.starred,
       favoritesOnly: settings.favoritesOnly,
       hideMastered: settings.hideMastered,
+      masteryThreshold,
       shuffle: settings.shuffle,
       seed,
     });
@@ -151,6 +201,10 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     };
   }, [adapter]);
 
+  useEffect(() => {
+    adapter.noteMode?.(mode);
+  }, [adapter, mode]);
+
   const rebuildQueue = (
     study: FlashcardStudyState,
     nextSettings: FlashcardModeSettings,
@@ -163,6 +217,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
       starred: study.starred,
       favoritesOnly: nextSettings.favoritesOnly,
       hideMastered: nextSettings.hideMastered,
+      masteryThreshold,
       shuffle: nextSettings.shuffle,
       seed,
     });
@@ -213,6 +268,51 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     rebuildQueue(session.study, settings, session.round + 1);
   };
 
+  const recordTest = (test: {
+    types: FlashcardTestType[];
+    count: number;
+    score: number;
+  }): void => {
+    adapter.recordTest?.(test);
+  };
+
+  const answerCheckWrite = (
+    cardId: string,
+    response: string,
+    correct: boolean
+  ): void => {
+    const current = checkLog[cardId];
+    const firstTry = !current || current.attempts === 0;
+    const entry = checkWriteEntry(current, {
+      response: firstTry ? response : current.response,
+      attempts: (current?.attempts ?? 0) + 1,
+      done: correct,
+    });
+    setCheckLog((log) => ({ ...log, [cardId]: entry }));
+    check?.onCheckWrite?.(cardId, entry);
+  };
+
+  const flagCheckWrite = (cardId: string, response: string): void => {
+    const current = checkLog[cardId];
+    const entry = checkWriteEntry(current, {
+      response: current && current.attempts > 0 ? current.response : response,
+      flagged: true,
+    });
+    setCheckLog((log) => ({ ...log, [cardId]: entry }));
+    check?.onCheckWrite?.(cardId, entry);
+  };
+
+  const submitCheck = (answerLog: FlashcardAnswerLogEntry[]): void => {
+    if (!check || check.submitting) return;
+    const flags = cards.flatMap((card) => {
+      const entry = checkLog[card.id];
+      return entry?.flagged
+        ? [{ cardId: card.id, response: entry.response }]
+        : [];
+    });
+    check.onSubmit({ answerLog, flags });
+  };
+
   const restart = (): void => {
     const study = adapter.reset({ keepStarred: true });
     rebuildQueue(study, settings, 1);
@@ -229,11 +329,26 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
       (card) =>
         (!settings.favoritesOnly || favorites.has(card.id)) &&
         (!settings.hideMastered ||
-          !isFlashcardMastered(session.study.cards[card.id]))
+          !isFlashcardMastered(session.study.cards[card.id], masteryThreshold))
     );
-  }, [cards, session.study, settings.favoritesOnly, settings.hideMastered]);
+  }, [
+    cards,
+    masteryThreshold,
+    session.study,
+    settings.favoritesOnly,
+    settings.hideMastered,
+  ]);
 
-  const mastered = countMasteredFlashcards(cards, session.study.cards);
+  const mastered = countMasteredFlashcards(
+    cards,
+    session.study.cards,
+    masteryThreshold
+  );
+  const onRestart = adapter.canReset ? restart : undefined;
+  const checkWriteDone =
+    check?.mode === 'write' &&
+    cards.length > 0 &&
+    cards.every((card) => checkLog[card.id]?.done);
   const masteryPercent = cards.length > 0 ? (mastered / cards.length) * 100 : 0;
   const visibleModes = modes.filter((candidate) =>
     allowedModes.includes(candidate.id)
@@ -393,7 +508,87 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
         className="min-h-0 flex-1 bg-transparent"
         style={{ padding: 'min(14px, 3cqmin)' }}
       >
-        {session.roundCards.length === 0 ? (
+        {check?.mode === 'write' ? (
+          checkWriteDone ? (
+            <CheckSubmitPanel
+              mode="write"
+              dark={dark}
+              submitting={check.submitting}
+              error={check.error}
+              flaggedCount={
+                cards.filter((card) => checkLog[card.id]?.flagged).length
+              }
+              onSubmit={() =>
+                submitCheck(
+                  cards.map((card) => ({
+                    cardId: card.id,
+                    response: checkLog[card.id]?.response ?? '',
+                    attempts: Math.max(1, checkLog[card.id]?.attempts ?? 1),
+                  }))
+                )
+              }
+            />
+          ) : (
+            <WriteMode
+              key="check-write"
+              cards={[
+                ...cards.filter((card) => !checkLog[card.id]?.attempts),
+                ...cards.filter(
+                  (card) =>
+                    (checkLog[card.id]?.attempts ?? 0) > 0 &&
+                    !checkLog[card.id]?.done
+                ),
+              ]}
+              round={session.round}
+              showFirst={settings.showFirst}
+              termLanguage={termLanguage}
+              definitionLanguage={definitionLanguage}
+              strict={settings.strict}
+              starred={session.study.starred}
+              showMarks={adapter.showsMarks}
+              dark={dark}
+              onRecord={record}
+              onStar={star}
+              onNextRound={nextRound}
+              check={{
+                flaggedIds: cards
+                  .filter((card) => checkLog[card.id]?.flagged)
+                  .map((card) => card.id),
+                onAnswer: answerCheckWrite,
+                onFlag: flagCheckWrite,
+              }}
+            />
+          )
+        ) : check?.mode === 'test' ? (
+          <TestMode
+            key="check-test"
+            cards={cards}
+            round={session.round}
+            showFirst={settings.showFirst}
+            termLanguage={termLanguage}
+            definitionLanguage={definitionLanguage}
+            strict={settings.strict}
+            testTypes={settings.testTypes}
+            testCount={settings.testCount}
+            dark={dark}
+            seed={seed}
+            onRecordBatch={recordBatch}
+            check={{
+              submitting: check.submitting,
+              error: check.error,
+              onSubmit: submitCheck,
+            }}
+          />
+        ) : check?.mode === 'flashcards' && session.roundCards.length === 0 ? (
+          <CheckSubmitPanel
+            mode="flashcards"
+            dark={dark}
+            submitting={check.submitting}
+            error={check.error}
+            flaggedCount={0}
+            onSubmit={() => submitCheck([])}
+          />
+        ) : session.roundCards.length === 0 ? (
           <div className="flex h-full items-center justify-center text-center">
             <section
               className={cx(
@@ -445,7 +640,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             onRecord={record}
             onStar={star}
             onNextRound={nextRound}
-            onRestart={restart}
+            onRestart={onRestart}
           />
         ) : mode === 'write' ? (
           <WriteMode
@@ -462,7 +657,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             onRecord={record}
             onStar={star}
             onNextRound={nextRound}
-            onRestart={restart}
+            onRestart={onRestart}
           />
         ) : (
           <TestMode
@@ -476,7 +671,9 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             testTypes={settings.testTypes}
             testCount={settings.testCount}
             dark={dark}
+            seed={seed}
             onRecordBatch={recordBatch}
+            onComplete={recordTest}
           />
         )}
       </main>
@@ -519,8 +716,25 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             className="min-h-0 flex-1 overflow-y-auto"
             style={{ padding: 'min(14px, 3.5cqmin)' }}
           >
+            {locked && (
+              <p
+                className={cx(
+                  'rounded-xl font-bold',
+                  dark
+                    ? 'bg-white/10 text-white/80'
+                    : 'bg-slate-100 text-slate-700'
+                )}
+                style={{
+                  marginBottom: 'min(14px, 3cqmin)',
+                  padding: 'min(10px, 2.3cqmin)',
+                  fontSize: 'min(11px, 3cqmin)',
+                }}
+              >
+                {t('flashcards.settings.lockedNote')}
+              </p>
+            )}
             <SettingsGroup label={t('flashcards.settings.cards')} dark={dark}>
-              {adapter.showsMarks && (
+              {adapter.showsMarks && !check && (
                 <SegmentedSetting
                   label={t('flashcards.settings.study')}
                   value={settings.favoritesOnly ? 'favorites' : 'all'}
@@ -553,10 +767,12 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                     showFirst: value === 'definition' ? 'definition' : 'term',
                   })
                 }
+                disabled={locked}
               />
               <ToggleSetting
                 label={t('flashcards.settings.shuffle')}
                 checked={settings.shuffle}
+                disabled={locked && mode !== 'flashcards'}
                 dark={dark}
                 onChange={(checked) => updateSettings({ shuffle: checked })}
               />
@@ -564,6 +780,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                 <ToggleSetting
                   label={t('flashcards.settings.hideMastered')}
                   checked={settings.hideMastered}
+                  disabled={locked}
                   dark={dark}
                   onChange={(checked) =>
                     updateSettings({ hideMastered: checked })
@@ -581,6 +798,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                   label={t('flashcards.settings.strict')}
                   description={t('flashcards.settings.strictHelp')}
                   checked={settings.strict}
+                  disabled={locked}
                   dark={dark}
                   onChange={(checked) => updateSettings({ strict: checked })}
                 />
@@ -606,7 +824,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                           : undefined
                       }
                       checked={checked && !disabled}
-                      disabled={disabled}
+                      disabled={disabled || locked}
                       dark={dark}
                       onChange={(nextChecked) => {
                         const nextTypes = nextChecked
@@ -636,6 +854,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                         : String(count),
                   }))}
                   dark={dark}
+                  disabled={locked}
                   onChange={(value) =>
                     updateSettings({
                       testCount: value === 'all' ? 'all' : Number(value),
@@ -645,7 +864,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
               </SettingsGroup>
             )}
 
-            {adapter.showsMarks && (
+            {adapter.showsMarks && adapter.canReset && (
               <button
                 type="button"
                 onClick={resetProgress}
@@ -702,8 +921,9 @@ const SegmentedSetting: React.FC<{
   value: string;
   options: Array<{ value: string; label: string }>;
   dark: boolean;
+  disabled?: boolean;
   onChange: (value: string) => void;
-}> = ({ label, value, options, dark, onChange }) => (
+}> = ({ label, value, options, dark, disabled = false, onChange }) => (
   <div>
     <div
       className="font-bold"
@@ -727,8 +947,9 @@ const SegmentedSetting: React.FC<{
           type="button"
           onClick={() => onChange(option.value)}
           aria-pressed={value === option.value}
+          disabled={disabled}
           className={cx(
-            'flex-1 rounded-lg font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300',
+            'flex-1 rounded-lg font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-60',
             value === option.value
               ? 'bg-rose-600 text-white shadow-sm'
               : dark

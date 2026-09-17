@@ -4865,6 +4865,92 @@ service cloud.firestore {
                     && resource.data.teacherUid == request.auth.uid;
     }
 
+    // Flashcards assignments (PR 3). Students read their class's sessions (or one
+    // they hold a pointer for) and write only their own progress; score fields
+    // are written by submitFlashcardCheckV1.
+    match /flashcard_sessions/{sessionId} {
+      function fcTeacherSignedIn() {
+        return request.auth != null
+               && request.auth.token.firebase.sign_in_provider != 'anonymous'
+               && !isStudentRoleUser()
+               && notDeactivated();
+      }
+      function fcHasPointer() {
+        return exists(/databases/$(database)/documents/student_assignments/$(request.auth.uid)/items/$(sessionId));
+      }
+
+      allow get: if request.auth != null && (
+        resource.data.teacherUid == request.auth.uid ||
+        (isStudentRoleUser() &&
+         (passesStudentClassGateList(resource.data.get('classIds', [])) || fcHasPointer()))
+      );
+      allow list: if request.auth != null
+                  && request.auth.token.firebase.sign_in_provider != 'anonymous'
+                  && (resource.data.teacherUid == request.auth.uid || isStudentRoleUser());
+      allow create: if fcTeacherSignedIn()
+                    && request.resource.data.teacherUid == request.auth.uid
+                    && request.resource.data.kind in ['check', 'study']
+                    && request.resource.data.status == 'active'
+                    && request.resource.data.classIds is list
+                    && request.resource.data.cards is list
+                    && request.resource.data.cards.size() > 0
+                    && request.resource.data.cards.size() <= 500;
+      allow update: if fcTeacherSignedIn()
+                    && resource.data.teacherUid == request.auth.uid
+                    && request.resource.data.teacherUid == resource.data.teacherUid
+                    && request.resource.data.kind == resource.data.kind
+                    && request.resource.data.status in ['active', 'ended'];
+      allow delete: if fcTeacherSignedIn() && resource.data.teacherUid == request.auth.uid;
+
+      match /progress/{studentUid} {
+        function fcSession() {
+          return get(/databases/$(database)/documents/flashcard_sessions/$(sessionId)).data;
+        }
+        function fcIsSessionTeacher() {
+          return request.auth != null && fcSession().teacherUid == request.auth.uid;
+        }
+        function fcWithinWindow() {
+          return (fcSession().get('closeAt', null) == null ||
+                  request.time.toMillis() < fcSession().closeAt + assignmentCloseGraceMs()) &&
+                 (fcSession().get('openAt', null) == null ||
+                  request.time.toMillis() >= fcSession().openAt - assignmentOpenGraceMs());
+        }
+        function fcValidProgress() {
+          let data = request.resource.data;
+          return data.keys().hasOnly([
+                   'classId', 'cards', 'starred', 'round', 'studyMs', 'modesUsed',
+                   'tests', 'lastActiveAt', 'checkLog'
+                 ])
+                 && data.classId is string
+                 && data.cards is map
+                 && data.starred is list
+                 && data.round is int
+                 && data.studyMs is int
+                 && data.modesUsed is list
+                 && data.tests is list
+                 && data.tests.size() <= 50
+                 && data.lastActiveAt is int
+                 && (!('checkLog' in data) || data.checkLog is map);
+        }
+
+        allow get: if request.auth != null && (
+          fcIsSessionTeacher() ||
+          (studentUid == request.auth.uid && isStudentRoleUser())
+        );
+        allow list: if fcIsSessionTeacher();
+        allow create, update: if request.auth != null
+                              && studentUid == request.auth.uid
+                              && isStudentRoleUser()
+                              && fcSession().status == 'active'
+                              && (passesStudentClassGateList(fcSession().get('classIds', [])) ||
+                                  exists(/databases/$(database)/documents/student_assignments/$(request.auth.uid)/items/$(sessionId)))
+                              && fcWithinWindow()
+                              && (resource == null || !('submittedAt' in resource.data))
+                              && fcValidProgress();
+        allow delete: if fcIsSessionTeacher() && notDeactivated();
+      }
+    }
+
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;

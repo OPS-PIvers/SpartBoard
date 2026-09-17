@@ -112,3 +112,9 @@ export const cleanupMiniAppAssignmentPointers = onDocumentDeleted(
   (event) =>
     handleAssignmentDeleted(event.params.assignmentId, event.data?.data())
 );
+
+export const cleanupFlashcardAssignmentPointers = onDocumentDeleted(
+  triggerOptions('users/{userId}/flashcard_assignments/{assignmentId}'),
+  (event) =>
+    handleAssignmentDeleted(event.params.assignmentId, event.data?.data())
+);

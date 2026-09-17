@@ -93,7 +93,11 @@ export {
   cleanupVideoActivityAssignmentPointers,
   cleanupGuidedLearningAssignmentPointers,
   cleanupMiniAppAssignmentPointers,
+  cleanupFlashcardAssignmentPointers,
 } from './studentAssignmentCleanup';
+
+// ── Flashcards Check submission (server-graded; docs/plans/FLASHCARDS.md §7) ─
+export { submitFlashcardCheckV1 } from './flashcardCheck';
 
 // ── Organization invitations + membership write-through (Phase 4) ──────────
 export {

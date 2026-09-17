@@ -2525,7 +2525,12 @@
       "quiz": "Quiz",
       "videoActivity": "Video Activity",
       "guidedLearning": "Guided Learning",
-      "miniApp": "Mini App"
+      "miniApp": "Mini App",
+      "flashcards": "Flashcards"
+    },
+    "flashcardKind": {
+      "check": "Check",
+      "study": "Study"
     },
     "searchLabel": "Search assignments",
     "searchPlaceholder": "Search assignments…",
@@ -3216,7 +3221,8 @@
       "mcNeedsFour": "Multiple choice needs at least 4 cards.",
       "questions": "Questions",
       "allCount": "All ({{count}})",
-      "reset": "Reset progress"
+      "reset": "Reset progress",
+      "lockedNote": "Your teacher set these options for this check."
     },
     "summary": {
       "complete": "Round {{round}} complete",
@@ -3251,7 +3257,9 @@
       "continue": "Continue",
       "override": "I was right",
       "acceptedTitle": "Accepted",
-      "acceptedHint": "Close enough. Exact spelling:"
+      "acceptedHint": "Close enough. Exact spelling:",
+      "flag": "I think this is right",
+      "flagged": "Flagged for your teacher"
     },
     "test": {
       "complete": "Test complete",
@@ -3272,6 +3280,43 @@
       "uppercase": "Use uppercase characters",
       "lowercase": "Use lowercase characters",
       "insert": "Insert {{character}}"
+    },
+    "check": {
+      "readyTitle": "Ready to submit",
+      "readyFlashcards": "Every card has reached your teacher's goal. Submit to finish this check.",
+      "readyWrite": "You've answered every card correctly. Submit to finish this check.",
+      "flagged_one": "{{count}} answer flagged for your teacher",
+      "flagged_other": "{{count}} answers flagged for your teacher",
+      "submit": "Submit",
+      "submitting": "Submitting…"
+    },
+    "assignment": {
+      "pageTitle": "{{title}} · Flashcards",
+      "loading": "Loading assignment…",
+      "unavailableTitle": "This assignment isn't available",
+      "unavailableBody": "Check the link, or ask your teacher whether you're assigned to it.",
+      "back": "Back to my assignments",
+      "check": "Check",
+      "study": "Study",
+      "opensTitle": "Not open yet",
+      "opensBody": "This assignment opens {{date}}.",
+      "closedBanner": "This assignment closed on {{date}}. You can keep studying, but your progress no longer goes to your teacher.",
+      "endedBanner": "Your teacher ended this assignment. You can keep studying, but your progress no longer goes to your teacher.",
+      "checkClosedTitle": "This check is closed",
+      "checkClosedBody": "It can't be submitted anymore. Ask your teacher if you need more time.",
+      "submitError": "Your check couldn't be submitted. Try again.",
+      "submittedTitle": "Submitted",
+      "submittedAt": "Submitted {{date}}",
+      "resultsHidden": "Your teacher will share your results later.",
+      "score": "Score",
+      "mastered": "You mastered every card.",
+      "rounds_one": "{{count}} round",
+      "rounds_other": "{{count}} rounds",
+      "studyTime": "{{minutes}} min studied",
+      "missedTitle": "Review missed cards",
+      "yourAnswer": "Your answer:",
+      "correctAnswer": "Correct answer:",
+      "allCorrect": "Every answer was correct."
     }
   },
   "studentAssignment": {

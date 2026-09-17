@@ -1994,7 +1994,12 @@
       "quiz": "Cuestionario",
       "videoActivity": "Actividad de Video",
       "guidedLearning": "Aprendizaje Guiado",
-      "miniApp": "Mini App"
+      "miniApp": "Mini App",
+      "flashcards": "Tarjetas"
+    },
+    "flashcardKind": {
+      "check": "Evaluación",
+      "study": "Estudio"
     },
     "searchLabel": "Buscar tareas",
     "searchPlaceholder": "Buscar tareas…",
@@ -2677,7 +2682,8 @@
       "mcNeedsFour": "La opción múltiple necesita al menos 4 tarjetas.",
       "questions": "Preguntas",
       "allCount": "Todas ({{count}})",
-      "reset": "Restablecer progreso"
+      "reset": "Restablecer progreso",
+      "lockedNote": "Tu docente eligió estas opciones para esta evaluación."
     },
     "summary": {
       "complete": "Ronda {{round}} completada",
@@ -2712,7 +2718,9 @@
       "continue": "Continuar",
       "override": "Yo tenía razón",
       "acceptedTitle": "Aceptada",
-      "acceptedHint": "Casi. Ortografía exacta:"
+      "acceptedHint": "Casi. Ortografía exacta:",
+      "flag": "Creo que está bien",
+      "flagged": "Marcada para tu docente"
     },
     "test": {
       "complete": "Prueba completada",
@@ -2733,6 +2741,43 @@
       "uppercase": "Usar mayúsculas",
       "lowercase": "Usar minúsculas",
       "insert": "Insertar {{character}}"
+    },
+    "check": {
+      "readyTitle": "Lista para entregar",
+      "readyFlashcards": "Todas las tarjetas alcanzaron la meta de tu docente. Entrega para terminar esta evaluación.",
+      "readyWrite": "Respondiste bien todas las tarjetas. Entrega para terminar esta evaluación.",
+      "flagged_one": "{{count}} respuesta marcada para tu docente",
+      "flagged_other": "{{count}} respuestas marcadas para tu docente",
+      "submit": "Entregar",
+      "submitting": "Entregando…"
+    },
+    "assignment": {
+      "pageTitle": "{{title}} · Tarjetas",
+      "loading": "Cargando tarea…",
+      "unavailableTitle": "Esta tarea no está disponible",
+      "unavailableBody": "Revisa el enlace o pregúntale a tu docente si te la asignó.",
+      "back": "Volver a mis tareas",
+      "check": "Evaluación",
+      "study": "Estudio",
+      "opensTitle": "Todavía no está abierta",
+      "opensBody": "Esta tarea se abre el {{date}}.",
+      "closedBanner": "Esta tarea cerró el {{date}}. Puedes seguir estudiando, pero tu progreso ya no llega a tu docente.",
+      "endedBanner": "Tu docente terminó esta tarea. Puedes seguir estudiando, pero tu progreso ya no llega a tu docente.",
+      "checkClosedTitle": "Esta evaluación está cerrada",
+      "checkClosedBody": "Ya no se puede entregar. Pregúntale a tu docente si necesitas más tiempo.",
+      "submitError": "No se pudo entregar tu evaluación. Inténtalo de nuevo.",
+      "submittedTitle": "Entregada",
+      "submittedAt": "Entregada el {{date}}",
+      "resultsHidden": "Tu docente compartirá tus resultados más tarde.",
+      "score": "Puntuación",
+      "mastered": "Dominaste todas las tarjetas.",
+      "rounds_one": "{{count}} ronda",
+      "rounds_other": "{{count}} rondas",
+      "studyTime": "{{minutes}} min de estudio",
+      "missedTitle": "Repasa las tarjetas falladas",
+      "yourAnswer": "Tu respuesta:",
+      "correctAnswer": "Respuesta correcta:",
+      "allCorrect": "Todas las respuestas fueron correctas."
     }
   },
   "studentAssignment": {

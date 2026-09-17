@@ -1,15 +1,31 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { LogIn } from 'lucide-react';
+import { doc, setDoc } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import type {
   FlashcardCard,
   FlashcardSet,
   FlashcardsConfig,
+  StudentOverride,
+  StudentTargetRef,
   WidgetData,
 } from '@/types';
+import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { useFlashcardSets } from '@/hooks/useFlashcardSets';
+import { useFlashcardAssignments } from '@/hooks/useFlashcardAssignments';
+import {
+  buildSetAssignmentTargetsPayload,
+  payloadRequiresCall,
+} from '@/utils/studentTargetRef';
+import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
+import { FlashcardAssignModal } from './FlashcardAssignModal';
+import {
+  rosterHasSsoClass,
+  type FlashcardAssignSubmission,
+} from './utils/flashcardAssign';
 import { useFolders } from '@/hooks/useFolders';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
@@ -41,6 +57,29 @@ const makeSet = (cards: FlashcardCard[] = []): FlashcardSet => {
   };
 };
 
+// Mirrors functions/src/studentAssignmentTargets.ts input/result shapes.
+interface SetAssignmentTargetsCallableInput {
+  assignmentId: string;
+  kind: 'flashcards';
+  sessionId: string;
+  add: StudentTargetRef[];
+  remove: StudentTargetRef[];
+  overridesBySourcedId: Record<string, StudentOverride | null>;
+  excludedTargets?: StudentTargetRef[];
+  window: {
+    openAt?: number | null;
+    closeAt?: number | null;
+    dueAt?: number | null;
+  };
+  targetMode?: 'class' | 'students';
+}
+interface SetAssignmentTargetsCallableResult {
+  written: number;
+  removed: number;
+  skipped: { ref: StudentTargetRef; reason: string }[];
+  skippedExclusions?: { ref: StudentTargetRef; reason: string }[];
+}
+
 const extractSheetId = (url: string): string | null => {
   const match = url.match(/\/spreadsheets(?:\/u\/\d+)?\/d\/([a-zA-Z0-9_-]+)/);
   return match?.[1] ?? null;
@@ -51,15 +90,17 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const config = widget.config as FlashcardsConfig;
   const { user, ensureGoogleScope } = useAuth();
-  const { addToast, updateWidget } = useDashboard();
+  const { addToast, updateWidget, rosters } = useDashboard();
   const { showConfirm } = useDialog();
   const { openPicker } = useGooglePicker();
   const flashcardSets = useFlashcardSets(user?.uid);
+  const { createAssignment } = useFlashcardAssignments(user?.uid);
   const folders = useFolders(user?.uid, 'flashcards');
   const [editingSet, setEditingSet] = useState<FlashcardSet | null>(null);
   const [saving, setSaving] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [sharingSet, setSharingSet] = useState<FlashcardSet | null>(null);
+  const [assigningSet, setAssigningSet] = useState<FlashcardSet | null>(null);
   const presentSet = useMemo(
     () =>
       config.presentSetId
@@ -169,6 +210,102 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
+  const handleAssign = (set: FlashcardSet): void => {
+    if (set.cards.length === 0) {
+      addToast('Add cards to this set before assigning it.', 'error');
+      return;
+    }
+    if (!rosters.some(rosterHasSsoClass)) {
+      addToast(
+        'Assigned flashcards reach students who sign in with ClassLink. Import a ClassLink class in Classes first, or use Share link instead.',
+        'error'
+      );
+      return;
+    }
+    setAssigningSet(set);
+  };
+
+  const performAssign = async ({
+    input,
+    rosterIds,
+    expandedTargeting,
+  }: FlashcardAssignSubmission): Promise<void> => {
+    const { set } = input;
+    try {
+      const sessionId = await createAssignment(input);
+      const payload = buildSetAssignmentTargetsPayload(
+        undefined,
+        expandedTargeting
+      );
+      if (payloadRequiresCall(payload)) {
+        try {
+          const callable = httpsCallable<
+            SetAssignmentTargetsCallableInput,
+            SetAssignmentTargetsCallableResult
+          >(functions, 'setAssignmentTargetsV1');
+          const res = await callable({
+            assignmentId: sessionId,
+            kind: 'flashcards',
+            sessionId,
+            ...payload,
+          });
+          const skippedCount = res.data.skipped?.length ?? 0;
+          if (skippedCount > 0) {
+            addToast(
+              skippedTargetsToastMessage(
+                skippedCount,
+                res.data.skippedExclusions?.length ?? 0
+              ),
+              'error'
+            );
+            if (user?.uid) {
+              await setDoc(
+                doc(db, 'users', user.uid, 'flashcard_assignments', sessionId),
+                { targetSkippedCount: skippedCount },
+                { merge: true }
+              );
+            }
+          }
+        } catch (err) {
+          console.warn(
+            '[Flashcards] Failed to apply individual targeting:',
+            err
+          );
+          addToast(
+            'Could not apply individual targeting. Try editing the assignment again.',
+            'error'
+          );
+        }
+      }
+
+      const nextRosterMap = { ...(config.lastRosterIdsBySetId ?? {}) };
+      if (rosterIds.length > 0) nextRosterMap[set.id] = rosterIds;
+      else delete nextRosterMap[set.id];
+      updateWidget(widget.id, {
+        config: { ...config, lastRosterIdsBySetId: nextRosterMap },
+      });
+      setAssigningSet(null);
+
+      const url = `${window.location.origin}/flashcards/a/${sessionId}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        addToast(
+          `“${set.title}” assigned. Link copied to clipboard.`,
+          'success'
+        );
+      } catch {
+        addToast(`“${set.title}” assigned.`, 'success');
+      }
+    } catch (error) {
+      addToast(
+        error instanceof Error
+          ? error.message
+          : 'Flashcard set could not be assigned.',
+        'error'
+      );
+    }
+  };
+
   const showLibrary = (): void => {
     updateWidget(widget.id, {
       config: { ...config, view: 'library', presentSetId: undefined },
@@ -245,6 +382,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onEdit={setEditingSet}
                 onPresent={showPresent}
                 onShare={setSharingSet}
+                onAssign={handleAssign}
                 onDelete={(set) => void handleDelete(set)}
               />
             )}
@@ -270,6 +408,18 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         onRevoke={flashcardSets.revokeShare}
         onNotice={addToast}
       />
+
+      {assigningSet && (
+        <FlashcardAssignModal
+          key={assigningSet.id}
+          isOpen
+          set={assigningSet}
+          rosters={rosters}
+          initialRosterIds={config.lastRosterIdsBySetId?.[assigningSet.id]}
+          onClose={() => setAssigningSet(null)}
+          onAssign={performAssign}
+        />
+      )}
     </>
   );
 };

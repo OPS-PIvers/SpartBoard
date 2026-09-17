@@ -32,6 +32,8 @@ import { formatOpensLabel } from '@/utils/assignmentWindow';
  *     persisting PII (see MiniAppStudentApp.submit).
  *   - activity-wall: every submission is a fresh random UUID, so a doc
  *     existence probe is meaningless — skip the check entirely.
+ *   - flashcards: progress is keyed by auth.uid and exists once a student
+ *     studies; only a numeric server-written `submittedAt` counts as done.
  *
  * Pseudonym cache: per-(uid, sessionId), de-dupes the callable across
  * concurrent renders. Module-local; survives card remounts within a single
@@ -92,6 +94,7 @@ const DOC_ID_STRATEGY: Record<AssignmentSummary['kind'], DocIdStrategy> = {
   'guided-learning': 'auth-uid',
   'mini-app': 'assignment-pseudonym',
   'activity-wall': 'none',
+  flashcards: 'auth-uid',
 };
 
 /** Subcollection that holds per-student response/submission docs. */
@@ -102,6 +105,7 @@ const RESPONSE_SUBCOLLECTION: Record<AssignmentSummary['kind'], string | null> =
     'guided-learning': 'responses',
     'mini-app': 'submissions',
     'activity-wall': 'submissions',
+    flashcards: 'progress',
   };
 
 export type CompletionState = 'unknown' | 'completed' | 'not-completed';
@@ -183,9 +187,12 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
           )
         );
         if (cancelled) return;
-        const next: CompletionState = snap.exists()
-          ? 'completed'
-          : 'not-completed';
+        // Flashcards: a Study is never completed; a Check is once graded.
+        const done =
+          assignment.kind === 'flashcards'
+            ? snap.exists() && typeof snap.data()?.submittedAt === 'number'
+            : snap.exists();
+        const next: CompletionState = done ? 'completed' : 'not-completed';
         setCompletion(next);
         // Quiz-only: surface the teacher-controlled lockout flag so the row
         // can render a Locked badge and intercept the tap. Strict equality
@@ -218,8 +225,12 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   // rows lock only until the completion check confirms the student actually
   // submitted before the window closed — a genuinely-completed-but-closed
   // assignment shows the normal Completed treatment, not the muted lock.
+  // A closed flashcards Study keeps studying untracked, so it stays clickable.
+  const isFlashcardStudy =
+    assignment.kind === 'flashcards' && assignment.flashcardKind === 'study';
   const showWindowLock =
-    windowState === 'upcoming' || (windowState === 'closed' && !isCompleted);
+    windowState === 'upcoming' ||
+    (windowState === 'closed' && !isCompleted && !isFlashcardStudy);
   // Pending verification only renders when the parent has surfaced an
   // ended-channel row before its completion check resolved. Once the
   // check confirms participation the row re-renders with the standard

@@ -1499,6 +1499,7 @@ describe('parseSetAssignmentTargetsInput', () => {
       'video-activity',
       'guided-learning',
       'mini-app',
+      'flashcards',
     ]) {
       expect(
         parseSetAssignmentTargetsInput({

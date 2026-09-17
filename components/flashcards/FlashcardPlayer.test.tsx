@@ -2,7 +2,11 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FlashcardCard, FlashcardSet } from '@/types';
+import type {
+  FlashcardCard,
+  FlashcardModeSettings,
+  FlashcardSet,
+} from '@/types';
 import { LocalFlashcardAdapter, MemoryFlashcardAdapter } from './adapters';
 import { FlashcardPlayer } from './FlashcardPlayer';
 import { FlashcardShareModal } from './FlashcardShareModal';
@@ -145,6 +149,184 @@ describe('FlashcardPlayer', () => {
     expect(screen.getByPlaceholderText('Type your answer')).toHaveProperty(
       'value',
       'É'
+    );
+  });
+});
+
+const lockedSettings = (
+  overrides: Partial<FlashcardModeSettings> = {}
+): FlashcardModeSettings => ({
+  showFirst: 'term',
+  shuffle: false,
+  favoritesOnly: false,
+  hideMastered: false,
+  strict: false,
+  testTypes: ['mc', 'fib'],
+  testCount: 'all',
+  ...overrides,
+});
+
+describe('FlashcardPlayer Check assignments', () => {
+  beforeEach(() => localStorage.clear());
+
+  const submitWrite = (value: string) => {
+    const answer = screen.getByPlaceholderText('Type your answer');
+    fireEvent.change(answer, { target: { value } });
+    const form = answer.closest('form');
+    if (!form) throw new Error('missing form');
+    fireEvent.submit(form);
+  };
+
+  it('re-queues Write misses and submits first tries with flags', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const onCheckWrite = vi.fn();
+    render(
+      <FlashcardPlayer
+        cards={cards.slice(0, 2)}
+        termLanguage="es-US"
+        definitionLanguage="en-US"
+        adapter={new LocalFlashcardAdapter('check-write')}
+        lockedSettings={lockedSettings({ strict: true })}
+        check={{
+          mode: 'write',
+          submitting: false,
+          onCheckWrite,
+          onSubmit,
+        }}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: 'Test' })).toBeNull();
+    submitWrite('won');
+    await user.click(
+      screen.getByRole('button', { name: 'I think this is right' })
+    );
+    expect(screen.getByText('Flagged for your teacher')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'I was right' })).toBeNull();
+    const retype = screen.getByLabelText('Retype the correct answer');
+    fireEvent.change(retype, { target: { value: 'one' } });
+    const retypeForm = retype.closest('form');
+    if (retypeForm) fireEvent.submit(retypeForm);
+
+    submitWrite('two');
+    expect(screen.getByText('Term · 3/3')).toBeTruthy();
+    submitWrite('one');
+
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    expect(onSubmit).toHaveBeenCalledWith({
+      answerLog: [
+        { cardId: 'one', response: 'won', attempts: 2 },
+        { cardId: 'two', response: 'two', attempts: 1 },
+      ],
+      flags: [{ cardId: 'one', response: 'won' }],
+    });
+    expect(onCheckWrite).toHaveBeenLastCalledWith('one', {
+      response: 'won',
+      attempts: 2,
+      done: true,
+      flagged: true,
+    });
+  });
+
+  it('resumes a Write check from the saved log', () => {
+    render(
+      <FlashcardPlayer
+        cards={cards.slice(0, 2)}
+        termLanguage="es-US"
+        definitionLanguage="en-US"
+        adapter={new LocalFlashcardAdapter('check-resume')}
+        lockedSettings={lockedSettings()}
+        check={{
+          mode: 'write',
+          submitting: false,
+          initialCheckLog: {
+            one: { response: 'one', attempts: 1, done: true },
+          },
+          onSubmit: vi.fn(),
+        }}
+      />
+    );
+    expect(screen.getByRole('heading', { name: 'dos' })).toBeTruthy();
+    expect(screen.getByText('Term · 1/1')).toBeTruthy();
+  });
+
+  it('unlocks Flashcards submit once every card meets the threshold and locks settings', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const progress = Object.fromEntries(
+      cards.map((card) => [card.id, { s: 2 as const, due: 3, c: 2, w: 0 }])
+    );
+    render(
+      <FlashcardPlayer
+        cards={cards}
+        termLanguage="es-US"
+        definitionLanguage="en-US"
+        adapter={
+          new LocalFlashcardAdapter('check-flashcards', {
+            cards: progress,
+            starred: [],
+            round: 3,
+          })
+        }
+        lockedSettings={lockedSettings()}
+        check={{
+          mode: 'flashcards',
+          masteryThreshold: 2,
+          submitting: false,
+          onSubmit,
+        }}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Study settings' }));
+    expect(
+      screen.getByText('Your teacher set these options for this check.')
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Definition' })).toHaveProperty(
+      'disabled',
+      true
+    );
+    expect(screen.queryByRole('button', { name: 'Favorites only' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    expect(onSubmit).toHaveBeenCalledWith({ answerLog: [], flags: [] });
+  });
+
+  it('sends Test answers to the server instead of reviewing them locally', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(
+      <FlashcardPlayer
+        cards={cards}
+        termLanguage="es-US"
+        definitionLanguage="en-US"
+        adapter={new LocalFlashcardAdapter('check-test')}
+        lockedSettings={lockedSettings({ testTypes: ['mc'], testCount: 'all' })}
+        check={{ mode: 'test', submitting: false, onSubmit }}
+      />
+    );
+
+    for (const card of cards) {
+      const section = screen
+        .getByRole('heading', { name: card.term })
+        .closest('section');
+      const option = Array.from(section?.querySelectorAll('button') ?? []).find(
+        (button) => button.textContent === card.definition
+      );
+      if (!option) throw new Error('missing option');
+      await user.click(option);
+    }
+    await user.click(screen.getByRole('button', { name: 'Submit test' }));
+
+    expect(screen.queryByText('Test complete')).toBeNull();
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    const [{ answerLog }] = onSubmit.mock.calls[0] as [
+      { answerLog: Array<{ cardId: string; type: string; response: string }> },
+    ];
+    expect(answerLog).toHaveLength(4);
+    expect(answerLog).toEqual(
+      expect.arrayContaining([{ cardId: 'one', type: 'mc', response: 'one' }])
     );
   });
 });

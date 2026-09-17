@@ -86,7 +86,8 @@ export type AssignTargetingKind =
   | 'quiz'
   | 'video-activity'
   | 'guided-learning'
-  | 'mini-app';
+  | 'mini-app'
+  | 'flashcards';
 
 export interface AssignTargetingQuizContext {
   questions: OverrideEditorQuestion[];

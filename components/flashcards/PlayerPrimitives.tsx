@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { ArrowRight, ArrowUp, RotateCcw } from 'lucide-react';
+import {
+  ArrowRight,
+  ArrowUp,
+  Flag,
+  Loader2,
+  RotateCcw,
+  Send,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   getFlashcardCharBar,
@@ -155,6 +162,129 @@ export const RoundSummary: React.FC<RoundSummaryProps> = ({
             </button>
           )}
         </div>
+      </section>
+    </div>
+  );
+};
+
+interface CheckSubmitPanelProps {
+  mode: 'flashcards' | 'write';
+  dark: boolean;
+  submitting: boolean;
+  error?: string | null;
+  flaggedCount: number;
+  onSubmit: () => void;
+}
+
+export const CheckSubmitPanel: React.FC<CheckSubmitPanelProps> = ({
+  mode,
+  dark,
+  submitting,
+  error,
+  flaggedCount,
+  onSubmit,
+}) => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-transparent">
+      <section
+        className={cx(
+          'w-full max-w-xl rounded-[min(28px,6cqmin)] border text-center shadow-2xl',
+          dark
+            ? 'border-white/15 bg-slate-950/55 text-white'
+            : 'border-slate-200 bg-white text-slate-900'
+        )}
+        style={{ padding: 'min(34px, 7cqmin)' }}
+      >
+        <h2 className="font-black" style={{ fontSize: 'min(30px, 8cqmin)' }}>
+          {t('flashcards.check.readyTitle')}
+        </h2>
+        <p
+          className={dark ? 'text-white/75' : 'text-slate-600'}
+          style={{
+            marginTop: 'min(10px, 2.4cqmin)',
+            fontSize: 'min(14px, 3.6cqmin)',
+          }}
+        >
+          {t(
+            mode === 'flashcards'
+              ? 'flashcards.check.readyFlashcards'
+              : 'flashcards.check.readyWrite'
+          )}
+        </p>
+        {flaggedCount > 0 && (
+          <p
+            className={cx(
+              'inline-flex items-center font-bold',
+              dark ? 'text-amber-100' : 'text-amber-800'
+            )}
+            style={{
+              gap: 'min(6px, 1.4cqmin)',
+              marginTop: 'min(10px, 2.4cqmin)',
+              fontSize: 'min(12px, 3.2cqmin)',
+            }}
+          >
+            <Flag
+              aria-hidden="true"
+              style={{
+                width: 'min(14px, 3.4cqmin)',
+                height: 'min(14px, 3.4cqmin)',
+              }}
+            />
+            {t('flashcards.check.flagged', { count: flaggedCount })}
+          </p>
+        )}
+        {error && (
+          <p
+            role="alert"
+            className={cx(
+              'font-bold',
+              dark ? 'text-rose-100' : 'text-rose-800'
+            )}
+            style={{
+              marginTop: 'min(12px, 3cqmin)',
+              fontSize: 'min(12px, 3.2cqmin)',
+            }}
+          >
+            {error}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={submitting}
+          className="mx-auto inline-flex items-center rounded-full bg-rose-600 font-black text-white shadow-lg shadow-rose-600/25 transition hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-60"
+          style={{
+            gap: 'min(8px, 2cqmin)',
+            marginTop: 'min(22px, 5cqmin)',
+            padding: 'min(12px, 3cqmin) min(22px, 5cqmin)',
+            fontSize: 'min(14px, 3.6cqmin)',
+          }}
+        >
+          {submitting ? (
+            <Loader2
+              aria-hidden="true"
+              className="animate-spin"
+              style={{
+                width: 'min(18px, 4cqmin)',
+                height: 'min(18px, 4cqmin)',
+              }}
+            />
+          ) : (
+            <Send
+              aria-hidden="true"
+              style={{
+                width: 'min(18px, 4cqmin)',
+                height: 'min(18px, 4cqmin)',
+              }}
+            />
+          )}
+          {t(
+            submitting
+              ? 'flashcards.check.submitting'
+              : 'flashcards.check.submit'
+          )}
+        </button>
       </section>
     </div>
   );

@@ -118,6 +118,11 @@ const GuidedLearningStudentApp = lazy(() =>
     (module) => ({ default: module.GuidedLearningStudentApp })
   )
 );
+const FlashcardAssignmentPage = lazy(() =>
+  import('./components/flashcards/FlashcardAssignmentPage').then((module) => ({
+    default: module.FlashcardAssignmentPage,
+  }))
+);
 const PublicFlashcardsPage = lazy(() =>
   import('./components/flashcards/PublicFlashcardsPage').then((module) => ({
     default: module.PublicFlashcardsPage,
@@ -520,7 +525,9 @@ const App: React.FC = () => {
     !isActivityWallGalleryRoute &&
     (pathname === '/activity-wall' || pathname.startsWith('/activity-wall/'));
   const isPollVoteRoute = pathname === '/poll' || pathname.startsWith('/poll/');
-  const isFlashcardsRoute = pathname.startsWith('/flashcards/');
+  const isFlashcardAssignmentRoute = pathname.startsWith('/flashcards/a/');
+  const isFlashcardsRoute =
+    !isFlashcardAssignmentRoute && pathname.startsWith('/flashcards/');
   const isInviteRoute = pathname.startsWith('/invite/');
   const isPlcInviteRoute = pathname.startsWith('/plc-invite/');
   const isStudentLoginRoute =
@@ -560,6 +567,22 @@ const App: React.FC = () => {
       <Suspense fallback={<FullPageLoader />}>
         <ActivityWallGalleryView />
       </Suspense>
+    );
+  }
+
+  // Assigned Flashcards need the SSO student token for progress and submit.
+  if (isFlashcardAssignmentRoute) {
+    return (
+      <DialogProvider>
+        <StudentAuthProvider>
+          <RequireStudentAuth>
+            <Suspense fallback={<FullPageLoader />}>
+              <FlashcardAssignmentPage />
+            </Suspense>
+          </RequireStudentAuth>
+        </StudentAuthProvider>
+        <DialogContainer />
+      </DialogProvider>
     );
   }
 
