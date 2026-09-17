@@ -2710,7 +2710,9 @@
       "retypeLabel": "Richtige Antwort erneut eingeben",
       "retypeError": "Noch nicht ganz – kopiere die richtige Antwort genau.",
       "continue": "Weiter",
-      "override": "Meine Antwort war richtig"
+      "override": "Meine Antwort war richtig",
+      "acceptedTitle": "Akzeptiert",
+      "acceptedHint": "Fast richtig. Genaue Schreibweise:"
     },
     "test": {
       "complete": "Test abgeschlossen",

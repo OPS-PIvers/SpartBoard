@@ -2710,7 +2710,9 @@
       "retypeLabel": "Vuelve a escribir la respuesta correcta",
       "retypeError": "Aún no; copia exactamente la respuesta correcta.",
       "continue": "Continuar",
-      "override": "Yo tenía razón"
+      "override": "Yo tenía razón",
+      "acceptedTitle": "Aceptada",
+      "acceptedHint": "Casi. Ortografía exacta:"
     },
     "test": {
       "complete": "Prueba completada",

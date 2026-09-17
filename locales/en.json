@@ -3249,7 +3249,9 @@
       "retypeLabel": "Retype the correct answer",
       "retypeError": "Not quite — copy the correct answer exactly.",
       "continue": "Continue",
-      "override": "I was right"
+      "override": "I was right",
+      "acceptedTitle": "Accepted",
+      "acceptedHint": "Close enough. Exact spelling:"
     },
     "test": {
       "complete": "Test complete",

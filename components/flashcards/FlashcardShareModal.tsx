@@ -63,7 +63,7 @@ export const FlashcardShareModal: React.FC<FlashcardShareModalProps> = ({
   const publish = async (): Promise<void> => {
     setBusy(true);
     try {
-      const nextShareId = await onPublish(set);
+      const nextShareId = await onPublish({ ...set, publicShareId: shareId });
       setShareId(nextShareId);
       onNotice('Public flashcard link is live.', 'success');
     } catch (error) {

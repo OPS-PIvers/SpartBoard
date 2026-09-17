@@ -22,6 +22,17 @@ describe('flashcard progress adapters', () => {
     expect(adapter.reset()).toEqual({ cards: {}, starred: [], round: 1 });
   });
 
+  it('can restart rounds without clearing favorites', () => {
+    const adapter = new LocalFlashcardAdapter('restart');
+    adapter.record('card-a', true, 1);
+    adapter.star('card-a');
+    expect(adapter.reset({ keepStarred: true })).toEqual({
+      cards: {},
+      starred: ['card-a'],
+      round: 1,
+    });
+  });
+
   it('keeps present-mode marks in memory and hides mark controls', () => {
     const adapter = new MemoryFlashcardAdapter();
     expect(adapter.showsMarks).toBe(false);

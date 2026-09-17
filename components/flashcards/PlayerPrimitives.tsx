@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { ArrowRight, ArrowUp, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -178,13 +178,12 @@ export const CharacterBar: React.FC<CharacterBarProps> = ({
   const { t } = useTranslation();
   const characters = getFlashcardCharBar(language);
   const [uppercase, setUppercase] = useState(false);
-  const shiftPressed = useRef(false);
   if (characters.length === 0) return null;
 
-  const insertCharacter = (character: string): void => {
+  const insertCharacter = (character: string, shiftKey: boolean): void => {
     const input = inputRef.current;
     const nextCharacter =
-      uppercase || shiftPressed.current
+      uppercase !== shiftKey
         ? uppercaseFlashcardCharacter(character)
         : character;
     const start = input?.selectionStart ?? value.length;
@@ -203,12 +202,6 @@ export const CharacterBar: React.FC<CharacterBarProps> = ({
   return (
     <div
       className="flex flex-wrap items-center justify-center"
-      onKeyDown={(event) => {
-        shiftPressed.current = event.shiftKey;
-      }}
-      onKeyUp={(event) => {
-        shiftPressed.current = event.shiftKey;
-      }}
       style={{ gap: 'min(5px, 1.2cqmin)' }}
     >
       <button
@@ -219,6 +212,7 @@ export const CharacterBar: React.FC<CharacterBarProps> = ({
             : 'flashcards.characters.uppercase'
         )}
         aria-pressed={uppercase}
+        onMouseDown={(event) => event.preventDefault()}
         onClick={() => setUppercase((current) => !current)}
         className={cx(
           'rounded-lg border font-black transition',
@@ -248,7 +242,7 @@ export const CharacterBar: React.FC<CharacterBarProps> = ({
               : character,
           })}
           onMouseDown={(event) => event.preventDefault()}
-          onClick={() => insertCharacter(character)}
+          onClick={(event) => insertCharacter(character, event.shiftKey)}
           className={cx(
             'rounded-lg border font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400',
             dark

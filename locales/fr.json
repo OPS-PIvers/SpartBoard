@@ -2710,7 +2710,9 @@
       "retypeLabel": "Ressaisir la bonne réponse",
       "retypeError": "Pas encore — recopie exactement la bonne réponse.",
       "continue": "Continuer",
-      "override": "J'avais raison"
+      "override": "J'avais raison",
+      "acceptedTitle": "Acceptée",
+      "acceptedHint": "Presque. Orthographe exacte :"
     },
     "test": {
       "complete": "Test terminé",

@@ -14,7 +14,7 @@ export interface FlashcardProgressAdapter {
   ) => FlashcardStudyState;
   star: (cardId: string) => FlashcardStudyState;
   flush: (state?: FlashcardStudyState) => void | Promise<void>;
-  reset: () => FlashcardStudyState;
+  reset: (options?: { keepStarred?: boolean }) => FlashcardStudyState;
 }
 
 const cloneState = (state: FlashcardStudyState): FlashcardStudyState => ({
@@ -118,8 +118,11 @@ abstract class BaseFlashcardAdapter implements FlashcardProgressAdapter {
     this.persist();
   }
 
-  reset(): FlashcardStudyState {
-    this.state = createFlashcardStudyState();
+  reset(options?: { keepStarred?: boolean }): FlashcardStudyState {
+    this.state = {
+      ...createFlashcardStudyState(),
+      starred: options?.keepStarred ? [...this.state.starred] : [],
+    };
     this.persist();
     return this.load();
   }

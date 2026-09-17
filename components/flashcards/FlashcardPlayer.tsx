@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
@@ -19,6 +19,7 @@ import type {
 import {
   buildFlashcardRoundQueue,
   countMasteredFlashcards,
+  isFlashcardMastered,
 } from '@/utils/flashcardSchedule';
 import type { FlashcardProgressAdapter } from './adapters';
 import { FlashcardsMode } from './FlashcardsMode';
@@ -213,9 +214,24 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
   };
 
   const restart = (): void => {
+    const study = adapter.reset({ keepStarred: true });
+    rebuildQueue(study, settings, 1);
+  };
+
+  const resetProgress = (): void => {
     const study = adapter.reset();
     rebuildQueue(study, settings, 1);
   };
+
+  const testPool = useMemo(() => {
+    const favorites = new Set(session.study.starred);
+    return cards.filter(
+      (card) =>
+        (!settings.favoritesOnly || favorites.has(card.id)) &&
+        (!settings.hideMastered ||
+          !isFlashcardMastered(session.study.cards[card.id]))
+    );
+  }, [cards, session.study, settings.favoritesOnly, settings.hideMastered]);
 
   const mastered = countMasteredFlashcards(cards, session.study.cards);
   const masteryPercent = cards.length > 0 ? (mastered / cards.length) * 100 : 0;
@@ -313,44 +329,46 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
           className="ml-auto flex min-w-0 items-center"
           style={{ gap: 'min(9px, 2cqmin)' }}
         >
-          <div className="min-w-[min(130px,28cqmin)]">
-            <div
-              className={cx(
-                'flex justify-between font-bold',
-                dark ? 'text-white/75' : 'text-slate-600'
-              )}
-              style={{ fontSize: 'min(10px, 2.7cqmin)' }}
-            >
-              <span>
-                {t('flashcards.player.round', { round: session.round })}
-              </span>
-              <span>
-                {t('flashcards.player.mastered', {
+          {adapter.showsMarks && (
+            <div className="min-w-[min(130px,28cqmin)]">
+              <div
+                className={cx(
+                  'flex justify-between font-bold',
+                  dark ? 'text-white/75' : 'text-slate-600'
+                )}
+                style={{ fontSize: 'min(10px, 2.7cqmin)' }}
+              >
+                <span>
+                  {t('flashcards.player.round', { round: session.round })}
+                </span>
+                <span>
+                  {t('flashcards.player.mastered', {
+                    mastered,
+                    total: cards.length,
+                  })}
+                </span>
+              </div>
+              <div
+                className={cx(
+                  'overflow-hidden rounded-full',
+                  dark ? 'bg-white/15' : 'bg-slate-200'
+                )}
+                style={{
+                  height: 'min(5px, 1.1cqmin)',
+                  marginTop: 'min(4px, .8cqmin)',
+                }}
+                aria-label={t('flashcards.player.masteryLabel', {
                   mastered,
                   total: cards.length,
                 })}
-              </span>
+              >
+                <div
+                  className="h-full rounded-full bg-emerald-500 transition-[width] duration-200 motion-reduce:transition-none"
+                  style={{ width: `${masteryPercent}%` }}
+                />
+              </div>
             </div>
-            <div
-              className={cx(
-                'overflow-hidden rounded-full',
-                dark ? 'bg-white/15' : 'bg-slate-200'
-              )}
-              style={{
-                height: 'min(5px, 1.1cqmin)',
-                marginTop: 'min(4px, .8cqmin)',
-              }}
-              aria-label={t('flashcards.player.masteryLabel', {
-                mastered,
-                total: cards.length,
-              })}
-            >
-              <div
-                className="h-full rounded-full bg-emerald-500 transition-[width] duration-200 motion-reduce:transition-none"
-                style={{ width: `${masteryPercent}%` }}
-              />
-            </div>
-          </div>
+          )}
           <button
             type="button"
             onClick={() => setSettingsOpen((open) => !open)}
@@ -449,7 +467,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
         ) : (
           <TestMode
             key={modeKey}
-            cards={session.roundCards}
+            cards={testPool}
             round={session.round}
             showFirst={settings.showFirst}
             termLanguage={termLanguage}
@@ -542,14 +560,16 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                 dark={dark}
                 onChange={(checked) => updateSettings({ shuffle: checked })}
               />
-              <ToggleSetting
-                label={t('flashcards.settings.hideMastered')}
-                checked={settings.hideMastered}
-                dark={dark}
-                onChange={(checked) =>
-                  updateSettings({ hideMastered: checked })
-                }
-              />
+              {adapter.showsMarks && (
+                <ToggleSetting
+                  label={t('flashcards.settings.hideMastered')}
+                  checked={settings.hideMastered}
+                  dark={dark}
+                  onChange={(checked) =>
+                    updateSettings({ hideMastered: checked })
+                  }
+                />
+              )}
             </SettingsGroup>
 
             {(mode === 'write' || mode === 'test') && (
@@ -570,7 +590,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             {mode === 'test' && (
               <SettingsGroup label={t('flashcards.settings.test')} dark={dark}>
                 {(['mc', 'fib'] satisfies FlashcardTestType[]).map((type) => {
-                  const disabled = type === 'mc' && cards.length < 4;
+                  const disabled = type === 'mc' && testPool.length < 4;
                   const checked = settings.testTypes.includes(type);
                   return (
                     <ToggleSetting
@@ -606,12 +626,12 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                 <SegmentedSetting
                   label={t('flashcards.settings.questions')}
                   value={String(settings.testCount)}
-                  options={testCountOptions(cards.length).map((count) => ({
+                  options={testCountOptions(testPool.length).map((count) => ({
                     value: String(count),
                     label:
                       count === 'all'
                         ? t('flashcards.settings.allCount', {
-                            count: cards.length,
+                            count: testPool.length,
                           })
                         : String(count),
                   }))}
@@ -628,7 +648,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             {adapter.showsMarks && (
               <button
                 type="button"
-                onClick={restart}
+                onClick={resetProgress}
                 className={cx(
                   'flex w-full items-center justify-center rounded-xl border font-black transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300',
                   dark

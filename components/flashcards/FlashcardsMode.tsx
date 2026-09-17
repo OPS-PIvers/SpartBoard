@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowDown,
@@ -39,7 +39,9 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
   onRestart,
 }) => {
   const { t } = useTranslation();
+  const rootRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
+  const [slideDirection, setSlideDirection] = useState<-1 | 1>(1);
   const [flipped, setFlipped] = useState(false);
   const [summary, setSummary] = useState(false);
   const [correct, setCorrect] = useState(0);
@@ -49,6 +51,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
   const move = useCallback(
     (direction: -1 | 1): void => {
       if (cards.length === 0) return;
+      setSlideDirection(direction);
       setIndex(
         (current) => (current + direction + cards.length) % cards.length
       );
@@ -65,6 +68,7 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
       else setWrong((count) => count + 1);
       if (index >= cards.length - 1) setSummary(true);
       else {
+        setSlideDirection(1);
         setIndex((current) => current + 1);
         setFlipped(false);
       }
@@ -77,9 +81,8 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
       const target = event.target;
       if (
         target instanceof HTMLElement &&
-        target.closest(
-          'input, textarea, select, button, [contenteditable="true"]'
-        )
+        (target.closest('input, textarea, select, [contenteditable="true"]') ||
+          (target.closest('button') && !rootRef.current?.contains(target)))
       ) {
         return;
       }
@@ -128,29 +131,43 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
     height: 'min(20px, 4.5cqmin)',
   };
 
+  const answerSide = showFirst === 'term' ? 'definition' : 'term';
+
   return (
     <div
+      ref={rootRef}
       className="flex h-full min-h-0 w-full flex-col items-center justify-center bg-transparent"
       style={{ gap: 'min(14px, 3cqmin)' }}
     >
-      <div className="relative min-h-0 w-full max-w-3xl flex-1 perspective-1000">
+      <div
+        key={`${card.id}:${index}`}
+        className={cx(
+          'relative min-h-0 w-full max-w-3xl flex-1 perspective-1000 animate-in fade-in duration-200',
+          slideDirection === 1
+            ? 'motion-safe:slide-in-from-right-8'
+            : 'motion-safe:slide-in-from-left-8'
+        )}
+      >
+        <span className="sr-only" aria-live="polite">
+          {flipped
+            ? `${t(`flashcards.cards.${answerSide}`)}: ${sides.answer}`
+            : ''}
+        </span>
         <button
           type="button"
           aria-pressed={flipped}
-          aria-label={
-            flipped
-              ? t('flashcards.cards.flipToPrompt')
-              : t('flashcards.cards.flipToAnswer')
-          }
+          aria-label={`${t(`flashcards.cards.${flipped ? answerSide : showFirst}`)}: ${flipped ? sides.answer : sides.prompt}. ${t(flipped ? 'flashcards.cards.flipToPrompt' : 'flashcards.cards.flipToAnswer')}`}
           onClick={() => setFlipped((current) => !current)}
           className={cx(
-            'relative h-full w-full rounded-[min(30px,6cqmin)] text-left shadow-2xl transition-transform duration-500 [transform-style:preserve-3d] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-400',
-            flipped && '[transform:rotateY(180deg)]'
+            'relative h-full w-full rounded-[min(30px,6cqmin)] text-left shadow-2xl transition-transform duration-500 [transform-style:preserve-3d] motion-reduce:transition-none motion-reduce:[transform:none] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-400',
+            flipped && 'motion-safe:[transform:rotateY(180deg)]'
           )}
         >
           <div
+            aria-hidden="true"
             className={cx(
-              'absolute inset-0 flex flex-col items-center justify-center overflow-hidden rounded-[min(30px,6cqmin)] border text-center [backface-visibility:hidden]',
+              'absolute inset-0 flex flex-col items-center justify-center overflow-hidden rounded-[min(30px,6cqmin)] border text-center [backface-visibility:hidden] motion-reduce:transition-opacity motion-reduce:duration-200',
+              flipped && 'motion-reduce:opacity-0',
               dark
                 ? 'border-white/15 bg-slate-950/65 text-white'
                 : 'border-slate-200 bg-white text-slate-900'
@@ -190,8 +207,10 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
             </span>
           </div>
           <div
+            aria-hidden="true"
             className={cx(
-              'absolute inset-0 flex flex-col items-center justify-center overflow-hidden rounded-[min(30px,6cqmin)] border text-center [backface-visibility:hidden] [transform:rotateY(180deg)]',
+              'absolute inset-0 flex flex-col items-center justify-center overflow-hidden rounded-[min(30px,6cqmin)] border text-center [backface-visibility:hidden] [transform:rotateY(180deg)] motion-reduce:[transform:none] motion-reduce:transition-opacity motion-reduce:duration-200',
+              !flipped && 'motion-reduce:opacity-0',
               dark
                 ? 'border-cyan-200/20 bg-cyan-950/65 text-white'
                 : 'border-rose-200 bg-rose-50 text-rose-950'

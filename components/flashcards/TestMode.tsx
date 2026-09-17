@@ -67,9 +67,14 @@ const buildQuestions = (
     const type = usableTypes[index % usableTypes.length] ?? 'fib';
     const answer = getFlashcardSides(card, showFirst).answer;
     const distractors = stableShuffle(
-      cards
-        .filter((candidate) => candidate.id !== card.id)
-        .map((candidate) => getFlashcardSides(candidate, showFirst).answer),
+      [
+        ...new Set(
+          cards
+            .filter((candidate) => candidate.id !== card.id)
+            .map((candidate) => getFlashcardSides(candidate, showFirst).answer)
+            .filter((candidate) => candidate !== answer)
+        ),
+      ],
       `${seed}:${card.id}:distractors`
     ).slice(0, 3);
     return {
@@ -190,6 +195,15 @@ export const TestMode: React.FC<TestModeProps> = ({
     const nextResults = questions.map((question) => {
       const sides = getFlashcardSides(question.card, showFirst);
       const response = answers[question.id] ?? '';
+      if (question.type === 'mc') {
+        return {
+          cardId: question.card.id,
+          prompt: sides.prompt,
+          response,
+          expected: sides.answer,
+          correct: response === sides.answer,
+        };
+      }
       const match = matchFlashcardAnswer(response, sides.answer, {
         language: answerLanguage,
         strict,

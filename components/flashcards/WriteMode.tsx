@@ -50,12 +50,16 @@ export const WriteMode: React.FC<WriteModeProps> = ({
   const [response, setResponse] = useState('');
   const [retype, setRetype] = useState('');
   const [wrongReview, setWrongReview] = useState<WrongReview | null>(null);
+  const [acceptedReview, setAcceptedReview] = useState<WrongReview | null>(
+    null
+  );
   const [retypeError, setRetypeError] = useState(false);
   const [summary, setSummary] = useState(false);
   const [correct, setCorrect] = useState(0);
   const [wrong, setWrong] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const retypeRef = useRef<HTMLInputElement>(null);
+  const continueRef = useRef<HTMLButtonElement>(null);
   const card = cards[index];
   const answerLanguage =
     showFirst === 'term' ? definitionLanguage : termLanguage;
@@ -68,6 +72,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
     setResponse('');
     setRetype('');
     setWrongReview(null);
+    setAcceptedReview(null);
     setRetypeError(false);
     if (index >= cards.length - 1) setSummary(true);
     else {
@@ -88,8 +93,31 @@ export const WriteMode: React.FC<WriteModeProps> = ({
       window.requestAnimationFrame(() => retypeRef.current?.focus());
       return;
     }
+    if (match.result === 'accepted') {
+      setAcceptedReview({ response, match });
+      window.requestAnimationFrame(() => continueRef.current?.focus());
+      return;
+    }
     advance(true);
   };
+
+  const renderDiff = (review: WrongReview): React.ReactNode =>
+    review.match.diff
+      .filter((segment) => segment.type !== 'removed')
+      .map((segment, segmentIndex) => (
+        <mark
+          key={`${segment.type}-${segmentIndex}`}
+          className={cx(
+            'bg-transparent text-inherit',
+            segment.type === 'added' &&
+              (dark
+                ? 'rounded bg-emerald-300/20 text-emerald-100'
+                : 'rounded bg-emerald-200 text-emerald-950')
+          )}
+        >
+          {segment.text}
+        </mark>
+      ));
 
   const checkRetype = (): void => {
     if (!wrongReview || !retype.trim()) return;
@@ -192,7 +220,46 @@ export const WriteMode: React.FC<WriteModeProps> = ({
         )}
       </section>
 
-      {!wrongReview ? (
+      {acceptedReview ? (
+        <div
+          role="status"
+          className={cx(
+            'w-full rounded-[min(22px,5cqmin)] border text-center',
+            dark
+              ? 'border-emerald-300/25 bg-emerald-950/35 text-white'
+              : 'border-emerald-200 bg-emerald-50 text-emerald-950'
+          )}
+          style={{ padding: 'min(18px, 4cqmin)' }}
+        >
+          <p className="font-black" style={{ fontSize: 'min(14px, 3.6cqmin)' }}>
+            {t('flashcards.write.acceptedTitle')}
+          </p>
+          <p
+            style={{
+              marginTop: 'min(8px, 2cqmin)',
+              fontSize: 'min(13px, 3.4cqmin)',
+            }}
+          >
+            <span className="font-black">
+              {t('flashcards.write.acceptedHint')}
+            </span>{' '}
+            <span>{renderDiff(acceptedReview)}</span>
+          </p>
+          <button
+            ref={continueRef}
+            type="button"
+            onClick={() => advance(true)}
+            className="mx-auto flex rounded-full bg-rose-600 font-black text-white transition hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300"
+            style={{
+              marginTop: 'min(12px, 3cqmin)',
+              padding: 'min(10px, 2.4cqmin) min(18px, 4cqmin)',
+              fontSize: 'min(12px, 3.2cqmin)',
+            }}
+          >
+            {t('flashcards.write.continue')}
+          </button>
+        </div>
+      ) : !wrongReview ? (
         <form
           className="w-full"
           onSubmit={(event) => {
@@ -278,24 +345,7 @@ export const WriteMode: React.FC<WriteModeProps> = ({
               <span className="font-black">
                 {t('flashcards.write.correct')}{' '}
               </span>
-              <span>
-                {wrongReview.match.diff
-                  .filter((segment) => segment.type !== 'removed')
-                  .map((segment, segmentIndex) => (
-                    <mark
-                      key={`${segment.type}-${segmentIndex}`}
-                      className={cx(
-                        'bg-transparent text-inherit',
-                        segment.type === 'added' &&
-                          (dark
-                            ? 'rounded bg-emerald-300/20 text-emerald-100'
-                            : 'rounded bg-emerald-200 text-emerald-950')
-                      )}
-                    >
-                      {segment.text}
-                    </mark>
-                  ))}
-              </span>
+              <span>{renderDiff(wrongReview)}</span>
             </div>
           </div>
           <p
