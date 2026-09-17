@@ -33,6 +33,9 @@ export interface OpenPickerOptions {
    * file grants this token per-file `drive.file` access — no broader scope.
    */
   token?: string;
+  /** Restrict the view to these Drive files (e.g. files shared with a sub). Ignores `mode`. */
+  fileIds?: string[];
+  title?: string;
 }
 
 /** Max time (ms) to wait for the gapi script to become available. */
@@ -155,13 +158,19 @@ export const useGooglePicker = () => {
                   ? 'application/vnd.google-apps.spreadsheet'
                   : SUPPORTED_MIME_TYPES;
 
-            const docsView = new google.picker.DocsView(viewId)
-              // Enable folder navigation for docs AND sheets so teachers can
-              // browse into Drive subfolders (the app itself files quizzes under
-              // `SpartBoard/Quizzes/`); only the image picker stays flat.
-              .setIncludeFolders(mode !== 'images')
-              .setMimeTypes(mimeTypes)
-              .setMode(google.picker.DocsViewMode.LIST);
+            const fileIds = options?.fileIds ?? [];
+            const docsView =
+              fileIds.length > 0
+                ? new google.picker.DocsView(google.picker.ViewId.DOCS)
+                    .setFileIds(fileIds.join(','))
+                    .setMode(google.picker.DocsViewMode.LIST)
+                : new google.picker.DocsView(viewId)
+                    // Enable folder navigation for docs AND sheets so teachers can
+                    // browse into Drive subfolders (the app itself files quizzes under
+                    // `SpartBoard/Quizzes/`); only the image picker stays flat.
+                    .setIncludeFolders(mode !== 'images')
+                    .setMimeTypes(mimeTypes)
+                    .setMode(google.picker.DocsViewMode.LIST);
 
             // Only the dedicated Google API key is valid for Picker — the
             // Firebase API key isn't authorized for Picker API in GCP and
@@ -173,16 +182,17 @@ export const useGooglePicker = () => {
               | undefined;
 
             const title =
-              mode === 'images'
+              options?.title ??
+              (mode === 'images'
                 ? 'Select an image from Drive'
                 : mode === 'sheets'
                   ? 'Select a Google Sheet'
-                  : 'Select a file for AI context';
+                  : 'Select a file for AI context');
 
             const builder = new google.picker.PickerBuilder()
               .addView(docsView)
               .setOAuthToken(oauthToken)
-              .setMaxItems(1)
+              .setMaxItems(Math.max(1, fileIds.length))
               .setTitle(title)
               .setCallback((response: google.picker.ResponseObject) => {
                 const action = response[
@@ -208,6 +218,10 @@ export const useGooglePicker = () => {
                   pickerActiveRef.current = false;
                 }
               });
+
+            if (fileIds.length > 1) {
+              builder.enableFeature(google.picker.Feature.MULTISELECT_ENABLED);
+            }
 
             if (apiKey) {
               builder.setDeveloperKey(apiKey);

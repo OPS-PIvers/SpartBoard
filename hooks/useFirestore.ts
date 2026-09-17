@@ -28,6 +28,7 @@ import {
   SharedBoardIntendedMode,
   SharedBoardParticipant,
   SubstituteShareDriveGrant,
+  SubstituteShareRoster,
   WidgetData,
 } from '@/types';
 
@@ -536,6 +537,7 @@ export const useFirestore = (userId: string | null) => {
       buildingId: string;
       subEmails?: string[];
       driveGrants?: SubstituteShareDriveGrant[];
+      sharedRosters?: SubstituteShareRoster[];
       hostDisplayName?: string;
     }): Promise<string> => {
       const {
@@ -544,6 +546,7 @@ export const useFirestore = (userId: string | null) => {
         buildingId,
         subEmails,
         driveGrants,
+        sharedRosters,
         hostDisplayName,
       } = params;
 
@@ -554,6 +557,7 @@ export const useFirestore = (userId: string | null) => {
             ? ({ originalAuthorName: hostDisplayName } as Partial<Dashboard>)
             : {}),
           intendedMode: 'substitute',
+          ...(sharedRosters?.length ? { sharedRosters } : {}),
         } as Dashboard);
       }
 
@@ -589,6 +593,7 @@ export const useFirestore = (userId: string | null) => {
         initialState,
         ...(subEmails && subEmails.length > 0 ? { subEmails } : {}),
         ...(driveGrants && driveGrants.length > 0 ? { driveGrants } : {}),
+        ...(sharedRosters && sharedRosters.length > 0 ? { sharedRosters } : {}),
         participants: {},
         updatedAt: Date.now(),
         updatedBy: userId,

@@ -5,7 +5,8 @@ import { SubsDashboardProvider } from '@/components/subs/SubsDashboardProvider';
 import { useSubsControl } from '@/components/subs/SubsControlContext';
 import { useDashboard } from '@/context/useDashboard';
 import type { SubstituteShareDoc } from '@/hooks/useSubstituteShares';
-import type { WidgetData } from '@/types';
+import type { ClassRoster, WidgetData } from '@/types';
+import type { SubstituteRosterState } from '@/hooks/useSubstituteRosters';
 
 function makeShare(
   overrides: Partial<SubstituteShareDoc> = {}
@@ -189,5 +190,52 @@ describe('SubsDashboardProvider', () => {
         }
       ).counts.hot
     ).toBe(5);
+  });
+
+  it('exposes loaded rosters and switches the active roster locally', () => {
+    const roster = (id: string, name: string): ClassRoster => ({
+      id,
+      name,
+      driveFileId: `file-${id}`,
+      studentCount: 1,
+      createdAt: 0,
+      students: [
+        { id: `${id}-s1`, firstName: 'Ada', lastName: 'L', pin: '01' },
+      ],
+    });
+    const rosterState: SubstituteRosterState = {
+      rosters: [roster('r1', 'Period 1'), roster('r2', 'Period 2')],
+      status: 'ready',
+      loadRosters: () => Promise.resolve(),
+    };
+    interface RosterHandle {
+      dash: ReturnType<typeof useDashboard>;
+      status: string;
+    }
+    let handle: RosterHandle | null = null;
+    function RosterProbe({ onReady }: { onReady: (h: RosterHandle) => void }) {
+      const dash = useDashboard();
+      const { rosterStatus } = useSubsControl();
+      React.useEffect(() => {
+        onReady({ dash, status: rosterStatus });
+      });
+      return null;
+    }
+    render(
+      <SubsDashboardProvider share={makeShare()} rosterState={rosterState}>
+        <RosterProbe onReady={(h) => (handle = h)} />
+      </SubsDashboardProvider>
+    );
+    const read = (): RosterHandle => {
+      if (!handle) throw new Error('Probe did not render');
+      return handle;
+    };
+    expect(read().status).toBe('ready');
+    expect(read().dash.rosters.map((r) => r.id)).toEqual(['r1', 'r2']);
+    expect(read().dash.activeRosterId).toBe('r1');
+    act(() => {
+      read().dash.setActiveRoster('r2');
+    });
+    expect(read().dash.activeRosterId).toBe('r2');
   });
 });

@@ -1011,7 +1011,7 @@ service cloud.firestore {
       // Host or admin: full update, but intendedMode is locked to its create value and
       // any plcId change requires current membership of the target PLC (admins bypass).
       // Substitute addendum: all lifecycle fields (buildingId, initialState, expiresAt,
-      // subEmails, driveGrants) are pinned to create-time values so the frozen,
+      // subEmails, driveGrants, sharedRosters) are pinned to create-time values so the frozen,
       // time-boxed snapshot can't drift. Admin-overridable.
       allow update: if request.auth != null &&
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin()) &&
@@ -1035,7 +1035,8 @@ service cloud.firestore {
             request.resource.data.get('initialState', null) == resource.data.get('initialState', null) &&
             request.resource.data.get('expiresAt', null) == resource.data.get('expiresAt', null) &&
             request.resource.data.get('subEmails', null) == resource.data.get('subEmails', null) &&
-            request.resource.data.get('driveGrants', null) == resource.data.get('driveGrants', null)
+            request.resource.data.get('driveGrants', null) == resource.data.get('driveGrants', null) &&
+            request.resource.data.get('sharedRosters', null) == resource.data.get('sharedRosters', null)
           )
         ) &&
         (

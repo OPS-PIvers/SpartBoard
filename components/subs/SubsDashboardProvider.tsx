@@ -19,8 +19,10 @@
  *   exposed via SubsControlContext so SubProfileToolbar.onReset has somewhere
  *   to point. The canvas key channel (`resetKey`) is owned by SubBoardScreen
  *   and driven directly from there.
+ * - `rosters` come from `rosterState` (the share's rosters loaded from the
+ *   sub's Drive access); switching the active roster is local only.
  * - Every other action on DashboardContextValue is a no-op. Subs never see
- *   a sidebar, dock, roster picker, sharing UI, or annotations.
+ *   a sidebar, dock, sharing UI, or annotations.
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
@@ -41,7 +43,6 @@ import type {
   GradeFilter,
   GlobalStyle,
   AddWidgetOverrides,
-  ClassRoster,
   WidgetConfig,
   GridPosition,
 } from '@/types';
@@ -50,9 +51,11 @@ import {
   type SubsControlContextValue,
 } from './SubsControlContext';
 import type { SubstituteShareDoc } from '@/hooks/useSubstituteShares';
+import type { SubstituteRosterState } from '@/hooks/useSubstituteRosters';
 
 interface SubsDashboardProviderProps {
   share: SubstituteShareDoc;
+  rosterState?: SubstituteRosterState;
   children: React.ReactNode;
 }
 
@@ -62,6 +65,11 @@ const NOOP = () => {
 const NOOP_ASYNC = (): Promise<void> => Promise.resolve();
 const NOOP_ASYNC_STRING = (): Promise<string> => Promise.resolve('');
 const EMPTY_ARRAY: never[] = [];
+const NO_ROSTERS: SubstituteRosterState = {
+  rosters: EMPTY_ARRAY,
+  status: 'none',
+  loadRosters: NOOP_ASYNC,
+};
 const DEFAULT_ANNOTATION_STATE: AnnotationState = {
   objects: [],
   color: '#ef4444',
@@ -81,8 +89,15 @@ function cloneInitialWidgets(source: WidgetData[]): WidgetData[] {
 
 export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   share,
+  rosterState = NO_ROSTERS,
   children,
 }) => {
+  const { rosters, status: rosterStatus, loadRosters } = rosterState;
+  const [selectedRosterId, setSelectedRosterId] = useState<string | null>(null);
+  const activeRosterId = rosters.some((r) => r.id === selectedRosterId)
+    ? selectedRosterId
+    : (rosters[0]?.id ?? null);
+
   // Freeze the reset target at mount time. Firestore onSnapshot may fire
   // new array references for the same logical data; useMemo would chase
   // those identities and silently retarget reset. Use lazy useState so
@@ -242,8 +257,8 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       pendingVideoActivityShareId: null,
       pendingAssignmentSetupId: null,
       pendingAssignmentEditId: null,
-      rosters: EMPTY_ARRAY as ClassRoster[],
-      activeRosterId: null,
+      rosters,
+      activeRosterId,
 
       // === No-op actions =================================================
       // Toasts go nowhere — subs cannot see them and never trigger flows
@@ -382,20 +397,19 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       clearPendingAssignmentEdit: NOOP,
       setPendingAssignmentEdit: NOOP,
 
-      // Roster CRUD — subs read rosters via /subs UI separately, not
-      // through this context.
+      // Roster CRUD — subs only read the shared rosters.
       addRoster: () => Promise.resolve(''),
       updateRoster: NOOP_ASYNC as DashboardContextValue['updateRoster'],
       deleteRoster: NOOP_ASYNC as DashboardContextValue['deleteRoster'],
-      setActiveRoster: NOOP,
+      setActiveRoster: setSelectedRosterId,
       setAbsentStudents:
         NOOP_ASYNC as DashboardContextValue['setAbsentStudents'],
     };
-  }, [activeDashboard, updateWidget, bringToFront]);
+  }, [activeDashboard, updateWidget, bringToFront, rosters, activeRosterId]);
 
   const controlValue = useMemo<SubsControlContextValue>(
-    () => ({ resetWidgets }),
-    [resetWidgets]
+    () => ({ resetWidgets, rosterStatus, loadRosters }),
+    [resetWidgets, rosterStatus, loadRosters]
   );
 
   return (

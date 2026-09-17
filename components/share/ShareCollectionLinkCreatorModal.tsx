@@ -9,7 +9,7 @@ import {
   Check,
   Trash2,
 } from 'lucide-react';
-import type { Collection, Dashboard } from '@/types';
+import type { Collection, Dashboard, SubstituteShareRoster } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { usePresetSubEmails } from '@/hooks/usePresetSubEmails';
 import { BUILDINGS } from '@/config/buildings';
@@ -120,14 +120,17 @@ export const ShareCollectionLinkCreatorModal: FC<
         if (mode === 'copy') {
           shareId = await shareCollection({ collection, boards });
         } else {
-          // Mirror the single-board substitute share: surface the active
-          // roster's Drive file to the listed subs (read-only, auto-revoked
-          // on expiry). v1 = active roster only; empty list is fine (share
-          // still works, just without sub-readable roster names).
+          // Mirror the single-board substitute share: active roster only.
           const activeRoster = rosters.find((r) => r.id === activeRosterId);
-          const rosterDriveFileIds =
+          const sharedRosters: SubstituteShareRoster[] | undefined =
             subEmails.length > 0 && activeRoster?.driveFileId
-              ? [activeRoster.driveFileId]
+              ? [
+                  {
+                    id: activeRoster.id,
+                    name: activeRoster.name,
+                    driveFileId: activeRoster.driveFileId,
+                  },
+                ]
               : undefined;
           shareId = await shareSubstituteCollection({
             collection,
@@ -136,7 +139,7 @@ export const ShareCollectionLinkCreatorModal: FC<
             expiresAt: Date.now() + ttlMs,
             buildingId,
             ...(subEmails.length > 0 ? { subEmails } : {}),
-            ...(rosterDriveFileIds ? { rosterDriveFileIds } : {}),
+            ...(sharedRosters ? { sharedRosters } : {}),
           });
         }
       } catch (err) {

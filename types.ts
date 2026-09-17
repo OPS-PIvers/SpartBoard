@@ -7644,6 +7644,13 @@ export interface SubstituteShareDriveGrant {
   permissionId: string;
 }
 
+/** Non-PII roster metadata on a substitute share; names stay in the Drive file. */
+export interface SubstituteShareRoster {
+  id: string;
+  name: string;
+  driveFileId: string;
+}
+
 /**
  * Substitute-mode-only fields persisted on `/shared_boards/{shareId}` when
  * `intendedMode === 'substitute'`. The widgets field on the doc carries the
@@ -7661,6 +7668,8 @@ export interface SubstituteShareFields {
   subEmails?: string[];
   /** Phase 5: per-email/file Drive permission ids for revocation. */
   driveGrants?: SubstituteShareDriveGrant[];
+  /** Rosters the sub may load from Drive; the first is the active one. */
+  sharedRosters?: SubstituteShareRoster[];
 }
 
 /** Per-participant entry on a /shared_boards/{shareId} doc. */
@@ -9032,6 +9041,8 @@ export interface SharedCollection {
    * Swept by `useReconcileExpiredSubShares` / `expireSubShares` on expiry.
    */
   driveGrants?: SubstituteShareDriveGrant[];
+  /** Substitute-only: mirrors `SubstituteShareFields.sharedRosters`. */
+  sharedRosters?: SubstituteShareRoster[];
 }
 
 /**
@@ -9055,7 +9066,8 @@ export interface CollectionSubstituteShareInput {
   expiresAt: number;
   buildingId: string;
   subEmails?: string[];
-  rosterDriveFileIds?: string[];
+  /** Rosters whose Drive files are granted to `subEmails` (active roster first). */
+  sharedRosters?: SubstituteShareRoster[];
 }
 
 /**
