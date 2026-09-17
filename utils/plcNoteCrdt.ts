@@ -30,10 +30,15 @@ import type { PlcActionItem } from '@/types';
 export const MAX_UPDATE_PAYLOAD_CHARS = 200_000;
 
 /**
- * Largest run of text inserted in one transaction. Base64 inflates a Yjs
- * update by about 4/3, so this leaves ample room under the payload ceiling.
+ * Largest run of text inserted in one transaction, measured in UTF-8 bytes.
+ *
+ * Yjs encodes text as UTF-8 before the payload is base64-encoded, so a budget
+ * in UTF-16 code units silently under-counts every non-Latin script: 64,000
+ * CJK characters are one UTF-16 unit each but three UTF-8 bytes each, and
+ * encode to ~256,000 base64 chars — over the ceiling. Budgeting bytes keeps a
+ * Cyrillic or CJK paste as publishable as an ASCII one.
  */
-const MAX_INSERT_CHUNK = 64_000;
+const MAX_INSERT_CHUNK_BYTES = 100_000;
 
 const TITLE_KEY = 'title';
 const BODY_KEY = 'body';
@@ -121,17 +126,36 @@ export function applyTextEdit(text: Y.Text, next: string): void {
   }
 }
 
-/** Split a run of text into chunks, never cutting a surrogate pair in half. */
+/** UTF-8 cost of one code point, matching how Yjs encodes text. */
+function utf8Cost(codePoint: number): number {
+  if (codePoint <= 0x7f) return 1;
+  if (codePoint <= 0x7ff) return 2;
+  if (codePoint <= 0xffff) return 3;
+  return 4;
+}
+
+/**
+ * Split a run of text into chunks of bounded UTF-8 size. Walking whole code
+ * points means a surrogate pair is never cut in half.
+ */
 function splitForInsert(text: string): string[] {
-  if (text.length <= MAX_INSERT_CHUNK) return [text];
   const chunks: string[] = [];
+  let start = 0;
+  let bytes = 0;
   let at = 0;
   while (at < text.length) {
-    let end = Math.min(at + MAX_INSERT_CHUNK, text.length);
-    if (end < text.length && isLowSurrogate(text.charCodeAt(end))) end -= 1;
-    chunks.push(text.slice(at, end));
-    at = end;
+    const codePoint = text.codePointAt(at) ?? 0;
+    const width = codePoint > 0xffff ? 2 : 1;
+    const cost = utf8Cost(codePoint);
+    if (bytes + cost > MAX_INSERT_CHUNK_BYTES && at > start) {
+      chunks.push(text.slice(start, at));
+      start = at;
+      bytes = 0;
+    }
+    bytes += cost;
+    at += width;
   }
+  if (start < text.length) chunks.push(text.slice(start));
   return chunks;
 }
 

@@ -5,6 +5,8 @@ import {
   doc,
   getDoc,
   onSnapshot,
+  orderBy,
+  query,
   runTransaction,
   serverTimestamp,
   setDoc,
@@ -367,7 +369,12 @@ export function usePlcNoteCrdt({
       if (cancelled) return;
 
       unsubscribe = onSnapshot(
-        updatesRefFor(plcId, noteId),
+        // Ordered by write time so the compaction election below can pick the
+        // actual newest author. An unordered collection query comes back in
+        // document-id order, which is random for auto-generated ids — it would
+        // elect whoever happened to sort last, quite possibly someone offline,
+        // and the log would then grow past the threshold forever.
+        query(updatesRefFor(plcId, noteId), orderBy('at')),
         (snapshot) => {
           const applied = appliedUpdateIdsRef.current;
           const incoming = snapshot
@@ -396,13 +403,17 @@ export function usePlcNoteCrdt({
 
           setStatus('ready');
 
-          // One client compacts: the author of the newest update. Everyone
-          // else would write an identical snapshot for nothing.
+          // One client compacts: the author of the newest update, who is by
+          // definition recently active. Everyone else would write an identical
+          // snapshot for nothing.
           if (snapshot.size >= COMPACT_THRESHOLD && !compactingRef.current) {
             const docs = snapshot.docs;
             const newest = docs[docs.length - 1];
+            const writtenAt: unknown = newest.data().at;
+            // A serverTimestamp still in flight reads null and sorts first, so
+            // the order is not settled yet — leave it to the next snapshot.
             const author: unknown = newest.data().uid;
-            if (author === uid) {
+            if (writtenAt != null && author === uid) {
               void compact(docs.map((d) => d.id));
             }
           }
