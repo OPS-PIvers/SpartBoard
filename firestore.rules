@@ -714,6 +714,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Rollout switch for real-time (CRDT) PLC note editing — every member
+    // reads it to decide which editor path to mount; admins flip it.
+    match /admin_settings/plc_note_collab {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     // Admin audit log — admin-only read; create-only (append-only so an admin
     // can't edit/delete their own trail). Written by GlobalPermissionsManager on
     // sensitive settings changes. timestamp is set server-side via

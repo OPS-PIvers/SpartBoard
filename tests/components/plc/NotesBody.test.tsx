@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Plc, PlcNote } from '@/types';
+import type { Plc, PlcActionItem, PlcNote } from '@/types';
 import { NotesBody } from '@/components/plc/bodies/NotesBody';
 
 vi.mock('react-i18next', () => ({
@@ -31,7 +31,31 @@ vi.mock('@/hooks/usePlcTrash', () => ({
 }));
 
 vi.mock('@/components/plc/notes/NoteActionItems', () => ({
-  NoteActionItems: () => <div data-testid="action-items" />,
+  NoteActionItems: ({
+    items,
+    onChange,
+  }: {
+    items: PlcActionItem[];
+    onChange: (next: PlcActionItem[]) => void;
+  }) => (
+    <button
+      type="button"
+      data-testid="action-items"
+      data-count={items.length}
+      onClick={() =>
+        onChange([
+          ...items,
+          {
+            id: 'new',
+            text: 'added',
+            done: false,
+            createdBy: 'me',
+            createdAt: 0,
+          },
+        ])
+      }
+    />
+  ),
 }));
 
 let notes: PlcNote[] = [];
@@ -47,6 +71,30 @@ vi.mock('@/hooks/usePlcNotes', () => ({
     updateNote: updateNoteMock,
     deleteNote: vi.fn(),
     restoreNote: vi.fn(),
+  }),
+}));
+
+// The rollout switch and the CRDT session are stubbed so this suite can drive
+// both editor paths without Firestore.
+let collabEnabled = false;
+let crdtStatus: 'idle' | 'loading' | 'ready' | 'error' = 'ready';
+let crdtContent = { title: '', body: '', actionItems: [] as PlcActionItem[] };
+const setTitleMock = vi.fn();
+const setBodyMock = vi.fn();
+const setActionItemsMock = vi.fn();
+
+vi.mock('@/hooks/usePlcNoteCollabSettings', () => ({
+  usePlcNoteCollabSettings: () => ({ enabled: collabEnabled }),
+}));
+
+vi.mock('@/hooks/usePlcNoteCrdt', () => ({
+  usePlcNoteCrdt: () => ({
+    status: crdtStatus,
+    doc: null,
+    content: crdtContent,
+    setTitle: setTitleMock,
+    setBody: setBodyMock,
+    setActionItems: setActionItemsMock,
   }),
 }));
 
@@ -77,17 +125,23 @@ const bodyBox = () =>
     'Write your notes… (markdown supported)'
   );
 
-describe('NotesBody concurrent editing', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    updateNoteMock.mockClear();
-    notes = [noteAt('Hello', 1000, 1)];
-  });
+beforeEach(() => {
+  vi.useFakeTimers();
+  updateNoteMock.mockClear();
+  setTitleMock.mockClear();
+  setBodyMock.mockClear();
+  setActionItemsMock.mockClear();
+  collabEnabled = false;
+  crdtStatus = 'ready';
+  crdtContent = { title: '', body: '', actionItems: [] };
+  notes = [noteAt('Hello', 1000, 1)];
+});
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
+afterEach(() => {
+  vi.useRealTimers();
+});
 
+describe('NotesBody concurrent editing (legacy save path)', () => {
   it('keeps text typed while a save is in flight when a teammate edit lands', () => {
     const { rerender } = render(<NotesBody plc={plc} />);
     expect(bodyBox().value).toBe('Hello');
@@ -175,5 +229,67 @@ describe('NotesBody concurrent editing', () => {
     notes = [noteAt('Hello world and more', 3000, 3)];
     rerender(<NotesBody plc={plc} />);
     expect(bodyBox().value).toBe('Hello world and more');
+  });
+});
+
+describe('NotesBody with the collaborative editor enabled', () => {
+  beforeEach(() => {
+    collabEnabled = true;
+    crdtContent = { title: 'Shared note', body: 'Hello', actionItems: [] };
+  });
+
+  it('routes typing into the CRDT instead of a debounced save', () => {
+    render(<NotesBody plc={plc} />);
+
+    fireEvent.change(bodyBox(), { target: { value: 'Hello world' } });
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(setBodyMock).toHaveBeenCalledWith('Hello world');
+    // The version-preconditioned write is what produced the conflict popup.
+    expect(updateNoteMock).not.toHaveBeenCalled();
+  });
+
+  it('renders the merged text coming back from the CRDT', () => {
+    const { rerender } = render(<NotesBody plc={plc} />);
+    expect(bodyBox().value).toBe('Hello');
+
+    crdtContent = {
+      title: 'Shared note',
+      body: 'Hello from both of us',
+      actionItems: [],
+    };
+    rerender(<NotesBody plc={plc} />);
+
+    expect(bodyBox().value).toBe('Hello from both of us');
+  });
+
+  it('routes action-item edits into the CRDT', () => {
+    render(<NotesBody plc={plc} />);
+
+    fireEvent.click(screen.getByTestId('action-items'));
+
+    expect(setActionItemsMock).toHaveBeenCalledTimes(1);
+    expect(updateNoteMock).not.toHaveBeenCalled();
+  });
+
+  it('shows canonical text read-only until the snapshot has loaded', () => {
+    crdtStatus = 'loading';
+    render(<NotesBody plc={plc} />);
+
+    // Not the empty CRDT doc — the note as Firestore already has it.
+    expect(bodyBox().value).toBe('Hello');
+    expect(bodyBox().readOnly).toBe(true);
+  });
+
+  it('ignores edits attempted before the snapshot has loaded', () => {
+    crdtStatus = 'loading';
+    render(<NotesBody plc={plc} />);
+
+    fireEvent.change(bodyBox(), { target: { value: 'too early' } });
+
+    expect(setBodyMock).not.toHaveBeenCalled();
+    expect(updateNoteMock).not.toHaveBeenCalled();
   });
 });

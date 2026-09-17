@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -21,6 +22,14 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useCanEditPlcContent } from '@/context/usePlcContext';
 import { PlcNoteVersionConflictError, usePlcNotes } from '@/hooks/usePlcNotes';
+import { usePlcNoteCollabSettings } from '@/hooks/usePlcNoteCollabSettings';
+import { usePlcNoteCrdt } from '@/hooks/usePlcNoteCrdt';
+import { noteBody, noteTitle } from '@/utils/plcNoteCrdt';
+import {
+  captureCaret,
+  restoreCaret,
+  type CapturedCaret,
+} from '@/utils/plcNoteCaret';
 import { usePlcSoftDelete } from '@/hooks/usePlcTrash';
 import { logError } from '@/utils/logError';
 import { getPlcMembers } from '@/utils/plc';
@@ -206,6 +215,42 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
     () => notes.find((n) => n.id === selectedId) ?? null,
     [notes, selectedId]
   );
+
+  // Real-time editing rides an admin rollout switch. While it is off, every
+  // path below is the original debounced-save editor, untouched. Viewers stay
+  // on the legacy read-only path — they have nothing to publish.
+  const collabSettings = usePlcNoteCollabSettings();
+  const collab = collabSettings.enabled && canEdit && !!selectedId;
+
+  const titleFieldRef = useRef<HTMLInputElement>(null);
+  const bodyFieldRef = useRef<HTMLTextAreaElement>(null);
+  const pendingCaretRef = useRef<{
+    title: CapturedCaret | null;
+    body: CapturedCaret | null;
+  } | null>(null);
+
+  const crdt = usePlcNoteCrdt({
+    plcId: plc.id,
+    noteId: collab ? selectedId : null,
+    enabled: collab,
+    onBeforeRemoteApply: (yDoc) => {
+      pendingCaretRef.current = {
+        title: captureCaret(noteTitle(yDoc), titleFieldRef.current),
+        body: captureCaret(noteBody(yDoc), bodyFieldRef.current),
+      };
+    },
+  });
+
+  // Restore the caret only once React has painted the incoming text: setting
+  // the range before the value updates would be undone by the re-render.
+  useLayoutEffect(() => {
+    const pending = pendingCaretRef.current;
+    const yDoc = crdt.doc;
+    if (!pending || !yDoc) return;
+    pendingCaretRef.current = null;
+    restoreCaret(noteTitle(yDoc), titleFieldRef.current, pending.title);
+    restoreCaret(noteBody(yDoc), bodyFieldRef.current, pending.body);
+  }, [crdt.content, crdt.doc]);
 
   // When the selection changes (different note picked OR teammate edited
   // the active one), seed the draft fields from the canonical note. We also
@@ -483,6 +528,26 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
 
   const isMeeting = selectedNote?.kind === 'meeting';
 
+  // Until the CRDT snapshot has loaded, show the canonical note rather than
+  // flashing an empty editor, and hold edits until the doc can accept them.
+  const collabReady = collab && crdt.status === 'ready';
+  const editorTitle = collab
+    ? collabReady
+      ? crdt.content.title
+      : (selectedNote?.title ?? '')
+    : draftTitle;
+  const editorBody = collab
+    ? collabReady
+      ? crdt.content.body
+      : (selectedNote?.body ?? '')
+    : draftBody;
+  const editorActionItems = collab
+    ? collabReady
+      ? crdt.content.actionItems
+      : (selectedNote?.actionItems ?? [])
+    : draftActionItems;
+  const editorReadOnly = !canEdit || (collab && !collabReady);
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4 h-full min-h-[400px]">
       {/* Notes list */}
@@ -600,10 +665,15 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
               )}
               <input
                 type="text"
-                value={draftTitle}
-                readOnly={!canEdit}
+                ref={titleFieldRef}
+                value={editorTitle}
+                readOnly={editorReadOnly}
                 onChange={(e) => {
-                  if (!canEdit) return;
+                  if (editorReadOnly) return;
+                  if (collab) {
+                    crdt.setTitle(e.target.value);
+                    return;
+                  }
                   setDraftTitle(e.target.value);
                   scheduleSave(
                     selectedNote.id,
@@ -665,10 +735,15 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
             </div>
             {bodyMode === 'edit' ? (
               <textarea
-                value={draftBody}
-                readOnly={!canEdit}
+                ref={bodyFieldRef}
+                value={editorBody}
+                readOnly={editorReadOnly}
                 onChange={(e) => {
-                  if (!canEdit) return;
+                  if (editorReadOnly) return;
+                  if (collab) {
+                    crdt.setBody(e.target.value);
+                    return;
+                  }
                   setDraftBody(e.target.value);
                   scheduleSave(
                     selectedNote.id,
@@ -683,8 +758,8 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
               />
             ) : (
               <div className="flex-1 min-h-[8rem] w-full p-4 overflow-y-auto custom-scrollbar">
-                {draftBody.trim() ? (
-                  <NotesMarkdown body={draftBody} />
+                {editorBody.trim() ? (
+                  <NotesMarkdown body={editorBody} />
                 ) : (
                   <p className="text-sm text-slate-400 italic">
                     {t('plcDashboard.notes.emptyPreview', {
@@ -695,11 +770,15 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
               </div>
             )}
             <NoteActionItems
-              items={draftActionItems}
+              items={editorActionItems}
               members={members}
-              canEdit={canEdit}
+              canEdit={!editorReadOnly}
               currentUid={currentUid}
               onChange={(next) => {
+                if (collab) {
+                  crdt.setActionItems(next);
+                  return;
+                }
                 setDraftActionItems(next);
                 scheduleSave(
                   selectedNote.id,

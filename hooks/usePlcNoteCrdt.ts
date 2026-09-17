@@ -90,6 +90,8 @@ export interface UsePlcNoteCrdtOptions {
 
 export interface UsePlcNoteCrdtResult {
   status: PlcNoteCrdtStatus;
+  /** The live doc, for resolving caret positions after a remote update renders. */
+  doc: Y.Doc | null;
   content: PlcNoteCrdtContent;
   setTitle: (next: string) => void;
   setBody: (next: string) => void;
@@ -476,5 +478,12 @@ export function usePlcNoteCrdt({
     );
   }, []);
 
-  return { status, content, setTitle, setBody, setActionItems };
+  return {
+    status,
+    doc: docRef.current,
+    content,
+    setTitle,
+    setBody,
+    setActionItems,
+  };
 }
