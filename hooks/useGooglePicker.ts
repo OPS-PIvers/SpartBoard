@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { useAuth } from '@/context/useAuth';
+import { logError } from '@/utils/logError';
 
 /** Subset of file metadata returned by the Google Picker. */
 export interface PickedFile {
@@ -37,6 +38,9 @@ export interface OpenPickerOptions {
   fileIds?: string[];
   title?: string;
 }
+
+// Not in @types/google.picker, but the runtime still fires it.
+const PICKER_ACTION_LOADED = 'loaded';
 
 /** Max time (ms) to wait for the gapi script to become available. */
 const GAPI_LOAD_TIMEOUT_MS = 15_000;
@@ -199,6 +203,10 @@ export const useGooglePicker = () => {
                   google.picker.Response.ACTION
                 ] as google.picker.Action;
 
+                // The Picker also fires `loaded` before the user chooses;
+                // resolving there would drop the real pick that follows.
+                if (String(action) === PICKER_ACTION_LOADED) return;
+
                 if (action === google.picker.Action.PICKED) {
                   const docs = response[google.picker.Response.DOCUMENTS];
                   if (docs && docs.length > 0) {
@@ -209,11 +217,21 @@ export const useGooglePicker = () => {
                       mimeType: doc[google.picker.Document.MIME_TYPE] ?? '',
                     });
                   } else {
+                    logError(
+                      'useGooglePicker.callback',
+                      new Error('Picker reported a pick with no documents')
+                    );
                     resolve(null);
                   }
                   pickerActiveRef.current = false;
                 } else {
                   // CANCEL, ERROR, or any unexpected action — always clean up
+                  if (action !== google.picker.Action.CANCEL) {
+                    logError(
+                      'useGooglePicker.callback',
+                      new Error(`Picker closed with action "${action}"`)
+                    );
+                  }
                   resolve(null);
                   pickerActiveRef.current = false;
                 }

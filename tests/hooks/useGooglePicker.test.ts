@@ -35,7 +35,9 @@ let lastBuilderInstance: Record<string, Mock> | undefined;
 
 function setupPickerMock(
   action: 'picked' | 'cancel',
-  fileData?: { id: string; name: string; mimeType: string }
+  fileData?: { id: string; name: string; mimeType: string },
+  // Actions the real Picker fires before the terminal one (e.g. 'loaded').
+  preActions: string[] = []
 ) {
   // Chain helper — returns an object whose every method returns itself
   function chainable(): Record<string, Mock> {
@@ -76,6 +78,10 @@ function setupPickerMock(
 
   builderInstance.build = vi.fn().mockReturnValue({
     setVisible: vi.fn().mockImplementation(() => {
+      const fire = builderInstance._cb as unknown as (
+        r: Record<string, unknown>
+      ) => void;
+      preActions.forEach((pre) => fire({ action: pre }));
       const response: Record<string, unknown> = { action };
       if (action === 'picked' && fileData) {
         response.docs = [fileData];
@@ -202,6 +208,25 @@ describe('useGooglePicker', () => {
       id: 'doc-123',
       name: 'My Document',
       mimeType: 'application/vnd.google-apps.document',
+    });
+  });
+
+  it('ignores the pre-pick loaded action and resolves with the real pick', async () => {
+    setupGapiMock();
+    setupPickerMock(
+      'picked',
+      { id: 'doc-9', name: 'Roster', mimeType: 'application/json' },
+      ['loaded']
+    );
+    const { useGooglePicker } = await import('@/hooks/useGooglePicker');
+    const { result } = renderHook(() => useGooglePicker());
+
+    await vi.advanceTimersByTimeAsync(300);
+    const file = await result.current.openPicker({ fileIds: ['doc-9'] });
+    expect(file).toEqual({
+      id: 'doc-9',
+      name: 'Roster',
+      mimeType: 'application/json',
     });
   });
 

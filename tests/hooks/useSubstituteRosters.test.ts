@@ -120,6 +120,23 @@ describe('useSubstituteRosters', () => {
     expect(result.current.rosters.map((r) => r.id)).toEqual(['r1']);
   });
 
+  it('retries the download when the Picker grant lands a beat late', async () => {
+    downloadFile.mockRejectedValue(new Error('404'));
+    const { result } = renderHook(() => useSubstituteRosters(SHARED));
+    await waitFor(() => expect(result.current.status).toBe('locked'));
+
+    openPicker.mockResolvedValue({ id: 'file-1', name: 'r', mimeType: '' });
+    downloadFile.mockReset();
+    downloadFile
+      .mockRejectedValueOnce(new Error('404'))
+      .mockResolvedValue(rosterBlob());
+    await act(() => result.current.loadRosters());
+
+    expect(downloadFile).toHaveBeenCalledTimes(2);
+    expect(result.current.status).toBe('ready');
+    expect(result.current.rosters).toHaveLength(1);
+  });
+
   it('reports an error when the picked file still fails to load', async () => {
     downloadFile.mockRejectedValue(new Error('404'));
     const { result } = renderHook(() => useSubstituteRosters(SHARED));

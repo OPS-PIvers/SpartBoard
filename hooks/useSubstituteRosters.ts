@@ -28,6 +28,7 @@ interface RosterResult {
   rosters: ClassRoster[];
 }
 
+const GRANT_RETRY_DELAY_MS = 1200;
 const EMPTY_SHARED: SubstituteShareRoster[] = [];
 const EMPTY_ROSTERS: ClassRoster[] = [];
 
@@ -61,6 +62,19 @@ async function downloadSharedRosters(
     throw failure?.reason ?? new Error('No shared rosters could be loaded');
   }
   return loaded;
+}
+
+// The Picker's per-file grant can land a beat after it closes, so retry once.
+async function downloadAfterPick(
+  drive: GoogleDriveService,
+  shared: SubstituteShareRoster[]
+): Promise<ClassRoster[]> {
+  try {
+    return await downloadSharedRosters(drive, shared);
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, GRANT_RETRY_DELAY_MS));
+    return downloadSharedRosters(drive, shared);
+  }
 }
 
 /** Loads a substitute share's roster files from the sub's own Drive access. */
@@ -120,14 +134,23 @@ export function useSubstituteRosters(
         fileIds: shared.map((r) => r.driveFileId),
         title: 'Select the class list to load',
       });
-      if (!picked) return;
+      if (!picked) {
+        // Dismissed, or the Picker closed without handing a file back.
+        logError(
+          'useSubstituteRosters.loadRosters',
+          new Error('Picker returned no file'),
+          { rosterCount: shared.length }
+        );
+        return;
+      }
       setResult({ key, status: 'loading', rosters: EMPTY_ROSTERS });
       const drive = new GoogleDriveService(token, refreshGoogleToken);
-      const rosters = await downloadSharedRosters(drive, shared);
+      const rosters = await downloadAfterPick(drive, shared);
       setResult({ key, status: 'ready', rosters });
     } catch (err) {
       logError('useSubstituteRosters.loadRosters', err, {
         rosterCount: shared.length,
+        pickedFileIds: shared.map((r) => r.driveFileId).join(','),
       });
       setResult({ key, status: 'error', rosters: EMPTY_ROSTERS });
     }
