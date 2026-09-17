@@ -36,9 +36,7 @@ export const flattenCollections = (
     }
   };
   walk(null, 0);
-  // Surface orphan collections (parent id not in our set, e.g. a partial
-  // deleteCollection failure) and their subtree at the root, instead of
-  // hiding them — mirrors FolderPickerPopover's flattenFolders.
+  // Surface orphans (parent missing, e.g. a partial delete) at root instead of hiding them.
   for (const c of collections) {
     if (
       c.parentCollectionId != null &&
