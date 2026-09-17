@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   collection,
+  deleteField,
   doc,
   onSnapshot,
   orderBy,
@@ -49,6 +50,8 @@ export interface UseFlashcardAssignmentsResult {
   /** Writes the session and teacher assignment docs atomically; returns the session id. */
   createAssignment: (input: CreateFlashcardAssignmentInput) => Promise<string>;
   endAssignment: (assignmentId: string) => Promise<void>;
+  /** Reopens an ended assignment; its close date still applies. */
+  reopenAssignment: (assignmentId: string) => Promise<void>;
   /** Deletes progress docs, then the session and assignment docs. */
   deleteAssignment: (assignmentId: string) => Promise<void>;
 }
@@ -212,6 +215,33 @@ export const useFlashcardAssignments = (
     [userId]
   );
 
+  const reopenAssignment = useCallback<
+    UseFlashcardAssignmentsResult['reopenAssignment']
+  >(
+    async (assignmentId) => {
+      if (!userId) throw new Error('Not authenticated');
+      const patch = {
+        status: 'active',
+        endedAt: deleteField(),
+        updatedAt: Date.now(),
+      };
+      const batch = writeBatch(db);
+      batch.update(
+        doc(
+          db,
+          'users',
+          userId,
+          FLASHCARD_ASSIGNMENTS_COLLECTION,
+          assignmentId
+        ),
+        patch
+      );
+      batch.update(doc(db, FLASHCARD_SESSIONS_COLLECTION, assignmentId), patch);
+      await batch.commit();
+    },
+    [userId]
+  );
+
   const deleteAssignment = useCallback<
     UseFlashcardAssignmentsResult['deleteAssignment']
   >(
@@ -250,6 +280,7 @@ export const useFlashcardAssignments = (
     error,
     createAssignment,
     endAssignment,
+    reopenAssignment,
     deleteAssignment,
   };
 };

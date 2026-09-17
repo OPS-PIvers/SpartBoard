@@ -1,19 +1,23 @@
 import React, { useMemo, useState } from 'react';
 import {
   BookOpen,
+  Copy,
   FileUp,
   Layers,
   Loader2,
   MonitorPlay,
   Pencil,
   Plus,
+  PowerOff,
+  RotateCcw,
   Send,
   Share2,
   Trash2,
 } from 'lucide-react';
-import type { FlashcardSet } from '@/types';
+import type { FlashcardAssignment, FlashcardSet } from '@/types';
 import type { UseFoldersResult } from '@/hooks/useFolders';
 import {
+  AssignmentArchiveCard,
   FolderPickerPopover,
   FolderSidebar,
   LibraryGrid,
@@ -25,12 +29,17 @@ import {
   filterByFolder,
   useLibraryView,
 } from '@/components/common/library';
+import type { LibraryTab } from '@/components/common/library';
 
 interface FlashcardLibraryProps {
   sets: FlashcardSet[];
   loading: boolean;
   error: string | null;
   folders: UseFoldersResult;
+  assignments: FlashcardAssignment[];
+  assignmentsLoading: boolean;
+  tab: LibraryTab;
+  onTabChange: (tab: LibraryTab) => void;
   onNew: () => void;
   onImport: () => void;
   onEdit: (set: FlashcardSet) => void;
@@ -38,7 +47,27 @@ interface FlashcardLibraryProps {
   onShare: (set: FlashcardSet) => void;
   onAssign: (set: FlashcardSet) => void;
   onDelete: (set: FlashcardSet) => void;
+  onAssignmentCopyLink: (assignment: FlashcardAssignment) => void;
+  onAssignmentEnd: (assignment: FlashcardAssignment) => void;
+  onAssignmentReopen: (assignment: FlashcardAssignment) => void;
+  onAssignmentDelete: (assignment: FlashcardAssignment) => void;
 }
+
+const assignmentSubtitle = (assignment: FlashcardAssignment): string =>
+  assignment.kind === 'check'
+    ? `Check · ${assignment.checkMode ?? 'write'}`
+    : 'Study';
+
+const assignmentMeta = (assignment: FlashcardAssignment): string => {
+  const parts = [(assignment.periodNames ?? []).join(', ')].filter(Boolean);
+  if (assignment.dueAt) {
+    parts.push(`Due ${new Date(assignment.dueAt).toLocaleDateString()}`);
+  }
+  if (assignment.closeAt) {
+    parts.push(`Closes ${new Date(assignment.closeAt).toLocaleDateString()}`);
+  }
+  return parts.join(' · ');
+};
 
 const titleComparator = (
   a: FlashcardSet,
@@ -63,6 +92,10 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   loading,
   error,
   folders,
+  assignments,
+  assignmentsLoading,
+  tab,
+  onTabChange,
   onNew,
   onImport,
   onEdit,
@@ -70,6 +103,10 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onShare,
   onAssign,
   onDelete,
+  onAssignmentCopyLink,
+  onAssignmentEnd,
+  onAssignmentReopen,
+  onAssignmentDelete,
 }) => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [folderTarget, setFolderTarget] = useState<FlashcardSet | null>(null);
@@ -92,6 +129,102 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
     },
   });
   const folderCounts = useMemo(() => countItemsByFolder(sets), [sets]);
+  const activeAssignments = useMemo(
+    () => assignments.filter((a) => a.status === 'active'),
+    [assignments]
+  );
+  const endedAssignments = useMemo(
+    () => assignments.filter((a) => a.status !== 'active'),
+    [assignments]
+  );
+  const tabAssignments =
+    tab === 'archive' ? endedAssignments : activeAssignments;
+
+  const assignmentsContent = assignmentsLoading ? (
+    <div
+      className="flex items-center justify-center text-slate-400"
+      style={{ padding: 'min(48px, 12cqmin)' }}
+    >
+      <Loader2
+        className="animate-spin"
+        style={{ width: 'min(24px, 6cqmin)', height: 'min(24px, 6cqmin)' }}
+      />
+    </div>
+  ) : tabAssignments.length === 0 ? (
+    <div
+      className="flex h-full flex-col items-center justify-center text-center"
+      style={{ gap: 'min(10px, 2.5cqmin)', padding: 'min(36px, 9cqmin)' }}
+    >
+      <Send
+        className="text-rose-300"
+        style={{ width: 'min(52px, 14cqmin)', height: 'min(52px, 14cqmin)' }}
+      />
+      <h3
+        className="font-black text-slate-800"
+        style={{ fontSize: 'min(18px, 5.5cqmin)' }}
+      >
+        {tab === 'archive' ? 'Nothing ended yet' : 'Nothing assigned yet'}
+      </h3>
+      <p
+        className="max-w-md text-slate-500"
+        style={{ fontSize: 'min(12px, 3.8cqmin)' }}
+      >
+        {tab === 'archive'
+          ? 'Assignments you end show up here, so you can reopen or delete them.'
+          : 'Assign a set to a ClassLink class and it appears here until you end it.'}
+      </p>
+    </div>
+  ) : (
+    <div className="flex flex-col">
+      {tabAssignments.map((assignment) => (
+        <AssignmentArchiveCard<FlashcardAssignment>
+          key={assignment.id}
+          assignment={assignment}
+          mode={tab === 'archive' ? 'archive' : 'active'}
+          status={
+            tab === 'archive'
+              ? { label: 'Ended', tone: 'neutral' }
+              : { label: 'Open', tone: 'success', dot: true }
+          }
+          title={assignment.setTitle || 'Untitled set'}
+          subtitle={assignmentSubtitle(assignment)}
+          meta={assignmentMeta(assignment)}
+          primaryAction={
+            tab === 'archive'
+              ? undefined
+              : {
+                  label: 'Copy link',
+                  icon: Copy,
+                  onClick: () => onAssignmentCopyLink(assignment),
+                }
+          }
+          secondaryActions={[
+            tab === 'archive'
+              ? {
+                  id: 'reopen',
+                  label: 'Reopen',
+                  icon: RotateCcw,
+                  onClick: () => onAssignmentReopen(assignment),
+                }
+              : {
+                  id: 'end',
+                  label: 'End assignment',
+                  icon: PowerOff,
+                  destructive: true,
+                  onClick: () => onAssignmentEnd(assignment),
+                },
+            {
+              id: 'delete',
+              label: 'Delete',
+              icon: Trash2,
+              destructive: true,
+              onClick: () => onAssignmentDelete(assignment),
+            },
+          ]}
+        />
+      ))}
+    </div>
+  );
 
   const folderSidebar = (
     <FolderSidebar
@@ -113,35 +246,43 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
     <>
       <LibraryShell
         widgetLabel="Flashcards"
-        tab="library"
-        onTabChange={() => undefined}
-        visibleTabs={['library']}
-        counts={{ library: sets.length }}
+        tab={tab}
+        onTabChange={onTabChange}
+        visibleTabs={['library', 'active', 'archive']}
+        counts={{
+          library: sets.length,
+          active: activeAssignments.length,
+          archive: endedAssignments.length,
+        }}
         primaryAction={{ label: 'New set', icon: Plus, onClick: onNew }}
         secondaryActions={[
           { label: 'Import', icon: FileUp, onClick: onImport },
         ]}
         toolbarSlot={
-          <LibraryToolbar
-            {...view.toolbarProps}
-            searchPlaceholder="Search flashcard sets…"
-            sortOptions={[
-              { key: 'updated', label: 'Last updated', defaultDir: 'desc' },
-              { key: 'title', label: 'Title', defaultDir: 'asc' },
-            ]}
-            rightSlot={
-              <span
-                className="font-bold text-slate-400"
-                style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-              >
-                {view.visibleItems.length} of {sets.length}
-              </span>
-            }
-          />
+          tab !== 'library' ? undefined : (
+            <LibraryToolbar
+              {...view.toolbarProps}
+              searchPlaceholder="Search flashcard sets…"
+              sortOptions={[
+                { key: 'updated', label: 'Last updated', defaultDir: 'desc' },
+                { key: 'title', label: 'Title', defaultDir: 'asc' },
+              ]}
+              rightSlot={
+                <span
+                  className="font-bold text-slate-400"
+                  style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+                >
+                  {view.visibleItems.length} of {sets.length}
+                </span>
+              }
+            />
+          )
         }
-        filterSidebarSlot={folderSidebar}
+        filterSidebarSlot={tab === 'library' ? folderSidebar : undefined}
       >
-        {loading ? (
+        {tab !== 'library' ? (
+          assignmentsContent
+        ) : loading ? (
           <div
             className="flex h-full flex-col items-center justify-center text-rose-600"
             style={{ gap: 'min(10px, 2.5cqmin)' }}

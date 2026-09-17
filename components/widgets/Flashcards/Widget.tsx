@@ -3,6 +3,7 @@ import { LogIn } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import type {
+  FlashcardAssignment,
   FlashcardCard,
   FlashcardSet,
   FlashcardsConfig,
@@ -94,7 +95,14 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const { showConfirm } = useDialog();
   const { openPicker } = useGooglePicker();
   const flashcardSets = useFlashcardSets(user?.uid);
-  const { createAssignment } = useFlashcardAssignments(user?.uid);
+  const {
+    assignments,
+    loading: assignmentsLoading,
+    createAssignment,
+    endAssignment,
+    reopenAssignment,
+    deleteAssignment,
+  } = useFlashcardAssignments(user?.uid);
   const folders = useFolders(user?.uid, 'flashcards');
   const [editingSet, setEditingSet] = useState<FlashcardSet | null>(null);
   const [saving, setSaving] = useState(false);
@@ -306,6 +314,71 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
+  const assignmentLink = (assignment: FlashcardAssignment): string =>
+    `${window.location.origin}/flashcards/a/${assignment.sessionId}`;
+
+  const copyAssignmentLink = async (
+    assignment: FlashcardAssignment
+  ): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(assignmentLink(assignment));
+      addToast('Link copied to clipboard.', 'success');
+    } catch {
+      addToast(assignmentLink(assignment), 'info');
+    }
+  };
+
+  const runAssignmentAction = async (
+    action: () => Promise<void>,
+    success: string,
+    failure: string
+  ): Promise<void> => {
+    try {
+      await action();
+      addToast(success, 'success');
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : failure, 'error');
+    }
+  };
+
+  const handleAssignmentEnd = async (
+    assignment: FlashcardAssignment
+  ): Promise<void> => {
+    const confirmed = await showConfirm(
+      `End “${assignment.setTitle}”? Students lose access and their work is kept.`,
+      {
+        title: 'End assignment',
+        variant: 'warning',
+        confirmLabel: 'End assignment',
+      }
+    );
+    if (!confirmed) return;
+    await runAssignmentAction(
+      () => endAssignment(assignment.id),
+      `“${assignment.setTitle}” ended.`,
+      'Assignment could not be ended.'
+    );
+  };
+
+  const handleAssignmentDelete = async (
+    assignment: FlashcardAssignment
+  ): Promise<void> => {
+    const confirmed = await showConfirm(
+      `Delete “${assignment.setTitle}”? Student progress for it is deleted too. The set itself is kept.`,
+      {
+        title: 'Delete assignment',
+        variant: 'danger',
+        confirmLabel: 'Delete',
+      }
+    );
+    if (!confirmed) return;
+    await runAssignmentAction(
+      () => deleteAssignment(assignment.id),
+      `“${assignment.setTitle}” deleted.`,
+      'Assignment could not be deleted.'
+    );
+  };
+
   const showLibrary = (): void => {
     updateWidget(widget.id, {
       config: { ...config, view: 'library', presentSetId: undefined },
@@ -384,6 +457,27 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onShare={setSharingSet}
                 onAssign={handleAssign}
                 onDelete={(set) => void handleDelete(set)}
+                assignments={assignments}
+                assignmentsLoading={assignmentsLoading}
+                tab={config.libraryTab ?? 'library'}
+                onTabChange={(tab) =>
+                  updateWidget(widget.id, {
+                    config: {
+                      ...config,
+                      libraryTab: tab === 'banks' ? 'library' : tab,
+                    },
+                  })
+                }
+                onAssignmentCopyLink={(a) => void copyAssignmentLink(a)}
+                onAssignmentEnd={(a) => void handleAssignmentEnd(a)}
+                onAssignmentReopen={(a) =>
+                  void runAssignmentAction(
+                    () => reopenAssignment(a.id),
+                    `“${a.setTitle}” reopened.`,
+                    'Assignment could not be reopened.'
+                  )
+                }
+                onAssignmentDelete={(a) => void handleAssignmentDelete(a)}
               />
             )}
           </div>
