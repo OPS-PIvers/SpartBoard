@@ -5760,7 +5760,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               let newConfig = w.config;
               if (updates.config) {
                 newConfig = { ...w.config, ...updates.config };
-                if (JSON.stringify(w.config) !== JSON.stringify(newConfig)) {
+                // stableStringify: a nested value rebuilt in different key order (e.g. after a Firestore round-trip) must not read as a real change.
+                if (stableStringify(w.config) !== stableStringify(newConfig)) {
                   newVersion = (w.version ?? 1) + 1;
                 }
               }
