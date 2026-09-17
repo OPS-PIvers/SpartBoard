@@ -100,10 +100,16 @@ vi.mock('@/hooks/usePlcNoteCrdt', () => ({
 
 const plc = { id: 'plc1', name: 'Test PLC', members: {} } as Plc;
 
-function noteAt(body: string, lastEditedAt: number, version: number): PlcNote {
+function noteAt(
+  body: string,
+  lastEditedAt: number,
+  version: number,
+  id = 'n1',
+  title = 'Shared note'
+): PlcNote {
   return {
-    id: 'n1',
-    title: 'Shared note',
+    id,
+    title,
     body,
     createdBy: 'them',
     createdAt: 0,
@@ -173,6 +179,36 @@ describe('NotesBody concurrent editing (legacy save path)', () => {
     rerender(<NotesBody plc={plc} />);
 
     expect(bodyBox().value).toBe('Hello there');
+  });
+
+  it('keeps auto-pull alive on a note selected while a save was in flight', async () => {
+    // handleSelect flushes the outgoing note's save and then re-baselines for
+    // the incoming one. If that in-flight write marks its own captured draft
+    // clean when it lands, the baseline describes the wrong note and the
+    // visible draft reads dirty forever — auto-pull dies silently.
+    notes = [
+      noteAt('Hello', 1000, 1),
+      noteAt('Second', 1000, 1, 'n2', 'Other'),
+    ];
+    const { rerender } = render(<NotesBody plc={plc} />);
+
+    fireEvent.change(bodyBox(), { target: { value: 'Hello world' } });
+    fireEvent.click(screen.getByText('Other'));
+    expect(bodyBox().value).toBe('Second');
+
+    // The first note's write now lands, after the selection already moved.
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+      await Promise.resolve();
+    });
+
+    notes = [
+      noteAt('Hello world', 2000, 2),
+      noteAt('Second, edited by a teammate', 2000, 2, 'n2', 'Other'),
+    ];
+    rerender(<NotesBody plc={plc} />);
+
+    expect(bodyBox().value).toBe('Second, edited by a teammate');
   });
 
   it('resumes auto-pull once the local edit has been saved', async () => {

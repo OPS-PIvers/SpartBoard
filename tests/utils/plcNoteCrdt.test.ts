@@ -8,6 +8,7 @@ import {
   encodeDocSnapshot,
   encodeUpdate,
   isNoteDocEmpty,
+  MAX_UPDATE_PAYLOAD_CHARS,
   noteActionItems,
   noteBody,
   readNoteContent,
@@ -87,6 +88,65 @@ describe('applyTextEdit', () => {
     expect(text.toJSON()).toBe('');
     applyTextEdit(text, 'else');
     expect(text.toJSON()).toBe('else');
+  });
+});
+
+describe('large pastes', () => {
+  /**
+   * One update per burst is the cheap path, but the yUpdates rule rejects a
+   * payload over 200,000 chars — and by the time that write fails the
+   * publisher has already drained its buffer, so the paste would live on in
+   * the local doc and the mirrored `body` while never reaching a teammate.
+   * Long inserts are therefore chunked across transactions.
+   */
+  it('splits a long paste into individually publishable updates', () => {
+    const doc = new Y.Doc();
+    const updates: string[] = [];
+    doc.on('update', (u: Uint8Array) => updates.push(encodeUpdate(u)));
+
+    const pasted = 'x'.repeat(300_000);
+    applyTextEdit(noteBody(doc), pasted);
+
+    expect(noteBody(doc).toJSON()).toBe(pasted);
+    expect(updates.length).toBeGreaterThan(1);
+    for (const payload of updates) {
+      expect(payload.length).toBeLessThanOrEqual(MAX_UPDATE_PAYLOAD_CHARS);
+    }
+  });
+
+  it('keeps a short edit to a single update', () => {
+    const doc = new Y.Doc();
+    applyTextEdit(noteBody(doc), 'seed');
+    const updates: string[] = [];
+    doc.on('update', (u: Uint8Array) => updates.push(encodeUpdate(u)));
+
+    applyTextEdit(noteBody(doc), 'seeded');
+
+    expect(updates).toHaveLength(1);
+  });
+
+  it('does not tear a surrogate pair at a chunk boundary', () => {
+    const doc = new Y.Doc();
+    // Emoji are 2 UTF-16 units, so a 64k boundary lands mid-pair.
+    const pasted = '🎉'.repeat(80_000);
+    applyTextEdit(noteBody(doc), pasted);
+
+    expect(noteBody(doc).toJSON()).toBe(pasted);
+    expect([...noteBody(doc).toJSON()]).toHaveLength(80_000);
+  });
+
+  it('still converges when one peer pastes and the other types', () => {
+    const { a, b, sync } = peers();
+    applyTextEdit(noteBody(a), 'intro\n');
+    sync();
+
+    applyTextEdit(noteBody(a), 'intro\n' + 'y'.repeat(200_000));
+    applyTextEdit(noteBody(b), 'intro edited\n');
+    sync();
+
+    expect(noteBody(a).toJSON()).toBe(noteBody(b).toJSON());
+    expect(noteBody(a).toJSON()).toContain('edited');
+    expect(noteBody(a).toJSON()).toContain('y'.repeat(1000));
   });
 });
 
