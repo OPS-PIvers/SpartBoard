@@ -1,0 +1,1 @@
+export { FlashcardsWidget } from './Widget';

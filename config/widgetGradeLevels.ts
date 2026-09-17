@@ -109,6 +109,7 @@ export const WIDGET_GRADE_LEVELS: Record<
   'blooms-detail': ALL_GRADE_LEVELS,
   'need-do-put-then': ALL_GRADE_LEVELS,
   stations: ALL_GRADE_LEVELS,
+  flashcards: ALL_GRADE_LEVELS,
 };
 
 /**

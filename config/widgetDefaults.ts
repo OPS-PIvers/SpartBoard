@@ -10,6 +10,7 @@ import {
   BloomsTaxonomyConfig,
   BloomsDetailConfig,
   NeedDoPutThenConfig,
+  FlashcardsConfig,
 } from '@/types';
 import { STICKY_NOTE_COLORS } from './colors';
 import {
@@ -618,6 +619,15 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       playerSetId: null,
       resultsSessionId: null,
     },
+  },
+  flashcards: {
+    w: 720,
+    h: 520,
+    config: {
+      view: 'library',
+      presentShowFirst: 'term',
+      presentShuffle: false,
+    } satisfies FlashcardsConfig,
   },
   'custom-widget': {
     w: 400,

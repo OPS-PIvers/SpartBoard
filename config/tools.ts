@@ -393,6 +393,18 @@ export const TOOLS: ToolMetadata[] = [
     keywords: ['test', 'assessment', 'kahoot', 'questions', 'live quiz'],
   },
   {
+    type: 'flashcards',
+    icon: Layers,
+    label: 'Flashcards',
+    color: 'bg-rose-600',
+    category: 'instruction',
+    keywords: ['vocabulary', 'terms', 'definitions', 'study', 'quizlet'],
+    defaultWidth: 720,
+    defaultHeight: 520,
+    minWidth: 480,
+    minHeight: 360,
+  },
+  {
     type: 'talking-tool',
     icon: Quote,
     label: 'Talking Tool',

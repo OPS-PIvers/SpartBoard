@@ -4805,6 +4805,26 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
     }
 
+    // === Flashcards (PR 1: teacher-owned authoring library) ===
+    match /users/{userId}/flashcard_sets/{setId} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId
+                         && !isStudentRoleUser()
+                         && notDeactivated();
+    }
+    match /users/{userId}/flashcard_folders/{folderId} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId
+                         && !isStudentRoleUser()
+                         && notDeactivated();
+    }
+    match /users/{userId}/flashcard_assignments/{assignmentId} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId
+                         && !isStudentRoleUser()
+                         && notDeactivated();
+    }
+
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;

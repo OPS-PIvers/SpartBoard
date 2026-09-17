@@ -61,7 +61,8 @@ export type WidgetType =
   | 'blooms-taxonomy'
   | 'blooms-detail'
   | 'need-do-put-then'
-  | 'stations';
+  | 'stations'
+  | 'flashcards';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -6833,8 +6834,8 @@ export interface GuidedLearningSession {
    *
    * NOTE: The GL session's own `mode` field is already in use (play-mode
    * — structured / guided / explore), so the assignment mode lives under
-   * `assignmentMode` here. The other three widgets (Quiz, Video Activity,
-   * Mini App) store it as `mode`.
+   * `assignmentMode` here. Quiz, Video Activity, and Mini App store it as
+   * `mode`.
    */
   assignmentMode?: AssignmentMode;
   /** Mirrors `GuidedLearningSet.schemaVersion` so the student player applies matching semantics. */
@@ -7026,6 +7027,51 @@ export interface StationsConfig {
   cardOpacity?: number;
 }
 
+// === Flashcards ===
+
+/** A single term/definition pair. The stable id keys future study progress. */
+export interface FlashcardCard {
+  id: string;
+  term: string;
+  definition: string;
+}
+
+/** A teacher-owned flashcard set stored inline in Firestore. */
+export interface FlashcardSet {
+  id: string;
+  title: string;
+  description?: string;
+  termLanguage: string;
+  definitionLanguage: string;
+  cards: FlashcardCard[];
+  folderId?: string | null;
+  publicShareId?: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type FlashcardMode = 'flashcards' | 'write' | 'test';
+export type FlashcardSide = 'term' | 'definition';
+export type FlashcardTestType = 'mc' | 'fib';
+
+export interface FlashcardModeSettings {
+  showFirst: FlashcardSide;
+  shuffle: boolean;
+  favoritesOnly: boolean;
+  hideMastered: boolean;
+  strict: boolean;
+  testTypes: FlashcardTestType[];
+  testCount: number | 'all';
+}
+
+/** Per-board state only. Set content lives in the teacher's Firestore library. */
+export interface FlashcardsConfig {
+  view: 'library' | 'present';
+  presentSetId?: string;
+  presentShowFirst: FlashcardSide;
+  presentShuffle: boolean;
+}
+
 // Union of all widget configs
 export type WidgetConfig =
   | UrlWidgetConfig
@@ -7090,7 +7136,8 @@ export type WidgetConfig =
   | BloomsDetailConfig
   | NeedDoPutThenConfig
   | First5Config
-  | StationsConfig;
+  | StationsConfig
+  | FlashcardsConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'url'
@@ -7219,7 +7266,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                             ? First5Config
                                                                                                                             : T extends 'stations'
                                                                                                                               ? StationsConfig
-                                                                                                                              : never;
+                                                                                                                              : T extends 'flashcards'
+                                                                                                                                ? FlashcardsConfig
+                                                                                                                                : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -8863,14 +8912,14 @@ export interface GuidedLearningAssignment {
 
 // === Library folders (Wave 3) ===
 //
-// Folder organization for the four library-style widgets (Quiz, Video
-// Activity, Guided Learning, MiniApp). Each widget has its OWN folders
+// Folder organization for the library-style widgets (Quiz, Video Activity,
+// Guided Learning, MiniApp, Flashcards). Each widget has its OWN folders
 // collection — folders are never shared across widgets.
 //
 // Storage shape: a flat per-widget collection at
 //   /users/{userId}/{widget}_folders/{folderId}
 // where `{widget}` is one of `quiz`, `video_activity`, `guided_learning`,
-// `miniapp`. Nested folders are modeled via `parentId` (string id of
+// `miniapp`, `flashcards`. Nested folders are modeled via `parentId` (string id of
 // the parent, or `null` for root) rather than nested subcollection paths.
 //
 // Why flat-collection-with-`parentId` instead of nested paths:
@@ -8892,7 +8941,8 @@ export type LibraryFolderWidget =
   | 'question_bank'
   | 'video_activity'
   | 'guided_learning'
-  | 'miniapp';
+  | 'miniapp'
+  | 'flashcards';
 
 /**
  * A folder record stored at

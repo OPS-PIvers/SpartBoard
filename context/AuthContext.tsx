@@ -80,6 +80,7 @@ import {
 import { logError } from '@/utils/logError';
 import {
   FEATURE_DEFAULTS,
+  getWidgetDefaultAccessLevel,
   WIDGET_DEFAULT_MIN_TIER,
 } from '@/config/featureDefaults';
 import {
@@ -2871,6 +2872,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // treats an undefined floor as "allow".
       if (!permission) {
         if (isAdmin) return true;
+        if (getWidgetDefaultAccessLevel(widgetType) === 'admin') return false;
         return meetsMinTier(userTier, WIDGET_DEFAULT_MIN_TIER[widgetType]);
       }
 

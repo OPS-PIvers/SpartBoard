@@ -24,7 +24,13 @@
  *   permission object.
  */
 
-import type { AccessLevel, GlobalFeature, UserTier, WidgetType } from '@/types';
+import type {
+  AccessLevel,
+  GlobalFeature,
+  InternalToolType,
+  UserTier,
+  WidgetType,
+} from '@/types';
 
 export interface FeatureDefault {
   /** Access level used by the admin UI when no permission doc exists yet. */
@@ -251,3 +257,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
 export const WIDGET_DEFAULT_MIN_TIER: Partial<Record<WidgetType, UserTier>> = {
   calendar: 'org',
 };
+
+/**
+ * Missing-document access defaults for widget rollouts that must fail closed.
+ * All unlisted widgets retain the historical public default.
+ */
+export const WIDGET_DEFAULT_ACCESS_LEVEL: Partial<
+  Record<WidgetType, AccessLevel>
+> = {
+  flashcards: 'admin',
+};
+
+export const getWidgetDefaultAccessLevel = (
+  widgetType: WidgetType | InternalToolType
+): AccessLevel =>
+  WIDGET_DEFAULT_ACCESS_LEVEL[widgetType as WidgetType] ?? 'public';
