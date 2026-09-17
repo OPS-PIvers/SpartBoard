@@ -91,6 +91,7 @@ import {
   buildPinToNameMap,
   buildScoreboardTeams,
   getEarnedPoints,
+  getMaxAnsweredPoints,
   isGamificationActive,
 } from './utils/quizScoreboard';
 import {
@@ -935,11 +936,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           const ssoNames = byStudentUidRef.current;
           newTeams = allResponses
             .map((r) => {
-              let maxAnsweredPoints = 0;
-              for (const a of r.answers) {
-                const q = questions.find((qn) => qn.id === a.questionId);
-                if (q) maxAnsweredPoints += q.points ?? 1;
-              }
+              // Deduped the same way getEarnedPoints dedupes its numerator —
+              // see getMaxAnsweredPoints's doc for why an undeduped sum here
+              // deflates the running accuracy on an arrayUnion race.
+              const maxAnsweredPoints = getMaxAnsweredPoints(r, questions);
               const earned = getEarnedPoints(
                 r,
                 questions,
