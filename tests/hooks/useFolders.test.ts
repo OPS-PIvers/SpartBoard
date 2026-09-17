@@ -18,6 +18,7 @@ describe('useFolders', () => {
     'video_activity',
     'guided_learning',
     'miniapp',
+    'flashcards',
   ];
 
   it.each(widgets)(
@@ -72,5 +73,6 @@ describe('folderCollectionName', () => {
       'guided_learning_folders'
     );
     expect(folderCollectionName('miniapp')).toBe('miniapp_folders');
+    expect(folderCollectionName('flashcards')).toBe('flashcard_folders');
   });
 });

@@ -66,6 +66,7 @@ const ALL_WIDGET_TYPES = [
   'blooms-detail',
   'need-do-put-then',
   'stations',
+  'flashcards',
 ] as const;
 
 // Compile-time guard — adding a WidgetType without updating this array fails to compile.

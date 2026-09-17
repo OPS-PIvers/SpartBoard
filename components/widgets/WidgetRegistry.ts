@@ -152,6 +152,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   ),
   pdf: lazyNamed(() => import('./PdfWidget'), 'PdfWidget'),
   quiz: lazyNamed(() => import('./QuizWidget'), 'QuizWidget'),
+  flashcards: lazyNamed(
+    () => import('./Flashcards/Widget'),
+    'FlashcardsWidget'
+  ),
   'talking-tool': lazyNamed(() => import('./TalkingTool'), 'TalkingToolWidget'),
   breathing: lazyNamed(
     () => import('./Breathing/BreathingWidget'),
@@ -297,6 +301,8 @@ export const WIDGET_SETTINGS_SCHEMAS: Partial<
   poll: () => import('./PollWidget/settings.schema').then((m) => m.default),
   instructionalRoutines: () =>
     import('./InstructionalRoutines/settings.schema').then((m) => m.default),
+  flashcards: () =>
+    import('./Flashcards/settings.schema').then((m) => m.default),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -908,6 +914,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
     padding: 0,
   },
   'guided-learning': {
+    baseWidth: 720,
+    baseHeight: 520,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  flashcards: {
     baseWidth: 720,
     baseHeight: 520,
     canSpread: true,

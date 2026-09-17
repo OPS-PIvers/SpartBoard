@@ -1402,6 +1402,12 @@
       "dateColor": "Date Color",
       "matchTime": "Match time"
     },
+    "flashcards": {
+      "presentShowFirst": "Show first",
+      "presentShuffle": "Shuffle cards",
+      "term": "Term",
+      "definition": "Definition"
+    },
     "common": {
       "group": {
         "content": "Content",
