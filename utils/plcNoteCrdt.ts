@@ -20,6 +20,21 @@ import type { PlcActionItem } from '@/types';
  * `hooks/usePlcNoteCrdt`.
  */
 
+/**
+ * Payload ceiling for one `yUpdates` doc, mirroring the rule's
+ * `request.resource.data.u.size() <= 200000`. The client must stay under it:
+ * a rejected update is gone from the publish buffer by the time the write
+ * fails, so the local doc would keep the text while every teammate silently
+ * lost it.
+ */
+export const MAX_UPDATE_PAYLOAD_CHARS = 200_000;
+
+/**
+ * Largest run of text inserted in one transaction. Base64 inflates a Yjs
+ * update by about 4/3, so this leaves ample room under the payload ceiling.
+ */
+const MAX_INSERT_CHUNK = 64_000;
+
 const TITLE_KEY = 'title';
 const BODY_KEY = 'body';
 const ACTION_ITEMS_KEY = 'actionItems';
@@ -82,12 +97,42 @@ export function applyTextEdit(text: Y.Text, next: string): void {
   const removed = current.length - prefix - suffix;
   const inserted = next.slice(prefix, next.length - suffix);
   const doc = text.doc;
-  const splice = () => {
-    if (removed > 0) text.delete(prefix, removed);
-    if (inserted.length > 0) text.insert(prefix, inserted);
+  const transact = (fn: () => void) => {
+    if (doc) Y.transact(doc, fn);
+    else fn();
   };
-  if (doc) Y.transact(doc, splice);
-  else splice();
+
+  const chunks = inserted.length > 0 ? splitForInsert(inserted) : [];
+  transact(() => {
+    if (removed > 0) text.delete(prefix, removed);
+    if (chunks.length > 0) text.insert(prefix, chunks[0]);
+  });
+
+  // A paste bigger than one chunk is split across transactions so each emits
+  // an update that clears the payload ceiling on its own. Merging the whole
+  // paste into one update would get it rejected by the rule, and the
+  // publisher has already dropped it from its buffer by then.
+  let at = prefix + (chunks[0]?.length ?? 0);
+  for (let i = 1; i < chunks.length; i += 1) {
+    const chunk = chunks[i];
+    const offset = at;
+    transact(() => text.insert(offset, chunk));
+    at += chunk.length;
+  }
+}
+
+/** Split a run of text into chunks, never cutting a surrogate pair in half. */
+function splitForInsert(text: string): string[] {
+  if (text.length <= MAX_INSERT_CHUNK) return [text];
+  const chunks: string[] = [];
+  let at = 0;
+  while (at < text.length) {
+    let end = Math.min(at + MAX_INSERT_CHUNK, text.length);
+    if (end < text.length && isLowSurrogate(text.charCodeAt(end))) end -= 1;
+    chunks.push(text.slice(at, end));
+    at = end;
+  }
+  return chunks;
 }
 
 const ACTION_ITEM_FIELDS = [

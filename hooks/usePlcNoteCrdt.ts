@@ -25,6 +25,7 @@ import {
   decodeUpdate,
   encodeDocSnapshot,
   encodeUpdate,
+  MAX_UPDATE_PAYLOAD_CHARS,
   noteActionItems,
   noteBody,
   noteTitle,
@@ -196,14 +197,39 @@ export function usePlcNoteCrdt({
 
     const merged =
       buffered.length === 1 ? buffered[0] : Y.mergeUpdates(buffered);
-    const ref = doc(updatesRefFor(plcId, noteId));
-    void setDoc(ref, {
-      u: encodeUpdate(merged),
-      uid,
-      at: serverTimestamp(),
-    }).catch((err: unknown) => {
-      logError('usePlcNoteCrdt.publish', err, { plcId, noteId });
-    });
+    const mergedPayload = encodeUpdate(merged);
+
+    // Merging the burst into one doc is the cheap path, but a big paste can
+    // push it past the payload ceiling — and the rule rejects the write after
+    // the buffer has already been drained, so the edit would never reach a
+    // teammate while the local doc and the mirrored `body` both kept it.
+    // Fall back to publishing the buffered updates individually, which
+    // `applyTextEdit` keeps individually small by chunking long inserts.
+    const payloads =
+      mergedPayload.length <= MAX_UPDATE_PAYLOAD_CHARS
+        ? [mergedPayload]
+        : buffered.map(encodeUpdate);
+
+    for (const payload of payloads) {
+      if (payload.length > MAX_UPDATE_PAYLOAD_CHARS) {
+        logError(
+          'usePlcNoteCrdt.publish',
+          new Error(
+            'Yjs update exceeds the yUpdates payload cap and cannot be published'
+          ),
+          { plcId, noteId, payloadChars: payload.length }
+        );
+        continue;
+      }
+      const ref = doc(updatesRefFor(plcId, noteId));
+      void setDoc(ref, {
+        u: payload,
+        uid,
+        at: serverTimestamp(),
+      }).catch((err: unknown) => {
+        logError('usePlcNoteCrdt.publish', err, { plcId, noteId });
+      });
+    }
   }, [plcId, noteId, uid]);
 
   /** Mirror the converged text back onto the note doc's plain fields. */
