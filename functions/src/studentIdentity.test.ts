@@ -945,7 +945,7 @@ describe('pinLoginV1', () => {
 describe('getPseudonymsForAssignmentV1', () => {
   const TEACHER = {
     uid: 'teacher1',
-    token: { email: 'teacher@orono.k12.mn.us' },
+    token: { email: 'teacher@orono.k12.mn.us', email_verified: true },
   };
   const ASSIGNMENT = 'asn-1';
 
@@ -1125,5 +1125,63 @@ describe('getPseudonymsForAssignmentV1', () => {
       },
     });
     expect(Object.keys(res.pseudonyms).sort()).toEqual(['SID-A', 'SID-B']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getPseudonymsForAssignmentV1 — caller identity verification
+// ---------------------------------------------------------------------------
+//
+// SECURITY: an email/password account can self-report ANY email address at
+// sign-up — the ID token still carries that email with `email_verified:
+// false`. `teacherEmail` (from `request.auth.token.email`) drives the
+// ClassLink "teaches this class" re-verification (`filter='email=...'`
+// against OneRoster) below — an authorization decision. Trusting it
+// unverified would let an attacker claim a real teacher's ClassLink identity
+// and pull that teacher's roster pseudonyms (real student names). Same rail
+// as setAssignmentTargetsV1 / organizationUserActivity.ts / isAdmin().
+describe('getPseudonymsForAssignmentV1 — caller identity verification', () => {
+  const EMAIL = 'teacher@orono.k12.mn.us';
+  const ASSIGNMENT = 'asn-1';
+
+  it('SECURITY: rejects a self-reported teacher email that is not verified', async () => {
+    await expectCode(
+      callPseudonymsForAssignment({
+        auth: {
+          uid: 'teacher1',
+          token: { email: EMAIL, email_verified: false },
+        },
+        data: { assignmentId: ASSIGNMENT, classId: 'CL1' },
+      }),
+      'permission-denied'
+    );
+    // The spoofed caller must never reach ClassLink re-verification.
+    expect(h.axiosGet).toBeNull();
+  });
+
+  it('rejects a token with no email_verified claim at all', async () => {
+    await expectCode(
+      callPseudonymsForAssignment({
+        auth: { uid: 'teacher1', token: { email: EMAIL } },
+        data: { assignmentId: ASSIGNMENT, classId: 'CL1' },
+      }),
+      'permission-denied'
+    );
+  });
+
+  it('allows a verified teacher email through past the identity gate', async () => {
+    h.axiosGet = async (url: string) => {
+      if (url.endsWith('/users'))
+        return { data: { users: [{ sourcedId: 'T-1', role: 'teacher' }] } };
+      if (url.endsWith('/users/T-1/classes'))
+        return { data: { classes: [{ sourcedId: 'CL1' }] } };
+      if (url.endsWith('/classes/CL1/students')) return { data: { users: [] } };
+      throw new Error('unexpected url: ' + url);
+    };
+    const res = await callPseudonymsForAssignment({
+      auth: { uid: 'teacher1', token: { email: EMAIL, email_verified: true } },
+      data: { assignmentId: ASSIGNMENT, classId: 'CL1' },
+    });
+    expect(res.pseudonyms).toEqual({});
   });
 });

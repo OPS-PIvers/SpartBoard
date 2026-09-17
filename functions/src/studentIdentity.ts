@@ -616,6 +616,13 @@ export const getPseudonymsForAssignmentV1 = onCall(
     if (!teacherEmail || request.auth.token.studentRole === true) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
+    // teacherEmail drives ClassLink/org authorization below, so it must be verified (same rail as isAdmin()).
+    if (request.auth.token.email_verified !== true) {
+      throw new HttpsError(
+        'permission-denied',
+        'Caller email must be verified.'
+      );
+    }
 
     const data = request.data as {
       assignmentId?: unknown;

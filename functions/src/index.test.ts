@@ -2215,6 +2215,7 @@ describe('getPseudonymsForAssignmentV1', () => {
     uid: 'teacher-uid',
     token: {
       email: 'teacher@district.org',
+      email_verified: true,
       // studentRole intentionally absent (false) — teachers never carry it.
     },
   };
