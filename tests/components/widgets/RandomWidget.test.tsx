@@ -28,6 +28,15 @@ vi.mock('@/context/useDashboard', () => ({
 }));
 
 // Mock audioUtils to avoid errors during tests
+// Both roster-groups gates default OFF here: this suite predates the feature
+// and asserts the pre-feature behaviour.
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
+}));
+vi.mock('@/hooks/useRosterGroupsIntegrationSettings', () => ({
+  useRosterGroupsIntegrationSettings: () => ({ enabled: false }),
+}));
+
 vi.mock('@/components/widgets/random/audioUtils', () => ({
   getAudioCtx: vi.fn(),
   playTick: vi.fn(),

@@ -9,6 +9,8 @@ import {
   RandomGroupCountField,
   RandomRosterActionsField,
   RandomSendToStationsField,
+  RandomLockedGroupsField,
+  RandomSaveAsClassGroupsField,
 } from './settingsFields';
 
 const mode = (ctx: FieldCtx) => ctx.config.mode ?? 'single';
@@ -23,6 +25,10 @@ const renderRosterActions = (ctx: CustomRenderCtx) =>
   React.createElement(RandomRosterActionsField, { ctx });
 const renderSendToStations = (ctx: CustomRenderCtx) =>
   React.createElement(RandomSendToStationsField, { ctx });
+const renderLockedGroups = (ctx: CustomRenderCtx) =>
+  React.createElement(RandomLockedGroupsField, { ctx });
+const renderSaveAsClassGroups = (ctx: CustomRenderCtx) =>
+  React.createElement(RandomSaveAsClassGroupsField, { ctx });
 
 export default defineSettings<RandomConfig>({
   groups: [
@@ -137,6 +143,21 @@ export default defineSettings<RandomConfig>({
           label: 'expertGroupCount',
           visibleWhen: isMode('jigsaw'),
           render: renderExpertGroups,
+        },
+        // schema-gap: rosterGroupMultiSelect
+        {
+          key: 'lockedRosterGroupIds',
+          type: 'custom',
+          label: 'lockedGroups',
+          visibleWhen: (ctx) => isMode('groups')(ctx) || isMode('jigsaw')(ctx),
+          render: renderLockedGroups,
+        },
+        {
+          key: 'lastResult',
+          type: 'custom',
+          label: 'saveAsClassGroups',
+          visibleWhen: isMode('groups'),
+          render: renderSaveAsClassGroups,
         },
         // schema-gap: partnerAction
         {
