@@ -271,6 +271,7 @@ describe('LunchCountWidget — class group pool', () => {
     w: 400,
     h: 300,
     z: 1,
+    flipped: false,
     config: {
       schoolSite: 'schumann-elementary',
       rosterMode: 'class',
