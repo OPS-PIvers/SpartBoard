@@ -330,6 +330,29 @@ describe('handleImportPaperResponses', () => {
     });
   });
 
+  it('refuses two seats that resolve to the same student instead of overwriting one', async () => {
+    const { db, docs, committed } = makeDb(baseDocs());
+    await expect(
+      handleImportPaperResponses(
+        db,
+        teacher,
+        {
+          batchId: BATCH,
+          assignmentId: ASSIGNMENT,
+          sheets: [sheet(1), sheet(3, { pin: '0001' })],
+        },
+        NOW
+      )
+    ).rejects.toMatchObject({
+      code: 'invalid-argument',
+      message: /Seats 1 and 3 resolve to the same student/,
+    });
+    expect(committed).toEqual([]);
+    expect(Object.keys(docs).some((k) => k.includes('/responses/'))).toBe(
+      false
+    );
+  });
+
   it('never writes a partial stack when validation fails', async () => {
     const { db, docs, committed } = makeDb(baseDocs());
     await expect(

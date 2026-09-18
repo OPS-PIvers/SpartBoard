@@ -300,6 +300,18 @@ export async function handleImportPaperResponses(
     };
   });
 
+  // Two seats landing on one key would overwrite each other inside this call,
+  // past the collision check below; refuse rather than pick a winner.
+  const seatByKey = new Map<string, number>();
+  for (const r of resolved) {
+    const other = seatByKey.get(r.responseKey);
+    if (other !== undefined)
+      invalid(
+        `Seats ${other} and ${r.sheet.seat} resolve to the same student.`
+      );
+    seatByKey.set(r.responseKey, r.sheet.seat);
+  }
+
   const existingSnaps = await mapLimited(resolved, READ_CONCURRENCY, (r) =>
     responses.doc(r.responseKey).get()
   );
