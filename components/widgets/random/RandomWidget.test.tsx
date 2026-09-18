@@ -2,11 +2,23 @@ import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { RandomWidget } from './RandomWidget';
 import { useDashboard } from '@/context/useDashboard';
+import { getLocalIsoDate } from '@/utils/localDate';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { WidgetData, RandomConfig } from '@/types';
+import { WidgetData, RandomConfig, RandomGroup } from '@/types';
 import * as audioUtils from './audioUtils';
 
 vi.mock('@/context/useDashboard');
+
+// The widget reads both roster-groups gates. Default them OFF so these suites
+// exercise the pre-feature behaviour; the group tests opt in explicitly.
+const canAccessFeatureMock = vi.fn(() => false);
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: canAccessFeatureMock }),
+}));
+const rosterGroupsRolloutMock = vi.fn(() => ({ enabled: false }));
+vi.mock('@/hooks/useRosterGroupsIntegrationSettings', () => ({
+  useRosterGroupsIntegrationSettings: () => rosterGroupsRolloutMock(),
+}));
 
 // Mock subcomponents
 vi.mock('./RandomWheel', () => ({
@@ -727,5 +739,220 @@ describe('RandomWidget', () => {
       // tick because the closure captured soundEnabled=true at creation time.
       expect(playTickSpy.mock.calls.length).toBe(0);
     });
+  });
+});
+
+// ─── Roster groups (docs/plans/ROSTER_GROUPS_INTEGRATION.md D5/D10-D14) ───────
+
+describe('RandomWidget — class groups', () => {
+  const student = (id: string, first: string) => ({
+    id,
+    firstName: first,
+    lastName: 'L',
+    pin: id.slice(-2),
+  });
+  const roster = {
+    id: 'r1',
+    name: 'Sample 3',
+    driveFileId: null,
+    studentCount: 6,
+    createdAt: 0,
+    students: [
+      student('s1', 'Ann'),
+      student('s2', 'Ben'),
+      student('s3', 'Cal'),
+      student('s4', 'Dee'),
+      student('s5', 'Eve'),
+      student('s6', 'Fay'),
+    ],
+    groups: [
+      { id: 'g1', name: 'Modified Assessments', studentIds: ['s1', 's2'] },
+      { id: 'g2', name: 'Table 4', studentIds: ['s3', 's4', 's5'] },
+    ],
+  };
+
+  const widgetWith = (config: Partial<RandomConfig>): WidgetData => ({
+    id: 'w1',
+    type: 'random',
+    config: { mode: 'single', rosterMode: 'class', ...config } as RandomConfig,
+    x: 0,
+    y: 0,
+    w: 100,
+    h: 100,
+    z: 1,
+    flipped: false,
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    canAccessFeatureMock.mockReturnValue(true);
+    rosterGroupsRolloutMock.mockReturnValue({ enabled: true });
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      rosters: [roster],
+      activeRosterId: 'r1',
+      setActiveRoster: vi.fn(),
+    });
+  });
+
+  // The class chip's accessible name is the observable surface for the pool:
+  // it carries the SIZE, and must never carry the group's name.
+  const classChipLabel = () =>
+    screen
+      .getByRole('button', { name: /Active class/i })
+      .getAttribute('aria-label') ?? '';
+
+  // Runs a groups-mode randomize and returns the names actually drawn.
+  const drawnNames = (config: Partial<RandomConfig>): string[] => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <RandomWidget widget={widgetWith({ mode: 'groups', ...config })} />
+      );
+      act(() => {
+        fireEvent.click(
+          screen.getByRole('button', { name: /^Randomize$|^Picking$/ })
+        );
+      });
+      act(() => {
+        vi.advanceTimersByTime(600);
+      });
+      const calls = mockUpdateWidget.mock.calls;
+      const last = calls[calls.length - 1][1] as {
+        config: { lastResult?: RandomGroup[] };
+      };
+      return (last.config.lastResult ?? []).flatMap((g) => g.names);
+    } finally {
+      vi.useRealTimers();
+    }
+  };
+
+  it('narrows the pool to the selected group', () => {
+    expect(drawnNames({ rosterPoolGroupId: 'g1' }).sort()).toEqual([
+      'Ann L',
+      'Ben L',
+    ]);
+  });
+
+  it('draws the whole class when no group is picked', () => {
+    expect(drawnNames({})).toHaveLength(6);
+  });
+
+  it('keeps a locked group together in one output group', () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <RandomWidget
+          widget={widgetWith({
+            mode: 'groups',
+            groupSize: 2,
+            lockedRosterGroupIds: ['g2'],
+          })}
+        />
+      );
+      act(() => {
+        fireEvent.click(
+          screen.getByRole('button', { name: /^Randomize$|^Picking$/ })
+        );
+      });
+      act(() => {
+        vi.advanceTimersByTime(600);
+      });
+      const calls = mockUpdateWidget.mock.calls;
+      const last = calls[calls.length - 1][1] as {
+        config: { lastResult?: RandomGroup[] };
+      };
+      const groups = last.config.lastResult ?? [];
+      // Three locked members stay in one group despite a size of 2 (D12).
+      const cohort = groups.find((g) => g.names.includes('Cal L'));
+      expect(cohort?.names.sort()).toEqual(['Cal L', 'Dee L', 'Eve L']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('draws from the whole class when no group is picked', () => {
+    render(<RandomWidget widget={widgetWith({})} />);
+    expect(classChipLabel()).not.toMatch(/group of/i);
+  });
+
+  it('never shows the group name on the front face', () => {
+    const { container } = render(
+      <RandomWidget widget={widgetWith({ rosterPoolGroupId: 'g1' })} />
+    );
+    expect(container.textContent).not.toContain('Modified Assessments');
+    expect(classChipLabel()).not.toContain('Modified Assessments');
+  });
+
+  it('counts the pool after absences, not before', () => {
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      rosters: [
+        {
+          ...roster,
+          absent: { date: getLocalIsoDate(), studentIds: ['s1'] },
+        },
+      ],
+      activeRosterId: 'r1',
+      setActiveRoster: vi.fn(),
+    });
+    render(<RandomWidget widget={widgetWith({ rosterPoolGroupId: 'g1' })} />);
+    // The group holds 2; one is out today, so the draw is from 1. The chip
+    // still reports the group's roster size, but the pool itself shrank.
+    expect(classChipLabel()).toMatch(/1 student.*marked absent/i);
+  });
+
+  it('falls back to the whole class when the group is gone', () => {
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      rosters: [{ ...roster, groups: [] }],
+      activeRosterId: 'r1',
+      setActiveRoster: vi.fn(),
+    });
+    render(<RandomWidget widget={widgetWith({ rosterPoolGroupId: 'g1' })} />);
+    expect(classChipLabel()).not.toMatch(/group of/i);
+  });
+
+  it('ignores a saved pool entirely when the rollout switch is off', () => {
+    rosterGroupsRolloutMock.mockReturnValue({ enabled: false });
+    expect(drawnNames({ rosterPoolGroupId: 'g1' })).toHaveLength(6);
+  });
+
+  it('ignores a saved pool entirely without the feature permission', () => {
+    canAccessFeatureMock.mockReturnValue(false);
+    expect(drawnNames({ rosterPoolGroupId: 'g1' })).toHaveLength(6);
+  });
+
+  it('stops honouring a saved lock when the rollout switch is off', () => {
+    rosterGroupsRolloutMock.mockReturnValue({ enabled: false });
+    vi.useFakeTimers();
+    try {
+      render(
+        <RandomWidget
+          widget={widgetWith({
+            mode: 'groups',
+            groupSize: 2,
+            lockedRosterGroupIds: ['g2'],
+          })}
+        />
+      );
+      act(() => {
+        fireEvent.click(
+          screen.getByRole('button', { name: /^Randomize$|^Picking$/ })
+        );
+      });
+      act(() => {
+        vi.advanceTimersByTime(600);
+      });
+      const calls = mockUpdateWidget.mock.calls;
+      const last = calls[calls.length - 1][1] as {
+        config: { lastResult?: RandomGroup[] };
+      };
+      // Size 2 governs everything again, so the 3-member cohort is split.
+      const sizes = (last.config.lastResult ?? []).map((g) => g.names.length);
+      expect(Math.max(...sizes)).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

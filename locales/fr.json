@@ -1358,8 +1358,12 @@
         "triggerAriaWithAbsent_other": "Classe active : {{name}}. {{count}} élèves marqués absents aujourd'hui.",
         "menuAria": "Contexte de classe pour le Randomiseur",
         "switchHeading": "Changer de classe",
-        "markAbsentAction": "Marquer les élèves absents"
-      }
+        "markAbsentAction": "Marquer les élèves absents",
+        "poolHeading": "Tirer parmi",
+        "poolAria_one": "Tirage dans un groupe de {{count}} élève.",
+        "poolAria_other": "Tirage dans un groupe de {{count}} élèves."
+      },
+      "lockedGroupOverridesKeepApart": "Un groupe verrouillé a été gardé ensemble bien qu'il contienne des élèves à séparer."
     },
     "lunchCount": {
       "syncSuccess": "Menu synchronisé depuis Nutrislice",
@@ -2788,5 +2792,23 @@
   "studentAssignment": {
     "excludedTitle": "Ce devoir n'est pas pour toi",
     "excludedBody": "Ton enseignant ne t'a pas attribué ce devoir. Demande-lui si tu penses qu'il s'agit d'une erreur."
+  },
+  "widgetSettings": {
+    "random": {
+      "lockedGroups": "Garder les groupes ensemble",
+      "saveAsClassGroups": "Enregistrer comme groupes de classe",
+      "saveAsGroupsAction": "Enregistrer comme groupes de classe",
+      "saveAsGroupsTitle": "Enregistrer comme groupes de classe",
+      "saveAsGroupsPrefix": "Équipes",
+      "saveAsGroupsPrompt_one": "Enregistrer {{count}} groupe dans cette classe ?",
+      "saveAsGroupsPrompt_other": "Enregistrer {{count}} groupes dans cette classe ?",
+      "saveAsGroupsConfirm": "Enregistrer",
+      "saveAsGroupsDone_one": "{{count}} groupe enregistré dans cette classe.",
+      "saveAsGroupsDone_other": "{{count}} groupes enregistrés dans cette classe.",
+      "saveAsGroupsFailed": "Impossible d'enregistrer ces groupes — vérifiez votre connexion Google Drive et réessayez.",
+      "saveAsGroupsNeedsClassGroups": "Créez d'abord des groupes avec une classe sélectionnée.",
+      "lockedGroupsEmpty": "Enregistrez un groupe pour cette classe et il restera uni lors de la création des groupes.",
+      "rosterGroupsOff": "Les groupes de classe sont désactivés dans votre établissement pour le moment."
+    }
   }
 }

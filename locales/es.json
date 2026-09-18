@@ -1358,8 +1358,12 @@
         "triggerAriaWithAbsent_other": "Clase activa: {{name}}. {{count}} estudiantes marcados ausentes hoy.",
         "menuAria": "Contexto de clase para Aleatorizador",
         "switchHeading": "Cambiar clase",
-        "markAbsentAction": "Marcar estudiantes ausentes"
-      }
+        "markAbsentAction": "Marcar estudiantes ausentes",
+        "poolHeading": "Elegir de",
+        "poolAria_one": "Eligiendo de un grupo de {{count}} estudiante.",
+        "poolAria_other": "Eligiendo de un grupo de {{count}} estudiantes."
+      },
+      "lockedGroupOverridesKeepApart": "Se mantuvo unido un grupo bloqueado aunque incluye estudiantes que deben estar separados."
     },
     "lunchCount": {
       "syncSuccess": "Menú sincronizado desde Nutrislice",
@@ -2788,5 +2792,23 @@
   "studentAssignment": {
     "excludedTitle": "Esta tarea no es para ti",
     "excludedBody": "Tu docente no te asignó esta tarea. Consúltale si crees que es un error."
+  },
+  "widgetSettings": {
+    "random": {
+      "lockedGroups": "Mantener grupos juntos",
+      "saveAsClassGroups": "Guardar como grupos de clase",
+      "saveAsGroupsAction": "Guardar como grupos de clase",
+      "saveAsGroupsTitle": "Guardar como grupos de clase",
+      "saveAsGroupsPrefix": "Equipos",
+      "saveAsGroupsPrompt_one": "¿Guardar {{count}} grupo en esta clase?",
+      "saveAsGroupsPrompt_other": "¿Guardar {{count}} grupos en esta clase?",
+      "saveAsGroupsConfirm": "Guardar",
+      "saveAsGroupsDone_one": "Se guardó {{count}} grupo en esta clase.",
+      "saveAsGroupsDone_other": "Se guardaron {{count}} grupos en esta clase.",
+      "saveAsGroupsFailed": "No se pudieron guardar los grupos: revisa tu conexión con Google Drive e inténtalo de nuevo.",
+      "saveAsGroupsNeedsClassGroups": "Primero crea grupos con una clase seleccionada.",
+      "lockedGroupsEmpty": "Guarda un grupo para esta clase y se mantendrá unido al formar grupos.",
+      "rosterGroupsOff": "Los grupos de clase están desactivados en tu centro en este momento."
+    }
   }
 }

@@ -109,7 +109,11 @@ const EmbedVerifyControlImpl: React.FC<Props> = ({
       if (currentUrlRef.current !== verifiedUrl) return;
       const data = result.data;
 
-      if (data.isEmbeddable) {
+      if (data.uncertain) {
+        // The probe never reached the site, so leave the saved verdict alone rather than claiming either answer.
+        setVerifyStatus('error');
+        setErrorMsg(label('verifyErrorGeneric'));
+      } else if (data.isEmbeddable) {
         setVerifyStatus('success');
         updateConfig({ isEmbeddable: true, blockedReason: '' });
       } else {

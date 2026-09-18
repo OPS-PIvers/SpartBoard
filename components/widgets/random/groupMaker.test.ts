@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { RandomGroup, Student } from '@/types';
 import {
+  makeGroupsWithLockedCohorts,
   makeJigsawExpertGroups,
   makeNameGroups,
   makeNameGroupsByCount,
@@ -428,5 +429,163 @@ describe('student-id carry-through (plan D4)', () => {
     const { groups } = makeRestrictedGroupsByCount(students, 1);
     expect(groups[0].names).toEqual(['Sam X', 'Sam X']);
     expect(groups[0].studentIds?.slice().sort()).toEqual(['id-1', 'id-2']);
+  });
+});
+
+describe('makeGroupsWithLockedCohorts (plan D10-D13)', () => {
+  const mk = (id: string, restricted?: string[]): Student => ({
+    id,
+    firstName: id.toUpperCase(),
+    lastName: 'X',
+    pin: '00',
+    ...(restricted ? { restrictedStudentIds: restricted } : {}),
+  });
+  const twelve = Array.from({ length: 12 }, (_, i) => mk(`s${i}`));
+  const findCohort = (groups: RandomGroup[], ids: string[]) =>
+    groups.find((g) => ids.every((id) => g.studentIds?.includes(id)));
+
+  it('D10: pins a locked cohort verbatim as one group', () => {
+    const { groups } = makeGroupsWithLockedCohorts({
+      students: twelve,
+      lockedCohorts: [['s0', 's1', 's2']],
+      groupSize: 3,
+    });
+    const cohort = findCohort(groups, ['s0', 's1', 's2']);
+    expect(cohort?.studentIds?.slice().sort()).toEqual(['s0', 's1', 's2']);
+    // Every other student lands somewhere, exactly once.
+    expect(groups.flatMap((g) => g.studentIds ?? []).sort()).toEqual(
+      twelve.map((s) => s.id).sort()
+    );
+  });
+
+  it('D12: the locked cohort is exempt from the size control', () => {
+    const { groups } = makeGroupsWithLockedCohorts({
+      students: twelve,
+      lockedCohorts: [['s0', 's1', 's2', 's3', 's4']],
+      groupSize: 2,
+    });
+    // Five locked members stay together despite a size of 2...
+    expect(
+      findCohort(groups, ['s0', 's1', 's2', 's3', 's4'])?.names
+    ).toHaveLength(5);
+    // ...while the remaining seven are grouped by twos.
+    const rest = groups.filter((g) => (g.studentIds?.length ?? 0) !== 5);
+    expect(Math.max(...rest.map((g) => g.names.length))).toBe(2);
+  });
+
+  it('D12: count mode spends the remaining group budget on the remainder', () => {
+    const { groups } = makeGroupsWithLockedCohorts({
+      students: twelve,
+      lockedCohorts: [['s0', 's1']],
+      numGroups: 4,
+    });
+    expect(groups).toHaveLength(4);
+    expect(findCohort(groups, ['s0', 's1'])?.names).toHaveLength(2);
+  });
+
+  it('D13: keeps a cohort together over a keep-apart pair and reports it', () => {
+    const students = [mk('s0', ['s1']), mk('s1', ['s0']), ...twelve.slice(2)];
+    const { groups, lockConflicts } = makeGroupsWithLockedCohorts({
+      students,
+      lockedCohorts: [['s0', 's1']],
+      groupSize: 3,
+    });
+    expect(lockConflicts).toBe(1);
+    expect(findCohort(groups, ['s0', 's1'])).toBeDefined();
+  });
+
+  it('D13: reports no conflict when the cohort has no restricted pair', () => {
+    const students = [mk('s0', ['s9']), ...twelve.slice(1)];
+    const { lockConflicts } = makeGroupsWithLockedCohorts({
+      students,
+      lockedCohorts: [['s0', 's1']],
+      groupSize: 3,
+    });
+    expect(lockConflicts).toBe(0);
+  });
+
+  it('D11: reshuffles output order so the cohort has no positional tell', () => {
+    const positions = new Set<number>();
+    for (let i = 0; i < 40; i++) {
+      const { groups } = makeGroupsWithLockedCohorts({
+        students: twelve,
+        lockedCohorts: [['s0', 's1', 's2']],
+        groupSize: 3,
+      });
+      positions.add(groups.findIndex((g) => g.studentIds?.includes('s0')));
+    }
+    expect(positions.size).toBeGreaterThan(1);
+  });
+
+  it('assumption 8: drops a cohort whose members are all absent', () => {
+    const present = twelve.slice(2);
+    const { groups } = makeGroupsWithLockedCohorts({
+      students: present,
+      lockedCohorts: [['s0', 's1']],
+      groupSize: 3,
+    });
+    expect(groups.flatMap((g) => g.studentIds ?? []).sort()).toEqual(
+      present.map((s) => s.id).sort()
+    );
+  });
+
+  it('gives a student claimed by two cohorts to the first', () => {
+    const { groups } = makeGroupsWithLockedCohorts({
+      students: twelve,
+      lockedCohorts: [
+        ['s0', 's1'],
+        ['s1', 's2'],
+      ],
+      groupSize: 3,
+    });
+    const first = findCohort(groups, ['s0']);
+    expect(first?.studentIds?.slice().sort()).toEqual(['s0', 's1']);
+    expect(findCohort(groups, ['s2'])?.studentIds).not.toContain('s1');
+    // s1 is still placed exactly once overall.
+    const all = groups.flatMap((g) => g.studentIds ?? []);
+    expect(all.filter((id) => id === 's1')).toHaveLength(1);
+  });
+
+  it('overshoots the count rather than dropping unlocked students', () => {
+    // Three cohorts but a count of 2 — the controls are independent, so this
+    // is reachable. Locks win; the remainder still gets a group of its own.
+    const { groups } = makeGroupsWithLockedCohorts({
+      students: twelve,
+      lockedCohorts: [
+        ['s0', 's1'],
+        ['s2', 's3'],
+        ['s4', 's5'],
+      ],
+      numGroups: 2,
+    });
+    expect(groups).toHaveLength(4);
+    expect(groups.flatMap((g) => g.studentIds ?? []).sort()).toEqual(
+      twelve.map((s) => s.id).sort()
+    );
+  });
+
+  it('honours the count exactly when the locks leave no remainder', () => {
+    const { groups } = makeGroupsWithLockedCohorts({
+      students: twelve.slice(0, 4),
+      lockedCohorts: [
+        ['s0', 's1'],
+        ['s2', 's3'],
+      ],
+      numGroups: 2,
+    });
+    expect(groups).toHaveLength(2);
+  });
+
+  it('handles every student being locked', () => {
+    const { groups } = makeGroupsWithLockedCohorts({
+      students: twelve.slice(0, 4),
+      lockedCohorts: [
+        ['s0', 's1'],
+        ['s2', 's3'],
+      ],
+      groupSize: 3,
+    });
+    expect(groups).toHaveLength(2);
+    expect(groups.every((g) => g.names.length === 2)).toBe(true);
   });
 });

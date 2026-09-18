@@ -36,13 +36,17 @@ const customFields = schemas.flatMap((schema) =>
 );
 
 describe('consolidated field-level widget settings migration', () => {
-  it('uses standard fields for every setting except the ten documented schema gaps', () => {
+  it('uses standard fields for every setting except the documented schema gaps', () => {
     expect(customFields.map((field) => field.key).sort()).toEqual(
       [
         'completedNames',
+        // Three actions keyed off the same result: send to Stations, send to
+        // Projects, and save the drawn groups back to the class.
+        'lastResult',
         'lastResult',
         'lastResult',
         'lastSync',
+        'lockedRosterGroupIds',
         'numExpertGroups',
         'numHomeGroups',
         'remainingStudents',

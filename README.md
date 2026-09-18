@@ -77,7 +77,7 @@ The easiest way to start coding is with GitHub Codespaces. This environment come
 2.  **Install dependencies:**
 
     ```bash
-    pnpm install
+    pnpm run install:all
     ```
 
 3.  **Configure Environment:**
