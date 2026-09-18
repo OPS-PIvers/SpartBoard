@@ -30,6 +30,7 @@ vi.mock('./components/GroupImportPanel', () => ({
 const saveProject = vi.fn().mockResolvedValue(undefined);
 const updateRun = vi.fn().mockResolvedValue(undefined);
 const updateWidget = vi.fn();
+const addToast = vi.fn();
 
 const projectA: ProjectDefinition = {
   id: 'project-a',
@@ -84,7 +85,7 @@ describe('ProjectsSettings', () => {
     });
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       updateWidget,
-      addToast: vi.fn(),
+      addToast,
       rosters: [],
     });
     (
@@ -141,6 +142,38 @@ describe('ProjectsSettings', () => {
         showStatusToStudents: false,
       })
     );
+  });
+
+  it('calls a hand-built roster import a tracker rather than reporting no students', async () => {
+    (useProjectRun as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      run: runA,
+      groups: [],
+      ensureRun: vi.fn().mockResolvedValue(runA),
+      updateRun,
+      importGroups: vi
+        .fn()
+        .mockResolvedValue({ groupsWritten: 11, membersResolved: 0 }),
+    });
+    render(
+      <ProjectsSettings
+        widget={{
+          ...widget,
+          config: {
+            projectId: 'project-a',
+            pendingImport: { rosterId: 'roster-1', at: 1, groups: [] },
+          },
+        }}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm import' }));
+
+    await waitFor(() => expect(addToast).toHaveBeenCalled());
+    const [message, tone] = addToast.mock.calls.at(-1) as [string, string];
+    expect(message).toContain('11 groups');
+    // "0 students" reads as a failed import; it is a working teacher-only tracker.
+    expect(message).not.toContain('0 students');
+    expect(message).toContain('tracker you move yourself');
+    expect(tone).toBe('info');
   });
 
   it('leaves the open project’s run alone when a new project is created', async () => {
