@@ -1220,7 +1220,7 @@
       "groupName": "Group {{count}}",
       "importedGroups": "Imported {{count}} groups!",
       "generateGroupsFirst": "Randomizer needs to have generated groups first.",
-      "teamName": "Team {{count}}",
+      "teamName": "Team {{letter}}",
       "scoresReset": "All scores reset to 0",
       "addRandomizerFirst": "Add a Randomizer widget first",
       "importGroups": "Import Groups",

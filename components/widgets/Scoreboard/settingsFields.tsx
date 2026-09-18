@@ -10,7 +10,10 @@ import {
 import { useDebounce } from '@/hooks/useDebounce';
 import { Plus, Trash2, Users, RefreshCw, LayoutGrid, List } from 'lucide-react';
 import { Button } from '@/components/common/Button';
-import { SCOREBOARD_COLORS as TEAM_COLORS } from '@/config/scoreboard';
+import {
+  SCOREBOARD_COLORS as TEAM_COLORS,
+  scoreboardTeamLetter,
+} from '@/config/scoreboard';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useTranslation } from 'react-i18next';
 
@@ -128,11 +131,25 @@ export const ScoreboardSettings: React.FC<{
   };
 
   const addTeam = () => {
+    // Continue the A/B lettering the widget ships with, skipping letters
+    // already in use so deleting "Team B" frees that name again.
+    const taken = new Set(
+      teams.map((team) => team.name.trim().toLocaleLowerCase())
+    );
+    let letterIndex = 0;
+    let name = t('widgetSettings.scoreboard.teamName', {
+      letter: scoreboardTeamLetter(letterIndex),
+    });
+    while (taken.has(name.trim().toLocaleLowerCase())) {
+      letterIndex += 1;
+      name = t('widgetSettings.scoreboard.teamName', {
+        letter: scoreboardTeamLetter(letterIndex),
+      });
+    }
+
     const newTeam: ScoreboardTeam = {
       id: crypto.randomUUID(),
-      name: t('widgetSettings.scoreboard.teamName', {
-        count: teams.length + 1,
-      }),
+      name,
       score: 0,
       color: TEAM_COLORS[teams.length % TEAM_COLORS.length],
     };
