@@ -59,6 +59,7 @@ import {
   Target,
   Printer,
   ScanLine,
+  ScanText,
 } from 'lucide-react';
 import {
   AssignmentMode,
@@ -264,6 +265,8 @@ interface QuizManagerProps {
   onPrintPaperSheets?: (quiz: QuizMetadata) => void;
   /** Import a scanned stack of those sheets; `undefined` hides the entry. */
   onImportPaperScan?: (quiz: QuizMetadata) => void;
+  /** OCR the printed test paper into question text; `undefined` hides the entry. */
+  onReadPaperQuestions?: (quiz: QuizMetadata) => void;
   /** Start a paper-only quiz stub. Absent when the feature is off. */
   onNewPaperTest?: () => void;
   onEdit: (quiz: QuizMetadata) => void;
@@ -598,6 +601,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onImport,
   onPrintPaperSheets,
   onImportPaperScan,
+  onReadPaperQuestions,
   onNewPaperTest,
   onEdit,
   onPreview,
@@ -1050,6 +1054,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               label: 'Import scanned sheets',
               icon: ScanLine,
               onClick: () => onImportPaperScan(quiz),
+            },
+          ]
+        : []),
+      ...(onReadPaperQuestions
+        ? [
+            {
+              id: 'read-paper-questions',
+              label: 'Read questions from test paper',
+              icon: ScanText,
+              onClick: () => onReadPaperQuestions(quiz),
             },
           ]
         : []),

@@ -2366,7 +2366,7 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
         quizData,
         'score-only'
       );
-      expect(outcome).toEqual({ responsesUpdated: 3 });
+      expect(outcome).toEqual({ responsesUpdated: 3, paperResponses: 0 });
     });
 
     expect(batchCommit).toHaveBeenCalledTimes(1);
@@ -2466,7 +2466,7 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
         quizData,
         'score-only'
       );
-      expect(outcome).toEqual({ responsesUpdated: 500 });
+      expect(outcome).toEqual({ responsesUpdated: 500, paperResponses: 0 });
     });
 
     // First batch + at least one continuation batch.

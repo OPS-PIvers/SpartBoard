@@ -3,7 +3,14 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 import { PaperImportModal } from '@/components/widgets/QuizWidget/components/PaperImportModal';
-import type { ClassRoster, PaperBatch, QuizData } from '@/types';
+import type {
+  ClassRoster,
+  PaperBatch,
+  PaperPendingReview,
+  QuestionTargetTag,
+  QuizData,
+} from '@/types';
+import { memoryCropStore } from '@/utils/paperCropStore';
 import { paintSyntheticSheet } from '@/tests/testHelpers/paperSheetRaster';
 import type {
   ImportPaperResponsesResult,
@@ -12,6 +19,32 @@ import type {
 import type { RasterizedPage } from '@/utils/paperScanRaster';
 import { paperBatchTag } from '@/utils/paperSheetMarker';
 import { buildPaperStubQuiz } from '@/utils/paperSheetPlan';
+
+// The real picker reads the standards catalog; a stand-in applies one tag.
+const FAKE_TAG: QuestionTargetTag = {
+  id: 'tag-1',
+  kind: 'personal',
+  label: 'Fractions',
+};
+vi.mock('@/components/quiz/targets/TargetPicker', () => ({
+  TargetPicker: ({
+    open,
+    title,
+    onApply,
+  }: {
+    open: boolean;
+    title?: string;
+    onApply: (tags: QuestionTargetTag[], mode: 'add' | 'replace') => void;
+  }) =>
+    open ? (
+      <div>
+        <p>{title}</p>
+        <button type="button" onClick={() => onApply([FAKE_TAG], 'add')}>
+          Apply fake tag
+        </button>
+      </div>
+    ) : null,
+}));
 
 const stub: QuizData = buildPaperStubQuiz({
   quizId: 'quiz-1',
@@ -101,6 +134,9 @@ const setup = (
   );
   const onClose = vi.fn();
   const onError = vi.fn();
+  const onSavePending = vi.fn<
+    (batchId: string, review: PaperPendingReview | null) => Promise<void>
+  >(() => Promise.resolve());
   render(
     <PaperImportModal
       quiz={stub}
@@ -110,14 +146,65 @@ const setup = (
       onCreateAssignment={onCreateAssignment}
       onImport={onImport}
       onSaveQuiz={onSaveQuiz}
+      onSavePending={onSavePending}
       onClose={onClose}
       onError={onError}
       rasterize={rasterizer(pages)}
+      cropStore={memoryCropStore()}
       {...over}
     />
   );
-  return { onImport, onCreateAssignment, onSaveQuiz, onClose, onError };
+  return {
+    onImport,
+    onCreateAssignment,
+    onSaveQuiz,
+    onSavePending,
+    onClose,
+    onError,
+  };
 };
+
+const parkedReview = (): PaperPendingReview => ({
+  savedAt: Date.UTC(2026, 8, 17),
+  assignmentId: '',
+  sheets: [
+    {
+      seat: 1,
+      kind: 'student',
+      student: { rosterId: 'r1', studentId: 's1' },
+      answers: [
+        { question: 0, choice: null, doubt: 'multiple' },
+        { question: 1, choice: 3 },
+        { question: 2, choice: 0 },
+      ],
+      pagesSeen: [1],
+      missingPages: [],
+      isBlank: false,
+      flags: ['doubtful-rows'],
+    },
+  ],
+  keySheet: {
+    seat: 4,
+    kind: 'key',
+    student: null,
+    answers: [
+      { question: 0, choice: 1 },
+      { question: 1, choice: 2 },
+      { question: 2, choice: 0 },
+    ],
+    pagesSeen: [1],
+    missingPages: [],
+    isBlank: false,
+    flags: [],
+  },
+  unreadablePages: [],
+  foreignPages: [],
+  unknownPages: [],
+  key: { s1: 1, s2: 2, s3: 0 },
+  keyConfirmed: true,
+  spareAssignments: {},
+  targets: {},
+});
 
 const chooseFile = () => {
   const input = screen.getByLabelText('Scan file');
@@ -365,5 +452,131 @@ describe('PaperImportModal', () => {
     expect(
       screen.getByText(/No answer sheets have been printed/)
     ).toBeInTheDocument();
+  });
+  it('parks the review on the batch as it changes and clears it after import', async () => {
+    const { onImport, onSavePending } = setup([
+      page(4, [
+        { row: 0, choice: 1 },
+        { row: 1, choice: 2 },
+        { row: 2, choice: 0 },
+      ]),
+      page(1, [
+        { row: 0, choice: 1 },
+        { row: 1, choice: 3 },
+      ]),
+    ]);
+    chooseFile();
+    await waitFor(() =>
+      expect(screen.getByText(/ready to import/)).toBeInTheDocument()
+    );
+    await waitFor(() => expect(onSavePending).toHaveBeenCalled());
+    const [batchId, parked] = onSavePending.mock.calls[0];
+    expect(batchId).toBe('batch-1');
+    expect(parked).toMatchObject({
+      assignmentId: '',
+      keyConfirmed: false,
+      key: { s1: 1, s2: 2, s3: 0 },
+    });
+    expect(parked?.sheets.map((s) => s.seat)).toEqual([1]);
+    expect(parked?.keySheet?.seat).toBe(4);
+
+    fireEvent.click(screen.getByLabelText('This key is correct'));
+    fireEvent.click(screen.getByRole('button', { name: /^Import 1 sheet$/ }));
+    await waitFor(() => expect(onImport).toHaveBeenCalledOnce());
+    await screen.findByText(/1 response imported/);
+    expect(onSavePending).toHaveBeenLastCalledWith('batch-1', null);
+  });
+
+  it('resumes a parked review without rescanning, crops and edits intact', async () => {
+    const cropStore = memoryCropStore();
+    await cropStore.save(
+      'batch-1',
+      new Map([['1:0', 'data:image/png;base64,saved']])
+    );
+    const { onImport, onSaveQuiz } = setup([], {
+      batches: [{ ...batch, pendingReview: parkedReview() }],
+      cropStore,
+    });
+    expect(screen.getByText(/A review from .* is waiting/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Resume review' }));
+    await waitFor(() =>
+      expect(screen.getByText(/row to check/)).toBeInTheDocument()
+    );
+    expect(screen.getByText('More than one bubble')).toBeInTheDocument();
+    expect(screen.getByAltText('Question 1 as scanned')).toHaveAttribute(
+      'src',
+      'data:image/png;base64,saved'
+    );
+    expect(screen.getByLabelText('This key is correct')).toBeChecked();
+    fireEvent.click(screen.getByLabelText('Question 1: B'));
+    fireEvent.click(screen.getByRole('button', { name: /^Import 1 sheet$/ }));
+    await waitFor(() => expect(onImport).toHaveBeenCalledOnce());
+    expect(onImport.mock.calls[0][2][0].answers).toEqual([
+      { questionId: 's1', answer: 'B' },
+      { questionId: 's2', answer: 'D' },
+      { questionId: 's3', answer: 'A' },
+    ]);
+    expect(onSaveQuiz).toHaveBeenCalledOnce();
+  });
+
+  it('discards a parked review on request', () => {
+    const { onSavePending } = setup([], {
+      batches: [{ ...batch, pendingReview: parkedReview() }],
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Discard it' }));
+    expect(screen.queryByText(/is waiting/)).toBeNull();
+    expect(onSavePending).toHaveBeenCalledWith('batch-1', null);
+  });
+
+  it('hides a parked review whose rows no longer fit the batch', () => {
+    setup([], {
+      batches: [{ ...batch, questionCount: 2, pendingReview: parkedReview() }],
+    });
+    expect(screen.queryByText(/is waiting/)).toBeNull();
+  });
+
+  it('reads a scan picked from Google Drive like a chosen file', async () => {
+    const onPickFromDrive = vi.fn(() =>
+      Promise.resolve(
+        new File([new Uint8Array(4)], 'scan.pdf', { type: 'application/pdf' })
+      )
+    );
+    setup(
+      [page(4, [{ row: 0, choice: 1 }]), page(1, [{ row: 0, choice: 1 }])],
+      { onPickFromDrive }
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Pick the scan from Google Drive/ })
+    );
+    await waitFor(() =>
+      expect(screen.getByText(/ready to import/)).toBeInTheDocument()
+    );
+    expect(onPickFromDrive).toHaveBeenCalledOnce();
+  });
+
+  it('tags questions during review and saves the tags with the key', async () => {
+    const { onImport, onSaveQuiz } = setup([
+      page(4, [
+        { row: 0, choice: 1 },
+        { row: 1, choice: 2 },
+        { row: 2, choice: 0 },
+      ]),
+      page(1, [{ row: 0, choice: 1 }]),
+    ]);
+    chooseFile();
+    await waitFor(() =>
+      expect(screen.getByText(/ready to import/)).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByLabelText('Tag question 2'));
+    expect(screen.getByText('Question 2 targets')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply fake tag' }));
+    expect(screen.getByText('Fractions')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('This key is correct'));
+    fireEvent.click(screen.getByRole('button', { name: /^Import 1 sheet$/ }));
+    await waitFor(() => expect(onImport).toHaveBeenCalledOnce());
+    const saved = onSaveQuiz.mock.calls[0][0];
+    expect(saved.questions[1].targets).toEqual([FAKE_TAG]);
+    expect(saved.questions[0].targets).toBeUndefined();
+    expect(saved.questions[1].correctAnswer).toBe('C');
   });
 });

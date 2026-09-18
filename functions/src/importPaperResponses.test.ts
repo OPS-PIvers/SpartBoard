@@ -31,6 +31,7 @@ vi.mock('./classlinkShared', async (importOriginal) => ({
 import {
   PAPER_SETTINGS_PATH,
   handleImportPaperResponses,
+  handlePublishPaperResults,
   parseImportPaperResponsesInput,
   type ImportPaperCaller,
 } from './importPaperResponses';
@@ -48,27 +49,46 @@ function makeDb(docs: Record<string, Doc>) {
         data: () => docs[path],
       }),
   });
+  // Only the `where(field, '>', '')` shape the publish path uses: direct
+  // children of the collection carrying a non-empty string at `field`.
+  const collectionRef = (path: string) => ({
+    doc: (id: string) => docRef(`${path}/${id}`),
+    where: (field: string) => ({
+      get: () =>
+        Promise.resolve({
+          docs: Object.entries(docs)
+            .filter(
+              ([p, d]) =>
+                p.startsWith(`${path}/`) &&
+                !p.slice(path.length + 1).includes('/') &&
+                typeof d[field] === 'string' &&
+                d[field] > ''
+            )
+            .map(([p, d]) => ({ id: p.slice(path.length + 1), data: () => d })),
+        }),
+    }),
+  });
   const docRef = (
     path: string
   ): ReturnType<typeof refFor> & {
-    collection: (sub: string) => { doc: (id: string) => unknown };
+    collection: (sub: string) => ReturnType<typeof collectionRef>;
   } => ({
     ...refFor(path),
-    collection: (sub: string) => ({
-      doc: (id: string) => docRef(`${path}/${sub}/${id}`),
-    }),
+    collection: (sub: string) => collectionRef(`${path}/${sub}`),
   });
   const db = {
     doc: (path: string) => refFor(path),
-    collection: (c: string) => ({ doc: (id: string) => docRef(`${c}/${id}`) }),
+    collection: (c: string) => collectionRef(c),
     batch: () => {
-      const staged: Array<{ path: string; data: Doc }> = [];
+      const staged: Array<{ path: string; data: Doc; merge: boolean }> = [];
       return {
-        set: (ref: { path: string }, data: Doc) => {
-          staged.push({ path: ref.path, data });
+        set: (ref: { path: string }, data: Doc, opts?: { merge?: boolean }) => {
+          staged.push({ path: ref.path, data, merge: opts?.merge === true });
         },
         commit: () => {
-          for (const s of staged) docs[s.path] = s.data;
+          for (const s of staged) {
+            docs[s.path] = s.merge ? { ...docs[s.path], ...s.data } : s.data;
+          }
           committed.push(staged.map((s) => s.path));
           return Promise.resolve();
         },
@@ -157,6 +177,10 @@ describe('handleImportPaperResponses', () => {
       lastWriteAt: 'SERVER_TS',
     });
     expect(doc.classId).toBeUndefined();
+    expect(docs[`users/${UID}/quiz_assignments/${ASSIGNMENT}`]).toEqual({
+      quizId: 'quiz-1',
+      hasPaperResponses: true,
+    });
     expect(doc.answers).toEqual([
       { questionId: 'q1', answer: 'B', answeredAt: NOW, status: 'submitted' },
       {
@@ -425,5 +449,140 @@ describe('parseImportPaperResponsesInput', () => {
         sheets: [sheet(1)],
       })
     ).toThrow(/batchId/);
+  });
+});
+
+describe('handlePublishPaperResults', () => {
+  const publish = (docs: Record<string, Doc>, caller = teacher) => {
+    const { db } = makeDb(docs);
+    return handlePublishPaperResults(
+      db,
+      caller,
+      { assignmentId: ASSIGNMENT },
+      NOW
+    ).then((result) => ({ result, docs }));
+  };
+  const withResponses = (): Record<string, Doc> => ({
+    ...baseDocs(),
+    [`quiz_sessions/${ASSIGNMENT}/responses/pseudo-s2`]: {
+      studentUid: 'pseudo-s2',
+      classId: 'class-1',
+      paperBatchId: BATCH,
+    },
+    [`quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-0001`]: {
+      studentUid: 'pin-period_1-0001',
+      paperBatchId: BATCH,
+    },
+    [`quiz_sessions/${ASSIGNMENT}/responses/device-kid`]: {
+      studentUid: 'device-kid',
+      classId: 'class-1',
+    },
+    [`quiz_sessions/${ASSIGNMENT}/responses/pseudo-s3`]: {
+      studentUid: 'pseudo-s3',
+      paperBatchId: BATCH,
+    },
+  });
+
+  it('writes a pointer for every pseudonym-keyed paper response and counts the rest', async () => {
+    const { result, docs } = await publish(withResponses());
+    expect(result).toEqual({ pointersWritten: 1, unlinked: 1, unplaced: 1 });
+    expect(docs[`student_assignments/pseudo-s2/items/${ASSIGNMENT}`]).toEqual({
+      kind: 'quiz',
+      sessionId: ASSIGNMENT,
+      teacherUid: UID,
+      classId: 'class-1',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    expect(
+      docs[`student_assignments/device-kid/items/${ASSIGNMENT}`]
+    ).toBeUndefined();
+    expect(
+      docs[`student_assignments/pin-period_1-0001/items/${ASSIGNMENT}`]
+    ).toBeUndefined();
+    expect(
+      docs[`student_assignments/pseudo-s3/items/${ASSIGNMENT}`]
+    ).toBeUndefined();
+  });
+
+  it('ends a paused paper-only administration so pointers lead to the review, and leaves a class session alone', async () => {
+    const paperOnly = withResponses();
+    paperOnly[`quiz_sessions/${ASSIGNMENT}`] = {
+      ...paperOnly[`quiz_sessions/${ASSIGNMENT}`],
+      status: 'paused',
+    };
+    paperOnly[`users/${UID}/quiz_assignments/${ASSIGNMENT}`] = {
+      quizId: 'quiz-1',
+      status: 'paused',
+    };
+    const ended = await publish(paperOnly);
+    expect(ended.docs[`quiz_sessions/${ASSIGNMENT}`]).toMatchObject({
+      status: 'ended',
+      endedAt: NOW,
+      teacherUid: UID,
+    });
+    expect(
+      ended.docs[`users/${UID}/quiz_assignments/${ASSIGNMENT}`]
+    ).toMatchObject({ status: 'inactive', updatedAt: NOW });
+
+    const mixed = withResponses();
+    mixed[`quiz_sessions/${ASSIGNMENT}`] = {
+      ...mixed[`quiz_sessions/${ASSIGNMENT}`],
+      status: 'paused',
+      classIds: ['class-1'],
+    };
+    const kept = await publish(mixed);
+    expect(kept.docs[`quiz_sessions/${ASSIGNMENT}`].status).toBe('paused');
+  });
+
+  it("keeps an existing pointer's createdAt and any stored override", async () => {
+    const docs = withResponses();
+    docs[`student_assignments/pseudo-s2/items/${ASSIGNMENT}`] = {
+      kind: 'quiz',
+      sessionId: ASSIGNMENT,
+      teacherUid: UID,
+      classId: 'class-1',
+      createdAt: 7,
+      updatedAt: 7,
+      override: { timeMultiplier: 2 },
+    };
+    await publish(docs);
+    expect(docs[`student_assignments/pseudo-s2/items/${ASSIGNMENT}`]).toEqual(
+      expect.objectContaining({
+        createdAt: 7,
+        updatedAt: NOW,
+        override: { timeMultiplier: 2 },
+      })
+    );
+  });
+
+  it('is a no-op for an administration with no paper responses', async () => {
+    const { result } = await publish(baseDocs());
+    expect(result).toEqual({ pointersWritten: 0, unlinked: 0, unplaced: 0 });
+  });
+
+  it('refuses the flag off, non-owners, students and the signed-out', async () => {
+    const off = withResponses();
+    off[PAPER_SETTINGS_PATH] = { enabled: false };
+    await expect(publish(off)).rejects.toMatchObject({
+      code: 'failed-precondition',
+    });
+    const stolen = withResponses();
+    stolen[`quiz_sessions/${ASSIGNMENT}`] = {
+      ...stolen[`quiz_sessions/${ASSIGNMENT}`],
+      teacherUid: 'other',
+    };
+    await expect(publish(stolen)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    await expect(
+      publish(withResponses(), { ...teacher, studentRole: true })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(
+      handlePublishPaperResults(makeDb(withResponses()).db, null, {}, NOW)
+    ).rejects.toMatchObject({ code: 'unauthenticated' });
+    await expect(
+      handlePublishPaperResults(makeDb(withResponses()).db, teacher, {}, NOW)
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
   });
 });
