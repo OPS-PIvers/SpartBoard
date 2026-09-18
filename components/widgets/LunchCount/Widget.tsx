@@ -435,6 +435,11 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     };
   }, [allRosterStudents, assignments]);
 
+  // Unassigned students the pool is hiding. Submit counts the whole class, so
+  // without naming this the grid can read "Unassigned (0)" next to a disabled
+  // button asking for someone who is nowhere on screen.
+  const hiddenRemaining = reportStats.remaining - stats.remaining;
+
   const handleSelectPoolGroup = useCallback(
     (groupId: string | null) => {
       updateWidget(widget.id, {
@@ -789,7 +794,9 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                       height: 'min(18px, 4.5cqmin)',
                     }}
                   />
-                  Assign {reportStats.remaining} More Students
+                  {hiddenRemaining > 0
+                    ? `Assign ${reportStats.remaining} more — ${hiddenRemaining} outside this group`
+                    : `Assign ${reportStats.remaining} More Students`}
                 </div>
               )}
             </Button>
@@ -1087,6 +1094,8 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                       className="font-black uppercase text-slate-400 tracking-widest"
                     >
                       Unassigned ({stats.remaining})
+                      {hiddenRemaining > 0 &&
+                        ` · ${hiddenRemaining} outside this group`}
                     </span>
                   </div>
 

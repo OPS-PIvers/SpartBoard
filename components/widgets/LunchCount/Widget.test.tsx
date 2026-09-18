@@ -330,9 +330,21 @@ describe('LunchCountWidget — class group pool', () => {
     expect(within(hotLunchRow).getByText('2')).toBeInTheDocument();
   });
 
-  it('blocks submit while someone outside the pool is unassigned', () => {
+  it('says where the missing student is when the pool hides them', () => {
+    // Every visible student is assigned, so the grid reads "Unassigned (0)".
+    // Without naming the hidden one the disabled button is unexplainable.
     gate.enabled = true;
     render(<LunchCountWidget widget={pooledWidget('g1', { s1: 'hot' })} />);
+    expect(
+      screen.getByRole('button', { name: /1 outside this group/i })
+    ).toBeDisabled();
+    expect(screen.getByText(/Unassigned \(0\)/)).toHaveTextContent(
+      /1 outside this group/i
+    );
+  });
+
+  it('keeps the plain label when nothing is hidden', () => {
+    render(<LunchCountWidget widget={pooledWidget(null, { s1: 'hot' })} />);
     expect(screen.getByText(/Assign 1 More Students/i)).toBeInTheDocument();
   });
 });
