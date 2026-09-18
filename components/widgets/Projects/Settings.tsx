@@ -44,6 +44,8 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
     [projectId, projects]
   );
   const [stepDraft, setStepDraft] = useState<string | null>(null);
+  const [titleDraft, setTitleDraft] = useState<string | null>(null);
+  const [descDraft, setDescDraft] = useState<string | null>(null);
   const [openStepId, setOpenStepId] = useState<string | null>(null);
 
   const update = useCallback(
@@ -74,6 +76,14 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
     [addToast, run, saveProject, updateRun]
   );
 
+  const selectProject = (id: string | undefined) => {
+    setStepDraft(null);
+    setTitleDraft(null);
+    setDescDraft(null);
+    setOpenStepId(null);
+    update({ projectId: id });
+  };
+
   const handleCreateProject = async () => {
     const now = Date.now();
     const next: ProjectDefinition = {
@@ -83,8 +93,14 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
       createdAt: now,
       updatedAt: now,
     };
-    await persistProject(next);
-    update({ projectId: next.id });
+    // Not persistProject: `run` still points at the open project's run doc.
+    try {
+      await saveProject(next);
+    } catch {
+      addToast('That project could not be saved.', 'error');
+      return;
+    }
+    selectProject(next.id);
   };
 
   const handleStepsBlur = async () => {
@@ -92,6 +108,14 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
     const steps = parseStepLines(stepDraft, project.steps);
     setStepDraft(null);
     await persistProject({ ...project, steps });
+  };
+
+  const handleTitleBlur = async () => {
+    if (!project || titleDraft === null) return;
+    const title = titleDraft;
+    setTitleDraft(null);
+    if (title === project.title) return;
+    await persistProject({ ...project, title });
   };
 
   const handleStepFlag = async (
@@ -105,6 +129,14 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
         step.id === stepId ? { ...step, ...updates } : step
       ),
     });
+  };
+
+  const handleDescriptionBlur = async (step: ProjectStep) => {
+    if (descDraft === null) return;
+    const description = descDraft;
+    setDescDraft(null);
+    if (description === (step.description ?? '')) return;
+    await handleStepFlag(step.id, { description });
   };
 
   const handleImport = async (entries: ProjectGroupImportEntry[]) => {
@@ -148,7 +180,7 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
         <select
           id={`${widget.id}-project`}
           value={projectId ?? ''}
-          onChange={(e) => update({ projectId: e.target.value || undefined })}
+          onChange={(e) => selectProject(e.target.value || undefined)}
           className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
         >
           <option value="">Choose a project…</option>
@@ -169,10 +201,9 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
             <input
               id={`${widget.id}-title`}
               type="text"
-              value={project.title}
-              onChange={(e) =>
-                void persistProject({ ...project, title: e.target.value })
-              }
+              value={titleDraft ?? project.title}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={() => void handleTitleBlur()}
               className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
             />
           </div>
@@ -220,12 +251,9 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
                       <div className="space-y-2 border-t border-slate-100 px-3 py-2">
                         <input
                           type="text"
-                          value={step.description ?? ''}
-                          onChange={(e) =>
-                            void handleStepFlag(step.id, {
-                              description: e.target.value,
-                            })
-                          }
+                          value={descDraft ?? step.description ?? ''}
+                          onChange={(e) => setDescDraft(e.target.value)}
+                          onBlur={() => void handleDescriptionBlur(step)}
                           placeholder="What this step means (optional)"
                           className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs"
                         />

@@ -271,9 +271,11 @@ export const RandomSendToProjectsField: React.FC<{
       addToast(ctx.t('widgetSettings.random.projectsNeedsRoster'), 'info');
       return;
     }
-    const groups = resultGroups(config.lastResult).filter(
-      (group) => (group.studentIds?.length ?? 0) > 0
-    );
+    // Keep each group's original position: the "Group N" fallback has to match
+    // what the Group Maker itself shows, so an empty group cannot renumber it.
+    const groups = resultGroups(config.lastResult)
+      .map((group, index) => ({ group, index }))
+      .filter(({ group }) => (group.studentIds?.length ?? 0) > 0);
     if (groups.length === 0) {
       addToast(
         ctx.t('widgetSettings.random.generateGroupsFirstProjects'),
@@ -303,7 +305,7 @@ export const RandomSendToProjectsField: React.FC<{
         pendingImport: {
           rosterId: activeRosterId,
           at: Date.now(),
-          groups: groups.map((group, index) => ({
+          groups: groups.map(({ group, index }) => ({
             name: resolveRandomGroupName(
               group,
               index,

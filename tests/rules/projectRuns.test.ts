@@ -75,6 +75,26 @@ const group = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+/**
+ * Deactivating the teacher's operator-org member doc, the one thing
+ * `notDeactivated()` reads.
+ */
+const deactivateTeacher = async () => {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(
+      doc(
+        ctx.firestore(),
+        `organizations/orono/members/${TEACHER_UID}@example.com`
+      ),
+      {
+        email: `${TEACHER_UID}@example.com`,
+        roleId: 'teacher',
+        status: 'inactive',
+      }
+    );
+  });
+};
+
 const seed = async (
   runOverrides: Record<string, unknown> = {},
   groupOverrides: Record<string, unknown> = {}
@@ -164,6 +184,13 @@ describe('run document', () => {
       })
     );
   });
+
+  it('denies another teacher reading it at all', async () => {
+    await seed();
+    await assertFails(
+      getDoc(doc(asTeacher(OTHER_TEACHER_UID), 'project_runs', RUN_ID))
+    );
+  });
 });
 
 describe('group document', () => {
@@ -227,6 +254,11 @@ describe('group document', () => {
     await assertFails(
       updateDoc(doc(db, GROUP_PATH), { classId: OTHER_CLASS_ID })
     );
+  });
+
+  it('denies another teacher reading a group in someone else\u2019s run', async () => {
+    await seed();
+    await assertFails(getDoc(doc(asTeacher(OTHER_TEACHER_UID), GROUP_PATH)));
   });
 
   it('denies a classmate who is not in the group', async () => {
@@ -338,6 +370,27 @@ describe('grades', () => {
     );
     await assertSucceeds(
       setDoc(doc(asTeacher(TEACHER_UID), gradePath), grade(true))
+    );
+  });
+});
+
+describe('a deactivated teacher', () => {
+  it('loses read and write on the groups and grades of their own run', async () => {
+    await seed();
+    await assertSucceeds(getDoc(doc(asTeacher(TEACHER_UID), GROUP_PATH)));
+
+    await deactivateTeacher();
+    await assertFails(getDoc(doc(asTeacher(TEACHER_UID), GROUP_PATH)));
+    await assertFails(
+      updateDoc(doc(asTeacher(TEACHER_UID), GROUP_PATH), { name: 'Renamed' })
+    );
+    const gradePath = `project_runs/${RUN_ID}/grades/group-1`;
+    await assertFails(
+      setDoc(doc(asTeacher(TEACHER_UID), gradePath), {
+        released: true,
+        points: 9,
+        updatedAt: 1,
+      })
     );
   });
 });

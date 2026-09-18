@@ -5054,17 +5054,28 @@ service cloud.firestore {
       function pjRun() {
         return get(/databases/$(database)/documents/project_runs/$(runId)).data;
       }
+      // Positive student check. passesStudentClassGate*() passes every
+      // non-student, so it can never stand as the || alternative to ownership.
+      function pjStudentInAnyClass(classIds) {
+        return isStudentRoleUser()
+               && request.auth.token.classIds is list
+               && classIds is list
+               && classIds.hasAny(request.auth.token.classIds);
+      }
+      // notDeactivated() last: it is a get(), and a student never reaches it.
       function pjIsRunTeacher() {
-        return request.auth != null && pjRun().teacherUid == request.auth.uid;
+        return request.auth != null
+               && pjRun().teacherUid == request.auth.uid
+               && notDeactivated();
       }
 
       allow get: if request.auth != null
                  && (resource.data.teacherUid == request.auth.uid
-                     || passesStudentClassGateList(resource.data.get('classIds', [])));
+                     || pjStudentInAnyClass(resource.data.get('classIds', [])));
       allow list: if request.auth != null
                   && request.auth.token.firebase.sign_in_provider != 'anonymous'
                   && (resource.data.teacherUid == request.auth.uid
-                      || passesStudentClassGateList(resource.data.get('classIds', [])));
+                      || pjStudentInAnyClass(resource.data.get('classIds', [])));
       allow create: if pjTeacher()
                     && request.resource.data.teacherUid == request.auth.uid
                     && request.resource.data.id == runId
@@ -5112,17 +5123,17 @@ service cloud.firestore {
 
         allow get: if request.auth != null
                    && (pjIsRunTeacher()
-                       || passesStudentClassGate(resource.data.get('classId', '')));
+                       || studentRoleCanAccessClass(resource.data.get('classId', '')));
         allow list: if request.auth != null
                     && (pjIsRunTeacher()
-                        || passesStudentClassGate(resource.data.get('classId', '')));
+                        || studentRoleCanAccessClass(resource.data.get('classId', '')));
         allow update: if request.auth != null
                       && (pjIsRunTeacher()
                           || (request.auth.uid in resource.data.get('memberUids', [])
                               && pjStudentEditableFields()
                               && pjStudentStepWrite()
                               && pjRun().acceptingUpdates == true));
-        allow create, delete: if pjIsRunTeacher() && notDeactivated();
+        allow create, delete: if pjIsRunTeacher();
 
         // D24: the event log is the teacher's audit trail, never student-visible.
         // Append-only, and `actorUid` is pinned to the caller, so an entry can
@@ -5155,7 +5166,7 @@ service cloud.firestore {
                     || (request.auth != null
                         && resource.data.get('released', false) == true
                         && request.auth.uid in pjGroupMembers());
-        allow write: if pjIsRunTeacher() && notDeactivated();
+        allow write: if pjIsRunTeacher();
       }
     }
 

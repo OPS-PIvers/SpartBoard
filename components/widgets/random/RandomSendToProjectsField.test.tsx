@@ -81,6 +81,27 @@ describe('RandomSendToProjectsField', () => {
     });
   });
 
+  it('numbers groups by their original position, not their filtered one', async () => {
+    render(
+      <RandomSendToProjectsField
+        ctx={ctx({
+          lastResult: [
+            { id: GROUP_B, names: [], studentIds: [] },
+            { id: GROUP_B, names: ['Cy'], studentIds: ['s3'] },
+          ],
+        })}
+      />
+    );
+    clickSend();
+    await waitFor(() => expect(updateWidget).toHaveBeenCalled());
+    const staged = updateWidget.mock.calls[0][1] as {
+      config: { pendingImport: { groups: { name: string }[] } };
+    };
+    expect(staged.config.pendingImport.groups).toEqual([
+      { name: 'Group 2', studentIds: ['s3'] },
+    ]);
+  });
+
   it('refuses a custom name list, which cannot resolve to students', async () => {
     render(<RandomSendToProjectsField ctx={ctx({ rosterMode: 'custom' })} />);
     clickSend();
