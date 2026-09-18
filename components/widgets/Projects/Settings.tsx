@@ -168,9 +168,12 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
     });
     const result = await importGroups(entries);
     update({ pendingImport: null });
+    // A hand-built roster resolves no one, which is a tracker, not a failure.
     addToast(
-      `Imported ${result.groupsWritten} groups, ${result.membersResolved} students.`,
-      'success'
+      result.membersResolved === 0
+        ? `Imported ${result.groupsWritten} groups as a tracker you move yourself — these students have no district account to sign in with.`
+        : `Imported ${result.groupsWritten} groups, ${result.membersResolved} students.`,
+      result.membersResolved === 0 ? 'info' : 'success'
     );
   };
 
