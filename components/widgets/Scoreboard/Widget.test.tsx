@@ -23,6 +23,17 @@ import {
 // the mount-stable store surfaces.
 vi.mock('@/context/useDashboard');
 vi.mock('@/context/dashboardCanvasStore');
+// Both halves of the class-groups gate default OFF here, so these suites keep
+// asserting the pre-feature panel (docs/plans/ROSTER_GROUPS_INTEGRATION.md D23).
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
+}));
+vi.mock('@/hooks/useRosterGroupsIntegrationSettings', () => ({
+  useRosterGroupsIntegrationSettings: () => ({ enabled: false }),
+}));
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({ showConfirm: vi.fn().mockResolvedValue(true) }),
+}));
 
 // Mock ScoreboardItem to spy on renders
 vi.mock('./components/ScoreboardItem', async (importOriginal) => {
@@ -61,6 +72,8 @@ const mockAddToast = vi.fn();
 const mockDashboardContext = {
   updateWidget: mockUpdateWidget,
   addToast: mockAddToast,
+  rosters: [],
+  activeRosterId: null,
   activeDashboard: {
     widgets: [],
   },

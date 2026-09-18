@@ -2809,6 +2809,25 @@
       "saveAsGroupsNeedsClassGroups": "Primero crea grupos con una clase seleccionada.",
       "lockedGroupsEmpty": "Guarda un grupo para esta clase y se mantendrá unido al formar grupos.",
       "rosterGroupsOff": "Los grupos de clase están desactivados en tu centro en este momento."
+    },
+    "scoreboard": {
+      "classGroups": "Grupos de la clase",
+      "useGroupNames": "Usar los nombres de los grupos como nombres de equipo",
+      "importClassGroups_one": "Crear {{count}} equipo a partir de los grupos de la clase",
+      "importClassGroups_other": "Crear {{count}} equipos a partir de los grupos de la clase",
+      "importedClassGroups_one": "Se creó {{count}} equipo a partir de tus grupos de la clase.",
+      "importedClassGroups_other": "Se crearon {{count}} equipos a partir de tus grupos de la clase.",
+      "resyncMembers": "Volver a sincronizar los integrantes con la clase",
+      "resyncedMembers_one": "Se actualizaron los integrantes de {{count}} equipo.",
+      "resyncedMembers_other": "Se actualizaron los integrantes de {{count}} equipos.",
+      "resyncUnlinked_one": "{{count}} equipo ya no corresponde a un grupo de la clase.",
+      "resyncUnlinked_other": "{{count}} equipos ya no corresponden a un grupo de la clase.",
+      "replaceTeamsTitle": "¿Reemplazar los equipos por los grupos de la clase?",
+      "replaceTeamsBody_one": "Esto reemplaza el {{count}} equipo de este marcador, incluida su puntuación.",
+      "replaceTeamsBody_other": "Esto reemplaza los {{count}} equipos de este marcador, incluidas sus puntuaciones.",
+      "replaceTeamsConfirm": "Reemplazar",
+      "classTeamName": "Equipo {{count}}",
+      "membersTitle": "Integrantes del grupo de la clase"
     }
   }
 }

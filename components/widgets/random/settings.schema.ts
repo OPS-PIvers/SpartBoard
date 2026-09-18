@@ -156,6 +156,7 @@ export default defineSettings<RandomConfig>({
           label: 'lockedGroups',
           visibleWhen: (ctx) =>
             rosterGroupsPermitted(ctx) &&
+            !isCustomRoster(ctx) &&
             (isMode('groups')(ctx) || isMode('jigsaw')(ctx)),
           render: renderLockedGroups,
         },
@@ -164,7 +165,9 @@ export default defineSettings<RandomConfig>({
           type: 'custom',
           label: 'saveAsClassGroups',
           visibleWhen: (ctx) =>
-            rosterGroupsPermitted(ctx) && isMode('groups')(ctx),
+            rosterGroupsPermitted(ctx) &&
+            !isCustomRoster(ctx) &&
+            isMode('groups')(ctx),
           render: renderSaveAsClassGroups,
         },
         // schema-gap: partnerAction
