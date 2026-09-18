@@ -713,6 +713,8 @@ interface ConfirmProps {
   requireTyping?: string;
   /** In-flight: both buttons lock so the action can't be double-sent or dismissed. */
   busy?: boolean;
+  /** Blocks confirm alone — e.g. until a preflight the dialog is reporting resolves. */
+  confirmDisabled?: boolean;
 }
 
 export const Confirm: React.FC<ConfirmProps> = (props) => {
@@ -729,6 +731,7 @@ const ConfirmInner: React.FC<ConfirmProps> = ({
   destructive,
   requireTyping,
   busy = false,
+  confirmDisabled = false,
 }) => {
   const [typed, setTyped] = useState('');
   const typingOk = !requireTyping || typed === requireTyping;
@@ -766,7 +769,7 @@ const ConfirmInner: React.FC<ConfirmProps> = ({
           <Btn
             variant={destructive ? 'danger' : 'primary'}
             onClick={onConfirm}
-            disabled={!typingOk || busy}
+            disabled={!typingOk || busy || confirmDisabled}
           >
             {confirmLabel}
           </Btn>

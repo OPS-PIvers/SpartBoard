@@ -73,7 +73,7 @@ export interface DeleteUserPayload {
 }
 
 export interface DeleteUserBlocker {
-  kind: 'shared_board' | 'plc';
+  kind: 'shared_board' | 'plc' | 'org_membership';
   id: string;
   label: string;
 }
@@ -150,9 +150,19 @@ export async function assertCallerMayDelete(
  */
 export function classifyBlockers(
   sharedBoards: Array<{ id: string; title?: unknown }>,
-  plcs: Array<{ id: string; name?: unknown }>
+  plcs: Array<{ id: string; name?: unknown }>,
+  otherOrgs: Array<{ id: string; name?: unknown }> = []
 ): DeleteUserBlocker[] {
   const out: DeleteUserBlocker[] = [];
+  // Listed first: `/users/{uid}` is global, so deleting on one org's behalf
+  // would destroy the other org's boards, quizzes and rosters too.
+  for (const o of otherOrgs) {
+    out.push({
+      kind: 'org_membership',
+      id: o.id,
+      label: typeof o.name === 'string' && o.name ? o.name : o.id,
+    });
+  }
   for (const b of sharedBoards) {
     out.push({
       kind: 'shared_board',
@@ -171,11 +181,36 @@ export function classifyBlockers(
   return out.slice(0, MAX_BLOCKERS_REPORTED);
 }
 
+/**
+ * Other orgs the target still belongs to. Direct gets across the org list
+ * rather than a `collectionGroup('members')` query: orgs number in the tens at
+ * most, and this needs no composite index to exist before it can run.
+ */
+export async function findOtherOrgMemberships(
+  db: Firestore,
+  orgId: string,
+  emailLower: string
+): Promise<Array<{ id: string; name?: unknown }>> {
+  const orgs = await db.collection('organizations').get();
+  const others = orgs.docs.filter((d) => d.id !== orgId);
+  const hits = await Promise.all(
+    others.map(async (o) => {
+      const snap = await db
+        .doc(`organizations/${o.id}/members/${emailLower}`)
+        .get();
+      return snap.exists ? { id: o.id, name: o.get('name') as unknown } : null;
+    })
+  );
+  return hits.filter((h): h is { id: string; name?: unknown } => h !== null);
+}
+
 async function scanBlockers(
   db: Firestore,
+  orgId: string,
+  emailLower: string,
   uid: string
 ): Promise<DeleteUserBlocker[]> {
-  const [boards, plcs] = await Promise.all([
+  const [boards, plcs, otherOrgs] = await Promise.all([
     db
       .collection('shared_boards')
       .where('originalAuthor', '==', uid)
@@ -186,10 +221,12 @@ async function scanBlockers(
       .where('memberUids', 'array-contains', uid)
       .limit(MAX_BLOCKERS_REPORTED)
       .get(),
+    findOtherOrgMemberships(db, orgId, emailLower),
   ]);
   return classifyBlockers(
     boards.docs.map((d) => ({ id: d.id, title: asString(d.get('title')) })),
-    plcs.docs.map((d) => ({ id: d.id, name: asString(d.get('name')) }))
+    plcs.docs.map((d) => ({ id: d.id, name: asString(d.get('name')) })),
+    otherOrgs
   );
 }
 
@@ -292,7 +329,7 @@ export const deleteOrganizationUser = onCall(
       }
     }
 
-    const blockers = uid ? await scanBlockers(db, uid) : [];
+    const blockers = uid ? await scanBlockers(db, orgId, email, uid) : [];
     const [userDocsFound, storageObjectsFound, quizSessionsPreserved] = uid
       ? await Promise.all([
           countUserDocs(db, uid),

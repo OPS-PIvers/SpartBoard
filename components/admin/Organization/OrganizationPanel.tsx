@@ -960,6 +960,8 @@ export const OrganizationPanel: React.FC = () => {
         destructive
         requireTyping={deleteTarget?.email}
         busy={deletePhase === 'deleting'}
+        // No confirming before the dialog can show the counts it exists to show.
+        confirmDisabled={deleteTarget?.preflight == null}
         confirmLabel={
           deletePhase === 'deleting' ? 'Working...' : 'Delete permanently'
         }
@@ -1014,14 +1016,18 @@ const DeleteUserConfirmBody: React.FC<{
       <div className="space-y-3">
         <p>
           <strong className="text-slate-900">{email}</strong> can&apos;t be
-          deleted yet — other teachers depend on this content. Reassign or
+          deleted yet — this content belongs to other people too. Reassign or
           remove it first:
         </p>
         <ul className="rounded-lg bg-amber-50 border border-amber-200 divide-y divide-amber-200">
           {blockers.map((b) => (
             <li key={`${b.kind}-${b.id}`} className="px-3 py-2 text-amber-900">
               <span className="font-semibold">
-                {b.kind === 'plc' ? 'PLC' : 'Shared board'}
+                {b.kind === 'plc'
+                  ? 'PLC'
+                  : b.kind === 'org_membership'
+                    ? 'Also a member of'
+                    : 'Shared board'}
               </span>
               {' — '}
               {b.label}

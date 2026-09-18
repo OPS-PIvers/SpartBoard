@@ -50,6 +50,7 @@ vi.mock('./classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
 import {
   deleteOrganizationUser,
   classifyBlockers,
+  findOtherOrgMemberships,
   parseDeletePayload,
   assertCallerMayDelete,
   DELETE_ROLE_IDS,
@@ -82,6 +83,8 @@ function makeDb(opts: {
   plcs?: Array<{ id: string; name?: string }>;
   counts?: Record<string, number>;
   subcollections?: string[];
+  /** Org ids present on the platform; member docs come from `docs`. */
+  orgs?: Array<{ id: string; name?: string }>;
 }) {
   const deleted: string[] = [];
   const added: Array<Record<string, unknown>> = [];
@@ -121,7 +124,12 @@ function makeDb(opts: {
               id: p.id,
               get: (f: string) => (f === 'name' ? p.name : undefined),
             }))
-          : [];
+          : name === 'organizations'
+            ? (opts.orgs ?? [{ id: 'orono' }]).map((o) => ({
+                id: o.id,
+                get: (f: string) => (f === 'name' ? o.name : undefined),
+              }))
+            : [];
     const q = {
       where: () => q,
       limit: () => q,
@@ -179,6 +187,28 @@ describe('parseDeletePayload', () => {
   });
 });
 
+describe('findOtherOrgMemberships', () => {
+  it('returns orgs other than the target one that still carry a member doc', async () => {
+    const { db } = makeDb({
+      orgs: [{ id: 'orono' }, { id: 'other', name: 'Other District' }],
+      docs: { 'organizations/other/members/t@x.com': { roleId: 'teacher' } },
+    });
+    await expect(
+      findOtherOrgMemberships(db as never, 'orono', 't@x.com')
+    ).resolves.toEqual([{ id: 'other', name: 'Other District' }]);
+  });
+
+  it('ignores the org the delete is running for', async () => {
+    const { db } = makeDb({
+      orgs: [{ id: 'orono' }],
+      docs: { 'organizations/orono/members/t@x.com': { roleId: 'teacher' } },
+    });
+    await expect(
+      findOtherOrgMemberships(db as never, 'orono', 't@x.com')
+    ).resolves.toEqual([]);
+  });
+});
+
 describe('classifyBlockers', () => {
   it('labels both kinds and falls back for untitled content', () => {
     expect(
@@ -202,6 +232,24 @@ describe('classifyBlockers', () => {
 
   it('returns nothing when the user owns no shared content', () => {
     expect(classifyBlockers([], [])).toEqual([]);
+  });
+
+  it('lists another org membership first — the widest blast radius', () => {
+    expect(
+      classifyBlockers(
+        [{ id: 'b1', title: 'Unit 3' }],
+        [],
+        [{ id: 'other', name: 'Other District' }]
+      )[0]
+    ).toEqual({
+      kind: 'org_membership',
+      id: 'other',
+      label: 'Other District',
+    });
+  });
+
+  it('falls back to the org id when the org has no name', () => {
+    expect(classifyBlockers([], [], [{ id: 'other' }])[0]?.label).toBe('other');
   });
 });
 
@@ -345,6 +393,34 @@ describe('deleteOrganizationUser — preflight and execution', () => {
     expect(res.deleted).toBe(false);
     expect(res.blockers).toHaveLength(2);
     expect(recursiveDeleteMock).not.toHaveBeenCalled();
+    expect(deleted).toEqual([]);
+  });
+
+  it('refuses while the target still belongs to another organization', async () => {
+    // `/users/{uid}` is global, so deleting for org A would wipe org B's data.
+    const { db, deleted } = makeDb({
+      orgs: [{ id: 'orono' }, { id: 'other', name: 'Other District' }],
+      docs: {
+        ...baseDocs,
+        'users/uid9': {},
+        'organizations/other/members/teacher@orono.k12.mn.us': {
+          roleId: 'teacher',
+        },
+      },
+    });
+    firestoreMock.mockReturnValue(db);
+    getUserByEmailMock.mockResolvedValue({ uid: 'uid9' });
+
+    const res = await handler({ auth: SUPER, data: target });
+
+    expect(res.deleted).toBe(false);
+    expect(res.blockers).toContainEqual({
+      kind: 'org_membership',
+      id: 'other',
+      label: 'Other District',
+    });
+    expect(recursiveDeleteMock).not.toHaveBeenCalled();
+    expect(deleteUserMock).not.toHaveBeenCalled();
     expect(deleted).toEqual([]);
   });
 

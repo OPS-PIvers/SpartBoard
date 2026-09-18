@@ -41,7 +41,7 @@ export interface InviteResponse {
 // A non-empty `blockers` with `deleted: false` means the delete was REFUSED
 // because other teachers depend on that content — not that it failed.
 export interface DeleteUserBlocker {
-  kind: 'shared_board' | 'plc';
+  kind: 'shared_board' | 'plc' | 'org_membership';
   id: string;
   label: string;
 }
