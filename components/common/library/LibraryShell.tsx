@@ -6,7 +6,9 @@ import {
   Library,
   ChevronsLeft,
   ChevronsRight,
+  ChevronDown,
 } from 'lucide-react';
+import { OverflowMenu } from '@/components/common/sessionViews/OverflowMenu';
 import type {
   LibraryShellProps,
   LibraryTab,
@@ -65,7 +67,8 @@ const renderActionButton = (
   action: LibraryPrimaryAction,
   variant: 'primary' | 'secondary',
   labelsHidden: boolean,
-  key?: string
+  key?: string,
+  extraClass = ''
 ): React.ReactElement => {
   const Icon = action.icon;
   const base =
@@ -90,7 +93,7 @@ const renderActionButton = (
             : undefined
       }
       aria-label={action.label}
-      className={`${base} ${variantClass}`}
+      className={`${base} ${variantClass} ${extraClass}`}
       style={{
         paddingInline: labelsHidden ? '0' : 'min(14px, 3cqmin)',
         paddingBlock: 'min(8px, 1.8cqmin)',
@@ -276,7 +279,25 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                 )
               )}
               {primaryAction &&
-                renderActionButton(primaryAction, 'primary', labelsHidden)}
+                (primaryAction.menuItems?.length ? (
+                  <div className="inline-flex shrink-0 items-stretch">
+                    {renderActionButton(
+                      primaryAction,
+                      'primary',
+                      labelsHidden,
+                      undefined,
+                      'rounded-r-none'
+                    )}
+                    <OverflowMenu
+                      items={primaryAction.menuItems}
+                      ariaLabel="More ways to create"
+                      triggerIcon={ChevronDown}
+                      triggerClassName="rounded-r-xl border-l border-brand-blue-lighter bg-white text-brand-blue-primary shadow-sm hover:bg-brand-blue-lighter"
+                    />
+                  </div>
+                ) : (
+                  renderActionButton(primaryAction, 'primary', labelsHidden)
+                ))}
             </div>
           )}
         </div>

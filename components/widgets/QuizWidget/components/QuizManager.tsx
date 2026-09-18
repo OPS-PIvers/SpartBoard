@@ -1936,18 +1936,29 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     ) : undefined;
 
   // ─── Shell header actions ─────────────────────────────────────────────────
+  // Paper lives behind New Quiz's caret, never as its own button (plan Q10).
   const primaryAction =
     managerTab === 'library'
-      ? { label: 'New Quiz', icon: Plus, onClick: onNew }
+      ? {
+          label: 'New Quiz',
+          icon: Plus,
+          onClick: onNew,
+          ...(onNewPaperTest
+            ? {
+                menuItems: [
+                  {
+                    label: 'Paper test',
+                    icon: Printer,
+                    onClick: onNewPaperTest,
+                  },
+                ],
+              }
+            : {}),
+        }
       : undefined;
   const secondaryActions =
     managerTab === 'library'
-      ? [
-          ...(onNewPaperTest
-            ? [{ label: 'Paper test', icon: Printer, onClick: onNewPaperTest }]
-            : []),
-          { label: 'Import', icon: FileUp, onClick: onImport },
-        ]
+      ? [{ label: 'Import', icon: FileUp, onClick: onImport }]
       : undefined;
 
   // ─── Toolbar for library tab ──────────────────────────────────────────────
