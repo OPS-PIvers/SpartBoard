@@ -151,7 +151,7 @@ describe('PaperImportModal', () => {
       name: /^Import 1 sheet$/,
     });
     expect(importButton).toBeDisabled();
-    expect(screen.getByLabelText('Key for question 2').value).toBe('2');
+    expect(screen.getByLabelText('Key for question 2')).toHaveValue('2');
     fireEvent.click(screen.getByLabelText('This key is correct'));
     expect(importButton).toBeEnabled();
     fireEvent.click(importButton);

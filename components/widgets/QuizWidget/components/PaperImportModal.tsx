@@ -127,10 +127,6 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     [batches, batchId]
   );
   const rowIds = useMemo(() => sheetRowQuestionIds(quiz), [quiz]);
-  const isStub = useMemo(
-    () => quiz.questions.every((q) => CHOICE_LETTERS.includes(q.correctAnswer)),
-    [quiz]
-  );
 
   const readFile = async (file: File) => {
     if (!batch) return;
@@ -194,7 +190,9 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     });
   };
 
-  const needsKey = !!batch?.keySheetSeat && isStub;
+  // A batch records choiceOrder only for an authored quiz; a stub's key comes
+  // from the bubbled key sheet and nowhere else.
+  const needsKey = !!batch?.keySheetSeat && !batch?.choiceOrder;
   const keyMissing = needsKey && !assembled?.keySheet;
   const keyIncomplete =
     !!assembled?.keySheet &&
