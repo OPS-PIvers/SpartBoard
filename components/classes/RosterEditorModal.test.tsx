@@ -455,6 +455,40 @@ describe('RosterEditorModal', () => {
     ]);
   });
 
+  it('offers a single "+ New Group" CTA on the empty groups tab', async () => {
+    const user = userEvent.setup();
+    const existing: ClassRoster = {
+      id: 'r1',
+      name: 'Existing Class',
+      students: [
+        { id: 's1', firstName: 'Alice', lastName: 'Smith', pin: '01' },
+        { id: 's2', firstName: 'Bob', lastName: 'Jones', pin: '02' },
+      ],
+      groups: [],
+      driveFileId: null,
+      studentCount: 2,
+      createdAt: Date.now(),
+    };
+
+    render(
+      <RosterEditorModal
+        isOpen={true}
+        roster={existing}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('tab', { name: /groups/i }));
+    // RosterEmptyState carries the only add CTA; the footer keeps just Split.
+    expect(screen.getAllByRole('button', { name: /new group/i })).toHaveLength(
+      1
+    );
+    expect(
+      screen.getByRole('button', { name: /split class/i })
+    ).toBeInTheDocument();
+  });
+
   it('keeps existing groups when splitting', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockResolvedValue(undefined);

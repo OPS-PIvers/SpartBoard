@@ -1143,7 +1143,6 @@ export const useRosters = (user: User | null) => {
       const appended = newGroups.filter((g) => !existingIds.has(g.id));
       if (appended.length === 0) return;
 
-      const previousContent = studentsCacheRef.current.get(rosterId);
       const nextContent = pruneRosterFileContent({
         ...current,
         groups: [...current.groups, ...appended],
@@ -1179,14 +1178,22 @@ export const useRosters = (user: User | null) => {
         }
       } catch (err) {
         console.error('Failed to append roster groups to Drive:', err);
-        if (previousContent) {
-          studentsCacheRef.current.set(rosterId, previousContent);
-        } else {
-          studentsCacheRef.current.delete(rosterId);
-        }
+        // Roll back to the re-read, not to whatever was cached before this
+        // call — that value is the stale one this function exists to avoid,
+        // and the next `updateRoster` would write the whole file from it.
+        studentsCacheRef.current.set(rosterId, current);
         setRosters((prev) =>
           prev.map((r) =>
-            r.id === rosterId ? { ...r, groups: current.groups } : r
+            r.id === rosterId
+              ? {
+                  ...r,
+                  students: current.students,
+                  studentCount: current.students.length,
+                  groups: current.groups,
+                  defaultOverridesByStudentId:
+                    current.defaultOverridesByStudentId,
+                }
+              : r
           )
         );
         throw new Error('Failed to save groups to Drive');

@@ -839,13 +839,16 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
           </div>
         ) : (
           <div className="flex gap-2">
-            <button
-              onClick={addGroup}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors"
-            >
-              <Plus size={16} />
-              {t('sidebar.classes.addGroup', { defaultValue: '+ New Group' })}
-            </button>
+            {/* RosterEmptyState already carries this CTA when there are none. */}
+            {groups.length > 0 && (
+              <button
+                onClick={addGroup}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors"
+              >
+                <Plus size={16} />
+                {t('sidebar.classes.addGroup', { defaultValue: '+ New Group' })}
+              </button>
+            )}
             <button
               onClick={openSplit}
               disabled={students.length < 2}

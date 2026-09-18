@@ -1555,4 +1555,61 @@ describe('useRosters — appendRosterGroups', () => {
 
     expect(result.current.rosters[0].groups?.map((g) => g.id)).toEqual(['g1']);
   });
+
+  it('leaves no stale cache behind for the next write when the Drive write fails', async () => {
+    const updateFileContent = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('drive down'))
+      .mockResolvedValue(undefined);
+    const downloadFile = vi
+      .fn()
+      // Initial load: this tab only knows about g1.
+      .mockResolvedValueOnce(
+        driveBlob({
+          version: 2,
+          students: [student({ id: 's1' })],
+          groups: [{ id: 'g1', name: 'Reds', studentIds: ['s1'] }],
+          defaultOverridesByStudentId: {},
+        })
+      )
+      // The re-read inside appendRosterGroups: another tab has added g2.
+      .mockResolvedValue(
+        driveBlob({
+          version: 2,
+          students: [student({ id: 's1' })],
+          groups: [
+            { id: 'g1', name: 'Reds', studentIds: ['s1'] },
+            { id: 'g2', name: 'Blues', studentIds: ['s1'] },
+          ],
+          defaultOverridesByStudentId: {},
+        })
+      );
+    currentDriveService = makeDriveService({ updateFileContent, downloadFile });
+
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [metaDoc('r1', { driveFileId: 'file-1' })]);
+    await waitFor(() =>
+      expect(result.current.rosters[0]?.groups).toHaveLength(1)
+    );
+
+    await act(async () => {
+      await expect(
+        result.current.appendRosterGroups('r1', [
+          { id: 'g3', name: 'Greens', studentIds: ['s1'] },
+        ])
+      ).rejects.toThrow('Failed to save groups to Drive');
+    });
+
+    // A later save writes the whole file from the cache. Rolling back to the
+    // pre-call cache would drop g2 here — the clobber this path exists to stop.
+    await act(async () => {
+      await result.current.updateRoster('r1', {
+        students: [student({ id: 's1' })],
+      });
+    });
+
+    const [, blob] = updateFileContent.mock.calls[1] as [string, Blob];
+    const body = await readBlobBody(blob);
+    expect(body.groups.map((g) => g.id)).toEqual(['g1', 'g2']);
+  });
 });
