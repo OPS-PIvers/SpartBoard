@@ -8,6 +8,7 @@ const snapshotData: Record<string, Record<string, unknown> | undefined> = {
   plc_note_collab: { enabled: true },
   paper_answer_sheets: undefined,
   roster_groups_integration: undefined,
+  projects_widget: undefined,
 };
 
 vi.mock('@/config/firebase', () => ({ db: {} }));
@@ -42,6 +43,19 @@ describe('RolloutSwitchesPanel', () => {
     expect(
       screen.getByRole('switch', { name: 'Class groups in widgets' })
     ).not.toBeChecked();
+    expect(
+      screen.getByRole('switch', { name: 'Projects widget' })
+    ).not.toBeChecked();
+  });
+
+  it('writes to the projects-widget doc from its own row', async () => {
+    render(<RolloutSwitchesPanel />);
+    fireEvent.click(screen.getByRole('switch', { name: 'Projects widget' }));
+    await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
+    expect(setDocMock.mock.calls[0][0].path).toBe(
+      'admin_settings/projects_widget'
+    );
+    expect(setDocMock.mock.calls[0][1]).toEqual({ enabled: true });
   });
 
   it('writes to the roster-groups doc from its own row', async () => {

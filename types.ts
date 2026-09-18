@@ -62,7 +62,8 @@ export type WidgetType =
   | 'blooms-detail'
   | 'need-do-put-then'
   | 'stations'
-  | 'flashcards';
+  | 'flashcards'
+  | 'projects';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -7273,6 +7274,146 @@ export interface FlashcardsConfig {
   lastRosterIdsBySetId?: Record<string, string[]>;
 }
 
+// --- PROJECTS WIDGET TYPES (docs/plans/PROJECTS_WIDGET.md) ---
+
+/**
+ * Per-step progress (D1/D2). A group's board position is derived from its step
+ * states, so raising a help flag never costs it its place on the bar.
+ */
+export type ProjectStepState =
+  | 'notStarted'
+  | 'inProgress'
+  | 'readyForReview'
+  | 'done';
+
+export interface ProjectStep {
+  id: string;
+  title: string;
+  description?: string;
+  dueAt?: number;
+  /** Students stop at `readyForReview`; only the teacher sets `done` (D3). */
+  requiresApproval?: boolean;
+}
+
+/** Library entry — `/users/{uid}/projects/{projectId}` (D12). */
+export interface ProjectDefinition {
+  id: string;
+  title: string;
+  description?: string;
+  steps: ProjectStep[];
+  rubric?: Rubric;
+  rubricMaxPoints?: number;
+  dueAt?: number;
+  createdAt: number;
+  updatedAt: number;
+  archivedAt?: number | null;
+}
+
+/** `/project_runs/{runId}`, runId = `${teacherUid}_${projectId}` (D13). */
+export interface ProjectRun {
+  id: string;
+  projectId: string;
+  teacherUid: string;
+  title: string;
+  steps: ProjectStep[];
+  rubric?: Rubric;
+  rubricMaxPoints?: number;
+  dueAt?: number;
+  /** Every ClassLink sourcedId with at least one group in this run. */
+  classIds: string[];
+  /**
+   * Ids of the steps carrying `requiresApproval`, denormalized off `steps`.
+   * `firestore.rules` needs the approval set without walking a nested list,
+   * which CEL cannot do — see the student step-write gate in `project_runs`.
+   */
+  approvalStepIds: string[];
+  showStatusToStudents: boolean;
+  acceptingUpdates: boolean;
+  updatedAt: number;
+}
+
+/** `/project_runs/{runId}/groups/{groupId}`. */
+export interface ProjectGroup {
+  id: string;
+  name: string;
+  /** Section this group belongs to. Gates student reads without a parent get() (A3). */
+  classId: string;
+  memberUids: string[];
+  order: number;
+  stepStates: Record<string, ProjectStepState>;
+  needsSupport: boolean;
+  workLinks: ProjectWorkLink[];
+  /** Populated once the teacher's session archives uploads to Drive (D20). */
+  driveFolderId?: string;
+  /**
+   * The single step a student write moved. `firestore.rules` checks it against
+   * the actual `stepStates` diff, so it cannot lie about which step changed —
+   * that is what makes the per-step approval ceiling enforceable.
+   */
+  lastStepChange?: { stepId: string; at: number };
+  updatedAt: number;
+}
+
+export interface ProjectWorkLink {
+  id: string;
+  url: string;
+  label?: string;
+  stepId?: string;
+  addedByUid: string;
+  addedAt: number;
+}
+
+/** `/project_runs/{runId}/groups/{groupId}/events/{eventId}` — teacher read only (D24). */
+export interface ProjectGroupEvent {
+  id: string;
+  at: number;
+  actorUid: string;
+  actorRole: 'student' | 'teacher';
+  kind: 'stepState' | 'needsSupport' | 'workLink' | 'upload' | 'membership';
+  stepId?: string;
+  from?: ProjectStepState;
+  to?: ProjectStepState;
+  detail?: string;
+}
+
+/** `/project_runs/{runId}/grades/{groupId}` — members read only when released (A2). */
+export interface ProjectGroupGrade {
+  groupId: string;
+  rubricScores: WrittenAnswerRubricScore[];
+  points: number;
+  maxPoints: number;
+  comment?: string;
+  released: boolean;
+  gradedAt: number;
+  /** Absolute per-member points + note, keyed by member uid (A4). */
+  overridesByUid?: Record<string, { points: number; note?: string }>;
+}
+
+/**
+ * One group's membership as the client resolved it, sent to
+ * `commitProjectGroupsV1`. The roster lives in the teacher's Drive file, so the
+ * client resolves `Student.id` → `classLinkSourcedId` and the function applies
+ * the server-side HMAC to mint member uids (D8).
+ */
+export interface ProjectGroupImportEntry {
+  id: string;
+  name: string;
+  classId: string;
+  order: number;
+  classLinkSourcedIds: string[];
+}
+
+/** Per-board state only. Project definitions live in the teacher's library (D15). */
+export interface ProjectsConfig {
+  /** Library project this widget points at. One project per widget. */
+  projectId?: string;
+  /** D27 — the teacher's show/hide status toggle on the board face. */
+  showStatus?: boolean;
+  fontFamily?: string;
+  cardColor?: string;
+  cardOpacity?: number;
+}
+
 // Union of all widget configs
 export type WidgetConfig =
   | UrlWidgetConfig
@@ -7338,7 +7479,8 @@ export type WidgetConfig =
   | NeedDoPutThenConfig
   | First5Config
   | StationsConfig
-  | FlashcardsConfig;
+  | FlashcardsConfig
+  | ProjectsConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'url'
@@ -7469,7 +7611,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                               ? StationsConfig
                                                                                                                               : T extends 'flashcards'
                                                                                                                                 ? FlashcardsConfig
-                                                                                                                                : never;
+                                                                                                                                : T extends 'projects'
+                                                                                                                                  ? ProjectsConfig
+                                                                                                                                  : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
