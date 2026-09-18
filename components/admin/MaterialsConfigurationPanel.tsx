@@ -2,6 +2,10 @@ import React, { useMemo, useState } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import {
   MaterialDefinition,
@@ -41,12 +45,16 @@ export const MaterialsConfigurationPanel: React.FC<
   const [editingId, setEditingId] = useState<string | null>(null);
   const [iconQuery, setIconQuery] = useState('');
 
-  const buildingDefaults = config.buildingDefaults ?? {};
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+  const canonicalId = canonicalBuildingId(selectedBuildingId);
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    config.buildingDefaults ?? {}
+  );
   const customMaterials = config.customMaterials ?? [];
   const currentBuildingConfig: BuildingMaterialsDefaults = buildingDefaults[
-    selectedBuildingId
+    canonicalId
   ] ?? {
-    buildingId: selectedBuildingId,
+    buildingId: canonicalId,
     selectedItems: [],
   };
 
@@ -77,7 +85,7 @@ export const MaterialsConfigurationPanel: React.FC<
       ...config,
       buildingDefaults: {
         ...buildingDefaults,
-        [selectedBuildingId]: {
+        [canonicalId]: {
           ...currentBuildingConfig,
           ...updates,
         },

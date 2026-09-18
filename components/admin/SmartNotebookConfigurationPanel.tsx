@@ -5,6 +5,10 @@ import {
 } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 interface Props {
   config: SmartNotebookGlobalConfig;
@@ -19,18 +23,23 @@ export const SmartNotebookConfigurationPanel: React.FC<Props> = ({
   const [activeBuildingId, setActiveBuildingId] =
     useBuildingSelection(BUILDINGS);
 
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+  const canonicalId = canonicalBuildingId(activeBuildingId);
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    config.buildingDefaults ?? {}
+  );
   const activeBuildingConfig =
-    config.buildingDefaults?.[activeBuildingId] ??
+    buildingDefaults[canonicalId] ??
     ({} as Partial<BuildingSmartNotebookDefaults>);
 
   const handleUpdate = (updates: Partial<BuildingSmartNotebookDefaults>) => {
     onChange({
       ...config,
       buildingDefaults: {
-        ...config.buildingDefaults,
-        [activeBuildingId]: {
+        ...buildingDefaults,
+        [canonicalId]: {
           ...activeBuildingConfig,
-          buildingId: activeBuildingId,
+          buildingId: canonicalId,
           ...updates,
         },
       },

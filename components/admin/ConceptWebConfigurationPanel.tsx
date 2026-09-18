@@ -2,6 +2,10 @@ import React from 'react';
 import { ConceptWebGlobalConfig, GlobalFontFamily } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { HexColorField } from './HexColorField';
 interface Props {
@@ -19,17 +23,22 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
   };
   const [activeBuildingId, setActiveBuildingId] =
     useBuildingSelection(BUILDINGS);
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+  const canonicalId = canonicalBuildingId(activeBuildingId);
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    config.buildingDefaults ?? {}
+  );
 
-  const buildingConfig = config.buildingDefaults?.[activeBuildingId] ?? {
-    buildingId: activeBuildingId,
+  const buildingConfig = buildingDefaults[canonicalId] ?? {
+    buildingId: canonicalId,
   };
 
   const updateBuildingConfig = (updates: Partial<typeof buildingConfig>) => {
     onChange({
       ...config,
       buildingDefaults: {
-        ...(config.buildingDefaults ?? {}),
-        [activeBuildingId]: {
+        ...buildingDefaults,
+        [canonicalId]: {
           ...buildingConfig,
           ...updates,
         },
