@@ -414,7 +414,7 @@ describe('deleteOrganizationUser — preflight and execution', () => {
     );
   });
 
-  it('still removes the member doc when the Auth delete fails', async () => {
+  it('keeps the member doc and throws when the Auth delete fails', async () => {
     const { db, deleted } = makeDb({
       docs: { ...baseDocs, 'users/uid9': {} },
     });
@@ -422,10 +422,29 @@ describe('deleteOrganizationUser — preflight and execution', () => {
     getUserByEmailMock.mockResolvedValue({ uid: 'uid9' });
     deleteUserMock.mockRejectedValue(new Error('auth down'));
 
+    // Reporting success here would leave an account that can still sign in
+    // while the row disappears from the roster — unrecoverable via the UI.
+    await expect(handler({ auth: SUPER, data: target })).rejects.toMatchObject({
+      code: 'internal',
+    });
+    // The member doc is the retry anchor, so it must survive.
+    expect(deleted).not.toContain(
+      'organizations/orono/members/teacher@orono.k12.mn.us'
+    );
+  });
+
+  it('treats an already-missing Auth account as deleted, so a retry completes', async () => {
+    const { db, deleted } = makeDb({
+      docs: { ...baseDocs, 'users/uid9': {} },
+    });
+    firestoreMock.mockReturnValue(db);
+    getUserByEmailMock.mockResolvedValue({ uid: 'uid9' });
+    deleteUserMock.mockRejectedValue({ code: 'auth/user-not-found' });
+
     const res = await handler({ auth: SUPER, data: target });
 
     expect(res.deleted).toBe(true);
-    expect(res.summary.authAccountRemoved).toBe(false);
+    expect(res.summary.authAccountRemoved).toBe(true);
     expect(deleted).toContain(
       'organizations/orono/members/teacher@orono.k12.mn.us'
     );

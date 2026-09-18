@@ -197,13 +197,12 @@ async function scanBlockers(
 async function countUserDocs(db: Firestore, uid: string): Promise<number> {
   const root = db.doc(`users/${uid}`);
   const rootSnap = await root.get();
-  let total = rootSnap.exists ? 1 : 0;
+  const total = rootSnap.exists ? 1 : 0;
   const subs = await root.listCollections();
-  for (const c of subs) {
-    const agg = await c.count().get();
-    total += agg.data().count;
-  }
-  return total;
+  const counts = await Promise.all(
+    subs.map(async (c) => (await c.count().get()).data().count)
+  );
+  return counts.reduce((sum, n) => sum + n, total);
 }
 
 async function countStorageObjects(uid: string): Promise<number> {
@@ -342,7 +341,21 @@ export const deleteOrganizationUser = onCall(
         await admin.auth().deleteUser(uid);
         summary.authAccountRemoved = true;
       } catch (err) {
-        console.error('[deleteOrganizationUser] Auth delete failed', err);
+        const code = (err as { code?: string }).code;
+        if (code === 'auth/user-not-found') {
+          // Already gone (a concurrent delete, or a retry of this one).
+          summary.authAccountRemoved = true;
+        } else {
+          // Every step above is idempotent, so the honest move is to keep the
+          // member doc — it is the retry anchor — and fail loudly. Swallowing
+          // this would report a deleted account that can still sign in, which
+          // is the bug this function exists to fix.
+          console.error('[deleteOrganizationUser] Auth delete failed', err);
+          throw new HttpsError(
+            'internal',
+            `Removed ${email}'s data, but their sign-in account could not be deleted. They are still on the roster — run Delete again.`
+          );
+        }
       }
     }
 

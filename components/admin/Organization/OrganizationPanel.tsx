@@ -950,7 +950,11 @@ export const OrganizationPanel: React.FC = () => {
         destructive
         requireTyping={deleteTarget?.email}
         confirmLabel={deleteBusy ? 'Working...' : 'Delete permanently'}
-        onCancel={() => setDeleteTarget(null)}
+        // A delete already sent to the server cannot be called back, so
+        // dismissing mid-flight would hide its outcome.
+        onCancel={() => {
+          if (!deleteBusy) setDeleteTarget(null);
+        }}
         onConfirm={handleConfirmDelete}
         message={
           <DeleteUserConfirmBody
