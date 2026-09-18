@@ -119,7 +119,7 @@ describe('readPaperPage', () => {
     expect(read.rows[1]).toMatchObject({ choice: null, doubt: 'multiple' });
   });
 
-  it('flags a faint mark as unclear rather than reading it either way', () => {
+  it('reads a light check mark as the answer when the row is otherwise clean', () => {
     const page = paintSyntheticSheet({
       marker,
       questionCount: 3,
@@ -128,10 +128,10 @@ describe('readPaperPage', () => {
       seed: 7,
     });
     const read = ok(readPaperPage(page, { questionCount: 3, choiceCount: 4 }));
-    expect(read.rows[0]).toMatchObject({ choice: null, doubt: 'unclear' });
+    expect(read.rows[0]).toMatchObject({ choice: 1 });
   });
 
-  it('flags a filled bubble beside a half-erased one', () => {
+  it('reads the filled bubble beside a half-erased one', () => {
     const page = paintSyntheticSheet({
       marker,
       questionCount: 3,
@@ -143,7 +143,7 @@ describe('readPaperPage', () => {
       seed: 3,
     });
     const read = ok(readPaperPage(page, { questionCount: 3, choiceCount: 4 }));
-    expect(read.rows[2]).toMatchObject({ choice: null, doubt: 'unclear' });
+    expect(read.rows[2]).toMatchObject({ choice: 1 });
   });
 
   it('leaves an untouched row blank with no doubt', () => {
@@ -157,7 +157,7 @@ describe('readPaperPage', () => {
     for (const row of read.rows) {
       expect(row.choice).toBeNull();
       expect(row.doubt).toBeUndefined();
-      expect(Math.max(...row.fills)).toBeLessThan(READER_THRESHOLDS.blank);
+      expect(Math.max(...row.fills)).toBeLessThan(READER_THRESHOLDS.faint);
     }
   });
 
@@ -258,17 +258,37 @@ describe('readPaperPage', () => {
 });
 
 describe('classifyRow', () => {
-  it('treats the band between blank and filled as doubt', () => {
-    expect(classifyRow([0.05, 0.9, 0.1, 0.02])).toEqual({ choice: 1 });
-    expect(classifyRow([0.05, 0.3, 0.1, 0.02])).toEqual({
+  // Vectors below are fill ratios read from the first real 1-bit scan.
+  it('judges a mark against its row rather than an absolute fill', () => {
+    expect(classifyRow([0.62, 0, 0, 0])).toEqual({ choice: 0 });
+    expect(classifyRow([0, 0, 0.42, 0])).toEqual({ choice: 2 });
+    expect(classifyRow([0, 0.15, 0, 0])).toEqual({ choice: 1 });
+    expect(classifyRow([0, 0, 0, 0])).toEqual({ choice: null });
+  });
+
+  it('flags two comparable marks as multiple', () => {
+    expect(classifyRow([0, 0.82, 0, 0.86])).toMatchObject({
+      doubt: 'multiple',
+    });
+    expect(classifyRow([0, 0.22, 0.18, 0])).toMatchObject({
+      doubt: 'multiple',
+    });
+    expect(classifyRow([0.26, 0.34, 0, 0])).toMatchObject({
+      doubt: 'multiple',
+    });
+  });
+
+  it('lets a dark mark win over a light stray one', () => {
+    expect(classifyRow([0, 0.23, 0, 0.61])).toEqual({ choice: 3 });
+    expect(classifyRow([0.62, 0, 0.34, 0])).toEqual({ choice: 0 });
+  });
+
+  it('flags a barely-there mark as unclear', () => {
+    expect(classifyRow([0.08, 0, 0, 0])).toEqual({
       choice: null,
       doubt: 'unclear',
     });
-    expect(classifyRow([0.8, 0.9, 0.1, 0.02])).toEqual({
-      choice: null,
-      doubt: 'multiple',
-    });
-    expect(classifyRow([0, 0, 0, 0])).toEqual({ choice: null });
+    expect(classifyRow([0.03, 0, 0, 0])).toEqual({ choice: null });
   });
 });
 
