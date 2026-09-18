@@ -109,7 +109,7 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
     setConfig((prev) => ({
       ...prev,
       buildingDefaults: {
-        ...buildingDefaults,
+        ...canonicalizeBuildingKeyedRecord(prev.buildingDefaults ?? {}),
         [canonicalId]: {
           ...currentBuildingConfig,
           ...updates,
