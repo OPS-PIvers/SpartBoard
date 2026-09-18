@@ -1460,6 +1460,8 @@ export interface ChecklistConfig {
   firstNames?: string;
   lastNames?: string;
   completedNames?: string[]; // Tracks IDs or Names checked in roster mode
+  /** Pool: the saved class group to draw from. Unset or null = whole class. */
+  rosterPoolGroupId?: string | null;
   fontFamily?: string;
   fontColor?: string;
   textSizePreset?: TextSizePreset;
@@ -2782,6 +2784,8 @@ export interface LunchCountConfig {
   recipient?: string;
   syncError?: string | null; // To display E-SYNC-404 etc.
   rosterMode?: 'class' | 'custom';
+  /** Pool: the saved class group to draw from. Unset or null = whole class. */
+  rosterPoolGroupId?: string | null;
   /** Hour portion of the lunch time (e.g. "11") */
   lunchTimeHour?: string;
   /** Minute portion of the lunch time (e.g. "30") */
@@ -3215,6 +3219,8 @@ export interface SeatingChartConfig {
   gridSize: number;
   rosterMode?: 'class' | 'custom';
   names?: string; // Line separated names for custom roster
+  /** Pool: the saved class group to draw from. Unset or null = whole class. */
+  rosterPoolGroupId?: string | null;
   template?: SeatingChartTemplate;
   templateColumns?: number; // Number of columns for 'rows' template
 }
