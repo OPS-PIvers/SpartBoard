@@ -238,6 +238,14 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Saved class groups inside board widgets. Admin-only until the projector
+  // privacy check passes; the Rollouts switch
+  // (admin_settings/roster_groups_integration) must also be on.
+  'roster-groups': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /**

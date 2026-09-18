@@ -1100,6 +1100,101 @@ export const useRosters = (user: User | null) => {
     [user, driveService, uploadRosterFileToDrive, loadRosterFileFromDrive]
   );
 
+  /**
+   * Appends groups without clobbering concurrent group edits.
+   *
+   * `updateRoster` writes the whole Drive file from the in-memory cache, so a
+   * widget saving a group would drop whatever another tab (or the roster
+   * editor) added since this tab loaded. This path re-reads the file first and
+   * appends to the `groups[]` that is actually current. It is a narrower fix
+   * than an ETag precondition, which every roster write still lacks (A4 note
+   * above) — students and overrides here are carried from the same fresh read,
+   * so this call never writes a stale version of them either.
+   */
+  const appendRosterGroups = useCallback(
+    async (rosterId: string, newGroups: RosterGroup[]) => {
+      if (!user || newGroups.length === 0) return;
+
+      if (isAuthBypass) {
+        const existing = mockRosterStore
+          .getRosters()
+          .find((r) => r.id === rosterId);
+        mockRosterStore.updateRoster(rosterId, {
+          groups: [...(existing?.groups ?? []), ...newGroups],
+        });
+        return;
+      }
+
+      const existingMeta = metaListRef.current.find((m) => m.id === rosterId);
+      let current: RosterFileContent;
+      if (!existingMeta?.driveFileId) {
+        // Nothing has ever been uploaded, so there is no concurrent writer to
+        // lose to and empty is genuinely correct rather than unknown.
+        current = { students: [], ...emptyRosterFileExtras() };
+      } else if (!driveService) {
+        throw new Error(
+          `Cannot save groups to roster ${rosterId}: Drive is unavailable`
+        );
+      } else {
+        current = await loadRosterFileFromDrive(existingMeta.driveFileId);
+      }
+
+      const existingIds = new Set(current.groups.map((g) => g.id));
+      const appended = newGroups.filter((g) => !existingIds.has(g.id));
+      if (appended.length === 0) return;
+
+      const previousContent = studentsCacheRef.current.get(rosterId);
+      const nextContent = pruneRosterFileContent({
+        ...current,
+        groups: [...current.groups, ...appended],
+      });
+
+      studentsCacheRef.current.set(rosterId, nextContent);
+      setRosters((prev) =>
+        prev.map((r) =>
+          r.id === rosterId
+            ? {
+                ...r,
+                students: nextContent.students,
+                studentCount: nextContent.students.length,
+                groups: nextContent.groups,
+                defaultOverridesByStudentId:
+                  nextContent.defaultOverridesByStudentId,
+              }
+            : r
+        )
+      );
+
+      if (!driveService) return;
+      try {
+        const driveFileId = await uploadRosterFileToDrive(
+          rosterId,
+          nextContent,
+          existingMeta?.driveFileId
+        );
+        if (driveFileId !== existingMeta?.driveFileId) {
+          await updateDoc(doc(db, 'users', user.uid, 'rosters', rosterId), {
+            driveFileId,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to append roster groups to Drive:', err);
+        if (previousContent) {
+          studentsCacheRef.current.set(rosterId, previousContent);
+        } else {
+          studentsCacheRef.current.delete(rosterId);
+        }
+        setRosters((prev) =>
+          prev.map((r) =>
+            r.id === rosterId ? { ...r, groups: current.groups } : r
+          )
+        );
+        throw new Error('Failed to save groups to Drive');
+      }
+    },
+    [user, driveService, uploadRosterFileToDrive, loadRosterFileFromDrive]
+  );
+
   const setAbsentStudents = useCallback(
     async (rosterId: string, studentIds: string[]) => {
       if (!user) return;
@@ -1183,6 +1278,7 @@ export const useRosters = (user: User | null) => {
       deleteRoster,
       setActiveRoster,
       setAbsentStudents,
+      appendRosterGroups,
     }),
     [
       rosters,
@@ -1192,6 +1288,7 @@ export const useRosters = (user: User | null) => {
       deleteRoster,
       setActiveRoster,
       setAbsentStudents,
+      appendRosterGroups,
     ]
   );
 };

@@ -1417,3 +1417,142 @@ describe('useRosters — roster file envelope (M17 A4)', () => {
     expect(result.current.rosters[0].groups).toEqual([]);
   });
 });
+
+// ─── appendRosterGroups — safe group write (plan D24) ─────────────────────────
+
+describe('useRosters — appendRosterGroups', () => {
+  it('keeps a group another writer added after this tab loaded', async () => {
+    const updateFileContent = vi.fn().mockResolvedValue(undefined);
+    const downloadFile = vi
+      .fn()
+      // Initial load: one group.
+      .mockResolvedValueOnce(
+        driveBlob({
+          version: 2,
+          students: [student({ id: 's1' })],
+          groups: [{ id: 'g1', name: 'Reds', studentIds: ['s1'] }],
+          defaultOverridesByStudentId: {},
+        })
+      )
+      // The re-read: another tab has since saved 'g2'.
+      .mockResolvedValue(
+        driveBlob({
+          version: 2,
+          students: [student({ id: 's1' })],
+          groups: [
+            { id: 'g1', name: 'Reds', studentIds: ['s1'] },
+            { id: 'g2', name: 'Blues', studentIds: ['s1'] },
+          ],
+          defaultOverridesByStudentId: {},
+        })
+      );
+    currentDriveService = makeDriveService({ updateFileContent, downloadFile });
+
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [metaDoc('r1', { driveFileId: 'file-1' })]);
+    await waitFor(() =>
+      expect(result.current.rosters[0]?.groups).toHaveLength(1)
+    );
+
+    await act(async () => {
+      await result.current.appendRosterGroups('r1', [
+        { id: 'g3', name: 'Greens', studentIds: ['s1'] },
+      ]);
+    });
+
+    const [, blob] = updateFileContent.mock.calls[0] as [string, Blob];
+    const body = await readBlobBody(blob);
+    expect(body.groups.map((g) => g.id)).toEqual(['g1', 'g2', 'g3']);
+    expect(body.students).toEqual([expect.objectContaining({ id: 's1' })]);
+  });
+
+  it('drops ids already present rather than writing a duplicate', async () => {
+    const updateFileContent = vi.fn().mockResolvedValue(undefined);
+    currentDriveService = makeDriveService({
+      updateFileContent,
+      downloadFile: vi.fn().mockResolvedValue(
+        driveBlob({
+          version: 2,
+          students: [student({ id: 's1' })],
+          groups: [{ id: 'g1', name: 'Reds', studentIds: ['s1'] }],
+          defaultOverridesByStudentId: {},
+        })
+      ),
+    });
+
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [metaDoc('r1', { driveFileId: 'file-1' })]);
+    await waitFor(() =>
+      expect(result.current.rosters[0]?.groups).toHaveLength(1)
+    );
+
+    await act(async () => {
+      await result.current.appendRosterGroups('r1', [
+        { id: 'g1', name: 'Reds renamed', studentIds: [] },
+      ]);
+    });
+
+    expect(updateFileContent).not.toHaveBeenCalled();
+  });
+
+  it('prunes members who left the roster before writing', async () => {
+    const updateFileContent = vi.fn().mockResolvedValue(undefined);
+    currentDriveService = makeDriveService({
+      updateFileContent,
+      downloadFile: vi.fn().mockResolvedValue(
+        driveBlob({
+          version: 2,
+          students: [student({ id: 's1' })],
+          groups: [],
+          defaultOverridesByStudentId: {},
+        })
+      ),
+    });
+
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [metaDoc('r1', { driveFileId: 'file-1' })]);
+    await waitFor(() =>
+      expect(result.current.rosters[0]?.students).toHaveLength(1)
+    );
+
+    await act(async () => {
+      await result.current.appendRosterGroups('r1', [
+        { id: 'g1', name: 'Mixed', studentIds: ['s1', 'gone'] },
+      ]);
+    });
+
+    const [, blob] = updateFileContent.mock.calls[0] as [string, Blob];
+    const body = await readBlobBody(blob);
+    expect(body.groups[0].studentIds).toEqual(['s1']);
+  });
+
+  it('restores the previous groups when the Drive write fails', async () => {
+    currentDriveService = makeDriveService({
+      updateFileContent: vi.fn().mockRejectedValue(new Error('drive down')),
+      downloadFile: vi.fn().mockResolvedValue(
+        driveBlob({
+          version: 2,
+          students: [student({ id: 's1' })],
+          groups: [{ id: 'g1', name: 'Reds', studentIds: ['s1'] }],
+          defaultOverridesByStudentId: {},
+        })
+      ),
+    });
+
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [metaDoc('r1', { driveFileId: 'file-1' })]);
+    await waitFor(() =>
+      expect(result.current.rosters[0]?.groups).toHaveLength(1)
+    );
+
+    await act(async () => {
+      await expect(
+        result.current.appendRosterGroups('r1', [
+          { id: 'g2', name: 'Blues', studentIds: ['s1'] },
+        ])
+      ).rejects.toThrow('Failed to save groups to Drive');
+    });
+
+    expect(result.current.rosters[0].groups?.map((g) => g.id)).toEqual(['g1']);
+  });
+});

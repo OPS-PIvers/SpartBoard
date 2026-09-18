@@ -1469,6 +1469,8 @@ export interface ChecklistConfig {
 export interface RandomGroup {
   id?: string;
   names: string[];
+  /** Parallel to `names`, populated only in class mode so save-back is id-exact. */
+  studentIds?: string[];
 }
 
 export interface RandomConfig {
@@ -7749,6 +7751,8 @@ export interface SharedGroup {
   id: string;
   name: string;
   color?: string;
+  /** Provenance only — the roster group's private name never syncs either way. */
+  rosterGroupId?: string;
 }
 
 export interface SpartStickerDropPayload {
@@ -7955,7 +7959,9 @@ export type GlobalFeature =
   /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
   | 'question-bank-ai'
   /** Paper answer sheets; only meaningful while the Rollouts switch is on. */
-  | 'paper-answer-sheets';
+  | 'paper-answer-sheets'
+  /** Saved class groups inside board widgets; AND-ed with the Rollouts switch. */
+  | 'roster-groups';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

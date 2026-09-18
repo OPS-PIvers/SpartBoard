@@ -70,6 +70,7 @@ export function makeRestrictedGroups(
     groups: buckets.map((b) => ({
       id: crypto.randomUUID(),
       names: b.map((s) => `${s.firstName} ${s.lastName}`.trim()),
+      studentIds: b.map((s) => s.id),
     })),
     unsatisfied,
   };
@@ -228,6 +229,7 @@ export function makeRestrictedGroupsByCount(
     groups: buckets.map((b) => ({
       id: crypto.randomUUID(),
       names: b.map((s) => `${s.firstName} ${s.lastName}`.trim()),
+      studentIds: b.map((s) => s.id),
     })),
     unsatisfied,
   };
