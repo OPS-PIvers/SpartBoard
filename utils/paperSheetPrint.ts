@@ -37,6 +37,13 @@ import {
   printHtmlDocument,
   type OpenWindow,
 } from './printHtmlDocument';
+import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
+
+// Bottom-centre footer: clear of the corner windows the reader searches for
+// registration marks and below the last bubble row.
+const FOOTER_TOP_MM = PAGE_HEIGHT_MM - 13;
+const FOOTER_HEIGHT_MM = 9;
+const FOOTER_INSET_MM = 40;
 
 export interface PaperPrintJob {
   batchId: string;
@@ -78,6 +85,14 @@ function markerHtml(
     );
   }
   return cells.join('');
+}
+
+function footerHtml(): string {
+  return `<div class="foot" style="left:${mm(FOOTER_INSET_MM)};top:${mm(
+    FOOTER_TOP_MM
+  )};width:${mm(PAGE_WIDTH_MM - FOOTER_INSET_MM * 2)};height:${mm(
+    FOOTER_HEIGHT_MM
+  )}">${spartronLogoSvg(4.2)}<span class="foot-tag">${escapeHtml(SPARTRON_TAGLINE)}</span></div>`;
 }
 
 function headerHtml(
@@ -166,7 +181,7 @@ function sheetPagesHtml(
       )}${headerHtml(sheet, job.quizTitle, page, pageCount)}${columnLegendsHtml(
         choiceCount,
         rows.columns
-      )}${rows.html}</div>`
+      )}${rows.html}${footerHtml()}</div>`
     );
   }
   return pages.join('');
@@ -186,7 +201,21 @@ const STYLES = `
     color: #000;
   }
   .sheet:last-child { page-break-after: auto; }
-  .reg, .cell, .hdr, .num, .bub, .legend { position: absolute; }
+  .reg, .cell, .hdr, .num, .bub, .legend, .foot { position: absolute; }
+  .foot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3mm;
+  }
+  .foot svg { display: block; }
+  .foot-tag {
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #000;
+  }
   .reg {
     width: ${REGISTRATION_MARK_SIZE_MM}mm;
     height: ${REGISTRATION_MARK_SIZE_MM}mm;

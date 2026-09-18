@@ -11,6 +11,7 @@ import {
   type OpenWindow,
 } from './printHtmlDocument';
 import { CHOICE_LETTERS } from './paperSheetLayout';
+import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
 
 export interface PaperTestQuestion {
   /** 1-based row number printed on the answer sheet. */
@@ -29,6 +30,9 @@ const STYLES = `
   @page { size: 215.9mm 279.4mm; margin: 18mm 20mm; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 11pt; }
+  .brand { display: flex; align-items: center; gap: 3mm; margin-bottom: 5mm; }
+  .brand svg { display: block; }
+  .brand-tag { font-size: 8pt; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
   h1 { font-size: 15pt; margin: 0 0 4mm; }
   .meta { display: flex; gap: 12mm; font-size: 10pt; margin-bottom: 8mm; }
   .meta span { border-bottom: 1px solid #000; min-width: 60mm; display: inline-block; }
@@ -52,7 +56,7 @@ function questionHtml(q: PaperTestQuestion): string {
 
 /** The document `printPaperTest` would write. Exported for tests. */
 export function buildPaperTestHtml(job: PaperTestJob): string {
-  return `<h1>${escapeHtml(job.quizTitle)}</h1>
+  return `<div class="brand">${spartronLogoSvg(4.2)}<span class="brand-tag">${escapeHtml(SPARTRON_TAGLINE)}</span></div><h1>${escapeHtml(job.quizTitle)}</h1>
 <div class="meta"><div>Name <span></span></div><div>Class <span></span></div></div>
 <ol class="q">${job.questions.map(questionHtml).join('')}</ol>`;
 }

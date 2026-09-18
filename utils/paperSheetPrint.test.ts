@@ -93,6 +93,17 @@ describe('buildPaperSheetsHtml', () => {
     }
   });
 
+  it('brands every sheet with the Spartron footer', () => {
+    const html = buildPaperSheetsHtml(
+      job({ sheets: [sheet({ seat: 1 }), sheet({ seat: 2 })] })
+    );
+    for (const page of pages(html)) {
+      expect(page.match(/class="foot"/g)).toHaveLength(1);
+      expect(page).toContain('aria-label="SPARTRON"');
+      expect(page).toContain('SpartBoard Responses');
+    }
+  });
+
   it('continues a long test onto further pages without repeating rows', () => {
     const html = buildPaperSheetsHtml(
       job({ questionCount: QUESTIONS_PER_PAGE + 3 })

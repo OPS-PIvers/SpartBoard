@@ -22,6 +22,14 @@ describe('buildPaperTestHtml', () => {
     expect(html.indexOf('Paris')).toBeLessThan(html.indexOf('Nice'));
   });
 
+  it('brands the test paper above the title', () => {
+    const html = buildPaperTestHtml(job);
+    expect(html.indexOf('aria-label="SPARTRON"')).toBeLessThan(
+      html.indexOf('<h1>')
+    );
+    expect(html).toContain('SpartBoard Responses');
+  });
+
   it('escapes question and choice text', () => {
     const html = buildPaperTestHtml({
       quizTitle: '<b>',
