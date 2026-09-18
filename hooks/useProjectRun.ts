@@ -43,7 +43,10 @@ interface UseProjectRunResult {
   groups: ProjectGroup[];
   loading: boolean;
   error: string | null;
-  ensureRun: (project: ProjectDefinition) => Promise<ProjectRun>;
+  ensureRun: (
+    project: ProjectDefinition,
+    seed?: { showStatusToStudents?: boolean }
+  ) => Promise<ProjectRun>;
   setStepState: (
     groupId: string,
     stepId: string,
@@ -131,7 +134,10 @@ export function useProjectRun(
   }, [runId]);
 
   const ensureRun = useCallback(
-    async (project: ProjectDefinition): Promise<ProjectRun> => {
+    async (
+      project: ProjectDefinition,
+      seed?: { showStatusToStudents?: boolean }
+    ): Promise<ProjectRun> => {
       if (!teacherUid) throw new Error('Sign in to start a project.');
       const id = runIdFor(teacherUid, project.id);
       const next: ProjectRun = {
@@ -142,7 +148,9 @@ export function useProjectRun(
         steps: project.steps,
         classIds: run?.classIds ?? [],
         approvalStepIds: approvalStepIdsFrom(project.steps),
-        showStatusToStudents: run?.showStatusToStudents ?? true,
+        // D30 — an existing run keeps its value; a new one takes the building default.
+        showStatusToStudents:
+          run?.showStatusToStudents ?? seed?.showStatusToStudents ?? true,
         acceptingUpdates: run?.acceptingUpdates ?? true,
         updatedAt: Date.now(),
       };

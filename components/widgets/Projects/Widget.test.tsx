@@ -214,7 +214,21 @@ describe('ProjectsWidget', () => {
       screen.getByRole('button', { name: 'Group 2, Draft, Not started' })
     );
     await waitFor(() => expect(setStepState).toHaveBeenCalledTimes(2));
+    // Group 2's write settling must not unlock Group 1, whose write is still open.
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Group 2, Draft, Not started' })
+      ).toBeEnabled()
+    );
+    expect(
+      screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
+    ).toBeDisabled();
     release();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
+      ).toBeEnabled()
+    );
   });
 
   it('swaps the bar for counts when status is hidden', () => {

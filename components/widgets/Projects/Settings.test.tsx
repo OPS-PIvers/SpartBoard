@@ -16,7 +16,15 @@ vi.mock('@/hooks/useProjectRun');
 vi.mock('@/hooks/useRubrics');
 vi.mock('@/hooks/useProjectsWidgetSettings');
 vi.mock('./components/GroupImportPanel', () => ({
-  GroupImportPanel: () => <div data-testid="group-import-panel" />,
+  GroupImportPanel: ({
+    onImport,
+  }: {
+    onImport: (entries: unknown[]) => Promise<void>;
+  }) => (
+    <button type="button" onClick={() => void onImport([])}>
+      Confirm import
+    </button>
+  ),
 }));
 
 const saveProject = vi.fn().mockResolvedValue(undefined);
@@ -62,6 +70,17 @@ describe('ProjectsSettings', () => {
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { uid: 'teacher-1' },
       orgId: 'orono',
+      selectedBuildings: ['high'],
+      featurePermissions: [
+        {
+          widgetType: 'projects',
+          config: {
+            buildingDefaults: {
+              high: { buildingId: 'high', defaultShowStatusToStudents: false },
+            },
+          },
+        },
+      ],
     });
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       updateWidget,
@@ -91,6 +110,37 @@ describe('ProjectsSettings', () => {
       updateRun,
       importGroups: vi.fn(),
     });
+  });
+
+  it('seeds a new run from the building default the admin set', async () => {
+    const ensureRun = vi.fn().mockResolvedValue(runA);
+    (useProjectRun as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      run: runA,
+      groups: [],
+      ensureRun,
+      updateRun,
+      importGroups: vi
+        .fn()
+        .mockResolvedValue({ groupsWritten: 1, membersResolved: 2 }),
+    });
+    render(
+      <ProjectsSettings
+        widget={{
+          ...widget,
+          config: {
+            projectId: 'project-a',
+            pendingImport: { rosterId: 'roster-1', at: 1, groups: [] },
+          },
+        }}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm import' }));
+
+    await waitFor(() =>
+      expect(ensureRun).toHaveBeenCalledWith(projectA, {
+        showStatusToStudents: false,
+      })
+    );
   });
 
   it('leaves the open project’s run alone when a new project is created', async () => {

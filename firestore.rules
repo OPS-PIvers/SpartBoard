@@ -733,15 +733,6 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Rollout switch for the Projects widget. Students read it too, not just
-    // teachers: without that the switch stops being a kill switch, because
-    // runs created while it was on would stay writable from the student page
-    // after an admin turns it off.
-    match /admin_settings/projects_widget {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-
     // Rollout switch for paper answer sheets — teachers read it to decide
     // whether to surface the print/import entry points; admins flip it.
     match /admin_settings/paper_answer_sheets {
@@ -752,6 +743,14 @@ service cloud.firestore {
     // Rollout switch for class groups in widgets — teachers read it to decide
     // whether to offer the group picker; admins flip it.
     match /admin_settings/roster_groups_integration {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Rollout switch for the Projects widget — teachers read it to decide
+    // whether to mount the widget at all, and students so it stays a kill
+    // switch for runs already created; admins flip it.
+    match /admin_settings/projects_widget {
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }

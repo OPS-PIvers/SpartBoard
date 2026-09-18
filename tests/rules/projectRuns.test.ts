@@ -45,6 +45,16 @@ const asTeacher = (uid: string) =>
     })
     .firestore();
 
+const ADMIN_EMAIL = 'projects-admin@example.com';
+
+const asAdmin = () =>
+  testEnv
+    .authenticatedContext('projects-admin', {
+      email: ADMIN_EMAIL,
+      email_verified: true,
+    })
+    .firestore();
+
 const asStudent = (uid: string, classIds: string[]) =>
   testEnv
     .authenticatedContext(uid, {
@@ -510,27 +520,6 @@ describe('the /my-assignments run query', () => {
   });
 });
 
-describe('the Projects rollout switch', () => {
-  const path = 'admin_settings/projects_widget';
-
-  it('is readable by a student, so turning it off reaches them too', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), path), { enabled: true });
-    });
-    await assertSucceeds(getDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), path)));
-    await assertSucceeds(getDoc(doc(asTeacher(TEACHER_UID), path)));
-  });
-
-  it('is never writable by a teacher or a student', async () => {
-    await assertFails(
-      setDoc(doc(asTeacher(TEACHER_UID), path), { enabled: true })
-    );
-    await assertFails(
-      setDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), path), { enabled: true })
-    );
-  });
-});
-
 describe('group uploads', () => {
   const UPLOAD_ID = 'upload-1';
   const uploadPath = `${GROUP_PATH}/uploads/${UPLOAD_ID}`;
@@ -708,6 +697,37 @@ describe('a deactivated teacher', () => {
         points: 9,
         updatedAt: 1,
       })
+    );
+  });
+});
+
+describe('the projects_widget rollout switch', () => {
+  const path = 'admin_settings/projects_widget';
+
+  it('is readable by any signed-in teacher and writable only by an admin', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), path), { enabled: true });
+      await setDoc(doc(ctx.firestore(), `admins/${ADMIN_EMAIL}`), {});
+    });
+    // The whole feature hangs off this read: deny it and every teacher who is
+    // not an admin sees Projects switched off whatever the admin set.
+    await assertSucceeds(getDoc(doc(asTeacher(OTHER_TEACHER_UID), path)));
+    await assertSucceeds(getDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), path)));
+    await assertFails(
+      setDoc(doc(asTeacher(OTHER_TEACHER_UID), path), { enabled: false })
+    );
+    await assertFails(
+      setDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), path), { enabled: false })
+    );
+    await assertSucceeds(setDoc(doc(asAdmin(), path), { enabled: false }));
+  });
+
+  it('stays closed to a signed-out reader', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), path), { enabled: true });
+    });
+    await assertFails(
+      getDoc(doc(testEnv.unauthenticatedContext().firestore(), path))
     );
   });
 });
