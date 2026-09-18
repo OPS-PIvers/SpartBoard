@@ -79,11 +79,44 @@ When you're ready to ship a release:
      ```
    - Stderr lists any commits that were skipped (no recognized `feat:`/`fix:` prefix) so you can manually fold them in.
 2. Paste the JSON object at the top of `public/changelog.json`'s `entries` array.
-3. **Rewrite each highlight in user-friendly language** — short, plain, what changed from a teacher's perspective. Drop anything internal-only.
+3. **Rewrite every bullet against the rules below.** The draft is commit subjects; none of it is publishable as written.
 4. Pick a `version` (default is today's date as `YYYY.MM.DD`; add `.2`, `.3` for additional same-day releases). Keep entries newest-first — the consumer hook will log a console warning if it spots them out of order.
 5. Commit alongside the rest of your changes.
 
 The next build will pick up the new version automatically, the "Update Available" toast will offer a "What's New" link, and the sidebar's "What's New" entry will show a red "New" badge until users open it.
+
+### How to write a release note
+
+**Both `overview` and `details` are shown to every signed-in user.** `details` is behind a "Read full
+update" toggle, not behind a permission check, so there is no place in this file for an engineering
+note. If a line would only make sense to someone who read the diff, cut it — an entry with an empty
+`details` array is fine and renders without the toggle.
+
+Every bullet has to clear all five of these.
+
+1. **Write what the teacher does or sees, never how it was built.** No file paths, collection names,
+   hooks, adapters, rules, caches, flags, hashes, schemas, or "server-side". "Reads the existing
+   `plcs/{plcId}/question_banks` headers" tells a teacher nothing; delete the bullet or say what
+   changed on their screen.
+2. **Never name a feature flag, and never write "admin-only".** A teacher cannot act on either one,
+   and the fact that a feature is gated is not news they can use.
+3. **Check every claim against what is actually turned on, not what exists in the code.** Curated
+   lists like `QUIZ_TRANSLATION_LANGUAGES` are the menu an admin picks from, not the live setting.
+   Naming a specific option in a release note hard-codes one school's configuration into a file
+   every school reads — describe the capability instead ("any language your school has turned on")
+   unless you have confirmed the setting.
+4. **Say it the way a person would say it out loud.** "Translations ride the public question through
+   the same shuffle as the English strings" fails this; "answer choices are shuffled into the same
+   order in every language" passes. Avoid "renders", "parses", "payload", "out of scope", "no-op",
+   and "regime".
+5. **No em dashes, colons or semicolons inside a sentence.** Rejoin the clause with a conjunction
+   rather than splitting it into two stubs. A `Label — ` prefix at the start of a `details` bullet is
+   the file's existing convention and stays.
+
+Limitations belong in the notes, in a teacher's words. "Bank-slot quizzes and non-English source
+quizzes are out of scope for now" becomes what they cannot do and what they will see instead.
+
+Run `/deslop --writing public/changelog.json` as a final pass before committing.
 
 ## Workflow Files
 

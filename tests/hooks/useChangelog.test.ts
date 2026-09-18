@@ -162,7 +162,7 @@ describe('useChangelog', () => {
       console.warn = originalWarn;
     });
 
-    it('drops entries with empty details and warns', async () => {
+    it('drops entries with no overview and no details, and warns', async () => {
       globalFetch.mockResolvedValueOnce({
         ok: true,
         json: () =>
@@ -177,7 +177,7 @@ describe('useChangelog', () => {
               {
                 version: '2026.06.30',
                 date: '2026-06-30',
-                title: 'Empty-details entry',
+                title: 'Empty entry',
                 details: [],
               },
             ],
@@ -188,8 +188,38 @@ describe('useChangelog', () => {
       expect(result.current.entries).toHaveLength(1);
       expect(result.current.entries[0].version).toBe('2026.07.01');
       expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('"2026.06.30" has no details')
+        expect.stringContaining('"2026.06.30" has no overview or details')
       );
+    });
+
+    it('keeps an entry whose overview carries it with empty details', async () => {
+      globalFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            entries: [
+              {
+                version: '2026.07.02',
+                date: '2026-07-02',
+                title: 'Overview-only entry',
+                overview: [
+                  {
+                    type: 'feature' as const,
+                    subtitle: 'PLC',
+                    items: [{ text: 'A new Question Banks tab.' }],
+                  },
+                ],
+                details: [],
+              },
+            ],
+          }),
+      });
+      const { result } = renderHook(() => useChangelog());
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(result.current.entries).toHaveLength(1);
+      expect(result.current.entries[0].version).toBe('2026.07.02');
+      expect(result.current.entries[0].overview).toHaveLength(1);
+      expect(result.current.entries[0].details).toEqual([]);
     });
 
     it('treats empty overview array as no overview and warns', async () => {
