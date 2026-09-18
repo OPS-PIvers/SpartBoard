@@ -131,8 +131,7 @@ export const ScoreboardSettings: React.FC<{
   };
 
   const addTeam = () => {
-    // Continue the A/B lettering the widget ships with, skipping letters
-    // already in use so deleting "Team B" frees that name again.
+    // First unused letter, so deleting "Team B" frees that name again.
     const taken = new Set(
       teams.map((team) => team.name.trim().toLocaleLowerCase())
     );

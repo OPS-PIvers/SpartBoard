@@ -54,11 +54,7 @@ export function normalizeScoreboardColor(
   return DEFAULT_SCOREBOARD_COLOR;
 }
 
-/**
- * Spreadsheet-style label for a team position: A…Z, then AA, AB, …
- * The Scoreboard ships with "Team A" and "Team B", so teams added later
- * continue the letters rather than switching to "Team 3".
- */
+// Spreadsheet-style team label continuing the default A/B: A…Z, AA, AB, …
 export function scoreboardTeamLetter(index: number): string {
   let remaining = index;
   let label = '';
