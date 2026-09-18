@@ -2809,6 +2809,25 @@
       "saveAsGroupsNeedsClassGroups": "Erstelle zuerst Gruppen mit einer ausgewählten Klasse.",
       "lockedGroupsEmpty": "Speichere eine Gruppe für diese Klasse, damit sie beim Gruppieren zusammenbleibt.",
       "rosterGroupsOff": "Klassengruppen sind für deine Schule derzeit deaktiviert."
+    },
+    "scoreboard": {
+      "classGroups": "Klassengruppen",
+      "useGroupNames": "Gruppennamen als Teamnamen verwenden",
+      "importClassGroups_one": "{{count}} Team aus Klassengruppen erstellen",
+      "importClassGroups_other": "{{count}} Teams aus Klassengruppen erstellen",
+      "importedClassGroups_one": "{{count}} Team aus deinen Klassengruppen erstellt.",
+      "importedClassGroups_other": "{{count}} Teams aus deinen Klassengruppen erstellt.",
+      "resyncMembers": "Mitglieder neu aus der Klasse übernehmen",
+      "resyncedMembers_one": "Mitglieder von {{count}} Team aktualisiert.",
+      "resyncedMembers_other": "Mitglieder von {{count}} Teams aktualisiert.",
+      "resyncUnlinked_one": "{{count}} Team passt zu keiner Klassengruppe mehr.",
+      "resyncUnlinked_other": "{{count}} Teams passen zu keiner Klassengruppe mehr.",
+      "replaceTeamsTitle": "Teams durch Klassengruppen ersetzen?",
+      "replaceTeamsBody_one": "Das ersetzt das {{count}} Team auf dieser Anzeigetafel samt Punktestand.",
+      "replaceTeamsBody_other": "Das ersetzt die {{count}} Teams auf dieser Anzeigetafel samt Punkteständen.",
+      "replaceTeamsConfirm": "Ersetzen",
+      "classTeamName": "Team {{count}}",
+      "membersTitle": "Mitglieder aus der Klassengruppe"
     }
   }
 }

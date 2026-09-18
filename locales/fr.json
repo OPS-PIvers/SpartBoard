@@ -2809,6 +2809,25 @@
       "saveAsGroupsNeedsClassGroups": "Créez d'abord des groupes avec une classe sélectionnée.",
       "lockedGroupsEmpty": "Enregistrez un groupe pour cette classe et il restera uni lors de la création des groupes.",
       "rosterGroupsOff": "Les groupes de classe sont désactivés dans votre établissement pour le moment."
+    },
+    "scoreboard": {
+      "classGroups": "Groupes de la classe",
+      "useGroupNames": "Utiliser les noms des groupes comme noms d’équipe",
+      "importClassGroups_one": "Créer {{count}} équipe à partir des groupes de la classe",
+      "importClassGroups_other": "Créer {{count}} équipes à partir des groupes de la classe",
+      "importedClassGroups_one": "{{count}} équipe créée à partir de vos groupes de la classe.",
+      "importedClassGroups_other": "{{count}} équipes créées à partir de vos groupes de la classe.",
+      "resyncMembers": "Resynchroniser les membres depuis la classe",
+      "resyncedMembers_one": "Membres mis à jour pour {{count}} équipe.",
+      "resyncedMembers_other": "Membres mis à jour pour {{count}} équipes.",
+      "resyncUnlinked_one": "{{count}} équipe ne correspond plus à un groupe de la classe.",
+      "resyncUnlinked_other": "{{count}} équipes ne correspondent plus à un groupe de la classe.",
+      "replaceTeamsTitle": "Remplacer les équipes par les groupes de la classe ?",
+      "replaceTeamsBody_one": "Cela remplace la {{count}} équipe de ce tableau, avec son score.",
+      "replaceTeamsBody_other": "Cela remplace les {{count}} équipes de ce tableau, avec leurs scores.",
+      "replaceTeamsConfirm": "Remplacer",
+      "classTeamName": "Équipe {{count}}",
+      "membersTitle": "Membres issus du groupe de la classe"
     }
   }
 }
