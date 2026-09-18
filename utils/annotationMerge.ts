@@ -1,4 +1,5 @@
 import type { DrawableObject } from '@/types';
+import { stableStringify } from '@/utils/stableStringify';
 
 /**
  * Three-way merge of annotation objects when a snapshot arrives while local
@@ -10,7 +11,8 @@ export const mergeAnnotationObjects = (
   server: DrawableObject[],
   baseline: DrawableObject[]
 ): DrawableObject[] => {
-  const baseById = new Map(baseline.map((o) => [o.id, JSON.stringify(o)]));
+  // stableStringify: the baseline round-trips through an alphabetized snapshot, so plain JSON.stringify never matches an untouched object and drops remote edits/deletes.
+  const baseById = new Map(baseline.map((o) => [o.id, stableStringify(o)]));
   const serverById = new Map(server.map((o) => [o.id, o]));
   const localIds = new Set(local.map((o) => o.id));
 
@@ -21,7 +23,7 @@ export const mergeAnnotationObjects = (
       merged.push(o); // Local add.
       continue;
     }
-    const unchangedLocally = JSON.stringify(o) === base;
+    const unchangedLocally = stableStringify(o) === base;
     const remote = serverById.get(o.id);
     if (!remote) {
       // Deleted remotely: honor it unless it was edited locally.

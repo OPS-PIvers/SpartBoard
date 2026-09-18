@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mergeAnnotationObjects } from '@/utils/annotationMerge';
+import { stableStringify } from '@/utils/stableStringify';
 import type { DrawableObject } from '@/types';
 
 const rect = (id: string, x = 0): DrawableObject => ({
@@ -44,5 +45,24 @@ describe('mergeAnnotationObjects', () => {
   it('a locally edited object survives a remote delete', () => {
     const out = mergeAnnotationObjects([rect('X', 5)], [], [X]);
     expect(ids(out)).toEqual(['X']);
+  });
+
+  it('recognizes untouched ink after a stableStringify baseline round trip', () => {
+    // The real baseline is parsed back out of a stableStringify'd (alphabetized)
+    // snapshot, as `parseAnnotationBaseline` does in DashboardContext — not a
+    // literal copy of the local object in its original key order.
+    const local = rect('X', 5);
+    const baseline = JSON.parse(stableStringify(local)) as DrawableObject;
+    const remoteEdit = rect('X', 99);
+    const out = mergeAnnotationObjects([local], [remoteEdit], [baseline]);
+    // Untouched locally, so the remote edit should win.
+    expect(out.find((o) => o.id === 'X')).toMatchObject({ x: 99 });
+  });
+
+  it('honors a remote delete of untouched ink after a baseline round trip', () => {
+    const local = rect('X', 5);
+    const baseline = JSON.parse(stableStringify(local)) as DrawableObject;
+    const out = mergeAnnotationObjects([local], [], [baseline]);
+    expect(ids(out)).toEqual([]);
   });
 });
