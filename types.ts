@@ -7953,7 +7953,9 @@ export type GlobalFeature =
   /** Teacher-authored AI quiz translations for multilingual learners. */
   | 'quiz-translation'
   /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
-  | 'question-bank-ai';
+  | 'question-bank-ai'
+  /** Paper answer sheets; only meaningful while the Rollouts switch is on. */
+  | 'paper-answer-sheets';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

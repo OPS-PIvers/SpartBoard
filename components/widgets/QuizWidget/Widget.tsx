@@ -422,7 +422,12 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const [editingMeta, setEditingMeta] = useState<QuizMetadata | null>(null);
   // Paper answer sheets. `paperPrintIsNew` distinguishes the "Paper test" door
   // (an unsaved stub the modal creates on print) from printing for a saved quiz.
-  const paperSheets = usePaperAnswerSheetsSettings();
+  const paperSheetsRollout = usePaperAnswerSheetsSettings();
+  // Two gates: the org-wide Rollouts switch, then who may use it.
+  const paperSheets = {
+    enabled:
+      paperSheetsRollout.enabled && canAccessFeature('paper-answer-sheets'),
+  };
   const [paperPrintQuiz, setPaperPrintQuiz] = useState<QuizData | null>(null);
   const [paperPrintIsNew, setPaperPrintIsNew] = useState(false);
   const [paperImport, setPaperImport] = useState<{
