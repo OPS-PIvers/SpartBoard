@@ -32,6 +32,11 @@ import {
 } from './paperSheetLayout';
 import { encodePaperMarker, paperBatchTag } from './paperSheetMarker';
 import type { PaperSheetPlan } from './paperSheetPlan';
+import {
+  escapeHtml,
+  printHtmlDocument,
+  type OpenWindow,
+} from './printHtmlDocument';
 
 export interface PaperPrintJob {
   batchId: string;
@@ -40,13 +45,6 @@ export interface PaperPrintJob {
   choiceCount: number;
   sheets: readonly PaperSheetPlan[];
 }
-
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 
 const mm = (n: number): string => `${n.toFixed(3)}mm`;
 
@@ -218,52 +216,17 @@ const STYLES = `
  */
 export function printPaperSheets(
   job: PaperPrintJob,
-  openWindow: (url?: string, target?: string) => Window | null = (
-    url,
-    target
-  ) => window.open(url, target)
+  openWindow?: OpenWindow
 ): void {
   if (job.sheets.length === 0) return;
-
-  const printWindow = openWindow('', '_blank');
-  if (!printWindow) {
-    throw new Error('Printing blocked: please allow pop-ups for this site.');
-  }
-
-  const pageCount = pageCountForQuestions(job.questionCount);
-  const body = job.sheets
-    .map((s) => sheetPagesHtml(s, job, pageCount))
-    .join('');
-
-  printWindow.document.open();
-  printWindow.document.write(`<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>${escapeHtml(job.quizTitle)} — answer sheets</title>
-    <style>${STYLES}</style>
-  </head>
-  <body>${body}</body>
-</html>`);
-  printWindow.document.close();
-
-  // Set before print(): Chrome fires onafterprint whether the teacher printed
-  // or cancelled. The timeout covers browsers that do not fire it at all.
-  let closed = false;
-  const closeOnce = () => {
-    if (closed) return;
-    closed = true;
-    try {
-      printWindow.close();
-    } catch {
-      /* already closed */
-    }
-  };
-  printWindow.onafterprint = closeOnce;
-  setTimeout(closeOnce, 60_000);
-
-  printWindow.focus();
-  printWindow.print();
+  printHtmlDocument(
+    {
+      title: `${job.quizTitle} — answer sheets`,
+      styles: STYLES,
+      body: buildPaperSheetsHtml(job),
+    },
+    openWindow
+  );
 }
 
 /** The document `printPaperSheets` would write. Exported for tests and preview. */

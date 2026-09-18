@@ -4717,6 +4717,12 @@ export interface PaperBatch {
   spareSeats: number[];
   /** Seat carrying the bubbled ANSWER KEY sheet, when one was printed (plan Q16). */
   keySheetSeat?: number;
+  /**
+   * Option text per question id in the lettered order the test paper printed
+   * (A first). Authored quizzes only; import maps a bubbled letter through it
+   * (plan Q36). A stub has none — its options are the letters themselves.
+   */
+  choiceOrder?: Record<string, string[]>;
   /** Pages each student's sheet occupies. */
   pagesPerSheet: number;
   createdAt: number;

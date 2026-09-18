@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 import { PaperPrintModal } from '@/components/widgets/QuizWidget/components/PaperPrintModal';
 import type { ClassRoster, PaperBatch, QuizData, QuizQuestion } from '@/types';
+import type { PaperTestJob } from '@/utils/paperTestPrint';
 
 const mc = (id: string, distractors = 3): QuizQuestion => ({
   id,
@@ -121,6 +122,49 @@ describe('PaperPrintModal', () => {
       { rosterId: 'r1', studentId: 's1' },
       { rosterId: 'r1', studentId: 's2' },
     ]);
+  });
+
+  it('records the printed choice order and offers the matching test paper next', async () => {
+    const printTest = vi.fn<(job: PaperTestJob) => void>();
+    const { onSaveBatch, print, onClose } = setup({ printTest });
+    selectWholeClass();
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    const batch = onSaveBatch.mock.calls[0][0];
+    expect([...(batch.choiceOrder?.q1 ?? [])].sort()).toEqual([
+      'a',
+      'd0',
+      'd1',
+      'd2',
+    ]);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText(/Answer sheets sent to print/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Print test paper/ }));
+    expect(printTest).toHaveBeenCalledOnce();
+    const job = printTest.mock.calls[0][0];
+    expect(job.quizTitle).toBe('Unit 3 Test');
+    expect(job.questions.map((q) => q.row)).toEqual([1, 2]);
+    expect(job.questions[0].choices).toEqual(batch.choiceOrder?.q1);
+    expect(job.questions[1].choices).toEqual(batch.choiceOrder?.q2);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Done$/ }));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('surfaces a blocked pop-up on the test paper without losing the batch', async () => {
+    const printTest = vi.fn(() => {
+      throw new Error('Printing blocked: please allow pop-ups for this site.');
+    });
+    const { print, onError } = setup({ printTest });
+    selectWholeClass();
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: /Print test paper/ }));
+    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/pop-ups/));
+    expect(
+      screen.getByRole('button', { name: /Print test paper/ })
+    ).toBeInTheDocument();
   });
 
   it('warns about questions that cannot be bubbled', () => {

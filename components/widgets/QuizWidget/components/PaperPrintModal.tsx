@@ -9,8 +9,10 @@
 import React, { useMemo, useState } from 'react';
 import {
   AlertTriangle,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
+  FileText,
   Printer,
   X,
 } from 'lucide-react';
@@ -28,6 +30,7 @@ import {
   planPaperBatch,
 } from '@/utils/paperSheetPlan';
 import { printPaperSheets } from '@/utils/paperSheetPrint';
+import { printPaperTest } from '@/utils/paperTestPrint';
 
 const MAX_SPARES = 20;
 const DEFAULT_STUB_QUESTIONS = 25;
@@ -46,6 +49,7 @@ interface PaperPrintModalProps {
   onError: (message: string) => void;
   /** Test seam mirroring `printPaperSheets`. */
   print?: typeof printPaperSheets;
+  printTest?: typeof printPaperTest;
 }
 
 const studentSort = (a: Student, b: Student): number =>
@@ -59,6 +63,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   onClose,
   onError,
   print = printPaperSheets,
+  printTest = printPaperTest,
 }) => {
   const analysis = useMemo(() => analyzePaperQuiz(quiz), [quiz]);
   const isStub = analysis.rows.length === 0;
@@ -75,6 +80,21 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const [spareCount, setSpareCount] = useState(2);
   const [includeKeySheet, setIncludeKeySheet] = useState(isStub);
   const [printing, setPrinting] = useState(false);
+  /** Set once an authored quiz's sheets printed; the test paper comes next. */
+  const [printedBatch, setPrintedBatch] = useState<PaperBatch | null>(null);
+
+  const questionsById = useMemo(
+    () => new Map((quiz.questions ?? []).map((q) => [q.id, q])),
+    [quiz.questions]
+  );
+  const sheetQuestions = useMemo(
+    () =>
+      analysis.rows.flatMap((r) => {
+        const q = questionsById.get(r.questionId);
+        return q ? [q] : [];
+      }),
+    [analysis.rows, questionsById]
+  );
 
   const questionCount = isStub ? stubQuestionCount : analysis.rows.length;
   const choiceCount = isStub ? stubChoiceCount : analysis.sheetChoiceCount;
@@ -133,6 +153,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         choiceCount,
         spareCount,
         includeKeySheet,
+        ...(isStub ? {} : { questions: sheetQuestions }),
         createdAt: Date.now(),
       });
       // Create the quiz before the batch that points at it, and both before
@@ -156,7 +177,10 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         choiceCount: batch.choiceCount,
         sheets,
       });
-      onClose();
+      // An authored quiz needs its test paper printed from the same batch, so
+      // the letters on the paper match the order the import will decode.
+      if (isStub) onClose();
+      else setPrintedBatch(batch);
     } catch (err) {
       onError(
         err instanceof Error ? err.message : 'Could not print answer sheets.'
@@ -165,6 +189,74 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       setPrinting(false);
     }
   };
+
+  const handlePrintTest = () => {
+    if (!printedBatch) return;
+    try {
+      printTest({
+        quizTitle: quiz.title,
+        questions: analysis.rows.flatMap((r) => {
+          const q = questionsById.get(r.questionId);
+          if (!q) return [];
+          const choices = printedBatch.choiceOrder?.[q.id] ?? [
+            q.correctAnswer,
+            ...(q.incorrectAnswers ?? []),
+          ];
+          return [{ row: r.row, text: q.text, choices }];
+        }),
+      });
+    } catch (err) {
+      onError(
+        err instanceof Error ? err.message : 'Could not print the test paper.'
+      );
+    }
+  };
+
+  if (printedBatch) {
+    return (
+      <Modal
+        isOpen
+        onClose={onClose}
+        ariaLabel="Answer sheets printed"
+        maxWidth="max-w-md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+            >
+              Done
+            </button>
+            <button
+              type="button"
+              onClick={handlePrintTest}
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark"
+            >
+              <FileText className="h-4 w-4" />
+              Print test paper
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3 px-5 pb-2 pt-5">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+            <div>
+              <h2 className="text-base font-bold text-slate-900">
+                Answer sheets sent to print
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Now print the test paper. Its choices are lettered to match
+                these sheets, so hand out this copy rather than one written by
+                hand — the import reads each bubble through that order.
+              </p>
+            </div>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
