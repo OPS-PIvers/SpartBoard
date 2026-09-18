@@ -1127,16 +1127,21 @@ export const useRosters = (user: User | null) => {
 
       const existingMeta = metaListRef.current.find((m) => m.id === rosterId);
       let current: RosterFileContent;
-      if (!existingMeta?.driveFileId) {
-        // Nothing has ever been uploaded, so there is no concurrent writer to
-        // lose to and empty is genuinely correct rather than unknown.
-        current = { students: [], ...emptyRosterFileExtras() };
-      } else if (!driveService) {
-        throw new Error(
-          `Cannot save groups to roster ${rosterId}: Drive is unavailable`
-        );
-      } else {
+      if (existingMeta?.driveFileId) {
+        if (!driveService) {
+          throw new Error(
+            `Cannot save groups to roster ${rosterId}: Drive is unavailable`
+          );
+        }
         current = await loadRosterFileFromDrive(existingMeta.driveFileId);
+      } else {
+        // No Drive file ⇒ no concurrent writer to lose to, but the cache can
+        // still hold real students (addRoster and updateRoster both populate
+        // it when Drive was unavailable). Empty only when it is cold too.
+        current = studentsCacheRef.current.get(rosterId) ?? {
+          students: [],
+          ...emptyRosterFileExtras(),
+        };
       }
 
       const existingIds = new Set(current.groups.map((g) => g.id));

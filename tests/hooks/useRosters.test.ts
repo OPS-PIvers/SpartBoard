@@ -1556,6 +1556,35 @@ describe('useRosters — appendRosterGroups', () => {
     expect(result.current.rosters[0].groups?.map((g) => g.id)).toEqual(['g1']);
   });
 
+  it('keeps cached students on a roster that has no Drive file yet', async () => {
+    // addRoster and updateRoster both cache real students without a
+    // driveFileId when Drive is unavailable. Treating that as "empty" would
+    // blank the roster out.
+    currentDriveService = null;
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [metaDoc('r1', { driveFileId: null })]);
+    await waitFor(() => expect(result.current.rosters).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.updateRoster('r1', {
+        students: [student({ id: 's1' }), student({ id: 's2' })],
+      });
+    });
+    expect(result.current.rosters[0].students).toHaveLength(2);
+
+    await act(async () => {
+      await result.current.appendRosterGroups('r1', [
+        { id: 'g1', name: 'Reds', studentIds: ['s1'] },
+      ]);
+    });
+
+    expect(result.current.rosters[0].students).toHaveLength(2);
+    expect(result.current.rosters[0].studentCount).toBe(2);
+    expect(result.current.rosters[0].groups).toEqual([
+      { id: 'g1', name: 'Reds', studentIds: ['s1'] },
+    ]);
+  });
+
   it('leaves no stale cache behind for the next write when the Drive write fails', async () => {
     const updateFileContent = vi
       .fn()
