@@ -35,7 +35,7 @@ These shaped the decisions and are easy to re-derive wrongly later:
 - **`RosterGroup[]` is flat.** Nothing models a partition, and nothing validates coverage or overlap.
 - **Poll and Next Up use destructive snapshot imports.** `PollWidget/settingsFields.tsx:249` and `NextUp/Settings.tsx:191` copy names in once and never re-sync. Poll's button carries a `RefreshCw` icon that actively implies otherwise.
 - **`APPEARANCE_CONFIG_KEY_LIST`** (`utils/widgetConfigPersistence.ts:14`) is the closed per-user carry-over allowlist. Nothing in this plan goes near it.
-- **Firestore rules cannot be tested locally on this machine** (the emulator crashes); rules ship to shared prod on any `dev-*` push. No rules change is expected here.
+- **Firestore rules cannot be tested locally on this machine** (the emulator crashes); rules ship to shared prod on any `dev-*` push. **One rules change is required**: `admin_settings/{document=**}` is admin-only (`firestore.rules:711`), so every teacher-readable rollout doc needs its own `allow read: if request.auth != null` override — `subjects`, `quiz_translation`, `plc_note_collab` and `paper_answer_sheets` all have one. Without it a teacher's snapshot fails with `permission-denied`, the hook's error path swallows it into the fail-closed default, and flipping the switch on does nothing. Caught in review on PR 1.
 
 ---
 
@@ -106,10 +106,10 @@ Consequences, enforced throughout §3:
 
 ### 3.6 Rollout
 
-| #   | Decision     | Choice                                                                                                                                                                                                                                            |
-| --- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D23 | Kill switch  | **`admin_settings/roster_groups_integration`, ships disabled**, with a row in `components/admin/RolloutSwitchesPanel.tsx` and a feature-permission entry. Follows `plc_note_collab` and `paper_answer_sheets`. Never edited in Firestore by hand. |
-| D24 | Write safety | **Re-read, append, write — scoped to the new group-write path.** Fetch the Drive roster file, append to whatever `groups[]` is current, then write. Full ETag support on every roster write is a separate, larger piece of work.                  |
+| #   | Decision     | Choice                                                                                                                                                                                                                                                                                                                            |
+| --- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D23 | Kill switch  | **`admin_settings/roster_groups_integration`, ships disabled**, with a row in `components/admin/RolloutSwitchesPanel.tsx`, a feature-permission entry, and a `firestore.rules` read override (see §1.2 — the switch is inert without it). Follows `plc_note_collab` and `paper_answer_sheets`. Never edited in Firestore by hand. |
+| D24 | Write safety | **Re-read, append, write — scoped to the new group-write path.** Fetch the Drive roster file, append to whatever `groups[]` is current, then write. Full ETag support on every roster write is a separate, larger piece of work.                                                                                                  |
 
 ---
 
@@ -138,7 +138,7 @@ Four PRs, foundation first, so the one risky Drive write lands early and alone w
 - Shared group-picker component: class list with a group submenu, count-only display, used by the class chip across all five roster-aware widgets (D8, D16).
 - Safe group write in `hooks/useRosters.ts`: re-read, append, write (D24).
 - `RosterGroupsPanel` gains "Split class into N groups" with the prefilled name dialog (D2, D18).
-- `config/rosterGroupsIntegration.ts` + `RolloutSwitchesPanel` row + feature permission (D23).
+- `config/rosterGroupsIntegration.ts` + `RolloutSwitchesPanel` row + feature permission + `firestore.rules` read override (D23).
 
 Ships dark. No widget behavior changes.
 
