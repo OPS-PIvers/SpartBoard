@@ -30,7 +30,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import { setDoc, updateDoc, deleteDoc, getDoc, doc } from 'firebase/firestore';
 
-const PROJECT_ID = 'spartboard-rules-test';
+const PROJECT_ID = 'spartboard-organizations-rules-test';
 const ORG_ID = 'orono';
 const OTHER_ORG_ID = 'other-district';
 const MEMBER_EMAIL = 'paul.ivers@orono.k12.mn.us';
