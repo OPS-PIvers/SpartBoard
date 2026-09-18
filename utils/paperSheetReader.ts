@@ -43,10 +43,12 @@ export interface RectPx {
 
 /** Every tunable in one place, so a field adjustment is a one-line change. */
 export const READER_THRESHOLDS = {
-  /** Fill ratio at or above which a bubble is marked. */
-  filled: 0.45,
-  /** Fill ratio at or below which a bubble is empty. Between the two is doubt. */
-  blank: 0.2,
+  /** Fill ratio at or above which a bubble counts as a mark (a light check reads ~0.10). */
+  mark: 0.1,
+  /** Fill ratio at or above which a bubble is at least a possible mark; below is noise. */
+  faint: 0.06,
+  /** A runner-up at or above this share of the top bubble makes the row 'multiple'. */
+  dominance: 0.6,
   /** Fraction of the bubble radius sampled; keeps the printed ring out of the count. */
   bubbleSampleRadius: 0.65,
   /** Fraction of each marker cell edge trimmed before sampling. */
@@ -406,15 +408,18 @@ export function classifyRow(fills: readonly number[]): {
   choice: number | null;
   doubt?: RowDoubt;
 } {
-  const { filled, blank } = READER_THRESHOLDS;
-  const marked = fills.filter((f) => f >= filled).length;
-  const unsure = fills.filter((f) => f > blank && f < filled).length;
-  if (marked === 0 && unsure === 0) return { choice: null };
-  if (marked >= 2) return { choice: null, doubt: 'multiple' };
-  if (marked === 1 && unsure === 0) {
-    return { choice: fills.findIndex((f) => f >= filled) };
+  // Untouched bubbles read ~0, so a mark is judged against its row, not an
+  // absolute fill: pencil checks and Xs through a 1-bit scanner land at 0.1–0.4.
+  const { mark, faint, dominance } = READER_THRESHOLDS;
+  const sorted = [...fills].sort((a, b) => b - a);
+  const top = sorted[0] ?? 0;
+  const runnerUp = sorted[1] ?? 0;
+  if (top < faint) return { choice: null };
+  if (runnerUp >= faint && runnerUp >= top * dominance) {
+    return { choice: null, doubt: 'multiple' };
   }
-  return { choice: null, doubt: 'unclear' };
+  if (top < mark) return { choice: null, doubt: 'unclear' };
+  return { choice: fills.indexOf(top) };
 }
 
 /** Rows on `page` (1-based) of a test with `questionCount` questions. */

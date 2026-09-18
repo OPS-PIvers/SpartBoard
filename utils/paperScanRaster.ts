@@ -114,7 +114,8 @@ async function domLoadPdf(file: Blob): Promise<PdfDocumentLike> {
     'pdfjs-dist/build/pdf.worker.min.mjs',
     import.meta.url
   ).toString();
-  const task = pdfjs.getDocument({ data: bytes });
+  // Scanners emit CCITT/JBIG2 pages, which pdf.js decodes in wasm served here.
+  const task = pdfjs.getDocument({ data: bytes, wasmUrl: '/pdfjs-wasm/' });
   const doc = await task.promise;
   return {
     numPages: doc.numPages,
