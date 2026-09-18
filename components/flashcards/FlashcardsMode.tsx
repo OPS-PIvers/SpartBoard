@@ -213,14 +213,14 @@ export const FlashcardsMode: React.FC<FlashcardsModeProps> = ({
               !flipped && 'motion-reduce:opacity-0',
               dark
                 ? 'border-cyan-200/20 bg-cyan-950/65 text-white'
-                : 'border-rose-200 bg-rose-50 text-rose-950'
+                : 'border-sky-200 bg-sky-50 text-sky-950'
             )}
             style={{ padding: 'min(38px, 8cqmin)' }}
           >
             <span
               className={cx(
                 'absolute font-black uppercase tracking-widest',
-                dark ? 'text-cyan-200' : 'text-rose-700'
+                dark ? 'text-cyan-200' : 'text-sky-700'
               )}
               style={{
                 top: 'min(18px, 4cqmin)',

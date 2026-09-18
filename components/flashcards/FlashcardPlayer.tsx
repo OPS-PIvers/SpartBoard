@@ -103,14 +103,6 @@ const modes: Array<{
   { id: 'test', labelKey: 'flashcards.modes.test', icon: FileCheck2 },
 ];
 
-const testCountOptions = (deckSize: number): Array<number | 'all'> => {
-  if (deckSize < 5) return ['all'];
-  const values: Array<number | 'all'> = [];
-  for (let count = 5; count < deckSize; count += 5) values.push(count);
-  values.push('all');
-  return values;
-};
-
 export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
   cards,
   termLanguage,
@@ -841,25 +833,16 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                     />
                   );
                 })}
-                <SegmentedSetting
+                <QuestionCountSetting
                   label={t('flashcards.settings.questions')}
-                  value={String(settings.testCount)}
-                  options={testCountOptions(testPool.length).map((count) => ({
-                    value: String(count),
-                    label:
-                      count === 'all'
-                        ? t('flashcards.settings.allCount', {
-                            count: testPool.length,
-                          })
-                        : String(count),
-                  }))}
+                  allLabel={t('flashcards.settings.allCount', {
+                    count: testPool.length,
+                  })}
+                  poolSize={testPool.length}
+                  value={settings.testCount}
                   dark={dark}
                   disabled={locked}
-                  onChange={(value) =>
-                    updateSettings({
-                      testCount: value === 'all' ? 'all' : Number(value),
-                    })
-                  }
+                  onChange={(testCount) => updateSettings({ testCount })}
                 />
               </SettingsGroup>
             )}
@@ -967,6 +950,88 @@ const SegmentedSetting: React.FC<{
     </div>
   </div>
 );
+
+const QuestionCountSetting: React.FC<{
+  label: string;
+  allLabel: string;
+  poolSize: number;
+  value: number | 'all';
+  dark: boolean;
+  disabled?: boolean;
+  onChange: (value: number | 'all') => void;
+}> = ({
+  label,
+  allLabel,
+  poolSize,
+  value,
+  dark,
+  disabled = false,
+  onChange,
+}) => {
+  const isAll = value === 'all';
+  const bounded = Math.max(1, poolSize);
+
+  return (
+    <div>
+      <div
+        className="font-bold"
+        style={{
+          marginBottom: 'min(5px, 1cqmin)',
+          fontSize: 'min(11px, 3cqmin)',
+        }}
+      >
+        {label}
+      </div>
+      <div className="flex items-stretch" style={{ gap: 'min(6px, 1.4cqmin)' }}>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={1}
+          max={bounded}
+          step={1}
+          aria-label={label}
+          value={isAll ? bounded : value}
+          disabled={disabled}
+          onChange={(event) => {
+            const parsed = Number.parseInt(event.target.value, 10);
+            if (!Number.isFinite(parsed)) return;
+            onChange(Math.min(bounded, Math.max(1, parsed)));
+          }}
+          className={cx(
+            'w-0 min-w-0 flex-1 rounded-lg border-2 text-center font-bold outline-none transition focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60',
+            dark
+              ? 'border-white/15 bg-white/10 text-white focus:border-cyan-300 focus:ring-cyan-300/20'
+              : 'border-slate-200 bg-white text-slate-900 focus:border-rose-400 focus:ring-rose-200'
+          )}
+          style={{
+            padding: 'min(7px, 1.7cqmin)',
+            fontSize: 'min(12px, 3.2cqmin)',
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => onChange('all')}
+          aria-pressed={isAll}
+          disabled={disabled}
+          className={cx(
+            'shrink-0 rounded-lg font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-60',
+            isAll
+              ? 'bg-rose-600 text-white shadow-sm'
+              : dark
+                ? 'bg-white/10 text-white hover:bg-white/20'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+          )}
+          style={{
+            padding: 'min(7px, 1.7cqmin) min(11px, 2.5cqmin)',
+            fontSize: 'min(10px, 2.8cqmin)',
+          }}
+        >
+          {allLabel}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const ToggleSetting: React.FC<{
   label: string;
