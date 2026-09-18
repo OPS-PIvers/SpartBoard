@@ -448,7 +448,11 @@ export interface UseQuizAssignmentsResult {
     quizData: QuizData,
     visibility: Exclude<QuizScoreVisibility, 'none'>,
     protection?: ResultsProtection
-  ) => Promise<{ responsesUpdated: number }>;
+  ) => Promise<{
+    responsesUpdated: number;
+    /** Responses imported from paper sheets, so the caller can link them (Q34). */
+    paperResponses: number;
+  }>;
   /**
    * Revoke published score visibility for an assignment. Clears
    * `scoreVisibility` + `scorePublishedAt` on the assignment doc (via
@@ -2580,8 +2584,10 @@ export const useQuizAssignments = (
         };
       }
       const updates: ResponseUpdate[] = [];
+      let paperResponses = 0;
       for (const d of responseDocs) {
         const data = d.data() as QuizResponse;
+        if (typeof data.paperBatchId === 'string') paperResponses += 1;
         const answers = Array.isArray(data.answers) ? data.answers : [];
         // Prefer the response doc's own served-subset snapshot (written by
         // the student app at answer time) over the live override map — the
@@ -2805,7 +2811,7 @@ export const useQuizAssignments = (
         );
       }
 
-      return { responsesUpdated: updates.length };
+      return { responsesUpdated: updates.length, paperResponses };
     },
     [userId]
   );

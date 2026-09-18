@@ -3145,8 +3145,9 @@ describe('index barrel — deployed export set', () => {
     'pinLoginV1',
     // Individual assignment targeting (M17 A2 / A2b)
     'setAssignmentTargetsV1',
-    // Paper answer sheets (Increment 2)
+    // Paper answer sheets (Increment 2 + Q34 pointers)
     'importPaperResponsesV1',
+    'publishPaperResultsV1',
     'cleanupQuizAssignmentPointers',
     'cleanupVideoActivityAssignmentPointers',
     'cleanupGuidedLearningAssignmentPointers',

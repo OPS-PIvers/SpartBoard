@@ -4738,6 +4738,49 @@ export interface PaperBatch {
   /** Pages each student's sheet occupies. */
   pagesPerSheet: number;
   createdAt: number;
+  /** A review the teacher left unfinished, resumable from any device (plan Q26). */
+  pendingReview?: PaperPendingReview;
+}
+
+/** One read row, compact enough for 150 sheets to sit inside the batch doc. */
+export interface PaperPendingAnswer {
+  question: number;
+  choice: number | null;
+  doubt?: 'multiple' | 'unclear';
+}
+
+export interface PaperPendingSheet {
+  seat: number;
+  kind: 'student' | 'spare' | 'key';
+  student: PaperSeatAssignment | null;
+  answers: PaperPendingAnswer[];
+  pagesSeen: number[];
+  missingPages: number[];
+  isBlank: boolean;
+  flags: Array<'missing-page' | 'doubtful-rows' | 'duplicate-conflict'>;
+}
+
+/**
+ * The in-progress review of one scan, persisted on the batch so a closed tab
+ * never means rescanning. Row crops are too large for Firestore and stay in
+ * the browser that read the scan (IndexedDB); without them a resumed review
+ * shows the read choice and the doubt reason only.
+ */
+export interface PaperPendingReview {
+  savedAt: number;
+  /** Administration the teacher chose; `''` means "new paper administration". */
+  assignmentId: string;
+  sheets: PaperPendingSheet[];
+  keySheet: PaperPendingSheet | null;
+  unreadablePages: number[];
+  foreignPages: number[];
+  unknownPages: number[];
+  /** Key choices per question id after the teacher's edits; null where blank. */
+  key: Record<string, number | null>;
+  keyConfirmed: boolean;
+  spareAssignments: Record<number, PaperSeatAssignment>;
+  /** Learning targets tagged during review, per question id (plan Q27). */
+  targets: Record<string, QuestionTargetTag[]>;
 }
 
 /**
@@ -5300,6 +5343,8 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   /** Join code for the student URL. Denormalized from the session doc for archive display. */
   code: string;
   status: QuizAssignmentStatus;
+  /** Set by `importPaperResponsesV1`; publish then writes student pointers (plan Q34). */
+  hasPaperResponses?: boolean;
   createdAt: number;
   updatedAt: number;
   /**
