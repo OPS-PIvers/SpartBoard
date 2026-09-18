@@ -1,6 +1,10 @@
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import {
@@ -27,11 +31,15 @@ export const SyntaxFramerConfigurationPanel: React.FC<
   const defaultMode = defaultFramerConfig?.mode ?? 'text';
   const defaultAlignment = defaultFramerConfig?.alignment ?? 'center';
 
-  const buildingDefaults = config.buildingDefaults ?? {};
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+  const canonicalId = canonicalBuildingId(selectedBuildingId);
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    config.buildingDefaults ?? {}
+  );
   const currentBuildingConfig: BuildingSyntaxFramerDefaults = buildingDefaults[
-    selectedBuildingId
+    canonicalId
   ] ?? {
-    buildingId: selectedBuildingId,
+    buildingId: canonicalId,
     mode: defaultMode,
     alignment: defaultAlignment,
   };
@@ -42,7 +50,7 @@ export const SyntaxFramerConfigurationPanel: React.FC<
       ...config,
       buildingDefaults: {
         ...buildingDefaults,
-        [selectedBuildingId]: updatedBuildingConfig,
+        [canonicalId]: updatedBuildingConfig,
       },
     });
   };

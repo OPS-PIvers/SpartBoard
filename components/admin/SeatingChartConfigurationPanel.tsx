@@ -2,6 +2,10 @@ import React from 'react';
 import { SeatingChartGlobalConfig } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 interface SeatingChartConfigurationPanelProps {
   config: Record<string, unknown>;
@@ -23,9 +27,13 @@ export const SeatingChartConfigurationPanel: React.FC<
 
   // Cast the generic config to our specific type
   const globalConfig = config as unknown as SeatingChartGlobalConfig;
-  const buildingDefaults = globalConfig.buildingDefaults ?? {};
-  const currentDefaults = buildingDefaults[activeBuildingId] ?? {
-    buildingId: activeBuildingId,
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+  const canonicalId = canonicalBuildingId(activeBuildingId);
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    globalConfig.buildingDefaults ?? {}
+  );
+  const currentDefaults = buildingDefaults[canonicalId] ?? {
+    buildingId: canonicalId,
     rosterMode: 'class',
   };
 
@@ -33,14 +41,14 @@ export const SeatingChartConfigurationPanel: React.FC<
     const newDefaults = {
       ...currentDefaults,
       ...updates,
-      buildingId: activeBuildingId,
+      buildingId: canonicalId,
     };
 
     onChange({
       ...globalConfig,
       buildingDefaults: {
         ...buildingDefaults,
-        [activeBuildingId]: newDefaults,
+        [canonicalId]: newDefaults,
       },
     });
   };

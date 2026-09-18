@@ -10,6 +10,10 @@ import {
 } from 'lucide-react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import {
   BloomsTaxonomyGlobalConfig,
@@ -83,23 +87,30 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
     }
   };
 
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+  const canonicalId = canonicalBuildingId(selectedBuildingId);
+  const buildingDefaults = useMemo(
+    () => canonicalizeBuildingKeyedRecord(config.buildingDefaults ?? {}),
+    [config.buildingDefaults]
+  );
+
   const currentBuildingConfig = useMemo(
     () =>
-      config.buildingDefaults?.[selectedBuildingId] ?? {
+      buildingDefaults[canonicalId] ?? {
         availableCategories: [...CONTENT_CATEGORIES],
         defaultEnabledCategories: [...CONTENT_CATEGORIES],
         aiEnabled: false,
         contentOverrides: {},
       },
-    [config.buildingDefaults, selectedBuildingId]
+    [buildingDefaults, canonicalId]
   );
 
   const updateBuilding = (updates: Partial<BloomsTaxonomyBuildingConfig>) => {
     setConfig((prev) => ({
       ...prev,
       buildingDefaults: {
-        ...prev.buildingDefaults,
-        [selectedBuildingId]: {
+        ...buildingDefaults,
+        [canonicalId]: {
           ...currentBuildingConfig,
           ...updates,
         },

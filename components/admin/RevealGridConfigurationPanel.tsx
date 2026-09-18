@@ -1,6 +1,10 @@
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { RevealGridGlobalConfig, GlobalFontFamily } from '@/types';
 
@@ -18,9 +22,13 @@ export const RevealGridConfigurationPanel: React.FC<
 
   // Cast the incoming config to our typed interface.
   const typedConfig = config as unknown as RevealGridGlobalConfig;
-  const buildingDefaults = typedConfig.buildingDefaults || {};
-  const currentDefaults = buildingDefaults[activeBuildingId] || {
-    buildingId: activeBuildingId,
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+  const canonicalId = canonicalBuildingId(activeBuildingId);
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    typedConfig.buildingDefaults || {}
+  );
+  const currentDefaults = buildingDefaults[canonicalId] || {
+    buildingId: canonicalId,
   };
 
   const DEFAULT_COLUMNS = 3;
@@ -33,7 +41,7 @@ export const RevealGridConfigurationPanel: React.FC<
       ...typedConfig,
       buildingDefaults: {
         ...buildingDefaults,
-        [activeBuildingId]: {
+        [canonicalId]: {
           ...currentDefaults,
           ...updates,
         },

@@ -16,6 +16,10 @@ import {
 } from 'lucide-react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import {
   CalendarGlobalConfig,
@@ -175,10 +179,14 @@ export const CalendarConfigurationModal: React.FC<
       const timeMin = new Date(now.setHours(0, 0, 0, 0)).toISOString();
       const timeMax = new Date(now.setDate(now.getDate() + 30)).toISOString();
 
-      const nextBuildingDefaults = { ...config.buildingDefaults };
+      // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+      const nextBuildingDefaults = canonicalizeBuildingKeyedRecord(
+        config.buildingDefaults ?? {}
+      );
 
       for (const building of BUILDINGS) {
-        const bConfig = nextBuildingDefaults[building.id];
+        const canonicalId = canonicalBuildingId(building.id);
+        const bConfig = nextBuildingDefaults[canonicalId];
         const ids = bConfig?.googleCalendarIds ?? [];
 
         if (ids.length === 0) continue;
@@ -192,7 +200,7 @@ export const CalendarConfigurationModal: React.FC<
             .flat()
             .sort((a, b) => a.date.localeCompare(b.date));
 
-          nextBuildingDefaults[building.id] = {
+          nextBuildingDefaults[canonicalId] = {
             ...bConfig,
             cachedEvents: merged,
             lastProxySync: Date.now(),
@@ -217,9 +225,13 @@ export const CalendarConfigurationModal: React.FC<
     }
   };
 
-  const buildingDefaults = config.buildingDefaults ?? {};
-  const currentBuildingConfig = buildingDefaults[selectedBuildingId] ?? {
-    buildingId: selectedBuildingId,
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+  const canonicalId = canonicalBuildingId(selectedBuildingId);
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    config.buildingDefaults ?? {}
+  );
+  const currentBuildingConfig = buildingDefaults[canonicalId] ?? {
+    buildingId: canonicalId,
     events: [],
     googleCalendarIds: [],
   };
@@ -232,8 +244,8 @@ export const CalendarConfigurationModal: React.FC<
     setConfig((prev) => ({
       ...prev,
       buildingDefaults: {
-        ...prev.buildingDefaults,
-        [selectedBuildingId]: {
+        ...canonicalizeBuildingKeyedRecord(prev.buildingDefaults ?? {}),
+        [canonicalId]: {
           ...currentBuildingConfig,
           ...updates,
         },
@@ -424,7 +436,7 @@ export const CalendarConfigurationModal: React.FC<
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {BUILDINGS.map((b) => {
-                  const bConfig = config.buildingDefaults?.[b.id];
+                  const bConfig = buildingDefaults[canonicalBuildingId(b.id)];
                   const lastSync = bConfig?.lastProxySync;
                   const eventCount = bConfig?.cachedEvents?.length ?? 0;
                   return (

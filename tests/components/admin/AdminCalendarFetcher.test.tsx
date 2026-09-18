@@ -32,20 +32,29 @@ vi.mock('@/context/useAuth', () => ({
 // effect via its `BUILDINGS` dependency (that would be a test artifact, not the
 // behavior under test).
 const STABLE_BUILDINGS = [{ id: 'b1', name: 'Building One' }];
+// Mutable so a single test can swap in a legacy-id building list without
+// disturbing the stable-reference guarantee the other tests rely on.
+let currentBuildings: { id: string; name: string }[] = STABLE_BUILDINGS;
 vi.mock('@/hooks/useAdminBuildings', () => ({
-  useAdminBuildings: () => STABLE_BUILDINGS,
+  useAdminBuildings: () => currentBuildings,
 }));
 
 vi.mock('@/config/firebase', () => ({ db: {} }));
 
+const setDocMock = vi.fn<(...args: unknown[]) => Promise<void>>(() =>
+  Promise.resolve()
+);
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn(() => ({})),
-  setDoc: vi.fn().mockResolvedValue(undefined),
+  setDoc: (...args: unknown[]) => setDocMock(...args),
 }));
 
+const getEventsMock = vi.fn<(...args: unknown[]) => Promise<unknown[]>>(() =>
+  Promise.resolve([])
+);
 vi.mock('@/utils/googleCalendarService', () => ({
   GoogleCalendarService: class {
-    getEvents = vi.fn().mockResolvedValue([]);
+    getEvents = (...args: unknown[]) => getEventsMock(...args);
   },
 }));
 
@@ -78,6 +87,10 @@ beforeEach(() => {
   authValue.isAdmin = true;
   authValue.featurePermissions = [calendarPermission];
   authValue.ensureGoogleScope = ensureGoogleScopeMock;
+  currentBuildings = STABLE_BUILDINGS;
+  setDocMock.mockClear();
+  getEventsMock.mockClear();
+  getEventsMock.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -146,5 +159,64 @@ describe('AdminCalendarFetcher — stable hourly interval', () => {
     // The fresh callback must have been invoked by the interval cycle, proving
     // the ref delivers the latest ensureGoogleScope rather than a stale closure.
     expect(refreshed).toHaveBeenCalledWith('calendar.readonly');
+  });
+});
+
+describe('AdminCalendarFetcher — legacy building id canonicalization', () => {
+  it('reads and writes buildingDefaults under the canonical building id, not a legacy raw id', async () => {
+    // useAdminBuildings() can hand back a legacy long-form id for an
+    // org whose building doc predates the short-id migration.
+    currentBuildings = [
+      { id: 'schumann-elementary', name: 'Schumann Elementary' },
+    ];
+
+    const legacyConfig: CalendarGlobalConfig = {
+      blockedDates: [],
+      updateFrequencyHours: 4,
+      buildingDefaults: {
+        // Saved canonically ('schumann'), keyed off the id BEFORE the org's
+        // building doc resolved to the legacy long-form id.
+        schumann: {
+          buildingId: 'schumann',
+          events: [],
+          googleCalendarIds: ['cal-1'],
+        },
+      },
+    };
+    authValue.featurePermissions = [
+      {
+        ...calendarPermission,
+        config: legacyConfig as unknown as FeaturePermission['config'],
+      },
+    ];
+
+    render(<AdminCalendarFetcher />);
+
+    // Let the silent token probe resolve, then let the initial fetchAll()
+    // (which awaits ensureGoogleScope + getEvents) settle.
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // If the lookup missed (raw-id bug), googleCalendarIds would read as
+    // empty under the raw 'schumann-elementary' key and getEvents/setDoc
+    // would never fire.
+    expect(getEventsMock).toHaveBeenCalledWith(
+      'cal-1',
+      expect.any(String),
+      expect.any(String)
+    );
+    expect(setDocMock).toHaveBeenCalled();
+    const [, payload] = setDocMock.mock.calls[0] as [
+      unknown,
+      { config: CalendarGlobalConfig },
+    ];
+    expect(payload.config.buildingDefaults?.schumann?.cachedEvents).toEqual([]);
+    expect(
+      payload.config.buildingDefaults?.['schumann-elementary']
+    ).toBeUndefined();
   });
 });

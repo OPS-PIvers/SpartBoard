@@ -2,6 +2,10 @@ import { Card } from '@/components/common/Card';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
+import {
   SoundboardGlobalConfig,
   SoundboardBuildingConfig,
   SoundboardSound,
@@ -99,11 +103,14 @@ export const SoundboardConfigurationPanel: React.FC<
     };
   }, []);
 
-  const buildingDefaults = config.buildingDefaults ?? {};
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    config.buildingDefaults ?? {}
+  );
   const sharedCustomSounds = config.customLibrarySounds ?? [];
 
   const getBuildingConfig = (buildingId: string): SoundboardBuildingConfig =>
-    buildingDefaults[buildingId] ?? {
+    buildingDefaults[canonicalBuildingId(buildingId)] ?? {
       availableSounds: [],
       enabledLibrarySoundIds: [],
       enabledCustomSoundIds: [],
@@ -113,12 +120,13 @@ export const SoundboardConfigurationPanel: React.FC<
     buildingId: string,
     updates: Partial<SoundboardBuildingConfig>
   ) => {
-    const current = getBuildingConfig(buildingId);
+    const canonicalId = canonicalBuildingId(buildingId);
+    const current = getBuildingConfig(canonicalId);
     onChange({
       ...config,
       buildingDefaults: {
         ...buildingDefaults,
-        [buildingId]: {
+        [canonicalId]: {
           ...current,
           ...updates,
         },
@@ -163,12 +171,13 @@ export const SoundboardConfigurationPanel: React.FC<
       ...buildingDefaults,
     };
     ALL_BUILDING_IDS.forEach((buildingId) => {
-      const current = getBuildingConfig(buildingId);
+      const canonicalId = canonicalBuildingId(buildingId);
+      const current = getBuildingConfig(canonicalId);
       const currentIds = current[key] ?? [];
       const nextIds = !allEnabled
         ? Array.from(new Set([...currentIds, soundId]))
         : currentIds.filter((id) => id !== soundId);
-      nextBuildingDefaults[buildingId] = { ...current, [key]: nextIds };
+      nextBuildingDefaults[canonicalId] = { ...current, [key]: nextIds };
     });
 
     onChange({ ...config, buildingDefaults: nextBuildingDefaults });

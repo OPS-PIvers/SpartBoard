@@ -5,6 +5,10 @@ import { useAuth } from '@/context/useAuth';
 import { CalendarGlobalConfig } from '@/types';
 import { GoogleCalendarService } from '@/utils/googleCalendarService';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 
 export const AdminCalendarFetcher: React.FC = () => {
   const { isAdmin, featurePermissions, ensureGoogleScope } = useAuth();
@@ -82,11 +86,15 @@ export const AdminCalendarFetcher: React.FC = () => {
         const timeMin = new Date(now.setHours(0, 0, 0, 0)).toISOString();
         const timeMax = new Date(now.setDate(now.getDate() + 30)).toISOString();
 
-        const buildingDefaults = { ...config.buildingDefaults };
+        // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+        const buildingDefaults = canonicalizeBuildingKeyedRecord(
+          config.buildingDefaults ?? {}
+        );
         let hasChanges = false;
 
         for (const building of BUILDINGS) {
-          const bConfig = buildingDefaults[building.id];
+          const canonicalId = canonicalBuildingId(building.id);
+          const bConfig = buildingDefaults[canonicalId];
           const ids = bConfig?.googleCalendarIds ?? [];
 
           if (ids.length === 0) continue;
@@ -109,7 +117,7 @@ export const AdminCalendarFetcher: React.FC = () => {
               .flat()
               .sort((a, b) => a.date.localeCompare(b.date));
 
-            buildingDefaults[building.id] = {
+            buildingDefaults[canonicalId] = {
               ...bConfig,
               cachedEvents: merged,
               lastProxySync: Date.now(),

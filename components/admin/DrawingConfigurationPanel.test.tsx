@@ -2,15 +2,17 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DrawingConfigurationPanel } from './DrawingConfigurationPanel';
 import { DrawingGlobalConfig } from '@/types';
+import type { Building } from '@/config/buildings';
 
 // The panel reads its building list from `useAdminBuildings()`, which returns
 // `[]` for a no-org/provider-less render. An admin always has an org in real
 // usage, so mock the hook to supply the building list the panel renders.
+const mockUseAdminBuildings = vi.fn<() => Building[]>(() => [
+  { id: 'b1', name: 'Building 1', gradeLevels: [], gradeLabel: '' },
+  { id: 'b2', name: 'Building 2', gradeLevels: [], gradeLabel: '' },
+]);
 vi.mock('@/hooks/useAdminBuildings', () => ({
-  useAdminBuildings: () => [
-    { id: 'b1', name: 'Building 1', gradeLevels: [], gradeLabel: '' },
-    { id: 'b2', name: 'Building 2', gradeLevels: [], gradeLabel: '' },
-  ],
+  useAdminBuildings: () => mockUseAdminBuildings(),
 }));
 
 describe('DrawingConfigurationPanel', () => {
@@ -100,5 +102,54 @@ describe('DrawingConfigurationPanel', () => {
     expect(lastCall.buildingDefaults['b2']?.width).toBe(8);
     // Ensure b1 config is preserved
     expect(lastCall.buildingDefaults['b1']?.width).toBe(5);
+  });
+
+  it('finds a buildingDefaults entry keyed by the canonical id when the org building record resolves to a legacy raw id', () => {
+    mockUseAdminBuildings.mockReturnValueOnce([
+      {
+        id: 'schumann-elementary',
+        name: 'Schumann Elementary',
+        gradeLevels: ['k-2'],
+        gradeLabel: 'K-2',
+      },
+    ]);
+
+    const config: DrawingGlobalConfig = {
+      buildingDefaults: {
+        schumann: { buildingId: 'schumann', width: 12 },
+      },
+    };
+
+    render(
+      <DrawingConfigurationPanel config={config} onChange={mockOnChange} />
+    );
+
+    // If the lookup missed (raw-id bug), the slider would fall back to the
+    // default width of 4 instead of the saved 12.
+    expect(screen.getByRole('slider')).toHaveValue('12');
+  });
+
+  it('saves building defaults under the canonical building id, not the legacy raw id', () => {
+    mockUseAdminBuildings.mockReturnValueOnce([
+      {
+        id: 'schumann-elementary',
+        name: 'Schumann Elementary',
+        gradeLevels: ['k-2'],
+        gradeLabel: 'K-2',
+      },
+    ]);
+
+    const config: DrawingGlobalConfig = { buildingDefaults: {} };
+
+    render(
+      <DrawingConfigurationPanel config={config} onChange={mockOnChange} />
+    );
+
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '9' } });
+
+    expect(mockOnChange).toHaveBeenCalled();
+    const updated = mockOnChange.mock.calls[0][0] as DrawingGlobalConfig;
+    expect(updated.buildingDefaults?.schumann?.width).toBe(9);
+    expect(updated.buildingDefaults?.['schumann-elementary']).toBeUndefined();
   });
 });

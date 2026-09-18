@@ -2,6 +2,10 @@ import { Card } from '@/components/common/Card';
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { ExpectationsGlobalConfig, ExpectationsOptionOverride } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
@@ -23,8 +27,12 @@ export const ExpectationsConfigurationPanel: React.FC<
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
 
-  const buildingsConfig = config.buildings ?? {};
-  const currentBuildingConfig = buildingsConfig[selectedBuildingId] ?? {
+  // useAdminBuildings() can return a legacy long-form id; key `buildings` off the canonical id.
+  const canonicalId = canonicalBuildingId(selectedBuildingId);
+  const buildingsConfig = canonicalizeBuildingKeyedRecord(
+    config.buildings ?? {}
+  );
+  const currentBuildingConfig = buildingsConfig[canonicalId] ?? {
     volumeOverrides: {},
     groupOverrides: {},
     interactionOverrides: {},
@@ -40,7 +48,7 @@ export const ExpectationsConfigurationPanel: React.FC<
       ...config,
       buildings: {
         ...buildingsConfig,
-        [selectedBuildingId]: {
+        [canonicalId]: {
           ...currentBuildingConfig,
           ...updates,
         },
