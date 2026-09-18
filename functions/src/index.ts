@@ -87,6 +87,8 @@ export {
 
 // ── Projects widget: group import (docs/plans/PROJECTS_WIDGET.md D8) ───────
 export { commitProjectGroupsV1 } from './projectGroups';
+// Projects widget: uploads ride the Activity Wall's Storage → Drive path (D20).
+export { archiveProjectUploadOnCreate } from './projectUploadArchive';
 
 // ── Individual assignment targeting (M17): assign-time pseudonym fan-out to
 // /student_assignments, plus the deletion triggers that reap those pointers. ─

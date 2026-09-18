@@ -1,5 +1,13 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ClipboardList, ListChecks, Lock, Plus, Users } from 'lucide-react';
+import {
+  ClipboardList,
+  ListChecks,
+  Lock,
+  Plus,
+  ScrollText,
+  SquarePen,
+  Users,
+} from 'lucide-react';
 import type {
   ProjectDefinition,
   ProjectGroupImportEntry,
@@ -10,13 +18,16 @@ import type {
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useProjectLibrary } from '@/hooks/useProjectLibrary';
+import { useRubrics } from '@/hooks/useRubrics';
 import { useProjectRun } from '@/hooks/useProjectRun';
 import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { TypographySettings } from '@/components/common/TypographySettings';
 import { Toggle } from '@/components/common/Toggle';
+import { rubricMaxPoints } from '@/utils/rubricPoints';
 import { GroupImportPanel } from './components/GroupImportPanel';
+import { ProjectGrader } from './components/ProjectGrader';
 import {
   approvalStepIdsFrom,
   parseStepLines,
@@ -27,12 +38,13 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, addToast, rosters } = useDashboard();
-  const { user } = useAuth();
+  const { user, orgId } = useAuth();
   const { enabled } = useProjectsWidgetSettings();
   const config = widget.config as ProjectsConfig;
   const { projectId, pendingImport } = config;
 
   const { projects, saveProject } = useProjectLibrary(user?.uid);
+  const { rubrics } = useRubrics(user?.uid);
   const { run, groups, ensureRun, updateRun, importGroups } = useProjectRun(
     user?.uid,
     projectId,
@@ -47,6 +59,7 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
   const [descDraft, setDescDraft] = useState<string | null>(null);
   const [openStepId, setOpenStepId] = useState<string | null>(null);
+  const [grading, setGrading] = useState(false);
 
   const update = useCallback(
     (updates: Partial<ProjectsConfig>) =>
@@ -63,10 +76,19 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
       try {
         await saveProject(next);
         if (run) {
+          // The run carries a snapshot of the rubric too (D12/D13): a student
+          // read must never reach into the teacher's rubric library.
           await updateRun({
             title: next.title,
             steps: next.steps,
             approvalStepIds: approvalStepIdsFrom(next.steps),
+            ...(next.rubric
+              ? {
+                  rubric: next.rubric,
+                  rubricMaxPoints:
+                    next.rubricMaxPoints ?? rubricMaxPoints(next.rubric),
+                }
+              : {}),
           });
         }
       } catch {
@@ -276,6 +298,40 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
               </ul>
             )}
           </div>
+          <div>
+            <SettingsLabel icon={ScrollText} htmlFor={`${widget.id}-rubric`}>
+              Rubric
+            </SettingsLabel>
+            <select
+              id={`${widget.id}-rubric`}
+              value={project.rubric?.id ?? ''}
+              onChange={(e) => {
+                const picked = rubrics.find((r) => r.id === e.target.value);
+                const next: ProjectDefinition = { ...project };
+                if (picked) {
+                  // A snapshot, not a reference: editing the library rubric
+                  // later must not silently rescore work already graded.
+                  next.rubric = picked;
+                  next.rubricMaxPoints = rubricMaxPoints(picked);
+                } else {
+                  delete next.rubric;
+                  delete next.rubricMaxPoints;
+                }
+                void persistProject(next);
+              }}
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+            >
+              <option value="">No rubric</option>
+              {rubrics.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.title}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-slate-500">
+              Students can open the rubric from their project page at any time.
+            </p>
+          </div>
         </>
       )}
 
@@ -310,6 +366,22 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
               label="Students can see every group's progress"
             />
           </label>
+          <button
+            type="button"
+            onClick={() => setGrading((open) => !open)}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
+          >
+            <SquarePen className="h-3.5 w-3.5" strokeWidth={2.5} />
+            {grading ? 'Close the grader' : 'Grade groups'}
+          </button>
+          {grading && (
+            <ProjectGrader
+              run={run}
+              groups={groups}
+              orgId={orgId}
+              onClose={() => setGrading(false)}
+            />
+          )}
           <label className="flex items-center justify-between text-xs text-slate-600">
             Groups can still update their progress
             <Toggle
