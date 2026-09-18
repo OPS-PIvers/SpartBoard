@@ -6,6 +6,7 @@ import type { Collection, Dashboard } from '@/types';
 import { CollectionTreeNode } from './CollectionTreeNode';
 import { PinnedSection } from './PinnedSection';
 import { useDropMode } from './dropIndicator';
+import { buildChildrenByParent } from './collectionTree';
 
 interface CollectionTreeProps {
   collections: Collection[];
@@ -23,19 +24,10 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
   const { t } = useTranslation();
 
   // Group collections by parent for O(1) child lookup during recursive render.
-  const childrenByParent = useMemo(() => {
-    const m = new Map<string | null, Collection[]>();
-    for (const c of collections) {
-      const bucket = m.get(c.parentCollectionId) ?? [];
-      bucket.push(c);
-      m.set(c.parentCollectionId, bucket);
-    }
-    // Sort each bucket by `order`.
-    for (const bucket of m.values()) {
-      bucket.sort((a, b) => a.order - b.order);
-    }
-    return m;
-  }, [collections]);
+  const childrenByParent = useMemo(
+    () => buildChildrenByParent(collections),
+    [collections]
+  );
 
   const boardsByCollection = useMemo(() => {
     const m = new Map<string | null, Dashboard[]>();
