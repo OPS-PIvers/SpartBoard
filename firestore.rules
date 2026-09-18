@@ -88,6 +88,26 @@ service cloud.firestore {
              : passesStudentClassGate(sessionClassId);
     }
 
+    // `list` scoping for the session collections (video activity / guided
+    // learning / mini app / activity wall). A list rule is evaluated ONCE
+    // against the query with an EMPTY resource, so every clause
+    // must be provable from the client's own filters — it is not a per-document
+    // filter. The three disjuncts below name the only three query shapes the
+    // app sends: the teacher's own where('teacherUid','==',uid), and the two
+    // class shapes from hooks/useStudentAssignments.ts,
+    // where('classIds','array-contains-any',ids) and where('classId','in',ids),
+    // whose `ids` come straight from the caller's own classIds claim.
+    // CEL absorbs errors across `||`, so the teacherUid disjunct throwing on the
+    // empty resource is harmless — but for the same reason NEVER add a disjunct
+    // that needs no document (e.g. `|| isStudentRoleUser()`): it is provable for
+    // every caller and silently re-opens the collection to enumeration.
+    function sessionListScoped() {
+      return resource.data.teacherUid == request.auth.uid ||
+             (request.auth.token.get('classIds', []) is list &&
+              (resource.data.get('classIds', []).hasAny(request.auth.token.get('classIds', [])) ||
+               resource.data.get('classId', '') in request.auth.token.get('classIds', [])));
+    }
+
     // ---- Organization helpers (see docs/organization_wiring_implementation.md) ----
 
     // Super admins from EITHER source (LO2): legacy admin_settings/user_roles
@@ -3400,6 +3420,14 @@ service cloud.firestore {
       // but can't submit outside their classIds. Privacy: a sessionId is an unguessable
       // v4 UUID and the doc exposes no PII (answer-key stripped).
       allow read: if request.auth != null;
+      // NOTE: `list` is NOT scoped here, unlike the other session collections.
+      // The PIN join flow queries this collection by join code
+      // (`where('code','==',code)`, hooks/useQuizSession.ts lookupSession /
+      // joinQuizSession) as an ANONYMOUS student, and a list rule is evaluated
+      // against the query with an empty resource — it cannot prove that a filter
+      // on `code` was supplied. Scoping list therefore needs a code->sessionId
+      // lookup collection (or a callable) so join becomes a `get` — a change to
+      // the student join path, tracked separately from this rules-only pass.
       // Only the teacher (session owner) can create/update/delete the session document.
       // Ownership is carried on the `teacherUid` field (no longer the doc id).
       // PLC pooling link (docs/plans/PLC_ASSESSMENT_DATA.md §4): a session may
@@ -4042,10 +4070,10 @@ service cloud.firestore {
 
     // Video Activity Sessions — Teacher creates, anonymous students can read and submit responses
     match /video_activity_sessions/{sessionId} {
-      // Reads permissive for any authed caller (see quiz_sessions): studentRole
-      // class gating is enforced on the response WRITE rules below (runtime get()
-      // of the parent classId), not on read.
-      allow read: if request.auth != null;
+      // `get` stays permissive (see quiz_sessions); `list` is scoped so a signed-in
+      // caller can't enumerate every teacher's sessions.
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && sessionListScoped();
       // Only authenticated (non-anonymous) users can create sessions (teachers)
       allow create: if request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous';
       // Teacher owners update their own session (renames, status, sync-pull, PLC
@@ -4216,10 +4244,10 @@ service cloud.firestore {
 
     // MiniApp Assignment Sessions — Teacher creates, anonymous students can read
     match /mini_app_sessions/{sessionId} {
-      // Reads permissive for any authed caller (see quiz_sessions): studentRole
-      // class gating is enforced on the submission WRITE rules below (runtime
-      // get() of the parent classIds), not on read.
-      allow read: if request.auth != null;
+      // `get` stays permissive (see quiz_sessions); `list` is scoped so a signed-in
+      // caller can't enumerate every teacher's sessions.
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && sessionListScoped();
       // Only authenticated (non-anonymous) teachers can create sessions they own
       allow create: if request.auth != null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
@@ -4334,10 +4362,10 @@ service cloud.firestore {
 
     // Guided Learning Sessions — Teacher creates, authenticated (incl. anonymous) students read and submit
     match /guided_learning_sessions/{sessionId} {
-      // Reads permissive for any authed caller (see quiz_sessions): studentRole
-      // class gating is enforced on the response WRITE rules below (runtime get()
-      // of the parent classId), not on read.
-      allow read: if request.auth != null;
+      // `get` stays permissive (see quiz_sessions); `list` is scoped so a signed-in
+      // caller can't enumerate every teacher's sessions.
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && sessionListScoped();
       // Only authenticated (non-anonymous) teachers can create sessions; they must own it
       allow create: if request.auth != null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
@@ -4447,10 +4475,13 @@ service cloud.firestore {
     // Activity Wall Sessions — Teacher owns it (UID prefix in sessionId), students submit entries
     // sessionId is formatted as {teacherUid}_{activityId}
     match /activity_wall_sessions/{sessionId} {
-      // Reads permissive for any authed caller (see quiz_sessions): studentRole
-      // class gating is enforced on the submission WRITE rules below (runtime
-      // get() of the parent classId), not on read.
-      allow read: if request.auth != null;
+      // `get` stays permissive (see quiz_sessions); `list` is scoped so a signed-in
+      // caller can't enumerate every teacher's sessions. Ownership for writes is
+      // the `{uid}_` doc-id prefix, which a list rule cannot prove — the session
+      // mirror also carries `teacherUid`, which is what the library query filters
+      // on and what sessionListScoped() proves.
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && sessionListScoped();
       // Only authenticated non-anonymous teachers/admins can create or update the session document itself.
       allow create, update: if request.auth != null &&
                             request.auth.token.firebase.sign_in_provider != 'anonymous' &&
@@ -4981,15 +5012,33 @@ service cloud.firestore {
       function fcHasPointer() {
         return exists(/databases/$(database)/documents/student_assignments/$(request.auth.uid)/items/$(sessionId));
       }
+      // Positive class match. Deliberately NOT passesStudentClassGateList(),
+      // which passes on an empty/absent classIds - a roster- or group-targeted
+      // session carries no classIds and reaches its students through the
+      // student_assignments pointer, so the permissive gate would open every
+      // such session to every studentRole user in the district.
+      // No `is list` / `size()` guard on sessionClassIds: hasAny() alone is what
+      // the query planner can prove from the client's array-contains-any filter,
+      // and either guard makes every student list query unprovable and denied.
+      function fcInSessionClass(sessionClassIds) {
+        return isStudentRoleUser()
+               && request.auth.token.classIds is list
+               && sessionClassIds.hasAny(request.auth.token.classIds);
+      }
 
       allow get: if request.auth != null && (
         resource.data.teacherUid == request.auth.uid ||
-        (isStudentRoleUser() &&
-         (passesStudentClassGateList(resource.data.get('classIds', [])) || fcHasPointer()))
+        fcInSessionClass(resource.data.get('classIds', [])) ||
+        (isStudentRoleUser() && fcHasPointer())
       );
+      // No pointer branch here: exists() per returned doc would blow the
+      // per-query document-access cap. Pointer-targeted sessions are hydrated
+      // by id through allow get (useStudentAssignments direct getDoc), never
+      // by listing this collection.
       allow list: if request.auth != null
                   && request.auth.token.firebase.sign_in_provider != 'anonymous'
-                  && (resource.data.teacherUid == request.auth.uid || isStudentRoleUser());
+                  && (resource.data.teacherUid == request.auth.uid
+                      || fcInSessionClass(resource.data.get('classIds', [])));
       allow create: if fcTeacherSignedIn()
                     && request.resource.data.teacherUid == request.auth.uid
                     && request.resource.data.kind in ['check', 'study']
@@ -5045,7 +5094,7 @@ service cloud.firestore {
                               && studentUid == request.auth.uid
                               && isStudentRoleUser()
                               && fcSession().status == 'active'
-                              && (passesStudentClassGateList(fcSession().get('classIds', [])) ||
+                              && (fcInSessionClass(fcSession().get('classIds', [])) ||
                                   exists(/databases/$(database)/documents/student_assignments/$(request.auth.uid)/items/$(sessionId)))
                               && fcWithinWindow()
                               && (resource == null || !('submittedAt' in resource.data))
