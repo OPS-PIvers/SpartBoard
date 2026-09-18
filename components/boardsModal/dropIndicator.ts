@@ -32,9 +32,11 @@ export const boardsInView = (
 /** Sibling Collections under `parentId`, in display order. At root, also includes orphans (parent id doesn't resolve) so they're reachable as grid cards for rename/move/delete, mirroring the sidebar tree's own orphan-surfacing. */
 export const siblingCollections = (
   collections: Collection[],
-  parentId: string | null
+  parentId: string | null,
+  // Orphan detection must resolve parents against every Collection, or a search-filtered `collections` misreads a nested match whose parent was filtered out as an orphan.
+  allCollections: Collection[] = collections
 ): Collection[] => {
-  const knownIds = new Set(collections.map((c) => c.id));
+  const knownIds = new Set(allCollections.map((c) => c.id));
   return collections
     .filter(
       (c) =>

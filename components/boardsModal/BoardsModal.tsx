@@ -579,6 +579,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               <BoardGrid
                 selectedCollectionId={selectedCollectionId}
                 collections={filteredCollections}
+                allCollections={collections}
                 boards={filteredBoards}
                 selectedIds={multi.selectedIds}
                 canShare={canShare}
