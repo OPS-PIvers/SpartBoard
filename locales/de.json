@@ -662,13 +662,40 @@
         "addPlaceholder": "Was muss passieren?",
         "unassigned": "Nicht zugewiesen",
         "dueDate": "Fälligkeitsdatum",
+        "assignee": "Zuständigkeit",
         "remove": "Maßnahme entfernen",
         "markDone": "Als erledigt markieren",
         "markOpen": "Als offen markieren",
         "overdue": "Überfällig",
         "limitReached": "Maximale Anzahl an Maßnahmen erreicht",
         "openCount": "Offene Maßnahmen ({{count}})",
-        "noneOpen": "Keine offenen Maßnahmen"
+        "noneOpen": "Keine offenen Maßnahmen",
+        "view": {
+          "sortLabel": "Maßnahmen sortieren",
+          "sortManual": "Manuelle Reihenfolge",
+          "sortStatus": "Offene zuerst",
+          "sortDue": "Fälligkeitsdatum",
+          "sortAssignee": "Zuständigkeit",
+          "sortCreated": "Neueste zuerst",
+          "sortText": "A–Z",
+          "statusLabel": "Nach Status filtern",
+          "statusAll": "Beliebiger Status",
+          "statusOpen": "Offen",
+          "statusDone": "Erledigt",
+          "dueLabel": "Nach Fälligkeit filtern",
+          "dueAll": "Beliebige Fälligkeit",
+          "dueOverdue": "Überfällig",
+          "dueToday": "Heute fällig",
+          "dueWeek": "Nächste 7 Tage",
+          "dueNone": "Ohne Fälligkeitsdatum",
+          "assigneeLabel": "Nach Zuständigkeit filtern",
+          "assigneeAll": "Alle",
+          "showing": "{{visible}} von {{total}} werden angezeigt",
+          "clear": "Zurücksetzen",
+          "noMatches": "Keine Maßnahmen entsprechen diesen Filtern",
+          "reorder": "Maßnahme verschieben",
+          "dragHint": "Für Drag-and-drop zur manuellen Reihenfolge wechseln"
+        }
       },
       "importTodos": {
         "banner": "{{count}} Aufgaben aus der alten Aufgabenliste in eine Notiz importieren",
@@ -2809,6 +2836,25 @@
       "saveAsGroupsNeedsClassGroups": "Erstelle zuerst Gruppen mit einer ausgewählten Klasse.",
       "lockedGroupsEmpty": "Speichere eine Gruppe für diese Klasse, damit sie beim Gruppieren zusammenbleibt.",
       "rosterGroupsOff": "Klassengruppen sind für deine Schule derzeit deaktiviert."
+    },
+    "scoreboard": {
+      "classGroups": "Klassengruppen",
+      "useGroupNames": "Gruppennamen als Teamnamen verwenden",
+      "importClassGroups_one": "{{count}} Team aus Klassengruppen erstellen",
+      "importClassGroups_other": "{{count}} Teams aus Klassengruppen erstellen",
+      "importedClassGroups_one": "{{count}} Team aus deinen Klassengruppen erstellt.",
+      "importedClassGroups_other": "{{count}} Teams aus deinen Klassengruppen erstellt.",
+      "resyncMembers": "Mitglieder neu aus der Klasse übernehmen",
+      "resyncedMembers_one": "Mitglieder von {{count}} Team aktualisiert.",
+      "resyncedMembers_other": "Mitglieder von {{count}} Teams aktualisiert.",
+      "resyncUnlinked_one": "{{count}} Team passt zu keiner Klassengruppe mehr.",
+      "resyncUnlinked_other": "{{count}} Teams passen zu keiner Klassengruppe mehr.",
+      "replaceTeamsTitle": "Teams durch Klassengruppen ersetzen?",
+      "replaceTeamsBody_one": "Das ersetzt das {{count}} Team auf dieser Anzeigetafel samt Punktestand.",
+      "replaceTeamsBody_other": "Das ersetzt die {{count}} Teams auf dieser Anzeigetafel samt Punkteständen.",
+      "replaceTeamsConfirm": "Ersetzen",
+      "classTeamName": "Team {{count}}",
+      "membersTitle": "Mitglieder aus der Klassengruppe"
     }
   }
 }

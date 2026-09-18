@@ -12,6 +12,17 @@ export interface ShuffleResult {
   assignments: Assignments;
   /** Students who didn't fit because total cap < roster size. */
   overflowStudents: string[];
+  /** Students seated with someone their roster marks as keep-apart. */
+  apartConflicts: string[];
+  /** Locked class groups no single station could hold, so they were split. */
+  splitCohorts: number;
+}
+
+export interface ShuffleConstraints {
+  /** Cohorts of student keys that must land in the same station. */
+  keepTogether?: string[][];
+  /** Student key -> keys it should not share a station with. */
+  keepApart?: Map<string, Set<string>>;
 }
 
 const sortByOrder = (stations: Station[]): Station[] =>
@@ -124,46 +135,133 @@ export function shuffleArray<T>(
 /**
  * Distribute `roster` evenly across `stations`, respecting `maxStudents` caps.
  * Round-robin order so caps fill bottom-up; overflow stays unassigned.
+ *
+ * Constraint-aware (docs/plans/ROSTER_GROUPS_INTEGRATION.md D15): a
+ * `keepTogether` cohort is placed as one unit, and `keepApart` pairs are
+ * avoided when a station without the conflict has room. Keep-together wins a
+ * disagreement, matching the Randomizer's D13 lock precedence; the caller
+ * toasts what could not be satisfied. With neither constraint the placement is
+ * byte-for-byte the plain round-robin it has always been.
  */
 export function shuffleStudentsIntoStations(
   stations: Station[],
   roster: string[],
-  rng: () => number = Math.random
+  rng: () => number = Math.random,
+  constraints: ShuffleConstraints = {}
 ): ShuffleResult {
   const ordered = sortByOrder(stations);
   if (ordered.length === 0) {
     const next: Assignments = {};
     for (const name of roster) next[name] = null;
-    return { assignments: next, overflowStudents: roster.slice() };
+    return {
+      assignments: next,
+      overflowStudents: roster.slice(),
+      apartConflicts: [],
+      splitCohorts: 0,
+    };
   }
 
-  const shuffled = shuffleArray(roster, rng);
+  // A cohort larger than the roomiest station cannot stay whole anywhere.
+  const largestCapacity = ordered.reduce(
+    (max, s) =>
+      s.maxStudents == null
+        ? Number.POSITIVE_INFINITY
+        : Math.max(max, s.maxStudents),
+    0
+  );
+
+  const present = new Set(roster);
+  const claimed = new Set<string>();
+  const units: string[][] = [];
+  let splitCohorts = 0;
+
+  for (const cohort of constraints.keepTogether ?? []) {
+    // First cohort wins a student two groups both claim, matching
+    // `makeGroupsWithLockedCohorts` in the Randomizer.
+    const members = cohort.filter((id) => present.has(id) && !claimed.has(id));
+    if (members.length === 0) continue;
+    for (const id of members) claimed.add(id);
+    if (members.length > largestCapacity) {
+      splitCohorts++;
+      for (const id of members) units.push([id]);
+    } else {
+      units.push(members);
+    }
+  }
+  for (const id of roster) {
+    if (!claimed.has(id)) units.push([id]);
+  }
+
+  const shuffled = shuffleArray(units, rng);
   const next: Assignments = {};
   const counts = new Map<string, number>(ordered.map((s) => [s.id, 0]));
+  const occupants = new Map<string, string[]>(ordered.map((s) => [s.id, []]));
   const overflow: string[] = [];
+  const apartConflicts: string[] = [];
+  const apart = constraints.keepApart;
+
+  // Read both directions: a roster that recorded the restriction on only one
+  // of the pair still keeps them apart.
+  const clash = (a: string, b: string): boolean =>
+    (apart?.get(a)?.has(b) ?? false) || (apart?.get(b)?.has(a) ?? false);
+
+  /**
+   * Members of `unit` who would sit next to someone they are kept apart from —
+   * counting the rest of their own cohort, since the commonest conflict is a
+   * locked group that already contains a restricted pair.
+   */
+  const conflictsAt = (stationId: string, unit: string[]): string[] => {
+    if (!apart) return [];
+    const seated = occupants.get(stationId) ?? [];
+    return unit.filter(
+      (id) =>
+        seated.some((other) => clash(id, other)) ||
+        unit.some((other) => other !== id && clash(id, other))
+    );
+  };
 
   let cursor = 0;
-  for (const name of shuffled) {
-    let placed = false;
+  for (const unit of shuffled) {
+    let chosen: Station | null = null;
+    let chosenAttempt = 0;
+    let chosenConflicts: string[] = [];
     for (let attempt = 0; attempt < ordered.length; attempt++) {
       const candidate = ordered[(cursor + attempt) % ordered.length];
       const limit = candidate.maxStudents;
       const used = counts.get(candidate.id) ?? 0;
-      if (limit == null || used < limit) {
-        next[name] = candidate.id;
-        counts.set(candidate.id, used + 1);
-        cursor = (cursor + attempt + 1) % ordered.length;
-        placed = true;
-        break;
+      if (limit != null && used + unit.length > limit) continue;
+      const conflicts = conflictsAt(candidate.id, unit);
+      if (chosen === null || conflicts.length < chosenConflicts.length) {
+        chosen = candidate;
+        chosenAttempt = attempt;
+        chosenConflicts = conflicts;
       }
+      if (chosenConflicts.length === 0) break;
     }
-    if (!placed) {
-      next[name] = null;
-      overflow.push(name);
+    if (!chosen) {
+      for (const id of unit) {
+        next[id] = null;
+        overflow.push(id);
+      }
+      continue;
     }
+    const seated = occupants.get(chosen.id) ?? [];
+    for (const id of unit) {
+      next[id] = chosen.id;
+      seated.push(id);
+    }
+    occupants.set(chosen.id, seated);
+    counts.set(chosen.id, (counts.get(chosen.id) ?? 0) + unit.length);
+    apartConflicts.push(...chosenConflicts);
+    cursor = (cursor + chosenAttempt + 1) % ordered.length;
   }
 
-  return { assignments: next, overflowStudents: overflow };
+  return {
+    assignments: next,
+    overflowStudents: overflow,
+    apartConflicts,
+    splitCohorts,
+  };
 }
 
 /** Reset every student back to unassigned. */

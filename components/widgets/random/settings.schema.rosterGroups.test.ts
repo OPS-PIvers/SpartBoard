@@ -24,9 +24,13 @@ function fieldByLabel(label: string) {
   return field;
 }
 
-const ctxWith = (permitted: boolean, mode: string): FieldCtx =>
+const ctxWith = (
+  permitted: boolean,
+  mode: string,
+  rosterMode: 'class' | 'custom' = 'class'
+): FieldCtx =>
   ({
-    config: { mode, rosterMode: 'class' },
+    config: { mode, rosterMode },
     widget: { type: 'random' },
     isAdmin: false,
     canAccessFeature: (id: string) =>
@@ -58,6 +62,20 @@ describe('random settings — roster-group cards', () => {
     expect(isFieldVisible(lock, ctxWith(true, 'jigsaw'))).toBe(true);
     // Not a grouping mode — nothing to keep together.
     expect(isFieldVisible(lock, ctxWith(true, 'single'))).toBe(false);
+  });
+
+  it('hides every roster-group card in custom-names mode', () => {
+    // No roster behind the widget, so both cards could only render a dead
+    // control: the lock list has nothing to list and save-back has nowhere
+    // to write. Caught in review on PR 2, where only the lock card had it.
+    for (const field of fields) {
+      for (const mode of ['groups', 'jigsaw']) {
+        expect(
+          isFieldVisible(field, ctxWith(true, mode, 'custom')),
+          `${String(field.label)} is visible in ${mode} mode with a custom roster`
+        ).toBe(false);
+      }
+    }
   });
 
   it('shows save-back in groups mode only', () => {

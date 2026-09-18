@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import type { PlcActionItem, PlcMember } from '@/types';
 import { NoteActionItems } from '@/components/plc/notes/NoteActionItems';
@@ -8,6 +8,48 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (_k: string, o?: { defaultValue?: string }) => o?.defaultValue ?? _k,
   }),
+}));
+
+// dnd-kit needs a layout engine jsdom doesn't have, so the list is stubbed to
+// render the rows it was given plus a button that fires `onReorder` reversed.
+vi.mock('@/components/common/SortableList', () => ({
+  SortableList: <T,>({
+    items,
+    getId,
+    onReorder,
+    renderItem,
+  }: {
+    items: T[];
+    getId: (item: T) => string;
+    onReorder: (next: T[], movedId: string) => void;
+    renderItem: (
+      item: T,
+      handle: {
+        attributes: Record<string, unknown>;
+        listeners: undefined;
+        isDragging: boolean;
+      },
+      index: number
+    ) => React.ReactNode;
+  }) => (
+    <div>
+      <button
+        type="button"
+        onClick={() => onReorder([...items].reverse(), getId(items[0]) ?? '')}
+      >
+        reverse-visible
+      </button>
+      {items.map((item, index) => (
+        <div key={getId(item)} data-testid={`row-${getId(item)}`}>
+          {renderItem(
+            item,
+            { attributes: {}, listeners: undefined, isDragging: false },
+            index
+          )}
+        </div>
+      ))}
+    </div>
+  ),
 }));
 
 const MEMBERS: PlcMember[] = [
@@ -31,6 +73,9 @@ function item(over: Partial<PlcActionItem> = {}): PlcActionItem {
     ...over,
   };
 }
+
+const rowAssigneeSelect = () =>
+  screen.getByRole('combobox', { name: 'Assignee' });
 
 describe('NoteActionItems', () => {
   it('adds a new item via the add input', () => {
@@ -86,9 +131,7 @@ describe('NoteActionItems', () => {
         currentUid="me"
       />
     );
-    fireEvent.change(screen.getByRole('combobox'), {
-      target: { value: 'u1' },
-    });
+    fireEvent.change(rowAssigneeSelect(), { target: { value: 'u1' } });
     expect(onChange).toHaveBeenCalledTimes(1);
     const next = onChange.mock.calls[0][0] as PlcActionItem[];
     expect(next[0].assigneeUid).toBe('u1');
@@ -127,6 +170,116 @@ describe('NoteActionItems', () => {
     expect(
       screen.queryByPlaceholderText('What needs to happen?')
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('combobox', { name: 'Assignee' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Reorder action item' })
+    ).not.toBeInTheDocument();
+  });
+
+  describe('sort and filter', () => {
+    const items = [
+      item({ id: 'a', text: 'Alpha', done: true }),
+      item({ id: 'b', text: 'Bravo', assigneeUid: 'u1' }),
+      item({ id: 'c', text: 'Charlie' }),
+    ];
+
+    const renderList = (onChange = vi.fn()) => {
+      render(
+        <NoteActionItems
+          items={items}
+          members={MEMBERS}
+          canEdit
+          onChange={onChange}
+          currentUid="me"
+        />
+      );
+      return onChange;
+    };
+
+    const rowTexts = () =>
+      screen
+        .getAllByTestId(/^row-/)
+        .map((row) => within(row).getByRole('textbox').getAttribute('value'));
+
+    it('filters the rendered rows by status', () => {
+      renderList();
+      expect(rowTexts()).toEqual(['Alpha', 'Bravo', 'Charlie']);
+      fireEvent.change(
+        screen.getByRole('combobox', { name: 'Filter by status' }),
+        {
+          target: { value: 'open' },
+        }
+      );
+      expect(rowTexts()).toEqual(['Bravo', 'Charlie']);
+    });
+
+    it('filters the rendered rows by assignee', () => {
+      renderList();
+      fireEvent.change(
+        screen.getByRole('combobox', { name: 'Filter by assignee' }),
+        { target: { value: 'unassigned' } }
+      );
+      expect(rowTexts()).toEqual(['Alpha', 'Charlie']);
+    });
+
+    it('resets every control back to the stored order', () => {
+      renderList();
+      fireEvent.change(
+        screen.getByRole('combobox', { name: 'Sort action items' }),
+        {
+          target: { value: 'text' },
+        }
+      );
+      fireEvent.change(
+        screen.getByRole('combobox', { name: 'Filter by status' }),
+        {
+          target: { value: 'open' },
+        }
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+      expect(rowTexts()).toEqual(['Alpha', 'Bravo', 'Charlie']);
+    });
+
+    it('disables the drag handles under a non-manual sort', () => {
+      renderList();
+      expect(
+        screen.getAllByRole('button', { name: 'Reorder action item' })[0]
+      ).toBeEnabled();
+      fireEvent.change(
+        screen.getByRole('combobox', { name: 'Sort action items' }),
+        {
+          target: { value: 'due' },
+        }
+      );
+      for (const handle of screen.getAllByRole('button', {
+        name: 'Reorder action item',
+      })) {
+        expect(handle).toBeDisabled();
+      }
+    });
+
+    it('writes a reorder of the whole list back in the dragged order', () => {
+      const onChange = renderList();
+      fireEvent.click(screen.getByRole('button', { name: 'reverse-visible' }));
+      expect(
+        (onChange.mock.calls[0][0] as PlcActionItem[]).map((i) => i.id)
+      ).toEqual(['c', 'b', 'a']);
+    });
+
+    it('leaves filtered-out items in place when reordering a filtered list', () => {
+      const onChange = renderList();
+      fireEvent.change(
+        screen.getByRole('combobox', { name: 'Filter by status' }),
+        {
+          target: { value: 'open' },
+        }
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'reverse-visible' }));
+      expect(
+        (onChange.mock.calls[0][0] as PlcActionItem[]).map((i) => i.id)
+      ).toEqual(['a', 'c', 'b']);
+    });
   });
 });

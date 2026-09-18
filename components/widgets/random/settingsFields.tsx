@@ -494,6 +494,16 @@ export const RandomSaveAsClassGroupsField: React.FC<{
     );
   }
 
+  // Custom-name mode has no roster to save into, so the button could only ever
+  // toast. Mirrors the same guard on the lock card above.
+  if ((config.rosterMode ?? 'class') !== 'class') {
+    return (
+      <p id={ctx.id} className="text-xs text-slate-500">
+        {ctx.t('widgetSettings.random.saveAsGroupsNeedsClassGroups')}
+      </p>
+    );
+  }
+
   return (
     <button
       id={ctx.id}
