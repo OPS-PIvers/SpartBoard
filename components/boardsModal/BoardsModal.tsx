@@ -8,6 +8,7 @@ import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { CollectionTree } from './CollectionTree';
+import { filterCollectionsBySearch } from './collectionTree';
 import { BoardGrid } from './BoardGrid';
 import { BoardsModalHeader } from './BoardsModalHeader';
 import { useMultiSelect } from './useMultiSelect';
@@ -85,6 +86,11 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   const searchTerm = search.trim().toLowerCase();
   const filteredCollections = searchTerm
     ? collections.filter((c) => c.name.toLowerCase().includes(searchTerm))
+    : collections;
+  // The sidebar tree needs matches' ancestors too, or a non-matching parent's
+  // exclusion makes buildChildrenByParent misread the matching child as orphaned.
+  const treeCollections = searchTerm
+    ? filterCollectionsBySearch(collections, searchTerm)
     : collections;
   const filteredBoards = searchTerm
     ? dashboards.filter((d) => d.name.toLowerCase().includes(searchTerm))
@@ -565,7 +571,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
           <DropIndicatorContext.Provider value={dropIndicator}>
             <div className="flex-1 overflow-hidden flex">
               <CollectionTree
-                collections={filteredCollections}
+                collections={treeCollections}
                 boards={filteredBoards}
                 selectedCollectionId={selectedCollectionId}
                 onSelectCollection={setSelectedCollectionId}
@@ -573,6 +579,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               <BoardGrid
                 selectedCollectionId={selectedCollectionId}
                 collections={filteredCollections}
+                allCollections={collections}
                 boards={filteredBoards}
                 selectedIds={multi.selectedIds}
                 canShare={canShare}
