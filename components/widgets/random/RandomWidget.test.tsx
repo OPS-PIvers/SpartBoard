@@ -8,6 +8,17 @@ import * as audioUtils from './audioUtils';
 
 vi.mock('@/context/useDashboard');
 
+// The widget reads both roster-groups gates. Default them OFF so these suites
+// exercise the pre-feature behaviour; the group tests opt in explicitly.
+const canAccessFeatureMock = vi.fn(() => false);
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: canAccessFeatureMock }),
+}));
+const rosterGroupsRolloutMock = vi.fn(() => ({ enabled: false }));
+vi.mock('@/hooks/useRosterGroupsIntegrationSettings', () => ({
+  useRosterGroupsIntegrationSettings: () => rosterGroupsRolloutMock(),
+}));
+
 // Mock subcomponents
 vi.mock('./RandomWheel', () => ({
   RandomWheel: () => <div data-testid="random-wheel" />,

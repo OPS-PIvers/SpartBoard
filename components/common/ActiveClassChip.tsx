@@ -1,6 +1,11 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Target, ChevronDown, Filter } from 'lucide-react';
+import { RosterGroupMenuItems } from '@/components/common/RosterGroupMenuItems';
+import {
+  anyRosterHasGroups,
+  countRosterGroupMembers,
+} from '@/utils/rosterGroups';
 import { useDashboard } from '@/context/useDashboard';
 import { Z_INDEX } from '@/config/zIndex';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
@@ -38,29 +43,15 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
   const { rosters, activeRosterId, setActiveRoster } = useDashboard();
   const activeRoster = rosters.find((r) => r.id === activeRosterId);
 
-  // Members still on the roster — a group keeps ids of students deleted since.
-  // `null` means the group is gone, which the face treats as whole class.
-  const countGroupMembers = useCallback(
-    (rosterId: string, groupId: string): number | null => {
-      const roster = rosters.find((r) => r.id === rosterId);
-      const group = roster?.groups?.find((g) => g.id === groupId);
-      if (!roster || !group) return null;
-      const onRoster = new Set(roster.students.map((s) => s.id));
-      return group.studentIds.filter((id) => onRoster.has(id)).length;
-    },
-    [rosters]
-  );
-
   // A group the teacher can only have named privately ("Modified Assessments")
   // must never reach the front face, so the chip shows its size instead.
   const selectedGroupId = groupSelection?.selectedGroupId ?? null;
   const selectedGroupSize =
     selectedGroupId && activeRoster
-      ? countGroupMembers(activeRoster.id, selectedGroupId)
+      ? countRosterGroupMembers(activeRoster, selectedGroupId)
       : null;
   const groupSelectable =
-    groupSelection !== undefined &&
-    rosters.some((r) => (r.groups?.length ?? 0) > 0);
+    groupSelection !== undefined && anyRosterHasGroups(rosters);
 
   const anchorRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -366,47 +357,17 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
                         {r.studentCount}
                       </span>
                     </button>
-                    {groups.map((g) => {
-                      const isSelected =
-                        isActiveClass && selectedGroupId === g.id;
-                      const size = countGroupMembers(r.id, g.id) ?? 0;
-                      return (
-                        <button
-                          key={g.id}
-                          type="button"
-                          role="menuitemradio"
-                          aria-checked={isSelected}
-                          onClick={() => {
-                            if (!isActiveClass) setActiveRoster(r.id);
-                            groupSelection?.onSelectGroup(g.id);
-                            closeMenu();
-                          }}
-                          className={`w-full flex items-center justify-between pl-7 pr-3 py-1.5 text-left transition-colors ${
-                            isSelected
-                              ? 'bg-brand-blue-lighter text-brand-blue-primary'
-                              : 'hover:bg-slate-50 text-slate-600'
-                          }`}
-                        >
-                          <span className="flex items-center gap-1.5 min-w-0">
-                            <Filter className="w-3 h-3 shrink-0 opacity-60" />
-                            <span
-                              className={`text-xs truncate ${isSelected ? 'font-black' : 'font-semibold'}`}
-                            >
-                              {g.name}
-                            </span>
-                          </span>
-                          <span
-                            className={`text-[10px] font-bold tabular-nums ml-2 px-2 py-0.5 rounded-full shrink-0 ${
-                              isSelected
-                                ? 'bg-white text-brand-blue-primary border border-brand-blue-light'
-                                : 'bg-slate-100 text-slate-500'
-                            }`}
-                          >
-                            {size}
-                          </span>
-                        </button>
-                      );
-                    })}
+                    {groups.length > 0 && (
+                      <RosterGroupMenuItems
+                        roster={r}
+                        selectedGroupId={isActiveClass ? selectedGroupId : null}
+                        onSelect={(groupId) => {
+                          if (!isActiveClass) setActiveRoster(r.id);
+                          groupSelection?.onSelectGroup(groupId);
+                          closeMenu();
+                        }}
+                      />
+                    )}
                   </React.Fragment>
                 );
               })}

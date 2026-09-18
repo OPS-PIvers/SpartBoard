@@ -234,3 +234,95 @@ export function makeRestrictedGroupsByCount(
     unsatisfied,
   };
 }
+
+/** Options for `makeGroupsWithLockedCohorts`. Pass exactly one of the sizing fields. */
+export interface LockedCohortOptions {
+  students: Student[];
+  /** Student ids that must land in one group together, one array per locked group. */
+  lockedCohorts: string[][];
+  /** Count mode: total output groups, locked ones included. */
+  numGroups?: number;
+  /** Size mode: members per group, applied to the unlocked remainder only. */
+  groupSize?: number;
+}
+
+export interface LockedCohortResult extends GroupMakerResult {
+  /** Locked cohorts holding a keep-apart pair. The lock wins; the caller warns. */
+  lockConflicts: number;
+}
+
+/**
+ * Group students while keeping saved cohorts intact
+ * (docs/plans/ROSTER_GROUPS_INTEGRATION.md D10–D13).
+ *
+ * Each cohort becomes one output group verbatim and is exempt from the sizing
+ * control, which governs the remainder only — silently splitting a cohort to
+ * hit a target size would defeat the point of locking it. Output order is
+ * reshuffled so a locked cohort has no positional tell across days, and a
+ * cohort that conflicts with `restrictedStudentIds` is kept together anyway
+ * and counted in `lockConflicts`.
+ */
+export function makeGroupsWithLockedCohorts({
+  students,
+  lockedCohorts,
+  numGroups,
+  groupSize,
+}: LockedCohortOptions): LockedCohortResult {
+  if (students.length === 0) {
+    return { groups: [], unsatisfied: 0, lockConflicts: 0 };
+  }
+
+  const byId = new Map(students.map((s) => [s.id, s]));
+  const claimed = new Set<string>();
+  const cohorts: Student[][] = [];
+  let lockConflicts = 0;
+
+  for (const ids of lockedCohorts) {
+    // A student listed in two cohorts belongs to the first — overlapping
+    // groups are allowed on a roster (plan D1) but can't both be honored.
+    const members: Student[] = [];
+    for (const id of ids) {
+      const student = byId.get(id);
+      if (!student || claimed.has(id)) continue;
+      claimed.add(id);
+      members.push(student);
+    }
+    // A cohort whose members are all absent or off-roster yields nothing.
+    if (members.length === 0) continue;
+    const conflicted = members.some((m) =>
+      conflictsWithBucket(
+        m,
+        new Set(m.restrictedStudentIds ?? []),
+        members.filter((o) => o.id !== m.id)
+      )
+    );
+    if (conflicted) lockConflicts++;
+    cohorts.push(members);
+  }
+
+  const remainder = students.filter((s) => !claimed.has(s.id));
+  let rest: GroupMakerResult = { groups: [], unsatisfied: 0 };
+  if (remainder.length > 0) {
+    if (numGroups !== undefined) {
+      const safeK = Number.isFinite(numGroups) ? Math.floor(numGroups) : 1;
+      rest = makeRestrictedGroupsByCount(
+        remainder,
+        Math.max(1, safeK - cohorts.length)
+      );
+    } else {
+      rest = makeRestrictedGroups(remainder, groupSize ?? 1);
+    }
+  }
+
+  const locked: RandomGroup[] = cohorts.map((members) => ({
+    id: crypto.randomUUID(),
+    names: members.map((s) => `${s.firstName} ${s.lastName}`.trim()),
+    studentIds: members.map((s) => s.id),
+  }));
+
+  return {
+    groups: shuffleInPlace([...locked, ...rest.groups]),
+    unsatisfied: rest.unsatisfied,
+    lockConflicts,
+  };
+}
