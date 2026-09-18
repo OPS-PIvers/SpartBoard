@@ -548,6 +548,34 @@ export const generateWithAI = onCall(
             );
             if (specPermDoc.exists) {
               const specPerm = specPermDoc.data() as GlobalPermission;
+
+              if (!specPerm.enabled) {
+                throw new HttpsError(
+                  'permission-denied',
+                  `${specificFeatureId} is currently disabled by an administrator.`
+                );
+              }
+
+              const {
+                accessLevel: specAccessLevel,
+                betaUsers: specBetaUsers = [],
+              } = specPerm;
+              if (specAccessLevel === 'admin') {
+                throw new HttpsError(
+                  'permission-denied',
+                  `${specificFeatureId} is currently restricted to administrators.`
+                );
+              }
+              if (
+                specAccessLevel === 'beta' &&
+                !specBetaUsers.includes(email.toLowerCase())
+              ) {
+                throw new HttpsError(
+                  'permission-denied',
+                  `You do not have access to the ${specificFeatureId} beta feature.`
+                );
+              }
+
               const specLimitEnabled =
                 specPerm.config?.dailyLimitEnabled !== false;
               // External callers get the external per-feature cap too (same

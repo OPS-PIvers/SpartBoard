@@ -439,6 +439,7 @@ import {
   adminAnalytics,
   getPseudonymsForAssignmentV1,
   archiveActivityWallPhoto,
+  generateWithAI,
   generateVideoActivity,
   transcribeVideoWithGemini,
   generateGuidedLearning,
@@ -3394,6 +3395,171 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
     expect(call.contents[0].parts[1]).toEqual({
       fileData: { fileUri: VALID_URL, mimeType: 'video/mp4' },
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateWithAI — specificFeatureId accessLevel enforcement (regression test)
+// ---------------------------------------------------------------------------
+// Bug: the `if (specificFeatureId)` branch (global_permissions/{featureId})
+// only checked the per-feature daily usage limit — it never checked
+// `enabled`, `accessLevel`, or `betaUsers`, so a disabled, admin-only, or
+// beta-restricted feature (e.g. `embed-mini-app`, which defaults to
+// `accessLevel: 'admin'`) was reachable by calling `generateWithAI` directly,
+// bypassing the client-side `canAccessFeature` gate.
+//
+// Fix: mirror the existing global `gemini-functions` enforcement (enabled →
+// admin → beta/betaUsers) inside the `specPermDoc.exists` branch.
+//
+// Unlike `generateVideoActivity`/`transcribeVideoWithGemini` (whose
+// accessLevel checks run BEFORE their own transaction), `generateWithAI`
+// does its usage-counter reads and its permission checks inside one
+// `db.runTransaction` call. The shared `mockFirestore`/`runTransactionMock`
+// used elsewhere in this file don't give `ai_usage` a `.doc()` method or
+// route `transaction.get(ref)` by the ref passed in (several other tests
+// rely on that current behavior), so this block installs its own minimal
+// `admin.firestore()` stand-in per test rather than reusing those mocks.
+// ---------------------------------------------------------------------------
+describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
+  const NON_ADMIN_AUTH = {
+    uid: 'uid-teacher-1',
+    token: { email: 'teacher@school.org' },
+  };
+  const MINI_APP_DATA = { type: 'mini-app', prompt: 'Build a flashcard app.' };
+
+  const handler = generateWithAI as unknown as (
+    data: unknown,
+    context: unknown
+  ) => Promise<unknown>;
+
+  interface PermDoc {
+    enabled: boolean;
+    accessLevel: 'admin' | 'beta' | 'all';
+    betaUsers?: string[];
+  }
+
+  // Covers exactly what generateWithAI's usage-tracking transaction touches:
+  // the ai_usage counters (always "doesn't exist yet", so no limit is ever
+  // hit) and whichever `global_permissions` docs it reads — `gemini-functions`
+  // (the global gate) plus the request's own `specificFeatureId`.
+  function makeDb(globalPermissions: Record<string, PermDoc | undefined>) {
+    const notFound = { exists: false, data: () => undefined };
+    return {
+      collection: (name: string) => {
+        if (name === 'ai_usage') {
+          return { doc: () => ({ get: () => Promise.resolve(notFound) }) };
+        }
+        if (name === 'global_permissions') {
+          return {
+            doc: (id: string) => ({
+              get: () => {
+                const perm = globalPermissions[id];
+                return Promise.resolve(
+                  perm ? { exists: true, data: () => perm } : notFound
+                );
+              },
+            }),
+          };
+        }
+        throw new Error(`makeDb: unexpected collection "${name}"`);
+      },
+      runTransaction: (
+        callback: (tx: {
+          get: (ref: { get: () => Promise<unknown> }) => Promise<unknown>;
+          set: () => void;
+        }) => unknown
+      ) =>
+        Promise.resolve(
+          callback({ get: (ref) => ref.get(), set: () => undefined })
+        ),
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    __resetGenerateWithAICaches();
+  });
+
+  it('throws permission-denied when embed-mini-app is disabled', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({
+        'embed-mini-app': { enabled: false, accessLevel: 'all' },
+      }) as unknown as admin.firestore.Firestore
+    );
+
+    await expect(
+      handler(MINI_APP_DATA, { auth: NON_ADMIN_AUTH })
+    ).rejects.toThrow(
+      'embed-mini-app is currently disabled by an administrator.'
+    );
+  });
+
+  it('throws permission-denied for a non-admin when embed-mini-app is admin-only', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({
+        'embed-mini-app': { enabled: true, accessLevel: 'admin' },
+      }) as unknown as admin.firestore.Firestore
+    );
+
+    await expect(
+      handler(MINI_APP_DATA, { auth: NON_ADMIN_AUTH })
+    ).rejects.toThrow(
+      'embed-mini-app is currently restricted to administrators.'
+    );
+  });
+
+  it('throws permission-denied for a non-beta user when embed-mini-app is beta-restricted', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({
+        'embed-mini-app': {
+          enabled: true,
+          accessLevel: 'beta',
+          betaUsers: ['beta@school.org'],
+        },
+      }) as unknown as admin.firestore.Firestore
+    );
+
+    await expect(
+      handler(MINI_APP_DATA, { auth: NON_ADMIN_AUTH })
+    ).rejects.toThrow(
+      'You do not have access to the embed-mini-app beta feature.'
+    );
+  });
+
+  it('does not throw permission-denied for a beta user included in embed-mini-app betaUsers', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({
+        'embed-mini-app': {
+          enabled: true,
+          accessLevel: 'beta',
+          betaUsers: ['teacher@school.org'],
+        },
+      }) as unknown as admin.firestore.Firestore
+    );
+
+    // Clears the accessLevel gate, then fails downstream (the real Gemini
+    // call is mocked to reject) — this only confirms it wasn't rejected by
+    // the accessLevel gate itself, mirroring the `generateVideoActivity`
+    // "does not throw for a beta user" regression test above.
+    const err = await handler(MINI_APP_DATA, { auth: NON_ADMIN_AUTH }).then(
+      () => null,
+      (e: unknown) => e as Error
+    );
+    expect(err).toBeInstanceOf(Error);
+    expect(err?.name).not.toBe('permission-denied');
+  });
+
+  it('does not check accessLevel when no global_permissions doc exists for the feature', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({}) as unknown as admin.firestore.Firestore
+    );
+
+    const err = await handler(MINI_APP_DATA, { auth: NON_ADMIN_AUTH }).then(
+      () => null,
+      (e: unknown) => e as Error
+    );
+    expect(err).toBeInstanceOf(Error);
+    expect(err?.name).not.toBe('permission-denied');
   });
 });
 

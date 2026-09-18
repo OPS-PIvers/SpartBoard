@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
 _Last audited: 2026-09-14_
-_Last action: 2026-07-31 — MEDIUM `blooms-taxonomy` global gate bypass resolved: `Widget.tsx` now gates its effective `aiEnabled` on BOTH `buildingConfig.aiEnabled` AND `canAccessFeature('gemini-functions')`, so the global AI kill-switch fully disables Blooms AI_
+_Last action: 2026-09-18 — MEDIUM per-feature AI permission enforcement gap resolved: `generateWithAI`'s `specificFeatureId` branch now enforces `enabled`/`accessLevel`/`betaUsers` server-side, mirroring the existing global `gemini-functions` check, so a disabled/admin-only/beta-restricted feature (e.g. `embed-mini-app`) can no longer be reached by calling the Cloud Function directly. Moved to Completed._
 
 ---
 
@@ -35,13 +35,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### MEDIUM Per-feature AI permission docs enforce daily limits only — `enabled`/`accessLevel`/`minTier`/`buildings` ignored server-side
-
-- **Detected:** 2026-08-24
-- **File:** `functions/src/aiGeneration.ts:485-510`
-- **Detail:** For every `specificFeatureId` (`embed-mini-app`, `smart-poll`, `quiz`, `ocr`, `blooms-ai`, `dashboard-layout`, `instructional-routine`, `widget-builder`, `widget-explainer`, `video-activity-recommend`) the function reads `global_permissions/{specificFeatureId}` and checks **only** `config.dailyLimitEnabled` plus the daily count. It never checks `specPerm.enabled`, `accessLevel`, `betaUsers`, `minTier`, or `buildings` — all five of which the client `canAccessFeature` does enforce (`context/AuthContext.tsx:2444-2511`). Per-feature access control is therefore client-only: an authenticated teacher calling `httpsCallable(functions,'generateWithAI')({type:'poll',…})` from the browser console bypasses a disabled, beta-restricted, or building-restricted `smart-poll`. This is asymmetric with `transcribeVideoWithGemini`, which *does* enforce `perm.enabled` and `perm.accessLevel` (`aiGeneration.ts:1805-1835`). It also means `widget-builder`/`widget-explainer` — admin-only purely by UI placement (`components/admin/WidgetBuilder/GeminiPanel.tsx` has zero `canAccessFeature`/`isAdmin`) — are effectively public server-side. `embed-mini-app` defaults to `accessLevel: 'admin'` (`config/featureDefaults.ts:126-130`), so the divergence is widest exactly where the intent is most restrictive.
-- **Fix:** In the `if (specificFeatureId)` block, mirror the `gemini-functions` checks already 20 lines above (same shape as lines 445-469): throw `permission-denied` when `specPerm.enabled === false`, when `accessLevel === 'admin'` and the caller isn't admin, and when `accessLevel === 'beta'` and the email isn't in `betaUsers`.
 
 ### MEDIUM 8 of 10 per-feature AI rate-limit docs are unconfigurable, and `dashboard-layout` reads a different doc than the `magic-layout` toggle
 
@@ -184,6 +177,14 @@ The following widgets have structured config schemas well-suited for AI content 
 ---
 
 ## Completed
+
+### MEDIUM Per-feature AI permission docs enforce daily limits only — `enabled`/`accessLevel`/`minTier`/`buildings` ignored server-side
+
+- **Detected:** 2026-08-24
+- **Completed:** 2026-09-18
+- **File:** `functions/src/aiGeneration.ts` (`generateWithAI`'s per-feature branch, was :485-510, now :545-593 after the W7 external-caller insertion)
+- **Detail (original):** For every `specificFeatureId` (`embed-mini-app`, `smart-poll`, `quiz`, `ocr`, `blooms-ai`, `dashboard-layout`, `instructional-routine`, `widget-builder`, `widget-explainer`, `video-activity-recommend`) the function read `global_permissions/{specificFeatureId}` and checked **only** `config.dailyLimitEnabled` plus the daily count. It never checked `specPerm.enabled`, `accessLevel`, or `betaUsers` — all of which the client `canAccessFeature` does enforce. Per-feature access control was therefore client-only: an authenticated teacher calling `httpsCallable(functions,'generateWithAI')({type:'poll',…})` from the browser console could bypass a disabled, admin-restricted, or beta-restricted feature. `embed-mini-app` defaults to `accessLevel: 'admin'`, so the divergence was widest exactly where the intent is most restrictive.
+- **Resolution:** Mirrored the existing global `gemini-functions` enforcement shape (same file, ~20 lines above) into the `specPermDoc.exists` branch: throws `permission-denied` when `specPerm.enabled === false`, when `accessLevel === 'admin'` and the caller isn't admin (admins are already exempt — the whole block sits inside the `if (!isAdmin)` guard), and when `accessLevel === 'beta'` and the caller's email isn't in `betaUsers`. These checks now run before the existing daily-limit check, in the same order the global check uses. **Scope note:** `minTier`/`buildings` are not enforced here, matching the pre-existing global `gemini-functions` check in the same function, which also only checks `enabled`/`accessLevel`/`betaUsers` — the server's `GlobalPermission` type (`functions/src/shared.ts`) doesn't carry `minTier`/`buildings` fields at all today. Extending both the global and per-feature checks to cover tier/building restrictions is a larger, pre-existing gap affecting every AI feature uniformly, not something this item's Fix asked for or that's safe to bolt on unilaterally (it would need to resolve the caller's tier/buildings inside the transaction, which no existing code path in this file does) — left as a candidate for a future item rather than filed here as new scope. `pnpm run type-check` (functions package) and `eslint --max-warnings 0`/`prettier --check` on the changed file all clean; the 179 tests in the 5 suites `vitest related` selects for this file all pass. PR opened against dev-paul.
 
 ### LOW Hardcoded model string at functions/src/index.ts:2513 (was :2525, :1980, :1714, :1616)
 
