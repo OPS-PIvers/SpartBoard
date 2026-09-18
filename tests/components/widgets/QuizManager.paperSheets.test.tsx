@@ -110,6 +110,16 @@ describe('QuizManager — paper answer sheets', () => {
     );
   });
 
+  it('offers Import scanned sheets in the row menu when wired', () => {
+    const onImportPaperScan = vi.fn();
+    renderLibrary({ onImportPaperScan });
+    openRowMenu();
+    fireEvent.click(screen.getByText('Import scanned sheets'));
+    expect(onImportPaperScan).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'quiz-1' })
+    );
+  });
+
   it('offers a Paper test door beside Import, never as a tab', () => {
     const onNewPaperTest = vi.fn();
     renderLibrary({ onNewPaperTest });
