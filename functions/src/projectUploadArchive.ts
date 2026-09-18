@@ -1,13 +1,4 @@
-/**
- * Projects widget uploads → Drive (docs/plans/PROJECTS_WIDGET.md D20, §5.3).
- *
- * Firebase Storage is a transit buffer; the Drive copy is the durable one.
- * Every piece of Drive and Storage plumbing here comes from
- * `activityWallArchive` — the token refresh, the folder walk, the blob and
- * stream uploads, the permission call, the transactional claim. This module is
- * the project-shaped wrapper around it, not a second Drive implementation:
- * what differs is where the record lives and what folder it lands in.
- */
+/** Project uploads → Drive (D20, §5.3): the project-shaped wrapper around `activityWallArchive`. */
 
 import * as admin from 'firebase-admin';
 import { HttpsError } from 'firebase-functions/v2/https';
@@ -49,11 +40,7 @@ export interface ProjectArchiveResult {
 
 // ── Pure helpers (exported for tests) ──────────────────────────────────────
 
-/**
- * `runId` is `${teacherUid}_${projectId}` and both `firestore.rules` and
- * `storage.rules` pin ownership to that prefix, so it is the only uid a Drive
- * token is ever minted for — never the client-writable `teacherUid` field.
- */
+/** The runId prefix is the only uid a Drive token is minted for, never the writable field. */
 export function teacherUidFromRunId(runId: string): string {
   const index = runId.indexOf('_');
   return index <= 0 ? '' : runId.slice(0, index);
@@ -108,11 +95,7 @@ export function shouldArchiveProjectUpload(
 
 // ── Archive core ───────────────────────────────────────────────────────────
 
-/**
- * One upload, start to finish. Throws `HttpsError` on rejection; the trigger
- * catches rather than rethrowing, because a throw would only re-run the same
- * failure against the same Drive account.
- */
+/** One upload, start to finish; the trigger catches rather than rethrowing into a retry loop. */
 export async function archiveProjectUploadCore(
   deps: WallArchiveDeps,
   input: ArchiveProjectUploadRequest

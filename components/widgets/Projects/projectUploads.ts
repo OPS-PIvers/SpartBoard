@@ -3,11 +3,7 @@ import type { ProjectUpload } from '@/types';
 /** Matches the 25 MB ceiling in `storage.rules` for `project_uploads/`. */
 export const PROJECT_UPLOAD_MAX_BYTES = 25 * 1024 * 1024;
 
-/**
- * A project artefact is whatever the work produced, so the gate is a family
- * allowlist rather than Activity Wall's three fixed kinds. Kept in step with
- * `pjAllowedType()` in `storage.rules`.
- */
+/** A family allowlist, not Activity Wall's three kinds. Mirrors `pjAllowedType()` in storage.rules. */
 const ALLOWED_PREFIXES = ['image/', 'audio/', 'video/'] as const;
 const ALLOWED_EXACT = [
   'text/plain',
@@ -57,10 +53,7 @@ export const projectUploadStoragePath = (
   fileName: string
 ): string => `project_uploads/${runId}/${groupId}/${uploadId}/${fileName}`;
 
-/**
- * D20 — the widget reports archive state honestly rather than pretending the
- * file already reached Drive.
- */
+/** D20 — report where the file actually is, not where it is headed. */
 export const uploadArchiveLabel = (upload: ProjectUpload): string => {
   switch (upload.archiveStatus) {
     case 'archived':

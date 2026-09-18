@@ -42,13 +42,7 @@ interface ProjectGraderProps {
   onClose: () => void;
 }
 
-/**
- * D22 — the queue shell the quiz free-response grader uses, walking groups
- * instead of students: one subject at a time, prev/next, autosave on advance,
- * skip to move on without writing. `RubricScoringPanel` is dropped in
- * unchanged. The quiz grader's pin control has no analogue here — it picks
- * which of a student's takes to grade, and a group has one body of work.
- */
+/** D22 — the quiz free-response grader's queue shell, walking groups instead of students. */
 export const ProjectGrader: React.FC<ProjectGraderProps> = ({
   run,
   groups,

@@ -1,8 +1,4 @@
-/**
- * One group's uploaded work (D19/D20). Storage is a transit buffer: the object
- * lands first, the doc created afterwards is what the archive trigger picks up,
- * so a doc never points at an object that does not exist.
- */
+/** One group's uploaded work (D19/D20); the object lands before the doc that points at it. */
 
 import { useCallback, useEffect, useState } from 'react';
 import {

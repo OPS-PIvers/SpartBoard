@@ -2,10 +2,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 import type { Rubric } from '@/types';
 
-/**
- * D21 — the rubric is student-visible on demand, read-only, from the first day
- * of the project. It is not withheld until the work is scored.
- */
+/** D21 — the rubric is student-visible on demand from day one, not withheld until scoring. */
 export const ProjectRubricSheet: React.FC<{
   rubric: Rubric;
   maxPoints: number;

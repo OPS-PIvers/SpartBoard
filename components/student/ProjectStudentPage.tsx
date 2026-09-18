@@ -50,11 +50,7 @@ const Centered: React.FC<{
   </div>
 );
 
-/**
- * `/project/:runId` — a group's own view of one project (§6). The student edits
- * their own group only; every group's progress is visible when the teacher
- * left that on (D30). The rules, not this page, are what enforce either.
- */
+/** `/project/:runId` — a group's own view of one project (§6, D30); rules enforce the limits. */
 export const ProjectStudentPage: React.FC = () => {
   const { pseudonymUid, signOut } = useStudentAuth();
   const runId = useMemo(() => parseProjectRunId(window.location.pathname), []);

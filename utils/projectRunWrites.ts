@@ -1,10 +1,4 @@
-/**
- * The writes a project run accepts, shared by the teacher's board face and the
- * student project page. They live here rather than in either hook because the
- * `lastStepChange` contract is load-bearing in `firestore.rules`: the rule
- * checks that claim against the real `stepStates` diff, and two copies of this
- * write are two chances to drift out of it.
- */
+/** The run's writes, shared by both faces: two copies drift out of the `lastStepChange` rule. */
 
 import {
   addDoc,
@@ -31,10 +25,7 @@ export const runIdFor = (teacherUid: string, projectId: string): string =>
 const groupRef = (db: Firestore, runId: string, groupId: string) =>
   doc(db, RUNS_COLLECTION, runId, 'groups', groupId);
 
-/**
- * D24 — append-only and read by the teacher alone. A failed entry must never
- * roll back the change it describes, so it logs and moves on.
- */
+/** D24 — a failed log entry must never roll back the change it describes. */
 export async function logProjectEvent(
   db: Firestore,
   runId: string,

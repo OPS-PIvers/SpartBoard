@@ -1,8 +1,4 @@
-/**
- * One run's grades (A2). They live in `grades/{groupId}` beside the groups, not
- * on the group docs, so a member reading their own group can never read an
- * unreleased score — the read rule on this collection is what hides it.
- */
+/** One run's grades (A2), kept off the group docs so an unreleased score is unreadable. */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';

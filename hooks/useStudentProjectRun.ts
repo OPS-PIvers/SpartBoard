@@ -1,9 +1,4 @@
-/**
- * The student project page's view of one run (§6). Separate from
- * `useProjectRun` on purpose: that hook derives its run id from the teacher's
- * uid and pulls in `firebase/functions` for the group import, neither of which
- * belongs on a student route.
- */
+/** The student page's view of one run (§6); separate from `useProjectRun`, which is teacher-only. */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
