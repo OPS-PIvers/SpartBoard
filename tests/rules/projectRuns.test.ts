@@ -385,35 +385,41 @@ describe('grades', () => {
 });
 
 describe('the /my-assignments run query', () => {
-  const runsQuery = (db: ReturnType<typeof asStudent>, classIds: string[]) =>
+  // A list rule is proved against the query, not the returned documents, so
+  // every assertSucceeds here runs against a seeded matching doc: a query that
+  // returns nothing is always allowed and would prove nothing.
+  const byClass = (db: ReturnType<typeof asStudent>, classIds: string[]) =>
     getDocs(
       query(
         collection(db, 'project_runs'),
         where('classIds', 'array-contains-any', classIds)
       )
     );
+  const byTeacher = (db: ReturnType<typeof asTeacher>, uid: string) =>
+    getDocs(
+      query(collection(db, 'project_runs'), where('teacherUid', '==', uid))
+    );
 
   it('lets a student run the query the page issues', async () => {
     await seed();
     await assertSucceeds(
-      runsQuery(asStudent(MEMBER_UID, [CLASS_ID]), [CLASS_ID])
+      byClass(asStudent(MEMBER_UID, [CLASS_ID]), [CLASS_ID])
     );
   });
 
   it('lets the teacher list her own runs', async () => {
     await seed();
-    await assertSucceeds(
-      getDocs(
-        query(
-          collection(asTeacher(TEACHER_UID), 'project_runs'),
-          where('teacherUid', '==', TEACHER_UID)
-        )
-      )
-    );
+    await assertSucceeds(byTeacher(asTeacher(TEACHER_UID), TEACHER_UID));
   });
 
-  it('refuses a listing to an anonymous caller', async () => {
+  it('refuses an unfiltered listing to everyone', async () => {
     await seed();
+    await assertFails(
+      getDocs(collection(asStudent(MEMBER_UID, [CLASS_ID]), 'project_runs'))
+    );
+    await assertFails(
+      getDocs(collection(asTeacher(TEACHER_UID), 'project_runs'))
+    );
     await assertFails(
       getDocs(
         collection(testEnv.unauthenticatedContext().firestore(), 'project_runs')
@@ -421,9 +427,34 @@ describe('the /my-assignments run query', () => {
     );
   });
 
+  it('refuses a class the student does not hold', async () => {
+    await seed();
+    await assertFails(
+      byClass(asStudent(MEMBER_UID, [OTHER_CLASS_ID]), [CLASS_ID])
+    );
+  });
+
+  it('refuses a teacher aiming the filter at a colleague', async () => {
+    await seed();
+    await assertFails(byTeacher(asTeacher(OTHER_TEACHER_UID), TEACHER_UID));
+  });
+
+  it('refuses the class shape to an anonymous caller', async () => {
+    await seed();
+    await assertFails(
+      getDocs(
+        query(
+          collection(
+            testEnv.unauthenticatedContext().firestore(),
+            'project_runs'
+          ),
+          where('classIds', 'array-contains-any', [CLASS_ID])
+        )
+      )
+    );
+  });
+
   it('still hides an out-of-class run from a get', async () => {
-    // The list rule is coarse by necessity; `get` is where the class gate
-    // actually holds, so a run a student can enumerate stays unreadable.
     await seed();
     await assertFails(
       getDoc(

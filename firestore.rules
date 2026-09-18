@@ -5084,14 +5084,23 @@ service cloud.firestore {
       allow get: if request.auth != null
                  && (resource.data.get('teacherUid', '') == request.auth.uid
                      || pjStudentInAnyClass(resource.data.get('classIds', [])));
-      // Coarse on purpose, matching the flashcards sessions rule above: a list
-      // evaluation has no document to read, so a per-doc class match here can
-      // only ever deny. The class gate that matters lives on `get`, which the
-      // student page goes through; `/my-assignments` needs the query to run.
-      allow list: if request.auth != null
-                  && request.auth.token.firebase.sign_in_provider != 'anonymous'
-                  && (resource.data.get('teacherUid', '') == request.auth.uid
-                      || isStudentRoleUser());
+      // A list rule is evaluated ONCE against the query with an EMPTY resource,
+      // so every clause must be provable from the client's own filters. These
+      // are the only two query shapes the app sends: the teacher's own
+      // where('teacherUid','==',uid), and the student page's
+      // where('classIds','array-contains-any',ids) whose ids come straight
+      // from the caller's own claim. Same shape and same reasoning as
+      // `sessionListScoped()` on dev-paul (#3133); fold into that helper once
+      // the two branches meet. NEVER add a disjunct that needs no document
+      // (`|| isStudentRoleUser()`): it is provable for every caller and
+      // silently reopens the collection to enumeration.
+      function pjRunListScoped() {
+        return resource.data.teacherUid == request.auth.uid ||
+               (request.auth.token.get('classIds', []) is list &&
+                resource.data.get('classIds', [])
+                  .hasAny(request.auth.token.get('classIds', [])));
+      }
+      allow list: if request.auth != null && pjRunListScoped();
       allow create: if pjTeacher()
                     && request.resource.data.teacherUid == request.auth.uid
                     && request.resource.data.id == runId
