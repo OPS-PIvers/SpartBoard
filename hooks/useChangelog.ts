@@ -83,18 +83,13 @@ const fetchChangelog = (): Promise<ChangelogFile> => {
 };
 
 // Defensive normalization for shapes the type system can't (or doesn't)
-// enforce: empty `details`, empty overview arrays, empty sections. Each
-// drop is warned so a curator mistake surfaces in the console rather than
-// rendering a blank entry / section / overview.
+// enforce: empty overview arrays, empty sections, and entries carrying no
+// content at all. Each drop is warned so a curator mistake surfaces in the
+// console rather than rendering a blank entry / section / overview.
 const normalizeEntries = (raw: ChangelogEntry[]): ChangelogEntry[] => {
   const result: ChangelogEntry[] = [];
   for (const entry of raw) {
-    if (!Array.isArray(entry.details) || entry.details.length === 0) {
-      console.warn(
-        `changelog.json entry "${entry.version}" has no details — dropped.`
-      );
-      continue;
-    }
+    const details = Array.isArray(entry.details) ? entry.details : [];
 
     let overview = entry.overview;
     if (overview !== undefined) {
@@ -119,7 +114,16 @@ const normalizeEntries = (raw: ChangelogEntry[]): ChangelogEntry[] => {
       }
     }
 
-    result.push({ ...entry, overview });
+    // Either half can carry an entry on its own. An overview-only entry is a
+    // release with nothing worth expanding, and it renders without the toggle.
+    if (details.length === 0 && overview === undefined) {
+      console.warn(
+        `changelog.json entry "${entry.version}" has no overview or details — dropped.`
+      );
+      continue;
+    }
+
+    result.push({ ...entry, overview, details });
   }
   return result;
 };
