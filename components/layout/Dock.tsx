@@ -608,6 +608,13 @@ export const Dock: React.FC = () => {
     setShowMoreMenu(false);
   }, []);
 
+  // "Done" inside the library leaves edit mode but keeps the library open in browse mode.
+  const exitEditModeKeepingLibrary = useCallback(() => {
+    setIsEditMode(false);
+    setShowLibrary(false);
+    setShowMoreMenu(true);
+  }, []);
+
   // Handle exiting edit mode when clicking outside the dock area
   useClickOutside(dockContainerRef, () => {
     if (
@@ -1058,6 +1065,7 @@ export const Dock: React.FC = () => {
               matchesUserBuilding={matchesUserBuilding}
               getToolGradeLevels={getToolGradeLevels}
               onEnterEditMode={handleLongPress}
+              onExitEditMode={exitEditModeKeepingLibrary}
               onClose={closeLibraryAndEditMode}
               globalStyle={globalStyle}
               triggerRef={dockContainerRef}
