@@ -97,3 +97,6 @@ dist-devpreview
 # Local-only artifacts
 .impeccable/
 Dashboards/
+
+# Written by the Claude review workflow, never committed
+pr.diff
