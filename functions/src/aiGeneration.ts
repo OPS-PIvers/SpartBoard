@@ -581,7 +581,7 @@ export const generateWithAI = onCall(
               }
               if (
                 specAccessLevel === 'beta' &&
-                !specBetaUsers.includes(email.toLowerCase())
+                !isVerifiedBetaMember(callerToken, specBetaUsers)
               ) {
                 throw new HttpsError(
                   'permission-denied',

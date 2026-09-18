@@ -3498,7 +3498,13 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
 describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
   const NON_ADMIN_AUTH = {
     uid: 'uid-teacher-1',
-    token: { email: 'teacher@school.org' },
+    token: { email: 'teacher@school.org', email_verified: true },
+  };
+  // Same email as a betaUsers entry, but unverified — simulates an attacker
+  // self-reporting a real beta tester's address at email/password sign-up.
+  const UNVERIFIED_BETA_AUTH = {
+    uid: 'uid-attacker-1',
+    token: { email: 'beta@school.org', email_verified: false },
   };
   const MINI_APP_DATA = { type: 'mini-app', prompt: 'Build a flashcard app.' };
 
@@ -3516,12 +3522,17 @@ describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
   // Covers exactly what generateWithAI's usage-tracking transaction touches:
   // the ai_usage counters (always "doesn't exist yet", so no limit is ever
   // hit) and whichever `global_permissions` docs it reads — `gemini-functions`
-  // (the global gate) plus the request's own `specificFeatureId`.
+  // (the global gate) plus the request's own `specificFeatureId`. Also backs
+  // `resolveCallerIsAdmin`'s `admins/{email}` lookup (outside the
+  // transaction) — every caller in this describe block is a non-admin.
   function makeDb(globalPermissions: Record<string, PermDoc | undefined>) {
     const notFound = { exists: false, data: () => undefined };
     return {
       collection: (name: string) => {
         if (name === 'ai_usage') {
+          return { doc: () => ({ get: () => Promise.resolve(notFound) }) };
+        }
+        if (name === 'admins') {
           return { doc: () => ({ get: () => Promise.resolve(notFound) }) };
         }
         if (name === 'global_permissions') {
@@ -3622,6 +3633,24 @@ describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
     );
     expect(err).toBeInstanceOf(Error);
     expect(err?.name).not.toBe('permission-denied');
+  });
+
+  it('SECURITY: does not grant beta access for an unverified self-reported beta email', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({
+        'embed-mini-app': {
+          enabled: true,
+          accessLevel: 'beta',
+          betaUsers: ['beta@school.org'],
+        },
+      }) as unknown as admin.firestore.Firestore
+    );
+
+    await expect(
+      handler(MINI_APP_DATA, { auth: UNVERIFIED_BETA_AUTH })
+    ).rejects.toThrow(
+      'You do not have access to the embed-mini-app beta feature.'
+    );
   });
 
   it('does not check accessLevel when no global_permissions doc exists for the feature', async () => {
