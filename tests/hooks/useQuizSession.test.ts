@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import * as firestore from 'firebase/firestore';
+import { findQuizSessionsByCode } from '@/utils/quizJoinCodes';
 import {
   normalizeAnswer,
   gradeAnswer,
@@ -23,6 +24,21 @@ import type {
 } from '@/types';
 
 vi.mock('firebase/firestore');
+// The join-code -> session lookup has its own coverage against the emulator
+// (tests/rules/quizJoinCodeLookup.test.ts). Here it stays a thin shim over the
+// mocked getDocs so these cases keep driving session SELECTION, which is what
+// they are about, through the same fixtures as before.
+vi.mock('@/utils/quizJoinCodes', () => ({
+  findQuizSessionsByCode: vi.fn(async () => {
+    const { getDocs } = await import('firebase/firestore');
+    const snap = (await (getDocs as unknown as () => Promise<unknown>)()) as
+      | { docs?: { id: string; data: () => unknown }[] }
+      | undefined;
+    return (snap?.docs ?? []).map((d) => ({ id: d.id, data: d.data() }));
+  }),
+  addJoinCodePointerToBatch: vi.fn(),
+  deleteJoinCodePointerFromBatch: vi.fn(),
+}));
 vi.mock('firebase/auth', () => ({
   signInAnonymously: vi.fn().mockResolvedValue({ user: { uid: 'anon-uid' } }),
 }));
@@ -1170,13 +1186,7 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
       await result.current.joinQuizSession('  abc-123!!  ', '1234');
     });
 
-    const whereCalls = (firestore.where as unknown as ReturnType<typeof vi.fn>)
-      .mock.calls;
-    const codeEqualsCall = whereCalls.find(
-      (args) => args[0] === 'code' && args[1] === '=='
-    );
-    expect(codeEqualsCall).toBeDefined();
-    expect(codeEqualsCall?.[2]).toBe('ABC123');
+    expect(findQuizSessionsByCode).toHaveBeenCalledWith('ABC123');
   });
 
   it('backfills classPeriod on an existing response when it changed', async () => {

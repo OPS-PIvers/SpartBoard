@@ -47,6 +47,11 @@ import {
 } from '@/utils/quizFibAnswers';
 import { fibTranslationIssue } from '@/utils/quizFibTranslation';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
+import {
+  addJoinCodePointerToBatch,
+  deleteJoinCodePointerFromBatch,
+  findQuizSessionsByCode,
+} from '@/utils/quizJoinCodes';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import { mirrorPlcAssignmentStatus } from './usePlcAssignmentIndex';
 import { writePlcAssignmentTemplate } from './usePlcAssignments';
@@ -715,15 +720,8 @@ async function allocateJoinCode(): Promise<string> {
       .substring(2, 8)
       .toUpperCase()
       .padEnd(6, '0');
-    const snap = await getDocs(
-      query(
-        collection(db, QUIZ_SESSIONS_COLLECTION),
-        where('code', '==', candidate)
-      )
-    );
-    const collision = snap.docs.some((d) =>
-      joinableStatuses.has((d.data() as QuizSession).status)
-    );
+    const matches = await findQuizSessionsByCode(candidate);
+    const collision = matches.some((m) => joinableStatuses.has(m.data.status));
     if (!collision) return candidate;
   }
   // Last-resort fallback: we accept a theoretical collision rather than
@@ -1219,6 +1217,9 @@ export const useQuizAssignments = (
           : assignment
       );
       batch.set(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), session);
+      // Same batch as the session: a session whose pointer never landed would be
+      // unjoinable by code.
+      addJoinCodePointerToBatch(batch, code, assignmentId, userId, now);
       await batch.commit();
 
       // R1: synthesize up front, billed to the teacher; the student fallback
@@ -1518,9 +1519,20 @@ export const useQuizAssignments = (
         await batch.commit();
       }
 
+      // Read the code off the session before it goes, so its join-code pointer
+      // goes with it. A pointer left behind is inert (the lookup skips sessions
+      // that no longer exist), so a failed read must not block the delete.
+      const sessionSnap = await getDoc(
+        doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId)
+      ).catch(() => null);
+      const sessionCodeField: unknown = sessionSnap?.data()?.code;
+      const sessionCode =
+        typeof sessionCodeField === 'string' ? sessionCodeField : '';
+
       // Delete the session doc and the assignment doc in one batch
       const batch = writeBatch(db);
       batch.delete(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId));
+      deleteJoinCodePointerFromBatch(batch, sessionCode, assignmentId);
       batch.delete(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
       );

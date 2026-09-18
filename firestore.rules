@@ -3353,6 +3353,43 @@ service cloud.firestore {
         request.resource.data.at == request.time;
     }
 
+    // Quiz join-code -> session pointers. One doc per (code, session), written by
+    // the owning teacher alongside the session itself.
+    //
+    // Why this collection exists: the PIN join flow has to turn a 6-char code into
+    // a session id, and it used to do that with where('code','==',code) against
+    // quiz_sessions. A `list` rule is evaluated ONCE against the query with an EMPTY
+    // resource, so it cannot prove that a filter on `code` was supplied — which is
+    // why quiz_sessions still answers `list` to any authed caller (see the note
+    // there). Here the code is a PATH segment, so the same lookup is provable by
+    // construction: the caller had to know the code to address the collection at all.
+    //
+    // Reads are open to any authed caller INCLUDING anonymous, because K-2 students
+    // have no account to sign in with and reach their quiz by PIN. Knowing the code
+    // IS the gate, exactly as it was before.
+    match /quiz_join_codes/{code} {
+      // Nothing is stored on the parent doc; the pointers live in /sessions.
+      allow read, write: if false;
+
+      match /sessions/{sessionId} {
+        allow get, list: if request.auth != null;
+        // Owner-only, doc id == session id, and no free-form storage.
+        allow create: if request.auth != null &&
+          request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+          code.matches('^[A-Z0-9]{1,16}$') &&
+          request.resource.data.keys().hasOnly(['sessionId', 'teacherUid', 'createdAt']) &&
+          request.resource.data.sessionId == sessionId &&
+          request.resource.data.teacherUid == request.auth.uid &&
+          request.resource.data.createdAt is int;
+        // Immutable: an update could re-aim a live code at a different session,
+        // which is the one thing this collection must never let anyone do.
+        // Re-pointing is a delete + create, both owner-gated.
+        allow update: if false;
+        allow delete: if request.auth != null &&
+          resource.data.teacherUid == request.auth.uid;
+      }
+    }
+
     // Quiz Sessions — keyed by session UUID (was teacherUid). The teacher
     // owns the document and stores their uid on the `teacherUid` field.
     // Multiple concurrent sessions per teacher are allowed.
