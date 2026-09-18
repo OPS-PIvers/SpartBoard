@@ -313,6 +313,29 @@ describe('event log', () => {
     await assertFails(updateDoc(doc(db, eventPath), { kind: 'upload' }));
   });
 
+  it('pins actorRole to what the caller actually is', async () => {
+    await seed();
+    // Correctly attributed to their own uid, but claiming the teacher's role.
+    await assertFails(
+      setDoc(
+        doc(asStudent(MEMBER_UID, [CLASS_ID]), eventPath),
+        event(MEMBER_UID, 'teacher')
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(asTeacher(TEACHER_UID), eventPath),
+        event(TEACHER_UID, 'student')
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(TEACHER_UID), eventPath),
+        event(TEACHER_UID, 'teacher')
+      )
+    );
+  });
+
   it('is never readable by a student, including their own entry', async () => {
     await seed();
     await assertSucceeds(

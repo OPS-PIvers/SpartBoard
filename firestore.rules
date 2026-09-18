@@ -5138,14 +5138,16 @@ service cloud.firestore {
         allow create, delete: if pjIsRunTeacher();
 
         // D24: the event log is the teacher's audit trail, never student-visible.
-        // Append-only, and `actorUid` is pinned to the caller, so an entry can
-        // never be forged onto someone else, edited, or deleted.
+        // Append-only; `actorUid` is pinned to the caller and `actorRole` to what
+        // the caller actually is, so an entry can never be forged onto someone
+        // else, mislabelled, edited, or deleted.
         match /events/{eventId} {
           allow read: if pjIsRunTeacher();
           allow create: if request.auth != null
                         && request.resource.data.actorUid == request.auth.uid
                         && request.resource.data.at is int
-                        && request.resource.data.actorRole in ['student', 'teacher']
+                        && request.resource.data.actorRole
+                           == (pjIsRunTeacher() ? 'teacher' : 'student')
                         && request.resource.data.kind in [
                              'stepState', 'needsSupport', 'workLink', 'upload', 'membership'
                            ]
