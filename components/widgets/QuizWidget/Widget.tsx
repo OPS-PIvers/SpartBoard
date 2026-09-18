@@ -104,6 +104,7 @@ import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { QuizLiveMonitor } from './components/QuizLiveMonitor';
 import { PaperPrintModal } from './components/PaperPrintModal';
 import { PaperImportModal } from './components/PaperImportModal';
+import { PaperQuestionTextModal } from './components/PaperQuestionTextModal';
 import { httpsCallable } from 'firebase/functions';
 import type {
   ImportPaperResponsesResult,
@@ -114,7 +115,9 @@ import {
   deletePaperBatchesForQuiz,
   savePaperBatch,
   listPaperBatchesForQuiz,
+  savePendingReview,
 } from '@/utils/paperBatchStore';
+import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { Loader2, AlertTriangle, LogIn } from 'lucide-react';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
@@ -213,6 +216,24 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     if (!picked) return null;
     return { url: `https://docs.google.com/spreadsheets/d/${picked.id}/edit` };
   }, [ensureGoogleScope, openPicker]);
+
+  // Paper scan from Drive (plan Q17): the pick grants per-file access, the
+  // bytes come down and are read locally exactly like a chosen file.
+  const { getDriveFileAsBlob } = useGoogleDrive();
+  const pickScanFromDrive = useCallback(async (): Promise<File | null> => {
+    const token = await ensureGoogleScope('drive.file', { interactive: true });
+    if (!token) {
+      throw new Error('Google Drive access is required. Please sign in again.');
+    }
+    const picked = await openPicker({ mode: 'scans', token });
+    if (!picked) return null;
+    const downloaded = await getDriveFileAsBlob(picked.id);
+    if (!downloaded)
+      throw new Error('Could not download that file from Drive.');
+    return new File([downloaded.blob], downloaded.name || picked.name, {
+      type: downloaded.mimeType || picked.mimeType,
+    });
+  }, [ensureGoogleScope, openPicker, getDriveFileAsBlob]);
 
   const {
     quizzes,
@@ -434,6 +455,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     quiz: QuizData;
     meta: QuizMetadata;
     batches: PaperBatch[];
+  } | null>(null);
+  const [paperOcr, setPaperOcr] = useState<{
+    quiz: QuizData;
+    meta: QuizMetadata;
   } | null>(null);
   // Quiz whose own publish is in flight; its canonical bump is not a peer edit.
   const [savingQuizId, setSavingQuizId] = useState<string | null>(null);
@@ -1577,6 +1602,14 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   meta.id
                 );
                 setPaperImport({ quiz: data, meta, batches });
+              }
+            : undefined
+        }
+        onReadPaperQuestions={
+          paperSheets.enabled
+            ? async (meta) => {
+                const data = await loadQuiz(meta);
+                if (data) setPaperOcr({ quiz: data, meta });
               }
             : undefined
         }
@@ -2895,6 +2928,46 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   : 'Scores published. Students will see results once they submit.',
                 'success'
               );
+              // Paper administrations have no class channel; pointers make
+              // the published result reachable from My Assignments (Q34).
+              // The grading pass counts paper rows too, covering imports
+              // that predate the assignment flag.
+              if (
+                paperSheets.enabled &&
+                (target.hasPaperResponses || result.paperResponses > 0)
+              ) {
+                try {
+                  const link = httpsCallable<
+                    { assignmentId: string },
+                    {
+                      pointersWritten: number;
+                      unlinked: number;
+                      unplaced: number;
+                    }
+                  >(functions, 'publishPaperResultsV1');
+                  const linked = (await link({ assignmentId: target.id })).data;
+                  if (linked.unlinked > 0) {
+                    addToast(
+                      `${linked.unlinked} paper response${linked.unlinked === 1 ? ' has' : 's have'} no student login to link to; those students can see results only from your view.`,
+                      'info'
+                    );
+                  }
+                  if (linked.unplaced > 0) {
+                    addToast(
+                      `${linked.unplaced} paper response${linked.unplaced === 1 ? ' belongs' : 's belong'} to a student whose roster has no class link yet; sync the roster and publish again to reach them.`,
+                      'info'
+                    );
+                  }
+                } catch (err) {
+                  logError('QuizWidget.publishPaperResults', err, {
+                    assignmentId: target.id,
+                  });
+                  addToast(
+                    'Scores published, but paper results could not be linked to student accounts.',
+                    'error'
+                  );
+                }
+              }
               // Chain the LMS grade push(es) — never throws (publish already
               // committed; a push failure is its own toast).
               await runPublishGradePush<QuizResponse>({
@@ -3202,7 +3275,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 },
                 attemptLimit: 1,
               },
-              // No classIds and paused: never a live door for students (Q34).
+              // No classIds and paused: never a live door for students.
+              // publishPaperResultsV1 ends it once results go out (Q34).
               { initialStatus: 'paused' }
             );
             return id;
@@ -3222,7 +3296,23 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           onSaveQuiz={async (data) => {
             await saveQuiz(data, paperImport.meta.driveFileId);
           }}
+          onSavePending={(batchId, review) =>
+            savePendingReview(user.uid, batchId, review)
+          }
+          onPickFromDrive={pickScanFromDrive}
           onClose={() => setPaperImport(null)}
+          onError={(message) => addToast(message, 'error')}
+        />
+      )}
+      {paperOcr && (
+        <PaperQuestionTextModal
+          quiz={paperOcr.quiz}
+          onSave={async (data) => {
+            await saveQuiz(data, paperOcr.meta.driveFileId);
+            addToast('Question text updated.', 'success');
+          }}
+          onPickFromDrive={pickScanFromDrive}
+          onClose={() => setPaperOcr(null)}
           onError={(message) => addToast(message, 'error')}
         />
       )}

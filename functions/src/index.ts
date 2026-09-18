@@ -92,7 +92,10 @@ export { commitProjectGroupsV1 } from './projectGroups';
 // /student_assignments, plus the deletion triggers that reap those pointers. ─
 export { setAssignmentTargetsV1 } from './studentAssignmentTargets';
 // Paper answer sheets: the one server-side writer of scanned responses.
-export { importPaperResponsesV1 } from './importPaperResponses';
+export {
+  importPaperResponsesV1,
+  publishPaperResultsV1,
+} from './importPaperResponses';
 export {
   cleanupQuizAssignmentPointers,
   cleanupVideoActivityAssignmentPointers,
