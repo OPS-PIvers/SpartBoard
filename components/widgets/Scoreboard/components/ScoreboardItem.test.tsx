@@ -124,4 +124,38 @@ describe('ScoreboardItem', () => {
     // Memoization busts: render occurs, call count becomes 2
     expect(plusSpy).toHaveBeenCalledTimes(2);
   });
+
+  it('stacks the score above the +/- buttons until the card is clearly wider than tall', () => {
+    render(
+      <ScoreboardItem team={mockTeam} onUpdateScore={mockOnUpdateScore} />
+    );
+
+    const score = screen.getByText('10');
+    // Portrait default: score claims its own flex line, buttons wrap beneath it.
+    expect(score).toHaveClass('order-first', 'basis-full');
+    // Landscape override restores the minus / score / plus row.
+    expect(score.className).toContain(
+      '[@container(min-aspect-ratio:1.4)]:basis-auto'
+    );
+    expect(score.parentElement?.className).toContain(
+      '[@container(min-aspect-ratio:1.4)]:flex-nowrap'
+    );
+  });
+
+  it('shrinks the score font as the digit count grows', () => {
+    const widthFactor = (score: number) => {
+      const { unmount } = render(
+        <ScoreboardItem
+          team={{ ...mockTeam, score }}
+          onUpdateScore={mockOnUpdateScore}
+        />
+      );
+      const style = screen.getByText(String(score)).getAttribute('style') ?? '';
+      unmount();
+      return Number(/min\(([\d.]+)cqw/.exec(style)?.[1]);
+    };
+
+    expect(widthFactor(1045)).toBeLessThan(widthFactor(128));
+    expect(widthFactor(128)).toBeLessThan(widthFactor(7));
+  });
 });
