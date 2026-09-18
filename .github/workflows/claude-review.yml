@@ -37,6 +37,8 @@ jobs:
       - name: Claude review
         uses: anthropics/claude-code-action@v1
         with:
+          # PRs opened by the claude[bot] app are still ours to review.
+          allowed_bots: 'claude'
           # Pro/Max subscription auth â€” generate locally with `claude setup-token`
           # and store as a repo secret. No metered API key required.
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
