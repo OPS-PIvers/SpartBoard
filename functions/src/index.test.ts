@@ -3164,6 +3164,7 @@ describe('index barrel — deployed export set', () => {
     'organizationMemberCounters',
     'organizationBuildingCounters',
     'resetOrganizationUserPassword',
+    'deleteOrganizationUser',
     'getOrgUserActivity',
     // PLC invites / rollout emails
     'plcInvitationEmail',

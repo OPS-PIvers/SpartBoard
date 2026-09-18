@@ -87,6 +87,7 @@ const makeProps = (
   onUpdate: vi.fn(),
   onBulkUpdate: vi.fn(),
   onRemove: vi.fn(),
+  onDeleteAccount: vi.fn(),
   onInvite: vi.fn(),
   onBulkInvite: vi.fn(),
   onResendInvite: vi.fn(),
