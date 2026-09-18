@@ -61,6 +61,7 @@ const widget = (config: Partial<ProjectsConfig> = {}): WidgetData => ({
   w: 540,
   h: 360,
   z: 1,
+  flipped: false,
   config: { projectId: 'project-1', showStatus: true, ...config },
 });
 
