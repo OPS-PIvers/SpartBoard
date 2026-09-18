@@ -25,14 +25,7 @@
  *      add-on cannot publish final grades).
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  collection,
-  doc,
-  getDocs,
-  query,
-  updateDoc,
-  where,
-} from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { ClipboardList, GraduationCap, Send, Eye } from 'lucide-react';
 import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
@@ -46,6 +39,7 @@ import {
   RESPONSES_COLLECTION,
 } from '@/hooks/useQuizSession';
 import { normalizeQuizCode } from '@/utils/quizCode';
+import { findQuizSessionsByCode } from '@/utils/quizJoinCodes';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { resolveResponseDisplayName } from '@/components/widgets/QuizWidget/utils/resolveDisplayName';
 import {
@@ -190,14 +184,9 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     setResolvingSession(true);
     void (async () => {
       try {
-        const snap = await getDocs(
-          query(
-            collection(db, QUIZ_SESSIONS_COLLECTION),
-            where('code', '==', normalizeQuizCode(code))
-          )
-        );
+        const matches = await findQuizSessionsByCode(normalizeQuizCode(code));
         if (!active) return;
-        setSessionId(snap.empty ? null : snap.docs[0].id);
+        setSessionId(matches.length === 0 ? null : matches[0].id);
       } catch (err) {
         if (!active) return;
         logError('ClassroomAddonTeacherReview.resolveSession', err, { code });
