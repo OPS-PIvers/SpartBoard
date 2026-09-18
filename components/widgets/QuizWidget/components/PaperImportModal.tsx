@@ -57,7 +57,7 @@ import {
   toPendingReview,
 } from '@/utils/paperReviewState';
 import { rasterizeScan, type RasterizedPage } from '@/utils/paperScanRaster';
-import { CHOICE_LETTERS } from '@/utils/paperSheetLayout';
+import { CHOICE_LETTERS, QUESTIONS_PER_PAGE } from '@/utils/paperSheetLayout';
 import { readPaperPage } from '@/utils/paperSheetReader';
 
 const IMPORT_CHUNK = 200;
@@ -100,8 +100,9 @@ type Step = 'setup' | 'reading' | 'review' | 'importing' | 'done';
 
 const NEW_ADMINISTRATION = '__new__';
 
-const cropKey = (scanIndex: number, question: number) =>
-  `${scanIndex}:${question}`;
+// Keyed by seat and question, not scan position, so a resumed review
+// still finds the crops parked for it.
+const cropKey = (seat: number, question: number) => `${seat}:${question}`;
 
 const formatDate = (ms: number) =>
   new Date(ms).toLocaleDateString(undefined, {
@@ -242,10 +243,11 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           choiceCount: batch.choiceCount,
         });
         if (read.status === 'ok') {
+          const first = (read.marker.page - 1) * QUESTIONS_PER_PAGE;
           for (const row of read.rows) {
             if (row.doubt) {
               nextCrops.set(
-                cropKey(scanIndex, row.indexOnPage),
+                cropKey(read.marker.seat, first + row.indexOnPage),
                 page.crop(row.crop)
               );
             }
@@ -766,7 +768,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         {doubtful.length > 0 && (
           <ul className="mt-2 space-y-2">
             {doubtful.map((a) => {
-              const crop = crops.get(cropKey(a.scanIndex, a.question));
+              const crop = crops.get(cropKey(sheet.seat, a.question));
               return (
                 <li
                   key={a.question}

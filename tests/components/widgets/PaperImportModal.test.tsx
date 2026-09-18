@@ -487,9 +487,15 @@ describe('PaperImportModal', () => {
     expect(onSavePending).toHaveBeenLastCalledWith('batch-1', null);
   });
 
-  it('resumes a parked review without rescanning, edits intact', async () => {
+  it('resumes a parked review without rescanning, crops and edits intact', async () => {
+    const cropStore = memoryCropStore();
+    await cropStore.save(
+      'batch-1',
+      new Map([['1:0', 'data:image/png;base64,saved']])
+    );
     const { onImport, onSaveQuiz } = setup([], {
       batches: [{ ...batch, pendingReview: parkedReview() }],
+      cropStore,
     });
     expect(screen.getByText(/A review from .* is waiting/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Resume review' }));
@@ -497,7 +503,10 @@ describe('PaperImportModal', () => {
       expect(screen.getByText(/row to check/)).toBeInTheDocument()
     );
     expect(screen.getByText('More than one bubble')).toBeInTheDocument();
-    expect(screen.queryByAltText('Question 1 as scanned')).toBeNull();
+    expect(screen.getByAltText('Question 1 as scanned')).toHaveAttribute(
+      'src',
+      'data:image/png;base64,saved'
+    );
     expect(screen.getByLabelText('This key is correct')).toBeChecked();
     fireEvent.click(screen.getByLabelText('Question 1: B'));
     fireEvent.click(screen.getByRole('button', { name: /^Import 1 sheet$/ }));
