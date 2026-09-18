@@ -5100,10 +5100,19 @@ service cloud.firestore {
       match /groups/{groupId} {
         // A3: student reads gate on the group's own classId, never a get() of
         // the parent run — that would cost a document read per group per render.
+        // Which keys a member may touch, and what may go in them. CEL cannot walk
+        // `workLinks` to validate each entry, so the list is capped and typed here
+        // and its contents stay the client's business.
         function pjStudentEditableFields() {
-          return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          let after = request.resource.data;
+          return after.diff(resource.data).affectedKeys().hasOnly([
                    'stepStates', 'needsSupport', 'workLinks', 'lastStepChange', 'updatedAt'
-                 ]);
+                 ])
+                 && after.get('needsSupport', false) is bool
+                 && after.get('workLinks', []) is list
+                 && after.get('workLinks', []).size() <= 20
+                 && after.get('updatedAt', 0) is int
+                 && after.get('lastStepChange', {}).get('at', 0) is int;
         }
         // Enforces the per-step approval ceiling (D2/D3). CEL cannot walk a map
         // applying a per-key rule, so a student write declares the one step it

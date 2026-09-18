@@ -244,6 +244,29 @@ describe('group document', () => {
     );
   });
 
+  it('constrains the values a member may write, not just the keys', async () => {
+    await seed();
+    const db = asStudent(MEMBER_UID, [CLASS_ID]);
+    // The client sanitizes work links, but the client is not the boundary.
+    await assertFails(
+      updateDoc(doc(db, GROUP_PATH), { needsSupport: 'yes please' })
+    );
+    await assertFails(
+      updateDoc(doc(db, GROUP_PATH), {
+        workLinks: Array.from({ length: 21 }, (_, i) => ({
+          id: `w${i}`,
+          url: 'https://example.com',
+          addedByUid: MEMBER_UID,
+          addedAt: 1,
+        })),
+      })
+    );
+    await assertFails(updateDoc(doc(db, GROUP_PATH), { updatedAt: 'now' }));
+    await assertSucceeds(
+      updateDoc(doc(db, GROUP_PATH), { needsSupport: true, updatedAt: 3 })
+    );
+  });
+
   it('denies a member editing membership, name or class', async () => {
     await seed();
     const db = asStudent(MEMBER_UID, [CLASS_ID]);
