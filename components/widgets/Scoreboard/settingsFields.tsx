@@ -9,9 +9,8 @@ import {
 } from '@/types';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Plus, Trash2, Users, RefreshCw, LayoutGrid, List } from 'lucide-react';
-import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
-import { useRosterGroupsIntegrationSettings } from '@/hooks/useRosterGroupsIntegrationSettings';
+import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { Button } from '@/components/common/Button';
 import {
   SCOREBOARD_COLORS as TEAM_COLORS,
@@ -66,9 +65,7 @@ export const ScoreboardSettings: React.FC<{
     rosters,
     activeRosterId,
   } = useDashboard();
-  const { canAccessFeature } = useAuth();
   const { showConfirm } = useDialog();
-  const rosterGroupsRollout = useRosterGroupsIntegrationSettings();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [useGroupNames, setUseGroupNames] = useState(false);
   const config = widget.config as ScoreboardConfig;
@@ -76,8 +73,7 @@ export const ScoreboardSettings: React.FC<{
   const layout = config.layout ?? 'cards';
 
   // --- Class groups (docs/plans/ROSTER_GROUPS_INTEGRATION.md D17/D20) ---
-  const rosterGroupsEnabled =
-    rosterGroupsRollout.enabled && canAccessFeature('roster-groups');
+  const rosterGroupsEnabled = useRosterGroupsGate();
   const activeRoster = useMemo(
     () => rosters.find((r) => r.id === activeRosterId) ?? rosters[0],
     [rosters, activeRosterId]

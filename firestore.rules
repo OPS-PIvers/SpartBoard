@@ -97,12 +97,14 @@ service cloud.firestore {
     // class shapes from hooks/useStudentAssignments.ts,
     // where('classIds','array-contains-any',ids) and where('classId','in',ids),
     // whose `ids` come straight from the caller's own classIds claim.
-    // CEL absorbs errors across `||`, so the teacherUid disjunct throwing on the
-    // empty resource is harmless — but for the same reason NEVER add a disjunct
-    // that needs no document (e.g. `|| isStudentRoleUser()`): it is provable for
-    // every caller and silently re-opens the collection to enumeration.
+    // Read teacherUid through .get(): bare, it throws on a query that does not
+    // filter on it, and CEL only absorbs that while a class disjunct proves true.
+    // NEVER add a disjunct that needs no document (e.g. `|| isStudentRoleUser()`):
+    // it is provable for every caller and silently re-opens the collection to
+    // enumeration. Never put `is list` or `size()` on a resource-derived value
+    // either: that makes the clause unprovable, so it can only ever be false.
     function sessionListScoped() {
-      return resource.data.teacherUid == request.auth.uid ||
+      return resource.data.get('teacherUid', '') == request.auth.uid ||
              (request.auth.token.get('classIds', []) is list &&
               (resource.data.get('classIds', []).hasAny(request.auth.token.get('classIds', [])) ||
                resource.data.get('classId', '') in request.auth.token.get('classIds', [])));

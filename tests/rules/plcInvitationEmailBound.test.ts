@@ -19,7 +19,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import { setDoc, doc } from 'firebase/firestore';
 
-const PROJECT_ID = 'spartboard-rules-test';
+const PROJECT_ID = 'spartboard-plc-invitation-email-bound';
 const PLC_ID = 'plc-1';
 const LEAD_UID = 'lead-uid';
 const LEAD_EMAIL = 'lead@orono.k12.mn.us';

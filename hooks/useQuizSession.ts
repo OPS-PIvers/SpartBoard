@@ -23,8 +23,6 @@ import {
   updateDoc,
   getDocs,
   getDoc,
-  query,
-  where,
   writeBatch,
   increment,
   deleteField,
@@ -60,6 +58,7 @@ import {
 } from '@/utils/answerTakeOrdering';
 import { resolvePeriodNames } from '@/utils/periodCompat';
 import { normalizeQuizCode } from '@/utils/quizCode';
+import { findQuizSessionsByCode } from '@/utils/quizJoinCodes';
 import {
   createLeadingTrailingThrottle,
   RESPONSES_THROTTLE_MS,
@@ -1963,25 +1962,18 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         const normCode = normalizeQuizCode(code);
         if (!normCode) return null;
         setError(null);
-        const snap = await getDocs(
-          query(
-            collection(db, QUIZ_SESSIONS_COLLECTION),
-            where('code', '==', normCode)
-          )
-        );
-        if (snap.empty) return null;
-        const joinable = snap.docs.filter((d) => {
-          const s = (d.data() as QuizSession).status;
+        const matches = await findQuizSessionsByCode(normCode);
+        if (matches.length === 0) return null;
+        const joinable = matches.filter((m) => {
+          const s = m.data.status;
           return s === 'waiting' || s === 'active' || s === 'paused';
         });
         if (joinable.length === 0) return null;
         // Match joinQuizSession's selection: prefer the most recently created.
-        joinable.sort((a, b) => {
-          const at = (a.data() as QuizSession).startedAt ?? 0;
-          const bt = (b.data() as QuizSession).startedAt ?? 0;
-          return bt - at;
-        });
-        const sessionData = joinable[0].data() as QuizSession;
+        joinable.sort(
+          (a, b) => (b.data.startedAt ?? 0) - (a.data.startedAt ?? 0)
+        );
+        const sessionData = joinable[0].data;
         const sessionId = joinable[0].id;
         // resolvePeriodNames normalises legacy periodName + new periodNames
         // into a typed string[], avoiding the `any[]` from Firestore's
@@ -2055,19 +2047,16 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           throw new Error('PIN is required');
         }
 
-        const snap = await getDocs(
-          query(
-            collection(db, QUIZ_SESSIONS_COLLECTION),
-            where('code', '==', normCode)
-          )
-        ).catch((err: unknown) =>
-          logQuizJoinFirestoreError('lookup-sessions', err, {
-            codeNorm: normCode,
-            studentUid,
-            isAnonymous,
-          })
+        const matches = await findQuizSessionsByCode(normCode).catch(
+          (err: unknown) =>
+            logQuizJoinFirestoreError('lookup-sessions', err, {
+              codeNorm: normCode,
+              studentUid,
+              isAnonymous,
+            })
         );
-        if (snap.empty) throw new Error('No active quiz found with that code.');
+        if (matches.length === 0)
+          throw new Error('No active quiz found with that code.');
 
         // A code can transiently appear on more than one doc — e.g. an old
         // ended session plus a new live one with a recycled code. Filter
@@ -2075,21 +2064,19 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // active / paused) before picking one, otherwise docs[0] may be the
         // stale ended session and students get rejected despite a live
         // session existing.
-        const joinable = snap.docs.filter((d) => {
-          const s = (d.data() as QuizSession).status;
+        const joinable = matches.filter((m) => {
+          const s = m.data.status;
           return s === 'waiting' || s === 'active' || s === 'paused';
         });
         if (joinable.length === 0) {
           throw new SessionEndedError();
         }
         // Prefer the most recently created joinable doc.
-        joinable.sort((a, b) => {
-          const at = (a.data() as QuizSession).startedAt ?? 0;
-          const bt = (b.data() as QuizSession).startedAt ?? 0;
-          return bt - at;
-        });
+        joinable.sort(
+          (a, b) => (b.data.startedAt ?? 0) - (a.data.startedAt ?? 0)
+        );
         const sessionDoc = joinable[0];
-        const sessionData = sessionDoc.data() as QuizSession;
+        const sessionData = sessionDoc.data;
 
         // Phase 3 — PIN→SSO identity bridge. When an anonymous PIN
         // joiner lands on a rostered session (the typical case for
@@ -3382,13 +3369,8 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         }
         const studentUid = currentUser.uid;
 
-        const snap = await getDocs(
-          query(
-            collection(db, QUIZ_SESSIONS_COLLECTION),
-            where('code', '==', normCode)
-          )
-        );
-        if (snap.empty) {
+        const matches = await findQuizSessionsByCode(normCode);
+        if (matches.length === 0) {
           throw new Error('No quiz found with that code.');
         }
         // Prefer sessions where the teacher has published scores; among
@@ -3396,9 +3378,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // `startedAt`. A code can recur across multiple sessions over a
         // school year, and the student-facing review should land on the
         // assignment that's actually been published.
-        const docs = snap.docs.slice().sort((a, b) => {
-          const ad = a.data() as QuizSession;
-          const bd = b.data() as QuizSession;
+        const docs = matches.slice().sort((a, b) => {
+          const ad = a.data;
+          const bd = b.data;
           const aPublished = (ad.scoreVisibility ?? 'none') !== 'none' ? 1 : 0;
           const bPublished = (bd.scoreVisibility ?? 'none') !== 'none' ? 1 : 0;
           if (aPublished !== bPublished) return bPublished - aPublished;

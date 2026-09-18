@@ -41,6 +41,11 @@ vi.mock('@/components/widgets/SeatingChart/FurnitureItemRenderer', () => ({
     <div data-testid={`furniture-${item.id}`} />
   ),
 }));
+// Class groups default OFF here, so these suites keep asserting the
+// pre-feature behaviour (docs/plans/ROSTER_GROUPS_INTEGRATION.md D23).
+vi.mock('@/hooks/useRosterGroupsGate', () => ({
+  useRosterGroupsGate: () => false,
+}));
 
 import { SeatingChartWidget } from '@/components/widgets/SeatingChart/Widget';
 

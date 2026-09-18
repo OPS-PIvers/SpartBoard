@@ -9,6 +9,9 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
+import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
+import { RosterGroupSelect } from '@/components/common/RosterGroupSelect';
+import { rosterGroupMemberIds } from '@/utils/rosterGroups';
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { Plus, RefreshCcw, Check, Trash2, Copy, Users } from 'lucide-react';
@@ -38,6 +41,13 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
   const { driveService } = useGoogleDrive();
   const { updateWidget, rosters, activeRosterId, addToast } = useDashboard();
   const { showAlert, showConfirm, showPrompt } = useDialog();
+
+  // Group-scoped import (docs/plans/ROSTER_GROUPS_INTEGRATION.md D21). A
+  // one-shot import choice, not saved config — the queue stays a snapshot the
+  // teacher reorders by hand rather than becoming a live class binding.
+  const rosterGroupsEnabled = useRosterGroupsGate();
+  const [importGroupId, setImportGroupId] = useState<string | null>(null);
+  const activeRoster = rosters.find((r) => r.id === activeRosterId);
 
   const [existingFiles, setExistingFiles] = useState<
     { id: string; name: string }[]
@@ -205,8 +215,21 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
       return;
     }
 
+    const inGroup = rosterGroupMemberIds(
+      roster,
+      importGroupId,
+      rosterGroupsEnabled
+    );
+    const source = inGroup
+      ? roster.students.filter((s) => inGroup.has(s.id))
+      : roster.students;
+    if (source.length === 0) {
+      addToast('That class group has nobody on the roster.', 'error');
+      return;
+    }
+
     const confirmed = await showConfirm(
-      `Replace current queue with ${roster.students.length} students from ${roster.name}?`,
+      `Replace current queue with ${source.length} students from ${roster.name}?`,
       {
         title: 'Import Class',
         variant: 'warning',
@@ -217,8 +240,8 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
     if (!confirmed) return;
 
     const MAX_QUEUE_LENGTH = 500;
-    const studentsToImport = roster.students.slice(0, MAX_QUEUE_LENGTH);
-    const wasTruncated = roster.students.length > MAX_QUEUE_LENGTH;
+    const studentsToImport = source.slice(0, MAX_QUEUE_LENGTH);
+    const wasTruncated = source.length > MAX_QUEUE_LENGTH;
 
     const newQueue: NextUpQueueItem[] = studentsToImport.map(
       (student, index) => ({
@@ -336,6 +359,15 @@ export const NextUpSettings: React.FC<{ widget: WidgetData }> = ({
               </div>
 
               <div className="flex flex-col gap-2">
+                {rosterGroupsEnabled && activeRoster && (
+                  <RosterGroupSelect
+                    roster={activeRoster}
+                    value={importGroupId}
+                    onChange={setImportGroupId}
+                    wholeClassLabel="Whole class"
+                    ariaLabel="Import scope"
+                  />
+                )}
                 <button
                   onClick={handleImportRoster}
                   className="w-full flex items-center justify-center gap-2 p-3 bg-indigo-50 border-2 border-indigo-100 rounded-xl text-indigo-600 hover:bg-indigo-100 transition-colors text-xs font-bold group"

@@ -27,6 +27,15 @@ vi.mock('firebase/firestore', () => ({
   updateDoc: vi.fn(() => undefined),
   getDocs: vi.fn(() => ({ empty: false, docs: [{ id: 'sess-1' }] })),
 }));
+// The route resolves its session id through the join-code lookup; this test is
+// about what happens after that, so the lookup is stubbed to the same session.
+vi.mock('@/utils/quizJoinCodes', () => ({
+  findQuizSessionsByCode: vi.fn(() =>
+    Promise.resolve([{ id: 'sess-1', data: {} }])
+  ),
+  addJoinCodePointerToBatch: vi.fn(),
+  deleteJoinCodePointerFromBatch: vi.fn(),
+}));
 
 let authUser: Record<string, unknown> | null = null;
 const signInWithGoogle = vi.fn();
