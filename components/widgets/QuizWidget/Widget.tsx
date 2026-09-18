@@ -2934,12 +2934,22 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 try {
                   const link = httpsCallable<
                     { assignmentId: string },
-                    { pointersWritten: number; unlinked: number }
+                    {
+                      pointersWritten: number;
+                      unlinked: number;
+                      unplaced: number;
+                    }
                   >(functions, 'publishPaperResultsV1');
                   const linked = (await link({ assignmentId: target.id })).data;
                   if (linked.unlinked > 0) {
                     addToast(
                       `${linked.unlinked} paper response${linked.unlinked === 1 ? ' has' : 's have'} no student login to link to; those students can see results only from your view.`,
+                      'info'
+                    );
+                  }
+                  if (linked.unplaced > 0) {
+                    addToast(
+                      `${linked.unplaced} paper response${linked.unplaced === 1 ? ' belongs' : 's belong'} to a student whose roster has no class link yet; sync the roster and publish again to reach them.`,
                       'info'
                     );
                   }
@@ -3260,9 +3270,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 },
                 attemptLimit: 1,
               },
-              // No classIds and already ended: never a live door for
-              // students, and a pointer leads straight to their result (Q34).
-              { initialStatus: 'inactive' }
+              // No classIds and paused: never a live door for students.
+              // publishPaperResultsV1 ends it once results go out (Q34).
+              { initialStatus: 'paused' }
             );
             return id;
           }}

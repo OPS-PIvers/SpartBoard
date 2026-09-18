@@ -477,11 +477,15 @@ describe('handlePublishPaperResults', () => {
       studentUid: 'device-kid',
       classId: 'class-1',
     },
+    [`quiz_sessions/${ASSIGNMENT}/responses/pseudo-s3`]: {
+      studentUid: 'pseudo-s3',
+      paperBatchId: BATCH,
+    },
   });
 
   it('writes a pointer for every pseudonym-keyed paper response and counts the rest', async () => {
     const { result, docs } = await publish(withResponses());
-    expect(result).toEqual({ pointersWritten: 1, unlinked: 1 });
+    expect(result).toEqual({ pointersWritten: 1, unlinked: 1, unplaced: 1 });
     expect(docs[`student_assignments/pseudo-s2/items/${ASSIGNMENT}`]).toEqual({
       kind: 'quiz',
       sessionId: ASSIGNMENT,
@@ -496,6 +500,39 @@ describe('handlePublishPaperResults', () => {
     expect(
       docs[`student_assignments/pin-period_1-0001/items/${ASSIGNMENT}`]
     ).toBeUndefined();
+    expect(
+      docs[`student_assignments/pseudo-s3/items/${ASSIGNMENT}`]
+    ).toBeUndefined();
+  });
+
+  it('ends a paused paper-only administration so pointers lead to the review, and leaves a class session alone', async () => {
+    const paperOnly = withResponses();
+    paperOnly[`quiz_sessions/${ASSIGNMENT}`] = {
+      ...paperOnly[`quiz_sessions/${ASSIGNMENT}`],
+      status: 'paused',
+    };
+    paperOnly[`users/${UID}/quiz_assignments/${ASSIGNMENT}`] = {
+      quizId: 'quiz-1',
+      status: 'paused',
+    };
+    const ended = await publish(paperOnly);
+    expect(ended.docs[`quiz_sessions/${ASSIGNMENT}`]).toMatchObject({
+      status: 'ended',
+      endedAt: NOW,
+      teacherUid: UID,
+    });
+    expect(
+      ended.docs[`users/${UID}/quiz_assignments/${ASSIGNMENT}`]
+    ).toMatchObject({ status: 'inactive', updatedAt: NOW });
+
+    const mixed = withResponses();
+    mixed[`quiz_sessions/${ASSIGNMENT}`] = {
+      ...mixed[`quiz_sessions/${ASSIGNMENT}`],
+      status: 'paused',
+      classIds: ['class-1'],
+    };
+    const kept = await publish(mixed);
+    expect(kept.docs[`quiz_sessions/${ASSIGNMENT}`].status).toBe('paused');
   });
 
   it("keeps an existing pointer's createdAt and any stored override", async () => {
@@ -521,7 +558,7 @@ describe('handlePublishPaperResults', () => {
 
   it('is a no-op for an administration with no paper responses', async () => {
     const { result } = await publish(baseDocs());
-    expect(result).toEqual({ pointersWritten: 0, unlinked: 0 });
+    expect(result).toEqual({ pointersWritten: 0, unlinked: 0, unplaced: 0 });
   });
 
   it('refuses the flag off, non-owners, students and the signed-out', async () => {

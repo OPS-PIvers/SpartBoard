@@ -389,6 +389,8 @@ export interface PublishPaperResultsResult {
   pointersWritten: number;
   /** Paper responses keyed `pin-…`, with no SSO identity to point at. */
   unlinked: number;
+  /** Responses with a student identity but no class on the roster's pin index. */
+  unplaced: number;
 }
 
 /**
@@ -424,7 +426,8 @@ export async function handlePublishPaperResults(
   ]);
   if (!assignmentSnap.exists || !sessionSnap.exists)
     throw new HttpsError('not-found', 'Assignment not found.');
-  if (sessionSnap.data()?.teacherUid !== caller.uid)
+  const session = sessionSnap.data() ?? {};
+  if (session.teacherUid !== caller.uid)
     throw new HttpsError('permission-denied', 'Not the owner of this session.');
 
   const responses = await db
@@ -435,12 +438,17 @@ export async function handlePublishPaperResults(
     .get();
   const linked: Array<{ uid: string; classId: string }> = [];
   let unlinked = 0;
+  let unplaced = 0;
   for (const d of responses.docs) {
     const r = d.data() ?? {};
     const uid = typeof r.studentUid === 'string' ? r.studentUid : '';
     const classId = typeof r.classId === 'string' ? r.classId : '';
-    if (!uid || uid.startsWith('pin-') || !classId) {
+    if (!uid || uid.startsWith('pin-')) {
       unlinked += 1;
+      continue;
+    }
+    if (!classId) {
+      unplaced += 1;
       continue;
     }
     linked.push({ uid, classId });
@@ -458,6 +466,23 @@ export async function handlePublishPaperResults(
 
   let writes = db.batch();
   let pending = 0;
+  // A paper-only administration (no class channel) is created paused so it
+  // is never a live door; once results are published it ends, which is what
+  // sends a pointer-holder straight to their review instead of a paused screen.
+  const classIds = Array.isArray(session.classIds) ? session.classIds : [];
+  if (session.status === 'paused' && classIds.length === 0) {
+    writes.set(
+      db.collection('quiz_sessions').doc(assignmentId),
+      { status: 'ended', endedAt: now, autoProgressAt: null },
+      { merge: true }
+    );
+    writes.set(
+      userRef.collection('quiz_assignments').doc(assignmentId),
+      { status: 'inactive', updatedAt: now },
+      { merge: true }
+    );
+    pending += 2;
+  }
   for (let i = 0; i < linked.length; i += 1) {
     const { uid, classId } = linked[i];
     const prior = existing[i].exists ? (existing[i].data() ?? {}) : null;
@@ -482,7 +507,7 @@ export async function handlePublishPaperResults(
   }
   if (pending > 0) await writes.commit();
 
-  return { pointersWritten: linked.length, unlinked };
+  return { pointersWritten: linked.length, unlinked, unplaced };
 }
 
 export const publishPaperResultsV1 = onCall(
