@@ -711,6 +711,8 @@ interface ConfirmProps {
   onCancel: () => void;
   destructive?: boolean;
   requireTyping?: string;
+  /** In-flight: both buttons lock so the action can't be double-sent or dismissed. */
+  busy?: boolean;
 }
 
 export const Confirm: React.FC<ConfirmProps> = (props) => {
@@ -726,13 +728,14 @@ const ConfirmInner: React.FC<ConfirmProps> = ({
   onCancel,
   destructive,
   requireTyping,
+  busy = false,
 }) => {
   const [typed, setTyped] = useState('');
   const typingOk = !requireTyping || typed === requireTyping;
   return (
     <div
       className="fixed inset-0 z-modal-deep flex items-center justify-center p-4 bg-[rgba(29,42,93,0.45)] animate-in fade-in duration-150"
-      onClick={onCancel}
+      onClick={busy ? undefined : onCancel}
       role="dialog"
       aria-modal="true"
       aria-label={title}
@@ -757,13 +760,13 @@ const ConfirmInner: React.FC<ConfirmProps> = ({
           )}
         </div>
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
-          <Btn variant="ghost" onClick={onCancel}>
+          <Btn variant="ghost" onClick={onCancel} disabled={busy}>
             Cancel
           </Btn>
           <Btn
             variant={destructive ? 'danger' : 'primary'}
             onClick={onConfirm}
-            disabled={!typingOk}
+            disabled={!typingOk || busy}
           >
             {confirmLabel}
           </Btn>

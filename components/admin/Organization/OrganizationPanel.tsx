@@ -320,7 +320,11 @@ export const OrganizationPanel: React.FC = () => {
     email: string;
     preflight: DeleteUserResponse | null;
   } | null>(null);
-  const [deleteBusy, setDeleteBusy] = useState(false);
+  // 'preflight' is safe to cancel — nothing has been sent that matters.
+  // 'deleting' is not: that request cannot be called back.
+  const [deletePhase, setDeletePhase] = useState<
+    'idle' | 'preflight' | 'deleting'
+  >('idle');
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showToast = (message: string, type: OrgToastType = 'info') => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -444,15 +448,21 @@ export const OrganizationPanel: React.FC = () => {
   const handleDeleteUserAccount = (email: string) => {
     if (!writesEnabled) return comingSoon('Delete user account');
     setDeleteTarget({ email, preflight: null });
-    setDeleteBusy(true);
+    setDeletePhase('preflight');
     deleteUserAccount(email, { dryRun: true })
-      .then((preflight) => setDeleteTarget({ email, preflight }))
+      // Only fill in the dialog the admin still has open — cancelling during
+      // the scan must not silently reopen it.
+      .then((preflight) =>
+        setDeleteTarget((cur) =>
+          cur && cur.email === email ? { email, preflight } : cur
+        )
+      )
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
         showToast(`Could not check ${email}: ${msg}`, 'error');
         setDeleteTarget(null);
       })
-      .finally(() => setDeleteBusy(false));
+      .finally(() => setDeletePhase('idle'));
   };
 
   // Step 2: the irreversible pass. The CF re-runs its own blocker scan, so a
@@ -460,7 +470,7 @@ export const OrganizationPanel: React.FC = () => {
   const handleConfirmDelete = () => {
     const target = deleteTarget;
     if (!target) return;
-    setDeleteBusy(true);
+    setDeletePhase('deleting');
     deleteUserAccount(target.email, { dryRun: false })
       .then((res) => {
         if (!res.deleted) {
@@ -484,7 +494,7 @@ export const OrganizationPanel: React.FC = () => {
         const msg = err instanceof Error ? err.message : String(err);
         showToast(`Delete failed: ${msg}`, 'error');
       })
-      .finally(() => setDeleteBusy(false));
+      .finally(() => setDeletePhase('idle'));
   };
   // Phase 4: invitations go through the `createOrganizationInvites` CF
   // (Admin SDK) which writes both a `members/{emailLower}` doc (status
@@ -949,11 +959,15 @@ export const OrganizationPanel: React.FC = () => {
         title="Delete this account?"
         destructive
         requireTyping={deleteTarget?.email}
-        confirmLabel={deleteBusy ? 'Working...' : 'Delete permanently'}
+        busy={deletePhase === 'deleting'}
+        confirmLabel={
+          deletePhase === 'deleting' ? 'Working...' : 'Delete permanently'
+        }
         // A delete already sent to the server cannot be called back, so
-        // dismissing mid-flight would hide its outcome.
+        // dismissing mid-flight would hide its outcome. Cancelling the
+        // preflight is harmless and stays allowed.
         onCancel={() => {
-          if (!deleteBusy) setDeleteTarget(null);
+          if (deletePhase !== 'deleting') setDeleteTarget(null);
         }}
         onConfirm={handleConfirmDelete}
         message={
