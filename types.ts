@@ -2783,9 +2783,9 @@ export interface LunchCountConfig {
   recipient?: string;
   syncError?: string | null; // To display E-SYNC-404 etc.
   rosterMode?: 'class' | 'custom';
-  /** Hour portion of the lunch time (e.g. "11") */
   /** Pool: the saved class group to draw from. Unset or null = whole class. */
   rosterPoolGroupId?: string | null;
+  /** Hour portion of the lunch time (e.g. "11") */
   lunchTimeHour?: string;
   /** Minute portion of the lunch time (e.g. "30") */
   lunchTimeMinute?: string;
