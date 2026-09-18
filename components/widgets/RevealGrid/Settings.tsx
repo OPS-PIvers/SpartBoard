@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { TypographySettings } from '@/components/common/TypographySettings';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 
 export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -276,6 +277,19 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
     updateCards(cards.map((c) => (c.id === id ? { ...c, [field]: value } : c)));
   };
 
+  const columnOptions = [2, 3, 4, 5] as const;
+  // Shared select handler — reused by the onClick and roving-tabindex keydown paths.
+  const selectColumns = (n: (typeof columnOptions)[number]) =>
+    updateWidget(widget.id, { config: { ...config, columns: n } });
+
+  const gameModeOptions = [false, true] as const;
+  const selectGameMode = (isMemoryMode: (typeof gameModeOptions)[number]) =>
+    updateWidget(widget.id, { config: { ...config, isMemoryMode } });
+
+  const revealModeOptions = ['flip', 'fade'] as const;
+  const selectRevealMode = (mode: (typeof revealModeOptions)[number]) =>
+    updateWidget(widget.id, { config: { ...config, revealMode: mode } });
+
   return (
     <div className="space-y-6">
       {/* Columns */}
@@ -284,19 +298,21 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
           Columns
         </SettingsLabel>
         <div
-          role="group"
+          role="radiogroup"
           aria-labelledby={`revealgrid-columns-label-${widget.id}`}
           className="flex bg-slate-100 p-1 rounded-xl"
+          onKeyDown={(e) =>
+            handleRadioGroupKeyDown(e, columnOptions, selectColumns)
+          }
         >
-          {([2, 3, 4, 5] as const).map((n) => (
+          {columnOptions.map((n) => (
             <button
               key={n}
               type="button"
-              onClick={() =>
-                updateWidget(widget.id, {
-                  config: { ...config, columns: n },
-                })
-              }
+              role="radio"
+              aria-checked={columns === n}
+              tabIndex={columns === n ? 0 : -1}
+              onClick={() => selectColumns(n)}
               className={`flex-1 py-1.5 text-xxs font-black rounded-lg transition-all ${
                 columns === n
                   ? 'bg-white shadow-sm text-slate-800'
@@ -315,17 +331,19 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
           Game Mode
         </SettingsLabel>
         <div
-          role="group"
+          role="radiogroup"
           aria-labelledby={`revealgrid-gamemode-label-${widget.id}`}
           className="flex bg-slate-100 p-1 rounded-xl"
+          onKeyDown={(e) =>
+            handleRadioGroupKeyDown(e, gameModeOptions, selectGameMode)
+          }
         >
           <button
             type="button"
-            onClick={() =>
-              updateWidget(widget.id, {
-                config: { ...config, isMemoryMode: false },
-              })
-            }
+            role="radio"
+            aria-checked={!config.isMemoryMode}
+            tabIndex={!config.isMemoryMode ? 0 : -1}
+            onClick={() => selectGameMode(false)}
             className={`flex-1 py-1.5 text-xxs font-black uppercase rounded-lg transition-all ${
               !config.isMemoryMode
                 ? 'bg-white shadow-sm text-slate-800'
@@ -336,11 +354,10 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
           </button>
           <button
             type="button"
-            onClick={() =>
-              updateWidget(widget.id, {
-                config: { ...config, isMemoryMode: true },
-              })
-            }
+            role="radio"
+            aria-checked={!!config.isMemoryMode}
+            tabIndex={config.isMemoryMode ? 0 : -1}
+            onClick={() => selectGameMode(true)}
             className={`flex-1 py-1.5 text-xxs font-black uppercase rounded-lg transition-all ${
               config.isMemoryMode
                 ? 'bg-white shadow-sm text-slate-800'
@@ -367,28 +384,33 @@ export const RevealGridSettings: React.FC<{ widget: WidgetData }> = ({
           Reveal Mode
         </SettingsLabel>
         <div
-          role="group"
+          role="radiogroup"
           aria-labelledby={`revealgrid-revealmode-label-${widget.id}`}
           className="flex bg-slate-100 p-1 rounded-xl"
+          onKeyDown={(e) =>
+            handleRadioGroupKeyDown(e, revealModeOptions, selectRevealMode)
+          }
         >
-          {(['flip', 'fade'] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() =>
-                updateWidget(widget.id, {
-                  config: { ...config, revealMode: mode },
-                })
-              }
-              className={`flex-1 py-1.5 text-xxs font-black uppercase rounded-lg transition-all ${
-                (config.revealMode ?? 'flip') === mode
-                  ? 'bg-white shadow-sm text-slate-800'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              {mode}
-            </button>
-          ))}
+          {revealModeOptions.map((mode) => {
+            const selected = (config.revealMode ?? 'flip') === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => selectRevealMode(mode)}
+                className={`flex-1 py-1.5 text-xxs font-black uppercase rounded-lg transition-all ${
+                  selected
+                    ? 'bg-white shadow-sm text-slate-800'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {mode}
+              </button>
+            );
+          })}
         </div>
       </div>
 

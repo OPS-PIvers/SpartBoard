@@ -392,6 +392,143 @@ describe('RosterEditorModal', () => {
     expect(screen.getByText('1 student')).toBeInTheDocument();
   });
 
+  it('splits the class into N named groups covering every student', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const existing: ClassRoster = {
+      id: 'r1',
+      name: 'Existing Class',
+      students: Array.from({ length: 6 }, (_, i) => ({
+        id: `s${i}`,
+        firstName: `Kid${i}`,
+        lastName: 'X',
+        pin: String(i).padStart(2, '0'),
+      })),
+      groups: [],
+      driveFileId: null,
+      studentCount: 6,
+      createdAt: Date.now(),
+    };
+
+    render(
+      <RosterEditorModal
+        isOpen={true}
+        roster={existing}
+        onClose={vi.fn()}
+        onSave={onSave}
+      />
+    );
+
+    await user.click(screen.getByRole('tab', { name: /groups/i }));
+    await user.click(screen.getByRole('button', { name: /split class/i }));
+
+    const nameField = screen.getByLabelText(/group name/i);
+    // Prefilled and dated so repeat splits stay tellable apart (plan D18).
+    expect((nameField as HTMLInputElement).value).toMatch(/^Teams – /);
+    await user.clear(nameField);
+    await user.type(nameField, 'Teams');
+
+    const countField = screen.getByLabelText(/^groups$/i);
+    await user.clear(countField);
+    await user.type(countField, '3');
+    await user.click(screen.getByRole('button', { name: /create groups/i }));
+
+    await user.click(screen.getByRole('button', { name: /save/i }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+
+    const groups = onSave.mock.calls[0][2] as ClassRoster['groups'];
+    expect(groups).toHaveLength(3);
+    expect(groups?.map((g) => g.name)).toEqual([
+      'Teams (1)',
+      'Teams (2)',
+      'Teams (3)',
+    ]);
+    // Every student lands in exactly one group, keyed by id not display name.
+    const assigned = groups?.flatMap((g) => g.studentIds) ?? [];
+    expect(assigned.slice().sort()).toEqual([
+      's0',
+      's1',
+      's2',
+      's3',
+      's4',
+      's5',
+    ]);
+  });
+
+  it('offers a single "+ New Group" CTA on the empty groups tab', async () => {
+    const user = userEvent.setup();
+    const existing: ClassRoster = {
+      id: 'r1',
+      name: 'Existing Class',
+      students: [
+        { id: 's1', firstName: 'Alice', lastName: 'Smith', pin: '01' },
+        { id: 's2', firstName: 'Bob', lastName: 'Jones', pin: '02' },
+      ],
+      groups: [],
+      driveFileId: null,
+      studentCount: 2,
+      createdAt: Date.now(),
+    };
+
+    render(
+      <RosterEditorModal
+        isOpen={true}
+        roster={existing}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('tab', { name: /groups/i }));
+    // RosterEmptyState carries the only add CTA; the footer keeps just Split.
+    expect(screen.getAllByRole('button', { name: /new group/i })).toHaveLength(
+      1
+    );
+    expect(
+      screen.getByRole('button', { name: /split class/i })
+    ).toBeInTheDocument();
+  });
+
+  it('keeps existing groups when splitting', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const existing: ClassRoster = {
+      id: 'r1',
+      name: 'Existing Class',
+      students: [
+        { id: 's1', firstName: 'Alice', lastName: 'Smith', pin: '01' },
+        { id: 's2', firstName: 'Bob', lastName: 'Jones', pin: '02' },
+      ],
+      groups: [{ id: 'g1', name: 'Reading Group A', studentIds: ['s1'] }],
+      driveFileId: null,
+      studentCount: 2,
+      createdAt: Date.now(),
+    };
+
+    render(
+      <RosterEditorModal
+        isOpen={true}
+        roster={existing}
+        onClose={vi.fn()}
+        onSave={onSave}
+      />
+    );
+
+    await user.click(screen.getByRole('tab', { name: /groups/i }));
+    await user.click(screen.getByRole('button', { name: /split class/i }));
+    await user.click(screen.getByRole('button', { name: /create groups/i }));
+    await user.click(screen.getByRole('button', { name: /save/i }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+
+    const groups = onSave.mock.calls[0][2] as ClassRoster['groups'];
+    expect(groups?.[0]).toEqual({
+      id: 'g1',
+      name: 'Reading Group A',
+      studentIds: ['s1'],
+    });
+    expect(groups).toHaveLength(3);
+  });
+
   it('splits full names when toggling single → dual', async () => {
     const user = userEvent.setup();
     render(

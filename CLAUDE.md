@@ -19,7 +19,7 @@ in `components/widgets/CLAUDE.md`; UI design context in `components/CLAUDE.md`.
 - Install with `pnpm run install:all` (root + `functions/`), not bare `pnpm install`.
 - `pnpm run test:rules` boots the Firestore emulator (`vitest.rules.config.ts`, `tests/rules/`).
 - `pnpm run test:counts` fails if Vitest silently collected fewer suites than baseline. CI shards with `test:shard --shard=N/3`, then `test:merge-reports` before `test:counts`.
-- `pnpm run changelog:draft` prints a draft `public/changelog.json` entry; rewrite it before committing.
+- `pnpm run changelog:draft` prints a draft `public/changelog.json` entry. Every bullet must be rewritten before committing — the rules are in [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md#how-to-write-a-release-note), and both `overview` and `details` are shown to every user.
 - `pnpm run <script> -- <flags>` forwards a literal `--` and Vitest then ignores the flags. Omit the `--`.
 - Claude Code dev servers (`.claude/launch.json`): `vite-dev` (3000), `vite-dev-bypass` (56300, `VITE_AUTH_BYPASS=true`), `functions-emulator` (5001).
 
@@ -89,6 +89,7 @@ allowlist fails toward a cosmetic annoyance.
 
 - Pushes to `dev-*` branches deploy a preview and ship rules, indexes and Cloud Functions to the shared prod project. Pushes to `main` deploy production (https://spartboard.web.app).
 - `pr-validation.yml` has a `preflight` job: if `firebase-dev-deploy.yml` already passed on the PR's head SHA, everything except E2E is skipped.
+- **Release notes**: `public/changelog.json` is read by teachers, not developers. Never name a feature flag, a Firestore path or an internal mechanism in it, and check every claim against what admin settings actually enable rather than what the code defines. See [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md#how-to-write-a-release-note).
 - **Comments**: One short line max — never multi-paragraph docstrings or multi-line comment blocks. Root-cause narrative and verification rationale belong in the PR description, not the diff. Exception: match the surrounding file's convention where one already differs consistently (e.g. `firestore.rules`). Enforced in review; see [docs/routines/debugger.md](docs/routines/debugger.md).
 - TypeScript strict mode; no `any` without explicit annotation. ESLint fails on warnings.
 - Widgets are not virtualized — keep dashboards to about 20 widgets.

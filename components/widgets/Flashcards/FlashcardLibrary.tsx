@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { FlashcardAssignment, FlashcardSet } from '@/types';
 import type { UseFoldersResult } from '@/hooks/useFolders';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import {
   AssignmentArchiveCard,
   FolderPickerPopover,
@@ -159,29 +160,19 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
       />
     </div>
   ) : tabAssignments.length === 0 ? (
-    <div
-      className="flex h-full flex-col items-center justify-center text-center"
-      style={{ gap: 'min(10px, 2.5cqmin)', padding: 'min(36px, 9cqmin)' }}
-    >
-      <Send
-        className="text-rose-300"
-        style={{ width: 'min(52px, 14cqmin)', height: 'min(52px, 14cqmin)' }}
-      />
-      <h3
-        className="font-black text-slate-800"
-        style={{ fontSize: 'min(18px, 5.5cqmin)' }}
-      >
-        {tab === 'archive' ? 'Nothing ended yet' : 'Nothing assigned yet'}
-      </h3>
-      <p
-        className="max-w-md text-slate-500"
-        style={{ fontSize: 'min(12px, 3.8cqmin)' }}
-      >
-        {tab === 'archive'
+    <ScaledEmptyState
+      icon={Send}
+      iconClassName="text-rose-300"
+      iconSize="min(52px, 14cqmin)"
+      titleClassName="text-slate-800"
+      subtitleClassName="max-w-md mx-auto text-slate-500"
+      title={tab === 'archive' ? 'Nothing ended yet' : 'Nothing assigned yet'}
+      subtitle={
+        tab === 'archive'
           ? 'Assignments you end show up here, so you can reopen or delete them.'
-          : 'Assign a set to a ClassLink class and it appears here until you end it.'}
-      </p>
-    </div>
+          : 'Assign a set to a ClassLink class and it appears here until you end it.'
+      }
+    />
   ) : (
     <div className="flex flex-col">
       {tabAssignments.map((assignment) => (
@@ -350,37 +341,23 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
             dragDisabled
             layout={view.state.viewMode}
             emptyState={
-              <div
-                className="flex h-full flex-col items-center justify-center text-center"
-                style={{
-                  gap: 'min(10px, 2.5cqmin)',
-                  padding: 'min(36px, 9cqmin)',
-                }}
-              >
-                <BookOpen
-                  className="text-rose-300"
-                  style={{
-                    width: 'min(52px, 14cqmin)',
-                    height: 'min(52px, 14cqmin)',
-                  }}
-                />
-                <h3
-                  className="font-black text-slate-800"
-                  style={{ fontSize: 'min(18px, 5.5cqmin)' }}
-                >
-                  {sets.length === 0
+              <ScaledEmptyState
+                icon={BookOpen}
+                iconClassName="text-rose-300"
+                iconSize="min(52px, 14cqmin)"
+                titleClassName="text-slate-800"
+                subtitleClassName="max-w-md mx-auto text-slate-500"
+                title={
+                  sets.length === 0
                     ? 'Build your first set'
-                    : 'No matching sets'}
-                </h3>
-                <p
-                  className="max-w-md text-slate-500"
-                  style={{ fontSize: 'min(12px, 3.8cqmin)' }}
-                >
-                  {sets.length === 0
+                    : 'No matching sets'
+                }
+                subtitle={
+                  sets.length === 0
                     ? 'Create a set from scratch, paste a Quizlet export, or import a CSV or Google Sheet.'
-                    : 'Try a different search or folder.'}
-                </p>
-              </div>
+                    : 'Try a different search or folder.'
+                }
+              />
             }
             renderCard={(set) => (
               <LibraryItemCard<FlashcardSet>

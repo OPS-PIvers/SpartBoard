@@ -54,6 +54,7 @@ import { RecessGearConfigurationPanel } from './RecessGearConfigurationPanel';
 import { SmartNotebookConfigurationPanel } from './SmartNotebookConfigurationPanel';
 import { UrlConfigurationPanel } from './UrlConfigurationPanel';
 import { CountdownConfigurationPanel } from './CountdownConfigurationPanel';
+import { ProjectsConfigurationPanel } from './ProjectsConfigurationPanel';
 import { First5ConfigurationPanel } from './First5ConfigurationPanel';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { LunchCountConfigurationPanel } from './LunchCountConfigurationPanel';
@@ -133,6 +134,7 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   'guided-learning':
     GuidedLearningConfigurationPanel as unknown as BuildingConfigPanel,
   countdown: CountdownConfigurationPanel as unknown as BuildingConfigPanel,
+  projects: ProjectsConfigurationPanel as unknown as BuildingConfigPanel,
   'first-5': First5ConfigurationPanel as unknown as BuildingConfigPanel,
   'need-do-put-then':
     NeedDoPutThenConfigurationPanel as unknown as BuildingConfigPanel,

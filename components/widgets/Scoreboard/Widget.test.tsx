@@ -23,6 +23,17 @@ import {
 // the mount-stable store surfaces.
 vi.mock('@/context/useDashboard');
 vi.mock('@/context/dashboardCanvasStore');
+// Both halves of the class-groups gate default OFF here, so these suites keep
+// asserting the pre-feature panel (docs/plans/ROSTER_GROUPS_INTEGRATION.md D23).
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
+}));
+vi.mock('@/hooks/useRosterGroupsIntegrationSettings', () => ({
+  useRosterGroupsIntegrationSettings: () => ({ enabled: false }),
+}));
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({ showConfirm: vi.fn().mockResolvedValue(true) }),
+}));
 
 // Mock ScoreboardItem to spy on renders
 vi.mock('./components/ScoreboardItem', async (importOriginal) => {
@@ -61,6 +72,8 @@ const mockAddToast = vi.fn();
 const mockDashboardContext = {
   updateWidget: mockUpdateWidget,
   addToast: mockAddToast,
+  rosters: [],
+  activeRosterId: null,
   activeDashboard: {
     widgets: [],
   },
@@ -505,7 +518,59 @@ describe('ScoreboardSettings', () => {
       expect.objectContaining({
         config: expect.objectContaining({
           teams: expect.arrayContaining([
-            expect.objectContaining({ name: 'Team 1' }),
+            expect.objectContaining({ name: 'Team A' }),
+          ]) as unknown,
+        }) as unknown,
+      })
+    );
+  });
+
+  it('continues the default A/B lettering and reuses freed letters', () => {
+    const makeWidget = (names: string[]): WidgetData => ({
+      id: 'scoreboard-id',
+      type: 'scoreboard',
+      config: {
+        teams: names.map((name, i) => ({
+          id: `team-${i}`,
+          name,
+          score: 0,
+          color: 'bg-blue-500',
+        })),
+      } as ScoreboardConfig,
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+      z: 1,
+      flipped: true,
+    });
+
+    const { unmount } = render(
+      <ScoreboardSettings widget={makeWidget(['Team A', 'Team B'])} />
+    );
+    fireEvent.click(screen.getByText('Add Team'));
+    expect(mockUpdateWidget).toHaveBeenCalledWith(
+      'scoreboard-id',
+      expect.objectContaining({
+        config: expect.objectContaining({
+          teams: expect.arrayContaining([
+            expect.objectContaining({ name: 'Team C' }),
+          ]) as unknown,
+        }) as unknown,
+      })
+    );
+
+    unmount();
+    mockUpdateWidget.mockClear();
+
+    render(<ScoreboardSettings widget={makeWidget(['Team A', 'Team C'])} />);
+    fireEvent.click(screen.getByText('Add Team'));
+    expect(mockUpdateWidget).toHaveBeenCalledWith(
+      'scoreboard-id',
+      expect.objectContaining({
+        config: expect.objectContaining({
+          teams: expect.arrayContaining([
+            expect.objectContaining({ name: 'Team B' }),
           ]) as unknown,
         }) as unknown,
       })

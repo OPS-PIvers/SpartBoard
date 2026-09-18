@@ -439,6 +439,7 @@ import {
   adminAnalytics,
   getPseudonymsForAssignmentV1,
   archiveActivityWallPhoto,
+  generateWithAI,
   generateVideoActivity,
   transcribeVideoWithGemini,
   generateGuidedLearning,
@@ -446,6 +447,7 @@ import {
   __getGeminiModelConfig,
   __resetGenerateWithAICaches,
   __resolveCallerIsAdmin,
+  __isVerifiedBetaMember,
 } from './index';
 import * as barrel from './index';
 import * as admin from 'firebase-admin';
@@ -731,7 +733,7 @@ describe('checkUrlCompatibility', () => {
     expect(result.reason).toBe('');
   });
 
-  it('should return isEmbeddable true and uncertain true if axios throws', async () => {
+  it('should return isEmbeddable false and uncertain true if axios throws', async () => {
     const mockHead = vi.mocked(axios.head);
     mockHead.mockRejectedValue(new Error('Network error on head request'));
 
@@ -744,7 +746,7 @@ describe('checkUrlCompatibility', () => {
       { auth: { uid: '123' } }
     );
 
-    expect(result.isEmbeddable).toBe(true);
+    expect(result.isEmbeddable).toBe(false);
     expect(result.uncertain).toBe(true);
     expect(result.error).toContain('Network error on head request');
   });
@@ -2935,6 +2937,45 @@ describe('generateWithAI read caching', () => {
     });
   });
 
+  // -------------------------------------------------------------------------
+  // isVerifiedBetaMember — beta-allowlist membership, same email_verified
+  // gate as resolveCallerIsAdmin. SECURITY: without it, a self-reported,
+  // unverified email matching a betaUsers entry unlocks a beta-gated Gemini
+  // feature without proving inbox ownership.
+  // -------------------------------------------------------------------------
+  describe('isVerifiedBetaMember', () => {
+    it('SECURITY: denies beta membership for an unverified self-reported beta email', () => {
+      const isMember = __isVerifiedBetaMember(
+        { email: 'beta@school.org', email_verified: false },
+        ['beta@school.org']
+      );
+      expect(isMember).toBe(false);
+    });
+
+    it('denies beta membership when email_verified is absent from the token', () => {
+      const isMember = __isVerifiedBetaMember({ email: 'beta@school.org' }, [
+        'beta@school.org',
+      ]);
+      expect(isMember).toBe(false);
+    });
+
+    it('grants beta membership for a verified matching email', () => {
+      const isMember = __isVerifiedBetaMember(
+        { email: 'beta@school.org', email_verified: true },
+        ['beta@school.org']
+      );
+      expect(isMember).toBe(true);
+    });
+
+    it('denies beta membership for a verified non-matching email', () => {
+      const isMember = __isVerifiedBetaMember(
+        { email: 'teacher@school.org', email_verified: true },
+        ['beta@school.org']
+      );
+      expect(isMember).toBe(false);
+    });
+  });
+
   it('caches gemini-functions model config across warm-instance reads', async () => {
     const db = admin.firestore();
     geminiConfigDocGet.mockResolvedValueOnce({
@@ -3116,6 +3157,7 @@ describe('index barrel — deployed export set', () => {
     '__getCachedAdminStatus',
     '__getGeminiModelConfig',
     '__resolveCallerIsAdmin',
+    '__isVerifiedBetaMember',
     // External-content proxy
     'fetchExternalProxy',
     'checkUrlCompatibility',
@@ -3125,6 +3167,7 @@ describe('index barrel — deployed export set', () => {
     'archiveActivityWallSubmissionOnUpdate',
     'archiveActivityWallSubmissionOnCreate',
     'fetchLinkPreview',
+    'archiveProjectUploadOnCreate',
     'archiveQuizMediaArtifact',
     'sweepStuckQuizArchives',
     'synthesizeQuizAudioV1',
@@ -3141,9 +3184,13 @@ describe('index barrel — deployed export set', () => {
     'getStudentClassDirectoryV1',
     'getPseudonymsForAssignmentV1',
     'commitRosterPinIndexV1',
+    'commitProjectGroupsV1',
     'pinLoginV1',
     // Individual assignment targeting (M17 A2 / A2b)
     'setAssignmentTargetsV1',
+    // Paper answer sheets (Increment 2 + Q34 pointers)
+    'importPaperResponsesV1',
+    'publishPaperResultsV1',
     'cleanupQuizAssignmentPointers',
     'cleanupVideoActivityAssignmentPointers',
     'cleanupGuidedLearningAssignmentPointers',
@@ -3160,6 +3207,7 @@ describe('index barrel — deployed export set', () => {
     'organizationMemberCounters',
     'organizationBuildingCounters',
     'resetOrganizationUserPassword',
+    'deleteOrganizationUser',
     'getOrgUserActivity',
     // PLC invites / rollout emails
     'plcInvitationEmail',
@@ -3266,7 +3314,13 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
   const VALID_DATA = { url: VALID_URL, questionCount: 3 };
   const NON_ADMIN_AUTH = {
     uid: 'uid-teacher-1',
-    token: { email: 'teacher@school.org' },
+    token: { email: 'teacher@school.org', email_verified: true },
+  };
+  // Same email as an admins/{email} doc, but unverified — simulates an
+  // attacker self-reporting a real admin's address at email/password sign-up.
+  const UNVERIFIED_ADMIN_AUTH = {
+    uid: 'uid-attacker-1',
+    token: { email: 'admin@school.org', email_verified: false },
   };
 
   const handler = generateVideoActivity as unknown as (
@@ -3395,6 +3449,225 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
       fileData: { fileUri: VALID_URL, mimeType: 'video/mp4' },
     });
   });
+
+  // SECURITY: before the fix, this handler looked up `admins/{email}` with
+  // the caller's self-reported, unverified email instead of the shared
+  // `resolveCallerIsAdmin` gate that `generateWithAI` already uses — letting
+  // an attacker who signs up with a spoofed, unverified admin email bypass
+  // the accessLevel: 'admin' restriction entirely.
+  it('SECURITY: does not grant admin bypass for an unverified self-reported admin email', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+    geminiConfigDocGet.mockResolvedValue({
+      exists: true,
+      data: () =>
+        ({
+          enabled: true,
+          accessLevel: 'admin',
+          betaUsers: [],
+        }) as Record<string, unknown>,
+    });
+
+    await expect(
+      handler(VALID_DATA, { auth: UNVERIFIED_ADMIN_AUTH })
+    ).rejects.toThrow(
+      'Gemini functions are currently restricted to administrators.'
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateWithAI — specificFeatureId accessLevel enforcement (regression test)
+// ---------------------------------------------------------------------------
+// Bug: the `if (specificFeatureId)` branch (global_permissions/{featureId})
+// only checked the per-feature daily usage limit — it never checked
+// `enabled`, `accessLevel`, or `betaUsers`, so a disabled, admin-only, or
+// beta-restricted feature (e.g. `embed-mini-app`, which defaults to
+// `accessLevel: 'admin'`) was reachable by calling `generateWithAI` directly,
+// bypassing the client-side `canAccessFeature` gate.
+//
+// Fix: mirror the existing global `gemini-functions` enforcement (enabled →
+// admin → beta/betaUsers) inside the `specPermDoc.exists` branch.
+//
+// Unlike `generateVideoActivity`/`transcribeVideoWithGemini` (whose
+// accessLevel checks run BEFORE their own transaction), `generateWithAI`
+// does its usage-counter reads and its permission checks inside one
+// `db.runTransaction` call. The shared `mockFirestore`/`runTransactionMock`
+// used elsewhere in this file don't give `ai_usage` a `.doc()` method or
+// route `transaction.get(ref)` by the ref passed in (several other tests
+// rely on that current behavior), so this block installs its own minimal
+// `admin.firestore()` stand-in per test rather than reusing those mocks.
+// ---------------------------------------------------------------------------
+describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
+  const NON_ADMIN_AUTH = {
+    uid: 'uid-teacher-1',
+    token: { email: 'teacher@school.org', email_verified: true },
+  };
+  // Same email as a betaUsers entry, but unverified — simulates an attacker
+  // self-reporting a real beta tester's address at email/password sign-up.
+  const UNVERIFIED_BETA_AUTH = {
+    uid: 'uid-attacker-1',
+    token: { email: 'beta@school.org', email_verified: false },
+  };
+  const MINI_APP_DATA = { type: 'mini-app', prompt: 'Build a flashcard app.' };
+
+  const handler = generateWithAI as unknown as (
+    data: unknown,
+    context: unknown
+  ) => Promise<unknown>;
+
+  interface PermDoc {
+    enabled: boolean;
+    accessLevel: 'admin' | 'beta' | 'all';
+    betaUsers?: string[];
+  }
+
+  // Covers exactly what generateWithAI's usage-tracking transaction touches:
+  // the ai_usage counters (always "doesn't exist yet", so no limit is ever
+  // hit) and whichever `global_permissions` docs it reads — `gemini-functions`
+  // (the global gate) plus the request's own `specificFeatureId`. Also backs
+  // `resolveCallerIsAdmin`'s `admins/{email}` lookup (outside the
+  // transaction) — every caller in this describe block is a non-admin.
+  function makeDb(globalPermissions: Record<string, PermDoc | undefined>) {
+    const notFound = { exists: false, data: () => undefined };
+    return {
+      collection: (name: string) => {
+        if (name === 'ai_usage') {
+          return { doc: () => ({ get: () => Promise.resolve(notFound) }) };
+        }
+        if (name === 'admins') {
+          return { doc: () => ({ get: () => Promise.resolve(notFound) }) };
+        }
+        if (name === 'global_permissions') {
+          return {
+            doc: (id: string) => ({
+              get: () => {
+                const perm = globalPermissions[id];
+                return Promise.resolve(
+                  perm ? { exists: true, data: () => perm } : notFound
+                );
+              },
+            }),
+          };
+        }
+        throw new Error(`makeDb: unexpected collection "${name}"`);
+      },
+      runTransaction: (
+        callback: (tx: {
+          get: (ref: { get: () => Promise<unknown> }) => Promise<unknown>;
+          set: () => void;
+        }) => unknown
+      ) =>
+        Promise.resolve(
+          callback({ get: (ref) => ref.get(), set: () => undefined })
+        ),
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    __resetGenerateWithAICaches();
+  });
+
+  it('throws permission-denied when embed-mini-app is disabled', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({
+        'embed-mini-app': { enabled: false, accessLevel: 'all' },
+      }) as unknown as admin.firestore.Firestore
+    );
+
+    await expect(
+      handler(MINI_APP_DATA, { auth: NON_ADMIN_AUTH })
+    ).rejects.toThrow(
+      'embed-mini-app is currently disabled by an administrator.'
+    );
+  });
+
+  it('throws permission-denied for a non-admin when embed-mini-app is admin-only', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({
+        'embed-mini-app': { enabled: true, accessLevel: 'admin' },
+      }) as unknown as admin.firestore.Firestore
+    );
+
+    await expect(
+      handler(MINI_APP_DATA, { auth: NON_ADMIN_AUTH })
+    ).rejects.toThrow(
+      'embed-mini-app is currently restricted to administrators.'
+    );
+  });
+
+  it('throws permission-denied for a non-beta user when embed-mini-app is beta-restricted', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({
+        'embed-mini-app': {
+          enabled: true,
+          accessLevel: 'beta',
+          betaUsers: ['beta@school.org'],
+        },
+      }) as unknown as admin.firestore.Firestore
+    );
+
+    await expect(
+      handler(MINI_APP_DATA, { auth: NON_ADMIN_AUTH })
+    ).rejects.toThrow(
+      'You do not have access to the embed-mini-app beta feature.'
+    );
+  });
+
+  it('does not throw permission-denied for a beta user included in embed-mini-app betaUsers', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({
+        'embed-mini-app': {
+          enabled: true,
+          accessLevel: 'beta',
+          betaUsers: ['teacher@school.org'],
+        },
+      }) as unknown as admin.firestore.Firestore
+    );
+
+    // Clears the accessLevel gate, then fails downstream (the real Gemini
+    // call is mocked to reject) — this only confirms it wasn't rejected by
+    // the accessLevel gate itself, mirroring the `generateVideoActivity`
+    // "does not throw for a beta user" regression test above.
+    const err = await handler(MINI_APP_DATA, { auth: NON_ADMIN_AUTH }).then(
+      () => null,
+      (e: unknown) => e as Error
+    );
+    expect(err).toBeInstanceOf(Error);
+    expect(err?.name).not.toBe('permission-denied');
+  });
+
+  it('SECURITY: does not grant beta access for an unverified self-reported beta email', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({
+        'embed-mini-app': {
+          enabled: true,
+          accessLevel: 'beta',
+          betaUsers: ['beta@school.org'],
+        },
+      }) as unknown as admin.firestore.Firestore
+    );
+
+    await expect(
+      handler(MINI_APP_DATA, { auth: UNVERIFIED_BETA_AUTH })
+    ).rejects.toThrow(
+      'You do not have access to the embed-mini-app beta feature.'
+    );
+  });
+
+  it('does not check accessLevel when no global_permissions doc exists for the feature', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({}) as unknown as admin.firestore.Firestore
+    );
+
+    const err = await handler(MINI_APP_DATA, { auth: NON_ADMIN_AUTH }).then(
+      () => null,
+      (e: unknown) => e as Error
+    );
+    expect(err).toBeInstanceOf(Error);
+    expect(err?.name).not.toBe('permission-denied');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -3413,11 +3686,17 @@ describe('transcribeVideoWithGemini', () => {
   const VALID_DATA = { url: VALID_URL, typeCounts: { MC: 3 } };
   const NON_ADMIN_AUTH = {
     uid: 'uid-teacher-1',
-    token: { email: 'teacher@school.org' },
+    token: { email: 'teacher@school.org', email_verified: true },
   };
   const ADMIN_AUTH = {
     uid: 'uid-admin-1',
-    token: { email: 'admin@school.org' },
+    token: { email: 'admin@school.org', email_verified: true },
+  };
+  // Same email as an admins/{email} doc, but unverified — simulates an
+  // attacker self-reporting a real admin's address at email/password sign-up.
+  const UNVERIFIED_ADMIN_AUTH = {
+    uid: 'uid-attacker-1',
+    token: { email: 'admin@school.org', email_verified: false },
   };
 
   const handler = transcribeVideoWithGemini as unknown as (
@@ -3569,6 +3848,30 @@ describe('transcribeVideoWithGemini', () => {
     ).rejects.toThrow('Could not extract a video ID from the provided URL.');
     expect(generateContentMock).not.toHaveBeenCalled();
   });
+
+  // SECURITY: before the fix, this handler looked up `admins/{email}` with
+  // the caller's self-reported, unverified email instead of the shared
+  // `resolveCallerIsAdmin` gate — letting an attacker who signs up with a
+  // spoofed, unverified admin email bypass accessLevel: 'admin'.
+  it('SECURITY: does not grant admin bypass for an unverified self-reported admin email', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+    audioTranscriptionPermDocGet.mockResolvedValue({
+      exists: true,
+      data: () =>
+        ({
+          enabled: true,
+          accessLevel: 'admin',
+          betaUsers: [],
+        }) as Record<string, unknown>,
+    });
+
+    await expect(
+      handler(VALID_DATA, { auth: UNVERIFIED_ADMIN_AUTH })
+    ).rejects.toThrow(
+      'Gemini audio transcription is restricted to administrators.'
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -3579,11 +3882,17 @@ describe('transcribeVideoWithGemini', () => {
 describe('generateGuidedLearning', () => {
   const NON_ADMIN_AUTH = {
     uid: 'uid-teacher-1',
-    token: { email: 'teacher@school.org' },
+    token: { email: 'teacher@school.org', email_verified: true },
   };
   const ADMIN_AUTH = {
     uid: 'uid-admin-1',
-    token: { email: 'admin@school.org' },
+    token: { email: 'admin@school.org', email_verified: true },
+  };
+  // Same email as an admins/{email} doc, but unverified — simulates an
+  // attacker self-reporting a real admin's address at email/password sign-up.
+  const UNVERIFIED_ADMIN_AUTH = {
+    uid: 'uid-attacker-1',
+    token: { email: 'admin@school.org', email_verified: false },
   };
   const VALID_IMAGE = {
     base64: 'AAAAAAAAAAAAAAAAAAAAAAAA',
@@ -3625,6 +3934,20 @@ describe('generateGuidedLearning', () => {
   it('throws permission-denied for a non-admin caller', async () => {
     await expect(
       handler({ images: [VALID_IMAGE] }, { auth: NON_ADMIN_AUTH })
+    ).rejects.toThrow('Admin access required to use AI generation.');
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  // SECURITY: this handler is the only gate on an admin-only authoring tool
+  // with no rate limit at all. Before the fix it looked up `admins/{email}`
+  // with the caller's self-reported, unverified email instead of the shared
+  // `resolveCallerIsAdmin` gate — letting an attacker who signs up with a
+  // spoofed, unverified admin email get full, unmetered access.
+  it('SECURITY: throws permission-denied for an unverified self-reported admin email', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+
+    await expect(
+      handler({ images: [VALID_IMAGE] }, { auth: UNVERIFIED_ADMIN_AUTH })
     ).rejects.toThrow('Admin access required to use AI generation.');
     expect(generateContentMock).not.toHaveBeenCalled();
   });

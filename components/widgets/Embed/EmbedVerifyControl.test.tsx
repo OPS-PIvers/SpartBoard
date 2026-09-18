@@ -19,7 +19,9 @@ vi.mock('./hooks/useEmbedConfig', () => ({
   }),
 }));
 
-let resolveVerify: (value: { data: { isEmbeddable: boolean } }) => void;
+let resolveVerify: (value: {
+  data: { isEmbeddable: boolean; uncertain?: boolean };
+}) => void;
 const mockCheckCompatibility = vi.fn(
   () =>
     new Promise((resolve) => {
@@ -113,5 +115,32 @@ describe('EmbedVerifyControl stale verification', () => {
       isEmbeddable: true,
       blockedReason: '',
     });
+  });
+
+  // An unreachable site used to come back isEmbeddable:true and get saved as verified.
+  it('leaves the saved verdict alone when the probe could not reach the site', async () => {
+    const updateConfig = vi.fn();
+
+    render(
+      <EmbedVerifyControl
+        config={{ url: 'https://a.example.com', isEmbeddable: true }}
+        widget={widget}
+        updateConfig={updateConfig}
+        t={t}
+        isAdmin={false}
+        canAccessFeature={() => true}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /verify/i }));
+
+    await act(async () => {
+      resolveVerify({ data: { isEmbeddable: false, uncertain: true } });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(updateConfig).not.toHaveBeenCalled();
+    expect(screen.getByText(/verifyErrorGeneric/)).toBeInTheDocument();
   });
 });

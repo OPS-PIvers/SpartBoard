@@ -5,6 +5,7 @@ import {
   Shield,
   Image as ImageIcon,
   Zap,
+  FlaskConical,
   Bell,
   ChevronLeft,
   ChevronRight,
@@ -24,6 +25,7 @@ import { useAuth } from '@/context/useAuth';
 import { FeaturePermissionsManager } from './FeaturePermissionsManager';
 import { BackgroundManager } from './BackgroundManager';
 import { GlobalPermissionsManager } from './GlobalPermissionsManager';
+import { RolloutSwitchesPanel } from './RolloutSwitchesPanel';
 import { AnnouncementsManager } from './Announcements';
 import { OrganizationPanel } from './Organization/OrganizationPanel';
 import { AnalyticsManager } from './Analytics/AnalyticsManager';
@@ -58,6 +60,12 @@ const TAB_GROUPS = [
         label: 'Global Settings',
         icon: Zap,
         component: GlobalPermissionsManager,
+      },
+      {
+        id: 'rollouts',
+        label: 'Rollouts',
+        icon: FlaskConical,
+        component: RolloutSwitchesPanel,
       },
     ],
   },

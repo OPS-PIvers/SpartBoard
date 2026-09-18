@@ -9,6 +9,13 @@ import { mockPointerEvent } from '@/tests/testHelpers/mocks';
 // Mock dependencies
 vi.mock('@/context/useDashboard');
 vi.mock('@/context/useAuth');
+// Class groups default OFF here, so these suites keep asserting the
+// pre-feature behaviour (docs/plans/ROSTER_GROUPS_INTEGRATION.md D23).
+// Flip `gate.enabled` inside a test to exercise the feature.
+const gate = vi.hoisted(() => ({ enabled: false }));
+vi.mock('@/hooks/useRosterGroupsGate', () => ({
+  useRosterGroupsGate: () => gate.enabled,
+}));
 
 const mockDashboardContext = {
   updateWidget: vi.fn(),
@@ -229,5 +236,115 @@ describe('LunchCountWidget', () => {
     // Verify it does NOT render the interactive elements
     expect(screen.queryByText('Assign 2 More Students')).toBeNull();
     expect(screen.queryByText('John Doe')).toBeNull(); // Missing interactive student items
+  });
+});
+
+/**
+ * Pool filter (docs/plans/ROSTER_GROUPS_INTEGRATION.md D22). Asserted here
+ * rather than trusted to match Checklist's — two widgets sharing a shape is
+ * exactly how the ungated sibling control slipped through on PR 2.
+ */
+describe('LunchCountWidget — class group pool', () => {
+  const pooledContext = {
+    ...mockDashboardContext,
+    rosters: [
+      {
+        id: 'roster-1',
+        name: 'Class 1A',
+        students: [
+          { id: 's1', firstName: 'John', lastName: 'Doe' },
+          { id: 's2', firstName: 'Jane', lastName: 'Smith' },
+        ],
+        groups: [{ id: 'g1', name: 'Reading', studentIds: ['s1'] }],
+      },
+    ],
+  };
+
+  const pooledWidget = (
+    rosterPoolGroupId: string | null,
+    assignments: Record<string, 'hot' | 'bento' | 'home' | null> = {}
+  ): WidgetData => ({
+    id: 'lunch-1',
+    type: 'lunchCount',
+    x: 0,
+    y: 0,
+    w: 400,
+    h: 300,
+    z: 1,
+    flipped: false,
+    config: {
+      schoolSite: 'schumann-elementary',
+      rosterMode: 'class',
+      assignments,
+      rosterPoolGroupId,
+      cachedMenu: {
+        hotLunch: { name: 'Pizza' },
+        hotLunchSides: [],
+        bentoBox: { name: 'Bento' },
+        date: new Date().toISOString(),
+      },
+      lastSyncDate: new Date().toISOString(),
+    } as unknown as LunchCountConfig,
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    gate.enabled = false;
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      pooledContext
+    );
+    (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockAuthContext
+    );
+  });
+
+  it('shows only the pool group once class groups are on', () => {
+    gate.enabled = true;
+    render(<LunchCountWidget widget={pooledWidget('g1')} />);
+    expect(screen.getByText('John Doe')).toBeInTheDocument();
+    expect(screen.queryByText('Jane Smith')).toBeNull();
+  });
+
+  it('ignores a stored pool while the feature is off', () => {
+    render(<LunchCountWidget widget={pooledWidget('g1')} />);
+    expect(screen.getByText('Jane Smith')).toBeInTheDocument();
+  });
+
+  it('counts the whole class for the cafeteria report, not the pool', () => {
+    // The pool is a view; Submit Report is an external submission the kitchen
+    // cooks to, so it must never shrink with the filter. Caught in review.
+    gate.enabled = true;
+    render(
+      <LunchCountWidget widget={pooledWidget('g1', { s1: 'hot', s2: 'hot' })} />
+    );
+    // Jane is hidden by the pool but still assigned, so the report is whole.
+    expect(screen.queryByText('Jane Smith')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Submit Report/i }));
+    // The confirmation modal shows the numbers that will be submitted: both
+    // students, not just the one the pool leaves visible.
+    const modal = screen
+      .getByText('Submit Lunch Report')
+      .closest('[aria-labelledby="report-modal-title"]') as HTMLElement;
+    const hotLunchRow = within(modal).getByText('Hot Lunch').closest('div')
+      ?.parentElement as HTMLElement;
+    expect(within(hotLunchRow).getByText('2')).toBeInTheDocument();
+  });
+
+  it('says where the missing student is when the pool hides them', () => {
+    // Every visible student is assigned, so the grid reads "Unassigned (0)".
+    // Without naming the hidden one the disabled button is unexplainable.
+    gate.enabled = true;
+    render(<LunchCountWidget widget={pooledWidget('g1', { s1: 'hot' })} />);
+    expect(
+      screen.getByRole('button', { name: /1 outside this group/i })
+    ).toBeDisabled();
+    expect(screen.getByText(/Unassigned \(0\)/)).toHaveTextContent(
+      /1 outside this group/i
+    );
+  });
+
+  it('keeps the plain label when nothing is hidden', () => {
+    render(<LunchCountWidget widget={pooledWidget(null, { s1: 'hot' })} />);
+    expect(screen.getByText(/Assign 1 More Students/i)).toBeInTheDocument();
   });
 });

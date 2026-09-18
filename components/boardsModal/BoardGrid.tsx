@@ -8,6 +8,8 @@ import { boardsInView, siblingCollections } from './dropIndicator';
 interface BoardGridProps {
   selectedCollectionId: string | null;
   collections: Collection[];
+  // Unfiltered set, used only to tell a real orphan from a parent the search filter dropped.
+  allCollections: Collection[];
   boards: Dashboard[];
   selectedIds: ReadonlySet<string>;
   canShare: boolean;
@@ -36,6 +38,7 @@ interface BoardGridProps {
 export const BoardGrid: React.FC<BoardGridProps> = ({
   selectedCollectionId,
   collections,
+  allCollections,
   boards,
   selectedIds,
   canShare,
@@ -54,8 +57,8 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
   const { t } = useTranslation();
 
   const subCollections = useMemo(
-    () => siblingCollections(collections, selectedCollectionId),
-    [collections, selectedCollectionId]
+    () => siblingCollections(collections, selectedCollectionId, allCollections),
+    [collections, allCollections, selectedCollectionId]
   );
 
   // "All Boards" view (selectedCollectionId === null) shows every Board

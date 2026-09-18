@@ -1,5 +1,7 @@
 import React, { useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import { useDashboard } from '@/context/useDashboard';
+import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
+import { rosterGroupMemberIds } from '@/utils/rosterGroups';
 import { ChecklistConfig, WidgetData, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { ListPlus, Users } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -21,6 +23,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     firstNames = '',
     lastNames = '',
     completedNames = [],
+    rosterPoolGroupId = null,
     scaleMultiplier = 1,
     fontFamily = 'global',
     cardColor = '#ffffff',
@@ -41,15 +44,25 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     () => rosters.find((r) => r.id === activeRosterId),
     [rosters, activeRosterId]
   );
+  const rosterGroupsEnabled = useRosterGroupsGate();
 
   const students = useMemo((): { id: string; label: string }[] => {
     if (mode !== 'roster') return [];
 
     if (rosterMode === 'class' && activeRoster) {
-      return activeRoster.students.map((s) => ({
-        id: s.id,
-        label: `${s.firstName} ${s.lastName}`.trim(),
-      }));
+      // Pool: a saved class group narrows the list. `completedNames` is left
+      // alone, so a student the pool hides keeps their tick when it widens.
+      const inPool = rosterGroupMemberIds(
+        activeRoster,
+        rosterPoolGroupId,
+        rosterGroupsEnabled
+      );
+      return activeRoster.students
+        .filter((s) => !inPool || inPool.has(s.id))
+        .map((s) => ({
+          id: s.id,
+          label: `${s.firstName} ${s.lastName}`.trim(),
+        }));
     }
 
     const firsts = firstNames
@@ -67,7 +80,15 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
       if (name) combined.push({ id: name, label: name });
     }
     return combined;
-  }, [firstNames, lastNames, mode, rosterMode, activeRoster]);
+  }, [
+    firstNames,
+    lastNames,
+    mode,
+    rosterMode,
+    activeRoster,
+    rosterPoolGroupId,
+    rosterGroupsEnabled,
+  ]);
 
   const latestState = useRef({
     items,

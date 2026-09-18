@@ -110,6 +110,7 @@ export const WIDGET_GRADE_LEVELS: Record<
   'need-do-put-then': ALL_GRADE_LEVELS,
   stations: ALL_GRADE_LEVELS,
   flashcards: ALL_GRADE_LEVELS,
+  projects: ['3-5', '6-8', '9-12'],
 };
 
 /**

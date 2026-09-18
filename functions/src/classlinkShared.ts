@@ -160,3 +160,23 @@ export function getOAuthHeaders(
     oauth.authorize({ url: baseUrl, method, data: params })
   ) as unknown as Record<string, string>;
 }
+
+/**
+ * Mirror of `encodeResponseKeySegment` in `useQuizSession.ts`. Duplicated
+ * server-side rather than imported because the functions package has its own
+ * tsconfig + emit and the client hook lives outside it. The client + server
+ * encoders MUST stay in lockstep — a divergence would produce mismatched
+ * `indexKey`s and silently break the PIN→SSO lookup.
+ */
+export function encodeResponseKeySegment(value: string | undefined): string {
+  const trimmed = (value ?? '').trim();
+  if (!trimmed) return 'default';
+  const normalized = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  const stripped = normalized.replace(/^_+|_+$/g, '');
+  return stripped || 'default';
+}
+
+/** Doc id of a roster's `pin_index` entry for one (period, pin) pair. */
+export function pinIndexKey(period: string, pin: string): string {
+  return `${encodeResponseKeySegment(period)}__${encodeResponseKeySegment(pin)}`;
+}

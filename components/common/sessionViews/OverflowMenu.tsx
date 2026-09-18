@@ -28,6 +28,12 @@ export interface OverflowMenuItem {
 interface OverflowMenuProps {
   items: OverflowMenuItem[];
   ariaLabel?: string;
+  /** Replaces the kebab glyph, e.g. a caret on a split button. */
+  triggerIcon?: LucideIcon;
+  /** Replaces the trigger's default colours and radius. */
+  triggerClassName?: string;
+  /** Stretches the trigger to its flex parent's height, e.g. beside a split-button primary. */
+  stretch?: boolean;
 }
 
 /**
@@ -43,6 +49,9 @@ interface OverflowMenuProps {
 export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   items,
   ariaLabel = 'More actions',
+  triggerIcon: TriggerIcon = MoreHorizontal,
+  triggerClassName = 'rounded-xl text-slate-500 hover:bg-white/70 hover:text-brand-blue-primary',
+  stretch = false,
 }) => {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(
@@ -125,7 +134,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   };
 
   return (
-    <div className="relative" ref={wrapperRef}>
+    <div className={stretch ? 'relative flex' : 'relative'} ref={wrapperRef}>
       <button
         ref={triggerRef}
         type="button"
@@ -133,10 +142,13 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-white/70 hover:text-brand-blue-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1"
-        style={{ width: 'min(36px, 10cqmin)', height: 'min(36px, 10cqmin)' }}
+        className={`inline-flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${triggerClassName}`}
+        style={{
+          width: stretch ? 'min(32px, 9cqmin)' : 'min(36px, 10cqmin)',
+          height: stretch ? undefined : 'min(36px, 10cqmin)',
+        }}
       >
-        <MoreHorizontal
+        <TriggerIcon
           style={{ width: 'min(18px, 5cqmin)', height: 'min(18px, 5cqmin)' }}
         />
       </button>

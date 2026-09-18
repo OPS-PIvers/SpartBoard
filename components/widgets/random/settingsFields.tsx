@@ -1,13 +1,22 @@
 import React from 'react';
+import { Lock } from 'lucide-react';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
-import type { RandomConfig, RandomGroup, StationsConfig } from '@/types';
+import type {
+  ProjectsConfig,
+  RandomConfig,
+  RandomGroup,
+  StationsConfig,
+} from '@/types';
+import { resolveRandomGroupName } from './groupNames';
 import {
   buildStationsFromRandomGroups,
   shouldResolveRosterNames,
 } from '@/components/widgets/Stations/nexus';
 import { getLocalIsoDate } from '@/utils/localDate';
+import { countRosterGroupMembers } from '@/utils/rosterGroups';
+import { useRosterGroupsIntegrationSettings } from '@/hooks/useRosterGroupsIntegrationSettings';
 
 function useStudentCount(config: RandomConfig): number {
   const { rosters, activeRosterId } = useDashboard();
@@ -230,6 +239,279 @@ export const RandomSendToStationsField: React.FC<{
       className="w-full rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-40"
     >
       {ctx.t('widgetSettings.random.sendToStations')}
+    </button>
+  );
+};
+
+/**
+ * D7/A5 — the Group Maker pushes a group set over to Projects; Projects then
+ * confirms the import. The push stages a snapshot rather than committing it,
+ * because resolving students to district accounts can only be reported where
+ * the teacher can see who fell out (D8).
+ */
+export const RandomSendToProjectsField: React.FC<{
+  ctx: CustomRenderCtx;
+}> = ({ ctx }) => {
+  const { activeDashboard, activeRosterId, addToast, updateWidget } =
+    useDashboard();
+  const { showConfirm } = useDialog();
+  const projectsWidget = activeDashboard?.widgets.find(
+    (widget) => widget.type === 'projects'
+  );
+
+  const send = async () => {
+    if (!projectsWidget) {
+      addToast(ctx.t('widgetSettings.random.addProjects'), 'info');
+      return;
+    }
+    const config = ctx.config as unknown as RandomConfig;
+    // A typed name list cannot resolve to students, so it is refused outright
+    // rather than importing groups nobody can sign in to (D7).
+    if ((config.rosterMode ?? 'class') !== 'class' || !activeRosterId) {
+      addToast(ctx.t('widgetSettings.random.projectsNeedsRoster'), 'info');
+      return;
+    }
+    // Keep each group's original position: the "Group N" fallback has to match
+    // what the Group Maker itself shows, so an empty group cannot renumber it.
+    const groups = resultGroups(config.lastResult)
+      .map((group, index) => ({ group, index }))
+      .filter(({ group }) => (group.studentIds?.length ?? 0) > 0);
+    if (groups.length === 0) {
+      addToast(
+        ctx.t('widgetSettings.random.generateGroupsFirstProjects'),
+        'info'
+      );
+      return;
+    }
+
+    const projectsConfig = projectsWidget.config as ProjectsConfig;
+    if (
+      projectsConfig.pendingImport &&
+      !(await showConfirm(
+        ctx.t('widgetSettings.random.replaceProjectsImportConfirm'),
+        {
+          title: ctx.t('widgetSettings.random.replaceProjectsImportTitle'),
+          confirmLabel: ctx.t('widgetSettings.random.replace'),
+          variant: 'danger',
+        }
+      ))
+    ) {
+      return;
+    }
+
+    updateWidget(projectsWidget.id, {
+      config: {
+        ...projectsConfig,
+        pendingImport: {
+          rosterId: activeRosterId,
+          at: Date.now(),
+          groups: groups.map(({ group, index }) => ({
+            name: resolveRandomGroupName(
+              group,
+              index,
+              activeDashboard?.sharedGroups
+            ),
+            studentIds: group.studentIds ?? [],
+          })),
+        },
+      },
+    });
+    addToast(
+      ctx.t('widgetSettings.random.groupsSentToProjects', {
+        count: groups.length,
+      }),
+      'success'
+    );
+  };
+
+  return (
+    <button
+      id={ctx.id}
+      type="button"
+      aria-labelledby={ctx.labelId}
+      aria-describedby={ctx.describedBy}
+      disabled={!projectsWidget}
+      onClick={() => void send()}
+      className="w-full rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-40"
+    >
+      {ctx.t('widgetSettings.random.sendToProjects')}
+    </button>
+  );
+};
+
+/**
+ * "Keep these groups together" — the Lock role
+ * (docs/plans/ROSTER_GROUPS_INTEGRATION.md D6/D7).
+ *
+ * Deliberately separate from the pool control in the class picker: one
+ * checkbox meaning "include" or "keep together" depending on what else is
+ * ticked was rejected as unexplainable. Reuses the Randomizer's existing lock
+ * metaphor — the same idea as pinning a single name, applied to a saved group
+ * — rather than introducing the word "constraints".
+ *
+ * Teacher-facing surface, so group names are shown here.
+ */
+export const RandomLockedGroupsField: React.FC<{ ctx: CustomRenderCtx }> = ({
+  ctx,
+}) => {
+  const config = ctx.config as unknown as RandomConfig;
+  const { rosters, activeRosterId } = useDashboard();
+  const rollout = useRosterGroupsIntegrationSettings();
+  const activeRoster = rosters.find((roster) => roster.id === activeRosterId);
+  const groups = activeRoster?.groups ?? [];
+  const locked = Array.isArray(config.lockedRosterGroupIds)
+    ? config.lockedRosterGroupIds
+    : [];
+
+  // The schema gates the card on the permission; the org-wide switch is read
+  // here so the listener stays on this widget's panel rather than every one.
+  // Explained rather than left as a control that silently does nothing.
+  if (!rollout.enabled) {
+    return (
+      <p id={ctx.id} className="text-xs text-slate-500">
+        {ctx.t('widgetSettings.random.rosterGroupsOff')}
+      </p>
+    );
+  }
+
+  if ((config.rosterMode ?? 'class') !== 'class' || groups.length === 0) {
+    return (
+      <p id={ctx.id} className="text-xs text-slate-500">
+        {ctx.t('widgetSettings.random.lockedGroupsEmpty')}
+      </p>
+    );
+  }
+
+  const toggle = (groupId: string) => {
+    const next = locked.includes(groupId)
+      ? locked.filter((id) => id !== groupId)
+      : [...locked, groupId];
+    ctx.updateConfig({ lockedRosterGroupIds: next });
+  };
+
+  return (
+    <div
+      id={ctx.id}
+      role="group"
+      aria-labelledby={ctx.labelId}
+      aria-describedby={ctx.describedBy}
+      className="flex flex-col gap-1"
+    >
+      {groups.map((g) => {
+        const size = countRosterGroupMembers(activeRoster, g.id) ?? 0;
+        return (
+          <label
+            key={g.id}
+            className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              checked={locked.includes(g.id)}
+              onChange={() => toggle(g.id)}
+              className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+            />
+            <Lock size={14} className="text-slate-400 shrink-0" />
+            <span className="truncate">{g.name}</span>
+            <span className="ml-auto text-xs tabular-nums text-slate-400">
+              {size}
+            </span>
+          </label>
+        );
+      })}
+    </div>
+  );
+};
+
+/**
+ * "Save as class groups" — the write-back half of the two-way link
+ * (docs/plans/ROSTER_GROUPS_INTEGRATION.md D3/D18).
+ *
+ * Always creates; it never edits a saved group in place, so a teacher can't
+ * lose a hand-built group to a stray randomize. Saves `studentIds` rather
+ * than display names (D4), and writes through `appendRosterGroups` so a group
+ * another tab added in the meantime survives (D24).
+ */
+export const RandomSaveAsClassGroupsField: React.FC<{
+  ctx: CustomRenderCtx;
+}> = ({ ctx }) => {
+  const { activeRosterId, addToast, appendRosterGroups, rosters } =
+    useDashboard();
+  const { showPrompt } = useDialog();
+  const rollout = useRosterGroupsIntegrationSettings();
+  const config = ctx.config as unknown as RandomConfig;
+  const activeRoster = rosters.find((roster) => roster.id === activeRosterId);
+
+  const save = async () => {
+    const groups = resultGroups(config.lastResult).filter(
+      (g) => (g.studentIds?.length ?? 0) > 0
+    );
+    if (!activeRoster || groups.length === 0) {
+      addToast(
+        ctx.t('widgetSettings.random.saveAsGroupsNeedsClassGroups'),
+        'info'
+      );
+      return;
+    }
+    // Dated by default so six rounds of "Team 1" stay tellable apart.
+    const dated = `${ctx.t('widgetSettings.random.saveAsGroupsPrefix')} – ${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+    const base = await showPrompt(
+      ctx.t('widgetSettings.random.saveAsGroupsPrompt', {
+        count: groups.length,
+      }),
+      {
+        title: ctx.t('widgetSettings.random.saveAsGroupsTitle'),
+        defaultValue: dated,
+        confirmLabel: ctx.t('widgetSettings.random.saveAsGroupsConfirm'),
+      }
+    );
+    if (base === null) return;
+    const name = base.trim() || dated;
+    try {
+      await appendRosterGroups(
+        activeRoster.id,
+        groups.map((g, i) => ({
+          id: crypto.randomUUID(),
+          name: `${name} (${i + 1})`,
+          studentIds: g.studentIds ?? [],
+        }))
+      );
+      addToast(
+        ctx.t('widgetSettings.random.saveAsGroupsDone', {
+          count: groups.length,
+        }),
+        'success'
+      );
+    } catch {
+      addToast(ctx.t('widgetSettings.random.saveAsGroupsFailed'), 'error');
+    }
+  };
+
+  if (!rollout.enabled) {
+    return (
+      <p id={ctx.id} className="text-xs text-slate-500">
+        {ctx.t('widgetSettings.random.rosterGroupsOff')}
+      </p>
+    );
+  }
+
+  // Custom-name mode has no roster to save into, so the button could only ever
+  // toast. Mirrors the same guard on the lock card above.
+  if ((config.rosterMode ?? 'class') !== 'class') {
+    return (
+      <p id={ctx.id} className="text-xs text-slate-500">
+        {ctx.t('widgetSettings.random.saveAsGroupsNeedsClassGroups')}
+      </p>
+    );
+  }
+
+  return (
+    <button
+      id={ctx.id}
+      type="button"
+      onClick={() => void save()}
+      className="w-full px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors"
+    >
+      {ctx.t('widgetSettings.random.saveAsGroupsAction')}
     </button>
   );
 };

@@ -25,17 +25,11 @@
 import React, { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { signInWithCustomToken } from 'firebase/auth';
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-} from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { ClipboardList, ClipboardCheck, Video, ArrowRight } from 'lucide-react';
 import { auth, db, functions } from '@/config/firebase';
 import { normalizeQuizCode } from '@/utils/quizCode';
+import { findQuizSessionsByCode } from '@/utils/quizJoinCodes';
 import { ensureGis, requestAccessToken } from './gisOAuth';
 import {
   AddonShell,
@@ -200,17 +194,10 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
       try {
         // Resolve the quiz session by join code (same lookup students use to
         // join — no extra auth needed).
-        const sessSnap = await getDocs(
-          query(
-            collection(db, 'quiz_sessions'),
-            where('code', '==', normalizeQuizCode(code))
-          )
-        );
-        if (!active || sessSnap.empty) return;
-        const sessDoc = sessSnap.docs[0];
-        const published =
-          ((sessDoc.data().scoreVisibility as string | undefined) ?? 'none') !==
-          'none';
+        const matches = await findQuizSessionsByCode(normalizeQuizCode(code));
+        if (!active || matches.length === 0) return;
+        const sessDoc = matches[0];
+        const published = (sessDoc.data.scoreVisibility ?? 'none') !== 'none';
         if (!published) return;
         // Read THIS student's own response (doc id == their pseudonym uid).
         const respSnap = await getDoc(

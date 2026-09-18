@@ -21,6 +21,7 @@ import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { LayoutGrid, RefreshCw, RotateCcw, Shuffle, Users } from 'lucide-react';
 import { StationsConfig, WidgetData } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
+import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { ActiveClassChip } from '@/components/common/ActiveClassChip';
 import { AbsentButton } from '@/components/common/AbsentButton';
 import { Button } from '@/components/common/Button';
@@ -36,6 +37,7 @@ import { studentChipClass, studentChipStyle } from './components/studentChip';
 import {
   rotateAssignments,
   shuffleStudentsIntoStations,
+  type ShuffleConstraints,
   resetAllAssignments,
   resetStation,
   stationCount,
@@ -49,6 +51,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { updateWidget, addToast, rosters, activeRosterId, activeDashboard } =
     useDashboard();
+  const rosterGroupsEnabled = useRosterGroupsGate();
   const config = widget.config as StationsConfig;
   const stations = useMemo(() => config.stations ?? [], [config.stations]);
   const assignments = useMemo(
@@ -101,14 +104,28 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
         ? new Set(currentRoster.absent.studentIds)
         : new Set<string>();
 
+    // Pool: a saved class group narrows who this board is working with. Same
+    // preserve-on-exit semantics as an absence — assignments for students the
+    // pool hides stay in `config.assignments` and come back when it widens.
+    const pool = rosterGroupsEnabled
+      ? currentRoster.groups?.find((g) => g.id === config.rosterPoolGroupId)
+      : undefined;
+    const inPool = pool ? new Set(pool.studentIds) : null;
+
     // Absent students drop out of the source list entirely — they don't appear
     // in any station card or the unassigned bucket. Their stored assignment in
     // `config.assignments` is preserved (keyed by roster id), so they snap
     // back to the same station automatically once un-marked.
     return currentRoster.students
-      .filter((s) => !absentIds.has(s.id))
+      .filter((s) => !absentIds.has(s.id) && (!inPool || inPool.has(s.id)))
       .map((s) => ({ id: s.id, name: `${s.firstName} ${s.lastName}`.trim() }));
-  }, [config.rosterMode, config.customRoster, currentRoster]);
+  }, [
+    config.rosterMode,
+    config.customRoster,
+    config.rosterPoolGroupId,
+    currentRoster,
+    rosterGroupsEnabled,
+  ]);
 
   // Group students by station id (for chip lists) plus an unassigned bucket.
   // Falls back to a legacy name-keyed entry when no id-keyed one exists, so
@@ -218,6 +235,15 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
     [assignments, activeRoster, orderedStations, persistAssignments, addToast]
   );
 
+  const handleSelectPoolGroup = useCallback(
+    (groupId: string | null) => {
+      updateWidget(widget.id, {
+        config: { ...config, rosterPoolGroupId: groupId },
+      });
+    },
+    [widget.id, config, updateWidget]
+  );
+
   const handleResetAll = useCallback(() => {
     // Merge onto the full map so absent students' stations survive (same bug class as #2640).
     persistAssignments({
@@ -248,6 +274,42 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
     }
   }, [orderedStations, assignments, persistAssignments, addToast]);
 
+  // Shuffle constraints (D15). Keep-apart comes straight off the roster and is
+  // honoured whether or not class groups are switched on — Shuffle has ignored
+  // `restrictedStudentIds` since it shipped. Keep-together is the class-group
+  // half, so it stays behind the gate.
+  const shuffleConstraints = useMemo((): ShuffleConstraints => {
+    if (!currentRoster) return {};
+    const present = new Set(activeRoster.map((s) => s.id));
+
+    const keepApart = new Map<string, Set<string>>();
+    for (const student of currentRoster.students) {
+      if (!present.has(student.id)) continue;
+      const avoid = (student.restrictedStudentIds ?? []).filter((id) =>
+        present.has(id)
+      );
+      if (avoid.length > 0) keepApart.set(student.id, new Set(avoid));
+    }
+
+    const keepTogether = rosterGroupsEnabled
+      ? (config.lockedRosterGroupIds ?? [])
+          .map(
+            (groupId) =>
+              currentRoster.groups?.find((g) => g.id === groupId)?.studentIds ??
+              []
+          )
+          .map((ids) => ids.filter((id) => present.has(id)))
+          .filter((ids) => ids.length > 1)
+      : [];
+
+    return { keepApart, keepTogether };
+  }, [
+    currentRoster,
+    activeRoster,
+    config.lockedRosterGroupIds,
+    rosterGroupsEnabled,
+  ]);
+
   const handleShuffle = useCallback(() => {
     if (orderedStations.length === 0) {
       addToast('Add at least one station first.', 'info');
@@ -259,7 +321,9 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
     }
     const result = shuffleStudentsIntoStations(
       orderedStations,
-      activeRoster.map((s) => s.id)
+      activeRoster.map((s) => s.id),
+      Math.random,
+      shuffleConstraints
     );
     // Merge onto the full map — shuffle only knows about today's present
     // roster, so a plain replace would delete absent students' stations.
@@ -270,12 +334,25 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
         'info'
       );
     }
+    if (result.splitCohorts > 0) {
+      addToast(
+        `${result.splitCohorts} group${result.splitCohorts === 1 ? ' was' : 's were'} too big for any station and had to be split.`,
+        'info'
+      );
+    }
+    if (result.apartConflicts.length > 0) {
+      addToast(
+        `Couldn't keep ${result.apartConflicts.length} student${result.apartConflicts.length === 1 ? '' : 's'} apart — not enough stations.`,
+        'info'
+      );
+    }
   }, [
     orderedStations,
     activeRoster,
     assignments,
     persistAssignments,
     addToast,
+    shuffleConstraints,
   ]);
 
   // Watch rotationTrigger from a linked Timer — bumps to Date.now() invoke rotate.
@@ -374,7 +451,17 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
               {config.rosterMode !== 'custom' && rosters.length > 0 && (
                 <>
                   <AbsentButton roster={currentRoster} />
-                  <ActiveClassChip compact />
+                  <ActiveClassChip
+                    compact
+                    {...(rosterGroupsEnabled
+                      ? {
+                          groupSelection: {
+                            selectedGroupId: config.rosterPoolGroupId ?? null,
+                            onSelectGroup: handleSelectPoolGroup,
+                          },
+                        }
+                      : {})}
+                  />
                 </>
               )}
               <Button

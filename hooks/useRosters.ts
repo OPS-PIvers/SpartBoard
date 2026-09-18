@@ -1100,6 +1100,113 @@ export const useRosters = (user: User | null) => {
     [user, driveService, uploadRosterFileToDrive, loadRosterFileFromDrive]
   );
 
+  /**
+   * Appends groups without clobbering concurrent group edits.
+   *
+   * `updateRoster` writes the whole Drive file from the in-memory cache, so a
+   * widget saving a group would drop whatever another tab (or the roster
+   * editor) added since this tab loaded. This path re-reads the file first and
+   * appends to the `groups[]` that is actually current. It is a narrower fix
+   * than an ETag precondition, which every roster write still lacks (A4 note
+   * above) — students and overrides here are carried from the same fresh read,
+   * so this call never writes a stale version of them either.
+   */
+  const appendRosterGroups = useCallback(
+    async (rosterId: string, newGroups: RosterGroup[]) => {
+      if (!user || newGroups.length === 0) return;
+
+      if (isAuthBypass) {
+        const existing = mockRosterStore
+          .getRosters()
+          .find((r) => r.id === rosterId);
+        mockRosterStore.updateRoster(rosterId, {
+          groups: [...(existing?.groups ?? []), ...newGroups],
+        });
+        return;
+      }
+
+      const existingMeta = metaListRef.current.find((m) => m.id === rosterId);
+      let current: RosterFileContent;
+      if (existingMeta?.driveFileId) {
+        if (!driveService) {
+          throw new Error(
+            `Cannot save groups to roster ${rosterId}: Drive is unavailable`
+          );
+        }
+        current = await loadRosterFileFromDrive(existingMeta.driveFileId);
+      } else {
+        // No Drive file ⇒ no concurrent writer to lose to, but the cache can
+        // still hold real students (addRoster and updateRoster both populate
+        // it when Drive was unavailable). Empty only when it is cold too.
+        current = studentsCacheRef.current.get(rosterId) ?? {
+          students: [],
+          ...emptyRosterFileExtras(),
+        };
+      }
+
+      const existingIds = new Set(current.groups.map((g) => g.id));
+      const appended = newGroups.filter((g) => !existingIds.has(g.id));
+      if (appended.length === 0) return;
+
+      const nextContent = pruneRosterFileContent({
+        ...current,
+        groups: [...current.groups, ...appended],
+      });
+
+      studentsCacheRef.current.set(rosterId, nextContent);
+      setRosters((prev) =>
+        prev.map((r) =>
+          r.id === rosterId
+            ? {
+                ...r,
+                students: nextContent.students,
+                studentCount: nextContent.students.length,
+                groups: nextContent.groups,
+                defaultOverridesByStudentId:
+                  nextContent.defaultOverridesByStudentId,
+              }
+            : r
+        )
+      );
+
+      if (!driveService) return;
+      try {
+        const driveFileId = await uploadRosterFileToDrive(
+          rosterId,
+          nextContent,
+          existingMeta?.driveFileId
+        );
+        if (driveFileId !== existingMeta?.driveFileId) {
+          await updateDoc(doc(db, 'users', user.uid, 'rosters', rosterId), {
+            driveFileId,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to append roster groups to Drive:', err);
+        // Roll back to the re-read, not to whatever was cached before this
+        // call — that value is the stale one this function exists to avoid,
+        // and the next `updateRoster` would write the whole file from it.
+        studentsCacheRef.current.set(rosterId, current);
+        setRosters((prev) =>
+          prev.map((r) =>
+            r.id === rosterId
+              ? {
+                  ...r,
+                  students: current.students,
+                  studentCount: current.students.length,
+                  groups: current.groups,
+                  defaultOverridesByStudentId:
+                    current.defaultOverridesByStudentId,
+                }
+              : r
+          )
+        );
+        throw new Error('Failed to save groups to Drive');
+      }
+    },
+    [user, driveService, uploadRosterFileToDrive, loadRosterFileFromDrive]
+  );
+
   const setAbsentStudents = useCallback(
     async (rosterId: string, studentIds: string[]) => {
       if (!user) return;
@@ -1183,6 +1290,7 @@ export const useRosters = (user: User | null) => {
       deleteRoster,
       setActiveRoster,
       setAbsentStudents,
+      appendRosterGroups,
     }),
     [
       rosters,
@@ -1192,6 +1300,7 @@ export const useRosters = (user: User | null) => {
       deleteRoster,
       setActiveRoster,
       setAbsentStudents,
+      appendRosterGroups,
     ]
   );
 };

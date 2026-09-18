@@ -85,19 +85,24 @@ vi.mock('lucide-react', () => {
 
 // 2. Mock useAdminBuildings to skip the firebase/auth transitive import chain
 //    (AuthContextValue.ts → firebase/auth, ~300 ms of module loading).
+const mockUseAdminBuildings = vi.fn(() => [
+  { id: 'b1', name: 'Building 1', gradeLevels: [], gradeLabel: 'K-12' },
+  { id: 'b2', name: 'Building 2', gradeLevels: [], gradeLabel: 'K-12' },
+]);
 vi.mock('@/hooks/useAdminBuildings', () => ({
-  useAdminBuildings: () => [
-    { id: 'b1', name: 'Building 1', gradeLevels: [], gradeLabel: 'K-12' },
-    { id: 'b2', name: 'Building 2', gradeLevels: [], gradeLabel: 'K-12' },
-  ],
+  useAdminBuildings: () => mockUseAdminBuildings(),
 }));
 
-vi.mock('@/config/buildings', () => ({
-  BUILDINGS: [
-    { id: 'b1', name: 'Building 1' },
-    { id: 'b2', name: 'Building 2' },
-  ],
-}));
+vi.mock('@/config/buildings', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/config/buildings')>();
+  return {
+    ...actual,
+    BUILDINGS: [
+      { id: 'b1', name: 'Building 1' },
+      { id: 'b2', name: 'Building 2' },
+    ],
+  };
+});
 
 // 3. Fully self-contained stub for the constants module. Using importOriginal
 //    would still trigger lucide-react evaluation inside constants.ts (even
@@ -264,5 +269,61 @@ describe('MaterialsConfigurationPanel', () => {
 
     const nextConfig = mockOnChange.mock.calls[0][0] as MaterialsGlobalConfig;
     expect(nextConfig.allowTeacherMaterials).toBe(false);
+  });
+
+  it('finds a buildingDefaults entry keyed by the canonical id when the org building record resolves to a legacy raw id', () => {
+    mockUseAdminBuildings.mockReturnValueOnce([
+      {
+        id: 'schumann-elementary',
+        name: 'Schumann Elementary',
+        gradeLevels: [],
+        gradeLabel: 'K-2',
+      },
+    ]);
+
+    const config: MaterialsGlobalConfig = {
+      customMaterials: [],
+      buildingDefaults: {
+        schumann: { buildingId: 'schumann', selectedItems: ['computer'] },
+      },
+    };
+
+    render(
+      <MaterialsConfigurationPanel config={config} onChange={mockOnChange} />
+    );
+
+    // If the lookup missed (raw-id bug), "computer" would read as
+    // unselected and the button would say "Select All" instead.
+    expect(
+      screen.getByRole('button', { name: 'Deselect All' })
+    ).toBeInTheDocument();
+  });
+
+  it('saves building defaults under the canonical building id, not the legacy raw id', () => {
+    mockUseAdminBuildings.mockReturnValueOnce([
+      {
+        id: 'schumann-elementary',
+        name: 'Schumann Elementary',
+        gradeLevels: [],
+        gradeLabel: 'K-2',
+      },
+    ]);
+
+    const config: MaterialsGlobalConfig = {
+      customMaterials: [],
+      buildingDefaults: {},
+    };
+
+    render(
+      <MaterialsConfigurationPanel config={config} onChange={mockOnChange} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select All' }));
+
+    const nextConfig = mockOnChange.mock.calls[0][0] as MaterialsGlobalConfig;
+    expect(nextConfig.buildingDefaults.schumann?.selectedItems).toEqual([
+      'computer',
+    ]);
+    expect(nextConfig.buildingDefaults['schumann-elementary']).toBeUndefined();
   });
 });

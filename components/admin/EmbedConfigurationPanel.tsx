@@ -1,6 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { EmbedGlobalConfig, BuildingEmbedDefaults } from '@/types';
 import { Plus, Trash2, Settings2 } from 'lucide-react';
@@ -19,26 +23,28 @@ export const EmbedConfigurationPanel: React.FC<
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
   const [newUrl, setNewUrl] = useState('');
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+  const canonicalId = canonicalBuildingId(selectedBuildingId);
 
   const buildingDefaults = useMemo(
-    () => config.buildingDefaults ?? {},
+    () => canonicalizeBuildingKeyedRecord(config.buildingDefaults ?? {}),
     [config.buildingDefaults]
   );
 
   const currentBuildingConfig = useMemo(
     () =>
-      buildingDefaults[selectedBuildingId] ?? {
-        buildingId: selectedBuildingId,
+      buildingDefaults[canonicalId] ?? {
+        buildingId: canonicalId,
         hideUrlField: false,
         whitelistUrls: [],
       },
-    [buildingDefaults, selectedBuildingId]
+    [buildingDefaults, canonicalId]
   );
 
   const handleUpdateBuilding = (updates: Partial<BuildingEmbedDefaults>) => {
-    const currentDefaults = config.buildingDefaults ?? {};
-    const currentConfig = currentDefaults[selectedBuildingId] ?? {
-      buildingId: selectedBuildingId,
+    const currentDefaults = buildingDefaults;
+    const currentConfig = currentDefaults[canonicalId] ?? {
+      buildingId: canonicalId,
       hideUrlField: false,
       whitelistUrls: [],
     };
@@ -47,7 +53,7 @@ export const EmbedConfigurationPanel: React.FC<
       ...config,
       buildingDefaults: {
         ...currentDefaults,
-        [selectedBuildingId]: {
+        [canonicalId]: {
           ...currentConfig,
           ...updates,
         },

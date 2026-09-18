@@ -44,7 +44,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import { setDoc, updateDoc, deleteDoc, getDoc, doc } from 'firebase/firestore';
 
-const PROJECT_ID = 'spartboard-rules-test';
+const PROJECT_ID = 'spartboard-external-user-rules-test';
 const ORG_ID = 'orono';
 
 // The external persona: a signed-in Google user whose email domain maps to NO

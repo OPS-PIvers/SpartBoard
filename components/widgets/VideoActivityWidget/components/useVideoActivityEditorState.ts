@@ -5,6 +5,7 @@ import {
   type VideoQuestionGenType,
   type VideoTypeCounts,
 } from '@/utils/ai';
+import { dedupeQuestionsById } from '@/utils/videoActivityGrading';
 
 /** Defaults to a familiar "5 MC" experience for first-time opens of the overlay. */
 const DEFAULT_AI_TYPE_COUNTS: Record<VideoQuestionGenType, number> = {
@@ -124,8 +125,12 @@ function sortByTimestamp(
 export function useVideoActivityEditorState({
   activity,
 }: UseVideoActivityEditorStateProps): VideoActivityEditorController {
+  // Dedupe by id: a Drive-sync/arrayUnion race can write a question twice (same guard as grading/session-creation).
   const originalQuestions = useMemo(
-    () => (activity ? activity.questions.map((q) => ({ ...q })) : []),
+    () =>
+      activity
+        ? dedupeQuestionsById(activity.questions).map((q) => ({ ...q }))
+        : [],
     [activity]
   );
   const originalTitle = activity?.title ?? '';

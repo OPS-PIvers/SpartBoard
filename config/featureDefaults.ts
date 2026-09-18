@@ -231,6 +231,21 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Print/scan paper answer sheets. Admin-only until opened up; the Rollouts
+  // switch (admin_settings/paper_answer_sheets) must also be on.
+  'paper-answer-sheets': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Saved class groups inside board widgets. Admin-only until the projector
+  // privacy check passes; the Rollouts switch
+  // (admin_settings/roster_groups_integration) must also be on.
+  'roster-groups': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /**

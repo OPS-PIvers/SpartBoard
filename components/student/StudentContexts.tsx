@@ -391,6 +391,9 @@ const mockDashboard: DashboardContextValue = {
   setAbsentStudents: async () => {
     // No-op — student view doesn't edit attendance
   },
+  appendRosterGroups: async () => {
+    // No-op — student view never writes rosters
+  },
   // Annotation (app-level overlay) — not applicable in student view
   annotationActive: false,
   annotationState: {

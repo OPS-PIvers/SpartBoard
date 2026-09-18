@@ -8,6 +8,8 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
+import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
+import { rosterGroupMemberIds } from '@/utils/rosterGroups';
 import { WidgetData, SeatingChartConfig, FurnitureItem } from '@/types';
 import { LayoutGrid, LayoutTemplate } from 'lucide-react';
 import {
@@ -128,10 +130,15 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     [rosters, activeRosterId]
   );
 
+  const rosterGroupsEnabled = useRosterGroupsGate();
+
   // Always returns {id, label}[] so the assignment key is always `student.id`.
   // In class mode, id = student UUID (keeps PII out of Firestore).
   // In custom mode, id = name string (same as before, stored in Drive only).
-  const students = useMemo((): { id: string; label: string }[] => {
+  // The WHOLE class — the pool filter is applied to `students` below, and the
+  // legacy-key migration has to keep seeing every student or a pooled-out one
+  // would look like an unmigrated name key.
+  const allStudents = useMemo((): { id: string; label: string }[] => {
     if (rosterMode === 'class' && activeRoster) {
       return activeRoster.students.map((s) => ({
         id: s.id,
@@ -148,10 +155,39 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     return [];
   }, [activeRoster, rosterMode, config.names]);
 
-  // Build a label lookup map for fast id → display-name resolution
+  // Pool: a saved class group narrows who is seatable and who renders in a
+  // seat. Assignments for students it hides stay in `config.assignments`.
+  const poolIds = useMemo(
+    () =>
+      rosterGroupMemberIds(
+        activeRoster,
+        config.rosterPoolGroupId,
+        rosterGroupsEnabled
+      ),
+    [activeRoster, config.rosterPoolGroupId, rosterGroupsEnabled]
+  );
+
+  const students = useMemo(
+    () =>
+      poolIds ? allStudents.filter((s) => poolIds.has(s.id)) : allStudents,
+    [allStudents, poolIds]
+  );
+
+  // Build a label lookup map for fast id → display-name resolution. Keyed off
+  // the pooled list so a seat holding a pooled-out student renders nothing
+  // rather than printing their raw id on the projector.
   const studentLabelById = useMemo(
     () => new Map(students.map((s) => [s.id, s.label])),
     [students]
+  );
+
+  const handleSelectPoolGroup = useCallback(
+    (groupId: string | null) => {
+      updateWidget(widget.id, {
+        config: { ...config, rosterPoolGroupId: groupId },
+      });
+    },
+    [widget.id, config, updateWidget]
   );
 
   const unassignedStudents = useMemo(() => {
@@ -167,16 +203,16 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
   useEffect(() => {
     // Guard prevents re-running when updateWidget triggers a re-render
     if (migrationDoneRef.current) return;
-    if (rosterMode !== 'class' || students.length === 0) return;
+    if (rosterMode !== 'class' || allStudents.length === 0) return;
     const assignmentKeys = Object.keys(assignments);
     if (assignmentKeys.length === 0) return;
 
-    const studentIds = new Set(students.map((s) => s.id));
+    const studentIds = new Set(allStudents.map((s) => s.id));
     const hasLegacyKeys = assignmentKeys.some((key) => !studentIds.has(key));
     if (!hasLegacyKeys) return;
 
     migrationDoneRef.current = true;
-    const nameToId = new Map(students.map((s) => [s.label, s.id]));
+    const nameToId = new Map(allStudents.map((s) => [s.label, s.id]));
     const migrated: Record<string, string> = {};
     const unmappedLegacyKeys: string[] = [];
 
@@ -204,14 +240,17 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
       );
     }
     updateWidget(widget.id, { config: { ...config, assignments: migrated } });
-  }, [rosterMode, students, assignments, config, updateWidget, widget.id]);
+  }, [rosterMode, allStudents, assignments, config, updateWidget, widget.id]);
 
   // Optimization: Pre-compute assignments map to avoid O(N) filtering and new array references on every render.
   // Assignments now map studentIds -> furnitureId, so we resolve the studentId to the display label here.
   const assignedStudentsByFurnitureId = useMemo(() => {
     const map = new Map<string, { id: string; label: string }[]>();
     Object.entries(assignments).forEach(([studentId, furnitureId]) => {
-      const label = studentLabelById.get(studentId) ?? studentId;
+      const label = studentLabelById.get(studentId);
+      // Outside the pool (or no longer on the roster) - keep the assignment,
+      // render nothing. Printing the fallback id would put a UUID on screen.
+      if (label === undefined) return;
       const list = map.get(furnitureId);
       if (list) {
         list.push({ id: studentId, label });
@@ -863,6 +902,14 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
         rotateSelected={rotateSelected}
         deleteSelected={deleteSelected}
         rosterMode={rosterMode}
+        {...(rosterGroupsEnabled
+          ? {
+              groupSelection: {
+                selectedGroupId: config.rosterPoolGroupId ?? null,
+                onSelectGroup: handleSelectPoolGroup,
+              },
+            }
+          : {})}
       />
 
       <div className="flex-1 flex overflow-hidden">

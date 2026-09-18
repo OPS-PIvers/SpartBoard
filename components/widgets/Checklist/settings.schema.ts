@@ -5,7 +5,10 @@ import type {
   FieldCtx,
 } from '@/components/settings/schema/types';
 import type { ChecklistConfig } from '@/types';
-import { ChecklistImportActionsField } from './settingsFields';
+import {
+  ChecklistImportActionsField,
+  ChecklistPoolGroupField,
+} from './settingsFields';
 
 const isManual = (ctx: FieldCtx) => (ctx.config.mode ?? 'manual') === 'manual';
 const isRoster = (ctx: FieldCtx) => ctx.config.mode === 'roster';
@@ -13,6 +16,12 @@ const isCustomRoster = (ctx: FieldCtx) =>
   isRoster(ctx) && ctx.config.rosterMode === 'custom';
 const renderImports = (ctx: CustomRenderCtx) =>
   React.createElement(ChecklistImportActionsField, { ctx });
+const renderPoolGroup = (ctx: CustomRenderCtx) =>
+  React.createElement(ChecklistPoolGroupField, { ctx });
+// The permission half of the gate; the org-wide switch is a Firestore read, so
+// the field itself checks it (see settingsFields.tsx).
+const rosterGroupsPermitted = (ctx: FieldCtx) =>
+  ctx.canAccessFeature('roster-groups');
 
 export default defineSettings<ChecklistConfig>({
   groups: [
@@ -65,6 +74,15 @@ export default defineSettings<ChecklistConfig>({
           placeholder: 'lastNamesPlaceholder',
           rows: 8,
           visibleWhen: isCustomRoster,
+        },
+        // schema-gap: rosterGroupPool
+        {
+          key: 'rosterPoolGroupId',
+          type: 'custom',
+          label: 'poolGroup',
+          visibleWhen: (ctx) =>
+            rosterGroupsPermitted(ctx) && isRoster(ctx) && !isCustomRoster(ctx),
+          render: renderPoolGroup,
         },
         // schema-gap: boardImportActions
         {

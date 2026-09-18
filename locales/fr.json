@@ -200,6 +200,11 @@
       "groupMemberCount_one": "{{count}} élève",
       "groupMemberCount_other": "{{count}} élèves",
       "noStudentsToGroup": "Ajoutez d'abord des élèves.",
+      "splitClass": "Diviser la classe",
+      "splitCountLabel": "Groupes",
+      "splitNameLabel": "Nom du groupe",
+      "splitConfirm": "Créer les groupes",
+      "splitNamePrefix": "Équipes",
       "accommodationsTab": "Aménagements ({{count}})",
       "accommodationsHelp": "Ils s'appliquent automatiquement chaque fois que tu assignes un travail à cet élève. Tu peux toujours les modifier pour chaque devoir.",
       "emptyAccommodationsTitle": "Pas encore d'élèves",
@@ -657,13 +662,40 @@
         "addPlaceholder": "Que faut-il faire ?",
         "unassigned": "Non assignée",
         "dueDate": "Date d’échéance",
+        "assignee": "Responsable",
         "remove": "Supprimer l’action",
         "markDone": "Marquer comme terminée",
         "markOpen": "Marquer comme ouverte",
         "overdue": "En retard",
         "limitReached": "Limite d’actions atteinte",
         "openCount": "Actions ouvertes ({{count}})",
-        "noneOpen": "Aucune action ouverte"
+        "noneOpen": "Aucune action ouverte",
+        "view": {
+          "sortLabel": "Trier les actions",
+          "sortManual": "Ordre manuel",
+          "sortStatus": "Ouvertes d’abord",
+          "sortDue": "Date d’échéance",
+          "sortAssignee": "Responsable",
+          "sortCreated": "Plus récentes d’abord",
+          "sortText": "A–Z",
+          "statusLabel": "Filtrer par statut",
+          "statusAll": "Tous les statuts",
+          "statusOpen": "Ouverte",
+          "statusDone": "Terminée",
+          "dueLabel": "Filtrer par échéance",
+          "dueAll": "Toutes les échéances",
+          "dueOverdue": "En retard",
+          "dueToday": "Échéance aujourd’hui",
+          "dueWeek": "7 prochains jours",
+          "dueNone": "Sans échéance",
+          "assigneeLabel": "Filtrer par responsable",
+          "assigneeAll": "Tout le monde",
+          "showing": "{{visible}} sur {{total}} affichées",
+          "clear": "Réinitialiser",
+          "noMatches": "Aucune action ne correspond à ces filtres",
+          "reorder": "Réorganiser l’action",
+          "dragHint": "Passez en ordre manuel pour glisser-déposer"
+        }
       },
       "importTodos": {
         "banner": "Importer {{count}} tâches de l’ancienne liste dans une note",
@@ -1353,8 +1385,12 @@
         "triggerAriaWithAbsent_other": "Classe active : {{name}}. {{count}} élèves marqués absents aujourd'hui.",
         "menuAria": "Contexte de classe pour le Randomiseur",
         "switchHeading": "Changer de classe",
-        "markAbsentAction": "Marquer les élèves absents"
-      }
+        "markAbsentAction": "Marquer les élèves absents",
+        "poolHeading": "Tirer parmi",
+        "poolAria_one": "Tirage dans un groupe de {{count}} élève.",
+        "poolAria_other": "Tirage dans un groupe de {{count}} élèves."
+      },
+      "lockedGroupOverridesKeepApart": "Un groupe verrouillé a été gardé ensemble bien qu'il contienne des élèves à séparer."
     },
     "lunchCount": {
       "syncSuccess": "Menu synchronisé depuis Nutrislice",
@@ -2783,5 +2819,53 @@
   "studentAssignment": {
     "excludedTitle": "Ce devoir n'est pas pour toi",
     "excludedBody": "Ton enseignant ne t'a pas attribué ce devoir. Demande-lui si tu penses qu'il s'agit d'une erreur."
+  },
+  "widgetSettings": {
+    "random": {
+      "lockedGroups": "Garder les groupes ensemble",
+      "saveAsClassGroups": "Enregistrer comme groupes de classe",
+      "saveAsGroupsAction": "Enregistrer comme groupes de classe",
+      "saveAsGroupsTitle": "Enregistrer comme groupes de classe",
+      "saveAsGroupsPrefix": "Équipes",
+      "saveAsGroupsPrompt_one": "Enregistrer {{count}} groupe dans cette classe ?",
+      "saveAsGroupsPrompt_other": "Enregistrer {{count}} groupes dans cette classe ?",
+      "saveAsGroupsConfirm": "Enregistrer",
+      "saveAsGroupsDone_one": "{{count}} groupe enregistré dans cette classe.",
+      "saveAsGroupsDone_other": "{{count}} groupes enregistrés dans cette classe.",
+      "saveAsGroupsFailed": "Impossible d'enregistrer ces groupes — vérifiez votre connexion Google Drive et réessayez.",
+      "saveAsGroupsNeedsClassGroups": "Créez d'abord des groupes avec une classe sélectionnée.",
+      "lockedGroupsEmpty": "Enregistrez un groupe pour cette classe et il restera uni lors de la création des groupes.",
+      "rosterGroupsOff": "Les groupes de classe sont désactivés dans votre établissement pour le moment."
+    },
+    "scoreboard": {
+      "classGroups": "Groupes de la classe",
+      "useGroupNames": "Utiliser les noms des groupes comme noms d’équipe",
+      "importClassGroups_one": "Créer {{count}} équipe à partir des groupes de la classe",
+      "importClassGroups_other": "Créer {{count}} équipes à partir des groupes de la classe",
+      "importedClassGroups_one": "{{count}} équipe créée à partir de vos groupes de la classe.",
+      "importedClassGroups_other": "{{count}} équipes créées à partir de vos groupes de la classe.",
+      "resyncMembers": "Resynchroniser les membres depuis la classe",
+      "resyncedMembers_one": "Membres mis à jour pour {{count}} équipe.",
+      "resyncedMembers_other": "Membres mis à jour pour {{count}} équipes.",
+      "resyncUnlinked_one": "{{count}} équipe ne correspond plus à un groupe de la classe.",
+      "resyncUnlinked_other": "{{count}} équipes ne correspondent plus à un groupe de la classe.",
+      "replaceTeamsTitle": "Remplacer les équipes par les groupes de la classe ?",
+      "replaceTeamsBody_one": "Cela remplace la {{count}} équipe de ce tableau, avec son score.",
+      "replaceTeamsBody_other": "Cela remplace les {{count}} équipes de ce tableau, avec leurs scores.",
+      "replaceTeamsConfirm": "Remplacer",
+      "classTeamName": "Équipe {{count}}",
+      "membersTitle": "Membres issus du groupe de la classe"
+    },
+    "checklist": {
+      "poolGroup": "Puiser dans",
+      "poolWholeClass": "Toute la classe",
+      "poolGroupEmpty": "Enregistrez un groupe pour cette classe dans Mes classes pour l’utiliser ici.",
+      "rosterGroupsOff": "Les groupes de la classe sont désactivés dans votre établissement pour le moment."
+    },
+    "poll": {
+      "importScope": "Importer depuis",
+      "importWholeClass": "Toute la classe",
+      "importGroupEmpty": "Ce groupe de la classe n’a personne dans la liste."
+    }
   }
 }

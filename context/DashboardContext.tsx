@@ -1438,6 +1438,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     deleteRoster,
     setActiveRoster,
     setAbsentStudents,
+    appendRosterGroups,
   } = useRosters(user);
 
   // Refs to prevent race conditions
@@ -6856,6 +6857,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       deleteRoster,
       setActiveRoster,
       setAbsentStudents,
+      appendRosterGroups,
       shareDashboard: handleShareDashboard,
       shareSubstituteDashboard: handleShareSubstituteDashboard,
       loadSharedDashboard: handleLoadSharedDashboard,
@@ -6975,6 +6977,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       deleteRoster,
       setActiveRoster,
       setAbsentStudents,
+      appendRosterGroups,
       handleShareDashboard,
       handleShareSubstituteDashboard,
       handleLoadSharedDashboard,

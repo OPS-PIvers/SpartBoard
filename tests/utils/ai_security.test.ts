@@ -134,7 +134,7 @@ describe('DashboardContext AI Security Helpers', () => {
       expect(teams[1].score).toBe(50);
       expect(teams[1].color).toBe('#f00');
 
-      expect(teams[2].name).toBe('Team 3');
+      expect(teams[2].name).toBe('Team C');
       expect(teams[2].score).toBe(0);
 
       const configWithNonArray = {

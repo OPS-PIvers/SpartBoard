@@ -23,6 +23,7 @@ import {
   type ClassLinkClass,
   type ClassLinkStudent,
   type ClassLinkUser,
+  pinIndexKey,
 } from './classlinkShared';
 import { normalizeQuizCode } from './quizCode';
 import {
@@ -964,25 +965,6 @@ const PIN_INDEX_SUBCOLLECTION = 'pin_index';
 /** Exported so the nightly sync caps its entries at the same value rather
  *  than mirroring the literal and silently drifting from it. */
 export const PIN_INDEX_MAX_ENTRIES = 200;
-
-/**
- * Mirror of `encodeResponseKeySegment` in `useQuizSession.ts`. Duplicated
- * server-side rather than imported because the functions package has its own
- * tsconfig + emit and the client hook lives outside it. The client + server
- * encoders MUST stay in lockstep — a divergence would produce mismatched
- * `indexKey`s and silently break the PIN→SSO lookup.
- */
-function encodeResponseKeySegment(value: string | undefined): string {
-  const trimmed = (value ?? '').trim();
-  if (!trimmed) return 'default';
-  const normalized = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-  const stripped = normalized.replace(/^_+|_+$/g, '');
-  return stripped || 'default';
-}
-
-function pinIndexKey(period: string, pin: string): string {
-  return `${encodeResponseKeySegment(period)}__${encodeResponseKeySegment(pin)}`;
-}
 
 interface CommitRosterPinIndexEntry {
   period: string;

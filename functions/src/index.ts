@@ -34,6 +34,7 @@ export {
   __getCachedAdminStatus,
   __getGeminiModelConfig,
   __resolveCallerIsAdmin,
+  __isVerifiedBetaMember,
 } from './aiGeneration';
 
 // ── External-content proxy + iframe embeddability check ────────────────────
@@ -85,9 +86,19 @@ export {
   pinLoginV1,
 } from './studentIdentity';
 
+// ── Projects widget: group import (docs/plans/PROJECTS_WIDGET.md D8) ───────
+export { commitProjectGroupsV1 } from './projectGroups';
+// Projects widget: uploads ride the Activity Wall's Storage → Drive path (D20).
+export { archiveProjectUploadOnCreate } from './projectUploadArchive';
+
 // ── Individual assignment targeting (M17): assign-time pseudonym fan-out to
 // /student_assignments, plus the deletion triggers that reap those pointers. ─
 export { setAssignmentTargetsV1 } from './studentAssignmentTargets';
+// Paper answer sheets: the one server-side writer of scanned responses.
+export {
+  importPaperResponsesV1,
+  publishPaperResultsV1,
+} from './importPaperResponses';
 export {
   cleanupQuizAssignmentPointers,
   cleanupVideoActivityAssignmentPointers,
@@ -110,6 +121,7 @@ export { organizationMembersSync } from './organizationMembersSync';
 export { organizationMemberCounters } from './organizationMemberCounters';
 export { organizationBuildingCounters } from './organizationBuildingCounters';
 export { resetOrganizationUserPassword } from './organizationResetPassword';
+export { deleteOrganizationUser } from './organizationUserDelete';
 export { getOrgUserActivity } from './organizationUserActivity';
 export { plcInvitationEmail } from './plcInviteEmails';
 export { rolloutRequestEmail } from './rolloutRequestEmail';

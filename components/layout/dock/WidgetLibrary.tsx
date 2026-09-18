@@ -10,6 +10,7 @@ import Fuse from 'fuse.js';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import {
   Bookmark,
+  Check,
   ChevronDown,
   ChevronRight,
   Eye,
@@ -93,6 +94,8 @@ interface WidgetLibraryProps {
   isEditMode?: boolean;
   /** Enters dock edit mode (Edit button + long-press on library cards) */
   onEnterEditMode?: () => void;
+  /** Leaves dock edit mode without closing the library */
+  onExitEditMode?: () => void;
   onAddFolder?: () => void;
   getToolLabel?: (type: WidgetType | InternalToolType) => string;
   /** Published custom widgets to show as an additional section */
@@ -125,7 +128,7 @@ const SortableLibraryTool = React.memo(
     isActive: boolean;
     isEditMode: boolean;
     isHidden?: boolean;
-    /** Disables drag reorder (while searching/filtering, or in the hidden section) */
+    /** Disables drag reorder (outside edit mode, while filtering, or in the hidden section) */
     sortDisabled?: boolean;
     onToggle: (type: WidgetType | InternalToolType) => void;
     onToggleHidden?: (type: WidgetType | InternalToolType) => void;
@@ -156,7 +159,7 @@ const SortableLibraryTool = React.memo(
     return (
       <div ref={setNodeRef} style={style} className="relative">
         <button
-          {...attributes}
+          {...(sortDisabled ? {} : attributes)}
           {...longPressHandlers}
           onClick={(e) => {
             // Prevent click if dragging happened
@@ -168,7 +171,11 @@ const SortableLibraryTool = React.memo(
               ? 'bg-white/80 border-brand-blue-primary shadow-md'
               : 'bg-white/20 border-transparent hover:bg-white/30'
           } ${isHidden ? 'opacity-60' : 'opacity-100'} ${
-            isDragging ? 'cursor-grabbing' : 'cursor-grab'
+            sortDisabled
+              ? 'cursor-pointer'
+              : isDragging
+                ? 'cursor-grabbing'
+                : 'cursor-grab'
           } ${isEditMode && !isHidden ? 'animate-jiggle' : ''}`}
         >
           <div
@@ -235,6 +242,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
       onReorderLibrary,
       isEditMode = false,
       onEnterEditMode,
+      onExitEditMode,
       onAddFolder,
       getToolLabel,
       customWidgets = [],
@@ -411,9 +419,10 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
       [categoryGradeFiltered, hiddenToolsSet]
     );
 
-    // Reordering a filtered subset would scramble libraryOrder — only allow
-    // dragging when the full, unfiltered list is on screen.
-    const sortDisabled = isFiltering;
+    // Reorder is an edit-mode gesture: outside edit mode a touch drag is a
+    // scroll. Filtering also blocks it — reordering a subset would scramble
+    // libraryOrder.
+    const sortDisabled = !isEditMode || isFiltering;
 
     const savedMatches = useMemo(() => {
       if (trimmedQuery === '') return isFiltering ? [] : savedWidgets;
@@ -480,6 +489,15 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                 >
                   <FolderPlus className="w-3.5 h-3.5" />
                   Add Folder
+                </button>
+              )}
+              {isEditMode && onExitEditMode && (
+                <button
+                  onClick={onExitEditMode}
+                  className="px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-primary/90 text-white text-xxs font-black uppercase tracking-widest rounded-full transition-all flex items-center gap-1.5 shadow-sm"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  Done
                 </button>
               )}
             </div>
@@ -736,13 +754,13 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
           <div className="bg-slate-50/50 px-6 py-3 border-t border-white/30 text-center backdrop-blur-xl space-y-3">
             <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
               {shownTools.length > 0
-                ? isFiltering
-                  ? isEditMode
+                ? isEditMode
+                  ? isFiltering
                     ? 'Tap to add to dock • Clear search to reorder'
-                    : 'Tap to add to board • Clear search to reorder'
-                  : isEditMode
-                    ? 'Drag to reorder • Tap to add to dock'
-                    : 'Drag to reorder • Tap to add to board'
+                    : 'Drag to reorder • Tap to add to dock'
+                  : onEnterEditMode
+                    ? 'Tap to add to board • Edit to reorder'
+                    : 'Tap to add to board'
                 : emptyStateMessage}
             </p>
 

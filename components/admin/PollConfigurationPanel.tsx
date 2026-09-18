@@ -1,6 +1,10 @@
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import {
   PollGlobalConfig,
@@ -31,12 +35,16 @@ export const PollConfigurationPanel: React.FC<PollConfigurationPanelProps> = ({
   const BUILDINGS = useAdminBuildings();
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+  const canonicalId = canonicalBuildingId(selectedBuildingId);
 
-  const buildingDefaults = config.buildingDefaults ?? {};
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    config.buildingDefaults ?? {}
+  );
   const currentBuildingConfig: BuildingPollDefaults = buildingDefaults[
-    selectedBuildingId
+    canonicalId
   ] ?? {
-    buildingId: selectedBuildingId,
+    buildingId: canonicalId,
     question: DEFAULT_QUESTION,
     options: DEFAULT_OPTIONS,
   };
@@ -50,7 +58,7 @@ export const PollConfigurationPanel: React.FC<PollConfigurationPanelProps> = ({
       ...config,
       buildingDefaults: {
         ...buildingDefaults,
-        [selectedBuildingId]: {
+        [canonicalId]: {
           ...currentBuildingConfig,
           ...updates,
         },

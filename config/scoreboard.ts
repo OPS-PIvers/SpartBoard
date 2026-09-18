@@ -53,3 +53,14 @@ export function normalizeScoreboardColor(
   }
   return DEFAULT_SCOREBOARD_COLOR;
 }
+
+// Spreadsheet-style team label continuing the default A/B: A…Z, AA, AB, …
+export function scoreboardTeamLetter(index: number): string {
+  let remaining = index;
+  let label = '';
+  do {
+    label = String.fromCharCode(65 + (remaining % 26)) + label;
+    remaining = Math.floor(remaining / 26) - 1;
+  } while (remaining >= 0);
+  return label;
+}

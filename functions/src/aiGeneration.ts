@@ -394,6 +394,15 @@ async function resolveCallerIsAdmin(
   return getCachedAdminStatus(db, token.email.toLowerCase());
 }
 
+// Beta-allowlist membership, gated on email_verified for the same reason as resolveCallerIsAdmin.
+function isVerifiedBetaMember(
+  token: { email?: string; email_verified?: boolean },
+  betaUsers: string[]
+): boolean {
+  if (token.email_verified !== true || !token.email) return false;
+  return betaUsers.includes(token.email.toLowerCase());
+}
+
 // Test-only re-exports so the cache contract can be verified without
 // driving through the full `generateWithAI` pipeline (which would require
 // mocking `@google/genai`). The `__` prefix makes the test-only status
@@ -402,6 +411,7 @@ export {
   getCachedAdminStatus as __getCachedAdminStatus,
   getGeminiModelConfig as __getGeminiModelConfig,
   resolveCallerIsAdmin as __resolveCallerIsAdmin,
+  isVerifiedBetaMember as __isVerifiedBetaMember,
 };
 
 export const generateWithAI = onCall(
@@ -419,7 +429,10 @@ export const generateWithAI = onCall(
     }
 
     const uid = request.auth.uid;
-    const email = request.auth.token.email;
+    // Captured once so closures below (e.g. the transaction callback) don't
+    // rely on TS narrowing `request.auth` through a closure, which it can't.
+    const callerToken = request.auth.token;
+    const email = callerToken.email;
 
     if (!email) {
       throw new HttpsError(
@@ -431,7 +444,7 @@ export const generateWithAI = onCall(
     const db = admin.firestore();
 
     // Check if user is an admin (cached for 5 minutes per warm instance).
-    const isAdmin = await resolveCallerIsAdmin(db, request.auth.token);
+    const isAdmin = await resolveCallerIsAdmin(db, callerToken);
 
     // W7: classify the caller as external (no org) for the daily-cap branch.
     // Resolved BEFORE the transaction (collectionGroup read must not be inside
@@ -439,7 +452,7 @@ export const generateWithAI = onCall(
     // for them). Cached per-domain; fail-safe toward "org" — see helper docs.
     const isExternal = isAdmin
       ? false
-      : await isExternalCaller(db, request.auth.token);
+      : await isExternalCaller(db, callerToken);
 
     // 1. Determine specific feature ID if applicable.
     //
@@ -519,7 +532,7 @@ export const generateWithAI = onCall(
             }
             if (
               accessLevel === 'beta' &&
-              !betaUsers.includes(email.toLowerCase())
+              !isVerifiedBetaMember(callerToken, betaUsers)
             ) {
               throw new HttpsError(
                 'permission-denied',
@@ -548,6 +561,34 @@ export const generateWithAI = onCall(
             );
             if (specPermDoc.exists) {
               const specPerm = specPermDoc.data() as GlobalPermission;
+
+              if (!specPerm.enabled) {
+                throw new HttpsError(
+                  'permission-denied',
+                  `${specificFeatureId} is currently disabled by an administrator.`
+                );
+              }
+
+              const {
+                accessLevel: specAccessLevel,
+                betaUsers: specBetaUsers = [],
+              } = specPerm;
+              if (specAccessLevel === 'admin') {
+                throw new HttpsError(
+                  'permission-denied',
+                  `${specificFeatureId} is currently restricted to administrators.`
+                );
+              }
+              if (
+                specAccessLevel === 'beta' &&
+                !isVerifiedBetaMember(callerToken, specBetaUsers)
+              ) {
+                throw new HttpsError(
+                  'permission-denied',
+                  `You do not have access to the ${specificFeatureId} beta feature.`
+                );
+              }
+
               const specLimitEnabled =
                 specPerm.config?.dailyLimitEnabled !== false;
               // External callers get the external per-feature cap too (same
@@ -1593,11 +1634,7 @@ export const generateVideoActivity = onCall(
     const db = admin.firestore();
 
     // Check if user is an admin (unlimited)
-    const adminDoc = await db
-      .collection('admins')
-      .doc(email.toLowerCase())
-      .get();
-    const isAdmin = adminDoc.exists;
+    const isAdmin = await resolveCallerIsAdmin(db, request.auth.token);
 
     if (!isAdmin) {
       // --- Check Global Gemini Permission (enabled + accessLevel) ---
@@ -1626,7 +1663,7 @@ export const generateVideoActivity = onCall(
         }
         if (
           accessLevel === 'beta' &&
-          !betaUsers.includes(email.toLowerCase())
+          !isVerifiedBetaMember(request.auth.token, betaUsers)
         ) {
           throw new HttpsError(
             'permission-denied',
@@ -1845,11 +1882,7 @@ export const transcribeVideoWithGemini = onCall(
     }
 
     // Check admin status
-    const adminDoc = await db
-      .collection('admins')
-      .doc(email.toLowerCase())
-      .get();
-    const isAdmin = adminDoc.exists;
+    const isAdmin = await resolveCallerIsAdmin(db, request.auth.token);
 
     if (!isAdmin) {
       if (perm.accessLevel === 'admin') {
@@ -1860,7 +1893,7 @@ export const transcribeVideoWithGemini = onCall(
       }
       if (
         perm.accessLevel === 'beta' &&
-        !perm.betaUsers?.includes(email.toLowerCase())
+        !isVerifiedBetaMember(request.auth.token, perm.betaUsers ?? [])
       ) {
         throw new HttpsError(
           'permission-denied',
@@ -2150,11 +2183,8 @@ export const generateGuidedLearning = onCall(
       );
     }
     const db = admin.firestore();
-    const adminDoc = await db
-      .collection('admins')
-      .doc(userEmail.toLowerCase())
-      .get();
-    if (!adminDoc.exists) {
+    const isAdmin = await resolveCallerIsAdmin(db, request.auth?.token ?? {});
+    if (!isAdmin) {
       throw new HttpsError(
         'permission-denied',
         'Admin access required to use AI generation.'

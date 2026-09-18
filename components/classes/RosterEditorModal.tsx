@@ -1,7 +1,16 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Save, AlertTriangle, X, Plus, Users, UsersRound } from 'lucide-react';
+import {
+  Save,
+  AlertTriangle,
+  X,
+  Plus,
+  Users,
+  UsersRound,
+  Shuffle,
+} from 'lucide-react';
 import { Student, ClassRoster, RosterGroup, StudentOverride } from '@/types';
+import { makeRestrictedGroupsByCount } from '@/components/widgets/random/groupMaker';
 import { Modal } from '@/components/common/Modal';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { useRosterRowsState, DraftRow } from './useRosterRowsState';
@@ -622,10 +631,40 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
 }) => {
   const { t } = useTranslation();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [splitOpen, setSplitOpen] = useState(false);
+  const [splitCount, setSplitCount] = useState(4);
+  const [splitName, setSplitName] = useState('');
   const studentIds = useMemo(
     () => new Set(students.map((s) => s.id)),
     [students]
   );
+
+  // Dated so six rounds of "Team 1" stay tellable apart in the picker.
+  const defaultSplitName = () =>
+    `${t('sidebar.classes.splitNamePrefix', { defaultValue: 'Teams' })} – ${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+
+  const openSplit = () => {
+    setSplitName(defaultSplitName());
+    setSplitCount(Math.min(4, Math.max(2, students.length)));
+    setSplitOpen(true);
+  };
+
+  const runSplit = () => {
+    const base = splitName.trim() || defaultSplitName();
+    const count = Math.max(2, Math.min(students.length, splitCount));
+    // Restriction-aware rather than a plain shuffle, so a split honors the
+    // keep-apart pairs the Students tab already records.
+    const made = makeRestrictedGroupsByCount(students, count);
+    onChange([
+      ...groups,
+      ...made.groups.map((g, i) => ({
+        id: g.id ?? crypto.randomUUID(),
+        name: `${base} (${i + 1})`,
+        studentIds: g.studentIds ?? [],
+      })),
+    ]);
+    setSplitOpen(false);
+  };
 
   const addGroup = () => {
     const group: RosterGroup = {
@@ -677,89 +716,152 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
           onAdd={addGroup}
         />
       ) : (
-        <>
-          <ul className="flex flex-col divide-y divide-slate-100">
-            {groups.map((group) => {
-              const expanded = expandedId === group.id;
-              // Count only members still on the roster — a student deleted in
-              // the Students tab isn't pruned from studentIds until save.
-              const memberCount = group.studentIds.filter((id) =>
-                studentIds.has(id)
-              ).length;
-              return (
-                <li key={group.id} className="p-3">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setExpandedId(expanded ? null : group.id)}
-                      className="p-1 text-slate-400 hover:text-brand-blue-primary rounded-md transition-colors"
-                      aria-label={t('sidebar.classes.editGroupMembers', {
-                        defaultValue: 'Edit group members',
-                      })}
-                    >
-                      <UsersRound size={16} />
-                    </button>
-                    <input
-                      className="flex-1 px-2 py-1 text-sm font-bold rounded-md border border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none transition-colors"
-                      value={group.name}
-                      onChange={(e) => renameGroup(group.id, e.target.value)}
-                    />
-                    <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
-                      {t('sidebar.classes.groupMemberCount', {
-                        count: memberCount,
-                        defaultValue: '{{count}} student',
-                        defaultValue_other: '{{count}} students',
-                      })}
-                    </span>
-                    <button
-                      onClick={() => deleteGroup(group.id)}
-                      aria-label={t('sidebar.classes.removeGroup', {
-                        defaultValue: 'Remove group',
-                      })}
-                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                  {expanded && (
-                    <ul className="mt-2 ml-7 flex flex-col gap-1 max-h-48 overflow-y-auto custom-scrollbar">
-                      {students.length === 0 ? (
-                        <li className="text-xs text-slate-400 italic">
-                          {t('sidebar.classes.noStudentsToGroup', {
-                            defaultValue: 'Add students first.',
-                          })}
+        <ul className="flex flex-col divide-y divide-slate-100">
+          {groups.map((group) => {
+            const expanded = expandedId === group.id;
+            // Count only members still on the roster — a student deleted in
+            // the Students tab isn't pruned from studentIds until save.
+            const memberCount = group.studentIds.filter((id) =>
+              studentIds.has(id)
+            ).length;
+            return (
+              <li key={group.id} className="p-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setExpandedId(expanded ? null : group.id)}
+                    className="p-1 text-slate-400 hover:text-brand-blue-primary rounded-md transition-colors"
+                    aria-label={t('sidebar.classes.editGroupMembers', {
+                      defaultValue: 'Edit group members',
+                    })}
+                  >
+                    <UsersRound size={16} />
+                  </button>
+                  <input
+                    className="flex-1 px-2 py-1 text-sm font-bold rounded-md border border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none transition-colors"
+                    value={group.name}
+                    onChange={(e) => renameGroup(group.id, e.target.value)}
+                  />
+                  <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+                    {t('sidebar.classes.groupMemberCount', {
+                      count: memberCount,
+                      defaultValue: '{{count}} student',
+                      defaultValue_other: '{{count}} students',
+                    })}
+                  </span>
+                  <button
+                    onClick={() => deleteGroup(group.id)}
+                    aria-label={t('sidebar.classes.removeGroup', {
+                      defaultValue: 'Remove group',
+                    })}
+                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                {expanded && (
+                  <ul className="mt-2 ml-7 flex flex-col gap-1 max-h-48 overflow-y-auto custom-scrollbar">
+                    {students.length === 0 ? (
+                      <li className="text-xs text-slate-400 italic">
+                        {t('sidebar.classes.noStudentsToGroup', {
+                          defaultValue: 'Add students first.',
+                        })}
+                      </li>
+                    ) : (
+                      students.map((s) => (
+                        <li key={s.id}>
+                          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={group.studentIds.includes(s.id)}
+                              onChange={() => toggleMember(group.id, s.id)}
+                              className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+                            />
+                            {`${s.firstName} ${s.lastName}`.trim() || s.id}
+                          </label>
                         </li>
-                      ) : (
-                        students.map((s) => (
-                          <li key={s.id}>
-                            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={group.studentIds.includes(s.id)}
-                                onChange={() => toggleMember(group.id, s.id)}
-                                className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
-                              />
-                              {`${s.firstName} ${s.lastName}`.trim() || s.id}
-                            </label>
-                          </li>
-                        ))
-                      )}
-                    </ul>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          <div className="p-3 sticky bottom-0 bg-slate-50/80 backdrop-blur-sm border-t border-slate-200">
+                      ))
+                    )}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <div className="p-3 sticky bottom-0 bg-slate-50/80 backdrop-blur-sm border-t border-slate-200">
+        {splitOpen ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <label
+                className="text-xs font-bold text-slate-600 shrink-0"
+                htmlFor="roster-split-count"
+              >
+                {t('sidebar.classes.splitCountLabel', {
+                  defaultValue: 'Groups',
+                })}
+              </label>
+              <input
+                id="roster-split-count"
+                type="number"
+                min={2}
+                max={Math.max(2, students.length)}
+                value={splitCount}
+                onChange={(e) => setSplitCount(Number(e.target.value))}
+                onKeyDown={(e) => e.key === 'Enter' && runSplit()}
+                className="w-16 px-2 py-1 text-sm rounded-md border border-slate-300 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+              />
+              <input
+                aria-label={t('sidebar.classes.splitNameLabel', {
+                  defaultValue: 'Group name',
+                })}
+                value={splitName}
+                onChange={(e) => setSplitName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && runSplit()}
+                className="flex-1 min-w-0 px-2 py-1 text-sm rounded-md border border-slate-300 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSplitOpen(false)}
+                className="flex-1 px-3 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                {t('common.cancel', { defaultValue: 'Cancel' })}
+              </button>
+              <button
+                onClick={runSplit}
+                className="flex-1 px-3 py-2 text-sm font-bold text-white bg-brand-blue-primary rounded-lg hover:bg-brand-blue-dark transition-colors"
+              >
+                {t('sidebar.classes.splitConfirm', {
+                  defaultValue: 'Create groups',
+                })}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            {/* RosterEmptyState already carries this CTA when there are none. */}
+            {groups.length > 0 && (
+              <button
+                onClick={addGroup}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors"
+              >
+                <Plus size={16} />
+                {t('sidebar.classes.addGroup', { defaultValue: '+ New Group' })}
+              </button>
+            )}
             <button
-              onClick={addGroup}
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors"
+              onClick={openSplit}
+              disabled={students.length < 2}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-slate-300 disabled:hover:bg-white"
             >
-              <Plus size={16} />
-              {t('sidebar.classes.addGroup', { defaultValue: '+ New Group' })}
+              <Shuffle size={16} />
+              {t('sidebar.classes.splitClass', {
+                defaultValue: 'Split class',
+              })}
             </button>
           </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 };

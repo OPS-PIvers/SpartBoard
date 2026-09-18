@@ -226,3 +226,139 @@ describe('resetStation', () => {
     expect(result).toEqual({ Alice: null, Bob: null, Carol: 'b', Dave: null });
   });
 });
+
+/**
+ * Constraint-aware shuffle (docs/plans/ROSTER_GROUPS_INTEGRATION.md D15).
+ * Before this, `shuffleStudentsIntoStations` was a plain Fisher-Yates that
+ * honoured neither a locked class group nor the roster's own
+ * `restrictedStudentIds` — the latter had been ignored since Stations shipped.
+ */
+describe('shuffleStudentsIntoStations — constraints', () => {
+  const sameStation = (
+    assignments: Record<string, string | null>,
+    ids: string[]
+  ) => new Set(ids.map((id) => assignments[id])).size === 1;
+
+  it('keeps a locked cohort in one station across every seeding', () => {
+    const stations = [
+      makeStation('a', 0),
+      makeStation('b', 1),
+      makeStation('c', 2),
+    ];
+    const roster = ['s1', 's2', 's3', 's4', 's5', 's6'];
+    for (let seed = 0; seed < 25; seed++) {
+      const { assignments } = shuffleStudentsIntoStations(
+        stations,
+        roster,
+        () => seed / 25,
+        { keepTogether: [['s1', 's2', 's3']] }
+      );
+      expect(sameStation(assignments, ['s1', 's2', 's3'])).toBe(true);
+    }
+  });
+
+  it('keeps restricted students apart when a station has room', () => {
+    // `() => 0` fixes the order to s2, s3, s4, s1, which round-robins s2 and
+    // s4 into the same station. The constraint has to move one of them, so
+    // the assertion fails if keep-apart is ignored rather than passing by luck.
+    const stations = [makeStation('a', 0), makeStation('b', 1)];
+    const roster = ['s1', 's2', 's3', 's4'];
+    const { assignments, apartConflicts } = shuffleStudentsIntoStations(
+      stations,
+      roster,
+      () => 0,
+      {
+        keepApart: new Map([
+          ['s2', new Set(['s4'])],
+          ['s4', new Set(['s2'])],
+        ]),
+      }
+    );
+    expect(assignments.s2).not.toBe(assignments.s4);
+    expect(apartConflicts).toEqual([]);
+  });
+
+  it('reports a keep-apart pair it could not separate', () => {
+    // One station, so the pair has nowhere else to go. Lock-style precedence:
+    // everyone is still placed, and the caller is told what gave way.
+    const stations = [makeStation('a', 0)];
+    const { assignments, apartConflicts } = shuffleStudentsIntoStations(
+      stations,
+      ['s1', 's2'],
+      Math.random,
+      { keepApart: new Map([['s1', new Set(['s2'])]]) }
+    );
+    expect(assignments.s1).toBe('a');
+    expect(assignments.s2).toBe('a');
+    expect(apartConflicts.length).toBe(1);
+  });
+
+  it('keeps a cohort together even when it splits a restricted pair', () => {
+    // D13's precedence, ported: the lock wins and the conflict is reported.
+    const stations = [makeStation('a', 0), makeStation('b', 1)];
+    const { assignments, apartConflicts } = shuffleStudentsIntoStations(
+      stations,
+      ['s1', 's2', 's3', 's4'],
+      Math.random,
+      {
+        keepTogether: [['s1', 's2']],
+        keepApart: new Map([
+          ['s1', new Set(['s2'])],
+          ['s2', new Set(['s1'])],
+        ]),
+      }
+    );
+    expect(assignments.s1).toBe(assignments.s2);
+    expect(apartConflicts.length).toBeGreaterThan(0);
+  });
+
+  it('splits a cohort no station can hold and says so', () => {
+    const stations = [makeStation('a', 0, 2), makeStation('b', 1, 2)];
+    const { assignments, splitCohorts, overflowStudents } =
+      shuffleStudentsIntoStations(
+        stations,
+        ['s1', 's2', 's3', 's4'],
+        Math.random,
+        {
+          keepTogether: [['s1', 's2', 's3']],
+        }
+      );
+    expect(splitCohorts).toBe(1);
+    // Splitting beats stranding them: every student still has a station.
+    expect(overflowStudents).toEqual([]);
+    expect(Object.values(assignments).filter((v) => v === null)).toEqual([]);
+  });
+
+  it('gives a student claimed by two cohorts to the first one', () => {
+    // Two stations of exactly two seats. If the SECOND cohort won s2 the
+    // units would be [s1], [s2,s3], [s4] and s2 would share a station with
+    // s3; first-wins makes that impossible whichever order they are placed in.
+    const stations = [makeStation('a', 0, 2), makeStation('b', 1, 2)];
+    const { assignments } = shuffleStudentsIntoStations(
+      stations,
+      ['s1', 's2', 's3', 's4'],
+      Math.random,
+      {
+        keepTogether: [
+          ['s1', 's2'],
+          ['s2', 's3'],
+        ],
+      }
+    );
+    expect(assignments.s1).toBe(assignments.s2);
+    expect(assignments.s3).not.toBe(assignments.s2);
+  });
+
+  it('ignores cohort members who are not in the roster', () => {
+    // Absent, or filtered out by the pool — either way they are not seated.
+    const stations = [makeStation('a', 0), makeStation('b', 1)];
+    const { assignments } = shuffleStudentsIntoStations(
+      stations,
+      ['s1', 's2'],
+      Math.random,
+      { keepTogether: [['s1', 'gone', 's2']] }
+    );
+    expect(assignments.gone).toBeUndefined();
+    expect(assignments.s1).toBe(assignments.s2);
+  });
+});

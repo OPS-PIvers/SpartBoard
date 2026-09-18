@@ -138,6 +138,11 @@ const MyAssignmentsPage = lazy(() =>
     default: module.MyAssignmentsPage,
   }))
 );
+const ProjectStudentPage = lazy(() =>
+  import('./components/student/ProjectStudentPage').then((module) => ({
+    default: module.ProjectStudentPage,
+  }))
+);
 const AboutPage = lazy(() =>
   import('./components/landing/AboutPage').then((module) => ({
     default: module.AboutPage,
@@ -534,6 +539,9 @@ const App: React.FC = () => {
     pathname === '/student/login' || pathname.startsWith('/student/login/');
   const isMyAssignmentsRoute =
     pathname === '/my-assignments' || pathname.startsWith('/my-assignments/');
+  // Projects widget student page (docs/plans/PROJECTS_WIDGET.md §6). Same
+  // GIS-authenticated audience as /my-assignments, which is what links to it.
+  const isProjectRoute = pathname.startsWith('/project/');
   // Phase A — `/subs` is the substitute teacher portal. Mounted outside the
   // teacher AuthProvider/DashboardProvider so dashboard listeners don't fire
   // for subs. Phase 4 will wrap this in a domain-gated AuthProvider.
@@ -925,6 +933,21 @@ const App: React.FC = () => {
           <RequireStudentAuth>
             <Suspense fallback={<FullPageLoader />}>
               <MyAssignmentsPage />
+            </Suspense>
+          </RequireStudentAuth>
+        </StudentAuthProvider>
+        <DialogContainer />
+      </DialogProvider>
+    );
+  }
+
+  if (isProjectRoute) {
+    return (
+      <DialogProvider>
+        <StudentAuthProvider>
+          <RequireStudentAuth>
+            <Suspense fallback={<FullPageLoader />}>
+              <ProjectStudentPage />
             </Suspense>
           </RequireStudentAuth>
         </StudentAuthProvider>

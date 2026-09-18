@@ -1,5 +1,9 @@
 import React, { useMemo } from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { Toggle } from '@/components/common/Toggle';
 import { Layout } from 'lucide-react';
 
@@ -13,15 +17,17 @@ export const DockDefaultsPanel: React.FC<DockDefaultsPanelProps> = ({
   onChange,
 }) => {
   const buildings = useAdminBuildings();
+  // useAdminBuildings() can return a legacy long-form id; key dockDefaults off the canonical id.
   const dockDefaults = useMemo(
-    () => config.dockDefaults ?? {},
+    () => canonicalizeBuildingKeyedRecord(config.dockDefaults ?? {}),
     [config.dockDefaults]
   );
 
   const handleToggle = (buildingId: string) => {
+    const canonicalId = canonicalBuildingId(buildingId);
     onChange({
       ...dockDefaults,
-      [buildingId]: !dockDefaults[buildingId],
+      [canonicalId]: !dockDefaults[canonicalId],
     });
   };
 
@@ -50,7 +56,7 @@ export const DockDefaultsPanel: React.FC<DockDefaultsPanelProps> = ({
               {building.name}
             </span>
             <Toggle
-              checked={!!dockDefaults[building.id]}
+              checked={!!dockDefaults[canonicalBuildingId(building.id)]}
               onChange={() => handleToggle(building.id)}
             />
           </div>

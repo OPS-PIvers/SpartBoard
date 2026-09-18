@@ -62,7 +62,8 @@ export type WidgetType =
   | 'blooms-detail'
   | 'need-do-put-then'
   | 'stations'
-  | 'flashcards';
+  | 'flashcards'
+  | 'projects';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -1459,6 +1460,8 @@ export interface ChecklistConfig {
   firstNames?: string;
   lastNames?: string;
   completedNames?: string[]; // Tracks IDs or Names checked in roster mode
+  /** Pool: the saved class group to draw from. Unset or null = whole class. */
+  rosterPoolGroupId?: string | null;
   fontFamily?: string;
   fontColor?: string;
   textSizePreset?: TextSizePreset;
@@ -1469,6 +1472,8 @@ export interface ChecklistConfig {
 export interface RandomGroup {
   id?: string;
   names: string[];
+  /** Parallel to `names`, populated only in class mode so save-back is id-exact. */
+  studentIds?: string[];
 }
 
 export interface RandomConfig {
@@ -1519,6 +1524,10 @@ export interface RandomConfig {
    *  so they survive re-randomize (a fresh order doesn't erase what's
    *  already been completed). */
   doneNames?: string[];
+  /** Pool: the saved class group to draw from. Unset or null = whole class. */
+  rosterPoolGroupId?: string | null;
+  /** Lock: saved class groups kept together when building groups. */
+  lockedRosterGroupIds?: string[];
 }
 
 export interface DiceConfig {
@@ -2140,6 +2149,15 @@ export interface ScoreboardTeam {
   score: number;
   color?: string;
   linkedGroupId?: string;
+  /**
+   * Provenance for a team seeded straight from a saved class group. Distinct
+   * from `linkedGroupId`, which points at a board-local `SharedGroup` that a
+   * direct class-group import never creates. The group's private name never
+   * syncs either way.
+   */
+  linkedRosterGroupId?: string;
+  /** Seeded at import and refreshed only by the explicit re-sync action. */
+  memberStudentIds?: string[];
 }
 
 export interface ScoreboardConfig {
@@ -2766,6 +2784,8 @@ export interface LunchCountConfig {
   recipient?: string;
   syncError?: string | null; // To display E-SYNC-404 etc.
   rosterMode?: 'class' | 'custom';
+  /** Pool: the saved class group to draw from. Unset or null = whole class. */
+  rosterPoolGroupId?: string | null;
   /** Hour portion of the lunch time (e.g. "11") */
   lunchTimeHour?: string;
   /** Minute portion of the lunch time (e.g. "30") */
@@ -3199,6 +3219,8 @@ export interface SeatingChartConfig {
   gridSize: number;
   rosterMode?: 'class' | 'custom';
   names?: string; // Line separated names for custom roster
+  /** Pool: the saved class group to draw from. Unset or null = whole class. */
+  rosterPoolGroupId?: string | null;
   template?: SeatingChartTemplate;
   templateColumns?: number; // Number of columns for 'rows' template
 }
@@ -4324,7 +4346,9 @@ export type UnrespondedReason =
   | 'passed'
   | 'expired'
   | 'abandoned'
-  | 'capture-unavailable';
+  | 'capture-unavailable'
+  /** A paper bubble row the reader could not trust and the teacher left unresolved. */
+  | 'paper-unclear';
 
 /** Which response slot an artifact fills: the answer itself, or a supporting addendum. */
 export type ArtifactSlot = 'primary' | 'addendum';
@@ -4633,6 +4657,14 @@ export interface QuizResponse {
   /** Client timestamp (ms) when the teacher unlocked the attempt. */
   unlockedAt?: number;
   /**
+   * Set by `importPaperResponsesV1` on a response read from a scanned answer
+   * sheet. Its presence is the paper-sourced flag: no speed or streak bonus,
+   * no tab warnings, and speed-ranked views may exclude the row (plan Q33).
+   */
+  paperBatchId?: string;
+  /** Seat number printed on that sheet, so a rescan lands on the same doc. */
+  paperSeat?: number;
+  /**
    * Teacher-written manual grades for written question types
    * (`short`, `essay`). Keyed by `QuizQuestion.id`. Lives outside the
    * `answers[]` array so teacher writes don't need to rewrite the
@@ -4681,6 +4713,94 @@ export interface QuizResponse {
    * auto-submit.
    */
   handRaisedAt?: import('firebase/firestore').Timestamp | null;
+}
+
+/**
+ * Which roster row a printed seat belongs to. Carries the roster id as well as
+ * the student id because import resolves an unmatched student to
+ * `pin-{classPeriod}-{pin}`, and a student on two rosters has two periods.
+ */
+export interface PaperSeatAssignment {
+  rosterId: string;
+  /** Opaque `Student.id`; the name lives only in the roster's Drive file. */
+  studentId: string;
+}
+
+/**
+ * A printed run of paper answer sheets, at
+ * `users/{teacherUid}/paper_batches/{batchId}`.
+ *
+ * Deliberately PII-free, like the roster doc it mirrors: seats hold opaque ids
+ * and names are resolved from the Drive roster at print and import time.
+ * See docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md §3.
+ */
+export interface PaperBatch {
+  id: string;
+  /** Quiz these sheets were printed for. Deleted with the quiz. */
+  quizId: string;
+  /** Rosters the seats were drawn from, for name resolution at import. */
+  rosterIds: string[];
+  questionCount: number;
+  /** Bubbles printed per row, 2..5. One count for the whole sheet (plan Q14). */
+  choiceCount: number;
+  /** Seat number -> roster row. The only identity mapping, and it is opaque. */
+  seats: Record<number, PaperSeatAssignment>;
+  /** Seats printed without a student, for walk-ins (plan Q15). */
+  spareSeats: number[];
+  /** Seat carrying the bubbled ANSWER KEY sheet, when one was printed (plan Q16). */
+  keySheetSeat?: number;
+  /**
+   * Option text per question id in the lettered order the test paper printed
+   * (A first). Authored quizzes only; import maps a bubbled letter through it
+   * (plan Q36). A stub has none — its options are the letters themselves.
+   */
+  choiceOrder?: Record<string, string[]>;
+  /** Pages each student's sheet occupies. */
+  pagesPerSheet: number;
+  createdAt: number;
+  /** A review the teacher left unfinished, resumable from any device (plan Q26). */
+  pendingReview?: PaperPendingReview;
+}
+
+/** One read row, compact enough for 150 sheets to sit inside the batch doc. */
+export interface PaperPendingAnswer {
+  question: number;
+  choice: number | null;
+  doubt?: 'multiple' | 'unclear';
+}
+
+export interface PaperPendingSheet {
+  seat: number;
+  kind: 'student' | 'spare' | 'key';
+  student: PaperSeatAssignment | null;
+  answers: PaperPendingAnswer[];
+  pagesSeen: number[];
+  missingPages: number[];
+  isBlank: boolean;
+  flags: Array<'missing-page' | 'doubtful-rows' | 'duplicate-conflict'>;
+}
+
+/**
+ * The in-progress review of one scan, persisted on the batch so a closed tab
+ * never means rescanning. Row crops are too large for Firestore and stay in
+ * the browser that read the scan (IndexedDB); without them a resumed review
+ * shows the read choice and the doubt reason only.
+ */
+export interface PaperPendingReview {
+  savedAt: number;
+  /** Administration the teacher chose; `''` means "new paper administration". */
+  assignmentId: string;
+  sheets: PaperPendingSheet[];
+  keySheet: PaperPendingSheet | null;
+  unreadablePages: number[];
+  foreignPages: number[];
+  unknownPages: number[];
+  /** Key choices per question id after the teacher's edits; null where blank. */
+  key: Record<string, number | null>;
+  keyConfirmed: boolean;
+  spareAssignments: Record<number, PaperSeatAssignment>;
+  /** Learning targets tagged during review, per question id (plan Q27). */
+  targets: Record<string, QuestionTargetTag[]>;
 }
 
 /**
@@ -5243,6 +5363,8 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   /** Join code for the student URL. Denormalized from the session doc for archive display. */
   code: string;
   status: QuizAssignmentStatus;
+  /** Set by `importPaperResponsesV1`; publish then writes student pointers (plan Q34). */
+  hasPaperResponses?: boolean;
   createdAt: number;
   updatedAt: number;
   /**
@@ -7008,6 +7130,10 @@ export interface StationsConfig {
   assignments: Record<string, string | null>;
   rosterMode?: 'class' | 'custom';
   customRoster?: string[];
+  /** Pool: the saved class group to draw from. Unset or null = whole class. */
+  rosterPoolGroupId?: string | null;
+  /** Lock: saved class groups Shuffle keeps in the same station. */
+  lockedRosterGroupIds?: string[];
   /**
    * Bumped (e.g. to Date.now()) by a linked Timer when its countdown hits zero.
    * The widget watches this with a useRef and fires the rotate action when the
@@ -7216,6 +7342,201 @@ export interface FlashcardsConfig {
   lastRosterIdsBySetId?: Record<string, string[]>;
 }
 
+// --- PROJECTS WIDGET TYPES (docs/plans/PROJECTS_WIDGET.md) ---
+
+/**
+ * Per-step progress (D1/D2). A group's board position is derived from its step
+ * states, so raising a help flag never costs it its place on the bar.
+ */
+export type ProjectStepState =
+  | 'notStarted'
+  | 'inProgress'
+  | 'readyForReview'
+  | 'done';
+
+export interface ProjectStep {
+  id: string;
+  title: string;
+  description?: string;
+  dueAt?: number;
+  /** Students stop at `readyForReview`; only the teacher sets `done` (D3). */
+  requiresApproval?: boolean;
+}
+
+/** Library entry — `/users/{uid}/projects/{projectId}` (D12). */
+export interface ProjectDefinition {
+  id: string;
+  title: string;
+  description?: string;
+  steps: ProjectStep[];
+  rubric?: Rubric;
+  rubricMaxPoints?: number;
+  dueAt?: number;
+  createdAt: number;
+  updatedAt: number;
+  archivedAt?: number | null;
+}
+
+/** `/project_runs/{runId}`, runId = `${teacherUid}_${projectId}` (D13). */
+export interface ProjectRun {
+  id: string;
+  projectId: string;
+  teacherUid: string;
+  title: string;
+  steps: ProjectStep[];
+  rubric?: Rubric;
+  rubricMaxPoints?: number;
+  dueAt?: number;
+  /** Every ClassLink sourcedId with at least one group in this run. */
+  classIds: string[];
+  /**
+   * Ids of the steps carrying `requiresApproval`, denormalized off `steps`.
+   * `firestore.rules` needs the approval set without walking a nested list,
+   * which CEL cannot do — see the student step-write gate in `project_runs`.
+   */
+  approvalStepIds: string[];
+  showStatusToStudents: boolean;
+  acceptingUpdates: boolean;
+  updatedAt: number;
+}
+
+/** `/project_runs/{runId}/groups/{groupId}`. */
+export interface ProjectGroup {
+  id: string;
+  name: string;
+  /** Section this group belongs to. Gates student reads without a parent get() (A3). */
+  classId: string;
+  memberUids: string[];
+  order: number;
+  stepStates: Record<string, ProjectStepState>;
+  needsSupport: boolean;
+  workLinks: ProjectWorkLink[];
+  /** Populated once the teacher's session archives uploads to Drive (D20). */
+  driveFolderId?: string;
+  /**
+   * The single step a student write moved. `firestore.rules` checks it against
+   * the actual `stepStates` diff, so it cannot lie about which step changed —
+   * that is what makes the per-step approval ceiling enforceable.
+   */
+  lastStepChange?: { stepId: string; at: number };
+  updatedAt: number;
+}
+
+export interface ProjectWorkLink {
+  id: string;
+  url: string;
+  label?: string;
+  stepId?: string;
+  addedByUid: string;
+  addedAt: number;
+}
+
+/**
+ * One uploaded file at `/project_runs/{runId}/groups/{groupId}/uploads/{uploadId}`.
+ * D20 — Storage is a transit buffer; the Drive copy is the durable one, so
+ * `storagePath` is deleted once `archiveStatus` reaches `archived`.
+ */
+export interface ProjectUpload {
+  id: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  /** D19 — optional, so "ready for review" on step 4 can point at something. */
+  stepId?: string;
+  uploadedByUid: string;
+  uploadedAt: number;
+  /** Present until the Drive archive claims it. */
+  storagePath?: string;
+  archiveStatus: ActivityWallArchiveStatus;
+  archiveStartedAt?: number;
+  archivedAt?: number;
+  archiveError?: string;
+  driveFileId?: string;
+  driveUrl?: string;
+  /** Drive has the file but the transit copy survived; the sweep retries. */
+  storageCleanupPending?: boolean;
+}
+
+/** `/project_runs/{runId}/groups/{groupId}/events/{eventId}` — teacher read only (D24). */
+export interface ProjectGroupEvent {
+  id: string;
+  at: number;
+  actorUid: string;
+  actorRole: 'student' | 'teacher';
+  kind: 'stepState' | 'needsSupport' | 'workLink' | 'upload' | 'membership';
+  stepId?: string;
+  from?: ProjectStepState;
+  to?: ProjectStepState;
+  detail?: string;
+}
+
+/** `/project_runs/{runId}/grades/{groupId}` — members read only when released (A2). */
+export interface ProjectGroupGrade {
+  groupId: string;
+  rubricScores: WrittenAnswerRubricScore[];
+  points: number;
+  maxPoints: number;
+  comment?: string;
+  released: boolean;
+  gradedAt: number;
+  /** Absolute per-member points + note, keyed by member uid (A4). */
+  overridesByUid?: Record<string, { points: number; note?: string }>;
+}
+
+/**
+ * One group's membership as the client resolved it, sent to
+ * `commitProjectGroupsV1`. The roster lives in the teacher's Drive file, so the
+ * client resolves `Student.id` → `classLinkSourcedId` and the function applies
+ * the server-side HMAC to mint member uids (D8).
+ */
+export interface ProjectGroupImportEntry {
+  id: string;
+  name: string;
+  classId: string;
+  order: number;
+  classLinkSourcedIds: string[];
+}
+
+/**
+ * A group set the Group Maker handed over, waiting on the teacher to confirm
+ * the import (A5). Holds `Student.id`s, which only resolve against the roster
+ * that produced them — the import panel turns them into ClassLink sourcedIds.
+ */
+export interface ProjectsPendingImport {
+  rosterId: string;
+  at: number;
+  groups: { name: string; studentIds: string[] }[];
+}
+
+export interface BuildingProjectsDefaults {
+  buildingId: string;
+  /**
+   * Whether teachers in this building may open the student side at all. Off
+   * leaves the teacher-only tracker (D6), which is the honest default for a
+   * building with no ClassLink-sourced rosters.
+   */
+  studentAccessEnabled?: boolean;
+  /** Seeds `ProjectRun.showStatusToStudents` on a new project (D30). */
+  defaultShowStatusToStudents?: boolean;
+}
+
+export interface ProjectsGlobalConfig {
+  buildingDefaults?: Record<string, BuildingProjectsDefaults>;
+  dockDefaults?: Record<string, boolean>;
+}
+
+/** Per-board state only. Project definitions live in the teacher's library (D15). */
+export interface ProjectsConfig {
+  /** Library project this widget points at. One project per widget. */
+  projectId?: string;
+  /** D27 — the teacher's show/hide status toggle on the board face. */
+  showStatus?: boolean;
+  pendingImport?: ProjectsPendingImport | null;
+  fontFamily?: string;
+  cardColor?: string;
+  cardOpacity?: number;
+}
+
 // Union of all widget configs
 export type WidgetConfig =
   | UrlWidgetConfig
@@ -7281,7 +7602,8 @@ export type WidgetConfig =
   | NeedDoPutThenConfig
   | First5Config
   | StationsConfig
-  | FlashcardsConfig;
+  | FlashcardsConfig
+  | ProjectsConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'url'
@@ -7412,7 +7734,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                               ? StationsConfig
                                                                                                                               : T extends 'flashcards'
                                                                                                                                 ? FlashcardsConfig
-                                                                                                                                : never;
+                                                                                                                                : T extends 'projects'
+                                                                                                                                  ? ProjectsConfig
+                                                                                                                                  : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
@@ -7694,6 +8018,8 @@ export interface SharedGroup {
   id: string;
   name: string;
   color?: string;
+  /** Provenance only — the roster group's private name never syncs either way. */
+  rosterGroupId?: string;
 }
 
 export interface SpartStickerDropPayload {
@@ -7898,7 +8224,11 @@ export type GlobalFeature =
   /** Teacher-authored AI quiz translations for multilingual learners. */
   | 'quiz-translation'
   /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
-  | 'question-bank-ai';
+  | 'question-bank-ai'
+  /** Paper answer sheets; only meaningful while the Rollouts switch is on. */
+  | 'paper-answer-sheets'
+  /** Saved class groups inside board widgets; AND-ed with the Rollouts switch. */
+  | 'roster-groups';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

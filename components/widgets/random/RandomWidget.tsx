@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/common/Button';
 import { AbsentStudentsModal } from '@/components/common/AbsentStudentsModal';
 import { RandomClassContextButton } from './RandomClassContextButton';
+import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import {
   Users,
   RefreshCw,
@@ -51,6 +52,7 @@ import { getLocalIsoDate } from '@/utils/localDate';
 import { logError } from '@/utils/logError';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 import {
+  makeGroupsWithLockedCohorts,
   makeJigsawExpertGroups,
   makeNameGroups,
   makeNameGroupsByCount,
@@ -125,6 +127,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     activeRosterId,
     activeDashboard,
   } = useDashboard();
+  const rosterGroupsEnabled = useRosterGroupsGate();
   const config = widget.config as RandomConfig;
   const {
     firstNames = '',
@@ -140,7 +143,15 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     jigsawView = 'home',
     numExpertGroups: configNumExpertGroups,
     numHomeGroups: configNumHomeGroups,
+    rosterPoolGroupId = null,
   } = config;
+  const lockedRosterGroupIds = useMemo(
+    () =>
+      Array.isArray(config.lockedRosterGroupIds)
+        ? config.lockedRosterGroupIds
+        : [],
+    [config.lockedRosterGroupIds]
+  );
   const lockedNames = useMemo(
     () => (Array.isArray(config.lockedNames) ? config.lockedNames : []),
     [config.lockedNames]
@@ -258,19 +269,31 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   }
 
   // Track active roster to only clear when it actually changes
-  const lastRosterRef = useRef<{ id: string | null; mode: string }>({
+  const lastRosterRef = useRef<{
+    id: string | null;
+    mode: string;
+    pool: string | null;
+  }>({
     id: activeRosterId,
     mode: rosterMode,
+    pool: rosterPoolGroupId,
   });
 
-  // Clear session data when active roster changes to avoid cross-contamination
+  // Clear session data when active roster changes to avoid cross-contamination.
+  // Narrowing the pool counts as a change: a half-drawn pick-one round or a
+  // stale group grid would still hold students the pool no longer includes.
   useEffect(() => {
     const changed =
       activeRosterId !== lastRosterRef.current.id ||
-      rosterMode !== lastRosterRef.current.mode;
+      rosterMode !== lastRosterRef.current.mode ||
+      rosterPoolGroupId !== lastRosterRef.current.pool;
 
     if (changed) {
-      lastRosterRef.current = { id: activeRosterId, mode: rosterMode };
+      lastRosterRef.current = {
+        id: activeRosterId,
+        mode: rosterMode,
+        pool: rosterPoolGroupId,
+      };
       // Only write when there is actually transient state to clear —
       // otherwise every roster swap costs a Firestore round-trip.
       const hasTransientState =
@@ -295,7 +318,14 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         setLocalJigsaw(null);
       }
     }
-  }, [activeRosterId, widget.id, updateWidget, config, rosterMode]);
+  }, [
+    activeRosterId,
+    widget.id,
+    updateWidget,
+    config,
+    rosterMode,
+    rosterPoolGroupId,
+  ]);
 
   const lastExternalTriggerRef = useRef(config.externalTrigger ?? 0);
 
@@ -311,8 +341,41 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       activeRoster.absent?.date === today
         ? new Set(activeRoster.absent.studentIds)
         : new Set<string>();
-    return activeRoster.students.filter((s) => !absentIds.has(s.id));
-  }, [activeRoster, rosterMode]);
+    // Pool first, then absences — a 5-student group with 1 absent picks from
+    // 4. A group deleted out from under the widget falls back to whole class.
+    const pool =
+      rosterGroupsEnabled && rosterPoolGroupId
+        ? activeRoster.groups?.find((g) => g.id === rosterPoolGroupId)
+        : undefined;
+    const inPool = pool ? new Set(pool.studentIds) : null;
+    return activeRoster.students.filter(
+      (s) => !absentIds.has(s.id) && (!inPool || inPool.has(s.id))
+    );
+  }, [activeRoster, rosterMode, rosterPoolGroupId, rosterGroupsEnabled]);
+
+  // Saved groups the teacher wants kept together, resolved to ids present in
+  // the pool. Empty cohorts (all absent, or a deleted group) drop out here.
+  const lockedCohorts = useMemo<string[][]>(() => {
+    // Gated here too, not only in the settings UI: a board saved while the
+    // feature was on must stop constraining draws the moment it is switched off.
+    if (!rosterGroupsEnabled || rosterMode !== 'class' || !activeRoster) {
+      return [];
+    }
+    const inPool = new Set(presentClassStudents.map((s) => s.id));
+    return lockedRosterGroupIds
+      .map((id) =>
+        (
+          activeRoster.groups?.find((g) => g.id === id)?.studentIds ?? []
+        ).filter((sid) => inPool.has(sid))
+      )
+      .filter((ids) => ids.length > 0);
+  }, [
+    rosterGroupsEnabled,
+    rosterMode,
+    activeRoster,
+    lockedRosterGroupIds,
+    presentClassStudents,
+  ]);
 
   const students = useMemo(() => {
     if (rosterMode === 'class' && activeRoster) {
@@ -439,6 +502,15 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
     return newArr;
   };
+
+  const handleSelectPoolGroup = useCallback(
+    (groupId: string | null) => {
+      updateWidget(widget.id, {
+        config: { rosterPoolGroupId: groupId } as WidgetConfig,
+      });
+    },
+    [updateWidget, widget.id]
+  );
 
   const handleReset = () => {
     spinGenRef.current += 1;
@@ -1140,17 +1212,26 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           const targetCount = useLockPath
             ? existingHome.length
             : displayNumHomeGroups;
-          const { groups, unsatisfied } = makeRestrictedGroupsByCount(
-            poolStudents,
-            targetCount
-          );
+          // A locked group stays intact as a HOME group only. Expert groups
+          // disperse it by round-robin below, because dispersal is the whole
+          // point of the activity (D14).
+          const { groups, unsatisfied } =
+            !useLockPath && lockedCohorts.length > 0
+              ? makeGroupsWithLockedCohorts({
+                  students: poolStudents,
+                  lockedCohorts,
+                  numGroups: targetCount,
+                })
+              : makeRestrictedGroupsByCount(poolStudents, targetCount);
           homeGroups = useLockPath
             ? mergeLockedWithFresh({
                 currentGroups: existingHome,
                 lockedNames,
                 freshGroups: groups,
               })
-            : preserveHomeIds(groups);
+            : lockedCohorts.length > 0
+              ? groups
+              : preserveHomeIds(groups);
           if (unsatisfied > 0) {
             addToast(
               t('widgets.random.restrictionsUnsatisfied', {
@@ -1342,6 +1423,35 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 lockedNames,
                 freshGroups: groups,
               });
+              if (unsatisfied > 0) {
+                addToast(
+                  t('widgets.random.restrictionsUnsatisfied', {
+                    defaultValue:
+                      "Couldn't satisfy all restrictions — try again or adjust group size.",
+                  }),
+                  'warning'
+                );
+              }
+            } else if (lockedCohorts.length > 0) {
+              // Ids are deliberately not preserved here: the output order is
+              // reshuffled (D11), so carrying slot colors across would pin the
+              // locked cohort to a recognisable colour instead.
+              const { groups, unsatisfied, lockConflicts } =
+                makeGroupsWithLockedCohorts({
+                  students: poolStudents,
+                  lockedCohorts,
+                  groupSize,
+                });
+              result = groups;
+              if (lockConflicts > 0) {
+                addToast(
+                  t('widgets.random.lockedGroupOverridesKeepApart', {
+                    defaultValue:
+                      'Kept a locked group together even though it holds students set to stay apart.',
+                  }),
+                  'warning'
+                );
+              }
               if (unsatisfied > 0) {
                 addToast(
                   t('widgets.random.restrictionsUnsatisfied', {
@@ -1720,6 +1830,12 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 roster={activeRoster}
                 rosterMode={rosterMode}
                 onOpenAbsentModal={() => setAbsentModalOpen(true)}
+                {...(rosterGroupsEnabled
+                  ? {
+                      poolGroupId: rosterPoolGroupId,
+                      onSelectPoolGroup: handleSelectPoolGroup,
+                    }
+                  : {})}
               />
             </div>
           </div>

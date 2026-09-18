@@ -265,3 +265,124 @@ describe('ActiveClassChip', () => {
     }
   });
 });
+
+// ─── Pool selection (docs/plans/ROSTER_GROUPS_INTEGRATION.md D8/D16) ──────────
+
+describe('ActiveClassChip — group submenu', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const rosterWithGroup = () => ({
+    ...makeRoster('r1', 'Sample 3', 32),
+    students: Array.from({ length: 32 }, (_, i) => ({
+      id: `s${i}`,
+      firstName: `F${i}`,
+      lastName: 'L',
+      pin: String(i).padStart(2, '0'),
+    })),
+    groups: [
+      {
+        id: 'g1',
+        name: 'Modified Assessments',
+        studentIds: ['s0', 's1', 's2', 's3', 's4'],
+      },
+    ],
+  });
+
+  it('stays a plain class switcher when no groupSelection is passed', () => {
+    mockUseDashboard({ rosters: [rosterWithGroup()], activeRosterId: 'r1' });
+    const { container } = render(<ActiveClassChip />);
+    // One roster and no group picker ⇒ the static, non-interactive chip.
+    expect(container.querySelector('button')).toBeNull();
+  });
+
+  it('opens a menu listing the class and its groups', async () => {
+    mockUseDashboard({ rosters: [rosterWithGroup()], activeRosterId: 'r1' });
+    render(
+      <ActiveClassChip
+        groupSelection={{ selectedGroupId: null, onSelectGroup: vi.fn() }}
+      />
+    );
+    await userEvent.click(screen.getByRole('button'));
+    expect(
+      screen.getByRole('menuitemradio', { name: /Sample 3/ })
+    ).toBeChecked();
+    expect(
+      screen.getByRole('menuitemradio', { name: /Modified Assessments/ })
+    ).not.toBeChecked();
+  });
+
+  it('reports the picked group to the host', async () => {
+    const onSelectGroup = vi.fn();
+    mockUseDashboard({ rosters: [rosterWithGroup()], activeRosterId: 'r1' });
+    render(
+      <ActiveClassChip
+        groupSelection={{ selectedGroupId: null, onSelectGroup }}
+      />
+    );
+    await userEvent.click(screen.getByRole('button'));
+    await userEvent.click(
+      screen.getByRole('menuitemradio', { name: /Modified Assessments/ })
+    );
+    expect(onSelectGroup).toHaveBeenCalledWith('g1');
+  });
+
+  it('shows the group size on the front face, never the group name', () => {
+    mockUseDashboard({ rosters: [rosterWithGroup()], activeRosterId: 'r1' });
+    render(
+      <ActiveClassChip
+        groupSelection={{ selectedGroupId: 'g1', onSelectGroup: vi.fn() }}
+      />
+    );
+    const trigger = screen.getByRole('button');
+    expect(trigger).toHaveTextContent('Sample 3 · 5 students');
+    expect(trigger).not.toHaveTextContent('Modified Assessments');
+  });
+
+  it('counts only members still on the roster', () => {
+    const roster = rosterWithGroup();
+    roster.groups[0].studentIds = ['s0', 's1', 'left-the-class'];
+    mockUseDashboard({ rosters: [roster], activeRosterId: 'r1' });
+    render(
+      <ActiveClassChip
+        groupSelection={{ selectedGroupId: 'g1', onSelectGroup: vi.fn() }}
+      />
+    );
+    expect(screen.getByRole('button')).toHaveTextContent(
+      'Sample 3 · 2 students'
+    );
+  });
+
+  it('falls back to the whole class when the selected group is gone', () => {
+    const roster = rosterWithGroup();
+    roster.groups = [];
+    mockUseDashboard({ rosters: [roster], activeRosterId: 'r1' });
+    render(
+      <ActiveClassChip
+        groupSelection={{ selectedGroupId: 'g1', onSelectGroup: vi.fn() }}
+      />
+    );
+    // No groups left ⇒ nothing to pick, so the chip is static again.
+    expect(screen.getByText('Sample 3')).toBeInTheDocument();
+  });
+
+  it('clears the group when the teacher switches class', async () => {
+    const onSelectGroup = vi.fn();
+    const setActiveRoster = vi.fn();
+    mockUseDashboard({
+      rosters: [rosterWithGroup(), makeRoster('r2', 'Period 4')],
+      activeRosterId: 'r1',
+      setActiveRoster,
+    });
+    render(
+      <ActiveClassChip
+        groupSelection={{ selectedGroupId: 'g1', onSelectGroup }}
+      />
+    );
+    await userEvent.click(screen.getByRole('button'));
+    await userEvent.click(
+      screen.getByRole('menuitemradio', { name: /Period 4/ })
+    );
+    expect(setActiveRoster).toHaveBeenCalledWith('r2');
+    expect(onSelectGroup).toHaveBeenCalledWith(null);
+  });
+});

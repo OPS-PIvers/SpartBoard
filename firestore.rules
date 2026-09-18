@@ -88,6 +88,28 @@ service cloud.firestore {
              : passesStudentClassGate(sessionClassId);
     }
 
+    // `list` scoping for the session collections (video activity / guided
+    // learning / mini app / activity wall). A list rule is evaluated ONCE
+    // against the query with an EMPTY resource, so every clause
+    // must be provable from the client's own filters — it is not a per-document
+    // filter. The three disjuncts below name the only three query shapes the
+    // app sends: the teacher's own where('teacherUid','==',uid), and the two
+    // class shapes from hooks/useStudentAssignments.ts,
+    // where('classIds','array-contains-any',ids) and where('classId','in',ids),
+    // whose `ids` come straight from the caller's own classIds claim.
+    // Read teacherUid through .get(): bare, it throws on a query that does not
+    // filter on it, and CEL only absorbs that while a class disjunct proves true.
+    // NEVER add a disjunct that needs no document (e.g. `|| isStudentRoleUser()`):
+    // it is provable for every caller and silently re-opens the collection to
+    // enumeration. Never put `is list` or `size()` on a resource-derived value
+    // either: that makes the clause unprovable, so it can only ever be false.
+    function sessionListScoped() {
+      return resource.data.get('teacherUid', '') == request.auth.uid ||
+             (request.auth.token.get('classIds', []) is list &&
+              (resource.data.get('classIds', []).hasAny(request.auth.token.get('classIds', [])) ||
+               resource.data.get('classId', '') in request.auth.token.get('classIds', [])));
+    }
+
     // ---- Organization helpers (see docs/organization_wiring_implementation.md) ----
 
     // Super admins from EITHER source (LO2): legacy admin_settings/user_roles
@@ -508,6 +530,18 @@ service cloud.firestore {
       }
     }
 
+    // Printed paper answer-sheet runs. PII-free by construction: seat numbers map
+    // to opaque Student ids and names are resolved from the Drive roster, so this
+    // mirrors the owner-only boundary of /rosters above rather than adding one.
+    // Only a real teacher account prints sheets, so anonymous PIN joiners are shut
+    // out of their own namespace too — same posture as the session-create paths.
+    match /users/{userId}/paper_batches/{batchId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId
+                         && !isStudentRoleUser()
+                         && request.auth.token.firebase.sign_in_provider != 'anonymous'
+                         && notDeactivated();
+    }
+
     // PLC Overview layout — per-user PLC dashboard bento-grid prefs. No PLC
     // membership check needed (a non-member's doc is inert — tiles still pass the
     // PLC rule gates to read content). Per-tile enum validation is delegated to
@@ -717,6 +751,28 @@ service cloud.firestore {
     // Rollout switch for real-time (CRDT) PLC note editing — every member
     // reads it to decide which editor path to mount; admins flip it.
     match /admin_settings/plc_note_collab {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Rollout switch for paper answer sheets — teachers read it to decide
+    // whether to surface the print/import entry points; admins flip it.
+    match /admin_settings/paper_answer_sheets {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Rollout switch for class groups in widgets — teachers read it to decide
+    // whether to offer the group picker; admins flip it.
+    match /admin_settings/roster_groups_integration {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Rollout switch for the Projects widget — teachers read it to decide
+    // whether to mount the widget at all, and students so it stays a kill
+    // switch for runs already created; admins flip it.
+    match /admin_settings/projects_widget {
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }
@@ -3327,6 +3383,50 @@ service cloud.firestore {
         request.resource.data.at == request.time;
     }
 
+    // Quiz join-code -> session pointers. One doc per (code, session), written by
+    // the owning teacher alongside the session itself.
+    //
+    // Why this collection exists: the PIN join flow has to turn a 6-char code into
+    // a session id, and it used to do that with where('code','==',code) against
+    // quiz_sessions. A `list` rule is evaluated ONCE against the query with an EMPTY
+    // resource, so it cannot prove that a filter on `code` was supplied — which is
+    // why quiz_sessions still answers `list` to any authed caller (see the note
+    // there). Here the code is a PATH segment, so the same lookup is provable by
+    // construction: the caller had to know the code to address the collection at all.
+    //
+    // Reads are open to any authed caller INCLUDING anonymous, because K-2 students
+    // have no account to sign in with and reach their quiz by PIN. Knowing the code
+    // IS the gate, exactly as it was before.
+    match /quiz_join_codes/{code} {
+      // Nothing is stored on the parent doc; the pointers live in /sessions.
+      allow read, write: if false;
+
+      match /sessions/{sessionId} {
+        allow get, list: if request.auth != null;
+        // Owner-only, doc id == session id, and no free-form storage.
+        allow create: if request.auth != null &&
+          request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+          code.matches('^[A-Z0-9]{1,16}$') &&
+          request.resource.data.keys().hasOnly(['sessionId', 'teacherUid', 'createdAt']) &&
+          request.resource.data.sessionId == sessionId &&
+          request.resource.data.teacherUid == request.auth.uid &&
+          request.resource.data.createdAt is int;
+        // Immutable: an update could re-aim a live code at a different session,
+        // which is the one thing this collection must never let anyone do.
+        // Re-pointing is a delete + create, both owner-gated.
+        allow update: if false;
+        // `resource == null` makes deleting a pointer that was never written a
+        // no-op. deleteAssignment batches this atomically with the session and
+        // assignment deletes, and every session predating this collection has no
+        // pointer — without it, dereferencing the null resource throws, the batch
+        // is denied, and deleting a quiz breaks until the backfill has run.
+        allow delete: if request.auth != null && (
+          resource == null ||
+          resource.data.teacherUid == request.auth.uid
+        );
+      }
+    }
+
     // Quiz Sessions — keyed by session UUID (was teacherUid). The teacher
     // owns the document and stores their uid on the `teacherUid` field.
     // Multiple concurrent sessions per teacher are allowed.
@@ -3337,6 +3437,20 @@ service cloud.firestore {
       // but can't submit outside their classIds. Privacy: a sessionId is an unguessable
       // v4 UUID and the doc exposes no PII (answer-key stripped).
       allow read: if request.auth != null;
+      // NOTE: `list` is NOT scoped here yet, unlike the other session collections.
+      // The PIN join flow queries this collection by join code
+      // (`where('code','==',code)`) as an ANONYMOUS student, and a list rule is
+      // evaluated against the query with an empty resource — it cannot prove that
+      // a filter on `code` was supplied.
+      //
+      // The `quiz_join_codes` lookup above now resolves a code without that query,
+      // so this IS closable: split into `allow get` plus
+      // `allow list: if request.auth != null && sessionListScoped();` — the same
+      // shape as the four collections below, verified against the emulator. It
+      // waits on every production browser reaching the new join path and on the
+      // live sessions being backfilled, because a merge to a dev-* branch ships
+      // these rules to production while the client only reaches a preview channel.
+      // Sequence: docs/plans/QUIZ_JOIN_CODE_LOOKUP.md.
       // Only the teacher (session owner) can create/update/delete the session document.
       // Ownership is carried on the `teacherUid` field (no longer the doc id).
       // PLC pooling link (docs/plans/PLC_ASSESSMENT_DATA.md §4): a session may
@@ -3979,10 +4093,10 @@ service cloud.firestore {
 
     // Video Activity Sessions — Teacher creates, anonymous students can read and submit responses
     match /video_activity_sessions/{sessionId} {
-      // Reads permissive for any authed caller (see quiz_sessions): studentRole
-      // class gating is enforced on the response WRITE rules below (runtime get()
-      // of the parent classId), not on read.
-      allow read: if request.auth != null;
+      // `get` stays permissive (see quiz_sessions); `list` is scoped so a signed-in
+      // caller can't enumerate every teacher's sessions.
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && sessionListScoped();
       // Only authenticated (non-anonymous) users can create sessions (teachers)
       allow create: if request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous';
       // Teacher owners update their own session (renames, status, sync-pull, PLC
@@ -4153,10 +4267,10 @@ service cloud.firestore {
 
     // MiniApp Assignment Sessions — Teacher creates, anonymous students can read
     match /mini_app_sessions/{sessionId} {
-      // Reads permissive for any authed caller (see quiz_sessions): studentRole
-      // class gating is enforced on the submission WRITE rules below (runtime
-      // get() of the parent classIds), not on read.
-      allow read: if request.auth != null;
+      // `get` stays permissive (see quiz_sessions); `list` is scoped so a signed-in
+      // caller can't enumerate every teacher's sessions.
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && sessionListScoped();
       // Only authenticated (non-anonymous) teachers can create sessions they own
       allow create: if request.auth != null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
@@ -4271,10 +4385,10 @@ service cloud.firestore {
 
     // Guided Learning Sessions — Teacher creates, authenticated (incl. anonymous) students read and submit
     match /guided_learning_sessions/{sessionId} {
-      // Reads permissive for any authed caller (see quiz_sessions): studentRole
-      // class gating is enforced on the response WRITE rules below (runtime get()
-      // of the parent classId), not on read.
-      allow read: if request.auth != null;
+      // `get` stays permissive (see quiz_sessions); `list` is scoped so a signed-in
+      // caller can't enumerate every teacher's sessions.
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && sessionListScoped();
       // Only authenticated (non-anonymous) teachers can create sessions; they must own it
       allow create: if request.auth != null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
@@ -4384,10 +4498,13 @@ service cloud.firestore {
     // Activity Wall Sessions — Teacher owns it (UID prefix in sessionId), students submit entries
     // sessionId is formatted as {teacherUid}_{activityId}
     match /activity_wall_sessions/{sessionId} {
-      // Reads permissive for any authed caller (see quiz_sessions): studentRole
-      // class gating is enforced on the submission WRITE rules below (runtime
-      // get() of the parent classId), not on read.
-      allow read: if request.auth != null;
+      // `get` stays permissive (see quiz_sessions); `list` is scoped so a signed-in
+      // caller can't enumerate every teacher's sessions. Ownership for writes is
+      // the `{uid}_` doc-id prefix, which a list rule cannot prove — the session
+      // mirror also carries `teacherUid`, which is what the library query filters
+      // on and what sessionListScoped() proves.
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && sessionListScoped();
       // Only authenticated non-anonymous teachers/admins can create or update the session document itself.
       allow create, update: if request.auth != null &&
                             request.auth.token.firebase.sign_in_provider != 'anonymous' &&
@@ -4918,15 +5035,33 @@ service cloud.firestore {
       function fcHasPointer() {
         return exists(/databases/$(database)/documents/student_assignments/$(request.auth.uid)/items/$(sessionId));
       }
+      // Positive class match. Deliberately NOT passesStudentClassGateList(),
+      // which passes on an empty/absent classIds - a roster- or group-targeted
+      // session carries no classIds and reaches its students through the
+      // student_assignments pointer, so the permissive gate would open every
+      // such session to every studentRole user in the district.
+      // No `is list` / `size()` guard on sessionClassIds: hasAny() alone is what
+      // the query planner can prove from the client's array-contains-any filter,
+      // and either guard makes every student list query unprovable and denied.
+      function fcInSessionClass(sessionClassIds) {
+        return isStudentRoleUser()
+               && request.auth.token.classIds is list
+               && sessionClassIds.hasAny(request.auth.token.classIds);
+      }
 
       allow get: if request.auth != null && (
         resource.data.teacherUid == request.auth.uid ||
-        (isStudentRoleUser() &&
-         (passesStudentClassGateList(resource.data.get('classIds', [])) || fcHasPointer()))
+        fcInSessionClass(resource.data.get('classIds', [])) ||
+        (isStudentRoleUser() && fcHasPointer())
       );
+      // No pointer branch here: exists() per returned doc would blow the
+      // per-query document-access cap. Pointer-targeted sessions are hydrated
+      // by id through allow get (useStudentAssignments direct getDoc), never
+      // by listing this collection.
       allow list: if request.auth != null
                   && request.auth.token.firebase.sign_in_provider != 'anonymous'
-                  && (resource.data.teacherUid == request.auth.uid || isStudentRoleUser());
+                  && (resource.data.teacherUid == request.auth.uid
+                      || fcInSessionClass(resource.data.get('classIds', [])));
       allow create: if fcTeacherSignedIn()
                     && request.resource.data.teacherUid == request.auth.uid
                     && request.resource.data.kind in ['check', 'study']
@@ -4982,12 +5117,231 @@ service cloud.firestore {
                               && studentUid == request.auth.uid
                               && isStudentRoleUser()
                               && fcSession().status == 'active'
-                              && (passesStudentClassGateList(fcSession().get('classIds', [])) ||
+                              && (fcInSessionClass(fcSession().get('classIds', [])) ||
                                   exists(/databases/$(database)/documents/student_assignments/$(request.auth.uid)/items/$(sessionId)))
                               && fcWithinWindow()
                               && (resource == null || !('submittedAt' in resource.data))
                               && fcValidProgress();
         allow delete: if fcIsSessionTeacher() && notDeactivated();
+      }
+    }
+
+    // Projects library — teacher-owned reusable project definitions (D12).
+    // studentRole tokens denied; students only ever see a run, never the library.
+    match /users/{userId}/projects/{projectId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId
+                          && !isStudentRoleUser() && notDeactivated();
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && !isStudentRoleUser() && notDeactivated()
+                    && request.resource.data.id == projectId
+                    && request.resource.data.title is string
+                    && request.resource.data.steps is list
+                    && request.resource.data.steps.size() <= 32
+                    && request.resource.data.createdAt is int
+                    && request.resource.data.updatedAt is int;
+      allow update: if request.auth != null
+                    && request.auth.uid == userId
+                    && !isStudentRoleUser() && notDeactivated()
+                    && request.resource.data.id == resource.data.id
+                    && request.resource.data.steps is list
+                    && request.resource.data.steps.size() <= 32
+                    && request.resource.data.updatedAt is int;
+    }
+
+    // Projects runs (docs/plans/PROJECTS_WIDGET.md §5.2). One doc per group is
+    // required, not preferred: rules cannot gate a partial write to an array
+    // inside a single run doc, so "edit only my group" is unenforceable in a
+    // one-doc design.
+    match /project_runs/{runId} {
+      function pjTeacher() {
+        return request.auth != null
+               && request.auth.token.firebase.sign_in_provider != 'anonymous'
+               && !isStudentRoleUser()
+               && notDeactivated();
+      }
+      function pjRun() {
+        return get(/databases/$(database)/documents/project_runs/$(runId)).data;
+      }
+      // Positive student check. passesStudentClassGate*() passes every
+      // non-student, so it can never stand as the || alternative to ownership.
+      function pjStudentInAnyClass(classIds) {
+        return isStudentRoleUser()
+               && request.auth.token.classIds is list
+               && classIds is list
+               && classIds.hasAny(request.auth.token.classIds);
+      }
+      // notDeactivated() last: it is a get(), and a student never reaches it.
+      function pjIsRunTeacher() {
+        return request.auth != null
+               && pjRun().teacherUid == request.auth.uid
+               && notDeactivated();
+      }
+
+      // `.get()`, never bare `resource.data.teacherUid`: a bare property read
+      // on a list evaluation throws instead of returning false, which fails
+      // the whole rule rather than falling through to the student branch.
+      allow get: if request.auth != null
+                 && ((resource.data.get('teacherUid', '') == request.auth.uid
+                      && notDeactivated())
+                     || pjStudentInAnyClass(resource.data.get('classIds', [])));
+      // A list rule is evaluated ONCE against the query with an EMPTY resource,
+      // so every clause must be provable from the client's own filters. These
+      // are the only two query shapes the app sends: the teacher's own
+      // where('teacherUid','==',uid), and the student page's
+      // where('classIds','array-contains-any',ids) whose ids come straight
+      // from the caller's own claim. This is `sessionListScoped()` plus the
+      // deactivation check, which is why it stays local rather than calling
+      // that helper: notDeactivated() must gate the teacher branch only, so a
+      // student never pays for its get(). The same two traps apply, both
+      // measured on the emulator — the same two traps `sessionListScoped()`
+      // carries, hardened against there in #3150.
+      function pjRunListScoped() {
+        return (resource.data.get('teacherUid', '') == request.auth.uid
+                && notDeactivated()) ||
+               (request.auth.token.get('classIds', []) is list &&
+                resource.data.get('classIds', [])
+                  .hasAny(request.auth.token.get('classIds', [])));
+      }
+      allow list: if request.auth != null
+                  && request.auth.token.firebase.sign_in_provider != 'anonymous'
+                  && pjRunListScoped();
+      allow create: if pjTeacher()
+                    && request.resource.data.teacherUid == request.auth.uid
+                    && request.resource.data.id == runId
+                    && request.resource.data.classIds is list
+                    && request.resource.data.approvalStepIds is list
+                    && request.resource.data.steps is list
+                    && request.resource.data.steps.size() <= 32
+                    && request.resource.data.acceptingUpdates is bool
+                    && request.resource.data.showStatusToStudents is bool;
+      allow update: if pjTeacher()
+                    && resource.data.teacherUid == request.auth.uid
+                    && request.resource.data.teacherUid == resource.data.teacherUid
+                    && request.resource.data.id == resource.data.id
+                    && request.resource.data.classIds is list
+                    && request.resource.data.approvalStepIds is list
+                    && request.resource.data.steps is list
+                    && request.resource.data.steps.size() <= 32;
+      allow delete: if pjTeacher() && resource.data.teacherUid == request.auth.uid;
+
+      match /groups/{groupId} {
+        // A3: student reads gate on the group's own classId, never a get() of
+        // the parent run — that would cost a document read per group per render.
+        // Which keys a member may touch, and what may go in them. CEL cannot walk
+        // `workLinks` to validate each entry, so the list is capped and typed here
+        // and its contents stay the client's business.
+        function pjStudentEditableFields() {
+          let after = request.resource.data;
+          return after.diff(resource.data).affectedKeys().hasOnly([
+                   'stepStates', 'needsSupport', 'workLinks', 'lastStepChange', 'updatedAt'
+                 ])
+                 && after.get('needsSupport', false) is bool
+                 && after.get('workLinks', []) is list
+                 && after.get('workLinks', []).size() <= 20
+                 && after.get('updatedAt', 0) is int
+                 && after.get('lastStepChange', {}).get('at', 0) is int;
+        }
+        // Enforces the per-step approval ceiling (D2/D3). CEL cannot walk a map
+        // applying a per-key rule, so a student write declares the one step it
+        // moved and the rule checks that claim against the real diff.
+        function pjStudentStepWrite() {
+          let before = resource.data.get('stepStates', {});
+          let after = request.resource.data.get('stepStates', {});
+          let affected = after.diff(before).affectedKeys();
+          let sid = request.resource.data.get('lastStepChange', {}).get('stepId', '');
+          return affected.size() == 0
+                 || (sid is string
+                     && sid.size() > 0
+                     && affected == [sid].toSet()
+                     && after.get(sid, '') in
+                        ['notStarted', 'inProgress', 'readyForReview', 'done']
+                     && (!(sid in pjRun().get('approvalStepIds', []))
+                         || after.get(sid, '') != 'done'));
+        }
+
+        allow get: if request.auth != null
+                   && (pjIsRunTeacher()
+                       || studentRoleCanAccessClass(resource.data.get('classId', '')));
+        allow list: if request.auth != null
+                    && (pjIsRunTeacher()
+                        || studentRoleCanAccessClass(resource.data.get('classId', '')));
+        allow update: if request.auth != null
+                      && (pjIsRunTeacher()
+                          || (request.auth.uid in resource.data.get('memberUids', [])
+                              && pjStudentEditableFields()
+                              && pjStudentStepWrite()
+                              && pjRun().acceptingUpdates == true));
+        allow create, delete: if pjIsRunTeacher();
+
+        // D24: the event log is the teacher's audit trail, never student-visible.
+        // Append-only; `actorUid` is pinned to the caller and `actorRole` to what
+        // the caller actually is, so an entry can never be forged onto someone
+        // else, mislabelled, edited, or deleted.
+        match /events/{eventId} {
+          allow read: if pjIsRunTeacher();
+          allow create: if request.auth != null
+                        && request.resource.data.actorUid == request.auth.uid
+                        && request.resource.data.at is int
+                        && request.resource.data.actorRole
+                           == (pjIsRunTeacher() ? 'teacher' : 'student')
+                        && request.resource.data.kind in [
+                             'stepState', 'needsSupport', 'workLink', 'upload', 'membership'
+                           ]
+                        && (pjIsRunTeacher()
+                            || request.auth.uid in get(
+                                 /databases/$(database)/documents/project_runs/$(runId)/groups/$(groupId)
+                               ).data.get('memberUids', []));
+          allow update, delete: if false;
+        }
+
+        // D20 — uploads are a transit record: the client creates one, the
+        // archive trigger (admin, rules-exempt) moves it to Drive and clears
+        // `storagePath`. Reads are the run teacher and the group's own members
+        // only. Unlike `workLinks`, which sit on the class-readable group doc,
+        // a file is the group's work product, not a pointer it published.
+        match /uploads/{uploadId} {
+          // Positive membership, never a helper that passes every non-student.
+          function pjUploadMember() {
+            return request.auth != null
+                   && request.auth.uid in get(
+                        /databases/$(database)/documents/project_runs/$(runId)/groups/$(groupId)
+                      ).data.get('memberUids', []);
+          }
+          allow read: if pjIsRunTeacher() || pjUploadMember();
+          allow create: if request.auth != null
+                        && request.resource.data.uploadedByUid == request.auth.uid
+                        && request.resource.data.id == uploadId
+                        && request.resource.data.archiveStatus == 'firebase'
+                        && request.resource.data.storagePath ==
+                             'project_uploads/' + runId + '/' + groupId + '/' + uploadId + '/'
+                             + request.resource.data.get('fileName', '')
+                        && request.resource.data.fileName is string
+                        && request.resource.data.fileName.size() > 0
+                        && request.resource.data.contentType is string
+                        && request.resource.data.sizeBytes is int
+                        && request.resource.data.uploadedAt is int
+                        && (pjIsRunTeacher()
+                            || (pjUploadMember() && pjRun().acceptingUpdates == true));
+          // The archive trigger writes as admin and bypasses rules, so no
+          // client ever needs to move an upload's archive state along.
+          allow update: if pjIsRunTeacher();
+          allow delete: if pjIsRunTeacher() || pjUploadMember();
+        }
+      }
+
+      // A2: grades live beside the groups, not on them, so a member reading
+      // their own group doc can never read an unreleased score.
+      match /grades/{groupId} {
+        function pjGroupMembers() {
+          return get(/databases/$(database)/documents/project_runs/$(runId)/groups/$(groupId))
+                 .data.get('memberUids', []);
+        }
+        allow read: if pjIsRunTeacher()
+                    || (request.auth != null
+                        && resource.data.get('released', false) == true
+                        && request.auth.uid in pjGroupMembers());
+        allow write: if pjIsRunTeacher();
       }
     }
 

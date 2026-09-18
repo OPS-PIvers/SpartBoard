@@ -1,6 +1,10 @@
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { SoundGlobalConfig, BuildingSoundDefaults } from '@/types';
 import { Card } from '@/components/common/Card';
@@ -31,12 +35,16 @@ export const SoundConfigurationPanel: React.FC<
   const BUILDINGS = useAdminBuildings();
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+  const canonicalId = canonicalBuildingId(selectedBuildingId);
 
-  const buildingDefaults = config.buildingDefaults ?? {};
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    config.buildingDefaults ?? {}
+  );
   const currentBuildingConfig: BuildingSoundDefaults = buildingDefaults[
-    selectedBuildingId
+    canonicalId
   ] ?? {
-    buildingId: selectedBuildingId,
+    buildingId: canonicalId,
   };
 
   const handleUpdateBuilding = (updates: Partial<BuildingSoundDefaults>) => {
@@ -44,7 +52,7 @@ export const SoundConfigurationPanel: React.FC<
       ...config,
       buildingDefaults: {
         ...buildingDefaults,
-        [selectedBuildingId]: {
+        [canonicalId]: {
           ...currentBuildingConfig,
           ...updates,
         },

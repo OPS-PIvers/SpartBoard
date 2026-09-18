@@ -9,8 +9,13 @@ import {
 } from '@/types';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Plus, Trash2, Users, RefreshCw, LayoutGrid, List } from 'lucide-react';
+import { useDialog } from '@/context/useDialog';
+import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { Button } from '@/components/common/Button';
-import { SCOREBOARD_COLORS as TEAM_COLORS } from '@/config/scoreboard';
+import {
+  SCOREBOARD_COLORS as TEAM_COLORS,
+  scoreboardTeamLetter,
+} from '@/config/scoreboard';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useTranslation } from 'react-i18next';
 
@@ -52,12 +57,114 @@ export const ScoreboardSettings: React.FC<{
   showLayout?: boolean;
 }> = ({ widget, showLayout = true }) => {
   const { t } = useTranslation();
-  const { updateWidget, updateDashboard, activeDashboard, addToast } =
-    useDashboard();
+  const {
+    updateWidget,
+    updateDashboard,
+    activeDashboard,
+    addToast,
+    rosters,
+    activeRosterId,
+  } = useDashboard();
+  const { showConfirm } = useDialog();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [useGroupNames, setUseGroupNames] = useState(false);
   const config = widget.config as ScoreboardConfig;
   const teams = Array.isArray(config.teams) ? config.teams : [];
   const layout = config.layout ?? 'cards';
+
+  // --- Class groups (docs/plans/ROSTER_GROUPS_INTEGRATION.md D17/D20) ---
+  const rosterGroupsEnabled = useRosterGroupsGate();
+  const activeRoster = useMemo(
+    () => rosters.find((r) => r.id === activeRosterId) ?? rosters[0],
+    [rosters, activeRosterId]
+  );
+  const rosterGroups = useMemo(
+    () => activeRoster?.groups ?? [],
+    [activeRoster]
+  );
+  const hasLinkedTeams = teams.some((team) => team.linkedRosterGroupId);
+
+  const importClassGroups = async () => {
+    if (!activeRoster || rosterGroups.length === 0) return;
+    if (teams.length > 0) {
+      const ok = await showConfirm(
+        t('widgetSettings.scoreboard.replaceTeamsBody', {
+          count: teams.length,
+        }),
+        {
+          title: t('widgetSettings.scoreboard.replaceTeamsTitle'),
+          confirmLabel: t('widgetSettings.scoreboard.replaceTeamsConfirm'),
+          variant: 'danger',
+        }
+      );
+      if (!ok) return;
+    }
+    const onRoster = new Set(activeRoster.students.map((st) => st.id));
+    const newTeams: ScoreboardTeam[] = rosterGroups.map((group, i) => ({
+      id: crypto.randomUUID(),
+      // Default off: a group can be named "Tier 3 Intervention" and a team
+      // name is projected (D17).
+      name: useGroupNames
+        ? group.name
+        : t('widgetSettings.scoreboard.classTeamName', { count: i + 1 }),
+      score: 0,
+      color: TEAM_COLORS[i % TEAM_COLORS.length],
+      linkedRosterGroupId: group.id,
+      memberStudentIds: group.studentIds.filter((id) => onRoster.has(id)),
+    }));
+    updateWidget(widget.id, { config: { ...config, teams: newTeams } });
+    addToast(
+      t('widgetSettings.scoreboard.importedClassGroups', {
+        count: newTeams.length,
+      }),
+      'success'
+    );
+  };
+
+  // Seed once, then independent (D20). Membership is refreshed only here, and
+  // never the name or the score — a mid-competition rewrite of who earned what
+  // is exactly what the explicit action exists to avoid.
+  const resyncMembers = () => {
+    if (!activeRoster) return;
+    const onRoster = new Set(activeRoster.students.map((st) => st.id));
+    let refreshed = 0;
+    let unlinked = 0;
+    const nextTeams = teams.map((team) => {
+      if (!team.linkedRosterGroupId) return team;
+      const group = rosterGroups.find((g) => g.id === team.linkedRosterGroupId);
+      if (!group) {
+        // The group was deleted. Keep the team and its score, drop the dead
+        // link — rebuilt explicitly so no `undefined` field reaches Firestore.
+        unlinked++;
+        const stripped: ScoreboardTeam = {
+          id: team.id,
+          name: team.name,
+          score: team.score,
+        };
+        if (team.color) stripped.color = team.color;
+        if (team.linkedGroupId) stripped.linkedGroupId = team.linkedGroupId;
+        return stripped;
+      }
+      refreshed++;
+      return {
+        ...team,
+        memberStudentIds: group.studentIds.filter((id) => onRoster.has(id)),
+      };
+    });
+    updateWidget(widget.id, { config: { ...config, teams: nextTeams } });
+    if (refreshed > 0) {
+      addToast(
+        t('widgetSettings.scoreboard.resyncedMembers', { count: refreshed }),
+        'success'
+      );
+    }
+    if (unlinked > 0) {
+      addToast(
+        t('widgetSettings.scoreboard.resyncUnlinked', { count: unlinked }),
+        'info'
+      );
+    }
+  };
 
   const setLayout = (next: 'cards' | 'rows') => {
     if (next === layout) return;
@@ -128,11 +235,24 @@ export const ScoreboardSettings: React.FC<{
   };
 
   const addTeam = () => {
+    // First unused letter, so deleting "Team B" frees that name again.
+    const taken = new Set(
+      teams.map((team) => team.name.trim().toLocaleLowerCase())
+    );
+    let letterIndex = 0;
+    let name = t('widgetSettings.scoreboard.teamName', {
+      letter: scoreboardTeamLetter(letterIndex),
+    });
+    while (taken.has(name.trim().toLocaleLowerCase())) {
+      letterIndex += 1;
+      name = t('widgetSettings.scoreboard.teamName', {
+        letter: scoreboardTeamLetter(letterIndex),
+      });
+    }
+
     const newTeam: ScoreboardTeam = {
       id: crypto.randomUUID(),
-      name: t('widgetSettings.scoreboard.teamName', {
-        count: teams.length + 1,
-      }),
+      name,
       score: 0,
       color: TEAM_COLORS[teams.length % TEAM_COLORS.length],
     };
@@ -263,6 +383,46 @@ export const ScoreboardSettings: React.FC<{
         )}
       </div>
 
+      {rosterGroupsEnabled && rosterGroups.length > 0 && (
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col gap-3">
+          <div className="flex items-center gap-2 text-slate-700">
+            <Users className="w-4 h-4" />
+            <span className="text-xs font-black uppercase tracking-wider">
+              {t('widgetSettings.scoreboard.classGroups')}
+            </span>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={useGroupNames}
+              onChange={(e) => setUseGroupNames(e.target.checked)}
+              className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+            />
+            <span>{t('widgetSettings.scoreboard.useGroupNames')}</span>
+          </label>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => void importClassGroups()}
+            icon={<Plus className="w-3 h-3" />}
+          >
+            {t('widgetSettings.scoreboard.importClassGroups', {
+              count: rosterGroups.length,
+            })}
+          </Button>
+          {hasLinkedTeams && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={resyncMembers}
+              icon={<RefreshCw className="w-3 h-3" />}
+            >
+              {t('widgetSettings.scoreboard.resyncMembers')}
+            </Button>
+          )}
+        </div>
+      )}
+
       <div className="space-y-3">
         <div className="flex justify-between items-center h-6">
           <SettingsLabel className="mb-0">
@@ -314,6 +474,15 @@ export const ScoreboardSettings: React.FC<{
                 className="flex-1 text-xs font-bold text-slate-700 bg-transparent outline-none"
                 placeholder={t('widgetSettings.scoreboard.teamNamePlaceholder')}
               />
+              {team.linkedRosterGroupId && (
+                <span
+                  className="flex items-center gap-1 text-xxs font-bold text-slate-400 tabular-nums shrink-0"
+                  title={t('widgetSettings.scoreboard.membersTitle')}
+                >
+                  <Users className="w-3 h-3" />
+                  {team.memberStudentIds?.length ?? 0}
+                </span>
+              )}
               <div className="text-xs font-mono text-slate-400 w-8 text-right">
                 {team.score}
               </div>

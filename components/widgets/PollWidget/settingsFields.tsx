@@ -6,6 +6,9 @@ import React, {
   useState,
 } from 'react';
 import { useDashboard } from '@/context/useDashboard';
+import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
+import { RosterGroupSelect } from '@/components/common/RosterGroupSelect';
+import { rosterGroupMemberIds } from '@/utils/rosterGroups';
 import { useAuth } from '@/context/useAuth';
 import { WidgetData, PollConfig, PollQuestion } from '@/types';
 import { useDialog } from '@/context/useDialog';
@@ -176,6 +179,12 @@ export const PollSettings: React.FC<{
     [rosters, activeRosterId]
   );
 
+  // Group-scoped import (docs/plans/ROSTER_GROUPS_INTEGRATION.md D21). The
+  // scope is a one-shot import choice, not saved config — the list stays a
+  // hand-editable snapshot rather than becoming a live class binding.
+  const rosterGroupsEnabled = useRosterGroupsGate();
+  const [importGroupId, setImportGroupId] = useState<string | null>(null);
+
   // AI file context state
   const [fileContext, setFileContext] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -265,11 +274,22 @@ export const PollSettings: React.FC<{
       if (!confirmed) return;
     }
 
-    const newOptions = activeRoster.students.map((s) => ({
-      id: crypto.randomUUID(),
-      label: `${s.firstName} ${s.lastName}`.trim(),
-      votes: 0,
-    }));
+    const inGroup = rosterGroupMemberIds(
+      activeRoster,
+      importGroupId,
+      rosterGroupsEnabled
+    );
+    const newOptions = activeRoster.students
+      .filter((s) => !inGroup || inGroup.has(s.id))
+      .map((s) => ({
+        id: crypto.randomUUID(),
+        label: `${s.firstName} ${s.lastName}`.trim(),
+        votes: 0,
+      }));
+    if (newOptions.length === 0) {
+      addToast(t('widgetSettings.poll.importGroupEmpty'), 'info');
+      return;
+    }
 
     saveEditing({ options: newOptions });
     addToast(
@@ -385,6 +405,15 @@ export const PollSettings: React.FC<{
                 {t('widgetSettings.poll.importClass')}
               </Button>
             </div>
+            {rosterGroupsEnabled && activeRoster && (
+              <RosterGroupSelect
+                roster={activeRoster}
+                value={importGroupId}
+                onChange={setImportGroupId}
+                wholeClassLabel={t('widgetSettings.poll.importWholeClass')}
+                ariaLabel={t('widgetSettings.poll.importScope')}
+              />
+            )}
             {!activeRoster && (
               <div className="text-xxs text-indigo-400 font-medium">
                 {t('widgetSettings.poll.importTip')}

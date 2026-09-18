@@ -2,6 +2,10 @@ import React, { useId, useState } from 'react';
 import { Plus, X, ArrowRightCircle } from 'lucide-react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import {
   NumberLineGlobalConfig,
@@ -119,9 +123,13 @@ export const NumberLineConfigurationPanel: React.FC<
   const [selectedBuildingId, setSelectedBuildingId] =
     useBuildingSelection(BUILDINGS);
 
-  const buildingDefaults = config.buildingDefaults ?? {};
+  // useAdminBuildings() can return a legacy long-form id; key buildingDefaults off the canonical id.
+  const canonicalId = canonicalBuildingId(selectedBuildingId);
+  const buildingDefaults = canonicalizeBuildingKeyedRecord(
+    config.buildingDefaults ?? {}
+  );
   const currentBuildingConfig: BuildingNumberLineDefaults = buildingDefaults[
-    selectedBuildingId
+    canonicalId
   ] ?? {
     min: 0,
     max: 10,
@@ -165,7 +173,7 @@ export const NumberLineConfigurationPanel: React.FC<
       ...config,
       buildingDefaults: {
         ...buildingDefaults,
-        [selectedBuildingId]: { ...currentBuildingConfig, ...updates },
+        [canonicalId]: { ...currentBuildingConfig, ...updates },
       },
     });
   };

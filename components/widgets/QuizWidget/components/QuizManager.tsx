@@ -57,6 +57,9 @@ import {
   GraduationCap,
   Combine,
   Target,
+  Printer,
+  ScanLine,
+  ScanText,
 } from 'lucide-react';
 import {
   AssignmentMode,
@@ -258,6 +261,14 @@ interface QuizManagerProps {
   error: string | null;
   onNew: () => void;
   onImport: () => void;
+  /** Open the paper answer-sheet print flow. Absent when the feature is off. */
+  onPrintPaperSheets?: (quiz: QuizMetadata) => void;
+  /** Import a scanned stack of those sheets; `undefined` hides the entry. */
+  onImportPaperScan?: (quiz: QuizMetadata) => void;
+  /** OCR the printed test paper into question text; `undefined` hides the entry. */
+  onReadPaperQuestions?: (quiz: QuizMetadata) => void;
+  /** Start a paper-only quiz stub. Absent when the feature is off. */
+  onNewPaperTest?: () => void;
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;
   /**
@@ -588,6 +599,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   error,
   onNew,
   onImport,
+  onPrintPaperSheets,
+  onImportPaperScan,
+  onReadPaperQuestions,
+  onNewPaperTest,
   onEdit,
   onPreview,
   onAssign,
@@ -1022,6 +1037,36 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         icon: BarChart3,
         onClick: () => onResults(quiz),
       },
+      ...(onPrintPaperSheets
+        ? [
+            {
+              id: 'print-paper',
+              label: 'Print answer sheets',
+              icon: Printer,
+              onClick: () => onPrintPaperSheets(quiz),
+            },
+          ]
+        : []),
+      ...(onImportPaperScan
+        ? [
+            {
+              id: 'import-paper',
+              label: 'Import scanned sheets',
+              icon: ScanLine,
+              onClick: () => onImportPaperScan(quiz),
+            },
+          ]
+        : []),
+      ...(onReadPaperQuestions
+        ? [
+            {
+              id: 'read-paper-questions',
+              label: 'Read questions from test paper',
+              icon: ScanText,
+              onClick: () => onReadPaperQuestions(quiz),
+            },
+          ]
+        : []),
       {
         id: 'share',
         label: 'Share',
@@ -1905,13 +1950,27 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     ) : undefined;
 
   // ─── Shell header actions ─────────────────────────────────────────────────
+  // Import and Paper test live behind New Quiz's caret, never as their own
+  // buttons (plan Q10).
   const primaryAction =
     managerTab === 'library'
-      ? { label: 'New Quiz', icon: Plus, onClick: onNew }
-      : undefined;
-  const secondaryActions =
-    managerTab === 'library'
-      ? [{ label: 'Import', icon: FileUp, onClick: onImport }]
+      ? {
+          label: 'New Quiz',
+          icon: Plus,
+          onClick: onNew,
+          menuItems: [
+            { label: 'Import', icon: FileUp, onClick: onImport },
+            ...(onNewPaperTest
+              ? [
+                  {
+                    label: 'Paper test',
+                    icon: Printer,
+                    onClick: onNewPaperTest,
+                  },
+                ]
+              : []),
+          ],
+        }
       : undefined;
 
   // ─── Toolbar for library tab ──────────────────────────────────────────────
@@ -2034,7 +2093,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         counts={tabCounts}
         tabLabels={tabLabels}
         primaryAction={primaryAction}
-        secondaryActions={secondaryActions}
         toolbarSlot={toolbar}
         filterSidebarSlot={folderSidebarSlot}
       >
@@ -2090,7 +2148,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       counts={tabCounts}
       tabLabels={tabLabels}
       primaryAction={primaryAction}
-      secondaryActions={secondaryActions}
       toolbarSlot={toolbar}
       filterSidebarSlot={folderSidebarSlot}
     >
