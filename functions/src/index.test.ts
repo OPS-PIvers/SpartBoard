@@ -732,7 +732,7 @@ describe('checkUrlCompatibility', () => {
     expect(result.reason).toBe('');
   });
 
-  it('should return isEmbeddable true and uncertain true if axios throws', async () => {
+  it('should return isEmbeddable false and uncertain true if axios throws', async () => {
     const mockHead = vi.mocked(axios.head);
     mockHead.mockRejectedValue(new Error('Network error on head request'));
 
@@ -745,7 +745,7 @@ describe('checkUrlCompatibility', () => {
       { auth: { uid: '123' } }
     );
 
-    expect(result.isEmbeddable).toBe(true);
+    expect(result.isEmbeddable).toBe(false);
     expect(result.uncertain).toBe(true);
     expect(result.error).toContain('Network error on head request');
   });
