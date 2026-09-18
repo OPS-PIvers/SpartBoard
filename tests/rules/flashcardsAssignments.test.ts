@@ -16,6 +16,8 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
+  orderBy,
   query,
   setDoc,
   where,
@@ -192,12 +194,26 @@ describe('flashcard_sessions', () => {
         )
       )
     );
+    // The Ended channel adds orderBy + limit; both need a matching doc in the
+    // result set, because an empty result never reaches the rule at all.
+    await seed(
+      'flashcard_sessions/session-2',
+      session({
+        id: 'session-2',
+        classIds: ['class-b'],
+        classId: 'class-b',
+        status: 'ended',
+        endedAt: 2,
+      })
+    );
     await assertSucceeds(
       getDocs(
         query(
           collection(db, 'flashcard_sessions'),
           where('classIds', 'array-contains-any', ['class-b']),
-          where('status', '==', 'ended')
+          where('status', '==', 'ended'),
+          orderBy('endedAt', 'desc'),
+          limit(50)
         )
       )
     );
