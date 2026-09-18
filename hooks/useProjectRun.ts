@@ -2,9 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  addDoc,
-  arrayRemove,
-  arrayUnion,
   collection,
   doc,
   onSnapshot,
@@ -16,7 +13,6 @@ import { db, functions } from '@/config/firebase';
 import type {
   ProjectDefinition,
   ProjectGroup,
-  ProjectGroupEvent,
   ProjectGroupImportEntry,
   ProjectRun,
   ProjectStepState,
@@ -24,12 +20,16 @@ import type {
 } from '@/types';
 import { logError } from '@/utils/logError';
 import { approvalStepIdsFrom } from '@/components/widgets/Projects/projectSteps';
+import {
+  RUNS_COLLECTION,
+  removeWorkLinkWrite,
+  runIdFor,
+  writeNeedsSupport,
+  writeStepState,
+  writeWorkLink,
+} from '@/utils/projectRunWrites';
 
-export const RUNS_COLLECTION = 'project_runs';
-
-/** D13 — exactly one run per project, so the id is derivable, not stored. */
-export const runIdFor = (teacherUid: string, projectId: string): string =>
-  `${teacherUid}_${projectId}`;
+export { RUNS_COLLECTION, runIdFor };
 
 interface CommitProjectGroupsResult {
   groupsWritten: number;
@@ -133,25 +133,6 @@ export function useProjectRun(
     );
   }, [runId]);
 
-  // D24 — a failed log entry must never roll back the change it describes.
-  const logEvent = useCallback(
-    async (
-      groupId: string,
-      event: Omit<ProjectGroupEvent, 'id' | 'at' | 'actorUid'>
-    ) => {
-      if (!runId || !actorUid) return;
-      try {
-        await addDoc(
-          collection(db, RUNS_COLLECTION, runId, 'groups', groupId, 'events'),
-          { ...event, at: Date.now(), actorUid }
-        );
-      } catch (eventError) {
-        logError('useProjectRun.logEvent', eventError, { runId, groupId });
-      }
-    },
-    [actorUid, runId]
-  );
-
   const ensureRun = useCallback(
     async (
       project: ProjectDefinition,
@@ -198,21 +179,17 @@ export function useProjectRun(
     ) => {
       if (!runId) throw new Error('No project is running.');
       const from = groups.find((g) => g.id === groupId)?.stepStates?.[stepId];
-      await updateDoc(doc(db, RUNS_COLLECTION, runId, 'groups', groupId), {
-        [`stepStates.${stepId}`]: state,
-        // Rules check this claim against the real diff (`pjStudentStepWrite`).
-        lastStepChange: { stepId, at: Date.now() },
-        updatedAt: Date.now(),
-      });
-      await logEvent(groupId, {
-        actorRole,
-        kind: 'stepState',
+      await writeStepState(
+        db,
+        runId,
+        groupId,
         stepId,
-        ...(from ? { from } : {}),
-        to: state,
-      });
+        state,
+        { uid: actorUid, role: actorRole },
+        from
+      );
     },
-    [groups, logEvent, runId]
+    [actorUid, groups, runId]
   );
 
   const setNeedsSupport = useCallback(
@@ -222,17 +199,12 @@ export function useProjectRun(
       actorRole: 'student' | 'teacher'
     ) => {
       if (!runId) throw new Error('No project is running.');
-      await updateDoc(doc(db, RUNS_COLLECTION, runId, 'groups', groupId), {
-        needsSupport,
-        updatedAt: Date.now(),
-      });
-      await logEvent(groupId, {
-        actorRole,
-        kind: 'needsSupport',
-        detail: needsSupport ? 'raised' : 'cleared',
+      await writeNeedsSupport(db, runId, groupId, needsSupport, {
+        uid: actorUid,
+        role: actorRole,
       });
     },
-    [logEvent, runId]
+    [actorUid, runId]
   );
 
   const addWorkLink = useCallback(
@@ -242,27 +214,18 @@ export function useProjectRun(
       actorRole: 'student' | 'teacher'
     ) => {
       if (!runId) throw new Error('No project is running.');
-      await updateDoc(doc(db, RUNS_COLLECTION, runId, 'groups', groupId), {
-        workLinks: arrayUnion(link),
-        updatedAt: Date.now(),
-      });
-      await logEvent(groupId, {
-        actorRole,
-        kind: 'workLink',
-        ...(link.stepId ? { stepId: link.stepId } : {}),
-        detail: link.url,
+      await writeWorkLink(db, runId, groupId, link, {
+        uid: actorUid,
+        role: actorRole,
       });
     },
-    [logEvent, runId]
+    [actorUid, runId]
   );
 
   const removeWorkLink = useCallback(
     async (groupId: string, link: ProjectWorkLink) => {
       if (!runId) throw new Error('No project is running.');
-      await updateDoc(doc(db, RUNS_COLLECTION, runId, 'groups', groupId), {
-        workLinks: arrayRemove(link),
-        updatedAt: Date.now(),
-      });
+      await removeWorkLinkWrite(db, runId, groupId, link);
     },
     [runId]
   );

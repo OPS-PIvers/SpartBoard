@@ -95,6 +95,9 @@ const DOC_ID_STRATEGY: Record<AssignmentSummary['kind'], DocIdStrategy> = {
   'mini-app': 'assignment-pseudonym',
   'activity-wall': 'none',
   flashcards: 'auth-uid',
+  // A project's progress lives on a group doc keyed by group id, never by
+  // student, so there is no per-student doc to check for completion.
+  projects: 'none',
 };
 
 /** Subcollection that holds per-student response/submission docs. */
@@ -106,6 +109,7 @@ const RESPONSE_SUBCOLLECTION: Record<AssignmentSummary['kind'], string | null> =
     'mini-app': 'submissions',
     'activity-wall': 'submissions',
     flashcards: 'progress',
+    projects: null,
   };
 
 export type CompletionState = 'unknown' | 'completed' | 'not-completed';

@@ -3126,6 +3126,7 @@ describe('index barrel — deployed export set', () => {
     'archiveActivityWallSubmissionOnUpdate',
     'archiveActivityWallSubmissionOnCreate',
     'fetchLinkPreview',
+    'archiveProjectUploadOnCreate',
     'archiveQuizMediaArtifact',
     'sweepStuckQuizArchives',
     'synthesizeQuizAudioV1',

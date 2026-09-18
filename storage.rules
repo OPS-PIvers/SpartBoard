@@ -290,6 +290,54 @@ service firebase.storage {
       allow write: if false;
     }
 
+    // Projects widget uploads (docs/plans/PROJECTS_WIDGET.md D19/D20). Transit
+    // buffer only: the archive trigger copies each object to the teacher's
+    // Drive and deletes it here, exactly as Activity Wall media does.
+    match /project_uploads/{runId}/{groupId}/{uploadId}/{fileName} {
+      // The run teacher. runId is `${teacherUid}_${projectId}`, so ownership
+      // reads off the path without a Firestore get().
+      function pjOwnsRun() {
+        return request.auth != null && runId.matches(request.auth.uid + '_.*');
+      }
+      // Positive membership. A helper that passes every non-student can never
+      // stand in for this — it would hand every teacher every group's files.
+      function pjIsGroupMember() {
+        return request.auth != null &&
+          firestore.exists(
+            /databases/(default)/documents/project_runs/$(runId)/groups/$(groupId)
+          ) &&
+          request.auth.uid in firestore.get(
+            /databases/(default)/documents/project_runs/$(runId)/groups/$(groupId)
+          ).data.get('memberUids', []);
+      }
+      // Mirrors the Firestore upload doc: the teacher and the group's own
+      // members, nobody else — not a classmate in another group.
+      allow read: if isAdmin() || pjOwnsRun() || pjIsGroupMember();
+      // Work products are wider than Activity Wall's three fixed kinds, so the
+      // gate is a family allowlist rather than an exact MIME list. Anything
+      // outside it (executables, archives) is refused.
+      function pjAllowedType() {
+        return request.resource.contentType.matches('image/.*') ||
+               request.resource.contentType.matches('audio/.*') ||
+               request.resource.contentType.matches('video/.*') ||
+               request.resource.contentType.matches('text/plain') ||
+               request.resource.contentType.matches('application/pdf') ||
+               request.resource.contentType.matches(
+                 'application/vnd.openxmlformats-officedocument\\..*'
+               );
+      }
+      // Create only. The upload doc at this id is the record; an object that
+      // could be overwritten would let a member swap a graded file silently.
+      allow create: if request.resource.size < 25 * 1024 * 1024 &&
+        pjAllowedType() &&
+        (pjOwnsRun() ||
+         (pjIsGroupMember() &&
+          firestore.get(
+            /databases/(default)/documents/project_runs/$(runId)
+          ).data.get('acceptingUpdates', false) == true));
+      allow delete: if isAdmin() || pjOwnsRun() || pjIsGroupMember();
+    }
+
     // Default deny for everything else
     match /{allPaths=**} {
       allow read, write: if false;
