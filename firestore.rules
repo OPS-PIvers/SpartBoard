@@ -97,12 +97,14 @@ service cloud.firestore {
     // class shapes from hooks/useStudentAssignments.ts,
     // where('classIds','array-contains-any',ids) and where('classId','in',ids),
     // whose `ids` come straight from the caller's own classIds claim.
-    // CEL absorbs errors across `||`, so the teacherUid disjunct throwing on the
-    // empty resource is harmless — but for the same reason NEVER add a disjunct
-    // that needs no document (e.g. `|| isStudentRoleUser()`): it is provable for
-    // every caller and silently re-opens the collection to enumeration.
+    // Read teacherUid through .get(): bare, it throws on a query that does not
+    // filter on it, and CEL only absorbs that while a class disjunct proves true.
+    // NEVER add a disjunct that needs no document (e.g. `|| isStudentRoleUser()`):
+    // it is provable for every caller and silently re-opens the collection to
+    // enumeration. Never put `is list` or `size()` on a resource-derived value
+    // either: that makes the clause unprovable, so it can only ever be false.
     function sessionListScoped() {
-      return resource.data.teacherUid == request.auth.uid ||
+      return resource.data.get('teacherUid', '') == request.auth.uid ||
              (request.auth.token.get('classIds', []) is list &&
               (resource.data.get('classIds', []).hasAny(request.auth.token.get('classIds', [])) ||
                resource.data.get('classId', '') in request.auth.token.get('classIds', [])));
@@ -5138,15 +5140,11 @@ service cloud.firestore {
       // are the only two query shapes the app sends: the teacher's own
       // where('teacherUid','==',uid), and the student page's
       // where('classIds','array-contains-any',ids) whose ids come straight
-      // from the caller's own claim. Same shape and same reasoning as
-      // `sessionListScoped()` on dev-paul (#3133); fold into that helper once
-      // the two branches meet.
-      // Two things here are load-bearing, both measured on the emulator.
-      // Never put `is list` or `size()` on a resource-derived value: it makes
-      // the clause unprovable, so it can only ever be false. And never add a
-      // disjunct that needs no document (`|| isStudentRoleUser()`): it is
-      // provable for every caller and silently reopens the collection to
-      // enumeration.
+      // from the caller's own claim. This is `sessionListScoped()` plus the
+      // deactivation check, which is why it stays local rather than calling
+      // that helper: notDeactivated() must gate the teacher branch only, so a
+      // student never pays for its get(). The same two traps apply, both
+      // measured on the emulator — see the comment on `sessionListScoped()`.
       function pjRunListScoped() {
         return (resource.data.get('teacherUid', '') == request.auth.uid
                 && notDeactivated()) ||
