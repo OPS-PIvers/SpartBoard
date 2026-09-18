@@ -187,7 +187,8 @@ Increment 3 landed together in one PR:
 - **Q34** — `publishPaperResultsV1` writes a `/student_assignments` pointer for every
   paper response keyed by a pseudonym after the teacher publishes scores; `pin-` keyed
   responses are counted and reported, never pointed at. `importPaperResponsesV1` marks
-  the assignment `hasPaperResponses` so the client knows to call it. A paper-only
+  the assignment `hasPaperResponses`, and the client-side grading pass also counts
+  `paperBatchId` rows, so imports that predate the flag still get linked. A paper-only
   administration stays `paused` from creation (so the quiz-delete guard keeps blocking)
   and the function ends it when results are published, so a pointer leads straight to
   the review screen instead of a paused-session placeholder. Responses whose pin index

@@ -2930,7 +2930,12 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               );
               // Paper administrations have no class channel; pointers make
               // the published result reachable from My Assignments (Q34).
-              if (target.hasPaperResponses && paperSheets.enabled) {
+              // The grading pass counts paper rows too, covering imports
+              // that predate the assignment flag.
+              if (
+                paperSheets.enabled &&
+                (target.hasPaperResponses || result.paperResponses > 0)
+              ) {
                 try {
                   const link = httpsCallable<
                     { assignmentId: string },
