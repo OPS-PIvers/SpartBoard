@@ -1,12 +1,17 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Target, ChevronDown, UserX } from 'lucide-react';
+import { Target, ChevronDown, UserX, Filter } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { Z_INDEX } from '@/config/zIndex';
 import type { ClassRoster } from '@/types';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { RosterGroupMenuItems } from '@/components/common/RosterGroupMenuItems';
+import {
+  anyRosterHasGroups,
+  countRosterGroupMembers,
+} from '@/utils/rosterGroups';
 
 interface RandomClassContextButtonProps {
   /**
@@ -27,6 +32,13 @@ interface RandomClassContextButtonProps {
    * modal. The button does not render the modal itself.
    */
   onOpenAbsentModal: () => void;
+  /**
+   * Pool selection (docs/plans/ROSTER_GROUPS_INTEGRATION.md D8). Omitted when
+   * the rollout switch or the `roster-groups` permission is off, which leaves
+   * the popover exactly as it was.
+   */
+  poolGroupId?: string | null;
+  onSelectPoolGroup?: (groupId: string | null) => void;
 }
 
 /**
@@ -42,7 +54,13 @@ interface RandomClassContextButtonProps {
  */
 export const RandomClassContextButton: React.FC<
   RandomClassContextButtonProps
-> = ({ roster, rosterMode, onOpenAbsentModal }) => {
+> = ({
+  roster,
+  rosterMode,
+  onOpenAbsentModal,
+  poolGroupId = null,
+  onSelectPoolGroup,
+}) => {
   const { t } = useTranslation();
   const { rosters, activeRosterId, setActiveRoster } = useDashboard();
 
@@ -60,7 +78,16 @@ export const RandomClassContextButton: React.FC<
   const canSwitchClass = rosters.length > 1;
   const canMarkAbsent =
     rosterMode === 'class' && !!roster && roster.students.length > 0;
-  const interactive = canSwitchClass || canMarkAbsent;
+  const groupSelectable =
+    onSelectPoolGroup !== undefined &&
+    rosterMode === 'class' &&
+    anyRosterHasGroups(rosters);
+  // `null` when the group is gone — the pool silently falls back to the class.
+  const poolSize =
+    groupSelectable && poolGroupId && roster
+      ? countRosterGroupMembers(roster, poolGroupId)
+      : null;
+  const interactive = canSwitchClass || canMarkAbsent || groupSelectable;
 
   const openMenu = useCallback(() => {
     if (!anchorRef.current) return;
@@ -185,6 +212,15 @@ export const RandomClassContextButton: React.FC<
   // accessible name focused on class identity in that case so screen
   // readers don't announce a "0 marked absent today" phrase for a widget
   // that doesn't track absences.
+  // The pool's SIZE, never its name — a group can be called "Modified
+  // Assessments" and this widget is projected (plan §2).
+  const poolLabel =
+    poolSize === null
+      ? ''
+      : ` ${t('widgets.random.classContext.poolAria', {
+          defaultValue: 'Drawing from a group of {{count}}.',
+          count: poolSize,
+        })}`;
   const triggerLabel =
     rosterMode === 'class'
       ? t('widgets.random.classContext.triggerAriaWithAbsent', {
@@ -192,7 +228,7 @@ export const RandomClassContextButton: React.FC<
             'Active class: {{name}}. {{count}} students marked absent today.',
           name: roster.name,
           count: absentCount,
-        })
+        }) + poolLabel
       : t('widgets.random.classContext.triggerAria', {
           defaultValue: 'Active class: {{name}}',
           name: roster.name,
@@ -216,7 +252,17 @@ export const RandomClassContextButton: React.FC<
   // notification with no UI to clear it.
   const chipBody = (
     <>
-      <Target className="text-brand-blue-primary shrink-0" style={iconStyle} />
+      {poolSize === null ? (
+        <Target
+          className="text-brand-blue-primary shrink-0"
+          style={iconStyle}
+        />
+      ) : (
+        <Filter
+          className="text-brand-blue-primary shrink-0"
+          style={iconStyle}
+        />
+      )}
       {canMarkAbsent && absentCount > 0 && (
         <span
           className="absolute font-black bg-red-500 text-white rounded-full leading-none tabular-nums shrink-0 pointer-events-none"
@@ -311,49 +357,70 @@ export const RandomClassContextButton: React.FC<
                 />
               )}
             </div>
-            {canSwitchClass && (
+            {(canSwitchClass || groupSelectable) && (
               <div className="border-b border-slate-200">
                 <div className="px-3 pt-2 pb-1">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    {t('widgets.random.classContext.switchHeading', {
-                      defaultValue: 'Switch class',
-                    })}
+                    {groupSelectable
+                      ? t('widgets.random.classContext.poolHeading', {
+                          defaultValue: 'Draw from',
+                        })
+                      : t('widgets.random.classContext.switchHeading', {
+                          defaultValue: 'Switch class',
+                        })}
                   </span>
                 </div>
                 <div className="max-h-48 overflow-y-auto pb-1">
                   {rosters.map((r) => {
                     const isActive = r.id === activeRosterId;
+                    const isWholeClass =
+                      isActive && (!groupSelectable || poolGroupId === null);
                     return (
-                      <button
-                        key={r.id}
-                        type="button"
-                        role="menuitemradio"
-                        aria-checked={isActive}
-                        onClick={() => {
-                          if (!isActive) setActiveRoster(r.id);
-                          closeMenu();
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-2 text-left transition-colors ${
-                          isActive
-                            ? 'bg-brand-blue-lighter text-brand-blue-primary'
-                            : 'hover:bg-slate-50 text-slate-700'
-                        }`}
-                      >
-                        <span
-                          className={`text-sm truncate ${isActive ? 'font-black' : 'font-semibold'}`}
-                        >
-                          {r.name}
-                        </span>
-                        <span
-                          className={`text-[10px] font-bold tabular-nums ml-2 px-2 py-0.5 rounded-full shrink-0 ${
-                            isActive
-                              ? 'bg-white text-brand-blue-primary border border-brand-blue-light'
-                              : 'bg-slate-100 text-slate-500'
+                      <React.Fragment key={r.id}>
+                        <button
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={isWholeClass}
+                          onClick={() => {
+                            if (!isActive) setActiveRoster(r.id);
+                            // A group id belongs to one roster, so switching
+                            // class has to drop it rather than carry it over.
+                            onSelectPoolGroup?.(null);
+                            closeMenu();
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 text-left transition-colors ${
+                            isWholeClass
+                              ? 'bg-brand-blue-lighter text-brand-blue-primary'
+                              : 'hover:bg-slate-50 text-slate-700'
                           }`}
                         >
-                          {r.studentCount}
-                        </span>
-                      </button>
+                          <span
+                            className={`text-sm truncate ${isWholeClass ? 'font-black' : 'font-semibold'}`}
+                          >
+                            {r.name}
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold tabular-nums ml-2 px-2 py-0.5 rounded-full shrink-0 ${
+                              isWholeClass
+                                ? 'bg-white text-brand-blue-primary border border-brand-blue-light'
+                                : 'bg-slate-100 text-slate-500'
+                            }`}
+                          >
+                            {r.studentCount}
+                          </span>
+                        </button>
+                        {groupSelectable && (
+                          <RosterGroupMenuItems
+                            roster={r}
+                            selectedGroupId={isActive ? poolGroupId : null}
+                            onSelect={(groupId) => {
+                              if (!isActive) setActiveRoster(r.id);
+                              onSelectPoolGroup?.(groupId);
+                              closeMenu();
+                            }}
+                          />
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </div>

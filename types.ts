@@ -1521,6 +1521,10 @@ export interface RandomConfig {
    *  so they survive re-randomize (a fresh order doesn't erase what's
    *  already been completed). */
   doneNames?: string[];
+  /** Pool: the saved class group to draw from. Unset or null = whole class. */
+  rosterPoolGroupId?: string | null;
+  /** Lock: saved class groups kept together when building groups. */
+  lockedRosterGroupIds?: string[];
 }
 
 export interface DiceConfig {

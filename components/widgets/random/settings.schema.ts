@@ -9,11 +9,18 @@ import {
   RandomGroupCountField,
   RandomRosterActionsField,
   RandomSendToStationsField,
+  RandomLockedGroupsField,
+  RandomSaveAsClassGroupsField,
 } from './settingsFields';
 
 const mode = (ctx: FieldCtx) => ctx.config.mode ?? 'single';
 const isMode = (value: string) => (ctx: FieldCtx) => mode(ctx) === value;
 const isCustomRoster = (ctx: FieldCtx) => ctx.config.rosterMode === 'custom';
+// The permission half of the gate; the org-wide switch is a Firestore read, so
+// the fields themselves check it (see settingsFields.tsx). Keeping the switch
+// out of here keeps a live listener out of every settings panel.
+const rosterGroupsPermitted = (ctx: FieldCtx) =>
+  ctx.canAccessFeature('roster-groups');
 
 const renderHomeGroups = (ctx: CustomRenderCtx) =>
   React.createElement(RandomGroupCountField, { ctx, kind: 'home' });
@@ -23,6 +30,10 @@ const renderRosterActions = (ctx: CustomRenderCtx) =>
   React.createElement(RandomRosterActionsField, { ctx });
 const renderSendToStations = (ctx: CustomRenderCtx) =>
   React.createElement(RandomSendToStationsField, { ctx });
+const renderLockedGroups = (ctx: CustomRenderCtx) =>
+  React.createElement(RandomLockedGroupsField, { ctx });
+const renderSaveAsClassGroups = (ctx: CustomRenderCtx) =>
+  React.createElement(RandomSaveAsClassGroupsField, { ctx });
 
 export default defineSettings<RandomConfig>({
   groups: [
@@ -137,6 +148,24 @@ export default defineSettings<RandomConfig>({
           label: 'expertGroupCount',
           visibleWhen: isMode('jigsaw'),
           render: renderExpertGroups,
+        },
+        // schema-gap: rosterGroupMultiSelect
+        {
+          key: 'lockedRosterGroupIds',
+          type: 'custom',
+          label: 'lockedGroups',
+          visibleWhen: (ctx) =>
+            rosterGroupsPermitted(ctx) &&
+            (isMode('groups')(ctx) || isMode('jigsaw')(ctx)),
+          render: renderLockedGroups,
+        },
+        {
+          key: 'lastResult',
+          type: 'custom',
+          label: 'saveAsClassGroups',
+          visibleWhen: (ctx) =>
+            rosterGroupsPermitted(ctx) && isMode('groups')(ctx),
+          render: renderSaveAsClassGroups,
         },
         // schema-gap: partnerAction
         {

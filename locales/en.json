@@ -1695,7 +1695,21 @@
       "replaceStationsConfirm": "The Stations widget already has {{count}} stations. Replace them?",
       "replaceStationsTitle": "Replace existing stations?",
       "replace": "Replace",
-      "groupsSent": "Sent {{count}} groups to Stations."
+      "groupsSent": "Sent {{count}} groups to Stations.",
+      "lockedGroups": "Keep groups together",
+      "saveAsClassGroups": "Save as class groups",
+      "saveAsGroupsAction": "Save as class groups",
+      "saveAsGroupsTitle": "Save as class groups",
+      "saveAsGroupsPrefix": "Teams",
+      "saveAsGroupsPrompt_one": "Save {{count}} group to this class?",
+      "saveAsGroupsPrompt_other": "Save {{count}} groups to this class?",
+      "saveAsGroupsConfirm": "Save",
+      "saveAsGroupsDone_one": "Saved {{count}} group to this class.",
+      "saveAsGroupsDone_other": "Saved {{count}} groups to this class.",
+      "saveAsGroupsFailed": "Couldn't save these groups — check your Google Drive connection and try again.",
+      "saveAsGroupsNeedsClassGroups": "Make groups with a class selected first.",
+      "lockedGroupsEmpty": "Save a group for this class to keep it together when groups are made.",
+      "rosterGroupsOff": "Class groups are switched off for your school right now."
     },
     "url": {
       "links": "Links",
@@ -1885,7 +1899,10 @@
         "triggerAriaWithAbsent_other": "Active class: {{name}}. {{count}} students marked absent today.",
         "menuAria": "Class context for Randomizer",
         "switchHeading": "Switch class",
-        "markAbsentAction": "Mark absent students"
+        "markAbsentAction": "Mark absent students",
+        "poolHeading": "Draw from",
+        "poolAria_one": "Drawing from a group of {{count}} student.",
+        "poolAria_other": "Drawing from a group of {{count}} students."
       },
       "launchJigsaw": "Launch Jigsaw",
       "launchJigsawHint": "Show expert groups",
@@ -1915,7 +1932,8 @@
       "everyoneAbsentTitle": "Everyone is marked absent",
       "everyoneAbsentSubtitle": "Update attendance to bring students back into the pool.",
       "updateAttendance": "Update attendance",
-      "restrictionsUnsatisfied": "Couldn't satisfy all restrictions — try again or adjust group size."
+      "restrictionsUnsatisfied": "Couldn't satisfy all restrictions — try again or adjust group size.",
+      "lockedGroupOverridesKeepApart": "Kept a locked group together even though it holds students set to stay apart."
     },
     "clock": {
       "format24": "24H Format",
