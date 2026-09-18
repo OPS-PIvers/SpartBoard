@@ -120,11 +120,24 @@ describe('QuizManager — paper answer sheets', () => {
     );
   });
 
-  it('offers a Paper test door beside Import, never as a tab', () => {
+  it('offers Paper test behind the New Quiz caret, never as its own button or tab', () => {
     const onNewPaperTest = vi.fn();
-    renderLibrary({ onNewPaperTest });
+    const onNew = vi.fn();
+    renderLibrary({ onNewPaperTest, onNew });
     expect(screen.queryByRole('tab', { name: /paper/i })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Paper test' }));
+    expect(screen.queryByRole('button', { name: 'Paper test' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'New Quiz' }));
+    expect(onNew).toHaveBeenCalledTimes(1);
+    expect(onNewPaperTest).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'More ways to create' })
+    );
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Paper test' }));
     expect(onNewPaperTest).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders New Quiz as a plain button when paper is off', () => {
+    renderLibrary();
+    expect(screen.queryByRole('button', { name: /More ways to/ })).toBeNull();
   });
 });

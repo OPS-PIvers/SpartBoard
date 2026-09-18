@@ -18,6 +18,7 @@
  */
 
 import type React from 'react';
+import type { LucideIcon } from 'lucide-react';
 import type { ClassRoster } from '@/types';
 
 /* ─── Shared enums / tokens ───────────────────────────────────────────────── */
@@ -69,8 +70,17 @@ export interface LibraryMenuAction {
 }
 
 /** Primary action on a card — always visible, never nested under overflow. */
+/** An alternative the primary action offers behind a caret. */
+export interface LibraryActionMenuItem {
+  label: string;
+  icon?: LucideIcon;
+  onClick: () => void;
+}
+
 export interface LibraryPrimaryAction {
   label: string;
+  /** Renders a split button: the main click stays, a caret opens these. */
+  menuItems?: LibraryActionMenuItem[];
   icon?: React.ComponentType<{
     size?: number;
     className?: string;
