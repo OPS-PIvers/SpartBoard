@@ -85,6 +85,9 @@ export {
   pinLoginV1,
 } from './studentIdentity';
 
+// ── Projects widget: group import (docs/plans/PROJECTS_WIDGET.md D8) ───────
+export { commitProjectGroupsV1 } from './projectGroups';
+
 // ── Individual assignment targeting (M17): assign-time pseudonym fan-out to
 // /student_assignments, plus the deletion triggers that reap those pointers. ─
 export { setAssignmentTargetsV1 } from './studentAssignmentTargets';

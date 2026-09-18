@@ -3142,6 +3142,7 @@ describe('index barrel — deployed export set', () => {
     'getStudentClassDirectoryV1',
     'getPseudonymsForAssignmentV1',
     'commitRosterPinIndexV1',
+    'commitProjectGroupsV1',
     'pinLoginV1',
     // Individual assignment targeting (M17 A2 / A2b)
     'setAssignmentTargetsV1',

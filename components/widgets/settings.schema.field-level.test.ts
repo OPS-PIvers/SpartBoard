@@ -40,8 +40,9 @@ describe('consolidated field-level widget settings migration', () => {
     expect(customFields.map((field) => field.key).sort()).toEqual(
       [
         'completedNames',
-        // Two actions keyed off the same result: send to Stations, and save
-        // the drawn groups back to the class (roster-groups plan D3).
+        // Three actions keyed off the same result: send to Stations, send to
+        // Projects, and save the drawn groups back to the class.
+        'lastResult',
         'lastResult',
         'lastResult',
         'lastSync',

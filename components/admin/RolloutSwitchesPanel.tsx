@@ -16,6 +16,10 @@ import {
   ROSTER_GROUPS_INTEGRATION_SETTINGS_DOC,
   normalizeRosterGroupsIntegrationSettings,
 } from '@/config/rosterGroupsIntegration';
+import {
+  PROJECTS_WIDGET_SETTINGS_DOC,
+  normalizeProjectsWidgetSettings,
+} from '@/config/projectsWidget';
 
 interface RolloutSwitch {
   docId: string;
@@ -46,6 +50,13 @@ const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     description:
       'Lets teachers point a widget at a saved class group instead of the whole class, and split a class into groups from the roster editor. Group names stay in the teacher-only picker — never on a widget’s front face.',
     normalize: normalizeRosterGroupsIntegrationSettings,
+  },
+  {
+    docId: PROJECTS_WIDGET_SETTINGS_DOC,
+    title: 'Projects widget',
+    description:
+      'Adds the Projects widget to the dock: a teacher assigns one project to each group and every group tracks its own progress through the steps. Groups import from the Group Maker, so a class needs a ClassLink roster for the student side; other classes get a teacher-only tracker.',
+    normalize: normalizeProjectsWidgetSettings,
   },
 ];
 
