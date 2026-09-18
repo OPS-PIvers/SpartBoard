@@ -546,6 +546,36 @@ describe('makeGroupsWithLockedCohorts (plan D10-D13)', () => {
     expect(all.filter((id) => id === 's1')).toHaveLength(1);
   });
 
+  it('overshoots the count rather than dropping unlocked students', () => {
+    // Three cohorts but a count of 2 — the controls are independent, so this
+    // is reachable. Locks win; the remainder still gets a group of its own.
+    const { groups } = makeGroupsWithLockedCohorts({
+      students: twelve,
+      lockedCohorts: [
+        ['s0', 's1'],
+        ['s2', 's3'],
+        ['s4', 's5'],
+      ],
+      numGroups: 2,
+    });
+    expect(groups).toHaveLength(4);
+    expect(groups.flatMap((g) => g.studentIds ?? []).sort()).toEqual(
+      twelve.map((s) => s.id).sort()
+    );
+  });
+
+  it('honours the count exactly when the locks leave no remainder', () => {
+    const { groups } = makeGroupsWithLockedCohorts({
+      students: twelve.slice(0, 4),
+      lockedCohorts: [
+        ['s0', 's1'],
+        ['s2', 's3'],
+      ],
+      numGroups: 2,
+    });
+    expect(groups).toHaveLength(2);
+  });
+
   it('handles every student being locked', () => {
     const { groups } = makeGroupsWithLockedCohorts({
       students: twelve.slice(0, 4),

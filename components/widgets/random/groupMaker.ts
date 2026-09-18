@@ -240,7 +240,13 @@ export interface LockedCohortOptions {
   students: Student[];
   /** Student ids that must land in one group together, one array per locked group. */
   lockedCohorts: string[][];
-  /** Count mode: total output groups, locked ones included. */
+  /**
+   * Count mode: target number of output groups, locked ones included. Locks
+   * win when the two disagree — the lock checkboxes and the count control are
+   * independent, so a teacher can lock more groups than the count asks for.
+   * Unlocked students still need somewhere to go, and D10 forbids folding them
+   * into a cohort, so the result is then `lockedCohorts.length + 1`.
+   */
   numGroups?: number;
   /** Size mode: members per group, applied to the unlocked remainder only. */
   groupSize?: number;
@@ -305,6 +311,8 @@ export function makeGroupsWithLockedCohorts({
   if (remainder.length > 0) {
     if (numGroups !== undefined) {
       const safeK = Number.isFinite(numGroups) ? Math.floor(numGroups) : 1;
+      // Floor of 1: the remainder is non-empty here, and dropping students is
+      // worse than overshooting the requested count (see `numGroups`).
       rest = makeRestrictedGroupsByCount(
         remainder,
         Math.max(1, safeK - cohorts.length)

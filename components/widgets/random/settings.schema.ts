@@ -154,7 +154,9 @@ export default defineSettings<RandomConfig>({
           key: 'lockedRosterGroupIds',
           type: 'custom',
           label: 'lockedGroups',
-          visibleWhen: (ctx) => isMode('groups')(ctx) || isMode('jigsaw')(ctx),
+          visibleWhen: (ctx) =>
+            rosterGroupsPermitted(ctx) &&
+            (isMode('groups')(ctx) || isMode('jigsaw')(ctx)),
           render: renderLockedGroups,
         },
         {
