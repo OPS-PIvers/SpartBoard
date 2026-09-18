@@ -2147,6 +2147,15 @@ export interface ScoreboardTeam {
   score: number;
   color?: string;
   linkedGroupId?: string;
+  /**
+   * Provenance for a team seeded straight from a saved class group. Distinct
+   * from `linkedGroupId`, which points at a board-local `SharedGroup` that a
+   * direct class-group import never creates. The group's private name never
+   * syncs either way.
+   */
+  linkedRosterGroupId?: string;
+  /** Seeded at import and refreshed only by the explicit re-sync action. */
+  memberStudentIds?: string[];
 }
 
 export interface ScoreboardConfig {
@@ -7115,6 +7124,10 @@ export interface StationsConfig {
   assignments: Record<string, string | null>;
   rosterMode?: 'class' | 'custom';
   customRoster?: string[];
+  /** Pool: the saved class group to draw from. Unset or null = whole class. */
+  rosterPoolGroupId?: string | null;
+  /** Lock: saved class groups Shuffle keeps in the same station. */
+  lockedRosterGroupIds?: string[];
   /**
    * Bumped (e.g. to Date.now()) by a linked Timer when its countdown hits zero.
    * The widget watches this with a useRef and fires the rotate action when the

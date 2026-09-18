@@ -61,7 +61,10 @@ interface Props {
   activityPartial: boolean;
   onUpdate: (id: string, patch: Partial<UserRecord>) => void;
   onBulkUpdate: (ids: string[], patch: Partial<UserRecord>) => void;
+  /** Roster-only: drops the member doc, leaves the account and its data. */
   onRemove: (ids: string[]) => void;
+  /** Full account wipe via the `deleteOrganizationUser` CF. Super admin only. */
+  onDeleteAccount: (email: string) => void;
   onInvite: (
     emails: string[],
     role: string,
@@ -138,6 +141,7 @@ export const UsersView: React.FC<Props> = ({
   onUpdate,
   onBulkUpdate,
   onRemove,
+  onDeleteAccount,
   onInvite,
   onBulkInvite,
   onResendInvite,
@@ -203,6 +207,9 @@ export const UsersView: React.FC<Props> = ({
   // domain admin or higher. Building admins can only flip status on members
   // within their scope; everything else is read-only for them.
   const canManageUsers = actorRole !== 'building_admin';
+  // Wiping a whole account is a heavier action than editing a roster row, so
+  // it stops at super admin even though domain admins can manage users.
+  const isSuperAdmin = actorRole === 'super_admin';
 
   // Building admins should only see (and be able to assign into) the
   // buildings they actually manage. Everyone else sees the whole org list.
@@ -454,7 +461,7 @@ export const UsersView: React.FC<Props> = ({
               }}
               className="text-xs font-semibold text-rose-300 hover:text-rose-200"
             >
-              Delete
+              Remove from org
             </button>
           )}
           <button
@@ -502,8 +509,9 @@ export const UsersView: React.FC<Props> = ({
                   inScope={inScope}
                   canManage={canManageUsers}
                   onUpdate={(patch) => onUpdate(u.id, patch)}
+                  canDeleteAccount={isSuperAdmin}
                   onDelete={() =>
-                    canManageUsers && inScope ? onRemove([u.id]) : undefined
+                    isSuperAdmin && inScope ? onDeleteAccount(u.id) : undefined
                   }
                   onEdit={() => setEditingUserId(u.id)}
                   onResendInvite={() => onResendInvite(u)}
@@ -790,6 +798,8 @@ const UserRow: React.FC<{
   onToggle: () => void;
   // Row is within the actor's scope. Status is editable when in scope.
   inScope: boolean;
+  /** Full account deletion is narrower than canManage — super admin only. */
+  canDeleteAccount: boolean;
   // Actor can manage users (role, buildings, delete). False for building_admin.
   canManage: boolean;
   onUpdate: (patch: Partial<UserRecord>) => void;
@@ -806,6 +816,7 @@ const UserRow: React.FC<{
   inScope,
   canManage,
   onUpdate,
+  canDeleteAccount,
   onDelete,
   onEdit,
   onResendInvite,
@@ -816,7 +827,7 @@ const UserRow: React.FC<{
   const canEditStatus = inScope;
   const canEditRole = canManage && inScope;
   const canEditBuildings = canManage && inScope;
-  const canDelete = canManage && inScope;
+  const canDelete = canDeleteAccount && inScope;
   const [rolePopoverOpen, setRolePopoverOpen] = useState(false);
   const [buildingPopoverOpen, setBuildingPopoverOpen] = useState(false);
   const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
@@ -1070,7 +1081,7 @@ const UserRow: React.FC<{
                 disabled: !canEditStatus,
               },
           {
-            label: 'Delete',
+            label: 'Delete account',
             icon: <Trash2 size={14} />,
             onClick: onDelete,
             danger: true,

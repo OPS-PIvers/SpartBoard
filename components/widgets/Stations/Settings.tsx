@@ -1,10 +1,12 @@
-import React, { useCallback, useMemo } from 'react';
-import { Plus, Send, LayoutGrid } from 'lucide-react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Plus, Send, LayoutGrid, Lock, Users } from 'lucide-react';
 import { StationsConfig, RandomConfig, Station, WidgetData } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { useStorage } from '@/hooks/useStorage';
+import { useRosterGroupsIntegrationSettings } from '@/hooks/useRosterGroupsIntegrationSettings';
+import { countRosterGroupMembers } from '@/utils/rosterGroups';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { PartnerCard } from '@/components/settings/PartnerCard';
 import { TypographySettings } from '@/components/common/TypographySettings';
@@ -45,10 +47,13 @@ const tryDeleteUrl = async (
 export const StationsSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, addToast, activeDashboard } = useDashboard();
+  const { updateWidget, addToast, activeDashboard, rosters, activeRosterId } =
+    useDashboard();
   const { showConfirm } = useDialog();
-  const { savedWidgetPresets } = useAuth();
+  const { savedWidgetPresets, canAccessFeature } = useAuth();
   const { deleteFile } = useStorage();
+  const rosterGroupsRollout = useRosterGroupsIntegrationSettings();
+  const [useGroupNamesAsTitles, setUseGroupNamesAsTitles] = useState(false);
   const config = widget.config as StationsConfig;
   const stations = useMemo(
     () => [...(config.stations ?? [])].sort((a, b) => a.order - b.order),
@@ -171,6 +176,88 @@ export const StationsSettings: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
+  // --- Class groups (docs/plans/ROSTER_GROUPS_INTEGRATION.md D9/D15/D17) ---
+  const rosterGroupsEnabled =
+    rosterGroupsRollout.enabled && canAccessFeature('roster-groups');
+  const activeRoster = useMemo(
+    () =>
+      config.rosterMode === 'custom'
+        ? undefined
+        : (rosters.find((r) => r.id === activeRosterId) ?? rosters[0]),
+    [config.rosterMode, rosters, activeRosterId]
+  );
+  const rosterGroups = useMemo(
+    () => activeRoster?.groups ?? [],
+    [activeRoster]
+  );
+  const lockedGroupIds = useMemo(
+    () =>
+      Array.isArray(config.lockedRosterGroupIds)
+        ? config.lockedRosterGroupIds
+        : [],
+    [config.lockedRosterGroupIds]
+  );
+
+  const toggleLockedGroup = (groupId: string) => {
+    const next = lockedGroupIds.includes(groupId)
+      ? lockedGroupIds.filter((id) => id !== groupId)
+      : [...lockedGroupIds, groupId];
+    updateWidget(widget.id, {
+      config: { ...config, lockedRosterGroupIds: next },
+    });
+  };
+
+  const handleImportGroupsAsStations = async () => {
+    if (!activeRoster || rosterGroups.length === 0) return;
+    if (stations.length > 0) {
+      const ok = await showConfirm(
+        `This replaces the ${stations.length} station${stations.length === 1 ? '' : 's'} on this widget with ${rosterGroups.length} built from your class groups, and clears who is standing where.`,
+        {
+          title: 'Replace stations with class groups?',
+          confirmLabel: 'Replace',
+          variant: 'danger',
+        }
+      );
+      if (!ok) return;
+    }
+
+    const onRoster = new Set(activeRoster.students.map((st) => st.id));
+    const nextStations: Station[] = rosterGroups.map((group, i) => ({
+      id: crypto.randomUUID(),
+      // Default off, because a group can be named "Tier 3 Intervention" and a
+      // station title is projected (D17).
+      title: useGroupNamesAsTitles ? group.name : `Station ${i + 1}`,
+      color: DEFAULT_STATION_COLORS[i % DEFAULT_STATION_COLORS.length],
+      order: i,
+    }));
+    const nextAssignments: Record<string, string | null> = {};
+    rosterGroups.forEach((group, i) => {
+      for (const studentId of group.studentIds) {
+        if (onRoster.has(studentId))
+          nextAssignments[studentId] = nextStations[i].id;
+      }
+    });
+
+    const outgoingUrls = stations
+      .map((st) => st.imageUrl)
+      .filter((u): u is string => !!u);
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        stations: nextStations,
+        assignments: nextAssignments,
+      },
+    });
+    for (const url of outgoingUrls) {
+      if (protectedImageUrls.has(url)) continue;
+      void tryDeleteUrl(url, deleteFile, 'group-import');
+    }
+    addToast(
+      `Created ${nextStations.length} station${nextStations.length === 1 ? '' : 's'} from your class groups.`,
+      'success'
+    );
+  };
+
   // Find the first Random widget on the active dashboard. Matches the
   // "find-first" pattern used by Timer→Randomizer/Traffic/NextUp Nexus.
   const randomizerWidget = activeDashboard?.widgets.find(
@@ -266,6 +353,65 @@ export const StationsSettings: React.FC<{ widget: WidgetData }> = ({
           </div>
         )}
       </div>
+
+      {/* Class groups: lock for Shuffle, and import as stations */}
+      {rosterGroupsEnabled && config.rosterMode !== 'custom' && (
+        <div className="pt-4 border-t border-slate-100">
+          <SettingsLabel icon={Users}>Class groups</SettingsLabel>
+          {rosterGroups.length === 0 ? (
+            <p className="text-xs text-slate-500">
+              Save a group for this class in My Classes to use it here.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <p className="text-xxs font-bold uppercase tracking-widest text-slate-400 mb-1">
+                  Keep together when shuffling
+                </p>
+                <div className="flex flex-col gap-1">
+                  {rosterGroups.map((group) => (
+                    <label
+                      key={group.id}
+                      className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={lockedGroupIds.includes(group.id)}
+                        onChange={() => toggleLockedGroup(group.id)}
+                        className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+                      />
+                      <Lock size={14} className="text-slate-400 shrink-0" />
+                      <span className="truncate">{group.name}</span>
+                      <span className="ml-auto text-xs tabular-nums text-slate-400">
+                        {countRosterGroupMembers(activeRoster, group.id) ?? 0}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 space-y-2">
+                <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useGroupNamesAsTitles}
+                    onChange={(e) => setUseGroupNamesAsTitles(e.target.checked)}
+                    className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+                  />
+                  <span>Use group names as station titles</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void handleImportGroupsAsStations()}
+                  className="w-full px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors"
+                >
+                  {`Make ${rosterGroups.length} station${rosterGroups.length === 1 ? '' : 's'} from class groups`}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Partner: send station names to the Random widget */}
       <div className="pt-4 border-t border-slate-100">

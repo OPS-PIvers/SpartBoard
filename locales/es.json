@@ -662,13 +662,40 @@
         "addPlaceholder": "¿Qué hay que hacer?",
         "unassigned": "Sin asignar",
         "dueDate": "Fecha límite",
+        "assignee": "Responsable",
         "remove": "Eliminar acción",
         "markDone": "Marcar como hecha",
         "markOpen": "Marcar como pendiente",
         "overdue": "Vencida",
         "limitReached": "Se alcanzó el límite de acciones",
         "openCount": "Acciones pendientes ({{count}})",
-        "noneOpen": "No hay acciones pendientes"
+        "noneOpen": "No hay acciones pendientes",
+        "view": {
+          "sortLabel": "Ordenar acciones",
+          "sortManual": "Orden manual",
+          "sortStatus": "Pendientes primero",
+          "sortDue": "Fecha límite",
+          "sortAssignee": "Responsable",
+          "sortCreated": "Más recientes primero",
+          "sortText": "A–Z",
+          "statusLabel": "Filtrar por estado",
+          "statusAll": "Cualquier estado",
+          "statusOpen": "Pendiente",
+          "statusDone": "Hecha",
+          "dueLabel": "Filtrar por fecha límite",
+          "dueAll": "Cualquier fecha límite",
+          "dueOverdue": "Vencida",
+          "dueToday": "Vence hoy",
+          "dueWeek": "Próximos 7 días",
+          "dueNone": "Sin fecha límite",
+          "assigneeLabel": "Filtrar por responsable",
+          "assigneeAll": "Cualquiera",
+          "showing": "Mostrando {{visible}} de {{total}}",
+          "clear": "Restablecer",
+          "noMatches": "Ninguna acción coincide con estos filtros",
+          "reorder": "Reordenar acción",
+          "dragHint": "Cambia a orden manual para arrastrar"
+        }
       },
       "importTodos": {
         "banner": "Importar {{count}} tareas de la lista de tareas anterior a una nota",
@@ -2809,6 +2836,25 @@
       "saveAsGroupsNeedsClassGroups": "Primero crea grupos con una clase seleccionada.",
       "lockedGroupsEmpty": "Guarda un grupo para esta clase y se mantendrá unido al formar grupos.",
       "rosterGroupsOff": "Los grupos de clase están desactivados en tu centro en este momento."
+    },
+    "scoreboard": {
+      "classGroups": "Grupos de la clase",
+      "useGroupNames": "Usar los nombres de los grupos como nombres de equipo",
+      "importClassGroups_one": "Crear {{count}} equipo a partir de los grupos de la clase",
+      "importClassGroups_other": "Crear {{count}} equipos a partir de los grupos de la clase",
+      "importedClassGroups_one": "Se creó {{count}} equipo a partir de tus grupos de la clase.",
+      "importedClassGroups_other": "Se crearon {{count}} equipos a partir de tus grupos de la clase.",
+      "resyncMembers": "Volver a sincronizar los integrantes con la clase",
+      "resyncedMembers_one": "Se actualizaron los integrantes de {{count}} equipo.",
+      "resyncedMembers_other": "Se actualizaron los integrantes de {{count}} equipos.",
+      "resyncUnlinked_one": "{{count}} equipo ya no corresponde a un grupo de la clase.",
+      "resyncUnlinked_other": "{{count}} equipos ya no corresponden a un grupo de la clase.",
+      "replaceTeamsTitle": "¿Reemplazar los equipos por los grupos de la clase?",
+      "replaceTeamsBody_one": "Esto reemplaza el {{count}} equipo de este marcador, incluida su puntuación.",
+      "replaceTeamsBody_other": "Esto reemplaza los {{count}} equipos de este marcador, incluidas sus puntuaciones.",
+      "replaceTeamsConfirm": "Reemplazar",
+      "classTeamName": "Equipo {{count}}",
+      "membersTitle": "Integrantes del grupo de la clase"
     }
   }
 }
