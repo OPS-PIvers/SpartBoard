@@ -58,6 +58,7 @@ import {
   Combine,
   Target,
   Printer,
+  ScanLine,
 } from 'lucide-react';
 import {
   AssignmentMode,
@@ -261,6 +262,8 @@ interface QuizManagerProps {
   onImport: () => void;
   /** Open the paper answer-sheet print flow. Absent when the feature is off. */
   onPrintPaperSheets?: (quiz: QuizMetadata) => void;
+  /** Import a scanned stack of those sheets; `undefined` hides the entry. */
+  onImportPaperScan?: (quiz: QuizMetadata) => void;
   /** Start a paper-only quiz stub. Absent when the feature is off. */
   onNewPaperTest?: () => void;
   onEdit: (quiz: QuizMetadata) => void;
@@ -594,6 +597,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onNew,
   onImport,
   onPrintPaperSheets,
+  onImportPaperScan,
   onNewPaperTest,
   onEdit,
   onPreview,
@@ -1036,6 +1040,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               label: 'Print answer sheets',
               icon: Printer,
               onClick: () => onPrintPaperSheets(quiz),
+            },
+          ]
+        : []),
+      ...(onImportPaperScan
+        ? [
+            {
+              id: 'import-paper',
+              label: 'Import scanned sheets',
+              icon: ScanLine,
+              onClick: () => onImportPaperScan(quiz),
             },
           ]
         : []),

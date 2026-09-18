@@ -10,6 +10,7 @@ import {
   QuizConfig,
   QuizMetadata,
   QuizData,
+  PaperBatch,
   QuizQuestion,
   QuizSessionBankSlot,
   ScoreboardTeam,
@@ -102,10 +103,17 @@ import {
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { QuizLiveMonitor } from './components/QuizLiveMonitor';
 import { PaperPrintModal } from './components/PaperPrintModal';
+import { PaperImportModal } from './components/PaperImportModal';
+import { httpsCallable } from 'firebase/functions';
+import type {
+  ImportPaperResponsesResult,
+  ImportPaperSheetPayload,
+} from '@/utils/paperImportPlan';
 import { usePaperAnswerSheetsSettings } from '@/hooks/usePaperAnswerSheetsSettings';
 import {
   deletePaperBatchesForQuiz,
   savePaperBatch,
+  listPaperBatchesForQuiz,
 } from '@/utils/paperBatchStore';
 import { Loader2, AlertTriangle, LogIn } from 'lucide-react';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
@@ -417,6 +425,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const paperSheets = usePaperAnswerSheetsSettings();
   const [paperPrintQuiz, setPaperPrintQuiz] = useState<QuizData | null>(null);
   const [paperPrintIsNew, setPaperPrintIsNew] = useState(false);
+  const [paperImport, setPaperImport] = useState<{
+    quiz: QuizData;
+    meta: QuizMetadata;
+    batches: PaperBatch[];
+  } | null>(null);
   // Quiz whose own publish is in flight; its canonical bump is not a peer edit.
   const [savingQuizId, setSavingQuizId] = useState<string | null>(null);
 
@@ -1546,6 +1559,19 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 if (!data) return;
                 setPaperPrintIsNew(false);
                 setPaperPrintQuiz(data);
+              }
+            : undefined
+        }
+        onImportPaperScan={
+          paperSheets.enabled && user?.uid
+            ? async (meta) => {
+                const data = await loadQuiz(meta);
+                if (!data) return;
+                const batches = await listPaperBatchesForQuiz(
+                  user.uid,
+                  meta.id
+                );
+                setPaperImport({ quiz: data, meta, batches });
               }
             : undefined
         }
@@ -3136,6 +3162,62 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             setPaperPrintQuiz(null);
             setPaperPrintIsNew(false);
           }}
+          onError={(message) => addToast(message, 'error')}
+        />
+      )}
+      {paperImport && user?.uid && (
+        <PaperImportModal
+          quiz={paperImport.quiz}
+          batches={paperImport.batches}
+          rosters={rosters}
+          assignments={assignments.filter(
+            (a) => a.quizId === paperImport.meta.id
+          )}
+          onCreateAssignment={async () => {
+            const behavior = getQuizBehavior(paperImport.meta);
+            const { id } = await createAssignment(
+              {
+                id: paperImport.meta.id,
+                title: paperImport.meta.title,
+                driveFileId: paperImport.meta.driveFileId,
+                questions: paperImport.quiz.questions,
+                ...(paperImport.quiz.stimuli
+                  ? { stimuli: paperImport.quiz.stimuli }
+                  : {}),
+              },
+              {
+                className: 'Paper',
+                sessionMode: 'student',
+                // Paper has no clock and no tab (plan Q33).
+                sessionOptions: {
+                  ...behavior.sessionOptions,
+                  speedBonusEnabled: false,
+                  streakBonusEnabled: false,
+                  tabWarningsEnabled: false,
+                },
+                attemptLimit: 1,
+              },
+              // No classIds and paused: never a live door for students (Q34).
+              { initialStatus: 'paused' }
+            );
+            return id;
+          }}
+          onImport={async (batchId, assignmentId, sheets) => {
+            const call = httpsCallable<
+              {
+                batchId: string;
+                assignmentId: string;
+                sheets: ImportPaperSheetPayload[];
+              },
+              ImportPaperResponsesResult
+            >(functions, 'importPaperResponsesV1');
+            const res = await call({ batchId, assignmentId, sheets });
+            return res.data;
+          }}
+          onSaveQuiz={async (data) => {
+            await saveQuiz(data, paperImport.meta.driveFileId);
+          }}
+          onClose={() => setPaperImport(null)}
           onError={(message) => addToast(message, 'error')}
         />
       )}
