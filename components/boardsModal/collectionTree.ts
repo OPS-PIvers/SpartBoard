@@ -31,3 +31,23 @@ export const buildChildrenByParent = (
   }
   return m;
 };
+
+// Search-narrows to matches plus their ancestors, so a matched descendant's real (non-matching) parent chain stays present and isn't misread as an orphan by buildChildrenByParent.
+export const filterCollectionsBySearch = (
+  collections: Collection[],
+  searchTerm: string
+): Collection[] => {
+  if (!searchTerm) return collections;
+  const byId = new Map(collections.map((c) => [c.id, c]));
+  const keep = new Set<string>();
+  for (const c of collections) {
+    if (!c.name.toLowerCase().includes(searchTerm)) continue;
+    keep.add(c.id);
+    let parentId = c.parentCollectionId;
+    while (parentId != null && !keep.has(parentId)) {
+      keep.add(parentId);
+      parentId = byId.get(parentId)?.parentCollectionId ?? null;
+    }
+  }
+  return collections.filter((c) => keep.has(c.id));
+};

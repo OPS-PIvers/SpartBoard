@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { buildChildrenByParent } from '@/components/boardsModal/collectionTree';
+import {
+  buildChildrenByParent,
+  filterCollectionsBySearch,
+} from '@/components/boardsModal/collectionTree';
 import type { Collection } from '@/types';
 
 const collection = (over: Partial<Collection>): Collection => ({
@@ -70,5 +73,34 @@ describe('buildChildrenByParent — orphaned subtree', () => {
       'Earlier Orphan',
       'Later Orphan',
     ]);
+  });
+});
+
+describe('filterCollectionsBySearch — ancestor preservation', () => {
+  it('keeps a non-matching ancestor so a matching descendant is not misread as orphaned', () => {
+    const collections: Collection[] = [
+      collection({ id: 'science', name: 'Science', parentCollectionId: null }),
+      collection({
+        id: 'math-hw',
+        name: 'Math Homework',
+        parentCollectionId: 'science',
+      }),
+    ];
+
+    const filtered = filterCollectionsBySearch(collections, 'math');
+    expect(filtered.map((c) => c.id).sort()).toEqual(['math-hw', 'science']);
+
+    const reachable = collectAllReachable(buildChildrenByParent(filtered));
+    expect(reachable).toEqual(['Science', 'Math Homework']);
+  });
+
+  it('returns only matches when every ancestor also matches', () => {
+    const collections: Collection[] = [
+      collection({ id: 'a', name: 'Math', parentCollectionId: null }),
+      collection({ id: 'b', name: 'Science', parentCollectionId: null }),
+    ];
+    expect(
+      filterCollectionsBySearch(collections, 'math').map((c) => c.id)
+    ).toEqual(['a']);
   });
 });
