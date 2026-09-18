@@ -511,9 +511,13 @@ service cloud.firestore {
     // Printed paper answer-sheet runs. PII-free by construction: seat numbers map
     // to opaque Student ids and names are resolved from the Drive roster, so this
     // mirrors the owner-only boundary of /rosters above rather than adding one.
+    // Only a real teacher account prints sheets, so anonymous PIN joiners are shut
+    // out of their own namespace too — same posture as the session-create paths.
     match /users/{userId}/paper_batches/{batchId} {
       allow read, write: if request.auth != null && request.auth.uid == userId
-                         && !isStudentRoleUser() && notDeactivated();
+                         && !isStudentRoleUser()
+                         && request.auth.token.firebase.sign_in_provider != 'anonymous'
+                         && notDeactivated();
     }
 
     // PLC Overview layout — per-user PLC dashboard bento-grid prefs. No PLC

@@ -39,7 +39,7 @@ const setup = (
   over: Partial<React.ComponentProps<typeof PaperPrintModal>> = {}
 ) => {
   const onSaveBatch = vi
-    .fn<[PaperBatch], Promise<void>>()
+    .fn<(batch: PaperBatch) => Promise<void>>()
     .mockResolvedValue(undefined);
   const print = vi.fn();
   const onClose = vi.fn();
@@ -114,7 +114,7 @@ describe('PaperPrintModal', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
     await waitFor(() => expect(print).toHaveBeenCalled());
-    const batch = onSaveBatch.mock.calls[0][0] as PaperBatch;
+    const batch = onSaveBatch.mock.calls[0][0];
     expect(batch.quizId).toBe('quiz-1');
     expect(batch.questionCount).toBe(2);
     expect(Object.values(batch.seats)).toEqual([
@@ -170,7 +170,7 @@ describe('PaperPrintModal', () => {
     expect(created.title).toBe('Pop quiz');
     expect(created.questions).toHaveLength(30);
     expect(created.questions[0].incorrectAnswers).toEqual(['B']);
-    expect((onSaveBatch.mock.calls[0][0] as PaperBatch).choiceCount).toBe(2);
+    expect(onSaveBatch.mock.calls[0][0].choiceCount).toBe(2);
     // The stub must exist before the batch that points at it.
     expect(onCreateQuiz).toHaveBeenCalledBefore(onSaveBatch);
   });
