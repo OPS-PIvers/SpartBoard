@@ -9,15 +9,17 @@
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDocs,
   query,
   setDoc,
+  updateDoc,
   where,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import type { PaperBatch } from '@/types';
+import type { PaperBatch, PaperPendingReview } from '@/types';
 
 const PAPER_BATCHES_COLLECTION = 'paper_batches';
 
@@ -43,6 +45,17 @@ export async function listPaperBatchesForQuiz(
   return snap.docs
     .map((d) => d.data() as PaperBatch)
     .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+/** Park or clear an unfinished review on its batch (plan Q26). */
+export async function savePendingReview(
+  userId: string,
+  batchId: string,
+  review: PaperPendingReview | null
+): Promise<void> {
+  await updateDoc(doc(batchesRef(userId), batchId), {
+    pendingReview: review ?? deleteField(),
+  });
 }
 
 export async function deletePaperBatch(

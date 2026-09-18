@@ -246,6 +246,22 @@ describe('useGooglePicker', () => {
     expect(lastDocsViewInstance?.setIncludeFolders).toHaveBeenCalledWith(false);
   });
 
+  it('configures the picker for scans mode with PDF and image MIME types, browsing folders', async () => {
+    setupGapiMock();
+    setupPickerMock('cancel');
+    const { useGooglePicker } = await import('@/hooks/useGooglePicker');
+    const { result } = renderHook(() => useGooglePicker());
+
+    await vi.advanceTimersByTimeAsync(300);
+    await result.current.openPicker({ mode: 'scans' });
+
+    expect(lastDocsViewArg).toBe('docs');
+    expect(lastDocsViewInstance?.setMimeTypes).toHaveBeenCalledWith(
+      'application/pdf,image/jpeg,image/png,image/tiff'
+    );
+    expect(lastDocsViewInstance?.setIncludeFolders).toHaveBeenCalledWith(true);
+  });
+
   it('defaults to docs mode with document MIME types', async () => {
     setupGapiMock();
     setupPickerMock('cancel');

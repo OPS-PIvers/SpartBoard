@@ -371,10 +371,144 @@ export async function handleImportPaperResponses(
       pending = 0;
     }
   }
+  if (written.length > 0) {
+    writes.set(
+      userRef.collection('quiz_assignments').doc(input.assignmentId),
+      { hasPaperResponses: true },
+      { merge: true }
+    );
+    pending += 1;
+  }
   if (pending > 0) await writes.commit();
 
   return { written, collisions };
 }
+
+export interface PublishPaperResultsResult {
+  /** Students whose pointer was written or refreshed. */
+  pointersWritten: number;
+  /** Paper responses keyed `pin-…`, with no SSO identity to point at. */
+  unlinked: number;
+}
+
+/**
+ * Plan Q34: a paper administration is created without `classIds`, so it
+ * never reaches a class channel. Once scores are published, give every paper
+ * response that resolved to a real pseudonym its own
+ * `/student_assignments/{uid}/items/{assignmentId}` pointer, the same doc
+ * `setAssignmentTargetsV1` writes, so the result shows in My Assignments.
+ */
+export async function handlePublishPaperResults(
+  db: admin.firestore.Firestore,
+  caller: ImportPaperCaller | null,
+  raw: unknown,
+  now: number
+): Promise<PublishPaperResultsResult> {
+  if (!caller) throw new HttpsError('unauthenticated', 'Sign in required.');
+  if (caller.studentRole || caller.anonymous)
+    throw new HttpsError('permission-denied', 'Teacher account required.');
+  const data = isRecord(raw) ? raw : {};
+  const assignmentId = parseId(data.assignmentId, 'assignmentId');
+
+  const settings = await db.doc(PAPER_SETTINGS_PATH).get();
+  if (settings.data()?.enabled !== true)
+    throw new HttpsError(
+      'failed-precondition',
+      'Paper answer sheets are not enabled.'
+    );
+
+  const userRef = db.collection('users').doc(caller.uid);
+  const [assignmentSnap, sessionSnap] = await Promise.all([
+    userRef.collection('quiz_assignments').doc(assignmentId).get(),
+    db.collection('quiz_sessions').doc(assignmentId).get(),
+  ]);
+  if (!assignmentSnap.exists || !sessionSnap.exists)
+    throw new HttpsError('not-found', 'Assignment not found.');
+  if (sessionSnap.data()?.teacherUid !== caller.uid)
+    throw new HttpsError('permission-denied', 'Not the owner of this session.');
+
+  const responses = await db
+    .collection('quiz_sessions')
+    .doc(assignmentId)
+    .collection('responses')
+    .where('paperBatchId', '>', '')
+    .get();
+  const linked: Array<{ uid: string; classId: string }> = [];
+  let unlinked = 0;
+  for (const d of responses.docs) {
+    const r = d.data() ?? {};
+    const uid = typeof r.studentUid === 'string' ? r.studentUid : '';
+    const classId = typeof r.classId === 'string' ? r.classId : '';
+    if (!uid || uid.startsWith('pin-') || !classId) {
+      unlinked += 1;
+      continue;
+    }
+    linked.push({ uid, classId });
+  }
+
+  const pointerRef = (uid: string) =>
+    db
+      .collection('student_assignments')
+      .doc(uid)
+      .collection('items')
+      .doc(assignmentId);
+  const existing = await mapLimited(linked, READ_CONCURRENCY, (t) =>
+    pointerRef(t.uid).get()
+  );
+
+  let writes = db.batch();
+  let pending = 0;
+  for (let i = 0; i < linked.length; i += 1) {
+    const { uid, classId } = linked[i];
+    const prior = existing[i].exists ? (existing[i].data() ?? {}) : null;
+    writes.set(
+      pointerRef(uid),
+      {
+        kind: 'quiz',
+        sessionId: assignmentId,
+        teacherUid: caller.uid,
+        classId,
+        createdAt: typeof prior?.createdAt === 'number' ? prior.createdAt : now,
+        updatedAt: now,
+      },
+      { merge: true }
+    );
+    pending += 1;
+    if (pending >= WRITE_CHUNK) {
+      await writes.commit();
+      writes = db.batch();
+      pending = 0;
+    }
+  }
+  if (pending > 0) await writes.commit();
+
+  return { pointersWritten: linked.length, unlinked };
+}
+
+export const publishPaperResultsV1 = onCall(
+  {
+    memory: '256MiB',
+    timeoutSeconds: 120,
+    cors: ALLOWED_ORIGINS,
+    invoker: 'public',
+  },
+  async (request) => {
+    const caller: ImportPaperCaller | null = request.auth
+      ? {
+          uid: request.auth.uid,
+          studentRole: request.auth.token.studentRole === true,
+          anonymous:
+            request.auth.token.firebase?.sign_in_provider === 'anonymous',
+        }
+      : null;
+    return handlePublishPaperResults(
+      admin.firestore(),
+      caller,
+      request.data,
+      Date.now()
+    );
+  }
+);
 
 export const importPaperResponsesV1 = onCall(
   {

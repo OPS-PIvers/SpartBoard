@@ -179,6 +179,31 @@ A second entry point writes `StudentAssignmentPointer` docs at publish time so p
 2. **Import** — `paperSheetReader.ts`, `PaperImportPanel`, the review queue, `importPaperResponsesV1`, the admin flag. The half that touches grades, and it lands only after the physical half is proven.
 3. **Extraction** — optional OCR of the uploaded test paper to fill stub question text via `tesseract.js`. Cannot affect grading: the key comes from the bubbled key sheet and scores come from bubbles, so a misread can only mislabel. Reviewed before it lands.
 
+### 8.1 Status (2026-09-18)
+
+Increments 1 and 2 shipped (#3100–#3113, #3118). The items deferred from #3108 and
+Increment 3 landed together in one PR:
+
+- **Q34** — `publishPaperResultsV1` writes a `/student_assignments` pointer for every
+  paper response keyed by a pseudonym after the teacher publishes scores; `pin-` keyed
+  responses are counted and reported, never pointed at. `importPaperResponsesV1` marks
+  the assignment `hasPaperResponses` so the client knows to call it. A new paper
+  administration is now created `inactive` (session `ended`), so a pointer leads straight
+  to the review screen instead of a paused-session placeholder.
+- **Q26** — the review is parked on the batch as `pendingReview` (compact: choices and
+  doubt reasons only) whenever it changes; row crops stay in that browser's IndexedDB.
+  The import modal offers Resume / Discard, and a review whose seats or rows no longer
+  fit the batch is ignored. Sheets still commit in one import step rather than as they
+  are read, so the key confirmation (Q19) keeps guarding every graded row.
+- **Q27** — a Learning targets section on the review screen tags rows singly or all at
+  once with the existing `TargetPicker`; tags save with the key.
+- **Q17** — "Pick the scan from Google Drive" via the Picker's new `scans` mode
+  (PDF + page images); the bytes download and are read locally like a chosen file.
+- **Increment 3** — "Read questions from test paper" in the row kebab OCRs a PDF or
+  image with `tesseract.js` (loaded on demand), parses numbered questions, and proposes
+  text per row; placeholder rows are ticked by default, real text never replaces without
+  a tick. Scores are untouched by construction.
+
 ## 9. Known risks
 
 - **The bit-grid has no field testing.** It is the most likely thing to need real iteration, which is why Increment 1 stands alone.

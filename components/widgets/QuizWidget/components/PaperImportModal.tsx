@@ -8,22 +8,31 @@
  * seat numbers, PINs and letters.
  */
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
+  CloudDownload,
   FileUp,
+  History,
   Loader2,
   ScanLine,
+  Tag,
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { TargetChips } from '@/components/quiz/targets/TargetChips';
+import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import type {
   ClassRoster,
   PaperBatch,
+  PaperPendingReview,
+  PaperSeatAssignment,
+  QuestionTargetTag,
   QuizAssignment,
   QuizData,
 } from '@/types';
+import { indexedDbCropStore, type CropStore } from '@/utils/paperCropStore';
 import {
   assemblePaperScan,
   type AssembledSheet,
@@ -40,11 +49,20 @@ import {
   type ImportPaperResponsesResult,
   type ImportPaperSheetPayload,
 } from '@/utils/paperImportPlan';
+import {
+  applyTargetsToQuiz,
+  fromPendingReview,
+  pendingReviewMatches,
+  targetsFromQuiz,
+  toPendingReview,
+} from '@/utils/paperReviewState';
 import { rasterizeScan, type RasterizedPage } from '@/utils/paperScanRaster';
 import { CHOICE_LETTERS } from '@/utils/paperSheetLayout';
 import { readPaperPage } from '@/utils/paperSheetReader';
 
 const IMPORT_CHUNK = 200;
+/** Debounce for parking the review on the batch doc (plan Q26). */
+const SAVE_DELAY_MS = 600;
 
 interface PaperImportModalProps {
   quiz: QuizData;
@@ -61,12 +79,22 @@ interface PaperImportModalProps {
   ) => Promise<ImportPaperResponsesResult>;
   /** Persist the quiz after the key sheet fills in its answers. */
   onSaveQuiz: (quiz: QuizData) => Promise<void>;
+  /** Park the review on the batch so a closed tab never means rescanning; null clears it. */
+  onSavePending?: (
+    batchId: string,
+    review: PaperPendingReview | null
+  ) => Promise<void>;
+  /** Drive picker for copiers that scan to a folder (plan Q17); null when cancelled. */
+  onPickFromDrive?: () => Promise<File | null>;
   onClose: () => void;
   onError: (message: string) => void;
   /** Test seams. */
   rasterize?: (file: Blob) => AsyncGenerator<RasterizedPage>;
   readPage?: typeof readPaperPage;
+  cropStore?: CropStore;
 }
+
+type PickerTarget = { questionId: string } | { all: true };
 
 type Step = 'setup' | 'reading' | 'review' | 'importing' | 'done';
 
@@ -100,10 +128,13 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
   onCreateAssignment,
   onImport,
   onSaveQuiz,
+  onSavePending,
+  onPickFromDrive,
   onClose,
   onError,
   rasterize = rasterizeScan,
   readPage = readPaperPage,
+  cropStore = indexedDbCropStore,
 }) => {
   const [step, setStep] = useState<Step>('setup');
   const [batchId, setBatchId] = useState(batches[0]?.id ?? '');
@@ -114,8 +145,15 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
   const [key, setKey] = useState<Record<string, number | null>>({});
   const [keyConfirmed, setKeyConfirmed] = useState(false);
   const [spareAssignments, setSpareAssignments] = useState<
-    Record<number, { rosterId: string; studentId: string }>
+    Record<number, PaperSeatAssignment>
   >({});
+  const [targets, setTargets] = useState<Record<string, QuestionTargetTag[]>>(
+    () => targetsFromQuiz(quiz)
+  );
+  const [picker, setPicker] = useState<PickerTarget | null>(null);
+  const [picking, setPicking] = useState(false);
+  // The batch list is loaded once, so a discarded review is remembered here.
+  const [discarded, setDiscarded] = useState<Set<string>>(new Set());
   const [result, setResult] = useState<ImportPaperResponsesResult | null>(null);
   const [replaceSeats, setReplaceSeats] = useState<Set<number>>(new Set());
   const [lastPayload, setLastPayload] = useState<ImportPaperSheetPayload[]>([]);
@@ -127,6 +165,68 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     [batches, batchId]
   );
   const rowIds = useMemo(() => sheetRowQuestionIds(quiz), [quiz]);
+  const resumable =
+    batch?.pendingReview &&
+    !discarded.has(batch.id) &&
+    pendingReviewMatches(batch, batch.pendingReview)
+      ? batch.pendingReview
+      : null;
+
+  // Park the review whenever it changes (Q26). Firestore is the external
+  // system here; the debounce keeps clicking through rows cheap.
+  useEffect(() => {
+    if (step !== 'review' || !assembled || !onSavePending || !batchId) return;
+    const timer = window.setTimeout(() => {
+      void onSavePending(
+        batchId,
+        toPendingReview(
+          {
+            assembled,
+            assignmentId:
+              assignmentId === NEW_ADMINISTRATION ? '' : assignmentId,
+            key,
+            keyConfirmed,
+            spareAssignments,
+            targets,
+          },
+          Date.now()
+        )
+      ).catch(() => undefined);
+    }, SAVE_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [
+    step,
+    assembled,
+    assignmentId,
+    key,
+    keyConfirmed,
+    spareAssignments,
+    targets,
+    onSavePending,
+    batchId,
+  ]);
+
+  const handleResume = async () => {
+    if (!resumable || !batch) return;
+    const state = fromPendingReview(resumable);
+    setAssembled(state.assembled);
+    setAssignmentId(state.assignmentId || NEW_ADMINISTRATION);
+    setKey(state.key);
+    setKeyConfirmed(state.keyConfirmed);
+    setSpareAssignments(state.spareAssignments);
+    setTargets(state.targets);
+    setCrops(await cropStore.load(batch.id));
+    setStep('review');
+  };
+
+  const discardPending = async () => {
+    if (!batch) return;
+    setDiscarded((prev) => new Set(prev).add(batch.id));
+    await Promise.all([
+      onSavePending?.(batch.id, null).catch(() => undefined),
+      cropStore.clear(batch.id),
+    ]);
+  };
 
   const readFile = async (file: File) => {
     if (!batch) return;
@@ -159,10 +259,27 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       setCrops(nextCrops);
       setKey(next.keySheet ? keySheetChoices(next.keySheet, quiz) : {});
       setKeyConfirmed(false);
+      setSpareAssignments({});
+      void cropStore.save(batch.id, nextCrops);
       setStep('review');
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Could not read the scan.');
       setStep('setup');
+    }
+  };
+
+  const pickFromDrive = async () => {
+    if (!onPickFromDrive) return;
+    setPicking(true);
+    try {
+      const file = await onPickFromDrive();
+      if (file) await readFile(file);
+    } catch (err) {
+      onError(
+        err instanceof Error ? err.message : 'Could not open the Drive file.'
+      );
+    } finally {
+      setPicking(false);
     }
   };
 
@@ -221,15 +338,45 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     return { written, collisions };
   };
 
+  const applyTags = (tags: QuestionTargetTag[], mode: 'add' | 'replace') => {
+    if (!picker) return;
+    const ids = 'all' in picker ? rowIds : [picker.questionId];
+    setTargets((prev) => {
+      const next = { ...prev };
+      for (const id of ids) {
+        const own = prev[id] ?? [];
+        const merged =
+          mode === 'replace'
+            ? tags
+            : [...own, ...tags.filter((t) => !own.some((p) => p.id === t.id))];
+        if (merged.length > 0) next[id] = merged;
+        else delete next[id];
+      }
+      return next;
+    });
+    setPicker(null);
+  };
+
+  const removeTag = (questionId: string, tagId: string) =>
+    setTargets((prev) => {
+      const rest = (prev[questionId] ?? []).filter((t) => t.id !== tagId);
+      const next = { ...prev };
+      if (rest.length > 0) next[questionId] = rest;
+      else delete next[questionId];
+      return next;
+    });
+
   const handleImport = async () => {
     if (!batch || !assembled) return;
     setStep('importing');
     try {
       // Key first (Q19): grading reads the quiz, so the key must land before
-      // any response that will be graded against it.
-      if (assembled.keySheet) {
-        await onSaveQuiz(applyKeyToQuiz(quiz, batch, key, Date.now()));
-      }
+      // any response that will be graded against it. Tags ride the same save.
+      const now = Date.now();
+      let nextQuiz = quiz;
+      if (assembled.keySheet) nextQuiz = applyKeyToQuiz(quiz, batch, key, now);
+      nextQuiz = applyTargetsToQuiz(nextQuiz, targets, now);
+      if (nextQuiz !== quiz) await onSaveQuiz(nextQuiz);
       const { payload } = buildImportPayload({
         batch,
         quiz,
@@ -244,6 +391,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       setImportedAssignmentId(target);
       setLastPayload(payload);
       setResult(await runImport(payload, target));
+      await discardPending();
       setStep('done');
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Import failed.');
@@ -371,6 +519,35 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
               digital responses.
             </span>
           </label>
+          {resumable && (
+            <section className="rounded-xl border border-brand-blue-primary/30 bg-brand-blue-lighter/20 p-3">
+              <p className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                <History className="h-4 w-4 text-brand-blue-primary" />A review
+                from {formatDate(resumable.savedAt)} is waiting
+              </p>
+              <p className="mt-0.5 text-xs text-slate-600">
+                {resumable.sheets.length} sheet
+                {resumable.sheets.length === 1 ? '' : 's'} were read and not yet
+                imported. Pick up where you left off, or scan again.
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleResume()}
+                  className="rounded-lg bg-brand-blue-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-blue-dark"
+                >
+                  Resume review
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void discardPending()}
+                  className="rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                >
+                  Discard it
+                </button>
+              </div>
+            </section>
+          )}
           <input
             ref={fileRef}
             type="file"
@@ -392,6 +569,21 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             <FileUp className="h-5 w-5" />
             Choose the scanned PDF or image
           </button>
+          {onPickFromDrive && (
+            <button
+              type="button"
+              onClick={() => void pickFromDrive()}
+              disabled={!batch || picking}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:border-brand-blue-primary hover:text-brand-blue-primary disabled:opacity-50"
+            >
+              {picking ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CloudDownload className="h-4 w-4" />
+              )}
+              Pick the scan from Google Drive
+            </button>
+          )}
           <p className="text-xs text-slate-500">
             Pages can be in any order, upside down, or split across scans. The
             file is read on this computer and never uploaded.
@@ -459,6 +651,55 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       </section>
     );
   };
+
+  const renderTargets = () => (
+    <section className="rounded-xl border border-slate-200 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-bold text-slate-900">Learning targets</p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Tag questions now and every result rolls up by standard.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setPicker({ all: true })}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          <Tag className="h-3.5 w-3.5" />
+          Tag all questions
+        </button>
+      </div>
+      <ol className="mt-2 space-y-1">
+        {rowIds.map((id, i) => (
+          <li key={id} className="flex items-center gap-2 text-sm">
+            <span className="w-6 shrink-0 text-right text-slate-500">
+              {i + 1}.
+            </span>
+            <span className="min-w-0 flex-1">
+              {targets[id]?.length ? (
+                <TargetChips
+                  targets={targets[id]}
+                  compact
+                  onRemove={(tagId) => removeTag(id, tagId)}
+                />
+              ) : (
+                <span className="text-xs text-slate-400">No targets</span>
+              )}
+            </span>
+            <button
+              type="button"
+              aria-label={`Tag question ${i + 1}`}
+              onClick={() => setPicker({ questionId: id })}
+              className="shrink-0 rounded px-2 py-0.5 text-xs font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
+            >
+              {targets[id]?.length ? 'Edit' : 'Tag'}
+            </button>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
 
   const renderSheet = (sheet: AssembledSheet) => {
     if (!batch) return null;
@@ -621,6 +862,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           .
         </p>
         {renderKey()}
+        {renderTargets()}
         {assembled.sheets.map(renderSheet)}
         {problems.length > 0 && (
           <section className="rounded-xl border border-amber-200 bg-amber-50 p-3">
@@ -769,6 +1011,20 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       )}
       {step === 'review' && renderReview()}
       {step === 'done' && renderDone()}
+      {picker && (
+        <TargetPicker
+          open
+          initial={'all' in picker ? [] : (targets[picker.questionId] ?? [])}
+          onApply={applyTags}
+          onClose={() => setPicker(null)}
+          allowReplace={'all' in picker}
+          title={
+            'all' in picker
+              ? 'Tag every question'
+              : `Question ${rowIds.indexOf(picker.questionId) + 1} targets`
+          }
+        />
+      )}
     </Modal>
   );
 };

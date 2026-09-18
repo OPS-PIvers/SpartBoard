@@ -99,6 +99,7 @@ describe('QuizManager — paper answer sheets', () => {
     expect(screen.queryByRole('button', { name: 'Paper test' })).toBeNull();
     openRowMenu();
     expect(screen.queryByText('Print answer sheets')).toBeNull();
+    expect(screen.queryByText('Read questions from test paper')).toBeNull();
   });
 
   it('offers Print answer sheets in the row menu when the feature is on', () => {
@@ -117,6 +118,16 @@ describe('QuizManager — paper answer sheets', () => {
     openRowMenu();
     fireEvent.click(screen.getByText('Import scanned sheets'));
     expect(onImportPaperScan).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'quiz-1' })
+    );
+  });
+
+  it('offers Read questions from test paper in the row menu when wired', () => {
+    const onReadPaperQuestions = vi.fn();
+    renderLibrary({ onReadPaperQuestions });
+    openRowMenu();
+    fireEvent.click(screen.getByText('Read questions from test paper'));
+    expect(onReadPaperQuestions).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'quiz-1' })
     );
   });
