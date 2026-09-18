@@ -3420,14 +3420,20 @@ service cloud.firestore {
       // but can't submit outside their classIds. Privacy: a sessionId is an unguessable
       // v4 UUID and the doc exposes no PII (answer-key stripped).
       allow read: if request.auth != null;
-      // NOTE: `list` is NOT scoped here, unlike the other session collections.
+      // NOTE: `list` is NOT scoped here yet, unlike the other session collections.
       // The PIN join flow queries this collection by join code
-      // (`where('code','==',code)`, hooks/useQuizSession.ts lookupSession /
-      // joinQuizSession) as an ANONYMOUS student, and a list rule is evaluated
-      // against the query with an empty resource — it cannot prove that a filter
-      // on `code` was supplied. Scoping list therefore needs a code->sessionId
-      // lookup collection (or a callable) so join becomes a `get` — a change to
-      // the student join path, tracked separately from this rules-only pass.
+      // (`where('code','==',code)`) as an ANONYMOUS student, and a list rule is
+      // evaluated against the query with an empty resource — it cannot prove that
+      // a filter on `code` was supplied.
+      //
+      // The `quiz_join_codes` lookup above now resolves a code without that query,
+      // so this IS closable: split into `allow get` plus
+      // `allow list: if request.auth != null && sessionListScoped();` — the same
+      // shape as the four collections below, verified against the emulator. It
+      // waits on every production browser reaching the new join path and on the
+      // live sessions being backfilled, because a merge to a dev-* branch ships
+      // these rules to production while the client only reaches a preview channel.
+      // Sequence: docs/plans/QUIZ_JOIN_CODE_LOOKUP.md.
       // Only the teacher (session owner) can create/update/delete the session document.
       // Ownership is carried on the `teacherUid` field (no longer the doc id).
       // PLC pooling link (docs/plans/PLC_ASSESSMENT_DATA.md §4): a session may
