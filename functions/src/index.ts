@@ -115,6 +115,7 @@ export { organizationMembersSync } from './organizationMembersSync';
 export { organizationMemberCounters } from './organizationMemberCounters';
 export { organizationBuildingCounters } from './organizationBuildingCounters';
 export { resetOrganizationUserPassword } from './organizationResetPassword';
+export { deleteOrganizationUser } from './organizationUserDelete';
 export { getOrgUserActivity } from './organizationUserActivity';
 export { plcInvitationEmail } from './plcInviteEmails';
 export { rolloutRequestEmail } from './rolloutRequestEmail';

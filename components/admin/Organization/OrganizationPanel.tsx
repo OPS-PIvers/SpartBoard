@@ -29,7 +29,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useOrgBuildings } from '@/hooks/useOrgBuildings';
 import { useOrgDomains } from '@/hooks/useOrgDomains';
 import { useOrgRoles } from '@/hooks/useOrgRoles';
-import { useOrgMembers } from '@/hooks/useOrgMembers';
+import { useOrgMembers, type DeleteUserResponse } from '@/hooks/useOrgMembers';
 import { useOrgStudentPage } from '@/hooks/useOrgStudentPage';
 import { useTestClasses } from '@/hooks/useTestClasses';
 import type {
@@ -55,6 +55,7 @@ import { TestClassesView } from './views/TestClassesView';
 import { MediaReviewSection } from './views/MediaReviewView';
 import {
   Btn,
+  Confirm,
   LocalModal,
   OrgLogoTile,
   OrgToast,
@@ -269,6 +270,7 @@ export const OrganizationPanel: React.FC = () => {
     updateMember,
     bulkUpdateMembers,
     removeMembers,
+    deleteUserAccount,
     inviteMembers,
     bulkInviteMembers,
     resendInvite,
@@ -311,6 +313,14 @@ export const OrganizationPanel: React.FC = () => {
     manualResetUrlRef.current = null;
     setManualResetEmail(null);
   };
+  // Full-delete flow: the kebab Delete runs a server-side preflight first and
+  // holds the result here so the confirm dialog can show exactly what will be
+  // destroyed (and what survives) before the admin types the email.
+  const [deleteTarget, setDeleteTarget] = useState<{
+    email: string;
+    preflight: DeleteUserResponse | null;
+  } | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showToast = (message: string, type: OrgToastType = 'info') => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -425,8 +435,56 @@ export const OrganizationPanel: React.FC = () => {
     run(
       'Remove users',
       () => removeMembers(ids),
-      `Removed ${ids.length} users`
+      `Removed ${ids.length} users from the organization`
     );
+  };
+
+  // Step 1 of the full delete: preflight only. Opens the confirm dialog with
+  // the server's report; nothing is destroyed until `handleConfirmDelete`.
+  const handleDeleteUserAccount = (email: string) => {
+    if (!writesEnabled) return comingSoon('Delete user account');
+    setDeleteTarget({ email, preflight: null });
+    setDeleteBusy(true);
+    deleteUserAccount(email, { dryRun: true })
+      .then((preflight) => setDeleteTarget({ email, preflight }))
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        showToast(`Could not check ${email}: ${msg}`, 'error');
+        setDeleteTarget(null);
+      })
+      .finally(() => setDeleteBusy(false));
+  };
+
+  // Step 2: the irreversible pass. The CF re-runs its own blocker scan, so a
+  // dependency added between preflight and confirm still refuses the delete.
+  const handleConfirmDelete = () => {
+    const target = deleteTarget;
+    if (!target) return;
+    setDeleteBusy(true);
+    deleteUserAccount(target.email, { dryRun: false })
+      .then((res) => {
+        if (!res.deleted) {
+          showToast(
+            `${target.email} still has ${res.blockers.length} linked item(s) — reassign them first.`,
+            'error'
+          );
+          setDeleteTarget({ email: target.email, preflight: res });
+          return;
+        }
+        const preserved = res.summary.quizSessionsPreserved;
+        showToast(
+          preserved > 0
+            ? `Deleted ${target.email}. ${preserved} student quiz session(s) preserved.`
+            : `Deleted ${target.email} and all of their data.`,
+          'success'
+        );
+        setDeleteTarget(null);
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        showToast(`Delete failed: ${msg}`, 'error');
+      })
+      .finally(() => setDeleteBusy(false));
   };
   // Phase 4: invitations go through the `createOrganizationInvites` CF
   // (Admin SDK) which writes both a `members/{emailLower}` doc (status
@@ -845,6 +903,7 @@ export const OrganizationPanel: React.FC = () => {
                   onUpdate={handleUpdateUser}
                   onBulkUpdate={handleBulkUpdateUsers}
                   onRemove={handleRemoveUsers}
+                  onDeleteAccount={handleDeleteUserAccount}
                   onInvite={handleInvite}
                   onBulkInvite={handleBulkInvite}
                   onResendInvite={handleResendInvite}
@@ -884,6 +943,22 @@ export const OrganizationPanel: React.FC = () => {
         getUrl={getManualResetUrl}
         onClose={closeManualResetLink}
       />
+
+      <Confirm
+        isOpen={deleteTarget !== null}
+        title="Delete this account?"
+        destructive
+        requireTyping={deleteTarget?.email}
+        confirmLabel={deleteBusy ? 'Working...' : 'Delete permanently'}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        message={
+          <DeleteUserConfirmBody
+            email={deleteTarget?.email ?? ''}
+            preflight={deleteTarget?.preflight ?? null}
+          />
+        }
+      />
     </div>
   );
 };
@@ -899,6 +974,88 @@ export const OrganizationPanel: React.FC = () => {
 // state/props/hooks tree of every component that touches it (only the parent's
 // ref holds it), so DevTools and any state-snapshotting observability tooling
 // see only the email + a function reference.
+// Preflight report inside the delete confirmation. Renders on a light admin
+// surface, so slate-500/600 muted text is correct here.
+const DeleteUserConfirmBody: React.FC<{
+  email: string;
+  preflight: DeleteUserResponse | null;
+}> = ({ email, preflight }) => {
+  if (!preflight) {
+    return (
+      <div className="flex items-center gap-2 text-slate-500">
+        <Loader2 size={14} className="animate-spin" aria-hidden />
+        Checking what this account owns...
+      </div>
+    );
+  }
+
+  const { blockers, summary } = preflight;
+
+  if (blockers.length > 0) {
+    return (
+      <div className="space-y-3">
+        <p>
+          <strong className="text-slate-900">{email}</strong> can&apos;t be
+          deleted yet — other teachers depend on this content. Reassign or
+          remove it first:
+        </p>
+        <ul className="rounded-lg bg-amber-50 border border-amber-200 divide-y divide-amber-200">
+          {blockers.map((b) => (
+            <li key={`${b.kind}-${b.id}`} className="px-3 py-2 text-amber-900">
+              <span className="font-semibold">
+                {b.kind === 'plc' ? 'PLC' : 'Shared board'}
+              </span>
+              {' — '}
+              {b.label}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p>
+        This permanently deletes{' '}
+        <strong className="text-slate-900">{email}</strong> and everything they
+        own. It cannot be undone.
+      </p>
+      <ul className="rounded-lg bg-slate-50 border border-slate-200 divide-y divide-slate-200">
+        <li className="px-3 py-2 flex justify-between gap-4">
+          <span>Boards, quizzes, rosters &amp; all other documents</span>
+          <span className="font-semibold text-slate-900 tabular-nums">
+            {summary.userDocsFound}
+          </span>
+        </li>
+        <li className="px-3 py-2 flex justify-between gap-4">
+          <span>Uploaded files</span>
+          <span className="font-semibold text-slate-900 tabular-nums">
+            {summary.storageObjectsFound}
+          </span>
+        </li>
+        <li className="px-3 py-2 flex justify-between gap-4">
+          <span>Sign-in account</span>
+          <span className="font-semibold text-slate-900">
+            {summary.uid ? 'Deleted' : 'Never signed in'}
+          </span>
+        </li>
+      </ul>
+      {summary.quizSessionsPreserved > 0 && (
+        <p className="text-slate-500">
+          {summary.quizSessionsPreserved} student quiz session(s) stay — student
+          work is a district record and is never deleted with a teacher.
+        </p>
+      )}
+      {summary.uid && (
+        <p className="text-slate-500">
+          They can sign in again with Google and get a new, empty account.
+        </p>
+      )}
+    </div>
+  );
+};
+
 const ManualResetLinkModal: React.FC<{
   email: string | null;
   getUrl: () => string | null;

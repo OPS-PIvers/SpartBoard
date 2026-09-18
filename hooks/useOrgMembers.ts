@@ -36,6 +36,31 @@ export interface InviteResponse {
   errors: InviteError[];
 }
 
+// Response shape from the `deleteOrganizationUser` callable (see
+// `functions/src/organizationUserDelete.ts`), mirrored for the same reason.
+// A non-empty `blockers` with `deleted: false` means the delete was REFUSED
+// because other teachers depend on that content — not that it failed.
+export interface DeleteUserBlocker {
+  kind: 'shared_board' | 'plc';
+  id: string;
+  label: string;
+}
+export interface DeleteUserSummary {
+  uid: string | null;
+  userDocsFound: number;
+  storageObjectsFound: number;
+  quizSessionsPreserved: number;
+  memberDocRemoved: boolean;
+  adminDocRemoved: boolean;
+  authAccountRemoved: boolean;
+}
+export interface DeleteUserResponse {
+  deleted: boolean;
+  email: string;
+  blockers: DeleteUserBlocker[];
+  summary: DeleteUserSummary;
+}
+
 // Bulk-invite payload: one entry per invitee, each with its own role + buildings.
 // Matches the `invitations[]` shape the callable accepts.
 export interface BulkInviteIntent {
@@ -302,6 +327,31 @@ export const useOrgMembers = (orgId: string | null) => {
     );
   };
 
+  // Full account deletion via the `deleteOrganizationUser` callable: the
+  // member doc, `/users/{uid}` and its subcollections, Storage, `/admins`,
+  // and the Auth record. `removeMembers` above is the roster-only path and
+  // deliberately stays that way — it backs the bulk "Remove from org" action.
+  // Pass `dryRun` to preflight: same scan, no writes, which is what the
+  // confirmation dialog shows. Student `quiz_sessions` are always preserved.
+  const deleteUserAccount = async (
+    email: string,
+    opts: { dryRun: boolean }
+  ): Promise<DeleteUserResponse> => {
+    if (!orgId) {
+      throw new Error('No organization selected.');
+    }
+    const callable = httpsCallable<
+      { orgId: string; email: string; dryRun: boolean },
+      DeleteUserResponse
+    >(functions, 'deleteOrganizationUser');
+    const result = await callable({
+      orgId,
+      email: email.toLowerCase(),
+      dryRun: opts.dryRun,
+    });
+    return result.data;
+  };
+
   // Phase 4: invite flow routes through the `createOrganizationInvites`
   // Cloud Function. The CF (Admin SDK) writes both the `members` doc
   // (status: 'invited') and the `invitations/{token}` doc atomically per
@@ -424,6 +474,7 @@ export const useOrgMembers = (orgId: string | null) => {
     updateMember,
     bulkUpdateMembers,
     removeMembers,
+    deleteUserAccount,
     inviteMembers,
     bulkInviteMembers,
     resendInvite,
