@@ -508,6 +508,18 @@ service cloud.firestore {
       }
     }
 
+    // Printed paper answer-sheet runs. PII-free by construction: seat numbers map
+    // to opaque Student ids and names are resolved from the Drive roster, so this
+    // mirrors the owner-only boundary of /rosters above rather than adding one.
+    // Only a real teacher account prints sheets, so anonymous PIN joiners are shut
+    // out of their own namespace too — same posture as the session-create paths.
+    match /users/{userId}/paper_batches/{batchId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId
+                         && !isStudentRoleUser()
+                         && request.auth.token.firebase.sign_in_provider != 'anonymous'
+                         && notDeactivated();
+    }
+
     // PLC Overview layout — per-user PLC dashboard bento-grid prefs. No PLC
     // membership check needed (a non-member's doc is inert — tiles still pass the
     // PLC rule gates to read content). Per-tile enum validation is delegated to
@@ -717,6 +729,13 @@ service cloud.firestore {
     // Rollout switch for real-time (CRDT) PLC note editing — every member
     // reads it to decide which editor path to mount; admins flip it.
     match /admin_settings/plc_note_collab {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Rollout switch for paper answer sheets — teachers read it to decide
+    // whether to surface the print/import entry points; admins flip it.
+    match /admin_settings/paper_answer_sheets {
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }
