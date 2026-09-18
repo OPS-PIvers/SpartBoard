@@ -7,6 +7,14 @@ import { mockPointerEvent } from '@/tests/testHelpers/mocks';
 import { getLocalIsoDate } from '@/utils/localDate';
 
 vi.mock('@/context/useDashboard');
+// Both halves of the class-groups gate default OFF here, so these suites keep
+// asserting the pre-feature behaviour (docs/plans/ROSTER_GROUPS_INTEGRATION.md D23).
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
+}));
+vi.mock('@/hooks/useRosterGroupsIntegrationSettings', () => ({
+  useRosterGroupsIntegrationSettings: () => ({ enabled: false }),
+}));
 
 const mockDashboardContext = {
   updateWidget: vi.fn(),
