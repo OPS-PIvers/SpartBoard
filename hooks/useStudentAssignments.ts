@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import {
   ClipboardList,
+  FolderKanban,
   Image as ImageIcon,
   Layers3,
   PlayCircle,
@@ -22,6 +23,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { db, isAuthBypass } from '@/config/firebase';
+import { projectHref } from '@/components/student/project/projectRoute';
 import type { StudentAssignmentPointer, StudentOverride } from '@/types';
 
 /**
@@ -59,7 +61,8 @@ export type SessionKind =
   | 'guided-learning'
   | 'mini-app'
   | 'activity-wall'
-  | 'flashcards';
+  | 'flashcards'
+  | 'projects';
 
 export type AssignmentChannel = 'active' | 'ended';
 
@@ -315,6 +318,27 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
         ? 'graded'
         : 'not-graded',
   },
+  projects: {
+    collectionName: 'project_runs',
+    // The run doc carries `classIds` only — there is no single-class shape to
+    // fall back to, so one array-contains-any query is the whole subscription.
+    dualQuery: false,
+    classFilterShape: 'list',
+    activeFilter: null, // A run has no status field; closing it is a flag, not a state.
+    endedFilter: null,
+    endedLimit: 0,
+    label: 'Project',
+    icon: FolderKanban,
+    accent: 'from-violet-500 to-purple-600',
+    titleFrom: (data) =>
+      typeof data.title === 'string' && data.title.length > 0
+        ? data.title
+        : 'Untitled project',
+    hrefFrom: (runId) => projectHref(runId),
+    // A2 — release is per group, on a sibling doc this query never reads, so
+    // the run itself can never promise a score is waiting.
+    gradingStateFrom: () => 'not-graded',
+  },
 };
 
 export const SESSION_KINDS: readonly SessionKind[] = [
@@ -324,6 +348,7 @@ export const SESSION_KINDS: readonly SessionKind[] = [
   'mini-app',
   'activity-wall',
   'flashcards',
+  'projects',
 ];
 
 // ---------------------------------------------------------------------------

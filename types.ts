@@ -7412,6 +7412,32 @@ export interface ProjectWorkLink {
   addedAt: number;
 }
 
+/**
+ * One uploaded file at `/project_runs/{runId}/groups/{groupId}/uploads/{uploadId}`.
+ * D20 — Storage is a transit buffer; the Drive copy is the durable one, so
+ * `storagePath` is deleted once `archiveStatus` reaches `archived`.
+ */
+export interface ProjectUpload {
+  id: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  /** D19 — optional, so "ready for review" on step 4 can point at something. */
+  stepId?: string;
+  uploadedByUid: string;
+  uploadedAt: number;
+  /** Present until the Drive archive claims it. */
+  storagePath?: string;
+  archiveStatus: ActivityWallArchiveStatus;
+  archiveStartedAt?: number;
+  archivedAt?: number;
+  archiveError?: string;
+  driveFileId?: string;
+  driveUrl?: string;
+  /** Drive has the file but the transit copy survived; the sweep retries. */
+  storageCleanupPending?: boolean;
+}
+
 /** `/project_runs/{runId}/groups/{groupId}/events/{eventId}` — teacher read only (D24). */
 export interface ProjectGroupEvent {
   id: string;

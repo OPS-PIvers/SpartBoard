@@ -733,6 +733,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Rollout switch for the Projects widget. Students read it too, not just
+    // teachers: without that the switch stops being a kill switch, because
+    // runs created while it was on would stay writable from the student page
+    // after an admin turns it off.
+    match /admin_settings/projects_widget {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     // Rollout switch for paper answer sheets — teachers read it to decide
     // whether to surface the print/import entry points; admins flip it.
     match /admin_settings/paper_answer_sheets {
@@ -5152,6 +5161,40 @@ service cloud.firestore {
                                  /databases/$(database)/documents/project_runs/$(runId)/groups/$(groupId)
                                ).data.get('memberUids', []));
           allow update, delete: if false;
+        }
+
+        // D20 — uploads are a transit record: the client creates one, the
+        // archive trigger (admin, rules-exempt) moves it to Drive and clears
+        // `storagePath`. Reads are the run teacher and the group's own members
+        // only. Unlike `workLinks`, which sit on the class-readable group doc,
+        // a file is the group's work product, not a pointer it published.
+        match /uploads/{uploadId} {
+          // Positive membership, never a helper that passes every non-student.
+          function pjUploadMember() {
+            return request.auth != null
+                   && request.auth.uid in get(
+                        /databases/$(database)/documents/project_runs/$(runId)/groups/$(groupId)
+                      ).data.get('memberUids', []);
+          }
+          allow read: if pjIsRunTeacher() || pjUploadMember();
+          allow create: if request.auth != null
+                        && request.resource.data.uploadedByUid == request.auth.uid
+                        && request.resource.data.id == uploadId
+                        && request.resource.data.archiveStatus == 'firebase'
+                        && request.resource.data.storagePath ==
+                             'project_uploads/' + runId + '/' + groupId + '/' + uploadId + '/'
+                             + request.resource.data.get('fileName', '')
+                        && request.resource.data.fileName is string
+                        && request.resource.data.fileName.size() > 0
+                        && request.resource.data.contentType is string
+                        && request.resource.data.sizeBytes is int
+                        && request.resource.data.uploadedAt is int
+                        && (pjIsRunTeacher()
+                            || (pjUploadMember() && pjRun().acceptingUpdates == true));
+          // The archive trigger writes as admin and bypasses rules, so no
+          // client ever needs to move an upload's archive state along.
+          allow update: if pjIsRunTeacher();
+          allow delete: if pjIsRunTeacher() || pjUploadMember();
         }
       }
 
