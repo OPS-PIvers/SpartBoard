@@ -5078,13 +5078,20 @@ service cloud.firestore {
                && notDeactivated();
       }
 
+      // `.get()`, never bare `resource.data.teacherUid`: a bare property read
+      // on a list evaluation throws instead of returning false, which fails
+      // the whole rule rather than falling through to the student branch.
       allow get: if request.auth != null
-                 && (resource.data.teacherUid == request.auth.uid
+                 && (resource.data.get('teacherUid', '') == request.auth.uid
                      || pjStudentInAnyClass(resource.data.get('classIds', [])));
+      // Coarse on purpose, matching the flashcards sessions rule above: a list
+      // evaluation has no document to read, so a per-doc class match here can
+      // only ever deny. The class gate that matters lives on `get`, which the
+      // student page goes through; `/my-assignments` needs the query to run.
       allow list: if request.auth != null
                   && request.auth.token.firebase.sign_in_provider != 'anonymous'
-                  && (resource.data.teacherUid == request.auth.uid
-                      || pjStudentInAnyClass(resource.data.get('classIds', [])));
+                  && (resource.data.get('teacherUid', '') == request.auth.uid
+                      || isStudentRoleUser());
       allow create: if pjTeacher()
                     && request.resource.data.teacherUid == request.auth.uid
                     && request.resource.data.id == runId

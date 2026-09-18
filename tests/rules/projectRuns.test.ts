@@ -10,7 +10,17 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-project-runs';
 const TEACHER_UID = 'projects-teacher';
@@ -370,6 +380,233 @@ describe('grades', () => {
     );
     await assertSucceeds(
       setDoc(doc(asTeacher(TEACHER_UID), gradePath), grade(true))
+    );
+  });
+});
+
+describe('the /my-assignments run query', () => {
+  const runsQuery = (db: ReturnType<typeof asStudent>, classIds: string[]) =>
+    getDocs(
+      query(
+        collection(db, 'project_runs'),
+        where('classIds', 'array-contains-any', classIds)
+      )
+    );
+
+  it('lets a student run the query the page issues', async () => {
+    await seed();
+    await assertSucceeds(
+      runsQuery(asStudent(MEMBER_UID, [CLASS_ID]), [CLASS_ID])
+    );
+  });
+
+  it('lets the teacher list her own runs', async () => {
+    await seed();
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(asTeacher(TEACHER_UID), 'project_runs'),
+          where('teacherUid', '==', TEACHER_UID)
+        )
+      )
+    );
+  });
+
+  it('refuses a listing to an anonymous caller', async () => {
+    await seed();
+    await assertFails(
+      getDocs(
+        collection(testEnv.unauthenticatedContext().firestore(), 'project_runs')
+      )
+    );
+  });
+
+  it('still hides an out-of-class run from a get', async () => {
+    // The list rule is coarse by necessity; `get` is where the class gate
+    // actually holds, so a run a student can enumerate stays unreadable.
+    await seed();
+    await assertFails(
+      getDoc(
+        doc(asStudent(OUTSIDER_UID, [OTHER_CLASS_ID]), 'project_runs', RUN_ID)
+      )
+    );
+  });
+});
+
+describe('the Projects rollout switch', () => {
+  const path = 'admin_settings/projects_widget';
+
+  it('is readable by a student, so turning it off reaches them too', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), path), { enabled: true });
+    });
+    await assertSucceeds(getDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), path)));
+    await assertSucceeds(getDoc(doc(asTeacher(TEACHER_UID), path)));
+  });
+
+  it('is never writable by a teacher or a student', async () => {
+    await assertFails(
+      setDoc(doc(asTeacher(TEACHER_UID), path), { enabled: true })
+    );
+    await assertFails(
+      setDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), path), { enabled: true })
+    );
+  });
+});
+
+describe('group uploads', () => {
+  const UPLOAD_ID = 'upload-1';
+  const uploadPath = `${GROUP_PATH}/uploads/${UPLOAD_ID}`;
+  const storagePathFor = (groupId = 'group-1', uploadId = UPLOAD_ID) =>
+    `project_uploads/${RUN_ID}/${groupId}/${uploadId}/poster.pdf`;
+
+  const upload = (overrides: Record<string, unknown> = {}) => ({
+    id: UPLOAD_ID,
+    fileName: 'poster.pdf',
+    contentType: 'application/pdf',
+    sizeBytes: 1024,
+    uploadedByUid: MEMBER_UID,
+    uploadedAt: 1,
+    storagePath: storagePathFor(),
+    archiveStatus: 'firebase',
+    ...overrides,
+  });
+
+  const seedUpload = async (overrides: Record<string, unknown> = {}) => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), uploadPath), upload(overrides));
+    });
+  };
+
+  it('lets a member add a file to their own group', async () => {
+    await seed();
+    await assertSucceeds(
+      setDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), uploadPath), upload())
+    );
+  });
+
+  it('refuses a classmate who is not in the group', async () => {
+    await seed();
+    await assertFails(
+      setDoc(
+        doc(asStudent(OUTSIDER_UID, [CLASS_ID]), uploadPath),
+        upload({ uploadedByUid: OUTSIDER_UID })
+      )
+    );
+  });
+
+  it('refuses a storagePath belonging to another group', async () => {
+    await seed();
+    await assertFails(
+      setDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), uploadPath), {
+        ...upload(),
+        storagePath: storagePathFor('group-2'),
+      })
+    );
+  });
+
+  it('refuses a storagePath that does not match the doc id', async () => {
+    await seed();
+    await assertFails(
+      setDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), uploadPath), {
+        ...upload(),
+        storagePath: storagePathFor('group-1', 'upload-2'),
+      })
+    );
+  });
+
+  it('refuses a file that claims to be archived already', async () => {
+    await seed();
+    // Otherwise a member could skip the Drive pipeline and pin driveUrl
+    // to anything they liked.
+    await assertFails(
+      setDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), uploadPath), {
+        ...upload(),
+        archiveStatus: 'archived',
+        driveUrl: 'https://drive.google.com/file/d/evil/view',
+      })
+    );
+  });
+
+  it('refuses an upload attributed to someone else', async () => {
+    await seed();
+    await assertFails(
+      setDoc(
+        doc(asStudent(MEMBER_UID, [CLASS_ID]), uploadPath),
+        upload({ uploadedByUid: OUTSIDER_UID })
+      )
+    );
+  });
+
+  it('refuses a member once the run stops accepting updates', async () => {
+    await seed({ acceptingUpdates: false });
+    await assertFails(
+      setDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), uploadPath), upload())
+    );
+    // The teacher is not subject to her own closed-to-students switch.
+    await assertSucceeds(
+      setDoc(doc(asTeacher(TEACHER_UID), uploadPath), {
+        ...upload(),
+        uploadedByUid: TEACHER_UID,
+      })
+    );
+  });
+
+  it('is read by the group and the teacher, and by nobody else', async () => {
+    await seed();
+    await seedUpload();
+    await assertSucceeds(
+      getDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), uploadPath))
+    );
+    await assertSucceeds(getDoc(doc(asTeacher(TEACHER_UID), uploadPath)));
+    // A classmate can see the group's progress bar but not its files.
+    await assertFails(
+      getDoc(doc(asStudent(OUTSIDER_UID, [CLASS_ID]), uploadPath))
+    );
+    await assertFails(getDoc(doc(asTeacher(OTHER_TEACHER_UID), uploadPath)));
+  });
+
+  it('refuses a listing to a classmate outside the group', async () => {
+    await seed();
+    await seedUpload();
+    await assertSucceeds(
+      getDocs(
+        collection(asStudent(MEMBER_UID, [CLASS_ID]), `${GROUP_PATH}/uploads`)
+      )
+    );
+    await assertFails(
+      getDocs(
+        collection(asStudent(OUTSIDER_UID, [CLASS_ID]), `${GROUP_PATH}/uploads`)
+      )
+    );
+  });
+
+  it('never lets a student move the archive fields', async () => {
+    await seed();
+    await seedUpload();
+    // The trigger writes these as admin; a client that could would be able to
+    // point driveUrl anywhere.
+    await assertFails(
+      updateDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), uploadPath), {
+        archiveStatus: 'archived',
+        driveUrl: 'https://drive.google.com/file/d/evil/view',
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(TEACHER_UID), uploadPath), {
+        archiveStatus: 'archived',
+      })
+    );
+  });
+
+  it('lets the group and the teacher take a file back down', async () => {
+    await seed();
+    await seedUpload();
+    await assertFails(
+      deleteDoc(doc(asStudent(OUTSIDER_UID, [CLASS_ID]), uploadPath))
+    );
+    await assertSucceeds(
+      deleteDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), uploadPath))
     );
   });
 });
