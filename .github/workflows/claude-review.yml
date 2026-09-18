@@ -35,11 +35,12 @@ jobs:
           fetch-depth: 1
 
       - name: Claude review
+        id: claude_review
         uses: anthropics/claude-code-action@v1
         with:
           # PRs opened by the claude[bot] app are still ours to review.
           allowed_bots: 'claude'
-          # Pro/Max subscription auth â€” generate locally with `claude setup-token`
+          # Pro/Max subscription auth - generate locally with `claude setup-token`
           # and store as a repo secret. No metered API key required.
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
@@ -60,9 +61,42 @@ jobs:
             Use `gh pr comment` for top-level feedback.
             Use `mcp__github_inline_comment__create_inline_comment` (with
             `confirmed: true`) for specific line-level issues.
-            Only post GitHub comments â€” do not return review text as a message.
+            Only post GitHub comments - do not return review text as a message.
 
-          # Read/Grep/Glob: without them the reviewer only ever sees the raw diff.
+          # Read-only tools only: nothing here can write a tracked file, push, or reach the network.
           claude_args: |
             --model claude-sonnet-5
-            --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --allowedTools "Read,Grep,Glob,Task,TodoWrite,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr checks:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git blame:*),Bash(git status:*),Bash(git ls-files:*),Bash(git merge-base:*),Bash(git rev-parse:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(ls:*),Bash(wc:*),Bash(grep:*),Bash(rg:*),Bash(sed -n:*)"
+
+      # The action hides the SDK output, so denied tool names are otherwise unrecoverable.
+      - name: Report review tool use
+        if: always()
+        env:
+          EXECUTION_FILE: ${{ steps.claude_review.outputs.execution_file }}
+        run: |
+          set -uo pipefail
+          FILE="${EXECUTION_FILE:-}"
+          if [ -z "$FILE" ] || [ ! -f "$FILE" ]; then
+            FILE="${RUNNER_TEMP}/claude-execution-output.json"
+          fi
+          if [ ! -f "$FILE" ]; then
+            echo "::warning title=Claude review did not run::No execution log. The action skipped - this workflow file differs from main's copy, or the actor gate blocked it."
+            exit 0
+          fi
+          jq -s 'flatten(1)' "$FILE" > "${RUNNER_TEMP}/claude-exec-flat.json" || exit 0
+          EXEC="${RUNNER_TEMP}/claude-exec-flat.json"
+          jq -r '(map(select(.type == "result")) | last) as $r
+                 | "result: turns=\($r.num_turns // "?") denials=\($r.permission_denials_count // 0) duration_ms=\($r.duration_ms // "?")"' "$EXEC"
+          echo "tools used:"
+          jq -r '[.. | objects | select(.type? == "tool_use") | .name]
+                 | group_by(.) | map("  \(.[0]) x\(length)")
+                 | if length == 0 then ["  (none)"] else . end | .[]' "$EXEC"
+          echo "tool calls denied:"
+          jq -r '[.. | objects | (.permission_denials? // empty) | .[]]
+                 | map("  \(.tool_name) \((.tool_input.command // .tool_input.file_path // .tool_input.pattern // "") | tostring | .[0:120])")
+                 | unique | if length == 0 then ["  (none)"] else . end | .[]' "$EXEC"
+          TURNS=$(jq -r '(map(select(.type == "result")) | last | .num_turns) // 0' "$EXEC")
+          DENIALS=$(jq -r '(map(select(.type == "result")) | last | .permission_denials_count) // 0' "$EXEC")
+          if [ "$DENIALS" -gt 0 ] || [ "$TURNS" -le 2 ]; then
+            echo "::warning title=Claude review may not have reviewed this PR::turns=$TURNS denials=$DENIALS. A real review takes many turns and posts a comment; read the log rather than the green check."
+          fi
