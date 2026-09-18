@@ -12,6 +12,8 @@ import { useDashboard } from '@/context/useDashboard';
 import { useProjectLibrary } from '@/hooks/useProjectLibrary';
 import { useProjectRun } from '@/hooks/useProjectRun';
 import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
+import { useProjectsBuildingDefaults } from '@/hooks/useProjectsBuildingDefaults';
+import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { TypographySettings } from '@/components/common/TypographySettings';
@@ -29,6 +31,8 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
   const { updateWidget, addToast, rosters } = useDashboard();
   const { user } = useAuth();
   const { enabled } = useProjectsWidgetSettings();
+  const buildingId = useWidgetBuildingId(widget);
+  const buildingDefaults = useProjectsBuildingDefaults(buildingId);
   const config = widget.config as ProjectsConfig;
   const { projectId, pendingImport } = config;
 
@@ -138,7 +142,9 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
 
   const handleImport = async (entries: ProjectGroupImportEntry[]) => {
     if (!project) throw new Error('Pick a project first.');
-    await ensureRun(project);
+    await ensureRun(project, {
+      showStatusToStudents: buildingDefaults.defaultShowStatusToStudents,
+    });
     const result = await importGroups(entries);
     update({ pendingImport: null });
     addToast(

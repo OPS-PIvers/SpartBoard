@@ -51,7 +51,7 @@ const GroupRow: React.FC<{
   steps: ProjectStep[];
   showStatus: boolean;
   cardStyle: React.CSSProperties;
-  busyKey: string | null;
+  busyKeys: ReadonlySet<string>;
   onCycleStep: (stepId: string, state: ProjectStepState) => void;
   onClearSupport: () => void;
 }> = ({
@@ -59,7 +59,7 @@ const GroupRow: React.FC<{
   steps,
   showStatus,
   cardStyle,
-  busyKey,
+  busyKeys,
   onCycleStep,
   onClearSupport,
 }) => (
@@ -93,7 +93,7 @@ const GroupRow: React.FC<{
               key={step.id}
               type="button"
               onClick={() => onCycleStep(step.id, state)}
-              disabled={busyKey === `${group.id}:${step.id}`}
+              disabled={busyKeys.has(`${group.id}:${step.id}`)}
               title={`${step.title} — ${STEP_STATE_LABELS[state]}`}
               aria-label={`${group.name}, ${step.title}, ${STEP_STATE_LABELS[state]}`}
               className={`flex-1 rounded-full transition-colors disabled:opacity-50 ${SEGMENT_COLORS[state]}`}
@@ -115,7 +115,7 @@ const GroupRow: React.FC<{
       <button
         type="button"
         onClick={onClearSupport}
-        disabled={busyKey === `${group.id}:support`}
+        disabled={busyKeys.has(`${group.id}:support`)}
         className="shrink-0 flex items-center rounded-full bg-amber-100 text-amber-800 font-semibold disabled:opacity-50"
         style={{
           gap: 'min(4px, 1cqmin)',
@@ -159,7 +159,10 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
     user?.uid
   );
 
-  const [busyKey, setBusyKey] = useState<string | null>(null);
+  // A set, not a scalar: two rows can be in flight at once and each owns its key.
+  const [busyKeys, setBusyKeys] = useState<ReadonlySet<string>>(
+    () => new Set<string>()
+  );
 
   const activeClassId = useMemo(
     () => projectClassIdFor(rosters.find((r) => r.id === activeRosterId)),
@@ -179,13 +182,17 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   const runAction = async (action: Promise<void>, key: string) => {
-    setBusyKey(key);
+    setBusyKeys((keys) => new Set(keys).add(key));
     try {
       await action;
     } catch {
       addToast('That change could not be saved.', 'error');
     } finally {
-      setBusyKey(null);
+      setBusyKeys((keys) => {
+        const next = new Set(keys);
+        next.delete(key);
+        return next;
+      });
     }
   };
 
@@ -323,7 +330,7 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
                 steps={steps}
                 showStatus={renderStatus}
                 cardStyle={cardStyle}
-                busyKey={busyKey}
+                busyKeys={busyKeys}
                 onCycleStep={(stepId, state) => {
                   const step = steps.find((s) => s.id === stepId);
                   if (!step) return;
