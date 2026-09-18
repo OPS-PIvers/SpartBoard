@@ -49,6 +49,9 @@ describe('consolidated field-level widget settings migration', () => {
         'numExpertGroups',
         'numHomeGroups',
         'remainingStudents',
+        // Pool picker: Checklist has no class chip to hang the group submenu
+        // off, so the selector lives in the drawer (roster-groups plan D22).
+        'rosterPoolGroupId',
         'selectedSoundIds',
         'showFeelsLike',
         'syncSoundWidget',

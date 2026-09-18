@@ -21,8 +21,7 @@ import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { LayoutGrid, RefreshCw, RotateCcw, Shuffle, Users } from 'lucide-react';
 import { StationsConfig, WidgetData } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
-import { useAuth } from '@/context/useAuth';
-import { useRosterGroupsIntegrationSettings } from '@/hooks/useRosterGroupsIntegrationSettings';
+import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { ActiveClassChip } from '@/components/common/ActiveClassChip';
 import { AbsentButton } from '@/components/common/AbsentButton';
 import { Button } from '@/components/common/Button';
@@ -52,10 +51,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { updateWidget, addToast, rosters, activeRosterId, activeDashboard } =
     useDashboard();
-  const { canAccessFeature } = useAuth();
-  const rosterGroupsRollout = useRosterGroupsIntegrationSettings();
-  const rosterGroupsEnabled =
-    rosterGroupsRollout.enabled && canAccessFeature('roster-groups');
+  const rosterGroupsEnabled = useRosterGroupsGate();
   const config = widget.config as StationsConfig;
   const stations = useMemo(() => config.stations ?? [], [config.stations]);
   const assignments = useMemo(

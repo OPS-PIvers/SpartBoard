@@ -73,6 +73,13 @@ vi.mock('@/components/common/MagicInput', () => ({
     </button>
   ),
 }));
+// Class groups default OFF here, so these suites keep asserting the
+// pre-feature behaviour (docs/plans/ROSTER_GROUPS_INTEGRATION.md D23).
+// Flip `gate.enabled` inside a test to exercise the feature.
+const gate = vi.hoisted(() => ({ enabled: false }));
+vi.mock('@/hooks/useRosterGroupsGate', () => ({
+  useRosterGroupsGate: () => gate.enabled,
+}));
 
 describe('PollWidget', () => {
   const mockUpdateWidget = vi.fn();
@@ -1080,5 +1087,84 @@ describe('PollSettings', () => {
       screen.getByRole('button', { name: /import class/i })
     ).toBeDisabled();
     expect(screen.getByText(/stop voting to add/i)).toBeInTheDocument();
+  });
+});
+
+/**
+ * Group-scoped snapshot import (docs/plans/ROSTER_GROUPS_INTEGRATION.md D21).
+ *
+ * Poll stays a hand-editable snapshot — the group only narrows what the one
+ * import pulls in, and the choice is deliberately not saved to config so the
+ * list never turns into a live class binding.
+ */
+describe('PollSettings — class group import scope', () => {
+  const mockUpdateWidget = vi.fn();
+  const mockAddToast = vi.fn();
+
+  const pooledRoster = {
+    id: 'roster-1',
+    name: 'Class A',
+    students: [
+      { id: '1', firstName: 'John', lastName: 'Doe' },
+      { id: '2', firstName: 'Jane', lastName: 'Smith' },
+    ],
+    groups: [{ id: 'g1', name: 'Reading', studentIds: ['1'] }],
+  };
+
+  const pollWidget: WidgetData = {
+    id: 'poll-1',
+    type: 'poll',
+    w: 2,
+    h: 2,
+    x: 0,
+    y: 0,
+    z: 1,
+    flipped: false,
+    config: { question: 'Who is your favorite?', options: [] },
+  };
+
+  const importedLabels = (): string[] => {
+    const calls = mockUpdateWidget.mock.calls;
+    const config = (
+      calls[calls.length - 1] as [
+        string,
+        { config: { questions: { options: { label: string }[] }[] } },
+      ]
+    )[1].config;
+    return config.questions[0].options.map((o) => o.label);
+  };
+
+  beforeEach(() => {
+    gate.enabled = false;
+    mockUpdateWidget.mockClear();
+    mockAddToast.mockClear();
+    (useDashboard as Mock).mockReturnValue({
+      updateWidget: mockUpdateWidget,
+      addToast: mockAddToast,
+      activeRosterId: 'roster-1',
+      rosters: [pooledRoster],
+    });
+  });
+
+  it('imports the whole class when no group is picked', () => {
+    gate.enabled = true;
+    render(<PollSettings widget={pollWidget} />);
+    fireEvent.click(screen.getByRole('button', { name: /Import Class/i }));
+    expect(importedLabels()).toEqual(['John Doe', 'Jane Smith']);
+  });
+
+  it('imports only the chosen group', () => {
+    gate.enabled = true;
+    render(<PollSettings widget={pollWidget} />);
+    fireEvent.change(screen.getByLabelText('Import from'), {
+      target: { value: 'g1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Import Class/i }));
+    expect(importedLabels()).toEqual(['John Doe']);
+  });
+
+  it('offers no scope picker while the feature is off', () => {
+    render(<PollSettings widget={pollWidget} />);
+    expect(screen.queryByLabelText('Import from')).toBeNull();
   });
 });

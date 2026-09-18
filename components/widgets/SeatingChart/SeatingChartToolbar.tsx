@@ -7,7 +7,10 @@ import {
   MousePointer2,
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
-import { ActiveClassChip } from '@/components/common/ActiveClassChip';
+import {
+  ActiveClassChip,
+  type ActiveClassChipGroupSelection,
+} from '@/components/common/ActiveClassChip';
 
 interface SeatingChartToolbarProps {
   mode: 'setup' | 'assign' | 'interact';
@@ -19,6 +22,8 @@ interface SeatingChartToolbarProps {
   rotateSelected: (delta: number) => void;
   deleteSelected: () => void;
   rosterMode: 'class' | 'custom';
+  /** Passed only when class groups are switched on for this teacher. */
+  groupSelection?: ActiveClassChipGroupSelection;
 }
 
 export const SeatingChartToolbar: React.FC<SeatingChartToolbarProps> = ({
@@ -31,6 +36,7 @@ export const SeatingChartToolbar: React.FC<SeatingChartToolbarProps> = ({
   rotateSelected,
   deleteSelected,
   rosterMode,
+  groupSelection,
 }) => {
   return (
     <div className="h-12 bg-slate-50 border-b border-slate-200 flex items-center px-2 gap-2 justify-between shrink-0">
@@ -56,7 +62,12 @@ export const SeatingChartToolbar: React.FC<SeatingChartToolbarProps> = ({
       </div>
 
       <div className="ml-auto flex items-center gap-2 min-w-0">
-        {rosterMode === 'class' && <ActiveClassChip compact />}
+        {rosterMode === 'class' && (
+          <ActiveClassChip
+            compact
+            {...(groupSelection ? { groupSelection } : {})}
+          />
+        )}
 
         {mode === 'interact' && (
           <Button

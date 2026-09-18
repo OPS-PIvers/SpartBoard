@@ -11,6 +11,13 @@ import { WidgetData, SeatingChartConfig, FurnitureItem } from '@/types';
 import { DashboardContextValue } from '@/context/DashboardContextValue';
 
 vi.mock('@/context/useDashboard');
+// Class groups default OFF here, so these suites keep asserting the
+// pre-feature behaviour (docs/plans/ROSTER_GROUPS_INTEGRATION.md D23).
+// Flip `gate.enabled` inside a test to exercise the feature.
+const gate = vi.hoisted(() => ({ enabled: false }));
+vi.mock('@/hooks/useRosterGroupsGate', () => ({
+  useRosterGroupsGate: () => gate.enabled,
+}));
 
 const mockUpdateWidget = vi.fn();
 
@@ -422,5 +429,104 @@ describe('generatePodsLayout', () => {
     expect(allUniqueIds(generatePodsLayout(16, CANVAS_W, CANVAS_H, GRID))).toBe(
       true
     );
+  });
+});
+
+/**
+ * Pool filter (docs/plans/ROSTER_GROUPS_INTEGRATION.md D22).
+ *
+ * Two things here are specific to Seating Chart rather than shared with the
+ * other pooled widgets, and both would have shipped broken:
+ *  - a seat holding a pooled-out student used to fall back to printing the
+ *    assignment key, which in class mode is a raw student UUID — on a
+ *    projected widget;
+ *  - the legacy name-key migration decides "unmigrated" by asking whether a
+ *    key is in the student list, so it has to keep seeing the WHOLE class or a
+ *    pooled-out student looks like a stale name key and triggers a rewrite.
+ */
+describe('SeatingChartWidget — class group pool', () => {
+  const pooledContext: Partial<DashboardContextValue> = {
+    ...mockDashboardContext,
+    activeRosterId: 'roster-1',
+    rosters: [
+      {
+        id: 'roster-1',
+        name: 'Period 3',
+        students: [
+          { id: 's1', firstName: 'Ana', lastName: 'Ba' },
+          { id: 's2', firstName: 'Cy', lastName: 'Da' },
+        ],
+        groups: [{ id: 'g1', name: 'Reading', studentIds: ['s1'] }],
+      },
+    ] as unknown as DashboardContextValue['rosters'],
+  };
+
+  const seatedWidget = (
+    config: Partial<SeatingChartConfig> = {}
+  ): WidgetData => ({
+    id: 'seating-pool',
+    type: 'seating-chart',
+    config: {
+      furniture: [
+        {
+          id: 'desk-1',
+          type: 'desk',
+          x: 100,
+          y: 100,
+          width: 60,
+          height: 50,
+          rotation: 0,
+        } as FurnitureItem,
+      ],
+      assignments: { s1: 'desk-1', s2: 'desk-1' },
+      gridSize: 20,
+      rosterMode: 'class',
+      ...config,
+    } as SeatingChartConfig,
+    x: 0,
+    y: 0,
+    w: 800,
+    h: 600,
+    z: 1,
+    flipped: false,
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    gate.enabled = false;
+    vi.mocked(useDashboard).mockReturnValue(
+      pooledContext as DashboardContextValue
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('hides a seated student the pool excludes, and never prints their id', () => {
+    gate.enabled = true;
+    render(
+      <SeatingChartWidget widget={seatedWidget({ rosterPoolGroupId: 'g1' })} />
+    );
+    expect(screen.getByText('Ana Ba')).toBeInTheDocument();
+    expect(screen.queryByText('Cy Da')).toBeNull();
+    expect(screen.queryByText('s2')).toBeNull();
+  });
+
+  it('does not mistake a pooled-out student for a legacy name key', () => {
+    gate.enabled = true;
+    render(
+      <SeatingChartWidget widget={seatedWidget({ rosterPoolGroupId: 'g1' })} />
+    );
+    // A rewrite here would persist an assignments map built from the pooled
+    // list, quietly dropping everyone the pool hides.
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
+  it('ignores a stored pool while the feature is off', () => {
+    render(
+      <SeatingChartWidget widget={seatedWidget({ rosterPoolGroupId: 'g1' })} />
+    );
+    expect(screen.getByText('Cy Da')).toBeInTheDocument();
   });
 });

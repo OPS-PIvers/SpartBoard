@@ -30,6 +30,8 @@ import {
 } from '@/types';
 import { Button } from '@/components/common/Button';
 import { ActiveClassChip } from '@/components/common/ActiveClassChip';
+import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
+import { rosterGroupMemberIds } from '@/utils/rosterGroups';
 import { Modal } from '@/components/common/Modal';
 import { RefreshCw, Undo2, CheckCircle2, Box, Users, X } from 'lucide-react';
 import { SubmitReportModal } from './SubmitReportModal';
@@ -242,7 +244,9 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     lunchTimeHour = '',
     lunchTimeMinute = '',
     gradeLevel = '',
+    rosterPoolGroupId = null,
   } = config;
+  const rosterGroupsEnabled = useRosterGroupsGate();
 
   // Resolve global lunch count settings from feature permissions
   const lunchGlobalConfig = useMemo((): LunchCountGlobalConfig => {
@@ -338,7 +342,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   // fallback in `groupedStudents` below therefore also stays load-bearing for
   // custom-list mode, not just for pre-fix roster dashboards — don't remove it
   // assuming every entry now has a unique id.
-  const activeRoster = useMemo((): { id: string; name: string }[] => {
+  const allRosterStudents = useMemo((): { id: string; name: string }[] => {
     if (rosterMode === 'custom') {
       return roster.map((name) => ({ id: name, name }));
     }
@@ -351,6 +355,32 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       })) ?? []
     );
   }, [rosterMode, roster, rosters, activeRosterId]);
+
+  // Pool: a saved class group narrows who is shown and draggable. Assignments
+  // for students it hides stay in `config.assignments` and return when the
+  // pool widens. The cafeteria report deliberately keeps counting the WHOLE
+  // class below — it is an external submission, not a view.
+  const activeRoster = useMemo(() => {
+    const currentRoster =
+      rosterMode === 'custom'
+        ? undefined
+        : (rosters.find((r) => r.id === activeRosterId) ?? rosters[0]);
+    const inPool = rosterGroupMemberIds(
+      currentRoster,
+      rosterPoolGroupId,
+      rosterGroupsEnabled
+    );
+    return inPool
+      ? allRosterStudents.filter((s) => inPool.has(s.id))
+      : allRosterStudents;
+  }, [
+    allRosterStudents,
+    rosterMode,
+    rosters,
+    activeRosterId,
+    rosterPoolGroupId,
+    rosterGroupsEnabled,
+  ]);
 
   const groupedStudents = useMemo(() => {
     const hot: { id: string; name: string }[] = [];
@@ -380,6 +410,44 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
 
     return { total, hotLunch, bentoBox, homeLunch, remaining };
   }, [groupedStudents]);
+
+  // What the cafeteria actually gets. Counted over the whole class, never the
+  // pool: a teacher who narrowed the widget to one group and hit Submit would
+  // otherwise silently under-report the meal counts kitchen staff cook to.
+  const reportStats = useMemo(() => {
+    let hotLunch = 0;
+    let bentoBox = 0;
+    let homeLunch = 0;
+    let remaining = 0;
+    for (const student of allRosterStudents) {
+      const assignment = assignments[student.id] ?? assignments[student.name];
+      if (assignment === 'hot') hotLunch++;
+      else if (assignment === 'bento') bentoBox++;
+      else if (assignment === 'home') homeLunch++;
+      else remaining++;
+    }
+    return {
+      total: hotLunch + bentoBox + homeLunch + remaining,
+      hotLunch,
+      bentoBox,
+      homeLunch,
+      remaining,
+    };
+  }, [allRosterStudents, assignments]);
+
+  // Unassigned students the pool is hiding. Submit counts the whole class, so
+  // without naming this the grid can read "Unassigned (0)" next to a disabled
+  // button asking for someone who is nowhere on screen.
+  const hiddenRemaining = reportStats.remaining - stats.remaining;
+
+  const handleSelectPoolGroup = useCallback(
+    (groupId: string | null) => {
+      updateWidget(widget.id, {
+        config: { ...config, rosterPoolGroupId: groupId },
+      });
+    },
+    [widget.id, config, updateWidget]
+  );
 
   const updateAssignment = useCallback(
     (student: string, type: 'hot' | 'bento' | 'home' | null) => {
@@ -476,8 +544,8 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       const payload = {
         timestamp,
         label,
-        hotLunch: stats.hotLunch,
-        bentoBox: stats.bentoBox,
+        hotLunch: reportStats.hotLunch,
+        bentoBox: reportStats.bentoBox,
         extraPizza: isIntermediate ? (extraPizza ?? 0) : 0,
         notes,
         spreadsheetId: sheetId,
@@ -671,14 +739,26 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                   })}
                 </p>
               </div>
-              {rosterMode === 'class' && <ActiveClassChip compact />}
+              {rosterMode === 'class' && (
+                <ActiveClassChip
+                  compact
+                  {...(rosterGroupsEnabled
+                    ? {
+                        groupSelection: {
+                          selectedGroupId: rosterPoolGroupId,
+                          onSelectGroup: handleSelectPoolGroup,
+                        },
+                      }
+                    : {})}
+                />
+              )}
             </div>
 
             <Button
               onClick={() => setIsModalOpen(true)}
-              disabled={stats.remaining > 0 || stats.total === 0}
+              disabled={reportStats.remaining > 0 || reportStats.total === 0}
               variant={
-                stats.remaining === 0 && stats.total > 0
+                reportStats.remaining === 0 && reportStats.total > 0
                   ? 'primary'
                   : 'secondary'
               }
@@ -690,7 +770,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                 maxWidth: 'min(280px, 50%)',
               }}
             >
-              {stats.remaining === 0 && stats.total > 0 ? (
+              {reportStats.remaining === 0 && reportStats.total > 0 ? (
                 <div
                   className="flex items-center justify-center"
                   style={{ gap: 'min(8px, 2cqmin)' }}
@@ -714,7 +794,9 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                       height: 'min(18px, 4.5cqmin)',
                     }}
                   />
-                  Assign {stats.remaining} More Students
+                  {hiddenRemaining > 0
+                    ? `Assign ${reportStats.remaining} more — ${hiddenRemaining} outside this group`
+                    : `Assign ${reportStats.remaining} More Students`}
                 </div>
               )}
             </Button>
@@ -1012,6 +1094,8 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                       className="font-black uppercase text-slate-400 tracking-widest"
                     >
                       Unassigned ({stats.remaining})
+                      {hiddenRemaining > 0 &&
+                        ` · ${hiddenRemaining} outside this group`}
                     </span>
                   </div>
 
@@ -1044,8 +1128,8 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
         data={{
           date: new Date().toLocaleDateString(),
           staffName: formatTeacherName(user?.displayName ?? 'Unknown Staff'),
-          hotLunch: stats.hotLunch,
-          bentoBox: stats.bentoBox,
+          hotLunch: reportStats.hotLunch,
+          bentoBox: reportStats.bentoBox,
           hotLunchName: cachedMenu?.hotLunch?.name ?? 'Hot Lunch',
           bentoBoxName: cachedMenu?.bentoBox?.name ?? 'Bento Box',
           schoolSite,

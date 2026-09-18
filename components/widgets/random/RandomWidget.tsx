@@ -20,8 +20,7 @@ import {
 import { Button } from '@/components/common/Button';
 import { AbsentStudentsModal } from '@/components/common/AbsentStudentsModal';
 import { RandomClassContextButton } from './RandomClassContextButton';
-import { useAuth } from '@/context/useAuth';
-import { useRosterGroupsIntegrationSettings } from '@/hooks/useRosterGroupsIntegrationSettings';
+import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import {
   Users,
   RefreshCw,
@@ -128,12 +127,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     activeRosterId,
     activeDashboard,
   } = useDashboard();
-  const { canAccessFeature } = useAuth();
-  const rosterGroupsRollout = useRosterGroupsIntegrationSettings();
-  // Two gates, matching every other rollout: the org-wide switch, then who
-  // may use it. Off on either ⇒ the picker is exactly what it was.
-  const rosterGroupsEnabled =
-    rosterGroupsRollout.enabled && canAccessFeature('roster-groups');
+  const rosterGroupsEnabled = useRosterGroupsGate();
   const config = widget.config as RandomConfig;
   const {
     firstNames = '',

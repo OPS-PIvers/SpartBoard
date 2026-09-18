@@ -5,7 +5,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { useStorage } from '@/hooks/useStorage';
-import { useRosterGroupsIntegrationSettings } from '@/hooks/useRosterGroupsIntegrationSettings';
+import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { countRosterGroupMembers } from '@/utils/rosterGroups';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { PartnerCard } from '@/components/settings/PartnerCard';
@@ -50,9 +50,8 @@ export const StationsSettings: React.FC<{ widget: WidgetData }> = ({
   const { updateWidget, addToast, activeDashboard, rosters, activeRosterId } =
     useDashboard();
   const { showConfirm } = useDialog();
-  const { savedWidgetPresets, canAccessFeature } = useAuth();
+  const { savedWidgetPresets } = useAuth();
   const { deleteFile } = useStorage();
-  const rosterGroupsRollout = useRosterGroupsIntegrationSettings();
   const [useGroupNamesAsTitles, setUseGroupNamesAsTitles] = useState(false);
   const config = widget.config as StationsConfig;
   const stations = useMemo(
@@ -177,8 +176,7 @@ export const StationsSettings: React.FC<{ widget: WidgetData }> = ({
   };
 
   // --- Class groups (docs/plans/ROSTER_GROUPS_INTEGRATION.md D9/D15/D17) ---
-  const rosterGroupsEnabled =
-    rosterGroupsRollout.enabled && canAccessFeature('roster-groups');
+  const rosterGroupsEnabled = useRosterGroupsGate();
   const activeRoster = useMemo(
     () =>
       config.rosterMode === 'custom'
