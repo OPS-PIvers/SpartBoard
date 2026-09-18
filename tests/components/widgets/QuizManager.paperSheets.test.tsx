@@ -85,9 +85,10 @@ function renderLibrary(
 }
 
 const openRowMenu = () => {
-  const menu = screen
-    .getAllByRole('button')
-    .find((b) => /more|options|menu/i.test(b.getAttribute('aria-label') ?? ''));
+  const menu = screen.getAllByRole('button').find((b) => {
+    const label = b.getAttribute('aria-label') ?? '';
+    return /more|options|menu/i.test(label) && label !== 'More ways to create';
+  });
   if (!menu) throw new Error('row overflow menu not found');
   fireEvent.click(menu);
 };
@@ -132,12 +133,23 @@ describe('QuizManager — paper answer sheets', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'More ways to create' })
     );
+    const items = screen.getAllByRole('menuitem').map((el) => el.textContent);
+    expect(items).toEqual(['Import', 'Paper test']);
     fireEvent.click(screen.getByRole('menuitem', { name: 'Paper test' }));
     expect(onNewPaperTest).toHaveBeenCalledTimes(1);
   });
 
-  it('renders New Quiz as a plain button when paper is off', () => {
-    renderLibrary();
-    expect(screen.queryByRole('button', { name: /More ways to/ })).toBeNull();
+  it('keeps Import in the caret menu when paper is off, with no Import button', () => {
+    const onImport = vi.fn();
+    renderLibrary({ onImport });
+    expect(screen.queryByRole('button', { name: 'Import' })).toBeNull();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'More ways to create' })
+    );
+    expect(screen.getAllByRole('menuitem').map((el) => el.textContent)).toEqual(
+      ['Import']
+    );
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Import' }));
+    expect(onImport).toHaveBeenCalledTimes(1);
   });
 });
