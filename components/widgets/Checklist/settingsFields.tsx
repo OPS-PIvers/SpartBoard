@@ -1,6 +1,8 @@
 import React, { useId, useState } from 'react';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { useDashboard } from '@/context/useDashboard';
+import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
+import { RosterGroupSelect } from '@/components/common/RosterGroupSelect';
 import type {
   ChecklistItem,
   InstructionalRoutinesConfig,
@@ -145,5 +147,44 @@ export const ChecklistImportActionsField: React.FC<{
         </button>
       </div>
     </div>
+  );
+};
+
+/**
+ * Pool picker (docs/plans/ROSTER_GROUPS_INTEGRATION.md D22). Checklist has no
+ * class chip to hang the group submenu off, so the pool lives here instead —
+ * the one deviation from D8's "class-picker submenu" placement.
+ */
+export const ChecklistPoolGroupField: React.FC<{ ctx: CustomRenderCtx }> = ({
+  ctx,
+}) => {
+  const { rosters, activeRosterId } = useDashboard();
+  const enabled = useRosterGroupsGate();
+  const activeRoster = rosters.find((roster) => roster.id === activeRosterId);
+
+  if (!enabled) {
+    return (
+      <p id={ctx.id} className="text-xs text-slate-500">
+        {ctx.t('widgetSettings.checklist.rosterGroupsOff')}
+      </p>
+    );
+  }
+  if ((activeRoster?.groups?.length ?? 0) === 0) {
+    return (
+      <p id={ctx.id} className="text-xs text-slate-500">
+        {ctx.t('widgetSettings.checklist.poolGroupEmpty')}
+      </p>
+    );
+  }
+
+  return (
+    <RosterGroupSelect
+      id={ctx.id}
+      roster={activeRoster}
+      value={(ctx.config.rosterPoolGroupId as string | null) ?? null}
+      onChange={(groupId) => ctx.updateConfig({ rosterPoolGroupId: groupId })}
+      wholeClassLabel={ctx.t('widgetSettings.checklist.poolWholeClass')}
+      ariaLabel={ctx.t('widgetSettings.checklist.poolGroup')}
+    />
   );
 };

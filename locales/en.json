@@ -1335,7 +1335,10 @@
       "resumePrompt": "A previous session exists. Resume it, or start fresh?",
       "startFreshHelp": "Starting fresh clears the tallies and issues a new join code.",
       "startFresh": "Start fresh",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "importScope": "Import from",
+      "importWholeClass": "Whole class",
+      "importGroupEmpty": "That class group has nobody on the roster."
     },
     "instructionalRoutines": {
       "routineTemplate": "Routine template",
@@ -1642,7 +1645,11 @@
       "pasteTasks": "Paste tasks (one per line)",
       "pasteTasksPlaceholder": "Warm-up\nRead chapter 3\nExit ticket",
       "addPastedTasks_one": "Add {{count}} task",
-      "addPastedTasks_other": "Add {{count}} tasks"
+      "addPastedTasks_other": "Add {{count}} tasks",
+      "poolGroup": "Draw from",
+      "poolWholeClass": "Whole class",
+      "poolGroupEmpty": "Save a group for this class in My Classes to use it here.",
+      "rosterGroupsOff": "Class groups are switched off for your school right now."
     },
     "weather": {
       "weatherMode": "Weather mode",

@@ -30,6 +30,8 @@ import {
 } from '@/types';
 import { Button } from '@/components/common/Button';
 import { ActiveClassChip } from '@/components/common/ActiveClassChip';
+import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
+import { rosterGroupMemberIds } from '@/utils/rosterGroups';
 import { Modal } from '@/components/common/Modal';
 import { RefreshCw, Undo2, CheckCircle2, Box, Users, X } from 'lucide-react';
 import { SubmitReportModal } from './SubmitReportModal';
@@ -242,7 +244,9 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     lunchTimeHour = '',
     lunchTimeMinute = '',
     gradeLevel = '',
+    rosterPoolGroupId = null,
   } = config;
+  const rosterGroupsEnabled = useRosterGroupsGate();
 
   // Resolve global lunch count settings from feature permissions
   const lunchGlobalConfig = useMemo((): LunchCountGlobalConfig => {
@@ -344,13 +348,29 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     }
     const currentRoster =
       rosters.find((r) => r.id === activeRosterId) ?? rosters[0];
-    return (
-      currentRoster?.students.map((s) => ({
-        id: s.id,
-        name: `${s.firstName} ${s.lastName}`.trim(),
-      })) ?? []
+    // Pool: a saved class group narrows the list. Assignments for students it
+    // hides stay in `config.assignments` and return when the pool widens.
+    const inPool = rosterGroupMemberIds(
+      currentRoster,
+      rosterPoolGroupId,
+      rosterGroupsEnabled
     );
-  }, [rosterMode, roster, rosters, activeRosterId]);
+    return (
+      currentRoster?.students
+        .filter((s) => !inPool || inPool.has(s.id))
+        .map((s) => ({
+          id: s.id,
+          name: `${s.firstName} ${s.lastName}`.trim(),
+        })) ?? []
+    );
+  }, [
+    rosterMode,
+    roster,
+    rosters,
+    activeRosterId,
+    rosterPoolGroupId,
+    rosterGroupsEnabled,
+  ]);
 
   const groupedStudents = useMemo(() => {
     const hot: { id: string; name: string }[] = [];
@@ -380,6 +400,15 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
 
     return { total, hotLunch, bentoBox, homeLunch, remaining };
   }, [groupedStudents]);
+
+  const handleSelectPoolGroup = useCallback(
+    (groupId: string | null) => {
+      updateWidget(widget.id, {
+        config: { ...config, rosterPoolGroupId: groupId },
+      });
+    },
+    [widget.id, config, updateWidget]
+  );
 
   const updateAssignment = useCallback(
     (student: string, type: 'hot' | 'bento' | 'home' | null) => {
@@ -671,7 +700,19 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                   })}
                 </p>
               </div>
-              {rosterMode === 'class' && <ActiveClassChip compact />}
+              {rosterMode === 'class' && (
+                <ActiveClassChip
+                  compact
+                  {...(rosterGroupsEnabled
+                    ? {
+                        groupSelection: {
+                          selectedGroupId: rosterPoolGroupId,
+                          onSelectGroup: handleSelectPoolGroup,
+                        },
+                      }
+                    : {})}
+                />
+              )}
             </div>
 
             <Button

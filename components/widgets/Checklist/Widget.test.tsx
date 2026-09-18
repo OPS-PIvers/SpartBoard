@@ -30,6 +30,13 @@ vi.mock('lucide-react', () => ({
   Trash2: () => <div data-testid="trash-2" />,
   Palette: () => <div data-testid="palette" />,
 }));
+// Class groups default OFF here, so these suites keep asserting the
+// pre-feature behaviour (docs/plans/ROSTER_GROUPS_INTEGRATION.md D23).
+// Flip `gate.enabled` inside a test to exercise the feature.
+const gate = vi.hoisted(() => ({ enabled: false }));
+vi.mock('@/hooks/useRosterGroupsGate', () => ({
+  useRosterGroupsGate: () => gate.enabled,
+}));
 
 const mockUpdateWidget = vi.fn();
 const mockAddToast = vi.fn();
@@ -441,5 +448,74 @@ describe('ChecklistSettings Nexus Connection', () => {
       'info'
     );
     expect(mockUpdateConfig).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Pool filter (docs/plans/ROSTER_GROUPS_INTEGRATION.md D22).
+ *
+ * Checklist has no class chip, so the pool is chosen in the settings drawer —
+ * but the behaviour that matters is the same as every other pooled widget:
+ * the gate has to hold, and a group deleted out from under the widget must
+ * fall back to the whole class rather than emptying it.
+ */
+describe('ChecklistWidget — class group pool', () => {
+  const rosterContext: Partial<DashboardContextValue> = {
+    ...defaultContext,
+    activeRosterId: 'roster-1',
+    rosters: [
+      {
+        id: 'roster-1',
+        name: 'Period 3',
+        students: [
+          { id: 's1', firstName: 'Ana', lastName: 'Ba' },
+          { id: 's2', firstName: 'Cy', lastName: 'Da' },
+          { id: 's3', firstName: 'Eve', lastName: 'Fa' },
+        ],
+        groups: [{ id: 'g1', name: 'Reading', studentIds: ['s1', 's3'] }],
+      },
+    ] as unknown as DashboardContextValue['rosters'],
+  };
+
+  const rosterWidget = (config: Partial<ChecklistConfig>): WidgetData => ({
+    ...mockWidget,
+    flipped: false,
+    config: {
+      items: [],
+      mode: 'roster',
+      rosterMode: 'class',
+      ...config,
+    } as ChecklistConfig,
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    gate.enabled = false;
+    (useDashboard as unknown as Mock).mockReturnValue(rosterContext);
+  });
+
+  it('shows only the pool group once class groups are on', () => {
+    gate.enabled = true;
+    render(
+      <ChecklistWidget widget={rosterWidget({ rosterPoolGroupId: 'g1' })} />
+    );
+    expect(screen.getByText('Ana Ba')).toBeInTheDocument();
+    expect(screen.getByText('Eve Fa')).toBeInTheDocument();
+    expect(screen.queryByText('Cy Da')).toBeNull();
+  });
+
+  it('ignores a stored pool while the feature is off', () => {
+    render(
+      <ChecklistWidget widget={rosterWidget({ rosterPoolGroupId: 'g1' })} />
+    );
+    expect(screen.getByText('Cy Da')).toBeInTheDocument();
+  });
+
+  it('falls back to the whole class when the group was deleted', () => {
+    gate.enabled = true;
+    render(
+      <ChecklistWidget widget={rosterWidget({ rosterPoolGroupId: 'gone' })} />
+    );
+    expect(screen.getByText('Cy Da')).toBeInTheDocument();
   });
 });
