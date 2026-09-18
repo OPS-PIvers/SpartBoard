@@ -292,6 +292,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                       items={primaryAction.menuItems}
                       ariaLabel="More ways to create"
                       triggerIcon={ChevronDown}
+                      stretch
                       triggerClassName="rounded-r-xl border-l border-brand-blue-lighter bg-white text-brand-blue-primary shadow-sm hover:bg-brand-blue-lighter"
                     />
                   </div>

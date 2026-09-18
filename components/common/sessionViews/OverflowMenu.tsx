@@ -32,6 +32,8 @@ interface OverflowMenuProps {
   triggerIcon?: LucideIcon;
   /** Replaces the trigger's default colours and radius. */
   triggerClassName?: string;
+  /** Stretches the trigger to its flex parent's height, e.g. beside a split-button primary. */
+  stretch?: boolean;
 }
 
 /**
@@ -49,6 +51,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   ariaLabel = 'More actions',
   triggerIcon: TriggerIcon = MoreHorizontal,
   triggerClassName = 'rounded-xl text-slate-500 hover:bg-white/70 hover:text-brand-blue-primary',
+  stretch = false,
 }) => {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(
@@ -131,7 +134,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   };
 
   return (
-    <div className="relative" ref={wrapperRef}>
+    <div className={stretch ? 'relative flex' : 'relative'} ref={wrapperRef}>
       <button
         ref={triggerRef}
         type="button"
@@ -140,7 +143,10 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className={`inline-flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${triggerClassName}`}
-        style={{ width: 'min(36px, 10cqmin)', height: 'min(36px, 10cqmin)' }}
+        style={{
+          width: stretch ? 'min(32px, 9cqmin)' : 'min(36px, 10cqmin)',
+          height: stretch ? undefined : 'min(36px, 10cqmin)',
+        }}
       >
         <TriggerIcon
           style={{ width: 'min(18px, 5cqmin)', height: 'min(18px, 5cqmin)' }}
