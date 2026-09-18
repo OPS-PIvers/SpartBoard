@@ -4975,15 +4975,33 @@ service cloud.firestore {
       function fcHasPointer() {
         return exists(/databases/$(database)/documents/student_assignments/$(request.auth.uid)/items/$(sessionId));
       }
+      // Positive class match. Deliberately NOT passesStudentClassGateList(),
+      // which passes on an empty/absent classIds - a roster- or group-targeted
+      // session carries no classIds and reaches its students through the
+      // student_assignments pointer, so the permissive gate would open every
+      // such session to every studentRole user in the district.
+      // No `is list` / `size()` guard on sessionClassIds: hasAny() alone is what
+      // the query planner can prove from the client's array-contains-any filter,
+      // and either guard makes every student list query unprovable and denied.
+      function fcInSessionClass(sessionClassIds) {
+        return isStudentRoleUser()
+               && request.auth.token.classIds is list
+               && sessionClassIds.hasAny(request.auth.token.classIds);
+      }
 
       allow get: if request.auth != null && (
         resource.data.teacherUid == request.auth.uid ||
-        (isStudentRoleUser() &&
-         (passesStudentClassGateList(resource.data.get('classIds', [])) || fcHasPointer()))
+        fcInSessionClass(resource.data.get('classIds', [])) ||
+        (isStudentRoleUser() && fcHasPointer())
       );
+      // No pointer branch here: exists() per returned doc would blow the
+      // per-query document-access cap. Pointer-targeted sessions are hydrated
+      // by id through allow get (useStudentAssignments direct getDoc), never
+      // by listing this collection.
       allow list: if request.auth != null
                   && request.auth.token.firebase.sign_in_provider != 'anonymous'
-                  && (resource.data.teacherUid == request.auth.uid || isStudentRoleUser());
+                  && (resource.data.teacherUid == request.auth.uid
+                      || fcInSessionClass(resource.data.get('classIds', [])));
       allow create: if fcTeacherSignedIn()
                     && request.resource.data.teacherUid == request.auth.uid
                     && request.resource.data.kind in ['check', 'study']
@@ -5039,7 +5057,7 @@ service cloud.firestore {
                               && studentUid == request.auth.uid
                               && isStudentRoleUser()
                               && fcSession().status == 'active'
-                              && (passesStudentClassGateList(fcSession().get('classIds', [])) ||
+                              && (fcInSessionClass(fcSession().get('classIds', [])) ||
                                   exists(/databases/$(database)/documents/student_assignments/$(request.auth.uid)/items/$(sessionId)))
                               && fcWithinWindow()
                               && (resource == null || !('submittedAt' in resource.data))
