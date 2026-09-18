@@ -11,8 +11,7 @@ const collection = (over: Partial<Collection>): Collection => ({
   ...over,
 });
 
-// Walk the map the same way CollectionTreeNode's recursion does, so the
-// test exercises the actual traversal, not just the map's raw contents.
+// Walks the map the same way CollectionTreeNode's recursion does.
 const collectAllReachable = (m: Map<string | null, Collection[]>): string[] => {
   const out: string[] = [];
   const walk = (parent: string | null) => {
@@ -27,9 +26,7 @@ const collectAllReachable = (m: Map<string | null, Collection[]>): string[] => {
 
 describe('buildChildrenByParent — orphaned subtree', () => {
   it('surfaces an orphaned collection and its whole subtree at root', () => {
-    // Mirrors a partial deleteCollection failure: the parent doc is gone
-    // but a descendant chunk didn't commit, leaving a dangling
-    // parentCollectionId (same scenario as boardNavMenu.flattenCollections).
+    // Mirrors a partial deleteCollection failure leaving a dangling parentCollectionId.
     const collections: Collection[] = [
       collection({
         id: 'a',

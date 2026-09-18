@@ -1,12 +1,6 @@
 import type { Collection } from '@/types';
 
-/**
- * Group collections by parent for O(1) child lookup during recursive render.
- * Orphans (parent id doesn't resolve, e.g. a partial deleteCollection
- * failure) are surfaced at root instead of silently vanishing along with
- * their whole subtree. Mirrors flattenCollections in boardNavMenu.ts and
- * flattenFolders in FolderPickerPopover.tsx.
- */
+// Groups collections by parent for O(1) child lookup; orphans (parent id doesn't resolve) surface at root, mirroring boardNavMenu.ts's flattenCollections.
 export const buildChildrenByParent = (
   collections: Collection[]
 ): Map<string | null, Collection[]> => {
