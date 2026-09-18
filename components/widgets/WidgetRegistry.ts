@@ -241,6 +241,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     'NeedDoPutThenWidget'
   ),
   stations: lazyNamed(() => import('./Stations/Widget'), 'StationsWidget'),
+  projects: lazyNamed(() => import('./Projects/Widget'), 'ProjectsWidget'),
 };
 
 /**
@@ -423,6 +424,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     'NeedDoPutThenSettings'
   ),
   stations: lazyNamed(() => import('./Stations/Settings'), 'StationsSettings'),
+  projects: lazyNamed(() => import('./Projects/Settings'), 'ProjectsSettings'),
 };
 
 export const WIDGET_APPEARANCE_COMPONENTS: Partial<
@@ -505,6 +507,10 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
   stations: lazyNamed(
     () => import('./Stations/Settings'),
     'StationsAppearanceSettings'
+  ),
+  projects: lazyNamed(
+    () => import('./Projects/Settings'),
+    'ProjectsAppearanceSettings'
   ),
 };
 
@@ -965,6 +971,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   stations: {
     baseWidth: 600,
     baseHeight: 420,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  projects: {
+    baseWidth: 540,
+    baseHeight: 360,
     canSpread: true,
     skipScaling: true,
     padding: 0,

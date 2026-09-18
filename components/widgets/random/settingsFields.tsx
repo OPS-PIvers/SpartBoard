@@ -2,7 +2,13 @@ import React from 'react';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
-import type { RandomConfig, RandomGroup, StationsConfig } from '@/types';
+import type {
+  ProjectsConfig,
+  RandomConfig,
+  RandomGroup,
+  StationsConfig,
+} from '@/types';
+import { resolveRandomGroupName } from './groupNames';
 import {
   buildStationsFromRandomGroups,
   shouldResolveRosterNames,
@@ -230,6 +236,100 @@ export const RandomSendToStationsField: React.FC<{
       className="w-full rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-40"
     >
       {ctx.t('widgetSettings.random.sendToStations')}
+    </button>
+  );
+};
+
+/**
+ * D7/A5 — the Group Maker pushes a group set over to Projects; Projects then
+ * confirms the import. The push stages a snapshot rather than committing it,
+ * because resolving students to district accounts can only be reported where
+ * the teacher can see who fell out (D8).
+ */
+export const RandomSendToProjectsField: React.FC<{
+  ctx: CustomRenderCtx;
+}> = ({ ctx }) => {
+  const { activeDashboard, activeRosterId, addToast, updateWidget } =
+    useDashboard();
+  const { showConfirm } = useDialog();
+  const projectsWidget = activeDashboard?.widgets.find(
+    (widget) => widget.type === 'projects'
+  );
+
+  const send = async () => {
+    if (!projectsWidget) {
+      addToast(ctx.t('widgetSettings.random.addProjects'), 'info');
+      return;
+    }
+    const config = ctx.config as unknown as RandomConfig;
+    // A typed name list cannot resolve to students, so it is refused outright
+    // rather than importing groups nobody can sign in to (D7).
+    if ((config.rosterMode ?? 'class') !== 'class' || !activeRosterId) {
+      addToast(ctx.t('widgetSettings.random.projectsNeedsRoster'), 'info');
+      return;
+    }
+    const groups = resultGroups(config.lastResult).filter(
+      (group) => (group.studentIds?.length ?? 0) > 0
+    );
+    if (groups.length === 0) {
+      addToast(
+        ctx.t('widgetSettings.random.generateGroupsFirstProjects'),
+        'info'
+      );
+      return;
+    }
+
+    const projectsConfig = projectsWidget.config as ProjectsConfig;
+    if (
+      projectsConfig.pendingImport &&
+      !(await showConfirm(
+        ctx.t('widgetSettings.random.replaceProjectsImportConfirm'),
+        {
+          title: ctx.t('widgetSettings.random.replaceProjectsImportTitle'),
+          confirmLabel: ctx.t('widgetSettings.random.replace'),
+          variant: 'danger',
+        }
+      ))
+    ) {
+      return;
+    }
+
+    updateWidget(projectsWidget.id, {
+      config: {
+        ...projectsConfig,
+        pendingImport: {
+          rosterId: activeRosterId,
+          at: Date.now(),
+          groups: groups.map((group, index) => ({
+            name: resolveRandomGroupName(
+              group,
+              index,
+              activeDashboard?.sharedGroups
+            ),
+            studentIds: group.studentIds ?? [],
+          })),
+        },
+      },
+    });
+    addToast(
+      ctx.t('widgetSettings.random.groupsSentToProjects', {
+        count: groups.length,
+      }),
+      'success'
+    );
+  };
+
+  return (
+    <button
+      id={ctx.id}
+      type="button"
+      aria-labelledby={ctx.labelId}
+      aria-describedby={ctx.describedBy}
+      disabled={!projectsWidget}
+      onClick={() => void send()}
+      className="w-full rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-40"
+    >
+      {ctx.t('widgetSettings.random.sendToProjects')}
     </button>
   );
 };

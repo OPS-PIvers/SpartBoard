@@ -1690,12 +1690,20 @@
       "expertGroupCount": "Number of expert groups",
       "sendToStations": "Send groups to Stations",
       "stations": "Stations",
+      "projects": "Projects",
       "addStations": "Add a Stations widget to the board first.",
       "generateGroupsFirst": "Generate groups before sending them to Stations.",
       "replaceStationsConfirm": "The Stations widget already has {{count}} stations. Replace them?",
       "replaceStationsTitle": "Replace existing stations?",
       "replace": "Replace",
-      "groupsSent": "Sent {{count}} groups to Stations."
+      "groupsSent": "Sent {{count}} groups to Stations.",
+      "sendToProjects": "Send groups to Projects",
+      "addProjects": "Add a Projects widget to the board first.",
+      "projectsNeedsRoster": "Projects tracks real students, so switch the Randomizer to a class roster before sending groups over.",
+      "generateGroupsFirstProjects": "Generate groups before sending them to Projects.",
+      "replaceProjectsImportConfirm": "The Projects widget already has a group set waiting. Replace it?",
+      "replaceProjectsImportTitle": "Replace the waiting groups?",
+      "groupsSentToProjects": "Sent {{count}} groups to Projects. Confirm the import there."
     },
     "url": {
       "links": "Links",

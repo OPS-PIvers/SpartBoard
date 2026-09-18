@@ -41,6 +41,7 @@ describe('consolidated field-level widget settings migration', () => {
       [
         'completedNames',
         'lastResult',
+        'lastResult',
         'lastSync',
         'numExpertGroups',
         'numHomeGroups',

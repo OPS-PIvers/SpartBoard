@@ -8,6 +8,7 @@ import type { RandomConfig } from '@/types';
 import {
   RandomGroupCountField,
   RandomRosterActionsField,
+  RandomSendToProjectsField,
   RandomSendToStationsField,
 } from './settingsFields';
 
@@ -23,6 +24,8 @@ const renderRosterActions = (ctx: CustomRenderCtx) =>
   React.createElement(RandomRosterActionsField, { ctx });
 const renderSendToStations = (ctx: CustomRenderCtx) =>
   React.createElement(RandomSendToStationsField, { ctx });
+const renderSendToProjects = (ctx: CustomRenderCtx) =>
+  React.createElement(RandomSendToProjectsField, { ctx });
 
 export default defineSettings<RandomConfig>({
   groups: [
@@ -146,6 +149,15 @@ export default defineSettings<RandomConfig>({
           searchTerms: ['stations'],
           visibleWhen: isMode('groups'),
           render: renderSendToStations,
+        },
+        // schema-gap: partnerAction
+        {
+          key: 'lastResult',
+          type: 'custom',
+          label: 'sendToProjects',
+          searchTerms: ['projects'],
+          visibleWhen: isMode('groups'),
+          render: renderSendToProjects,
         },
       ],
     },

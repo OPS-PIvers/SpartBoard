@@ -7403,12 +7403,41 @@ export interface ProjectGroupImportEntry {
   classLinkSourcedIds: string[];
 }
 
+/**
+ * A group set the Group Maker handed over, waiting on the teacher to confirm
+ * the import (A5). Holds `Student.id`s, which only resolve against the roster
+ * that produced them — the import panel turns them into ClassLink sourcedIds.
+ */
+export interface ProjectsPendingImport {
+  rosterId: string;
+  at: number;
+  groups: { name: string; studentIds: string[] }[];
+}
+
+export interface BuildingProjectsDefaults {
+  buildingId: string;
+  /**
+   * Whether teachers in this building may open the student side at all. Off
+   * leaves the teacher-only tracker (D6), which is the honest default for a
+   * building with no ClassLink-sourced rosters.
+   */
+  studentAccessEnabled?: boolean;
+  /** Seeds `ProjectRun.showStatusToStudents` on a new project (D30). */
+  defaultShowStatusToStudents?: boolean;
+}
+
+export interface ProjectsGlobalConfig {
+  buildingDefaults?: Record<string, BuildingProjectsDefaults>;
+  dockDefaults?: Record<string, boolean>;
+}
+
 /** Per-board state only. Project definitions live in the teacher's library (D15). */
 export interface ProjectsConfig {
   /** Library project this widget points at. One project per widget. */
   projectId?: string;
   /** D27 — the teacher's show/hide status toggle on the board face. */
   showStatus?: boolean;
+  pendingImport?: ProjectsPendingImport | null;
   fontFamily?: string;
   cardColor?: string;
   cardOpacity?: number;

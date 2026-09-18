@@ -591,4 +591,12 @@ export const TOOLS: ToolMetadata[] = [
     category: 'management',
     keywords: ['centers', 'rotations', 'groups', 'small group'],
   },
+  {
+    type: 'projects',
+    icon: ClipboardList,
+    label: 'Projects',
+    color: 'bg-sky-600',
+    category: 'instruction',
+    keywords: ['group project', 'progress', 'steps', 'checkpoints', 'rubric'],
+  },
 ];

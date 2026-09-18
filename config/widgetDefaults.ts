@@ -11,6 +11,7 @@ import {
   BloomsDetailConfig,
   NeedDoPutThenConfig,
   FlashcardsConfig,
+  ProjectsConfig,
 } from '@/types';
 import { STICKY_NOTE_COLORS } from './colors';
 import {
@@ -674,5 +675,15 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       assignments: {},
       rosterMode: 'class',
     } satisfies StationsConfig,
+  },
+  projects: {
+    w: 540,
+    h: 360,
+    config: {
+      showStatus: true,
+      fontFamily: 'global',
+      cardColor: '#ffffff',
+      cardOpacity: 0.75,
+    } satisfies ProjectsConfig,
   },
 };
