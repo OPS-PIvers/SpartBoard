@@ -17,6 +17,14 @@
  *   - sidebar.classes.removeGroup
  *   - sidebar.classes.groupMemberCount_one / _other
  *   - sidebar.classes.noStudentsToGroup
+ *   - sidebar.classes.splitClass
+ *   - sidebar.classes.splitCountLabel
+ *   - sidebar.classes.splitNameLabel
+ *   - sidebar.classes.splitConfirm
+ *   - sidebar.classes.splitNamePrefix
+ *
+ * The split-class keys repeated the same mistake on the same panel and are
+ * covered here for the same reason.
  *
  * This test loads each locale JSON directly (not via i18next) so it catches
  * key-presence issues before the i18next runtime silently swallows them with
@@ -42,6 +50,11 @@ const REQUIRED_GROUPS_KEYS = [
   'groupMemberCount_one',
   'groupMemberCount_other',
   'noStudentsToGroup',
+  'splitClass',
+  'splitCountLabel',
+  'splitNameLabel',
+  'splitConfirm',
+  'splitNamePrefix',
 ] as const;
 
 type LocaleFile = typeof en;

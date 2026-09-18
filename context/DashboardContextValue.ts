@@ -6,6 +6,7 @@ import {
   Dashboard,
   GradeFilter,
   ClassRoster,
+  RosterGroup,
   WidgetConfig,
   GlobalStyle,
   Student,
@@ -411,6 +412,11 @@ export interface DashboardContextValue {
   deleteRoster: (id: string) => Promise<void>;
   setActiveRoster: (id: string | null) => void;
   setAbsentStudents: (rosterId: string, studentIds: string[]) => Promise<void>;
+  /** Re-reads the Drive file before appending, so a concurrent group edit survives. */
+  appendRosterGroups: (
+    rosterId: string,
+    groups: RosterGroup[]
+  ) => Promise<void>;
 }
 
 export const DashboardContext = createContext<

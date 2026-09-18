@@ -389,3 +389,44 @@ describe('restriction symmetry (one-directional roster data)', () => {
     expect(unsatisfied).toBe(1);
   });
 });
+
+describe('student-id carry-through (plan D4)', () => {
+  const s = (id: string, firstName: string): Student => ({
+    id,
+    firstName,
+    lastName: 'X',
+    pin: '00',
+  });
+
+  it('makeRestrictedGroups pairs each name with its student id', () => {
+    const students = [s('id-a', 'A'), s('id-b', 'B'), s('id-c', 'C')];
+    const { groups } = makeRestrictedGroups(students, 2);
+    const byId = new Map(students.map((st) => [st.id, `${st.firstName} X`]));
+    for (const g of groups) {
+      expect(g.studentIds).toHaveLength(g.names.length);
+      g.studentIds?.forEach((id, i) => expect(byId.get(id)).toBe(g.names[i]));
+    }
+    expect(groups.flatMap((g) => g.studentIds ?? []).sort()).toEqual([
+      'id-a',
+      'id-b',
+      'id-c',
+    ]);
+  });
+
+  it('makeRestrictedGroupsByCount pairs each name with its student id', () => {
+    const students = [s('id-a', 'A'), s('id-b', 'B'), s('id-c', 'C')];
+    const { groups } = makeRestrictedGroupsByCount(students, 2);
+    const byId = new Map(students.map((st) => [st.id, `${st.firstName} X`]));
+    for (const g of groups) {
+      expect(g.studentIds).toHaveLength(g.names.length);
+      g.studentIds?.forEach((id, i) => expect(byId.get(id)).toBe(g.names[i]));
+    }
+  });
+
+  it('distinguishes two students who share a display name', () => {
+    const students = [s('id-1', 'Sam'), s('id-2', 'Sam')];
+    const { groups } = makeRestrictedGroupsByCount(students, 1);
+    expect(groups[0].names).toEqual(['Sam X', 'Sam X']);
+    expect(groups[0].studentIds?.slice().sort()).toEqual(['id-1', 'id-2']);
+  });
+});

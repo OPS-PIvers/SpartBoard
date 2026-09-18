@@ -404,6 +404,8 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       setActiveRoster: setSelectedRosterId,
       setAbsentStudents:
         NOOP_ASYNC as DashboardContextValue['setAbsentStudents'],
+      appendRosterGroups:
+        NOOP_ASYNC as DashboardContextValue['appendRosterGroups'],
     };
   }, [activeDashboard, updateWidget, bringToFront, rosters, activeRosterId]);
 

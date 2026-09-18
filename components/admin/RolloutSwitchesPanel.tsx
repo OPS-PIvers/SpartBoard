@@ -12,6 +12,10 @@ import {
   PLC_NOTE_COLLAB_SETTINGS_DOC,
   normalizePlcNoteCollabSettings,
 } from '@/config/plcNoteCollab';
+import {
+  ROSTER_GROUPS_INTEGRATION_SETTINGS_DOC,
+  normalizeRosterGroupsIntegrationSettings,
+} from '@/config/rosterGroupsIntegration';
 
 interface RolloutSwitch {
   docId: string;
@@ -35,6 +39,13 @@ const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     description:
       'Print bubble answer sheets for a quiz and import the scanned stack. Adds “Print answer sheets” and “Import scanned sheets” to the quiz menu and “Paper test” under the New Quiz caret, after Import.',
     normalize: normalizePaperAnswerSheetsSettings,
+  },
+  {
+    docId: ROSTER_GROUPS_INTEGRATION_SETTINGS_DOC,
+    title: 'Class groups in widgets',
+    description:
+      'Lets teachers point a widget at a saved class group instead of the whole class, and split a class into groups from the roster editor. Group names stay in the teacher-only picker — never on a widget’s front face.',
+    normalize: normalizeRosterGroupsIntegrationSettings,
   },
 ];
 

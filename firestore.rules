@@ -740,6 +740,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Rollout switch for class groups in widgets — teachers read it to decide
+    // whether to offer the group picker; admins flip it.
+    match /admin_settings/roster_groups_integration {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     // Admin audit log — admin-only read; create-only (append-only so an admin
     // can't edit/delete their own trail). Written by GlobalPermissionsManager on
     // sensitive settings changes. timestamp is set server-side via

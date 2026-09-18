@@ -50,6 +50,7 @@ import {
   Printer,
   Volume2,
   Languages,
+  UsersRound,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -200,6 +201,13 @@ const GLOBAL_FEATURES: {
     icon: Printer,
     description:
       'Lets teachers print bubble answer sheets for a quiz and import the scanned stack as graded responses. Adds "Print answer sheets" and "Import scanned sheets" to the quiz menu and a "Paper test" button beside Import. Fail-closed: admin-only until this is saved and opened up, and the whole feature stays off until it is also switched on under Access → Rollouts.',
+  },
+  {
+    id: 'roster-groups',
+    label: 'Class groups in widgets',
+    icon: UsersRound,
+    description:
+      'Lets a widget target a saved class group instead of the whole class, keeps a group together when the Randomizer builds groups, and adds "Split class into groups" to the roster editor. Group names appear only in the teacher-facing picker, never on a projected front face. Fail-closed: admin-only until this is saved and opened up, and the whole feature stays off until it is also switched on under Access → Rollouts.',
   },
   {
     id: 'settings-drawer',
