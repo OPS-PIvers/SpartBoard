@@ -1936,29 +1936,27 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     ) : undefined;
 
   // ─── Shell header actions ─────────────────────────────────────────────────
-  // Paper lives behind New Quiz's caret, never as its own button (plan Q10).
+  // Import and Paper test live behind New Quiz's caret, never as their own
+  // buttons (plan Q10).
   const primaryAction =
     managerTab === 'library'
       ? {
           label: 'New Quiz',
           icon: Plus,
           onClick: onNew,
-          ...(onNewPaperTest
-            ? {
-                menuItems: [
+          menuItems: [
+            { label: 'Import', icon: FileUp, onClick: onImport },
+            ...(onNewPaperTest
+              ? [
                   {
                     label: 'Paper test',
                     icon: Printer,
                     onClick: onNewPaperTest,
                   },
-                ],
-              }
-            : {}),
+                ]
+              : []),
+          ],
         }
-      : undefined;
-  const secondaryActions =
-    managerTab === 'library'
-      ? [{ label: 'Import', icon: FileUp, onClick: onImport }]
       : undefined;
 
   // ─── Toolbar for library tab ──────────────────────────────────────────────
@@ -2081,7 +2079,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         counts={tabCounts}
         tabLabels={tabLabels}
         primaryAction={primaryAction}
-        secondaryActions={secondaryActions}
         toolbarSlot={toolbar}
         filterSidebarSlot={folderSidebarSlot}
       >
@@ -2137,7 +2134,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       counts={tabCounts}
       tabLabels={tabLabels}
       primaryAction={primaryAction}
-      secondaryActions={secondaryActions}
       toolbarSlot={toolbar}
       filterSidebarSlot={folderSidebarSlot}
     >

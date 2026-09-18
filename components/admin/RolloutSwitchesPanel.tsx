@@ -33,7 +33,7 @@ const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     docId: PAPER_ANSWER_SHEETS_SETTINGS_DOC,
     title: 'Paper answer sheets',
     description:
-      'Print bubble answer sheets for a quiz and import the scanned stack. Adds “Print answer sheets” and “Import scanned sheets” to the quiz menu and “Paper test” under the New Quiz caret.',
+      'Print bubble answer sheets for a quiz and import the scanned stack. Adds “Print answer sheets” and “Import scanned sheets” to the quiz menu and “Paper test” under the New Quiz caret, after Import.',
     normalize: normalizePaperAnswerSheetsSettings,
   },
 ];
