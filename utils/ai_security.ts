@@ -11,6 +11,7 @@ import {
   ScoreboardTeam,
   RandomConfig,
 } from '@/types';
+import { scoreboardTeamLetter } from '@/config/scoreboard';
 
 /** Validates and clamps grid coordinates to the 12x12 system */
 export const validateGridConfig = (pos: GridPosition): GridPosition | null => {
@@ -144,7 +145,7 @@ export const sanitizeAIConfig = (
     const c = sanitized as unknown as Partial<ScoreboardConfig>;
     if (Array.isArray(c.teams)) {
       c.teams = (c.teams as unknown[]).map((team: unknown, idx: number) => {
-        let name = `Team ${idx + 1}`;
+        let name = `Team ${scoreboardTeamLetter(idx)}`;
         let score = 0;
         let color = undefined;
 

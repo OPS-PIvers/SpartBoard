@@ -505,7 +505,59 @@ describe('ScoreboardSettings', () => {
       expect.objectContaining({
         config: expect.objectContaining({
           teams: expect.arrayContaining([
-            expect.objectContaining({ name: 'Team 1' }),
+            expect.objectContaining({ name: 'Team A' }),
+          ]) as unknown,
+        }) as unknown,
+      })
+    );
+  });
+
+  it('continues the default A/B lettering and reuses freed letters', () => {
+    const makeWidget = (names: string[]): WidgetData => ({
+      id: 'scoreboard-id',
+      type: 'scoreboard',
+      config: {
+        teams: names.map((name, i) => ({
+          id: `team-${i}`,
+          name,
+          score: 0,
+          color: 'bg-blue-500',
+        })),
+      } as ScoreboardConfig,
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+      z: 1,
+      flipped: true,
+    });
+
+    const { unmount } = render(
+      <ScoreboardSettings widget={makeWidget(['Team A', 'Team B'])} />
+    );
+    fireEvent.click(screen.getByText('Add Team'));
+    expect(mockUpdateWidget).toHaveBeenCalledWith(
+      'scoreboard-id',
+      expect.objectContaining({
+        config: expect.objectContaining({
+          teams: expect.arrayContaining([
+            expect.objectContaining({ name: 'Team C' }),
+          ]) as unknown,
+        }) as unknown,
+      })
+    );
+
+    unmount();
+    mockUpdateWidget.mockClear();
+
+    render(<ScoreboardSettings widget={makeWidget(['Team A', 'Team C'])} />);
+    fireEvent.click(screen.getByText('Add Team'));
+    expect(mockUpdateWidget).toHaveBeenCalledWith(
+      'scoreboard-id',
+      expect.objectContaining({
+        config: expect.objectContaining({
+          teams: expect.arrayContaining([
+            expect.objectContaining({ name: 'Team B' }),
           ]) as unknown,
         }) as unknown,
       })
