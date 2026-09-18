@@ -7,6 +7,7 @@ import type {
   ProjectsPendingImport,
 } from '@/types';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { projectClassIdFor } from '../projectSteps';
 
 interface GroupImportPanelProps {
   pending: ProjectsPendingImport;
@@ -36,7 +37,7 @@ export const GroupImportPanel: React.FC<GroupImportPanelProps> = ({
   const [carryNames, setCarryNames] = useState(false);
 
   const roster = rosters.find((r) => r.id === pending.rosterId);
-  const classId = roster?.classlinkClassId ?? '';
+  const classId = projectClassIdFor(roster) ?? '';
 
   const resolved = useMemo(() => {
     const byId = new Map(roster?.students.map((s) => [s.id, s]) ?? []);
@@ -98,11 +99,12 @@ export const GroupImportPanel: React.FC<GroupImportPanelProps> = ({
           The class these groups came from is no longer on this account, so the
           students cannot be resolved. Send them over again.
         </p>
-      ) : !classId ? (
-        <p className="text-xs text-brand-red-primary">
+      ) : !roster.classlinkClassId ? (
+        <p className="text-xs text-amber-700">
           {roster.name} is a hand-built roster, so students here have no
-          district account to sign in with. Import the groups anyway for a
-          teacher-only tracker, or use a ClassLink class for the student side.
+          district account to sign in with. These groups import as a
+          teacher-only tracker that you move yourself; use a ClassLink class if
+          you want the student side.
         </p>
       ) : null}
 

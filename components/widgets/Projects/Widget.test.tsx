@@ -213,6 +213,20 @@ describe('ProjectsWidget', () => {
     expect(screen.getAllByText('1 of 2 done')).toHaveLength(9);
   });
 
+  it('tracks a hand-built roster under its local class id (D6)', () => {
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      updateWidget,
+      addToast: vi.fn(),
+      rosters: [{ id: 'roster-2', name: 'Club' }],
+      activeRosterId: 'roster-2',
+      activeDashboard: { globalStyle: { fontFamily: 'sans' } },
+    });
+    mockRun({ groups: [group({ classId: 'local:roster-2' })] });
+    render(<ProjectsWidget widget={widget()} />);
+    expect(screen.getByText('Group 1')).toBeInTheDocument();
+    expect(screen.queryByText('Pick a class')).not.toBeInTheDocument();
+  });
+
   it('asks for a class when none is active', () => {
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       updateWidget,

@@ -91,6 +91,21 @@ export function sortGroupsForBoard(groups: ProjectGroup[]): ProjectGroup[] {
 }
 
 /** D14 — the board renders only the groups in the globally active roster's class. */
+/**
+ * The class a run's groups are keyed by. A hand-built roster has no ClassLink
+ * class, so D6's teacher-only tracker keys on the roster itself; the `local:`
+ * prefix can never match a student's ClassLink `classIds` claim, which is what
+ * makes it teacher-only.
+ */
+export function projectClassIdFor(
+  roster: { id: string; classlinkClassId?: string } | undefined
+): string | null {
+  if (!roster) return null;
+  // Empty string, not just undefined: that is the shape a hand-built roster has.
+  const classlink = roster.classlinkClassId?.trim() ?? '';
+  return classlink.length > 0 ? classlink : `local:${roster.id}`;
+}
+
 export function groupsForClass(
   groups: ProjectGroup[],
   classId: string | null | undefined

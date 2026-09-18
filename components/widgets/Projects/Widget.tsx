@@ -21,6 +21,7 @@ import {
   STEP_STATE_LABELS,
   completedStepCount,
   groupsForClass,
+  projectClassIdFor,
   sortGroupsForBoard,
   stepStateOf,
   studentStateOptions,
@@ -151,8 +152,7 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
   const [busyStepId, setBusyStepId] = useState<string | null>(null);
 
   const activeClassId = useMemo(
-    () =>
-      rosters.find((r) => r.id === activeRosterId)?.classlinkClassId ?? null,
+    () => projectClassIdFor(rosters.find((r) => r.id === activeRosterId)),
     [activeRosterId, rosters]
   );
 
