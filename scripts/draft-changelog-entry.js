@@ -2,8 +2,9 @@
 /**
  * Drafts a "What's New" changelog entry from recent git commits and prints it
  * to stdout. The output is intentionally a *draft* — paste it into
- * public/changelog.json and rewrite the highlight text in user-friendly
- * language before committing.
+ * public/changelog.json and rewrite every bullet before committing. The rules
+ * are in docs/DEV_WORKFLOW.md ("How to write a release note"); commit subjects
+ * are never publishable as written.
  *
  * Usage:
  *   pnpm changelog:draft                       # since the last entry's date
@@ -95,23 +96,30 @@ if (skipped.length > 0) {
 const today = new Date().toISOString().slice(0, 10);
 const versionGuess = today.replace(/-/g, '.');
 
+const drafted =
+  highlights.length > 0
+    ? highlights
+    : [{ type: 'improvement', text: 'TODO: describe what changed for users.' }];
+
+// Matches the shape WhatsNewModal renders: `overview` is the summary every user
+// sees, `details` is the "Read full update" disclosure. Both are user-facing.
 const draftEntry = {
   version: versionGuess,
   date: today,
   title: 'TODO: short release title',
-  highlights:
-    highlights.length > 0
-      ? highlights
-      : [
-          {
-            type: 'improvement',
-            text: 'TODO: describe what changed for users.',
-          },
-        ],
+  overview: [
+    {
+      type: drafted[0].type,
+      subtitle: 'TODO: the area this touches, e.g. Quizzes',
+      items: drafted.map((h) => ({ text: h.text })),
+    },
+  ],
+  details: drafted,
 };
 
 process.stdout.write(
-  `// Draft entry — paste at the top of public/changelog.json entries[] and polish the text.\n` +
+  `// Draft entry — paste at the top of public/changelog.json entries[].\n` +
+    `// Rewrite every bullet first: see "How to write a release note" in docs/DEV_WORKFLOW.md.\n` +
     `// Sourced from ${lines.length} commit(s)` +
     (since ? ` since ${since}` : ' (no prior entry — last 50 commits)') +
     `.\n` +

@@ -120,6 +120,8 @@ const Entry: React.FC<{ entry: ChangelogEntry }> = ({ entry }) => {
   const hasOverview =
     overviewByType !== null &&
     GROUP_ORDER.some((type) => overviewByType[type].length > 0);
+  // An entry may carry no details at all, so don't offer a disclosure that opens onto nothing.
+  const hasDetails = GROUP_ORDER.some((type) => groups[type].length > 0);
 
   const [expanded, setExpanded] = useState(false);
   const detailsId = useId();
@@ -187,28 +189,30 @@ const Entry: React.FC<{ entry: ChangelogEntry }> = ({ entry }) => {
             )}
           </div>
 
-          <div className="flex justify-end mt-3">
-            <button
-              type="button"
-              onClick={() => setExpanded((prev) => !prev)}
-              aria-expanded={expanded}
-              aria-controls={detailsId}
-              className="text-xs font-semibold text-brand-blue-primary hover:text-brand-blue-dark inline-flex items-center gap-1"
-            >
-              {expanded
-                ? t('whatsNew.showLess', { defaultValue: 'Show less' })
-                : t('whatsNew.readFullUpdate', {
-                    defaultValue: 'Read full update',
-                  })}
-              {expanded ? (
-                <ChevronUp className="w-3 h-3" />
-              ) : (
-                <ChevronDown className="w-3 h-3" />
-              )}
-            </button>
-          </div>
+          {hasDetails && (
+            <div className="flex justify-end mt-3">
+              <button
+                type="button"
+                onClick={() => setExpanded((prev) => !prev)}
+                aria-expanded={expanded}
+                aria-controls={detailsId}
+                className="text-xs font-semibold text-brand-blue-primary hover:text-brand-blue-dark inline-flex items-center gap-1"
+              >
+                {expanded
+                  ? t('whatsNew.showLess', { defaultValue: 'Show less' })
+                  : t('whatsNew.readFullUpdate', {
+                      defaultValue: 'Read full update',
+                    })}
+                {expanded ? (
+                  <ChevronUp className="w-3 h-3" />
+                ) : (
+                  <ChevronDown className="w-3 h-3" />
+                )}
+              </button>
+            </div>
+          )}
 
-          {expanded && (
+          {expanded && hasDetails && (
             <div
               id={detailsId}
               className="border-t border-slate-100 pt-4 mt-3 animate-disclosure-expand"

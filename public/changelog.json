@@ -10,13 +10,13 @@
           "subtitle": "Quizzes",
           "items": [
             {
-              "text": "A new Languages tab in the quiz editor generates a Spanish, Somali or Hmong version of a quiz, which you review question by question. Nothing reaches a student until you mark it reviewed."
+              "text": "A new Languages tab in the quiz editor creates a translated version of a quiz in any language your school has turned on, and you review it question by question. Nothing reaches a student until you mark it reviewed."
             },
             {
-              "text": "Set a student's language once as an accommodation and every quiz you assign them renders in it, with a one-tap toggle back to English. Answers are still recorded and graded in English, so results, exports and grade sync are unchanged."
+              "text": "Set a student's language once as an accommodation and every quiz you assign them opens in that language, with a one-tap switch back to English. Answers are still recorded and graded in English, so your results, exports and grade sync do not change."
             },
             {
-              "text": "The assign dialog warns you when a student you are targeting needs a translation the quiz does not have yet, and offers to generate it. It never blocks you from assigning."
+              "text": "The assign screen tells you when a student you picked needs a translation the quiz does not have yet, and offers to create it. It never stops you from assigning."
             }
           ]
         }
@@ -24,11 +24,11 @@
       "details": [
         {
           "type": "feature",
-          "text": "Translations ride the public question through the same shuffle as the English strings, so position never leaks the answer key. Only reviewed and hash-fresh questions are published."
+          "text": "Answer choices are shuffled into the same order in every language, so a translated quiz never gives away which answer is correct."
         },
         {
           "type": "feature",
-          "text": "Behind the quiz-translation feature flag (admin-only). Bank-slot quizzes and non-English source quizzes are out of scope for now."
+          "text": "Edit a question after translating it and the Languages tab marks that translation out of date and offers to redo it. Students keep seeing the English version of that question until you review the new translation."
         }
       ]
     },
@@ -47,12 +47,7 @@
           ]
         }
       ],
-      "details": [
-        {
-          "type": "feature",
-          "text": "Reads the existing plcs/{plcId}/question_banks headers; no rules or data changes."
-        }
-      ]
+      "details": []
     },
     {
       "version": "2026.09.11.10",
@@ -82,7 +77,7 @@
           "subtitle": "Sidebar",
           "items": [
             {
-              "text": "The My Building(s) shortcut left the sidebar; the picker lives in Settings › Profile."
+              "text": "The My Building(s) shortcut has moved out of the sidebar and into Settings › Profile."
             }
           ]
         }
@@ -90,7 +85,7 @@
       "details": [
         {
           "type": "improvement",
-          "text": "Bank import reuses the quiz import adapter; parsed questions and stimuli become a new bank saved to Drive."
+          "text": "An imported bank arrives as a new question bank in your library, saved to Drive alongside your quizzes."
         }
       ]
     },
@@ -112,11 +107,7 @@
       "details": [
         {
           "type": "fix",
-          "text": "Member lists merge uids that only the legacy arrays know about, and admin member writes backfill their map entries."
-        },
-        {
-          "type": "fix",
-          "text": "The admin member rule compares member uid sets rather than ordered lists."
+          "text": "Teachers who were already missing from a PLC are restored the next time the member list loads, so there is nothing to re-send or re-accept."
         }
       ]
     },
@@ -138,15 +129,15 @@
       "details": [
         {
           "type": "improvement",
-          "text": "The aggregate grades each response server-side from the shared answer key, using the teacher's saved manual grade for written questions. A response with an ungraded written answer is counted but not scored until the grade is entered."
+          "text": "Results are scored from the shared answer key, and written questions use the grade you saved for them. A student whose written answer is not graded yet is counted in the totals but left out of the score until you enter the grade."
         },
         {
           "type": "improvement",
-          "text": "Published scores still take precedence when present. Assessments show as Scored once any student has a score."
+          "text": "A score you have already published still wins, and an assessment shows as Scored as soon as any student has a score."
         },
         {
           "type": "fix",
-          "text": "Existing aggregates are refreshed automatically over the next few scheduled runs."
+          "text": "Assessments from before this update fill themselves in over the next day or so with no action from you."
         }
       ]
     },
@@ -168,11 +159,11 @@
       "details": [
         {
           "type": "feature",
-          "text": "New Members editor on each PLC card in the admin recovery panel, listing signed-in org teachers who are not yet members."
+          "text": "Each PLC card in Admin › PLC Resources has a Members editor that lists the teachers in your organization who are not in that PLC yet."
         },
         {
           "type": "improvement",
-          "text": "Firestore rule lets an in-org admin change exactly one non-lead member per write; the lead and every other entry stay locked."
+          "text": "An admin can change one member at a time, and the PLC lead cannot be changed this way."
         }
       ]
     },
@@ -194,7 +185,7 @@
       "details": [
         {
           "type": "fix",
-          "text": "Teacher totals on the assessment list and detail page count active members plus any linked non-member teacher."
+          "text": "The teacher total on both the assessment list and the assessment page now counts active PLC members plus any non-member teacher with a linked session."
         },
         {
           "type": "fix",
@@ -202,7 +193,7 @@
         },
         {
           "type": "improvement",
-          "text": "\"Last computed\" renamed to \"Last updated\" in all four languages."
+          "text": "\"Last computed\" is now \"Last updated\" in every language SpartBoard offers."
         }
       ]
     },
@@ -224,11 +215,11 @@
       "details": [
         {
           "type": "improvement",
-          "text": "New Learning Targets section at /plc/:id/targets, shown whenever quizzes or video activities are on."
+          "text": "The Learning Targets tab appears in any PLC that has quizzes or video activities turned on."
         },
         {
           "type": "fix",
-          "text": "Page padding moved to the PLC panel wrapper; Home and Meeting Mode stay full-bleed."
+          "text": "Home and Meeting Mode still run edge to edge."
         }
       ]
     },
@@ -250,7 +241,7 @@
       "details": [
         {
           "type": "feature",
-          "text": "Tree picker — strands open by default, standards collapsed; search keeps the tree and opens matching branches."
+          "text": "Tree picker — strands open by default and standards start collapsed, and searching keeps the tree in place while opening the branches that match."
         },
         {
           "type": "feature",
@@ -258,7 +249,7 @@
         },
         {
           "type": "improvement",
-          "text": "PLC and personal targets follow the same grade and content-area filter; targets without either always show."
+          "text": "PLC and personal targets follow the same grade and content-area filter, and a target with neither set always shows."
         }
       ]
     },
@@ -280,7 +271,7 @@
       "details": [
         {
           "type": "feature",
-          "text": "Target editor — grade chips and a subject dropdown on the add form; the table shows both."
+          "text": "Target editor — the add form has grade chips and a subject dropdown, and the table shows both."
         },
         {
           "type": "feature",
@@ -288,7 +279,7 @@
         },
         {
           "type": "improvement",
-          "text": "Standards catalog — each benchmark now records its short standard code and title; admins should re-seed standards from Admin › Standards after this update."
+          "text": "Standards catalog — each benchmark now records its short standard code and title, so admins should re-seed standards from Admin › Standards after this update."
         }
       ]
     },
@@ -318,7 +309,7 @@
         },
         {
           "type": "feature",
-          "text": "Admin — a new Content areas panel adds, renames, or archives subjects; subjects with a standards catalog stay locked."
+          "text": "Admin — a new Content areas panel adds, renames, or archives subjects, and a subject that has a standards catalog stays locked."
         }
       ]
     },
@@ -344,11 +335,11 @@
         },
         {
           "type": "feature",
-          "text": "Random-draw accuracy — pooled question rows now track how many completed attempts were actually served each item, and items served to fewer than five students stay out of hardest-question rankings."
+          "text": "Random-draw accuracy — a pooled question row now counts only the students who actually saw that question, and a question seen by fewer than five students stays out of the hardest-question ranking."
         },
         {
           "type": "feature",
-          "text": "Private snapshots — assignment records freeze compact question tags so server-side PLC rollups can include bank-pool questions without exposing hidden target metadata to students."
+          "text": "Questions drawn from a bank now count toward PLC mastery, and the learning targets behind them stay hidden from students."
         }
       ]
     },
@@ -416,7 +407,7 @@
         },
         {
           "type": "feature",
-          "text": "PLC sharing — share a bank with a PLC from its menu; teammates see it read-only in the bank picker. Sharing a quiz that draws from a bank requires the bank to be shared first."
+          "text": "PLC sharing — share a bank with a PLC from its menu and teammates see it read-only in the bank picker. Share the bank before you share a quiz that draws from it."
         },
         {
           "type": "feature",
@@ -434,7 +425,7 @@
           "subtitle": "Quiz",
           "items": [
             {
-              "text": "Tag quiz questions with Minnesota ELA standards, PLC learning targets, or your own targets. Select several questions and tag them at once. Standards are seeded by an admin; PLC targets live in PLC settings."
+              "text": "Tag quiz questions with Minnesota ELA standards, PLC learning targets, or your own targets. Select several questions and tag them at once. An admin loads the standards, and PLC targets live in PLC settings."
             }
           ]
         }
@@ -442,7 +433,7 @@
       "details": [
         {
           "type": "feature",
-          "text": "Learning targets — every question in the quiz editor has a Learning targets field; a searchable picker lists seeded standards (filter by grade), each PLC’s targets, and your personal targets."
+          "text": "Learning targets — every question in the quiz editor has a Learning targets field, and its searchable picker lists the loaded standards (filter by grade), each PLC’s targets, and your personal targets."
         },
         {
           "type": "feature",
@@ -458,7 +449,7 @@
         },
         {
           "type": "improvement",
-          "text": "Admin — a Standards panel seeds the Minnesota ELA (2020) benchmarks into the shared catalog; re-seeding reports added / updated / unchanged and never deletes."
+          "text": "Admin — a Standards panel loads the Minnesota ELA (2020) benchmarks into the shared catalog, and re-loading reports what was added, updated and unchanged without ever deleting."
         }
       ]
     },
@@ -472,7 +463,7 @@
           "subtitle": "PLC",
           "items": [
             {
-              "text": "Every note can now carry its own checklist of action items — assign a teammate, set a due date, and check them off without leaving the note. The old shared To-Do tab is gone; import what's left of it into a note with one click."
+              "text": "Every note can now carry its own checklist of action items — assign a teammate, set a due date, and check them off without leaving the note. The old shared To-Do tab is gone, and one click imports whatever is left in it into a note."
             }
           ]
         }
@@ -514,7 +505,7 @@
       "details": [
         {
           "type": "improvement",
-          "text": "Folders — a sidebar on the Assessments list holds folders every member sees. Selecting one narrows both the assessment rows and the shared-quiz library; editors create, rename, nest and delete folders in place."
+          "text": "Folders — a sidebar on the Assessments list holds folders every member sees, and picking one narrows both the assessment rows and the shared-quiz library. Editors create, rename, nest and delete folders in place."
         },
         {
           "type": "improvement",
@@ -594,11 +585,11 @@
         },
         {
           "type": "improvement",
-          "text": "Data tab — assessment cards are created for you with the quiz title; no more \"designate\" step. Pooled numbers now include how many sessions and teachers contributed."
+          "text": "Data tab — assessment cards are created for you with the quiz title, so there is no longer a \"designate\" step. Pooled numbers now include how many sessions and teachers contributed."
         },
         {
           "type": "improvement",
-          "text": "Quiz widget — the PLC results tab inside Results is retired; the PLC page's Data tab is the one place for pooled results."
+          "text": "Quiz widget — the PLC results tab inside Results is gone, and the PLC page's Data tab is now the one place for pooled results."
         }
       ]
     },
@@ -662,7 +653,7 @@
       "details": [
         {
           "type": "feature",
-          "text": "Help modal — Shortcuts tab keeps the existing keyboard-shortcut and gesture cheat sheet; Guides tab lists admin-published docs, slide decks, videos, and Guided Learning activities by category, with a search box."
+          "text": "Help modal — the Shortcuts tab keeps the existing keyboard and gesture cheat sheet, and a new Guides tab lists admin-published docs, slide decks, videos and Guided Learning activities by category, with a search box."
         },
         {
           "type": "feature",
@@ -695,7 +686,7 @@
       "details": [
         {
           "type": "improvement",
-          "text": "Grading — the grader is question-major for both formats: pick a question, work down the student list, then move to the next question. Highlights, margin comments, word counts, tab-switch warnings and per-student rubric overrides carry over for typed answers; takes, time-anchored comments and the could-not-record decisions carry over for spoken ones. A rubric attached to a spoken question can now be scored."
+          "text": "Grading — the grader works one question at a time for both formats, so you pick a question, work down the student list, then move to the next question. Typed answers keep their highlights, margin comments, word counts, tab-switch warnings and per-student rubric overrides, and spoken answers keep their takes, time-stamped comments and could-not-record decisions. A rubric attached to a spoken question can now be scored."
         },
         {
           "type": "improvement",
@@ -733,7 +724,7 @@
       "details": [
         {
           "type": "improvement",
-          "text": "Quiz editor — Short Answer and Essay have merged into one Free Response type (badge: FRQ). Both used to share the same manual-grading path; the only difference was the size of the student's editor, so every Free Response question now gets the taller editor with list formatting. Existing quizzes, shared quizzes, PLC-synced quizzes and running assignments that still say short or essay are read as Free Response automatically; nothing is rewritten in your files."
+          "text": "Quiz editor — Short Answer and Essay have merged into one Free Response type (badge: FRQ). You already graded both by hand and the only difference was the size of the student's editor, so every Free Response question now gets the taller editor with list formatting. Quizzes, shared quizzes, PLC-synced quizzes and running assignments that still say short or essay are read as Free Response automatically, and nothing in your files is rewritten."
         },
         {
           "type": "improvement",
@@ -741,7 +732,7 @@
         },
         {
           "type": "feature",
-          "text": "Word limits — the Word cap field is now Word limit with a Min and a Max (either optional). By default the limit is advisory: the student's counter shows the range, for example 42 / 100–200 words, and turns amber outside it. Switch on Enforce limit and the Submit button stays off until the answer is inside the range, with a live note such as \"Write at least 100 words to submit. 38 to go.\" Typing is never blocked, and a question timer still submits whatever the student has written."
+          "text": "Word limits — the Word cap field is now Word limit with a Min and a Max (either optional). The limit is only a guide unless you say otherwise, so the student's counter shows the range, for example 42 / 100–200 words, and turns amber outside it. Switch on Enforce limit and the Submit button stays off until the answer is inside the range, with a live note such as \"Write at least 100 words to submit. 38 to go.\" Typing is never blocked, and a question timer still submits whatever the student has written."
         },
         {
           "type": "improvement",
@@ -823,7 +814,7 @@
         },
         {
           "type": "fix",
-          "text": "Quiz scoring — a duplicate copy of a student's answer for the same question can no longer be counted twice. Previously a rare duplicate (from a sync hiccup) could award a question's points twice and push a student's total above 100%; each question now counts once and the total stays capped at its real maximum."
+          "text": "Quiz scoring — a duplicate copy of a student's answer for the same question can no longer be counted twice. A rare duplicate could award a question's points twice and push a student's total above 100%, and each question now counts once so the total stays at its real maximum."
         },
         {
           "type": "fix",
@@ -895,7 +886,7 @@
         },
         {
           "type": "fix",
-          "text": "Quiz monitor — when the same student turns up on two submissions (for example, they joined once with Google sign-in and again with a PIN, or under the wrong class period), the live monitor now flags both rows with a \"Dup?\" badge. Hovering it explains that a student may have joined twice and to review and remove the extra copy before grading, so you no longer mistake one copy for a student who hasn't finished."
+          "text": "Quiz monitor — when the same student turns up on two submissions (for example, they joined once with Google sign-in and again with a PIN, or under the wrong class period), the live monitor now flags both with a \"Dup?\" badge. Hover it and you get a note explaining that the student may have joined twice and that you should remove the extra copy before grading, so you no longer mistake one copy for a student who hasn't finished."
         }
       ]
     },
@@ -929,7 +920,7 @@
         },
         {
           "type": "fix",
-          "text": "Guided Learning — in auto-advance mode, answering a question no longer restarts the countdown timer. Previously each answer reset the timer back to the top, so a self-paced set could stall on a question and never move on; the timer now keeps running and advances on schedule."
+          "text": "Guided Learning — in auto-advance mode, answering a question no longer restarts the countdown timer. Each answer used to reset the timer to the top so a self-paced set could stall on one question forever, and the timer now keeps running and advances on schedule."
         },
         {
           "type": "fix",
@@ -981,7 +972,7 @@
           "subtitle": "A lighter student look",
           "items": [
             {
-              "text": "Self-paced quizzes and video activities now use a clean, bright light theme; your live, teacher-paced quizzes keep their bold dark look."
+              "text": "Self-paced quizzes and video activities now use a clean, bright light theme, while your live, teacher-paced quizzes keep their bold dark look."
             }
           ]
         },
@@ -1020,11 +1011,11 @@
         },
         {
           "type": "fix",
-          "text": "Grades sent from a Classroom quiz now reach your gradebook reliably. Previously a grade could silently fail to post back to Google Classroom; sending grades now works as expected."
+          "text": "Grades sent from a Classroom quiz now reach your gradebook. A grade could previously fail to post back to Google Classroom without telling you anything."
         },
         {
           "type": "fix",
-          "text": "Students who already finished a Classroom quiz no longer hit a dead end. A student who had completed an active quiz attached to Classroom used to see a \"you've already taken this quiz, talk to your teacher\" message; they're now taken straight to their published results. A student who has used up their attempts sees a clear locked screen inside Classroom rather than being bounced out, and the screenshot watermark on a results screen now identifies the student by name."
+          "text": "Students who already finished a Classroom quiz no longer hit a dead end. A student who had completed an active quiz attached to Classroom used to see a \"you've already taken this quiz, talk to your teacher\" message, and they now go straight to their published results. A student who has used up their attempts sees a clear locked screen inside Classroom rather than being bounced out, and the screenshot watermark on a results screen now identifies the student by name."
         }
       ]
     },
@@ -1239,7 +1230,7 @@
         },
         {
           "type": "fix",
-          "text": "Live quiz — when you reveal answers right after a timer auto-submit, students no longer see a brief flash of \"incorrect\" feedback before the correct response catches up. The reveal now reads from the same local cache the student just committed against, so the feedback matches what they actually answered."
+          "text": "Live quiz — when you reveal answers right after a timer auto-submit, students no longer see a brief flash of \"incorrect\" feedback before the correct response catches up. The reveal now reads the answer the student just submitted, so the feedback always matches what they actually chose."
         },
         {
           "type": "improvement",
@@ -1308,7 +1299,7 @@
         },
         {
           "type": "improvement",
-          "text": "Live quiz — lobby attendees are no longer force-submitted while the session sits in the waiting state. If you create a quiz, students join the lobby, and you get pulled away before launching question 1, those students stay in the lobby with their join intact instead of being auto-finalized with 0 answers after 90 minutes. Lobby sessions that sit untouched for more than 24 hours are treated as abandoned and swept on the next cron pass, so old practice/demo sessions don't accumulate as never-finalized rows."
+          "text": "Live quiz — students waiting in the lobby are no longer force-submitted before you start the quiz. If you create a quiz, students join the lobby, and you get pulled away before launching question 1, those students stay in the lobby with their join intact instead of being finalized with 0 answers after 90 minutes. A lobby session left untouched for more than 24 hours is treated as abandoned and closed out the next day, so old practice and demo sessions stop piling up on your list."
         },
         {
           "type": "improvement",
@@ -1316,7 +1307,7 @@
         },
         {
           "type": "improvement",
-          "text": "Scoreboard widget — the Cards / Rows layout toggle moved from the widget header into the Settings panel as a labelled control. Existing scoreboards keep whichever layout they were already using; the header is now reserved for the score display itself."
+          "text": "Scoreboard widget — the Cards / Rows layout toggle moved from the widget header into the Settings panel as a labelled control. Existing scoreboards keep whichever layout they were already using, and the header is now reserved for the scores themselves."
         },
         {
           "type": "improvement",
@@ -1385,7 +1376,7 @@
         },
         {
           "type": "improvement",
-          "text": "Live quiz — abandoned attempts that sit untouched for 90 minutes are now auto-submitted in the background and marked complete, instead of staying as \"in progress\" on the teacher's monitor forever. Whatever the student had answered is kept; unanswered questions stay blank."
+          "text": "Live quiz — an abandoned attempt that sits untouched for 90 minutes is now submitted for the student and marked complete, instead of sitting on your monitor as \"in progress\" forever. Whatever the student answered is kept, and unanswered questions stay blank."
         },
         {
           "type": "improvement",
@@ -1498,7 +1489,7 @@
               "text": "Guided Learning matching questions no longer mark a student correct when they include extra wrong pairs."
             },
             {
-              "text": "AI quiz and mini-app generation no longer fails to parse when the AI returns a list of items."
+              "text": "AI quiz and mini-app generation no longer fails on a perfectly good response."
             },
             {
               "text": "\"Saved\", \"Success\", and \"Error\" messages now show in German, Spanish, and French."
@@ -1565,7 +1556,7 @@
         },
         {
           "type": "fix",
-          "text": "Random widget result text now sizes to what's actually displayed. Short results like \"1.\" fill the widget instead of being pinned to the size of the longest roster name, and three sizing regimes (spinning, settled, placeholder) make each state look intentional."
+          "text": "Random widget result text now sizes to whatever is on screen. A short result like \"1.\" fills the widget instead of shrinking to fit the longest name on your roster, and the spinning, settled and empty states each get their own sizing."
         },
         {
           "type": "fix",
@@ -1577,11 +1568,11 @@
         },
         {
           "type": "fix",
-          "text": "Guided Learning matching questions are now graded strictly. A student who submitted every correct pair plus one extra wrong pair was previously getting full credit; the answer is now marked wrong unless the submission matches the expected pairs exactly."
+          "text": "Guided Learning matching questions are now graded strictly. A student who submitted every correct pair plus one extra wrong pair used to get full credit, and the answer is now marked wrong unless it matches the expected pairs exactly."
         },
         {
           "type": "fix",
-          "text": "AI-generated content (quiz items, mini-app pieces, and other Gemini-driven outputs) no longer fails to parse when the AI returns a top-level list of items instead of an object. \"Couldn't read the AI response\" errors on otherwise valid generations should be gone."
+          "text": "AI-generated quiz questions, mini-app pieces and other AI output no longer fail on a response SpartBoard could not read. \"Couldn't read the AI response\" errors on otherwise good generations are gone."
         },
         {
           "type": "fix",
@@ -1688,7 +1679,7 @@
         },
         {
           "type": "feature",
-          "text": "Background templates on the Draw widget — each page can use a Blank, Grid, Lines, or Dots background. Pick the template in settings; the active page updates right away and your choice becomes the default for new pages on that widget."
+          "text": "Background templates on the Draw widget — each page can use a Blank, Grid, Lines, or Dots background. Pick the template in settings and the current page updates right away, and your choice becomes the default for new pages on that widget."
         },
         {
           "type": "improvement",
@@ -1704,7 +1695,7 @@
         },
         {
           "type": "fix",
-          "text": "The color picker in the Boards Manager (used when assigning a color to a collection) now shows the correct labels in German, Spanish, and French. Previously these languages were missing the new picker's strings and showed raw key names."
+          "text": "The color picker in the Boards Manager (used when assigning a color to a collection) now shows the correct labels in German, Spanish, and French. These languages were missing the new picker's translations and showed unreadable placeholder text instead."
         },
         {
           "type": "fix",
@@ -1712,7 +1703,7 @@
         },
         {
           "type": "fix",
-          "text": "Widgets whose stored position was partially converted to the newer proportional layout now render at the correct spot. Previously a partial conversion could leave a widget at the wrong on-screen position until you moved it by hand."
+          "text": "Widgets left half-converted by an earlier layout change now open in the right place on the board. One of these widgets could previously sit in the wrong spot until you dragged it back by hand."
         }
       ]
     },
@@ -1947,7 +1938,7 @@
           "subtitle": "SMART Notebook lessons",
           "items": [
             {
-              "text": "Import your existing SMART Notebook lessons — pages keep their original order and embedded images render correctly."
+              "text": "Import your existing SMART Notebook lessons — pages keep their original order and embedded images come through intact."
             },
             {
               "text": "Open any page to edit it: move, resize, duplicate, or retype objects, and add, delete, or reorder pages."
@@ -2001,7 +1992,7 @@
       "details": [
         {
           "type": "feature",
-          "text": "SMART Notebook import — bring your existing SMART Notebook lessons into SpartBoard. Pages now arrive in their true display order (instead of being scrambled), and embedded images that previously showed up blank render faithfully."
+          "text": "SMART Notebook import — bring your existing SMART Notebook lessons into SpartBoard. Pages now arrive in their true order instead of scrambled, and embedded images that used to show up blank come through intact."
         },
         {
           "type": "feature",
@@ -2112,7 +2103,7 @@
         },
         {
           "type": "feature",
-          "text": "Duplicate a Collection — copy a whole Collection (name + color) along with every board inside it in one action. Sub-collections are left in place so the operation stays bounded; you can re-run Duplicate on any sub-folder you also want to copy."
+          "text": "Duplicate a Collection — copy a whole Collection (name + color) along with every board inside it in one action. Sub-collections are left where they are, so run Duplicate again on any sub-folder you also want to copy."
         },
         {
           "type": "improvement",
@@ -2199,7 +2190,7 @@
         },
         {
           "type": "improvement",
-          "text": "Sidebar Style panel — removed the Save/Discard footer; every control now applies live as you change it, with smoother sliders."
+          "text": "Sidebar Style panel — the Save/Discard footer is gone and every control now applies as you change it, with smoother sliders."
         },
         {
           "type": "improvement",
