@@ -48,9 +48,7 @@ describe('mergeAnnotationObjects', () => {
   });
 
   it('recognizes untouched ink after a stableStringify baseline round trip', () => {
-    // The real baseline is parsed back out of a stableStringify'd (alphabetized)
-    // snapshot, as `parseAnnotationBaseline` does in DashboardContext — not a
-    // literal copy of the local object in its original key order.
+    // Mirrors parseAnnotationBaseline: the baseline is alphabetized, not a literal copy.
     const local = rect('X', 5);
     const baseline = JSON.parse(stableStringify(local)) as DrawableObject;
     const remoteEdit = rect('X', 99);

@@ -11,7 +11,7 @@ export const mergeAnnotationObjects = (
   server: DrawableObject[],
   baseline: DrawableObject[]
 ): DrawableObject[] => {
-  // stableStringify: the baseline round-trips through an alphabetized snapshot, so plain JSON.stringify never matches an untouched object and drops remote edits/deletes.
+  // stableStringify, not JSON.stringify: baseline is alphabetized on round-trip.
   const baseById = new Map(baseline.map((o) => [o.id, stableStringify(o)]));
   const serverById = new Map(server.map((o) => [o.id, o]));
   const localIds = new Set(local.map((o) => o.id));
