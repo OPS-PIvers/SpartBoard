@@ -18,7 +18,6 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { useDialog } from '@/context/useDialog';
 import { extractTextWithGemini } from '@/utils/ai';
-import Tesseract from 'tesseract.js';
 import { WidgetLayout } from '../WidgetLayout';
 import { CapturedItem } from './types';
 
@@ -183,6 +182,8 @@ export const WebcamWidget: React.FC<{
       if (ocrMode === 'gemini') {
         text = await extractTextWithGemini(dataUrl);
       } else {
+        // Loaded on demand: tesseract.js is multi-megabyte and only the local OCR mode needs it.
+        const { default: Tesseract } = await import('tesseract.js');
         const result = await Tesseract.recognize(dataUrl, 'eng');
         text = result.data.text;
       }

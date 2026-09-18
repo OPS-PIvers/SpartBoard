@@ -208,9 +208,9 @@ export const checkUrlCompatibility = onCall(
       };
     } catch (error: unknown) {
       console.error('Compatibility Check Error:', error);
-      // Some sites block HEAD requests or have other issues
+      // Fail closed: a HEAD the site refused tells us nothing, so never report it as verified.
       return {
-        isEmbeddable: true, // Assume okay if we can't check, but we'll flag the error
+        isEmbeddable: false,
         error: error instanceof Error ? error.message : 'Failed to check site',
         uncertain: true,
       };
