@@ -40,8 +40,13 @@ const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
  */
 export const LEGACY_CODE_QUERY_ENABLED = true;
 
-/** Cap on pointers read per code — a code accumulates one per session that used it. */
-const MAX_POINTERS_PER_CODE = 10;
+/**
+ * Cap on pointers read per code — a code accumulates one per session that used
+ * it, and each one costs a `get`. Sessions past the cap become unreachable BY
+ * CODE once the legacy query goes away, so this is set well above the handful a
+ * recycled code realistically collects rather than at the cost floor.
+ */
+const MAX_POINTERS_PER_CODE = 25;
 
 export interface QuizSessionMatch {
   id: string;

@@ -67,6 +67,11 @@ allow get: if request.auth != null;
 allow list: if request.auth != null && sessionListScoped();
 ```
 
+Check `MAX_POINTERS_PER_CODE` before flipping: the pointer path reads only the newest N pointers
+per code, and once the legacy query is gone a session past that cap is no longer reachable by code
+— which the review screen depends on. The dry run's per-code counts say whether any real code is
+anywhere near it.
+
 `sessionListScoped()` is the helper PR #3133 added. After phase 1 the only remaining `list`
 queries against `quiz_sessions` are the two My Assignments class shapes in
 `hooks/useStudentAssignments.ts` (`classId in [...]` and `classIds array-contains-any [...]`),
