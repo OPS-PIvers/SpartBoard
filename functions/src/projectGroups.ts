@@ -20,6 +20,15 @@ interface CommitProjectGroupEntry {
 
 const asString = (v: unknown): string => (typeof v === 'string' ? v : '');
 
+/** A Firestore document id, so a crafted one is rejected rather than thrown on. */
+const isDocumentId = (v: string): boolean =>
+  v.length > 0 &&
+  v.length <= 1500 &&
+  !v.includes('/') &&
+  v !== '.' &&
+  v !== '..' &&
+  !/^__.*__$/.test(v);
+
 function parseGroups(raw: unknown): CommitProjectGroupEntry[] {
   if (!Array.isArray(raw)) {
     throw new HttpsError('invalid-argument', 'groups must be an array.');
@@ -49,6 +58,12 @@ function parseGroups(raw: unknown): CommitProjectGroupEntry[] {
       throw new HttpsError(
         'invalid-argument',
         `groups[${index}] needs id, name and classId.`
+      );
+    }
+    if (!isDocumentId(id)) {
+      throw new HttpsError(
+        'invalid-argument',
+        `groups[${index}] has an id that is not a document id.`
       );
     }
     const sourcedIds = Array.isArray(e.classLinkSourcedIds)
@@ -95,6 +110,9 @@ export const commitProjectGroupsV1 = onCall(
     const runId = asString(rawData.runId);
     if (!runId) {
       throw new HttpsError('invalid-argument', 'runId is required.');
+    }
+    if (!isDocumentId(runId)) {
+      throw new HttpsError('invalid-argument', 'runId is not a document id.');
     }
     const groups = parseGroups(rawData.groups);
 

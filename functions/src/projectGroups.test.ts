@@ -180,6 +180,21 @@ describe('commitProjectGroupsV1 input validation', () => {
     });
   });
 
+  // A `/` in an id makes `.doc()` throw before any of the checks above run, so
+  // these have to be rejected by format, not just by emptiness.
+  it.each([
+    [{ runId: 'teacher-1/run', groups: [groupEntry()] }],
+    [{ runId: '..', groups: [groupEntry()] }],
+    [{ runId: '__name__', groups: [groupEntry()] }],
+    [{ runId: RUN_ID, groups: [groupEntry({ id: 'a/b' })] }],
+    [{ runId: RUN_ID, groups: [groupEntry({ id: '.' })] }],
+    [{ runId: RUN_ID, groups: [groupEntry({ id: 'x'.repeat(1501) })] }],
+  ])('rejects a crafted document id %j', async (payload) => {
+    await expect(call(payload)).rejects.toMatchObject({
+      code: 'invalid-argument',
+    });
+  });
+
   it('rejects more groups than the ceiling allows', async () => {
     const groups = Array.from({ length: 33 }, (_, i) =>
       groupEntry({ id: `g${i}` })
