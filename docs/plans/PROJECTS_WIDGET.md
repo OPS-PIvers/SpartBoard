@@ -135,15 +135,17 @@ wrong.
 - **D30.** Students **see every group's progress, edit only their own.** The projected board already
   shows everyone, and the peer pressure she wants requires visibility.
 
-## 4. Assumptions derived, not asked — confirm before building
+## 4. Assumptions derived, not asked
 
-- **A1.** `readyForReview` was originally framed as a group-level flag alongside `needsSupport`, then
-  the per-step-approval decision (D3) made it a step state. Reconciled as D2: it is a step state
-  available on every step, and the student ceiling only on approval steps. This was my reconciliation,
-  not Paul's explicit answer.
-- **A2.** Grades live in a **sibling doc** (`grades/{groupId}`), not on the group doc, with a
-  `released` flag — otherwise a member reading their own group doc reads an unreleased score. Paul
-  said when students see the _rubric_, not when they see the _score_.
+A1 and A2 were escalated and **confirmed on 2026-09-18**; they are binding, not open. A3–A8 remain
+inferences — none blocks PR 1, but flag any that turn out wrong during build rather than quietly
+working around them.
+
+- **A1 (confirmed).** `readyForReview` was originally framed as a group-level flag alongside
+  `needsSupport`, then the per-step-approval decision (D3) made it a step state. Reconciled as D2:
+  it is a step state available on every step, and the student ceiling only on approval steps.
+- **A2 (confirmed).** Grades live in a **sibling doc** (`grades/{groupId}`), not on the group doc,
+  with a `released` flag — otherwise a member reading their own group doc reads an unreleased score.
 - **A3.** Student gating reads the **group doc's own `classId`**, never a `get()` on the parent run,
   to avoid a rules-side document read on every group read.
 - **A4.** Per-student override is stored as an **absolute point value plus a note**, not a delta.
