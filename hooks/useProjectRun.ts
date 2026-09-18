@@ -1,7 +1,4 @@
-/**
- * Live view of one project run and its groups (D13), plus the writes both the
- * board face and the student page make.
- */
+/** Live view of one project run and its groups, plus the writes against them (D13). */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {

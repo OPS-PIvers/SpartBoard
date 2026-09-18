@@ -7,6 +7,7 @@ import {
   makeWorkLink,
   normalizeWorkLinkUrl,
   parseStepLines,
+  projectClassIdFor,
   sortGroupsForBoard,
   stepLinesFrom,
   studentStateOptions,
@@ -146,5 +147,27 @@ describe('makeWorkLink', () => {
 
   it('returns null for a url it will not store', () => {
     expect(makeWorkLink('javascript:alert(1)', 'uid-1')).toBeNull();
+  });
+});
+
+describe('projectClassIdFor', () => {
+  it('uses the ClassLink class when the roster has one', () => {
+    expect(
+      projectClassIdFor({ id: 'roster-1', classlinkClassId: 'section-a' })
+    ).toBe('section-a');
+  });
+
+  it('falls back to a local id so a hand-built roster still tracks (D6)', () => {
+    expect(projectClassIdFor({ id: 'roster-1' })).toBe('local:roster-1');
+  });
+
+  it('treats a blank ClassLink id as no ClassLink class', () => {
+    expect(projectClassIdFor({ id: 'roster-1', classlinkClassId: '  ' })).toBe(
+      'local:roster-1'
+    );
+  });
+
+  it('is null with no roster, which is what the board reads as no class', () => {
+    expect(projectClassIdFor(undefined)).toBeNull();
   });
 });

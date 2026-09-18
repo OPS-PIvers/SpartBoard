@@ -122,63 +122,82 @@ export const ScoreboardItem = React.memo(
     const colorClass = normalizeScoreboardColor(team.color);
     const buttonIconColor = getStyles(colorClass).button;
 
+    // Digit-aware sizing, per layout: stacked gets the full card width minus
+    // padding; side-by-side gets whatever the two button chips leave behind.
+    const digitCount = Math.max(String(team.score ?? 0).length, 1);
+    const stackedFontSize = `clamp(16px, min(${Math.min(
+      70,
+      125 / digitCount
+    ).toFixed(1)}cqw, 40cqh), 220px)`;
+    const sideFontSize = `clamp(16px, min(calc((100cqw - 72cqh) / ${(
+      0.62 * digitCount
+    ).toFixed(2)}), 50cqh), 220px)`;
+
     return (
       <div
-        className={`flex flex-col items-center justify-center ${colorClass} text-white rounded-2xl border border-white/20 shadow-sm relative group transition-all hover:shadow-md`}
-        style={{
-          containerType: 'size',
-          padding: 'clamp(4px, 5cqmin, 24px)',
-        }}
+        className={`${colorClass} text-white rounded-2xl border border-white/20 shadow-sm relative group transition-all hover:shadow-md`}
+        style={{ containerType: 'size' }}
       >
+        {/* Padding lives inside so its cqmin resolves against the card, not the board. */}
         <div
-          className="font-black uppercase tracking-widest text-white text-center line-clamp-1 w-full"
-          style={{
-            fontSize: 'clamp(10px, 10cqmin, 48px)',
-            marginBottom: 'clamp(2px, 2cqmin, 12px)',
-            paddingLeft: 'clamp(2px, 2cqmin, 12px)',
-            paddingRight: 'clamp(2px, 2cqmin, 12px)',
-          }}
+          className="flex flex-col items-center justify-center h-full w-full"
+          style={{ padding: 'clamp(4px, 5cqmin, 24px)' }}
         >
-          {team.name}
-        </div>
-        <div
-          className="flex items-center justify-center w-full flex-1 min-h-0"
-          style={{ gap: 'clamp(4px, 4cqmin, 24px)' }}
-        >
-          <button
-            onClick={() => onUpdateScore(team.id, -1)}
-            aria-label="Decrease score"
-            className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
-            style={{ padding: 'clamp(4px, 6cqmin, 28px)' }}
-          >
-            <Minus
-              style={{
-                width: 'clamp(12px, 14cqmin, 56px)',
-                height: 'clamp(12px, 14cqmin, 56px)',
-              }}
-            />
-          </button>
           <div
-            className="font-black text-white tabular-nums drop-shadow-sm flex-1 text-center min-w-0 leading-none"
+            className="font-black uppercase tracking-widest text-white text-center line-clamp-1 w-full shrink-0"
             style={{
-              fontSize: 'clamp(16px, 45cqmin, 220px)',
+              fontSize: 'clamp(10px, 10cqmin, 48px)',
+              marginBottom: 'clamp(2px, 2cqmin, 12px)',
+              paddingLeft: 'clamp(2px, 2cqmin, 12px)',
+              paddingRight: 'clamp(2px, 2cqmin, 12px)',
             }}
           >
-            {team.score}
+            {team.name}
           </div>
-          <button
-            onClick={() => onUpdateScore(team.id, 1)}
-            aria-label="Increase score"
-            className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
-            style={{ padding: 'clamp(4px, 6cqmin, 28px)' }}
+          {/* Wraps to score-over-buttons on portrait cards; one row once the card is clearly wider than tall. */}
+          <div
+            className="flex flex-wrap content-center items-center justify-center w-full flex-1 min-h-0 [@container(min-aspect-ratio:1.4)]:flex-nowrap"
+            style={{ gap: 'clamp(4px, 4cqmin, 24px)' }}
           >
-            <Plus
-              style={{
-                width: 'clamp(12px, 14cqmin, 56px)',
-                height: 'clamp(12px, 14cqmin, 56px)',
-              }}
-            />
-          </button>
+            <button
+              onClick={() => onUpdateScore(team.id, -1)}
+              aria-label="Decrease score"
+              className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
+              style={{ padding: 'clamp(4px, 6cqmin, 28px)' }}
+            >
+              <Minus
+                style={{
+                  width: 'clamp(12px, 14cqmin, 56px)',
+                  height: 'clamp(12px, 14cqmin, 56px)',
+                }}
+              />
+            </button>
+            {/* --fs-pick is only set inside the container query, so the fallback picks the stacked size. */}
+            <div
+              className="order-first basis-full font-black text-white tabular-nums drop-shadow-sm text-center min-w-0 leading-none [@container(min-aspect-ratio:1.4)]:order-none [@container(min-aspect-ratio:1.4)]:basis-auto [@container(min-aspect-ratio:1.4)]:flex-1 [@container(min-aspect-ratio:1.4)]:[--fs-pick:var(--fs-side)]"
+              style={
+                {
+                  '--fs-side': sideFontSize,
+                  fontSize: `var(--fs-pick, ${stackedFontSize})`,
+                } as React.CSSProperties
+              }
+            >
+              {team.score}
+            </div>
+            <button
+              onClick={() => onUpdateScore(team.id, 1)}
+              aria-label="Increase score"
+              className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
+              style={{ padding: 'clamp(4px, 6cqmin, 28px)' }}
+            >
+              <Plus
+                style={{
+                  width: 'clamp(12px, 14cqmin, 56px)',
+                  height: 'clamp(12px, 14cqmin, 56px)',
+                }}
+              />
+            </button>
+          </div>
         </div>
       </div>
     );

@@ -67,17 +67,13 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
     [config, updateWidget, widget.id]
   );
 
-  /**
-   * The library doc is the source of truth; the run carries a snapshot so a
-   * student read never has to reach into the teacher's library (D12/D13).
-   */
+  // D12/D13 — the run carries a snapshot so students never read the library.
   const persistProject = useCallback(
     async (next: ProjectDefinition) => {
       try {
         await saveProject(next);
         if (run) {
-          // The run carries a snapshot of the rubric too (D12/D13): a student
-          // read must never reach into the teacher's rubric library.
+          // The rubric is snapshotted onto the run for the same reason.
           await updateRun({
             title: next.title,
             steps: next.steps,

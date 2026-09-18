@@ -254,6 +254,29 @@ describe('group document', () => {
     );
   });
 
+  it('constrains the values a member may write, not just the keys', async () => {
+    await seed();
+    const db = asStudent(MEMBER_UID, [CLASS_ID]);
+    // The client sanitizes work links, but the client is not the boundary.
+    await assertFails(
+      updateDoc(doc(db, GROUP_PATH), { needsSupport: 'yes please' })
+    );
+    await assertFails(
+      updateDoc(doc(db, GROUP_PATH), {
+        workLinks: Array.from({ length: 21 }, (_, i) => ({
+          id: `w${i}`,
+          url: 'https://example.com',
+          addedByUid: MEMBER_UID,
+          addedAt: 1,
+        })),
+      })
+    );
+    await assertFails(updateDoc(doc(db, GROUP_PATH), { updatedAt: 'now' }));
+    await assertSucceeds(
+      updateDoc(doc(db, GROUP_PATH), { needsSupport: true, updatedAt: 3 })
+    );
+  });
+
   it('denies a member editing membership, name or class', async () => {
     await seed();
     const db = asStudent(MEMBER_UID, [CLASS_ID]);
@@ -321,6 +344,29 @@ describe('event log', () => {
       setDoc(doc(db, eventPath), event(MEMBER_UID, 'student'))
     );
     await assertFails(updateDoc(doc(db, eventPath), { kind: 'upload' }));
+  });
+
+  it('pins actorRole to what the caller actually is', async () => {
+    await seed();
+    // Correctly attributed to their own uid, but claiming the teacher's role.
+    await assertFails(
+      setDoc(
+        doc(asStudent(MEMBER_UID, [CLASS_ID]), eventPath),
+        event(MEMBER_UID, 'teacher')
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(asTeacher(TEACHER_UID), eventPath),
+        event(TEACHER_UID, 'student')
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(TEACHER_UID), eventPath),
+        event(TEACHER_UID, 'teacher')
+      )
+    );
   });
 
   it('is never readable by a student, including their own entry', async () => {
@@ -643,11 +689,14 @@ describe('group uploads', () => {
 });
 
 describe('a deactivated teacher', () => {
-  it('loses read and write on the groups and grades of their own run', async () => {
+  it('loses read and write on their own run, groups and grades', async () => {
     await seed();
     await assertSucceeds(getDoc(doc(asTeacher(TEACHER_UID), GROUP_PATH)));
 
     await deactivateTeacher();
+    await assertFails(
+      getDoc(doc(asTeacher(TEACHER_UID), 'project_runs', RUN_ID))
+    );
     await assertFails(getDoc(doc(asTeacher(TEACHER_UID), GROUP_PATH)));
     await assertFails(
       updateDoc(doc(asTeacher(TEACHER_UID), GROUP_PATH), { name: 'Renamed' })

@@ -191,6 +191,32 @@ describe('ProjectsWidget', () => {
     );
   });
 
+  it('locks only the segment being written, not the whole board', async () => {
+    let release: () => void = () => undefined;
+    setStepState.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (release = () => resolve()))
+    );
+    mockRun({
+      groups: [group(), group({ id: 'g2', name: 'Group 2', order: 1 })],
+    });
+    render(<ProjectsWidget widget={widget()} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
+      ).toBeDisabled()
+    );
+    // The other group stays live: a swallowed click is the bug being fixed.
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Group 2, Draft, Not started' })
+    );
+    await waitFor(() => expect(setStepState).toHaveBeenCalledTimes(2));
+    release();
+  });
+
   it('swaps the bar for counts when status is hidden', () => {
     render(<ProjectsWidget widget={widget({ showStatus: false })} />);
     expect(screen.getByText('1 of 2 done')).toBeInTheDocument();
@@ -211,6 +237,20 @@ describe('ProjectsWidget', () => {
       screen.getByText(/showing\s+counts instead of the bar/)
     ).toBeInTheDocument();
     expect(screen.getAllByText('1 of 2 done')).toHaveLength(9);
+  });
+
+  it('tracks a hand-built roster under its local class id (D6)', () => {
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      updateWidget,
+      addToast: vi.fn(),
+      rosters: [{ id: 'roster-2', name: 'Club' }],
+      activeRosterId: 'roster-2',
+      activeDashboard: { globalStyle: { fontFamily: 'sans' } },
+    });
+    mockRun({ groups: [group({ classId: 'local:roster-2' })] });
+    render(<ProjectsWidget widget={widget()} />);
+    expect(screen.getByText('Group 1')).toBeInTheDocument();
+    expect(screen.queryByText('Pick a class')).not.toBeInTheDocument();
   });
 
   it('asks for a class when none is active', () => {

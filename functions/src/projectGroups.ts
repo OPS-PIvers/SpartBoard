@@ -4,15 +4,7 @@ import './functionsInit';
 import { STUDENT_PSEUDONYM_HMAC_SECRET } from './secrets';
 import { ALLOWED_ORIGINS, computeStudentUid } from './classlinkShared';
 
-// Projects widget group import (docs/plans/PROJECTS_WIDGET.md D8).
-//
-// The split between client and server is forced, not chosen. The roster's
-// student list lives in the teacher's Drive file, so a function cannot read it
-// and resolve `Student.id` → `classLinkSourcedId` itself; the HMAC secret is
-// server-side only, so a client cannot turn a sourcedId into the member uid
-// that `firestore.rules` gates on. The client resolves the sourcedIds from the
-// roster it already has loaded and posts them here; this function applies the
-// HMAC and writes the group docs.
+// Projects widget group import: client posts sourcedIds, server applies the HMAC (D8).
 
 /** D26 — the board face degrades to counts beyond this, and 32 is well past it. */
 const MAX_GROUPS = 32;
@@ -80,18 +72,7 @@ function parseGroups(raw: unknown): CommitProjectGroupEntry[] {
   });
 }
 
-/**
- * commitProjectGroupsV1
- *
- * Input: `{ runId, groups: Array<{ id, name, classId, order, classLinkSourcedIds }> }`
- *
- * The caller must be the run's teacher. Writes one group doc per entry, minting
- * `memberUids` from the posted sourcedIds, and refreshes the run's `classIds`.
- *
- * D9 — a re-import creates a NEW group set, so this only ever writes the groups
- * it was handed. It never deletes groups the caller did not name: a reshuffle
- * cannot silently destroy tracked work.
- */
+/** Teacher-only. Writes only the groups it was handed, never deleting others (D9). */
 export const commitProjectGroupsV1 = onCall(
   {
     memory: '256MiB',
@@ -156,8 +137,7 @@ export const commitProjectGroupsV1 = onCall(
       membersResolved += memberUids.length;
       const ref = runRef.collection('groups').doc(group.id);
       if (alreadyTracked.has(group.id)) {
-        // D10 — a membership edit on a running project moves who may edit and
-        // nothing else. Step states, links and files stay exactly where they are.
+        // D10 — a membership edit moves who may edit, and nothing else.
         batch.update(ref, {
           name: group.name,
           classId: group.classId,

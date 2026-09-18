@@ -5082,7 +5082,8 @@ service cloud.firestore {
       // on a list evaluation throws instead of returning false, which fails
       // the whole rule rather than falling through to the student branch.
       allow get: if request.auth != null
-                 && (resource.data.get('teacherUid', '') == request.auth.uid
+                 && ((resource.data.get('teacherUid', '') == request.auth.uid
+                      && notDeactivated())
                      || pjStudentInAnyClass(resource.data.get('classIds', [])));
       // A list rule is evaluated ONCE against the query with an EMPTY resource,
       // so every clause must be provable from the client's own filters. These
@@ -5095,12 +5096,14 @@ service cloud.firestore {
       // (`|| isStudentRoleUser()`): it is provable for every caller and
       // silently reopens the collection to enumeration.
       function pjRunListScoped() {
-        return resource.data.teacherUid == request.auth.uid ||
+        return (resource.data.teacherUid == request.auth.uid && notDeactivated()) ||
                (request.auth.token.get('classIds', []) is list &&
                 resource.data.get('classIds', [])
                   .hasAny(request.auth.token.get('classIds', [])));
       }
-      allow list: if request.auth != null && pjRunListScoped();
+      allow list: if request.auth != null
+                  && request.auth.token.firebase.sign_in_provider != 'anonymous'
+                  && pjRunListScoped();
       allow create: if pjTeacher()
                     && request.resource.data.teacherUid == request.auth.uid
                     && request.resource.data.id == runId
@@ -5123,10 +5126,19 @@ service cloud.firestore {
       match /groups/{groupId} {
         // A3: student reads gate on the group's own classId, never a get() of
         // the parent run — that would cost a document read per group per render.
+        // Which keys a member may touch, and what may go in them. CEL cannot walk
+        // `workLinks` to validate each entry, so the list is capped and typed here
+        // and its contents stay the client's business.
         function pjStudentEditableFields() {
-          return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          let after = request.resource.data;
+          return after.diff(resource.data).affectedKeys().hasOnly([
                    'stepStates', 'needsSupport', 'workLinks', 'lastStepChange', 'updatedAt'
-                 ]);
+                 ])
+                 && after.get('needsSupport', false) is bool
+                 && after.get('workLinks', []) is list
+                 && after.get('workLinks', []).size() <= 20
+                 && after.get('updatedAt', 0) is int
+                 && after.get('lastStepChange', {}).get('at', 0) is int;
         }
         // Enforces the per-step approval ceiling (D2/D3). CEL cannot walk a map
         // applying a per-key rule, so a student write declares the one step it
@@ -5161,14 +5173,16 @@ service cloud.firestore {
         allow create, delete: if pjIsRunTeacher();
 
         // D24: the event log is the teacher's audit trail, never student-visible.
-        // Append-only, and `actorUid` is pinned to the caller, so an entry can
-        // never be forged onto someone else, edited, or deleted.
+        // Append-only; `actorUid` is pinned to the caller and `actorRole` to what
+        // the caller actually is, so an entry can never be forged onto someone
+        // else, mislabelled, edited, or deleted.
         match /events/{eventId} {
           allow read: if pjIsRunTeacher();
           allow create: if request.auth != null
                         && request.resource.data.actorUid == request.auth.uid
                         && request.resource.data.at is int
-                        && request.resource.data.actorRole in ['student', 'teacher']
+                        && request.resource.data.actorRole
+                           == (pjIsRunTeacher() ? 'teacher' : 'student')
                         && request.resource.data.kind in [
                              'stepState', 'needsSupport', 'workLink', 'upload', 'membership'
                            ]
