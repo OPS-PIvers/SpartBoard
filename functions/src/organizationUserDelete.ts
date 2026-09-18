@@ -52,6 +52,11 @@ type Firestore = admin.firestore.Firestore;
  */
 export const DELETE_ROLE_IDS: readonly string[] = ['super_admin'];
 
+// Operator org — the fixed path the rules' isMemberSuperAdmin() reads, since
+// CEL cannot resolve the caller's own org dynamically. Mirrors
+// `OPERATOR_ORG_ID` in config/organization.ts and studentAssignmentTargets.ts.
+export const OPERATOR_ORG_ID = 'orono';
+
 /** Runaway guard; a teacher with more shared boards than this still reports. */
 export const MAX_BLOCKERS_REPORTED = 50;
 
@@ -116,22 +121,25 @@ export function parseDeletePayload(data: unknown): DeleteUserPayload {
 
 /**
  * Fails closed. Mirrors `isMemberSuperAdmin()` / `isLegacySuperAdmin()` in
- * firestore.rules — a `/admins/{email}` doc alone is NOT enough, because that
- * collection also carries mirrored building_admins.
+ * firestore.rules: the member doc is read from the OPERATOR org by fixed path,
+ * never the target org, because a `super_admin` roleId in any other org grants
+ * nothing server-side. An `/admins/{email}` doc is deliberately not a source —
+ * `organizationMembersSync` mirrors building_admins into it too.
  */
 export async function assertCallerMayDelete(
   db: Firestore,
-  orgId: string,
   callerEmailLower: string
 ): Promise<void> {
-  const memberSnap = await db
-    .doc(`organizations/${orgId}/members/${callerEmailLower}`)
-    .get();
-  if (memberSnap.exists) {
-    const roleId = asString(memberSnap.get('roleId'));
+  const [operatorSnap, legacySnap] = await Promise.all([
+    db
+      .doc(`organizations/${OPERATOR_ORG_ID}/members/${callerEmailLower}`)
+      .get(),
+    db.doc('admin_settings/user_roles').get(),
+  ]);
+  if (operatorSnap.exists) {
+    const roleId = asString(operatorSnap.get('roleId'));
     if (DELETE_ROLE_IDS.includes(roleId)) return;
   }
-  const legacySnap = await db.doc('admin_settings/user_roles').get();
   const legacy = legacySnap.exists
     ? asStringArray(legacySnap.get('superAdmins'))
     : [];
@@ -194,7 +202,7 @@ export async function findOtherOrgMemberships(
   const orgs = await db.collection('organizations').get();
   const others = orgs.docs.filter((d) => d.id !== orgId);
   const hits = await Promise.all(
-    others.map(async (o) => {
+    others.map(async (o): Promise<{ id: string; name?: unknown } | null> => {
       const snap = await db
         .doc(`organizations/${o.id}/members/${emailLower}`)
         .get();
@@ -296,7 +304,7 @@ export const deleteOrganizationUser = onCall(
     const { orgId, email, dryRun } = parseDeletePayload(request.data);
 
     const db = admin.firestore();
-    await assertCallerMayDelete(db, orgId, callerEmailLower);
+    await assertCallerMayDelete(db, callerEmailLower);
 
     // An admin deleting themselves would strip their own super_admin mirror
     // mid-operation and could leave the org with no one able to administer it.

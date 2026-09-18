@@ -254,13 +254,28 @@ describe('classifyBlockers', () => {
 });
 
 describe('assertCallerMayDelete', () => {
-  it('admits a super_admin member', async () => {
+  it('admits a super_admin member of the operator org', async () => {
     const { db } = makeDb({
       docs: { 'organizations/orono/members/boss@x': { roleId: 'super_admin' } },
     });
     await expect(
-      assertCallerMayDelete(db as never, 'orono', 'boss@x')
+      assertCallerMayDelete(db as never, 'boss@x')
     ).resolves.toBeUndefined();
+  });
+
+  it('ignores a super_admin roleId held in a NON-operator org', async () => {
+    // firestore.rules reads isMemberSuperAdmin() from `organizations/orono`
+    // by fixed path, so a super_admin roleId elsewhere grants nothing. This
+    // callable must not be the one place that honours it.
+    const { db } = makeDb({
+      docs: {
+        'organizations/other/members/imposter@x': { roleId: 'super_admin' },
+        'admin_settings/user_roles': { superAdmins: [] },
+      },
+    });
+    await expect(
+      assertCallerMayDelete(db as never, 'imposter@x')
+    ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 
   it('rejects a domain_admin — narrower than the rest of the panel', async () => {
@@ -272,7 +287,7 @@ describe('assertCallerMayDelete', () => {
       },
     });
     await expect(
-      assertCallerMayDelete(db as never, 'orono', 'dom@x')
+      assertCallerMayDelete(db as never, 'dom@x')
     ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 
@@ -281,14 +296,14 @@ describe('assertCallerMayDelete', () => {
       docs: { 'admin_settings/user_roles': { superAdmins: ['legacy@x'] } },
     });
     await expect(
-      assertCallerMayDelete(db as never, 'orono', 'legacy@x')
+      assertCallerMayDelete(db as never, 'legacy@x')
     ).resolves.toBeUndefined();
   });
 
   it('rejects a non-member', async () => {
     const { db } = makeDb({ docs: {} });
     await expect(
-      assertCallerMayDelete(db as never, 'orono', 'nobody@x')
+      assertCallerMayDelete(db as never, 'nobody@x')
     ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 });
