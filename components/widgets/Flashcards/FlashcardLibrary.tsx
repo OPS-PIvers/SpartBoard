@@ -341,21 +341,23 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
             dragDisabled
             layout={view.state.viewMode}
             emptyState={
-              sets.length === 0 ? (
-                <ScaledEmptyState
-                  icon={BookOpen}
-                  iconClassName="text-rose-300"
-                  iconSize="min(52px, 14cqmin)"
-                  titleClassName="text-slate-800"
-                  subtitleClassName="max-w-md mx-auto text-slate-500"
-                  title="Build your first set"
-                  subtitle="Create a set from scratch, paste a Quizlet export, or import a CSV or Google Sheet."
-                />
-              ) : (
-                <p className="p-6 text-center text-sm text-slate-500">
-                  No matching sets. Try a different search or folder.
-                </p>
-              )
+              <ScaledEmptyState
+                icon={BookOpen}
+                iconClassName="text-rose-300"
+                iconSize="min(52px, 14cqmin)"
+                titleClassName="text-slate-800"
+                subtitleClassName="max-w-md mx-auto text-slate-500"
+                title={
+                  sets.length === 0
+                    ? 'Build your first set'
+                    : 'No matching sets'
+                }
+                subtitle={
+                  sets.length === 0
+                    ? 'Create a set from scratch, paste a Quizlet export, or import a CSV or Google Sheet.'
+                    : 'Try a different search or folder.'
+                }
+              />
             }
             renderCard={(set) => (
               <LibraryItemCard<FlashcardSet>
