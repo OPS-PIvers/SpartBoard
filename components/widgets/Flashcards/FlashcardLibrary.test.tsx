@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import type { FlashcardAssignment } from '@/types';
+import type { FlashcardAssignment, FlashcardSet } from '@/types';
 import type { UseFoldersResult } from '@/hooks/useFolders';
 import { FlashcardLibrary } from './FlashcardLibrary';
 
@@ -123,5 +123,30 @@ describe('FlashcardLibrary assignment tabs', () => {
     expect(screen.getByText('Nothing assigned yet')).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: /Library/ }));
     expect(handlers.onTabChange).toHaveBeenCalledWith('library');
+  });
+});
+
+describe('FlashcardLibrary set-library grid empty states', () => {
+  it('shows a build-your-first-set state when there are no sets', () => {
+    renderLibrary({ tab: 'library', sets: [] });
+    expect(screen.getByText('Build your first set')).toBeTruthy();
+  });
+
+  it('shows a no-matching-sets state when a search filters out every set', () => {
+    const set: FlashcardSet = {
+      id: 'set-1',
+      title: 'Spanish verbs',
+      termLanguage: 'es',
+      definitionLanguage: 'en',
+      cards: [],
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    renderLibrary({ tab: 'library', sets: [set] });
+    fireEvent.change(screen.getByPlaceholderText('Search flashcard sets…'), {
+      target: { value: 'no such set' },
+    });
+    expect(screen.getByText('No matching sets')).toBeTruthy();
+    expect(screen.queryByText('Build your first set')).toBeNull();
   });
 });
