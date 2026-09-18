@@ -4324,7 +4324,9 @@ export type UnrespondedReason =
   | 'passed'
   | 'expired'
   | 'abandoned'
-  | 'capture-unavailable';
+  | 'capture-unavailable'
+  /** A paper bubble row the reader could not trust and the teacher left unresolved. */
+  | 'paper-unclear';
 
 /** Which response slot an artifact fills: the answer itself, or a supporting addendum. */
 export type ArtifactSlot = 'primary' | 'addendum';
@@ -4632,6 +4634,14 @@ export interface QuizResponse {
   unlocked?: boolean;
   /** Client timestamp (ms) when the teacher unlocked the attempt. */
   unlockedAt?: number;
+  /**
+   * Set by `importPaperResponsesV1` on a response read from a scanned answer
+   * sheet. Its presence is the paper-sourced flag: no speed or streak bonus,
+   * no tab warnings, and speed-ranked views may exclude the row (plan Q33).
+   */
+  paperBatchId?: string;
+  /** Seat number printed on that sheet, so a rescan lands on the same doc. */
+  paperSeat?: number;
   /**
    * Teacher-written manual grades for written question types
    * (`short`, `essay`). Keyed by `QuizQuestion.id`. Lives outside the

@@ -1,0 +1,429 @@
+// Unit tests for the paper answer-sheet import callable (docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md §7).
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('firebase-admin', () => ({
+  apps: [{ name: '[DEFAULT]' }],
+  initializeApp: vi.fn(),
+  firestore: Object.assign(vi.fn(), {
+    FieldValue: { serverTimestamp: () => 'SERVER_TS' },
+  }),
+}));
+
+vi.mock('firebase-functions/v2/https', () => {
+  class FakeHttpsError extends Error {
+    code: string;
+    constructor(code: string, message: string) {
+      super(message);
+      this.code = code;
+    }
+  }
+  return {
+    onCall: (_opts: unknown, handler: unknown) => handler,
+    HttpsError: FakeHttpsError,
+  };
+});
+vi.mock('./functionsInit', () => ({}));
+vi.mock('./classlinkShared', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./classlinkShared')>()),
+  ALLOWED_ORIGINS: [],
+}));
+
+import {
+  PAPER_SETTINGS_PATH,
+  handleImportPaperResponses,
+  parseImportPaperResponsesInput,
+  type ImportPaperCaller,
+} from './importPaperResponses';
+
+type Doc = Record<string, unknown>;
+type Db = Parameters<typeof handleImportPaperResponses>[0];
+
+function makeDb(docs: Record<string, Doc>) {
+  const committed: string[][] = [];
+  const refFor = (path: string) => ({
+    path,
+    get: () =>
+      Promise.resolve({
+        exists: docs[path] !== undefined,
+        data: () => docs[path],
+      }),
+  });
+  const docRef = (
+    path: string
+  ): ReturnType<typeof refFor> & {
+    collection: (sub: string) => { doc: (id: string) => unknown };
+  } => ({
+    ...refFor(path),
+    collection: (sub: string) => ({
+      doc: (id: string) => docRef(`${path}/${sub}/${id}`),
+    }),
+  });
+  const db = {
+    doc: (path: string) => refFor(path),
+    collection: (c: string) => ({ doc: (id: string) => docRef(`${c}/${id}`) }),
+    batch: () => {
+      const staged: Array<{ path: string; data: Doc }> = [];
+      return {
+        set: (ref: { path: string }, data: Doc) => {
+          staged.push({ path: ref.path, data });
+        },
+        commit: () => {
+          for (const s of staged) docs[s.path] = s.data;
+          committed.push(staged.map((s) => s.path));
+          return Promise.resolve();
+        },
+      };
+    },
+  } as unknown as Db;
+  return { db, docs, committed };
+}
+
+const NOW = Date.UTC(2026, 8, 18, 15, 0, 0);
+const UID = 'teacher-1';
+const ASSIGNMENT = 'a1';
+const BATCH = 'b1';
+const teacher: ImportPaperCaller = {
+  uid: UID,
+  studentRole: false,
+  anonymous: false,
+};
+
+const baseDocs = (): Record<string, Doc> => ({
+  [PAPER_SETTINGS_PATH]: { enabled: true },
+  [`users/${UID}/quiz_assignments/${ASSIGNMENT}`]: { quizId: 'quiz-1' },
+  [`quiz_sessions/${ASSIGNMENT}`]: {
+    teacherUid: UID,
+    publicQuestions: [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }],
+  },
+  [`users/${UID}/paper_batches/${BATCH}`]: {
+    quizId: 'quiz-1',
+    seats: {
+      1: { rosterId: 'r1', studentId: 's1' },
+      2: { rosterId: 'r1', studentId: 's2' },
+    },
+    spareSeats: [3],
+    keySheetSeat: 4,
+  },
+  [`users/${UID}/rosters/r1`]: { name: 'Period 1' },
+  [`users/${UID}/rosters/r2`]: { name: 'Period 2' },
+  [`users/${UID}/rosters/r1/pin_index/period_1__0002`]: {
+    pseudonym: 'pseudo-s2',
+    classId: 'class-1',
+  },
+});
+
+const sheet = (seat: number, over: Doc = {}) => ({
+  seat,
+  rosterId: 'r1',
+  pin: String(seat).padStart(4, '0'),
+  classPeriod: 'Period 1',
+  answers: [
+    { questionId: 'q1', answer: 'B' },
+    { questionId: 'q2', answer: '', unresponded: 'passed' },
+    { questionId: 'q3', answer: '', unresponded: 'paper-unclear' },
+  ],
+  ...over,
+});
+
+const call = (
+  docs: Record<string, Doc>,
+  sheets: unknown[],
+  caller = teacher
+) => {
+  const { db, committed } = makeDb(docs);
+  return handleImportPaperResponses(
+    db,
+    caller,
+    { batchId: BATCH, assignmentId: ASSIGNMENT, sheets },
+    NOW
+  ).then((result) => ({ result, docs, committed }));
+};
+
+describe('handleImportPaperResponses', () => {
+  it('keys an unindexed student by pin and period, as an anonymous joiner would be', async () => {
+    const { result, docs } = await call(baseDocs(), [sheet(1)]);
+    expect(result).toEqual({ written: [1], collisions: [] });
+    const doc = docs[`quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-0001`];
+    expect(doc).toMatchObject({
+      studentUid: 'pin-period_1-0001',
+      pin: '0001',
+      classPeriod: 'Period 1',
+      status: 'completed',
+      score: null,
+      submittedAt: NOW,
+      completedAttempts: 1,
+      paperBatchId: BATCH,
+      paperSeat: 1,
+      lastWriteAt: 'SERVER_TS',
+    });
+    expect(doc.classId).toBeUndefined();
+    expect(doc.answers).toEqual([
+      { questionId: 'q1', answer: 'B', answeredAt: NOW, status: 'submitted' },
+      {
+        questionId: 'q2',
+        answer: '',
+        answeredAt: NOW,
+        status: 'submitted',
+        unresponded: 'passed',
+      },
+      {
+        questionId: 'q3',
+        answer: '',
+        answeredAt: NOW,
+        status: 'submitted',
+        unresponded: 'paper-unclear',
+      },
+    ]);
+  });
+
+  it('keys an indexed student by the SSO pseudonym so the result reaches My Assignments', async () => {
+    const { docs } = await call(baseDocs(), [sheet(2)]);
+    const doc = docs[`quiz_sessions/${ASSIGNMENT}/responses/pseudo-s2`];
+    expect(doc).toMatchObject({
+      studentUid: 'pseudo-s2',
+      classId: 'class-1',
+      pin: '0002',
+    });
+    expect(
+      docs[`quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-0002`]
+    ).toBeUndefined();
+  });
+
+  it('replaces its own earlier import but reports a device response as a collision', async () => {
+    const docs = baseDocs();
+    docs[`quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-0001`] = {
+      studentUid: 'pin-period_1-0001',
+      paperBatchId: BATCH,
+      submittedAt: 1,
+      answers: [],
+    };
+    docs[`quiz_sessions/${ASSIGNMENT}/responses/pseudo-s2`] = {
+      studentUid: 'pseudo-s2',
+      submittedAt: 12345,
+      answers: [{ questionId: 'q1', answer: 'A' }],
+    };
+    const { result } = await call(docs, [sheet(1), sheet(2)]);
+    expect(result.written).toEqual([1]);
+    expect(result.collisions).toEqual([
+      {
+        seat: 2,
+        responseKey: 'pseudo-s2',
+        fromOtherBatch: false,
+        existingSubmittedAt: 12345,
+      },
+    ]);
+    expect(
+      docs[`quiz_sessions/${ASSIGNMENT}/responses/pseudo-s2`].answers
+    ).toEqual([{ questionId: 'q1', answer: 'A' }]);
+    expect(
+      docs[`quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-0001`]
+        .submittedAt
+    ).toBe(NOW);
+  });
+
+  it('flags a response from another paper batch as such', async () => {
+    const docs = baseDocs();
+    docs[`quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-0001`] = {
+      paperBatchId: 'older-batch',
+      submittedAt: 5,
+    };
+    const { result } = await call(docs, [sheet(1)]);
+    expect(result.collisions[0]).toMatchObject({
+      seat: 1,
+      fromOtherBatch: true,
+    });
+  });
+
+  it('overwrites a collision only when the teacher resolved it', async () => {
+    const docs = baseDocs();
+    docs[`quiz_sessions/${ASSIGNMENT}/responses/pseudo-s2`] = {
+      submittedAt: 12345,
+    };
+    const { result } = await call(docs, [sheet(2, { replaceExisting: true })]);
+    expect(result).toEqual({ written: [2], collisions: [] });
+    expect(
+      docs[`quiz_sessions/${ASSIGNMENT}/responses/pseudo-s2`].paperBatchId
+    ).toBe(BATCH);
+  });
+
+  it('lets a spare be assigned to any roster the teacher owns, and no other', async () => {
+    const ok = await call(baseDocs(), [
+      sheet(3, { rosterId: 'r2', pin: '0009', classPeriod: 'Period 2' }),
+    ]);
+    expect(ok.result.written).toEqual([3]);
+    expect(
+      ok.docs[`quiz_sessions/${ASSIGNMENT}/responses/pin-period_2-0009`]
+    ).toBeDefined();
+    await expect(
+      call(baseDocs(), [sheet(3, { rosterId: 'someone-elses' })])
+    ).rejects.toMatchObject({ code: 'invalid-argument', message: /Roster/ });
+  });
+
+  it('rejects a student seat sent under a different roster', async () => {
+    await expect(
+      call(baseDocs(), [sheet(1, { rosterId: 'r2' })])
+    ).rejects.toMatchObject({
+      code: 'invalid-argument',
+      message: /different roster/,
+    });
+  });
+
+  it('rejects the key sheet, an unprinted seat, and an unknown question', async () => {
+    await expect(call(baseDocs(), [sheet(4)])).rejects.toMatchObject({
+      message: /answer key/,
+    });
+    await expect(call(baseDocs(), [sheet(9)])).rejects.toMatchObject({
+      message: /not printed/,
+    });
+    await expect(
+      call(baseDocs(), [
+        sheet(1, { answers: [{ questionId: 'nope', answer: 'A' }] }),
+      ])
+    ).rejects.toMatchObject({ message: /not in this session/ });
+  });
+
+  it('refuses when the feature is off, whoever calls', async () => {
+    const docs = baseDocs();
+    docs[PAPER_SETTINGS_PATH] = { enabled: false };
+    await expect(call(docs, [sheet(1)])).rejects.toMatchObject({
+      code: 'failed-precondition',
+    });
+    delete docs[PAPER_SETTINGS_PATH];
+    await expect(call(docs, [sheet(1)])).rejects.toMatchObject({
+      code: 'failed-precondition',
+    });
+  });
+
+  it('refuses students, anonymous callers and the signed-out', async () => {
+    await expect(
+      call(baseDocs(), [sheet(1)], { ...teacher, studentRole: true })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(
+      call(baseDocs(), [sheet(1)], { ...teacher, anonymous: true })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    await expect(
+      handleImportPaperResponses(makeDb(baseDocs()).db, null, {}, NOW)
+    ).rejects.toMatchObject({ code: 'unauthenticated' });
+  });
+
+  it('refuses a session the caller does not own and a batch for another quiz', async () => {
+    const stolen = baseDocs();
+    stolen[`quiz_sessions/${ASSIGNMENT}`] = {
+      ...stolen[`quiz_sessions/${ASSIGNMENT}`],
+      teacherUid: 'other',
+    };
+    await expect(call(stolen, [sheet(1)])).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    const wrongQuiz = baseDocs();
+    wrongQuiz[`users/${UID}/paper_batches/${BATCH}`] = {
+      ...wrongQuiz[`users/${UID}/paper_batches/${BATCH}`],
+      quizId: 'quiz-2',
+    };
+    await expect(call(wrongQuiz, [sheet(1)])).rejects.toMatchObject({
+      code: 'failed-precondition',
+    });
+    const missing = baseDocs();
+    delete missing[`users/${UID}/paper_batches/${BATCH}`];
+    await expect(call(missing, [sheet(1)])).rejects.toMatchObject({
+      code: 'not-found',
+    });
+  });
+
+  it('refuses two seats that resolve to the same student instead of overwriting one', async () => {
+    const { db, docs, committed } = makeDb(baseDocs());
+    await expect(
+      handleImportPaperResponses(
+        db,
+        teacher,
+        {
+          batchId: BATCH,
+          assignmentId: ASSIGNMENT,
+          sheets: [sheet(1), sheet(3, { pin: '0001' })],
+        },
+        NOW
+      )
+    ).rejects.toMatchObject({
+      code: 'invalid-argument',
+      message: /Seats 1 and 3 resolve to the same student/,
+    });
+    expect(committed).toEqual([]);
+    expect(Object.keys(docs).some((k) => k.includes('/responses/'))).toBe(
+      false
+    );
+  });
+
+  it('never writes a partial stack when validation fails', async () => {
+    const { db, docs, committed } = makeDb(baseDocs());
+    await expect(
+      handleImportPaperResponses(
+        db,
+        teacher,
+        {
+          batchId: BATCH,
+          assignmentId: ASSIGNMENT,
+          sheets: [sheet(1), sheet(9)],
+        },
+        NOW
+      )
+    ).rejects.toBeDefined();
+    expect(committed).toEqual([]);
+    expect(Object.keys(docs).some((k) => k.includes('/responses/'))).toBe(
+      false
+    );
+  });
+});
+
+describe('parseImportPaperResponsesInput', () => {
+  it('rejects malformed payloads before any read', () => {
+    expect(() => parseImportPaperResponsesInput({})).toThrow(/sheets/);
+    expect(() =>
+      parseImportPaperResponsesInput({
+        batchId: 'b',
+        assignmentId: 'a',
+        sheets: [sheet(1), sheet(1)],
+      })
+    ).toThrow(/twice/);
+    expect(() =>
+      parseImportPaperResponsesInput({
+        batchId: 'b',
+        assignmentId: 'a',
+        sheets: [
+          sheet(1, {
+            answers: [
+              { questionId: 'q1', answer: 'A', unresponded: 'expired' },
+            ],
+          }),
+        ],
+      })
+    ).toThrow(/unresponded/);
+    expect(() =>
+      parseImportPaperResponsesInput({
+        batchId: 'b',
+        assignmentId: 'a',
+        sheets: [
+          sheet(1, {
+            answers: [
+              { questionId: 'q1', answer: 'A' },
+              { questionId: 'q1', answer: 'B' },
+            ],
+          }),
+        ],
+      })
+    ).toThrow(/repeats/);
+    expect(() =>
+      parseImportPaperResponsesInput({
+        batchId: 'b',
+        assignmentId: 'a',
+        sheets: [sheet(1, { pin: '  ' })],
+      })
+    ).toThrow(/pin/);
+    expect(() =>
+      parseImportPaperResponsesInput({
+        batchId: 'b/c',
+        assignmentId: 'a',
+        sheets: [sheet(1)],
+      })
+    ).toThrow(/batchId/);
+  });
+});
