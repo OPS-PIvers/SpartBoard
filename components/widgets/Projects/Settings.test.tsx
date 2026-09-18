@@ -5,6 +5,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useProjectLibrary } from '@/hooks/useProjectLibrary';
 import { useProjectRun } from '@/hooks/useProjectRun';
+import { useRubrics } from '@/hooks/useRubrics';
 import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
 import { ProjectsSettings } from './Settings';
 
@@ -12,6 +13,7 @@ vi.mock('@/context/useAuth');
 vi.mock('@/context/useDashboard');
 vi.mock('@/hooks/useProjectLibrary');
 vi.mock('@/hooks/useProjectRun');
+vi.mock('@/hooks/useRubrics');
 vi.mock('@/hooks/useProjectsWidgetSettings');
 vi.mock('./components/GroupImportPanel', () => ({
   GroupImportPanel: () => <div data-testid="group-import-panel" />,
@@ -59,6 +61,7 @@ describe('ProjectsSettings', () => {
     vi.clearAllMocks();
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { uid: 'teacher-1' },
+      orgId: 'orono',
     });
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       updateWidget,
@@ -71,6 +74,15 @@ describe('ProjectsSettings', () => {
     (useProjectLibrary as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       projects: [projectA],
       saveProject,
+    });
+    (useRubrics as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      rubrics: [],
+      loading: false,
+      error: null,
+      saveRubric: vi.fn(),
+      deleteRubric: vi.fn(),
+      shareRubric: vi.fn(),
+      importSharedRubric: vi.fn(),
     });
     (useProjectRun as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       run: runA,

@@ -246,7 +246,7 @@ describe('useStudentAssignments — fan-out channel (M17 C1)', () => {
     expect(result.current.assignments.map((a) => a.sessionId)).toEqual(['q1']);
   });
 
-  it('real wiring: opens exactly one additional listener for the pointer channel (19 total for the current KIND_CONFIG + studentUid)', async () => {
+  it('real wiring: opens exactly one additional listener for the pointer channel (20 total for the current KIND_CONFIG + studentUid)', async () => {
     const rig = makeSnapshotRig();
     makeGetDocRig();
     rig.setDocs('quiz_sessions', []);
@@ -261,7 +261,7 @@ describe('useStudentAssignments — fan-out channel (M17 C1)', () => {
 
     // 18 class-channel listeners (see useStudentAssignments.listenerCount.test.tsx)
     // + 1 pointer-channel listener on /student_assignments/{uid}/items.
-    expect(vi.mocked(firestore.onSnapshot)).toHaveBeenCalledTimes(19);
+    expect(vi.mocked(firestore.onSnapshot)).toHaveBeenCalledTimes(20);
   });
 
   it('dedupes by the shared assignment UUID, pointer wins window/override, session wins title', async () => {
