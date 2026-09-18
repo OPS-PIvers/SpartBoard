@@ -39,8 +39,7 @@ const nextState = (
   step: ProjectStep,
   current: ProjectStepState
 ): ProjectStepState => {
-  // The teacher cycles through every state including `done`; the ceiling in
-  // `studentStateOptions` is the student's, not hers (D28).
+  // D28 — the approval ceiling is the student's; the teacher cycles past it.
   const options: ProjectStepState[] = studentStateOptions(step).concat(
     step.requiresApproval ? ['done'] : []
   );
@@ -52,9 +51,18 @@ const GroupRow: React.FC<{
   steps: ProjectStep[];
   showStatus: boolean;
   cardStyle: React.CSSProperties;
+  busyKey: string | null;
   onCycleStep: (stepId: string, state: ProjectStepState) => void;
   onClearSupport: () => void;
-}> = ({ group, steps, showStatus, cardStyle, onCycleStep, onClearSupport }) => (
+}> = ({
+  group,
+  steps,
+  showStatus,
+  cardStyle,
+  busyKey,
+  onCycleStep,
+  onClearSupport,
+}) => (
   <li
     className="flex items-center rounded-xl border-l-4 overflow-hidden"
     style={{
@@ -85,9 +93,10 @@ const GroupRow: React.FC<{
               key={step.id}
               type="button"
               onClick={() => onCycleStep(step.id, state)}
+              disabled={busyKey === `${group.id}:${step.id}`}
               title={`${step.title} — ${STEP_STATE_LABELS[state]}`}
               aria-label={`${group.name}, ${step.title}, ${STEP_STATE_LABELS[state]}`}
-              className={`flex-1 rounded-full transition-colors ${SEGMENT_COLORS[state]}`}
+              className={`flex-1 rounded-full transition-colors disabled:opacity-50 ${SEGMENT_COLORS[state]}`}
               style={{ height: 'min(14px, 3.2cqmin)' }}
             />
           );
@@ -106,7 +115,8 @@ const GroupRow: React.FC<{
       <button
         type="button"
         onClick={onClearSupport}
-        className="shrink-0 flex items-center rounded-full bg-amber-100 text-amber-800 font-semibold"
+        disabled={busyKey === `${group.id}:support`}
+        className="shrink-0 flex items-center rounded-full bg-amber-100 text-amber-800 font-semibold disabled:opacity-50"
         style={{
           gap: 'min(4px, 1cqmin)',
           padding: 'min(3px, 0.7cqmin) min(8px, 1.8cqmin)',
@@ -149,7 +159,7 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
     user?.uid
   );
 
-  const [busyStepId, setBusyStepId] = useState<string | null>(null);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const activeClassId = useMemo(
     () => projectClassIdFor(rosters.find((r) => r.id === activeRosterId)),
@@ -169,13 +179,13 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   const runAction = async (action: Promise<void>, key: string) => {
-    setBusyStepId(key);
+    setBusyKey(key);
     try {
       await action;
     } catch {
       addToast('That change could not be saved.', 'error');
     } finally {
-      setBusyStepId(null);
+      setBusyKey(null);
     }
   };
 
@@ -241,8 +251,7 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
     );
   }
 
-  // D26 — past the comfortable ceiling the face reports counts instead of
-  // trying to draw every segment at an illegible size.
+  // D26 — past the ceiling, counts beat segments drawn too small to read.
   const tooDenseToDraw =
     visibleGroups.length > COMFORTABLE_GROUPS ||
     steps.length > COMFORTABLE_STEPS;
@@ -314,9 +323,10 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
                 steps={steps}
                 showStatus={renderStatus}
                 cardStyle={cardStyle}
+                busyKey={busyKey}
                 onCycleStep={(stepId, state) => {
                   const step = steps.find((s) => s.id === stepId);
-                  if (!step || busyStepId) return;
+                  if (!step) return;
                   void runAction(
                     setStepState(
                       group.id,

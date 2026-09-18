@@ -4,12 +4,7 @@ import type { RandomGroup, SharedGroup } from '@/types';
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-/**
- * The display name for a group the Randomizer produced. The groupmaker writes a
- * synthetic UUID as the group's id, so a teacher-typed name has to come back
- * out of `dashboard.sharedGroups`; anything unresolved falls back to "Group N".
- * Shared by every widget the Randomizer hands groups to.
- */
+/** A Randomizer group's display name: `sharedGroups` by UUID, else "Group N". */
 export const resolveRandomGroupName = (
   group: RandomGroup,
   index: number,

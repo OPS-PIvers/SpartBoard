@@ -24,11 +24,7 @@ export const STEP_STATE_LABELS: Record<ProjectStepState, string> = {
   done: 'Done',
 };
 
-/**
- * Step authoring is one line per step (D16), so a teacher can paste seven lines
- * and go. Ids are stable across edits: a line keeps its id as long as its text
- * is unchanged, which is what stops a re-paste from scrambling tracked progress.
- */
+/** One line per step (D16); a line keeps its id while its text is unchanged. */
 export function parseStepLines(
   text: string,
   existing: ProjectStep[] = []
@@ -63,10 +59,7 @@ export const stepStateOf = (
   stepId: string
 ): ProjectStepState => group.stepStates?.[stepId] ?? 'notStarted';
 
-/**
- * D1 — a group's position is derived from its step states, so raising a help
- * flag never costs it its place on the bar.
- */
+/** D1 — position comes from step states, so a help flag never costs a place. */
 export function completedStepCount(
   group: Pick<ProjectGroup, 'stepStates'>,
   steps: ProjectStep[]
@@ -90,13 +83,7 @@ export function sortGroupsForBoard(groups: ProjectGroup[]): ProjectGroup[] {
   });
 }
 
-/** D14 — the board renders only the groups in the globally active roster's class. */
-/**
- * The class a run's groups are keyed by. A hand-built roster has no ClassLink
- * class, so D6's teacher-only tracker keys on the roster itself; the `local:`
- * prefix can never match a student's ClassLink `classIds` claim, which is what
- * makes it teacher-only.
- */
+/** D6 — no ClassLink class means `local:<rosterId>`, which no student claim matches. */
 export function projectClassIdFor(
   roster: { id: string; classlinkClassId?: string } | undefined
 ): string | null {
@@ -106,6 +93,7 @@ export function projectClassIdFor(
   return classlink.length > 0 ? classlink : `local:${roster.id}`;
 }
 
+/** D14 — the board renders only the groups in the active roster's class. */
 export function groupsForClass(
   groups: ProjectGroup[],
   classId: string | null | undefined

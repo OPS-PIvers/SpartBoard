@@ -375,11 +375,14 @@ describe('grades', () => {
 });
 
 describe('a deactivated teacher', () => {
-  it('loses read and write on the groups and grades of their own run', async () => {
+  it('loses read and write on their own run, groups and grades', async () => {
     await seed();
     await assertSucceeds(getDoc(doc(asTeacher(TEACHER_UID), GROUP_PATH)));
 
     await deactivateTeacher();
+    await assertFails(
+      getDoc(doc(asTeacher(TEACHER_UID), 'project_runs', RUN_ID))
+    );
     await assertFails(getDoc(doc(asTeacher(TEACHER_UID), GROUP_PATH)));
     await assertFails(
       updateDoc(doc(asTeacher(TEACHER_UID), GROUP_PATH), { name: 'Renamed' })

@@ -19,11 +19,7 @@ interface GroupImportPanelProps {
   onDiscard: () => void;
 }
 
-/**
- * Confirms a group set the Group Maker pushed over (D7/A5). Students with no
- * `classLinkSourcedId` cannot be given an enforceable student side, so they are
- * named here rather than silently dropped (D8).
- */
+/** Confirms a pushed group set, naming students with no district account (D7/D8). */
 export const GroupImportPanel: React.FC<GroupImportPanelProps> = ({
   pending,
   rosters,
@@ -46,8 +42,7 @@ export const GroupImportPanel: React.FC<GroupImportPanelProps> = ({
         .map((id) => byId.get(id))
         .filter((s): s is NonNullable<typeof s> => Boolean(s));
       return {
-        // D11 — group names default to Group 1..N; carrying the Group Maker's
-        // own names across is opt-in, because a name reaches a projected face.
+        // D11 — carrying the Group Maker's own names across is opt-in.
         name: carryNames ? group.name : `Group ${index + 1}`,
         order: index,
         sourcedIds: students
@@ -62,8 +57,7 @@ export const GroupImportPanel: React.FC<GroupImportPanelProps> = ({
 
   const unresolvable = resolved.flatMap((g) => g.unresolvable);
 
-  // D9 — a re-import never overwrites a running group set, so the entries get
-  // fresh ids and land alongside whatever is already being tracked.
+  // D9 — fresh ids, so a re-import lands alongside what is already tracked.
   const handleImport = async () => {
     setBusy(true);
     setError(null);
@@ -136,9 +130,8 @@ export const GroupImportPanel: React.FC<GroupImportPanelProps> = ({
       {unresolvable.length > 0 && (
         <p className="text-xs text-amber-700">
           {unresolvable.join(', ')} {unresolvable.length === 1 ? 'has' : 'have'}{' '}
-          no district account on this roster, so{' '}
-          {unresolvable.length === 1 ? 'they' : 'they'} cannot update their
-          group. You can still track them yourself.
+          no district account on this roster, so they cannot update their group.
+          You can still track them yourself.
         </p>
       )}
 

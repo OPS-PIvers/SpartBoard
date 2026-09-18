@@ -191,6 +191,32 @@ describe('ProjectsWidget', () => {
     );
   });
 
+  it('locks only the segment being written, not the whole board', async () => {
+    let release: () => void = () => undefined;
+    setStepState.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (release = () => resolve()))
+    );
+    mockRun({
+      groups: [group(), group({ id: 'g2', name: 'Group 2', order: 1 })],
+    });
+    render(<ProjectsWidget widget={widget()} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
+      ).toBeDisabled()
+    );
+    // The other group stays live: a swallowed click is the bug being fixed.
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Group 2, Draft, Not started' })
+    );
+    await waitFor(() => expect(setStepState).toHaveBeenCalledTimes(2));
+    release();
+  });
+
   it('swaps the bar for counts when status is hidden', () => {
     render(<ProjectsWidget widget={widget({ showStatus: false })} />);
     expect(screen.getByText('1 of 2 done')).toBeInTheDocument();

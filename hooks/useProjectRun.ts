@@ -1,7 +1,4 @@
-/**
- * Live view of one project run and its groups (D13), plus the writes both the
- * board face and the student page make.
- */
+/** Live view of one project run and its groups, plus the writes against them (D13). */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -133,10 +130,7 @@ export function useProjectRun(
     );
   }, [runId]);
 
-  /**
-   * The event log is append-only and read by the teacher alone (D24). A failed
-   * entry must never roll back the change it describes, so it logs and moves on.
-   */
+  // D24 — a failed log entry must never roll back the change it describes.
   const logEvent = useCallback(
     async (
       groupId: string,
@@ -198,8 +192,7 @@ export function useProjectRun(
       const from = groups.find((g) => g.id === groupId)?.stepStates?.[stepId];
       await updateDoc(doc(db, RUNS_COLLECTION, runId, 'groups', groupId), {
         [`stepStates.${stepId}`]: state,
-        // The rules check this claim against the real diff, which is what makes
-        // the per-step approval ceiling enforceable — see `pjStudentStepWrite`.
+        // Rules check this claim against the real diff (`pjStudentStepWrite`).
         lastStepChange: { stepId, at: Date.now() },
         updatedAt: Date.now(),
       });

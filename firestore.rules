@@ -5070,11 +5070,13 @@ service cloud.firestore {
       }
 
       allow get: if request.auth != null
-                 && (resource.data.teacherUid == request.auth.uid
+                 && ((resource.data.teacherUid == request.auth.uid
+                      && notDeactivated())
                      || pjStudentInAnyClass(resource.data.get('classIds', [])));
       allow list: if request.auth != null
                   && request.auth.token.firebase.sign_in_provider != 'anonymous'
-                  && (resource.data.teacherUid == request.auth.uid
+                  && ((resource.data.teacherUid == request.auth.uid
+                       && notDeactivated())
                       || pjStudentInAnyClass(resource.data.get('classIds', [])));
       allow create: if pjTeacher()
                     && request.resource.data.teacherUid == request.auth.uid
