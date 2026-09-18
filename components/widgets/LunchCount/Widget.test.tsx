@@ -260,29 +260,31 @@ describe('LunchCountWidget — class group pool', () => {
     ],
   };
 
-  const pooledWidget = (rosterPoolGroupId: string | null): WidgetData =>
-    ({
-      id: 'lunch-1',
-      type: 'lunchCount',
-      x: 0,
-      y: 0,
-      w: 400,
-      h: 300,
-      z: 1,
-      config: {
-        schoolSite: 'schumann-elementary',
-        rosterMode: 'class',
-        assignments: {},
-        rosterPoolGroupId,
-        cachedMenu: {
-          hotLunch: { name: 'Pizza' },
-          hotLunchSides: [],
-          bentoBox: { name: 'Bento' },
-          date: new Date().toISOString(),
-        },
-        lastSyncDate: new Date().toISOString(),
+  const pooledWidget = (
+    rosterPoolGroupId: string | null,
+    assignments: Record<string, 'hot' | 'bento' | 'home' | null> = {}
+  ): WidgetData => ({
+    id: 'lunch-1',
+    type: 'lunchCount',
+    x: 0,
+    y: 0,
+    w: 400,
+    h: 300,
+    z: 1,
+    config: {
+      schoolSite: 'schumann-elementary',
+      rosterMode: 'class',
+      assignments,
+      rosterPoolGroupId,
+      cachedMenu: {
+        hotLunch: { name: 'Pizza' },
+        hotLunchSides: [],
+        bentoBox: { name: 'Bento' },
+        date: new Date().toISOString(),
       },
-    }) as WidgetData;
+      lastSyncDate: new Date().toISOString(),
+    } as unknown as LunchCountConfig,
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -305,5 +307,31 @@ describe('LunchCountWidget — class group pool', () => {
   it('ignores a stored pool while the feature is off', () => {
     render(<LunchCountWidget widget={pooledWidget('g1')} />);
     expect(screen.getByText('Jane Smith')).toBeInTheDocument();
+  });
+
+  it('counts the whole class for the cafeteria report, not the pool', () => {
+    // The pool is a view; Submit Report is an external submission the kitchen
+    // cooks to, so it must never shrink with the filter. Caught in review.
+    gate.enabled = true;
+    render(
+      <LunchCountWidget widget={pooledWidget('g1', { s1: 'hot', s2: 'hot' })} />
+    );
+    // Jane is hidden by the pool but still assigned, so the report is whole.
+    expect(screen.queryByText('Jane Smith')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Submit Report/i }));
+    // The confirmation modal shows the numbers that will be submitted: both
+    // students, not just the one the pool leaves visible.
+    const modal = screen
+      .getByText('Submit Lunch Report')
+      .closest('[aria-labelledby="report-modal-title"]') as HTMLElement;
+    const hotLunchRow = within(modal).getByText('Hot Lunch').closest('div')
+      ?.parentElement as HTMLElement;
+    expect(within(hotLunchRow).getByText('2')).toBeInTheDocument();
+  });
+
+  it('blocks submit while someone outside the pool is unassigned', () => {
+    gate.enabled = true;
+    render(<LunchCountWidget widget={pooledWidget('g1', { s1: 'hot' })} />);
+    expect(screen.getByText(/Assign 1 More Students/i)).toBeInTheDocument();
   });
 });
