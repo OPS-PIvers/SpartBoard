@@ -179,6 +179,102 @@ describe('flashcard_sessions', () => {
       )
     );
   });
+
+  it('allows the class query a multi-class student really sends', async () => {
+    await seed(SESSION_PATH, session());
+    const db = asStudent(STUDENT_UID, [CLASS_A, 'class-b']);
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(db, 'flashcard_sessions'),
+          where('classIds', 'array-contains-any', [CLASS_A, 'class-b']),
+          where('status', '==', 'active')
+        )
+      )
+    );
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(db, 'flashcard_sessions'),
+          where('classIds', 'array-contains-any', ['class-b']),
+          where('status', '==', 'ended')
+        )
+      )
+    );
+  });
+
+  it("keeps one teacher out of another teacher's sessions", async () => {
+    await seed(SESSION_PATH, session());
+    const otherDb = asTeacher(OTHER_TEACHER_UID);
+    await assertFails(getDoc(doc(otherDb, SESSION_PATH)));
+    await assertFails(getDocs(collection(otherDb, 'flashcard_sessions')));
+    await assertFails(
+      getDocs(
+        query(
+          collection(otherDb, 'flashcard_sessions'),
+          where('teacherUid', '==', TEACHER_UID)
+        )
+      )
+    );
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(otherDb, 'flashcard_sessions'),
+          where('teacherUid', '==', OTHER_TEACHER_UID)
+        )
+      )
+    );
+  });
+
+  it('denies an unconstrained student query over the collection', async () => {
+    await seed(SESSION_PATH, session());
+    const outsiderDb = asStudent(OUTSIDER_UID, ['class-z']);
+    await assertFails(getDocs(collection(outsiderDb, 'flashcard_sessions')));
+    await assertFails(
+      getDocs(
+        query(
+          collection(outsiderDb, 'flashcard_sessions'),
+          where('teacherUid', '==', TEACHER_UID)
+        )
+      )
+    );
+    await assertFails(
+      getDocs(
+        query(
+          collection(outsiderDb, 'flashcard_sessions'),
+          where('classIds', 'array-contains-any', [CLASS_A]),
+          where('status', '==', 'active')
+        )
+      )
+    );
+  });
+
+  it('keeps a roster-targeted session off the open collection', async () => {
+    // classIds is empty when a teacher targets a roster or group; those
+    // students arrive through their student_assignments pointer.
+    await seed(SESSION_PATH, session({ classIds: [], classId: '' }));
+    const outsiderDb = asStudent(OUTSIDER_UID, ['class-z']);
+    await assertFails(getDoc(doc(outsiderDb, SESSION_PATH)));
+    await assertFails(getDocs(collection(outsiderDb, 'flashcard_sessions')));
+    await assertFails(
+      getDocs(
+        query(
+          collection(outsiderDb, 'flashcard_sessions'),
+          where('classIds', '==', []),
+          where('status', '==', 'active')
+        )
+      )
+    );
+    await seed(`student_assignments/${OUTSIDER_UID}/items/session-1`, {
+      kind: 'flashcards',
+      sessionId: 'session-1',
+      teacherUid: TEACHER_UID,
+      classId: '',
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    await assertSucceeds(getDoc(doc(outsiderDb, SESSION_PATH)));
+  });
 });
 
 describe('flashcard_sessions progress', () => {
@@ -231,6 +327,26 @@ describe('flashcard_sessions progress', () => {
     await testEnv.clearFirestore();
     await seed(SESSION_PATH, session({ status: 'ended' }));
     await assertFails(setDoc(doc(studentDb, progressPath), progress()));
+  });
+
+  it('needs a class or a pointer to write progress on a roster-targeted session', async () => {
+    await seed(SESSION_PATH, session({ classIds: [], classId: '' }));
+    const outsiderDb = asStudent(OUTSIDER_UID, ['class-z']);
+    const outsiderProgress = `${SESSION_PATH}/progress/${OUTSIDER_UID}`;
+    await assertFails(
+      setDoc(doc(outsiderDb, outsiderProgress), progress({ classId: '' }))
+    );
+    await seed(`student_assignments/${OUTSIDER_UID}/items/session-1`, {
+      kind: 'flashcards',
+      sessionId: 'session-1',
+      teacherUid: TEACHER_UID,
+      classId: '',
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    await assertSucceeds(
+      setDoc(doc(outsiderDb, outsiderProgress), progress({ classId: '' }))
+    );
   });
 
   it('keeps other students out and lets the teacher read and reset', async () => {
