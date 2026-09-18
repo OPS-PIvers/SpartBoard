@@ -349,19 +349,24 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         : new Set<string>();
     // Pool first, then absences — a 5-student group with 1 absent picks from
     // 4. A group deleted out from under the widget falls back to whole class.
-    const pool = rosterPoolGroupId
-      ? activeRoster.groups?.find((g) => g.id === rosterPoolGroupId)
-      : undefined;
+    const pool =
+      rosterGroupsEnabled && rosterPoolGroupId
+        ? activeRoster.groups?.find((g) => g.id === rosterPoolGroupId)
+        : undefined;
     const inPool = pool ? new Set(pool.studentIds) : null;
     return activeRoster.students.filter(
       (s) => !absentIds.has(s.id) && (!inPool || inPool.has(s.id))
     );
-  }, [activeRoster, rosterMode, rosterPoolGroupId]);
+  }, [activeRoster, rosterMode, rosterPoolGroupId, rosterGroupsEnabled]);
 
   // Saved groups the teacher wants kept together, resolved to ids present in
   // the pool. Empty cohorts (all absent, or a deleted group) drop out here.
   const lockedCohorts = useMemo<string[][]>(() => {
-    if (rosterMode !== 'class' || !activeRoster) return [];
+    // Gated here too, not only in the settings UI: a board saved while the
+    // feature was on must stop constraining draws the moment it is switched off.
+    if (!rosterGroupsEnabled || rosterMode !== 'class' || !activeRoster) {
+      return [];
+    }
     const inPool = new Set(presentClassStudents.map((s) => s.id));
     return lockedRosterGroupIds
       .map((id) =>
@@ -370,7 +375,13 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         ).filter((sid) => inPool.has(sid))
       )
       .filter((ids) => ids.length > 0);
-  }, [rosterMode, activeRoster, lockedRosterGroupIds, presentClassStudents]);
+  }, [
+    rosterGroupsEnabled,
+    rosterMode,
+    activeRoster,
+    lockedRosterGroupIds,
+    presentClassStudents,
+  ]);
 
   const students = useMemo(() => {
     if (rosterMode === 'class' && activeRoster) {

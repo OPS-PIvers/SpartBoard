@@ -913,15 +913,46 @@ describe('RandomWidget — class groups', () => {
     expect(classChipLabel()).not.toMatch(/group of/i);
   });
 
-  it('leaves the picker alone when the rollout switch is off', () => {
+  it('ignores a saved pool entirely when the rollout switch is off', () => {
     rosterGroupsRolloutMock.mockReturnValue({ enabled: false });
-    render(<RandomWidget widget={widgetWith({ rosterPoolGroupId: 'g1' })} />);
-    expect(classChipLabel()).not.toMatch(/group of/i);
+    expect(drawnNames({ rosterPoolGroupId: 'g1' })).toHaveLength(6);
   });
 
-  it('leaves the picker alone without the feature permission', () => {
+  it('ignores a saved pool entirely without the feature permission', () => {
     canAccessFeatureMock.mockReturnValue(false);
-    render(<RandomWidget widget={widgetWith({ rosterPoolGroupId: 'g1' })} />);
-    expect(classChipLabel()).not.toMatch(/group of/i);
+    expect(drawnNames({ rosterPoolGroupId: 'g1' })).toHaveLength(6);
+  });
+
+  it('stops honouring a saved lock when the rollout switch is off', () => {
+    rosterGroupsRolloutMock.mockReturnValue({ enabled: false });
+    vi.useFakeTimers();
+    try {
+      render(
+        <RandomWidget
+          widget={widgetWith({
+            mode: 'groups',
+            groupSize: 2,
+            lockedRosterGroupIds: ['g2'],
+          })}
+        />
+      );
+      act(() => {
+        fireEvent.click(
+          screen.getByRole('button', { name: /^Randomize$|^Picking$/ })
+        );
+      });
+      act(() => {
+        vi.advanceTimersByTime(600);
+      });
+      const calls = mockUpdateWidget.mock.calls;
+      const last = calls[calls.length - 1][1] as {
+        config: { lastResult?: RandomGroup[] };
+      };
+      // Size 2 governs everything again, so the 3-member cohort is split.
+      const sizes = (last.config.lastResult ?? []).map((g) => g.names.length);
+      expect(Math.max(...sizes)).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

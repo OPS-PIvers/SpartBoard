@@ -2806,7 +2806,9 @@
       "saveAsGroupsDone_one": "Se guardó {{count}} grupo en esta clase.",
       "saveAsGroupsDone_other": "Se guardaron {{count}} grupos en esta clase.",
       "saveAsGroupsFailed": "No se pudieron guardar los grupos: revisa tu conexión con Google Drive e inténtalo de nuevo.",
-      "saveAsGroupsNeedsClassGroups": "Primero crea grupos con una clase seleccionada."
+      "saveAsGroupsNeedsClassGroups": "Primero crea grupos con una clase seleccionada.",
+      "lockedGroupsEmpty": "Guarda un grupo para esta clase y se mantendrá unido al formar grupos.",
+      "rosterGroupsOff": "Los grupos de clase están desactivados en tu centro en este momento."
     }
   }
 }

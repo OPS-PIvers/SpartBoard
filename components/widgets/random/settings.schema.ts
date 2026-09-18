@@ -16,6 +16,11 @@ import {
 const mode = (ctx: FieldCtx) => ctx.config.mode ?? 'single';
 const isMode = (value: string) => (ctx: FieldCtx) => mode(ctx) === value;
 const isCustomRoster = (ctx: FieldCtx) => ctx.config.rosterMode === 'custom';
+// The permission half of the gate; the org-wide switch is a Firestore read, so
+// the fields themselves check it (see settingsFields.tsx). Keeping the switch
+// out of here keeps a live listener out of every settings panel.
+const rosterGroupsPermitted = (ctx: FieldCtx) =>
+  ctx.canAccessFeature('roster-groups');
 
 const renderHomeGroups = (ctx: CustomRenderCtx) =>
   React.createElement(RandomGroupCountField, { ctx, kind: 'home' });
@@ -156,7 +161,8 @@ export default defineSettings<RandomConfig>({
           key: 'lastResult',
           type: 'custom',
           label: 'saveAsClassGroups',
-          visibleWhen: isMode('groups'),
+          visibleWhen: (ctx) =>
+            rosterGroupsPermitted(ctx) && isMode('groups')(ctx),
           render: renderSaveAsClassGroups,
         },
         // schema-gap: partnerAction

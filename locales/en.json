@@ -1707,7 +1707,9 @@
       "saveAsGroupsDone_one": "Saved {{count}} group to this class.",
       "saveAsGroupsDone_other": "Saved {{count}} groups to this class.",
       "saveAsGroupsFailed": "Couldn't save these groups — check your Google Drive connection and try again.",
-      "saveAsGroupsNeedsClassGroups": "Make groups with a class selected first."
+      "saveAsGroupsNeedsClassGroups": "Make groups with a class selected first.",
+      "lockedGroupsEmpty": "Save a group for this class to keep it together when groups are made.",
+      "rosterGroupsOff": "Class groups are switched off for your school right now."
     },
     "url": {
       "links": "Links",

@@ -10,6 +10,7 @@ import {
 } from '@/components/widgets/Stations/nexus';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { countRosterGroupMembers } from '@/utils/rosterGroups';
+import { useRosterGroupsIntegrationSettings } from '@/hooks/useRosterGroupsIntegrationSettings';
 
 function useStudentCount(config: RandomConfig): number {
   const { rosters, activeRosterId } = useDashboard();
@@ -253,16 +254,28 @@ export const RandomLockedGroupsField: React.FC<{ ctx: CustomRenderCtx }> = ({
 }) => {
   const config = ctx.config as unknown as RandomConfig;
   const { rosters, activeRosterId } = useDashboard();
+  const rollout = useRosterGroupsIntegrationSettings();
   const activeRoster = rosters.find((roster) => roster.id === activeRosterId);
   const groups = activeRoster?.groups ?? [];
   const locked = Array.isArray(config.lockedRosterGroupIds)
     ? config.lockedRosterGroupIds
     : [];
 
+  // The schema gates the card on the permission; the org-wide switch is read
+  // here so the listener stays on this widget's panel rather than every one.
+  // Explained rather than left as a control that silently does nothing.
+  if (!rollout.enabled) {
+    return (
+      <p id={ctx.id} className="text-xs text-slate-500">
+        {ctx.t('widgetSettings.random.rosterGroupsOff')}
+      </p>
+    );
+  }
+
   if ((config.rosterMode ?? 'class') !== 'class' || groups.length === 0) {
     return (
       <p id={ctx.id} className="text-xs text-slate-500">
-        Save a group for this class to keep it together when groups are made.
+        {ctx.t('widgetSettings.random.lockedGroupsEmpty')}
       </p>
     );
   }
@@ -322,6 +335,7 @@ export const RandomSaveAsClassGroupsField: React.FC<{
   const { activeRosterId, addToast, appendRosterGroups, rosters } =
     useDashboard();
   const { showPrompt } = useDialog();
+  const rollout = useRosterGroupsIntegrationSettings();
   const config = ctx.config as unknown as RandomConfig;
   const activeRoster = rosters.find((roster) => roster.id === activeRosterId);
 
@@ -369,6 +383,14 @@ export const RandomSaveAsClassGroupsField: React.FC<{
       addToast(ctx.t('widgetSettings.random.saveAsGroupsFailed'), 'error');
     }
   };
+
+  if (!rollout.enabled) {
+    return (
+      <p id={ctx.id} className="text-xs text-slate-500">
+        {ctx.t('widgetSettings.random.rosterGroupsOff')}
+      </p>
+    );
+  }
 
   return (
     <button
