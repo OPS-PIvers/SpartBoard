@@ -21,6 +21,56 @@ import {
 } from './paperSheetLayout';
 import { MAX_SEAT } from './paperSheetMarker';
 
+/** Small deterministic PRNG so a batch always shuffles the same way. */
+function seededRandom(seed: string): () => number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < seed.length; i += 1) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return () => {
+    h = (h + 0x6d2b79f5) | 0;
+    let t = Math.imul(h ^ (h >>> 15), 1 | h);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const isTrueFalse = (choices: readonly string[]): boolean =>
+  choices.length === 2 &&
+  choices
+    .map((c) => c.trim().toLowerCase())
+    .sort()
+    .join('|') === 'false|true';
+
+/**
+ * The lettered order a question's options print in on the test paper.
+ *
+ * Seeded by batch and question so the same batch always prints the same paper
+ * and the correct answer is not always A. True/False keeps True first, as
+ * students expect.
+ */
+export function paperChoiceOrder(
+  batchId: string,
+  question: QuizQuestion
+): string[] {
+  const choices = [
+    question.correctAnswer,
+    ...(question.incorrectAnswers ?? []),
+  ].slice(0, MAX_CHOICE_COUNT);
+  if (isTrueFalse(choices)) {
+    return [...choices].sort((a) =>
+      a.trim().toLowerCase() === 'true' ? -1 : 1
+    );
+  }
+  const rand = seededRandom(`${batchId}:${question.id}`);
+  for (let i = choices.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rand() * (i + 1));
+    [choices[i], choices[j]] = [choices[j], choices[i]];
+  }
+  return choices;
+}
+
 /** One printable answer row, in sheet order. */
 export interface PaperQuestionPlan {
   /** 1-based row number printed beside the bubbles. */
@@ -141,6 +191,8 @@ export interface PaperBatchInput {
   spareCount: number;
   /** Include a bubbled ANSWER KEY sheet in the stack (plan Q16). */
   includeKeySheet: boolean;
+  /** The authored MC questions in sheet order; absent for a stub. */
+  questions?: readonly QuizQuestion[];
   createdAt: number;
 }
 
@@ -216,6 +268,11 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
     });
   }
 
+  const choiceOrder: Record<string, string[]> = {};
+  for (const q of input.questions ?? []) {
+    choiceOrder[q.id] = paperChoiceOrder(input.batchId, q);
+  }
+
   const batch: PaperBatch = {
     id: input.batchId,
     quizId: input.quizId,
@@ -225,6 +282,7 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
     seats,
     spareSeats,
     ...(keySheetSeat !== undefined ? { keySheetSeat } : {}),
+    ...(input.questions?.length ? { choiceOrder } : {}),
     pagesPerSheet: pageCountForQuestions(input.questionCount),
     createdAt: input.createdAt,
   };

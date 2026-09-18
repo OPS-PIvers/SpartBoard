@@ -5,6 +5,7 @@ import {
   analyzePaperQuiz,
   buildPaperStubQuiz,
   planPaperBatch,
+  paperChoiceOrder,
 } from './paperSheetPlan';
 
 const mc = (over: Partial<QuizQuestion> = {}): QuizQuestion => ({
@@ -253,6 +254,80 @@ describe('planPaperBatch', () => {
         selections: [{ roster: roster('r1', 'Big'), students }],
       })
     ).toThrow(RangeError);
+  });
+});
+
+describe('paperChoiceOrder', () => {
+  const question = (id: string, correct: string, wrong: string[]) => ({
+    id,
+    timeLimit: 0,
+    text: id,
+    type: 'MC' as const,
+    correctAnswer: correct,
+    incorrectAnswers: wrong,
+  });
+
+  it('is a permutation of the options, stable for the same batch and question', () => {
+    const q = question('q1', 'Paris', ['Lyon', 'Nice', 'Lille']);
+    const order = paperChoiceOrder('batch-1', q);
+    expect([...order].sort()).toEqual(['Lille', 'Lyon', 'Nice', 'Paris']);
+    expect(paperChoiceOrder('batch-1', q)).toEqual(order);
+  });
+
+  it('does not always put the correct answer first', () => {
+    const positions = new Set(
+      Array.from({ length: 40 }, (_, i) =>
+        paperChoiceOrder(
+          'batch-1',
+          question(`q${i}`, 'right', ['a', 'b', 'c'])
+        ).indexOf('right')
+      )
+    );
+    expect(positions.size).toBeGreaterThan(1);
+  });
+
+  it('keeps True before False', () => {
+    expect(
+      paperChoiceOrder('batch-1', question('q1', 'False', ['True']))
+    ).toEqual(['True', 'False']);
+    expect(
+      paperChoiceOrder('batch-9', question('q2', 'true', ['false']))
+    ).toEqual(['true', 'false']);
+  });
+
+  it('is recorded on the batch for every authored question, and not for a stub', () => {
+    const questions = [
+      question('q1', 'Paris', ['Lyon']),
+      question('q2', 'Red', ['Blue', 'Green']),
+    ];
+    const { batch } = planPaperBatch({
+      batchId: 'batch-1',
+      quizId: 'quiz-1',
+      selections: [],
+      questionCount: 2,
+      choiceCount: 3,
+      spareCount: 1,
+      includeKeySheet: false,
+      questions,
+      createdAt: 0,
+    });
+    expect(Object.keys(batch.choiceOrder ?? {})).toEqual(['q1', 'q2']);
+    expect([...(batch.choiceOrder?.q2 ?? [])].sort()).toEqual([
+      'Blue',
+      'Green',
+      'Red',
+    ]);
+    const stub = planPaperBatch({
+      batchId: 'batch-1',
+      quizId: 'quiz-1',
+      selections: [],
+      questionCount: 2,
+      choiceCount: 3,
+      spareCount: 1,
+      includeKeySheet: true,
+      createdAt: 0,
+    });
+    expect(stub.batch).not.toHaveProperty('choiceOrder');
   });
 });
 
