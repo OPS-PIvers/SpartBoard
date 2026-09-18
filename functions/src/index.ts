@@ -34,6 +34,7 @@ export {
   __getCachedAdminStatus,
   __getGeminiModelConfig,
   __resolveCallerIsAdmin,
+  __isVerifiedBetaMember,
 } from './aiGeneration';
 
 // ── External-content proxy + iframe embeddability check ────────────────────
