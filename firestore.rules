@@ -3405,8 +3405,15 @@ service cloud.firestore {
         // which is the one thing this collection must never let anyone do.
         // Re-pointing is a delete + create, both owner-gated.
         allow update: if false;
-        allow delete: if request.auth != null &&
-          resource.data.teacherUid == request.auth.uid;
+        // `resource == null` makes deleting a pointer that was never written a
+        // no-op. deleteAssignment batches this atomically with the session and
+        // assignment deletes, and every session predating this collection has no
+        // pointer — without it, dereferencing the null resource throws, the batch
+        // is denied, and deleting a quiz breaks until the backfill has run.
+        allow delete: if request.auth != null && (
+          resource == null ||
+          resource.data.teacherUid == request.auth.uid
+        );
       }
     }
 

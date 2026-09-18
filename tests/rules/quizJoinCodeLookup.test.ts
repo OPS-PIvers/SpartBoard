@@ -317,4 +317,21 @@ describe('writes are the owning teacher only', () => {
       deleteDoc(pointerRef(asTeacher(), CODE, OTHER_SESSION_ID))
     );
   });
+
+  // deleteAssignment batches the pointer delete atomically with the session and
+  // assignment deletes. Every session that predates this collection has no
+  // pointer, and a delete rule that dereferences a null `resource` throws, which
+  // Firestore reports as a denial — that would fail the whole batch and break
+  // deleting a quiz until the backfill has run.
+  it('allows deleting a pointer that was never written', async () => {
+    await assertSucceeds(
+      deleteDoc(pointerRef(asTeacher(), CODE, 'session-with-no-pointer'))
+    );
+  });
+
+  it('allows deleting a pointer under a code that has none', async () => {
+    await assertSucceeds(
+      deleteDoc(pointerRef(asTeacher(), 'NEVERUSED', 'session-legacy'))
+    );
+  });
 });
