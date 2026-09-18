@@ -5091,11 +5091,16 @@ service cloud.firestore {
       // where('classIds','array-contains-any',ids) whose ids come straight
       // from the caller's own claim. Same shape and same reasoning as
       // `sessionListScoped()` on dev-paul (#3133); fold into that helper once
-      // the two branches meet. NEVER add a disjunct that needs no document
-      // (`|| isStudentRoleUser()`): it is provable for every caller and
-      // silently reopens the collection to enumeration.
+      // the two branches meet.
+      // Two things here are load-bearing, both measured on the emulator.
+      // Never put `is list` or `size()` on a resource-derived value: it makes
+      // the clause unprovable, so it can only ever be false. And never add a
+      // disjunct that needs no document (`|| isStudentRoleUser()`): it is
+      // provable for every caller and silently reopens the collection to
+      // enumeration.
       function pjRunListScoped() {
-        return (resource.data.teacherUid == request.auth.uid && notDeactivated()) ||
+        return (resource.data.get('teacherUid', '') == request.auth.uid
+                && notDeactivated()) ||
                (request.auth.token.get('classIds', []) is list &&
                 resource.data.get('classIds', [])
                   .hasAny(request.auth.token.get('classIds', [])));
