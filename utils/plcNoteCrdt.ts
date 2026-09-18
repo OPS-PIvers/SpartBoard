@@ -216,12 +216,40 @@ function mapToActionItem(map: Y.Map<unknown>): PlcActionItem {
 }
 
 /**
+ * Move maps until the array order matches `targetIds`.
+ *
+ * Yjs has no move operation, so an out-of-place item is deleted and re-inserted
+ * as a clone. That loses a concurrent remote field edit to the moved item, which
+ * is the price of the alternative being worse: without this a teammate's drag
+ * would leave the order untouched and silently snap back.
+ */
+function reorderToMatch(
+  yItems: Y.Array<Y.Map<unknown>>,
+  targetIds: readonly string[]
+): void {
+  for (let i = 0; i < targetIds.length && i < yItems.length; i += 1) {
+    if (readString(yItems.get(i), 'id') === targetIds[i]) continue;
+    let from = -1;
+    for (let j = i + 1; j < yItems.length; j += 1) {
+      if (readString(yItems.get(j), 'id') === targetIds[i]) {
+        from = j;
+        break;
+      }
+    }
+    if (from < 0) continue;
+    const clone = actionItemToMap(mapToActionItem(yItems.get(from)));
+    yItems.delete(from, 1);
+    yItems.insert(i, [clone]);
+  }
+}
+
+/**
  * Reconcile the action-item array against `next`, keyed by item id.
  *
  * Patching the matched maps in place rather than replacing the array keeps two
- * teachers ticking off different items from clobbering each other. The editor
- * only patches, removes and appends (never reorders), so appends land at the
- * end and order is otherwise preserved.
+ * teachers ticking off different items from clobbering each other. Appends land
+ * at the end, then a final pass reorders the array to match `next` so a drag
+ * reorder survives the round trip.
  */
 export function applyActionItems(
   doc: Y.Doc,
@@ -257,6 +285,11 @@ export function applyActionItems(
       .filter((item) => !present.has(item.id))
       .map(actionItemToMap);
     if (appended.length > 0) yItems.push(appended);
+
+    reorderToMatch(
+      yItems,
+      next.map((item) => item.id)
+    );
   });
 }
 

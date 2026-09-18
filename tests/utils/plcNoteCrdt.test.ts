@@ -293,6 +293,75 @@ describe('applyActionItems', () => {
     ]);
   });
 
+  it('reorders to match the incoming order', () => {
+    const doc = new Y.Doc();
+    const items = noteActionItems(doc);
+    applyActionItems(doc, items, [
+      item({ id: '1' }),
+      item({ id: '2' }),
+      item({ id: '3' }),
+    ]);
+
+    applyActionItems(doc, items, [
+      item({ id: '3' }),
+      item({ id: '1' }),
+      item({ id: '2' }),
+    ]);
+    expect(readNoteContent(doc).actionItems.map((i) => i.id)).toEqual([
+      '3',
+      '1',
+      '2',
+    ]);
+  });
+
+  it('carries a moved item’s fields with it', () => {
+    const doc = new Y.Doc();
+    const items = noteActionItems(doc);
+    applyActionItems(doc, items, [
+      item({ id: '1' }),
+      item({ id: '2', text: 'second', done: true, dueAt: 700, doneAt: 800 }),
+    ]);
+
+    applyActionItems(doc, items, [
+      item({ id: '2', text: 'second', done: true, dueAt: 700, doneAt: 800 }),
+      item({ id: '1' }),
+    ]);
+    const after = readNoteContent(doc).actionItems;
+    expect(after.map((i) => i.id)).toEqual(['2', '1']);
+    expect(after[0]).toMatchObject({
+      text: 'second',
+      done: true,
+      dueAt: 700,
+      doneAt: 800,
+    });
+  });
+
+  it('syncs a reorder to the other peer', () => {
+    const { a, b, sync } = peers();
+    applyActionItems(a, noteActionItems(a), [
+      item({ id: '1' }),
+      item({ id: '2' }),
+      item({ id: '3' }),
+    ]);
+    sync();
+
+    applyActionItems(a, noteActionItems(a), [
+      item({ id: '2' }),
+      item({ id: '3' }),
+      item({ id: '1' }),
+    ]);
+    sync();
+
+    expect(readNoteContent(b).actionItems.map((i) => i.id)).toEqual([
+      '2',
+      '3',
+      '1',
+    ]);
+    expect(readNoteContent(a).actionItems).toEqual(
+      readNoteContent(b).actionItems
+    );
+  });
+
   it('drops an optional field that was cleared', () => {
     const doc = new Y.Doc();
     const items = noteActionItems(doc);
