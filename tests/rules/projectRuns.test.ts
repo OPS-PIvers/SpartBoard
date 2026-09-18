@@ -10,7 +10,16 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-project-runs';
 const TEACHER_UID = 'projects-teacher';
@@ -173,6 +182,36 @@ describe('run document', () => {
       getDoc(
         doc(asStudent(OUTSIDER_UID, [OTHER_CLASS_ID]), 'project_runs', RUN_ID)
       )
+    );
+  });
+
+  it('lets a teacher list their own runs', async () => {
+    await seed();
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(asTeacher(TEACHER_UID), 'project_runs'),
+          where('teacherUid', '==', TEACHER_UID)
+        )
+      )
+    );
+  });
+
+  // A per-document class match cannot pass on `list`, so students read runs one
+  // at a time here. The student page PR widens this to the coarse shape the
+  // flashcard sessions rule above uses, with the class gate held on `get`.
+  it('does not yet serve a student listing', async () => {
+    await seed();
+    await assertFails(
+      getDocs(
+        query(
+          collection(asStudent(MEMBER_UID, [CLASS_ID]), 'project_runs'),
+          where('classIds', 'array-contains-any', [CLASS_ID])
+        )
+      )
+    );
+    await assertSucceeds(
+      getDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), 'project_runs', RUN_ID))
     );
   });
 
