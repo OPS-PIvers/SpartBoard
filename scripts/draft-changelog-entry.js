@@ -101,19 +101,25 @@ const drafted =
     ? highlights
     : [{ type: 'improvement', text: 'TODO: describe what changed for users.' }];
 
+// Mirrors GROUP_ORDER in WhatsNewModal so a draft spanning several commit types
+// gets one overview section per type rather than filing them all under the first.
+const OVERVIEW_TYPE_ORDER = ['feature', 'improvement', 'fix'];
+
 // Matches the shape WhatsNewModal renders: `overview` is the summary every user
 // sees, `details` is the "Read full update" disclosure. Both are user-facing.
 const draftEntry = {
   version: versionGuess,
   date: today,
   title: 'TODO: short release title',
-  overview: [
-    {
-      type: drafted[0].type,
-      subtitle: 'TODO: the area this touches, e.g. Quizzes',
-      items: drafted.map((h) => ({ text: h.text })),
-    },
-  ],
+  overview: OVERVIEW_TYPE_ORDER.filter((type) =>
+    drafted.some((h) => h.type === type)
+  ).map((type) => ({
+    type,
+    subtitle: 'TODO: the area this touches, e.g. Quizzes',
+    items: drafted
+      .filter((h) => h.type === type)
+      .map((h) => ({ text: h.text })),
+  })),
   details: drafted,
 };
 
