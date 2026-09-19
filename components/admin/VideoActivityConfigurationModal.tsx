@@ -103,9 +103,7 @@ export const VideoActivityConfigurationModal: React.FC<
     activity: GlobalVideoActivity,
     buildingId: string
   ) => {
-    // Canonicalize first: activity.buildings may still hold a legacy
-    // long-form id, which would never match buildingId (always canonical,
-    // from useAdminBuildings) and leave the legacy id stuck forever.
+    // activity.buildings may hold a legacy long-form id that would never match buildingId's canonical form.
     const currentBuildings = canonicalizeBuildingIds(activity.buildings ?? []);
     const newBuildings = currentBuildings.includes(buildingId)
       ? currentBuildings.filter((id) => id !== buildingId)
@@ -360,9 +358,7 @@ export const VideoActivityConfigurationModal: React.FC<
                                 ALL BUILDINGS
                               </button>
                               {(() => {
-                                // Canonicalize once so a legacy long-form
-                                // stored id (e.g. "orono-high-school") still
-                                // matches the canonical building.id ("high").
+                                // Canonicalize once so a legacy stored id still matches building.id.
                                 const assignedBuildings =
                                   canonicalizeBuildingIds(
                                     activity.buildings ?? []
