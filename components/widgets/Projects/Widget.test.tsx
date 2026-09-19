@@ -19,6 +19,10 @@ vi.mock('@/hooks/useProjectsWidgetSettings');
 vi.mock('@/components/common/ActiveClassChip', () => ({
   ActiveClassChip: () => <div data-testid="active-class-chip" />,
 }));
+// The manager owns its own Firestore listeners; routing is what's under test.
+vi.mock('./components/ProjectsManager', () => ({
+  ProjectsManager: () => <div data-testid="projects-manager" />,
+}));
 
 const setStepState = vi.fn().mockResolvedValue(undefined);
 const setNeedsSupport = vi.fn().mockResolvedValue(undefined);
@@ -110,9 +114,31 @@ describe('ProjectsWidget', () => {
     expect(screen.getByText('Projects is off')).toBeInTheDocument();
   });
 
-  it('points at the back face when no project is picked', () => {
+  it('opens on the library when nothing is picked yet', () => {
     render(<ProjectsWidget widget={widget({ projectId: undefined })} />);
-    expect(screen.getByText('No project picked')).toBeInTheDocument();
+    expect(screen.getByTestId('projects-manager')).toBeInTheDocument();
+  });
+
+  it('keeps the tracker for a widget placed before the library landed', () => {
+    // No `view` but a `projectId` is the pre-R1 shape; it must not jump to the library.
+    render(<ProjectsWidget widget={widget()} />);
+    expect(screen.queryByTestId('projects-manager')).not.toBeInTheDocument();
+    expect(screen.getByText('Ecosystem poster')).toBeInTheDocument();
+  });
+
+  it('honours an explicit library view even with a project selected', () => {
+    render(<ProjectsWidget widget={widget({ view: 'manager' })} />);
+    expect(screen.getByTestId('projects-manager')).toBeInTheDocument();
+  });
+
+  it('returns to the library from the board', () => {
+    render(<ProjectsWidget widget={widget()} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Back to the project library' })
+    );
+    expect(updateWidget).toHaveBeenCalledWith('projects-1', {
+      config: expect.objectContaining({ view: 'manager' }) as object,
+    });
   });
 
   it('draws one segment per step, labelled with its state', () => {
