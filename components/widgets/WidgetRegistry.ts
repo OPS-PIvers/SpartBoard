@@ -324,6 +324,14 @@ export const WIDGET_SETTINGS_SCHEMAS: Partial<
     import('./VideoActivityWidget/settings.schema').then((m) => m.default),
   'guided-learning': () =>
     import('./GuidedLearning/settings.schema').then((m) => m.default),
+  countdown: () => import('./Countdown/settings.schema').then((m) => m.default),
+  'work-symbols': () =>
+    import('./WorkSymbols/settings.schema').then((m) => m.default),
+  'blooms-taxonomy': () =>
+    import('./BloomsTaxonomy/settings.schema').then((m) => m.default),
+  'need-do-put-then': () =>
+    import('./NeedDoPutThen/settings.schema').then((m) => m.default),
+  stations: () => import('./Stations/settings.schema').then((m) => m.default),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -369,10 +377,6 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   nextUp: lazyNamed(() => import('./NextUp/Settings'), 'NextUpSettings'),
   // onboarding has no settings panel
   music: lazyNamed(() => import('./MusicWidget/index'), 'MusicSettings'),
-  countdown: lazyNamed(
-    () => import('./Countdown/Settings'),
-    'CountdownSettings'
-  ),
   'car-rider-pro': lazyNamed(
     () => import('./CarRiderPro/Settings'),
     'CarRiderProSettings'
@@ -390,23 +394,10 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     () => import('./ActivityWall/Settings'),
     'ActivityWallSettings'
   ),
-  'work-symbols': lazyNamed(
-    () => import('./WorkSymbols/Settings'),
-    'WorkSymbolsSettings'
-  ),
-  'blooms-taxonomy': lazyNamed(
-    () => import('./BloomsTaxonomy/Settings'),
-    'BloomsTaxonomySettings'
-  ),
   'talking-tool': lazyNamed(
     () => import('./TalkingTool'),
     'TalkingToolSettings'
   ),
-  'need-do-put-then': lazyNamed(
-    () => import('./NeedDoPutThen/Settings'),
-    'NeedDoPutThenSettings'
-  ),
-  stations: lazyNamed(() => import('./Stations/Settings'), 'StationsSettings'),
   projects: lazyNamed(() => import('./Projects/Settings'), 'ProjectsSettings'),
 };
 
@@ -431,10 +422,6 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
     () => import('./ActivityWall/Settings'),
     'ActivityWallAppearanceSettings'
   ),
-  countdown: lazyNamed(
-    () => import('./Countdown/Settings'),
-    'CountdownAppearanceSettings'
-  ),
   mathTools: lazyNamed(
     () => import('./MathTools'),
     'MathToolsAppearanceSettings'
@@ -450,18 +437,6 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
   stickers: lazyNamed(
     () => import('./stickers/StickerBookSettings'),
     'StickerBookAppearanceSettings'
-  ),
-  'work-symbols': lazyNamed(
-    () => import('./WorkSymbols/Settings'),
-    'WorkSymbolsAppearanceSettings'
-  ),
-  'need-do-put-then': lazyNamed(
-    () => import('./NeedDoPutThen/Settings'),
-    'NeedDoPutThenAppearanceSettings'
-  ),
-  stations: lazyNamed(
-    () => import('./Stations/Settings'),
-    'StationsAppearanceSettings'
   ),
   projects: lazyNamed(
     () => import('./Projects/Settings'),
