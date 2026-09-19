@@ -34,7 +34,6 @@ import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { useDashboard } from '@/context/useDashboard';
 import { useStorage } from '@/hooks/useStorage';
 import { createBoardSnapshot } from '@/utils/widgetHelpers';
-import { Toast } from '@/components/common/Toast';
 import { useDialog } from '@/context/useDialog';
 import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
 
@@ -102,7 +101,7 @@ const EMPTY_ROUTINE_EDITOR: RoutineEditorState = {
 export const CatalystConfigurationModal: React.FC<
   CatalystConfigurationModalProps
 > = ({ isOpen, onClose, permission, onSave }) => {
-  const { activeDashboard } = useDashboard();
+  const { activeDashboard, addToast } = useDashboard();
   const { uploadCatalystImage, uploading } = useStorage();
   const { showConfirm } = useDialog();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -130,15 +129,12 @@ export const CatalystConfigurationModal: React.FC<
     return lucideIconNames.filter((name) => name.toLowerCase().includes(query));
   }, [iconSearch, lucideIconNames]);
 
-  const [message, setMessage] = useState<{
-    type: 'success' | 'error';
-    text: string;
-  } | null>(null);
-
-  const showMessage = useCallback((type: 'success' | 'error', text: string) => {
-    setMessage({ type, text });
-    setTimeout(() => setMessage(null), 3000);
-  }, []);
+  const showMessage = useCallback(
+    (type: 'success' | 'error', text: string) => {
+      addToast(text, type);
+    },
+    [addToast]
+  );
 
   useEffect(() => {
     if (isOpen && permission?.config) {
@@ -452,14 +448,6 @@ export const CatalystConfigurationModal: React.FC<
 
   return (
     <div className="fixed inset-0 z-modal-nested flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-      {message && (
-        <Toast
-          message={message.text}
-          type={message.type}
-          onClose={() => setMessage(null)}
-        />
-      )}
-
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
