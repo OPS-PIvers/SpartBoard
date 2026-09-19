@@ -362,6 +362,22 @@ describe('assertOrgMediaAdmin', () => {
       assertOrgMediaAdmin(asFirestore(db), ORG, 'super@x.org')
     ).resolves.toBeUndefined();
   });
+
+  // SECURITY: organizationMembersSync mirrors building_admin (not just
+  // super_admin/domain_admin) into the SAME /admins/{email} collection, so
+  // bare doc existence is not proof of site-wide authority. MEDIA_ADMIN_ROLE_IDS
+  // deliberately excludes building_admin, but a building_admin of a totally
+  // unrelated org still gets a doc at /admins/{email} — this must not bypass
+  // the per-org role gate and reach another org's student media.
+  it('rejects a building_admin of an unrelated org mirrored into /admins', async () => {
+    db.set('admins/building@z.org', {
+      roleId: 'building_admin',
+      source: 'organizationMembersSync',
+    });
+    await expect(
+      assertOrgMediaAdmin(asFirestore(db), ORG, 'building@z.org')
+    ).rejects.toThrow(/not a member/i);
+  });
 });
 
 describe('listOrgQuizMedia', () => {
