@@ -56,7 +56,9 @@ const ListImpl: React.FC<ListImplProps> = ({
     disabled || (maxRows !== undefined && rows.length >= maxRows);
 
   const handleAdd = () => {
-    const newRow = listField.row.createRow ? listField.row.createRow() : {};
+    const newRow = listField.row.createRow
+      ? listField.row.createRow(rows.length)
+      : {};
     onChange([...rows, newRow]);
   };
 

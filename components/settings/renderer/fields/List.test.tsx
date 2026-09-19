@@ -136,6 +136,26 @@ describe('List field', () => {
     });
   });
 
+  it('passes the appended row index to createRow', () => {
+    const updateConfig = vi.fn();
+    const createRow = vi.fn((index: number) => ({ label: `row-${index}` }));
+    render(
+      <FieldRenderer
+        field={{ ...field, row: { ...field.row, createRow } }}
+        widget={widget}
+        ctx={makeCtx({ items: [{ label: 'a' }, { label: 'b' }] })}
+        updateConfig={updateConfig}
+      />
+    );
+
+    fireEvent.click(screen.getByText('addRow'));
+
+    expect(createRow).toHaveBeenCalledWith(2);
+    expect(updateConfig).toHaveBeenCalledWith({
+      items: [{ label: 'a' }, { label: 'b' }, { label: 'row-2' }],
+    });
+  });
+
   it('removes a row via its accessible remove button', () => {
     const updateConfig = vi.fn();
     render(

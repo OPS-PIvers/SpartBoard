@@ -1,34 +1,23 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { SpecialistScheduleSettings } from './Settings';
-import { useDashboard } from '@/context/useDashboard';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuth } from '@/context/useAuth';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
-import { WidgetData, FeaturePermission } from '@/types';
+import type { CustomRenderCtx } from '@/components/settings/schema/types';
+import type { WidgetData } from '@/types';
+import { SpecialistScheduleCycleDaysField } from './settingsFields';
 
-vi.mock('@/context/useDashboard', () => ({
-  useDashboard: vi.fn(),
-}));
-vi.mock('@/context/useAuth', () => ({
-  useAuth: vi.fn(),
-}));
+vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/useWidgetBuildingId', () => ({
   useWidgetBuildingId: vi.fn(),
 }));
-vi.mock('@/components/common/TypographySettings', () => ({
-  TypographySettings: () => null,
-}));
-vi.mock('@/components/common/SurfaceColorSettings', () => ({
-  SurfaceColorSettings: () => null,
-}));
-vi.mock('@/components/common/TextSizePresetSettings', () => ({
-  TextSizePresetSettings: () => null,
-}));
 
-const mockUpdateWidget = vi.fn();
 const BUILDING_ID = 'schumann-elementary';
-
+const updateConfig = vi.fn();
+const labels: Record<string, string> = {
+  addItem: 'Add item',
+  activity: 'Activity name',
+};
 const baseWidget: WidgetData = {
   id: 'specialist-test-1',
   type: 'specialist-schedule',
@@ -38,82 +27,73 @@ const baseWidget: WidgetData = {
   h: 400,
   z: 1,
   flipped: true,
-  config: {
-    cycleDays: [],
-  },
+  config: { cycleDays: [] },
 };
 
-function permissionWithOptions(
-  specialistOptions: string[]
-): FeaturePermission[] {
-  return [
-    {
-      widgetType: 'specialist-schedule',
-      accessLevel: 'public',
-      betaUsers: [],
-      enabled: true,
-      config: {
-        buildingDefaults: {
-          [BUILDING_ID]: {
-            cycleLength: 6,
-            startDate: '2026-08-01',
-            schoolDays: [],
-            specialistOptions,
-          },
-        },
-      },
-    } as unknown as FeaturePermission,
-  ];
-}
+const makeCtx = (): CustomRenderCtx => ({
+  config: baseWidget.config as unknown as Record<string, unknown>,
+  widget: baseWidget,
+  isAdmin: false,
+  canAccessFeature: () => true,
+  t: (key) => labels[key.split('.').pop() ?? key] ?? key,
+  updateConfig,
+  id: 'specialist-cycle-days',
+  labelId: 'specialist-cycle-days-label',
+});
 
-describe('SpecialistScheduleSettings — Activity Name radiogroup', () => {
+describe('SpecialistScheduleCycleDaysField', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      updateWidget: mockUpdateWidget,
-    });
-    (
-      useWidgetBuildingId as unknown as ReturnType<typeof vi.fn>
-    ).mockReturnValue(BUILDING_ID);
+    vi.mocked(useWidgetBuildingId).mockReturnValue(BUILDING_ID);
+    vi.mocked(useAuth).mockReturnValue({
+      featurePermissions: [
+        {
+          widgetType: 'specialist-schedule',
+          config: {
+            buildingDefaults: {
+              [BUILDING_ID]: {
+                cycleLength: 6,
+                specialistOptions: ['🎵 Music', '👟 PE'],
+              },
+            },
+          },
+        },
+      ],
+    } as never);
   });
 
-  function openAddItemForm() {
+  it('keeps configured specialist choices as an accessible radio group', () => {
+    render(<SpecialistScheduleCycleDaysField ctx={makeCtx()} />);
     fireEvent.click(screen.getByRole('button', { name: /add item/i }));
-  }
 
-  it('renders a radio per configured specialist option and marks the selected one checked', () => {
-    (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      featurePermissions: permissionWithOptions(['🎵 Music', '👟 PE']),
-    });
+    const music = screen.getByRole('radio', { name: '🎵 Music' });
+    const pe = screen.getByRole('radio', { name: '👟 PE' });
+    expect(music).toHaveAttribute('aria-checked', 'false');
+    expect(pe).toHaveAttribute('aria-checked', 'false');
 
-    render(<SpecialistScheduleSettings widget={baseWidget} />);
-    openAddItemForm();
-
-    const musicOption = screen.getByRole('radio', { name: '🎵 Music' });
-    const peOption = screen.getByRole('radio', { name: '👟 PE' });
-    expect(musicOption).toHaveAttribute('aria-checked', 'false');
-    expect(peOption).toHaveAttribute('aria-checked', 'false');
-
-    fireEvent.click(musicOption);
-    expect(musicOption).toHaveAttribute('aria-checked', 'true');
-    expect(peOption).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(music);
+    expect(music).toHaveAttribute('aria-checked', 'true');
+    expect(pe).toHaveAttribute('aria-checked', 'false');
   });
 
-  it('omits the radiogroup entirely when no specialist options are configured', () => {
-    // Regression: an empty role="radiogroup" (rendered when
-    // specialistOptions defaults to []) is invalid ARIA and a landmark that
-    // leads nowhere — the group must be omitted, not rendered empty.
-    (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      featurePermissions: permissionWithOptions([]),
-    });
+  it('does not render an empty specialist-options radio group', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      featurePermissions: [
+        {
+          widgetType: 'specialist-schedule',
+          config: {
+            buildingDefaults: {
+              [BUILDING_ID]: { cycleLength: 6, specialistOptions: [] },
+            },
+          },
+        },
+      ],
+    } as never);
 
-    render(<SpecialistScheduleSettings widget={baseWidget} />);
-    openAddItemForm();
+    render(<SpecialistScheduleCycleDaysField ctx={makeCtx()} />);
+    fireEvent.click(screen.getByRole('button', { name: /add item/i }));
 
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
-    // The free-text input must still be present and usable on its own.
-    expect(
-      screen.getByRole('textbox', { name: /custom activity name/i })
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/activity/i)).toBeInTheDocument();
   });
 });
