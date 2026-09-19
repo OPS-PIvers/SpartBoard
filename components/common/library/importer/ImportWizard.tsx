@@ -786,6 +786,11 @@ export function ImportWizard<TData>({
       className="font-sans"
       contentClassName="px-6 py-5 bg-slate-50"
       ariaLabelledby="import-wizard-title"
+      // Every host widget can be opened maximized; the default z-modal
+      // (10000) sits below a maximized widget (z-maximized, 10500), so the
+      // wizard would render invisibly behind it. Same fix as
+      // SpotifyPremiumDialog.tsx.
+      zIndex="z-dialog"
     >
       <div className="relative">
         {body}

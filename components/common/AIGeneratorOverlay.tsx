@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { AlertTriangle, Loader2, Sparkles, X } from 'lucide-react';
 
 interface AIGeneratorOverlayProps {
@@ -50,6 +50,32 @@ export const AIGeneratorOverlay: React.FC<AIGeneratorOverlayProps> = ({
   onGenerate,
   generateLabel = 'Generate',
 }) => {
+  // Store onClose in a ref so the effect below never needs it as a
+  // dependency (same pattern as Modal.tsx) — callers pass an inline arrow,
+  // so listing it would re-subscribe the listener on every keystroke while
+  // the panel is open.
+  const onCloseRef = useRef(onClose);
+  // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync to avoid stale-closure without re-subscribing the effect (CLAUDE.md pattern)
+  onCloseRef.current = onClose;
+
+  // Escape must be caught at the document level, not via a div-level
+  // onKeyDown: nothing here moves focus into the overlay (some consumers,
+  // e.g. Video Activity's "Draft with AI" panel, have no focusable field at
+  // all), so a JSX onKeyDown can silently never fire. Without this, Escape
+  // bubbles straight to the ancestor Modal's window-level Escape handler,
+  // which closes/discards the whole editor instead of just this panel
+  // (same bug class as #2266/#2289/#2314).
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      onCloseRef.current();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [open]);
+
   if (!open) return null;
   return (
     // `role="dialog"` advertises the overlay as a dialog landmark for
@@ -64,12 +90,6 @@ export const AIGeneratorOverlay: React.FC<AIGeneratorOverlayProps> = ({
       role="dialog"
       aria-label={title}
       className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200"
-      onKeyDown={(e) => {
-        if (e.key !== 'Escape') return;
-        // Stop the bubble to the ancestor Modal's window-level Escape handler, which would otherwise also close/discard the whole editor (same bug class as #2266/#2289/#2314).
-        e.stopPropagation();
-        onClose();
-      }}
     >
       <div className="w-full max-w-sm space-y-4">
         <div className="flex items-center justify-between">

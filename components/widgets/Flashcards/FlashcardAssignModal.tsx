@@ -373,6 +373,11 @@ export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = ({
       options={form}
       onOptionsChange={setForm}
       extraSlot={extraSlot}
+      // Flashcards is opened maximized from the dashboard; the default
+      // z-modal (10000) sits below a maximized widget (z-maximized, 10500),
+      // so the modal renders invisibly behind it. Same fix as
+      // SpotifyPremiumDialog.tsx.
+      zIndex="z-dialog"
       onAssign={() =>
         onAssign(
           buildFlashcardAssignSubmission({

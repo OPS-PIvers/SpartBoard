@@ -5,15 +5,20 @@ import {
   arrayRemove,
   arrayUnion,
   collection,
+  deleteField,
   doc,
   updateDoc,
   type Firestore,
 } from 'firebase/firestore';
 import type {
+  ProjectDefinition,
   ProjectGroupEvent,
+  ProjectRun,
   ProjectStepState,
   ProjectWorkLink,
 } from '@/types';
+import { approvalStepIdsFrom } from '@/components/widgets/Projects/projectSteps';
+import { rubricMaxPoints } from '@/utils/rubricPoints';
 import { logError } from '@/utils/logError';
 
 export const RUNS_COLLECTION = 'project_runs';
@@ -116,4 +121,48 @@ export async function removeWorkLinkWrite(
     workLinks: arrayRemove(link),
     updatedAt: Date.now(),
   });
+}
+
+/** Opening and closing a run is the whole In Progress ↔ Archive lifecycle (R2). */
+export async function setRunAcceptingUpdates(
+  db: Firestore,
+  runId: string,
+  acceptingUpdates: boolean
+): Promise<void> {
+  await updateDoc(doc(db, RUNS_COLLECTION, runId), {
+    acceptingUpdates,
+    updatedAt: Date.now(),
+  });
+}
+
+/**
+ * D12/D13 — the run holds a snapshot of the project, so editing a launched
+ * project has to push title, steps and rubric onto it. updateDoc cannot clear
+ * a key by omitting it, so anything the teacher removed is deleteField()ed.
+ */
+export async function syncRunFromProject(
+  db: Firestore,
+  run: ProjectRun,
+  project: ProjectDefinition
+): Promise<void> {
+  const payload: Record<string, unknown> = {
+    title: project.title,
+    steps: project.steps,
+    approvalStepIds: approvalStepIdsFrom(project.steps),
+    updatedAt: Date.now(),
+  };
+
+  if (project.rubric) {
+    payload.rubric = project.rubric;
+    payload.rubricMaxPoints =
+      project.rubricMaxPoints ?? rubricMaxPoints(project.rubric);
+  } else if (run.rubric) {
+    payload.rubric = deleteField();
+    payload.rubricMaxPoints = deleteField();
+  }
+
+  if (project.dueAt !== undefined) payload.dueAt = project.dueAt;
+  else if (run.dueAt !== undefined) payload.dueAt = deleteField();
+
+  await updateDoc(doc(db, RUNS_COLLECTION, run.id), payload);
 }

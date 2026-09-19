@@ -7372,6 +7372,10 @@ export interface ProjectDefinition {
   rubric?: Rubric;
   rubricMaxPoints?: number;
   dueAt?: number;
+  /** Library folder this project sits in. Absent/null means the root. */
+  folderId?: string | null;
+  /** Manual library ordering; absent sorts after everything ordered. */
+  order?: number;
   createdAt: number;
   updatedAt: number;
   archivedAt?: number | null;
@@ -7525,13 +7529,25 @@ export interface ProjectsGlobalConfig {
   dockDefaults?: Record<string, boolean>;
 }
 
-/** Per-board state only. Project definitions live in the teacher's library (D15). */
+/** Per-board state only. Project definitions live in the teacher's library (R1). */
 export interface ProjectsConfig {
-  /** Library project this widget points at. One project per widget. */
+  /**
+   * Which face the widget body shows. Absent resolves to `'board'` when a
+   * project is already selected, so widgets placed before R1 keep their
+   * tracker, and `'manager'` otherwise.
+   */
+  view?: 'manager' | 'board';
+  /** Tab within the manager view. */
+  managerTab?: 'library' | 'active' | 'archive';
+  /** The project open in board view. Not a binding — the manager retargets it. */
   projectId?: string;
   /** D27 — the teacher's show/hide status toggle on the board face. */
   showStatus?: boolean;
   pendingImport?: ProjectsPendingImport | null;
+  /** Persisted library grid/list toggle. */
+  libraryViewMode?: 'grid' | 'list';
+  /** Persisted folder-panel state; `'auto'` derives it from widget width. */
+  folderPanelMode?: 'auto' | 'full' | 'rail' | 'hidden';
   fontFamily?: string;
   cardColor?: string;
   cardOpacity?: number;
@@ -9416,7 +9432,8 @@ export type LibraryFolderWidget =
   | 'video_activity'
   | 'guided_learning'
   | 'miniapp'
-  | 'flashcards';
+  | 'flashcards'
+  | 'projects';
 
 /**
  * A folder record stored at

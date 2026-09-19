@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collection,
+  deleteField,
   doc,
   onSnapshot,
   setDoc,
@@ -64,7 +65,10 @@ interface UseProjectRunResult {
     actorRole: 'student' | 'teacher'
   ) => Promise<void>;
   removeWorkLink: (groupId: string, link: ProjectWorkLink) => Promise<void>;
-  updateRun: (updates: Partial<ProjectRun>) => Promise<void>;
+  updateRun: (
+    updates: Partial<ProjectRun>,
+    clearFields?: (keyof ProjectRun)[]
+  ) => Promise<void>;
   importGroups: (
     groups: ProjectGroupImportEntry[]
   ) => Promise<CommitProjectGroupsResult>;
@@ -159,12 +163,28 @@ export function useProjectRun(
         next.rubricMaxPoints = project.rubricMaxPoints;
       }
       if (project.dueAt !== undefined) next.dueAt = project.dueAt;
-      await setDoc(doc(db, RUNS_COLLECTION, id), next, { merge: true });
+
+      // merge:true can't clear a field absent from `next` — deleteField() removed rubric/dueAt so "editable after launch" actually clears them.
+      const payload: Record<string, unknown> = { ...next };
+      if (!project.rubric && run?.rubric) payload.rubric = deleteField();
+      if (
+        project.rubricMaxPoints === undefined &&
+        run?.rubricMaxPoints !== undefined
+      ) {
+        payload.rubricMaxPoints = deleteField();
+      }
+      if (project.dueAt === undefined && run?.dueAt !== undefined) {
+        payload.dueAt = deleteField();
+      }
+      await setDoc(doc(db, RUNS_COLLECTION, id), payload, { merge: true });
       return next;
     },
     [
       run?.acceptingUpdates,
       run?.classIds,
+      run?.dueAt,
+      run?.rubric,
+      run?.rubricMaxPoints,
       run?.showStatusToStudents,
       teacherUid,
     ]
@@ -231,12 +251,18 @@ export function useProjectRun(
   );
 
   const updateRun = useCallback(
-    async (updates: Partial<ProjectRun>) => {
+    async (
+      updates: Partial<ProjectRun>,
+      clearFields?: (keyof ProjectRun)[]
+    ) => {
       if (!runId) throw new Error('No project is running.');
-      await updateDoc(doc(db, RUNS_COLLECTION, runId), {
+      const payload: Record<string, unknown> = {
         ...updates,
         updatedAt: Date.now(),
-      });
+      };
+      // clearFields lets a caller explicitly deleteField() a key that's simply absent from `updates` — same "merge/update can't clear an omitted key" idiom as ensureRun.
+      for (const field of clearFields ?? []) payload[field] = deleteField();
+      await updateDoc(doc(db, RUNS_COLLECTION, runId), payload);
     },
     [runId]
   );

@@ -149,4 +149,32 @@ describe('adminAnalytics — caller identity verification', () => {
     // No snapshot yet → 503, not 401 — the identity gate passed.
     expect(state.statusCode).toBe(503);
   });
+
+  // SECURITY: organizationMembersSync mirrors building_admin (not just
+  // super_admin/domain_admin) into the same /admins/{email} collection that
+  // this endpoint treats as "may view any org". A building_admin of an
+  // unrelated org must not read another org's private analytics snapshot.
+  it('SECURITY: rejects a building_admin of an unrelated org mirrored into /admins', async () => {
+    verifyIdTokenMock.mockResolvedValue({
+      email: 'building@other-org.org',
+      email_verified: true,
+    });
+    adminDocGetMock.mockResolvedValue({
+      exists: true,
+      data: () => ({ roleId: 'building_admin' }),
+    });
+    memberDocGetMock.mockResolvedValue({ exists: false });
+
+    const { res, out: state } = makeRes();
+    await handler(
+      {
+        headers: { authorization: 'Bearer faketoken' },
+        body: { orgId: 'org-1' },
+      },
+      res
+    );
+
+    expect(state.statusCode).toBe(403);
+    expect(readAnalyticsSnapshotMock).not.toHaveBeenCalled();
+  });
 });

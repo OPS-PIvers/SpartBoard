@@ -507,6 +507,8 @@ export interface AssignModalProps<TOptions> {
   /** Inline disabled reason (e.g. missing required field). */
   confirmDisabled?: boolean;
   confirmDisabledReason?: string;
+  /** Override the modal's z-index tier (e.g. "z-dialog"). See Modal's `zIndex` prop. */
+  zIndex?: string;
 }
 
 /* ─── PeriodSelector (extracted from QuizPeriodSelector) ──────────────────── */
