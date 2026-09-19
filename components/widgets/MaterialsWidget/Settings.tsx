@@ -30,10 +30,11 @@ import {
   forgetMaterial,
   preferencesFromConfig,
 } from '@/utils/materialsPreferences';
-import { WIDGET_PALETTE } from '@/config/colors';
+import { WIDGET_PALETTE, COLOR_HEX_TO_NAME } from '@/config/colors';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 
 type FormState =
   | { mode: 'closed' }
@@ -313,6 +314,16 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
     { id: 'font-handwritten', label: 'School', icon: '✏️' },
   ];
 
+  // Shared select handlers — reused by both onClick and the radiogroup
+  // roving-tabindex keydown handler (handleRadioGroupKeyDown) below.
+  const selectTitleFont = (font: (typeof fonts)[number]) =>
+    commitConfig({ ...config, titleFont: font.id });
+
+  const selectTitleColor = (color: string) =>
+    updateWidget(widget.id, { config: { ...config, titleColor: color } });
+
+  const hasMatchingTitleColor = WIDGET_PALETTE.some((c) => c === titleColor);
+
   return (
     <div className="flex flex-col gap-6 p-1">
       {/* Title Settings */}
@@ -337,27 +348,38 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
           </SettingsLabel>
           <div
             className="grid grid-cols-4 gap-2"
-            role="group"
+            role="radiogroup"
             aria-labelledby={typographyLabelId}
+            onKeyDown={(e) =>
+              handleRadioGroupKeyDown(e, fonts, selectTitleFont)
+            }
           >
-            {fonts.map((f) => (
-              <button
-                key={f.id}
-                onClick={() => commitConfig({ ...config, titleFont: f.id })}
-                className={`p-2 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
-                  titleFont === f.id || (!titleFont && f.id === 'global')
-                    ? 'border-blue-500 bg-blue-50 shadow-sm'
-                    : 'border-slate-100 hover:border-slate-200'
-                }`}
-              >
-                <span className={`text-sm ${f.id} text-slate-900`}>
-                  {f.icon}
-                </span>
-                <span className="text-xxxs font-black uppercase text-slate-500 tracking-tighter text-center leading-none">
-                  {f.label}
-                </span>
-              </button>
-            ))}
+            {fonts.map((f) => {
+              const isSelected =
+                titleFont === f.id || (!titleFont && f.id === 'global');
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  tabIndex={isSelected ? 0 : -1}
+                  onClick={() => selectTitleFont(f)}
+                  className={`p-2 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${
+                    isSelected
+                      ? 'border-blue-500 bg-blue-50 shadow-sm'
+                      : 'border-slate-100 hover:border-slate-200'
+                  }`}
+                >
+                  <span className={`text-sm ${f.id} text-slate-900`}>
+                    {f.icon}
+                  </span>
+                  <span className="text-xxxs font-black uppercase text-slate-500 tracking-tighter text-center leading-none">
+                    {f.label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -367,23 +389,31 @@ export const MaterialsSettings: React.FC<{ widget: WidgetData }> = ({
           </SettingsLabel>
           <div
             className="flex flex-wrap gap-2"
-            role="group"
+            role="radiogroup"
             aria-labelledby={titleColorLabelId}
+            onKeyDown={(e) =>
+              handleRadioGroupKeyDown(e, WIDGET_PALETTE, selectTitleColor)
+            }
           >
-            {WIDGET_PALETTE.map((c) => (
+            {WIDGET_PALETTE.map((c, index) => (
               <button
                 key={c}
-                onClick={() =>
-                  updateWidget(widget.id, {
-                    config: { ...config, titleColor: c },
-                  })
+                type="button"
+                role="radio"
+                aria-checked={titleColor === c}
+                tabIndex={
+                  titleColor === c || (!hasMatchingTitleColor && index === 0)
+                    ? 0
+                    : -1
                 }
+                onClick={() => selectTitleColor(c)}
                 className={`w-6 h-6 rounded-full border-2 transition-all ${
                   titleColor === c
                     ? 'border-slate-800 scale-125 shadow-md'
                     : 'border-transparent hover:scale-110'
                 }`}
                 style={{ backgroundColor: c }}
+                aria-label={`Title color ${COLOR_HEX_TO_NAME[c] ?? c}`}
               />
             ))}
           </div>

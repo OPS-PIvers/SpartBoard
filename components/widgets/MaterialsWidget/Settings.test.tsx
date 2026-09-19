@@ -108,16 +108,26 @@ describe('MaterialsSettings — group heading associations', () => {
   });
 
   // These headings render as <span> (a bare <label> labelling nothing is
-  // ignored by screen readers), so the role=group + aria-labelledby pairing is
-  // the only thing giving each button group an accessible name.
-  it.each([['Typography'], ['Title Color'], ['Available Materials']])(
+  // ignored by screen readers), so the role=group/radiogroup + aria-labelledby
+  // pairing is the only thing giving each button group an accessible name.
+  // Typography and Title Color are exclusive-choice pickers (role=radiogroup);
+  // Available Materials is an independently-toggleable multi-select (role=group).
+  it.each([['Typography'], ['Title Color']])(
     'names the %s button group from its heading',
     (name) => {
       render(<MaterialsSettings widget={widget} />);
 
-      expect(screen.getByRole('group', { name })).toBeInTheDocument();
+      expect(screen.getByRole('radiogroup', { name })).toBeInTheDocument();
     }
   );
+
+  it('names the Available Materials button group from its heading', () => {
+    render(<MaterialsSettings widget={widget} />);
+
+    expect(
+      screen.getByRole('group', { name: 'Available Materials' })
+    ).toBeInTheDocument();
+  });
 
   it('names the title text input from its label', () => {
     render(<MaterialsSettings widget={widget} />);
