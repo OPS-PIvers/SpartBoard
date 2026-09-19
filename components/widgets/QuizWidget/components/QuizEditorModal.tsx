@@ -10,7 +10,7 @@
  * the quiz. The behavior is persisted via the `behavior` 2nd arg of `onSave`.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AlertTriangle, Plus, Sparkles, Target } from 'lucide-react';
 import {
   LibraryFolder,
@@ -277,7 +277,6 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     setSaving,
     setError,
     setShowAiPrompt,
-    showAiPrompt,
     originalTitle,
     originalQuestions,
     originalStimuli,
@@ -357,17 +356,6 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       originalBehavior,
     ]
   );
-
-  // Global Escape listener so the AI overlay dismisses even when focus is
-  // outside its children (e.g., user clicked the backdrop).
-  useEffect(() => {
-    if (!showAiPrompt) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'Escape') setShowAiPrompt(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [showAiPrompt, setShowAiPrompt]);
 
   const handleSave = async () => {
     if (!quiz) return;
