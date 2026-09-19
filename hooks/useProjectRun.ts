@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   collection,
+  deleteField,
   doc,
   onSnapshot,
   setDoc,
@@ -159,12 +160,32 @@ export function useProjectRun(
         next.rubricMaxPoints = project.rubricMaxPoints;
       }
       if (project.dueAt !== undefined) next.dueAt = project.dueAt;
-      await setDoc(doc(db, RUNS_COLLECTION, id), next, { merge: true });
+
+      // `next` only ADDS these optional fields when the definition still has
+      // them, so with `merge: true` a removed rubric/due date is otherwise
+      // never cleared off an already-launched run (D "editable after
+      // launch") — deleteField() the key instead when the live run still
+      // carries a value the definition no longer does.
+      const payload: Record<string, unknown> = { ...next };
+      if (!project.rubric && run?.rubric) payload.rubric = deleteField();
+      if (
+        project.rubricMaxPoints === undefined &&
+        run?.rubricMaxPoints !== undefined
+      ) {
+        payload.rubricMaxPoints = deleteField();
+      }
+      if (project.dueAt === undefined && run?.dueAt !== undefined) {
+        payload.dueAt = deleteField();
+      }
+      await setDoc(doc(db, RUNS_COLLECTION, id), payload, { merge: true });
       return next;
     },
     [
       run?.acceptingUpdates,
       run?.classIds,
+      run?.dueAt,
+      run?.rubric,
+      run?.rubricMaxPoints,
       run?.showStatusToStudents,
       teacherUid,
     ]
