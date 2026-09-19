@@ -1,13 +1,6 @@
 import type * as admin from 'firebase-admin';
 
-/**
- * `/admins/{emailLower}` existence is NOT proof of site-wide super-admin
- * authority. `organizationMembersSync.ts` mirrors `building_admin` (alongside
- * `super_admin`/`domain_admin`) into that same collection so building admins
- * can read the members list — see its `ADMIN_ROLES`. A doc written by that
- * sync carries the mirrored `roleId`; a legacy, hand-created doc (pre-dating
- * the sync) carries none and is always a true super admin.
- */
+/** `/admins/{email}` also mirrors building_admin (org-scoped) — bare doc existence isn't proof of super-admin; a missing roleId means a legacy pre-sync doc. */
 export function isSuperAdminRoleId(roleId: unknown): boolean {
   if (typeof roleId !== 'string') return true; // legacy doc, no mirror marker
   return roleId === 'super_admin' || roleId === 'domain_admin';
