@@ -1,0 +1,395 @@
+import React, { useMemo, useState } from 'react';
+import {
+  ChevronLeft,
+  ClipboardList,
+  Hand,
+  Loader2,
+  SquarePen,
+  Users,
+} from 'lucide-react';
+import type {
+  ProjectGroup,
+  ProjectStep,
+  ProjectStepState,
+  ProjectsConfig,
+  WidgetData,
+} from '@/types';
+import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
+import { useProjectRun } from '@/hooks/useProjectRun';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { ActiveClassChip } from '@/components/common/ActiveClassChip';
+import { OverflowMenu } from '@/components/common/sessionViews/OverflowMenu';
+import { getFontClass, hexToRgba } from '@/utils/styles';
+import {
+  COMFORTABLE_GROUPS,
+  COMFORTABLE_STEPS,
+  STEP_STATE_LABELS,
+  completedStepCount,
+  groupsForClass,
+  projectClassIdFor,
+  sortGroupsForBoard,
+  stepStateOf,
+  studentStateOptions,
+} from '../projectSteps';
+
+/** Purposeful colour: one hue per state, nothing decorative (components/CLAUDE.md). */
+const SEGMENT_COLORS: Record<ProjectStepState, string> = {
+  notStarted: 'bg-slate-300/70',
+  inProgress: 'bg-brand-blue-primary',
+  readyForReview: 'bg-amber-400',
+  done: 'bg-emerald-500',
+};
+
+const nextState = (
+  step: ProjectStep,
+  current: ProjectStepState
+): ProjectStepState => {
+  // D28 — the approval ceiling is the student's; the teacher cycles past it.
+  const options: ProjectStepState[] = studentStateOptions(step).concat(
+    step.requiresApproval ? ['done'] : []
+  );
+  return options[(options.indexOf(current) + 1) % options.length];
+};
+
+const GroupRow: React.FC<{
+  group: ProjectGroup;
+  steps: ProjectStep[];
+  showStatus: boolean;
+  cardStyle: React.CSSProperties;
+  busyKeys: ReadonlySet<string>;
+  onCycleStep: (stepId: string, state: ProjectStepState) => void;
+  onClearSupport: () => void;
+}> = ({
+  group,
+  steps,
+  showStatus,
+  cardStyle,
+  busyKeys,
+  onCycleStep,
+  onClearSupport,
+}) => (
+  <li
+    className="flex items-center rounded-xl border-l-4 overflow-hidden"
+    style={{
+      ...cardStyle,
+      borderLeftColor: group.needsSupport ? '#f59e0b' : 'transparent',
+      gap: 'min(10px, 2cqmin)',
+      padding: 'min(8px, 1.8cqmin) min(10px, 2.2cqmin)',
+    }}
+  >
+    <span
+      className="font-bold text-slate-800 truncate shrink-0"
+      style={{ fontSize: 'min(15px, 5cqmin)', width: '28%' }}
+    >
+      {group.name}
+    </span>
+
+    {showStatus ? (
+      <div
+        className="flex flex-1 min-w-0"
+        style={{ gap: 'min(3px, 0.6cqmin)' }}
+        role="group"
+        aria-label={`${group.name} progress`}
+      >
+        {steps.map((step) => {
+          const state = stepStateOf(group, step.id);
+          return (
+            <button
+              key={step.id}
+              type="button"
+              onClick={() => onCycleStep(step.id, state)}
+              disabled={busyKeys.has(`${group.id}:${step.id}`)}
+              title={`${step.title} — ${STEP_STATE_LABELS[state]}`}
+              aria-label={`${group.name}, ${step.title}, ${STEP_STATE_LABELS[state]}`}
+              className={`flex-1 rounded-full transition-colors disabled:opacity-50 ${SEGMENT_COLORS[state]}`}
+              style={{ height: 'min(14px, 3.2cqmin)' }}
+            />
+          );
+        })}
+      </div>
+    ) : (
+      <span
+        className="flex-1 text-slate-500 font-medium"
+        style={{ fontSize: 'min(13px, 4.2cqmin)' }}
+      >
+        {completedStepCount(group, steps)} of {steps.length} done
+      </span>
+    )}
+
+    {group.needsSupport && (
+      <button
+        type="button"
+        onClick={onClearSupport}
+        disabled={busyKeys.has(`${group.id}:support`)}
+        className="shrink-0 flex items-center rounded-full bg-amber-100 text-amber-800 font-semibold disabled:opacity-50"
+        style={{
+          gap: 'min(4px, 1cqmin)',
+          padding: 'min(3px, 0.7cqmin) min(8px, 1.8cqmin)',
+          fontSize: 'min(12px, 3.6cqmin)',
+        }}
+        aria-label={`Clear the help flag for ${group.name}`}
+      >
+        <Hand
+          aria-hidden
+          style={{
+            width: 'min(13px, 3.4cqmin)',
+            height: 'min(13px, 3.4cqmin)',
+          }}
+        />
+        Help
+      </button>
+    )}
+  </li>
+);
+
+interface ProjectBoardViewProps {
+  widget: WidgetData;
+  projectId: string;
+  onBackToLibrary: () => void;
+  onGrade: () => void;
+  onManageGroups: () => void;
+}
+
+/** The projected tracker (D25–D30), now one view of the widget rather than its whole face. */
+export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
+  widget,
+  projectId,
+  onBackToLibrary,
+  onGrade,
+  onManageGroups,
+}) => {
+  const config = widget.config as ProjectsConfig;
+  const {
+    showStatus = true,
+    fontFamily,
+    cardColor = '#ffffff',
+    cardOpacity = 0.75,
+  } = config;
+
+  const { updateWidget, rosters, activeRosterId, addToast, activeDashboard } =
+    useDashboard();
+  const { user } = useAuth();
+  const { run, groups, loading, setStepState, setNeedsSupport } = useProjectRun(
+    user?.uid,
+    projectId,
+    user?.uid
+  );
+
+  // A set, not a scalar: two rows can be in flight at once and each owns its key.
+  const [busyKeys, setBusyKeys] = useState<ReadonlySet<string>>(
+    () => new Set<string>()
+  );
+
+  const activeClassId = useMemo(
+    () => projectClassIdFor(rosters.find((r) => r.id === activeRosterId)),
+    [activeRosterId, rosters]
+  );
+
+  const visibleGroups = useMemo(
+    () => sortGroupsForBoard(groupsForClass(groups, activeClassId)),
+    [activeClassId, groups]
+  );
+
+  const steps = run?.steps ?? [];
+  const cardStyle = { backgroundColor: hexToRgba(cardColor, cardOpacity) };
+  const fontClassName = getFontClass(
+    fontFamily ?? 'global',
+    activeDashboard?.globalStyle?.fontFamily ?? 'sans'
+  );
+
+  const runAction = async (action: Promise<void>, key: string) => {
+    setBusyKeys((keys) => new Set(keys).add(key));
+    try {
+      await action;
+    } catch {
+      addToast('That change could not be saved.', 'error');
+    } finally {
+      setBusyKeys((keys) => {
+        const next = new Set(keys);
+        next.delete(key);
+        return next;
+      });
+    }
+  };
+
+  const backButton = (
+    <button
+      type="button"
+      onClick={onBackToLibrary}
+      className="shrink-0 inline-flex items-center rounded-full bg-white/70 border border-slate-200 text-slate-600 font-semibold"
+      style={{
+        gap: 'min(3px, 0.8cqmin)',
+        padding: 'min(4px, 0.9cqmin) min(9px, 2cqmin)',
+        fontSize: 'min(12px, 3.6cqmin)',
+      }}
+      aria-label="Back to the project library"
+    >
+      <ChevronLeft
+        aria-hidden
+        style={{ width: 'min(13px, 3.4cqmin)', height: 'min(13px, 3.4cqmin)' }}
+      />
+      Library
+    </button>
+  );
+
+  const framed = (body: React.ReactNode): React.ReactElement => (
+    <div
+      className="h-full w-full bg-transparent flex flex-col"
+      style={{ gap: 'min(8px, 1.8cqmin)', padding: 'min(12px, 2.6cqmin)' }}
+    >
+      <div className="shrink-0">{backButton}</div>
+      <div className="flex-1 min-h-0">{body}</div>
+    </div>
+  );
+
+  if (loading) {
+    return framed(
+      <div className="h-full w-full flex items-center justify-center">
+        <Loader2
+          aria-label="Loading this project"
+          className="animate-spin text-slate-300"
+          style={{ width: 'min(32px, 12cqmin)', height: 'min(32px, 12cqmin)' }}
+        />
+      </div>
+    );
+  }
+
+  if (!run) {
+    return framed(
+      <ScaledEmptyState
+        icon={ClipboardList}
+        title="Not started yet"
+        subtitle="Set up groups from the Library tab to start this project."
+      />
+    );
+  }
+
+  if (!activeClassId) {
+    return framed(
+      <ScaledEmptyState
+        icon={ClipboardList}
+        title="Pick a class"
+        subtitle="This board shows the groups in whichever class is active."
+      />
+    );
+  }
+
+  if (visibleGroups.length === 0) {
+    return framed(
+      <ScaledEmptyState
+        icon={ClipboardList}
+        title="No groups in this class"
+        subtitle="Add groups to this class from the In Progress tab."
+      />
+    );
+  }
+
+  // D26 — past the ceiling, counts beat segments drawn too small to read.
+  const tooDenseToDraw =
+    visibleGroups.length > COMFORTABLE_GROUPS ||
+    steps.length > COMFORTABLE_STEPS;
+  const renderStatus = showStatus && !tooDenseToDraw;
+
+  return (
+    <div
+      className={`h-full w-full bg-transparent flex flex-col ${fontClassName}`}
+      style={{
+        gap: 'min(8px, 1.8cqmin)',
+        padding: 'min(12px, 2.6cqmin)',
+      }}
+    >
+      <div
+        className="flex items-center justify-between shrink-0"
+        style={{ gap: 'min(8px, 1.8cqmin)' }}
+      >
+        <div
+          className="flex items-center min-w-0"
+          style={{ gap: 'min(6px, 1.4cqmin)' }}
+        >
+          {backButton}
+          <span
+            className="font-black text-slate-800 truncate"
+            style={{ fontSize: 'min(18px, 6cqmin)' }}
+          >
+            {run.title}
+          </span>
+        </div>
+        <div
+          className="flex items-center shrink-0"
+          style={{ gap: 'min(6px, 1.4cqmin)' }}
+        >
+          <ActiveClassChip compact />
+          <button
+            type="button"
+            onClick={() =>
+              updateWidget(widget.id, {
+                config: { ...config, showStatus: !showStatus },
+              })
+            }
+            className="rounded-full bg-white/70 border border-slate-200 text-slate-600 font-semibold"
+            style={{
+              padding: 'min(4px, 0.9cqmin) min(10px, 2.2cqmin)',
+              fontSize: 'min(12px, 3.6cqmin)',
+            }}
+            aria-pressed={showStatus}
+          >
+            {showStatus ? 'Hide status' : 'Show status'}
+          </button>
+          <OverflowMenu
+            ariaLabel="Project actions"
+            items={[
+              { label: 'Grade groups', icon: SquarePen, onClick: onGrade },
+              { label: 'Add groups', icon: Users, onClick: onManageGroups },
+            ]}
+          />
+        </div>
+      </div>
+
+      {tooDenseToDraw && showStatus && (
+        <p
+          className="shrink-0 text-slate-500"
+          style={{ fontSize: 'min(11px, 3.4cqmin)' }}
+        >
+          {visibleGroups.length} groups × {steps.length} steps — showing counts
+          instead of the bar.
+        </p>
+      )}
+
+      <ul
+        className="flex-1 min-h-0 overflow-y-auto flex flex-col"
+        style={{ gap: 'min(6px, 1.4cqmin)' }}
+      >
+        {visibleGroups.map((group) => (
+          <GroupRow
+            key={group.id}
+            group={group}
+            steps={steps}
+            showStatus={renderStatus}
+            cardStyle={cardStyle}
+            busyKeys={busyKeys}
+            onCycleStep={(stepId, state) => {
+              const step = steps.find((s) => s.id === stepId);
+              if (!step) return;
+              void runAction(
+                setStepState(
+                  group.id,
+                  stepId,
+                  nextState(step, state),
+                  'teacher'
+                ),
+                `${group.id}:${stepId}`
+              );
+            }}
+            onClearSupport={() =>
+              void runAction(
+                setNeedsSupport(group.id, false, 'teacher'),
+                `${group.id}:support`
+              )
+            }
+          />
+        ))}
+      </ul>
+    </div>
+  );
+};

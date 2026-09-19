@@ -677,10 +677,15 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     } satisfies StationsConfig,
   },
   projects: {
-    w: 540,
-    h: 360,
+    // Sized for the library manager, matching quiz: below 560px wide the
+    // folder panel collapses to a rail.
+    w: 620,
+    h: 560,
     config: {
+      view: 'manager',
+      managerTab: 'library',
       showStatus: true,
+      libraryViewMode: 'list',
       fontFamily: 'global',
       cardColor: '#ffffff',
       cardOpacity: 0.75,

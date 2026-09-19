@@ -171,6 +171,37 @@ describe('project library', () => {
       setDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), own), definition)
     );
   });
+
+  it('keeps a project in a folder', async () => {
+    await assertSucceeds(
+      setDoc(doc(asTeacher(TEACHER_UID), path), {
+        ...definition,
+        folderId: 'folder-1',
+        order: 3,
+      })
+    );
+  });
+});
+
+// R6 — the library's folder tree, owner-only like every other *_folders tree.
+describe('project folders', () => {
+  const path = `users/${TEACHER_UID}/projects_folders/folder-1`;
+  const folder = { id: 'folder-1', name: 'Semester 1', order: 0 };
+
+  it('allows the owner and denies another teacher', async () => {
+    await assertSucceeds(setDoc(doc(asTeacher(TEACHER_UID), path), folder));
+    await assertSucceeds(getDoc(doc(asTeacher(TEACHER_UID), path)));
+    await assertFails(getDoc(doc(asTeacher(OTHER_TEACHER_UID), path)));
+    await assertFails(setDoc(doc(asTeacher(OTHER_TEACHER_UID), path), folder));
+  });
+
+  it('denies a student-role user even under their own uid', async () => {
+    const own = `users/${MEMBER_UID}/projects_folders/folder-1`;
+    await assertFails(
+      setDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), own), folder)
+    );
+    await assertFails(getDoc(doc(asStudent(MEMBER_UID, [CLASS_ID]), own)));
+  });
 });
 
 describe('run document', () => {

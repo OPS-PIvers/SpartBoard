@@ -9,11 +9,13 @@ import {
   orderBy,
   query,
   setDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { ProjectDefinition } from '@/types';
 import { logError } from '@/utils/logError';
 import { MAX_STEPS } from '@/components/widgets/Projects/projectSteps';
+import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 
 const PROJECTS_COLLECTION = 'projects';
 
@@ -24,15 +26,23 @@ interface UseProjectLibraryResult {
   saveProject: (project: ProjectDefinition) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
   setArchived: (projectId: string, archived: boolean) => Promise<void>;
+  duplicateProject: (project: ProjectDefinition) => Promise<ProjectDefinition>;
+  reorderProjects: (orderedIds: string[]) => Promise<void>;
 }
 
-const normalize = (project: ProjectDefinition): ProjectDefinition => ({
-  ...project,
-  title: project.title.trim() || 'Untitled project',
-  description: project.description?.trim() ?? '',
-  steps: project.steps.slice(0, MAX_STEPS),
-  updatedAt: Date.now(),
-});
+const normalize = (project: ProjectDefinition): ProjectDefinition => {
+  const next: ProjectDefinition = {
+    ...project,
+    title: project.title.trim() || 'Untitled project',
+    description: project.description?.trim() ?? '',
+    steps: project.steps.slice(0, MAX_STEPS),
+    folderId: project.folderId ?? null,
+    updatedAt: Date.now(),
+  };
+  // setDoc rejects an explicit undefined, and `order` stays unset until a drag.
+  if (next.order === undefined) delete next.order;
+  return next;
+};
 
 export function useProjectLibrary(
   userId: string | undefined
@@ -106,5 +116,55 @@ export function useProjectLibrary(
     [userId]
   );
 
-  return { projects, loading, error, saveProject, deleteProject, setArchived };
+  const duplicateProject = useCallback(
+    async (project: ProjectDefinition): Promise<ProjectDefinition> => {
+      if (!userId) throw new Error('Sign in to duplicate a project.');
+      const now = Date.now();
+      // Fresh step ids: a copy's progress must never key against the original's.
+      const copy: ProjectDefinition = {
+        ...project,
+        id: crypto.randomUUID(),
+        title: suggestDuplicateTitle(project.title),
+        steps: project.steps.map((step) => ({
+          ...step,
+          id: crypto.randomUUID(),
+        })),
+        createdAt: now,
+        updatedAt: now,
+        archivedAt: null,
+      };
+      await setDoc(
+        doc(db, 'users', userId, PROJECTS_COLLECTION, copy.id),
+        normalize(copy)
+      );
+      return copy;
+    },
+    [userId]
+  );
+
+  const reorderProjects = useCallback(
+    async (orderedIds: string[]) => {
+      if (!userId) throw new Error('Sign in to reorder projects.');
+      // No updatedAt bump: reordering is a display choice, not an edit.
+      const batch = writeBatch(db);
+      orderedIds.forEach((projectId, index) => {
+        batch.update(doc(db, 'users', userId, PROJECTS_COLLECTION, projectId), {
+          order: index,
+        });
+      });
+      await batch.commit();
+    },
+    [userId]
+  );
+
+  return {
+    projects,
+    loading,
+    error,
+    saveProject,
+    deleteProject,
+    setArchived,
+    duplicateProject,
+    reorderProjects,
+  };
 }

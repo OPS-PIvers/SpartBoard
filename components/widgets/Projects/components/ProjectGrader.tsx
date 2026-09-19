@@ -1,5 +1,21 @@
+/**
+ * ProjectGrader — the group grading queue.
+ *
+ * D22, now in the quiz free-response grader's chrome: the same
+ * `EditorModalShell`, left queue rail, prev/skip/save-and-next footer and
+ * autosave-on-advance, with the queue walking groups instead of students.
+ * Mirrored rather than extracted (A6) — the quiz grading path is untouched.
+ */
+
 import React, { useCallback, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Loader2, Send, X } from 'lucide-react';
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Loader2,
+  Send,
+} from 'lucide-react';
 import type {
   ProjectGroup,
   ProjectGroupGrade,
@@ -11,6 +27,7 @@ import {
   useAssignmentPseudonymsMulti,
 } from '@/hooks/useAssignmentPseudonyms';
 import { useProjectGrades } from '@/hooks/useProjectGrades';
+import { EditorModalShell } from '@/components/common/EditorModalShell';
 import { RubricScoringPanel } from '@/components/widgets/QuizWidget/components/RubricScoringPanel';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import { clampPoints } from '@/utils/gradeDraft';
@@ -36,6 +53,9 @@ const draftFrom = (grade: ProjectGroupGrade | undefined): GradeDraft => ({
 const sameDraft = (a: GradeDraft, b: GradeDraft): boolean =>
   JSON.stringify(a) === JSON.stringify(b);
 
+const stepperButton =
+  'shrink-0 rounded-lg border border-slate-300 p-1 text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent';
+
 interface ProjectGraderProps {
   run: ProjectRun;
   groups: ProjectGroup[];
@@ -43,7 +63,6 @@ interface ProjectGraderProps {
   onClose: () => void;
 }
 
-/** D22 — the quiz free-response grader's queue shell, walking groups instead of students. */
 export const ProjectGrader: React.FC<ProjectGraderProps> = ({
   run,
   groups,
@@ -88,6 +107,8 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
     ? (run.rubricMaxPoints ?? rubricMaxPoints(run.rubric))
     : 0;
   const dirty = !sameDraft(draft, draftFrom(saved));
+  const gradedCount = ordered.filter((g) => gradesByGroupId[g.id]).length;
+  const allGraded = ordered.length > 0 && gradedCount === ordered.length;
 
   const persist = useCallback(
     async (target: ProjectGroup, next: GradeDraft) => {
@@ -179,218 +200,283 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
     });
   };
 
-  if (ordered.length === 0) {
+  const blocker =
+    ordered.length === 0
+      ? 'Import groups before grading this project.'
+      : !run.rubric
+        ? 'Attach a rubric to this project first — the grader scores against it.'
+        : null;
+
+  if (blocker) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <p className="text-sm text-slate-600">
-          Import groups before grading this project.
-        </p>
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-3 text-xs font-bold text-brand-blue-primary"
-        >
-          Close
-        </button>
-      </div>
+      <EditorModalShell
+        isOpen
+        title={`Grade — ${run.title}`}
+        isDirty={false}
+        hideSaveButton
+        onSave={() => undefined}
+        onClose={onClose}
+        maxWidth="max-w-xl"
+        className="h-auto"
+        saveErrorMessage={false}
+      >
+        <div className="flex flex-col items-center gap-3 py-10 text-center">
+          <ClipboardList className="h-10 w-10 text-slate-300" aria-hidden />
+          <p className="max-w-sm text-sm text-slate-600">{blocker}</p>
+        </div>
+      </EditorModalShell>
     );
   }
 
-  if (!run.rubric) {
-    return (
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <p className="text-sm text-slate-600">
-          Attach a rubric to this project first — the grader scores against it.
-        </p>
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-3 text-xs font-bold text-brand-blue-primary"
+  const footerNav = (
+    <div className="flex items-center gap-2">
+      {allGraded && (
+        <span
+          role="status"
+          className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xxs font-bold uppercase tracking-wider text-emerald-700"
         >
-          Close
-        </button>
-      </div>
-    );
-  }
+          <CheckCircle2 aria-hidden className="h-3 w-3" />
+          All graded
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={() => void move(-1)}
+        disabled={index === 0 || busy}
+        aria-label="Previous group"
+        title="Previous group"
+        className={stepperButton}
+      >
+        <ChevronLeft aria-hidden className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => skip(1)}
+        disabled={index >= ordered.length - 1 || busy}
+        className="rounded-lg px-2 py-1.5 text-xs font-bold text-slate-500 disabled:opacity-40"
+      >
+        Skip
+      </button>
+      <button
+        type="button"
+        onClick={() => void saveNow()}
+        disabled={busy || !dirty}
+        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600 disabled:opacity-40"
+      >
+        <Send aria-hidden className="h-3.5 w-3.5" />
+        Save
+      </button>
+      <button
+        type="button"
+        onClick={() => void move(1)}
+        disabled={index >= ordered.length - 1 || busy}
+        className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-40"
+      >
+        {busy ? 'Saving…' : 'Save and next'}
+        <ChevronRight aria-hidden className="h-4 w-4" />
+      </button>
+    </div>
+  );
 
   return (
-    <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="truncate text-sm font-bold text-slate-900">
-            {group?.name}
-          </h3>
-          <p className="text-xs text-slate-500">
-            Group {index + 1} of {ordered.length}
-            {saved
-              ? ` · ${saved.released ? 'Released' : 'Saved, not released'}`
-              : ' · Not graded'}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close the grader"
-          className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-50"
+    <EditorModalShell
+      isOpen
+      title={`Grade — ${run.title}`}
+      subtitle={`Group ${index + 1} of ${ordered.length} · ${gradedCount} graded`}
+      isDirty={false}
+      hideSaveButton
+      footerEnd={footerNav}
+      onSave={() => undefined}
+      onClose={onClose}
+      maxWidth="max-w-5xl"
+      bodyClassName="!p-0 !overflow-hidden"
+      saveErrorMessage={false}
+    >
+      <div className="grid h-full min-h-0 grid-cols-[minmax(160px,1fr)_2.6fr]">
+        <nav
+          aria-label="Group queue"
+          className="overflow-y-auto border-r border-slate-200 bg-slate-50"
         >
-          <X className="h-4 w-4" strokeWidth={2.25} />
-        </button>
-      </div>
-
-      {loading ? (
-        <p className="flex items-center gap-2 text-sm text-slate-500">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          Loading grades…
-        </p>
-      ) : (
-        <>
-          <RubricScoringPanel
-            key={hydrationKey}
-            rubric={run.rubric}
-            maxPoints={maxPoints}
-            initialScores={draft.rubricScores}
-            onChange={(rubricScores, derivedPoints) =>
-              setDraft((current) => ({
-                ...current,
-                rubricScores,
-                points: derivedPoints,
-              }))
-            }
-          />
-
-          <div>
-            <label
-              className="text-xs font-bold text-slate-600"
-              htmlFor="project-grade-comment"
-            >
-              Comment to the group
-            </label>
-            <textarea
-              id="project-grade-comment"
-              rows={2}
-              value={draft.comment}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  comment: event.target.value,
-                }))
-              }
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-            />
-          </div>
-
-          {(group?.memberUids?.length ?? 0) > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-bold text-slate-600">
-                Individual scores (optional)
-              </p>
-              <p className="text-xs text-slate-500">
-                A score here replaces the group&apos;s for that student. Leave
-                it blank and they get the group score.
-              </p>
-              {(group?.memberUids ?? []).map((uid) => {
-                const override = draft.overridesByUid[uid];
-                const name = formatStudentName(byStudentUid.get(uid));
-                return (
-                  <div key={uid} className="flex items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
-                      {name || `Student ${uid.slice(0, 6)}`}
+          <p className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 backdrop-blur">
+            Groups
+          </p>
+          <ul>
+            {ordered.map((entry, idx) => {
+              const entryGrade = gradesByGroupId[entry.id];
+              return (
+                <li key={entry.id}>
+                  <button
+                    type="button"
+                    onClick={() => setIndex(idx)}
+                    aria-current={idx === index ? 'true' : undefined}
+                    className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition-colors ${
+                      idx === index
+                        ? 'bg-white font-bold text-brand-blue-dark'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span className="min-w-0 flex-1 truncate">
+                      {entry.name}
                     </span>
-                    <label className="sr-only" htmlFor={`override-${uid}`}>
-                      {`Points for ${name || 'this student'}`}
-                    </label>
-                    <input
-                      id={`override-${uid}`}
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      max={maxPoints}
-                      value={override ? String(override.points) : ''}
-                      onChange={(event) =>
-                        setOverride(uid, { points: event.target.value })
-                      }
-                      placeholder={String(draft.points)}
-                      className="w-20 shrink-0 rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
-                    />
-                    <label className="sr-only" htmlFor={`override-note-${uid}`}>
-                      {`Note for ${name || 'this student'}`}
-                    </label>
-                    <input
-                      id={`override-note-${uid}`}
-                      type="text"
-                      value={override?.note ?? ''}
-                      disabled={!override}
-                      onChange={(event) =>
-                        setOverride(uid, { note: event.target.value })
-                      }
-                      placeholder="Why"
-                      className="w-28 shrink-0 rounded-lg border border-slate-200 px-2 py-1.5 text-sm disabled:bg-slate-50"
-                    />
-                  </div>
-                );
-              })}
+                    <span
+                      className={`shrink-0 rounded px-1.5 py-0.5 text-xxs uppercase tracking-wider ${
+                        !entryGrade
+                          ? 'bg-slate-200 text-slate-600'
+                          : entryGrade.released
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      {!entryGrade
+                        ? 'To do'
+                        : entryGrade.released
+                          ? 'Released'
+                          : 'Saved'}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <section className="overflow-y-auto bg-white">
+          {loading ? (
+            <p className="flex items-center gap-2 p-6 text-sm text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              Loading grades…
+            </p>
+          ) : (
+            <div className="flex flex-col gap-4 p-6">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  {group?.name}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {saved
+                    ? saved.released
+                      ? 'Released to this group'
+                      : 'Saved, not released'
+                    : 'Not graded yet'}
+                </p>
+              </div>
+
+              {run.rubric && (
+                <RubricScoringPanel
+                  key={hydrationKey}
+                  rubric={run.rubric}
+                  maxPoints={maxPoints}
+                  initialScores={draft.rubricScores}
+                  onChange={(rubricScores, derivedPoints) =>
+                    setDraft((current) => ({
+                      ...current,
+                      rubricScores,
+                      points: derivedPoints,
+                    }))
+                  }
+                />
+              )}
+
+              <div>
+                <label
+                  className="text-xs font-bold text-slate-600"
+                  htmlFor="project-grade-comment"
+                >
+                  Comment to the group
+                </label>
+                <textarea
+                  id="project-grade-comment"
+                  rows={3}
+                  value={draft.comment}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      comment: event.target.value,
+                    }))
+                  }
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                />
+              </div>
+
+              {(group?.memberUids?.length ?? 0) > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-bold text-slate-600">
+                    Individual scores (optional)
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    A score here replaces the group&apos;s for that student.
+                    Leave it blank and they get the group score.
+                  </p>
+                  {(group?.memberUids ?? []).map((uid) => {
+                    const override = draft.overridesByUid[uid];
+                    const name = formatStudentName(byStudentUid.get(uid));
+                    return (
+                      <div key={uid} className="flex items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate text-sm text-slate-700">
+                          {name || `Student ${uid.slice(0, 6)}`}
+                        </span>
+                        <label className="sr-only" htmlFor={`override-${uid}`}>
+                          {`Points for ${name || 'this student'}`}
+                        </label>
+                        <input
+                          id={`override-${uid}`}
+                          type="number"
+                          inputMode="decimal"
+                          min={0}
+                          max={maxPoints}
+                          value={override ? String(override.points) : ''}
+                          onChange={(event) =>
+                            setOverride(uid, { points: event.target.value })
+                          }
+                          placeholder={String(draft.points)}
+                          className="w-20 shrink-0 rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+                        />
+                        <label
+                          className="sr-only"
+                          htmlFor={`override-note-${uid}`}
+                        >
+                          {`Note for ${name || 'this student'}`}
+                        </label>
+                        <input
+                          id={`override-note-${uid}`}
+                          type="text"
+                          value={override?.note ?? ''}
+                          disabled={!override}
+                          onChange={(event) =>
+                            setOverride(uid, { note: event.target.value })
+                          }
+                          placeholder="Why"
+                          className="w-28 shrink-0 rounded-lg border border-slate-200 px-2 py-1.5 text-sm disabled:bg-slate-50"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <label className="flex items-center justify-between text-xs text-slate-600">
+                Let this group see their score
+                <Toggle
+                  checked={draft.released}
+                  onChange={(next) =>
+                    setDraft((current) => ({ ...current, released: next }))
+                  }
+                  label="Let this group see their score"
+                />
+              </label>
+
+              {savingError && (
+                <p
+                  role="status"
+                  className="text-xs font-semibold text-brand-red-primary"
+                >
+                  {savingError}
+                </p>
+              )}
             </div>
           )}
-
-          <label className="flex items-center justify-between text-xs text-slate-600">
-            Let this group see their score
-            <Toggle
-              checked={draft.released}
-              onChange={(next) =>
-                setDraft((current) => ({ ...current, released: next }))
-              }
-              label="Let this group see their score"
-            />
-          </label>
-
-          {savingError && (
-            <p
-              role="status"
-              className="text-xs font-semibold text-brand-red-primary"
-            >
-              {savingError}
-            </p>
-          )}
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => void move(-1)}
-              disabled={index === 0 || busy}
-              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 disabled:opacity-40"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" strokeWidth={2.5} />
-              Back
-            </button>
-            <button
-              type="button"
-              onClick={() => skip(1)}
-              disabled={index >= ordered.length - 1 || busy}
-              className="rounded-xl px-2 py-2 text-xs font-bold text-slate-500 disabled:opacity-40"
-            >
-              Skip
-            </button>
-            <button
-              type="button"
-              onClick={() => void saveNow()}
-              disabled={busy || !dirty}
-              className="ml-auto inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 disabled:opacity-40"
-            >
-              <Send className="h-3.5 w-3.5" strokeWidth={2.5} />
-              Save
-            </button>
-            <button
-              type="button"
-              onClick={() => void move(1)}
-              disabled={index >= ordered.length - 1 || busy}
-              className="inline-flex items-center gap-1 rounded-xl bg-brand-blue-primary px-3 py-2 text-xs font-bold text-white disabled:opacity-40"
-            >
-              {busy ? 'Saving…' : 'Save and next'}
-              <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-            </button>
-          </div>
-        </>
-      )}
-    </div>
+        </section>
+      </div>
+    </EditorModalShell>
   );
 };

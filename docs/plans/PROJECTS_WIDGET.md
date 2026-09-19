@@ -340,3 +340,62 @@ the `new-widget` skill: `types.ts` `WidgetType`, `config/tools.ts`, `config/widg
 PLC sharing of projects; gradebook/Schoology push; peer evaluation; student-visible attribution;
 cross-period comparison view; AI-generated steps; starter step templates; per-group differentiated
 projects (all groups in a run share one project); group comments/chat; PIN-bridge student access.
+
+---
+
+## 9. Revision — library/editor/grader UX (2026-09-19)
+
+Shipped v1 put every authoring surface in the flip-over settings drawer, so a Projects widget
+dropped on a board opened empty: "No project picked — flip this widget over to choose one." That is
+the blank-state antipattern, and it made Projects the odd one out next to Quiz, Video Activity and
+Guided Learning, which all put a `LibraryShell` in the widget body.
+
+This revision moves authoring into the widget body and the shared editor/grader chrome. It
+**reverses D15, D16's placement, A5's exclusivity and §6's "back face / teacher"**; every other
+decision above still stands. Where this section and §3 disagree, this section wins.
+
+- **R1. The widget body is the manager.** `ProjectsConfig.view` is `'manager' | 'board'`. The
+  manager is a `LibraryShell` with Library / In Progress / Archive, matching the other three
+  widgets. **Reverses D15** — a widget no longer _binds_ to one project; `config.projectId` now
+  means "the project open in board view" and the manager retargets it freely.
+  Placement default grows to 620×560, matching Quiz: below 560px the folder panel collapses to a
+  rail, below 360px it hides.
+  A config with a `projectId` and no `view` resolves to `'board'`, so widgets placed before this
+  revision keep their tracker instead of jumping to the library.
+- **R2. In Progress and Archive split on the run.** Library lists `ProjectDefinition`s without
+  `archivedAt`; In Progress lists runs with `acceptingUpdates: true`; Archive lists closed runs
+  **and** library-archived projects, keyed by project id so neither state double-lists. One card per
+  run, not per class — D13 gives a run no per-class lifecycle, and inventing one would need a status
+  map on the run doc plus a migration. Revisit only if closing one section while another runs turns
+  out to be a real need.
+  `firestore.rules` already permits the `where('teacherUid','==',uid)` list shape (§5.2), so
+  `useProjectRuns` needed no rules change. It sorts client-side: a composite index for a handful of
+  docs is not worth an index entry.
+- **R3. The editor is `EditorWorkspace`, the grader is `EditorModalShell`.** Both are portalled over
+  the board, so widget size never constrains them. The editor's left pane carries project details
+  plus a sortable step list; the right pane edits the selected step. The grader gains the quiz
+  grader's queue rail, prev/skip/save-and-next footer and "all graded" state.
+  **D22 and A6 are unchanged**: still mirrored, not extracted. The quiz grading path is untouched.
+- **R4. D16's paste-and-go survives as bulk-add.** "One step per line" is now the step list's
+  **Paste steps** affordance rather than the only authoring surface. `parseStepLines` still passes
+  the existing steps through, so an unchanged line keeps its step id — and with it every group's
+  progress against that step.
+- **R5. Launching is a first-class action.** A library card's primary action opens **Set up groups**:
+  pick a class, then either consume the Group Maker's push or create N hand-named groups. This
+  **softens A5** — the push still works and is still the only path that resolves real students, but
+  Projects can now start a teacher-only tracker (D6) on its own instead of being unable to launch at
+  all. A push surfaces as a banner on the Library tab, not a panel in a drawer nobody opened.
+- **R6. The library gets full folder parity.** `projects` joins `LibraryFolderWidget`
+  (`/users/{uid}/projects_folders`), `ProjectDefinition` gains `folderId` and `order`, and the
+  manager wires `useFolders`, `useLibraryView`, `useLibrarySelection` and `useSortableReorder` the
+  way `GuidedLearningManager` does.
+- **R7. Saving a launched project syncs its run.** The drawer's `persistProject` used to do this
+  inline; it now lives in `syncRunFromProject` (`utils/projectRunWrites.ts`), which `deleteField()`s
+  a rubric or due date the teacher removed rather than omitting it — `updateDoc` cannot clear a key
+  by leaving it out. The settings drawer becomes a stub pointing at the library, like Guided
+  Learning's; the appearance panel keeps the board-face typography and surface colours.
+
+### Still out of scope
+
+Everything in §8, plus: per-class run lifecycle (R2), sharing projects to a PLC, and extracting a
+shared grader queue shell (A6).
