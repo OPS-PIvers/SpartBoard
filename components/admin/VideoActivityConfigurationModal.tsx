@@ -24,6 +24,7 @@ import {
   VideoActivityGlobalConfig,
 } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { canonicalizeBuildingIds } from '@/config/buildings';
 import { Toast } from '@/components/common/Toast';
 import { useDialog } from '@/context/useDialog';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
@@ -102,7 +103,10 @@ export const VideoActivityConfigurationModal: React.FC<
     activity: GlobalVideoActivity,
     buildingId: string
   ) => {
-    const currentBuildings = activity.buildings ?? [];
+    // Canonicalize first: activity.buildings may still hold a legacy
+    // long-form id, which would never match buildingId (always canonical,
+    // from useAdminBuildings) and leave the legacy id stuck forever.
+    const currentBuildings = canonicalizeBuildingIds(activity.buildings ?? []);
     const newBuildings = currentBuildings.includes(buildingId)
       ? currentBuildings.filter((id) => id !== buildingId)
       : [...currentBuildings, buildingId];
@@ -355,23 +359,30 @@ export const VideoActivityConfigurationModal: React.FC<
                               >
                                 ALL BUILDINGS
                               </button>
-                              {BUILDINGS.map((building) => (
-                                <button
-                                  key={building.id}
-                                  onClick={() =>
-                                    toggleBuilding(activity, building.id)
-                                  }
-                                  className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-all ${
-                                    (activity.buildings ?? []).includes(
-                                      building.id
-                                    )
-                                      ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
-                                      : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                                  }`}
-                                >
-                                  {building.gradeLabel}
-                                </button>
-                              ))}
+                              {(() => {
+                                // Canonicalize once so a legacy long-form
+                                // stored id (e.g. "orono-high-school") still
+                                // matches the canonical building.id ("high").
+                                const assignedBuildings =
+                                  canonicalizeBuildingIds(
+                                    activity.buildings ?? []
+                                  );
+                                return BUILDINGS.map((building) => (
+                                  <button
+                                    key={building.id}
+                                    onClick={() =>
+                                      toggleBuilding(activity, building.id)
+                                    }
+                                    className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-all ${
+                                      assignedBuildings.includes(building.id)
+                                        ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                                        : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                    }`}
+                                  >
+                                    {building.gradeLabel}
+                                  </button>
+                                ));
+                              })()}
                             </div>
                           </div>
                         </div>
