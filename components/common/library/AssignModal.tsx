@@ -42,6 +42,7 @@ export function AssignModal<TOptions>({
   confirmLabel = 'Assign',
   confirmDisabled = false,
   confirmDisabledReason,
+  zIndex,
 }: AssignModalProps<TOptions>): React.ReactElement | null {
   const [submitting, setSubmitting] = useState(false);
 
@@ -139,6 +140,7 @@ export function AssignModal<TOptions>({
       className="bg-white rounded-2xl shadow-2xl"
       contentClassName="px-6 py-5 space-y-5"
       ariaLabelledby={MODAL_LABEL_ID}
+      zIndex={zIndex}
     >
       {hasName && (
         <div>
