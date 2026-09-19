@@ -314,6 +314,16 @@ export const WIDGET_SETTINGS_SCHEMAS: Partial<
     import('./NumberLine/settings.schema').then((m) => m.default),
   'syntax-framer': () =>
     import('./SyntaxFramer/settings.schema').then((m) => m.default),
+  'hotspot-image': () =>
+    import('./HotspotImage/settings.schema').then((m) => m.default),
+  'concept-web': () =>
+    import('./ConceptWeb/settings.schema').then((m) => m.default),
+  'starter-pack': () =>
+    import('./StarterPack/settings.schema').then((m) => m.default),
+  'video-activity': () =>
+    import('./VideoActivityWidget/settings.schema').then((m) => m.default),
+  'guided-learning': () =>
+    import('./GuidedLearning/settings.schema').then((m) => m.default),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -372,26 +382,6 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     'BlendingBoardSettings'
   ),
   'first-5': lazyNamed(() => import('./First5/Settings'), 'First5Settings'),
-  'hotspot-image': lazyNamed(
-    () => import('./HotspotImage'),
-    'HotspotImageSettings'
-  ),
-  'concept-web': lazyNamed(
-    () => import('./ConceptWeb/Settings'),
-    'ConceptWebSettings'
-  ),
-  'starter-pack': lazyNamed(
-    () => import('./StarterPack/Settings'),
-    'StarterPackSettings'
-  ),
-  'video-activity': lazyNamed(
-    () => import('./VideoActivityWidget/index'),
-    'VideoActivityWidgetSettings'
-  ),
-  'guided-learning': lazyNamed(
-    () => import('./GuidedLearning/index'),
-    'GuidedLearningSettings'
-  ),
   'custom-widget': lazyNamed(
     () => import('./CustomWidget/Settings'),
     'CustomWidgetSettings'
@@ -436,18 +426,6 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
   breathing: lazyNamed(
     () => import('./Breathing/BreathingSettings'),
     'BreathingAppearanceSettings'
-  ),
-  'concept-web': lazyNamed(
-    () => import('./ConceptWeb/Settings'),
-    'ConceptWebAppearanceSettings'
-  ),
-  'hotspot-image': lazyNamed(
-    () => import('./HotspotImage'),
-    'HotspotImageAppearanceSettings'
-  ),
-  'starter-pack': lazyNamed(
-    () => import('./StarterPack/Settings'),
-    'StarterPackAppearanceSettings'
   ),
   'activity-wall': lazyNamed(
     () => import('./ActivityWall/Settings'),

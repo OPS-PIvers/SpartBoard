@@ -1815,3 +1815,8 @@ find-a-setting filter.
 | Reveal Grid         | `reveal-grid`           | 7    | current work                                    | yes  |
 | Number Line         | `numberLine`            | 7    | current work                                    | yes  |
 | Syntax Framer       | `syntax-framer`         | 7    | current work                                    | yes  |
+| Hotspot Image       | `hotspot-image`         | 8    | current work                                    | yes  |
+| Concept Web         | `concept-web`           | 8    | current work                                    | yes  |
+| Starter Pack        | `starter-pack`          | 8    | current work                                    | yes  |
+| Video Activity      | `video-activity`        | 8    | current work                                    | yes  |
+| Guided Learning     | `guided-learning`       | 8    | current work                                    | yes  |

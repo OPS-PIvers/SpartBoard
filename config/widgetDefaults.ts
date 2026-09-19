@@ -571,6 +571,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     config: {
       nodes: [],
       edges: [],
+      defaultNodeWidth: 15,
+      defaultNodeHeight: 15,
       cardColor: '#ffffff',
       cardOpacity: 1,
     },
