@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-09-19_
-_Last action: 2026-08-26 — MEDIUM `text` widget dead appearance config resolved: added `TextAppearanceSettings` (TypographySettings + TextSizePresetSettings) to TextWidget/Settings.tsx and registered it in `WIDGET_APPEARANCE_COMPONENTS`. Moved to Completed._
+_Last action: 2026-09-19 — LOW `WIDGET_DEFAULTS` w/h vs `WIDGET_SCALING_CONFIG` divergence resolved for `url`/`music`/`graphic-organizer`/`seating-chart`: aligned `baseWidth`/`baseHeight` to the `WIDGET_DEFAULTS` spawn `w`/`h` for the three `skipScaling: true` widgets and added a one-line comment documenting `seating-chart`'s base as a deliberate minimum-content reference. Moved to Completed._
 
 ---
 
@@ -15,13 +15,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### LOW — 4 widgets' `WIDGET_DEFAULTS` w/h diverge from `WIDGET_SCALING_CONFIG` baseWidth/baseHeight
-
-- **Detected:** 2026-08-24
-- **File:** `config/widgetDefaults.ts`, `components/widgets/WidgetRegistry.ts`
-- **Detail:** The skill (Step 5) requires the `w`/`h` in `WIDGET_DEFAULTS` to match `baseWidth`/`baseHeight` in `WIDGET_SCALING_CONFIG`. 61/65 comply (the new `projects` widget, added 2026-09-19, complies exactly — 540×360 in both maps); 4 do not — `url` 220×180 (widgetDefaults.ts:65-66) vs base 320×280 (WidgetRegistry.ts:549-550); `music` 340×120 (widgetDefaults.ts:483-484) vs 400×80 (WidgetRegistry.ts:832-833); `graphic-organizer` 800×600 (widgetDefaults.ts:516-517) vs 600×400 (WidgetRegistry.ts:867-868); `seating-chart` 900×650 (widgetDefaults.ts:351-352) vs 600×500 (WidgetRegistry.ts:732-733). Values unchanged since first detected; only line numbers re-verified/updated this cycle — the `projects` widget's registrations (1 line inserted in `WIDGET_COMPONENTS`, 1 in `WIDGET_SETTINGS_COMPONENTS`, 4 in `WIDGET_APPEARANCE_COMPONENTS`, all above these citations in `WidgetRegistry.ts`) shifted the `WidgetRegistry.ts` citations down 6 lines from 2026-09-18's, and `ProjectsConfig`'s entry in `widgetDefaults.ts` (appended after `seating-chart` et al.) plus its 1-line type import shifted those citations down 1 line. Consumer traced (unchanged conclusion): `baseWidth`/`baseHeight` are read only on the `else` branch taken in `WidgetRenderer.tsx` when `skipScaling` is falsy. `url`, `music`, and `graphic-organizer` all have `skipScaling: true`, so their base dims are dead values today — the drift is documentation-only but silently mis-teaches the next widget author. `seating-chart` is the one pair that actually flows into `ScalableWidget`; because `canSpread: true` and the spawn size (900×650) exceeds the base (600×500), `renderScale` is capped at 1, so nothing is visibly wrong at spawn and the base dims only take effect once a teacher shrinks the window below 600×500. Real deviation from the documented invariant, no current user-visible defect.
-- **Fix:** Reconcile each pair. For the three `skipScaling: true` widgets, set `baseWidth`/`baseHeight` equal to the `WIDGET_DEFAULTS` `w`/`h` (the values that actually govern spawn size) — `url` → 220×180, `music` → 340×120, `graphic-organizer` → 800×600. For `seating-chart`, decide deliberately: either align base to 900×650, or keep 600×500 as an intentional minimum-content reference and add a one-line comment saying so (one short line per CLAUDE.md's comment rule).
 
 ### LOW — 3 `WIDGET_DEFAULTS` entries use `as XConfig` instead of `satisfies`
 
@@ -356,6 +349,14 @@ _No open items._
 ---
 
 ## Completed
+
+### LOW 4 widgets' `WIDGET_DEFAULTS` w/h diverged from `WIDGET_SCALING_CONFIG` baseWidth/baseHeight
+
+- **Detected:** 2026-08-24
+- **Completed:** 2026-09-19
+- **File:** `config/widgetDefaults.ts`, `components/widgets/WidgetRegistry.ts`
+- **Detail:** The skill (Step 5) requires the `w`/`h` in `WIDGET_DEFAULTS` to match `baseWidth`/`baseHeight` in `WIDGET_SCALING_CONFIG`. 4 widgets didn't: `url` 220×180 vs base 320×280; `music` 340×120 vs base 400×80; `graphic-organizer` 800×600 vs base 600×400; `seating-chart` 900×650 vs base 600×500. `url`/`music`/`graphic-organizer` all have `skipScaling: true`, so `baseWidth`/`baseHeight` are dead values for them (`WidgetRenderer.tsx` only reads them on the `else` branch taken when `skipScaling` is falsy) — the drift was documentation-only. `seating-chart` has `skipScaling` unset (falsy), so it's the one pair that actually flows into `ScalableWidget`; because `canSpread: true` and the spawn size (900×650) exceeds the base (600×500), `renderScale` was capped at 1 with no visible defect at spawn.
+- **Resolution:** Set `WIDGET_SCALING_CONFIG` `baseWidth`/`baseHeight` to match `WIDGET_DEFAULTS` `w`/`h` for the three `skipScaling: true` widgets — `url` → 220×180, `music` → 340×120, `graphic-organizer` → 800×600 (documentation-only change, `skipScaling: true` means these values aren't read for spawn/scale behavior). Left `seating-chart`'s base at 600×500 (a behavioral value that governs shrink-scaling) and added a one-line comment above its entry in `WidgetRegistry.ts` documenting it as a deliberate minimum-content reference rather than the spawn size, per the journal's own fix guidance to decide deliberately rather than silently reconcile a value that's actually consumed. `pnpm exec vitest related --run components/widgets/WidgetRegistry.ts` — 70 test files / 753 tests, all passed. PR opened to `dev-paul`.
 
 ### LOW `WIDGET_SETTINGS_COMPONENTS`/`WIDGET_APPEARANCE_COMPONENTS` non-exhaustiveness JSDoc doesn't mention the schema-migration exclusion category
 

@@ -546,8 +546,8 @@ export const DEFAULT_SCALING_CONFIG: ScalingConfig = {
  */
 export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   url: {
-    baseWidth: 320,
-    baseHeight: 280,
+    baseWidth: 220,
+    baseHeight: 180,
     canSpread: true,
     skipScaling: true,
     padding: 0,
@@ -729,6 +729,7 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   },
   sticker: { baseWidth: 200, baseHeight: 200, canSpread: false },
   'seating-chart': {
+    // Intentionally below the 900x650 WIDGET_DEFAULTS spawn size: this is the minimum-content reference for shrink scaling, not the spawn size.
     baseWidth: 600,
     baseHeight: 500,
     canSpread: true,
@@ -829,8 +830,8 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
     padding: 0,
   },
   music: {
-    baseWidth: 400,
-    baseHeight: 80,
+    baseWidth: 340,
+    baseHeight: 120,
     canSpread: true,
     skipScaling: true,
     padding: 0,
@@ -864,8 +865,8 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
     padding: 0,
   },
   'graphic-organizer': {
-    baseWidth: 600,
-    baseHeight: 400,
+    baseWidth: 800,
+    baseHeight: 600,
     canSpread: true,
     skipScaling: true,
     padding: 0,
