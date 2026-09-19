@@ -55,7 +55,7 @@ const SpecialistScheduleItemEditor: React.FC<{
   onSave: () => void;
 }> = ({ ctx, draft, specialistOptions, onChange, onCancel, onSave }) => {
   const t = (leaf: string) =>
-    ctx.t(`widgetSettings.specialistSchedule.${leaf}`);
+    ctx.t(`widgetSettings.specialist-schedule.${leaf}`);
 
   return (
     <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -175,7 +175,7 @@ export const SpecialistScheduleCycleDaysField: React.FC<{
   );
   const items = currentDayConfig?.items ?? [];
   const t = (leaf: string) =>
-    ctx.t(`widgetSettings.specialistSchedule.${leaf}`);
+    ctx.t(`widgetSettings.specialist-schedule.${leaf}`);
 
   const updateCycleDayItems = (nextItems: SpecialistScheduleItem[]) => {
     const nextCycleDays = Array.from({ length: cycleLength }, (_, index) => {
@@ -344,7 +344,7 @@ export const SpecialistScheduleRecurringItemsField: React.FC<{
     null
   );
   const t = (leaf: string) =>
-    ctx.t(`widgetSettings.specialistSchedule.${leaf}`);
+    ctx.t(`widgetSettings.specialist-schedule.${leaf}`);
 
   const startAdd = (type: SpecialistScheduleRecurringItem['type']) => {
     setEditingIndex(-1);

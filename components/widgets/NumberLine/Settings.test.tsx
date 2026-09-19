@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FieldCtx } from '@/components/settings/schema/types';
+import { WIDGET_PALETTE } from '@/config/colors';
 import numberLineSchema from './settings.schema';
 
 const field = (key: string) =>
@@ -51,10 +52,12 @@ describe('Number Line settings schema', () => {
     expect(markers?.type).toBe('list');
     expect(jumps?.type).toBe('list');
     if (markers?.type === 'list' && jumps?.type === 'list') {
-      const marker = markers.row.createRow?.();
-      const jump = jumps.row.createRow?.();
+      const marker = markers.row.createRow?.(0);
+      const nextMarker = markers.row.createRow?.(1);
+      const jump = jumps.row.createRow?.(0);
       expect(marker?.value).toBe(0);
-      expect(typeof marker?.color).toBe('string');
+      expect(marker?.color).toBe(WIDGET_PALETTE[0]);
+      expect(nextMarker?.color).toBe(WIDGET_PALETTE[1]);
       expect(jump?.startValue).toBe(0);
       expect(jump?.endValue).toBe(5);
     }

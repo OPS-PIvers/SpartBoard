@@ -85,12 +85,12 @@ export default defineSettings<NumberLineConfig>({
           label: 'markers',
           addLabel: 'addMarker',
           row: {
-            createRow: () =>
+            createRow: (index) =>
               ({
                 id: crypto.randomUUID(),
                 value: 0,
                 label: '',
-                color: WIDGET_PALETTE[0],
+                color: WIDGET_PALETTE[index % WIDGET_PALETTE.length],
               }) satisfies NumberLineMarker,
             fields: [
               {
