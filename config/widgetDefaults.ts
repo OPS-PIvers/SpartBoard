@@ -469,6 +469,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
         viewMode: 'number',
         cardColor: '#ffffff',
         cardOpacity: 1,
+        fontColor: '#1e293b',
+        eventColor: '#2d3f89',
       } satisfies import('@/types').CountdownConfig;
     },
   },
@@ -644,6 +646,10 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     h: 300,
     config: {
       selectedSymbolId: null,
+      fontFamily: 'global',
+      fontColor: '#1e293b',
+      textSizePreset: 'medium',
+      titlePosition: 'bottom',
     },
   },
   'blooms-taxonomy': {
@@ -667,6 +673,11 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       doItems: DEFAULT_DO_ITEMS,
       putItems: DEFAULT_PUT_ITEMS,
       thenItems: DEFAULT_THEN_ITEMS,
+      fontFamily: 'global',
+      fontColor: '#1e293b',
+      textSizePreset: 'medium',
+      cardColor: '#ffffff',
+      cardOpacity: 1,
     } satisfies NeedDoPutThenConfig,
   },
   stations: {
@@ -676,6 +687,10 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       stations: [],
       assignments: {},
       rosterMode: 'class',
+      fontFamily: 'global',
+      fontColor: '#334155',
+      cardColor: '#f8fafc',
+      cardOpacity: 0.4,
     } satisfies StationsConfig,
   },
   projects: {
