@@ -43,6 +43,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { resolveOrgIdForDomain } from './classlinkShared';
+import { isSiteSuperAdmin } from './authz';
 import './functionsInit';
 
 const PLCS_COLLECTION = 'plcs';
@@ -511,13 +512,16 @@ export async function runMigratePlcs(
   return result;
 }
 
-/** Memoized admin check against `/admins/{emailLower}` (existence = admin). */
+/**
+ * A site-wide super/domain admin only — see `isSiteSuperAdmin`. `/admins/{email}`
+ * also mirrors building_admins (org-scoped), who must never reach this
+ * cross-org, all-of-`/plcs` migration.
+ */
 async function assertCallerIsAdmin(
   db: admin.firestore.Firestore,
   emailLower: string
 ): Promise<void> {
-  const snap = await db.collection('admins').doc(emailLower).get();
-  if (!snap.exists) {
+  if (!(await isSiteSuperAdmin(db, emailLower))) {
     throw new HttpsError(
       'permission-denied',
       'Only site administrators can run the PLC migration.'

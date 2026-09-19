@@ -9,6 +9,7 @@ import * as admin from 'firebase-admin';
 import { randomUUID } from 'node:crypto';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { readAnalyticsSnapshot } from './adminAnalyticsSnapshot';
+import { isSuperAdminRoleId } from './authz';
 import './functionsInit';
 
 /**
@@ -87,7 +88,10 @@ export const adminAnalytics = onRequest(
     const db = admin.firestore();
 
     // 2. Verify caller is authorized for the requested org. Two paths:
-    //   - Super admin: exists in `/admins/{email}`. May view any org.
+    //   - Super admin: a `/admins/{email}` doc whose mirrored `roleId` (if any)
+    //     is super_admin/domain_admin. May view any org. `/admins/{email}` also
+    //     mirrors building_admin (org-scoped only — see `isSuperAdminRoleId`),
+    //     so bare doc existence is NOT enough.
     //   - Org admin: has a member doc at `/organizations/{orgId}/members/{email}`
     //     whose `roleId` is in the admin-tier set. Mirrors the role gating in
     //     `assertCallerIsOrgAdmin` (organizationInvites.ts) but also admits
@@ -107,7 +111,11 @@ export const adminAnalytics = onRequest(
       : undefined;
     const memberRoleId =
       typeof memberData?.roleId === 'string' ? memberData.roleId.trim() : '';
-    const isSuperAdmin = adminDoc.exists;
+    const adminData = adminDoc.exists
+      ? (adminDoc.data?.() as { roleId?: unknown } | undefined)
+      : undefined;
+    const isSuperAdmin =
+      adminDoc.exists && isSuperAdminRoleId(adminData?.roleId);
     const isOrgAdmin = memberDoc.exists && ORG_ADMIN_ROLE_IDS.has(memberRoleId);
     if (!isSuperAdmin && !isOrgAdmin) {
       console.error('[getAdminAnalytics] Unauthorized access', {

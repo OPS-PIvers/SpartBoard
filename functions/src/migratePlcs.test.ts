@@ -77,6 +77,8 @@ interface StubState {
   users: Record<string, Record<string, unknown>>;
   /** lowercased emails with a doc at /admins/{email} (existence = admin). */
   admins?: string[];
+  /** lowercased email -> mirrored roleId on its /admins/{email} doc. */
+  adminRoles?: Record<string, string>;
   sets: CapturedSet[];
   commits: number;
 }
@@ -114,8 +116,15 @@ function makeDb(state: StubState) {
     // /admins/{email}
     const adminMatch = /^admins\/([^/]+)$/.exec(path);
     if (adminMatch) {
+      const email = adminMatch[1];
+      const roleId = state.adminRoles?.[email];
+      const exists =
+        (state.admins ?? []).includes(email) || roleId !== undefined;
+      const data = roleId !== undefined ? { roleId } : {};
       return Promise.resolve({
-        exists: (state.admins ?? []).includes(adminMatch[1]),
+        exists,
+        data: () => data,
+        get: (field: string) => (data as Record<string, unknown>)[field],
       });
     }
     throw new Error(`Unexpected getDoc: ${path}`);
@@ -840,5 +849,24 @@ describe('migratePlcs onCall wrapper - caller identity verification', () => {
         data: {},
       })
     ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  // SECURITY: organizationMembersSync mirrors building_admin (not just
+  // super_admin/domain_admin) into /admins/{email} too, so bare doc existence
+  // does not prove site-wide authority. This global, cross-org migration must
+  // stay reserved for a true super/domain admin.
+  it('SECURITY: rejects a building_admin mirrored into /admins by organizationMembersSync', async () => {
+    state.adminRoles = { 'building@school.org': 'building_admin' };
+
+    await expect(
+      migratePlcsHandler({
+        auth: {
+          uid: 'building-admin-uid',
+          token: { email: 'building@school.org', email_verified: true },
+        },
+        data: {},
+      })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.commits).toBe(0);
   });
 });

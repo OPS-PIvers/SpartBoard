@@ -35,6 +35,7 @@ import {
   STUCK_ARCHIVE_AGE_MS,
 } from './quizMediaArchive';
 import { ALLOWED_ORIGINS } from './classlinkShared';
+import { isSuperAdminRoleId } from './authz';
 import './functionsInit';
 
 type Firestore = admin.firestore.Firestore;
@@ -341,8 +342,12 @@ export function buildRowsForResponse(
 // ── Authorization ──────────────────────────────────────────────────────────
 
 /**
- * Fails closed. A SpartBoard admin (`/admins/{email}`) passes; otherwise the
- * caller's own member doc for the TARGET org must carry an admin role. The
+ * Fails closed. A true site-wide super/domain admin (`/admins/{email}` whose
+ * mirrored `roleId`, if any, is super_admin/domain_admin — see
+ * `isSuperAdminRoleId`) passes; otherwise the caller's own member doc for the
+ * TARGET org must carry an admin role. `/admins/{email}` also mirrors
+ * building_admin (org-scoped only), which MEDIA_ADMIN_ROLE_IDS deliberately
+ * excludes, so bare doc existence must never bypass the org-scoped gate. The
  * client-asserted role is never read.
  */
 export async function assertOrgMediaAdmin(
@@ -357,7 +362,7 @@ export async function assertOrgMediaAdmin(
     );
   }
   const adminSnap = await db.collection('admins').doc(callerEmailLower).get();
-  if (adminSnap.exists) return;
+  if (adminSnap.exists && isSuperAdminRoleId(adminSnap.get('roleId'))) return;
   const memberSnap = await db
     .doc(`organizations/${orgId}/members/${callerEmailLower}`)
     .get();
