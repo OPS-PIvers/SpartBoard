@@ -56,6 +56,11 @@ export const FlashcardPublishScoresModal: React.FC<
       onClose={onClose}
       title="Publish scores"
       maxWidth="max-w-md"
+      // Flashcards is opened maximized from the dashboard; the default
+      // z-modal (10000) sits below a maximized widget (z-maximized, 10500),
+      // so the modal renders invisibly behind it. Same fix as
+      // SpotifyPremiumDialog.tsx.
+      zIndex="z-dialog"
       footer={
         <div className="flex justify-end gap-2">
           <button
