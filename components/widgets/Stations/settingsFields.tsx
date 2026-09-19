@@ -209,7 +209,7 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
     if (stations.length > 0) {
       const ok = await showConfirm(
         translate(ctx, 'replaceStationsBody', {
-          stationCount: stations.length,
+          count: stations.length,
           groupCount: rosterGroups.length,
         }),
         {

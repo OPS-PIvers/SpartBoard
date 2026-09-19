@@ -469,7 +469,6 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
         viewMode: 'number',
         cardColor: '#ffffff',
         cardOpacity: 1,
-        fontFamily: 'global',
         fontColor: '#1e293b',
         eventColor: '#2d3f89',
       } satisfies import('@/types').CountdownConfig;
