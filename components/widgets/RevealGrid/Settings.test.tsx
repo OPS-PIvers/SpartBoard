@@ -1,31 +1,22 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { RevealGridSettings, RevealGridAppearanceSettings } from './Settings';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDashboard } from '@/context/useDashboard';
-import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDialog } from '@/context/useDialog';
-import { WidgetData } from '@/types';
+import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import type { CustomRenderCtx } from '@/components/settings/schema/types';
+import type { WidgetData } from '@/types';
+import { RevealGridCardsField } from './settingsFields';
 
-vi.mock('@/context/useDashboard', () => ({
-  useDashboard: vi.fn(),
-}));
-vi.mock('@/hooks/useGoogleDrive', () => ({
-  useGoogleDrive: vi.fn(),
-}));
-vi.mock('@/context/useDialog', () => ({
-  useDialog: vi.fn(),
-}));
-vi.mock('@/components/common/TypographySettings', () => ({
-  TypographySettings: () => null,
-}));
+vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
+vi.mock('@/context/useDialog', () => ({ useDialog: vi.fn() }));
+vi.mock('@/hooks/useGoogleDrive', () => ({ useGoogleDrive: vi.fn() }));
 
-const mockUpdateWidget = vi.fn();
-const mockAddToast = vi.fn();
-const mockShowAlert = vi.fn();
-
+const updateConfig = vi.fn();
+const addToast = vi.fn();
+const showAlert = vi.fn();
 const baseWidget: WidgetData = {
-  id: 'rg-test-1',
+  id: 'reveal-grid-test',
   type: 'reveal-grid',
   x: 0,
   y: 0,
@@ -36,136 +27,97 @@ const baseWidget: WidgetData = {
   config: {
     cards: [],
     columns: 3,
+    revealMode: 'flip',
   },
 };
 
-describe('RevealGridSettings — Reveal Grid Set Generator button', () => {
+const labels: Record<string, string> = {
+  generator: 'Reveal Grid Set Generator',
+  generatorComingSoon: 'Reveal Grid set generation is coming soon!',
+  pasteFromSheet: 'Paste from Sheet',
+  pasteColumns: 'Paste two columns (Term, Definition)',
+  frontContent: 'Front (Question / Term)',
+  backContent: 'Back (Answer / Definition)',
+  addCard: 'Add Card',
+};
+
+const makeCtx = (widget: WidgetData = baseWidget): CustomRenderCtx => ({
+  config: widget.config as unknown as Record<string, unknown>,
+  widget,
+  isAdmin: false,
+  canAccessFeature: () => true,
+  t: (key) => labels[key.split('.').pop() ?? key] ?? key,
+  updateConfig,
+  id: `${widget.id}-cards`,
+  labelId: `${widget.id}-cards-label`,
+});
+
+describe('RevealGridCardsField', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      updateWidget: mockUpdateWidget,
-      addToast: mockAddToast,
-    });
-    (useGoogleDrive as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      driveService: null,
-    });
-    (useDialog as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      showAlert: mockShowAlert,
-    });
+    vi.mocked(useDashboard).mockReturnValue({ addToast } as never);
+    vi.mocked(useGoogleDrive).mockReturnValue({ driveService: null } as never);
+    vi.mocked(useDialog).mockReturnValue({ showAlert } as never);
   });
 
-  it('gives the teacher feedback instead of silently doing nothing when clicked', () => {
-    render(<RevealGridSettings widget={baseWidget} />);
-
-    const button = screen.getByRole('button', {
-      name: /Reveal Grid Set Generator/i,
-    });
-    fireEvent.click(button);
-
-    // Regression: the button previously had no onClick handler at all, so
-    // clicking it produced no visible reaction of any kind — a dead control
-    // styled to look fully interactive (see CLAUDE.md "Clarity over
-    // cleverness"). It must now surface a "coming soon" toast, matching the
-    // established pattern for unbuilt features elsewhere in the app
-    // (OrganizationPanel's `comingSoon` helper).
-    expect(mockAddToast).toHaveBeenCalledTimes(1);
-    expect(mockAddToast).toHaveBeenCalledWith(
+  it('gives the set generator button visible feedback', () => {
+    render(<RevealGridCardsField ctx={makeCtx()} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: /reveal grid set generator/i })
+    );
+    expect(addToast).toHaveBeenCalledWith(
       expect.stringMatching(/coming soon/i),
       'info'
     );
   });
-});
 
-describe('RevealGridAppearanceSettings — card color label associations', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      updateWidget: mockUpdateWidget,
-    });
-  });
+  it('keeps each expanded card editor labelled and widget-scoped', () => {
+    const firstCardWidget: WidgetData = {
+      ...baseWidget,
+      config: {
+        ...baseWidget.config,
+        cards: [
+          {
+            id: 'shared-card-id',
+            frontContent: 'Q',
+            backContent: 'A',
+            isRevealed: false,
+          },
+        ],
+      },
+    };
+    const secondCardWidget: WidgetData = {
+      ...firstCardWidget,
+      id: 'reveal-grid-test-2',
+      config: {
+        ...firstCardWidget.config,
+        cards: [
+          {
+            id: 'shared-card-id',
+            frontContent: 'Q2',
+            backContent: 'A2',
+            isRevealed: false,
+          },
+        ],
+      },
+    };
 
-  it('names the Default Card Front Color input from its label', () => {
-    render(<RevealGridAppearanceSettings widget={baseWidget} />);
-
-    expect(screen.getByLabelText('Default Card Front Color')).toHaveAttribute(
-      'type',
-      'color'
-    );
-  });
-
-  it('names the Default Card Back Color input from its label', () => {
-    render(<RevealGridAppearanceSettings widget={baseWidget} />);
-
-    expect(screen.getByLabelText('Default Card Back Color')).toHaveAttribute(
-      'type',
-      'color'
-    );
-  });
-});
-
-describe('RevealGridSettings — label associations', () => {
-  const withCards: WidgetData = {
-    ...baseWidget,
-    config: { cards: [{ id: 'card-a', frontContent: 'Q', backContent: 'A' }] },
-  };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      updateWidget: mockUpdateWidget,
-      addToast: mockAddToast,
-    });
-    (useGoogleDrive as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      driveService: null,
-    });
-    (useDialog as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      showAlert: mockShowAlert,
-    });
-  });
-
-  it('names the Set Name input from its label', () => {
-    render(<RevealGridSettings widget={baseWidget} />);
-
-    expect(screen.getByLabelText('Set Name')).toHaveAttribute('type', 'text');
-  });
-
-  // The card's edit fields only render once its row is expanded, and the
-  // chevron that expands it is icon-only, so reach it through the row.
-  const expandCardShowing = (frontText: string) => {
-    const row = screen.getByText(frontText).parentElement as HTMLElement;
-    fireEvent.click(row.querySelectorAll('button')[0]);
-  };
-
-  it('names each card input from its own label', () => {
-    render(<RevealGridSettings widget={withCards} />);
-    expandCardShowing('Q');
-
-    expect(screen.getByLabelText('Front (Question / Term)')).toHaveValue('Q');
-    expect(screen.getByLabelText('Back (Answer / Definition)')).toHaveValue(
-      'A'
-    );
-  });
-
-  // Card ids come from the loaded set, not the widget, so two widgets sharing a
-  // set would collide on unprefixed ids and both labels would name the first input.
-  it('keeps card inputs distinct across two widgets sharing a card id', () => {
     render(
       <>
-        <RevealGridSettings widget={withCards} />
-        <RevealGridSettings
-          widget={{
-            ...withCards,
-            id: 'rg-test-2',
-            config: {
-              cards: [{ id: 'card-a', frontContent: 'Q2', backContent: 'A2' }],
-            },
-          }}
-        />
+        <RevealGridCardsField ctx={makeCtx(firstCardWidget)} />
+        <RevealGridCardsField ctx={makeCtx(secondCardWidget)} />
       </>
     );
-
-    expandCardShowing('Q');
-    expandCardShowing('Q2');
+    fireEvent.click(
+      screen
+        .getByText('Q')
+        .parentElement?.querySelector('button') as HTMLElement
+    );
+    fireEvent.click(
+      screen
+        .getByText('Q2')
+        .parentElement?.querySelector('button') as HTMLElement
+    );
 
     const fronts = screen.getAllByLabelText('Front (Question / Term)');
     expect(fronts).toHaveLength(2);
@@ -173,15 +125,11 @@ describe('RevealGridSettings — label associations', () => {
     expect(fronts[1]).toHaveValue('Q2');
   });
 
-  // Only renders after "Paste from Sheet" is clicked — the conditional that hid
-  // it from the original sweep.
-  it('names the paste-data textarea from its label', () => {
-    render(<RevealGridSettings widget={baseWidget} />);
-
-    fireEvent.click(screen.getByRole('button', { name: /Paste from Sheet/i }));
-
+  it('labels the paste-data editor when the import action is opened', () => {
+    render(<RevealGridCardsField ctx={makeCtx()} />);
+    fireEvent.click(screen.getByRole('button', { name: /paste from sheet/i }));
     expect(
       screen.getByLabelText('Paste two columns (Term, Definition)')
-    ).toHaveValue('');
+    ).toBeInTheDocument();
   });
 });

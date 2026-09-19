@@ -1788,25 +1788,30 @@ sliders (2), inherited or contextual controls (3), a contextual sound multi-sele
 fixed drawing color palette (1). All standard fields and list-row labels are indexed by the
 find-a-setting filter.
 
-| Widget       | Type                    | Wave | PR                                              | Done |
-| ------------ | ----------------------- | ---- | ----------------------------------------------- | ---- |
-| Timer        | `time-tool`             | 2    | `feat/settings-drawer-w2`                       | yes  |
-| Note         | `text`                  | 2    | `feat/settings-drawer-w2`                       | yes  |
-| Embed        | `embed`                 | 2    | `feat/settings-drawer-w2`                       | yes  |
-| Clock        | `clock`                 | 2    | `feat/settings-drawer-w2`                       | yes  |
-| Lunch        | `lunchCount`            | 2    | `feat/settings-drawer-w2`                       | yes  |
-| Tasks        | `checklist`             | 3    | `codex/consolidate-field-level-widget-settings` | yes  |
-| Weather      | `weather`               | 3    | `codex/consolidate-field-level-widget-settings` | yes  |
-| Expectations | `expectations`          | 3    | `codex/consolidate-field-level-widget-settings` | yes  |
-| Random       | `random`                | 3    | `codex/consolidate-field-level-widget-settings` | yes  |
-| Links        | `url`                   | 3    | `codex/consolidate-field-level-widget-settings` | yes  |
-| Soundboard   | `soundboard`            | 5    | `codex/consolidate-field-level-widget-settings` | yes  |
-| Dice         | `dice`                  | 5    | `codex/consolidate-field-level-widget-settings` | yes  |
-| Sound Meter  | `sound`                 | 5    | `codex/consolidate-field-level-widget-settings` | yes  |
-| Webcam       | `webcam`                | 5    | `codex/consolidate-field-level-widget-settings` | yes  |
-| Drawing      | `drawing`               | 5    | `codex/consolidate-field-level-widget-settings` | yes  |
-| QR Code      | `qr`                    | 6    | current work                                    | yes  |
-| Scoreboard   | `scoreboard`            | 6    | current work                                    | yes  |
-| Calendar     | `calendar`              | 6    | current work                                    | yes  |
-| Poll         | `poll`                  | 6    | current work                                    | yes  |
-| Routines     | `instructionalRoutines` | 6    | current work                                    | yes  |
+| Widget              | Type                    | Wave | PR                                              | Done |
+| ------------------- | ----------------------- | ---- | ----------------------------------------------- | ---- |
+| Timer               | `time-tool`             | 2    | `feat/settings-drawer-w2`                       | yes  |
+| Note                | `text`                  | 2    | `feat/settings-drawer-w2`                       | yes  |
+| Embed               | `embed`                 | 2    | `feat/settings-drawer-w2`                       | yes  |
+| Clock               | `clock`                 | 2    | `feat/settings-drawer-w2`                       | yes  |
+| Lunch               | `lunchCount`            | 2    | `feat/settings-drawer-w2`                       | yes  |
+| Tasks               | `checklist`             | 3    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Weather             | `weather`               | 3    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Expectations        | `expectations`          | 3    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Random              | `random`                | 3    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Links               | `url`                   | 3    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Soundboard          | `soundboard`            | 5    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Dice                | `dice`                  | 5    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Sound Meter         | `sound`                 | 5    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Webcam              | `webcam`                | 5    | `codex/consolidate-field-level-widget-settings` | yes  |
+| Drawing             | `drawing`               | 5    | `codex/consolidate-field-level-widget-settings` | yes  |
+| QR Code             | `qr`                    | 6    | current work                                    | yes  |
+| Scoreboard          | `scoreboard`            | 6    | current work                                    | yes  |
+| Calendar            | `calendar`              | 6    | current work                                    | yes  |
+| Poll                | `poll`                  | 6    | current work                                    | yes  |
+| Routines            | `instructionalRoutines` | 6    | current work                                    | yes  |
+| Specialist Schedule | `specialist-schedule`   | 7    | current work                                    | yes  |
+| Graphic Organizer   | `graphic-organizer`     | 7    | current work                                    | yes  |
+| Reveal Grid         | `reveal-grid`           | 7    | current work                                    | yes  |
+| Number Line         | `numberLine`            | 7    | current work                                    | yes  |
+| Syntax Framer       | `syntax-framer`         | 7    | current work                                    | yes  |

@@ -304,6 +304,16 @@ export const WIDGET_SETTINGS_SCHEMAS: Partial<
     import('./InstructionalRoutines/settings.schema').then((m) => m.default),
   flashcards: () =>
     import('./Flashcards/settings.schema').then((m) => m.default),
+  'specialist-schedule': () =>
+    import('./SpecialistSchedule/settings.schema').then((m) => m.default),
+  'graphic-organizer': () =>
+    import('./GraphicOrganizer/settings.schema').then((m) => m.default),
+  'reveal-grid': () =>
+    import('./RevealGrid/settings.schema').then((m) => m.default),
+  numberLine: () =>
+    import('./NumberLine/settings.schema').then((m) => m.default),
+  'syntax-framer': () =>
+    import('./SyntaxFramer/settings.schema').then((m) => m.default),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -362,23 +372,6 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     'BlendingBoardSettings'
   ),
   'first-5': lazyNamed(() => import('./First5/Settings'), 'First5Settings'),
-  'specialist-schedule': lazyNamed(
-    () => import('./SpecialistSchedule'),
-    'SpecialistScheduleSettings'
-  ),
-  'graphic-organizer': lazyNamed(
-    () => import('./GraphicOrganizer/Settings'),
-    'GraphicOrganizerSettings'
-  ),
-  'reveal-grid': lazyNamed(() => import('./RevealGrid'), 'Settings'),
-  numberLine: lazyNamed(
-    () => import('./NumberLine/Settings'),
-    'NumberLineSettings'
-  ),
-  'syntax-framer': lazyNamed(
-    () => import('./SyntaxFramer'),
-    'SyntaxFramerSettings'
-  ),
   'hotspot-image': lazyNamed(
     () => import('./HotspotImage'),
     'HotspotImageSettings'
@@ -448,21 +441,9 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
     () => import('./ConceptWeb/Settings'),
     'ConceptWebAppearanceSettings'
   ),
-  'graphic-organizer': lazyNamed(
-    () => import('./GraphicOrganizer/Settings'),
-    'GraphicOrganizerAppearanceSettings'
-  ),
   'hotspot-image': lazyNamed(
     () => import('./HotspotImage'),
     'HotspotImageAppearanceSettings'
-  ),
-  'reveal-grid': lazyNamed(
-    () => import('./RevealGrid'),
-    'RevealGridAppearanceSettings'
-  ),
-  'specialist-schedule': lazyNamed(
-    () => import('./SpecialistSchedule'),
-    'SpecialistScheduleAppearanceSettings'
   ),
   'starter-pack': lazyNamed(
     () => import('./StarterPack/Settings'),
@@ -483,10 +464,6 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
   'talking-tool': lazyNamed(
     () => import('./TalkingTool'),
     'TalkingToolAppearanceSettings'
-  ),
-  numberLine: lazyNamed(
-    () => import('./NumberLine/Settings'),
-    'NumberLineAppearanceSettings'
   ),
   smartNotebook: lazyNamed(
     () => import('./SmartNotebook'),
