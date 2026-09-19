@@ -13,6 +13,7 @@ import {
 import { useProjectGrades } from '@/hooks/useProjectGrades';
 import { RubricScoringPanel } from '@/components/widgets/QuizWidget/components/RubricScoringPanel';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
+import { clampPoints } from '@/utils/gradeDraft';
 import { Toggle } from '@/components/common/Toggle';
 
 /** The editable half of a grade; everything else is derived on save. */
@@ -165,7 +166,8 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
         }
         const parsed = Number(trimmed);
         if (!Number.isFinite(parsed)) return current;
-        next[uid] = { ...existing, points: parsed };
+        // The number input's min/max only affect its spinner, not typed text.
+        next[uid] = { ...existing, points: clampPoints(parsed, maxPoints) };
       }
       if (patch.note !== undefined && next[uid]) {
         const note = patch.note;
