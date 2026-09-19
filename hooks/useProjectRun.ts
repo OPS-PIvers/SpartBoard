@@ -65,7 +65,10 @@ interface UseProjectRunResult {
     actorRole: 'student' | 'teacher'
   ) => Promise<void>;
   removeWorkLink: (groupId: string, link: ProjectWorkLink) => Promise<void>;
-  updateRun: (updates: Partial<ProjectRun>) => Promise<void>;
+  updateRun: (
+    updates: Partial<ProjectRun>,
+    clearFields?: (keyof ProjectRun)[]
+  ) => Promise<void>;
   importGroups: (
     groups: ProjectGroupImportEntry[]
   ) => Promise<CommitProjectGroupsResult>;
@@ -248,12 +251,18 @@ export function useProjectRun(
   );
 
   const updateRun = useCallback(
-    async (updates: Partial<ProjectRun>) => {
+    async (
+      updates: Partial<ProjectRun>,
+      clearFields?: (keyof ProjectRun)[]
+    ) => {
       if (!runId) throw new Error('No project is running.');
-      await updateDoc(doc(db, RUNS_COLLECTION, runId), {
+      const payload: Record<string, unknown> = {
         ...updates,
         updatedAt: Date.now(),
-      });
+      };
+      // clearFields lets a caller explicitly deleteField() a key that's simply absent from `updates` — same "merge/update can't clear an omitted key" idiom as ensureRun.
+      for (const field of clearFields ?? []) payload[field] = deleteField();
+      await updateDoc(doc(db, RUNS_COLLECTION, runId), payload);
     },
     [runId]
   );

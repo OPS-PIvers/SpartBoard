@@ -11,6 +11,7 @@ import {
 import type {
   ProjectDefinition,
   ProjectGroupImportEntry,
+  ProjectRun,
   ProjectStep,
   ProjectsConfig,
   WidgetData,
@@ -78,18 +79,26 @@ export const ProjectsSettings: React.FC<{ widget: WidgetData }> = ({
         await saveProject(next);
         if (run) {
           // The rubric is snapshotted onto the run for the same reason.
-          await updateRun({
-            title: next.title,
-            steps: next.steps,
-            approvalStepIds: approvalStepIdsFrom(next.steps),
-            ...(next.rubric
-              ? {
-                  rubric: next.rubric,
-                  rubricMaxPoints:
-                    next.rubricMaxPoints ?? rubricMaxPoints(next.rubric),
-                }
-              : {}),
-          });
+          // updateDoc can't clear a key just by omitting it — explicitly deleteField() the rubric when it was cleared and the run still has one.
+          const clearFields: (keyof ProjectRun)[] | undefined =
+            !next.rubric && run.rubric
+              ? ['rubric', 'rubricMaxPoints']
+              : undefined;
+          await updateRun(
+            {
+              title: next.title,
+              steps: next.steps,
+              approvalStepIds: approvalStepIdsFrom(next.steps),
+              ...(next.rubric
+                ? {
+                    rubric: next.rubric,
+                    rubricMaxPoints:
+                      next.rubricMaxPoints ?? rubricMaxPoints(next.rubric),
+                  }
+                : {}),
+            },
+            ...(clearFields ? [clearFields] : [])
+          );
         }
       } catch {
         addToast('That project could not be saved.', 'error');
