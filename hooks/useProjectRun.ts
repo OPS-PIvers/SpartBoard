@@ -161,11 +161,7 @@ export function useProjectRun(
       }
       if (project.dueAt !== undefined) next.dueAt = project.dueAt;
 
-      // `next` only ADDS these optional fields when the definition still has
-      // them, so with `merge: true` a removed rubric/due date is otherwise
-      // never cleared off an already-launched run (D "editable after
-      // launch") — deleteField() the key instead when the live run still
-      // carries a value the definition no longer does.
+      // merge:true can't clear a field absent from `next` — deleteField() removed rubric/dueAt so "editable after launch" actually clears them.
       const payload: Record<string, unknown> = { ...next };
       if (!project.rubric && run?.rubric) payload.rubric = deleteField();
       if (

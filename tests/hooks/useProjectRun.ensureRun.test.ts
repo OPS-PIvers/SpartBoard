@@ -1,22 +1,4 @@
-/**
- * Regression test for `useProjectRun.ensureRun` failing to clear a rubric
- * (or due date) that was removed from the project definition.
- *
- * Bug: `ensureRun` only ever ADDS `rubric`/`rubricMaxPoints`/`dueAt` to the
- * `setDoc(..., { merge: true })` payload when the incoming `project` still
- * has them (`if (project.rubric) next.rubric = project.rubric;`). When a
- * teacher removes a rubric from an already-launched project (PROJECTS_WIDGET
- * D "editable after launch") and `ensureRun` runs again (e.g. importing more
- * groups later in the term), the key is simply absent from the payload —
- * `merge: true` then leaves whatever rubric the run doc already had in
- * place instead of clearing it. The grader keeps scoring against a rubric
- * the teacher deleted.
- *
- * Fix: explicitly `deleteField()` the key when the project no longer
- * carries it but the live run still does, mirroring the established
- * `deleteField()`-on-explicit-clear pattern used for `plc` in
- * `useQuizAssignments.updateAssignmentSettings`.
- */
+// Regression: ensureRun's merge:true write never cleared a rubric/dueAt removed from the project definition after launch.
 
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
@@ -114,8 +96,7 @@ describe('useProjectRun — ensureRun clearing an already-imported rubric/dueAt'
       useProjectRun(TEACHER_UID, PROJECT_ID, TEACHER_UID)
     );
 
-    // Simulate the live run doc already carrying a rubric + due date from an
-    // earlier `ensureRun` call (e.g. the initial group import).
+    // Simulate the live run doc already carrying a rubric + due date.
     act(() => {
       runDocListener?.({
         exists: () => true,
@@ -138,8 +119,7 @@ describe('useProjectRun — ensureRun clearing an already-imported rubric/dueAt'
       });
     });
 
-    // Teacher removed the rubric (and due date) from the project definition,
-    // then re-imports groups, re-running `ensureRun` with the updated project.
+    // Teacher removed the rubric/due date, then re-runs ensureRun.
     const projectWithoutRubric: ProjectDefinition = { ...baseProject };
 
     await act(async () => {
@@ -147,8 +127,7 @@ describe('useProjectRun — ensureRun clearing an already-imported rubric/dueAt'
     });
 
     const payload = mockSetDoc.mock.calls[0][1] as Record<string, unknown>;
-    // BUG (pre-fix): these keys are simply absent, so `merge: true` leaves
-    // the stale rubric/rubricMaxPoints/dueAt in place on the run doc.
+    // Pre-fix, these keys were simply absent and merge:true left them stale.
     expect(payload.rubric).toEqual({ __deleteFieldSentinel: true });
     expect(payload.rubricMaxPoints).toEqual({ __deleteFieldSentinel: true });
     expect(payload.dueAt).toEqual({ __deleteFieldSentinel: true });
