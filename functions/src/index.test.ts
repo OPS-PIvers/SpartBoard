@@ -3191,6 +3191,10 @@ describe('index barrel — deployed export set', () => {
     // Paper answer sheets (Increment 2 + Q34 pointers)
     'importPaperResponsesV1',
     'publishPaperResultsV1',
+    // Paper answer sheets, delegated to a PLC teammate (read path)
+    'getTeammatePrintContextV1',
+    'createTeammatePaperBatchV1',
+    'withdrawTeammatePaperBatchV1',
     'cleanupQuizAssignmentPointers',
     'cleanupVideoActivityAssignmentPointers',
     'cleanupGuidedLearningAssignmentPointers',

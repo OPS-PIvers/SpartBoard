@@ -79,6 +79,7 @@ const ACTIVITY_TYPES: ReadonlySet<PlcActivityType> = new Set<PlcActivityType>([
   'comment_added',
   'item_deleted',
   'item_restored',
+  'paper_printed',
 ]);
 
 function isActivityType(value: unknown): value is PlcActivityType {

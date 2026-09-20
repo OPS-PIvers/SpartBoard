@@ -762,6 +762,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Rollout switch for printing a PLC teammate's paper answer sheets — a
+    // member reads it to decide whether to surface the delegated print entry;
+    // admins flip it. Separate from paper_answer_sheets so delegation can be
+    // killed on its own.
+    match /admin_settings/plc_delegated_printing {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     // Rollout switch for class groups in widgets — teachers read it to decide
     // whether to offer the group picker; admins flip it.
     match /admin_settings/roster_groups_integration {
@@ -3137,7 +3146,7 @@ service cloud.firestore {
                'assessment_created', 'assessment_shared',
                'assessment_results_ready', 'meeting_held',
                'note_created', 'comment_added',
-               'item_deleted', 'item_restored'
+               'item_deleted', 'item_restored', 'paper_printed'
              ]
           && request.resource.data.actorName is string
           && (
@@ -4006,10 +4015,15 @@ service cloud.firestore {
       }
       // Teacher-only: anon PIN and studentRole tokens carry no email claim, so
       // the same idiom isAdmin() uses keeps student sessions out of the library.
+      // isSuperAdmin(), not isAdmin(): a bare /admins/{email} doc also mirrors
+      // org-scoped roles like building_admin (see functions/src/authz.ts), so
+      // isAdmin() here let a building_admin of one org read another org's
+      // items. isSuperAdmin() matches helpScopeOk()'s own idiom above and the
+      // client's useHelpResources({allOrgs: isSuperAdmin}) assumption.
       function helpReaderOk() {
         return request.auth != null
           && request.auth.token.get('email', '') != ''
-          && (resource.data.orgId == null || isAdmin() || isOrgMember(resource.data.orgId));
+          && (resource.data.orgId == null || isOrgMember(resource.data.orgId) || isSuperAdmin());
       }
       allow read: if helpReaderOk();
       allow create: if isAdmin() && helpShapeOk(request.resource.data)

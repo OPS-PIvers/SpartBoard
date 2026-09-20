@@ -55,4 +55,19 @@ describe('isBetaUser', () => {
     expect(isBetaUser(['teacher@school.edu'], null)).toBe(false);
     expect(isBetaUser(['teacher@school.edu'], undefined)).toBe(false);
   });
+
+  it('denies a null/undefined email even when betaUsers carries a blank entry', () => {
+    // A blank betaUsers entry must not match a caller with no email.
+    expect(isBetaUser([''], null)).toBe(false);
+    expect(isBetaUser([''], undefined)).toBe(false);
+  });
+
+  it('denies a null/undefined email even when betaTeachers/superAdmins carry a blank entry', () => {
+    expect(isBetaUser([], null, roles({ betaTeachers: [''] }))).toBe(false);
+    expect(isBetaUser([], undefined, roles({ superAdmins: [''] }))).toBe(false);
+  });
+
+  it('still grants access via roleId === "super_admin" with no email', () => {
+    expect(isBetaUser([], null, null, 'super_admin')).toBe(true);
+  });
 });

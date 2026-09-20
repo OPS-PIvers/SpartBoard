@@ -841,7 +841,8 @@
         "note_created": "{{actor}} hat eine Notiz hinzugefügt: {{target}}",
         "comment_added": "{{actor}} hat zu {{target}} kommentiert",
         "item_deleted": "{{actor}} hat {{target}} gelöscht",
-        "item_restored": "{{actor}} hat {{target}} wiederhergestellt"
+        "item_restored": "{{actor}} hat {{target}} wiederhergestellt",
+        "paper_printed": "{{actor}} hat Antwortbögen für {{target}} gedruckt"
       }
     },
     "comments": {

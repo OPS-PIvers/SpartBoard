@@ -841,7 +841,8 @@
         "note_created": "{{actor}} a ajouté une note : {{target}}",
         "comment_added": "{{actor}} a commenté {{target}}",
         "item_deleted": "{{actor}} a supprimé {{target}}",
-        "item_restored": "{{actor}} a restauré {{target}}"
+        "item_restored": "{{actor}} a restauré {{target}}",
+        "paper_printed": "{{actor}} a imprimé des feuilles de réponses pour {{target}}"
       }
     },
     "comments": {

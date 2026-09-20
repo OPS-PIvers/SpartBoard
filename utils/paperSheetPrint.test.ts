@@ -203,3 +203,33 @@ describe('printPaperSheets', () => {
     expect(open).not.toHaveBeenCalled();
   });
 });
+
+// A delegated stack names the teacher it is for (D17); a self-printed one must
+// keep rendering exactly as it did before that option existed.
+describe('printed for a PLC teammate', () => {
+  it('names the teacher in the header meta line', () => {
+    const html = buildPaperSheetsHtml(
+      job({ printedForTeacherName: 'Ms. Alvarez' })
+    );
+    expect(html).toContain('Ms. Alvarez · Period 1 · Page 1 of 1');
+  });
+
+  it('leaves the self-print header byte-identical', () => {
+    expect(
+      buildPaperSheetsHtml(job({ printedForTeacherName: undefined }))
+    ).toBe(buildPaperSheetsHtml(job()));
+    expect(buildPaperSheetsHtml(job())).toContain('Period 1 · Page 1 of 1');
+  });
+
+  it('still names the teacher on an unnamed spare, which has no class', () => {
+    const html = buildPaperSheetsHtml(
+      job({
+        printedForTeacherName: 'Ms. Alvarez',
+        sheets: [
+          sheet({ student: null, className: '', displayName: 'Name __' }),
+        ],
+      })
+    );
+    expect(html).toContain('Ms. Alvarez · Page 1 of 1');
+  });
+});

@@ -292,6 +292,7 @@ const REQUIRED_ACTIVITY_EVENT_KEYS = [
   'comment_added',
   'item_deleted',
   'item_restored',
+  'paper_printed',
 ] as const;
 
 /** Keys within plcDashboard.overview */

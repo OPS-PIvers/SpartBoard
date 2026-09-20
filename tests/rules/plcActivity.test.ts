@@ -164,6 +164,17 @@ describe('plcs/{plcId}/activity — create', () => {
     );
   });
 
+  // The delegated-print feed entry is written by a Cloud Function, but the rules
+  // union is the one place a new PlcActivityType can be silently forgotten.
+  it('accepts the delegated paper-print event type', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asMember(), `plcs/${PLC_ID}/activity/${EVENT_ID}`),
+        validEvent({ type: 'paper_printed', targetType: 'paperBatch' })
+      )
+    );
+  });
+
   it('rejects an event whose actorUid is not the caller (no forging)', async () => {
     await assertFails(
       setDoc(
