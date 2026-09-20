@@ -294,4 +294,47 @@ describe('QuizStudentApp — recording gate', () => {
       screen.queryByRole('button', { name: 'Alpha' })
     ).not.toBeInTheDocument();
   });
+
+  it('surfaces a retry banner instead of failing silently when the recording submit rejects', async () => {
+    hookState.session = buildSession({ mediaResponseEnabled: true });
+    hookState.myResponse = buildResponse({
+      recordingNoticeAckedAt: 1700000000000,
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 1700000001000,
+          status: 'submitted',
+          takeIndex: 1,
+          artifacts: [
+            {
+              id: 'art-1',
+              slot: 'primary',
+              kind: 'audio',
+              storagePath: 'p',
+              uploadState: 'uploaded',
+              durationMs: 1000,
+              mimeType: 'audio/webm',
+            },
+          ],
+        },
+      ],
+    });
+    spies.completeQuiz.mockRejectedValueOnce(new Error('offline'));
+    render(<QuizStudentApp />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Submit quiz' }));
+
+    await waitFor(() => expect(spies.completeQuiz).toHaveBeenCalledTimes(1));
+    expect(
+      await screen.findByText(/Couldn.t submit your quiz\. Tap to try again\./i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Retry Submit' })
+    ).toBeInTheDocument();
+
+    // Retrying should be possible: the same button re-triggers completeQuiz.
+    fireEvent.click(screen.getByRole('button', { name: 'Retry Submit' }));
+    await waitFor(() => expect(spies.completeQuiz).toHaveBeenCalledTimes(2));
+  });
 });
