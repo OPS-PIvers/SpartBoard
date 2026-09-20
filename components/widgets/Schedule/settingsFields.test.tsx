@@ -144,9 +144,7 @@ describe('Schedule settings drawer fields', () => {
     );
     render(React.createElement(ScheduleListField, { ctx }));
 
-    fireEvent.click(
-      screen.getAllByRole('button', { name: 'Delete event' })[1]
-    );
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete event' })[1]);
 
     expect(updateConfig).toHaveBeenCalledWith({
       schedules: [schedule('sched-a', 'A', [first, last])],
@@ -172,9 +170,7 @@ describe('Schedule settings drawer fields', () => {
     );
     render(React.createElement(ScheduleListField, { ctx }));
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Delete event' })
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Delete event' }));
 
     expect(updateConfig).toHaveBeenCalledWith({
       schedules: [schedule('sched-a', 'A', [])],
