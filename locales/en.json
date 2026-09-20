@@ -1363,7 +1363,7 @@
       "defaultSchedule": "Default schedule",
       "scheduleNamePlaceholder": "Schedule name",
       "deleteSchedule": "Delete schedule",
-    "delete": "Delete",
+      "delete": "Delete",
       "deleteScheduleTitle": "Delete schedule",
       "deleteScheduleBody": "Are you sure you want to delete this schedule?",
       "mustKeepSchedule": "You must have at least one schedule.",
