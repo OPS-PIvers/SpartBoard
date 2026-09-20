@@ -305,12 +305,12 @@ async function createCopyForTarget(
   targetUid: string,
   plcId: string,
   plcQuizId: string,
+  quizId: string,
   content: QuizContent,
   accessToken: string,
   deps: TeammatePrintWriteDeps,
   now: number
-): Promise<{ quizId: string; driveFileId: string }> {
-  const quizId = randomUUID();
+): Promise<void> {
   const fileName = `${sanitizeDriveFileName(content.title)}.${quizId.slice(
     0,
     8
@@ -369,8 +369,6 @@ async function createCopyForTarget(
     await deps.trashDriveFile(accessToken, driveFileId).catch(() => undefined);
     throw err;
   }
-
-  return { quizId, driveFileId };
 }
 
 /** Best-effort feed entry (D21); never fails the print that already happened. */
@@ -445,40 +443,28 @@ export async function handleCreateTeammatePaperBatch(
     return canonicalContent;
   };
 
-  let quizId: string;
-  let driveFileId: string | null;
-  let createdCopy = false;
-  if (copy) {
-    quizId = copy.id;
-    driveFileId =
-      typeof copy.data().driveFileId === 'string'
-        ? (copy.data().driveFileId as string)
-        : null;
-  } else {
+  // Nothing below this point writes until the whole run is known to be
+  // printable: a rejected print must never leave a quiz — or a sync-group
+  // membership — behind in someone else's account (§9).
+  let copyToken: string | null = null;
+  if (!copy) {
     // No copy and no Drive is the one combination with nowhere to put one (D20).
     if (!accessToken)
       throw new HttpsError(
         'failed-precondition',
         `${targetName} has not added this quiz to their library, and SpartBoard cannot reach their Google Drive to add it for them.`
       );
-    const created = await createCopyForTarget(
-      db,
-      input.targetUid,
-      input.plcId,
-      input.plcQuizId,
-      await canonical(),
-      accessToken,
-      deps,
-      now
-    );
-    quizId = created.quizId;
-    driveFileId = created.driveFileId;
-    createdCopy = true;
+    copyToken = accessToken;
   }
+  const quizId = copy ? copy.id : randomUUID();
+  const driveFileId =
+    copy && typeof copy.data().driveFileId === 'string'
+      ? (copy.data().driveFileId as string)
+      : null;
 
   // Their copy is what their assignment grades against; the group is the net (D11).
-  let content: QuizContent | null = createdCopy ? await canonical() : null;
-  if (!content && accessToken && driveFileId) {
+  let content: QuizContent | null = null;
+  if (accessToken && driveFileId) {
     try {
       const body = await deps.readDriveJson(accessToken, driveFileId);
       if (isRecord(body)) content = toQuizContent(body);
@@ -539,7 +525,7 @@ export async function handleCreateTeammatePaperBatch(
     );
 
   const batchId = randomUUID();
-  let planned;
+  let planned: ReturnType<typeof planPaperBatch>;
   try {
     planned = planPaperBatch({
       batchId,
@@ -560,6 +546,23 @@ export async function handleCreateTeammatePaperBatch(
       err instanceof RangeError
         ? err.message
         : 'Could not lay out that print run.'
+    );
+  }
+
+  // First write of the call. Creating their copy and joining the sync group is
+  // the most intrusive thing this feature does (D9), so it happens only once
+  // there is a stack to bind to it.
+  if (copyToken) {
+    await createCopyForTarget(
+      db,
+      input.targetUid,
+      input.plcId,
+      input.plcQuizId,
+      quizId,
+      content,
+      copyToken,
+      deps,
+      now
     );
   }
 
@@ -600,7 +603,7 @@ export async function handleCreateTeammatePaperBatch(
         },
       ];
     }),
-    createdCopy,
+    createdCopy: copyToken !== null,
   };
 }
 

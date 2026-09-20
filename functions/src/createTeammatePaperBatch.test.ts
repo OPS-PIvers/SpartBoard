@@ -469,6 +469,44 @@ describe('createTeammatePaperBatchV1 — no personal copy yet (D9)', () => {
     expect(result.batch.quizId).toBe(quizWrite?.path.split('/').pop());
   });
 
+  // A rejected print must leave nothing behind: the copy and the sync-group
+  // join are durable changes to an absent colleague's account, and there is no
+  // stack to show for them if the run never gets that far.
+  it.each([
+    [
+      'the quiz has nothing bubbleable on it',
+      (state: State) => {
+        state.docs[`synced_quizzes/${GROUP_ID}`] = {
+          title: 'Essay only',
+          questions: [{ id: 'q1', type: 'FIB', correctAnswer: 'x' }],
+        };
+        return INPUT;
+      },
+    ],
+    [
+      'a selected class no longer exists',
+      () => ({
+        ...INPUT,
+        selections: [{ rosterId: 'deleted-roster', studentIds: ['s1'] }],
+      }),
+    ],
+    [
+      'nothing at all was selected',
+      () => ({ ...INPUT, selections: [], spareCount: 0 }),
+    ],
+  ])('writes nothing when %s', async (_label, prepare) => {
+    const state = baseState();
+    state.collections[`users/${TARGET_UID}/quizzes`] = [];
+    const d = deps();
+    const { run, writes } = create(state, d, prepare(state));
+
+    await expect(run()).rejects.toThrow();
+    expect(writes.sets).toHaveLength(0);
+    expect(writes.updates).toHaveLength(0);
+    expect(d.writeDriveJson).not.toHaveBeenCalled();
+    expect(joinSyncGroup).not.toHaveBeenCalled();
+  });
+
   it('rolls the copy back when the sync join fails', async () => {
     const state = baseState();
     state.collections[`users/${TARGET_UID}/quizzes`] = [];
