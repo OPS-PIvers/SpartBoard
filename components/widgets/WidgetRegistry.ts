@@ -332,17 +332,20 @@ export const WIDGET_SETTINGS_SCHEMAS: Partial<
   'need-do-put-then': () =>
     import('./NeedDoPutThen/settings.schema').then((m) => m.default),
   stations: () => import('./Stations/settings.schema').then((m) => m.default),
+  materials: () =>
+    import('./MaterialsWidget/settings.schema').then((m) => m.default),
+  'seating-chart': () =>
+    import('./SeatingChart/settings.schema').then((m) => m.default),
+  schedule: () => import('./Schedule/settings.schema').then((m) => m.default),
+  recessGear: () =>
+    import('./RecessGear/settings.schema').then((m) => m.default),
+  pdf: () => import('./PdfWidget/settings.schema').then((m) => m.default),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
   Record<WidgetType, SettingsComponent>
 > = {
-  materials: lazyNamed(() => import('./MaterialsWidget'), 'MaterialsSettings'),
   miniApp: MiniAppSettings,
-  'seating-chart': lazyNamed(
-    () => import('./SeatingChart/Settings'),
-    'SeatingChartSettings'
-  ),
   catalyst: lazyNamed(
     () => import('@/components/widgets/Catalyst'),
     'CatalystSettings'
@@ -357,13 +360,7 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   ),
   smartNotebook: DefaultSettings,
   traffic: DefaultSettings,
-  schedule: lazyNamed(() => import('./Schedule'), 'ScheduleSettings'),
   classes: DefaultSettings,
-  recessGear: lazyNamed(
-    () => import('./RecessGear/Settings'),
-    'RecessGearSettings'
-  ),
-  pdf: lazyNamed(() => import('./PdfWidget'), 'PdfSettings'),
   quiz: lazyNamed(() => import('./QuizWidget'), 'QuizWidgetSettings'),
   breathing: lazyNamed(
     () => import('./Breathing/BreathingSettings'),
@@ -409,7 +406,6 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
     () => import('./BlendingBoard/Settings'),
     'BlendingBoardAppearanceSettings'
   ),
-  schedule: lazyNamed(() => import('./Schedule'), 'ScheduleAppearanceSettings'),
   music: lazyNamed(
     () => import('./MusicWidget/index'),
     'MusicAppearanceSettings'

@@ -11,11 +11,8 @@ import {
 } from '@/context/dashboardCanvasStore';
 import { Package } from 'lucide-react';
 import { getMaterialMap } from './constants';
-import { MaterialsSettings } from './Settings';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useAuth } from '@/context/useAuth';
-
-export { MaterialsSettings };
 
 import { WidgetLayout } from '../WidgetLayout';
 
