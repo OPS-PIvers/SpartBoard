@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Folder, X } from 'lucide-react';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import type { Collection } from '@/types';
 
 interface MoveToCollectionMenuProps {
@@ -31,6 +32,23 @@ export const MoveToCollectionMenu: React.FC<MoveToCollectionMenuProps> = ({
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
+  }, [onClose]);
+
+  // Capture phase + stopImmediatePropagation so this popover's Escape wins
+  // over BoardsModal's own document-level Escape handler, which mounted
+  // first and would otherwise close the whole modal instead of just this
+  // menu — same pattern as CollectionColorPicker.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isEscapeFromWidgetInput(e)) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
   }, [onClose]);
 
   // Render flat list with indentation by depth.
