@@ -2875,10 +2875,12 @@ const ActiveQuiz: React.FC<{
       setSubmitBlocked(true);
       return;
     }
+    setSaveError(null);
     try {
       await onComplete();
     } catch (err) {
       console.error('[QuizStudentApp] onComplete failed:', err);
+      setSaveError("Couldn't submit your quiz. Tap to try again.");
     }
   };
 
@@ -3263,20 +3265,27 @@ const ActiveQuiz: React.FC<{
                 onCaptureUnavailable={handleRecordingCaptureUnavailable}
               />
               {isStudentPaced && (
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={
-                      currentIndex >= effectiveTotalQuestions - 1
-                        ? () => void handleRecordingSubmit()
-                        : handleNext
-                    }
-                    className="inline-flex items-center gap-2 rounded-2xl bg-brand-blue-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
-                  >
-                    {currentIndex >= effectiveTotalQuestions - 1
-                      ? t('quizMediaResponse.capture.submitQuiz')
-                      : t('quizMediaResponse.capture.nextQuestion')}
-                  </button>
+                <div className="space-y-3">
+                  {currentIndex >= effectiveTotalQuestions - 1 && saveError && (
+                    <SaveErrorBanner message={saveError} />
+                  )}
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={
+                        currentIndex >= effectiveTotalQuestions - 1
+                          ? () => void handleRecordingSubmit()
+                          : handleNext
+                      }
+                      className="inline-flex items-center gap-2 rounded-2xl bg-brand-blue-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
+                    >
+                      {currentIndex >= effectiveTotalQuestions - 1
+                        ? saveError
+                          ? 'Retry Submit'
+                          : t('quizMediaResponse.capture.submitQuiz')
+                        : t('quizMediaResponse.capture.nextQuestion')}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
