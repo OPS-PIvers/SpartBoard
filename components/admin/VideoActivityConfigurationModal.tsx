@@ -263,6 +263,7 @@ export const VideoActivityConfigurationModal: React.FC<
                     </p>
                   </div>
                   <Toggle
+                    label="Enable AI Mode"
                     checked={config.aiEnabled ?? true}
                     onChange={(checked) =>
                       onSave({ config: { ...config, aiEnabled: checked } })
