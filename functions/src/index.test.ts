@@ -3193,6 +3193,8 @@ describe('index barrel — deployed export set', () => {
     'publishPaperResultsV1',
     // Paper answer sheets, delegated to a PLC teammate (read path)
     'getTeammatePrintContextV1',
+    'createTeammatePaperBatchV1',
+    'withdrawTeammatePaperBatchV1',
     'cleanupQuizAssignmentPointers',
     'cleanupVideoActivityAssignmentPointers',
     'cleanupGuidedLearningAssignmentPointers',

@@ -411,10 +411,20 @@ describe('print context', () => {
     expect(result.blocked).toBeNull();
   });
 
-  it('lists only the batches already printed for this quiz, with who printed them', async () => {
+  // Which quiz a batch belongs to is the query's job now; what is pinned here
+  // is the newest-first order and the attribution the warning reads from.
+  it('lists the batches already printed for this quiz, newest first', async () => {
     const state = stateWithCopy({
       collections: {
         [`users/${TARGET_UID}/paper_batches`]: [
+          {
+            id: 'batch-self',
+            data: {
+              quizId: 'their-quiz-id',
+              createdAt: 1000,
+              seats: { 1: {} },
+            },
+          },
           {
             id: 'batch-new',
             data: {
@@ -423,18 +433,6 @@ describe('print context', () => {
               seats: { 1: {}, 2: {} },
               spareSeats: [3],
               printedByName: 'Helper Teacher',
-            },
-          },
-          {
-            id: 'batch-other-quiz',
-            data: { quizId: 'some-other-quiz', createdAt: 1500, seats: {} },
-          },
-          {
-            id: 'batch-self',
-            data: {
-              quizId: 'their-quiz-id',
-              createdAt: 1000,
-              seats: { 1: {} },
             },
           },
         ],
