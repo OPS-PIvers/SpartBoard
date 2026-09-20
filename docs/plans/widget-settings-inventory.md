@@ -1825,3 +1825,8 @@ find-a-setting filter.
 | Bloom's Taxonomy       | `blooms-taxonomy`       | 9    | current work                                    | yes  |
 | Need / Do / Put / Then | `need-do-put-then`      | 9    | current work                                    | yes  |
 | Stations               | `stations`              | 9    | current work                                    | yes  |
+| Materials              | `materials`             | 10   | current work                                    | yes  |
+| Seating Chart          | `seating-chart`         | 10   | current work                                    | yes  |
+| Schedule               | `schedule`              | 10   | current work                                    | yes  |
+| Recess Gear            | `recessGear`            | 10   | current work                                    | yes  |
+| PDF                    | `pdf`                   | 10   | current work                                    | yes  |

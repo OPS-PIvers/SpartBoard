@@ -13,12 +13,28 @@ import {
 
 const ICON_RESULT_LIMIT = 60;
 
+const DEFAULT_FORM_LABELS: Record<string, string> = {
+  newMaterial: 'New Material',
+  editMaterialTitle: 'Edit Material',
+  materialPlaceholder: 'Glue sticks',
+  icon: 'Icon',
+  iconSearch: 'Search icons...',
+  materialIcon: 'Material icon',
+  noIconsMatch: 'No icons match “{{query}}”.',
+  color: 'Color',
+  save: 'Save',
+  cancel: 'Cancel',
+  deleteMaterial: 'Delete {{label}}',
+  material: 'material',
+};
+
 interface CustomMaterialFormProps {
   /** The material being edited, or undefined when creating a new one. */
   material?: MaterialDefinition;
   onSave: (draft: Omit<MaterialDefinition, 'id'>) => void;
   onDelete?: () => void;
   onCancel: () => void;
+  translate?: (leaf: string, options?: Record<string, unknown>) => string;
 }
 
 export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
@@ -26,6 +42,7 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
   onSave,
   onDelete,
   onCancel,
+  translate,
 }) => {
   const labelInputId = useId();
   const iconSearchId = useId();
@@ -56,6 +73,14 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
 
   const trimmedLabel = label.trim();
   const canSave = trimmedLabel.length > 0;
+  const t = (leaf: string, options?: Record<string, unknown>) => {
+    const template =
+      translate?.(leaf, options) ?? DEFAULT_FORM_LABELS[leaf] ?? leaf;
+    return Object.entries(options ?? {}).reduce(
+      (value, [key, option]) => value.replaceAll(`{{${key}}}`, String(option)),
+      template
+    );
+  };
 
   const handleSave = () => {
     if (!canSave) return;
@@ -83,7 +108,7 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
         </div>
         <div className="min-w-0 flex-1">
           <SettingsLabel htmlFor={labelInputId} className="mb-1">
-            {material ? 'Edit Material' : 'New Material'}
+            {material ? t('editMaterialTitle') : t('newMaterial')}
           </SettingsLabel>
           <input
             id={labelInputId}
@@ -91,7 +116,7 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             maxLength={MAX_MATERIAL_LABEL_LENGTH}
-            placeholder="Glue sticks"
+            placeholder={t('materialPlaceholder')}
             autoFocus
             className="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           />
@@ -99,7 +124,7 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
       </div>
 
       <div>
-        <SettingsLabel htmlFor={iconSearchId}>Icon</SettingsLabel>
+        <SettingsLabel htmlFor={iconSearchId}>{t('icon')}</SettingsLabel>
         <div className="relative mb-2">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
           <input
@@ -107,16 +132,16 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
             type="text"
             value={iconQuery}
             onChange={(e) => setIconQuery(e.target.value)}
-            placeholder="Search icons..."
+            placeholder={t('iconSearch')}
             className="w-full py-2 pl-9 pr-3 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           />
         </div>
         <span id={iconGroupId} className="sr-only">
-          Material icon
+          {t('materialIcon')}
         </span>
         {iconResults.length === 0 ? (
           <p className="text-xxs text-slate-400 italic py-2">
-            No icons match “{iconQuery.trim()}”.
+            {t('noIconsMatch', { query: iconQuery.trim() })}
           </p>
         ) : (
           <div
@@ -150,7 +175,7 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
 
       <div>
         <SettingsLabel as="span" id={colorGroupId}>
-          Color
+          {t('color')}
         </SettingsLabel>
         <div
           className="flex flex-wrap gap-2"
@@ -183,7 +208,7 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
           className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
           <Check className="h-3.5 w-3.5" />
-          Save
+          {t('save')}
         </button>
         <button
           type="button"
@@ -191,13 +216,15 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
           className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50"
         >
           <X className="h-3.5 w-3.5" />
-          Cancel
+          {t('cancel')}
         </button>
         {onDelete && (
           <button
             type="button"
             onClick={onDelete}
-            aria-label={`Delete ${material?.label ?? 'material'}`}
+            aria-label={t('deleteMaterial', {
+              label: material?.label ?? t('material'),
+            })}
             className="rounded-lg border border-red-200 bg-white p-2 text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
           >
             <Trash2 className="h-4 w-4" />
