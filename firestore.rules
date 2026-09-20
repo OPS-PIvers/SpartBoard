@@ -4014,7 +4014,7 @@ service cloud.firestore {
       function helpReaderOk() {
         return request.auth != null
           && request.auth.token.get('email', '') != ''
-          && (resource.data.orgId == null || isSuperAdmin() || isOrgMember(resource.data.orgId));
+          && (resource.data.orgId == null || isOrgMember(resource.data.orgId) || isSuperAdmin());
       }
       allow read: if helpReaderOk();
       allow create: if isAdmin() && helpShapeOk(request.resource.data)
