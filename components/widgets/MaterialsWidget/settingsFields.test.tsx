@@ -101,30 +101,99 @@ const setup = (
   options: {
     customMaterials?: MaterialDefinition[];
     dashboards?: unknown[];
+    featurePermissions?: unknown[];
+    buildingId?: string;
+    materialsPreferences?: Record<string, unknown>;
   } = {}
 ) => {
   const updateWidgetConfigsAcrossBoards = vi.fn().mockResolvedValue(undefined);
   const showConfirm = vi.fn().mockResolvedValue(true);
+  const saveCustomMaterials = vi.fn().mockResolvedValue(undefined);
+  const saveMaterialsPreferences = vi.fn();
   mockedUseDashboard.mockReturnValue({
     dashboards: options.dashboards ?? [],
     updateWidgetConfigsAcrossBoards,
   } as unknown as ReturnType<typeof useDashboard>);
   mockedUseAuth.mockReturnValue({
-    featurePermissions: [],
+    featurePermissions: options.featurePermissions ?? [],
     customMaterials: options.customMaterials ?? [],
-    saveCustomMaterials: vi.fn().mockResolvedValue(undefined),
-    materialsPreferences: {},
-    saveMaterialsPreferences: vi.fn(),
+    saveCustomMaterials,
+    materialsPreferences: options.materialsPreferences ?? {},
+    saveMaterialsPreferences,
   } as unknown as ReturnType<typeof useAuth>);
   mockedUseDialog.mockReturnValue({
     showConfirm,
   } as unknown as ReturnType<typeof useDialog>);
-  mockedUseWidgetBuildingId.mockReturnValue(undefined);
-  return { showConfirm, updateWidgetConfigsAcrossBoards };
+  mockedUseWidgetBuildingId.mockReturnValue(options.buildingId);
+  return {
+    showConfirm,
+    updateWidgetConfigsAcrossBoards,
+    saveCustomMaterials,
+    saveMaterialsPreferences,
+  };
 };
+
+const materialsPermission = (config: Record<string, unknown>) => [
+  { widgetType: 'materials', config },
+];
 
 describe('Materials settings drawer fields', () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it('hides material creation when teacher materials are disabled', () => {
+    setup({
+      featurePermissions: materialsPermission({
+        allowTeacherMaterials: false,
+        buildingDefaults: {},
+      }),
+      customMaterials: [GLUE],
+    });
+    const ctx = makeCtx({ selectedItems: [], activeItems: [] });
+    render(React.createElement(MaterialsCatalogField, { ctx }));
+
+    expect(
+      screen.queryByRole('button', { name: 'Add' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('Glue Sticks')).toBeInTheDocument();
+  });
+
+  it('keeps materials visible under the building allowlist', () => {
+    setup({
+      featurePermissions: materialsPermission({
+        buildingDefaults: {
+          high: { buildingId: 'high', selectedItems: ['pencil'] },
+        },
+      }),
+      customMaterials: [GLUE],
+      buildingId: 'high',
+    });
+    const ctx = makeCtx({ selectedItems: [], activeItems: [] });
+    render(React.createElement(MaterialsCatalogField, { ctx }));
+
+    expect(screen.getByText('Pencil')).toBeInTheDocument();
+    expect(screen.getByText('Glue Sticks')).toBeInTheDocument();
+    expect(screen.queryByText('Computer')).not.toBeInTheDocument();
+  });
+
+  it('saves selected custom materials as account-wide defaults', async () => {
+    const { saveMaterialsPreferences } = setup({
+      customMaterials: [GLUE],
+      materialsPreferences: { hiddenMaterialIds: ['calculator'] },
+    });
+    const user = userEvent.setup();
+    const ctx = makeCtx({ selectedItems: [], activeItems: [] });
+    render(React.createElement(MaterialsCatalogField, { ctx }));
+
+    await user.click(screen.getByText('Glue Sticks'));
+
+    expect(saveMaterialsPreferences).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        selectedItems: [GLUE.id],
+        customMaterialSnapshots: [GLUE],
+        hiddenMaterialIds: ['calculator'],
+      })
+    );
+  });
 
   it('moves through the title-font radiogroup with arrow keys', () => {
     const updateConfig = vi.fn();

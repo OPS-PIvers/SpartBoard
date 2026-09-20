@@ -295,9 +295,7 @@ export const ScheduleListField: React.FC<{
   );
 
   const liveItemOps = useRef({ getItems, saveItems });
-  useEffect(() => {
-    liveItemOps.current = { getItems, saveItems };
-  }, [getItems, saveItems]);
+  liveItemOps.current = { getItems, saveItems };
 
   const handleSelect = (id: string) => {
     setSelectedScheduleIdState(id);
