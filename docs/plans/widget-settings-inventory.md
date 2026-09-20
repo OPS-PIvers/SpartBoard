@@ -1830,3 +1830,8 @@ find-a-setting filter.
 | Schedule               | `schedule`              | 10   | current work                                    | yes  |
 | Recess Gear            | `recessGear`            | 10   | current work                                    | yes  |
 | PDF                    | `pdf`                   | 10   | current work                                    | yes  |
+| Quiz                   | `quiz`                  | 11   | current work                                    | yes  |
+| Breathing              | `breathing`             | 11   | current work                                    | yes  |
+| Math Tools             | `mathTools`             | 11   | current work                                    | yes  |
+| Math Tool Instance     | `mathTool`              | 11   | current work                                    | yes  |
+| Next Up                | `nextUp`                | 11   | current work                                    | yes  |

@@ -340,6 +340,12 @@ export const WIDGET_SETTINGS_SCHEMAS: Partial<
   recessGear: () =>
     import('./RecessGear/settings.schema').then((m) => m.default),
   pdf: () => import('./PdfWidget/settings.schema').then((m) => m.default),
+  quiz: () => import('./QuizWidget/settings.schema').then((m) => m.default),
+  breathing: () => import('./Breathing/settings.schema').then((m) => m.default),
+  mathTools: () => import('./MathTools/settings.schema').then((m) => m.default),
+  mathTool: () =>
+    import('./MathToolInstance/settings.schema').then((m) => m.default),
+  nextUp: () => import('./NextUp/settings.schema').then((m) => m.default),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -361,17 +367,6 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   smartNotebook: DefaultSettings,
   traffic: DefaultSettings,
   classes: DefaultSettings,
-  quiz: lazyNamed(() => import('./QuizWidget'), 'QuizWidgetSettings'),
-  breathing: lazyNamed(
-    () => import('./Breathing/BreathingSettings'),
-    'BreathingSettings'
-  ),
-  mathTools: lazyNamed(() => import('./MathTools'), 'MathToolsSettings'),
-  mathTool: lazyNamed(
-    () => import('./MathToolInstance/index'),
-    'MathToolInstanceSettings'
-  ),
-  nextUp: lazyNamed(() => import('./NextUp/Settings'), 'NextUpSettings'),
   // onboarding has no settings panel
   music: lazyNamed(() => import('./MusicWidget/index'), 'MusicSettings'),
   'car-rider-pro': lazyNamed(
@@ -410,17 +405,9 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
     () => import('./MusicWidget/index'),
     'MusicAppearanceSettings'
   ),
-  breathing: lazyNamed(
-    () => import('./Breathing/BreathingSettings'),
-    'BreathingAppearanceSettings'
-  ),
   'activity-wall': lazyNamed(
     () => import('./ActivityWall/Settings'),
     'ActivityWallAppearanceSettings'
-  ),
-  mathTools: lazyNamed(
-    () => import('./MathTools'),
-    'MathToolsAppearanceSettings'
   ),
   'talking-tool': lazyNamed(
     () => import('./TalkingTool'),
