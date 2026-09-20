@@ -295,6 +295,8 @@ export const ScheduleListField: React.FC<{
   );
 
   const liveItemOps = useRef({ getItems, saveItems });
+  // This render-time refresh keeps undo callbacks on the latest config.
+  // eslint-disable-next-line react-hooks/refs
   liveItemOps.current = { getItems, saveItems };
 
   const handleSelect = (id: string) => {
