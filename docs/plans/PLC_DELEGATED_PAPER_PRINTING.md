@@ -16,7 +16,7 @@ Today only the owning teacher can print. Everything the print path needs — the
 
 ### 1.1 Why this is not a small change
 
-**SpartBoard has no delegation path today.** There is no `actAs`, no proxy uid, no teacher custom token; `createCustomToken` mints only student / LTI / Classroom-addon identities. The `/subs` portal is not a counterexample — the substitute signs in as themselves (`components/subs/SubsAuthGate.tsx`) and reads a `shared_boards` snapshot the host *voluntarily created in advance*, with roster access mediated by Google Drive grants the host issued (`hooks/useSubstituteRosters.ts:10`). A PLC lead is a **membership** administrator, not a data administrator: the only content-level lead override in all of `firestore.rules` is `question_banks` update/delete (`:2635`, `:2660`).
+**SpartBoard has no delegation path today.** There is no `actAs`, no proxy uid, no teacher custom token; `createCustomToken` mints only student / LTI / Classroom-addon identities. The `/subs` portal is not a counterexample — the substitute signs in as themselves (`components/subs/SubsAuthGate.tsx`) and reads a `shared_boards` snapshot the host _voluntarily created in advance_, with roster access mediated by Google Drive grants the host issued (`hooks/useSubstituteRosters.ts:10`). A PLC lead is a **membership** administrator, not a data administrator: the only content-level lead override in all of `firestore.rules` is `question_banks` update/delete (`:2635`, `:2660`).
 
 This plan establishes the first "act for another teacher" capability in the app. That is the risk, and it is why §9 exists and why §8 ships the read half alone.
 
@@ -30,7 +30,7 @@ These shaped the decisions and are easy to re-derive wrongly later:
 - **Student names and PINs live only in Google Drive**, at `SpartBoard/Data/Rosters/{rosterId}.json` (`hooks/useRosters.ts:369`). Firestore holds roster metadata only. The app holds `drive.file` scope, so a peer cannot read another teacher's roster file at all.
 - **The server can read a teacher's Drive with nobody present.** `refreshGoogleAccessTokenForUid` (`functions/src/googleOAuth.ts:345`) exists for exactly this and already backs `pushClassroomGrade`, `quizMediaArchive` and `activityWallArchive`. It throws `failed-precondition` with `reason: 'needs-consent'` when the teacher never granted offline access (`components/common/DriveOfflineGrantCard.tsx` is the dismissible prompt).
 - **Canonical quiz content is already peer-readable.** `/synced_quizzes/{groupId}` is `allow get: if request.auth != null` (`firestore.rules:1472`) — an unguessable UUID, no PII. So quiz questions are reachable without Drive; **only the roster truly needs the offline grant.**
-- **Joining a sync group already takes a uid parameter.** `handleJoinPlcQuizSyncGroup(db, uid, plcId, plcQuizId)` (`functions/src/plcQuizSyncJoin.ts:48`) re-verifies *that* uid's membership inside the transaction.
+- **Joining a sync group already takes a uid parameter.** `handleJoinPlcQuizSyncGroup(db, uid, plcId, plcQuizId)` (`functions/src/plcQuizSyncJoin.ts:48`) re-verifies _that_ uid's membership inside the transaction.
 - **The print modal is already uid-agnostic.** `PaperPrintModal` takes `{ quiz, rosters, onSaveBatch }` and renders HTML + `window.print()` via `utils/printHtmlDocument.ts`. No PDF library, no server rendering — **printing cannot happen anywhere but in a browser**.
 - **The roster name is the class period.** Import sends `classPeriod: found.roster.name` (`utils/paperImportPlan.ts:140`), which keys the `pin_index` lookup and the `pin-{period}-{pin}` fallback response key.
 - **Firestore rules cannot be tested locally on this machine**, and a `dev-*` push ships rules, indexes and Cloud Functions to the shared prod project.
@@ -41,49 +41,49 @@ These shaped the decisions and are easy to re-derive wrongly later:
 
 ### 2.1 Scope and authorization
 
-| #   | Decision         | Choice                                                                                                                                                                                                       |
-| --- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | Scope            | **Print only.** The helper prints; the absent teacher scans, reviews and publishes. `importPaperResponsesV1`'s `caller.uid` trust model is not touched.                                                     |
-| D2  | Batch owner      | **The absent teacher's `paper_batches`, written by a Cloud Function.** Follows the existing cross-user writer pattern; `firestore.rules:538` stays owner-only.                                              |
-| D3  | Who may print    | **Any non-viewer PLC member, with no pre-arrangement.** Reuses the `plcCanEditContent` shape (`firestore.rules:1702`). A design needing the absent teacher's live action fails the actual use case.         |
-| D4  | Quiz scope       | **PLC-shared quizzes only**, matched on `sync.groupId`. A peer never browses a colleague's private library.                                                                                                 |
-| D5  | Student data     | **Server reads the roster, returns names only.** PINs are join credentials and never leave the server.                                                                                                       |
-| D6  | Gating           | **Helper passes both existing paper gates; the callable re-reads the kill switch server-side**, mirroring `importPaperResponses.ts:207`. The target's feature permission is not evaluated.                   |
-| D7  | Kill switch      | **Its own Rollouts switch, ships off**, following `admin_settings/paper_answer_sheets` and `plc_note_collab`. Delegation can be killed without killing paper sheets.                                         |
-| D8  | PLC off switch   | **`printForTeammates` in `PlcFeatureSettings`** (`types.ts:348`), default on, merged through `getPlcFeatures`. Honestly: any member can flip these, so this is an off-switch, not individual consent.        |
+| #   | Decision       | Choice                                                                                                                                                                                                |
+| --- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Scope          | **Print only.** The helper prints; the absent teacher scans, reviews and publishes. `importPaperResponsesV1`'s `caller.uid` trust model is not touched.                                               |
+| D2  | Batch owner    | **The absent teacher's `paper_batches`, written by a Cloud Function.** Follows the existing cross-user writer pattern; `firestore.rules:538` stays owner-only.                                        |
+| D3  | Who may print  | **Any non-viewer PLC member, with no pre-arrangement.** Reuses the `plcCanEditContent` shape (`firestore.rules:1702`). A design needing the absent teacher's live action fails the actual use case.   |
+| D4  | Quiz scope     | **PLC-shared quizzes only**, matched on `sync.groupId`. A peer never browses a colleague's private library.                                                                                           |
+| D5  | Student data   | **Server reads the roster, returns names only.** PINs are join credentials and never leave the server.                                                                                                |
+| D6  | Gating         | **Helper passes both existing paper gates; the callable re-reads the kill switch server-side**, mirroring `importPaperResponses.ts:207`. The target's feature permission is not evaluated.            |
+| D7  | Kill switch    | **Its own Rollouts switch, ships off**, following `admin_settings/paper_answer_sheets` and `plc_note_collab`. Delegation can be killed without killing paper sheets.                                  |
+| D8  | PLC off switch | **`printForTeammates` in `PlcFeatureSettings`** (`types.ts:348`), default on, merged through `getPlcFeatures`. Honestly: any member can flip these, so this is an off-switch, not individual consent. |
 
 ### 2.2 Resolving the absent teacher's quiz
 
-| #   | Decision          | Choice                                                                                                                                                                                                      |
-| --- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D9  | No personal copy  | **The server creates it and joins the sync group for them.** Without a copy there is no quiz id to bind a batch to. See §9 — this is the most intrusive step in the plan.                                   |
-| D10 | Join mechanism    | **Reuse `handleJoinPlcQuizSyncGroup` with the target's uid**, after separately verifying the caller. No second writer of the `participants` map.                                                             |
-| D11 | Content source    | **Their Drive copy first, `/synced_quizzes` as fallback.** Their copy is what their assignment will grade against; the group is the safety net when Drive is unreachable. The fallback is flagged on screen. |
-| D12 | Answer key        | **The full quiz is returned, `correctAnswer` included.** A PLC colleague teaching the same common assessment may be proctoring or grading a section.                                                         |
+| #   | Decision         | Choice                                                                                                                                                                                                       |
+| --- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D9  | No personal copy | **The server creates it and joins the sync group for them.** Without a copy there is no quiz id to bind a batch to. See §9 — this is the most intrusive step in the plan.                                    |
+| D10 | Join mechanism   | **Reuse `handleJoinPlcQuizSyncGroup` with the target's uid**, after separately verifying the caller. No second writer of the `participants` map.                                                             |
+| D11 | Content source   | **Their Drive copy first, `/synced_quizzes` as fallback.** Their copy is what their assignment will grade against; the group is the safety net when Drive is unreachable. The fallback is flagged on screen. |
+| D12 | Answer key       | **The full quiz is returned, `correctAnswer` included.** A PLC colleague teaching the same common assessment may be proctoring or grading a section.                                                         |
 
 ### 2.3 Printing
 
-| #   | Decision       | Choice                                                                                                                                                                       |
-| --- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D13 | Entry point    | **PLC dashboard → Quiz Library row kebab**, beside the existing Import / Edit actions. The delegated path stays visibly PLC-scoped.                                          |
-| D14 | Run shape      | **One teammate per run.** Each run writes one batch under one owner, and each teacher's stack stays separable at the copier.                                                 |
-| D15 | Roster scope   | **All of the target's rosters, with student names.** The helper must pick which classes are sitting the test and uncheck the student on a field trip. Names print regardless. |
-| D16 | Batch trust    | **The server re-derives the batch.** The helper sends selections and counts; the server runs `planPaperBatch` itself. A peer cannot hand-craft seats pointing at arbitrary student ids. |
-| D17 | Sheet header   | **Delegated sheets name the teacher; self-printed sheets are unchanged.** The existing layout — whose geometry the reader depends on — is not touched for anyone else.        |
-| D18 | Duplicates     | **Warn and allow.** Existing batches for that teacher + quiz are listed with who printed them and when, behind a confirm. Import is idempotent per batch; the harm is two sheets per student. |
+| #   | Decision     | Choice                                                                                                                                                                                        |
+| --- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D13 | Entry point  | **PLC dashboard → Quiz Library row kebab**, beside the existing Import / Edit actions. The delegated path stays visibly PLC-scoped.                                                           |
+| D14 | Run shape    | **One teammate per run.** Each run writes one batch under one owner, and each teacher's stack stays separable at the copier.                                                                  |
+| D15 | Roster scope | **All of the target's rosters, with student names.** The helper must pick which classes are sitting the test and uncheck the student on a field trip. Names print regardless.                 |
+| D16 | Batch trust  | **The server re-derives the batch.** The helper sends selections and counts; the server runs `planPaperBatch` itself. A peer cannot hand-craft seats pointing at arbitrary student ids.       |
+| D17 | Sheet header | **Delegated sheets name the teacher; self-printed sheets are unchanged.** The existing layout — whose geometry the reader depends on — is not touched for anyone else.                        |
+| D18 | Duplicates   | **Warn and allow.** Existing batches for that teacher + quiz are listed with who printed them and when, behind a confirm. Import is idempotent per batch; the harm is two sheets per student. |
 
 ### 2.4 Failure modes and aftermath
 
-| #   | Decision        | Choice                                                                                                                                                                        |
-| --- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D19 | No Drive grant  | **Spares-only stack.** Unnamed sheets with real seat markers; students write their names; the owner assigns seats in the review queue, which already supports this.            |
-| D20 | No grant AND no copy | **Blocked**, naming exactly what is missing — and surfaced preventively in the PLC members list so the gap is fixable in September, not on the morning it matters.        |
-| D21 | Audit           | **`printedBy` stamped on the batch, plus a `PlcActivityFeed` entry.** The owner sees who printed it in their own import modal, where it matters.                              |
-| D22 | Cleanup         | **Owner always; the helper only until the batch is imported.** Covers the jammed printer and the wrong class without letting a third party delete a batch already on desks.    |
+| #   | Decision             | Choice                                                                                                                                                                      |
+| --- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D19 | No Drive grant       | **Spares-only stack.** Unnamed sheets with real seat markers; students write their names; the owner assigns seats in the review queue, which already supports this.         |
+| D20 | No grant AND no copy | **Blocked**, naming exactly what is missing — and surfaced preventively in the PLC members list so the gap is fixable in September, not on the morning it matters.          |
+| D21 | Audit                | **`printedBy` stamped on the batch, plus a `PlcActivityFeed` entry.** The owner sees who printed it in their own import modal, where it matters.                            |
+| D22 | Cleanup              | **Owner always; the helper only until the batch is imported.** Covers the jammed printer and the wrong class without letting a third party delete a batch already on desks. |
 
 ### 2.5 Assumptions carried without a decision
 
-- The role gate applies to the **actor**. A `viewer` cannot print for anyone; anyone can be printed *for*, whatever their role.
+- The role gate applies to the **actor**. A `viewer` cannot print for anyone; anyone can be printed _for_, whatever their role.
 - Delegation covers **authored PLC-shared quizzes only** — so no "Paper test" stub creation for a teammate, and no bubbled ANSWER KEY sheet (an authored quiz never gets one, per `QUIZ_PAPER_ANSWER_SHEETS.md` Q16).
 - The batch stays **PII-free**. The only new fields are `printedByUid` / `printedByName` / `printedAt`.
 
@@ -173,7 +173,7 @@ Input `{ plcId, targetUid, batchId }`. After §4, deletes the batch only when `p
 
 ## 8. Delivery (stacked PRs into `dev-paul`)
 
-1. **Read path** — `getTeammatePrintContextV1`, the Rollouts switch and its hook, the `PlcFeatureSettings` flag, the kebab entry and the teacher picker showing what *would* print. Writes nothing anywhere. Verifiable against real PLCs without any risk to a colleague's account.
+1. **Read path** — `getTeammatePrintContextV1`, the Rollouts switch and its hook, the `PlcFeatureSettings` flag, the kebab entry and the teacher picker showing what _would_ print. Writes nothing anywhere. Verifiable against real PLCs without any risk to a colleague's account.
 2. **Write path** — `createTeammatePaperBatchV1`, `withdrawTeammatePaperBatchV1`, copy creation and sync join, the activity feed entry, the header change, the import-modal attribution.
 
 The half that writes into someone else's account lands only after the read half is proven, mirroring how the paper feature itself shipped (Increment 1 stood alone).
