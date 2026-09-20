@@ -17,11 +17,13 @@ import {
   MoreVertical,
   Pencil,
   Plus,
+  Printer,
   Search,
   Users,
 } from 'lucide-react';
 import { useDraggable } from '@dnd-kit/core';
-import type { Plc } from '@/types';
+import { getPlcFeatures, type Plc } from '@/types';
+import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import {
@@ -32,6 +34,8 @@ import {
   usePlcMembers,
 } from '@/context/usePlcContext';
 import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
+import { usePaperAnswerSheetsSettings } from '@/hooks/usePaperAnswerSheetsSettings';
+import { usePlcDelegatedPrintingSettings } from '@/hooks/usePlcDelegatedPrintingSettings';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { usePlcFolders } from '@/hooks/usePlcFolders';
 import {
@@ -43,6 +47,7 @@ import { buildPlcAssessmentPath, spaNavigate } from '@/utils/plcPath';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
+import { PlcTeammatePrintModal } from '@/components/plc/PlcTeammatePrintModal';
 import {
   buildAssessmentRows,
   countRowsByFolder,
@@ -151,6 +156,9 @@ interface RowProps {
   onAssign: (row: AssessmentListRow) => void;
   onImport: (row: AssessmentListRow) => void;
   onEdit: (row: AssessmentListRow) => void;
+  /** Delegated printing passed every gate; hides the row action when false. */
+  canPrintForTeammate: boolean;
+  onPrintForTeammate: (row: AssessmentListRow) => void;
   onVersionHistory: (row: AssessmentListRow) => void;
   onRename: (row: AssessmentListRow) => void;
   onArchive: (row: AssessmentListRow) => void;
@@ -171,6 +179,8 @@ const AssessmentRow: React.FC<RowProps> = ({
   onAssign,
   onImport,
   onEdit,
+  canPrintForTeammate,
+  onPrintForTeammate,
   onVersionHistory,
   onRename,
   onArchive,
@@ -414,6 +424,22 @@ const AssessmentRow: React.FC<RowProps> = ({
                           defaultValue: 'Version history',
                         })}
                       </button>
+                      {canPrintForTeammate && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuOpen(false);
+                            onPrintForTeammate(row);
+                          }}
+                          className={menuItemClass}
+                        >
+                          <Printer className="w-3.5 h-3.5" aria-hidden="true" />
+                          {t('plcDashboard.teammatePrint.rowAction', {
+                            defaultValue: 'Print answer sheets for a teammate',
+                          })}
+                        </button>
+                      )}
                     </>
                   )}
                   {row.assessmentId && (
@@ -535,6 +561,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   const { t } = useTranslation();
   const { addToast } = useDashboard();
   const { showPrompt } = useDialog();
+  const { user, canAccessFeature } = useAuth();
   const { updateAssessment, archiveQuiz, restoreQuiz } = usePlcActions();
   const canEdit = useCanEditPlcContent();
   const {
@@ -555,6 +582,25 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   } = usePlcQuizzes(plc.id);
   const folderState = usePlcFolders(plc.id);
   const quizActions = usePlcQuizActions(plc, onCloseDashboard);
+
+  // Printing for a teammate clears four gates before it is even offered: the
+  // org rollout, the paper feature the caller must already hold, this PLC's own
+  // switch, and `canEdit` (a viewer prints for nobody). The callable re-checks
+  // every one of them server-side — this only decides what to render.
+  const delegatedPrintingRollout = usePlcDelegatedPrintingSettings();
+  const paperSheetsRollout = usePaperAnswerSheetsSettings();
+  const canPrintForTeammate =
+    canEdit &&
+    delegatedPrintingRollout.enabled &&
+    paperSheetsRollout.enabled &&
+    canAccessFeature('paper-answer-sheets') &&
+    getPlcFeatures(plc).printForTeammates;
+  const teammates = useMemo(
+    () => members.filter((m) => m.uid !== user?.uid && m.status === 'active'),
+    [members, user?.uid]
+  );
+  const [teammatePrintRow, setTeammatePrintRow] =
+    useState<AssessmentListRow | null>(null);
 
   const [filter, setFilter] = useState<AssessmentListFilter>('all');
   const [search, setSearch] = useState('');
@@ -1013,6 +1059,8 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
                   const target = toActionTarget(r);
                   if (target) editQuiz(target);
                 }}
+                canPrintForTeammate={canPrintForTeammate}
+                onPrintForTeammate={setTeammatePrintRow}
                 onVersionHistory={(r) => {
                   const target = toActionTarget(r);
                   if (target) quizActions.openVersionHistory(target);
@@ -1088,6 +1136,15 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
         {sidebar}
         {mainContent}
       </LibraryDndContext>
+      {teammatePrintRow?.plcQuizId && (
+        <PlcTeammatePrintModal
+          plc={plc}
+          plcQuizId={teammatePrintRow.plcQuizId}
+          quizTitle={teammatePrintRow.title}
+          teammates={teammates}
+          onClose={() => setTeammatePrintRow(null)}
+        />
+      )}
     </div>
   );
 };

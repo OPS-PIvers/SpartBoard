@@ -99,6 +99,9 @@ export {
   importPaperResponsesV1,
   publishPaperResultsV1,
 } from './importPaperResponses';
+// Paper answer sheets, delegated: read-only context for printing a PLC
+// teammate's stack while they are out. Writes nothing.
+export { getTeammatePrintContextV1 } from './getTeammatePrintContext';
 export {
   cleanupQuizAssignmentPointers,
   cleanupVideoActivityAssignmentPointers,

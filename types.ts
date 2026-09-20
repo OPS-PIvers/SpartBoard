@@ -358,6 +358,13 @@ export interface PlcFeatureSettings {
   sharedBoards: boolean;
   /** Per-teacher rows on pooled assessment results (plan D3); off by default. */
   showPerTeacher: boolean;
+  /**
+   * Let a member print paper answer sheets for a teammate who is out
+   * (PLC_DELEGATED_PAPER_PRINTING.md D8). On by default. Any member can flip
+   * it, including the one who wants to print — it is an off-switch for a PLC
+   * that does not want the feature, not an individual teacher's consent.
+   */
+  printForTeammates: boolean;
 }
 
 export const DEFAULT_PLC_FEATURE_SETTINGS: PlcFeatureSettings = {
@@ -366,6 +373,7 @@ export const DEFAULT_PLC_FEATURE_SETTINGS: PlcFeatureSettings = {
   notes: true,
   sharedBoards: true,
   showPerTeacher: false,
+  printForTeammates: true,
 };
 
 /**

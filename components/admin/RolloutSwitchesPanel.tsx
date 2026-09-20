@@ -13,6 +13,10 @@ import {
   normalizePlcNoteCollabSettings,
 } from '@/config/plcNoteCollab';
 import {
+  PLC_DELEGATED_PRINTING_SETTINGS_DOC,
+  normalizePlcDelegatedPrintingSettings,
+} from '@/config/plcDelegatedPrinting';
+import {
   ROSTER_GROUPS_INTEGRATION_SETTINGS_DOC,
   normalizeRosterGroupsIntegrationSettings,
 } from '@/config/rosterGroupsIntegration';
@@ -43,6 +47,13 @@ const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     description:
       'Print bubble answer sheets for a quiz and import the scanned stack. Adds “Print answer sheets” and “Import scanned sheets” to the quiz menu and “Paper test” under the New Quiz caret, after Import.',
     normalize: normalizePaperAnswerSheetsSettings,
+  },
+  {
+    docId: PLC_DELEGATED_PRINTING_SETTINGS_DOC,
+    title: 'Print answer sheets for a PLC teammate',
+    description:
+      'Adds “Print answer sheets for a teammate” to the PLC quiz row menu, so a member can print a colleague’s stack when they are out. Needs paper answer sheets on as well. The colleague still scans, grades and publishes their own results.',
+    normalize: normalizePlcDelegatedPrintingSettings,
   },
   {
     docId: ROSTER_GROUPS_INTEGRATION_SETTINGS_DOC,

@@ -3,6 +3,8 @@
 //     denial, studentRole denial, anonymous/unauth denial.
 //   - /admin_settings/paper_answer_sheets — any authed user reads the rollout
 //     switch; only an admin flips it.
+//   - /admin_settings/plc_delegated_printing — same shape, for printing a PLC
+//     teammate's sheets (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md §3.2).
 //
 // Requires a running Firestore emulator. Invoke via:
 //   pnpm run test:rules
@@ -91,6 +93,7 @@ const asUnauth = () => testEnv.unauthenticatedContext().firestore();
 const batchPath = (uid = TEACHER_UID) =>
   `users/${uid}/paper_batches/${BATCH_ID}`;
 const settingsPath = 'admin_settings/paper_answer_sheets';
+const delegatedSettingsPath = 'admin_settings/plc_delegated_printing';
 
 const batchFields = () => ({
   id: BATCH_ID,
@@ -133,6 +136,9 @@ beforeEach(async () => {
       role: 'admin',
     });
     await setDoc(doc(ctx.firestore(), settingsPath), { enabled: false });
+    await setDoc(doc(ctx.firestore(), delegatedSettingsPath), {
+      enabled: false,
+    });
   });
 });
 
@@ -177,6 +183,29 @@ describe('/users/{uid}/paper_batches — denials', () => {
     const db = asUnauth();
     await assertFails(getDoc(doc(db, batchPath())));
     await assertFails(updateDoc(doc(db, batchPath()), { choiceCount: 5 }));
+  });
+});
+
+describe('/admin_settings/plc_delegated_printing — rollout switch', () => {
+  it('lets any authed teacher read the switch', async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(), delegatedSettingsPath)));
+  });
+
+  it('denies an unauthenticated read', async () => {
+    await assertFails(getDoc(doc(asUnauth(), delegatedSettingsPath)));
+  });
+
+  it('denies a non-admin write and allows an admin write', async () => {
+    await assertFails(
+      setDoc(doc(asTeacher(), delegatedSettingsPath), { enabled: true })
+    );
+    await assertSucceeds(
+      setDoc(doc(asAdmin(), delegatedSettingsPath), { enabled: true })
+    );
+  });
+
+  it('stays owner-only on the batch itself — no PLC branch was added', async () => {
+    await assertFails(getDoc(doc(asOtherTeacher(), batchPath())));
   });
 });
 

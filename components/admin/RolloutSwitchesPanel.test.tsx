@@ -7,6 +7,7 @@ const setDocMock = vi.fn((_ref: { path: string }, _data: unknown) =>
 const snapshotData: Record<string, Record<string, unknown> | undefined> = {
   plc_note_collab: { enabled: true },
   paper_answer_sheets: undefined,
+  plc_delegated_printing: undefined,
   roster_groups_integration: undefined,
   projects_widget: undefined,
 };
@@ -66,6 +67,20 @@ describe('RolloutSwitchesPanel', () => {
     await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
     expect(setDocMock.mock.calls[0][0].path).toBe(
       'admin_settings/roster_groups_integration'
+    );
+    expect(setDocMock.mock.calls[0][1]).toEqual({ enabled: true });
+  });
+
+  it('writes to the delegated-printing doc from its own row', async () => {
+    render(<RolloutSwitchesPanel />);
+    fireEvent.click(
+      screen.getByRole('switch', {
+        name: 'Print answer sheets for a PLC teammate',
+      })
+    );
+    await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
+    expect(setDocMock.mock.calls[0][0].path).toBe(
+      'admin_settings/plc_delegated_printing'
     );
     expect(setDocMock.mock.calls[0][1]).toEqual({ enabled: true });
   });
