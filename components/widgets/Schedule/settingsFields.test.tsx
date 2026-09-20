@@ -144,9 +144,7 @@ describe('Schedule settings drawer fields', () => {
       updateConfig
     );
     const view = render(React.createElement(ScheduleListField, { ctx }));
-    fireEvent.click(
-      screen.getAllByRole('button', { name: 'Delete event' })[1]
-    );
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete event' })[1]);
     const undo = addToast.mock.calls[0][2] as { onClick: () => void };
     const postDelete = schedule('sched-a', 'A', [first, last]);
     updateConfig.mockClear();
@@ -192,11 +190,7 @@ describe('Schedule settings drawer fields', () => {
       schedules: [withAdded, other],
       settingsSelectedScheduleId: selected,
     });
-    const withAdded = schedule('sched-a', 'A', [
-      first,
-      last,
-      addedItem,
-    ]);
+    const withAdded = schedule('sched-a', 'A', [first, last, addedItem]);
     const addedCtx = makeCtx(config('sched-a'), updateConfig);
     view.rerender(React.createElement(ScheduleListField, { ctx: addedCtx }));
     fireEvent.click(screen.getByRole('button', { name: 'B' }));

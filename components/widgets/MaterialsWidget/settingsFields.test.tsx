@@ -103,9 +103,7 @@ const setup = (
     dashboards?: unknown[];
   } = {}
 ) => {
-  const updateWidgetConfigsAcrossBoards = vi
-    .fn()
-    .mockResolvedValue(undefined);
+  const updateWidgetConfigsAcrossBoards = vi.fn().mockResolvedValue(undefined);
   const showConfirm = vi.fn().mockResolvedValue(true);
   mockedUseDashboard.mockReturnValue({
     dashboards: options.dashboards ?? [],
@@ -173,7 +171,9 @@ describe('Materials settings drawer fields', () => {
     const ctx = makeCtx({ selectedItems: [], activeItems: [] });
     render(React.createElement(MaterialsCatalogField, { ctx }));
     await user.click(screen.getByRole('button', { name: 'Edit Glue Sticks' }));
-    await user.click(screen.getByRole('button', { name: 'Delete Glue Sticks' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Delete Glue Sticks' })
+    );
     await waitFor(() => expect(showConfirm).toHaveBeenCalled());
     expect(updateWidgetConfigsAcrossBoards).toHaveBeenCalledWith(
       'materials',
