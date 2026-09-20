@@ -329,6 +329,19 @@ describe('help_resources — read', () => {
     await assertFails(getDoc(doc(asTeacher(), 'help_resources/org-b-1')));
   });
 
+  // Regression: helpReaderOk() used to bypass the org check with bare
+  // isAdmin() (any /admins/{email} doc, which also mirrors org-scoped roles
+  // like building_admin — see functions/src/authz.ts). An org admin who is
+  // only a member of ORG_A, but not a super admin, must not read ORG_B's
+  // items just because /admins/{ORG_ADMIN_EMAIL} exists.
+  it("an org admin (not a super admin) cannot read another org's items", async () => {
+    await assertFails(getDoc(doc(asOrgAdmin(), 'help_resources/org-b-1')));
+  });
+
+  it('a super admin can read any org-scoped item', async () => {
+    await assertSucceeds(getDoc(doc(asSuper(), 'help_resources/org-b-1')));
+  });
+
   it('an anonymous PIN student cannot read a global item', async () => {
     await assertFails(getDoc(doc(asAnonStudent(), 'help_resources/global-1')));
   });
