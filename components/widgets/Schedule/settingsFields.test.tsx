@@ -6,13 +6,22 @@ import { useDialog } from '@/context/useDialog';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
-import type { DailySchedule, ScheduleConfig, ScheduleItem, WidgetData } from '@/types';
+import type {
+  DailySchedule,
+  ScheduleConfig,
+  ScheduleItem,
+  WidgetData,
+} from '@/types';
 import { ScheduleListField } from './settingsFields';
 
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
 vi.mock('@/context/useDialog', () => ({ useDialog: vi.fn() }));
-vi.mock('@/hooks/useFeaturePermissions', () => ({ useFeaturePermissions: vi.fn() }));
-vi.mock('@/hooks/useWidgetBuildingId', () => ({ useWidgetBuildingId: vi.fn() }));
+vi.mock('@/hooks/useFeaturePermissions', () => ({
+  useFeaturePermissions: vi.fn(),
+}));
+vi.mock('@/hooks/useWidgetBuildingId', () => ({
+  useWidgetBuildingId: vi.fn(),
+}));
 
 Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
   configurable: true,
@@ -25,7 +34,11 @@ const mockedUseDialog = vi.mocked(useDialog);
 const mockedUseFeaturePermissions = vi.mocked(useFeaturePermissions);
 const mockedUseWidgetBuildingId = vi.mocked(useWidgetBuildingId);
 
-const widget = { id: 'schedule-test-1', type: 'schedule' } as unknown as WidgetData;
+const widget = {
+  id: 'schedule-test-1',
+  type: 'schedule',
+} as unknown as WidgetData;
+
 const translate = (key: string, options?: Record<string, unknown>) => {
   const leaf = key.split('.').pop() ?? key;
   const labels: Record<string, string> = {
@@ -51,6 +64,7 @@ const translate = (key: string, options?: Record<string, unknown>) => {
   }
   return value;
 };
+
 const makeCtx = (
   config: ScheduleConfig,
   updateConfig: (patch: Record<string, unknown>) => void = vi.fn()
@@ -70,7 +84,11 @@ const makeCtx = (
     describedBy: undefined,
   }) as unknown as CustomRenderCtx;
 
-const item = (id: string, task: string, startTime: string): ScheduleItem & { id: string } => ({
+const item = (
+  id: string,
+  task: string,
+  startTime: string
+): ScheduleItem & { id: string } => ({
   id,
   startTime,
   task,
@@ -78,7 +96,12 @@ const item = (id: string, task: string, startTime: string): ScheduleItem & { id:
   mode: 'clock',
   linkedWidgets: [],
 });
-const schedule = (id: string, name: string, items: ScheduleItem[]): DailySchedule => ({
+
+const schedule = (
+  id: string,
+  name: string,
+  items: ScheduleItem[]
+): DailySchedule => ({
   id,
   name,
   days: [],
@@ -112,24 +135,35 @@ describe('Schedule settings drawer fields', () => {
     const original = schedule('sched-a', 'A', [first, removed, last]);
     const updateConfig = vi.fn();
     const { addToast } = setup();
-    const view = render(<ScheduleListField ctx={makeCtx({
-      items: [],
-      schedules: [original],
-      settingsSelectedScheduleId: 'sched-a',
-    }, updateConfig)} />);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Delete event' })[1]);
+    const ctx = makeCtx(
+      {
+        items: [],
+        schedules: [original],
+        settingsSelectedScheduleId: 'sched-a',
+      },
+      updateConfig
+    );
+    const view = render(React.createElement(ScheduleListField, { ctx }));
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Delete event' })[1]
+    );
     const undo = addToast.mock.calls[0][2] as { onClick: () => void };
     const postDelete = schedule('sched-a', 'A', [first, last]);
     updateConfig.mockClear();
-    view.rerender(<ScheduleListField ctx={makeCtx({
-      items: [],
-      schedules: [postDelete],
-      settingsSelectedScheduleId: 'sched-a',
-    }, updateConfig)} />);
+    const postDeleteCtx = makeCtx(
+      {
+        items: [],
+        schedules: [postDelete],
+        settingsSelectedScheduleId: 'sched-a',
+      },
+      updateConfig
+    );
+    view.rerender(
+      React.createElement(ScheduleListField, { ctx: postDeleteCtx })
+    );
     act(() => undo.onClick());
-    expect(updateConfig).toHaveBeenCalledWith({
-      schedules: [schedule('sched-a', 'A', [first, removed, last])],
-    });
+    const restored = schedule('sched-a', 'A', [first, removed, last]);
+    expect(updateConfig).toHaveBeenCalledWith({ schedules: [restored] });
   });
 
   it('drops pending autofocus when switching schedules and does not steal focus on return', () => {
@@ -139,25 +173,38 @@ describe('Schedule settings drawer fields', () => {
     const other = schedule('sched-b', 'B', []);
     const updateConfig = vi.fn();
     setup();
-    const view = render(<ScheduleListField ctx={makeCtx({
-      items: [],
-      schedules: [original, other],
-      settingsSelectedScheduleId: 'sched-a',
-    }, updateConfig)} />);
+    const ctx = makeCtx(
+      {
+        items: [],
+        schedules: [original, other],
+        settingsSelectedScheduleId: 'sched-a',
+      },
+      updateConfig
+    );
+    const view = render(React.createElement(ScheduleListField, { ctx }));
     fireEvent.click(screen.getByRole('button', { name: 'Add event' }));
-    const added = updateConfig.mock.calls.at(-1)?.[0] as { schedules: DailySchedule[] };
+    const added = updateConfig.mock.calls.at(-1)?.[0] as {
+      schedules: DailySchedule[];
+    };
     const addedItem = added.schedules[0].items.at(-1) as ScheduleItem;
-    const withAdded = schedule('sched-a', 'A', [first, last, addedItem]);
     const config = (selected: string): ScheduleConfig => ({
       items: [],
       schedules: [withAdded, other],
       settingsSelectedScheduleId: selected,
     });
-    view.rerender(<ScheduleListField ctx={makeCtx(config('sched-a'), updateConfig)} />);
+    const withAdded = schedule('sched-a', 'A', [
+      first,
+      last,
+      addedItem,
+    ]);
+    const addedCtx = makeCtx(config('sched-a'), updateConfig);
+    view.rerender(React.createElement(ScheduleListField, { ctx: addedCtx }));
     fireEvent.click(screen.getByRole('button', { name: 'B' }));
     fireEvent.click(screen.getByRole('button', { name: 'A' }));
-    expect(screen.getAllByPlaceholderText('Task name').some(
-      (input) => input === document.activeElement
-    )).toBe(false);
+    expect(
+      screen
+        .getAllByPlaceholderText('Task name')
+        .some((input) => input === document.activeElement)
+    ).toBe(false);
   });
 });

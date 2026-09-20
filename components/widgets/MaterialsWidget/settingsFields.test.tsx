@@ -9,12 +9,17 @@ import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import type { MaterialDefinition, MaterialsConfig, WidgetData } from '@/types';
 import { TEACHER_MATERIAL_ID_PREFIX } from './constants';
-import { MaterialsCatalogField, MaterialsTitleFontField } from './settingsFields';
+import {
+  MaterialsCatalogField,
+  MaterialsTitleFontField,
+} from './settingsFields';
 
 vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
 vi.mock('@/context/useDialog', () => ({ useDialog: vi.fn() }));
-vi.mock('@/hooks/useWidgetBuildingId', () => ({ useWidgetBuildingId: vi.fn() }));
+vi.mock('@/hooks/useWidgetBuildingId', () => ({
+  useWidgetBuildingId: vi.fn(),
+}));
 
 const mockedUseAuth = vi.mocked(useAuth);
 const mockedUseDashboard = vi.mocked(useDashboard);
@@ -53,7 +58,8 @@ const translate = (key: string, options?: Record<string, unknown>) => {
     deleteMaterialTitle: 'Delete material',
     delete: 'Delete',
     material: 'material',
-    deleteUsageOther: 'It is used on {{count}} widgets and will be removed from them.',
+    deleteUsageOther:
+      'It is used on {{count}} widgets and will be removed from them.',
     newMaterial: 'New material',
     editMaterialTitle: 'Edit material',
     materialPlaceholder: 'Glue sticks',
@@ -91,8 +97,15 @@ const makeCtx = (
     describedBy: undefined,
   }) as unknown as CustomRenderCtx;
 
-const setup = (options: { customMaterials?: MaterialDefinition[]; dashboards?: unknown[] } = {}) => {
-  const updateWidgetConfigsAcrossBoards = vi.fn().mockResolvedValue(undefined);
+const setup = (
+  options: {
+    customMaterials?: MaterialDefinition[];
+    dashboards?: unknown[];
+  } = {}
+) => {
+  const updateWidgetConfigsAcrossBoards = vi
+    .fn()
+    .mockResolvedValue(undefined);
   const showConfirm = vi.fn().mockResolvedValue(true);
   mockedUseDashboard.mockReturnValue({
     dashboards: options.dashboards ?? [],
@@ -105,7 +118,9 @@ const setup = (options: { customMaterials?: MaterialDefinition[]; dashboards?: u
     materialsPreferences: {},
     saveMaterialsPreferences: vi.fn(),
   } as unknown as ReturnType<typeof useAuth>);
-  mockedUseDialog.mockReturnValue({ showConfirm } as unknown as ReturnType<typeof useDialog>);
+  mockedUseDialog.mockReturnValue({
+    showConfirm,
+  } as unknown as ReturnType<typeof useDialog>);
   mockedUseWidgetBuildingId.mockReturnValue(undefined);
   return { showConfirm, updateWidgetConfigsAcrossBoards };
 };
@@ -116,37 +131,64 @@ describe('Materials settings drawer fields', () => {
   it('moves through the title-font radiogroup with arrow keys', () => {
     const updateConfig = vi.fn();
     setup();
-    render(<MaterialsTitleFontField ctx={makeCtx({ titleFont: 'global' }, updateConfig)} />);
+    const ctx = makeCtx({ titleFont: 'global' }, updateConfig);
+    render(React.createElement(MaterialsTitleFontField, { ctx }));
     const radios = screen.getAllByRole('radio');
     radios[0].focus();
-    fireEvent.keyDown(screen.getByRole('radiogroup'), { key: 'ArrowRight' });
+    fireEvent.keyDown(screen.getByRole('radiogroup'), {
+      key: 'ArrowRight',
+    });
     expect(document.activeElement).toBe(radios[1]);
     expect(updateConfig).toHaveBeenCalledWith({ titleFont: 'font-mono' });
   });
 
   it('cascades a confirmed custom-material delete across boards', async () => {
     const dashboards = [
-      { id: 'a', widgets: [{ id: 'w1', type: 'materials', config: { selectedItems: [GLUE.id] } }] },
-      { id: 'b', widgets: [{ id: 'w2', type: 'materials', config: { activeItems: [GLUE.id] } }] },
+      {
+        id: 'a',
+        widgets: [
+          {
+            id: 'w1',
+            type: 'materials',
+            config: { selectedItems: [GLUE.id] },
+          },
+        ],
+      },
+      {
+        id: 'b',
+        widgets: [
+          {
+            id: 'w2',
+            type: 'materials',
+            config: { activeItems: [GLUE.id] },
+          },
+        ],
+      },
     ];
     const { showConfirm, updateWidgetConfigsAcrossBoards } = setup({
       customMaterials: [GLUE],
       dashboards,
     });
     const user = userEvent.setup();
-    render(<MaterialsCatalogField ctx={makeCtx({ selectedItems: [], activeItems: [] })} />);
+    const ctx = makeCtx({ selectedItems: [], activeItems: [] });
+    render(React.createElement(MaterialsCatalogField, { ctx }));
     await user.click(screen.getByRole('button', { name: 'Edit Glue Sticks' }));
     await user.click(screen.getByRole('button', { name: 'Delete Glue Sticks' }));
     await waitFor(() => expect(showConfirm).toHaveBeenCalled());
-    expect(updateWidgetConfigsAcrossBoards).toHaveBeenCalledWith('materials', expect.any(Function));
+    expect(updateWidgetConfigsAcrossBoards).toHaveBeenCalledWith(
+      'materials',
+      expect.any(Function)
+    );
     const transform = updateWidgetConfigsAcrossBoards.mock.calls[0][1] as (
       config: MaterialsConfig
     ) => MaterialsConfig | null;
-    expect(transform({
-      selectedItems: [GLUE.id, 'pencil'],
-      activeItems: [GLUE.id],
-      customMaterialSnapshots: [GLUE],
-    })).toEqual({
+    expect(
+      transform({
+        selectedItems: [GLUE.id, 'pencil'],
+        activeItems: [GLUE.id],
+        customMaterialSnapshots: [GLUE],
+      })
+    ).toEqual({
       selectedItems: ['pencil'],
       activeItems: [],
       customMaterialSnapshots: [],

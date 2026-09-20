@@ -7,9 +7,18 @@ import type { RecessGearConfig, WidgetData } from '@/types';
 import { RecessWeatherSourceField } from './settingsFields';
 
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
+
 const mockedUseDashboard = vi.mocked(useDashboard);
-const widget = { id: 'recess-test-1', type: 'recessGear' } as unknown as WidgetData;
-const makeCtx = (config: RecessGearConfig, updateConfig: (patch: Record<string, unknown>) => void) =>
+
+const widget = {
+  id: 'recess-test-1',
+  type: 'recessGear',
+} as unknown as WidgetData;
+
+const makeCtx = (
+  config: RecessGearConfig,
+  updateConfig: (patch: Record<string, unknown>) => void
+) =>
   ({
     config,
     widget,
@@ -20,7 +29,9 @@ const makeCtx = (config: RecessGearConfig, updateConfig: (patch: Record<string, 
     t: (key: string, options?: Record<string, unknown>) => {
       const leaf = key.split('.').pop() ?? key;
       if (leaf === 'autoSelect') return 'Auto-select (first available)';
-      if (leaf === 'weatherAt') return 'Weather at ' + String(options?.location);
+      if (leaf === 'weatherAt') {
+        return 'Weather at ' + String(options?.location);
+      }
       if (leaf === 'classroom') return 'Classroom';
       return leaf;
     },
@@ -38,17 +49,33 @@ describe('Recess Gear settings drawer field', () => {
     mockedUseDashboard.mockReturnValue({
       activeDashboard: {
         widgets: [
-          { id: 'weather-1', type: 'weather', config: { locationName: 'Room 101' } },
-          { id: 'weather-2', type: 'weather', config: { locationName: 'Gym' } },
+          {
+            id: 'weather-1',
+            type: 'weather',
+            config: { locationName: 'Room 101' },
+          },
+          {
+            id: 'weather-2',
+            type: 'weather',
+            config: { locationName: 'Gym' },
+          },
         ],
       },
     } as unknown as ReturnType<typeof useDashboard>);
     const updateConfig = vi.fn();
-    render(<RecessWeatherSourceField ctx={makeCtx({
-      linkedWeatherWidgetId: 'weather-1',
-      useFeelsLike: false,
-    }, updateConfig)} />);
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'weather-2' } });
-    expect(updateConfig).toHaveBeenCalledWith({ linkedWeatherWidgetId: 'weather-2' });
+    const ctx = makeCtx(
+      {
+        linkedWeatherWidgetId: 'weather-1',
+        useFeelsLike: false,
+      },
+      updateConfig
+    );
+    render(React.createElement(RecessWeatherSourceField, { ctx }));
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'weather-2' },
+    });
+    expect(updateConfig).toHaveBeenCalledWith({
+      linkedWeatherWidgetId: 'weather-2',
+    });
   });
 });
