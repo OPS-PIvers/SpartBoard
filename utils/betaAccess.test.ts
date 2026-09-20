@@ -55,4 +55,22 @@ describe('isBetaUser', () => {
     expect(isBetaUser(['teacher@school.edu'], null)).toBe(false);
     expect(isBetaUser(['teacher@school.edu'], undefined)).toBe(false);
   });
+
+  it('denies a null/undefined email even when betaUsers carries a blank entry', () => {
+    // A trailing newline in an admin-edited list (or a hand-edited Firestore
+    // doc) can leave an empty-string entry in betaUsers. Without a guard,
+    // ''.toLowerCase() === (email ?? '') matches a signed-in user who has no
+    // email at all, granting beta access to someone unidentifiable by email.
+    expect(isBetaUser([''], null)).toBe(false);
+    expect(isBetaUser([''], undefined)).toBe(false);
+  });
+
+  it('denies a null/undefined email even when betaTeachers/superAdmins carry a blank entry', () => {
+    expect(isBetaUser([], null, roles({ betaTeachers: [''] }))).toBe(false);
+    expect(isBetaUser([], undefined, roles({ superAdmins: [''] }))).toBe(false);
+  });
+
+  it('still grants access via roleId === "super_admin" with no email', () => {
+    expect(isBetaUser([], null, null, 'super_admin')).toBe(true);
+  });
 });
