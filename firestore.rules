@@ -4006,10 +4006,15 @@ service cloud.firestore {
       }
       // Teacher-only: anon PIN and studentRole tokens carry no email claim, so
       // the same idiom isAdmin() uses keeps student sessions out of the library.
+      // isSuperAdmin(), not isAdmin(): a bare /admins/{email} doc also mirrors
+      // org-scoped roles like building_admin (see functions/src/authz.ts), so
+      // isAdmin() here let a building_admin of one org read another org's
+      // items. isSuperAdmin() matches helpScopeOk()'s own idiom above and the
+      // client's useHelpResources({allOrgs: isSuperAdmin}) assumption.
       function helpReaderOk() {
         return request.auth != null
           && request.auth.token.get('email', '') != ''
-          && (resource.data.orgId == null || isAdmin() || isOrgMember(resource.data.orgId));
+          && (resource.data.orgId == null || isOrgMember(resource.data.orgId) || isSuperAdmin());
       }
       allow read: if helpReaderOk();
       allow create: if isAdmin() && helpShapeOk(request.resource.data)
