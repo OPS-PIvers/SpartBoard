@@ -128,6 +128,60 @@ const setup = () => {
 describe('Schedule settings drawer fields', () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it('deletes a non-blank event immediately and offers Undo', () => {
+    const first = item('a', 'Math', '09:00');
+    const removed = item('b', 'Reading', '10:00');
+    const last = item('c', 'Recess', '11:00');
+    const updateConfig = vi.fn();
+    const { addToast } = setup();
+    const ctx = makeCtx(
+      {
+        items: [],
+        schedules: [schedule('sched-a', 'A', [first, removed, last])],
+        settingsSelectedScheduleId: 'sched-a',
+      },
+      updateConfig
+    );
+    render(React.createElement(ScheduleListField, { ctx }));
+
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Delete event' })[1]
+    );
+
+    expect(updateConfig).toHaveBeenCalledWith({
+      schedules: [schedule('sched-a', 'A', [first, last])],
+    });
+    expect(addToast).toHaveBeenCalledWith(
+      'Deleted "Reading"',
+      'info',
+      expect.objectContaining({ label: 'Undo' })
+    );
+  });
+
+  it('deletes a blank event without adding an Undo toast', () => {
+    const first = item('a', '', '');
+    const updateConfig = vi.fn();
+    const { addToast } = setup();
+    const ctx = makeCtx(
+      {
+        items: [],
+        schedules: [schedule('sched-a', 'A', [first])],
+        settingsSelectedScheduleId: 'sched-a',
+      },
+      updateConfig
+    );
+    render(React.createElement(ScheduleListField, { ctx }));
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Delete event' })
+    );
+
+    expect(updateConfig).toHaveBeenCalledWith({
+      schedules: [schedule('sched-a', 'A', [])],
+    });
+    expect(addToast).not.toHaveBeenCalled();
+  });
+
   it('undoes an event deletion at its original index using the live schedule', () => {
     const first = item('a', 'Math', '09:00');
     const removed = item('b', 'Reading', '10:00');

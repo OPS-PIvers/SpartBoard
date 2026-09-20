@@ -195,6 +195,37 @@ describe('Materials settings drawer fields', () => {
     );
   });
 
+  it('writes snapshots for referenced custom materials', async () => {
+    const updateConfig = vi.fn();
+    setup({ customMaterials: [GLUE] });
+    const user = userEvent.setup();
+    const ctx = makeCtx({ selectedItems: [], activeItems: [] }, updateConfig);
+    render(React.createElement(MaterialsCatalogField, { ctx }));
+
+    await user.click(screen.getByText('Glue Sticks'));
+
+    expect(updateConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedItems: [GLUE.id],
+        customMaterialSnapshots: [GLUE],
+      })
+    );
+  });
+
+  it('does not snapshot built-in materials', async () => {
+    const updateConfig = vi.fn();
+    setup();
+    const user = userEvent.setup();
+    const ctx = makeCtx({ selectedItems: [], activeItems: [] }, updateConfig);
+    render(React.createElement(MaterialsCatalogField, { ctx }));
+
+    await user.click(screen.getByText('Pencil'));
+
+    expect(updateConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ customMaterialSnapshots: [] })
+    );
+  });
+
   it('moves through the title-font radiogroup with arrow keys', () => {
     const updateConfig = vi.fn();
     setup();
