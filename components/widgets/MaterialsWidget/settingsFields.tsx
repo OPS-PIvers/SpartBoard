@@ -17,6 +17,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import {
   MAX_TEACHER_MATERIALS,
   buildMaterialSnapshots,
@@ -73,6 +74,11 @@ export const MaterialsTitleFontField: React.FC<{
       role="radiogroup"
       aria-labelledby={ctx.labelId}
       aria-describedby={ctx.describedBy}
+      onKeyDown={(event) =>
+        handleRadioGroupKeyDown(event, TITLE_FONTS, (font) =>
+          selectTitleFont(font.id)
+        )
+      }
       className="grid grid-cols-4 gap-2"
     >
       {TITLE_FONTS.map((font) => {
