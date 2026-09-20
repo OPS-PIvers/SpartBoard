@@ -2862,6 +2862,9 @@
       "poolGroupEmpty": "Enregistrez un groupe pour cette classe dans Mes classes pour l’utiliser ici.",
       "rosterGroupsOff": "Les groupes de la classe sont désactivés dans votre établissement pour le moment."
     },
+    "schedule": {
+      "delete": "Supprimer"
+    },
     "poll": {
       "importScope": "Importer depuis",
       "importWholeClass": "Toute la classe",

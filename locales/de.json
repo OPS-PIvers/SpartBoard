@@ -2862,6 +2862,9 @@
       "poolGroupEmpty": "Speichere in Meine Klassen eine Gruppe für diese Klasse, um sie hier zu nutzen.",
       "rosterGroupsOff": "Klassengruppen sind an deiner Schule derzeit deaktiviert."
     },
+    "schedule": {
+      "delete": "Löschen"
+    },
     "poll": {
       "importScope": "Importieren aus",
       "importWholeClass": "Ganze Klasse",
