@@ -447,6 +447,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       createdAt: 0,
       lastUpdated: 0,
       displayCount: 3,
+      autoStartTimer: false,
       styling: {
         fontFamily: 'lexend',
         themeColor: '#2d3f89',
