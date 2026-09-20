@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BreathingConfigurationPanel } from './BreathingConfigurationPanel';
 import { BreathingGlobalConfig } from '@/types';
 import type { Building } from '@/config/buildings';
+import { WIDGET_PALETTE } from '@/config/colors';
 
 // The panel reads its building list from useAdminBuildings(), which for a
 // real org can hand back a legacy long-form building doc id (e.g.
@@ -74,5 +75,61 @@ describe('BreathingConfigurationPanel', () => {
     const updated = mockOnChange.mock.calls[0][0] as BreathingGlobalConfig;
     expect(updated.buildingDefaults?.schumann?.pattern).toBe('4-4-4-4');
     expect(updated.buildingDefaults?.['schumann-elementary']).toBeUndefined();
+  });
+
+  it('keeps exactly one color swatch tabbable when no override is set, falling back to the first swatch', () => {
+    mockUseAdminBuildings.mockReturnValue([
+      {
+        id: 'schumann',
+        name: 'Schumann Elementary',
+        gradeLevels: ['k-2'],
+        gradeLabel: 'K-2',
+      },
+    ]);
+
+    const config: BreathingGlobalConfig = { buildingDefaults: {} };
+
+    render(
+      <BreathingConfigurationPanel config={config} onChange={mockOnChange} />
+    );
+
+    const swatches = screen.getAllByRole('radio', { name: /Select color/ });
+    const tabbable = swatches.filter(
+      (el) => el.getAttribute('tabindex') === '0'
+    );
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable[0]).toBe(swatches[0]);
+    swatches.forEach((el) =>
+      expect(el).toHaveAttribute('aria-checked', 'false')
+    );
+  });
+
+  it('marks the matching color swatch as checked and tabbable once an override is set', () => {
+    mockUseAdminBuildings.mockReturnValue([
+      {
+        id: 'schumann',
+        name: 'Schumann Elementary',
+        gradeLevels: ['k-2'],
+        gradeLabel: 'K-2',
+      },
+    ]);
+
+    const config: BreathingGlobalConfig = {
+      buildingDefaults: {
+        schumann: { buildingId: 'schumann', color: WIDGET_PALETTE[2] },
+      },
+    };
+
+    render(
+      <BreathingConfigurationPanel config={config} onChange={mockOnChange} />
+    );
+
+    const swatches = screen.getAllByRole('radio', { name: /Select color/ });
+    const tabbable = swatches.filter(
+      (el) => el.getAttribute('tabindex') === '0'
+    );
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable[0]).toBe(swatches[2]);
+    expect(swatches[2]).toHaveAttribute('aria-checked', 'true');
   });
 });
