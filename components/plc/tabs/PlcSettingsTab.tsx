@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Film,
   Mail,
+  Printer,
   StickyNote,
   SquareSquare,
   Trash2,
@@ -76,6 +77,15 @@ const FEATURE_ROWS: readonly FeatureRow[] = [
     descriptionKey: 'plcDashboard.settings.showPerTeacher.description',
     descriptionDefault:
       'Show each teacher’s average on pooled assessment results. Off by default so the team looks at the combined data first.',
+  },
+  {
+    key: 'printForTeammates',
+    icon: Printer,
+    titleKey: 'plcDashboard.settings.printForTeammates.title',
+    titleDefault: 'Print answer sheets for a teammate',
+    descriptionKey: 'plcDashboard.settings.printForTeammates.description',
+    descriptionDefault:
+      'Let a member print paper answer sheets for a colleague who is out. The colleague still scans and grades their own stack, and sees who printed it. Turn this off for the whole PLC.',
   },
 ] as const;
 

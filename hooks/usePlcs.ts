@@ -377,6 +377,10 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
         typeof raw.showPerTeacher === 'boolean'
           ? raw.showPerTeacher
           : DEFAULT_PLC_FEATURE_SETTINGS.showPerTeacher,
+      printForTeammates:
+        typeof raw.printForTeammates === 'boolean'
+          ? raw.printForTeammates
+          : DEFAULT_PLC_FEATURE_SETTINGS.printForTeammates,
     };
   }
   // digestOptIn: opt-in weekly digest flag (Decision 2.3). Default false —
