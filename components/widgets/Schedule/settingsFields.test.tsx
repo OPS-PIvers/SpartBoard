@@ -6,13 +6,17 @@ import { useDialog } from '@/context/useDialog';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
+import { getTodayStr } from './utils';
 import type {
   DailySchedule,
   ScheduleConfig,
   ScheduleItem,
   WidgetData,
 } from '@/types';
-import { ScheduleListField } from './settingsFields';
+import {
+  ScheduleCalendarImportField,
+  ScheduleListField,
+} from './settingsFields';
 
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
 vi.mock('@/context/useDialog', () => ({ useDialog: vi.fn() }));
@@ -54,6 +58,8 @@ const translate = (key: string, options?: Record<string, unknown>) => {
     sort: 'Sort by time',
     todayOnly: 'Today only',
     addFirstEvent: 'Add your first event',
+    importToday: 'Import today',
+    importedCalendarEvents: 'Imported {{count}} event(s) from Calendar.',
     noEvents: 'No events in this schedule.',
     buildingSchedules: 'Building schedules',
     noBuildingSchedules: 'No building schedules.',
@@ -108,11 +114,11 @@ const schedule = (
   items,
 });
 
-const setup = () => {
+const setup = (widgets: WidgetData[] = []) => {
   const addToast = vi.fn();
   const subscribeToPermission = vi.fn(() => vi.fn());
   mockedUseDashboard.mockReturnValue({
-    activeDashboard: { widgets: [] },
+    activeDashboard: { widgets },
     addToast,
   } as unknown as ReturnType<typeof useDashboard>);
   mockedUseDialog.mockReturnValue({
@@ -127,6 +133,46 @@ const setup = () => {
 
 describe('Schedule settings drawer fields', () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it('prunes expired one-off events when importing calendar events', () => {
+    const expired = {
+      ...item('expired', 'Old event', '08:00'),
+      oneOffDate: '2000-01-01',
+    };
+    const today = getTodayStr();
+    const calendar = {
+      id: 'calendar-1',
+      type: 'calendar',
+      config: {
+        events: [{ date: today, title: 'Science', time: '09:00' }],
+      },
+    } as unknown as WidgetData;
+    const updateConfig = vi.fn();
+    setup([calendar]);
+    const ctx = makeCtx(
+      {
+        items: [],
+        schedules: [schedule('sched-a', 'A', [expired])],
+        settingsSelectedScheduleId: 'sched-a',
+      },
+      updateConfig
+    );
+    render(React.createElement(ScheduleCalendarImportField, { ctx }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Import today' }));
+
+    const patch = updateConfig.mock.calls[0]?.[0] as {
+      schedules: DailySchedule[];
+    };
+    expect(patch.schedules[0].items).toHaveLength(1);
+    expect(patch.schedules[0].items[0]).toMatchObject({
+      task: 'Science',
+      startTime: '09:00',
+    });
+    expect(patch.schedules[0].items).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'expired' })])
+    );
+  });
 
   it('deletes a non-blank event immediately and offers Undo', () => {
     const first = item('a', 'Math', '09:00');

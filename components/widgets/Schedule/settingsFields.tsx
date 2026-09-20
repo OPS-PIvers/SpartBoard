@@ -171,7 +171,11 @@ export const ScheduleCalendarImportField: React.FC<{
     }));
     const target = schedules.find((schedule) => schedule.id === selectedId);
     if (!target) return;
-    const nextItems = sortByTime([...target.items, ...items]);
+    const nextItems = sortByTime(
+      [...target.items, ...items].filter(
+        (item) => !item.oneOffDate || item.oneOffDate >= today
+      )
+    );
     if (target.id === 'default' && (config.schedules?.length ?? 0) === 0) {
       ctx.updateConfig({ items: nextItems });
     } else {
