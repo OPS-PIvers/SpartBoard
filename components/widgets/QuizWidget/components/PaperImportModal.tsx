@@ -495,9 +495,15 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                   {formatDate(b.createdAt)} ·{' '}
                   {Object.keys(b.seats).length + b.spareSeats.length} sheets ·{' '}
                   {b.questionCount} questions
+                  {b.printedByName ? ` · printed by ${b.printedByName}` : ''}
                 </option>
               ))}
             </select>
+            {batch?.printedByName && (
+              <span className="mt-1 block text-xs text-slate-500">
+                {batch.printedByName} printed this stack for you from your PLC.
+              </span>
+            )}
           </label>
           <label className="block">
             <span className={labelClass}>Administration</span>

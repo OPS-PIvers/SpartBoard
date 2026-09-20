@@ -49,7 +49,7 @@ const MAX_STUDENTS_PER_ROSTER = 300;
 const MAX_QUESTIONS = 500;
 /** Matches `ROSTER_DRIVE_CONCURRENCY` in `hooks/useRosters.ts` — Drive 429s above this. */
 const ROSTER_READ_CONCURRENCY = 4;
-/** Recent batches are the only ones a duplicate warning is about (D18). */
+/** A duplicate warning only needs to prove earlier stacks exist (D18). */
 const BATCH_SCAN_LIMIT = 50;
 
 export interface DelegatedPrintCaller {
@@ -203,10 +203,26 @@ export function canEditPlcContent(
   return legacyMemberUids(plcData).includes(uid);
 }
 
+/** Display-name snapshot from the PLC's own member record. */
+const memberName = (
+  plcData: Record<string, unknown>,
+  uid: string,
+  fallback: string
+): string => {
+  const entry = memberRecord(plcData, uid);
+  return (
+    (typeof entry?.displayName === 'string' && entry.displayName) ||
+    (typeof entry?.email === 'string' && entry.email) ||
+    fallback
+  );
+};
+
 export interface DelegatedPrintAuthorization {
   /** `/synced_quizzes/{groupId}` — the canonical content for this PLC quiz. */
   groupId: string;
   targetName: string;
+  /** Who is printing, as the stack and the activity feed will name them. */
+  callerName: string;
 }
 
 /**
@@ -282,13 +298,11 @@ export async function authorizeDelegatedPrint(
       'PLC quiz is not linked to a synced group.'
     );
 
-  const target = memberRecord(plcData, input.targetUid);
-  const targetName =
-    (typeof target?.displayName === 'string' && target.displayName) ||
-    (typeof target?.email === 'string' && target.email) ||
-    'your teammate';
-
-  return { groupId, targetName };
+  return {
+    groupId,
+    targetName: memberName(plcData, input.targetUid, 'your teammate'),
+    callerName: memberName(plcData, caller.uid, 'A PLC teammate'),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -443,17 +457,16 @@ export async function handleGetTeammatePrintContext(
   );
   rosters.sort((a, b) => a.name.localeCompare(b.name));
 
-  // Batches already printed for this teacher + quiz (D18). Read without a
-  // composite index: recent batches, then filtered to this quiz.
+  // Batches already printed for this teacher + quiz (D18). A bare equality
+  // needs no composite index; `listPaperBatchesForQuiz` sorts the same way.
   let existingBatches: TeammatePrintBatchSummary[] = [];
   if (quizId) {
     const batchSnaps = await targetRef
       .collection('paper_batches')
-      .orderBy('createdAt', 'desc')
+      .where('quizId', '==', quizId)
       .limit(BATCH_SCAN_LIMIT)
       .get();
     existingBatches = batchSnaps.docs
-      .filter((snap) => snap.data()?.quizId === quizId)
       .map((snap) => {
         const data = snap.data() ?? {};
         const seats = isRecord(data.seats) ? Object.keys(data.seats).length : 0;
@@ -467,7 +480,8 @@ export async function handleGetTeammatePrintContext(
           printedByName:
             typeof data.printedByName === 'string' ? data.printedByName : null,
         };
-      });
+      })
+      .sort((a, b) => b.createdAt - a.createdAt);
   }
 
   return {

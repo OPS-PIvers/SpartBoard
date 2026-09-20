@@ -822,7 +822,8 @@ export type PlcActivityType =
   | 'note_created'
   | 'comment_added'
   | 'item_deleted'
-  | 'item_restored';
+  | 'item_restored'
+  | 'paper_printed';
 
 /**
  * One entry in the append-only PLC activity log (Decision 2.2), stored at
@@ -4768,6 +4769,14 @@ export interface PaperBatch {
   createdAt: number;
   /** A review the teacher left unfinished, resumable from any device (plan Q26). */
   pendingReview?: PaperPendingReview;
+  /**
+   * Set only when a PLC teammate printed this stack for the owner
+   * (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md D21). Their absence is what
+   * makes a batch self-printed. Still no student names, still no PINs.
+   */
+  printedByUid?: string;
+  printedByName?: string;
+  printedAt?: number;
 }
 
 /** One read row, compact enough for 150 sheets to sit inside the batch doc. */

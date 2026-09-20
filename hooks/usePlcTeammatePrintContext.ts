@@ -1,15 +1,17 @@
 /**
- * Client view of `getTeammatePrintContextV1` — what WOULD print for a PLC
- * teammate who is out (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md §5.1).
+ * Client view of the delegated-printing callables
+ * (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md §5).
  *
- * Read-only: the callable writes nothing, and neither does this. Every field
- * is server-derived, including membership — the picker renders what it is
- * handed rather than deciding who may be printed for.
+ * Every field is server-derived, including membership and the seat map — the
+ * picker renders what it is handed and sends back selections, never a batch.
  */
 
 import { useEffect, useState } from 'react';
 import { httpsCallable, type FunctionsError } from 'firebase/functions';
 import { functions } from '@/config/firebase';
+import type { PaperBatch } from '@/types';
+import type { PaperSheetPlan } from '@/utils/paperSheetPlan';
+import type { PaperTestQuestion } from '@/utils/paperTestPrint';
 import { logError } from '@/utils/logError';
 
 /** Name only. The server drops `pin` and `email` before responding (D5). */
@@ -68,6 +70,37 @@ export interface TeammatePrintContextState {
   error: string | null;
 }
 
+export interface TeammatePrintSelection {
+  rosterId: string;
+  /** Empty for a class whose names the server could not read — it prints unnamed. */
+  studentIds: string[];
+}
+
+export interface CreateTeammatePaperBatchRequest {
+  plcId: string;
+  targetUid: string;
+  plcQuizId: string;
+  selections: TeammatePrintSelection[];
+  spareCount: number;
+}
+
+export interface CreateTeammatePaperBatchResult {
+  batch: PaperBatch;
+  sheets: PaperSheetPlan[];
+  quizTitle: string;
+  printedForTeacherName: string;
+  testPaper: PaperTestQuestion[];
+  /** The server had to create their copy of the quiz to bind the batch to (D9). */
+  createdCopy: boolean;
+}
+
+export interface WithdrawTeammatePaperBatchRequest {
+  plcId: string;
+  targetUid: string;
+  plcQuizId: string;
+  batchId: string;
+}
+
 export async function fetchTeammatePrintContext(
   request: TeammatePrintContextRequest
 ): Promise<TeammatePrintContext> {
@@ -76,6 +109,28 @@ export async function fetchTeammatePrintContext(
     'getTeammatePrintContextV1'
   );
   return (await call(request)).data;
+}
+
+/** Writes the batch into the teammate's account and returns the stack to print. */
+export async function createTeammatePaperBatch(
+  request: CreateTeammatePaperBatchRequest
+): Promise<CreateTeammatePaperBatchResult> {
+  const call = httpsCallable<
+    CreateTeammatePaperBatchRequest,
+    CreateTeammatePaperBatchResult
+  >(functions, 'createTeammatePaperBatchV1');
+  return (await call(request)).data;
+}
+
+/** Takes back a stack the caller printed, while nothing has been scanned (D22). */
+export async function withdrawTeammatePaperBatch(
+  request: WithdrawTeammatePaperBatchRequest
+): Promise<void> {
+  const call = httpsCallable<WithdrawTeammatePaperBatchRequest, unknown>(
+    functions,
+    'withdrawTeammatePaperBatchV1'
+  );
+  await call(request);
 }
 
 /** One settled fetch, tagged with the request it answered. */
@@ -130,6 +185,22 @@ export function useTeammatePrintContext(
     error: current?.error ?? null,
     loading: targetUid !== null && current === null,
   };
+}
+
+/** What the server needs to rebuild this selection against their real rosters. */
+export function buildPrintSelections(
+  rosters: readonly TeammatePrintRoster[],
+  selectedRosterIds: ReadonlySet<string>,
+  excludedStudentIds: ReadonlySet<string>
+): TeammatePrintSelection[] {
+  return rosters
+    .filter((r) => selectedRosterIds.has(r.id))
+    .map((roster) => ({
+      rosterId: roster.id,
+      studentIds: roster.students
+        .filter((s) => !excludedStudentIds.has(s.id))
+        .map((s) => s.id),
+    }));
 }
 
 /** Sheets a selection would print, so the picker can size the stack. */

@@ -1,18 +1,21 @@
 /**
- * PlcTeammatePrintModal — pick a PLC teammate who is out, then see exactly
- * what would print for them (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md §6).
+ * PlcTeammatePrintModal — pick a PLC teammate who is out, see what would print
+ * for them, then print it (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md §6).
  *
- * Increment 1 stops at the preview: everything here reads, nothing writes.
- * The Print button lands with `createTeammatePaperBatchV1`.
+ * The browser never plans the batch: it sends selections and prints whatever
+ * seat map the server hands back (D16), so a peer cannot point a seat at an
+ * arbitrary student.
  */
 
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   CloudOff,
+  FileText,
   Info,
   Loader2,
   Printer,
@@ -20,11 +23,20 @@ import {
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import type { Plc, PlcMember } from '@/types';
+import { printPaperSheets } from '@/utils/paperSheetPrint';
+import { printPaperTest } from '@/utils/paperTestPrint';
+import { logError } from '@/utils/logError';
 import {
+  buildPrintSelections,
   countSelectedSheets,
+  createTeammatePaperBatch,
   useTeammatePrintContext,
+  withdrawTeammatePaperBatch,
+  type CreateTeammatePaperBatchResult,
   type TeammatePrintRoster,
 } from '@/hooks/usePlcTeammatePrintContext';
+
+const MAX_SPARES = 20;
 
 interface PlcTeammatePrintModalProps {
   plc: Plc;
@@ -33,6 +45,9 @@ interface PlcTeammatePrintModalProps {
   /** Teammates the caller may print for — the PLC's members minus themselves. */
   teammates: PlcMember[];
   onClose: () => void;
+  /** Test seams mirroring the self-print path. */
+  print?: typeof printPaperSheets;
+  printTest?: typeof printPaperTest;
 }
 
 const bannerClass =
@@ -47,6 +62,8 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
   quizTitle,
   teammates,
   onClose,
+  print = printPaperSheets,
+  printTest = printPaperTest,
 }) => {
   const { t } = useTranslation();
   const [targetUid, setTargetUid] = useState<string | null>(null);
@@ -57,6 +74,13 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
     new Set()
   );
   const [expandedRosterId, setExpandedRosterId] = useState<string | null>(null);
+  const [spareCount, setSpareCount] = useState(2);
+  const [printing, setPrinting] = useState(false);
+  const [printError, setPrintError] = useState<string | null>(null);
+  const [printed, setPrinted] = useState<CreateTeammatePaperBatchResult | null>(
+    null
+  );
+  const [withdrawn, setWithdrawn] = useState(false);
 
   const { context, loading, error } = useTeammatePrintContext(
     plc.id,
@@ -75,12 +99,17 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
     selectedRosterIds,
     excludedStudentIds
   );
+  const totalSheetCount = sheetCount + spareCount;
+  const canPrint =
+    !!context && context.blocked === null && totalSheetCount > 0 && !printing;
 
   const backToPicker = () => {
     setTargetUid(null);
     setSelectedRosterIds(new Set());
     setExcludedStudentIds(new Set());
     setExpandedRosterId(null);
+    setSpareCount(2);
+    setPrintError(null);
   };
 
   const toggleRoster = (roster: TeammatePrintRoster) => {
@@ -99,6 +128,106 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
       else next.add(studentId);
       return next;
     });
+  };
+
+  const handlePrint = async () => {
+    if (!context || !targetUid) return;
+    setPrinting(true);
+    setPrintError(null);
+    let result: CreateTeammatePaperBatchResult;
+    try {
+      result = await createTeammatePaperBatch({
+        plcId: plc.id,
+        targetUid,
+        plcQuizId,
+        selections: buildPrintSelections(
+          rosters,
+          selectedRosterIds,
+          excludedStudentIds
+        ),
+        spareCount,
+      });
+    } catch (err) {
+      logError('PlcTeammatePrintModal.create', err, {
+        plcId: plc.id,
+        plcQuizId,
+      });
+      setPrintError(
+        err instanceof Error
+          ? err.message
+          : t('plcDashboard.teammatePrint.printFailed', {
+              defaultValue: 'Could not print those answer sheets.',
+            })
+      );
+      setPrinting(false);
+      return;
+    }
+    // The batch is recorded before the paper exists, so a failed print leaves a
+    // stack to take back rather than sheets nothing can import.
+    setPrinted(result);
+    setPrinting(false);
+    try {
+      print({
+        batchId: result.batch.id,
+        quizTitle: result.quizTitle,
+        questionCount: result.batch.questionCount,
+        choiceCount: result.batch.choiceCount,
+        sheets: result.sheets,
+        printedForTeacherName: result.printedForTeacherName,
+      });
+    } catch (err) {
+      setPrintError(
+        err instanceof Error
+          ? err.message
+          : t('plcDashboard.teammatePrint.printFailed', {
+              defaultValue: 'Could not print those answer sheets.',
+            })
+      );
+    }
+  };
+
+  const handlePrintTest = () => {
+    if (!printed) return;
+    try {
+      printTest({ quizTitle: printed.quizTitle, questions: printed.testPaper });
+    } catch (err) {
+      setPrintError(
+        err instanceof Error
+          ? err.message
+          : t('plcDashboard.teammatePrint.testFailed', {
+              defaultValue: 'Could not print the test paper.',
+            })
+      );
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (!printed || !targetUid) return;
+    setPrinting(true);
+    try {
+      await withdrawTeammatePaperBatch({
+        plcId: plc.id,
+        targetUid,
+        plcQuizId,
+        batchId: printed.batch.id,
+      });
+      setWithdrawn(true);
+      setPrintError(null);
+    } catch (err) {
+      logError('PlcTeammatePrintModal.withdraw', err, {
+        plcId: plc.id,
+        plcQuizId,
+      });
+      setPrintError(
+        err instanceof Error
+          ? err.message
+          : t('plcDashboard.teammatePrint.withdrawFailed', {
+              defaultValue: 'Could not remove that print run.',
+            })
+      );
+    } finally {
+      setPrinting(false);
+    }
   };
 
   const picker = (
@@ -359,10 +488,154 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
               {rosterList}
             </div>
           )}
+          {context.blocked === null && (
+            <div className="flex items-center justify-between gap-3">
+              <label
+                htmlFor="teammate-print-spares"
+                className="text-sm text-slate-700"
+              >
+                {t('plcDashboard.teammatePrint.spares', {
+                  defaultValue: 'Blank spare sheets',
+                })}
+                <span className="ml-1 text-xs text-slate-500">
+                  {t('plcDashboard.teammatePrint.sparesHint', {
+                    defaultValue: 'for walk-ins and make-ups',
+                  })}
+                </span>
+              </label>
+              <input
+                id="teammate-print-spares"
+                type="number"
+                min={0}
+                max={MAX_SPARES}
+                value={spareCount}
+                onChange={(e) =>
+                  setSpareCount(
+                    Math.max(
+                      0,
+                      Math.min(MAX_SPARES, Number(e.target.value) || 0)
+                    )
+                  )
+                }
+                className="w-20 rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
+              />
+            </div>
+          )}
+          {printError && (
+            <p
+              className={`${bannerClass} border-brand-red-primary/30 bg-brand-red-primary/5 text-brand-red-dark`}
+            >
+              <AlertTriangle
+                className="mt-0.5 h-4 w-4 shrink-0"
+                aria-hidden="true"
+              />
+              <span>{printError}</span>
+            </p>
+          )}
         </>
       )}
     </div>
   );
+
+  const confirmation = printed ? (
+    <div className="flex flex-col gap-3 py-4">
+      <div className="flex items-start gap-3">
+        <CheckCircle2
+          className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600"
+          aria-hidden="true"
+        />
+        <div>
+          <p className="text-base font-bold text-slate-800">
+            {withdrawn
+              ? t('plcDashboard.teammatePrint.removed', {
+                  defaultValue: 'That print run has been removed',
+                })
+              : t('plcDashboard.teammatePrint.sent', {
+                  defaultValue: 'Answer sheets sent to print',
+                })}
+          </p>
+          <p className="mt-1 text-sm text-slate-600">
+            {withdrawn
+              ? t('plcDashboard.teammatePrint.removedBody', {
+                  defaultValue:
+                    'Recycle any paper that came out — those sheets can no longer be scanned.',
+                  name: printed.printedForTeacherName,
+                })
+              : t('plcDashboard.teammatePrint.sentBody', {
+                  defaultValue:
+                    'Now print the test paper. Its choices are lettered to match these sheets, so hand out this copy rather than one written by hand. {{name}} scans and grades the stack themselves.',
+                  name: printed.printedForTeacherName,
+                })}
+          </p>
+        </div>
+      </div>
+      {printed.createdCopy && !withdrawn && (
+        <p
+          className={`${bannerClass} border-slate-200 bg-slate-50 text-slate-600`}
+        >
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>
+            {t('plcDashboard.teammatePrint.copyCreated', {
+              defaultValue:
+                'This quiz was not in {{name}}’s library yet, so it was added and linked to the PLC’s shared copy for them.',
+              name: printed.printedForTeacherName,
+            })}
+          </span>
+        </p>
+      )}
+      {printError && (
+        <p
+          className={`${bannerClass} border-brand-red-primary/30 bg-brand-red-primary/5 text-brand-red-dark`}
+        >
+          <AlertTriangle
+            className="mt-0.5 h-4 w-4 shrink-0"
+            aria-hidden="true"
+          />
+          <span>{printError}</span>
+        </p>
+      )}
+    </div>
+  ) : null;
+
+  const confirmationFooter = printed ? (
+    <div className="flex items-center justify-between gap-3">
+      {withdrawn ? (
+        <span />
+      ) : (
+        <button
+          type="button"
+          onClick={() => void handleWithdraw()}
+          disabled={printing}
+          className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-40"
+        >
+          {t('plcDashboard.teammatePrint.withdraw', {
+            defaultValue: 'Remove this stack',
+          })}
+        </button>
+      )}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+        >
+          {t('plcDashboard.teammatePrint.done', { defaultValue: 'Done' })}
+        </button>
+        {!withdrawn && (
+          <button
+            type="button"
+            onClick={handlePrintTest}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-2 text-xs font-bold text-white"
+          >
+            <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('plcDashboard.teammatePrint.printTest', {
+              defaultValue: 'Print test paper',
+            })}
+          </button>
+        )}
+      </div>
+    </div>
+  ) : null;
 
   const footer =
     targetUid === null ? null : (
@@ -380,22 +653,23 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
           <span className="text-xs text-slate-500">
             {t('plcDashboard.teammatePrint.sheetCount', {
               defaultValue: '{{count}} sheets',
-              count: sheetCount,
+              count: totalSheetCount,
             })}
           </span>
           <button
             type="button"
-            disabled
-            title={t('plcDashboard.teammatePrint.printComingSoon', {
-              defaultValue:
-                'Printing for a teammate is not switched on yet — this preview shows what it would produce.',
-            })}
+            onClick={() => void handlePrint()}
+            disabled={!canPrint}
             className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Printer className="h-3.5 w-3.5" aria-hidden="true" />
-            {t('plcDashboard.teammatePrint.print', {
-              defaultValue: 'Print',
-            })}
+            {printing
+              ? t('plcDashboard.teammatePrint.printing', {
+                  defaultValue: 'Preparing…',
+                })
+              : t('plcDashboard.teammatePrint.print', {
+                  defaultValue: 'Print',
+                })}
           </button>
         </div>
       </div>
@@ -409,9 +683,9 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
       title={t('plcDashboard.teammatePrint.title', {
         defaultValue: 'Print answer sheets for a teammate',
       })}
-      footer={footer}
+      footer={printed ? confirmationFooter : footer}
     >
-      {targetUid === null ? picker : preview}
+      {printed ? confirmation : targetUid === null ? picker : preview}
     </Modal>
   );
 };

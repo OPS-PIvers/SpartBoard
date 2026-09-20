@@ -3146,7 +3146,7 @@ service cloud.firestore {
                'assessment_created', 'assessment_shared',
                'assessment_results_ready', 'meeting_held',
                'note_created', 'comment_added',
-               'item_deleted', 'item_restored'
+               'item_deleted', 'item_restored', 'paper_printed'
              ]
           && request.resource.data.actorName is string
           && (

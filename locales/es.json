@@ -841,7 +841,8 @@
         "note_created": "{{actor}} añadió una nota: {{target}}",
         "comment_added": "{{actor}} comentó en {{target}}",
         "item_deleted": "{{actor}} eliminó {{target}}",
-        "item_restored": "{{actor}} restauró {{target}}"
+        "item_restored": "{{actor}} restauró {{target}}",
+        "paper_printed": "{{actor}} imprimió hojas de respuestas para {{target}}"
       }
     },
     "comments": {
