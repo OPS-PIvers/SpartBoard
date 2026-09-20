@@ -1374,7 +1374,7 @@
       "noEvents": "No events in this schedule.",
       "buildingSchedules": "Building schedules",
       "copyToMySchedules": "Copy to my schedules",
-      "copiedSchedule": "Schedule copied to My Schedules.",
+      "copiedSchedule": "Added \"{{name}}\" to My Schedules",
       "noBuildingSchedules": "No default schedules configured for your building.",
       "connections": "Connections",
       "calendarImport": "Calendar",

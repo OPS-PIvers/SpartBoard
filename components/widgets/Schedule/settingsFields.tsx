@@ -707,7 +707,10 @@ export const ScheduleListField: React.FC<{
                       settingsSelectedScheduleId: copy.id,
                     });
                     setSelectedScheduleIdState(copy.id);
-                    addToast(translate(ctx, 'copiedSchedule'), 'success');
+                    const copyToast = translate(ctx, 'copiedSchedule', {
+                      name: schedule.name,
+                    });
+                    addToast(copyToast, 'success');
                   }}
                   className="rounded p-1.5 text-brand-blue-primary hover:bg-blue-100"
                   aria-label={translate(ctx, 'copyToMySchedules')}
