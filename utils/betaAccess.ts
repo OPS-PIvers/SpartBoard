@@ -8,11 +8,7 @@ export function isBetaUser(
   roleId?: string | null
 ): boolean {
   if (roleId === 'super_admin') return true;
-  // No email means no email-based source can legitimately match — without this
-  // guard a blank line in an admin-edited list (betaUsers/betaTeachers/
-  // superAdmins, e.g. a trailing newline saved straight to Firestore) becomes
-  // an empty-string entry, and `''.toLowerCase() === lowerEmail` would match a
-  // null/undefined caller's email, granting beta access with no email at all.
+  // No email means no email-based source can legitimately match.
   const lowerEmail = email?.toLowerCase();
   if (!lowerEmail) return false;
   return (

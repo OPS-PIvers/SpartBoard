@@ -57,10 +57,7 @@ describe('isBetaUser', () => {
   });
 
   it('denies a null/undefined email even when betaUsers carries a blank entry', () => {
-    // A trailing newline in an admin-edited list (or a hand-edited Firestore
-    // doc) can leave an empty-string entry in betaUsers. Without a guard,
-    // ''.toLowerCase() === (email ?? '') matches a signed-in user who has no
-    // email at all, granting beta access to someone unidentifiable by email.
+    // A blank betaUsers entry must not match a caller with no email.
     expect(isBetaUser([''], null)).toBe(false);
     expect(isBetaUser([''], undefined)).toBe(false);
   });
