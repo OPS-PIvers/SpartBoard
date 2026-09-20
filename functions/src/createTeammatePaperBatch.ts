@@ -273,6 +273,8 @@ interface QuizContent {
   questions: unknown[];
   stimuli?: unknown[];
   language?: string;
+  /** `synced_quizzes/{groupId}.version`; absent on a copy read from Drive. */
+  version?: number;
 }
 
 function toQuizContent(raw: Record<string, unknown>): QuizContent {
@@ -283,6 +285,7 @@ function toQuizContent(raw: Record<string, unknown>): QuizContent {
       : [],
     ...(Array.isArray(raw.stimuli) ? { stimuli: raw.stimuli } : {}),
     ...(typeof raw.language === 'string' ? { language: raw.language } : {}),
+    ...(typeof raw.version === 'number' ? { version: raw.version } : {}),
   };
 }
 
@@ -297,20 +300,25 @@ const sanitizeDriveFileName = (title: string): string =>
  * Create the target's copy and join it to the PLC group (D9, D10).
  *
  * The most intrusive step in the feature: it writes a file into a colleague's
- * Drive and joins them to a sync group while they are out. Rolls the quiz doc
- * and the Drive file back if the join fails, mirroring the client importer.
+ * Drive and joins them to a sync group while they are out.
+ *
+ * The copy is claimed in a transaction whose query IS the dedup key — two
+ * teammates printing for the same absent colleague at once cannot both add a
+ * copy to their library. The loser trashes its own Drive file and prints
+ * against the winner's copy, so `quizId` is returned rather than assumed.
  */
 async function createCopyForTarget(
   db: admin.firestore.Firestore,
   targetUid: string,
   plcId: string,
   plcQuizId: string,
+  groupId: string,
   quizId: string,
   content: QuizContent,
   accessToken: string,
   deps: TeammatePrintWriteDeps,
   now: number
-): Promise<void> {
+): Promise<{ quizId: string; created: boolean }> {
   const fileName = `${sanitizeDriveFileName(content.title)}.${quizId.slice(
     0,
     8
@@ -339,20 +347,37 @@ async function createCopyForTarget(
     );
   }
 
-  const quizRef = db
+  const quizzesRef = db
     .collection('users')
     .doc(targetUid)
-    .collection('quizzes')
-    .doc(quizId);
-  await quizRef.set({
-    id: quizId,
-    title: content.title,
-    driveFileId,
-    questionCount: content.questions.length,
-    createdAt: now,
-    updatedAt: now,
-    ...(content.language ? { language: content.language } : {}),
+    .collection('quizzes');
+  const quizRef = quizzesRef.doc(quizId);
+
+  const claimedId = await db.runTransaction(async (tx) => {
+    const existing = await tx.get(
+      quizzesRef.where('sync.groupId', '==', groupId).limit(1)
+    );
+    const found = existing.docs[0];
+    if (found) return found.id;
+    tx.set(quizRef, {
+      id: quizId,
+      title: content.title,
+      driveFileId,
+      questionCount: content.questions.length,
+      createdAt: now,
+      updatedAt: now,
+      ...(content.language ? { language: content.language } : {}),
+      // Written inside the claim: this linkage is what a concurrent run
+      // collides on, so it cannot be deferred until after the join.
+      sync: { groupId, lastSyncedVersion: content.version ?? 1 },
+    });
+    return quizId;
   });
+
+  if (claimedId !== quizId) {
+    await deps.trashDriveFile(accessToken, driveFileId).catch(() => undefined);
+    return { quizId: claimedId, created: false };
+  }
 
   try {
     const join = await handleJoinPlcQuizSyncGroup(
@@ -361,14 +386,24 @@ async function createCopyForTarget(
       plcId,
       plcQuizId
     );
-    await quizRef.update({
-      sync: { groupId: join.groupId, lastSyncedVersion: join.version },
-    });
+    // The copy is already valid and joined by this point, so a failure to
+    // refine the version only leaves it stale — which the next pull corrects.
+    // Undoing the doc here would strand them in the participants map instead.
+    await quizRef
+      .update({
+        sync: {
+          groupId: join.groupId,
+          lastSyncedVersion: Math.max(join.version, content.version ?? 1),
+        },
+      })
+      .catch(() => undefined);
   } catch (err) {
     await quizRef.delete().catch(() => undefined);
     await deps.trashDriveFile(accessToken, driveFileId).catch(() => undefined);
     throw err;
   }
+
+  return { quizId, created: true };
 }
 
 /** Best-effort feed entry (D21); never fails the print that already happened. */
@@ -552,22 +587,30 @@ export async function handleCreateTeammatePaperBatch(
   // First write of the call. Creating their copy and joining the sync group is
   // the most intrusive thing this feature does (D9), so it happens only once
   // there is a stack to bind to it.
+  let effectiveQuizId = quizId;
+  let createdCopy = false;
   if (copyToken) {
-    await createCopyForTarget(
+    const claim = await createCopyForTarget(
       db,
       input.targetUid,
       input.plcId,
       input.plcQuizId,
+      groupId,
       quizId,
       content,
       copyToken,
       deps,
       now
     );
+    // A concurrent run may have created their copy first; bind to whichever
+    // copy their library actually holds. The seat map does not depend on it.
+    effectiveQuizId = claim.quizId;
+    createdCopy = claim.created;
   }
 
   const batch = {
     ...planned.batch,
+    quizId: effectiveQuizId,
     printedByUid: actor.uid,
     printedByName: callerName,
     printedAt: now,
@@ -603,7 +646,7 @@ export async function handleCreateTeammatePaperBatch(
         },
       ];
     }),
-    createdCopy: copyToken !== null,
+    createdCopy,
   };
 }
 

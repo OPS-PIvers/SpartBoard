@@ -84,6 +84,8 @@ interface Row {
 interface State {
   docs: Record<string, Doc>;
   collections: Record<string, Row[]>;
+  /** Paths whose `update` should reject, for the partial-failure paths. */
+  failUpdateAt?: (path: string) => boolean;
 }
 
 interface Writes {
@@ -126,6 +128,8 @@ function makeDb(state: State): { db: Db; writes: Writes } {
       return Promise.resolve();
     },
     update: (data: Doc) => {
+      if (state.failUpdateAt?.(path))
+        return Promise.reject(new Error(`update failed: ${path}`));
       writes.updates.push({ path, data });
       state.docs[path] = { ...(state.docs[path] ?? {}), ...data };
       return Promise.resolve();
@@ -137,10 +141,19 @@ function makeDb(state: State): { db: Db; writes: Writes } {
     },
     collection: (sub: string) => collectionRef(`${path}/${sub}`),
   });
+  const tx = {
+    get: (target: { get: () => Promise<unknown> }) => target.get(),
+    set: (ref: { set: (d: Doc) => void }, data: Doc) => ref.set(data),
+    update: (ref: { update: (d: Doc) => void }, data: Doc) => ref.update(data),
+    delete: (ref: { delete: () => void }) => ref.delete(),
+  };
   return {
     db: {
       doc: (path: string) => docRef(path),
       collection: (path: string) => collectionRef(path),
+      // Single-threaded stub: the handler's transaction body runs once, which
+      // is enough to pin what it reads and writes.
+      runTransaction: (fn: (t: typeof tx) => Promise<unknown>) => fn(tx),
     } as unknown as Db,
     writes,
   };
@@ -201,6 +214,7 @@ function baseState(over: Partial<State> = {}): State {
       [`synced_quizzes/${GROUP_ID}`]: {
         title: 'Unit 3 Common Assessment',
         questions: QUESTIONS,
+        version: 2,
       },
       ...(over.docs ?? {}),
     },
@@ -505,6 +519,65 @@ describe('createTeammatePaperBatchV1 — no personal copy yet (D9)', () => {
     expect(writes.updates).toHaveLength(0);
     expect(d.writeDriveJson).not.toHaveBeenCalled();
     expect(joinSyncGroup).not.toHaveBeenCalled();
+  });
+
+  it('binds to a copy another teammate created while this run was in flight', async () => {
+    const state = baseState();
+    state.collections[`users/${TARGET_UID}/quizzes`] = [];
+    // A concurrent print lands between our empty read and our claim.
+    const d = deps({
+      writeDriveJson: vi.fn(() => {
+        state.collections[`users/${TARGET_UID}/quizzes`] = [
+          {
+            id: 'their-quiz-from-the-other-run',
+            data: { driveFileId: 'x', sync: { groupId: GROUP_ID } },
+          },
+        ];
+        return Promise.resolve('new-drive-file');
+      }),
+    } as Partial<TeammatePrintWriteDeps>);
+    const { run, writes } = create(state, d);
+    const result = await run();
+
+    // No second copy in their library, and ours is cleaned up after itself.
+    expect(
+      writes.sets.filter((w) => w.path.includes('/quizzes/'))
+    ).toHaveLength(0);
+    expect(d.trashDriveFile).toHaveBeenCalledWith('token', 'new-drive-file');
+    expect(joinSyncGroup).not.toHaveBeenCalled();
+    expect(result.createdCopy).toBe(false);
+    expect(result.batch.quizId).toBe('their-quiz-from-the-other-run');
+  });
+
+  it('claims the copy with its sync linkage already set', async () => {
+    const state = baseState();
+    state.collections[`users/${TARGET_UID}/quizzes`] = [];
+    const { run, writes } = create(state, deps());
+    await run();
+    const quizWrite = writes.sets.find((w) =>
+      w.path.startsWith(`users/${TARGET_UID}/quizzes/`)
+    );
+    expect(quizWrite?.data.sync).toEqual({
+      groupId: GROUP_ID,
+      lastSyncedVersion: 2,
+    });
+  });
+
+  // The join has landed by the time the version refinement runs, so undoing the
+  // copy there would strand the target in the participants map with no quiz.
+  it('keeps the joined copy when only the version refinement fails', async () => {
+    const state = baseState();
+    state.collections[`users/${TARGET_UID}/quizzes`] = [];
+    state.failUpdateAt = (path) => path.includes('/quizzes/');
+    const d = deps();
+    const { run, writes } = create(state, d);
+    const result = await run();
+
+    expect(result.createdCopy).toBe(true);
+    expect(writes.deletes).toHaveLength(0);
+    expect(d.trashDriveFile).not.toHaveBeenCalled();
+    // The stack still printed, bound to the copy that was created.
+    expect(batchWrite(writes)).toBeDefined();
   });
 
   it('rolls the copy back when the sync join fails', async () => {
