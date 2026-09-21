@@ -33,9 +33,9 @@ import { Plc, PlcMember } from '@/types';
  *     never reach into another org's PLC, and org-less legacy PLCs (which the
  *     rule rejects) are never offered.
  *
- * The list itself is read via `usePlcs({ asAdmin: true })` (the whole-/plcs
- * listen admins are authorized for); `adminReassignLead` + `deletePlc` are the
- * two mutators it drives.
+ * The list itself is read via `usePlcs({ asAdmin: true })` (same-org for this
+ * admin; a super admin gets every org's PLCs); `adminReassignLead` +
+ * `deletePlc` are the two mutators it drives.
  */
 export const PlcRecoveryPanel: React.FC = () => {
   const { t } = useTranslation();

@@ -50,6 +50,7 @@ import {
   collection,
   query,
   limit,
+  where,
 } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-plc-admin-recovery';
@@ -506,6 +507,21 @@ describe('plcs/{plcId} — admin READ scoping (PII boundary)', () => {
   it('an org-scoped (non-super) admin canNOT run the unfiltered admin list query, even though they can read individual in-org docs', async () => {
     await assertFails(
       getDocs(query(collection(asAdmin(), 'plcs'), limit(500)))
+    );
+  });
+
+  // The actual production query hooks/usePlcs.ts sends for a non-super admin
+  // (where('orgId','==', orgId), not unfiltered) — Firestore CAN prove this
+  // one against the same-org admin branch, unlike the unfiltered case above.
+  it('an org-scoped (non-super) admin CAN run the orgId-filtered admin list query their own client code sends', async () => {
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(asAdmin(), 'plcs'),
+          where('orgId', '==', ORG_ID),
+          limit(500)
+        )
+      )
     );
   });
 });
