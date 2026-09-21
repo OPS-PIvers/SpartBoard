@@ -56,6 +56,7 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
   return (
     <WidgetLayout
       padding="p-0"
+      contentClassName="flex-1 min-h-0"
       content={
         <>
           {view === 'board' && config.projectId ? (
