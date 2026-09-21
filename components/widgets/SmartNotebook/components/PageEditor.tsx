@@ -1296,6 +1296,12 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (editing) return;
+      // Same window-capture reach as the paste handler below, so the same
+      // engagement gate: undo/redo consume the event whether or not anything
+      // is selected, which let a notebook on a background board swallow the
+      // active board's Ctrl+Z — and Delete, once that notebook held a
+      // selection, remove objects the teacher could not see.
+      if (!engagedRef.current) return;
       if (isEditableTarget(e.target)) return;
       // Undo / Redo land in their own branch so they fire whether or not
       // anything is selected — the prior emit might've been a paste with

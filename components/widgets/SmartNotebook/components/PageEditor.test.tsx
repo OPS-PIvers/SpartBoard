@@ -571,6 +571,50 @@ describe('PageEditor — only claims Ctrl+V while the teacher is working in it',
     document.body.removeChild(widget);
   });
 
+  // The keydown listener has the same window-capture reach. Undo/redo consume
+  // the event with no selection required, so a notebook on a background board
+  // swallowed the active board's Ctrl+Z.
+  it('leaves Ctrl+Z for the board when nothing has been clicked in it', async () => {
+    render(<PageEditor svg={TEST_SVG} onChange={vi.fn()} />);
+    await tick();
+
+    const ev = new KeyboardEvent('keydown', {
+      key: 'z',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    window.dispatchEvent(ev);
+
+    expect(ev.defaultPrevented).toBe(false);
+  });
+
+  it('takes Ctrl+Z once the teacher clicks into it', async () => {
+    const { container } = render(
+      <PageEditor svg={TEST_SVG} onChange={vi.fn()} />
+    );
+    await tick();
+
+    const editorDiv = container.querySelector(
+      '[data-no-drag="true"] div'
+    ) as HTMLElement;
+    act(() => {
+      editorDiv.dispatchEvent(
+        new Event('pointerdown', { bubbles: true, cancelable: true })
+      );
+    });
+
+    const ev = new KeyboardEvent('keydown', {
+      key: 'z',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    window.dispatchEvent(ev);
+
+    expect(ev.defaultPrevented).toBe(true);
+  });
+
   it('hands the paste back after a click outside the notebook', async () => {
     const onChange = vi.fn();
     const { container } = render(
