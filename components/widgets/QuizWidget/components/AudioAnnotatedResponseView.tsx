@@ -111,14 +111,17 @@ export const AudioAnnotatedResponseView: React.FC<
   const handledSeekNonceRef = useRef(0);
 
   // The media element is external; the rubric panel's jump must reach it.
+  // `src` is a dependency because a jump requested while the take is still
+  // resolving has no element yet, and must land once one exists — so the
+  // nonce is marked handled only after the seek actually happens.
   useEffect(() => {
     if (!seekNonce || handledSeekNonceRef.current === seekNonce) return;
-    handledSeekNonceRef.current = seekNonce;
     const el = audioRef.current;
     if (!el) return;
+    handledSeekNonceRef.current = seekNonce;
     // `onTimeUpdate` carries the new position back into state.
     el.currentTime = Math.max(0, seekToMs) / 1000;
-  }, [seekNonce, seekToMs]);
+  }, [seekNonce, seekToMs, src]);
 
   const skipToSpeech = () => {
     if (!silent || silent.length === 0) return;

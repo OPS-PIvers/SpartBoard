@@ -576,6 +576,10 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     setDraftAnnotations(hydrated.annotations);
     setDraftRubricScores(hydrated.rubricScores);
     setActiveAnnotationId(null);
+    // The audio view remounts per target with a fresh handled-nonce, so a
+    // stale seek would replay on the next student's take.
+    setSeek({ ms: 0, nonce: 0 });
+    lastJumpRef.current = null;
     setPinnedTakeIndex(hydrated.pinnedTakeIndex);
     setAdjudication(hydrated.adjudication);
     setSaveError(null);

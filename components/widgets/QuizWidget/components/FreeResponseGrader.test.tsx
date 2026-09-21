@@ -554,6 +554,15 @@ const taggedEssay = (key: string): QuizResponse =>
           },
           {
             id: 'a2',
+            from: 6,
+            to: 10,
+            highlightColor: 'yellow',
+            authorUid: 'teacher-1',
+            createdAt: 0,
+            rubricCriteria: [{ criterionId: 'c1', name: 'Thesis' }],
+          },
+          {
+            id: 'a3',
             from: 11,
             to: 16,
             highlightColor: 'yellow',
@@ -627,7 +636,7 @@ describe('FreeResponseGrader rubric strand tags', () => {
     const link = await screen.findByRole('button', {
       name: /show passages tagged thesis/i,
     });
-    expect(link).toHaveTextContent('2 highlights');
+    expect(link).toHaveTextContent('3 highlights');
 
     // The highlights rail marks the active passage; first click opens the
     // earlier one and a second walks to the later one.
@@ -640,11 +649,137 @@ describe('FreeResponseGrader rubric strand tags', () => {
         .find((b): b is HTMLButtonElement => b !== null);
     fireEvent.click(link);
     await waitFor(() => expect(railItem('alpha')).toHaveClass('bg-violet-50'));
-    expect(railItem('gamma')).not.toHaveClass('bg-violet-50');
+    expect(railItem('beta')).not.toHaveClass('bg-violet-50');
 
     fireEvent.click(link);
-    await waitFor(() => expect(railItem('gamma')).toHaveClass('bg-violet-50'));
+    await waitFor(() => expect(railItem('beta')).toHaveClass('bg-violet-50'));
     expect(railItem('alpha')).not.toHaveClass('bg-violet-50');
+  });
+
+  it('restarts the cycle on the next student rather than resuming the last one', async () => {
+    render(
+      <FreeResponseGrader
+        quiz={typedQuiz}
+        responses={[taggedEssay('ada'), taggedEssay('grace')]}
+        displayNameByResponseKey={names}
+        teacherUid="teacher-1"
+        resolveTakeUrl={() => Promise.resolve('blob:take')}
+        onSaveGrade={vi.fn<FreeResponseGraderProps['onSaveGrade']>(() =>
+          Promise.resolve()
+        )}
+        onClose={() => undefined}
+      />
+    );
+    const railItem = (snippet: string) =>
+      screen
+        .getAllByText(snippet)
+        .map((el) => el.closest('button'))
+        .find((b): b is HTMLButtonElement => b !== null);
+    const jumpLink = () =>
+      screen.getByRole('button', { name: /show passages tagged thesis/i });
+
+    // Leave the first student's cycle sitting on the middle passage, so a
+    // stale cursor would land on the third rather than wrapping to the first.
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: /show passages tagged thesis/i,
+      })
+    );
+    fireEvent.click(jumpLink());
+    await waitFor(() => expect(railItem('beta')).toHaveClass('bg-violet-50'));
+
+    fireEvent.click(screen.getByRole('button', { name: /next student/i }));
+
+    // The next student starts at their own first passage, not where the
+    // previous cycle left off.
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: /show passages tagged thesis/i,
+      })
+    );
+    await waitFor(() => expect(railItem('alpha')).toHaveClass('bg-violet-50'));
+    expect(railItem('gamma')).not.toHaveClass('bg-violet-50');
+  });
+
+  // Asserts the invariant rather than guarding a reproduction: the stale-seek
+  // path needs the take's URL already resolved when the remounted view first
+  // runs its seek effect, which this harness does not reach.
+  it("leaves the next student's take at the start, not the last seek", async () => {
+    const spokenQuiz = {
+      id: 'quiz-3',
+      title: 'Spoken checks',
+      questions: [
+        {
+          id: 'q1',
+          text: 'Explain your reasoning out loud.',
+          type: 'free-response',
+          correctAnswer: '',
+          incorrectAnswers: [],
+          timeLimit: 0,
+          points: 4,
+          recording: RECORDING,
+          rubricSnapshot: ESSAY_RUBRIC,
+        },
+      ],
+    } as unknown as QuizData;
+
+    const taggedTake = (key: string, atMs: number): QuizResponse =>
+      ({
+        ...(recorded(key, 1) as unknown as Record<string, unknown>),
+        grading: {
+          q1: {
+            pointsAwarded: 3,
+            annotationUnit: 'ms',
+            annotations: [
+              {
+                id: `${key}-n1`,
+                from: atMs,
+                to: atMs,
+                highlightColor: 'yellow',
+                authorUid: 'teacher-1',
+                createdAt: 0,
+                rubricCriteria: [{ criterionId: 'c1', name: 'Thesis' }],
+              },
+            ],
+            rubricScores: [{ criterionId: 'c1', levelId: 'c1l2', points: 3 }],
+            gradedBy: 'teacher-1',
+            gradedAt: 1,
+          },
+        },
+      }) as unknown as QuizResponse;
+
+    render(
+      <FreeResponseGrader
+        quiz={spokenQuiz}
+        responses={[taggedTake('ada', 8_000), taggedTake('grace', 2_000)]}
+        displayNameByResponseKey={names}
+        teacherUid="teacher-1"
+        resolveTakeUrl={() => Promise.resolve('blob:take')}
+        onSaveGrade={vi.fn<FreeResponseGraderProps['onSaveGrade']>(() =>
+          Promise.resolve()
+        )}
+        onClose={() => undefined}
+      />
+    );
+
+    // Jump on the first student, which seeks their take to 8s.
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: /show passages tagged thesis/i,
+      })
+    );
+    await waitFor(() =>
+      expect(document.querySelector('audio')?.currentTime).toBe(8)
+    );
+
+    // Moving on must not carry that seek onto the next student's take.
+    fireEvent.click(screen.getByRole('button', { name: /next student/i }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /show passages tagged thesis/i })
+      ).toBeInTheDocument()
+    );
+    expect(document.querySelector('audio')?.currentTime).toBe(0);
   });
 
   it('lists a tagged highlight under its strand in the highlights rail', async () => {
