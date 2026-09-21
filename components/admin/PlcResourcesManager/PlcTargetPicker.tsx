@@ -24,9 +24,8 @@ export const PlcTargetPicker: React.FC<PlcTargetPickerProps> = ({
   disabled = false,
 }) => {
   const { t } = useTranslation();
-  // Admin read mode: subscribe to the whole /plcs collection so an admin who
-  // isn't a member of every PLC still sees them all in the picker. The
-  // membership-scoped default would silently return an empty list here.
+  // Admin read mode: sees every PLC in scope, not just ones they're a member of
+  // (whole collection for a super admin, same-org only otherwise) — see usePlcs.
   const { plcs, loading, error } = usePlcs({ asAdmin: true });
 
   const handleScopeChange = (scope: PlcResourceScope) => {
