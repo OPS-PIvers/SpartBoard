@@ -31,6 +31,8 @@ export const EXTRACT_DEADLINE_MS = 110_000;
 /** Gemini occasionally runs long on a dense test; more than this is a bug. */
 export const MAX_QUESTIONS = 200;
 export const MAX_OPTIONS = 6;
+/** Per question. A stem needing more pictures than this misread the page. */
+export const MAX_FIGURES = 4;
 
 const PDF_MIME = 'application/pdf';
 const DOCX_MIME =
@@ -58,6 +60,20 @@ export interface AiExtractedOption {
   text: string;
 }
 
+/**
+ * Where a figure sits on the page, as fractions of it from the top-left
+ * (D13). Fractions rather than points so the client can crop from a render at
+ * whatever scale it chose.
+ */
+export interface AiFigureBox {
+  /** 1-based. */
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface AiExtractedQuestion {
   number: number;
   text: string;
@@ -65,6 +81,8 @@ export interface AiExtractedQuestion {
   options: AiExtractedOption[];
   /** '' when the document gave no answer — never a guess (D5). */
   correctAnswer: string;
+  /** Pictures the question cannot be answered without (D13). */
+  figures: AiFigureBox[];
   warnings: string[];
 }
 
@@ -173,6 +191,20 @@ export function buildDocumentResponseSchema(): Schema {
               },
             },
             correctAnswer: { type: Type.STRING },
+            figures: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                required: ['page', 'x', 'y', 'width', 'height'],
+                properties: {
+                  page: { type: Type.INTEGER },
+                  x: { type: Type.NUMBER },
+                  y: { type: Type.NUMBER },
+                  width: { type: Type.NUMBER },
+                  height: { type: Type.NUMBER },
+                },
+              },
+            },
             warnings: { type: Type.ARRAY, items: { type: Type.STRING } },
           },
         },
@@ -204,6 +236,16 @@ export const EXTRACT_PROMPT = [
   'Use warnings for anything the teacher should check: a question you could',
   'not fully read, two answers marked, a key entry with no matching choice.',
   'Leave warnings empty when there is nothing to say.',
+  '',
+  'When a question depends on a picture, diagram, map or chart printed with',
+  'it, return that picture in figures: its 1-based page, and the box around',
+  'it as fractions of the page from the top-left corner, so x 0.1 y 0.2 width',
+  '0.5 height 0.3 means a box starting a tenth across and a fifth down that',
+  'covers half the width and under a third of the height. Include a caption',
+  'or axis labels inside the box. Return figures only for a picture the',
+  'question cannot be answered without; leave it empty for decoration, a',
+  'school logo or a page border. Two questions about the same picture return',
+  'the same box, and the picture is brought in once.',
 ].join('\n');
 
 function asString(value: unknown): string {
@@ -227,6 +269,31 @@ function coerceOptions(value: unknown): AiExtractedOption[] {
     if (options.length >= MAX_OPTIONS) break;
   }
   return options;
+}
+
+/**
+ * A box is only usable if it is on a real page and encloses something. A
+ * model that answers with a zero-width box or a page that isn't there would
+ * otherwise become a crop of nothing.
+ */
+function coerceFigures(value: unknown): AiFigureBox[] {
+  if (!Array.isArray(value)) return [];
+  const figures: AiFigureBox[] = [];
+  for (const raw of value) {
+    const f = (raw ?? {}) as Record<string, unknown>;
+    const page = Number(f.page);
+    const x = Number(f.x);
+    const y = Number(f.y);
+    const width = Number(f.width);
+    const height = Number(f.height);
+    if (!Number.isInteger(page) || page < 1) continue;
+    if (![x, y, width, height].every((n) => Number.isFinite(n))) continue;
+    if (width <= 0 || height <= 0) continue;
+    if (x < 0 || y < 0 || x >= 1 || y >= 1) continue;
+    figures.push({ page, x, y, width, height });
+    if (figures.length >= MAX_FIGURES) break;
+  }
+  return figures;
 }
 
 /**
@@ -287,6 +354,7 @@ export function normalizeAiQuiz(
       type,
       options,
       correctAnswer,
+      figures: coerceFigures(q.figures),
       warnings: questionWarnings,
     });
   }

@@ -214,12 +214,13 @@ describe('readQuizDocumentWithAi', () => {
     expect(quiz.questions).toHaveLength(1);
   });
 
-  it('says a PDF’s pictures were not brought in (D13)', async () => {
+  it('says nothing about pictures when the reader found none', async () => {
     const quiz = await readQuizDocumentWithAi(
       new Blob(['%PDF'], { type: 'application/pdf' }),
       { fileName: 'test.pdf', extract: () => Promise.resolve(aiQuiz()) }
     );
-    expect(quiz.warnings.join(' ')).toContain('Pictures in a PDF');
+    expect(quiz.warnings).toEqual([]);
+    expect(quiz.images).toEqual([]);
   });
 
   it('brings a Word file’s pictures through (no regression on the browser reader)', async () => {
@@ -265,5 +266,73 @@ describe('readQuizDocumentWithAi', () => {
         extract: () => Promise.resolve(aiQuiz()),
       })
     ).rejects.toThrow(/PDF, a Word file/);
+  });
+});
+
+describe('PDF figures (D13)', () => {
+  const figure = { page: 1, x: 0.1, y: 0.2, width: 0.4, height: 0.3 };
+  const withFigure = (figures = [figure]) =>
+    aiQuiz({
+      questions: [{ ...aiQuiz().questions[0], figures }],
+    });
+  const pdf = () => new Blob(['%PDF'], { type: 'application/pdf' });
+  const cropper = () =>
+    Promise.resolve({
+      pageCount: 2,
+      pageSize: () => Promise.resolve({ width: 800, height: 1000 }),
+      crop: () => Promise.resolve(new Blob(['png'], { type: 'image/png' })),
+    });
+
+  it('crops the figure and links it to its question', async () => {
+    const quiz = await readQuizDocumentWithAi(pdf(), {
+      fileName: 'test.pdf',
+      extract: () => Promise.resolve(withFigure()),
+      cropper,
+    });
+
+    expect(quiz.images).toHaveLength(1);
+    expect(quiz.questions[0].imageIds).toEqual([quiz.images[0].id]);
+    expect(quiz.warnings).toEqual([]);
+  });
+
+  it('links one picture to both questions that named it (D14)', async () => {
+    const ai = aiQuiz({
+      questions: [
+        { ...aiQuiz().questions[0], number: 1, figures: [figure] },
+        { ...aiQuiz().questions[0], number: 2, figures: [{ ...figure }] },
+      ],
+    });
+
+    const quiz = await readQuizDocumentWithAi(pdf(), {
+      fileName: 'test.pdf',
+      extract: () => Promise.resolve(ai),
+      cropper,
+    });
+
+    // One upload, two questions pointing at it.
+    expect(quiz.images).toHaveLength(1);
+    expect(quiz.questions[0].imageIds).toEqual(quiz.questions[1].imageIds);
+  });
+
+  it('says the pictures are not brought in when there is no cropper', async () => {
+    const quiz = await readQuizDocumentWithAi(pdf(), {
+      fileName: 'test.pdf',
+      extract: () => Promise.resolve(withFigure()),
+    });
+    expect(quiz.warnings.join(' ')).toContain('Pictures in a PDF');
+    expect(quiz.images).toEqual([]);
+  });
+
+  it('keeps the questions when the PDF cannot be opened for cropping', async () => {
+    const quiz = await readQuizDocumentWithAi(pdf(), {
+      fileName: 'test.pdf',
+      extract: () => Promise.resolve(withFigure()),
+      cropper: () => Promise.reject(new Error('corrupt')),
+    });
+
+    // The questions were already read; losing them over a picture would be
+    // the worse trade.
+    expect(quiz.questions).toHaveLength(1);
+    expect(quiz.warnings.join(' ')).toContain('couldn’t be brought in');
   });
 });

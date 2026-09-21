@@ -47,6 +47,7 @@ import type { Firestore } from 'firebase-admin/firestore';
 import {
   MAX_DOCUMENT_BYTES,
   MAX_DOCUMENT_PAGES,
+  MAX_FIGURES,
   MAX_QUESTIONS,
   buildDocumentResponseSchema,
   chargeQuizQuota,
@@ -240,6 +241,84 @@ describe('parseExtractDocumentRequest', () => {
 
 // ── The extract-never-invent rules ─────────────────────────────────────────
 
+describe('normalizeAiQuiz figure boxes (D13)', () => {
+  const question = (figures: unknown) => ({
+    questions: [
+      {
+        number: 1,
+        text: 'What does the diagram show?',
+        type: 'free-response',
+        options: [],
+        correctAnswer: '',
+        figures,
+        warnings: [],
+      },
+    ],
+  });
+
+  it('keeps a box that sits on the page', () => {
+    const quiz = normalizeAiQuiz(
+      question([{ page: 2, x: 0.1, y: 0.2, width: 0.5, height: 0.3 }]),
+      'fallback'
+    );
+    expect(quiz.questions[0].figures).toEqual([
+      { page: 2, x: 0.1, y: 0.2, width: 0.5, height: 0.3 },
+    ]);
+  });
+
+  it('drops a box that encloses nothing', () => {
+    // A zero-width box would crop an empty image the student cannot see.
+    const quiz = normalizeAiQuiz(
+      question([{ page: 1, x: 0.1, y: 0.2, width: 0, height: 0.3 }]),
+      'fallback'
+    );
+    expect(quiz.questions[0].figures).toEqual([]);
+  });
+
+  it('drops a box whose corner is off the page', () => {
+    const quiz = normalizeAiQuiz(
+      question([{ page: 1, x: 1.2, y: 0.2, width: 0.5, height: 0.3 }]),
+      'fallback'
+    );
+    expect(quiz.questions[0].figures).toEqual([]);
+  });
+
+  it('drops a box on a page number that makes no sense', () => {
+    const quiz = normalizeAiQuiz(
+      question([{ page: 0, x: 0.1, y: 0.2, width: 0.5, height: 0.3 }]),
+      'fallback'
+    );
+    expect(quiz.questions[0].figures).toEqual([]);
+  });
+
+  it('drops a box with a value that is not a number', () => {
+    const quiz = normalizeAiQuiz(
+      question([{ page: 1, x: 'left', y: 0.2, width: 0.5, height: 0.3 }]),
+      'fallback'
+    );
+    expect(quiz.questions[0].figures).toEqual([]);
+  });
+
+  it('caps how many pictures one question can claim', () => {
+    const many = Array.from({ length: 10 }, () => ({
+      page: 1,
+      x: 0.1,
+      y: 0.2,
+      width: 0.5,
+      height: 0.3,
+    }));
+    expect(
+      normalizeAiQuiz(question(many), 'f').questions[0].figures
+    ).toHaveLength(MAX_FIGURES);
+  });
+
+  it('leaves figures empty when the model returned none', () => {
+    expect(
+      normalizeAiQuiz(question(undefined), 'f').questions[0].figures
+    ).toEqual([]);
+  });
+});
+
 describe('normalizeAiQuiz', () => {
   it('keeps a question the model answered from the document', () => {
     const quiz = normalizeAiQuiz(JSON.parse(GOOD_RESPONSE), 'fallback');
@@ -398,6 +477,15 @@ describe('buildDocumentResponseSchema', () => {
     const question = schema.properties?.questions?.items;
     expect(question?.required).toContain('correctAnswer');
     expect(question?.properties?.type?.enum).toContain('free-response');
+  });
+
+  it('declares the figure box, without which no picture is ever returned', () => {
+    // The schema is the only thing that tells the model figures exist; a
+    // missing field makes the whole picture import a silent no-op.
+    const box =
+      buildDocumentResponseSchema().properties?.questions?.items?.properties
+        ?.figures?.items;
+    expect(box?.required).toEqual(['page', 'x', 'y', 'width', 'height']);
   });
 });
 

@@ -35,6 +35,7 @@ import {
   type ExtractedQuiz,
 } from '@/utils/quizDocumentImport';
 import { browserPdfDeps } from '@/utils/quizDocumentImport/pdfBrowserDeps';
+import { browserPdfCropper } from '@/utils/quizDocumentImport/pdfCropBrowser';
 import { QuizDocumentReview } from '../components/QuizDocumentReview';
 import { QuizDriveService } from '@/utils/quizDriveService';
 
@@ -336,6 +337,7 @@ async function readDocumentWith(
     return await readQuizDocumentWithAi(file, {
       fileName,
       extract: deps.aiExtract,
+      cropper: browserPdfCropper,
     });
   } catch (err) {
     console.warn('[quizImport] AI reader unavailable', err);
