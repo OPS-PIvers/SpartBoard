@@ -25,8 +25,11 @@ import { generateQuiz, type GeneratedQuestion } from '@/utils/ai';
 import {
   extractedToQuizData,
   readQuizDocument,
+  readQuizDocumentWithAi,
   rowWarnings,
+  type AiExtractFn,
   type ExtractedImage,
+  type ExtractedQuiz,
 } from '@/utils/quizDocumentImport';
 import { browserPdfDeps } from '@/utils/quizDocumentImport/pdfBrowserDeps';
 import { QuizDocumentReview } from '../components/QuizDocumentReview';
@@ -97,7 +100,16 @@ export interface QuizImportAdapterDeps {
    * own, and `ImportParseResult` carries only the parsed quiz.
    */
   onDocumentImages?: (images: readonly ExtractedImage[]) => void;
+  /**
+   * Reads the document through the Cloud Function instead of in the browser
+   * (D1, D3). Supplied only when the teacher has AI access; if the call fails
+   * the browser reader still runs, because half a quiz to fix beats an error.
+   */
+  aiExtract?: AiExtractFn;
 }
+
+const AI_READER_FELL_BACK =
+  'The document was read the simple way because the smarter reader wasn’t available. Check the questions and answers below.';
 
 const DRIVE_ACCESS_ERROR =
   'Google Drive access is required. Please sign in again and try again.';
@@ -297,9 +309,46 @@ function renderQuizPreview(data: QuizData): React.ReactNode {
 
 /* ─── Adapter factory ─────────────────────────────────────────────────────── */
 
+/** The AI reader when the teacher has it, the browser reader otherwise (D1). */
+async function readDocumentWith(
+  deps: QuizImportAdapterDeps,
+  file: Blob,
+  fileName: string
+): Promise<ExtractedQuiz> {
+  // pdf.js and tesseract are only loaded when the file is a PDF, so a Word
+  // import never pays for them.
+  const inBrowser = async (): Promise<ExtractedQuiz> => {
+    const isPdf =
+      file.type === 'application/pdf' ||
+      fileName.toLowerCase().endsWith('.pdf');
+    return readQuizDocument(file, {
+      fileName,
+      ...(isPdf ? { pdf: await browserPdfDeps(file) } : {}),
+    });
+  };
+
+  if (!deps.aiExtract) return inBrowser();
+
+  try {
+    return await readQuizDocumentWithAi(file, {
+      fileName,
+      extract: deps.aiExtract,
+    });
+  } catch (err) {
+    console.warn('[quizImport] AI reader unavailable', err);
+    const extracted = await inBrowser();
+    return {
+      ...extracted,
+      warnings: [AI_READER_FELL_BACK, ...extracted.warnings],
+    };
+  }
+}
+
 export function createQuizImportAdapter(
   deps: QuizImportAdapterDeps
 ): ImportAdapter<QuizData> {
+  const readDocument = (file: Blob, fileName: string) =>
+    readDocumentWith(deps, file, fileName);
   return {
     widgetLabel: deps.widgetLabel ?? 'Quiz',
     supportedSources: deps.canImportDocuments
@@ -360,15 +409,7 @@ export function createQuizImportAdapter(
         return { data, warnings: [] };
       }
       if (source.kind === 'document') {
-        // pdf.js and tesseract are only loaded when the file is a PDF, so a
-        // Word import never pays for them.
-        const isPdf =
-          source.file.type === 'application/pdf' ||
-          source.fileName.toLowerCase().endsWith('.pdf');
-        const extracted = await readQuizDocument(source.file, {
-          fileName: source.fileName,
-          ...(isPdf ? { pdf: await browserPdfDeps(source.file) } : {}),
-        });
+        const extracted = await readDocument(source.file, source.fileName);
         deps.onDocumentImages?.(extracted.images);
         return {
           data: extractedToQuizData(extracted),

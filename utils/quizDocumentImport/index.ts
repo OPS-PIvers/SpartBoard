@@ -15,13 +15,23 @@ import {
   assertWithinPageLimit,
 } from './limits';
 import type { ExtractedQuiz } from './types';
+import { documentKind, titleFromFileName } from './fileKind';
 
 export * from './types';
+export { documentKind, titleFromFileName, type DocumentKind } from './fileKind';
 export { parseQuestionLines, isTrueFalse } from './parseQuestions';
 export { findAnswerKey } from './answerKey';
 export { readDocx } from './docxReader';
 export { readPdf, groupItemsIntoLines } from './pdfReader';
 export { extractedToQuizData, rowWarnings } from './toQuizData';
+export {
+  readQuizDocumentWithAi,
+  aiQuizToExtracted,
+  graftDocxImages,
+  blobToBase64,
+  type AiExtractFn,
+  type AiExtractedQuiz,
+} from './aiReader';
 export { attachDocumentImages, type StimulusUploader } from './attachImages';
 export {
   driveStimulusUploader,
@@ -35,32 +45,6 @@ export {
   assertWithinByteLimit,
   assertWithinPageLimit,
 } from './limits';
-
-export type DocumentKind = 'pdf' | 'docx';
-
-const DOCX_TYPE =
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-
-/** What the file is, by type then by name; null when it is neither. */
-export function documentKind(
-  file: File | Blob,
-  name = ''
-): DocumentKind | null {
-  const fileName = (name || (file as File).name || '').toLowerCase();
-  if (file.type === 'application/pdf' || fileName.endsWith('.pdf'))
-    return 'pdf';
-  if (file.type === DOCX_TYPE || fileName.endsWith('.docx')) return 'docx';
-  return null;
-}
-
-/** The document name without its extension, which becomes the quiz title (D11). */
-export function titleFromFileName(name: string): string {
-  const base = name
-    .replace(/\.[^.]+$/, '')
-    .replace(/[_-]+/g, ' ')
-    .trim();
-  return base || 'Imported Quiz';
-}
 
 export interface ReadDocumentOptions {
   /** Shown as the quiz title; defaults to the file's own name. */
