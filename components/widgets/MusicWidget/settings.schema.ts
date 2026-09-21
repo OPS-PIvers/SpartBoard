@@ -13,6 +13,8 @@ import {
 } from './settingsFields';
 
 const source = (ctx: FieldCtx) => ctx.config.source ?? 'curated';
+const canUsePersonal = (ctx: FieldCtx) =>
+  ctx.profileLoaded !== true || ctx.canAccessFeature('personal-spotify');
 
 const renderSource = (ctx: CustomRenderCtx) =>
   React.createElement(MusicSourceField, { ctx });
@@ -31,7 +33,7 @@ export default defineSettings<MusicConfig>({
           type: 'custom',
           label: 'source',
           searchTerms: ['curatedStations', 'mySpotify'],
-          visibleWhen: (ctx) => ctx.canAccessFeature('personal-spotify'),
+          visibleWhen: canUsePersonal,
           render: renderSource,
         },
         {
@@ -48,7 +50,8 @@ export default defineSettings<MusicConfig>({
           key: 'stationId',
           type: 'custom',
           label: 'selectStation',
-          visibleWhen: (ctx) => source(ctx) === 'curated',
+          visibleWhen: (ctx) =>
+            source(ctx) === 'curated' || !canUsePersonal(ctx),
           render: renderStation,
         },
         {
@@ -56,8 +59,7 @@ export default defineSettings<MusicConfig>({
           type: 'custom',
           label: 'personalSpotify',
           visibleWhen: (ctx) =>
-            ctx.canAccessFeature('personal-spotify') &&
-            source(ctx) === 'personal',
+            canUsePersonal(ctx) && source(ctx) === 'personal',
           render: renderStation,
         },
       ],

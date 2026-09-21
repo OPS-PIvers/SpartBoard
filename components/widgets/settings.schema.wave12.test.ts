@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { validateSchema } from '@/components/settings/schema/validateSchema';
 import type {
   Field,
+  FieldCtx,
   WidgetSettingsSchema,
 } from '@/components/settings/schema/types';
-import type { WidgetType } from '@/types';
+import type { WidgetData, WidgetType } from '@/types';
 import blendingBoardSchema from './BlendingBoard/settings.schema';
 import carRiderProSchema from './CarRiderPro/settings.schema';
 import customWidgetSchema from './CustomWidget/settings.schema';
@@ -80,5 +81,38 @@ describe('wave 12 settings-drawer widget migrations', () => {
       section: 'connections',
       missingHelp: 'addTimeToolHelp',
     });
+  });
+
+  it('keeps Music usable while the personal Spotify gate loads or is revoked', () => {
+    const fields = musicSchema.groups.flatMap(
+      (group) => group.fields as ReadonlyArray<Field>
+    );
+    const field = (key: string) => {
+      const match = fields.find((candidate) => candidate.key === key);
+      if (!match) throw new Error(`Missing Music settings field: ${key}`);
+      return match;
+    };
+    const ctx = (profileLoaded: boolean, allowed: boolean): FieldCtx => ({
+      config: { source: 'personal' },
+      widget: {
+        id: 'music-gate',
+        type: 'music',
+        config: { source: 'personal' },
+      } as WidgetData,
+      isAdmin: false,
+      profileLoaded,
+      canAccessFeature: () => allowed,
+      t: (key) => key,
+    });
+
+    const loading = ctx(false, false);
+    expect(field('source').visibleWhen?.(loading)).toBe(true);
+    expect(field('personalSpotifyUrl').visibleWhen?.(loading)).toBe(true);
+    expect(field('stationId').visibleWhen?.(loading)).toBe(false);
+
+    const revoked = ctx(true, false);
+    expect(field('source').visibleWhen?.(revoked)).toBe(false);
+    expect(field('personalSpotifyUrl').visibleWhen?.(revoked)).toBe(false);
+    expect(field('stationId').visibleWhen?.(revoked)).toBe(true);
   });
 });

@@ -64,6 +64,7 @@ export type SettingsDrawerProps = {
   legacyStyleContent?: React.ReactNode;
   readOnly?: boolean;
   isAdmin?: boolean;
+  profileLoaded?: boolean;
   canAccessFeature?: (featureId: GlobalFeature) => boolean;
   canAccessWidget?: (type: WidgetType) => boolean;
   toolLabel?: (type: WidgetType) => string;
@@ -105,6 +106,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
   legacyStyleContent,
   readOnly = false,
   isAdmin = false,
+  profileLoaded = true,
   canAccessFeature,
   canAccessWidget,
   toolLabel,
@@ -174,13 +176,23 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
       config,
       widget,
       isAdmin,
+      profileLoaded,
       canAccessFeature: canAccessFeature ?? (() => true),
       canAccessWidget,
       toolLabel,
       t,
       surface: 'drawer' as const,
     }),
-    [config, widget, isAdmin, canAccessFeature, canAccessWidget, toolLabel, t]
+    [
+      config,
+      widget,
+      isAdmin,
+      profileLoaded,
+      canAccessFeature,
+      canAccessWidget,
+      toolLabel,
+      t,
+    ]
   );
 
   const schemaSections = useMemo(

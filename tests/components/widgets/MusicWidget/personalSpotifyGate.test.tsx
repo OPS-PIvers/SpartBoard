@@ -13,7 +13,7 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     canAccessFeature: canAccessFeatureMock,
     // profileLoaded must be true so the optimistic-render gate logic in
-    // Widget.tsx and Settings.tsx can produce a definitive denial when
+    // Widget.tsx and the settings schema can produce a definitive denial when
     // canAccessFeature returns false. Without it, gateDenied is always false
     // (profile hasn't "loaded") and the gate never fires in tests.
     profileLoaded: true,
@@ -62,6 +62,7 @@ describe('MusicWidget settings schema — personal Spotify gate', () => {
     config: baseWidget.config as Record<string, unknown>,
     widget: baseWidget,
     isAdmin: false,
+    profileLoaded: true,
     canAccessFeature: () => allowed,
     t: (key) => key,
   });

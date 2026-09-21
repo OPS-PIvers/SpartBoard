@@ -14,6 +14,8 @@ export type FieldCtx = {
   config: Record<string, unknown>;
   widget: WidgetData;
   isAdmin: boolean;
+  /** Auth-profile hydration state; gated fields can stay optimistic until permissions settle. */
+  profileLoaded?: boolean;
   canAccessFeature: (featureId: GlobalFeature) => boolean;
   /** Widget-level feature permission; a `partnerWidget` card is dropped entirely when this denies its partner. */
   canAccessWidget?: (type: WidgetType) => boolean;
