@@ -57,7 +57,7 @@ Grilled and settled 2026-09-21. Four stacked PRs to dev-paul, in the order below
 
 ### Limits, cost and rollout
 
-- **D18.** 20 pages and 25 MB per import (test and key file combined). Larger files get a "split the file" message before anything is sent.
+- **D18.** 25 MB per import, counting the test and key file together, and 20 pages per document. Larger files get a "split the file" message before anything is sent. (Bytes are the budget that bounds the work and they are checked before either file is opened; pages stay per document because the AI reader counts the test's pages on the server, where the key file — always read in the browser — is not in scope.)
 - **D19.** One AI import counts as one use against the existing `quiz` daily AI limit, regardless of page count.
 - **D20.** Files sent to the AI reader are processed in memory and not stored. The browser reader sends nothing.
 - **D21.** Rollouts switch `admin_settings/quiz_document_import` with a toggle in the admin Rollouts panel, off at ship, plus a `quiz-document-import` feature permission, admin-only by default. The stub-fill change (D17) is gated by the same switch; with it off, "Import questions" keeps today's behaviour.

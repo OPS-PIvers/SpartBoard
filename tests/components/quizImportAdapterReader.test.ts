@@ -160,6 +160,22 @@ describe('the separate answer key file (D8)', () => {
     expect(result.data.questions[0].correctAnswer).toBe('Second');
   });
 
+  it('weighs the test and the key against one budget (D18)', async () => {
+    const huge = { size: 20 * 1024 * 1024 } as Blob;
+
+    await expect(
+      adapter().parse({
+        ...source,
+        file: huge,
+        keyFile: { file: huge, fileName: 'key.pdf' },
+      })
+    ).rejects.toThrow(/together/);
+
+    // Refused before either file is opened, so an oversized pair costs nothing.
+    expect(readQuizDocument).not.toHaveBeenCalled();
+    expect(readAnswerKeyFile).not.toHaveBeenCalled();
+  });
+
   it('does not read a key when none was attached', async () => {
     await adapter().parse(source);
     expect(readAnswerKeyFile).not.toHaveBeenCalled();

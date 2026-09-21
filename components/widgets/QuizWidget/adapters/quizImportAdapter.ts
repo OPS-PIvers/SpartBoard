@@ -24,6 +24,7 @@ import type { QuizData, QuizQuestion } from '@/types';
 import { generateQuiz, type GeneratedQuestion } from '@/utils/ai';
 import {
   applyAnswerKey,
+  assertWithinByteLimit,
   extractedToQuizData,
   readAnswerKeyFile,
   readQuizDocument,
@@ -449,6 +450,11 @@ export function createQuizImportAdapter(
         return { data, warnings: [] };
       }
       if (source.kind === 'document') {
+        // D18's budget covers the import, not each file, so the two are
+        // weighed together before either is opened.
+        if (source.keyFile) {
+          assertWithinByteLimit(source.file, source.keyFile.file);
+        }
         const read = await readDocument(source.file, source.fileName);
         const extracted = source.keyFile
           ? await withAnswerKey(read, source.keyFile)
