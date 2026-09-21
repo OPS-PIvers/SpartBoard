@@ -2455,6 +2455,12 @@
       "highlights": "Resaltados y comentarios ({{count}})",
       "highlightsEmpty": "Selecciona texto para resaltarlo.",
       "highlightNoComment": "(sin comentario aún — haz clic para añadir)",
+      "rubricTags": {
+        "label": "Criterios de la rúbrica",
+        "add": "Marcar como evidencia de {{name}}",
+        "remove": "Quitar la etiqueta {{name}}",
+        "evidenceFor": "Evidencia de"
+      },
       "rubricOverrideNote": "Rúbrica alternativa para este estudiante",
       "pointsOverrideNote": "Solo puntos para este estudiante — rúbrica anulada.",
       "tabSwitches_one": "{{count}} cambio de pestaña",

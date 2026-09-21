@@ -39,6 +39,7 @@ import {
   type QuizResponse,
   type QuizResponseAnswer,
   type QuizResponseBackTranslation,
+  type Rubric,
   type StudentOverride,
   type WrittenAnswerAnnotation,
   type WrittenAnswerGrade,
@@ -92,6 +93,7 @@ import { AnnotatedResponseView } from './AnnotatedResponseView';
 import { BackTranslationPanel } from './BackTranslationPanel';
 import { AudioAnnotatedResponseView } from './AudioAnnotatedResponseView';
 import { RubricScoringPanel } from './RubricScoringPanel';
+import { RubricStrandPills } from './RubricStrandChips';
 
 export const ADVANCE_DELAY_MS = 900;
 export const POINTS_IDLE_MS = 1500;
@@ -203,6 +205,18 @@ const targetVocabulary = (
   };
 };
 
+const strandTagsEqual = (
+  a: WrittenAnswerAnnotation['rubricCriteria'],
+  b: WrittenAnswerAnnotation['rubricCriteria']
+): boolean => {
+  const left = a ?? [];
+  const right = b ?? [];
+  if (left.length !== right.length) return false;
+  return left.every(
+    (t, i) => t.criterionId === right[i].criterionId && t.name === right[i].name
+  );
+};
+
 const annotationListsEqual = (
   a: WrittenAnswerAnnotation[],
   b: WrittenAnswerAnnotation[] | undefined
@@ -218,6 +232,7 @@ const annotationListsEqual = (
       x.to === y.to &&
       (x.highlightColor ?? 'yellow') === (y.highlightColor ?? 'yellow') &&
       (x.comment ?? '') === (y.comment ?? '') &&
+      strandTagsEqual(x.rubricCriteria, y.rubricCriteria) &&
       x.authorUid === y.authorUid
     );
   });
@@ -513,6 +528,11 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const wasCompleteOnEnterRef = useRef(false);
   const completeSeenRef = useRef(false);
   const lastWrittenRef = useRef(new Map<string, string>());
+
+  // Strand tagging follows wherever the rubric is actually being scored —
+  // the addendum slot grades against points alone, so it gets no chips.
+  const taggableRubric =
+    slot?.slot === 'addendum' ? undefined : effectiveRubric;
 
   const isUnavailable = !!slot?.captureUnavailable;
   const takes = slot?.takes ?? [];
@@ -1413,6 +1433,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                     onChange={handleAnnotationsChange}
                     activeId={activeAnnotationId}
                     onActiveIdChange={setActiveAnnotationId}
+                    rubric={taggableRubric}
                   />
                 ) : (
                   <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm italic text-slate-500">
@@ -1613,6 +1634,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 onSelect={setActiveAnnotationId}
                 emptyHint={tg('highlightsEmpty')}
                 noCommentHint={tg('highlightNoComment')}
+                rubric={taggableRubric}
               />
             </div>
           )}
@@ -1714,6 +1736,7 @@ const AnnotationsList: React.FC<{
   onSelect: (id: string) => void;
   emptyHint: string;
   noCommentHint: string;
+  rubric?: Rubric;
 }> = ({
   annotations,
   snapshot,
@@ -1721,6 +1744,7 @@ const AnnotationsList: React.FC<{
   onSelect,
   emptyHint,
   noCommentHint,
+  rubric,
 }) => {
   // Offsets index `htmlToPlainText`'s projection, not `textContent`.
   const plaintext = useMemo(() => htmlToPlainText(snapshot), [snapshot]);
@@ -1754,12 +1778,21 @@ const AnnotationsList: React.FC<{
             >
               {truncated || 'highlight'}
             </span>
+            <RubricStrandPills
+              tags={a.rubricCriteria}
+              rubric={rubric}
+              className="mt-1"
+            />
             {a.comment ? (
               <span className="mt-1 block text-slate-700">{a.comment}</span>
             ) : (
-              <span className="mt-1 block italic text-slate-400">
-                {noCommentHint}
-              </span>
+              // A tagged highlight already says something; the "add a
+              // comment" nudge is only for a bare one.
+              !a.rubricCriteria?.length && (
+                <span className="mt-1 block italic text-slate-400">
+                  {noCommentHint}
+                </span>
+              )
             )}
           </button>
         );

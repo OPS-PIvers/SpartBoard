@@ -4984,6 +4984,8 @@ export interface WrittenAnswerAnnotation {
   to: number;
   highlightColor?: 'yellow' | 'green' | 'pink' | 'blue';
   comment?: string;
+  /** Rubric strands this passage is evidence for; name snapshotted for the student view. */
+  rubricCriteria?: { criterionId: string; name: string }[];
   authorUid: string;
   createdAt: number;
 }

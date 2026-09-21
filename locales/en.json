@@ -3582,6 +3582,12 @@
       "highlights": "Highlights & comments ({{count}})",
       "highlightsEmpty": "Select text to highlight it.",
       "highlightNoComment": "(no comment yet — click to add)",
+      "rubricTags": {
+        "label": "Rubric strands",
+        "add": "Tag as evidence for {{name}}",
+        "remove": "Remove {{name}} tag",
+        "evidenceFor": "Evidence for"
+      },
       "rubricOverrideNote": "Alternate rubric for this student",
       "pointsOverrideNote": "Points only for this student — rubric override.",
       "tabSwitches_one": "{{count}} tab switch",
