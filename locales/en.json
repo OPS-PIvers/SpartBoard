@@ -3591,7 +3591,7 @@
         "highlightCount_other": "{{count}} highlights",
         "noteCount_one": "{{count}} note",
         "noteCount_other": "{{count}} notes",
-        "jumpTo": "Show passages tagged {{name}}"
+        "jumpToSuffix": " as evidence for {{name}}"
       },
       "rubricOverrideNote": "Alternate rubric for this student",
       "pointsOverrideNote": "Points only for this student — rubric override.",

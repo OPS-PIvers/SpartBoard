@@ -2464,7 +2464,7 @@
         "highlightCount_other": "{{count}} Markierungen",
         "noteCount_one": "{{count}} Notiz",
         "noteCount_other": "{{count}} Notizen",
-        "jumpTo": "Als {{name}} markierte Stellen anzeigen"
+        "jumpToSuffix": " als Beleg für {{name}}"
       },
       "rubricOverrideNote": "Alternatives Bewertungsraster für diesen Schüler",
       "pointsOverrideNote": "Nur Punkte für diesen Schüler — Raster außer Kraft gesetzt.",

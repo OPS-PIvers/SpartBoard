@@ -2464,7 +2464,7 @@
         "highlightCount_other": "{{count}} surlignages",
         "noteCount_one": "{{count}} note",
         "noteCount_other": "{{count}} notes",
-        "jumpTo": "Afficher les passages marqués {{name}}"
+        "jumpToSuffix": " comme preuve pour {{name}}"
       },
       "rubricOverrideNote": "Grille alternative pour cet élève",
       "pointsOverrideNote": "Points seulement pour cet élève — grille remplacée.",

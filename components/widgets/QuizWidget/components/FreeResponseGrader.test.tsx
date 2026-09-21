@@ -634,7 +634,7 @@ describe('FreeResponseGrader rubric strand tags', () => {
       />
     );
     const link = await screen.findByRole('button', {
-      name: /show passages tagged thesis/i,
+      name: /highlights? as evidence for thesis/i,
     });
     expect(link).toHaveTextContent('3 highlights');
 
@@ -676,13 +676,15 @@ describe('FreeResponseGrader rubric strand tags', () => {
         .map((el) => el.closest('button'))
         .find((b): b is HTMLButtonElement => b !== null);
     const jumpLink = () =>
-      screen.getByRole('button', { name: /show passages tagged thesis/i });
+      screen.getByRole('button', {
+        name: /highlights? as evidence for thesis/i,
+      });
 
     // Leave the first student's cycle sitting on the middle passage, so a
     // stale cursor would land on the third rather than wrapping to the first.
     fireEvent.click(
       await screen.findByRole('button', {
-        name: /show passages tagged thesis/i,
+        name: /highlights? as evidence for thesis/i,
       })
     );
     fireEvent.click(jumpLink());
@@ -694,7 +696,7 @@ describe('FreeResponseGrader rubric strand tags', () => {
     // previous cycle left off.
     fireEvent.click(
       await screen.findByRole('button', {
-        name: /show passages tagged thesis/i,
+        name: /highlights? as evidence for thesis/i,
       })
     );
     await waitFor(() => expect(railItem('alpha')).toHaveClass('bg-violet-50'));
@@ -765,7 +767,7 @@ describe('FreeResponseGrader rubric strand tags', () => {
     // Jump on the first student, which seeks their take to 8s.
     fireEvent.click(
       await screen.findByRole('button', {
-        name: /show passages tagged thesis/i,
+        name: /notes? as evidence for thesis/i,
       })
     );
     await waitFor(() =>
@@ -776,7 +778,7 @@ describe('FreeResponseGrader rubric strand tags', () => {
     fireEvent.click(screen.getByRole('button', { name: /next student/i }));
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /show passages tagged thesis/i })
+        screen.getByRole('button', { name: /notes? as evidence for thesis/i })
       ).toBeInTheDocument()
     );
     expect(document.querySelector('audio')?.currentTime).toBe(0);

@@ -44,7 +44,7 @@ describe('RubricScoringPanel evidence counts', () => {
       />
     );
     expect(
-      screen.queryByRole('button', { name: /show passages tagged/i })
+      screen.queryByRole('button', { name: /as evidence for/i })
     ).not.toBeInTheDocument();
   });
 
@@ -59,8 +59,10 @@ describe('RubricScoringPanel evidence counts', () => {
         onJumpToTagged={onJump}
       />
     );
+    // The accessible name opens with the visible text (WCAG 2.5.3), so a
+    // voice-control user saying what they can see matches the button.
     const link = screen.getByRole('button', {
-      name: /show passages tagged thesis/i,
+      name: '2 highlights as evidence for Thesis',
     });
     expect(link).toHaveTextContent('2 highlights');
     fireEvent.click(link);
@@ -79,7 +81,7 @@ describe('RubricScoringPanel evidence counts', () => {
       />
     );
     expect(
-      screen.getByRole('button', { name: /show passages tagged thesis/i })
+      screen.getByRole('button', { name: /notes? as evidence for thesis/i })
     ).toHaveTextContent('1 note');
   });
 

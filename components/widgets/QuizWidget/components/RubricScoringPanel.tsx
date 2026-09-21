@@ -153,6 +153,12 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
           const selected = byCriterion.get(criterion.id);
           const noteOpen = expandedNotes.has(criterion.id);
           const tagCount = tagCounts?.[criterion.id] ?? 0;
+          const countLabel = t(
+            tagCountKind === 'note'
+              ? 'quizMediaResponse.grading.rubricTags.noteCount'
+              : 'quizMediaResponse.grading.rubricTags.highlightCount',
+            { count: tagCount }
+          );
           // Storage orders levels low → high; the grader scans high → low.
           const levels = [...criterion.levels].reverse();
           return (
@@ -179,18 +185,14 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
                   <button
                     type="button"
                     onClick={() => onJumpToTagged(criterion.id)}
-                    aria-label={t(
-                      'quizMediaResponse.grading.rubricTags.jumpTo',
+                    // Opens with the visible count so voice control can match it.
+                    aria-label={`${countLabel}${t(
+                      'quizMediaResponse.grading.rubricTags.jumpToSuffix',
                       { name: criterion.name }
-                    )}
+                    )}`}
                     className="shrink-0 rounded text-xs font-bold text-violet-700 underline underline-offset-2 transition-colors hover:text-violet-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
                   >
-                    {t(
-                      tagCountKind === 'note'
-                        ? 'quizMediaResponse.grading.rubricTags.noteCount'
-                        : 'quizMediaResponse.grading.rubricTags.highlightCount',
-                      { count: tagCount }
-                    )}
+                    {countLabel}
                   </button>
                 )}
                 {selected && (
