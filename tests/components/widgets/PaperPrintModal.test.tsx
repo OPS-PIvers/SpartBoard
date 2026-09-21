@@ -776,6 +776,32 @@ describe('PaperPrintModal', () => {
       expect(screen.getByText('Nothing yet')).toBeInTheDocument();
     });
 
+    it('will not let Cancel pull the document out from under a render', async () => {
+      let finish!: () => void;
+      renderPdfPage.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = () =>
+              resolve({
+                blob: new Blob(['page-1']),
+                widthPx: 1700,
+                heightPx: 2200,
+              });
+          })
+      );
+      const { onError } = setup({ quiz: quiz() });
+      fireEvent.click(
+        screen.getByRole('button', { name: /Add to the answer sheet/ })
+      );
+      fireEvent.change(fileInput(), { target: { files: [pdf()] } });
+      fireEvent.click(await screen.findByRole('button', { name: 'Page 1' }));
+
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+      finish();
+      await waitFor(() => expect(drive.uploadFile).toHaveBeenCalled());
+      expect(onError).not.toHaveBeenCalled();
+    });
+
     it('lets the PDF go even if the modal is closed out from under it', async () => {
       const { unmount } = setup({ quiz: quiz() });
       fireEvent.click(

@@ -493,15 +493,21 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     return (
       <Modal
         isOpen
-        onClose={closePdfPick}
+        // Backing out mid-render would destroy the document the render is
+        // still reading, and the teacher would get an error for a page they
+        // had already given up on.
+        onClose={() => {
+          if (!stimulusBusy) closePdfPick();
+        }}
         ariaLabel="Pick a page"
         maxWidth="max-w-md"
         footer={
           <div className="flex justify-end">
             <button
               type="button"
+              disabled={stimulusBusy}
               onClick={closePdfPick}
-              className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+              className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
             >
               Cancel
             </button>
