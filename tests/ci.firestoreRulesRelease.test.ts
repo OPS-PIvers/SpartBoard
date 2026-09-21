@@ -15,13 +15,14 @@
  * bundled `firebase deploy` targets while that is still true, deploys break
  * again in exactly the same silent way — hence this test.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import {
   blockingIssues,
   isTransientStatus,
+  call,
 } from '../scripts/releaseFirestoreRules.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -81,5 +82,92 @@ describe('releaseFirestoreRules helpers', () => {
     expect(isTransientStatus(400)).toBe(false);
     expect(isTransientStatus(409)).toBe(false);
     expect(isTransientStatus(403)).toBe(false);
+  });
+});
+
+describe('releaseFirestoreRules call()', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubFetch(...outcomes: unknown[]) {
+    const fetchMock = vi.fn(() => {
+      const next = outcomes.shift();
+      if (next instanceof Error) return Promise.reject(next);
+      return Promise.resolve(next);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  function response(status: number, body: string) {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      text: () => Promise.resolve(body),
+    };
+  }
+
+  // The release step now runs once, outside the bash wrapper's retry loop, so a
+  // connection that never reaches a status code has to be retried here.
+  it('retries a fetch rejection and returns the eventual success', async () => {
+    const fetchMock = stubFetch(
+      Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' }),
+      response(200, '{"name":"projects/p/rulesets/abc"}')
+    );
+    await expect(
+      call(
+        'token',
+        'POST',
+        '/projects/p/rulesets',
+        { source: {} },
+        { baseDelayMs: 0 }
+      )
+    ).resolves.toEqual({ name: 'projects/p/rulesets/abc' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives up after maxAttempts and names the connection error', async () => {
+    const fetchMock = stubFetch(
+      new Error('socket hang up'),
+      new Error('socket hang up')
+    );
+    await expect(
+      call('token', 'GET', '/projects/p/releases', undefined, {
+        baseDelayMs: 0,
+        maxAttempts: 2,
+      })
+    ).rejects.toThrow('socket hang up');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  // The 400 this script exists to avoid must surface immediately, not be retried.
+  it('does not retry a 400 and surfaces its body', async () => {
+    const fetchMock = stubFetch(
+      response(400, '{"error":{"status":"INVALID_ARGUMENT"}}')
+    );
+    await expect(
+      call(
+        'token',
+        'PATCH',
+        '/projects/p/releases/cloud.firestore',
+        {},
+        {
+          baseDelayMs: 0,
+        }
+      )
+    ).rejects.toThrow('400 {"error":{"status":"INVALID_ARGUMENT"}}');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries a 429 so ruleset creation can hit the prune path', async () => {
+    const fetchMock = stubFetch(
+      response(429, 'quota'),
+      response(200, '{"ok":true}')
+    );
+    await expect(
+      call('token', 'POST', '/projects/p/rulesets', {}, { baseDelayMs: 0 })
+    ).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

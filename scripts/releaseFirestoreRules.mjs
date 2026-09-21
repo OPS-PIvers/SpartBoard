@@ -60,28 +60,51 @@ async function accessToken() {
   return token;
 }
 
-async function call(token, method, path, body) {
-  let backoff = 2000;
+export async function call(
+  token,
+  method,
+  path,
+  body,
+  { baseDelayMs = 2000, maxAttempts = MAX_ATTEMPTS } = {}
+) {
+  let backoff = baseDelayMs;
   for (let attempt = 1; ; attempt += 1) {
-    const response = await fetch(`${API}${path}`, {
-      method,
-      headers: {
-        authorization: `Bearer ${token}`,
-        'content-type': 'application/json',
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    const retry = async (reason) => {
+      console.warn(
+        `${method} ${path} -> ${reason}; retrying in ${backoff / 1000}s ` +
+          `(attempt ${attempt}/${maxAttempts})`
+      );
+      await new Promise((resolve) => setTimeout(resolve, backoff));
+      backoff *= 2;
+    };
+
+    let response;
+    try {
+      response = await fetch(`${API}${path}`, {
+        method,
+        headers: {
+          authorization: `Bearer ${token}`,
+          'content-type': 'application/json',
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    } catch (error) {
+      // ECONNRESET, socket hang up, DNS — a connection that never reaches a
+      // status code. The bash wrapper retried these while the CLI owned this
+      // call, and this step runs once, outside its retry loop.
+      if (attempt >= maxAttempts) {
+        throw new Error(`${method} ${path} -> ${error.message}`);
+      }
+      await retry(error.message);
+      continue;
+    }
+
     const text = await response.text();
     if (response.ok) {
       return text ? JSON.parse(text) : {};
     }
-    if (isTransientStatus(response.status) && attempt < MAX_ATTEMPTS) {
-      console.warn(
-        `${method} ${path} -> ${response.status}; retrying in ${backoff / 1000}s ` +
-          `(attempt ${attempt}/${MAX_ATTEMPTS})`
-      );
-      await new Promise((resolve) => setTimeout(resolve, backoff));
-      backoff *= 2;
+    if (isTransientStatus(response.status) && attempt < maxAttempts) {
+      await retry(String(response.status));
       continue;
     }
     // The body carries the reason the deploy used to swallow. Print it.
