@@ -257,13 +257,28 @@ async function main() {
   const rejected = [];
   for (const attempt of releaseAttempts(projectId, ruleset.name)) {
     try {
-      release = await call(token, 'PATCH', attempt.path, attempt.body);
-      console.log(`released via "${attempt.label}"`);
-      break;
+      await call(token, 'PATCH', attempt.path, attempt.body);
     } catch (error) {
       console.warn(`rejected "${attempt.label}": ${error.message}`);
       rejected.push(`${attempt.label}\n  ${error.message}`);
+      continue;
     }
+    // Some shapes omit fields the API may ignore rather than refuse, so read
+    // the release back: a 200 that changed nothing is the silent failure
+    // this script exists to end.
+    const applied = await call(
+      token,
+      'GET',
+      `/projects/${projectId}/releases/${RELEASE_NAME}`
+    );
+    if (applied.rulesetName === ruleset.name) {
+      console.log(`released via "${attempt.label}"`);
+      release = applied;
+      break;
+    }
+    const note = `accepted but left the release on ${applied.rulesetName}`;
+    console.warn(`rejected "${attempt.label}": ${note}`);
+    rejected.push(`${attempt.label}\n  ${note}`);
   }
   if (!release) {
     throw new Error(
