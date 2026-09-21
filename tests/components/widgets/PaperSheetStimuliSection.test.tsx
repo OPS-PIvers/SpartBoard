@@ -61,12 +61,16 @@ describe('PaperSheetStimuliSection', () => {
       screen.queryByRole('button', { name: 'From Drive' })
     ).not.toBeInTheDocument();
     expand();
-    expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Upload or PDF' })
+    ).toBeInTheDocument();
   });
 
   it('opens already expanded when the quiz has stimuli on it', () => {
     setup({ stimuli: [stim()] });
-    expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Upload or PDF' })
+    ).toBeInTheDocument();
     expect(screen.getByText('1 item')).toBeInTheDocument();
   });
 
@@ -344,7 +348,9 @@ describe('PaperSheetStimuliSection', () => {
 
   it('locks the source buttons while an upload is in flight', () => {
     setup({ stimuli: [stim()], busy: true });
-    expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Upload or PDF' })
+    ).toBeDisabled();
     expect(screen.getByRole('button', { name: 'From Drive' })).toBeDisabled();
   });
 });

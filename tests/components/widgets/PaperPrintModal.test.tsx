@@ -28,8 +28,10 @@ let sheetImages: {
   loading: boolean;
 } = { src: {}, failed: [], loading: false };
 
+/** Nulled in the one test that checks what happens with no Drive connected. */
+let driveConnected = true;
 vi.mock('@/hooks/useGoogleDrive', () => ({
-  useGoogleDrive: () => ({ driveService: drive }),
+  useGoogleDrive: () => ({ driveService: driveConnected ? drive : null }),
 }));
 vi.mock('@/hooks/useGooglePicker', () => ({
   useGooglePicker: () => ({ openPicker }),
@@ -37,6 +39,30 @@ vi.mock('@/hooks/useGooglePicker', () => ({
 vi.mock('@/hooks/usePaperSheetStimulusImages', () => ({
   usePaperSheetStimulusImages: () => sheetImages,
 }));
+
+/** pdf.js never runs in a test; what matters is which page gets rendered. */
+const renderPdfPage = vi.fn((pageNumber: number) =>
+  Promise.resolve({
+    blob: new Blob([`page-${pageNumber}`]),
+    widthPx: 1700,
+    heightPx: 2200,
+  })
+);
+const closePdf = vi.fn();
+let pdfPageCount = 3;
+vi.mock('@/utils/paperSheetPdfPage', async (importActual) => {
+  const actual =
+    await importActual<typeof import('@/utils/paperSheetPdfPage')>();
+  return {
+    ...actual,
+    openPdfPages: () =>
+      Promise.resolve({
+        pageCount: pdfPageCount,
+        render: renderPdfPage,
+        close: closePdf,
+      }),
+  };
+});
 
 import type {
   ClassRoster,
@@ -87,7 +113,7 @@ const setup = (
   const print = vi.fn<(job: PaperPrintJob) => void>();
   const onClose = vi.fn();
   const onError = vi.fn();
-  render(
+  const { unmount } = render(
     <PaperPrintModal
       quiz={quiz()}
       rosters={[roster]}
@@ -98,7 +124,7 @@ const setup = (
       {...over}
     />
   );
-  return { onSaveBatch, print, onClose, onError };
+  return { onSaveBatch, print, onClose, onError, unmount };
 };
 
 /** The section's file input is hidden, and the modal renders in a portal. */
@@ -114,6 +140,8 @@ const selectWholeClass = () =>
 describe('PaperPrintModal', () => {
   beforeEach(() => {
     sheetImages = { src: {}, failed: [], loading: false };
+    pdfPageCount = 3;
+    driveConnected = true;
     vi.clearAllMocks();
     // clearAllMocks keeps whatever a test set with mockResolvedValue.
     drive.listFilePermissions.mockReset();
@@ -526,16 +554,6 @@ describe('PaperPrintModal', () => {
         heightPx: 480,
       });
     });
-
-    it('turns away a file that is not an image', async () => {
-      const { onError } = setup({ quiz: quiz({ paperSheetStimuli: [graph] }) });
-      const file = new File(['x'], 'notes.pdf', { type: 'application/pdf' });
-      fireEvent.change(fileInput(), { target: { files: [file] } });
-      await waitFor(() =>
-        expect(onError).toHaveBeenCalledWith('"notes.pdf" is not an image.')
-      );
-      expect(drive.uploadFile).not.toHaveBeenCalled();
-    });
   });
 
   describe('sharing sheet images with a PLC (D6)', () => {
@@ -675,6 +693,163 @@ describe('PaperPrintModal', () => {
       await waitFor(() => expect(print).toHaveBeenCalled());
       expect(onError).toHaveBeenCalledWith(
         expect.stringContaining('Unit 3 graph')
+      );
+    });
+  });
+
+  describe('a page of a PDF (D7)', () => {
+    const pdf = () =>
+      new File(['%PDF'], 'Unit 3 review.pdf', { type: 'application/pdf' });
+
+    const choosePdf = async () => {
+      setup({ quiz: quiz() });
+      fireEvent.click(
+        screen.getByRole('button', { name: /Add to the answer sheet/ })
+      );
+      fireEvent.change(fileInput(), { target: { files: [pdf()] } });
+      return screen.findByText(/Which page goes on the sheet\?/);
+    };
+
+    it('asks which page, rather than printing the whole file', async () => {
+      await choosePdf();
+      expect(
+        screen.getByText(/Unit 3 review\.pdf has 3 pages/)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Page 3' })
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Page 4' })).toBeNull();
+      // Nothing is on the sheet until a page is picked.
+      expect(drive.uploadFile).not.toHaveBeenCalled();
+    });
+
+    it('renders the chosen page and uploads it as an ordinary image', async () => {
+      await choosePdf();
+      fireEvent.click(screen.getByRole('button', { name: 'Page 2' }));
+      await waitFor(() => expect(drive.uploadFile).toHaveBeenCalled());
+
+      expect(renderPdfPage).toHaveBeenCalledWith(2);
+      // Printing must never need pdf.js, so a PNG goes to Drive, not the PDF.
+      const [blob, name, folder] = drive.uploadFile.mock.calls[0];
+      expect(blob).not.toBe(pdf());
+      expect(name).toContain('Unit_3_review-p2.png');
+      expect(folder).toBe('Assets/PaperSheetStimuli');
+
+      const row = await screen.findByText('Unit 3 review — page 2');
+      expect(row).toBeInTheDocument();
+      // The picker closes, and the PDF is let go of.
+      expect(screen.queryByText(/Which page goes on the sheet/)).toBeNull();
+      expect(closePdf).toHaveBeenCalled();
+    });
+
+    it('carries the rendered size, so auto-fit knows the page shape', async () => {
+      const { print } = setup({ quiz: quiz() });
+      fireEvent.click(
+        screen.getByRole('button', { name: /Add to the answer sheet/ })
+      );
+      fireEvent.change(fileInput(), { target: { files: [pdf()] } });
+      fireEvent.click(await screen.findByRole('button', { name: 'Page 1' }));
+      await screen.findByText('1 item');
+      selectWholeClass();
+      fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+      await waitFor(() => expect(print).toHaveBeenCalled());
+      expect(print.mock.calls[0][0].sheetStimuli?.[0]).toMatchObject({
+        widthPx: 1700,
+        heightPx: 2200,
+        driveFileId: 'uploaded-1',
+      });
+    });
+
+    it('names a one-page file after the file, with no page number', async () => {
+      pdfPageCount = 1;
+      setup({ quiz: quiz() });
+      fireEvent.click(
+        screen.getByRole('button', { name: /Add to the answer sheet/ })
+      );
+      fireEvent.change(fileInput(), { target: { files: [pdf()] } });
+      fireEvent.click(await screen.findByRole('button', { name: 'Page 1' }));
+      expect(await screen.findByText('Unit 3 review')).toBeInTheDocument();
+    });
+
+    it('lets the teacher back out without adding anything', async () => {
+      await choosePdf();
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      await waitFor(() => expect(closePdf).toHaveBeenCalled());
+      expect(drive.uploadFile).not.toHaveBeenCalled();
+      expect(screen.getByText('Nothing yet')).toBeInTheDocument();
+    });
+
+    it('will not let Cancel pull the document out from under a render', async () => {
+      let finish!: () => void;
+      renderPdfPage.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = () =>
+              resolve({
+                blob: new Blob(['page-1']),
+                widthPx: 1700,
+                heightPx: 2200,
+              });
+          })
+      );
+      const { onError } = setup({ quiz: quiz() });
+      fireEvent.click(
+        screen.getByRole('button', { name: /Add to the answer sheet/ })
+      );
+      fireEvent.change(fileInput(), { target: { files: [pdf()] } });
+      fireEvent.click(await screen.findByRole('button', { name: 'Page 1' }));
+
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+      finish();
+      await waitFor(() => expect(drive.uploadFile).toHaveBeenCalled());
+      expect(onError).not.toHaveBeenCalled();
+    });
+
+    it('says Drive is needed before parsing the PDF, not after', async () => {
+      driveConnected = false;
+      const { onError } = setup({ quiz: quiz() });
+      fireEvent.click(
+        screen.getByRole('button', { name: /Add to the answer sheet/ })
+      );
+      fireEvent.change(fileInput(), { target: { files: [pdf()] } });
+      await waitFor(() =>
+        expect(onError).toHaveBeenCalledWith(
+          'Connect Google Drive to add an image to the answer sheet.'
+        )
+      );
+      // No page picker to work through first.
+      expect(screen.queryByRole('button', { name: 'Page 1' })).toBeNull();
+      expect(renderPdfPage).not.toHaveBeenCalled();
+    });
+
+    it('lets the PDF go even if the modal is closed out from under it', async () => {
+      const { unmount } = setup({ quiz: quiz() });
+      fireEvent.click(
+        screen.getByRole('button', { name: /Add to the answer sheet/ })
+      );
+      fireEvent.change(fileInput(), { target: { files: [pdf()] } });
+      await screen.findByRole('button', { name: 'Page 1' });
+      expect(closePdf).not.toHaveBeenCalled();
+
+      // Nothing here clicks Cancel, so only unmount can release the worker.
+      unmount();
+      expect(closePdf).toHaveBeenCalled();
+    });
+
+    it('still turns away a file that is neither an image nor a PDF', async () => {
+      const { onError } = setup({ quiz: quiz() });
+      fireEvent.click(
+        screen.getByRole('button', { name: /Add to the answer sheet/ })
+      );
+      fireEvent.change(fileInput(), {
+        target: {
+          files: [new File(['x'], 'notes.txt', { type: 'text/plain' })],
+        },
+      });
+      await waitFor(() =>
+        expect(onError).toHaveBeenCalledWith(
+          '"notes.txt" is not an image or a PDF.'
+        )
       );
     });
   });
