@@ -60,6 +60,7 @@ export { getQuizArtifactPlaybackUrl } from './getQuizArtifactPlaybackUrl';
 export { prepareQuizReadAloudV1, synthesizeQuizAudioV1 } from './quizReadAloud';
 export { translateQuizV1, translateResponseV1 } from './quizTranslation';
 export { extractStimulusReadAloudTextV1 } from './quizStimulusText';
+export { extractQuizFromDocumentV1 } from './quizDocumentExtract';
 
 // ── Org-admin media review & compliance delete (COPPA review-and-delete) ───
 export {

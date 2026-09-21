@@ -66,6 +66,7 @@ import { QuizManager, PlcOptions } from './components/QuizManager';
 import type { AssignDestination } from './components/AssignDestinationModal';
 import { ImportWizard } from '@/components/common/library/importer';
 import { createQuizImportAdapter } from './adapters/quizImportAdapter';
+import { extractQuizFromDocument } from '@/utils/quizDocumentImport/aiReaderApi';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
@@ -205,6 +206,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { showConfirm } = useDialog();
   const { openPicker } = useGooglePicker();
   const canImportDocuments = useQuizDocumentImportGate();
+  // D1: the AI reader handles the layouts the browser reader can't, like a
+  // key in a table; it needs the same AI permission as every other AI feature.
+  const canUseAiReader =
+    canImportDocuments && canAccessFeature('gemini-functions');
   const config = widget.config as QuizConfig;
 
   // Opens the Google Picker so the teacher selects a Sheet to import. Picking
@@ -1390,6 +1395,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       // tile is offered on the quiz import only.
       canImportDocuments,
       pickDocument,
+      ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
       onDocumentImages: (images) => {
         documentImagesRef.current = images;
       },
