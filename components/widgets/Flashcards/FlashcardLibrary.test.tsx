@@ -150,3 +150,92 @@ describe('FlashcardLibrary set-library grid empty states', () => {
     expect(screen.queryByText('Build your first set')).toBeNull();
   });
 });
+
+describe('FlashcardLibrary set-library grid card identity', () => {
+  const makeSet = (overrides: Partial<FlashcardSet>): FlashcardSet => ({
+    id: 'set',
+    title: 'Untitled',
+    termLanguage: 'es',
+    definitionLanguage: 'en',
+    cards: [],
+    createdAt: 1,
+    updatedAt: 1,
+    ...overrides,
+  });
+
+  it("closes a removed card's open menu instead of leaking it onto the card that slides into its old position", () => {
+    // Sorted "Last updated" desc (the library's default sort), so render order is A, B, C.
+    const setA = makeSet({ id: 'set-a', title: 'Set A', updatedAt: 3 });
+    const setB = makeSet({
+      id: 'set-b',
+      title: 'Set B',
+      updatedAt: 2,
+      publicShareId: 'share-b',
+    });
+    const setC = makeSet({ id: 'set-c', title: 'Set C', updatedAt: 1 });
+
+    const { rerender } = render(
+      <FlashcardLibrary
+        sets={[setA, setB, setC]}
+        loading={false}
+        error={null}
+        folders={folders}
+        assignments={[]}
+        assignmentsLoading={false}
+        tab="library"
+        onNew={vi.fn()}
+        onImport={vi.fn()}
+        onEdit={vi.fn()}
+        onPresent={vi.fn()}
+        onShare={vi.fn()}
+        onAssign={vi.fn()}
+        onDelete={vi.fn()}
+        onAssignmentResults={vi.fn()}
+        onAssignmentPublishScores={vi.fn()}
+        onAssignmentUnpublishScores={vi.fn()}
+        onAssignmentCopyLink={vi.fn()}
+        onAssignmentEnd={vi.fn()}
+        onAssignmentReopen={vi.fn()}
+        onAssignmentDelete={vi.fn()}
+        onTabChange={vi.fn()}
+      />
+    );
+
+    // Open Set B's (the middle card's) overflow menu.
+    const moreButtons = screen.getAllByRole('button', {
+      name: 'More actions',
+    });
+    fireEvent.click(moreButtons[1]);
+    expect(screen.getByText('Manage public link')).toBeTruthy();
+
+    // Set B removed; without a stable key, React would reuse its instance (and open menu) for Set C.
+    rerender(
+      <FlashcardLibrary
+        sets={[setA, setC]}
+        loading={false}
+        error={null}
+        folders={folders}
+        assignments={[]}
+        assignmentsLoading={false}
+        tab="library"
+        onNew={vi.fn()}
+        onImport={vi.fn()}
+        onEdit={vi.fn()}
+        onPresent={vi.fn()}
+        onShare={vi.fn()}
+        onAssign={vi.fn()}
+        onDelete={vi.fn()}
+        onAssignmentResults={vi.fn()}
+        onAssignmentPublishScores={vi.fn()}
+        onAssignmentUnpublishScores={vi.fn()}
+        onAssignmentCopyLink={vi.fn()}
+        onAssignmentEnd={vi.fn()}
+        onAssignmentReopen={vi.fn()}
+        onAssignmentDelete={vi.fn()}
+        onTabChange={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+});

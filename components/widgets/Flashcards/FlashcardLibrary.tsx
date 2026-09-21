@@ -361,6 +361,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
             }
             renderCard={(set) => (
               <LibraryItemCard<FlashcardSet>
+                key={set.id}
                 id={set.id}
                 title={set.title || 'Untitled set'}
                 subtitle={`${set.cards.length} card${set.cards.length === 1 ? '' : 's'} · Updated ${new Date(set.updatedAt).toLocaleDateString()}`}
