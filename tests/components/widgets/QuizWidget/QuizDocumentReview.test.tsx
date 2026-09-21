@@ -84,9 +84,9 @@ describe('QuizDocumentReview', () => {
     });
     expect(latest().questions[0].text).toBe('What colour is the sea?');
     // The textarea has to show the edit, or the teacher cannot keep typing.
-    expect(screen.getByLabelText('Question 1 text').value).toBe(
-      'What colour is the sea?'
-    );
+    expect(
+      screen.getByLabelText<HTMLTextAreaElement>('Question 1 text').value
+    ).toBe('What colour is the sea?');
   });
 
   it('clears "Needs answer" when the teacher picks one of the choices', () => {
