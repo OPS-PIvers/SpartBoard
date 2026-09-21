@@ -186,7 +186,9 @@ describe('PaperPrintModal', () => {
       'd2',
     ]);
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByText(/Answer sheets sent to print/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Response sheets sent to print/)
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Print test paper/ }));
     expect(printTest).toHaveBeenCalledOnce();

@@ -82,10 +82,10 @@ const FEATURE_ROWS: readonly FeatureRow[] = [
     key: 'printForTeammates',
     icon: Printer,
     titleKey: 'plcDashboard.settings.printForTeammates.title',
-    titleDefault: 'Print answer sheets for a teammate',
+    titleDefault: 'Print response sheets for a teammate',
     descriptionKey: 'plcDashboard.settings.printForTeammates.description',
     descriptionDefault:
-      'Let a member print paper answer sheets for a colleague who is out. The colleague still scans and grades their own stack, and sees who printed it. Turn this off for the whole PLC.',
+      'Let a member print paper response sheets for a colleague who is out. The colleague still scans and grades their own stack, and sees who printed it. Turn this off for the whole PLC.',
   },
 ] as const;
 

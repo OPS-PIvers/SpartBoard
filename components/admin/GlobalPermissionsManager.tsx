@@ -201,7 +201,7 @@ const GLOBAL_FEATURES: {
     label: 'Paper answer sheets (Scantron replacement)',
     icon: Printer,
     description:
-      'Lets teachers print bubble answer sheets for a quiz and import the scanned stack as graded responses. Adds "Print answer sheets" and "Import scanned sheets" to the quiz menu and a "Paper test" button beside Import. Fail-closed: admin-only until this is saved and opened up, and the whole feature stays off until it is also switched on under Access → Rollouts.',
+      'Lets teachers print bubble response sheets for a quiz and import the scanned stack as graded responses. Adds "Print response sheets" and "Import responses" to the quiz menu and a "Paper test" button beside Import. Fail-closed: admin-only until this is saved and opened up, and the whole feature stays off until it is also switched on under Access → Rollouts.',
   },
   {
     id: 'roster-groups',

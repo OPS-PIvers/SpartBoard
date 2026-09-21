@@ -49,14 +49,14 @@ const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     docId: PAPER_ANSWER_SHEETS_SETTINGS_DOC,
     title: 'Paper answer sheets',
     description:
-      'Print bubble answer sheets for a quiz and import the scanned stack. Adds “Print answer sheets” and “Import scanned sheets” to the quiz menu and “Paper test” under the New Quiz caret, after Import.',
+      'Print bubble response sheets for a quiz and import the scanned stack. Adds “Print response sheets” and “Import responses” to the quiz menu and “Paper test” under the New Quiz caret, after Import.',
     normalize: normalizePaperAnswerSheetsSettings,
   },
   {
     docId: PLC_DELEGATED_PRINTING_SETTINGS_DOC,
-    title: 'Print answer sheets for a PLC teammate',
+    title: 'Print response sheets for a PLC teammate',
     description:
-      'Adds “Print answer sheets for a teammate” to the PLC quiz row menu, so a member can print a colleague’s stack when they are out. Needs paper answer sheets on as well. The colleague still scans, grades and publishes their own results.',
+      'Adds “Print response sheets for a teammate” to the PLC quiz row menu, so a member can print a colleague’s stack when they are out. Needs paper answer sheets on as well. The colleague still scans, grades and publishes their own results.',
     normalize: normalizePlcDelegatedPrintingSettings,
   },
   {

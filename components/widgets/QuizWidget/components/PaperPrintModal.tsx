@@ -348,7 +348,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       else if (!isStub) setPrintedBatch(batch);
     } catch (err) {
       onError(
-        err instanceof Error ? err.message : 'Could not print answer sheets.'
+        err instanceof Error ? err.message : 'Could not print response sheets.'
       );
     } finally {
       setPrinting(false);
@@ -382,7 +382,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       <Modal
         isOpen
         onClose={onClose}
-        ariaLabel="Answer sheets printed"
+        ariaLabel="Response sheets printed"
         maxWidth="max-w-md"
         footer={
           <div className="flex justify-end gap-2">
@@ -409,7 +409,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                Answer sheets sent to print
+                Response sheets sent to print
               </h2>
               <p className="mt-1 text-sm text-slate-600">
                 Now print the test paper. Its choices are lettered to match
@@ -427,7 +427,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     <Modal
       isOpen
       onClose={onClose}
-      ariaLabel="Print answer sheets"
+      ariaLabel="Print response sheets"
       maxWidth="max-w-2xl"
       contentClassName=""
       customHeader={
@@ -438,7 +438,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                Print answer sheets
+                Print response sheets
               </h2>
               <p className="mt-0.5 max-w-[24rem] truncate text-xs text-slate-500">
                 {onCreateQuiz
