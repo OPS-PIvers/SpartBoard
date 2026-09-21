@@ -469,6 +469,127 @@ describe('FreeResponseGrader take numbering', () => {
   });
 });
 
+const ESSAY_RUBRIC = {
+  id: 'r1',
+  title: 'Essay rubric',
+  createdAt: 0,
+  updatedAt: 0,
+  criteria: [
+    {
+      id: 'c1',
+      name: 'Thesis',
+      levels: [
+        { id: 'c1l1', label: 'Below', points: 1 },
+        { id: 'c1l2', label: 'Meets', points: 3 },
+      ],
+    },
+  ],
+};
+
+const typedQuiz = {
+  id: 'quiz-2',
+  title: 'Essays',
+  questions: [
+    {
+      id: 'q1',
+      text: 'Write a paragraph.',
+      type: 'free-response',
+      correctAnswer: '',
+      incorrectAnswers: [],
+      timeLimit: 0,
+      points: 4,
+      rubricSnapshot: ESSAY_RUBRIC,
+    },
+  ],
+} as unknown as QuizData;
+
+/** Already graded, with one untagged highlight banked. */
+const gradedEssay = (key: string): QuizResponse =>
+  ({
+    _responseKey: key,
+    studentUid: `u-${key}`,
+    status: 'completed',
+    answers: [{ questionId: 'q1', answer: 'alpha beta gamma', answeredAt: 1 }],
+    grading: {
+      q1: {
+        pointsAwarded: 3,
+        gradingSnapshot: '<p>alpha beta gamma</p>',
+        annotations: [
+          {
+            id: 'a1',
+            from: 0,
+            to: 5,
+            highlightColor: 'yellow',
+            authorUid: 'teacher-1',
+            createdAt: 0,
+          },
+        ],
+        rubricScores: [{ criterionId: 'c1', levelId: 'c1l2', points: 3 }],
+        gradedBy: 'teacher-1',
+        gradedAt: 1,
+      },
+    },
+  }) as unknown as QuizResponse;
+
+describe('FreeResponseGrader rubric strand tags', () => {
+  const renderEssayGrader = () => {
+    const onSaveGrade = vi.fn<FreeResponseGraderProps['onSaveGrade']>(() =>
+      Promise.resolve()
+    );
+    render(
+      <FreeResponseGrader
+        quiz={typedQuiz}
+        responses={[gradedEssay('ada')]}
+        displayNameByResponseKey={names}
+        teacherUid="teacher-1"
+        resolveTakeUrl={() => Promise.resolve('blob:take')}
+        onSaveGrade={onSaveGrade}
+        onClose={() => undefined}
+      />
+    );
+    return onSaveGrade;
+  };
+
+  it('treats a tag-only edit as dirty and banks it', async () => {
+    const onSave = renderEssayGrader();
+    const mark = await waitFor(() => {
+      const el = document.querySelector('mark[data-annotation-id="a1"]');
+      if (!el) throw new Error('Expected the highlight to render');
+      return el;
+    });
+    fireEvent.click(mark);
+    fireEvent.click(
+      screen.getByRole('button', { name: /tag as evidence for thesis/i })
+    );
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const grade = onSave.mock.calls.at(-1)?.[2] as WrittenAnswerGrade;
+    expect(grade.annotations?.[0].rubricCriteria).toEqual([
+      { criterionId: 'c1', name: 'Thesis' },
+    ]);
+    // Nothing else moved — the tag alone is what made it dirty.
+    expect(grade.pointsAwarded).toBe(3);
+  });
+
+  it('lists a tagged highlight under its strand in the highlights rail', async () => {
+    renderEssayGrader();
+    const mark = await waitFor(() => {
+      const el = document.querySelector('mark[data-annotation-id="a1"]');
+      if (!el) throw new Error('Expected the highlight to render');
+      return el;
+    });
+    fireEvent.click(mark);
+    fireEvent.click(
+      screen.getByRole('button', { name: /tag as evidence for thesis/i })
+    );
+    // The rail's pill replaces the "no comment yet" nudge.
+    await waitFor(() =>
+      expect(screen.queryByText(/no comment yet/i)).not.toBeInTheDocument()
+    );
+  });
+});
+
 describe('FreeResponseGrader close', () => {
   it('banks the pending edit on Escape and closes without a discard prompt', async () => {
     showConfirm.mockClear();

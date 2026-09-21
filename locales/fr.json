@@ -2455,6 +2455,12 @@
       "highlights": "Surlignages et commentaires ({{count}})",
       "highlightsEmpty": "Sélectionnez du texte pour le surligner.",
       "highlightNoComment": "(pas encore de commentaire — cliquez pour ajouter)",
+      "rubricTags": {
+        "label": "Critères de la grille",
+        "add": "Marquer comme preuve pour {{name}}",
+        "remove": "Retirer l'étiquette {{name}}",
+        "evidenceFor": "Preuve pour"
+      },
       "rubricOverrideNote": "Grille alternative pour cet élève",
       "pointsOverrideNote": "Points seulement pour cet élève — grille remplacée.",
       "tabSwitches_one": "{{count}} changement d'onglet",
