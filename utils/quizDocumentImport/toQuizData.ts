@@ -30,6 +30,9 @@ function toQuizQuestion(q: ExtractedQuestion): QuizQuestion {
     correctAnswer: isWritten ? '' : answer,
     incorrectAnswers: isWritten ? [] : incorrectAnswers,
     ...(!isWritten && !answer ? { needsKey: true } : {}),
+    // The reader's own image ids. `attachDocumentImages` swaps them for real
+    // stimulus ids at save; nothing persists a quiz before that runs.
+    ...(q.imageIds.length > 0 ? { stimulusIds: [...q.imageIds] } : {}),
   };
 }
 
