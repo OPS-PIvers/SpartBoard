@@ -150,6 +150,22 @@ export const PlcNewQuizAssignmentModal: React.FC<
         );
         return Promise.resolve();
       }
+      // A quiz still missing answers can't be scored, so it can't go to a PLC
+      // where a teammate would assign it (docs/plans/QUIZ_DOCUMENT_IMPORT.md D6).
+      const unanswered = meta.needsKeyCount ?? 0;
+      if (unanswered > 0) {
+        addToast(
+          t('plcDashboard.newAssignment.quiz.needsAnswers', {
+            count: unanswered,
+            defaultValue:
+              '{{count}} question still needs an answer. Open the quiz and fill it in before you share it.',
+            defaultValue_other:
+              '{{count}} questions still need an answer. Open the quiz and fill them in before you share it.',
+          }),
+          'error'
+        );
+        return Promise.resolve();
+      }
       setPickedQuiz(meta);
       setStep('configure');
       return Promise.resolve();

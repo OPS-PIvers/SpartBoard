@@ -334,8 +334,10 @@ export function createQuizImportAdapter(
         if (!q.text?.trim()) {
           errors.push(`Question ${i + 1} is missing text.`);
         }
-        if (!q.correctAnswer?.trim() && q.type !== 'FIB') {
-          // FIB without correctAnswer is unusual but not structurally invalid.
+        if (!q.correctAnswer?.trim() && q.type !== 'FIB' && !q.needsKey) {
+          // FIB without correctAnswer is unusual but not structurally invalid,
+          // and `needsKey` is a document import saying so on purpose (D7) —
+          // Assign, live start and PLC share are that question's gate.
           errors.push(`Question ${i + 1} is missing a correct answer.`);
         }
       }

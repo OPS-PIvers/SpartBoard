@@ -539,6 +539,21 @@ const SORT_OPTIONS: LibrarySortOption[] = [
  * re-derived every render (which would drive `useSortableReorder` into a
  * setState-during-render loop). */
 
+/**
+ * How many of a quiz's questions still need an answer key
+ * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D6). Read from the metadata so the
+ * library never loads the quiz body from Drive to answer it; absent on
+ * quizzes saved before the field existed, which is correctly "none".
+ */
+const quizNeedsKeyCount = (quiz: QuizMetadata): number =>
+  quiz.needsKeyCount ?? 0;
+
+/** Why Assign is off, named so the tooltip says what to do about it. */
+const needsKeyAssignReason = (count: number): string =>
+  count === 1
+    ? '1 question still needs an answer. Open the quiz and fill it in before you assign.'
+    : `${count} questions still need an answer. Open the quiz and fill them in before you assign.`;
+
 // Title + the question-text blob written on save (see QuizMetadata.searchText)
 // so search matches question content, not just titles.
 const LIBRARY_SEARCH_FIELDS = (q: QuizMetadata): string =>
@@ -724,8 +739,23 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     [onPullSyncedQuiz]
   );
 
+  // A view-only share carries no scoring, so an unanswered question can't
+  // break it — only Assign is gated (D6).
+  const assignDisabledReason = useCallback(
+    (quiz: QuizMetadata): string | undefined => {
+      if (isViewOnly) return undefined;
+      const count = quizNeedsKeyCount(quiz);
+      return count > 0 ? needsKeyAssignReason(count) : undefined;
+    },
+    [isViewOnly]
+  );
+
   const openShareOrAssign = useCallback(
     (quiz: QuizMetadata) => {
+      // Belt and braces: the row's Assign button is already disabled for a
+      // quiz with unanswered questions, but a keyboard or programmatic path
+      // must not create an assignment that can't be scored.
+      if (!isViewOnly && quizNeedsKeyCount(quiz) > 0) return;
       if (isViewOnly) {
         setViewOnlyShareTarget(quiz);
         setViewOnlyShareLink(null);
@@ -1172,6 +1202,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         tone: 'info',
         actionLabel: 'View in In Progress',
         ...(onTabChange ? { onClick: () => onTabChange('active') } : {}),
+      });
+    }
+    const unanswered = quizNeedsKeyCount(quiz);
+    if (unanswered > 0) {
+      statusBadges.push({
+        label:
+          unanswered === 1 ? 'Needs answer' : `Needs answers · ${unanswered}`,
+        tone: 'warn',
       });
     }
     if (archivedCount > 0 && !isViewOnly) {
@@ -2129,6 +2167,12 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           label: primaryActionLabel,
           icon: Play,
           onClick: () => openShareOrAssign(quiz),
+          ...(isViewOnly || quizNeedsKeyCount(quiz) === 0
+            ? {}
+            : {
+                disabled: true,
+                disabledReason: needsKeyAssignReason(quizNeedsKeyCount(quiz)),
+              }),
         }}
         secondaryActions={buildQuizSecondaryActions(quiz)}
         viewMode="list"
@@ -2174,6 +2218,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onBulkMove={handleBulkMove}
           onBulkDelete={handleBulkDelete}
           primaryActionLabel={primaryActionLabel}
+          assignDisabledReason={assignDisabledReason}
           // Derive the live snapshot from `quizzes` so Firestore updates
           // (rename / question edit / sync push) flow through the pane.
           // When the previewed quiz is deleted upstream, `find` returns
@@ -2475,6 +2520,8 @@ const LibraryTabContent: React.FC<{
   onBulkMove: (folderId: string | null) => Promise<void>;
   onBulkDelete: () => void | Promise<void>;
   primaryActionLabel: string;
+  /** Tooltip when the row's Assign is off; undefined leaves it enabled. */
+  assignDisabledReason: (quiz: QuizMetadata) => string | undefined;
   /**
    * Phase 5 follow-up — preview pane state. `previewQuiz` is the
    * currently-shown item (or null); single-click on a card sets it,
@@ -2511,6 +2558,7 @@ const LibraryTabContent: React.FC<{
   onBulkMove,
   onBulkDelete,
   primaryActionLabel,
+  assignDisabledReason,
   previewQuiz,
   onPreviewQuiz,
   onOpenFullPreview,
@@ -2620,6 +2668,12 @@ const LibraryTabContent: React.FC<{
                 label: primaryActionLabel,
                 icon: Play,
                 onClick: () => onAssignClick(quiz),
+                ...(assignDisabledReason(quiz)
+                  ? {
+                      disabled: true,
+                      disabledReason: assignDisabledReason(quiz) as string,
+                    }
+                  : {}),
               }}
               secondaryActions={buildSecondaryActions(quiz)}
               badges={buildBadges?.(quiz)}

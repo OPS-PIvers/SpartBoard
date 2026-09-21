@@ -3451,6 +3451,13 @@ export interface QuizQuestion {
   correctAnswer: string;
   /** MC only: up to 4 incorrect answer choices */
   incorrectAnswers: string[];
+  /**
+   * Set by a document import that read the question but not its key
+   * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D5). The question saves and prints
+   * with `correctAnswer: ''`; assigning, starting live and sharing to a PLC
+   * stay blocked until a teacher fills it in.
+   */
+  needsKey?: boolean;
   /** Point value for this question. Defaults to 1 if not set. */
   points?: number;
   /**
@@ -3824,6 +3831,12 @@ export interface QuizMetadata {
    * re-saved since the field was introduced — search falls back to title.
    */
   searchText?: string;
+  /**
+   * How many questions still carry `needsKey`, written on save beside
+   * `searchText` so the library can gate Assign without a Drive load.
+   * Absent on quizzes not re-saved since the field was introduced.
+   */
+  needsKeyCount?: number;
   /** Behavior settings authored in the editor; synced to PLC members. */
   behavior?: QuizBehaviorSettings;
   /**
@@ -8288,7 +8301,9 @@ export type GlobalFeature =
   /** Paper answer sheets; only meaningful while the Rollouts switch is on. */
   | 'paper-answer-sheets'
   /** Saved class groups inside board widgets; AND-ed with the Rollouts switch. */
-  | 'roster-groups';
+  | 'roster-groups'
+  /** Importing a quiz from a test document; AND-ed with the Rollouts switch. */
+  | 'quiz-document-import';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

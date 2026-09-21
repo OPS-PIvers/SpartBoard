@@ -24,6 +24,10 @@ import {
   PROJECTS_WIDGET_SETTINGS_DOC,
   normalizeProjectsWidgetSettings,
 } from '@/config/projectsWidget';
+import {
+  QUIZ_DOCUMENT_IMPORT_SETTINGS_DOC,
+  normalizeQuizDocumentImportSettings,
+} from '@/config/quizDocumentImport';
 
 interface RolloutSwitch {
   docId: string;
@@ -68,6 +72,13 @@ const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     description:
       'Adds the Projects widget to the dock: a teacher assigns one project to each group and every group tracks its own progress through the steps. Groups import from the Group Maker, so a class needs a ClassLink roster for the student side; other classes get a teacher-only tracker.',
     normalize: normalizeProjectsWidgetSettings,
+  },
+  {
+    docId: QUIZ_DOCUMENT_IMPORT_SETTINGS_DOC,
+    title: 'Build a quiz from a test document',
+    description:
+      'Lets teachers make a new quiz by uploading a PDF, Word file or Google Doc of a test, and fills a paper test\u2019s questions from the same document. Questions the reader can\u2019t find an answer for are marked \u201CNeeds answer\u201D and the quiz can\u2019t be assigned until a teacher fills them in.',
+    normalize: normalizeQuizDocumentImportSettings,
   },
 ];
 

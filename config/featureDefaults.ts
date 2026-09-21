@@ -246,6 +246,14 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Import a quiz from a PDF, Word file or Google Doc. Admin-only while the
+  // readers ship in stacked PRs; the Rollouts switch
+  // (admin_settings/quiz_document_import) must also be on.
+  'quiz-document-import': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /**
