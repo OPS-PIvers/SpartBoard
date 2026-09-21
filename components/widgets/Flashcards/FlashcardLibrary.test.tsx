@@ -208,11 +208,7 @@ describe('FlashcardLibrary set-library grid card identity', () => {
     fireEvent.click(moreButtons[1]);
     expect(screen.getByText('Manage public link')).toBeTruthy();
 
-    // Set B is deleted; Set C slides up into the DOM position Set B's open
-    // menu occupied. Without a stable `key`, React reuses that card's
-    // component instance (and its open-menu state) for Set C instead of
-    // unmounting it, so Set C's card would render with a menu the user
-    // never opened.
+    // Set B removed; without a stable key, React would reuse its instance (and open menu) for Set C.
     rerender(
       <FlashcardLibrary
         sets={[setA, setC]}
