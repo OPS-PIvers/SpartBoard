@@ -130,6 +130,15 @@ export function validateSchema<C = Record<string, unknown>>(
           `${type}: help "${field.help}" resolves to neither widgetSettings.${type}.${field.help} nor widgetSettings.common.${field.help}`
         );
       }
+      if (
+        (field.type === 'text' || field.type === 'textarea') &&
+        field.placeholder !== undefined &&
+        !resolves(catalog, type, field.placeholder)
+      ) {
+        errors.push(
+          `${type}: placeholder "${field.placeholder}" resolves to neither widgetSettings.${type}.${field.placeholder} nor widgetSettings.common.${field.placeholder}`
+        );
+      }
       for (const searchTerm of field.searchTerms ?? []) {
         if (!resolves(catalog, type, searchTerm)) {
           errors.push(
@@ -177,6 +186,15 @@ export function validateSchema<C = Record<string, unknown>>(
           ) {
             errors.push(
               `${prefix} help "${rowField.help}" resolves to neither widgetSettings.${type}.${rowField.help} nor widgetSettings.common.${rowField.help}`
+            );
+          }
+          if (
+            (rowField.type === 'text' || rowField.type === 'textarea') &&
+            rowField.placeholder !== undefined &&
+            !resolves(catalog, type, rowField.placeholder)
+          ) {
+            errors.push(
+              `${prefix} placeholder "${rowField.placeholder}" resolves to neither widgetSettings.${type}.${rowField.placeholder} nor widgetSettings.common.${rowField.placeholder}`
             );
           }
           for (const searchTerm of rowField.searchTerms ?? []) {

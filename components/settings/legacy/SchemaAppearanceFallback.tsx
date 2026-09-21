@@ -12,6 +12,7 @@ import type {
 import { resolveStyleFields } from '@/components/settings/schema/styleKeys';
 import { FieldRenderer } from '@/components/settings/renderer/FieldRenderer';
 import { SchemaRenderer } from '@/components/settings/renderer/SchemaRenderer';
+import { WidgetTypographySettings } from '@/components/common/UniversalStyleSettings';
 
 export interface SchemaAppearanceFallbackProps {
   widget: WidgetData;
@@ -104,7 +105,13 @@ export const SchemaAppearanceFallback: React.FC<
 
   const styleFields = resolveStyleFields(schema.styleKeys);
   const hasDisplayGroup = schema.groups.some((g) => g.id === 'display');
-  if (styleFields.length === 0 && !hasDisplayGroup) return null;
+  // Rendering nothing still counts as a custom appearance panel upstream, which
+  // would drop the window font and text size the legacy Style tab used to show.
+  if (styleFields.length === 0 && !hasDisplayGroup) {
+    return (
+      <WidgetTypographySettings widget={widget} updateWidget={updateWidget} />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5">

@@ -102,7 +102,12 @@ export default defineSettings<NumberLineConfig>({
                 step: 0.01,
               },
               { key: 'label', type: 'text', label: 'markerLabel' },
-              { key: 'color', type: 'color', label: 'markerColor' },
+              {
+                key: 'color',
+                type: 'color',
+                label: 'markerColor',
+                presets: WIDGET_PALETTE,
+              },
             ],
           },
         },
