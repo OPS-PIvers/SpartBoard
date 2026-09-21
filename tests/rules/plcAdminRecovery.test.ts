@@ -40,7 +40,17 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, updateDoc, deleteDoc, getDoc, doc } from 'firebase/firestore';
+import {
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  getDoc,
+  getDocs,
+  doc,
+  collection,
+  query,
+  limit,
+} from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-plc-admin-recovery';
 
@@ -69,6 +79,9 @@ const OTHER_ADMIN_EMAIL = 'admin@elsewhere.org';
 // Invitee (for the accept-invite no-regression check).
 const INVITEE_UID = 'invitee-uid';
 const INVITEE_EMAIL = 'invitee@orono.k12.mn.us';
+// Site-wide super admin (legacy admin_settings/user_roles.superAdmins path) — not org-scoped.
+const SUPER_ADMIN_UID = 'super-admin-uid';
+const SUPER_ADMIN_EMAIL = 'super@orono.k12.mn.us';
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -86,6 +99,13 @@ const asAdmin = () =>
   testEnv
     .authenticatedContext(ADMIN_UID, {
       email: ADMIN_EMAIL,
+      email_verified: true,
+    })
+    .firestore();
+const asSuperAdmin = () =>
+  testEnv
+    .authenticatedContext(SUPER_ADMIN_UID, {
+      email: SUPER_ADMIN_EMAIL,
       email_verified: true,
     })
     .firestore();
@@ -197,6 +217,10 @@ beforeEach(async () => {
     );
     await setDoc(doc(db, `plcs/${ORG_PLC_ID}`), orgRoot());
     await setDoc(doc(db, `plcs/${LEGACY_PLC_ID}`), legacyRoot());
+    // Legacy isSuperAdmin() path — site-wide, not org-scoped (see firestore.rules isLegacySuperAdmin()).
+    await setDoc(doc(db, 'admin_settings/user_roles'), {
+      superAdmins: [SUPER_ADMIN_EMAIL],
+    });
   });
 });
 
@@ -466,5 +490,22 @@ describe('plcs/{plcId} — admin READ scoping (PII boundary)', () => {
 
   it('an in-org admin canNOT read an org-LESS PLC (no orgId to scope on)', async () => {
     await assertFails(getDoc(doc(asAdmin(), `plcs/${LEGACY_PLC_ID}`)));
+  });
+
+  // A site-wide super admin needs a resource-independent read branch, or Firestore
+  // rejects the WHOLE unfiltered list query hooks/usePlcs.ts's asAdmin mode runs
+  // (query(collection(db,'plcs'), limit(500)), no where()) — a rules engine can't
+  // prove an org-scoped-only rule holds for arbitrary documents without a matching
+  // filter, so it denies the entire query up front, not just individual documents.
+  it('a site-wide super admin CAN run the unfiltered admin "browse all PLCs" list query', async () => {
+    await assertSucceeds(
+      getDocs(query(collection(asSuperAdmin(), 'plcs'), limit(500)))
+    );
+  });
+
+  it('an org-scoped (non-super) admin canNOT run the unfiltered admin list query, even though they can read individual in-org docs', async () => {
+    await assertFails(
+      getDocs(query(collection(asAdmin(), 'plcs'), limit(500)))
+    );
   });
 });

@@ -2130,7 +2130,13 @@ service cloud.firestore {
       // building_admin (see functions/src/organizationMembersSync.ts) — used
       // bare here it let a building_admin of one org browse another org's PLC
       // directory. Scoped the same way as isAdminManagingPlc() below: same-org
-      // admin only, same as the org-peer branch it sits next to.
+      // admin only, same as the org-peer branch it sits next to. isSuperAdmin()
+      // stays as a resource-independent branch (matching help_resources) so the
+      // admin "browse every PLC" picker (hooks/usePlcs.ts's asAdmin mode, an
+      // unfiltered list query) stays provable by Firestore's rules engine for a
+      // genuine site-wide admin — without it, no read branch is resource-
+      // independent and Firestore rejects the whole unfiltered query for
+      // everyone, not just the building_admin this scoping is meant to deny.
       allow read: if request.auth != null
         && (
           request.auth.uid in resource.data.get('memberUids', [])
@@ -2143,6 +2149,7 @@ service cloud.firestore {
             && resource.data.get('orgId', null) is string
             && isOrgMember(resource.data.orgId)
           )
+          || isSuperAdmin()
         );
       // Server-only — clients never write the discovery mirror.
       allow create, update, delete: if false;
@@ -2160,7 +2167,9 @@ service cloud.firestore {
       // this doc. Scoped to same-org, matching isAdminManagingPlc() and the
       // admin delete branch below (both already same-org-gated and tested in
       // plcAdminRecovery.test.ts) instead of the write side being scoped while
-      // read stayed open.
+      // read stayed open. isSuperAdmin() stays as a resource-independent branch
+      // for the same reason as plcIndex above — hooks/usePlcs.ts's asAdmin mode
+      // runs the same kind of unfiltered list query against this collection.
       allow read: if request.auth != null
         && (
           request.auth.uid in resource.data.get('members', {})
@@ -2170,6 +2179,7 @@ service cloud.firestore {
             && resource.data.get('orgId', null) is string
             && isOrgMember(resource.data.orgId)
           )
+          || isSuperAdmin()
         );
 
       // The creating teacher is the lead and only initial member: members map
