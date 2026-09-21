@@ -2,20 +2,21 @@
 /**
  * Compile, upload and release firestore.rules against the Firebase Rules API.
  *
- * WHY THIS EXISTS: from 2026-09-21T16:42Z the API began rejecting the release
- * call firebase-tools makes. `updateOrCreateRelease` PATCHes
- * `/releases/cloud.firestore` with no `updateMask`, and that now returns
+ * WHY THIS EXISTS: from 2026-09-21T16:42Z the API began answering the release
+ * call with
  *   400 {"message":"Request contains an invalid argument","status":"INVALID_ARGUMENT"}
- * The CLI discards that error (`.catch(() => createRelease(...))`) and POSTs a
- * new release instead, which fails 409 ALREADY_EXISTS because the release is
- * right there. Only the 409 reaches the log, so the deploy looks like a
- * harmless race while in fact nothing ships. firebase-tools 15.30.2 sends the
- * identical request, so there is no version to upgrade to.
+ * naming no field. firebase-tools discards that error (`.catch(() =>
+ * createRelease(...))`) and POSTs a new release instead, which fails 409
+ * ALREADY_EXISTS because the release is right there. Only the 409 reached the
+ * log, so the deploy looked like a harmless race while nothing shipped.
  *
- * This script does the same three calls with `updateMask=release.rulesetName`
- * on the PATCH, and surfaces the real status when one fails. The deploy
- * workflow runs it in place of `firebase deploy --only firestore:rules`;
- * indexes, storage and functions still go through the CLI.
+ * Doing the calls here means the real status is printed. The compile and the
+ * ruleset upload both return 200; only the release is refused. Adding
+ * `updateMask` did not fix it, so `releaseAttempts` walks the request shapes
+ * the API might want and stops at the first it accepts, printing what each
+ * rejection said. The deploy workflow runs this in place of
+ * `firebase deploy --only firestore:rules`; indexes, storage and functions
+ * still go through the CLI.
  *
  * Retire this the day the CLI's own release call works again: drop the script
  * and put `firestore:rules` back in the deploy targets.
@@ -135,6 +136,69 @@ async function pruneRulesets(token, projectId) {
   return stale.length;
 }
 
+/**
+ * Request shapes for the release call, tried in order until one is accepted.
+ * The API rejects the wrong shape with a bare INVALID_ARGUMENT naming no field,
+ * so trying them is the only way to find the one it wants.
+ */
+export function releaseAttempts(projectId, rulesetName) {
+  const path = `/projects/${projectId}/releases/${RELEASE_NAME}`;
+  const release = {
+    name: `projects/${projectId}/releases/${RELEASE_NAME}`,
+    rulesetName,
+  };
+  return [
+    {
+      label: 'mask in body',
+      path,
+      body: { release, updateMask: 'rulesetName' },
+    },
+    {
+      label: 'mask in body, no resource name',
+      path,
+      body: { release: { rulesetName }, updateMask: 'rulesetName' },
+    },
+    {
+      label: 'mask in body, release-prefixed path',
+      path,
+      body: { release, updateMask: 'release.rulesetName' },
+    },
+    { label: 'unwrapped release body', path, body: release },
+    { label: 'what the CLI sends', path, body: { release } },
+  ];
+}
+
+/**
+ * Splits the hypothesis in half once every shape has been refused: re-pointing
+ * the release at the ruleset it already serves is a no-op, so a rejection here
+ * is about the request or the permission and an acceptance means the new
+ * ruleset is what gets refused. Only runs on the failure path, so a healthy
+ * deploy never makes this extra write.
+ */
+async function probeLiveRuleset(token, projectId, liveRulesetName, attempted) {
+  if (!liveRulesetName || liveRulesetName === attempted) return;
+  try {
+    await call(
+      token,
+      'PATCH',
+      `/projects/${projectId}/releases/${RELEASE_NAME}`,
+      {
+        release: {
+          name: `projects/${projectId}/releases/${RELEASE_NAME}`,
+          rulesetName: liveRulesetName,
+        },
+      }
+    );
+    console.warn(
+      'probe: re-releasing the live ruleset was accepted, so the new ruleset is what the API refuses'
+    );
+  } catch (error) {
+    console.warn(
+      `probe: re-releasing the live ruleset failed too: ${error.message}`
+    );
+  }
+}
+
 async function main() {
   const projectId = process.argv[2];
   if (!projectId) {
@@ -183,19 +247,52 @@ async function main() {
   }
   console.log(`uploaded ruleset ${ruleset.name}`);
 
-  // updateMask is the whole point: without it the API rejects this as
-  // INVALID_ARGUMENT, which is what broke the CLI's release call.
-  const release = await call(
-    token,
-    'PATCH',
-    `/projects/${projectId}/releases/${RELEASE_NAME}?updateMask=release.rulesetName`,
-    {
-      release: {
-        name: `projects/${projectId}/releases/${RELEASE_NAME}`,
-        rulesetName: ruleset.name,
-      },
+  // Diagnostic only, so a project without this release yet must not stop us.
+  let current = {};
+  try {
+    current = await call(
+      token,
+      'GET',
+      `/projects/${projectId}/releases/${RELEASE_NAME}`
+    );
+    console.log(`current release: ${JSON.stringify(current)}`);
+  } catch (error) {
+    console.warn(`could not read the current release: ${error.message}`);
+  }
+
+  let release;
+  const rejected = [];
+  for (const attempt of releaseAttempts(projectId, ruleset.name)) {
+    try {
+      await call(token, 'PATCH', attempt.path, attempt.body);
+    } catch (error) {
+      console.warn(`rejected "${attempt.label}": ${error.message}`);
+      rejected.push(`${attempt.label}\n  ${error.message}`);
+      continue;
     }
-  );
+    // Some shapes omit fields the API may ignore rather than refuse, so read
+    // the release back: a 200 that changed nothing is the silent failure
+    // this script exists to end.
+    const applied = await call(
+      token,
+      'GET',
+      `/projects/${projectId}/releases/${RELEASE_NAME}`
+    );
+    if (applied.rulesetName === ruleset.name) {
+      console.log(`released via "${attempt.label}"`);
+      release = applied;
+      break;
+    }
+    const note = `accepted but left the release on ${applied.rulesetName}`;
+    console.warn(`rejected "${attempt.label}": ${note}`);
+    rejected.push(`${attempt.label}\n  ${note}`);
+  }
+  if (!release) {
+    await probeLiveRuleset(token, projectId, current.rulesetName, ruleset.name);
+    throw new Error(
+      `every release request shape was rejected:\n${rejected.join('\n')}`
+    );
+  }
   console.log(`released ${release.name} -> ${release.rulesetName}`);
 }
 
