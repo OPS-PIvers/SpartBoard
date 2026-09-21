@@ -134,6 +134,71 @@ const setup = (widgets: WidgetData[] = []) => {
 describe('Schedule settings drawer fields', () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it('never stores the legacy sentinel id when migrating items into schedules', () => {
+    const updateConfig = vi.fn();
+    setup();
+    const ctx = makeCtx(
+      {
+        items: [item('math', 'Math', '09:00')],
+        settingsSelectedScheduleId: 'default',
+      } as unknown as ScheduleConfig,
+      updateConfig
+    );
+    render(React.createElement(ScheduleListField, { ctx }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'New schedule' }));
+
+    const patch = updateConfig.mock.calls[0]?.[0] as {
+      items: ScheduleItem[];
+      schedules: DailySchedule[];
+    };
+    expect(patch.schedules).toHaveLength(2);
+    expect(patch.schedules[0].id).not.toBe('default');
+    expect(patch.schedules[0].items).toEqual([
+      expect.objectContaining({ task: 'Math' }),
+    ]);
+    expect(patch.items).toEqual([]);
+  });
+
+  it('renaming a stored schedule keeps its events and its siblings', () => {
+    const updateConfig = vi.fn();
+    setup();
+    const ctx = makeCtx(
+      {
+        items: [],
+        // A board already carrying the sentinel from the shipped bug.
+        schedules: [
+          schedule('default', 'Default Schedule', [
+            item('math', 'Math', '09:00'),
+          ]),
+          schedule('sched-b', 'Early release', []),
+        ],
+        settingsSelectedScheduleId: 'default',
+      },
+      updateConfig
+    );
+    render(React.createElement(ScheduleListField, { ctx }));
+
+    fireEvent.change(screen.getByPlaceholderText('Schedule name'), {
+      target: { value: 'Regular Day' },
+    });
+
+    const patch = updateConfig.mock.calls[0]?.[0] as {
+      items?: ScheduleItem[];
+      schedules: DailySchedule[];
+    };
+    expect(patch.schedules).toHaveLength(2);
+    expect(patch.schedules[0]).toMatchObject({
+      id: 'default',
+      name: 'Regular Day',
+    });
+    expect(patch.schedules[0].items).toEqual([
+      expect.objectContaining({ task: 'Math' }),
+    ]);
+    expect(patch.schedules[1]).toMatchObject({ id: 'sched-b' });
+    expect(patch.items).toBeUndefined();
+  });
+
   it('prunes expired one-off events when importing calendar events', () => {
     const expired = {
       ...item('expired', 'Old event', '08:00'),

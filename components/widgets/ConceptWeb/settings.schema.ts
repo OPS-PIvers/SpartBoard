@@ -11,18 +11,7 @@ export default defineSettings<ConceptWebConfig>({
   groups: [
     {
       id: 'content',
-      fields: [
-        // schema-gap: board-face-node-editor
-        {
-          key: 'nodes',
-          type: 'custom',
-          label: 'canvasActions',
-          render: renderCanvas,
-        },
-      ],
-    },
-    {
-      id: 'display',
+      // The size sliders stay beside the live preview that shows what they do.
       fields: [
         {
           key: 'defaultNodeWidth',
@@ -41,6 +30,13 @@ export default defineSettings<ConceptWebConfig>({
           max: 50,
           step: 1,
           readValue: (ctx) => ctx.config.defaultNodeHeight ?? 15,
+        },
+        // schema-gap: board-face-node-editor
+        {
+          key: 'nodes',
+          type: 'custom',
+          label: 'canvasActions',
+          render: renderCanvas,
         },
       ],
     },

@@ -113,6 +113,40 @@ describe('TextField', () => {
     });
   });
 
+  it('resolves a placeholder leaf through the locale catalog', () => {
+    const catalog: Record<string, string> = {
+      'widgetSettings.clock.titlePlaceholder': 'e.g. Summer Break',
+    };
+    const resolvingT = (
+      key: string,
+      options?: Record<string, unknown>
+    ): string =>
+      catalog[key] ??
+      (typeof options?.defaultValue === 'string' ? options.defaultValue : key);
+    const leafField: TextFieldType<string> = {
+      ...field,
+      placeholder: 'titlePlaceholder',
+    };
+    render(
+      <FieldRenderer
+        field={leafField}
+        widget={widget}
+        ctx={{
+          config: { title: '' },
+          widget,
+          isAdmin: false,
+          canAccessFeature: () => true,
+          t: resolvingT,
+        }}
+        updateConfig={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('textbox')).toHaveAttribute(
+      'placeholder',
+      'e.g. Summer Break'
+    );
+  });
+
   it('honours disabled', () => {
     const disabledField: TextFieldType<string> = {
       ...field,
