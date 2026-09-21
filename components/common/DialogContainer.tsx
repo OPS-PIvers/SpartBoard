@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { acquireBodyScrollLock, releaseBodyScrollLock } from './bodyScrollLock';
@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { useDialog } from '@/context/useDialog';
+import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
 import { DialogVariant } from '@/context/DialogContextValue';
 
 // ─── Variant config ───────────────────────────────────────────────────────────
@@ -391,6 +392,17 @@ const PromptDialog: React.FC<{
 export const DialogContainer: React.FC = () => {
   const { currentDialog } = useDialog();
 
+  // Backdrop dismiss that ignores a release which followed a press inside the
+  // dialog — otherwise dragging across a prompt's input and letting go outside
+  // cancels the dialog and throws away what was typed.
+  const dismissOnBackdrop = useCallback(() => {
+    if (!currentDialog) return;
+    if (currentDialog.kind === 'alert') currentDialog.resolve();
+    else if (currentDialog.kind === 'confirm') currentDialog.resolve(false);
+    else if (currentDialog.kind === 'prompt') currentDialog.resolve(null);
+  }, [currentDialog]);
+  const backdropProps = useBackdropDismiss(dismissOnBackdrop);
+
   useEffect(() => {
     if (!currentDialog) return;
     // Shared with Modal via bodyScrollLock so a dialog opened over a modal
@@ -480,16 +492,7 @@ export const DialogContainer: React.FC = () => {
       // leaves the settings panel underneath exactly as it was.
       data-settings-exclude
       className="fixed inset-0 z-dialog flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150"
-      onClick={() => {
-        // Clicking the backdrop dismisses alerts, cancels confirms/prompts
-        if (currentDialog.kind === 'alert') {
-          currentDialog.resolve();
-        } else if (currentDialog.kind === 'confirm') {
-          currentDialog.resolve(false);
-        } else if (currentDialog.kind === 'prompt') {
-          currentDialog.resolve(null);
-        }
-      }}
+      {...backdropProps}
     >
       {renderDialog()}
     </div>,
