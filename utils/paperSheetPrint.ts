@@ -41,6 +41,7 @@ import {
   CAPTION_SIZE_PT,
   layoutSheetStimuli,
 } from './paperSheetStimulusLayout';
+import { renderTemplateSvg } from './paperSheetTemplateSvg';
 import {
   escapeHtml,
   printHtmlDocument,
@@ -129,10 +130,10 @@ function footerHtml(): string {
 /**
  * The stimulus stack for one page (D12).
  *
- * Only images are drawn: a template is a spec rather than a file and its
- * renderer arrives with the template picker. `object-fit: contain` is the
- * belt to the fit function's braces — a stored pixel size that turns out to
- * be wrong letterboxes rather than stretching the teacher's diagram.
+ * An image is an `<img>`; a template is drawn inline as SVG (D9).
+ * `object-fit: contain` is the belt to the fit function's braces — a stored
+ * pixel size that turns out to be wrong letterboxes rather than stretching
+ * the teacher's diagram.
  */
 function stimuliHtml(job: PaperPrintJob, page: number): string {
   // Two columns of answers leave no band to print into, whatever the job says.
@@ -140,12 +141,21 @@ function stimuliHtml(job: PaperPrintJob, page: number): string {
   const parts: string[] = [];
   for (const item of layoutSheetStimuli(job.sheetStimuli, page).items) {
     const src = job.stimulusImageSrc?.[item.stimulus.id];
+    const r = item.rect;
+    const box = `left:${mm(r.x)};top:${mm(r.y)};width:${mm(r.w)};height:${mm(r.h)}`;
     if (item.stimulus.source === 'image' && src) {
-      const r = item.rect;
       parts.push(
-        `<img class="stim" alt="" src="${escapeHtml(src)}" style="left:${mm(
-          r.x
-        )};top:${mm(r.y)};width:${mm(r.w)};height:${mm(r.h)}" />`
+        `<img class="stim" alt="" src="${escapeHtml(src)}" style="${box}" />`
+      );
+    }
+    // A template is drawn, not fetched, so it never waits on anything (D9).
+    if (item.stimulus.source === 'template' && item.stimulus.template) {
+      parts.push(
+        `<div class="stim" style="${box}">${renderTemplateSvg(
+          item.stimulus.template,
+          r.w,
+          r.h
+        )}</div>`
       );
     }
     if (item.captionRect && item.caption) {

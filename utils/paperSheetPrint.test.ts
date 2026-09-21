@@ -452,6 +452,36 @@ describe('printPaperSheets — waiting for images', () => {
     await vi.waitFor(() => expect(print).toHaveBeenCalledTimes(1));
   });
 
+  it('draws a template without anything having been fetched for it', () => {
+    const html = buildPaperSheetsHtml({
+      ...stimulusJob,
+      sheetStimuli: [
+        {
+          id: 'grid',
+          label: 'Coordinate grid',
+          source: 'template',
+          template: {
+            kind: 'coordinate-grid',
+            quadrants: 4,
+            min: -10,
+            max: 10,
+            step: 5,
+            showNumbers: true,
+          },
+          caption: 'Plot your answer here',
+        },
+      ],
+      stimulusImageSrc: {},
+    });
+    expect(html).toContain('<svg');
+    expect(html).toContain('Plot your answer here');
+    // Inside the band, not over the bubbles.
+    const left = Number(
+      /<div class="stim" style="left:([\d.]+)mm/.exec(html)?.[1]
+    );
+    expect(left).toBeGreaterThanOrEqual(STIMULUS_RECT_MM.x);
+  });
+
   it('says when the images are in, so the caller can free their blobs', async () => {
     let release!: () => void;
     const decoded = new Promise<void>((resolve) => {
