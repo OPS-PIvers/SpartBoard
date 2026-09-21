@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   BUBBLE_LETTER_GREY,
+  COLUMN_X_MM,
   MARKER_CELL_COUNT,
   MIN_BUBBLE_LETTER_GREY,
   QUESTIONS_PER_PAGE,
+  ROWS_PER_COLUMN,
+  STIMULUS_RECT_MM,
   markerCellRectMm,
 } from './paperSheetLayout';
 import { decodePaperMarker, paperBatchTag } from './paperSheetMarker';
@@ -157,6 +160,33 @@ describe('buildPaperSheetsHtml', () => {
     );
     expect(rendered[1].match(/class="bub"/g)).toHaveLength(3 * 4);
     expect(rendered[1]).toContain(`>${QUESTIONS_PER_PAGE + 1}<`);
+  });
+
+  it('keeps the right half empty when the job asks for one column', () => {
+    const html = buildPaperSheetsHtml(
+      job({ questionCount: 40, columnsPerPage: 1 })
+    );
+    const rendered = pages(html);
+    expect(rendered).toHaveLength(2);
+    expect(rendered[0].match(/class="bub"/g)).toHaveLength(ROWS_PER_COLUMN * 4);
+    expect(rendered[1].match(/class="bub"/g)).toHaveLength(15 * 4);
+    expect(rendered[1]).toContain(`>${ROWS_PER_COLUMN + 1}<`);
+    // Every answer-grid element stays left of the band the stimuli will use.
+    const lefts = [
+      ...html.matchAll(
+        /<div class="(?:num|bub|legend)" style="left:([\d.]+)mm/g
+      ),
+    ].map((m) => Number(m[1]));
+    expect(lefts.length).toBeGreaterThan(0);
+    expect(Math.max(...lefts)).toBeLessThan(
+      Math.min(COLUMN_X_MM[1], STIMULUS_RECT_MM.x)
+    );
+  });
+
+  it('prints two columns byte for byte as before when the job says nothing', () => {
+    expect(buildPaperSheetsHtml(job({ questionCount: 40 }))).toEqual(
+      buildPaperSheetsHtml(job({ questionCount: 40, columnsPerPage: 2 }))
+    );
   });
 
   it('prints only the requested number of bubbles per row', () => {

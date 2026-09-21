@@ -4783,6 +4783,9 @@ export interface PaperSeatAssignment {
  * and names are resolved from the Drive roster at print and import time.
  * See docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md §3.
  */
+/** Answer columns a printed sheet carries; one column frees its right half. */
+export type PaperColumns = 1 | 2;
+
 export interface PaperBatch {
   id: string;
   /** Quiz these sheets were printed for. Deleted with the quiz. */
@@ -4806,6 +4809,13 @@ export interface PaperBatch {
   choiceOrder?: Record<string, string[]>;
   /** Pages each student's sheet occupies. */
   pagesPerSheet: number;
+  /**
+   * Answer columns each page printed; absent = 2, which is every batch printed
+   * before sheet stimuli existed. Recorded here rather than derived from the
+   * quiz, because the teacher can add or remove stimuli after the stack is on
+   * desks (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D2).
+   */
+  columnsPerPage?: PaperColumns;
   createdAt: number;
   /** A review the teacher left unfinished, resumable from any device (plan Q26). */
   pendingReview?: PaperPendingReview;

@@ -4,7 +4,7 @@
  */
 
 import type { PaperBatch, PaperSeatAssignment } from '@/types';
-import { QUESTIONS_PER_PAGE } from './paperSheetLayout';
+import { questionsPerPage } from './paperSheetLayout';
 import { paperBatchTag } from './paperSheetMarker';
 import type { PageReadResult, RowDoubt, RowRead } from './paperSheetReader';
 
@@ -86,6 +86,7 @@ export function assemblePaperScan(
   pages: readonly ScannedPage[]
 ): AssembleResult {
   const tag = paperBatchTag(batch.id);
+  const perPage = questionsPerPage(batch.columnsPerPage);
   const unreadablePages: number[] = [];
   const foreignPages: number[] = [];
   const unknownPages: number[] = [];
@@ -113,7 +114,7 @@ export function assemblePaperScan(
       continue;
     }
     const answers: SheetAnswer[] = read.rows.map((row) => ({
-      question: (marker.page - 1) * QUESTIONS_PER_PAGE + row.indexOnPage,
+      question: (marker.page - 1) * perPage + row.indexOnPage,
       choice: row.choice,
       ...(row.doubt ? { doubt: row.doubt } : {}),
       fills: row.fills,

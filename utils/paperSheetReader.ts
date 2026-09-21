@@ -8,15 +8,18 @@
  */
 
 import {
+  DEFAULT_COLUMNS_PER_PAGE,
   MARKER_CELL_COUNT,
   PAGE_HEIGHT_MM,
   PAGE_WIDTH_MM,
-  QUESTIONS_PER_PAGE,
   REGISTRATION_MARK_CENTERS_MM,
   REGISTRATION_MARK_SIZE_MM,
+  STIMULUS_RECT_MM,
   bubbleRectMm,
   markerCellRectMm,
   questionRowRectMm,
+  questionsPerPage,
+  type PaperColumns,
   type PointMm,
   type RectMm,
 } from './paperSheetLayout';
@@ -63,6 +66,8 @@ export const READER_THRESHOLDS = {
   maxRegistrationResidualMm: 1.5,
   /** Spacing of sample points inside a rect, in millimetres. */
   sampleStepMm: 0.3,
+  /** Margin around the stimulus band kept out of the second Otsu pass (D4). */
+  stimulusOtsuMarginMm: 6,
 };
 
 /** `px = [a b; d e] · mm + [c f]`. */
@@ -141,20 +146,46 @@ export function affineScalePxPerMm(t: AffineMmToPx): number {
   return Math.sqrt(Math.abs(t.a * t.e - t.b * t.d));
 }
 
-/** 1 = dark. Otsu's threshold on luminance, so scanner exposure needs no tuning. */
-export function binarize(page: RasterPage): Uint8Array {
+/** Luminance per pixel, the one input every threshold decision is taken from. */
+export function toGrayscale(page: RasterPage): Uint8Array {
   const n = page.width * page.height;
   const gray = new Uint8Array(n);
-  const histogram = new Uint32Array(256);
   for (let i = 0; i < n; i += 1) {
     const o = i * 4;
-    const g =
-      (page.data[o] * 299 + page.data[o + 1] * 587 + page.data[o + 2] * 114) /
-      1000;
-    const v = g | 0;
-    gray[i] = v;
-    histogram[v] += 1;
+    gray[i] =
+      ((page.data[o] * 299 + page.data[o + 1] * 587 + page.data[o + 2] * 114) /
+        1000) |
+      0;
   }
+  return gray;
+}
+
+/**
+ * Otsu's threshold, so scanner exposure needs no tuning.
+ *
+ * `ignore` drops a pixel box from the histogram without changing what is
+ * thresholded: a teacher's artwork can then sit on the page without dragging
+ * the cut that has to keep the grey choice letters out of the bubbles (D4).
+ */
+export function otsuThreshold(
+  gray: Uint8Array,
+  width: number,
+  height: number,
+  ignore?: RectPx
+): number {
+  const histogram = new Uint32Array(256);
+  let n = 0;
+  for (let y = 0; y < height; y += 1) {
+    const inBandY =
+      !!ignore && y >= ignore.y && y < ignore.y + ignore.h && ignore.h > 0;
+    const rowStart = y * width;
+    for (let x = 0; x < width; x += 1) {
+      if (inBandY && x >= ignore.x && x < ignore.x + ignore.w) continue;
+      histogram[gray[rowStart + x]] += 1;
+      n += 1;
+    }
+  }
+  if (n === 0) return 127;
   let sum = 0;
   for (let v = 0; v < 256; v += 1) sum += v * histogram[v];
   let sumB = 0;
@@ -175,9 +206,20 @@ export function binarize(page: RasterPage): Uint8Array {
       threshold = v;
     }
   }
-  const dark = new Uint8Array(n);
-  for (let i = 0; i < n; i += 1) dark[i] = gray[i] <= threshold ? 1 : 0;
+  return threshold;
+}
+
+const thresholdGray = (gray: Uint8Array, threshold: number): Uint8Array => {
+  const dark = new Uint8Array(gray.length);
+  for (let i = 0; i < gray.length; i += 1)
+    dark[i] = gray[i] <= threshold ? 1 : 0;
   return dark;
+};
+
+/** 1 = dark, at the page-wide Otsu cut. */
+export function binarize(page: RasterPage): Uint8Array {
+  const gray = toGrayscale(page);
+  return thresholdGray(gray, otsuThreshold(gray, page.width, page.height));
 }
 
 interface DarkBlob {
@@ -338,6 +380,17 @@ function fillRatio(
   return sampled ? inked / sampled : 0;
 }
 
+/** `STIMULUS_RECT_MM` grown by the D4 margin, in millimetres. */
+const stimulusOtsuBand = (): RectMm => {
+  const m = READER_THRESHOLDS.stimulusOtsuMarginMm;
+  return {
+    x: STIMULUS_RECT_MM.x - m,
+    y: STIMULUS_RECT_MM.y - m,
+    w: STIMULUS_RECT_MM.w + m * 2,
+    h: STIMULUS_RECT_MM.h + m * 2,
+  };
+};
+
 const shrink = (rect: RectMm, fraction: number): RectMm => ({
   x: rect.x + (rect.w * (1 - fraction)) / 2,
   y: rect.y + (rect.h * (1 - fraction)) / 2,
@@ -401,6 +454,12 @@ export interface ReadPageOptions {
   /** Questions in the whole test; fixes how many rows the last page carries. */
   questionCount: number;
   choiceCount: number;
+  /**
+   * Answer columns the batch was printed with; absent = 2. It comes from the
+   * batch rather than the quiz, because a teacher can add or remove sheet
+   * stimuli after a stack is already on desks (D2).
+   */
+  columnsPerPage?: PaperColumns;
 }
 
 /** Classify one row's fills into an answer, a blank, or a doubt. */
@@ -423,9 +482,14 @@ export function classifyRow(fills: readonly number[]): {
 }
 
 /** Rows on `page` (1-based) of a test with `questionCount` questions. */
-export function rowsOnPage(page: number, questionCount: number): number {
-  const first = (page - 1) * QUESTIONS_PER_PAGE;
-  return Math.max(0, Math.min(QUESTIONS_PER_PAGE, questionCount - first));
+export function rowsOnPage(
+  page: number,
+  questionCount: number,
+  columns: PaperColumns = DEFAULT_COLUMNS_PER_PAGE
+): number {
+  const perPage = questionsPerPage(columns);
+  const first = (page - 1) * perPage;
+  return Math.max(0, Math.min(perPage, questionCount - first));
 }
 
 export function readPaperPage(
@@ -433,7 +497,9 @@ export function readPaperPage(
   options: ReadPageOptions
 ): PageReadResult {
   const { width, height } = page;
-  const dark = binarize(page);
+  const columns = options.columnsPerPage ?? DEFAULT_COLUMNS_PER_PAGE;
+  const gray = toGrayscale(page);
+  const dark = thresholdGray(gray, otsuThreshold(gray, width, height));
   const marks = findRegistrationMarks(dark, width, height);
   if (!marks) return { status: 'no-registration' };
   const fit = fitAffine(
@@ -471,20 +537,38 @@ export function readPaperPage(
   if (!marker) return { status: 'no-marker' };
   const map = rotated ? turned : upright;
 
+  // D4. A stimulus on the right half would drag the page-wide Otsu cut up until
+  // the grey choice letters read as marks; re-cut without that band.
+  const bubbleDark =
+    columns === 1
+      ? thresholdGray(
+          gray,
+          otsuThreshold(
+            gray,
+            width,
+            height,
+            pixelBounds(map, stimulusOtsuBand(), width, height)
+          )
+        )
+      : dark;
+
   const rows: RowRead[] = [];
-  const count = rowsOnPage(marker.page, options.questionCount);
+  const count = rowsOnPage(marker.page, options.questionCount, columns);
   for (let i = 0; i < count; i += 1) {
     const fills = Array.from({ length: options.choiceCount }, (_, c) =>
       fillRatio(
-        dark,
+        bubbleDark,
         width,
         height,
         map,
-        shrink(bubbleRectMm(i, c), READER_THRESHOLDS.bubbleSampleRadius),
+        shrink(
+          bubbleRectMm(i, c, columns),
+          READER_THRESHOLDS.bubbleSampleRadius
+        ),
         true
       )
     );
-    const rowRect = questionRowRectMm(i, options.choiceCount);
+    const rowRect = questionRowRectMm(i, options.choiceCount, columns);
     rows.push({
       indexOnPage: i,
       ...classifyRow(fills),

@@ -172,6 +172,9 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
         quizTitle: result.quizTitle,
         questionCount: result.batch.questionCount,
         choiceCount: result.batch.choiceCount,
+        ...(result.batch.columnsPerPage
+          ? { columnsPerPage: result.batch.columnsPerPage }
+          : {}),
         sheets: result.sheets,
         printedForTeacherName: result.printedForTeacherName,
       });

@@ -123,6 +123,21 @@ describe('client/server paper batch plan parity', () => {
     expect(server.sheets).toEqual(client.sheets);
   });
 
+  it('records the same layout and page count on a single-column batch', () => {
+    const wide = { ...clientInput, questionCount: 40 };
+    const narrow = { ...wide, columnsPerPage: 1 as const };
+    const client = clientPlan(narrow);
+    const server = serverPlan({ ...serverInput, ...narrow });
+    expect(server.batch).toEqual(client.batch);
+    expect(client.batch.columnsPerPage).toBe(1);
+    expect(client.batch.pagesPerSheet).toBe(2);
+    // Two columns stays the document it always was: no field, half the pages.
+    const asBefore = clientPlan(wide).batch;
+    expect('columnsPerPage' in asBefore).toBe(false);
+    expect(asBefore.pagesPerSheet).toBe(1);
+    expect(serverPlan({ ...serverInput, ...wide }).batch).toEqual(asBefore);
+  });
+
   it('clamps an out-of-range choice count the same way', () => {
     for (const choiceCount of [0, 1, 6, 99]) {
       expect(
