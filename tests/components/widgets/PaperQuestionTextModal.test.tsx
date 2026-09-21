@@ -6,6 +6,10 @@ import { PaperQuestionTextModal } from '@/components/widgets/QuizWidget/componen
 import type { QuizData } from '@/types';
 import type { RasterizedPage } from '@/utils/paperScanRaster';
 import { buildPaperStubQuiz } from '@/utils/paperSheetPlan';
+import type {
+  ExtractedQuestion,
+  ExtractedQuiz,
+} from '@/utils/quizDocumentImport';
 
 const stub: QuizData = buildPaperStubQuiz({
   quizId: 'quiz-1',
@@ -121,5 +125,140 @@ describe('PaperQuestionTextModal', () => {
     chooseFile();
     await waitFor(() => expect(onError).toHaveBeenCalledWith('OCR exploded'));
     expect(screen.getByLabelText('Test paper file')).toBeInTheDocument();
+  });
+});
+
+/**
+ * Filling a stub from the import wizard's readers (D17). The win over the
+ * OCR path is that choices and the key come across too, so a teacher who
+ * scanned a printed multiple-choice test gets a quiz that can be assigned
+ * rather than three rows of text and four blank choices each.
+ */
+describe('PaperQuestionTextModal with the shared readers', () => {
+  const question = (
+    number: number,
+    over: Partial<ExtractedQuestion> = {}
+  ): ExtractedQuestion => ({
+    number,
+    text: `Question ${number} from the paper`,
+    type: 'MC',
+    options: [
+      { letter: 'A', text: 'First' },
+      { letter: 'B', text: 'Second' },
+      { letter: 'C', text: 'Third' },
+    ],
+    correctAnswer: 'Second',
+    imageIds: [],
+    warnings: [],
+    ...over,
+  });
+
+  const read = (
+    questions: ExtractedQuestion[],
+    warnings: string[] = []
+  ): ExtractedQuiz => ({
+    title: 'Unit 3 Test',
+    questions,
+    images: [],
+    warnings,
+  });
+
+  const readSetup = (extracted: ExtractedQuiz, quiz: QuizData = stub) => {
+    const readDocument = vi.fn(() => Promise.resolve(extracted));
+    const utils = setup([], { quiz, readDocument });
+    return { ...utils, readDocument };
+  };
+
+  it('fills the choices and the key onto a stub row', async () => {
+    const { onSave } = readSetup(read([question(1), question(2), question(3)]));
+    chooseFile();
+    await waitFor(() =>
+      expect(screen.getByLabelText('Question 1 text')).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByText(/^Apply to /));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+
+    const saved = onSave.mock.calls[0][0];
+    expect(saved.questions[0].text).toBe('Question 1 from the paper');
+    expect(saved.questions[0].correctAnswer).toBe('Second');
+    expect(saved.questions[0].incorrectAnswers).toEqual(['First', 'Third']);
+    // The key came from the paper, so the teacher no longer owes one.
+    expect(saved.questions[0].needsKey).toBeUndefined();
+  });
+
+  it('shows the choices it will apply, with the answer named', async () => {
+    readSetup(read([question(1)]));
+    chooseFile();
+    await waitFor(() =>
+      expect(screen.getByLabelText('Question 1 text')).toBeInTheDocument()
+    );
+    expect(screen.getByText(/First/)).toBeInTheDocument();
+    expect(screen.getByText(/Second \(answer\)/)).toBeInTheDocument();
+  });
+
+  it('says a question still needs an answer when the paper marked none', async () => {
+    readSetup(read([question(1, { correctAnswer: '' })]));
+    chooseFile();
+    await waitFor(() =>
+      expect(screen.getByLabelText('Question 1 text')).toBeInTheDocument()
+    );
+    expect(
+      screen.getByText(/No answer was marked, so this still needs one/)
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the teacher’s own wording when they edit the box', async () => {
+    const { onSave } = readSetup(read([question(1)]));
+    chooseFile();
+    await waitFor(() =>
+      expect(screen.getByLabelText('Question 1 text')).toBeInTheDocument()
+    );
+
+    fireEvent.change(screen.getByLabelText('Question 1 text'), {
+      target: { value: 'My own wording' },
+    });
+    fireEvent.click(screen.getByText(/^Apply to /));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+
+    const saved = onSave.mock.calls[0][0];
+    expect(saved.questions[0].text).toBe('My own wording');
+    // Editing the stem must not cost the question its choices.
+    expect(saved.questions[0].incorrectAnswers).toEqual(['First', 'Third']);
+  });
+
+  it('surfaces the reader’s row notes', async () => {
+    readSetup(
+      read(
+        [question(1, { warnings: ['Only one answer choice was found.'] })],
+        ['The document was read the simple way.']
+      )
+    );
+    chooseFile();
+    await waitFor(() =>
+      expect(screen.getByLabelText('Question 1 text')).toBeInTheDocument()
+    );
+    expect(
+      screen.getByText('Question 1: Only one answer choice was found.')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('The document was read the simple way.')
+    ).toBeInTheDocument();
+  });
+
+  it('names the rows the paper had nothing for', async () => {
+    readSetup(read([question(1)]));
+    chooseFile();
+    await waitFor(() =>
+      expect(screen.getByLabelText('Question 1 text')).toBeInTheDocument()
+    );
+    expect(screen.getByText(/questions 2, 3/)).toBeInTheDocument();
+  });
+
+  it('never reaches for the OCR path when a reader is supplied', async () => {
+    const { recognize, readDocument } = readSetup(read([question(1)]));
+    chooseFile();
+    await waitFor(() => expect(readDocument).toHaveBeenCalled());
+    expect(recognize).not.toHaveBeenCalled();
   });
 });

@@ -79,6 +79,13 @@ function finish(
     warnings.push(
       'No answer choices were found, so this came in as a written-response question.'
     );
+    // The document answered it, so it had choices the reader missed — that is
+    // a layout the teacher can fix, not a written-response question.
+    if (keyLetter) {
+      warnings.push(
+        `The answer key says ${keyLetter} for this question, so its answer choices were probably missed.`
+      );
+    }
   }
 
   let correctAnswer = '';
