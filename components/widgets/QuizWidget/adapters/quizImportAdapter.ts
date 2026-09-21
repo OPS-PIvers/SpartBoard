@@ -105,6 +105,13 @@ export interface QuizImportAdapterDeps {
    */
   onDocumentImages?: (images: readonly ExtractedImage[]) => void;
   /**
+   * Reads back what `onDocumentImages` handed over, so the review table can
+   * show each picture and let the teacher change which questions use it
+   * (D14). A getter rather than a value: the adapter is built once, and the
+   * pictures only exist after a read.
+   */
+  documentImages?: () => readonly ExtractedImage[];
+  /**
    * Reads the document through the Cloud Function instead of in the browser
    * (D1, D3). Supplied only when the teacher has AI access; if the call fails
    * the browser reader still runs, because half a quiz to fix beats an error.
@@ -498,7 +505,11 @@ export function createQuizImportAdapter(
     ...(deps.canImportDocuments
       ? {
           renderReview: (data: QuizData, onChange: (next: QuizData) => void) =>
-            React.createElement(QuizDocumentReview, { data, onChange }),
+            React.createElement(QuizDocumentReview, {
+              data,
+              onChange,
+              images: deps.documentImages?.() ?? [],
+            }),
         }
       : {}),
     // A document import names the quiz after the file (D11); sheet and CSV
