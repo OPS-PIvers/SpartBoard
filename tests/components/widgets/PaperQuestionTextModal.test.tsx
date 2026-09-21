@@ -117,6 +117,19 @@ describe('PaperQuestionTextModal', () => {
     ).toBeEnabled();
   });
 
+  it('reads a test paper dropped onto the zone, not just one chosen', async () => {
+    const { recognize } = setup(['1. Dropped in\n']);
+    const file = new File([new Uint8Array(4)], 'test.pdf', {
+      type: 'application/pdf',
+    });
+    const zone = screen.getByRole('button', { name: /Drop the test paper/i });
+    fireEvent.drop(zone, {
+      dataTransfer: { files: [file], types: ['Files'] },
+    });
+    await waitFor(() => expect(recognize).toHaveBeenCalled());
+    expect(screen.getByLabelText('Question 1 text')).toHaveValue('Dropped in');
+  });
+
   it('reports a scan it cannot read and returns to setup', async () => {
     const { onError } = setup([], {
       recognize: () => Promise.reject(new Error('OCR exploded')),

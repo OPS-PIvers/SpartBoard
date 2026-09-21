@@ -5,9 +5,8 @@
  */
 
 import type { QuizData } from '@/types';
+import { matchQuestionOpening } from '@/utils/questionNumbering';
 
-/** `1.` / `12)` / `3 .` at the start of a line. */
-const NUMBERED = /^\s*(\d{1,3})\s*[.)]\s*(.*)$/;
 /** `A.` / `b)` / `(C)` option lines, which end the question text. */
 const OPTION = /^\s*\(?[A-Ea-e][.)]\s|^\s*\([A-Ea-e]\)\s*/;
 /** The placeholder text `buildPaperStubQuiz` writes. */
@@ -37,14 +36,14 @@ export function parseNumberedQuestions(
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) continue;
-    const numbered = NUMBERED.exec(line);
-    if (numbered) {
-      const n = Number(numbered[1]);
+    const opening = matchQuestionOpening(line);
+    if (opening) {
+      const n = opening.number;
       const last = current ?? 0;
       if (n > last && n <= expectedCount) {
         current = n;
         inOptions = false;
-        byNumber[n] = tidy(numbered[2]);
+        byNumber[n] = tidy(opening.text);
         continue;
       }
     }

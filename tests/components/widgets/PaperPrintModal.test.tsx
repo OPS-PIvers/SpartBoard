@@ -71,6 +71,10 @@ import type {
   QuizData,
   QuizQuestion,
 } from '@/types';
+import type {
+  ExtractedQuestion,
+  ExtractedQuiz,
+} from '@/utils/quizDocumentImport';
 import type { PaperPrintJob } from '@/utils/paperSheetPrint';
 import type { PaperTestJob } from '@/utils/paperTestPrint';
 
@@ -305,6 +309,166 @@ describe('PaperPrintModal', () => {
     expect(onSaveBatch.mock.calls[0][0].choiceCount).toBe(2);
     // The stub must exist before the batch that points at it.
     expect(onCreateQuiz).toHaveBeenCalledBefore(onSaveBatch);
+  });
+
+  describe('a new paper test built from the teacher’s own test paper', () => {
+    const extracted = (
+      questions: ExtractedQuestion[],
+      warnings: string[] = []
+    ): ExtractedQuiz => ({
+      title: 'Unit 3 Test',
+      questions,
+      images: [],
+      warnings,
+    });
+
+    const question = (
+      number: number,
+      over: Partial<ExtractedQuestion> = {}
+    ): ExtractedQuestion => ({
+      number,
+      text: `Question ${number} from the paper`,
+      type: 'MC',
+      options: [
+        { letter: 'A', text: 'First' },
+        { letter: 'B', text: 'Second' },
+        { letter: 'C', text: 'Third' },
+      ],
+      correctAnswer: 'Second',
+      imageIds: [],
+      warnings: [],
+      ...over,
+    });
+
+    const newPaperTest = (read: ExtractedQuiz) => {
+      const onCreateQuiz = vi.fn().mockResolvedValue(undefined);
+      const readDocument = vi.fn(() => Promise.resolve(read));
+      const rest = setup({
+        quiz: quiz({ title: '', questions: [] }),
+        onCreateQuiz,
+        readDocument,
+      });
+      return { ...rest, onCreateQuiz, readDocument };
+    };
+
+    const dropTestPaper = () => {
+      const file = new File([new Uint8Array(4)], 'unit3.pdf', {
+        type: 'application/pdf',
+      });
+      fireEvent.drop(screen.getByRole('button', { name: /Drop the test/i }), {
+        dataTransfer: { files: [file], types: ['Files'] },
+      });
+    };
+
+    it('reads the paper, sizes the sheet to it and names the test', async () => {
+      const { readDocument } = newPaperTest(
+        extracted([question(1), question(2), question(3)])
+      );
+      dropTestPaper();
+      await waitFor(() => expect(readDocument).toHaveBeenCalled());
+      expect(await screen.findByText(/3 questions read/)).toBeInTheDocument();
+      expect(screen.getByLabelText('Questions')).toHaveValue(3);
+      expect(screen.getByLabelText(/Choices per question/i)).toHaveValue('3');
+      expect(screen.getByLabelText('Title')).toHaveValue('Unit 3 Test');
+    });
+
+    it('creates the quiz with the real questions, not placeholders', async () => {
+      const { onCreateQuiz, print } = newPaperTest(
+        extracted([question(1), question(2)])
+      );
+      dropTestPaper();
+      await screen.findByText(/2 questions read/);
+      selectWholeClass();
+      fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+      await waitFor(() => expect(print).toHaveBeenCalled());
+
+      const created = onCreateQuiz.mock.calls[0][0] as QuizData;
+      expect(created.questions.map((q) => q.text)).toEqual([
+        'Question 1 from the paper',
+        'Question 2 from the paper',
+      ]);
+      expect(created.questions[0].correctAnswer).toBe('Second');
+      expect(created.questions[0].incorrectAnswers).toEqual(['First', 'Third']);
+      expect(created.questions[0].needsKey).toBeUndefined();
+    });
+
+    it('records the printed choice order, so a bubbled B means that answer', async () => {
+      const { onCreateQuiz, onSaveBatch, print } = newPaperTest(
+        extracted([question(1)])
+      );
+      dropTestPaper();
+      await screen.findByText(/1 question read/);
+      selectWholeClass();
+      fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+      await waitFor(() => expect(print).toHaveBeenCalled());
+
+      const created = onCreateQuiz.mock.calls[0][0] as QuizData;
+      const batch = onSaveBatch.mock.calls[0][0];
+      // The teacher's paper is already printed, so its own A/B/C order is
+      // what the bubbles stand for — never a reshuffle.
+      expect(batch.choiceOrder?.[created.questions[0].id]).toEqual([
+        'First',
+        'Second',
+        'Third',
+      ]);
+    });
+
+    it('says which questions the paper left unanswered', async () => {
+      newPaperTest(
+        extracted([question(1), question(2, { correctAnswer: '' })])
+      );
+      dropTestPaper();
+      expect(
+        await screen.findByText(/1 question came in without an answer/)
+      ).toBeInTheDocument();
+    });
+
+    it('keeps a plain stub when the paper is put back', async () => {
+      const { onCreateQuiz, print } = newPaperTest(extracted([question(1)]));
+      dropTestPaper();
+      await screen.findByText(/1 question read/);
+      fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+      selectWholeClass();
+      fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+      await waitFor(() => expect(print).toHaveBeenCalled());
+
+      const created = onCreateQuiz.mock.calls[0][0] as QuizData;
+      expect(created.questions[0].text).toBe('Question 1');
+    });
+
+    it('reports a paper it cannot read and leaves the zone open', async () => {
+      const onCreateQuiz = vi.fn().mockResolvedValue(undefined);
+      const { onError } = setup({
+        quiz: quiz({ title: '', questions: [] }),
+        onCreateQuiz,
+        readDocument: () => Promise.reject(new Error('PDF exploded')),
+      });
+      dropTestPaper();
+      await waitFor(() => expect(onError).toHaveBeenCalledWith('PDF exploded'));
+      expect(
+        screen.getByRole('button', { name: /Drop the test/i })
+      ).toBeInTheDocument();
+    });
+
+    it('says so when the paper held no numbered questions', async () => {
+      const { onError } = newPaperTest(extracted([]));
+      dropTestPaper();
+      await waitFor(() =>
+        expect(onError).toHaveBeenCalledWith(
+          expect.stringContaining('No numbered questions')
+        )
+      );
+    });
+
+    it('offers no upload when the document reader is off', () => {
+      setup({
+        quiz: quiz({ title: '', questions: [] }),
+        onCreateQuiz: vi.fn().mockResolvedValue(undefined),
+      });
+      expect(
+        screen.queryByRole('button', { name: /Drop the test/i })
+      ).not.toBeInTheDocument();
+    });
   });
 
   it('defaults the answer key sheet on for a new paper test and off otherwise', () => {

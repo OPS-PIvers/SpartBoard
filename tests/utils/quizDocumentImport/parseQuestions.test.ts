@@ -38,6 +38,33 @@ C. Mars`)
     expect(q.options.map((o) => o.letter)).toEqual(['A', 'B']);
   });
 
+  it('reads a test whose questions are labelled, not numbered', () => {
+    const [one, two] = parseQuestionLines(
+      lines(`Question 1: Which planet is closest to the sun?
+A. Mercury
+B. Venus
+Question 2: Name the largest ocean.
+A. Atlantic
+B. Pacific`)
+    );
+    expect(one.number).toBe(1);
+    expect(one.text).toBe('Which planet is closest to the sun?');
+    expect(one.options.map((o) => o.text)).toEqual(['Mercury', 'Venus']);
+    expect(two.number).toBe(2);
+    expect(two.text).toBe('Name the largest ocean.');
+  });
+
+  it('does not read a "Questions 1-5 refer to…" heading as question 1', () => {
+    const questions = parseQuestionLines(
+      lines(`Questions 1-5 refer to the passage below.
+1. Who narrates the story?
+A. Jim
+B. Ada`)
+    );
+    expect(questions).toHaveLength(1);
+    expect(questions[0].text).toBe('Who narrates the story?');
+  });
+
   it('keeps 2 and 5 option questions as written, with no minimum', () => {
     const [two, five] = parseQuestionLines(
       lines(`1. Is the sky blue?

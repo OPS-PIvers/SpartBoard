@@ -10,11 +10,10 @@
  */
 
 import type { QuizQuestionType } from '@/types';
+import { matchQuestionOpening } from '@/utils/questionNumbering';
 import { findAnswerKey } from './answerKey';
 import type { DocLine, ExtractedOption, ExtractedQuestion } from './types';
 
-/** `1.` / `12)` / `3 .` opening a question. */
-const NUMBERED = /^\s*(\d{1,3})\s*[.)]\s*(.*)$/;
 /** `A.` / `b)` / `(C)` opening an option, optionally starred as the answer. */
 const OPTION = /^\s*(\*\s*)?\(?([A-Fa-f])[.)]\s*(.*)$/;
 /** A bare `(C)` form, where the letter is wrapped rather than punctuated. */
@@ -151,12 +150,12 @@ export function parseQuestionLines(
       return;
     }
 
-    const numbered = NUMBERED.exec(text);
+    const opening = matchQuestionOpening(text);
     const lastNumber = current?.number ?? 0;
-    if (numbered && Number(numbered[1]) > lastNumber) {
+    if (opening && opening.number > lastNumber) {
       current = {
-        number: Number(numbered[1]),
-        textParts: [numbered[2]],
+        number: opening.number,
+        textParts: [opening.text],
         options: [],
         imageIds: [...(line.imageIds ?? [])],
       };

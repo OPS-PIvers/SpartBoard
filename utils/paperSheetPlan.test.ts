@@ -329,6 +329,21 @@ describe('paperChoiceOrder', () => {
     });
     expect(stub.batch).not.toHaveProperty('choiceOrder');
   });
+
+  it('keeps the order a paper SpartBoard did not lay out, unshuffled', () => {
+    const { batch } = planPaperBatch({
+      batchId: 'batch-1',
+      quizId: 'quiz-1',
+      selections: [],
+      questionCount: 1,
+      choiceCount: 3,
+      spareCount: 1,
+      includeKeySheet: true,
+      choiceOrder: { q1: ['Red', 'Green', 'Blue'] },
+      createdAt: 0,
+    });
+    expect(batch.choiceOrder?.q1).toEqual(['Red', 'Green', 'Blue']);
+  });
 });
 
 describe('buildPaperStubQuiz', () => {
