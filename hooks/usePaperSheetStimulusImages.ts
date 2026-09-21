@@ -23,15 +23,29 @@ export interface PaperSheetStimulusImages {
   loading: boolean;
 }
 
-/** Identity of a list, so a caption edit does not re-fetch every image. */
+/**
+ * Identity of a list, so a caption edit does not re-fetch every image. Sorted,
+ * because reordering the stack changes nothing about what has to be fetched.
+ */
 const imageKey = (stimuli: readonly PaperSheetStimulus[]): string =>
   stimuli
     .filter((s) => s.source === 'image')
     .map((s) => `${s.id}:${s.driveFileId ?? s.url ?? ''}`)
+    .sort()
     .join('|');
 
+export interface PaperSheetStimulusImageOptions {
+  /**
+   * Skip the private Drive read and use the link-shared URL only. A teammate
+   * printing somebody else's stack has no token that can read their file, so
+   * the attempt is a guaranteed 404 (D6).
+   */
+  publicOnly?: boolean;
+}
+
 export function usePaperSheetStimulusImages(
-  stimuli: readonly PaperSheetStimulus[]
+  stimuli: readonly PaperSheetStimulus[],
+  options: PaperSheetStimulusImageOptions = {}
 ): PaperSheetStimulusImages {
   const { getDriveFileAsBlob } = useGoogleDrive();
   const [resolved, setResolved] = useState<PaperSheetStimulusImages>({
@@ -40,10 +54,19 @@ export function usePaperSheetStimulusImages(
     loading: false,
   });
   const key = imageKey(stimuli);
+  const { publicOnly = false } = options;
 
   useEffect(() => {
     if (!key) {
-      setResolved({ src: {}, failed: [], loading: false });
+      // Keeping the same object when there was nothing to clear: a fresh one
+      // re-renders the caller, which can re-run this effect without end.
+      setResolved((prev) =>
+        prev.loading ||
+        prev.failed.length > 0 ||
+        Object.keys(prev.src).length > 0
+          ? { src: {}, failed: [], loading: false }
+          : prev
+      );
       return;
     }
     let live = true;
@@ -52,6 +75,7 @@ export function usePaperSheetStimulusImages(
     void resolveStimulusImages(
       stimuli,
       browserStimulusImageDeps(async (fileId) => {
+        if (publicOnly) return null;
         const file = await getDriveFileAsBlob(fileId);
         return file?.blob ?? null;
       })
@@ -70,7 +94,7 @@ export function usePaperSheetStimulusImages(
     // `stimuli` is re-created on every keystroke; `key` is what actually
     // changes what has to be fetched.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, getDriveFileAsBlob]);
+  }, [key, publicOnly, getDriveFileAsBlob]);
 
   return resolved;
 }

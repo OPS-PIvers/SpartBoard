@@ -182,6 +182,19 @@ describe('PaperSheetStimuliSection', () => {
     expect(screen.getByText(/Could not load this image/)).toBeInTheDocument();
   });
 
+  it('keeps saying which images the PLC still cannot open', () => {
+    const unshared = stim({ label: 'Amelia map' });
+    setup({ stimuli: [stim(), unshared], unshared: [unshared] });
+    expect(
+      screen.getByText(/Amelia map is only visible to you/)
+    ).toBeInTheDocument();
+  });
+
+  it('says nothing about sharing outside a PLC', () => {
+    setup({ stimuli: [stim()] });
+    expect(screen.queryByText(/only visible to you/)).toBeNull();
+  });
+
   it('adds a pasted image, and leaves a paste into a caption alone', async () => {
     const file = new File(['x'], 'pasted.png', { type: 'image/png' });
     const { onChange, onUploadFile } = setup({ stimuli: [stim()] });

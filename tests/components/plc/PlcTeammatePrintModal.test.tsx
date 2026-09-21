@@ -9,6 +9,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import type { Plc, PlcMember } from '@/types';
+import type { PaperPrintJob } from '@/utils/paperSheetPrint';
+import { driveImageUrl } from '@/utils/quizStimuli';
 import type { TeammatePrintContext } from '@/hooks/usePlcTeammatePrintContext';
 
 vi.mock('react-i18next', () => ({
@@ -27,6 +29,16 @@ vi.mock('react-i18next', () => ({
       return template;
     },
   }),
+}));
+
+/**
+ * Sheet stimuli reach a teammate only through the link-shared URL, so the
+ * resolver is driven here by which URLs an <img> agrees to load.
+ */
+let loadableUrls = new Set<string>();
+const getDriveFileAsBlob = vi.fn(() => Promise.resolve(null));
+vi.mock('@/hooks/useGoogleDrive', () => ({
+  useGoogleDrive: () => ({ getDriveFileAsBlob }),
 }));
 
 let mockState: {
@@ -111,10 +123,13 @@ function makeContext(
   };
 }
 
-const print = vi.fn();
+const print = vi.fn<(job: PaperPrintJob) => void>();
 const printTest = vi.fn();
 
-const open = (context: TeammatePrintContext | null = makeContext()) => {
+const open = (
+  context: TeammatePrintContext | null = makeContext(),
+  ownerName?: string
+) => {
   mockState = { context, loading: false, error: null };
   render(
     <PlcTeammatePrintModal
@@ -125,6 +140,7 @@ const open = (context: TeammatePrintContext | null = makeContext()) => {
       onClose={vi.fn()}
       print={print}
       printTest={printTest}
+      {...(ownerName ? { ownerName } : {})}
     />
   );
 };
@@ -152,6 +168,19 @@ const pick = (name: string) =>
   fireEvent.click(screen.getByRole('button', { name: new RegExp(name) }));
 
 beforeEach(() => {
+  loadableUrls = new Set<string>();
+  vi.stubGlobal(
+    'Image',
+    class {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(value: string) {
+        queueMicrotask(() =>
+          loadableUrls.has(value) ? this.onload?.() : this.onerror?.()
+        );
+      }
+    }
+  );
   requested.mockClear();
   print.mockReset();
   printTest.mockReset();
@@ -455,5 +484,76 @@ describe('PlcTeammatePrintModal — printing', () => {
     );
     pick('Bob Teacher');
     expect(screen.getByRole('button', { name: /^Print$/ })).toBeDisabled();
+  });
+
+  describe('sheet stimuli the owner may not have shared', () => {
+    const shared = {
+      id: 'stim-shared',
+      label: 'Unit 3 graph',
+      source: 'image' as const,
+      driveFileId: 'drive-shared',
+    };
+    const priv = {
+      id: 'stim-private',
+      label: "Amelia's map",
+      source: 'image' as const,
+      driveFileId: 'drive-private',
+    };
+    const withStimuli = (...paperSheetStimuli: (typeof shared)[]) =>
+      makeContext({
+        quiz: {
+          id: 'their-quiz',
+          title: 'Unit 3 CFA',
+          questions: [{}, {}, {}],
+          paperSheetStimuli,
+        },
+      });
+
+    it('prints the ones the owner shared', async () => {
+      loadableUrls.add(driveImageUrl('drive-shared'));
+      open(withStimuli(shared));
+      pick('Bob Teacher');
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Period 1' }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled()
+      );
+      fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+      await waitFor(() => expect(print).toHaveBeenCalled());
+      expect(print.mock.calls[0][0]).toMatchObject({
+        sheetStimuli: [shared],
+        stimulusImageSrc: { 'stim-shared': driveImageUrl('drive-shared') },
+      });
+    });
+
+    it('names an unshared one and says who to ask, rather than blocking', async () => {
+      loadableUrls.add(driveImageUrl('drive-shared'));
+      open(withStimuli(shared, priv), 'Amelia Ruiz');
+      pick('Bob Teacher');
+      const banner = await screen.findByText(/Not shared with the PLC/);
+      expect(banner).toHaveTextContent("Amelia's map");
+      expect(banner).toHaveTextContent('Ask Amelia Ruiz to share them');
+      // The one the owner did share is not named as a problem.
+      expect(banner).not.toHaveTextContent('Unit 3 graph');
+
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Period 1' }));
+      fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+      await waitFor(() => expect(print).toHaveBeenCalled());
+      // The sheet still prints; the image the teammate cannot open is left out.
+      expect(print.mock.calls[0][0].sheetStimuli).toEqual([shared]);
+    });
+
+    it('falls back to naming nobody when the sharer is unknown', async () => {
+      open(withStimuli(priv));
+      pick('Bob Teacher');
+      expect(
+        await screen.findByText(/Whoever added them can share them/)
+      ).toBeInTheDocument();
+    });
+
+    it('says nothing when the quiz has no sheet images at all', async () => {
+      await printBobsPeriod1();
+      expect(screen.queryByText(/Not shared with the PLC/)).toBeNull();
+      expect(print.mock.calls[0][0]).not.toHaveProperty('sheetStimuli');
+    });
   });
 });

@@ -42,6 +42,8 @@ export interface PaperSheetStimuliSectionProps {
   imageSrc: Record<string, string>;
   /** Stimuli whose image could not be fetched. */
   failed: PaperSheetStimulus[];
+  /** Images a PLC teammate cannot open yet (D6); empty outside a PLC. */
+  unshared?: PaperSheetStimulus[];
   /** Upload a picked file and return the stimulus it became, or null. */
   onUploadFile: (file: File) => Promise<PaperSheetStimulus | null>;
   /** Open the Drive picker and return the chosen file as a stimulus. */
@@ -124,6 +126,7 @@ export const PaperSheetStimuliSection: React.FC<
   pageCount,
   imageSrc,
   failed,
+  unshared = [],
   onUploadFile,
   onPickFromDrive,
   busy,
@@ -373,6 +376,16 @@ export const PaperSheetStimuliSection: React.FC<
             </div>
           )}
 
+          {unshared.length > 0 && (
+            <p className="text-xs text-slate-600">
+              {unshared.map((s) => s.label).join(', ')}{' '}
+              {unshared.length === 1 ? 'is' : 'are'} only visible to you. Your
+              PLC prints{' '}
+              {unshared.length === 1 ? 'an empty box' : 'empty boxes'} there
+              until you share {unshared.length === 1 ? 'it' : 'them'} on your
+              next print.
+            </p>
+          )}
           {offTheEnd.length > 0 && (
             <p className="text-xs font-semibold text-amber-800">
               {offTheEnd.map((s) => s.label).join(', ')}{' '}
