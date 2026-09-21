@@ -1388,11 +1388,21 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   // Tab: it carries tabIndex={0}, so a pointer-only gate would lock a
   // keyboard-only teacher out of pasting.
   useEffect(() => {
-    const track = (e: Event) => {
+    // Scope to the whole widget, not just the canvas, so picking a tool from
+    // the toolbar above it still counts as working in the notebook.
+    const widgetScope = (): Element | null => {
       const container = containerRef.current;
-      // Scope to the whole widget, not just the canvas, so picking a tool from
-      // the toolbar above it still counts as working in the notebook.
-      const scope = container?.closest('[data-widget-id]') ?? container;
+      return container?.closest('[data-widget-id]') ?? container;
+    };
+    // Seed from focus. The overlay keys this component on the page number, so
+    // turning a page remounts it and would otherwise drop the engagement the
+    // teacher had — she clicks Next (focusing a control inside the widget),
+    // lands on a blank page and pastes.
+    const scopeAtMount = widgetScope();
+    engagedRef.current =
+      !!scopeAtMount && scopeAtMount.contains(document.activeElement);
+    const track = (e: Event) => {
+      const scope = widgetScope();
       engagedRef.current = !!scope && scope.contains(e.target as Node);
     };
     document.addEventListener('pointerdown', track, true);

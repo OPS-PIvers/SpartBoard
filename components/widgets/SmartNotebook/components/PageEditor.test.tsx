@@ -533,6 +533,44 @@ describe('PageEditor — only claims Ctrl+V while the teacher is working in it',
     expect(onChange).toHaveBeenCalled();
   });
 
+  // PageEditorOverlay keys PageEditor on the page number, so a page turn
+  // remounts it. Engagement has to survive that or the teacher loses the paste
+  // exactly when she wants it: flip to a blank page, Ctrl+V.
+  it('keeps the paste across a page turn that remounts the editor', async () => {
+    const onChange = vi.fn();
+    const widget = document.createElement('div');
+    widget.setAttribute('data-widget-id', 'notebook-1');
+    document.body.appendChild(widget);
+
+    const pageButton = document.createElement('button');
+    widget.appendChild(pageButton);
+
+    const { rerender } = render(
+      <PageEditor svg={TEST_SVG} onChange={onChange} />,
+      {
+        container: widget.appendChild(document.createElement('div')),
+      }
+    );
+    await tick();
+
+    // The teacher clicks the next-page control, which lives in the widget.
+    act(() => {
+      pageButton.focus();
+      pageButton.dispatchEvent(
+        new Event('pointerdown', { bubbles: true, cancelable: true })
+      );
+    });
+
+    // The page turn remounts the editor — a new key in the real overlay.
+    rerender(<PageEditor key="page-2" svg={TEST_SVG} onChange={onChange} />);
+    await tick();
+
+    expect(pasteText('Lesson objective')).toBe(true);
+    expect(onChange).toHaveBeenCalled();
+
+    document.body.removeChild(widget);
+  });
+
   it('hands the paste back after a click outside the notebook', async () => {
     const onChange = vi.fn();
     const { container } = render(
