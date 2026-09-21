@@ -392,6 +392,71 @@ describe('AnnotatedResponseView — rubric strand tagging', () => {
   });
 });
 
+describe('AudioAnnotatedResponseView — rubric strand tagging', () => {
+  const note = (over: Partial<WrittenAnswerAnnotation> = {}) => ({
+    id: 'n1',
+    from: 4_000,
+    to: 4_000,
+    highlightColor: 'yellow' as const,
+    authorUid: 'teacher-1',
+    createdAt: 0,
+    ...over,
+  });
+
+  const renderNotes = (
+    annotations: WrittenAnswerAnnotation[],
+    onChange: (next: WrittenAnswerAnnotation[]) => void,
+    withRubric: boolean
+  ) =>
+    render(
+      <AudioAnnotatedResponseView
+        src="blob:take"
+        durationMs={60_000}
+        loading={false}
+        error={null}
+        unplayableReason={null}
+        annotations={annotations}
+        onChange={onChange}
+        authorUid="teacher-1"
+        activeId={null}
+        onActiveIdChange={vi.fn()}
+        rubric={withRubric ? rubric : undefined}
+      />
+    );
+
+  it('renders no chips on a note when the question has no rubric', () => {
+    renderNotes([note()], vi.fn(), false);
+    expect(
+      screen.queryByRole('group', { name: /rubric strands/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('tags a timestamp note without needing a typed comment', () => {
+    const onChange = vi.fn();
+    renderNotes([note()], onChange, true);
+    fireEvent.click(
+      screen.getByRole('button', { name: /tag as evidence for thesis/i })
+    );
+    const last = onChange.mock.calls.at(-1)?.[0] as WrittenAnswerAnnotation[];
+    expect(last[0].rubricCriteria).toEqual([
+      { criterionId: 'c1', name: 'Thesis' },
+    ]);
+    expect(last[0].comment).toBeUndefined();
+  });
+
+  it('removes the field when the last tag comes off a note', () => {
+    const onChange = vi.fn();
+    renderNotes(
+      [note({ rubricCriteria: [{ criterionId: 'c1', name: 'Thesis' }] })],
+      onChange,
+      true
+    );
+    fireEvent.click(screen.getByRole('button', { name: /remove thesis tag/i }));
+    const last = onChange.mock.calls.at(-1)?.[0] as WrittenAnswerAnnotation[];
+    expect(last[0].rubricCriteria).toBeUndefined();
+  });
+});
+
 describe('AudioAnnotatedResponseView — waveform decode', () => {
   const fetchMock = vi.fn();
 

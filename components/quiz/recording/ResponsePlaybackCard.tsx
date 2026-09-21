@@ -26,6 +26,7 @@ import {
   type PlaybackUnavailableReason,
 } from '@/hooks/useQuizArtifactPlayback';
 import { TakeReviewPlayer } from './TakeReviewPlayer';
+import { RubricStrandPills } from '@/components/widgets/QuizWidget/components/RubricStrandChips';
 
 export interface ResponsePlaybackCardProps {
   sessionId: string;
@@ -73,7 +74,9 @@ export const ResponsePlaybackCard: React.FC<ResponsePlaybackCardProps> = ({
   const timelineComments = useMemo(
     () =>
       [...(annotations ?? [])]
-        .filter((a) => (a.comment ?? '').trim())
+        .filter(
+          (a) => (a.comment ?? '').trim() || (a.rubricCriteria?.length ?? 0) > 0
+        )
         .sort((a, b) => a.from - b.from),
     [annotations]
   );
@@ -204,7 +207,14 @@ export const ResponsePlaybackCard: React.FC<ResponsePlaybackCardProps> = ({
                     >
                       {formatTimecode(a.from)}
                     </span>
-                    <span className={`text-xs ${bodyCls}`}>{a.comment}</span>
+                    <span className="min-w-0 flex-1">
+                      <RubricStrandPills tags={a.rubricCriteria} />
+                      {a.comment && (
+                        <span className={`block text-xs ${bodyCls}`}>
+                          {a.comment}
+                        </span>
+                      )}
+                    </span>
                   </button>
                 </li>
               ))}
