@@ -15,6 +15,7 @@ vi.mock('@/utils/quizDocumentImport', async () => {
     ...actual,
     readQuizDocument: vi.fn(),
     readQuizDocumentWithAi: vi.fn(),
+    readAnswerKeyFile: vi.fn(),
   };
 });
 vi.mock('@/utils/quizDocumentImport/pdfBrowserDeps', () => ({
@@ -22,6 +23,7 @@ vi.mock('@/utils/quizDocumentImport/pdfBrowserDeps', () => ({
 }));
 
 import {
+  readAnswerKeyFile,
   readQuizDocument,
   readQuizDocumentWithAi,
 } from '@/utils/quizDocumentImport';
@@ -119,5 +121,74 @@ describe('quiz import reader selection', () => {
     await adapter({ aiExtract: vi.fn(), onDocumentImages }).parse(source);
 
     expect(onDocumentImages).toHaveBeenCalledWith(images);
+  });
+});
+
+describe('the separate answer key file (D8)', () => {
+  const keyFile = {
+    file: new Blob(['1. B'], { type: 'application/pdf' }),
+    fileName: 'key.pdf',
+  };
+  const withChoices = () => ({
+    ...extracted('browser'),
+    questions: [
+      {
+        number: 1,
+        text: 'Q1',
+        type: 'MC' as const,
+        options: [
+          { letter: 'A', text: 'First' },
+          { letter: 'B', text: 'Second' },
+        ],
+        correctAnswer: '',
+        imageIds: [],
+        warnings: [],
+      },
+    ],
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(readQuizDocument).mockResolvedValue(withChoices());
+  });
+
+  it('fills the answer the key names', async () => {
+    vi.mocked(readAnswerKeyFile).mockResolvedValue(new Map([[1, 'B']]));
+
+    const result = await adapter().parse({ ...source, keyFile });
+
+    expect(result.data.questions[0].correctAnswer).toBe('Second');
+  });
+
+  it('weighs the test and the key against one budget (D18)', async () => {
+    const huge = { size: 20 * 1024 * 1024 } as Blob;
+
+    await expect(
+      adapter().parse({
+        ...source,
+        file: huge,
+        keyFile: { file: huge, fileName: 'key.pdf' },
+      })
+    ).rejects.toThrow(/together/);
+
+    // Refused before either file is opened, so an oversized pair costs nothing.
+    expect(readQuizDocument).not.toHaveBeenCalled();
+    expect(readAnswerKeyFile).not.toHaveBeenCalled();
+  });
+
+  it('does not read a key when none was attached', async () => {
+    await adapter().parse(source);
+    expect(readAnswerKeyFile).not.toHaveBeenCalled();
+  });
+
+  it('keeps the questions when the key file cannot be read', async () => {
+    vi.mocked(readAnswerKeyFile).mockRejectedValue(new Error('scanned'));
+
+    const result = await adapter().parse({ ...source, keyFile });
+
+    // Losing a whole read because the key was a photo would be worse than
+    // creating the quiz with the answers the test itself printed.
+    expect(result.data.questions).toHaveLength(1);
+    expect(result.warnings.join(' ')).toContain('answer key file couldn');
   });
 });

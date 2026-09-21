@@ -120,6 +120,13 @@ export function ImportWizard<TData>({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
+  const keyFileInputRef = useRef<HTMLInputElement>(null);
+  // Held until the test document is picked, since the key only means anything
+  // read alongside it (D8).
+  const [keyFile, setKeyFile] = useState<{
+    file: Blob;
+    fileName: string;
+  } | null>(null);
 
   // Bumped on every open/close transition; in-flight handlers check it to drop results from a cancelled session.
   const sessionRef = useRef(0);
@@ -134,6 +141,7 @@ export function ImportWizard<TData>({
       setSheetUrl('');
       setPasteText('');
       setParsed(null);
+      setKeyFile(null);
       setWarnings([]);
       setTitle(defaultTitle ?? '');
       setParseError(null);
@@ -156,6 +164,7 @@ export function ImportWizard<TData>({
   const supportsHtml = adapter.supportedSources.includes('html');
   const supportsFile = adapter.supportedSources.includes('file');
   const supportsDocument = adapter.supportedSources.includes('document');
+  const supportsKeyFile = supportsDocument && adapter.supportsKeyFile === true;
   const supportsAnyUpload =
     supportsCsv || supportsJson || supportsHtml || supportsFile;
   const supportsJsonPaste = supportsJson && adapter.supportsJsonPaste === true;
@@ -230,7 +239,20 @@ export function ImportWizard<TData>({
     const file = e.target.files?.[0];
     if (documentInputRef.current) documentInputRef.current.value = '';
     if (!file) return;
-    await runParse({ kind: 'document', file, fileName: file.name });
+    await runParse({
+      kind: 'document',
+      file,
+      fileName: file.name,
+      ...(keyFile ? { keyFile } : {}),
+    });
+  };
+
+  const handleKeyFilePicked = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ): void => {
+    const file = e.target.files?.[0];
+    if (keyFileInputRef.current) keyFileInputRef.current.value = '';
+    if (file) setKeyFile({ file, fileName: file.name });
   };
 
   const handlePickDocument = async (): Promise<void> => {
@@ -247,6 +269,7 @@ export function ImportWizard<TData>({
           kind: 'document',
           file: picked.file,
           fileName: picked.fileName,
+          ...(keyFile ? { keyFile } : {}),
         });
       }
     } catch (err) {
@@ -276,7 +299,12 @@ export function ImportWizard<TData>({
     }
     if (kind === 'document') {
       // A test document is bytes, never text — the reader opens it itself.
-      await runParse({ kind: 'document', file, fileName: file.name });
+      await runParse({
+        kind: 'document',
+        file,
+        fileName: file.name,
+        ...(keyFile ? { keyFile } : {}),
+      });
       return;
     }
     try {
@@ -674,6 +702,30 @@ export function ImportWizard<TData>({
               </p>
             </button>
           </div>
+          {supportsKeyFile &&
+            (keyFile ? (
+              <div className="flex items-center justify-between gap-2 px-3 py-2 bg-brand-blue-lighter/20 border-2 border-brand-blue-primary/20 rounded-xl">
+                <span className="text-xs font-bold text-brand-blue-primary truncate">
+                  Answer key: {keyFile.fileName}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setKeyFile(null)}
+                  className="text-xs font-black uppercase tracking-wide text-slate-500 hover:text-brand-red-primary shrink-0"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => keyFileInputRef.current?.click()}
+                disabled={loading || picking}
+                className="w-full px-3 py-2 border-2 border-dashed border-slate-300 hover:border-brand-blue-primary/40 disabled:opacity-40 rounded-xl text-xs font-bold text-slate-500 hover:text-brand-blue-primary transition-colors"
+              >
+                Add a separate answer key (optional)
+              </button>
+            ))}
           <p className="text-[11px] text-slate-500 font-medium">
             We&apos;ll read the questions and answer choices, and the answer key
             if the document has one. You can check everything before the quiz is
@@ -687,6 +739,16 @@ export function ImportWizard<TData>({
             className="hidden"
             aria-label="Upload a test document"
           />
+          {supportsKeyFile && (
+            <input
+              type="file"
+              ref={keyFileInputRef}
+              accept=".pdf,.docx"
+              onChange={handleKeyFilePicked}
+              className="hidden"
+              aria-label="Upload a separate answer key"
+            />
+          )}
         </div>
       )}
 

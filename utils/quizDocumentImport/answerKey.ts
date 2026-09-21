@@ -37,7 +37,7 @@ const EMPTY: ParsedKey = {
  * Entries on one line, but only if the line is *nothing but* entries — so
  * "1. B" and "1. B 2. C 3. A" count while "1. Because the moon..." does not.
  */
-function entriesOnLine(text: string): Array<[number, string]> {
+export function entriesOnLine(text: string): Array<[number, string]> {
   const trimmed = text.trim();
   if (!trimmed) return [];
   const found: Array<[number, string]> = [];
