@@ -28,8 +28,10 @@ let sheetImages: {
   loading: boolean;
 } = { src: {}, failed: [], loading: false };
 
+/** Nulled in the one test that checks what happens with no Drive connected. */
+let driveConnected = true;
 vi.mock('@/hooks/useGoogleDrive', () => ({
-  useGoogleDrive: () => ({ driveService: drive }),
+  useGoogleDrive: () => ({ driveService: driveConnected ? drive : null }),
 }));
 vi.mock('@/hooks/useGooglePicker', () => ({
   useGooglePicker: () => ({ openPicker }),
@@ -139,6 +141,7 @@ describe('PaperPrintModal', () => {
   beforeEach(() => {
     sheetImages = { src: {}, failed: [], loading: false };
     pdfPageCount = 3;
+    driveConnected = true;
     vi.clearAllMocks();
     // clearAllMocks keeps whatever a test set with mockResolvedValue.
     drive.listFilePermissions.mockReset();
@@ -800,6 +803,23 @@ describe('PaperPrintModal', () => {
       finish();
       await waitFor(() => expect(drive.uploadFile).toHaveBeenCalled());
       expect(onError).not.toHaveBeenCalled();
+    });
+
+    it('says Drive is needed before parsing the PDF, not after', async () => {
+      driveConnected = false;
+      const { onError } = setup({ quiz: quiz() });
+      fireEvent.click(
+        screen.getByRole('button', { name: /Add to the answer sheet/ })
+      );
+      fireEvent.change(fileInput(), { target: { files: [pdf()] } });
+      await waitFor(() =>
+        expect(onError).toHaveBeenCalledWith(
+          'Connect Google Drive to add an image to the answer sheet.'
+        )
+      );
+      // No page picker to work through first.
+      expect(screen.queryByRole('button', { name: 'Page 1' })).toBeNull();
+      expect(renderPdfPage).not.toHaveBeenCalled();
     });
 
     it('lets the PDF go even if the modal is closed out from under it', async () => {

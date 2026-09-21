@@ -227,6 +227,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         );
         return null;
       }
+      // Said now rather than after a PDF has been parsed and a page picked.
+      if (!driveService) {
+        onError('Connect Google Drive to add an image to the answer sheet.');
+        return null;
+      }
       setStimulusBusy(true);
       try {
         // A PDF is not printable as it stands: the teacher picks the page and
@@ -251,7 +256,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         setStimulusBusy(false);
       }
     },
-    [onError, uploadToDrive]
+    [driveService, onError, uploadToDrive]
   );
 
   const pickSheetImage =
