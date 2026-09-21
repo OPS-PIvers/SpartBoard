@@ -19,6 +19,7 @@ import {
   MessageSquare,
   Trash2,
   RotateCcw,
+  Printer,
 } from 'lucide-react';
 import type { PlcActivityEvent, PlcActivityType } from '@/types';
 import { MENTION_ACTIVITY_TARGET_TYPE } from '@/hooks/usePlcComments';
@@ -39,6 +40,7 @@ export const EVENT_VISUALS: Record<
   comment_added: { Icon: MessageSquare, color: 'text-brand-blue-primary' },
   item_deleted: { Icon: Trash2, color: 'text-brand-red-primary' },
   item_restored: { Icon: RotateCcw, color: 'text-emerald-600' },
+  paper_printed: { Icon: Printer, color: 'text-brand-blue-primary' },
 };
 
 /**
@@ -59,6 +61,7 @@ export const EVENT_DEFAULTS: Record<PlcActivityType, string> = {
   comment_added: '{{actor}} commented on {{target}}',
   item_deleted: '{{actor}} deleted {{target}}',
   item_restored: '{{actor}} restored {{target}}',
+  paper_printed: '{{actor}} printed answer sheets for {{target}}',
 };
 
 /**

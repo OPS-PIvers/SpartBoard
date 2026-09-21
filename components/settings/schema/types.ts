@@ -178,7 +178,8 @@ export type RowField<K extends string = string> =
 /** Row sub-schema: keys address row-object properties, not config paths. */
 export type RowSchema<Row> = {
   fields: ReadonlyArray<RowField<Extract<keyof Row, string>>>;
-  createRow?: () => Row;
+  /** Receives the index where the new row will be appended. */
+  createRow?: (index: number) => Row;
 };
 
 export type ListField<

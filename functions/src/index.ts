@@ -99,6 +99,13 @@ export {
   importPaperResponsesV1,
   publishPaperResultsV1,
 } from './importPaperResponses';
+// Paper answer sheets, delegated: printing a PLC teammate's stack while they
+// are out. The context read is separate from the two writes.
+export { getTeammatePrintContextV1 } from './getTeammatePrintContext';
+export {
+  createTeammatePaperBatchV1,
+  withdrawTeammatePaperBatchV1,
+} from './createTeammatePaperBatch';
 export {
   cleanupQuizAssignmentPointers,
   cleanupVideoActivityAssignmentPointers,

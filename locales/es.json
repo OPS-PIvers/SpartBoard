@@ -841,7 +841,8 @@
         "note_created": "{{actor}} añadió una nota: {{target}}",
         "comment_added": "{{actor}} comentó en {{target}}",
         "item_deleted": "{{actor}} eliminó {{target}}",
-        "item_restored": "{{actor}} restauró {{target}}"
+        "item_restored": "{{actor}} restauró {{target}}",
+        "paper_printed": "{{actor}} imprimió hojas de respuestas para {{target}}"
       }
     },
     "comments": {
@@ -2861,6 +2862,9 @@
       "poolWholeClass": "Toda la clase",
       "poolGroupEmpty": "Guarda un grupo para esta clase en Mis clases para usarlo aquí.",
       "rosterGroupsOff": "Los grupos de la clase están desactivados en tu escuela por ahora."
+    },
+    "schedule": {
+      "delete": "Eliminar"
     },
     "poll": {
       "importScope": "Importar de",

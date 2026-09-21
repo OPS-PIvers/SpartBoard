@@ -2,7 +2,6 @@ import React from 'react';
 import { WidgetData, TalkingToolConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
-import { TypographySettings } from '@/components/common/TypographySettings';
 
 export const TalkingToolSettings: React.FC<{ widget: WidgetData }> = () => {
   return (
@@ -26,7 +25,6 @@ export const TalkingToolAppearanceSettings: React.FC<{
 
   return (
     <div className="space-y-6">
-      <TypographySettings config={config} updateConfig={updateConfig} />
       <SurfaceColorSettings config={config} updateConfig={updateConfig} />
     </div>
   );

@@ -14,6 +14,7 @@ import {
 import { WIDGET_PALETTE } from '@/config/colors';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { Card } from '@/components/common/Card';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 
 interface BreathingConfigurationPanelProps {
   config: BreathingGlobalConfig;
@@ -61,6 +62,9 @@ export const BreathingConfigurationPanel: React.FC<
   ] ?? {
     buildingId: canonicalId,
   };
+  const hasColorSelected = WIDGET_PALETTE.some(
+    (c) => c === currentBuildingConfig.color
+  );
 
   const handleUpdateBuilding = (
     updates: Partial<BuildingBreathingDefaults>
@@ -102,26 +106,40 @@ export const BreathingConfigurationPanel: React.FC<
           </SettingsLabel>
           <div
             className="flex flex-wrap bg-white rounded-lg border border-slate-200 p-1 gap-1"
-            role="group"
+            role="radiogroup"
             aria-labelledby={patternLabelId}
+            onKeyDown={(e) =>
+              handleRadioGroupKeyDown(e, PATTERNS, (opt) =>
+                handleUpdateBuilding({
+                  pattern: opt.value === 'global' ? undefined : opt.value,
+                })
+              )
+            }
           >
-            {PATTERNS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() =>
-                  handleUpdateBuilding({
-                    pattern: opt.value === 'global' ? undefined : opt.value,
-                  })
-                }
-                className={`flex-1 py-1.5 px-2 text-xxs font-bold rounded transition-colors whitespace-nowrap ${
-                  (currentBuildingConfig.pattern ?? 'global') === opt.value
-                    ? 'bg-brand-blue-primary text-white shadow-sm'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+            {PATTERNS.map((opt) => {
+              const checked =
+                (currentBuildingConfig.pattern ?? 'global') === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  role="radio"
+                  aria-checked={checked}
+                  tabIndex={checked ? 0 : -1}
+                  onClick={() =>
+                    handleUpdateBuilding({
+                      pattern: opt.value === 'global' ? undefined : opt.value,
+                    })
+                  }
+                  className={`flex-1 py-1.5 px-2 text-xxs font-bold rounded transition-colors whitespace-nowrap ${
+                    checked
+                      ? 'bg-brand-blue-primary text-white shadow-sm'
+                      : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -132,26 +150,40 @@ export const BreathingConfigurationPanel: React.FC<
           </SettingsLabel>
           <div
             className="flex flex-wrap bg-white rounded-lg border border-slate-200 p-1 gap-1"
-            role="group"
+            role="radiogroup"
             aria-labelledby={visualLabelId}
+            onKeyDown={(e) =>
+              handleRadioGroupKeyDown(e, VISUALS, (opt) =>
+                handleUpdateBuilding({
+                  visual: opt.value === 'global' ? undefined : opt.value,
+                })
+              )
+            }
           >
-            {VISUALS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() =>
-                  handleUpdateBuilding({
-                    visual: opt.value === 'global' ? undefined : opt.value,
-                  })
-                }
-                className={`flex-1 py-1.5 px-2 text-xxs font-bold rounded transition-colors whitespace-nowrap ${
-                  (currentBuildingConfig.visual ?? 'global') === opt.value
-                    ? 'bg-brand-blue-primary text-white shadow-sm'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+            {VISUALS.map((opt) => {
+              const checked =
+                (currentBuildingConfig.visual ?? 'global') === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  role="radio"
+                  aria-checked={checked}
+                  tabIndex={checked ? 0 : -1}
+                  onClick={() =>
+                    handleUpdateBuilding({
+                      visual: opt.value === 'global' ? undefined : opt.value,
+                    })
+                  }
+                  className={`flex-1 py-1.5 px-2 text-xxs font-bold rounded transition-colors whitespace-nowrap ${
+                    checked
+                      ? 'bg-brand-blue-primary text-white shadow-sm'
+                      : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -176,23 +208,35 @@ export const BreathingConfigurationPanel: React.FC<
           </div>
           <div
             className="flex flex-wrap gap-2 p-2 bg-white rounded-lg border border-slate-200"
-            role="group"
+            role="radiogroup"
             aria-labelledby={colorLabelId}
+            onKeyDown={(e) =>
+              handleRadioGroupKeyDown(e, WIDGET_PALETTE, (color) =>
+                handleUpdateBuilding({ color })
+              )
+            }
           >
-            {WIDGET_PALETTE.map((color) => (
-              <button
-                key={color}
-                onClick={() => handleUpdateBuilding({ color })}
-                className={`w-6 h-6 rounded-full transition-all border-2 ${
-                  currentBuildingConfig.color === color
-                    ? 'border-slate-800 scale-110 shadow-md'
-                    : 'border-transparent hover:scale-105 shadow-sm'
-                }`}
-                style={{ backgroundColor: color }}
-                title={`Select color ${color}`}
-                aria-label={`Select color ${color}`}
-              />
-            ))}
+            {WIDGET_PALETTE.map((color, idx) => {
+              const checked = currentBuildingConfig.color === color;
+              const tabbable = checked || (!hasColorSelected && idx === 0);
+              return (
+                <button
+                  key={color}
+                  role="radio"
+                  aria-checked={checked}
+                  tabIndex={tabbable ? 0 : -1}
+                  onClick={() => handleUpdateBuilding({ color })}
+                  className={`w-6 h-6 rounded-full transition-all border-2 ${
+                    checked
+                      ? 'border-slate-800 scale-110 shadow-md'
+                      : 'border-transparent hover:scale-105 shadow-sm'
+                  }`}
+                  style={{ backgroundColor: color }}
+                  title={`Select color ${color}`}
+                  aria-label={`Select color ${color}`}
+                />
+              );
+            })}
           </div>
         </div>
       </Card>

@@ -11,6 +11,7 @@ import { Toggle } from '@/components/common/Toggle';
 import { STANDARD_COLORS } from '@/config/colors';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { Card } from '@/components/common/Card';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 
 interface ClockConfigurationPanelProps {
   config: ClockGlobalConfig;
@@ -109,22 +110,36 @@ export const ClockConfigurationPanel: React.FC<
           </SettingsLabel>
           <div
             className="flex bg-white rounded-lg border border-slate-200 p-1 gap-1"
-            role="group"
+            role="radiogroup"
             aria-labelledby={fontFamilyLabelId}
+            onKeyDown={(e) =>
+              handleRadioGroupKeyDown(e, FONT_FAMILY_OPTIONS, (opt) =>
+                handleUpdateBuilding({ fontFamily: opt.value })
+              )
+            }
           >
-            {FONT_FAMILY_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => handleUpdateBuilding({ fontFamily: opt.value })}
-                className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
-                  (currentBuildingConfig.fontFamily ?? 'global') === opt.value
-                    ? 'bg-brand-blue-primary text-white shadow-sm'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+            {FONT_FAMILY_OPTIONS.map((opt) => {
+              const checked =
+                (currentBuildingConfig.fontFamily ?? 'global') === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  role="radio"
+                  aria-checked={checked}
+                  tabIndex={checked ? 0 : -1}
+                  onClick={() =>
+                    handleUpdateBuilding({ fontFamily: opt.value })
+                  }
+                  className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
+                    checked
+                      ? 'bg-brand-blue-primary text-white shadow-sm'
+                      : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -176,22 +191,36 @@ export const ClockConfigurationPanel: React.FC<
           </SettingsLabel>
           <div
             className="flex bg-white rounded-lg border border-slate-200 p-1 gap-1"
-            role="group"
+            role="radiogroup"
             aria-labelledby={clockStyleLabelId}
+            onKeyDown={(e) =>
+              handleRadioGroupKeyDown(e, CLOCK_STYLE_OPTIONS, (opt) =>
+                handleUpdateBuilding({ clockStyle: opt.value })
+              )
+            }
           >
-            {CLOCK_STYLE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => handleUpdateBuilding({ clockStyle: opt.value })}
-                className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
-                  (currentBuildingConfig.clockStyle ?? 'modern') === opt.value
-                    ? 'bg-brand-blue-primary text-white shadow-sm'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+            {CLOCK_STYLE_OPTIONS.map((opt) => {
+              const checked =
+                (currentBuildingConfig.clockStyle ?? 'modern') === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  role="radio"
+                  aria-checked={checked}
+                  tabIndex={checked ? 0 : -1}
+                  onClick={() =>
+                    handleUpdateBuilding({ clockStyle: opt.value })
+                  }
+                  className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
+                    checked
+                      ? 'bg-brand-blue-primary text-white shadow-sm'
+                      : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 

@@ -35,6 +35,33 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast }),
 }));
 
+let mockCanAccessPaper = true;
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({
+    user: { uid: 'uid-alice' },
+    canAccessFeature: () => mockCanAccessPaper,
+  }),
+}));
+
+let mockDelegatedPrintingOn = true;
+let mockPaperSheetsOn = true;
+vi.mock('@/hooks/usePlcDelegatedPrintingSettings', () => ({
+  usePlcDelegatedPrintingSettings: () => ({
+    enabled: mockDelegatedPrintingOn,
+  }),
+}));
+vi.mock('@/hooks/usePaperAnswerSheetsSettings', () => ({
+  usePaperAnswerSheetsSettings: () => ({ enabled: mockPaperSheetsOn }),
+}));
+
+const teammatePrintProps = vi.fn();
+vi.mock('@/components/plc/PlcTeammatePrintModal', () => ({
+  PlcTeammatePrintModal: (props: Record<string, unknown>) => {
+    teammatePrintProps(props);
+    return <div data-testid="teammate-print-modal" />;
+  },
+}));
+
 let promptResult: string | null = 'Renamed CFA';
 const showPrompt = vi.fn(() => Promise.resolve(promptResult));
 vi.mock('@/context/useDialog', () => ({
@@ -198,6 +225,10 @@ function makeEntry(overrides: Partial<PlcQuizEntry> = {}): PlcQuizEntry {
 
 function setDefaults() {
   mockCanEdit = true;
+  mockCanAccessPaper = true;
+  mockDelegatedPrintingOn = true;
+  mockPaperSheetsOn = true;
+  teammatePrintProps.mockClear();
   promptResult = 'Renamed CFA';
   mockMembers = members;
   mockInLibraryGroups = [];
@@ -402,6 +433,60 @@ describe('PlcAssessmentList', () => {
     // No live assessment yet, so there is nothing to rename.
     openKebab(row);
     expect(within(row).queryByRole('menuitem', { name: 'Rename' })).toBeNull();
+  });
+
+  const printMenuItem = 'Print answer sheets for a teammate';
+
+  it('offers printing for a teammate once every gate passes', () => {
+    render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
+    const row = rowByTitle('Ratios warm-up');
+    openKebab(row);
+    fireEvent.click(within(row).getByRole('menuitem', { name: printMenuItem }));
+    expect(screen.getByTestId('teammate-print-modal')).toBeInTheDocument();
+    const props = teammatePrintProps.mock.calls[0][0] as {
+      plcQuizId: string;
+      teammates: PlcMember[];
+    };
+    expect(props.plcQuizId).toBe('lib-1');
+    // The caller is never in their own picker.
+    expect(props.teammates.map((m) => m.uid)).toEqual(['uid-bob', 'uid-carol']);
+  });
+
+  it('hides the teammate print action when a gate is closed', () => {
+    const hidden = () => {
+      const { unmount } = render(
+        <PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />
+      );
+      const row = rowByTitle('Ratios warm-up');
+      openKebab(row);
+      const item = within(row).queryByRole('menuitem', { name: printMenuItem });
+      unmount();
+      return item === null;
+    };
+
+    mockDelegatedPrintingOn = false;
+    expect(hidden()).toBe(true);
+    setDefaults();
+
+    mockPaperSheetsOn = false;
+    expect(hidden()).toBe(true);
+    setDefaults();
+
+    mockCanAccessPaper = false;
+    expect(hidden()).toBe(true);
+    setDefaults();
+
+    // D8: the PLC's own off-switch.
+    const off = { ...plc, features: { printForTeammates: false } } as Plc;
+    const { unmount } = render(
+      <PlcAssessmentList plc={off} onCloseDashboard={vi.fn()} />
+    );
+    const row = rowByTitle('Ratios warm-up');
+    openKebab(row);
+    expect(
+      within(row).queryByRole('menuitem', { name: printMenuItem })
+    ).toBeNull();
+    unmount();
   });
 
   it('assigns a row through the quiz actions hook', () => {

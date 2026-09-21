@@ -1,273 +1,65 @@
-// jsdom: e.currentTarget.blur() in keyDown is a no-op — tests fire fireEvent.blur() manually to replicate the synchronous browser keyDown→blur sequence.
-import React from 'react';
-import { act, render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NumberLineSettings } from './Settings';
-import { useDashboard } from '@/context/useDashboard';
-import { WidgetData } from '@/types';
+import { describe, expect, it } from 'vitest';
+import type { FieldCtx } from '@/components/settings/schema/types';
+import { WIDGET_PALETTE } from '@/config/colors';
+import numberLineSchema from './settings.schema';
 
-// ---------------------------------------------------------------------------
-// Module-level mocks
-// ---------------------------------------------------------------------------
+const field = (key: string) =>
+  numberLineSchema.groups
+    .flatMap((group) => group.fields)
+    .find((candidate) => candidate.key === key);
 
-vi.mock('@/context/useDashboard', () => ({
-  useDashboard: vi.fn(),
-}));
-
-// TypographySettings / SurfaceColorSettings pull in additional context — stub
-// them out so we only need to mock useDashboard.
-vi.mock('@/components/common/TypographySettings', () => ({
-  TypographySettings: () => null,
-}));
-
-vi.mock('@/components/common/SurfaceColorSettings', () => ({
-  SurfaceColorSettings: () => null,
-}));
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-const mockUpdateWidget = vi.fn();
-
-const baseWidget: WidgetData = {
-  id: 'nl-test-1',
-  type: 'numberLine',
-  x: 0,
-  y: 0,
-  w: 700,
-  h: 300,
-  z: 1,
-  flipped: true,
-  config: {
-    min: -10,
-    max: 10,
-    step: 1,
-    displayMode: 'integers',
-    showArrows: true,
-    markers: [],
-    jumps: [],
+const ctx = (config: Record<string, unknown>): FieldCtx => ({
+  config,
+  widget: {
+    id: 'number-line-test',
+    type: 'numberLine',
+    x: 0,
+    y: 0,
+    w: 700,
+    h: 200,
+    z: 1,
+    flipped: true,
+    config,
   },
-};
+  isAdmin: false,
+  canAccessFeature: () => true,
+  t: (key) => key,
+});
 
-// ---------------------------------------------------------------------------
-// Test suite
-// ---------------------------------------------------------------------------
+describe('Number Line settings schema', () => {
+  it('keeps minimum and maximum values ordered and bounded', () => {
+    const minField = field('min');
+    const maxField = field('max');
+    expect(minField?.toPatch?.(-2000, ctx({ max: 10 }))).toEqual({
+      min: -1000,
+    });
+    expect(maxField?.toPatch?.(2000, ctx({ min: -10 }))).toEqual({ max: 1000 });
+  });
 
-describe('NumberLineSettings — Escape-cancel regression', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      updateWidget: mockUpdateWidget,
+  it('enforces the positive step and maximum tick constraints', () => {
+    const stepField = field('step');
+    expect(stepField?.toPatch?.(0, ctx({ min: -1000, max: 1000 }))).toEqual({
+      step: 0.4,
+    });
+    expect(stepField?.toPatch?.(2, ctx({ min: -10, max: 10 }))).toEqual({
+      step: 2,
     });
   });
 
-  // ── Min Value ──────────────────────────────────────────────────────────────
-
-  it('does NOT call updateWidget when Escape is pressed on the Min Value input', () => {
-    render(<NumberLineSettings widget={baseWidget} />);
-
-    const input = screen.getByLabelText('Min Value');
-
-    // Teacher types a new value but then cancels with Escape.
-    fireEvent.change(input, { target: { value: '99' } });
-
-    act(() => {
-      fireEvent.keyDown(input, { key: 'Escape' });
-      // jsdom does not fire blur from e.currentTarget.blur(); trigger manually.
-      fireEvent.blur(input);
-    });
-
-    expect(mockUpdateWidget).not.toHaveBeenCalled();
-  });
-
-  it('resets the Min Value input to the original value after Escape', () => {
-    render(<NumberLineSettings widget={baseWidget} />);
-
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    const input = screen.getByLabelText('Min Value') as HTMLInputElement;
-
-    fireEvent.change(input, { target: { value: '99' } });
-
-    act(() => {
-      fireEvent.keyDown(input, { key: 'Escape' });
-      fireEvent.blur(input);
-    });
-
-    // The DOM value should revert to the original min (-10).
-    expect(input.value).toBe('-10');
-  });
-
-  it('DOES call updateWidget on normal blur of Min Value (Escape cancel does not poison future saves)', () => {
-    render(<NumberLineSettings widget={baseWidget} />);
-
-    const input = screen.getByLabelText('Min Value');
-
-    // First: cancel an edit with Escape.
-    fireEvent.change(input, { target: { value: '99' } });
-    act(() => {
-      fireEvent.keyDown(input, { key: 'Escape' });
-      fireEvent.blur(input);
-    });
-    expect(mockUpdateWidget).not.toHaveBeenCalled();
-
-    // Then: make a real edit and blur normally — save must go through.
-    fireEvent.change(input, { target: { value: '-5' } });
-    act(() => {
-      fireEvent.blur(input);
-    });
-
-    expect(mockUpdateWidget).toHaveBeenCalledOnce();
-    expect(mockUpdateWidget).toHaveBeenCalledWith(
-      'nl-test-1',
-      expect.objectContaining({
-        config: expect.objectContaining({ min: -5 }) as unknown,
-      })
-    );
-  });
-
-  // ── Max Value ──────────────────────────────────────────────────────────────
-
-  it('does NOT call updateWidget when Escape is pressed on the Max Value input', () => {
-    render(<NumberLineSettings widget={baseWidget} />);
-
-    const input = screen.getByLabelText('Max Value');
-
-    fireEvent.change(input, { target: { value: '999' } });
-
-    act(() => {
-      fireEvent.keyDown(input, { key: 'Escape' });
-      fireEvent.blur(input);
-    });
-
-    expect(mockUpdateWidget).not.toHaveBeenCalled();
-  });
-
-  it('resets the Max Value input to the original value after Escape', () => {
-    render(<NumberLineSettings widget={baseWidget} />);
-
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    const input = screen.getByLabelText('Max Value') as HTMLInputElement;
-
-    fireEvent.change(input, { target: { value: '999' } });
-
-    act(() => {
-      fireEvent.keyDown(input, { key: 'Escape' });
-      fireEvent.blur(input);
-    });
-
-    expect(input.value).toBe('10');
-  });
-
-  it('DOES call updateWidget on normal blur of Max Value after a prior Escape', () => {
-    render(<NumberLineSettings widget={baseWidget} />);
-
-    const input = screen.getByLabelText('Max Value');
-
-    // Cancel first.
-    fireEvent.change(input, { target: { value: '999' } });
-    act(() => {
-      fireEvent.keyDown(input, { key: 'Escape' });
-      fireEvent.blur(input);
-    });
-    expect(mockUpdateWidget).not.toHaveBeenCalled();
-
-    // Real save next.
-    fireEvent.change(input, { target: { value: '20' } });
-    act(() => {
-      fireEvent.blur(input);
-    });
-
-    expect(mockUpdateWidget).toHaveBeenCalledOnce();
-    expect(mockUpdateWidget).toHaveBeenCalledWith(
-      'nl-test-1',
-      expect.objectContaining({
-        config: expect.objectContaining({ max: 20 }) as unknown,
-      })
-    );
-  });
-
-  // ── Step (Interval) ────────────────────────────────────────────────────────
-
-  it('does NOT call updateWidget when Escape is pressed on the Step input', () => {
-    render(<NumberLineSettings widget={baseWidget} />);
-
-    const input = screen.getByLabelText('Step (Interval)');
-
-    fireEvent.change(input, { target: { value: '5' } });
-
-    act(() => {
-      fireEvent.keyDown(input, { key: 'Escape' });
-      fireEvent.blur(input);
-    });
-
-    expect(mockUpdateWidget).not.toHaveBeenCalled();
-  });
-
-  it('resets the Step input to the original value after Escape', () => {
-    render(<NumberLineSettings widget={baseWidget} />);
-
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    const input = screen.getByLabelText('Step (Interval)') as HTMLInputElement;
-
-    fireEvent.change(input, { target: { value: '5' } });
-
-    act(() => {
-      fireEvent.keyDown(input, { key: 'Escape' });
-      fireEvent.blur(input);
-    });
-
-    expect(input.value).toBe('1');
-  });
-
-  it('DOES call updateWidget on normal blur of Step after a prior Escape', () => {
-    render(<NumberLineSettings widget={baseWidget} />);
-
-    const input = screen.getByLabelText('Step (Interval)');
-
-    // Cancel first.
-    fireEvent.change(input, { target: { value: '5' } });
-    act(() => {
-      fireEvent.keyDown(input, { key: 'Escape' });
-      fireEvent.blur(input);
-    });
-    expect(mockUpdateWidget).not.toHaveBeenCalled();
-
-    // Real save next.
-    fireEvent.change(input, { target: { value: '2' } });
-    act(() => {
-      fireEvent.blur(input);
-    });
-
-    expect(mockUpdateWidget).toHaveBeenCalledOnce();
-    expect(mockUpdateWidget).toHaveBeenCalledWith(
-      'nl-test-1',
-      expect.objectContaining({
-        config: expect.objectContaining({ step: 2 }) as unknown,
-      })
-    );
-  });
-
-  // ── Enter still saves ──────────────────────────────────────────────────────
-
-  it('saves Min Value on Enter (Enter path unaffected by fix)', () => {
-    render(<NumberLineSettings widget={baseWidget} />);
-
-    const input = screen.getByLabelText('Min Value');
-
-    fireEvent.change(input, { target: { value: '-3' } });
-
-    act(() => {
-      fireEvent.keyDown(input, { key: 'Enter' });
-      fireEvent.blur(input);
-    });
-
-    expect(mockUpdateWidget).toHaveBeenCalledOnce();
-    expect(mockUpdateWidget).toHaveBeenCalledWith(
-      'nl-test-1',
-      expect.objectContaining({
-        config: expect.objectContaining({ min: -3 }) as unknown,
-      })
-    );
+  it('exposes marker and jump editing as standard list fields', () => {
+    const markers = field('markers');
+    const jumps = field('jumps');
+    expect(markers?.type).toBe('list');
+    expect(jumps?.type).toBe('list');
+    if (markers?.type === 'list' && jumps?.type === 'list') {
+      const marker = markers.row.createRow?.(0);
+      const nextMarker = markers.row.createRow?.(1);
+      const jump = jumps.row.createRow?.(0);
+      expect(marker?.value).toBe(0);
+      expect(marker?.color).toBe(WIDGET_PALETTE[0]);
+      expect(nextMarker?.color).toBe(WIDGET_PALETTE[1]);
+      expect(jump?.startValue).toBe(0);
+      expect(jump?.endValue).toBe(5);
+    }
   });
 });

@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import { render, screen } from '@testing-library/react';
 import { RecessGearWidget } from './Widget';
-import { RecessGearSettings } from './Settings';
 import { WidgetData, RecessGearConfig, WeatherConfig } from '@/types';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
@@ -310,25 +309,5 @@ describe('RecessGearWidget', () => {
     // Should show Heavy Coat (from 10 degrees) and link to Right Place
     expect(screen.getByText(/Heavy Coat/i)).toBeInTheDocument();
     expect(screen.getByText(/Right Place/i)).toBeInTheDocument();
-  });
-
-  it('renders settings panel correctly', () => {
-    vi.mocked(useDashboard).mockReturnValue({
-      activeDashboard: {
-        widgets: [
-          { id: 'w1', type: 'weather', config: { locationName: 'A' } },
-          { id: 'w2', type: 'weather', config: { locationName: 'B' } },
-        ],
-      },
-      updateWidget: vi.fn(),
-    } as unknown as DashboardContextValue);
-
-    render(<RecessGearSettings widget={baseWidget} />);
-
-    expect(screen.getByText(/Smart Linking/i)).toBeInTheDocument();
-    expect(screen.getByText(/Use "Feels Like" Temp/i)).toBeInTheDocument();
-    expect(screen.getByRole('combobox')).toBeInTheDocument();
-    expect(screen.getByText(/Weather at A/i)).toBeInTheDocument();
-    expect(screen.getByText(/Weather at B/i)).toBeInTheDocument();
   });
 });

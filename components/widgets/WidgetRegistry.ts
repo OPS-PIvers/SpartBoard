@@ -304,17 +304,54 @@ export const WIDGET_SETTINGS_SCHEMAS: Partial<
     import('./InstructionalRoutines/settings.schema').then((m) => m.default),
   flashcards: () =>
     import('./Flashcards/settings.schema').then((m) => m.default),
+  'specialist-schedule': () =>
+    import('./SpecialistSchedule/settings.schema').then((m) => m.default),
+  'graphic-organizer': () =>
+    import('./GraphicOrganizer/settings.schema').then((m) => m.default),
+  'reveal-grid': () =>
+    import('./RevealGrid/settings.schema').then((m) => m.default),
+  numberLine: () =>
+    import('./NumberLine/settings.schema').then((m) => m.default),
+  'syntax-framer': () =>
+    import('./SyntaxFramer/settings.schema').then((m) => m.default),
+  'hotspot-image': () =>
+    import('./HotspotImage/settings.schema').then((m) => m.default),
+  'concept-web': () =>
+    import('./ConceptWeb/settings.schema').then((m) => m.default),
+  'starter-pack': () =>
+    import('./StarterPack/settings.schema').then((m) => m.default),
+  'video-activity': () =>
+    import('./VideoActivityWidget/settings.schema').then((m) => m.default),
+  'guided-learning': () =>
+    import('./GuidedLearning/settings.schema').then((m) => m.default),
+  countdown: () => import('./Countdown/settings.schema').then((m) => m.default),
+  'work-symbols': () =>
+    import('./WorkSymbols/settings.schema').then((m) => m.default),
+  'blooms-taxonomy': () =>
+    import('./BloomsTaxonomy/settings.schema').then((m) => m.default),
+  'need-do-put-then': () =>
+    import('./NeedDoPutThen/settings.schema').then((m) => m.default),
+  stations: () => import('./Stations/settings.schema').then((m) => m.default),
+  materials: () =>
+    import('./MaterialsWidget/settings.schema').then((m) => m.default),
+  'seating-chart': () =>
+    import('./SeatingChart/settings.schema').then((m) => m.default),
+  schedule: () => import('./Schedule/settings.schema').then((m) => m.default),
+  recessGear: () =>
+    import('./RecessGear/settings.schema').then((m) => m.default),
+  pdf: () => import('./PdfWidget/settings.schema').then((m) => m.default),
+  quiz: () => import('./QuizWidget/settings.schema').then((m) => m.default),
+  breathing: () => import('./Breathing/settings.schema').then((m) => m.default),
+  mathTools: () => import('./MathTools/settings.schema').then((m) => m.default),
+  mathTool: () =>
+    import('./MathToolInstance/settings.schema').then((m) => m.default),
+  nextUp: () => import('./NextUp/settings.schema').then((m) => m.default),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
   Record<WidgetType, SettingsComponent>
 > = {
-  materials: lazyNamed(() => import('./MaterialsWidget'), 'MaterialsSettings'),
   miniApp: MiniAppSettings,
-  'seating-chart': lazyNamed(
-    () => import('./SeatingChart/Settings'),
-    'SeatingChartSettings'
-  ),
   catalyst: lazyNamed(
     () => import('@/components/widgets/Catalyst'),
     'CatalystSettings'
@@ -329,30 +366,9 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   ),
   smartNotebook: DefaultSettings,
   traffic: DefaultSettings,
-  schedule: lazyNamed(() => import('./Schedule'), 'ScheduleSettings'),
   classes: DefaultSettings,
-  recessGear: lazyNamed(
-    () => import('./RecessGear/Settings'),
-    'RecessGearSettings'
-  ),
-  pdf: lazyNamed(() => import('./PdfWidget'), 'PdfSettings'),
-  quiz: lazyNamed(() => import('./QuizWidget'), 'QuizWidgetSettings'),
-  breathing: lazyNamed(
-    () => import('./Breathing/BreathingSettings'),
-    'BreathingSettings'
-  ),
-  mathTools: lazyNamed(() => import('./MathTools'), 'MathToolsSettings'),
-  mathTool: lazyNamed(
-    () => import('./MathToolInstance/index'),
-    'MathToolInstanceSettings'
-  ),
-  nextUp: lazyNamed(() => import('./NextUp/Settings'), 'NextUpSettings'),
   // onboarding has no settings panel
   music: lazyNamed(() => import('./MusicWidget/index'), 'MusicSettings'),
-  countdown: lazyNamed(
-    () => import('./Countdown/Settings'),
-    'CountdownSettings'
-  ),
   'car-rider-pro': lazyNamed(
     () => import('./CarRiderPro/Settings'),
     'CarRiderProSettings'
@@ -362,43 +378,6 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     'BlendingBoardSettings'
   ),
   'first-5': lazyNamed(() => import('./First5/Settings'), 'First5Settings'),
-  'specialist-schedule': lazyNamed(
-    () => import('./SpecialistSchedule'),
-    'SpecialistScheduleSettings'
-  ),
-  'graphic-organizer': lazyNamed(
-    () => import('./GraphicOrganizer/Settings'),
-    'GraphicOrganizerSettings'
-  ),
-  'reveal-grid': lazyNamed(() => import('./RevealGrid'), 'Settings'),
-  numberLine: lazyNamed(
-    () => import('./NumberLine/Settings'),
-    'NumberLineSettings'
-  ),
-  'syntax-framer': lazyNamed(
-    () => import('./SyntaxFramer'),
-    'SyntaxFramerSettings'
-  ),
-  'hotspot-image': lazyNamed(
-    () => import('./HotspotImage'),
-    'HotspotImageSettings'
-  ),
-  'concept-web': lazyNamed(
-    () => import('./ConceptWeb/Settings'),
-    'ConceptWebSettings'
-  ),
-  'starter-pack': lazyNamed(
-    () => import('./StarterPack/Settings'),
-    'StarterPackSettings'
-  ),
-  'video-activity': lazyNamed(
-    () => import('./VideoActivityWidget/index'),
-    'VideoActivityWidgetSettings'
-  ),
-  'guided-learning': lazyNamed(
-    () => import('./GuidedLearning/index'),
-    'GuidedLearningSettings'
-  ),
   'custom-widget': lazyNamed(
     () => import('./CustomWidget/Settings'),
     'CustomWidgetSettings'
@@ -407,23 +386,10 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
     () => import('./ActivityWall/Settings'),
     'ActivityWallSettings'
   ),
-  'work-symbols': lazyNamed(
-    () => import('./WorkSymbols/Settings'),
-    'WorkSymbolsSettings'
-  ),
-  'blooms-taxonomy': lazyNamed(
-    () => import('./BloomsTaxonomy/Settings'),
-    'BloomsTaxonomySettings'
-  ),
   'talking-tool': lazyNamed(
     () => import('./TalkingTool'),
     'TalkingToolSettings'
   ),
-  'need-do-put-then': lazyNamed(
-    () => import('./NeedDoPutThen/Settings'),
-    'NeedDoPutThenSettings'
-  ),
-  stations: lazyNamed(() => import('./Stations/Settings'), 'StationsSettings'),
   projects: lazyNamed(() => import('./Projects/Settings'), 'ProjectsSettings'),
 };
 
@@ -435,58 +401,17 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
     () => import('./BlendingBoard/Settings'),
     'BlendingBoardAppearanceSettings'
   ),
-  schedule: lazyNamed(() => import('./Schedule'), 'ScheduleAppearanceSettings'),
   music: lazyNamed(
     () => import('./MusicWidget/index'),
     'MusicAppearanceSettings'
-  ),
-  breathing: lazyNamed(
-    () => import('./Breathing/BreathingSettings'),
-    'BreathingAppearanceSettings'
-  ),
-  'concept-web': lazyNamed(
-    () => import('./ConceptWeb/Settings'),
-    'ConceptWebAppearanceSettings'
-  ),
-  'graphic-organizer': lazyNamed(
-    () => import('./GraphicOrganizer/Settings'),
-    'GraphicOrganizerAppearanceSettings'
-  ),
-  'hotspot-image': lazyNamed(
-    () => import('./HotspotImage'),
-    'HotspotImageAppearanceSettings'
-  ),
-  'reveal-grid': lazyNamed(
-    () => import('./RevealGrid'),
-    'RevealGridAppearanceSettings'
-  ),
-  'specialist-schedule': lazyNamed(
-    () => import('./SpecialistSchedule'),
-    'SpecialistScheduleAppearanceSettings'
-  ),
-  'starter-pack': lazyNamed(
-    () => import('./StarterPack/Settings'),
-    'StarterPackAppearanceSettings'
   ),
   'activity-wall': lazyNamed(
     () => import('./ActivityWall/Settings'),
     'ActivityWallAppearanceSettings'
   ),
-  countdown: lazyNamed(
-    () => import('./Countdown/Settings'),
-    'CountdownAppearanceSettings'
-  ),
-  mathTools: lazyNamed(
-    () => import('./MathTools'),
-    'MathToolsAppearanceSettings'
-  ),
   'talking-tool': lazyNamed(
     () => import('./TalkingTool'),
     'TalkingToolAppearanceSettings'
-  ),
-  numberLine: lazyNamed(
-    () => import('./NumberLine/Settings'),
-    'NumberLineAppearanceSettings'
   ),
   smartNotebook: lazyNamed(
     () => import('./SmartNotebook'),
@@ -495,18 +420,6 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
   stickers: lazyNamed(
     () => import('./stickers/StickerBookSettings'),
     'StickerBookAppearanceSettings'
-  ),
-  'work-symbols': lazyNamed(
-    () => import('./WorkSymbols/Settings'),
-    'WorkSymbolsAppearanceSettings'
-  ),
-  'need-do-put-then': lazyNamed(
-    () => import('./NeedDoPutThen/Settings'),
-    'NeedDoPutThenAppearanceSettings'
-  ),
-  stations: lazyNamed(
-    () => import('./Stations/Settings'),
-    'StationsAppearanceSettings'
   ),
   projects: lazyNamed(
     () => import('./Projects/Settings'),

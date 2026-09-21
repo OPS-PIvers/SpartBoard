@@ -51,6 +51,12 @@ export interface PaperPrintJob {
   questionCount: number;
   choiceCount: number;
   sheets: readonly PaperSheetPlan[];
+  /**
+   * Whose classes this stack is for, when a PLC teammate printed it
+   * (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md D17). Absent on the self-print
+   * path, which renders exactly as it did before delegation existed.
+   */
+  printedForTeacherName?: string;
 }
 
 const mm = (n: number): string => `${n.toFixed(3)}mm`;
@@ -99,10 +105,15 @@ function headerHtml(
   sheet: PaperSheetPlan,
   quizTitle: string,
   page: number,
-  pageCount: number
+  pageCount: number,
+  printedForTeacherName?: string
 ): string {
-  const line2 = [sheet.className, `Page ${page} of ${pageCount}`]
-    .filter(Boolean)
+  const line2 = [
+    printedForTeacherName,
+    sheet.className,
+    `Page ${page} of ${pageCount}`,
+  ]
+    .filter((part): part is string => !!part)
     .map(escapeHtml)
     .join(' · ');
   return `<div class="hdr" style="left:${mm(HEADER_RECT_MM.x)};top:${mm(
@@ -178,7 +189,13 @@ function sheetPagesHtml(
         sheet.seat,
         page,
         sheet.isKeySheet
-      )}${headerHtml(sheet, job.quizTitle, page, pageCount)}${columnLegendsHtml(
+      )}${headerHtml(
+        sheet,
+        job.quizTitle,
+        page,
+        pageCount,
+        job.printedForTeacherName
+      )}${columnLegendsHtml(
         choiceCount,
         rows.columns
       )}${rows.html}${footerHtml()}</div>`

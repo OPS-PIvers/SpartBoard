@@ -2,7 +2,6 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, vi, expect, beforeEach, Mock } from 'vitest';
 import { PdfWidget } from './PdfWidget';
-import { PdfSettings } from './Settings';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useStorage } from '@/hooks/useStorage';
@@ -351,64 +350,5 @@ describe('PdfWidget', () => {
       expect(firestore.deleteDoc).not.toHaveBeenCalled();
     });
     expect(mockDeleteFile).not.toHaveBeenCalled();
-  });
-});
-
-// --- Settings panel ---
-
-describe('PdfSettings', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-    (useDashboard as unknown as Mock).mockReturnValue({
-      updateWidget: mockUpdateWidget,
-      addToast: mockAddToast,
-    });
-  });
-
-  it('shows "None" when no PDF is active', () => {
-    render(<PdfSettings widget={baseWidget} />);
-    expect(screen.getByText('None — library is shown')).toBeInTheDocument();
-  });
-
-  it('shows the active PDF name and a switch button', () => {
-    const widget: WidgetData = {
-      ...baseWidget,
-      config: {
-        activePdfId: 'pdf-1',
-        activePdfUrl: 'https://example.com/file.pdf',
-        activePdfName: 'Lesson Plan.pdf',
-      },
-    };
-    render(<PdfSettings widget={widget} />);
-    expect(screen.getByText('Lesson Plan.pdf')).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /Switch to Another PDF/i })
-    ).toBeInTheDocument();
-  });
-
-  it('clears active PDF when "Switch to Another PDF" is clicked', () => {
-    const widget: WidgetData = {
-      ...baseWidget,
-      config: {
-        activePdfId: 'pdf-1',
-        activePdfUrl: 'https://example.com/file.pdf',
-        activePdfName: 'Lesson Plan.pdf',
-      },
-    };
-    render(<PdfSettings widget={widget} />);
-    fireEvent.click(
-      screen.getByRole('button', { name: /Switch to Another PDF/i })
-    );
-
-    expect(mockUpdateWidget).toHaveBeenCalledWith(
-      'widget-1',
-      expect.objectContaining({
-        config: expect.objectContaining({
-          activePdfId: null,
-          activePdfUrl: null,
-          activePdfName: null,
-        }) as unknown,
-      }) as unknown
-    );
   });
 });

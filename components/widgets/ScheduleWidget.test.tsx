@@ -7,11 +7,7 @@ import {
   cleanup,
   act,
 } from '@testing-library/react';
-import {
-  ScheduleWidget,
-  ScheduleSettings,
-  ScheduleAppearanceSettings,
-} from './Schedule';
+import { ScheduleWidget } from './Schedule';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
@@ -767,19 +763,7 @@ describe('ScheduleWidget', () => {
   });
 });
 
-describe('ScheduleSettings', () => {
-  beforeEach(() => {
-    (useDashboard as unknown as Mock).mockReturnValue(mockDashboardContext);
-    (useAuth as unknown as Mock).mockReturnValue({
-      profile: { selectedBuildings: ['b1'] },
-    });
-    (useFeaturePermissions as unknown as Mock).mockReturnValue({
-      subscribeToPermission: vi.fn(),
-    });
-    mockUpdateWidget.mockClear();
-    mockAddToast.mockClear();
-  });
-
+describe('one-off schedule items', () => {
   const createWidget = (config: Partial<ScheduleConfig> = {}): WidgetData => {
     return {
       id: 'schedule-1',
@@ -791,399 +775,102 @@ describe('ScheduleSettings', () => {
     } as WidgetData;
   };
 
-  it('renders settings controls', () => {
-    render(<ScheduleSettings widget={createWidget()} />);
-
-    // Options section is collapsed by default; expand it first.
-    fireEvent.click(screen.getByRole('button', { name: /options/i }));
-    expect(screen.getByText(/auto-checkoff/i)).toBeInTheDocument();
-  });
-
-  it('renders typography in appearance settings', () => {
-    render(<ScheduleAppearanceSettings widget={createWidget()} />);
-
-    expect(screen.getByText(/typography/i)).toBeInTheDocument();
-  });
-
-  it('renders the Auto-Scroll View toggle', () => {
-    render(<ScheduleSettings widget={createWidget()} />);
-    // Options section is collapsed by default; expand it first.
-    fireEvent.click(screen.getByRole('button', { name: /options/i }));
-    expect(screen.getByText('Auto-Scroll View')).toBeInTheDocument();
-  });
-
-  it('saves autoScroll:true when the Auto-Scroll View toggle is clicked', () => {
-    render(<ScheduleSettings widget={createWidget({ autoScroll: false })} />);
-
-    // Options section is collapsed by default; expand it to reveal the toggles.
-    fireEvent.click(screen.getByRole('button', { name: /options/i }));
-
-    // The settings panel contains three role="switch" toggles in order:
-    // 0 = Auto-Complete Items, 1 = Auto-Scroll View, 2 = Sync Building Schedule.
-    const switches = screen.getAllByRole('switch');
-    const autoScrollToggle = switches[1];
-    fireEvent.click(autoScrollToggle);
-
-    expect(mockUpdateWidget).toHaveBeenCalledWith(
-      'schedule-1',
-      expect.objectContaining({
-        config: expect.objectContaining({ autoScroll: true }),
-      })
-    );
-  });
-
-  describe('one-off schedule items', () => {
-    it('hides a one-off item with a future date', () => {
-      vi.setSystemTime(new Date('2026-03-21T10:00:00'));
-      const widget = createWidget({
-        items: [
-          { id: 'r1', time: '08:00', task: 'Daily Class', done: false },
-          {
-            id: 'o1',
-            time: '09:00',
-            task: 'Future Event',
-            done: false,
-            oneOffDate: '2026-03-25',
-          },
-        ],
-      });
-      render(<ScheduleWidget widget={widget} />);
-      expect(screen.getByText('Daily Class')).toBeInTheDocument();
-      expect(screen.queryByText('Future Event')).not.toBeInTheDocument();
+  it('hides a one-off item with a future date', () => {
+    vi.setSystemTime(new Date('2026-03-21T10:00:00'));
+    const widget = createWidget({
+      items: [
+        { id: 'r1', time: '08:00', task: 'Daily Class', done: false },
+        {
+          id: 'o1',
+          time: '09:00',
+          task: 'Future Event',
+          done: false,
+          oneOffDate: '2026-03-25',
+        },
+      ],
     });
-
-    it('hides a one-off item with an expired (past) date', () => {
-      vi.setSystemTime(new Date('2026-03-21T10:00:00'));
-      const widget = createWidget({
-        items: [
-          { id: 'r1', time: '08:00', task: 'Daily Class', done: false },
-          {
-            id: 'o1',
-            time: '09:00',
-            task: 'Past Event',
-            done: false,
-            oneOffDate: '2026-03-20',
-          },
-        ],
-      });
-      render(<ScheduleWidget widget={widget} />);
-      expect(screen.getByText('Daily Class')).toBeInTheDocument();
-      expect(screen.queryByText('Past Event')).not.toBeInTheDocument();
-    });
-
-    it('displays a one-off item when its date matches today', () => {
-      vi.setSystemTime(new Date('2026-03-21T10:00:00'));
-      const widget = createWidget({
-        items: [
-          { id: 'r1', time: '08:00', task: 'Daily Class', done: false },
-          {
-            id: 'o1',
-            time: '09:00',
-            task: "Today's Special",
-            done: false,
-            oneOffDate: '2026-03-21',
-          },
-        ],
-      });
-      render(<ScheduleWidget widget={widget} />);
-      expect(screen.getByText('Daily Class')).toBeInTheDocument();
-      expect(screen.getByText("Today's Special")).toBeInTheDocument();
-    });
-
-    it('preserves hidden one-off items when toggling a visible item done', () => {
-      vi.setSystemTime(new Date('2026-03-21T10:00:00'));
-      const widget = createWidget({
-        items: [
-          {
-            id: 'r1',
-            time: '08:00',
-            startTime: '08:00',
-            task: 'Daily Class',
-            done: false,
-            mode: 'clock' as const,
-            linkedWidgets: [],
-          },
-          {
-            id: 'o1',
-            time: '09:00',
-            task: 'Future Event',
-            done: false,
-            oneOffDate: '2026-03-25',
-          },
-        ],
-      });
-      render(<ScheduleWidget widget={widget} />);
-
-      // Click the visible item's circle to toggle it done
-      const circles = screen.getAllByTestId('circle-icon');
-      fireEvent.click(circles[0]);
-
-      // updateWidget should preserve both items, including the hidden one-off
-      expect(mockUpdateWidget).toHaveBeenCalledWith(
-        'schedule-1',
-        expect.objectContaining({
-          config: expect.objectContaining({
-            items: expect.arrayContaining([
-              expect.objectContaining({ id: 'r1' }),
-              expect.objectContaining({ id: 'o1', oneOffDate: '2026-03-25' }),
-            ]),
-          }),
-        })
-      );
-    });
+    render(<ScheduleWidget widget={widget} />);
+    expect(screen.getByText('Daily Class')).toBeInTheDocument();
+    expect(screen.queryByText('Future Event')).not.toBeInTheDocument();
   });
 
-  it('adds a new item inline when Add Event is clicked after expanding a schedule', () => {
-    // Start with one item at 10:00.
+  it('hides a one-off item with an expired (past) date', () => {
+    vi.setSystemTime(new Date('2026-03-21T10:00:00'));
+    const widget = createWidget({
+      items: [
+        { id: 'r1', time: '08:00', task: 'Daily Class', done: false },
+        {
+          id: 'o1',
+          time: '09:00',
+          task: 'Past Event',
+          done: false,
+          oneOffDate: '2026-03-20',
+        },
+      ],
+    });
+    render(<ScheduleWidget widget={widget} />);
+    expect(screen.getByText('Daily Class')).toBeInTheDocument();
+    expect(screen.queryByText('Past Event')).not.toBeInTheDocument();
+  });
+
+  it('displays a one-off item when its date matches today', () => {
+    vi.setSystemTime(new Date('2026-03-21T10:00:00'));
+    const widget = createWidget({
+      items: [
+        { id: 'r1', time: '08:00', task: 'Daily Class', done: false },
+        {
+          id: 'o1',
+          time: '09:00',
+          task: "Today's Special",
+          done: false,
+          oneOffDate: '2026-03-21',
+        },
+      ],
+    });
+    render(<ScheduleWidget widget={widget} />);
+    expect(screen.getByText('Daily Class')).toBeInTheDocument();
+    expect(screen.getByText("Today's Special")).toBeInTheDocument();
+  });
+
+  it('preserves hidden one-off items when toggling a visible item done', () => {
+    vi.setSystemTime(new Date('2026-03-21T10:00:00'));
     const widget = createWidget({
       items: [
         {
-          id: 'existing',
-          time: '10:00',
-          startTime: '10:00',
-          task: 'Later Class',
+          id: 'r1',
+          time: '08:00',
+          startTime: '08:00',
+          task: 'Daily Class',
           done: false,
           mode: 'clock' as const,
           linkedWidgets: [],
         },
+        {
+          id: 'o1',
+          time: '09:00',
+          task: 'Future Event',
+          done: false,
+          oneOffDate: '2026-03-25',
+        },
       ],
     });
-    render(<ScheduleSettings widget={widget} />);
+    render(<ScheduleWidget widget={widget} />);
 
-    // With items present the schedule is shown directly — no accordion to expand.
-    // Click the "Add event" button (aria-label set on the inline Add button).
-    fireEvent.click(screen.getByRole('button', { name: /add event/i }));
+    // Click the visible item's circle to toggle it done
+    const circles = screen.getAllByTestId('circle-icon');
+    fireEvent.click(circles[0]);
 
-    // updateWidget should have been called with the existing item + a new blank one.
+    // updateWidget should preserve both items, including the hidden one-off
     expect(mockUpdateWidget).toHaveBeenCalledWith(
       'schedule-1',
       expect.objectContaining({
         config: expect.objectContaining({
           items: expect.arrayContaining([
-            expect.objectContaining({ task: 'Later Class' }),
-            expect.objectContaining({ task: '' }),
+            expect.objectContaining({ id: 'r1' }),
+            expect.objectContaining({ id: 'o1', oneOffDate: '2026-03-25' }),
           ]),
         }),
       })
     );
-  });
-
-  describe('event add/delete ergonomics', () => {
-    const threeItems = [
-      {
-        id: 'a',
-        startTime: '09:00',
-        task: 'Math',
-        done: false,
-        mode: 'clock' as const,
-        linkedWidgets: [],
-      },
-      {
-        id: 'b',
-        startTime: '10:00',
-        task: 'Reading',
-        done: false,
-        mode: 'clock' as const,
-        linkedWidgets: [],
-      },
-      {
-        id: 'c',
-        startTime: '11:00',
-        task: 'Recess',
-        done: false,
-        mode: 'clock' as const,
-        linkedWidgets: [],
-      },
-    ];
-
-    it('renders the Add Event button AFTER the last event row, so adding never needs a scroll back up', () => {
-      render(<ScheduleSettings widget={createWidget({ items: threeItems })} />);
-
-      const addButton = screen.getByRole('button', { name: /add event/i });
-      const lastRowInput = screen.getByDisplayValue('Recess');
-
-      // Node.DOCUMENT_POSITION_FOLLOWING === 4: addButton comes after the row.
-      expect(
-        lastRowInput.compareDocumentPosition(addButton) &
-          Node.DOCUMENT_POSITION_FOLLOWING
-      ).toBeTruthy();
-    });
-
-    it('puts the schedule-level "New Schedule" action up in the name row, never below the event list', () => {
-      render(<ScheduleSettings widget={createWidget({ items: threeItems })} />);
-
-      const newSchedule = screen.getByRole('button', { name: /new schedule/i });
-      const firstRowInput = screen.getByDisplayValue('Math');
-
-      // It sits ABOVE the first event row (in the schedule-name header), so no
-      // control under the event list can be mistaken for an event action.
-      expect(
-        firstRowInput.compareDocumentPosition(newSchedule) &
-          Node.DOCUMENT_POSITION_PRECEDING
-      ).toBeTruthy();
-
-      // It shares the header row with the delete-schedule button.
-      const deleteSchedule = screen.getByRole('button', {
-        name: /delete schedule/i,
-      });
-      expect(newSchedule.parentElement).toBe(deleteSchedule.parentElement);
-    });
-
-    it('deletes an event immediately with no confirmation dialog, offering Undo instead', () => {
-      render(<ScheduleSettings widget={createWidget({ items: threeItems })} />);
-
-      fireEvent.click(
-        screen.getAllByRole('button', { name: /delete event/i })[1]
-      );
-
-      // Removed straight away — no awaiting a confirm dialog.
-      expect(mockUpdateWidget).toHaveBeenCalledWith(
-        'schedule-1',
-        expect.objectContaining({
-          config: expect.objectContaining({
-            items: [
-              expect.objectContaining({ id: 'a' }),
-              expect.objectContaining({ id: 'c' }),
-            ],
-          }),
-        })
-      );
-
-      // ...and the safety net is an Undo toast naming the deleted event.
-      expect(mockAddToast).toHaveBeenCalledWith(
-        'Deleted "Reading"',
-        'info',
-        expect.objectContaining({ label: 'Undo' })
-      );
-    });
-
-    it('restores the event at its original index when Undo is clicked', () => {
-      const { rerender } = render(
-        <ScheduleSettings widget={createWidget({ items: threeItems })} />
-      );
-
-      fireEvent.click(
-        screen.getAllByRole('button', { name: /delete event/i })[1]
-      );
-      const action = mockAddToast.mock.calls[0][2];
-
-      // Simulate the config round-trip the real app performs: updateWidget is
-      // mocked, so the component must be re-rendered with the post-delete
-      // config for the Undo handler to see the live (2-item) list.
-      rerender(
-        <ScheduleSettings
-          widget={createWidget({ items: [threeItems[0], threeItems[2]] })}
-        />
-      );
-      mockUpdateWidget.mockClear();
-
-      act(() => action?.onClick());
-
-      // 'Reading' goes back between 'Math' and 'Recess', not onto the end.
-      expect(mockUpdateWidget).toHaveBeenCalledWith(
-        'schedule-1',
-        expect.objectContaining({
-          config: expect.objectContaining({
-            items: [
-              expect.objectContaining({ id: 'a' }),
-              expect.objectContaining({ id: 'b', task: 'Reading' }),
-              expect.objectContaining({ id: 'c' }),
-            ],
-          }),
-        })
-      );
-    });
-
-    it('does not re-focus a previously added row after switching schedules and back', () => {
-      // Regression: autoFocusItemId was set on add but never cleared. Rows
-      // unmount when the schedule selection changes, so returning to the
-      // original schedule re-mounted the last-added row with autoFocus still
-      // true and yanked focus to an event added minutes earlier.
-      const scheduleA = {
-        id: 'sched-a',
-        name: 'A',
-        days: [],
-        items: threeItems,
-      };
-      const scheduleB = { id: 'sched-b', name: 'B', days: [], items: [] };
-      const build = (selected: string) =>
-        ({
-          id: 'schedule-1',
-          type: 'schedule',
-          config: {
-            items: [],
-            schedules: [scheduleA, scheduleB],
-            settingsSelectedScheduleId: selected,
-          },
-        }) as unknown as WidgetData;
-
-      const { rerender } = render(
-        <ScheduleSettings widget={build('sched-a')} />
-      );
-
-      // Add an event to schedule A — its row takes focus.
-      fireEvent.click(screen.getByRole('button', { name: /add event/i }));
-      const added = mockUpdateWidget.mock.calls.at(-1)?.[1] as {
-        config: { schedules: { id: string; items: { id: string }[] }[] };
-      };
-      const newItemId = added.config.schedules[0].items.at(-1)?.id;
-      expect(newItemId).toBeTruthy();
-
-      const withNewItem = {
-        ...scheduleA,
-        items: [...threeItems, { id: newItemId, task: '', mode: 'clock' }],
-      };
-      const widgetWith = (selected: string) =>
-        ({
-          id: 'schedule-1',
-          type: 'schedule',
-          config: {
-            items: [],
-            schedules: [withNewItem, scheduleB],
-            settingsSelectedScheduleId: selected,
-          },
-        }) as unknown as WidgetData;
-
-      // Switch to schedule B (rows unmount)...
-      rerender(<ScheduleSettings widget={widgetWith('sched-b')} />);
-      fireEvent.click(screen.getByRole('button', { name: 'B' }));
-
-      // ...then back to A, re-mounting the row that was focused on add.
-      rerender(<ScheduleSettings widget={widgetWith('sched-a')} />);
-      fireEvent.click(screen.getByRole('button', { name: 'A' }));
-
-      // Focus must NOT have been stolen by the stale autofocus.
-      const taskInputs = screen.getAllByPlaceholderText('Task name');
-      expect(taskInputs.some((el) => el === document.activeElement)).toBe(
-        false
-      );
-    });
-
-    it('deletes a blank, never-filled row silently (no Undo toast noise)', () => {
-      const widget = createWidget({
-        items: [
-          {
-            id: 'blank',
-            task: '',
-            startTime: '',
-            endTime: '',
-            done: false,
-            mode: 'clock' as const,
-            linkedWidgets: [],
-          },
-        ],
-      });
-      render(<ScheduleSettings widget={widget} />);
-
-      fireEvent.click(screen.getByRole('button', { name: /delete event/i }));
-
-      expect(mockUpdateWidget).toHaveBeenCalledWith(
-        'schedule-1',
-        expect.objectContaining({
-          config: expect.objectContaining({ items: [] }),
-        })
-      );
-      expect(mockAddToast).not.toHaveBeenCalled();
-    });
   });
 });
