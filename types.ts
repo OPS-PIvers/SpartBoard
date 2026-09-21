@@ -3770,6 +3770,45 @@ export interface GradeResult {
  */
 export type GradeState = 'scored' | 'awaiting-grade' | 'not-attempted';
 
+/**
+ * A blank drawn at print time rather than stored as a file, so it is always
+ * sharp and needs no Drive (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D9).
+ */
+export type PaperSheetTemplate =
+  | {
+      kind: 'coordinate-grid';
+      quadrants: 1 | 4;
+      min: number;
+      max: number;
+      step: number;
+      showNumbers: boolean;
+    }
+  | { kind: 'number-line'; min: number; max: number; step: number }
+  | { kind: 'graph-paper'; heightMm: number }
+  | { kind: 'lined'; heightMm: number }
+  | { kind: 'blank-box'; heightMm: number };
+
+/**
+ * One item printed in the right-hand band of a single-column answer sheet
+ * (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md). Nothing a student draws on one is
+ * ever read back: the scan import still reads bubbles only.
+ */
+export interface PaperSheetStimulus {
+  id: string;
+  /** Authoring-only name shown in the print modal. */
+  label: string;
+  source: 'image' | 'template';
+  /** image: Drive file; its pixel size drives auto-fit without loading it. */
+  driveFileId?: string;
+  url?: string;
+  widthPx?: number;
+  heightPx?: number;
+  template?: PaperSheetTemplate;
+  caption?: string;
+  /** 1-based page it is pinned to; absent = every page. */
+  page?: number;
+}
+
 /** Full quiz data stored in Google Drive as JSON */
 export interface QuizData {
   id: string;
@@ -3777,6 +3816,12 @@ export interface QuizData {
   questions: QuizQuestion[];
   /** Stimuli attachable to questions via `QuizQuestion.stimulusIds`. */
   stimuli?: QuizStimulus[];
+  /**
+   * Items printed beside the bubbles on a paper answer sheet. Their presence
+   * is what makes a sheet single-column; absent or empty prints as it always
+   * did (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D14).
+   */
+  paperSheetStimuli?: PaperSheetStimulus[];
   /** BCP-47 tag that picks the read-aloud voice. Absent = 'en-US'. */
   language?: string;
   /** Random bank slots; see `QuizBankSlot`. Absent = no banks referenced. */
@@ -5582,6 +5627,8 @@ export interface SyncedQuizGroup {
   questions: QuizQuestion[];
   /** Stimuli referenced by `questions[].stimulusIds`. Absent on legacy groups. */
   stimuli?: QuizStimulus[];
+  /** Mirrors `QuizData.paperSheetStimuli`, so every member prints the same sheet. */
+  paperSheetStimuli?: PaperSheetStimulus[];
   /** Mirrors `QuizData.language`. */
   language?: string;
   /** Behavior settings authored in the editor; synced to PLC members. */
@@ -5714,6 +5761,8 @@ export interface PlcQuizVersionContent {
   questions: QuizQuestion[];
   /** Present when the snapshotted quiz carried stimuli. */
   stimuli?: QuizStimulus[];
+  /** Present when the snapshotted quiz carried paper answer-sheet stimuli. */
+  paperSheetStimuli?: PaperSheetStimulus[];
   /** Mirrors `QuizData.language`. */
   language?: string;
   behavior?: QuizBehaviorSettings;

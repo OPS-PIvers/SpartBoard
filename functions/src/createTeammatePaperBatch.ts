@@ -272,6 +272,8 @@ interface QuizContent {
   title: string;
   questions: unknown[];
   stimuli?: unknown[];
+  /** Items the owner's answer sheet prints beside the bubbles (D14). */
+  paperSheetStimuli?: unknown[];
   language?: string;
   /** `synced_quizzes/{groupId}.version`; absent on a copy read from Drive. */
   version?: number;
@@ -284,6 +286,9 @@ function toQuizContent(raw: Record<string, unknown>): QuizContent {
       ? raw.questions.slice(0, MAX_QUESTIONS)
       : [],
     ...(Array.isArray(raw.stimuli) ? { stimuli: raw.stimuli } : {}),
+    ...(Array.isArray(raw.paperSheetStimuli)
+      ? { paperSheetStimuli: raw.paperSheetStimuli }
+      : {}),
     ...(typeof raw.language === 'string' ? { language: raw.language } : {}),
     ...(typeof raw.version === 'number' ? { version: raw.version } : {}),
   };
@@ -328,6 +333,9 @@ async function createCopyForTarget(
     title: content.title,
     questions: content.questions,
     ...(content.stimuli?.length ? { stimuli: content.stimuli } : {}),
+    ...(content.paperSheetStimuli?.length
+      ? { paperSheetStimuli: content.paperSheetStimuli }
+      : {}),
     ...(content.language ? { language: content.language } : {}),
     createdAt: now,
     updatedAt: now,
@@ -573,6 +581,11 @@ export async function handleCreateTeammatePaperBatch(
       // one (plan §2.5).
       includeKeySheet: false,
       questions: sheetQuestions,
+      // Sheet stimuli need the page's right half, so the stack drops to one
+      // answer column — the same rule the owner's own print follows.
+      ...(content.paperSheetStimuli?.length
+        ? { columnsPerPage: 1 as const }
+        : {}),
       createdAt: now,
     });
   } catch (err) {

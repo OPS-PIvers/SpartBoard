@@ -38,11 +38,16 @@ import {
 import { encodePaperMarker, paperBatchTag } from './paperSheetMarker';
 import type { PaperSheetPlan } from './paperSheetPlan';
 import {
+  CAPTION_SIZE_PT,
+  layoutSheetStimuli,
+} from './paperSheetStimulusLayout';
+import {
   escapeHtml,
   printHtmlDocument,
   type OpenWindow,
 } from './printHtmlDocument';
 import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
+import type { PaperSheetStimulus } from '@/types';
 
 export interface PaperPrintJob {
   batchId: string;
@@ -55,6 +60,13 @@ export interface PaperPrintJob {
    * sheet stimuli existed used (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D1).
    */
   columnsPerPage?: PaperColumns;
+  /** Items printed in the sheet's right-hand band; every sheet gets them (D15). */
+  sheetStimuli?: readonly PaperSheetStimulus[];
+  /**
+   * Image data for each stimulus by id, already fetched to an object URL by
+   * the caller (D16). A stimulus with no entry is not drawn.
+   */
+  stimulusImageSrc?: Readonly<Record<string, string>>;
   /**
    * Whose classes this stack is for, when a PLC teammate printed it
    * (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md D17). Absent on the self-print
@@ -107,6 +119,40 @@ function footerHtml(): string {
   )};width:${mm(FOOTER_RECT_MM.w)};height:${mm(
     FOOTER_RECT_MM.h
   )}">${spartronLogoSvg(4.2)}<span class="foot-tag">${escapeHtml(SPARTRON_TAGLINE)}</span></div>`;
+}
+
+/**
+ * The stimulus stack for one page (D12).
+ *
+ * Only images are drawn: a template is a spec rather than a file and its
+ * renderer arrives with the template picker. `object-fit: contain` is the
+ * belt to the fit function's braces — a stored pixel size that turns out to
+ * be wrong letterboxes rather than stretching the teacher's diagram.
+ */
+function stimuliHtml(job: PaperPrintJob, page: number): string {
+  // Two columns of answers leave no band to print into, whatever the job says.
+  if (!job.sheetStimuli?.length || job.columnsPerPage !== 1) return '';
+  const parts: string[] = [];
+  for (const item of layoutSheetStimuli(job.sheetStimuli, page).items) {
+    const src = job.stimulusImageSrc?.[item.stimulus.id];
+    if (item.stimulus.source === 'image' && src) {
+      const r = item.rect;
+      parts.push(
+        `<img class="stim" alt="" src="${escapeHtml(src)}" style="left:${mm(
+          r.x
+        )};top:${mm(r.y)};width:${mm(r.w)};height:${mm(r.h)}" />`
+      );
+    }
+    if (item.captionRect && item.caption) {
+      const c = item.captionRect;
+      parts.push(
+        `<div class="stim-cap" style="left:${mm(c.x)};top:${mm(c.y)};width:${mm(
+          c.w
+        )};height:${mm(c.h)}">${escapeHtml(item.caption)}</div>`
+      );
+    }
+  }
+  return parts.join('');
 }
 
 function headerHtml(
@@ -221,7 +267,7 @@ function sheetPagesHtml(
         choiceCount,
         rows.columns,
         columnsPerPage
-      )}${rows.html}${footerHtml()}</div>`
+      )}${rows.html}${stimuliHtml(job, page)}${footerHtml()}</div>`
     );
   }
   return pages.join('');
@@ -241,7 +287,15 @@ const STYLES = `
     color: #000;
   }
   .sheet:last-child { page-break-after: auto; }
-  .reg, .cell, .hdr, .num, .bub, .legend, .foot { position: absolute; }
+  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap { position: absolute; }
+  .stim { object-fit: contain; }
+  .stim-cap {
+    font-size: ${CAPTION_SIZE_PT}pt;
+    line-height: 1.3;
+    text-align: center;
+    overflow: hidden;
+    color: #000;
+  }
   .foot {
     display: flex;
     align-items: center;
@@ -303,6 +357,8 @@ export function printPaperSheets(
       title: `${job.quizTitle} — answer sheets`,
       styles: STYLES,
       body: buildPaperSheetsHtml(job),
+      // A remote image that has not decoded yet prints as an empty box.
+      awaitImages: !!job.sheetStimuli?.length,
     },
     openWindow
   );

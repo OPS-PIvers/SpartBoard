@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { PaperSheetStimulus } from '@/types';
 import {
   BUBBLE_LETTER_GREY,
   COLUMN_X_MM,
@@ -303,5 +304,157 @@ describe('printed for a PLC teammate', () => {
       })
     );
     expect(html).toContain('Ms. Alvarez · Page 1 of 1');
+  });
+});
+
+describe('buildPaperSheetsHtml — sheet stimuli', () => {
+  const stimulus = (
+    over: Partial<PaperSheetStimulus> = {}
+  ): PaperSheetStimulus => ({
+    id: 'stim-1',
+    label: 'Unit 3 graph',
+    source: 'image',
+    driveFileId: 'drive-1',
+    widthPx: 800,
+    heightPx: 400,
+    ...over,
+  });
+
+  const stimulusJob = (over: Partial<PaperPrintJob> = {}): PaperPrintJob =>
+    job({
+      questionCount: 40,
+      columnsPerPage: 1,
+      sheetStimuli: [stimulus()],
+      stimulusImageSrc: { 'stim-1': 'blob:one' },
+      ...over,
+    });
+
+  const srcs = (html: string): string[] =>
+    [...html.matchAll(/<img class="stim"[^>]*src="([^"]+)"/g)].map((m) => m[1]);
+
+  it('draws the stack inside the band, on every page of every sheet', () => {
+    const html = buildPaperSheetsHtml(
+      stimulusJob({ sheets: [sheet({ seat: 1 }), sheet({ seat: 2 })] })
+    );
+    const rendered = pages(html);
+    expect(rendered).toHaveLength(4);
+    for (const page of rendered) {
+      expect(srcs(page)).toEqual(['blob:one']);
+      const left = Number(
+        /<img class="stim"[^>]*left:([\d.]+)mm/.exec(page)?.[1]
+      );
+      const top = Number(
+        /<img class="stim"[^>]*top:([\d.]+)mm/.exec(page)?.[1]
+      );
+      expect(left).toBeGreaterThanOrEqual(STIMULUS_RECT_MM.x);
+      expect(top).toBeGreaterThanOrEqual(STIMULUS_RECT_MM.y);
+    }
+  });
+
+  it('prints a stimulus only on the page it is pinned to', () => {
+    const html = buildPaperSheetsHtml(
+      stimulusJob({
+        sheetStimuli: [stimulus({ id: 'p2', page: 2 })],
+        stimulusImageSrc: { p2: 'blob:two' },
+      })
+    );
+    const rendered = pages(html);
+    expect(srcs(rendered[0])).toEqual([]);
+    expect(srcs(rendered[1])).toEqual(['blob:two']);
+  });
+
+  it('skips a stimulus whose image never resolved rather than printing a gap', () => {
+    const html = buildPaperSheetsHtml(stimulusJob({ stimulusImageSrc: {} }));
+    expect(srcs(html)).toEqual([]);
+  });
+
+  it('prints a caption under its stimulus', () => {
+    const html = buildPaperSheetsHtml(
+      stimulusJob({ sheetStimuli: [stimulus({ caption: 'Figure 1 & 2' })] })
+    );
+    expect(html).toContain('Figure 1 &amp; 2');
+    const top = Number(/<img class="stim"[^>]*top:([\d.]+)mm/.exec(html)?.[1]);
+    const capTop = Number(
+      /<div class="stim-cap"[^>]*top:([\d.]+)mm/.exec(html)?.[1]
+    );
+    expect(capTop).toBeGreaterThan(top);
+  });
+
+  it('draws nothing in the band while the sheet still prints two columns', () => {
+    // The right half is answer rows there, whatever the job was handed.
+    const html = buildPaperSheetsHtml(
+      stimulusJob({ columnsPerPage: 2, questionCount: 40 })
+    );
+    expect(srcs(html)).toEqual([]);
+    expect(html).toBe(buildPaperSheetsHtml(job({ questionCount: 40 })));
+  });
+});
+
+describe('printPaperSheets — waiting for images', () => {
+  /** A print window whose `print()` we can watch for. */
+  const fakeWindow = (images: HTMLImageElement[]) => {
+    const print = vi.fn();
+    const win = {
+      document: {
+        open: vi.fn(),
+        write: vi.fn(),
+        close: vi.fn(),
+        images,
+      },
+      focus: vi.fn(),
+      print,
+      close: vi.fn(),
+      onafterprint: null,
+    } as unknown as Window;
+    return { win, print };
+  };
+
+  const stimulusJob: PaperPrintJob = {
+    batchId: 'batch-1',
+    quizTitle: 'Unit 3 Test',
+    questionCount: 25,
+    choiceCount: 4,
+    columnsPerPage: 1,
+    sheets: [sheet()],
+    sheetStimuli: [
+      {
+        id: 'stim-1',
+        label: 'Graph',
+        source: 'image',
+        widthPx: 800,
+        heightPx: 400,
+      },
+    ],
+    stimulusImageSrc: { 'stim-1': 'blob:one' },
+  };
+
+  it('holds the dialog until every image has decoded', async () => {
+    let release!: () => void;
+    const decoded = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const image = { decode: () => decoded } as unknown as HTMLImageElement;
+    const { win, print } = fakeWindow([image]);
+
+    printPaperSheets(stimulusJob, () => win);
+    expect(print).not.toHaveBeenCalled();
+    release();
+    await vi.waitFor(() => expect(print).toHaveBeenCalledTimes(1));
+  });
+
+  it('still prints when an image refuses to decode', async () => {
+    const image = {
+      decode: () => Promise.reject(new Error('broken')),
+    } as unknown as HTMLImageElement;
+    const { win, print } = fakeWindow([image]);
+
+    printPaperSheets(stimulusJob, () => win);
+    await vi.waitFor(() => expect(print).toHaveBeenCalledTimes(1));
+  });
+
+  it('prints straight away when there is nothing to wait for', () => {
+    const { win, print } = fakeWindow([]);
+    printPaperSheets(job(), () => win);
+    expect(print).toHaveBeenCalledTimes(1);
   });
 });

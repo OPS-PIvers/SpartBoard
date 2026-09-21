@@ -44,6 +44,7 @@ import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
 import { normalizeQuizTranslation } from '@/utils/quizTranslationNormalize';
 import type { QuizDriveLike } from '@/utils/mockQuizDriveService';
 import type {
+  PaperSheetStimulus,
   PlcQuizVersionContent,
   QuizBehaviorSettings,
   QuizQuestion,
@@ -73,6 +74,8 @@ export interface PublishSyncedQuizInput {
   questions: QuizQuestion[];
   /** Stimuli referenced by the questions. Omitted = clear on the canonical. */
   stimuli?: QuizStimulus[];
+  /** Paper answer-sheet stimuli. Omitted = clear on the canonical. */
+  paperSheetStimuli?: PaperSheetStimulus[];
   /** Read-aloud language. Omitted = clear on the canonical. */
   language?: string;
   /**
@@ -335,6 +338,7 @@ export async function pullSyncedQuizContent(groupId: string): Promise<{
   title: string;
   questions: QuizQuestion[];
   stimuli?: QuizStimulus[];
+  paperSheetStimuli?: PaperSheetStimulus[];
   language?: string;
   behavior?: QuizBehaviorSettings;
   translations?: Record<string, QuizTranslation>;
@@ -349,6 +353,7 @@ export async function pullSyncedQuizContent(groupId: string): Promise<{
     | 'title'
     | 'questions'
     | 'stimuli'
+    | 'paperSheetStimuli'
     | 'language'
     | 'behavior'
     | 'translations'
@@ -359,6 +364,7 @@ export async function pullSyncedQuizContent(groupId: string): Promise<{
     title: data.title,
     questions: normalizeQuizQuestions(data.questions ?? []),
     stimuli: data.stimuli,
+    paperSheetStimuli: data.paperSheetStimuli,
     language: data.language,
     behavior: data.behavior,
     ...(translations ? { translations } : {}),
@@ -381,6 +387,7 @@ export async function createSyncedQuizGroup(input: {
   title: string;
   questions: QuizQuestion[];
   stimuli?: QuizStimulus[];
+  paperSheetStimuli?: PaperSheetStimulus[];
   language?: string;
   plcId?: string;
   behavior?: QuizBehaviorSettings;
@@ -394,6 +401,9 @@ export async function createSyncedQuizGroup(input: {
     questions: input.questions,
     ...(input.stimuli && input.stimuli.length > 0
       ? { stimuli: input.stimuli }
+      : {}),
+    ...(input.paperSheetStimuli && input.paperSheetStimuli.length > 0
+      ? { paperSheetStimuli: input.paperSheetStimuli }
       : {}),
     ...(input.language ? { language: input.language } : {}),
     participants: { [input.uid]: { joinedAt: now } },
@@ -464,6 +474,10 @@ export async function publishSyncedQuiz(
         input.stimuli && input.stimuli.length > 0
           ? input.stimuli
           : deleteField(),
+      paperSheetStimuli:
+        input.paperSheetStimuli && input.paperSheetStimuli.length > 0
+          ? input.paperSheetStimuli
+          : deleteField(),
       language: input.language ?? deleteField(),
       // Preserve-on-omit like `behavior`: a caller that never loaded the
       // sidecars must not wipe the whole PLC's locales. An explicit empty map
@@ -510,7 +524,12 @@ export async function publishSyncedQuiz(
 function buildQuizVersionContent(
   source: Pick<
     SyncedQuizGroup,
-    'title' | 'questions' | 'stimuli' | 'language' | 'behavior'
+    | 'title'
+    | 'questions'
+    | 'stimuli'
+    | 'paperSheetStimuli'
+    | 'language'
+    | 'behavior'
   >
 ): PlcQuizVersionContent {
   return {
@@ -518,6 +537,9 @@ function buildQuizVersionContent(
     questions: source.questions ?? [],
     ...(source.stimuli && source.stimuli.length > 0
       ? { stimuli: source.stimuli }
+      : {}),
+    ...(source.paperSheetStimuli && source.paperSheetStimuli.length > 0
+      ? { paperSheetStimuli: source.paperSheetStimuli }
       : {}),
     ...(source.language ? { language: source.language } : {}),
     ...(source.behavior ? { behavior: source.behavior } : {}),
@@ -620,6 +642,8 @@ export async function restoreSyncedVersion(
   // current canonical's so a restore never silently wipes attachments.
   // Dangling pointers are sanitized on the next editor load/save.
   const restoredStimuli = content.stimuli ?? current.stimuli;
+  const restoredSheetStimuli =
+    content.paperSheetStimuli ?? current.paperSheetStimuli;
   // Snapshots predate translations, so a restore preserves the canonical's.
   const restoredTranslations = current.translations;
   return publishSyncedQuiz(groupId, {
@@ -629,6 +653,9 @@ export async function restoreSyncedVersion(
     uid,
     ...(restoredStimuli && restoredStimuli.length > 0
       ? { stimuli: restoredStimuli }
+      : {}),
+    ...(restoredSheetStimuli && restoredSheetStimuli.length > 0
+      ? { paperSheetStimuli: restoredSheetStimuli }
       : {}),
     ...(content.language ? { language: content.language } : {}),
     ...(content.behavior ? { behavior: content.behavior } : {}),
