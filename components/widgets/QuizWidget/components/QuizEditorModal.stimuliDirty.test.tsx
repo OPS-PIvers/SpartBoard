@@ -132,4 +132,41 @@ describe('QuizEditorModal isDirty (stimuli compare)', () => {
 
     expect(dirtyAttr()).toBe('true');
   });
+
+  it('flips dirty when a passage is edited (D16)', () => {
+    // The compare is field by field, so a new stimulus field that isn't in
+    // it leaves Save disabled and the teacher's passage unsaved.
+    const passageQuiz: QuizData = {
+      ...stimulusQuiz,
+      stimuli: [
+        {
+          id: 's1',
+          type: 'text',
+          url: '',
+          text: '',
+          label: 'Passage',
+          readAloudSource: 'text',
+        },
+      ],
+    };
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={passageQuiz}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    expect(dirtyAttr()).toBe('false');
+
+    fireEvent.click(screen.getByRole('button', { name: /^stimuli$/i }));
+
+    const context = within(screen.getByTestId('context-pane'));
+    fireEvent.click(context.getByRole('button', { name: 'Expand stimulus' }));
+    fireEvent.change(context.getByLabelText('Passage'), {
+      target: { value: 'The tide pool holds more life than it looks.' },
+    });
+
+    expect(dirtyAttr()).toBe('true');
+  });
 });

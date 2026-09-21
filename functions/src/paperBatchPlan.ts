@@ -7,8 +7,14 @@
  * whole stack of paper, so edit the two together or that test fails.
  */
 
-/** Mirrors `QUESTIONS_PER_PAGE` in `utils/paperSheetLayout.ts`. */
-const QUESTIONS_PER_PAGE = 50;
+/** Mirrors `PaperColumns` in `types.ts`. */
+export type PaperColumns = 1 | 2;
+
+/** Mirrors `ROWS_PER_COLUMN` in `utils/paperSheetLayout.ts`. */
+const ROWS_PER_COLUMN = 25;
+/** Mirrors `DEFAULT_COLUMNS_PER_PAGE`; a batch without the field is two-column. */
+const DEFAULT_COLUMNS_PER_PAGE: PaperColumns = 2;
+
 export const MIN_CHOICE_COUNT = 2;
 export const MAX_CHOICE_COUNT = 5;
 /** Mirrors `MAX_SEAT` in `utils/paperSheetMarker.ts` — 10 seat bits. */
@@ -62,6 +68,7 @@ export interface PaperBatchDoc {
   keySheetSeat?: number;
   choiceOrder?: Record<string, string[]>;
   pagesPerSheet: number;
+  columnsPerPage?: PaperColumns;
   createdAt: number;
 }
 
@@ -74,6 +81,7 @@ export interface PaperBatchInput {
   spareCount: number;
   includeKeySheet: boolean;
   questions?: readonly PaperQuestion[];
+  columnsPerPage?: PaperColumns;
   createdAt: number;
 }
 
@@ -94,8 +102,14 @@ export interface PaperQuizAnalysis {
   shortRows: number[];
 }
 
-const pageCountForQuestions = (questionCount: number): number =>
-  Math.max(1, Math.ceil(questionCount / QUESTIONS_PER_PAGE));
+const questionsPerPage = (
+  columns: PaperColumns = DEFAULT_COLUMNS_PER_PAGE
+): number => ROWS_PER_COLUMN * columns;
+
+const pageCountForQuestions = (
+  questionCount: number,
+  columns: PaperColumns = DEFAULT_COLUMNS_PER_PAGE
+): number => Math.max(1, Math.ceil(questionCount / questionsPerPage(columns)));
 
 const clampChoices = (n: number): number =>
   Math.min(Math.max(n, MIN_CHOICE_COUNT), MAX_CHOICE_COUNT);
@@ -181,6 +195,7 @@ const studentLabel = (s: PaperBatchStudent): string =>
 
 /** Allocate seats and build the batch record. */
 export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
+  const columnsPerPage = input.columnsPerPage ?? DEFAULT_COLUMNS_PER_PAGE;
   const sheets: PaperSheetPlan[] = [];
   const seats: Record<number, PaperSeatAssignment> = {};
   const spareSeats: number[] = [];
@@ -250,7 +265,8 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
     spareSeats,
     ...(keySheetSeat !== undefined ? { keySheetSeat } : {}),
     ...(input.questions?.length ? { choiceOrder } : {}),
-    pagesPerSheet: pageCountForQuestions(input.questionCount),
+    pagesPerSheet: pageCountForQuestions(input.questionCount, columnsPerPage),
+    ...(columnsPerPage === DEFAULT_COLUMNS_PER_PAGE ? {} : { columnsPerPage }),
     createdAt: input.createdAt,
   };
 

@@ -20,7 +20,11 @@ import {
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import { APP_NAME } from '@/config/constants';
 import { authError } from './driveAuthErrors';
-import { buildResultsSheetData as buildResultsSheetDataShared } from '@/utils/assignmentExportShared';
+import {
+  buildResultsSheetData as buildResultsSheetDataShared,
+  formatQuizAnswerText,
+  headersHaveAnswerColumns,
+} from '@/utils/assignmentExportShared';
 import {
   fibAnswersForResponse,
   type FibGradingContext,
@@ -111,7 +115,7 @@ interface SheetsValueRange {
  * `buildResultsSheetData`'s PLC branch: identity columns first, then
  * per-question correctness as `questionAnswers[i]`. Each question cell
  * is either '' (unanswered), '0' (incorrect), or a positive number
- * string (correct).
+ * string (correct). Newer sheets interleave a "Qn Answer" text cell after each.
  */
 export interface PlcSheetRow {
   timestamp: string;
@@ -691,7 +695,8 @@ export class QuizDriveService {
       byStudentUid?: Map<string, { givenName: string; familyName: string }>;
       teacherName?: string;
       fibGrading?: FibGradingContext | null;
-    }
+    },
+    includeAnswerText = true
   ): { headers: string[]; dataRows: string[][] } {
     return buildResultsSheetDataShared<QuizQuestion, QuizResponse>(
       responses,
@@ -699,7 +704,9 @@ export class QuizDriveService {
       options?.fibGrading
         ? makeQuizGradeFn(options.fibGrading)
         : quizGradeFnWithManualGrades,
-      options
+      includeAnswerText
+        ? { ...options, formatAnswer: formatQuizAnswerText }
+        : options
     );
   }
 
@@ -739,7 +746,8 @@ export class QuizDriveService {
     // Read the existing sheet so peer rows can be preserved. If the
     // read fails (404/403), `readPlcSheet` throws PlcSheetMissingError
     // and the caller falls through to the create-fresh-sheet recovery.
-    const { rows: existingRows } = await this.readPlcSheet(sheetUrl);
+    const { headers: existingHeaders, rows: existingRows } =
+      await this.readPlcSheet(sheetUrl);
 
     // Convert peer PlcSheetRows back to the same string[] cell shape
     // that `buildResultsSheetData` produces. Identity columns first, then
@@ -766,10 +774,15 @@ export class QuizDriveService {
         ...r.questionAnswers,
       ]);
 
+    // Peer rows are kept verbatim, so a pre-answer-column sheet with peers keeps its layout.
+    const includeAnswerText =
+      preservedPeerRows.length === 0 ||
+      headersHaveAnswerColumns(existingHeaders);
     const { headers, dataRows } = this.buildResultsSheetData(
       responses,
       questions,
-      options
+      options,
+      includeAnswerText
     );
 
     // Combine and re-sort by Student column (index 3) so the union has
@@ -827,10 +840,18 @@ export class QuizDriveService {
       (options?.fibGrading
         ? makeQuizGradeFn(options.fibGrading)
         : quizGradeFnWithManualGrades);
-    const { headers, dataRows } = buildResultsSheetDataShared<
-      QuizQuestion,
-      QuizResponse
-    >(responses, questions, gradeFn, options);
+    // A caller-supplied grader (Video Activity) keeps its points-only layout.
+    const includeAnswerText = !options?.gradeFn;
+    const buildRows = (withAnswers: boolean) =>
+      buildResultsSheetDataShared<QuizQuestion, QuizResponse>(
+        responses,
+        questions,
+        gradeFn,
+        withAnswers
+          ? { ...options, formatAnswer: formatQuizAnswerText }
+          : options
+      );
+    const { headers, dataRows } = buildRows(includeAnswerText);
 
     // PLC mode: append to existing shared sheet
     if (options?.plcMode) {
@@ -839,7 +860,10 @@ export class QuizDriveService {
           'No shared sheet URL configured. Please add one in Quiz settings.'
         );
       }
-      return this.appendToExistingSheet(options.plcSheetUrl, headers, dataRows);
+      const layouts = [{ headers, dataRows }];
+      // Sheets created before answer columns existed keep their layout.
+      if (includeAnswerText) layouts.push(buildRows(false));
+      return this.appendToExistingSheet(options.plcSheetUrl, layouts);
     }
 
     // Solo mode: create a new spreadsheet with full results + stats
@@ -1128,12 +1152,13 @@ export class QuizDriveService {
    * Append rows to an existing Google Sheet (used for PLC mode).
    * If the sheet is empty, writes headers first, then appends data rows.
    * If the sheet already has data, appends only data rows (skips headers).
+   * `layouts` are tried in order against the existing header; the first is used for an empty sheet.
    */
   private async appendToExistingSheet(
     sheetUrl: string,
-    headers: string[],
-    dataRows: string[][]
+    layouts: { headers: string[]; dataRows: string[][] }[]
   ): Promise<string> {
+    const { headers } = layouts[0];
     const spreadsheetId = QuizDriveService.extractSheetId(sheetUrl);
     if (!spreadsheetId) throw new Error('Invalid Google Sheets URL');
 
@@ -1204,11 +1229,15 @@ export class QuizDriveService {
     // means the sheet was never written. Append cleanly with our headers.
     const sheetIsEmpty = trimmed.length === 0;
 
+    let layout = layouts[0];
     if (!sheetIsEmpty) {
-      const matches =
-        trimmed.length === headers.length &&
-        trimmed.every((cell, i) => cell === headers[i]);
-      if (!matches) {
+      const match = layouts.find(
+        (l) =>
+          trimmed.length === l.headers.length &&
+          trimmed.every((cell, i) => cell === l.headers[i])
+      );
+      if (match) layout = match;
+      else {
         throw new PlcSheetSchemaMismatchError(
           "This PLC sheet was created with an older schema and can't be appended to safely. " +
             'Ask the PLC lead to recreate the shared sheet (the next export will create a fresh one).',
@@ -1219,7 +1248,9 @@ export class QuizDriveService {
     }
 
     // Build rows to append: include headers if sheet is empty
-    const rowsToAppend = sheetIsEmpty ? [headers, ...dataRows] : dataRows;
+    const rowsToAppend = sheetIsEmpty
+      ? [layout.headers, ...layout.dataRows]
+      : layout.dataRows;
 
     // Append via Sheets API
     const appendRes = await fetch(

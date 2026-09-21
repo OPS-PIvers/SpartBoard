@@ -86,6 +86,8 @@ export interface TeammatePrintQuiz {
   title: string;
   questions: unknown[];
   stimuli?: unknown[];
+  /** Items the owner's answer sheet prints beside the bubbles. */
+  paperSheetStimuli?: unknown[];
   language?: string;
 }
 
@@ -351,6 +353,9 @@ function quizFromContent(
     title: typeof raw.title === 'string' ? raw.title : '',
     questions,
     ...(Array.isArray(raw.stimuli) ? { stimuli: raw.stimuli } : {}),
+    ...(Array.isArray(raw.paperSheetStimuli)
+      ? { paperSheetStimuli: raw.paperSheetStimuli }
+      : {}),
     ...(typeof raw.language === 'string' ? { language: raw.language } : {}),
   };
 }

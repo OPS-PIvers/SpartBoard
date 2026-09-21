@@ -44,6 +44,18 @@ const reducedMotionPlugin = plugin(({ addBase }) => {
   });
 });
 
+// Google Picker mounts its own dialog on <body> with an inline z-index of ~1001,
+// so it renders behind any app modal. Generated from the Z_INDEX registry rather
+// than hand-written in index.css so raising a modal layer can't strand it again.
+const googlePickerPlugin = plugin(({ addBase }) => {
+  addBase({
+    '.picker-dialog-bg': {
+      zIndex: `${Z_INDEX.googlePickerBackdrop} !important`,
+    },
+    '.picker-dialog': { zIndex: `${Z_INDEX.googlePicker} !important` },
+  });
+});
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -279,5 +291,5 @@ export default {
       },
     },
   },
-  plugins: [tailwindcssAnimate, reducedMotionPlugin],
+  plugins: [tailwindcssAnimate, reducedMotionPlugin, googlePickerPlugin],
 };

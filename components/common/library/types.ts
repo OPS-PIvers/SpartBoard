@@ -48,7 +48,14 @@ export type LibraryBadgeTone =
 export type LibraryAssignmentStatus = 'active' | 'paused' | 'inactive';
 
 /** Import source kinds. Adapters declare which they support. */
-export type ImportSourceKind = 'sheet' | 'csv' | 'json' | 'html' | 'file';
+export type ImportSourceKind =
+  | 'sheet'
+  | 'csv'
+  | 'json'
+  | 'html'
+  | 'file'
+  /** A printed test: PDF, Word file, or a Google Doc exported as one. */
+  | 'document';
 
 /* ─── Generic value objects ───────────────────────────────────────────────── */
 
@@ -533,7 +540,18 @@ export type ImportSourcePayload =
   | { kind: 'csv'; text: string; fileName?: string }
   | { kind: 'json'; text: string; fileName?: string }
   | { kind: 'html'; text: string; fileName?: string }
-  | { kind: 'file'; file: File };
+  | { kind: 'file'; file: File }
+  | {
+      kind: 'document';
+      file: Blob;
+      fileName: string;
+      /**
+       * The optional answer key picked beside the test
+       * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D8). Absent when the teacher
+       * attached none, which is the common case.
+       */
+      keyFile?: { file: Blob; fileName: string };
+    };
 
 /** Parser result — `warnings` surface non-fatal issues in the preview. */
 export interface ImportParseResult<TData> {
@@ -572,6 +590,17 @@ export interface ImportAdapter<TData> {
    * requires the broad scope).
    */
   pickSheet?: () => Promise<{ url: string } | null>;
+  /**
+   * Optional Google Picker entry point for the `'document'` source, resolving
+   * with the picked file's bytes (a Google Doc arrives already exported as
+   * .docx) or `null` if the teacher cancels.
+   */
+  pickDocument?: () => Promise<{ file: Blob; fileName: string } | null>;
+  /**
+   * True when this adapter reads a separate answer key file (D8); the wizard
+   * then offers a slot for one beside the test document.
+   */
+  supportsKeyFile?: boolean;
   /** Optional helper for Google Sheets template creation. */
   templateHelper?: {
     createTemplate: () => Promise<{ url: string }>;
@@ -580,6 +609,17 @@ export interface ImportAdapter<TData> {
   parse: (source: ImportSourcePayload) => Promise<ImportParseResult<TData>>;
   validate: (data: TData) => ImportValidationResult;
   renderPreview: (data: TData) => React.ReactNode;
+  /**
+   * Optional editable preview. When present the wizard renders this instead
+   * of `renderPreview` and adopts whatever the adapter hands back, so a
+   * review step can let the teacher correct what was read before anything is
+   * saved (docs/plans/QUIZ_DOCUMENT_IMPORT.md D10). Adapters that omit it are
+   * unaffected and keep the read-only preview.
+   */
+  renderReview?: (
+    data: TData,
+    onChange: (next: TData) => void
+  ) => React.ReactNode;
   /**
    * Optional — given the parsed data, return a suggested title. The wizard
    * auto-populates its title input with this value when the input is empty,

@@ -1344,3 +1344,185 @@ describe('QuizDriveService.exportResultsToSheet — Question Analysis Avg %', ()
     expect(row.slice(4)).toEqual(['', '1', '', '']);
   });
 });
+
+describe('QuizDriveService — answer-text columns', () => {
+  let service: QuizDriveService;
+  beforeEach(() => {
+    service = new QuizDriveService('test-token');
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const SHEET = 'https://docs.google.com/spreadsheets/d/plc-answers/edit';
+  const matching: QuizQuestion = {
+    ...makeQuestion('q2'),
+    type: 'Matching',
+    correctAnswer: 'cat:meow|dog:woof',
+    incorrectAnswers: [],
+  };
+  const NEW_HEADERS = [
+    ...PLC_SHEET_HEADERS,
+    'Q1 Answer',
+    'Q2 (1pt): Question q2',
+    'Q2 Answer',
+  ];
+  const OLD_HEADERS = [...PLC_SHEET_HEADERS, 'Q2 (1pt): Question q2'];
+  const answers: QuizResponseAnswer[] = [
+    { questionId: 'q1', answer: 'B', answeredAt: 0 },
+    { questionId: 'q2', answer: 'cat:meow|dog:woof', answeredAt: 0 },
+  ];
+  const ANSWERED_CELLS = ['0', 'B', '1', 'cat → meow; dog → woof'];
+  const metaTitle = {
+    json: () =>
+      Promise.resolve({ sheets: [{ properties: { title: 'Results' } }] }),
+  };
+  const callsOf = (spy: FetchSpy) =>
+    (spy as unknown as { mock: { calls: unknown[][] } }).mock.calls as Array<
+      [string, RequestInit]
+    >;
+
+  it('solo export adds a readable answer column after each points column', async () => {
+    const fetchSpy = queueFetchResponses([
+      { json: () => Promise.resolve({ spreadsheetUrl: 'u' }) },
+    ]);
+    await service.exportResultsToSheet(
+      'T',
+      [
+        makeResponse({ pin: '01', answers }),
+        // Bank quiz: q2 was never served to this student.
+        makeResponse({
+          pin: '02',
+          servedQuestionIds: ['q1'],
+          answers: [{ questionId: 'q1', answer: 'A', answeredAt: 0 }],
+        }),
+      ],
+      [makeQuestion('q1'), matching]
+    );
+    const rows = extractAllRows(fetchSpy);
+    expect(rows[0]).toEqual(NEW_HEADERS);
+    const byPin = (pin: string) => rows.find((r) => r[4] === pin) ?? [];
+    expect(byPin('01').slice(11)).toEqual(ANSWERED_CELLS);
+    expect(byPin('02').slice(11)).toEqual(['1', 'A', '', '']);
+  });
+
+  it('keeps the points-only layout when a caller supplies its own grader', async () => {
+    const fetchSpy = queueFetchResponses([
+      { json: () => Promise.resolve({ spreadsheetUrl: 'u' }) },
+    ]);
+    await service.exportResultsToSheet(
+      'VA',
+      [makeResponse({ pin: '01' })],
+      [makeQuestion('q1')],
+      {
+        gradeFn: () => ({
+          isCorrect: true,
+          pointsEarned: 1,
+          pointsMax: 1,
+          state: 'scored',
+        }),
+      }
+    );
+    expect(extractAllRows(fetchSpy)[0]).toEqual(PLC_SHEET_HEADERS);
+  });
+
+  async function appendTo(existingHeader: string[][]): Promise<string[][]> {
+    const fetchSpy = queueFetchResponses([
+      metaTitle,
+      { json: () => Promise.resolve({ values: existingHeader }) },
+      { json: () => Promise.resolve({}) },
+    ]);
+    await service.exportResultsToSheet(
+      'T',
+      [makeResponse({ pin: '01', answers })],
+      [makeQuestion('q1'), matching],
+      { plcMode: true, plcSheetUrl: SHEET }
+    );
+    return parseBody(callsOf(fetchSpy)[2][1]).values as string[][];
+  }
+
+  it('PLC append to a sheet created before answer columns keeps its layout', async () => {
+    const appended = await appendTo([OLD_HEADERS]);
+    expect(appended).toHaveLength(1);
+    expect(appended[0]).toHaveLength(OLD_HEADERS.length);
+    expect(appended[0].slice(11)).toEqual(['0', '1']);
+  });
+
+  it('PLC append to a sheet with answer columns includes the answers', async () => {
+    const appended = await appendTo([NEW_HEADERS]);
+    expect(appended).toHaveLength(1);
+    expect(appended[0].slice(11)).toEqual(ANSWERED_CELLS);
+  });
+
+  it('PLC append to an empty sheet writes the answer-column header', async () => {
+    const appended = await appendTo([]);
+    expect(appended[0]).toEqual(NEW_HEADERS);
+    expect(appended[1].slice(11)).toEqual(ANSWERED_CELLS);
+  });
+
+  const identity = (teacher: string, student: string, pin: string) => [
+    't',
+    teacher,
+    'P1',
+    student,
+    pin,
+    'completed',
+    '50%',
+    '1',
+    '2',
+    '0',
+    's',
+  ];
+  const OLD_PEER = [...identity('Teacher B', 'Bob', '09'), '1', '0'];
+  const NEW_PEER = [
+    ...identity('Teacher B', 'Bob', '09'),
+    '1',
+    'A',
+    '0',
+    'cat → woof',
+  ];
+  const OLD_OWNER = [...identity('Teacher A', 'Alice', '01'), '0', '0'];
+
+  async function regenerate(existing: string[][]): Promise<string[][]> {
+    const fetchSpy = queueFetchResponses([
+      metaTitle,
+      { json: () => Promise.resolve({ values: existing }) },
+      metaTitle,
+      { json: () => Promise.resolve({}) },
+      { json: () => Promise.resolve({}) },
+    ]);
+    await service.regeneratePlcSheet(
+      SHEET,
+      [makeResponse({ pin: '01', answers })],
+      [makeQuestion('q1'), matching],
+      { teacherName: 'Teacher A' }
+    );
+    return parseBody(callsOf(fetchSpy)[4][1]).values as string[][];
+  }
+
+  it('regenerate keeps an old-format sheet with peer rows in its old layout', async () => {
+    const written = await regenerate([OLD_HEADERS, OLD_OWNER, OLD_PEER]);
+    expect(written[0]).toEqual(OLD_HEADERS);
+    for (const row of written.slice(1)) {
+      expect(row).toHaveLength(OLD_HEADERS.length);
+    }
+    expect(written.find((r) => r[1] === 'Teacher B')).toEqual(OLD_PEER);
+  });
+
+  it('regenerate upgrades an old-format sheet with no peer rows', async () => {
+    const written = await regenerate([OLD_HEADERS, OLD_OWNER]);
+    expect(written[0]).toEqual(NEW_HEADERS);
+    expect(written).toHaveLength(2);
+    expect(written[1].slice(11)).toEqual(ANSWERED_CELLS);
+  });
+
+  it('regenerate writes answer columns when the sheet already has them', async () => {
+    const written = await regenerate([NEW_HEADERS, NEW_PEER]);
+    expect(written[0]).toEqual(NEW_HEADERS);
+    expect(written.find((r) => r[1] === 'Teacher B')).toEqual(NEW_PEER);
+    expect(written.find((r) => r[1] === 'Teacher A')?.slice(11)).toEqual(
+      ANSWERED_CELLS
+    );
+  });
+});

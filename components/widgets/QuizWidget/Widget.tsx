@@ -43,6 +43,13 @@ import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { useFolders } from '@/hooks/useFolders';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
+import { useQuizDocumentImportGate } from '@/hooks/useQuizDocumentImportGate';
+import {
+  attachDocumentImages as attachImagesToQuiz,
+  driveStimulusUploader,
+  type ExtractedImage,
+} from '@/utils/quizDocumentImport';
+import { readTestDocument } from '@/utils/quizDocumentImport/readTestDocument';
 import {
   callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
@@ -60,6 +67,7 @@ import { QuizManager, PlcOptions } from './components/QuizManager';
 import type { AssignDestination } from './components/AssignDestinationModal';
 import { ImportWizard } from '@/components/common/library/importer';
 import { createQuizImportAdapter } from './adapters/quizImportAdapter';
+import { extractQuizFromDocument } from '@/utils/quizDocumentImport/aiReaderApi';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
@@ -198,6 +206,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const quizAssignmentMode = getAssignmentMode('quiz');
   const { showConfirm } = useDialog();
   const { openPicker } = useGooglePicker();
+  const canImportDocuments = useQuizDocumentImportGate();
+  // D1: the AI reader handles the layouts the browser reader can't, like a
+  // key in a table; it needs the same AI permission as every other AI feature.
+  const canUseAiReader =
+    canImportDocuments && canAccessFeature('gemini-functions');
   const config = widget.config as QuizConfig;
 
   // Opens the Google Picker so the teacher selects a Sheet to import. Picking
@@ -219,7 +232,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Paper scan from Drive (plan Q17): the pick grants per-file access, the
   // bytes come down and are read locally exactly like a chosen file.
-  const { getDriveFileAsBlob } = useGoogleDrive();
+  const { getDriveFileAsBlob, getDriveDocumentAsBlob, driveService } =
+    useGoogleDrive();
   const pickScanFromDrive = useCallback(async (): Promise<File | null> => {
     const token = await ensureGoogleScope('drive.file', { interactive: true });
     if (!token) {
@@ -234,6 +248,79 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       type: downloaded.mimeType || picked.mimeType,
     });
   }, [ensureGoogleScope, openPicker, getDriveFileAsBlob]);
+
+  // Test document from Drive (D9): the Picker lists PDFs, Word files and
+  // Google Docs, and a Doc comes back already exported as .docx (D4).
+  const pickDocument = useCallback(async (): Promise<{
+    file: Blob;
+    fileName: string;
+  } | null> => {
+    const token = await ensureGoogleScope('drive.file', { interactive: true });
+    if (!token) {
+      throw new Error('Google Drive access is required. Please sign in again.');
+    }
+    const picked = await openPicker({ mode: 'documents', token });
+    if (!picked) return null;
+    const downloaded = await getDriveDocumentAsBlob(picked.id);
+    if (!downloaded)
+      throw new Error('Could not download that file from Drive.');
+    return {
+      file: downloaded.blob,
+      fileName: downloaded.name || picked.name,
+    };
+  }, [ensureGoogleScope, openPicker, getDriveDocumentAsBlob]);
+
+  // Pictures the last read document carried. They wait here rather than in
+  // the adapter, which owns no state, until the teacher confirms the import.
+  const documentImagesRef = useRef<readonly ExtractedImage[]>([]);
+
+  // D13/D14: one upload per picture, linked to every question that uses it,
+  // into the same Drive folder and sharing as an editor-added stimulus.
+  const attachDocumentImages = useCallback(
+    async (quiz: QuizData): Promise<QuizData> => {
+      const images = documentImagesRef.current;
+      const uploader = driveStimulusUploader({
+        uploadFile: (file, name, folder) => {
+          if (!driveService) throw new Error('Google Drive is not connected.');
+          return driveService.uploadFile(file, name, folder);
+        },
+        makePublic: (id, domain) => {
+          if (!driveService) throw new Error('Google Drive is not connected.');
+          return driveService.makePublic(id, domain);
+        },
+        deleteFile: async (id) => {
+          await driveService?.deleteFile(id);
+        },
+      });
+
+      // Passing no images strips the reader's own ids, so a quiz never
+      // carries a pointer to a picture that was not uploaded.
+      const skip = () => attachImagesToQuiz(quiz, [], uploader);
+      if (images.length === 0) return skip();
+
+      if (!driveService) {
+        addToast(
+          'Connect Google Drive to bring in the pictures. The quiz was created without them.',
+          'warning'
+        );
+        return skip();
+      }
+
+      // Asked once for the batch; the editor asks per file, which would be a
+      // dialog per picture on a test with a dozen diagrams.
+      const shared = await showConfirm(
+        `Students open pictures without signing in, so the ${images.length === 1 ? 'picture' : `${images.length} pictures`} in this test must be shared as "anyone with the link can view." Share and attach?`,
+        { title: 'Share the pictures?', confirmLabel: 'Share & attach' }
+      );
+      if (!shared) {
+        addToast('The quiz was created without the pictures.', 'info');
+        return skip();
+      }
+
+      return attachImagesToQuiz(quiz, images, uploader);
+    },
+    [driveService, showConfirm, addToast]
+  );
 
   const {
     quizzes,
@@ -336,6 +423,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     shareAssignment,
     publishAssignmentScores,
     unpublishAssignmentScores,
+    publishResultsForStudents,
+    hideResultsForStudents,
+    clearResultsOverride,
     syncAssignmentToLatest,
     shareAssignmentWithPlc,
     stopSharingAssignmentWithPlc,
@@ -450,6 +540,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       paperSheetsRollout.enabled && canAccessFeature('paper-answer-sheets'),
   };
   const [paperPrintQuiz, setPaperPrintQuiz] = useState<QuizData | null>(null);
+  /** Library entry behind `paperPrintQuiz`; absent on the "Paper test" door. */
+  const [paperPrintMeta, setPaperPrintMeta] = useState<QuizMetadata | null>(
+    null
+  );
   const [paperPrintIsNew, setPaperPrintIsNew] = useState(false);
   const [paperImport, setPaperImport] = useState<{
     quiz: QuizData;
@@ -1298,6 +1392,16 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   if (view === 'import') {
     const adapter = createQuizImportAdapter({
       ...sharedImportDeps,
+      // A question bank has no review table of its own, so the test-document
+      // tile is offered on the quiz import only.
+      canImportDocuments,
+      pickDocument,
+      ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
+      onDocumentImages: (images) => {
+        documentImagesRef.current = images;
+      },
+      documentImages: () => documentImagesRef.current,
+      attachDocumentImages,
       saveQuiz: async (data) => {
         await saveQuiz(data);
       },
@@ -1395,6 +1499,23 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         onExportedResponseIdsSaved={
           activeAssignmentId
             ? (ids) => setAssignmentExportedResponseIds(activeAssignmentId, ids)
+            : undefined
+        }
+        studentResultsActions={
+          activeAssignmentId
+            ? {
+                publish: (keys, visibility, expiresAt) =>
+                  publishResultsForStudents(
+                    activeAssignmentId,
+                    loadedQuizData,
+                    keys,
+                    visibility,
+                    expiresAt
+                  ),
+                hide: (keys) =>
+                  hideResultsForStudents(activeAssignmentId, keys),
+                clear: (keys) => clearResultsOverride(activeAssignmentId, keys),
+              }
             : undefined
         }
       />
@@ -1588,6 +1709,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 const data = await loadQuiz(meta);
                 if (!data) return;
                 setPaperPrintIsNew(false);
+                setPaperPrintMeta(meta);
                 setPaperPrintQuiz(data);
               }
             : undefined
@@ -1618,6 +1740,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             ? () => {
                 const now = Date.now();
                 setPaperPrintIsNew(true);
+                setPaperPrintMeta(null);
                 setPaperPrintQuiz({
                   id: crypto.randomUUID(),
                   title: '',
@@ -3236,8 +3359,38 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 }
               : undefined
           }
+          inPlcGroup={!!paperPrintMeta?.sync}
+          onSaveSheetStimuli={
+            paperPrintMeta
+              ? async (paperSheetStimuli) => {
+                  // Dropping the key rather than writing an empty array, so
+                  // clearing the last one clears it everywhere it synced to.
+                  const next: QuizData = { ...paperPrintQuiz };
+                  if (paperSheetStimuli.length > 0)
+                    next.paperSheetStimuli = paperSheetStimuli;
+                  else delete next.paperSheetStimuli;
+                  try {
+                    setPaperPrintMeta(
+                      await saveQuiz(next, paperPrintMeta.driveFileId)
+                    );
+                  } catch (err) {
+                    // A peer published first. The paper is the point of this
+                    // click, so it still prints; only the record of what is on
+                    // it did not stick.
+                    if (!(err instanceof SyncedQuizVersionConflictError))
+                      throw err;
+                    addToast(
+                      'Another teacher published an update to this quiz, so your answer-sheet images were not saved to it. The sheets still print.',
+                      'warning'
+                    );
+                  }
+                  setPaperPrintQuiz(next);
+                }
+              : undefined
+          }
           onClose={() => {
             setPaperPrintQuiz(null);
+            setPaperPrintMeta(null);
             setPaperPrintIsNew(false);
           }}
           onError={(message) => addToast(message, 'error')}
@@ -3312,6 +3465,18 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             addToast('Question text updated.', 'success');
           }}
           onPickFromDrive={pickScanFromDrive}
+          {...(canImportDocuments
+            ? {
+                // The same readers the import wizard uses, so a stub fills
+                // with choices and a key rather than stem text alone (D17).
+                readDocument: (file: Blob, fileName: string) =>
+                  readTestDocument(file, fileName, {
+                    ...(canUseAiReader
+                      ? { aiExtract: extractQuizFromDocument }
+                      : {}),
+                  }),
+              }
+            : {})}
           onClose={() => setPaperOcr(null)}
           onError={(message) => addToast(message, 'error')}
         />

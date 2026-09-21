@@ -12,8 +12,10 @@ import {
   PAGE_WIDTH_MM,
   REGISTRATION_MARK_CENTERS_MM,
   REGISTRATION_MARK_SIZE_MM,
+  STIMULUS_RECT_MM,
   bubbleRectMm,
   markerCellRectMm,
+  type PaperColumns,
   type RectMm,
 } from '@/utils/paperSheetLayout';
 import {
@@ -30,10 +32,22 @@ export interface SyntheticMark {
   density?: number;
 }
 
+/** A block of teacher artwork inside the right-half stimulus band (D4). */
+export interface SyntheticStimulus {
+  /** Share of the band's height the block covers, measured from its top. */
+  heightFraction: number;
+  /** Grey it is painted at; a photocopied photo lands near 0x80. */
+  tone: number;
+}
+
 export interface SyntheticSheetOptions {
   marker: PaperMarkerPayload;
   questionCount: number;
   choiceCount: number;
+  /** Answer columns the sheet was printed with; defaults to two. */
+  columnsPerPage?: PaperColumns;
+  /** Artwork stacked from the top of the stimulus band. */
+  stimuli?: SyntheticStimulus[];
   marks?: SyntheticMark[];
   /** Pixels per millimetre; 200 dpi is about 7.87. */
   pxPerMm?: number;
@@ -95,7 +109,7 @@ export function paintSyntheticSheet(opts: SyntheticSheetOptions): RasterPage {
     data[o + 1] = tone;
     data[o + 2] = tone;
   };
-  const fillRect = (r: RectMm, density = 1) => {
+  const fillRect = (r: RectMm, density = 1, tone = 20) => {
     const a = toPx(r.x, r.y);
     const b = toPx(r.x + r.w, r.y + r.h);
     for (
@@ -108,7 +122,7 @@ export function paintSyntheticSheet(opts: SyntheticSheetOptions): RasterPage {
         x < Math.max(a.x, b.x);
         x += 1
       )
-        ink(x, y, density);
+        ink(x, y, density, tone);
     }
   };
   const fillDisc = (
@@ -144,12 +158,13 @@ export function paintSyntheticSheet(opts: SyntheticSheetOptions): RasterPage {
     if (cells[i]) fillRect(markerCellRectMm(i));
   }
 
-  const rows = rowsOnPage(opts.marker.page, opts.questionCount);
+  const columns = opts.columnsPerPage ?? 2;
+  const rows = rowsOnPage(opts.marker.page, opts.questionCount, columns);
   const radius = BUBBLE_DIAMETER_MM / 2;
   const letterTone = opts.letterGrey ?? BUBBLE_LETTER_GREY;
   for (let row = 0; row < rows; row += 1) {
     for (let c = 0; c < opts.choiceCount; c += 1) {
-      const rect = bubbleRectMm(row, c);
+      const rect = bubbleRectMm(row, c, columns);
       fillDisc(rect, radius, 1, radius - 0.3);
       if (opts.printedLetters) {
         fillDisc(rect, radius - 0.4, 1, 0, letterTone);
@@ -157,7 +172,22 @@ export function paintSyntheticSheet(opts: SyntheticSheetOptions): RasterPage {
     }
   }
   for (const mark of opts.marks ?? []) {
-    fillDisc(bubbleRectMm(mark.row, mark.choice), radius, mark.density ?? 1);
+    fillDisc(
+      bubbleRectMm(mark.row, mark.choice, columns),
+      radius,
+      mark.density ?? 1
+    );
+  }
+
+  let stimulusTopMm = STIMULUS_RECT_MM.y;
+  for (const stimulus of opts.stimuli ?? []) {
+    const h = STIMULUS_RECT_MM.h * stimulus.heightFraction;
+    fillRect(
+      { x: STIMULUS_RECT_MM.x, y: stimulusTopMm, w: STIMULUS_RECT_MM.w, h },
+      1,
+      stimulus.tone
+    );
+    stimulusTopMm += h;
   }
 
   if (opts.noise) {

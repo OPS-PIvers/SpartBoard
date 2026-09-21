@@ -14,6 +14,8 @@ import {
   BUBBLE_LETTER_SIZE_PT,
   CHOICE_LETTERS,
   COLUMN_X_MM,
+  DEFAULT_COLUMNS_PER_PAGE,
+  FOOTER_RECT_MM,
   GRID_TOP_MM,
   HEADER_RECT_MM,
   MARKER_CELL_COUNT,
@@ -22,7 +24,6 @@ import {
   NUMBER_WIDTH_MM,
   PAGE_HEIGHT_MM,
   PAGE_WIDTH_MM,
-  QUESTIONS_PER_PAGE,
   REGISTRATION_MARK_CENTERS_MM,
   REGISTRATION_MARK_SIZE_MM,
   ROWS_PER_COLUMN,
@@ -31,21 +32,23 @@ import {
   markerCellRectMm,
   pageCountForQuestions,
   questionSlotOnPage,
+  questionsPerPage,
+  type PaperColumns,
 } from './paperSheetLayout';
 import { encodePaperMarker, paperBatchTag } from './paperSheetMarker';
 import type { PaperSheetPlan } from './paperSheetPlan';
+import {
+  CAPTION_SIZE_PT,
+  layoutSheetStimuli,
+} from './paperSheetStimulusLayout';
+import { renderTemplateSvg } from './paperSheetTemplateSvg';
 import {
   escapeHtml,
   printHtmlDocument,
   type OpenWindow,
 } from './printHtmlDocument';
 import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
-
-// Bottom-centre footer: clear of the corner windows the reader searches for
-// registration marks and below the last bubble row.
-const FOOTER_TOP_MM = PAGE_HEIGHT_MM - 13;
-const FOOTER_HEIGHT_MM = 9;
-const FOOTER_INSET_MM = 40;
+import type { PaperSheetStimulus } from '@/types';
 
 export interface PaperPrintJob {
   batchId: string;
@@ -54,11 +57,28 @@ export interface PaperPrintJob {
   choiceCount: number;
   sheets: readonly PaperSheetPlan[];
   /**
+   * Answer columns per page; absent = 2, the layout every batch printed before
+   * sheet stimuli existed used (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D1).
+   */
+  columnsPerPage?: PaperColumns;
+  /** Items printed in the sheet's right-hand band; every sheet gets them (D15). */
+  sheetStimuli?: readonly PaperSheetStimulus[];
+  /**
+   * Image data for each stimulus by id, already fetched to an object URL by
+   * the caller (D16). A stimulus with no entry is not drawn.
+   */
+  stimulusImageSrc?: Readonly<Record<string, string>>;
+  /**
    * Whose classes this stack is for, when a PLC teammate printed it
    * (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md D17). Absent on the self-print
    * path, which renders exactly as it did before delegation existed.
    */
   printedForTeacherName?: string;
+  /**
+   * Called once the print document has decoded the stimulus images, so a
+   * caller that owns their object URLs knows when it may free them.
+   */
+  onImagesReady?: () => void;
 }
 
 const mm = (n: number): string => `${n.toFixed(3)}mm`;
@@ -100,11 +120,54 @@ function markerHtml(
 }
 
 function footerHtml(): string {
-  return `<div class="foot" style="left:${mm(FOOTER_INSET_MM)};top:${mm(
-    FOOTER_TOP_MM
-  )};width:${mm(PAGE_WIDTH_MM - FOOTER_INSET_MM * 2)};height:${mm(
-    FOOTER_HEIGHT_MM
+  return `<div class="foot" style="left:${mm(FOOTER_RECT_MM.x)};top:${mm(
+    FOOTER_RECT_MM.y
+  )};width:${mm(FOOTER_RECT_MM.w)};height:${mm(
+    FOOTER_RECT_MM.h
   )}">${spartronLogoSvg(4.2)}<span class="foot-tag">${escapeHtml(SPARTRON_TAGLINE)}</span></div>`;
+}
+
+/**
+ * The stimulus stack for one page (D12).
+ *
+ * An image is an `<img>`; a template is drawn inline as SVG (D9).
+ * `object-fit: contain` is the belt to the fit function's braces — a stored
+ * pixel size that turns out to be wrong letterboxes rather than stretching
+ * the teacher's diagram.
+ */
+function stimuliHtml(job: PaperPrintJob, page: number): string {
+  // Two columns of answers leave no band to print into, whatever the job says.
+  if (!job.sheetStimuli?.length || job.columnsPerPage !== 1) return '';
+  const parts: string[] = [];
+  for (const item of layoutSheetStimuli(job.sheetStimuli, page).items) {
+    const src = job.stimulusImageSrc?.[item.stimulus.id];
+    const r = item.rect;
+    const box = `left:${mm(r.x)};top:${mm(r.y)};width:${mm(r.w)};height:${mm(r.h)}`;
+    if (item.stimulus.source === 'image' && src) {
+      parts.push(
+        `<img class="stim" alt="" src="${escapeHtml(src)}" style="${box}" />`
+      );
+    }
+    // A template is drawn, not fetched, so it never waits on anything (D9).
+    if (item.stimulus.source === 'template' && item.stimulus.template) {
+      parts.push(
+        `<div class="stim" style="${box}">${renderTemplateSvg(
+          item.stimulus.template,
+          r.w,
+          r.h
+        )}</div>`
+      );
+    }
+    if (item.captionRect && item.caption) {
+      const c = item.captionRect;
+      parts.push(
+        `<div class="stim-cap" style="left:${mm(c.x)};top:${mm(c.y)};width:${mm(
+          c.w
+        )};height:${mm(c.h)}">${escapeHtml(item.caption)}</div>`
+      );
+    }
+  }
+  return parts.join('');
 }
 
 function headerHtml(
@@ -132,12 +195,16 @@ function headerHtml(
 }
 
 /** "A B C D E" above each answer column, repeating the letter each bubble carries. */
-function columnLegendsHtml(choiceCount: number, columns: number): string {
+function columnLegendsHtml(
+  choiceCount: number,
+  columns: number,
+  columnsPerPage: PaperColumns
+): string {
   const parts: string[] = [];
   for (let column = 0; column < columns; column += 1) {
     for (let choice = 0; choice < choiceCount; choice += 1) {
       // Read the x straight off the bubble it labels so the two cannot drift.
-      const r = bubbleRectMm(column * ROWS_PER_COLUMN, choice);
+      const r = bubbleRectMm(column * ROWS_PER_COLUMN, choice, columnsPerPage);
       parts.push(
         `<div class="legend" style="left:${mm(r.x)};top:${mm(
           GRID_TOP_MM - 5
@@ -151,15 +218,17 @@ function columnLegendsHtml(choiceCount: number, columns: number): string {
 function answerRowsHtml(
   page: number,
   questionCount: number,
-  choiceCount: number
+  choiceCount: number,
+  columnsPerPage: PaperColumns
 ): { html: string; columns: number } {
-  const first = (page - 1) * QUESTIONS_PER_PAGE;
-  const onThisPage = Math.min(QUESTIONS_PER_PAGE, questionCount - first);
+  const perPage = questionsPerPage(columnsPerPage);
+  const first = (page - 1) * perPage;
+  const onThisPage = Math.min(perPage, questionCount - first);
   const parts: string[] = [];
   let columns = 0;
 
   for (let i = 0; i < onThisPage; i += 1) {
-    const { column, row } = questionSlotOnPage(i);
+    const { column, row } = questionSlotOnPage(i, columnsPerPage);
     columns = Math.max(columns, column + 1);
     parts.push(
       `<div class="num" style="left:${mm(COLUMN_X_MM[column])};top:${mm(
@@ -167,7 +236,7 @@ function answerRowsHtml(
       )};width:${mm(NUMBER_WIDTH_MM - 2)}">${first + i + 1}</div>`
     );
     for (let choice = 0; choice < choiceCount; choice += 1) {
-      const r = bubbleRectMm(i, choice);
+      const r = bubbleRectMm(i, choice, columnsPerPage);
       parts.push(
         `<div class="bub" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(r.w)};height:${mm(
           r.h
@@ -188,9 +257,15 @@ function sheetPagesHtml(
     Math.max(job.choiceCount, MIN_CHOICE_COUNT),
     MAX_CHOICE_COUNT
   );
+  const columnsPerPage = job.columnsPerPage ?? DEFAULT_COLUMNS_PER_PAGE;
   const pages: string[] = [];
   for (let page = 1; page <= pageCount; page += 1) {
-    const rows = answerRowsHtml(page, job.questionCount, choiceCount);
+    const rows = answerRowsHtml(
+      page,
+      job.questionCount,
+      choiceCount,
+      columnsPerPage
+    );
     pages.push(
       `<div class="sheet">${registrationMarksHtml()}${markerHtml(
         job.batchId,
@@ -205,8 +280,9 @@ function sheetPagesHtml(
         job.printedForTeacherName
       )}${columnLegendsHtml(
         choiceCount,
-        rows.columns
-      )}${rows.html}${footerHtml()}</div>`
+        rows.columns,
+        columnsPerPage
+      )}${rows.html}${stimuliHtml(job, page)}${footerHtml()}</div>`
     );
   }
   return pages.join('');
@@ -226,7 +302,15 @@ const STYLES = `
     color: #000;
   }
   .sheet:last-child { page-break-after: auto; }
-  .reg, .cell, .hdr, .num, .bub, .legend, .foot { position: absolute; }
+  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap { position: absolute; }
+  .stim { object-fit: contain; }
+  .stim-cap {
+    font-size: ${CAPTION_SIZE_PT}pt;
+    line-height: 1.3;
+    text-align: center;
+    overflow: hidden;
+    color: #000;
+  }
   .foot {
     display: flex;
     align-items: center;
@@ -288,6 +372,9 @@ export function printPaperSheets(
       title: `${job.quizTitle} — answer sheets`,
       styles: STYLES,
       body: buildPaperSheetsHtml(job),
+      // A remote image that has not decoded yet prints as an empty box.
+      awaitImages: !!job.sheetStimuli?.length,
+      ...(job.onImagesReady ? { onImagesReady: job.onImagesReady } : {}),
     },
     openWindow
   );
@@ -295,6 +382,9 @@ export function printPaperSheets(
 
 /** The document `printPaperSheets` would write. Exported for tests and preview. */
 export function buildPaperSheetsHtml(job: PaperPrintJob): string {
-  const pageCount = pageCountForQuestions(job.questionCount);
+  const pageCount = pageCountForQuestions(
+    job.questionCount,
+    job.columnsPerPage
+  );
   return job.sheets.map((s) => sheetPagesHtml(s, job, pageCount)).join('');
 }

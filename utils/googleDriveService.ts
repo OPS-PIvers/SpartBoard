@@ -7,6 +7,12 @@ import { migrateBoardWidgets } from './migration';
 // working — the canonical home is now `./driveAuthErrors`.
 export { isDriveAuthError } from './driveAuthErrors';
 
+/** A Google Doc, which must be exported rather than downloaded. */
+const GOOGLE_DOC_MIME_TYPE = 'application/vnd.google-apps.document';
+/** Word's own format, and what a Google Doc is exported as. */
+const DOCX_MIME_TYPE =
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
 const DEFAULT_TIMEOUT = 15000; // 15 seconds
@@ -899,9 +905,11 @@ export class GoogleDriveService {
    * Uses `alt=media` so the raw bytes come back, not metadata.
    */
   async downloadFileAsBlob(
-    fileId: string
+    fileId: string,
+    /** Pass it when the caller already fetched it, to save a round trip. */
+    knownMetadata?: DriveFile
   ): Promise<{ blob: Blob; mimeType: string; name: string }> {
-    const metadata = await this.getFileMetadata(fileId);
+    const metadata = knownMetadata ?? (await this.getFileMetadata(fileId));
     const response = await this.fetchWithRetry(
       `${DRIVE_API_URL}/files/${fileId}?alt=media`,
       { headers: this.headers }
@@ -922,6 +930,44 @@ export class GoogleDriveService {
       blob,
       mimeType: metadata.mimeType || blob.type || 'application/octet-stream',
       name: metadata.name || 'drive-file',
+    };
+  }
+
+  /**
+   * Fetch a test document as bytes the quiz document reader can open.
+   *
+   * A Google Doc has no bytes of its own, so it is exported as .docx rather
+   * than the plain text `exportFileText` produces: the reader needs the Word
+   * XML to see which answer a teacher marked in bold
+   * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D4). A PDF or an uploaded .docx
+   * already has bytes and is downloaded as-is.
+   */
+  async downloadDocumentAsBlob(
+    fileId: string
+  ): Promise<{ blob: Blob; mimeType: string; name: string }> {
+    const metadata = await this.getFileMetadata(fileId);
+    const sourceType = metadata.mimeType ?? '';
+
+    if (sourceType !== GOOGLE_DOC_MIME_TYPE) {
+      return this.downloadFileAsBlob(fileId, metadata);
+    }
+
+    const response = await this.fetchWithRetry(
+      `${DRIVE_API_URL}/files/${fileId}/export?mimeType=${encodeURIComponent(DOCX_MIME_TYPE)}`,
+      { headers: this.headers }
+    );
+    if (!response.ok) {
+      throw new Error(
+        `Failed to export the Google Doc (${response.status} ${response.statusText || 'Unknown error'}).`
+      );
+    }
+    const name = metadata.name ?? 'Google Doc';
+    return {
+      blob: await response.blob(),
+      mimeType: DOCX_MIME_TYPE,
+      // The export has no extension of its own; the reader routes on type,
+      // but the name becomes the quiz title so give it the right suffix.
+      name: name.toLowerCase().endsWith('.docx') ? name : `${name}.docx`,
     };
   }
 }

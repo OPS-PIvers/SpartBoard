@@ -105,6 +105,7 @@ const stimuliEqual = (a: QuizStimulus[], b: QuizStimulus[]): boolean => {
       sa.url !== sb.url ||
       (sa.driveFileId ?? '') !== (sb.driveFileId ?? '') ||
       sa.label !== sb.label ||
+      (sa.text ?? '') !== (sb.text ?? '') ||
       (sa.playLimit ?? 0) !== (sb.playLimit ?? 0) ||
       (sa.readAloudText ?? '') !== (sb.readAloudText ?? '') ||
       (sa.readAloudSource ?? '') !== (sb.readAloudSource ?? '')
@@ -375,7 +376,9 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       // Free-response questions have no correct answer — they
       // are manually graded by the teacher after the quiz closes.
       const isWritten = isFreeResponseType(q.type);
-      if (!isWritten && !q.correctAnswer.trim())
+      // A `needsKey` question saves without one on purpose (D7); the quiz
+      // can't be assigned, started live or shared to a PLC until it's filled.
+      if (!isWritten && !q.needsKey && !q.correctAnswer.trim())
         errors.push(`Question ${i + 1}: correct answer is required`);
     });
     if (errors.length > 0) {

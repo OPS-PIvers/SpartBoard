@@ -57,7 +57,7 @@ import {
   toPendingReview,
 } from '@/utils/paperReviewState';
 import { rasterizeScan, type RasterizedPage } from '@/utils/paperScanRaster';
-import { CHOICE_LETTERS, QUESTIONS_PER_PAGE } from '@/utils/paperSheetLayout';
+import { CHOICE_LETTERS, questionsPerPage } from '@/utils/paperSheetLayout';
 import { readPaperPage } from '@/utils/paperSheetReader';
 
 const IMPORT_CHUNK = 200;
@@ -241,9 +241,11 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         const read = readPage(page.page, {
           questionCount: batch.questionCount,
           choiceCount: batch.choiceCount,
+          columnsPerPage: batch.columnsPerPage,
         });
         if (read.status === 'ok') {
-          const first = (read.marker.page - 1) * QUESTIONS_PER_PAGE;
+          const first =
+            (read.marker.page - 1) * questionsPerPage(batch.columnsPerPage);
           for (const row of read.rows) {
             if (row.doubt) {
               nextCrops.set(
@@ -451,7 +453,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         </div>
         <div>
           <h2 className="text-base font-bold text-slate-900">
-            Import scanned answer sheets
+            Import responses
           </h2>
           <p className="mt-0.5 max-w-[24rem] truncate text-xs text-slate-500">
             {quiz.title || 'Untitled paper test'}
@@ -478,7 +480,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     <div className="space-y-4 px-5 pb-5 pt-4">
       {batches.length === 0 ? (
         <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-          No answer sheets have been printed for this quiz yet. Print a batch
+          No response sheets have been printed for this quiz yet. Print a batch
           first — the scan is matched to it by the marker on every page.
         </p>
       ) : (
@@ -1004,7 +1006,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     <Modal
       isOpen
       onClose={onClose}
-      ariaLabel="Import scanned answer sheets"
+      ariaLabel="Import responses"
       maxWidth="max-w-2xl"
       contentClassName=""
       customHeader={header}

@@ -57,6 +57,7 @@ import { WordLimitFields } from './WordLimitFields';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
+import { questionNeedsKey } from '@/utils/quizNeedsKey';
 import type { QuizEditorController } from './useQuizEditorState';
 
 interface PaneProps {
@@ -604,6 +605,12 @@ const QuestionRow = React.memo(function QuestionRow({
           </>
         )}
       </span>
+      {questionNeedsKey(question) && (
+        <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-xxs font-bold uppercase tracking-wider bg-amber-100 text-amber-800">
+          <AlertCircle className="w-2.5 h-2.5" aria-hidden />
+          Needs answer
+        </span>
+      )}
       <span className="flex-1 min-w-0 flex flex-col gap-0.5">
         <span className="text-sm text-slate-700 truncate">
           {question.text || (
@@ -1105,6 +1112,16 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               className="w-full px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 text-sm"
               placeholder="Enter the definitive answer"
             />
+            {questionNeedsKey(q) && (
+              <p
+                role="status"
+                className="mt-1 flex items-center gap-1 text-xxs font-bold text-amber-700"
+              >
+                <AlertCircle className="w-3 h-3" aria-hidden />
+                The imported document didn&apos;t give an answer for this
+                question. Fill it in before you assign the quiz.
+              </p>
+            )}
           </div>
         )}
 

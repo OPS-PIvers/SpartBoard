@@ -3411,7 +3411,8 @@ export type QuizStimulusType =
   | 'audio'
   | 'video'
   | 'youtube'
-  | 'gdoc-embed';
+  | 'gdoc-embed'
+  | 'text';
 
 /**
  * A stimulus attached to one or more quiz questions. Lives on
@@ -3426,14 +3427,23 @@ export interface QuizStimulus {
   url: string;
   /** Set when the file lives in the teacher's Google Drive. */
   driveFileId?: string;
+  /**
+   * text only: the passage students read
+   * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D16). A text stimulus has no file, so
+   * `url` is empty and this carries the content.
+   */
+  text?: string;
   /** Authoring-only name; stripped before the session doc is written. */
   label: string;
   /** audio/video/youtube only: max completed plays per attempt. Undefined = unlimited. */
   playLimit?: number;
   /** image/pdf only: teacher-reviewed text spoken by read-aloud. Absent = no speaker (plan §3). */
   readAloudText?: string;
-  /** How `readAloudText` was produced; 'edited' once the teacher touches it. */
-  readAloudSource?: 'pdf-text' | 'ocr' | 'edited';
+  /**
+   * How `readAloudText` was produced; 'edited' once the teacher touches it.
+   * 'text' means the passage is its own spoken text and needs no review.
+   */
+  readAloudSource?: 'pdf-text' | 'ocr' | 'edited' | 'text';
 }
 
 export interface QuizQuestion {
@@ -3451,6 +3461,13 @@ export interface QuizQuestion {
   correctAnswer: string;
   /** MC only: up to 4 incorrect answer choices */
   incorrectAnswers: string[];
+  /**
+   * Set by a document import that read the question but not its key
+   * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D5). The question saves and prints
+   * with `correctAnswer: ''`; assigning, starting live and sharing to a PLC
+   * stay blocked until a teacher fills it in.
+   */
+  needsKey?: boolean;
   /** Point value for this question. Defaults to 1 if not set. */
   points?: number;
   /**
@@ -3763,6 +3780,45 @@ export interface GradeResult {
  */
 export type GradeState = 'scored' | 'awaiting-grade' | 'not-attempted';
 
+/**
+ * A blank drawn at print time rather than stored as a file, so it is always
+ * sharp and needs no Drive (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D9).
+ */
+export type PaperSheetTemplate =
+  | {
+      kind: 'coordinate-grid';
+      quadrants: 1 | 4;
+      min: number;
+      max: number;
+      step: number;
+      showNumbers: boolean;
+    }
+  | { kind: 'number-line'; min: number; max: number; step: number }
+  | { kind: 'graph-paper'; heightMm: number }
+  | { kind: 'lined'; heightMm: number }
+  | { kind: 'blank-box'; heightMm: number };
+
+/**
+ * One item printed in the right-hand band of a single-column answer sheet
+ * (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md). Nothing a student draws on one is
+ * ever read back: the scan import still reads bubbles only.
+ */
+export interface PaperSheetStimulus {
+  id: string;
+  /** Authoring-only name shown in the print modal. */
+  label: string;
+  source: 'image' | 'template';
+  /** image: Drive file; its pixel size drives auto-fit without loading it. */
+  driveFileId?: string;
+  url?: string;
+  widthPx?: number;
+  heightPx?: number;
+  template?: PaperSheetTemplate;
+  caption?: string;
+  /** 1-based page it is pinned to; absent = every page. */
+  page?: number;
+}
+
 /** Full quiz data stored in Google Drive as JSON */
 export interface QuizData {
   id: string;
@@ -3770,6 +3826,12 @@ export interface QuizData {
   questions: QuizQuestion[];
   /** Stimuli attachable to questions via `QuizQuestion.stimulusIds`. */
   stimuli?: QuizStimulus[];
+  /**
+   * Items printed beside the bubbles on a paper answer sheet. Their presence
+   * is what makes a sheet single-column; absent or empty prints as it always
+   * did (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D14).
+   */
+  paperSheetStimuli?: PaperSheetStimulus[];
   /** BCP-47 tag that picks the read-aloud voice. Absent = 'en-US'. */
   language?: string;
   /** Random bank slots; see `QuizBankSlot`. Absent = no banks referenced. */
@@ -3824,6 +3886,12 @@ export interface QuizMetadata {
    * re-saved since the field was introduced — search falls back to title.
    */
   searchText?: string;
+  /**
+   * How many questions still carry `needsKey`, written on save beside
+   * `searchText` so the library can gate Assign without a Drive load.
+   * Absent on quizzes not re-saved since the field was introduced.
+   */
+  needsKeyCount?: number;
   /** Behavior settings authored in the editor; synced to PLC members. */
   behavior?: QuizBehaviorSettings;
   /**
@@ -4253,10 +4321,9 @@ export interface QuizSession {
    * `/my-assignments` Completed review screen to decide which fields
    * (score / per-answer correctness / correct-answer text) to surface.
    *
-   * `revealedAnswers` (above) is the source of truth for correct-answer
-   * text when `scoreVisibility === 'score-responses-and-answers'` —
-   * `publishAssignmentScores` populates it with every question's
-   * canonical answer in one batch.
+   * Correct-answer text for a publish lives on each response's
+   * `revealedAnswers`; `revealedAnswers` above is only read as a fallback
+   * for publishes made before that move.
    */
   scoreVisibility?: QuizScoreVisibility;
   /**
@@ -4722,7 +4789,35 @@ export interface QuizResponse {
    * auto-submit.
    */
   handRaisedAt?: import('firebase/firestore').Timestamp | null;
+  /**
+   * Correct-answer text written by a class-wide publish at the
+   * `score-responses-and-answers` level. Teacher-written only; the student app
+   * prefers it over the legacy `QuizSession.revealedAnswers`.
+   */
+  revealedAnswers?: Record<string, string>;
+  /**
+   * Per-student results publication, independent of the class setting.
+   * Absent = follows the class. Teacher-written only.
+   */
+  resultsOverride?: QuizResultsOverride;
 }
+
+/** A single student's results publication, overriding the class setting. */
+export type QuizResultsOverride =
+  | {
+      mode: 'shown';
+      visibility: Exclude<QuizScoreVisibility, 'none'>;
+      publishedAt: number;
+      /** Epoch ms after which the student follows the class again; null = never. */
+      expiresAt?: number | null;
+      /** Answer key, present only at the `score-responses-and-answers` level. */
+      revealedAnswers?: Record<string, string>;
+    }
+  | {
+      mode: 'hidden';
+      publishedAt: number;
+      expiresAt?: number | null;
+    };
 
 /**
  * Which roster row a printed seat belongs to. Carries the roster id as well as
@@ -4743,6 +4838,9 @@ export interface PaperSeatAssignment {
  * and names are resolved from the Drive roster at print and import time.
  * See docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md §3.
  */
+/** Answer columns a printed sheet carries; one column frees its right half. */
+export type PaperColumns = 1 | 2;
+
 export interface PaperBatch {
   id: string;
   /** Quiz these sheets were printed for. Deleted with the quiz. */
@@ -4766,6 +4864,13 @@ export interface PaperBatch {
   choiceOrder?: Record<string, string[]>;
   /** Pages each student's sheet occupies. */
   pagesPerSheet: number;
+  /**
+   * Answer columns each page printed; absent = 2, which is every batch printed
+   * before sheet stimuli existed. Recorded here rather than derived from the
+   * quiz, because the teacher can add or remove stimuli after the stack is on
+   * desks (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D2).
+   */
+  columnsPerPage?: PaperColumns;
   createdAt: number;
   /** A review the teacher left unfinished, resumable from any device (plan Q26). */
   pendingReview?: PaperPendingReview;
@@ -4889,6 +4994,8 @@ export interface WrittenAnswerAnnotation {
   to: number;
   highlightColor?: 'yellow' | 'green' | 'pink' | 'blue';
   comment?: string;
+  /** Rubric strands this passage is evidence for; name snapshotted for the student view. */
+  rubricCriteria?: { criterionId: string; name: string }[];
   authorUid: string;
   createdAt: number;
 }
@@ -5532,6 +5639,8 @@ export interface SyncedQuizGroup {
   questions: QuizQuestion[];
   /** Stimuli referenced by `questions[].stimulusIds`. Absent on legacy groups. */
   stimuli?: QuizStimulus[];
+  /** Mirrors `QuizData.paperSheetStimuli`, so every member prints the same sheet. */
+  paperSheetStimuli?: PaperSheetStimulus[];
   /** Mirrors `QuizData.language`. */
   language?: string;
   /** Behavior settings authored in the editor; synced to PLC members. */
@@ -5664,6 +5773,8 @@ export interface PlcQuizVersionContent {
   questions: QuizQuestion[];
   /** Present when the snapshotted quiz carried stimuli. */
   stimuli?: QuizStimulus[];
+  /** Present when the snapshotted quiz carried paper answer-sheet stimuli. */
+  paperSheetStimuli?: PaperSheetStimulus[];
   /** Mirrors `QuizData.language`. */
   language?: string;
   behavior?: QuizBehaviorSettings;
@@ -8261,7 +8372,9 @@ export type GlobalFeature =
   /** Paper answer sheets; only meaningful while the Rollouts switch is on. */
   | 'paper-answer-sheets'
   /** Saved class groups inside board widgets; AND-ed with the Rollouts switch. */
-  | 'roster-groups';
+  | 'roster-groups'
+  /** Importing a quiz from a test document; AND-ed with the Rollouts switch. */
+  | 'quiz-document-import';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

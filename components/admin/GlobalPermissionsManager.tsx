@@ -51,6 +51,7 @@ import {
   Volume2,
   Languages,
   UsersRound,
+  FileText,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -200,7 +201,7 @@ const GLOBAL_FEATURES: {
     label: 'Paper answer sheets (Scantron replacement)',
     icon: Printer,
     description:
-      'Lets teachers print bubble answer sheets for a quiz and import the scanned stack as graded responses. Adds "Print answer sheets" and "Import scanned sheets" to the quiz menu and a "Paper test" button beside Import. Fail-closed: admin-only until this is saved and opened up, and the whole feature stays off until it is also switched on under Access → Rollouts.',
+      'Lets teachers print bubble response sheets for a quiz and import the scanned stack as graded responses. Adds "Print response sheets" and "Import responses" to the quiz menu and a "Paper test" button beside Import. Fail-closed: admin-only until this is saved and opened up, and the whole feature stays off until it is also switched on under Access → Rollouts.',
   },
   {
     id: 'roster-groups',
@@ -208,6 +209,13 @@ const GLOBAL_FEATURES: {
     icon: UsersRound,
     description:
       'Lets a widget target a saved class group instead of the whole class, keeps a group together when the Randomizer builds groups, and adds "Split class into groups" to the roster editor. Group names appear only in the teacher-facing picker, never on a projected front face. Fail-closed: admin-only until this is saved and opened up, and the whole feature stays off until it is also switched on under Access → Rollouts.',
+  },
+  {
+    id: 'quiz-document-import',
+    label: 'Build a quiz from a test document',
+    icon: FileText,
+    description:
+      'Lets teachers make a new quiz by uploading a PDF, Word file or Google Doc of a test: questions, answer choices and the answer key when the document has one. Questions with no answer found are marked \u201CNeeds answer\u201D and block assigning until a teacher fills them in. Fail-closed: admin-only until this is saved and opened up, and the whole feature stays off until it is also switched on under Access \u2192 Rollouts.',
   },
   {
     id: 'settings-drawer',

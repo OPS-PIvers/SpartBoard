@@ -61,7 +61,7 @@ export const EVENT_DEFAULTS: Record<PlcActivityType, string> = {
   comment_added: '{{actor}} commented on {{target}}',
   item_deleted: '{{actor}} deleted {{target}}',
   item_restored: '{{actor}} restored {{target}}',
-  paper_printed: '{{actor}} printed answer sheets for {{target}}',
+  paper_printed: '{{actor}} printed response sheets for {{target}}',
 };
 
 /**

@@ -2455,6 +2455,17 @@
       "highlights": "Markierungen & Kommentare ({{count}})",
       "highlightsEmpty": "Text auswählen, um ihn zu markieren.",
       "highlightNoComment": "(noch kein Kommentar — zum Hinzufügen klicken)",
+      "rubricTags": {
+        "label": "Rubrik-Kriterien",
+        "add": "Als Beleg für {{name}} markieren",
+        "remove": "Markierung {{name}} entfernen",
+        "evidenceFor": "Beleg für",
+        "highlightCount_one": "{{count}} Markierung",
+        "highlightCount_other": "{{count}} Markierungen",
+        "noteCount_one": "{{count}} Notiz",
+        "noteCount_other": "{{count}} Notizen",
+        "jumpToSuffix": " als Beleg für {{name}}"
+      },
       "rubricOverrideNote": "Alternatives Bewertungsraster für diesen Schüler",
       "pointsOverrideNote": "Nur Punkte für diesen Schüler — Raster außer Kraft gesetzt.",
       "tabSwitches_one": "{{count}} Tabwechsel",

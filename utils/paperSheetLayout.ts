@@ -5,6 +5,10 @@
  * halves can never drift. See docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md §4-§5.
  */
 
+import type { PaperColumns } from '@/types';
+
+export type { PaperColumns };
+
 /** US Letter portrait. Every constant below is millimetres on this page. */
 export const PAGE_WIDTH_MM = 215.9;
 export const PAGE_HEIGHT_MM = 279.4;
@@ -49,12 +53,38 @@ export const MARKER_ORIGIN_MM: PointMm = { x: 140, y: 22 };
 /** Header band reserved for student name, class, quiz title and page number. */
 export const HEADER_RECT_MM: RectMm = { x: 20, y: 20, w: 115, h: 26 };
 
+/** Bottom-centre branding band; clear of the corner windows and the last row. */
+export const FOOTER_RECT_MM: RectMm = {
+  x: 40,
+  y: PAGE_HEIGHT_MM - 13,
+  w: PAGE_WIDTH_MM - 80,
+  h: 9,
+};
+
 export const GRID_TOP_MM = 58;
 export const ROW_PITCH_MM = 8;
 export const ROWS_PER_COLUMN = 25;
 export const COLUMNS_PER_PAGE = 2;
 /** Fixed per-page capacity; longer tests continue onto further pages (Q11). */
 export const QUESTIONS_PER_PAGE = ROWS_PER_COLUMN * COLUMNS_PER_PAGE;
+
+/** Batches printed before sheet stimuli existed carry no count and are two-column. */
+export const DEFAULT_COLUMNS_PER_PAGE: PaperColumns = COLUMNS_PER_PAGE;
+
+/** Per-page capacity at a given column count. */
+export function questionsPerPage(
+  columns: PaperColumns = DEFAULT_COLUMNS_PER_PAGE
+): number {
+  return ROWS_PER_COLUMN * columns;
+}
+
+/**
+ * Right-half band a single-column sheet prints stimuli in
+ * (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D3). `paperSheetLayout.test.ts`
+ * proves it clears the left column, the header, the marker grid, the reader's
+ * corner search windows and the footer, so moving any of those fails the test.
+ */
+export const STIMULUS_RECT_MM: RectMm = { x: 84, y: 52, w: 94, h: 204 };
 
 /** Left edge of each answer column's question-number label. */
 export const COLUMN_X_MM: readonly number[] = [24, 116];
@@ -95,11 +125,14 @@ export function markerCellRectMm(index: number): RectMm {
 }
 
 /** Column/row a page-local question index occupies; columns fill top to bottom. */
-export function questionSlotOnPage(indexOnPage: number): {
+export function questionSlotOnPage(
+  indexOnPage: number,
+  columns: PaperColumns = DEFAULT_COLUMNS_PER_PAGE
+): {
   column: number;
   row: number;
 } {
-  if (indexOnPage < 0 || indexOnPage >= QUESTIONS_PER_PAGE) {
+  if (indexOnPage < 0 || indexOnPage >= questionsPerPage(columns)) {
     throw new RangeError(`question slot ${indexOnPage} out of range`);
   }
   return {
@@ -109,11 +142,15 @@ export function questionSlotOnPage(indexOnPage: number): {
 }
 
 /** Bounding box of one answer bubble, for both drawing and pixel sampling. */
-export function bubbleRectMm(indexOnPage: number, choiceIndex: number): RectMm {
+export function bubbleRectMm(
+  indexOnPage: number,
+  choiceIndex: number,
+  columns: PaperColumns = DEFAULT_COLUMNS_PER_PAGE
+): RectMm {
   if (choiceIndex < 0 || choiceIndex >= MAX_CHOICE_COUNT) {
     throw new RangeError(`choice ${choiceIndex} out of range`);
   }
-  const { column, row } = questionSlotOnPage(indexOnPage);
+  const { column, row } = questionSlotOnPage(indexOnPage, columns);
   return {
     x: COLUMN_X_MM[column] + NUMBER_WIDTH_MM + choiceIndex * BUBBLE_PITCH_MM,
     y: GRID_TOP_MM + row * ROW_PITCH_MM,
@@ -125,9 +162,10 @@ export function bubbleRectMm(indexOnPage: number, choiceIndex: number): RectMm {
 /** Rect enclosing a whole answer row, so review can crop exactly what was read. */
 export function questionRowRectMm(
   indexOnPage: number,
-  choiceCount: number
+  choiceCount: number,
+  columns: PaperColumns = DEFAULT_COLUMNS_PER_PAGE
 ): RectMm {
-  const { column, row } = questionSlotOnPage(indexOnPage);
+  const { column, row } = questionSlotOnPage(indexOnPage, columns);
   const choices = Math.min(
     Math.max(choiceCount, MIN_CHOICE_COUNT),
     MAX_CHOICE_COUNT
@@ -141,6 +179,9 @@ export function questionRowRectMm(
 }
 
 /** Pages needed for `questionCount` questions; always at least one. */
-export function pageCountForQuestions(questionCount: number): number {
-  return Math.max(1, Math.ceil(questionCount / QUESTIONS_PER_PAGE));
+export function pageCountForQuestions(
+  questionCount: number,
+  columns: PaperColumns = DEFAULT_COLUMNS_PER_PAGE
+): number {
+  return Math.max(1, Math.ceil(questionCount / questionsPerPage(columns)));
 }

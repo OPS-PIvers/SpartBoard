@@ -24,6 +24,10 @@ import {
   PROJECTS_WIDGET_SETTINGS_DOC,
   normalizeProjectsWidgetSettings,
 } from '@/config/projectsWidget';
+import {
+  QUIZ_DOCUMENT_IMPORT_SETTINGS_DOC,
+  normalizeQuizDocumentImportSettings,
+} from '@/config/quizDocumentImport';
 
 interface RolloutSwitch {
   docId: string;
@@ -45,14 +49,14 @@ const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     docId: PAPER_ANSWER_SHEETS_SETTINGS_DOC,
     title: 'Paper answer sheets',
     description:
-      'Print bubble answer sheets for a quiz and import the scanned stack. Adds “Print answer sheets” and “Import scanned sheets” to the quiz menu and “Paper test” under the New Quiz caret, after Import.',
+      'Print bubble response sheets for a quiz and import the scanned stack. Adds “Print response sheets” and “Import responses” to the quiz menu and “Paper test” under the New Quiz caret, after Import.',
     normalize: normalizePaperAnswerSheetsSettings,
   },
   {
     docId: PLC_DELEGATED_PRINTING_SETTINGS_DOC,
-    title: 'Print answer sheets for a PLC teammate',
+    title: 'Print response sheets for a PLC teammate',
     description:
-      'Adds “Print answer sheets for a teammate” to the PLC quiz row menu, so a member can print a colleague’s stack when they are out. Needs paper answer sheets on as well. The colleague still scans, grades and publishes their own results.',
+      'Adds “Print response sheets for a teammate” to the PLC quiz row menu, so a member can print a colleague’s stack when they are out. Needs paper answer sheets on as well. The colleague still scans, grades and publishes their own results.',
     normalize: normalizePlcDelegatedPrintingSettings,
   },
   {
@@ -68,6 +72,13 @@ const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     description:
       'Adds the Projects widget to the dock: a teacher assigns one project to each group and every group tracks its own progress through the steps. Groups import from the Group Maker, so a class needs a ClassLink roster for the student side; other classes get a teacher-only tracker.',
     normalize: normalizeProjectsWidgetSettings,
+  },
+  {
+    docId: QUIZ_DOCUMENT_IMPORT_SETTINGS_DOC,
+    title: 'Build a quiz from a test document',
+    description:
+      'Lets teachers make a new quiz by uploading a PDF, Word file or Google Doc of a test, and fills a paper test\u2019s questions from the same document. Questions the reader can\u2019t find an answer for are marked \u201CNeeds answer\u201D and the quiz can\u2019t be assigned until a teacher fills them in.',
+    normalize: normalizeQuizDocumentImportSettings,
   },
 ];
 

@@ -22,6 +22,19 @@ import React from 'react';
 import type { ImportAdapter } from '@/components/common/library';
 import type { QuizData, QuizQuestion } from '@/types';
 import { generateQuiz, type GeneratedQuestion } from '@/utils/ai';
+import {
+  applyAnswerKey,
+  assertWithinByteLimit,
+  extractedToQuizData,
+  readAnswerKeyFile,
+  rowWarnings,
+  type AiExtractFn,
+  type ExtractedImage,
+  type ExtractedQuiz,
+} from '@/utils/quizDocumentImport';
+import { browserPdfDeps } from '@/utils/quizDocumentImport/pdfBrowserDeps';
+import { readTestDocument } from '@/utils/quizDocumentImport/readTestDocument';
+import { QuizDocumentReview } from '../components/QuizDocumentReview';
 import { QuizDriveService } from '@/utils/quizDriveService';
 
 export interface QuizImportAdapterDeps {
@@ -64,10 +77,51 @@ export interface QuizImportAdapterDeps {
    * app per-file `drive.file` access to the chosen sheet.
    */
   pickSheet: () => Promise<{ url: string } | null>;
+  /**
+   * Opens the Google Picker to choose a printed test from Drive, returning its
+   * bytes. A Google Doc arrives already exported as .docx so it takes the Word
+   * path (docs/plans/QUIZ_DOCUMENT_IMPORT.md D4). Omitted when the teacher
+   * can't use the feature, which also hides the Drive button.
+   */
+  pickDocument?: () => Promise<{ file: Blob; fileName: string } | null>;
+  /**
+   * True when the document-import rollout switch AND the per-user permission
+   * are both on (D21). False keeps the import wizard exactly as it was.
+   */
+  canImportDocuments?: boolean;
+  /**
+   * Uploads a read document's pictures to the teacher's Drive and links them
+   * to the questions that use them (D13). Called at save, not at read, so a
+   * teacher who backs out of the wizard leaves nothing behind. Omitted when
+   * the consumer cannot reach Drive; the quiz is then created without them.
+   */
+  attachDocumentImages?: (quiz: QuizData) => Promise<QuizData>;
+  /**
+   * Handed the pictures a read document carried, so the consumer can hold
+   * them until `attachDocumentImages` runs. The adapter owns no state of its
+   * own, and `ImportParseResult` carries only the parsed quiz.
+   */
+  onDocumentImages?: (images: readonly ExtractedImage[]) => void;
+  /**
+   * Reads back what `onDocumentImages` handed over, so the review table can
+   * show each picture and let the teacher change which questions use it
+   * (D14). A getter rather than a value: the adapter is built once, and the
+   * pictures only exist after a read.
+   */
+  documentImages?: () => readonly ExtractedImage[];
+  /**
+   * Reads the document through the Cloud Function instead of in the browser
+   * (D1, D3). Supplied only when the teacher has AI access; if the call fails
+   * the browser reader still runs, because half a quiz to fix beats an error.
+   */
+  aiExtract?: AiExtractFn;
 }
 
 const DRIVE_ACCESS_ERROR =
   'Google Drive access is required. Please sign in again and try again.';
+
+/** Stand-in title; Quiz's services need one before the wizard's Confirm step. */
+const PLACEHOLDER_TITLE = '__quiz_import__';
 
 /* ─── Template instructions (rendered in the wizard's "Format help" block) ─ */
 
@@ -261,13 +315,60 @@ function renderQuizPreview(data: QuizData): React.ReactNode {
 
 /* ─── Adapter factory ─────────────────────────────────────────────────────── */
 
+/** The AI reader when the teacher has it, the browser reader otherwise (D1). */
+
+/** A key file is numbers and letters, which the plain reader handles (D8). */
+async function readKeyFile(keyFile: {
+  file: Blob;
+  fileName: string;
+}): Promise<Map<number, string>> {
+  const isPdf =
+    keyFile.file.type === 'application/pdf' ||
+    keyFile.fileName.toLowerCase().endsWith('.pdf');
+  return readAnswerKeyFile(keyFile.file, {
+    fileName: keyFile.fileName,
+    ...(isPdf ? { pdf: await browserPdfDeps(keyFile.file) } : {}),
+  });
+}
+
+/**
+ * Applies the attached key, or says it couldn't be read. The questions are
+ * already in hand by then, so a key that won't open is a note on the review
+ * table rather than an error that throws the whole read away.
+ */
+async function withAnswerKey(
+  quiz: ExtractedQuiz,
+  keyFile: { file: Blob; fileName: string }
+): Promise<ExtractedQuiz> {
+  try {
+    return applyAnswerKey(quiz, await readKeyFile(keyFile));
+  } catch (err) {
+    console.warn('[quizImport] could not read the answer key', err);
+    return {
+      ...quiz,
+      warnings: [
+        ...quiz.warnings,
+        'The answer key file couldn’t be read, so the answers below are only the ones printed on the test.',
+      ],
+    };
+  }
+}
+
 export function createQuizImportAdapter(
   deps: QuizImportAdapterDeps
 ): ImportAdapter<QuizData> {
+  const readDocument = (file: Blob, fileName: string) =>
+    readTestDocument(file, fileName, { aiExtract: deps.aiExtract });
   return {
     widgetLabel: deps.widgetLabel ?? 'Quiz',
-    supportedSources: ['sheet', 'csv'],
+    supportedSources: deps.canImportDocuments
+      ? ['sheet', 'csv', 'document']
+      : ['sheet', 'csv'],
     pickSheet: deps.pickSheet,
+    ...(deps.canImportDocuments ? { supportsKeyFile: true } : {}),
+    ...(deps.canImportDocuments && deps.pickDocument
+      ? { pickDocument: deps.pickDocument }
+      : {}),
     templateHelper: {
       createTemplate: async () => {
         // The template is a NEW app-owned Sheet → the non-sensitive `drive.file`
@@ -285,6 +386,9 @@ export function createQuizImportAdapter(
       promptPlaceholder:
         'e.g. A 5-question quiz about the solar system for 3rd graders.',
       generate: async ({ prompt }) => {
+        // A generated quiz reaches the review table without going through
+        // `parse`, so it clears the previous read's pictures too.
+        deps.onDocumentImages?.([]);
         // The quiz import wizard has only a free-form prompt textarea — no
         // type-mix picker — so default to 5 MC questions. The richer
         // per-type stepper UX lives in the QuizEditor's "Draft with AI"
@@ -300,9 +404,11 @@ export function createQuizImportAdapter(
       },
     },
     parse: async (source) => {
-      // Defer the title to the Confirm step; Quiz's services need a title up
-      // front, so use a placeholder that the wizard will overwrite on save.
-      const PLACEHOLDER_TITLE = '__quiz_import__';
+      // Whatever is read now owns the pictures. Clearing first covers a
+      // sheet or CSV read after a document one, and a document read that
+      // throws: either way the review table must not offer a previous
+      // read's pictures for the teacher to link (D14).
+      deps.onDocumentImages?.([]);
       if (source.kind === 'sheet') {
         // The sheet was just chosen via the Google Picker, which granted this
         // app per-file `drive.file` access to it — so reading it needs only the
@@ -321,6 +427,24 @@ export function createQuizImportAdapter(
         const data = await deps.importFromCSV(source.text, PLACEHOLDER_TITLE);
         return { data, warnings: [] };
       }
+      if (source.kind === 'document') {
+        // D18's budget covers the import, not each file, so the two are
+        // weighed together before either is opened.
+        if (source.keyFile) {
+          assertWithinByteLimit(source.file, source.keyFile.file);
+        }
+        const read = await readDocument(source.file, source.fileName);
+        const extracted = source.keyFile
+          ? await withAnswerKey(read, source.keyFile)
+          : read;
+        deps.onDocumentImages?.(extracted.images);
+        return {
+          data: extractedToQuizData(extracted),
+          // Row notes ride the wizard's own warnings list, numbered so they
+          // line up with the review rows (D10).
+          warnings: [...extracted.warnings, ...rowWarnings(extracted)],
+        };
+      }
       throw new Error(
         `Unsupported source kind for Quiz import: ${source.kind}`
       );
@@ -334,19 +458,43 @@ export function createQuizImportAdapter(
         if (!q.text?.trim()) {
           errors.push(`Question ${i + 1} is missing text.`);
         }
-        if (!q.correctAnswer?.trim() && q.type !== 'FIB') {
-          // FIB without correctAnswer is unusual but not structurally invalid.
+        if (!q.correctAnswer?.trim() && q.type !== 'FIB' && !q.needsKey) {
+          // FIB without correctAnswer is unusual but not structurally invalid,
+          // and `needsKey` is a document import saying so on purpose (D7) —
+          // Assign, live start and PLC share are that question's gate.
           errors.push(`Question ${i + 1} is missing a correct answer.`);
         }
       }
       return { ok: errors.length === 0, errors };
     },
     renderPreview: renderQuizPreview,
+    // The read of a test document is never certain, so the teacher checks and
+    // corrects it before anything is created (D10). Only offered when the
+    // feature is on; otherwise the wizard keeps its read-only preview.
+    ...(deps.canImportDocuments
+      ? {
+          renderReview: (data: QuizData, onChange: (next: QuizData) => void) =>
+            React.createElement(QuizDocumentReview, {
+              data,
+              onChange,
+              images: deps.documentImages?.() ?? [],
+            }),
+        }
+      : {}),
+    // A document import names the quiz after the file (D11); sheet and CSV
+    // imports carry the placeholder, so they keep the wizard's own title box.
+    suggestTitle: (data) =>
+      data.title && data.title !== PLACEHOLDER_TITLE ? data.title : undefined,
     save: async (data, title) => {
       const finalTitle = title.trim() || data.title || 'Untitled Quiz';
       const now = Date.now();
+      // Pictures become real stimuli only now, once the teacher has settled
+      // which questions they are keeping.
+      const withImages = deps.attachDocumentImages
+        ? await deps.attachDocumentImages(data)
+        : data;
       await deps.saveQuiz({
-        ...data,
+        ...withImages,
         title: finalTitle,
         updatedAt: now,
       });

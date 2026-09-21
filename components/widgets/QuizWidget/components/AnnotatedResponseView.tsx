@@ -38,7 +38,12 @@ import React, {
   useState,
 } from 'react';
 import { Trash2, X } from 'lucide-react';
-import type { WrittenAnswerAnnotation } from '@/types';
+import type { Rubric, WrittenAnswerAnnotation } from '@/types';
+import { RubricStrandChips, RubricStrandPills } from './RubricStrandChips';
+import {
+  toggleStrandTag,
+  type RubricStrandTag,
+} from '@/utils/rubricStrandTags';
 import {
   getPlainTextOffsetFromRange,
   parseSnapshotRoot,
@@ -83,6 +88,11 @@ interface EditProps extends BaseProps {
   activeId: string | null;
   /** Called when the active annotation changes (click on mark, popover close, create-with-comment). */
   onActiveIdChange: (id: string | null) => void;
+  /**
+   * Effective rubric for this response (after per-student override
+   * resolution). Strand-tagging chips only render when it has criteria.
+   */
+  rubric?: Rubric;
 }
 
 interface ReadProps extends BaseProps {
@@ -156,8 +166,13 @@ const ReadOnlyView: React.FC<ReadProps> = ({
     [parsedRoot, annotations]
   );
 
+  // A tagged highlight earns a margin chip even with no comment — the
+  // strand pills are the note in that case.
   const commented = useMemo(
-    () => annotations.filter((a) => a.comment?.trim()),
+    () =>
+      annotations.filter(
+        (a) => Boolean(a.comment?.trim()) || (a.rubricCriteria?.length ?? 0) > 0
+      ),
     [annotations]
   );
 
@@ -178,7 +193,7 @@ const ReadOnlyView: React.FC<ReadProps> = ({
         // a future renderer change dropped it. Either way the comment
         // would silently disappear from the margin; surface it.
         console.warn(
-          '[AnnotatedResponseView] commented annotation has no <mark> in DOM',
+          '[AnnotatedResponseView] annotated highlight has no <mark> in DOM',
           a.id
         );
         continue;
@@ -274,7 +289,8 @@ const ReadOnlyView: React.FC<ReadProps> = ({
       const id = mark.getAttribute('data-annotation-id');
       if (!id) return;
       const a = annotations.find((x) => x.id === id);
-      if (!a?.comment?.trim()) return;
+      if (!a) return;
+      if (!a.comment?.trim() && !(a.rubricCriteria?.length ?? 0)) return;
       setPulsedId(id);
     },
     [annotations]
@@ -388,6 +404,11 @@ const CommentChip: React.FC<{
     onMouseEnter={() => onHover(true)}
     onMouseLeave={() => onHover(false)}
   >
+    <RubricStrandPills
+      tags={annotation.rubricCriteria}
+      tone={light ? 'light' : 'dark'}
+      className="mb-1.5"
+    />
     <span
       aria-hidden
       className={`inline-block w-2 h-2 rounded-full mr-1.5 ${
@@ -413,6 +434,7 @@ const EditView: React.FC<EditProps> = ({
   onChange,
   activeId,
   onActiveIdChange,
+  rubric,
 }) => {
   const articleRef = useRef<HTMLElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -486,6 +508,12 @@ const EditView: React.FC<EditProps> = ({
   // picks a color, so the popover acts as a single point-of-decision
   // for color + comment instead of forcing a two-step (palette → edit)
   // flow.
+  // The strand chip row wraps, so the popover is taller whenever a rubric
+  // is in play. Bias the flip thresholds up by a row's worth so a popover
+  // opened near the container's bottom edge still flips above.
+  const hasStrands = (rubric?.criteria.length ?? 0) > 0;
+  const flipBias = hasStrands ? 44 : 0;
+
   const handleMouseUp = useCallback(() => {
     if (!articleRef.current || !containerRef.current) return;
     const selection = window.getSelection();
@@ -511,7 +539,9 @@ const EditView: React.FC<EditProps> = ({
     const below = rect.bottom - containerRect.top + 8;
     const above = rect.top - containerRect.top - 8;
     const placement: 'below' | 'above' =
-      below + 220 > containerRect.height && above > 120 ? 'above' : 'below';
+      below + 220 + flipBias > containerRect.height && above > 120
+        ? 'above'
+        : 'below';
     onActiveIdChange(null);
     setPendingComment('');
     setPendingSelection({
@@ -532,13 +562,13 @@ const EditView: React.FC<EditProps> = ({
     setTimeout(() => {
       justOpenedPendingRef.current = false;
     }, 0);
-  }, [onActiveIdChange]);
+  }, [onActiveIdChange, flipBias]);
 
   // Commit a pending selection as a new annotation. Called when the
   // teacher picks the first color in the popover; carries any text
   // already typed in the textarea into the annotation's comment.
   const commitPending = useCallback(
-    (color: Color) => {
+    ({ color, criteria }: { color: Color; criteria?: RubricStrandTag[] }) => {
       if (!pendingSelection) return;
       const id = `${reactId}-${Date.now()}-${++annotationSeq}`;
       const next: WrittenAnswerAnnotation = {
@@ -549,6 +579,7 @@ const EditView: React.FC<EditProps> = ({
         authorUid,
         createdAt: Date.now(),
         ...(pendingComment.trim() ? { comment: pendingComment.trim() } : {}),
+        ...(criteria?.length ? { rubricCriteria: criteria } : {}),
       };
       onChange([...annotations, next]);
       onActiveIdChange(id);
@@ -660,8 +691,12 @@ const EditView: React.FC<EditProps> = ({
     y: number;
     placement: 'below' | 'above';
   } | null>(null);
+  // The id we last scrolled to, so the effect below scrolls once per change
+  // of active annotation rather than on every reflow.
+  const lastScrolledIdRef = useRef<string | null>(null);
   useLayoutEffect(() => {
     if (!activeId || !articleRef.current || !containerRef.current) {
+      lastScrolledIdRef.current = null;
       setPopoverPos((prev) => (prev === null ? prev : null));
       return;
     }
@@ -690,6 +725,15 @@ const EditView: React.FC<EditProps> = ({
       rects.length > 0
         ? rects[0]
         : (mark as HTMLElement).getBoundingClientRect();
+    // The rubric panel's jump link can make a mark active while it sits
+    // outside the grader's scrolled column. `block: 'nearest'` already
+    // no-ops on a mark that is visible in its real scroll container, so the
+    // only thing to gate is firing once per activation — otherwise a
+    // keystroke in the popover would re-scroll on every reflow.
+    if (lastScrolledIdRef.current !== activeId) {
+      lastScrolledIdRef.current = activeId;
+      (mark as HTMLElement).scrollIntoView?.({ block: 'nearest' });
+    }
     const containerRect = containerRef.current.getBoundingClientRect();
     const x = clampPopoverX(
       markRect.left - containerRect.left + markRect.width / 2,
@@ -699,7 +743,9 @@ const EditView: React.FC<EditProps> = ({
     const above = markRect.top - containerRect.top - 8;
     // Prefer below; flip if the popover would render past the container.
     const placement: 'below' | 'above' =
-      below + 200 > containerRect.height && above > 100 ? 'above' : 'below';
+      below + 200 + flipBias > containerRect.height && above > 100
+        ? 'above'
+        : 'below';
     const next = { x, y: placement === 'below' ? below : above, placement };
     setPopoverPos((prev) =>
       prev &&
@@ -709,7 +755,7 @@ const EditView: React.FC<EditProps> = ({
         ? prev
         : next
     );
-  }, [activeId, tree]);
+  }, [activeId, tree, flipBias]);
 
   // Pending state owns its own coordinates (from the selection rect);
   // active state uses the mark-anchored position computed above. Only
@@ -764,9 +810,28 @@ const EditView: React.FC<EditProps> = ({
           }
           onColorChange={(c) =>
             popover.kind === 'pending'
-              ? commitPending(c)
+              ? commitPending({ color: c })
               : updateActiveAnnotation({ highlightColor: c })
           }
+          rubric={rubric}
+          onToggleStrand={(criterionId) => {
+            if (!rubric) return;
+            if (popover.kind === 'pending') {
+              // D4: tagging from pending mode commits the highlight the
+              // same way a color click does, in the default yellow.
+              const criteria = toggleStrandTag(undefined, criterionId, rubric);
+              commitPending({ color: 'yellow', criteria });
+              return;
+            }
+            if (!active) return;
+            updateActiveAnnotation({
+              rubricCriteria: toggleStrandTag(
+                active.rubricCriteria,
+                criterionId,
+                rubric
+              ),
+            });
+          }}
           onDelete={deleteActive}
           onClose={closePopover}
         />
@@ -823,6 +888,10 @@ const AnchoredAnnotationEditor: React.FC<{
   onCommentChange: (v: string) => void;
   /** Color click. In pending mode this commits; in active mode it updates. */
   onColorChange: (c: Color) => void;
+  /** Effective rubric; the strand chip row is hidden without one. */
+  rubric?: Rubric;
+  /** Strand chip click. In pending mode this commits in yellow. */
+  onToggleStrand: (criterionId: string) => void;
   /** Edit-mode only. Not rendered in pending mode. */
   onDelete: () => void;
   onClose: () => void;
@@ -835,6 +904,8 @@ const AnchoredAnnotationEditor: React.FC<{
   placement,
   onCommentChange,
   onColorChange,
+  rubric,
+  onToggleStrand,
   onDelete,
   onClose,
 }) => {
@@ -901,6 +972,11 @@ const AnchoredAnnotationEditor: React.FC<{
           </button>
         </div>
       </div>
+      <RubricStrandChips
+        rubric={rubric}
+        value={isPending ? undefined : annotation.rubricCriteria}
+        onToggle={onToggleStrand}
+      />
       <textarea
         autoFocus
         value={commentValue}

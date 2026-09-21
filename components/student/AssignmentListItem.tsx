@@ -5,8 +5,10 @@ import { CheckCircle2, Loader2, Lock } from 'lucide-react';
 import { db, functions } from '@/config/firebase';
 import {
   KIND_CONFIG,
+  applyResultsOverride,
   type AssignmentSummary,
 } from '@/hooks/useStudentAssignments';
+import type { QuizResultsOverride } from '@/types';
 import type { ClassDirectoryEntry } from '@/hooks/useStudentClassDirectory';
 import { useDialog } from '@/context/useDialog';
 import { logError } from '@/utils/logError';
@@ -163,6 +165,10 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   // assignment kinds don't carry this field — strict equality below means a
   // missing/undefined field never trips the locked state.
   const [lockedOut, setLockedOut] = useState(false);
+  // Quiz-only: a per-student publish or hide, read from the same response doc.
+  const [resultsOverride, setResultsOverride] =
+    useState<QuizResultsOverride | null>(null);
+  const [mountedAt] = useState(() => Date.now());
   const { showAlert } = useDialog();
   const config = KIND_CONFIG[assignment.kind];
   const responseSub = RESPONSE_SUBCOLLECTION[assignment.kind];
@@ -203,6 +209,10 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
         // keeps legacy responses (no field) out of the locked state.
         if (assignment.kind === 'quiz' && snap.exists()) {
           setLockedOut(snap.data()?.resultsLockedOut === true);
+          setResultsOverride(
+            (snap.data()?.resultsOverride as QuizResultsOverride | undefined) ??
+              null
+          );
         }
         onCompletionResolved?.(assignment.sessionId, assignment.kind, next);
       } catch {
@@ -242,7 +252,14 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   // drops the row from its partition entirely.
   const isPending: boolean = !!pendingVerification && !isCompleted;
 
-  const isGraded = assignment.gradingState === 'graded';
+  const isGraded =
+    (assignment.kind === 'quiz'
+      ? applyResultsOverride(
+          assignment.gradingState,
+          resultsOverride,
+          mountedAt
+        )
+      : assignment.gradingState) === 'graded';
 
   /**
    * Re-check the live `resultsLockedOut` state from Firestore before either

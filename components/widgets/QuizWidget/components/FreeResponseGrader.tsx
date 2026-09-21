@@ -39,6 +39,7 @@ import {
   type QuizResponse,
   type QuizResponseAnswer,
   type QuizResponseBackTranslation,
+  type Rubric,
   type StudentOverride,
   type WrittenAnswerAnnotation,
   type WrittenAnswerGrade,
@@ -92,6 +93,7 @@ import { AnnotatedResponseView } from './AnnotatedResponseView';
 import { BackTranslationPanel } from './BackTranslationPanel';
 import { AudioAnnotatedResponseView } from './AudioAnnotatedResponseView';
 import { RubricScoringPanel } from './RubricScoringPanel';
+import { RubricStrandPills } from './RubricStrandChips';
 
 export const ADVANCE_DELAY_MS = 900;
 export const POINTS_IDLE_MS = 1500;
@@ -155,6 +157,8 @@ export interface FreeResponseGraderProps {
   /** Whether a finished grade moves the grader on by itself. */
   autoAdvance?: boolean;
   onAutoAdvanceChange?: (enabled: boolean) => void;
+  /** Open on this student's answer to this question instead of the first in the queue. */
+  initialTarget?: { questionId: string; responseKey: string };
   onClose: () => void;
 }
 
@@ -201,6 +205,18 @@ const targetVocabulary = (
   };
 };
 
+const strandTagsEqual = (
+  a: WrittenAnswerAnnotation['rubricCriteria'],
+  b: WrittenAnswerAnnotation['rubricCriteria']
+): boolean => {
+  const left = a ?? [];
+  const right = b ?? [];
+  if (left.length !== right.length) return false;
+  return left.every(
+    (t, i) => t.criterionId === right[i].criterionId && t.name === right[i].name
+  );
+};
+
 const annotationListsEqual = (
   a: WrittenAnswerAnnotation[],
   b: WrittenAnswerAnnotation[] | undefined
@@ -216,6 +232,7 @@ const annotationListsEqual = (
       x.to === y.to &&
       (x.highlightColor ?? 'yellow') === (y.highlightColor ?? 'yellow') &&
       (x.comment ?? '') === (y.comment ?? '') &&
+      strandTagsEqual(x.rubricCriteria, y.rubricCriteria) &&
       x.authorUid === y.authorUid
     );
   });
@@ -301,6 +318,39 @@ function buildQueue(
   return rows;
 }
 
+/** Question and rail indexes that land on `target`; 0/0 when it isn't in a queue. */
+function initialIndexes(
+  questions: QuizQuestion[],
+  responses: QuizResponse[],
+  mode: GraderMode,
+  target: { questionId: string; responseKey: string } | undefined
+): { questionIdx: number; studentIdx: number } {
+  const questionIdx = target
+    ? questions.findIndex((q) => q.id === target.questionId)
+    : -1;
+  if (!target || questionIdx < 0) return { questionIdx: 0, studentIdx: 0 };
+  let keys: (string | undefined)[];
+  if (mode === 'question') {
+    keys = buildQueue(questions[questionIdx], responses).map(
+      (r) => r.responseKey
+    );
+  } else {
+    const seen = new Set<string | undefined>();
+    keys = [];
+    for (const q of questions) {
+      for (const row of buildQueue(q, responses)) {
+        if (seen.has(row.responseKey)) continue;
+        seen.add(row.responseKey);
+        keys.push(row.responseKey);
+      }
+    }
+  }
+  return {
+    questionIdx,
+    studentIdx: Math.max(0, keys.indexOf(target.responseKey)),
+  };
+}
+
 export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   quiz,
   responses,
@@ -316,6 +366,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   onGraderModeChange,
   autoAdvance = true,
   onAutoAdvanceChange,
+  initialTarget,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -336,8 +387,11 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
 
   const [mode, setMode] = useState<GraderMode>(graderMode);
   const [autoAdvanceOn, setAutoAdvanceOn] = useState(autoAdvance);
-  const [questionIdx, setQuestionIdx] = useState(0);
-  const [studentIdx, setStudentIdx] = useState(0);
+  const [initial] = useState(() =>
+    initialIndexes(questions, responses, graderMode, initialTarget)
+  );
+  const [questionIdx, setQuestionIdx] = useState(initial.questionIdx);
+  const [studentIdx, setStudentIdx] = useState(initial.studentIdx);
   const [slotName, setSlotName] = useState<ArtifactSlot>('primary');
   const [clearing, setClearing] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -475,6 +529,20 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const completeSeenRef = useRef(false);
   const lastWrittenRef = useRef(new Map<string, string>());
 
+  // Strand tagging follows wherever the rubric is actually being scored —
+  // the addendum slot grades against points alone, so it gets no chips.
+  const taggableRubric =
+    slot?.slot === 'addendum' ? undefined : effectiveRubric;
+
+  // Where the last "N highlights" jump left off, so a second click walks to
+  // the next passage for that strand rather than re-opening the first.
+  const lastJumpRef = useRef<{ criterionId: string; index: number } | null>(
+    null
+  );
+  // Bumped on each jump so the audio view seeks only when the grader asks,
+  // not whenever a note takes focus.
+  const [seek, setSeek] = useState({ ms: 0, nonce: 0 });
+
   const isUnavailable = !!slot?.captureUnavailable;
   const takes = slot?.takes ?? [];
   const activeTake = useMemo(() => {
@@ -508,6 +576,8 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     setDraftAnnotations(hydrated.annotations);
     setDraftRubricScores(hydrated.rubricScores);
     setActiveAnnotationId(null);
+    setSeek({ ms: 0, nonce: 0 });
+    lastJumpRef.current = null;
     setPinnedTakeIndex(hydrated.pinnedTakeIndex);
     setAdjudication(hydrated.adjudication);
     setSaveError(null);
@@ -527,6 +597,17 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
             )
           )
         : '';
+  }
+
+  // The audio view remounts per take with a fresh handled-nonce, so a seek
+  // from the previous take would replay on this one. Keyed on the take
+  // rather than the Takes-list click, so every path that swaps one resets.
+  const takeKey = `${targetKey}::${activeTake?.takeIndex ?? 0}`;
+  const [seekTakeKey, setSeekTakeKey] = useState(takeKey);
+  if (takeKey !== seekTakeKey) {
+    setSeekTakeKey(takeKey);
+    setSeek({ ms: 0, nonce: 0 });
+    lastJumpRef.current = null;
   }
 
   const handleRubricScoresChange = useCallback(
@@ -551,6 +632,38 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       setDraftAnnotations(next);
     },
     []
+  );
+
+  // How many highlights carry each strand, for the rubric panel's counts.
+  const tagCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const a of draftAnnotations)
+      for (const tag of a.rubricCriteria ?? [])
+        counts[tag.criterionId] = (counts[tag.criterionId] ?? 0) + 1;
+    return counts;
+  }, [draftAnnotations]);
+
+  // Walk that strand's tagged passages in text order, one per click. Opening
+  // the annotation is what scrolls the mark (text) or seeks the take (audio).
+  const handleJumpToTagged = useCallback(
+    (criterionId: string) => {
+      const tagged = draftAnnotations
+        .filter((a) =>
+          a.rubricCriteria?.some((t) => t.criterionId === criterionId)
+        )
+        .sort((a, b) => a.from - b.from);
+      if (tagged.length === 0) return;
+      const last = lastJumpRef.current;
+      const index =
+        last?.criterionId === criterionId
+          ? (last.index + 1) % tagged.length
+          : 0;
+      lastJumpRef.current = { criterionId, index };
+      const target = tagged[index];
+      setActiveAnnotationId(target.id);
+      setSeek((prev) => ({ ms: target.from, nonce: prev.nonce + 1 }));
+    },
+    [draftAnnotations]
   );
 
   // Playback: resolve the archived take's bytes from the teacher's own Drive.
@@ -1374,6 +1487,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                     onChange={handleAnnotationsChange}
                     activeId={activeAnnotationId}
                     onActiveIdChange={setActiveAnnotationId}
+                    rubric={taggableRubric}
                   />
                 ) : (
                   <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm italic text-slate-500">
@@ -1449,7 +1563,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
 
             {isMedia && !isUnavailable && (
               <AudioAnnotatedResponseView
-                key={`${targetKey}::${activeTake?.takeIndex ?? 0}`}
+                key={takeKey}
                 src={takeUrl}
                 durationMs={activeTake?.artifact.durationMs ?? 0}
                 loading={loadingTake}
@@ -1464,6 +1578,9 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 activeId={activeAnnotationId}
                 onActiveIdChange={setActiveAnnotationId}
                 disabled={false}
+                rubric={taggableRubric}
+                seekToMs={seek.ms}
+                seekNonce={seek.nonce}
               />
             )}
           </div>
@@ -1525,6 +1642,9 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                         ? tg('rubricOverrideNote')
                         : undefined
                     }
+                    tagCounts={tagCounts}
+                    onJumpToTagged={handleJumpToTagged}
+                    tagCountKind={isMedia ? 'note' : 'highlight'}
                   />
                 )}
               {target &&
@@ -1574,6 +1694,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 onSelect={setActiveAnnotationId}
                 emptyHint={tg('highlightsEmpty')}
                 noCommentHint={tg('highlightNoComment')}
+                rubric={taggableRubric}
               />
             </div>
           )}
@@ -1675,6 +1796,7 @@ const AnnotationsList: React.FC<{
   onSelect: (id: string) => void;
   emptyHint: string;
   noCommentHint: string;
+  rubric?: Rubric;
 }> = ({
   annotations,
   snapshot,
@@ -1682,6 +1804,7 @@ const AnnotationsList: React.FC<{
   onSelect,
   emptyHint,
   noCommentHint,
+  rubric,
 }) => {
   // Offsets index `htmlToPlainText`'s projection, not `textContent`.
   const plaintext = useMemo(() => htmlToPlainText(snapshot), [snapshot]);
@@ -1715,12 +1838,21 @@ const AnnotationsList: React.FC<{
             >
               {truncated || 'highlight'}
             </span>
+            <RubricStrandPills
+              tags={a.rubricCriteria}
+              rubric={rubric}
+              className="mt-1"
+            />
             {a.comment ? (
               <span className="mt-1 block text-slate-700">{a.comment}</span>
             ) : (
-              <span className="mt-1 block italic text-slate-400">
-                {noCommentHint}
-              </span>
+              // A tagged highlight already says something; the "add a
+              // comment" nudge is only for a bare one.
+              !a.rubricCriteria?.length && (
+                <span className="mt-1 block italic text-slate-400">
+                  {noCommentHint}
+                </span>
+              )
             )}
           </button>
         );

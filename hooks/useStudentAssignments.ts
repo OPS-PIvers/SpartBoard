@@ -24,7 +24,12 @@ import {
 } from 'lucide-react';
 import { db, isAuthBypass } from '@/config/firebase';
 import { projectHref } from '@/components/student/project/projectRoute';
-import type { StudentAssignmentPointer, StudentOverride } from '@/types';
+import type {
+  QuizResultsOverride,
+  StudentAssignmentPointer,
+  StudentOverride,
+} from '@/types';
+import { activeResultsOverride } from '@/utils/quizResultsVisibility';
 
 /**
  * useStudentAssignments
@@ -182,6 +187,17 @@ export function parsePublicationFields(
   const isVisible = typeof visibility === 'string' && visibility !== 'none';
   const isPublished = typeof publishedAt === 'number';
   return isVisible && isPublished ? 'graded' : 'not-graded';
+}
+
+/** A quiz row's grading state once the student's own results override is applied. */
+export function applyResultsOverride(
+  classState: 'not-graded' | 'graded',
+  override: QuizResultsOverride | null | undefined,
+  now: number
+): 'not-graded' | 'graded' {
+  const active = activeResultsOverride(override, now);
+  if (!active) return classState;
+  return active.mode === 'shown' ? 'graded' : 'not-graded';
 }
 
 export const KIND_CONFIG: Record<SessionKind, KindConfig> = {

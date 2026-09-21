@@ -4,14 +4,18 @@ import {
   BUBBLE_LETTER_GREY,
   MIN_BUBBLE_LETTER_GREY,
   QUESTIONS_PER_PAGE,
+  ROWS_PER_COLUMN,
+  STIMULUS_RECT_MM,
 } from './paperSheetLayout';
 import { paperBatchTag } from './paperSheetMarker';
 import {
   READER_THRESHOLDS,
   classifyRow,
   fitAffine,
+  otsuThreshold,
   readPaperPage,
   rowsOnPage,
+  toGrayscale,
   type PageRead,
 } from './paperSheetReader';
 
@@ -386,5 +390,113 @@ describe('rowsOnPage', () => {
     expect(rowsOnPage(1, 120)).toBe(QUESTIONS_PER_PAGE);
     expect(rowsOnPage(3, 120)).toBe(120 - 2 * QUESTIONS_PER_PAGE);
     expect(rowsOnPage(4, 120)).toBe(0);
+  });
+});
+
+describe('readPaperPage on a single-column sheet', () => {
+  const NARROW = {
+    questionCount: 40,
+    choiceCount: 4,
+    columnsPerPage: 1 as const,
+  };
+  const marks = [
+    { row: 0, choice: 2 },
+    { row: 12, choice: 0 },
+    { row: 24, choice: 3 },
+  ];
+  const sheet = (
+    extra: Partial<Parameters<typeof paintSyntheticSheet>[0]> = {}
+  ) =>
+    paintSyntheticSheet({
+      marker,
+      questionCount: NARROW.questionCount,
+      choiceCount: NARROW.choiceCount,
+      columnsPerPage: 1,
+      printedLetters: true,
+      marks,
+      ...extra,
+    });
+
+  it('reads the 25 rows a single-column page carries', () => {
+    const read = ok(readPaperPage(sheet(), NARROW));
+    expect(read.rows).toHaveLength(ROWS_PER_COLUMN);
+    for (const mark of marks) {
+      expect(read.rows[mark.row].choice).toBe(mark.choice);
+    }
+    expect(read.rows.filter((r) => r.choice !== null)).toHaveLength(
+      marks.length
+    );
+  });
+
+  it('reads the same answers with artwork in the stimulus band', () => {
+    const plain = ok(readPaperPage(sheet(), NARROW));
+    const withArtwork = ok(
+      readPaperPage(
+        sheet({
+          stimuli: [
+            { heightFraction: 0.45, tone: 0x20 },
+            { heightFraction: 0.5, tone: 0x80 },
+          ],
+        }),
+        NARROW
+      )
+    );
+    expect(withArtwork.rows).toEqual(plain.rows);
+  });
+
+  it('keeps the grey choice letters out of the bubbles under a mid-grey photo', () => {
+    // The case that bites: Otsu splits a large mid-grey off from the paper and
+    // the cut lands above the letter grey, so every letter reads as a mark.
+    const page = sheet({ stimuli: [{ heightFraction: 1, tone: 0xb4 }] });
+    const gray = toGrayscale(page);
+    const band = {
+      x: Math.round((STIMULUS_RECT_MM.x - 6) * 7.87),
+      y: Math.round((STIMULUS_RECT_MM.y - 6) * 7.87),
+      w: Math.round((STIMULUS_RECT_MM.w + 12) * 7.87),
+      h: Math.round((STIMULUS_RECT_MM.h + 12) * 7.87),
+    };
+    expect(otsuThreshold(gray, page.width, page.height)).toBeGreaterThanOrEqual(
+      BUBBLE_LETTER_GREY
+    );
+    expect(otsuThreshold(gray, page.width, page.height, band)).toBeLessThan(
+      BUBBLE_LETTER_GREY
+    );
+
+    const read = ok(readPaperPage(page, NARROW));
+    expect(read.rows.map((r) => r.choice)).toEqual(
+      ok(readPaperPage(sheet(), NARROW)).rows.map((r) => r.choice)
+    );
+    expect(read.rows.every((r) => r.doubt === undefined)).toBe(true);
+  });
+
+  it('excludes the band where the artwork actually landed on a rotated page', () => {
+    // The band is only known once the marker says which way up the page was
+    // fed; taking it upright would drop the answers and keep the artwork.
+    const page = sheet({
+      stimuli: [{ heightFraction: 1, tone: 0xb4 }],
+      rotated: true,
+    });
+    const read = ok(readPaperPage(page, NARROW));
+    expect(read.rotated).toBe(true);
+    for (const mark of marks) {
+      expect(read.rows[mark.row].choice).toBe(mark.choice);
+    }
+    expect(read.rows.filter((r) => r.choice !== null)).toHaveLength(
+      marks.length
+    );
+  });
+
+  it('leaves a two-column read exactly as it was before the band existed', () => {
+    const page = paintSyntheticSheet({
+      marker,
+      questionCount: 50,
+      choiceCount: 4,
+      printedLetters: true,
+      marks,
+    });
+    const options = { questionCount: 50, choiceCount: 4 };
+    expect(ok(readPaperPage(page, { ...options, columnsPerPage: 2 }))).toEqual(
+      ok(readPaperPage(page, options))
+    );
   });
 });

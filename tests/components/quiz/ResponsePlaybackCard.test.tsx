@@ -8,7 +8,11 @@ import { beforeAll, describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom/vitest';
-import type { ArtifactArchiveEntry, QuizResponseAnswer } from '@/types';
+import type {
+  ArtifactArchiveEntry,
+  QuizResponseAnswer,
+  WrittenAnswerAnnotation,
+} from '@/types';
 
 vi.mock('@/config/firebase', () => ({
   functions: {},
@@ -73,6 +77,54 @@ function renderCard(
 beforeAll(() => {
   URL.createObjectURL = vi.fn(() => 'blob:take');
   URL.revokeObjectURL = vi.fn();
+});
+
+describe('ResponsePlaybackCard rubric strand tags', () => {
+  const renderWithNotes = (annotations: WrittenAnswerAnnotation[]) =>
+    render(
+      <ResponsePlaybackCard
+        sessionId="s1"
+        responseKey="r1"
+        questionId="q1"
+        answers={answers()}
+        artifactArchive={{ 'artifact-1': archived }}
+        fetchPlayback={ready}
+        annotations={annotations}
+      />
+    );
+
+  /** The timeline list only exists once the bytes have arrived. */
+  const play = async () => {
+    await userEvent.click(
+      screen.getByRole('button', { name: 'quizMediaResponse.playback.play' })
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('progressbar')).toBeInTheDocument()
+    );
+  };
+
+  it('shows a note tagged to a strand even when it carries no comment', async () => {
+    renderWithNotes([
+      {
+        id: 'a1',
+        from: 4_000,
+        to: 4_000,
+        authorUid: 't1',
+        createdAt: 1,
+        rubricCriteria: [{ criterionId: 'c1', name: 'Fluency' }],
+      },
+    ]);
+    await play();
+    expect(screen.getByText('Fluency')).toBeInTheDocument();
+  });
+
+  it('still hides a note with neither a comment nor a tag', async () => {
+    renderWithNotes([
+      { id: 'a1', from: 4_000, to: 4_000, authorUid: 't1', createdAt: 1 },
+    ]);
+    await play();
+    expect(screen.queryByText('0:04')).not.toBeInTheDocument();
+  });
 });
 
 describe('ResponsePlaybackCard', () => {

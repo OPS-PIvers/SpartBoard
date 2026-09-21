@@ -1,6 +1,42 @@
 {
   "entries": [
     {
+      "version": "2026.09.21.1",
+      "date": "2026-09-21",
+      "title": "Link a highlight to the part of the rubric it proves",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Grading",
+          "items": [
+            {
+              "text": "When you highlight a passage in a written answer, the same box you use to pick a colour now lets you mark that passage as evidence for one or more parts of the rubric. It does not score anything. It just records what you were reading when you made up your mind."
+            },
+            {
+              "text": "Spoken answers work the same way. Drop a note at a moment in the recording and tag it to a part of the rubric, with or without typing a comment."
+            },
+            {
+              "text": "Each part of the rubric shows how many passages you tagged to it, and clicking that takes you through them one at a time."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Students see the tags. A passage you tagged shows up in their margin with the name of the rubric part, even if you never wrote a comment on it."
+        },
+        {
+          "type": "feature",
+          "text": "Tags only appear on questions that have a rubric. A question graded on points alone looks exactly as it did before."
+        },
+        {
+          "type": "fix",
+          "text": "A note on a spoken answer used to disappear when you saved without typing anything in it. Notes now stick as long as they carry a comment or a rubric tag."
+        }
+      ]
+    },
+    {
       "version": "2026.09.13.1",
       "date": "2026-09-13",
       "title": "Quizzes in a student's own language",

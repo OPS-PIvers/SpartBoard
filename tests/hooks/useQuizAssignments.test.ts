@@ -2256,15 +2256,27 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
   });
 
   it('unpublishAssignmentScores clears flags via deleteField on both docs', async () => {
+    const refKeyed = { id: 'r-keyed' };
+    const refPlain = { id: 'r-plain' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        { ref: refKeyed, data: () => ({ revealedAnswers: { q0: 'a' } }) },
+        { ref: refPlain, data: () => ({ score: 50 }) },
+      ],
+    });
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     await act(async () => {
       await result.current.unpublishAssignmentScores(ASSIGNMENT_ID);
     });
 
-    // Exactly one batch (assignment + session) — no response queries
-    // (the unpublish path leaves per-response scores intact).
-    expect(mockGetDocs).not.toHaveBeenCalled();
+    // One batch; only the response carrying an answer key is touched.
     expect(batchCommit).toHaveBeenCalledTimes(1);
+    expect(
+      batchUpdate.mock.calls.find(([ref]) => ref === refKeyed)?.[1]
+    ).toEqual({ revealedAnswers: DELETE_FIELD_SENTINEL });
+    expect(
+      batchUpdate.mock.calls.find(([ref]) => ref === refPlain)
+    ).toBeUndefined();
 
     const assignmentCall = batchUpdate.mock.calls.find(
       ([ref]) =>
@@ -2293,13 +2305,12 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
   });
 
   it('unpublishAssignmentScores is idempotent — second call still writes the same patch', async () => {
+    mockGetDocs.mockResolvedValue({ docs: [] });
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     await act(async () => {
       await result.current.unpublishAssignmentScores(ASSIGNMENT_ID);
       await result.current.unpublishAssignmentScores(ASSIGNMENT_ID);
     });
-    // Two commits, no response reads in either pass.
-    expect(mockGetDocs).not.toHaveBeenCalled();
     expect(batchCommit).toHaveBeenCalledTimes(2);
   });
 
@@ -2420,8 +2431,11 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
     expect(blankCall[1]).toMatchObject({ score: 0, answers: [] });
   });
 
-  it('populates session.revealedAnswers on score-responses-and-answers publish', async () => {
-    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+  it('writes the answer key to each response, not the session, on score-responses-and-answers publish', async () => {
+    const ref = { id: 'r1' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [{ ref, data: () => ({ studentUid: 's1', answers: [] }) }],
+    });
 
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     await act(async () => {
@@ -2438,6 +2452,9 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
     if (!sessionCall) throw new Error('expected session update');
     expect(sessionCall[1]).toMatchObject({
       scoreVisibility: 'score-responses-and-answers',
+      revealedAnswers: DELETE_FIELD_SENTINEL,
+    });
+    expect(batchUpdate.mock.calls.find(([r]) => r === ref)?.[1]).toMatchObject({
       revealedAnswers: { q0: 'a', q1: 'b' },
     });
   });

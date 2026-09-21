@@ -1,10 +1,11 @@
 import React from 'react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AnnotatedResponseView';
 import { AudioAnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AudioAnnotatedResponseView';
 import { getAudioCtx } from '@/utils/timeToolAudio';
-import type { WrittenAnswerAnnotation } from '@/types';
+import { toggleStrandTag } from '@/utils/rubricStrandTags';
+import type { Rubric, WrittenAnswerAnnotation } from '@/types';
 
 vi.mock('@/utils/timeToolAudio', () => ({
   getAudioCtx: vi.fn(),
@@ -24,7 +25,8 @@ const EditHarness: React.FC<{
   annotations: WrittenAnswerAnnotation[];
   onChange: (next: WrittenAnswerAnnotation[]) => void;
   initialActiveId?: string | null;
-}> = ({ snapshot, annotations, onChange, initialActiveId = null }) => {
+  rubric?: Rubric;
+}> = ({ snapshot, annotations, onChange, initialActiveId = null, rubric }) => {
   const [activeId, setActiveId] = React.useState<string | null>(
     initialActiveId
   );
@@ -37,8 +39,34 @@ const EditHarness: React.FC<{
       onChange={onChange}
       activeId={activeId}
       onActiveIdChange={setActiveId}
+      rubric={rubric}
     />
   );
+};
+
+const rubric: Rubric = {
+  id: 'r1',
+  title: 'Essay rubric',
+  createdAt: 0,
+  updatedAt: 0,
+  criteria: [
+    {
+      id: 'c1',
+      name: 'Thesis',
+      levels: [
+        { id: 'c1l1', label: 'Below', points: 1 },
+        { id: 'c1l2', label: 'Meets', points: 3 },
+      ],
+    },
+    {
+      id: 'c2',
+      name: 'Evidence',
+      levels: [
+        { id: 'c2l1', label: 'Below', points: 1 },
+        { id: 'c2l2', label: 'Meets', points: 2 },
+      ],
+    },
+  ],
 };
 
 const ann = (
@@ -178,6 +206,321 @@ describe('AnnotatedResponseView — edit mode', () => {
     fireEvent.click(screen.getByRole('button', { name: /pink highlight/i }));
     const last = onChange.mock.calls.at(-1)?.[0] as WrittenAnswerAnnotation[];
     expect(last[0].highlightColor).toBe('pink');
+  });
+});
+
+describe('toggleStrandTag', () => {
+  it('keeps tags in rubric order regardless of click order', () => {
+    const afterEvidence = toggleStrandTag(undefined, 'c2', rubric);
+    const afterThesis = toggleStrandTag(afterEvidence, 'c1', rubric);
+    expect(afterThesis?.map((t) => t.criterionId)).toEqual(['c1', 'c2']);
+  });
+
+  it('snapshots the criterion name when a tag is added', () => {
+    expect(toggleStrandTag(undefined, 'c1', rubric)).toEqual([
+      { criterionId: 'c1', name: 'Thesis' },
+    ]);
+  });
+
+  it('returns undefined rather than an empty array when the last tag is removed', () => {
+    const one = toggleStrandTag(undefined, 'c1', rubric);
+    expect(toggleStrandTag(one, 'c1', rubric)).toBeUndefined();
+  });
+
+  it('ignores a criterion the rubric does not contain', () => {
+    expect(toggleStrandTag(undefined, 'gone', rubric)).toBeUndefined();
+  });
+});
+
+describe('AnnotatedResponseView — rubric strand tagging', () => {
+  it('renders no strand chips when the question has no rubric', () => {
+    render(
+      <EditHarness
+        snapshot="<p>hello world</p>"
+        annotations={[ann(0, 5, { id: 'a1' })]}
+        onChange={vi.fn()}
+        initialActiveId="a1"
+      />
+    );
+    expect(
+      screen.queryByRole('group', { name: /rubric strands/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('adds a strand tag when a chip is clicked in active mode', () => {
+    const onChange = vi.fn();
+    render(
+      <EditHarness
+        snapshot="<p>hello world</p>"
+        annotations={[ann(0, 5, { id: 'a1' })]}
+        onChange={onChange}
+        initialActiveId="a1"
+        rubric={rubric}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /tag as evidence for thesis/i })
+    );
+    const last = onChange.mock.calls.at(-1)?.[0] as WrittenAnswerAnnotation[];
+    expect(last[0].rubricCriteria).toEqual([
+      { criterionId: 'c1', name: 'Thesis' },
+    ]);
+  });
+
+  it('omits the field entirely when the last tag is toggled off', () => {
+    const onChange = vi.fn();
+    render(
+      <EditHarness
+        snapshot="<p>hello world</p>"
+        annotations={[
+          ann(0, 5, {
+            id: 'a1',
+            rubricCriteria: [{ criterionId: 'c1', name: 'Thesis' }],
+          }),
+        ]}
+        onChange={onChange}
+        initialActiveId="a1"
+        rubric={rubric}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /remove thesis tag/i }));
+    const last = onChange.mock.calls.at(-1)?.[0] as WrittenAnswerAnnotation[];
+    expect(last[0].rubricCriteria).toBeUndefined();
+    expect('rubricCriteria' in last[0]).toBe(true);
+  });
+
+  it('shows a strand that left the rubric under its snapshotted name, removable', () => {
+    const onChange = vi.fn();
+    render(
+      <EditHarness
+        snapshot="<p>hello world</p>"
+        annotations={[
+          ann(0, 5, {
+            id: 'a1',
+            rubricCriteria: [{ criterionId: 'gone', name: 'Old strand' }],
+          }),
+        ]}
+        onChange={onChange}
+        initialActiveId="a1"
+        rubric={rubric}
+      />
+    );
+    const orphan = screen.getByRole('button', {
+      name: /remove old strand tag/i,
+    });
+    expect(orphan).toBeInTheDocument();
+    fireEvent.click(orphan);
+    const last = onChange.mock.calls.at(-1)?.[0] as WrittenAnswerAnnotation[];
+    expect(last[0].rubricCriteria).toBeUndefined();
+  });
+
+  it('commits a pending selection in yellow, carrying the typed comment and the tag', () => {
+    // jsdom gives every rect zeros, which the selection handler treats as
+    // "nothing was selected". Stub just enough geometry to get past it.
+    const rangeProto = Range.prototype as unknown as {
+      getBoundingClientRect?: () => DOMRect;
+    };
+    const originalRangeRect = rangeProto.getBoundingClientRect;
+    rangeProto.getBoundingClientRect = () =>
+      ({
+        top: 10,
+        bottom: 24,
+        left: 0,
+        right: 40,
+        width: 40,
+        height: 14,
+        x: 0,
+        y: 10,
+        toJSON: () => ({}),
+      }) as DOMRect;
+
+    const onChange = vi.fn();
+    render(
+      <EditHarness
+        snapshot="<p>hello world</p>"
+        annotations={[]}
+        onChange={onChange}
+        rubric={rubric}
+      />
+    );
+    const article = document.querySelector('article');
+    if (!article) throw new Error('Expected the response article');
+    const textNode = article.querySelector('p')?.firstChild;
+    if (!textNode) throw new Error('Expected a text node to select');
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, 5);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.mouseUp(article);
+
+    fireEvent.change(screen.getByPlaceholderText(/margin comment/i), {
+      target: { value: 'strong opening' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: /tag as evidence for evidence/i })
+    );
+
+    const last = onChange.mock.calls.at(-1)?.[0] as WrittenAnswerAnnotation[];
+    expect(last).toHaveLength(1);
+    expect(last[0]).toMatchObject({
+      from: 0,
+      to: 5,
+      highlightColor: 'yellow',
+      comment: 'strong opening',
+      rubricCriteria: [{ criterionId: 'c2', name: 'Evidence' }],
+    });
+    rangeProto.getBoundingClientRect = originalRangeRect;
+  });
+
+  it('gives a tagged, uncommented highlight a margin chip on the student side', () => {
+    render(
+      <AnnotatedResponseView
+        mode="read"
+        snapshot="<p>alpha beta gamma</p>"
+        annotations={[
+          ann(0, 5, {
+            id: 'a1',
+            rubricCriteria: [{ criterionId: 'c1', name: 'Thesis' }],
+          }),
+        ]}
+      />
+    );
+    expect(screen.getByText('Teacher notes')).toBeInTheDocument();
+    expect(screen.getByText('Thesis')).toBeInTheDocument();
+  });
+});
+
+describe('AnnotatedResponseView — jumping to a tagged passage', () => {
+  // jsdom has no scrollIntoView; the jump brings the mark into the grader's
+  // scrolled column, which `block: 'nearest'` resolves natively.
+  let scrollIntoView: ReturnType<typeof vi.fn>;
+  let original: PropertyDescriptor | undefined;
+
+  beforeEach(() => {
+    scrollIntoView = vi.fn();
+    original = Object.getOwnPropertyDescriptor(
+      Element.prototype,
+      'scrollIntoView'
+    );
+    Object.defineProperty(Element.prototype, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value: scrollIntoView,
+    });
+  });
+
+  afterEach(() => {
+    if (original)
+      Object.defineProperty(Element.prototype, 'scrollIntoView', original);
+    else
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+  });
+
+  it('scrolls the newly active mark into its own scroll container', () => {
+    render(
+      <EditHarness
+        snapshot="<p>alpha beta gamma</p>"
+        annotations={[ann(0, 5, { id: 'a1' })]}
+        onChange={vi.fn()}
+        initialActiveId="a1"
+        rubric={rubric}
+      />
+    );
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+  });
+
+  // The edit feeds back into the annotation list, so the layout effect
+  // re-runs — which is what a missing once-per-activation guard would
+  // turn into a second scroll.
+  const StatefulHarness: React.FC = () => {
+    const [annotations, setAnnotations] = React.useState([
+      ann(0, 5, { id: 'a1', comment: '' }),
+    ]);
+    return (
+      <EditHarness
+        snapshot="<p>alpha beta gamma</p>"
+        annotations={annotations}
+        onChange={setAnnotations}
+        initialActiveId="a1"
+        rubric={rubric}
+      />
+    );
+  };
+
+  it('does not re-scroll while the teacher types in the popover', () => {
+    render(<StatefulHarness />);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    fireEvent.change(screen.getByPlaceholderText(/margin comment/i), {
+      target: { value: 'still here' },
+    });
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('AudioAnnotatedResponseView — rubric strand tagging', () => {
+  const note = (over: Partial<WrittenAnswerAnnotation> = {}) => ({
+    id: 'n1',
+    from: 4_000,
+    to: 4_000,
+    highlightColor: 'yellow' as const,
+    authorUid: 'teacher-1',
+    createdAt: 0,
+    ...over,
+  });
+
+  const renderNotes = (
+    annotations: WrittenAnswerAnnotation[],
+    onChange: (next: WrittenAnswerAnnotation[]) => void,
+    withRubric: boolean
+  ) =>
+    render(
+      <AudioAnnotatedResponseView
+        src="blob:take"
+        durationMs={60_000}
+        loading={false}
+        error={null}
+        unplayableReason={null}
+        annotations={annotations}
+        onChange={onChange}
+        authorUid="teacher-1"
+        activeId={null}
+        onActiveIdChange={vi.fn()}
+        rubric={withRubric ? rubric : undefined}
+      />
+    );
+
+  it('renders no chips on a note when the question has no rubric', () => {
+    renderNotes([note()], vi.fn(), false);
+    expect(
+      screen.queryByRole('group', { name: /rubric strands/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('tags a timestamp note without needing a typed comment', () => {
+    const onChange = vi.fn();
+    renderNotes([note()], onChange, true);
+    fireEvent.click(
+      screen.getByRole('button', { name: /tag as evidence for thesis/i })
+    );
+    const last = onChange.mock.calls.at(-1)?.[0] as WrittenAnswerAnnotation[];
+    expect(last[0].rubricCriteria).toEqual([
+      { criterionId: 'c1', name: 'Thesis' },
+    ]);
+    expect(last[0].comment).toBeUndefined();
+  });
+
+  it('removes the field when the last tag comes off a note', () => {
+    const onChange = vi.fn();
+    renderNotes(
+      [note({ rubricCriteria: [{ criterionId: 'c1', name: 'Thesis' }] })],
+      onChange,
+      true
+    );
+    fireEvent.click(screen.getByRole('button', { name: /remove thesis tag/i }));
+    const last = onChange.mock.calls.at(-1)?.[0] as WrittenAnswerAnnotation[];
+    expect(last[0].rubricCriteria).toBeUndefined();
   });
 });
 

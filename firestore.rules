@@ -17,6 +17,22 @@ service cloud.firestore {
              exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()));
     }
 
+    // ---- Optional-field type guards ----
+    // optX(d, 'k') is exactly `!('k' in d) || d.k is X`, written once instead of
+    // inline at every callsite. Firestore caps the COMPILED ruleset at 250 KB,
+    // separately from the 256 KB source cap, and this file crossed it on
+    // 2026-09-21; every release was then refused with a bare INVALID_ARGUMENT.
+    function optString(d, k) { return !(k in d) || d[k] is string; }
+    function optMap(d, k) { return !(k in d) || d[k] is map; }
+    function optList(d, k) { return !(k in d) || d[k] is list; }
+    function optInt(d, k) { return !(k in d) || d[k] is int; }
+    function optBool(d, k) { return !(k in d) || d[k] is bool; }
+    function optNumber(d, k) { return !(k in d) || d[k] is number; }
+    // The 200-character form used across the activity-wall item validators.
+    function optShortString(d, k) {
+      return !(k in d) || (d[k] is string && d[k].size() <= 200);
+    }
+
     // ---- Student (GIS/ClassLink) auth helpers ----
     // GIS students sign in via studentLoginV1 custom tokens carrying
     // `studentRole: true` + a `classIds` list of their ClassLink sections.
@@ -198,14 +214,6 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(emailLower))
              ? get(/databases/$(database)/documents/organizations/$(orgId)/members/$(emailLower)).data.get('roleId', '')
              : '';
-    }
-
-    // Check whether a role has a given capability at the given access level.
-    // access: 'full' | 'building' | 'none'. A missing perm defaults to 'none'.
-    function roleHasCap(orgId, roleId, capId, access) {
-      return exists(/databases/$(database)/documents/organizations/$(orgId)/roles/$(roleId)) &&
-             get(/databases/$(database)/documents/organizations/$(orgId)/roles/$(roleId)).data
-               .get('perms', {}).get(capId, 'none') == access;
     }
 
     // email_verified is REQUIRED, same reason as isAdmin() above.
@@ -782,6 +790,13 @@ service cloud.firestore {
     // whether to mount the widget at all, and students so it stays a kill
     // switch for runs already created; admins flip it.
     match /admin_settings/projects_widget {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Rollout switch for building a quiz from a test document — teachers read
+    // it to decide whether to offer the import source; admins flip it.
+    match /admin_settings/quiz_document_import {
       allow read: if request.auth != null;
       allow write: if isAdmin();
     }
@@ -1368,7 +1383,7 @@ service cloud.firestore {
         request.resource.data.allowLikes is bool &&
         request.resource.data.createdAt is int &&
         (request.resource.data.expiresAt == null || request.resource.data.expiresAt is int) &&
-        (!('revoked' in request.resource.data) || request.resource.data.revoked is bool);
+        optBool(request.resource.data, 'revoked');
 
       // Identity fields frozen post-create (can't retarget the session or hijack
       // attribution); toggles (allow*, expiresAt, revoked) stay mutable for
@@ -1491,7 +1506,7 @@ service cloud.firestore {
              'id', 'version', 'title', 'questions',
              'participants', 'plcId', 'createdAt',
              'updatedAt', 'updatedBy', 'behavior', 'stimuli',
-             'translations'
+             'paperSheetStimuli', 'translations'
            ])
         && request.resource.data.id == groupId
         && request.resource.data.version is int
@@ -1502,10 +1517,12 @@ service cloud.firestore {
         && request.resource.data.participants[request.auth.uid].joinedAt >= 0
         // Validate plcId type when present so a malformed link/cast can't write
         // a non-string value that downstream PLC reads would mishandle.
-        && (!('plcId' in request.resource.data) || request.resource.data.plcId is string)
-        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map)
-        && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list)
-        && (!('translations' in request.resource.data) || request.resource.data.translations is map);
+        && optString(request.resource.data, 'plcId')
+        && optMap(request.resource.data, 'behavior')
+        && optList(request.resource.data, 'stimuli')
+        // Items printed on a paper answer sheet; same list shape as `stimuli`.
+        && optList(request.resource.data, 'paperSheetStimuli')
+        && optMap(request.resource.data, 'translations');
 
       // Content updates: caller must be a participant; participants + id are
       // client-immutable; version must increase by exactly 1 (concurrent loser
@@ -1516,7 +1533,7 @@ service cloud.firestore {
              'id', 'version', 'title', 'questions',
              'participants', 'plcId', 'createdAt',
              'updatedAt', 'updatedBy', 'behavior', 'stimuli',
-             'translations'
+             'paperSheetStimuli', 'translations'
            ])
         && request.resource.data.id == resource.data.id
         && request.resource.data.participants == resource.data.participants
@@ -1525,9 +1542,10 @@ service cloud.firestore {
         // plcId is the link to the owning PLC and must stay immutable post-create
         // — handle the case where either side is missing the field with a default.
         && request.resource.data.get('plcId', null) == resource.data.get('plcId', null)
-        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map)
-        && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list)
-        && (!('translations' in request.resource.data) || request.resource.data.translations is map);
+        && optMap(request.resource.data, 'behavior')
+        && optList(request.resource.data, 'stimuli')
+        && optList(request.resource.data, 'paperSheetStimuli')
+        && optMap(request.resource.data, 'translations');
 
       // No client delete. An orphaned (empty-participants) group stays so an old
       // share URL still resolves the bootstrap snapshot rather than 404.
@@ -1583,8 +1601,8 @@ service cloud.firestore {
         && request.resource.data.targetCounts is map
         && request.resource.data.createdAt is int
         && request.resource.data.updatedAt is int
-        && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list)
-        && (!('targets' in request.resource.data) || request.resource.data.targets is list);
+        && optList(request.resource.data, 'stimuli')
+        && optList(request.resource.data, 'targets');
 
       // Owner-only; version climbs by exactly one so stale pulls are detectable.
       allow update: if request.auth != null
@@ -1603,8 +1621,8 @@ service cloud.firestore {
         && request.resource.data.targetIds is list
         && request.resource.data.targetCounts is map
         && request.resource.data.updatedAt is int
-        && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list)
-        && (!('targets' in request.resource.data) || request.resource.data.targets is list);
+        && optList(request.resource.data, 'stimuli')
+        && optList(request.resource.data, 'targets');
 
       // Unshare from the last PLC removes the copy; a slot pointing here then
       // fails assign-time resolution with a fix-it message.
@@ -1645,8 +1663,8 @@ service cloud.firestore {
         && request.resource.data.participants.keys().hasOnly([request.auth.uid])
         && request.resource.data.participants[request.auth.uid].joinedAt is int
         && request.resource.data.participants[request.auth.uid].joinedAt >= 0
-        && (!('plcId' in request.resource.data) || request.resource.data.plcId is string)
-        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map);
+        && optString(request.resource.data, 'plcId')
+        && optMap(request.resource.data, 'behavior');
 
       // Content updates: participant-only; participants + id client-immutable;
       // version increases by exactly 1. Mirrors synced_quizzes line-for-line.
@@ -1662,7 +1680,7 @@ service cloud.firestore {
         && request.resource.data.version == resource.data.version + 1
         && request.resource.data.updatedBy == request.auth.uid
         && request.resource.data.get('plcId', null) == resource.data.get('plcId', null)
-        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map);
+        && optMap(request.resource.data, 'behavior');
 
       allow delete: if false;
 
@@ -1842,9 +1860,9 @@ service cloud.firestore {
     function plcQuizRunSettingsOk() {
       let d = request.resource.data;
       return (!('sessionMode' in d) || d.sessionMode in ['teacher', 'auto', 'student'])
-        && (!('sessionOptions' in d) || d.sessionOptions is map)
+        && optMap(d, 'sessionOptions')
         && (!('attemptLimit' in d) || d.attemptLimit == null || d.attemptLimit is int)
-        && (!('quizId' in d) || d.quizId is string);
+        && optString(d, 'quizId');
     }
 
     // Optional NULLABLE time field well-formed: absent, null, timestamp, or legacy
@@ -2545,7 +2563,7 @@ service cloud.firestore {
                'folderId', 'archived'
              ])
           && plcQuizRunSettingsOk()
-          && (!('archived' in request.resource.data) || request.resource.data.archived is bool)
+          && optBool(request.resource.data, 'archived')
           && plcQuizId == request.resource.data.id
           && request.resource.data.sharedBy == request.auth.uid
           && request.resource.data.title is string
@@ -2578,7 +2596,7 @@ service cloud.firestore {
                'folderId', 'archived'
              ])
           && plcQuizRunSettingsOk()
-          && (!('archived' in request.resource.data) || request.resource.data.archived is bool)
+          && optBool(request.resource.data, 'archived')
           && request.resource.data.id == resource.data.id
           && request.resource.data.syncGroupId == resource.data.syncGroupId
           && request.resource.data.sharedBy == resource.data.sharedBy
@@ -3609,6 +3627,9 @@ service cloud.firestore {
           // is validated against the student's own pointer doc. Blocking it
           // at create stops a forged subset riding in on the join write.
           request.resource.data.get('servedQuestionIds', null) == null &&
+          // Per-student publication and the answer key are teacher-written only.
+          request.resource.data.get('resultsOverride', null) == null &&
+          request.resource.data.get('revealedAnswers', null) == null &&
           // studentRole users must be enrolled in the session's class
           passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
@@ -4665,13 +4686,13 @@ service cloud.firestore {
         // gallery viewer re-downloads on each snapshot.
         function awBoundedStrings() {
           let d = request.resource.data;
-          return (!('title' in d) || (d.title is string && d.title.size() <= 200)) &&
-                 (!('label' in d) || (d.label is string && d.label.size() <= 200)) &&
-                 (!('sectionId' in d) || (d.sectionId is string && d.sectionId.size() <= 200)) &&
-                 (!('cellKey' in d) || (d.cellKey is string && d.cellKey.size() <= 200)) &&
-                 (!('fileName' in d) || (d.fileName is string && d.fileName.size() <= 200)) &&
-                 (!('mimeType' in d) || (d.mimeType is string && d.mimeType.size() <= 200)) &&
-                 (!('participantLabel' in d) || (d.participantLabel is string && d.participantLabel.size() <= 200));
+          return optShortString(d, 'title') &&
+                 optShortString(d, 'label') &&
+                 optShortString(d, 'sectionId') &&
+                 optShortString(d, 'cellKey') &&
+                 optShortString(d, 'fileName') &&
+                 optShortString(d, 'mimeType') &&
+                 optShortString(d, 'participantLabel');
         }
         // linkPreview is fetched metadata: closed key set, bounded text.
         function awLinkPreviewOk() {
@@ -4683,23 +4704,23 @@ service cloud.firestore {
                   (!('description' in lp) || (lp.description is string && lp.description.size() <= 500)) &&
                   (!('image' in lp) || (lp.image is string && lp.image.size() <= 2048)) &&
                   (!('domain' in lp) || (lp.domain is string && lp.domain.size() <= 2048)) &&
-                  (!('videoId' in lp) || (lp.videoId is string && lp.videoId.size() <= 200)));
+                  optShortString(lp, 'videoId'));
         }
         // Per-field type contract shared by create, the owner/admin update
         // branch, and the student self-edit branch (all see the merged doc).
         function awFieldTypesOk() {
           let d = request.resource.data;
           return (!('type' in d) || d.type in ['text', 'word', 'photo', 'link', 'file', 'video']) &&
-                 (!('authorUid' in d) || d.authorUid is string) &&
-                 (!('isGuest' in d) || d.isGuest is bool) &&
-                 (!('pinned' in d) || d.pinned is bool) &&
-                 (!('order' in d) || d.order is number) &&
-                 (!('lat' in d) || d.lat is number) &&
-                 (!('lng' in d) || d.lng is number) &&
-                 (!('sizeBytes' in d) || d.sizeBytes is int) &&
-                 (!('editedAt' in d) || d.editedAt is int) &&
-                 (!('storagePath' in d) || d.storagePath is string) &&
-                 (!('activityId' in d) || d.activityId is string) &&
+                 optString(d, 'authorUid') &&
+                 optBool(d, 'isGuest') &&
+                 optBool(d, 'pinned') &&
+                 optNumber(d, 'order') &&
+                 optNumber(d, 'lat') &&
+                 optNumber(d, 'lng') &&
+                 optInt(d, 'sizeBytes') &&
+                 optInt(d, 'editedAt') &&
+                 optString(d, 'storagePath') &&
+                 optString(d, 'activityId') &&
                  (!('authorRole' in d) || d.authorRole == 'teacher') &&
                  awBoundedStrings() &&
                  awLinkPreviewOk();
@@ -4816,15 +4837,15 @@ service cloud.firestore {
                             request.resource.data.status in ['approved', 'pending'] &&
                             awFieldTypesOk() &&
                             (!('archiveStatus' in request.resource.data) || request.resource.data.archiveStatus in ['firebase', 'syncing', 'archived', 'failed', 'lost']) &&
-                            (!('driveFileId' in request.resource.data) || request.resource.data.driveFileId is string) &&
-                            (!('driveUrl' in request.resource.data) || request.resource.data.driveUrl is string) &&
-                            (!('archiveError' in request.resource.data) || request.resource.data.archiveError is string) &&
-                            (!('archivedAt' in request.resource.data) || request.resource.data.archivedAt is int) &&
-                            (!('archiveStartedAt' in request.resource.data) || request.resource.data.archiveStartedAt is int) &&
-                            (!('attemptCount' in request.resource.data) || request.resource.data.attemptCount is int) &&
-                            (!('lastAttemptAt' in request.resource.data) || request.resource.data.lastAttemptAt is int) &&
-                            (!('storageCleanupPending' in request.resource.data) || request.resource.data.storageCleanupPending is bool) &&
-                            (!('drivePermission' in request.resource.data) || request.resource.data.drivePermission is string);
+                            optString(request.resource.data, 'driveFileId') &&
+                            optString(request.resource.data, 'driveUrl') &&
+                            optString(request.resource.data, 'archiveError') &&
+                            optInt(request.resource.data, 'archivedAt') &&
+                            optInt(request.resource.data, 'archiveStartedAt') &&
+                            optInt(request.resource.data, 'attemptCount') &&
+                            optInt(request.resource.data, 'lastAttemptAt') &&
+                            optBool(request.resource.data, 'storageCleanupPending') &&
+                            optString(request.resource.data, 'drivePermission');
         // Student self-edit: only the author, only while the wall is open and the teacher
         // enabled editing, only content-shaped fields. `status` is writable in exactly one
         // direction: when moderation is on and the edit touches `content`, the post returns
@@ -5153,7 +5174,7 @@ service cloud.firestore {
                  && data.tests is list
                  && data.tests.size() <= 50
                  && data.lastActiveAt is int
-                 && (!('checkLog' in data) || data.checkLog is map);
+                 && optMap(data, 'checkLog');
         }
 
         allow get: if request.auth != null && (

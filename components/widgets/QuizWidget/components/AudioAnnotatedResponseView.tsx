@@ -8,7 +8,7 @@
  * `<audio>` element driving styled controls, never the browser's own.
  */
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
@@ -20,7 +20,7 @@ import {
   SkipForward,
   Trash2,
 } from 'lucide-react';
-import type { WrittenAnswerAnnotation } from '@/types';
+import type { Rubric, WrittenAnswerAnnotation } from '@/types';
 import {
   formatTimecode,
   type TakeUnplayableReason,
@@ -28,6 +28,8 @@ import {
 import { useAudioPeaks } from '@/hooks/useAudioPeaks';
 import { nextSpeechStart } from '@/utils/audioSilence';
 import { WaveformScrubber } from '@/components/quiz/recording/WaveformScrubber';
+import { RubricStrandChips } from './RubricStrandChips';
+import { toggleStrandTag } from '@/utils/rubricStrandTags';
 
 const SKIP_LEAD_MS = 150;
 
@@ -46,6 +48,15 @@ export interface AudioAnnotatedResponseViewProps {
   activeId: string | null;
   onActiveIdChange: (id: string | null) => void;
   disabled?: boolean;
+  /**
+   * Effective rubric for this response; the strand chip row on each note is
+   * hidden without one.
+   */
+  rubric?: Rubric;
+  /** Target of a parent-requested seek, in ms into the take. */
+  seekToMs?: number;
+  /** Bumped by the parent to (re-)request the seek above. */
+  seekNonce?: number;
 }
 
 const makeId = (): string =>
@@ -66,6 +77,9 @@ export const AudioAnnotatedResponseView: React.FC<
   activeId,
   onActiveIdChange,
   disabled = false,
+  rubric,
+  seekToMs = 0,
+  seekNonce = 0,
 }) => {
   const { t } = useTranslation();
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -91,6 +105,23 @@ export const AudioAnnotatedResponseView: React.FC<
     setElapsedMs(ms);
     if (el) el.currentTime = ms / 1000;
   };
+
+  // Only a fresh nonce is a seek request; the ref makes `seekToMs` an honest
+  // dependency without re-seeking when the parent merely re-renders.
+  const handledSeekNonceRef = useRef(0);
+
+  // The media element is external; the rubric panel's jump must reach it.
+  // `src` is a dependency because a jump requested while the take is still
+  // resolving has no element yet, and must land once one exists — so the
+  // nonce is marked handled only after the seek actually happens.
+  useEffect(() => {
+    if (!seekNonce || handledSeekNonceRef.current === seekNonce) return;
+    const el = audioRef.current;
+    if (!el) return;
+    handledSeekNonceRef.current = seekNonce;
+    // `onTimeUpdate` carries the new position back into state.
+    el.currentTime = Math.max(0, seekToMs) / 1000;
+  }, [seekNonce, seekToMs, src]);
 
   const skipToSpeech = () => {
     if (!silent || silent.length === 0) return;
@@ -339,6 +370,31 @@ export const AudioAnnotatedResponseView: React.FC<
                 <Trash2 aria-hidden className="h-3.5 w-3.5" />
               </button>
             </div>
+            {rubric && (
+              <div className="mt-1.5">
+                <RubricStrandChips
+                  rubric={rubric}
+                  value={a.rubricCriteria}
+                  disabled={disabled}
+                  onToggle={(criterionId) =>
+                    onChange(
+                      annotations.map((x) =>
+                        x.id === a.id
+                          ? {
+                              ...x,
+                              rubricCriteria: toggleStrandTag(
+                                x.rubricCriteria,
+                                criterionId,
+                                rubric
+                              ),
+                            }
+                          : x
+                      )
+                    )
+                  }
+                />
+              </div>
+            )}
             <label className="mt-1.5 block">
               <span className="sr-only">
                 {t('quizMediaResponse.grading.player.commentLabel', {

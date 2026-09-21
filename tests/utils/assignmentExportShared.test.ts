@@ -2,6 +2,8 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import {
   buildResultsSheetData,
   formatExportPoints,
+  formatQuizAnswerText,
+  headersHaveAnswerColumns,
   type ExportableQuestion,
   type ExportableResponse,
 } from '@/utils/assignmentExportShared';
@@ -516,5 +518,159 @@ describe('buildResultsSheetData', () => {
       expect(dataRows[0][6]).toBe('25%');
       expect(dataRows[0][8]).toBe('4');
     });
+  });
+});
+
+describe('buildResultsSheetData answer-text columns', () => {
+  const FULL = (): GradeResult => ({
+    isCorrect: true,
+    pointsEarned: 1,
+    pointsMax: 1,
+    state: 'scored',
+  });
+  const questions: ExportableQuestion[] = [
+    { id: 'q1', text: 'One', points: 1 },
+    {
+      id: 'q2',
+      text: 'Two',
+      points: 1,
+      rubricSnapshot: {
+        criteria: [
+          {
+            id: 'c1',
+            name: 'Ideas',
+            levels: [{ id: 'l1', label: 'Strong', points: 1 }],
+          },
+        ],
+      } as unknown as ExportableQuestion['rubricSnapshot'],
+    },
+  ];
+  const response = (
+    answers: ExportableResponse['answers']
+  ): ExportableResponse => ({
+    pin: '01',
+    studentUid: 's1',
+    answers,
+    status: 'completed',
+    submittedAt: 1,
+  });
+  const upper = (_q: ExportableQuestion, a: { answer: string }) =>
+    a.answer.toUpperCase();
+
+  it('omits answer columns without a formatter', () => {
+    const { headers } = buildResultsSheetData([], questions, FULL);
+    expect(headersHaveAnswerColumns(headers)).toBe(false);
+  });
+
+  it('puts each answer column right after its points column', () => {
+    const { headers, dataRows } = buildResultsSheetData(
+      [
+        response([
+          { questionId: 'q1', answer: 'b' },
+          { questionId: 'q2', answer: 'essay' },
+        ]),
+      ],
+      questions,
+      FULL,
+      { formatAnswer: upper }
+    );
+    expect(headers.slice(11)).toEqual([
+      'Q1 (1pt): One',
+      'Q1 Answer',
+      'Q2 (1pt): Two',
+      'Q2 Answer',
+      'Q2 Rubric - Ideas',
+      'Q2 Rubric - Ideas Points',
+    ]);
+    expect(dataRows[0].slice(11)).toEqual(['1', 'B', '1', 'ESSAY', '', '']);
+  });
+
+  it('uses the representative take and leaves unanswered and unresponded blank', () => {
+    const { dataRows } = buildResultsSheetData(
+      [
+        response([
+          { questionId: 'q1', answer: 'old', takeIndex: 0 },
+          { questionId: 'q1', answer: 'new', takeIndex: 1 },
+          { questionId: 'q2', answer: '', unresponded: 'passed' },
+        ]),
+        response([]),
+      ],
+      questions,
+      FULL,
+      { formatAnswer: upper }
+    );
+    expect(dataRows[0][12]).toBe('NEW');
+    expect(dataRows[0][14]).toBe('');
+    expect(dataRows[1][12]).toBe('');
+    expect(dataRows[1][14]).toBe('');
+  });
+});
+
+describe('formatQuizAnswerText', () => {
+  it('passes MC and FIB text through', () => {
+    expect(formatQuizAnswerText({ type: 'MC' }, { answer: 'Paris' })).toBe(
+      'Paris'
+    );
+    expect(formatQuizAnswerText({ type: 'FIB' }, { answer: ' 42 ' })).toBe(
+      '42'
+    );
+  });
+
+  it('renders Matching pairs readably', () => {
+    expect(
+      formatQuizAnswerText(
+        { type: 'Matching' },
+        { answer: 'cat:meow|dog:woof' }
+      )
+    ).toBe('cat → meow; dog → woof');
+  });
+
+  it('renders Ordering as a numbered sequence, keeping colons in items', () => {
+    expect(
+      formatQuizAnswerText({ type: 'Ordering' }, { answer: '9:00 AM|noon' })
+    ).toBe('1. 9:00 AM; 2. noon');
+  });
+
+  it('shows written text and a placeholder for recordings', () => {
+    expect(
+      formatQuizAnswerText(
+        { type: 'free-response' },
+        { answer: 'Because gravity.' }
+      )
+    ).toBe('Because gravity.');
+    expect(
+      formatQuizAnswerText(
+        { type: 'free-response' },
+        {
+          answer: '',
+          artifacts: [
+            {
+              id: 'a1',
+              slot: 'primary',
+              kind: 'audio',
+              uploadState: 'uploaded',
+            },
+          ],
+        }
+      )
+    ).toBe('[audio]');
+  });
+
+  it('is blank for an unresponded answer', () => {
+    expect(
+      formatQuizAnswerText(
+        { type: 'MC' },
+        { answer: 'x', unresponded: 'passed' }
+      )
+    ).toBe('');
+  });
+
+  it('keeps a long answer under the Sheets cell limit', () => {
+    const out = formatQuizAnswerText(
+      { type: 'free-response' },
+      { answer: 'a'.repeat(60_000) }
+    );
+    expect(out.length).toBeLessThan(50_000);
+    expect(out.endsWith('…')).toBe(true);
   });
 });
