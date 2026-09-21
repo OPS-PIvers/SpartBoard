@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-09-21_
-_Last action: 2026-09-17 — MEDIUM `AssignTargetingSection.tsx` cqmin scoping: added an opt-in `cqScaled` prop (default false) so the file's own JSX scales in its one non-portaled CQ mount (`MiniApp/Widget.tsx`) while its four other consumers keep today's fixed Tailwind styling unchanged. `tsc --noEmit`/`eslint --max-warnings 0`/`prettier --check` clean, 50/50 relevant tests pass. Item moved to Completed. PR opened against dev-paul._
+_Last action: 2026-09-21 — MEDIUM `ProjectsManager.tsx` three hardcoded `text-xs` classes (error banner, pending-import banner text, Discard button) converted to `style={{ fontSize: 'min(12px, 4.5cqmin)' }}`, matching the file's own established `min(12px, 4cqmin)` convention for adjacent chrome. All 3 sites at `:737,747,755` unchanged in scope from the 2026-09-20 filing. 775/775 relevant tests pass. Item moved to Completed. PR opened against dev-paul._
 
 ---
 
@@ -39,13 +39,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### MEDIUM `ProjectsManager.tsx` three hardcoded `text-xs` classes on front-face content
-
-- **Detected:** 2026-09-20
-- **File:** `components/widgets/Projects/components/ProjectsManager.tsx:737,747,755`
-- **Detail:** The Library tab's error banner (`:737`), the "pending import" banner text (`:747`), and its "Discard" button (`:755`) all use a hardcoded `text-xs` Tailwind class, rendered inline (non-portaled) inside the Projects widget's own CQ container. Inconsistent with the rest of the file, which uses `min(Npx, Ycqmin)` throughout — e.g. the adjacent Select-mode button at `:706` uses `style={{ fontSize: 'min(12px, 4cqmin)' }}`. Functional but won't shrink/grow with the widget.
-- **Fix:** Replace `text-xs` with `style={{ fontSize: 'min(12px, 4.5cqmin)' }}` on all three, matching the file's own established `min(12px, 4cqmin)` convention for adjacent chrome.
 
 _2026-09-20: Full audit (Sunday daily), delegated to a dedicated sub-agent. Scope: commits touching `components/widgets/` since the 2026-09-19 baseline (`dd997b8`) — `eb5c31f`/`50be7e2`/`fb8cd90`/`cb21232`/`fdd2ec8`/`e0dd38d`/`7b455e0`/`9319eac`/`b620457`. Eight of nine are the settings-drawer-migration series, which only delete `Settings.tsx` files (back-face, no `Widget.tsx` touched). The one substantive front-face change is `fdd2ec8` ("library manager, two-pane editor and the quiz grader's chrome"), which rewrote `Projects/Widget.tsx` down to a thin orchestrator and moved all real content into five new files under `Projects/components/` — yesterday's audit had already cleared the pre-refactor `Widget.tsx`, so these five were entirely unreviewed this cycle. Found one new MEDIUM (above) in `ProjectsManager.tsx`. `ProjectBoardView.tsx` (395 lines, also newly extracted) is a clean citizen — 34 `cqmin` sites, zero hardcoded icon/text-size classes. `ProjectEditorModal.tsx`, `ProjectGrader.tsx`, and `ProjectSetupGroupsModal.tsx` have zero `cqmin` each but render exclusively through `document.body`-portaled shells, out of CQ scope — same established bucket as Quiz/Video Activity/Guided Learning/MiniApp's equivalent editor/grader modals, not flagged. Existing Open items not re-verified this cycle (none touch `Projects/` or any file in the changed-commit list); the 2026-09-19 entry already re-confirmed all of them. **Net this cycle: 1 new MEDIUM finding, 0 resolved.**_
 
@@ -442,6 +435,14 @@ _2026-09-10: Full audit (Thursday daily). `git log --oneline --since="2026-09-09
 ---
 
 ## Completed
+
+### MEDIUM `ProjectsManager.tsx` three hardcoded `text-xs` classes on front-face content
+
+- **Detected:** 2026-09-20
+- **Completed:** 2026-09-21
+- **File:** `components/widgets/Projects/components/ProjectsManager.tsx:737,747,755`
+- **Detail:** The Library tab's error banner (`:737`), the "pending import" banner text (`:747`), and its "Discard" button (`:755`) all used a hardcoded `text-xs` Tailwind class, rendered inline (non-portaled) inside the Projects widget's own CQ container. Inconsistent with the rest of the file, which uses `min(Npx, Ycqmin)` throughout — e.g. the adjacent Select-mode button at `:706` uses `style={{ fontSize: 'min(12px, 4cqmin)' }}`.
+- **Resolution:** Dropped `text-xs` from all three `className`s and added `style={{ fontSize: 'min(12px, 4.5cqmin)' }}`, matching the file's own established convention for adjacent chrome. `pnpm exec vitest related --run` on the file plus its test file: 77 test files / 775 tests, all passing. No `tsc`/full-`lint` run per CLAUDE.md's subagent restriction — this is a mechanical two-line-per-site change (drop a class, add a style prop) with no type or lint surface. PR opened against dev-paul.
 
 ### MEDIUM Shared `AssignTargetingSection.tsx` has zero container-query units, rendered inline (non-portaled) in the `miniApp` widget's own CQ container
 

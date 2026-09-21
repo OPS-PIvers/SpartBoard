@@ -734,7 +734,8 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
             {error && (
               <p
                 role="status"
-                className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-brand-red-primary"
+                className="mb-3 rounded-xl bg-red-50 px-3 py-2 font-semibold text-brand-red-primary"
+                style={{ fontSize: 'min(12px, 4.5cqmin)' }}
               >
                 {error}
               </p>
@@ -744,7 +745,10 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
                 className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-brand-blue-lighter bg-brand-blue-lighter/25 px-3 py-2"
                 role="status"
               >
-                <span className="text-xs font-semibold text-slate-700">
+                <span
+                  className="font-semibold text-slate-700"
+                  style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                >
                   {config.pendingImport.groups.length} group
                   {config.pendingImport.groups.length === 1 ? '' : 's'} from the
                   Group Maker are waiting — pick the project they belong to.
@@ -752,7 +756,8 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
                 <button
                   type="button"
                   onClick={() => update({ pendingImport: null })}
-                  className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-white/70"
+                  className="rounded-lg px-2 py-1 font-semibold text-slate-600 hover:bg-white/70"
+                  style={{ fontSize: 'min(12px, 4.5cqmin)' }}
                 >
                   Discard
                 </button>
