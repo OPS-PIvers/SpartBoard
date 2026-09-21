@@ -2459,7 +2459,12 @@
         "label": "Criterios de la rúbrica",
         "add": "Marcar como evidencia de {{name}}",
         "remove": "Quitar la etiqueta {{name}}",
-        "evidenceFor": "Evidencia de"
+        "evidenceFor": "Evidencia de",
+        "highlightCount_one": "{{count}} resaltado",
+        "highlightCount_other": "{{count}} resaltados",
+        "noteCount_one": "{{count}} nota",
+        "noteCount_other": "{{count}} notas",
+        "jumpTo": "Mostrar los pasajes marcados como {{name}}"
       },
       "rubricOverrideNote": "Rúbrica alternativa para este estudiante",
       "pointsOverrideNote": "Solo puntos para este estudiante — rúbrica anulada.",

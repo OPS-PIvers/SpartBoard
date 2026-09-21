@@ -531,6 +531,44 @@ const gradedEssay = (key: string): QuizResponse =>
     },
   }) as unknown as QuizResponse;
 
+/** Two passages already tagged to the same strand, for the jump link. */
+const taggedEssay = (key: string): QuizResponse =>
+  ({
+    _responseKey: key,
+    studentUid: `u-${key}`,
+    status: 'completed',
+    answers: [{ questionId: 'q1', answer: 'alpha beta gamma', answeredAt: 1 }],
+    grading: {
+      q1: {
+        pointsAwarded: 3,
+        gradingSnapshot: '<p>alpha beta gamma</p>',
+        annotations: [
+          {
+            id: 'a1',
+            from: 0,
+            to: 5,
+            highlightColor: 'yellow',
+            authorUid: 'teacher-1',
+            createdAt: 0,
+            rubricCriteria: [{ criterionId: 'c1', name: 'Thesis' }],
+          },
+          {
+            id: 'a2',
+            from: 11,
+            to: 16,
+            highlightColor: 'yellow',
+            authorUid: 'teacher-1',
+            createdAt: 0,
+            rubricCriteria: [{ criterionId: 'c1', name: 'Thesis' }],
+          },
+        ],
+        rubricScores: [{ criterionId: 'c1', levelId: 'c1l2', points: 3 }],
+        gradedBy: 'teacher-1',
+        gradedAt: 1,
+      },
+    },
+  }) as unknown as QuizResponse;
+
 describe('FreeResponseGrader rubric strand tags', () => {
   const renderEssayGrader = () => {
     const onSaveGrade = vi.fn<FreeResponseGraderProps['onSaveGrade']>(() =>
@@ -570,6 +608,43 @@ describe('FreeResponseGrader rubric strand tags', () => {
     ]);
     // Nothing else moved — the tag alone is what made it dirty.
     expect(grade.pointsAwarded).toBe(3);
+  });
+
+  it('counts tagged highlights on the strand and cycles through them', async () => {
+    render(
+      <FreeResponseGrader
+        quiz={typedQuiz}
+        responses={[taggedEssay('ada')]}
+        displayNameByResponseKey={names}
+        teacherUid="teacher-1"
+        resolveTakeUrl={() => Promise.resolve('blob:take')}
+        onSaveGrade={vi.fn<FreeResponseGraderProps['onSaveGrade']>(() =>
+          Promise.resolve()
+        )}
+        onClose={() => undefined}
+      />
+    );
+    const link = await screen.findByRole('button', {
+      name: /show passages tagged thesis/i,
+    });
+    expect(link).toHaveTextContent('2 highlights');
+
+    // The highlights rail marks the active passage; first click opens the
+    // earlier one and a second walks to the later one.
+    // The snippet also appears as a <mark> in the response itself, so pick
+    // the occurrence that sits inside a rail button.
+    const railItem = (snippet: string) =>
+      screen
+        .getAllByText(snippet)
+        .map((el) => el.closest('button'))
+        .find((b): b is HTMLButtonElement => b !== null);
+    fireEvent.click(link);
+    await waitFor(() => expect(railItem('alpha')).toHaveClass('bg-violet-50'));
+    expect(railItem('gamma')).not.toHaveClass('bg-violet-50');
+
+    fireEvent.click(link);
+    await waitFor(() => expect(railItem('gamma')).toHaveClass('bg-violet-50'));
+    expect(railItem('alpha')).not.toHaveClass('bg-violet-50');
   });
 
   it('lists a tagged highlight under its strand in the highlights rail', async () => {

@@ -2459,7 +2459,12 @@
         "label": "Rubrik-Kriterien",
         "add": "Als Beleg für {{name}} markieren",
         "remove": "Markierung {{name}} entfernen",
-        "evidenceFor": "Beleg für"
+        "evidenceFor": "Beleg für",
+        "highlightCount_one": "{{count}} Markierung",
+        "highlightCount_other": "{{count}} Markierungen",
+        "noteCount_one": "{{count}} Notiz",
+        "noteCount_other": "{{count}} Notizen",
+        "jumpTo": "Als {{name}} markierte Stellen anzeigen"
       },
       "rubricOverrideNote": "Alternatives Bewertungsraster für diesen Schüler",
       "pointsOverrideNote": "Nur Punkte für diesen Schüler — Raster außer Kraft gesetzt.",

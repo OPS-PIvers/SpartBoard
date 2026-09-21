@@ -32,6 +32,70 @@ const rubric: Rubric = {
   ],
 };
 
+describe('RubricScoringPanel evidence counts', () => {
+  it('shows no jump link for a criterion with no tagged evidence', () => {
+    render(
+      <RubricScoringPanel
+        rubric={rubric}
+        maxPoints={10}
+        onChange={vi.fn()}
+        tagCounts={{ c1: 0 }}
+        onJumpToTagged={vi.fn()}
+      />
+    );
+    expect(
+      screen.queryByRole('button', { name: /show passages tagged/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('counts highlights on the criterion and cycles on click', () => {
+    const onJump = vi.fn();
+    render(
+      <RubricScoringPanel
+        rubric={rubric}
+        maxPoints={10}
+        onChange={vi.fn()}
+        tagCounts={{ c1: 2 }}
+        onJumpToTagged={onJump}
+      />
+    );
+    const link = screen.getByRole('button', {
+      name: /show passages tagged thesis/i,
+    });
+    expect(link).toHaveTextContent('2 highlights');
+    fireEvent.click(link);
+    expect(onJump).toHaveBeenCalledWith('c1');
+  });
+
+  it('says notes rather than highlights on a spoken response', () => {
+    render(
+      <RubricScoringPanel
+        rubric={rubric}
+        maxPoints={10}
+        onChange={vi.fn()}
+        tagCounts={{ c1: 1 }}
+        onJumpToTagged={vi.fn()}
+        tagCountKind="note"
+      />
+    );
+    expect(
+      screen.getByRole('button', { name: /show passages tagged thesis/i })
+    ).toHaveTextContent('1 note');
+  });
+
+  it('renders no link at all when the parent wires no jump handler', () => {
+    render(
+      <RubricScoringPanel
+        rubric={rubric}
+        maxPoints={10}
+        onChange={vi.fn()}
+        tagCounts={{ c1: 3 }}
+      />
+    );
+    expect(screen.queryByText('3 highlights')).not.toBeInTheDocument();
+  });
+});
+
 describe('RubricScoringPanel', () => {
   it('renders each criterion with its levels ordered highest-to-lowest', () => {
     render(

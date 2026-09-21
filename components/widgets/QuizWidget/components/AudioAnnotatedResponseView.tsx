@@ -8,7 +8,7 @@
  * `<audio>` element driving styled controls, never the browser's own.
  */
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
@@ -53,6 +53,10 @@ export interface AudioAnnotatedResponseViewProps {
    * hidden without one.
    */
   rubric?: Rubric;
+  /** Target of a parent-requested seek, in ms into the take. */
+  seekToMs?: number;
+  /** Bumped by the parent to (re-)request the seek above. */
+  seekNonce?: number;
 }
 
 const makeId = (): string =>
@@ -74,6 +78,8 @@ export const AudioAnnotatedResponseView: React.FC<
   onActiveIdChange,
   disabled = false,
   rubric,
+  seekToMs = 0,
+  seekNonce = 0,
 }) => {
   const { t } = useTranslation();
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -99,6 +105,20 @@ export const AudioAnnotatedResponseView: React.FC<
     setElapsedMs(ms);
     if (el) el.currentTime = ms / 1000;
   };
+
+  // Only a fresh nonce is a seek request; the ref makes `seekToMs` an honest
+  // dependency without re-seeking when the parent merely re-renders.
+  const handledSeekNonceRef = useRef(0);
+
+  // The media element is external; the rubric panel's jump must reach it.
+  useEffect(() => {
+    if (!seekNonce || handledSeekNonceRef.current === seekNonce) return;
+    handledSeekNonceRef.current = seekNonce;
+    const el = audioRef.current;
+    if (!el) return;
+    // `onTimeUpdate` carries the new position back into state.
+    el.currentTime = Math.max(0, seekToMs) / 1000;
+  }, [seekNonce, seekToMs]);
 
   const skipToSpeech = () => {
     if (!silent || silent.length === 0) return;

@@ -691,8 +691,12 @@ const EditView: React.FC<EditProps> = ({
     y: number;
     placement: 'below' | 'above';
   } | null>(null);
+  // The id we last scrolled to, so the effect below scrolls once per change
+  // of active annotation rather than on every reflow.
+  const lastScrolledIdRef = useRef<string | null>(null);
   useLayoutEffect(() => {
     if (!activeId || !articleRef.current || !containerRef.current) {
+      lastScrolledIdRef.current = null;
       setPopoverPos((prev) => (prev === null ? prev : null));
       return;
     }
@@ -721,6 +725,23 @@ const EditView: React.FC<EditProps> = ({
       rects.length > 0
         ? rects[0]
         : (mark as HTMLElement).getBoundingClientRect();
+    // The rubric panel's jump link can make a mark active while it sits
+    // outside the scrolled view. Bring it in, but only on an actual change
+    // of active annotation and only when it isn't already visible, so a
+    // keystroke in the popover never yanks the page.
+    if (lastScrolledIdRef.current !== activeId) {
+      lastScrolledIdRef.current = activeId;
+      const el = mark as HTMLElement;
+      // An un-laid-out mark (or jsdom) reports an empty rect; there is
+      // nothing meaningful to scroll to, and "above the fold" would be the
+      // wrong reading of it.
+      const laidOut = markRect.width > 0 || markRect.height > 0;
+      const offscreen =
+        markRect.bottom <= 0 || markRect.top >= window.innerHeight;
+      if (laidOut && offscreen && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ block: 'nearest' });
+      }
+    }
     const containerRect = containerRef.current.getBoundingClientRect();
     const x = clampPopoverX(
       markRect.left - containerRect.left + markRect.width / 2,

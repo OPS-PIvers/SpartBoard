@@ -534,6 +534,15 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const taggableRubric =
     slot?.slot === 'addendum' ? undefined : effectiveRubric;
 
+  // Where the last "N highlights" jump left off, so a second click walks to
+  // the next passage for that strand rather than re-opening the first.
+  const lastJumpRef = useRef<{ criterionId: string; index: number } | null>(
+    null
+  );
+  // Bumped on each jump so the audio view seeks only when the grader asks,
+  // not whenever a note takes focus.
+  const [seek, setSeek] = useState({ ms: 0, nonce: 0 });
+
   const isUnavailable = !!slot?.captureUnavailable;
   const takes = slot?.takes ?? [];
   const activeTake = useMemo(() => {
@@ -610,6 +619,38 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       setDraftAnnotations(next);
     },
     []
+  );
+
+  // How many highlights carry each strand, for the rubric panel's counts.
+  const tagCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const a of draftAnnotations)
+      for (const tag of a.rubricCriteria ?? [])
+        counts[tag.criterionId] = (counts[tag.criterionId] ?? 0) + 1;
+    return counts;
+  }, [draftAnnotations]);
+
+  // Walk that strand's tagged passages in text order, one per click. Opening
+  // the annotation is what scrolls the mark (text) or seeks the take (audio).
+  const handleJumpToTagged = useCallback(
+    (criterionId: string) => {
+      const tagged = draftAnnotations
+        .filter((a) =>
+          a.rubricCriteria?.some((t) => t.criterionId === criterionId)
+        )
+        .sort((a, b) => a.from - b.from);
+      if (tagged.length === 0) return;
+      const last = lastJumpRef.current;
+      const index =
+        last?.criterionId === criterionId
+          ? (last.index + 1) % tagged.length
+          : 0;
+      lastJumpRef.current = { criterionId, index };
+      const target = tagged[index];
+      setActiveAnnotationId(target.id);
+      setSeek((prev) => ({ ms: target.from, nonce: prev.nonce + 1 }));
+    },
+    [draftAnnotations]
   );
 
   // Playback: resolve the archived take's bytes from the teacher's own Drive.
@@ -1525,6 +1566,8 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 onActiveIdChange={setActiveAnnotationId}
                 disabled={false}
                 rubric={taggableRubric}
+                seekToMs={seek.ms}
+                seekNonce={seek.nonce}
               />
             )}
           </div>
@@ -1586,6 +1629,9 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                         ? tg('rubricOverrideNote')
                         : undefined
                     }
+                    tagCounts={tagCounts}
+                    onJumpToTagged={handleJumpToTagged}
+                    tagCountKind={isMedia ? 'note' : 'highlight'}
                   />
                 )}
               {target &&

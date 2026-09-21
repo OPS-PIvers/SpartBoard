@@ -6,6 +6,7 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MessageSquarePlus, X } from 'lucide-react';
 import { Rubric, RubricCriterion, RubricLevel } from '@/types';
 import type { WrittenAnswerRubricScore } from '@/types';
@@ -18,6 +19,12 @@ interface RubricScoringPanelProps {
   onChange: (scores: WrittenAnswerRubricScore[], derivedPoints: number) => void;
   /** Discreet teacher-facing note (e.g. "Alternate rubric for this student", M17 §5 C4). */
   overrideNote?: string;
+  /** Highlights tagged as evidence, per criterion id. Projects passes none. */
+  tagCounts?: Record<string, number>;
+  /** Cycles the grader through that strand's tagged passages, in text order. */
+  onJumpToTagged?: (criterionId: string) => void;
+  /** Whether the tagged evidence is text highlights or audio timestamp notes. */
+  tagCountKind?: 'highlight' | 'note';
 }
 
 export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
@@ -26,7 +33,11 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
   initialScores,
   onChange,
   overrideNote,
+  tagCounts,
+  onJumpToTagged,
+  tagCountKind = 'highlight',
 }) => {
+  const { t } = useTranslation();
   const [scores, setScores] = useState<WrittenAnswerRubricScore[]>(
     () => initialScores ?? []
   );
@@ -141,6 +152,7 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
         {rubric.criteria.map((criterion) => {
           const selected = byCriterion.get(criterion.id);
           const noteOpen = expandedNotes.has(criterion.id);
+          const tagCount = tagCounts?.[criterion.id] ?? 0;
           // Storage orders levels low → high; the grader scans high → low.
           const levels = [...criterion.levels].reverse();
           return (
@@ -163,6 +175,24 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
                     </p>
                   )}
                 </div>
+                {tagCount > 0 && onJumpToTagged && (
+                  <button
+                    type="button"
+                    onClick={() => onJumpToTagged(criterion.id)}
+                    aria-label={t(
+                      'quizMediaResponse.grading.rubricTags.jumpTo',
+                      { name: criterion.name }
+                    )}
+                    className="shrink-0 rounded text-xs font-bold text-violet-700 underline underline-offset-2 transition-colors hover:text-violet-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1"
+                  >
+                    {t(
+                      tagCountKind === 'note'
+                        ? 'quizMediaResponse.grading.rubricTags.noteCount'
+                        : 'quizMediaResponse.grading.rubricTags.highlightCount',
+                      { count: tagCount }
+                    )}
+                  </button>
+                )}
                 {selected && (
                   <button
                     type="button"
