@@ -45,6 +45,11 @@ import { useFolders } from '@/hooks/useFolders';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { useQuizDocumentImportGate } from '@/hooks/useQuizDocumentImportGate';
 import {
+  attachDocumentImages as attachImagesToQuiz,
+  driveStimulusUploader,
+  type ExtractedImage,
+} from '@/utils/quizDocumentImport';
+import {
   callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
   syncedTranslationsInput,
@@ -221,7 +226,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Paper scan from Drive (plan Q17): the pick grants per-file access, the
   // bytes come down and are read locally exactly like a chosen file.
-  const { getDriveFileAsBlob, getDriveDocumentAsBlob } = useGoogleDrive();
+  const { getDriveFileAsBlob, getDriveDocumentAsBlob, driveService } =
+    useGoogleDrive();
   const pickScanFromDrive = useCallback(async (): Promise<File | null> => {
     const token = await ensureGoogleScope('drive.file', { interactive: true });
     if (!token) {
@@ -257,6 +263,58 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       fileName: downloaded.name || picked.name,
     };
   }, [ensureGoogleScope, openPicker, getDriveDocumentAsBlob]);
+
+  // Pictures the last read document carried. They wait here rather than in
+  // the adapter, which owns no state, until the teacher confirms the import.
+  const documentImagesRef = useRef<readonly ExtractedImage[]>([]);
+
+  // D13/D14: one upload per picture, linked to every question that uses it,
+  // into the same Drive folder and sharing as an editor-added stimulus.
+  const attachDocumentImages = useCallback(
+    async (quiz: QuizData): Promise<QuizData> => {
+      const images = documentImagesRef.current;
+      const uploader = driveStimulusUploader({
+        uploadFile: (file, name, folder) => {
+          if (!driveService) throw new Error('Google Drive is not connected.');
+          return driveService.uploadFile(file, name, folder);
+        },
+        makePublic: (id, domain) => {
+          if (!driveService) throw new Error('Google Drive is not connected.');
+          return driveService.makePublic(id, domain);
+        },
+        deleteFile: async (id) => {
+          await driveService?.deleteFile(id);
+        },
+      });
+
+      // Passing no images strips the reader's own ids, so a quiz never
+      // carries a pointer to a picture that was not uploaded.
+      const skip = () => attachImagesToQuiz(quiz, [], uploader);
+      if (images.length === 0) return skip();
+
+      if (!driveService) {
+        addToast(
+          'Connect Google Drive to bring in the pictures. The quiz was created without them.',
+          'warning'
+        );
+        return skip();
+      }
+
+      // Asked once for the batch; the editor asks per file, which would be a
+      // dialog per picture on a test with a dozen diagrams.
+      const shared = await showConfirm(
+        `Students open pictures without signing in, so the ${images.length === 1 ? 'picture' : `${images.length} pictures`} in this test must be shared as "anyone with the link can view." Share and attach?`,
+        { title: 'Share the pictures?', confirmLabel: 'Share & attach' }
+      );
+      if (!shared) {
+        addToast('The quiz was created without the pictures.', 'info');
+        return skip();
+      }
+
+      return attachImagesToQuiz(quiz, images, uploader);
+    },
+    [driveService, showConfirm, addToast]
+  );
 
   const {
     quizzes,
@@ -1328,6 +1386,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       // tile is offered on the quiz import only.
       canImportDocuments,
       pickDocument,
+      onDocumentImages: (images) => {
+        documentImagesRef.current = images;
+      },
+      attachDocumentImages,
       saveQuiz: async (data) => {
         await saveQuiz(data);
       },

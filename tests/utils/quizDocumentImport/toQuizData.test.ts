@@ -80,6 +80,19 @@ describe('extractedToQuizData', () => {
     );
   });
 
+  it('carries the reader image ids so save can swap them for stimuli', () => {
+    const data = extractedToQuizData(
+      quiz({ questions: [question({ imageIds: ['img-1', 'img-2'] })] })
+    );
+    expect(data.questions[0].stimulusIds).toEqual(['img-1', 'img-2']);
+  });
+
+  it('leaves stimulusIds off a question with no picture', () => {
+    expect(
+      extractedToQuizData(quiz()).questions[0].stimulusIds
+    ).toBeUndefined();
+  });
+
   it('gives every question its own id', () => {
     const data = extractedToQuizData(
       quiz({ questions: [question(), question({ number: 2 })] })

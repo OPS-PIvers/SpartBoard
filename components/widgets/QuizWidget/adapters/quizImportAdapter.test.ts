@@ -28,6 +28,14 @@ vi.mock('@/utils/quizDocumentImport', () => ({
   }),
   rowWarnings: () => ['Question 2: two answers were marked'],
 }));
+const EXTRACTED_IMAGES = [
+  {
+    id: 'img-1',
+    blob: new Blob(['x']),
+    contentType: 'image/png',
+    name: 'a.png',
+  },
+];
 const browserPdfDeps = vi.fn().mockResolvedValue({ pdf: 'deps' });
 vi.mock('@/utils/quizDocumentImport/pdfBrowserDeps', () => ({
   browserPdfDeps: (...args: unknown[]): unknown =>
@@ -224,9 +232,54 @@ describe('createQuizImportAdapter — test document source', () => {
     readQuizDocument.mockResolvedValue({
       title: 'Unit 3 Test',
       questions: [],
-      images: [],
+      images: EXTRACTED_IMAGES,
       warnings: ['Pictures in a PDF aren’t brought in'],
     });
+  });
+
+  it('hands the document pictures to the consumer to hold until save', async () => {
+    const onDocumentImages = vi.fn();
+    const adapter = createQuizImportAdapter(
+      makeDeps({ canImportDocuments: true, onDocumentImages })
+    );
+    await adapter.parse({
+      kind: 'document',
+      file: new Blob([new Uint8Array([1])]),
+      fileName: 'Unit 3 Test.docx',
+    });
+    // The adapter holds no state, so the pictures have to go somewhere that
+    // survives until the teacher confirms.
+    expect(onDocumentImages).toHaveBeenCalledWith(EXTRACTED_IMAGES);
+  });
+
+  it('attaches the pictures before saving, not at read time', async () => {
+    const withStimuli = { ...SAMPLE_QUIZ, stimuli: [] };
+    const attachDocumentImages = vi.fn().mockResolvedValue(withStimuli);
+    const deps = makeDeps({ canImportDocuments: true, attachDocumentImages });
+    const adapter = createQuizImportAdapter(deps);
+
+    await adapter.parse({
+      kind: 'document',
+      file: new Blob([new Uint8Array([1])]),
+      fileName: 'Unit 3 Test.docx',
+    });
+    // Nothing reaches Drive on a read the teacher may still back out of.
+    expect(attachDocumentImages).not.toHaveBeenCalled();
+
+    await adapter.save(SAMPLE_QUIZ, 'Unit 3 Test');
+    expect(attachDocumentImages).toHaveBeenCalledWith(SAMPLE_QUIZ);
+    expect(deps.saveQuiz).toHaveBeenCalledWith(
+      expect.objectContaining({ stimuli: [], title: 'Unit 3 Test' })
+    );
+  });
+
+  it('saves without pictures when the consumer cannot attach them', async () => {
+    const deps = makeDeps({ canImportDocuments: true });
+    const adapter = createQuizImportAdapter(deps);
+    await adapter.save(SAMPLE_QUIZ, 'Unit 3 Test');
+    expect(deps.saveQuiz).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Unit 3 Test' })
+    );
   });
 
   it('offers no document source while the feature is off', () => {

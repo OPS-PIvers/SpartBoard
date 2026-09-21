@@ -26,6 +26,7 @@ import {
   extractedToQuizData,
   readQuizDocument,
   rowWarnings,
+  type ExtractedImage,
 } from '@/utils/quizDocumentImport';
 import { browserPdfDeps } from '@/utils/quizDocumentImport/pdfBrowserDeps';
 import { QuizDocumentReview } from '../components/QuizDocumentReview';
@@ -83,6 +84,19 @@ export interface QuizImportAdapterDeps {
    * are both on (D21). False keeps the import wizard exactly as it was.
    */
   canImportDocuments?: boolean;
+  /**
+   * Uploads a read document's pictures to the teacher's Drive and links them
+   * to the questions that use them (D13). Called at save, not at read, so a
+   * teacher who backs out of the wizard leaves nothing behind. Omitted when
+   * the consumer cannot reach Drive; the quiz is then created without them.
+   */
+  attachDocumentImages?: (quiz: QuizData) => Promise<QuizData>;
+  /**
+   * Handed the pictures a read document carried, so the consumer can hold
+   * them until `attachDocumentImages` runs. The adapter owns no state of its
+   * own, and `ImportParseResult` carries only the parsed quiz.
+   */
+  onDocumentImages?: (images: readonly ExtractedImage[]) => void;
 }
 
 const DRIVE_ACCESS_ERROR =
@@ -355,6 +369,7 @@ export function createQuizImportAdapter(
           fileName: source.fileName,
           ...(isPdf ? { pdf: await browserPdfDeps(source.file) } : {}),
         });
+        deps.onDocumentImages?.(extracted.images);
         return {
           data: extractedToQuizData(extracted),
           // Row notes ride the wizard's own warnings list, numbered so they
@@ -401,8 +416,13 @@ export function createQuizImportAdapter(
     save: async (data, title) => {
       const finalTitle = title.trim() || data.title || 'Untitled Quiz';
       const now = Date.now();
+      // Pictures become real stimuli only now, once the teacher has settled
+      // which questions they are keeping.
+      const withImages = deps.attachDocumentImages
+        ? await deps.attachDocumentImages(data)
+        : data;
       await deps.saveQuiz({
-        ...data,
+        ...withImages,
         title: finalTitle,
         updatedAt: now,
       });

@@ -207,7 +207,7 @@ describe('readQuizDocument', () => {
     expect(quiz.warnings).toEqual([]);
   });
 
-  it('says a Word picture a question uses is not brought in yet', async () => {
+  it('keeps a Word picture a question uses, ready to upload at save', async () => {
     const zip = new JSZip();
     zip.file(
       'word/document.xml',
@@ -229,11 +229,10 @@ describe('readQuizDocument', () => {
       { fileName: 'shapes.docx' }
     );
 
-    // The bytes ride along for the slice that uploads them; until then the
-    // teacher is told rather than left wondering where the picture went.
+    // The bytes ride on ExtractedQuiz; `attachDocumentImages` turns them
+    // into Drive stimuli once the teacher confirms the import.
     expect(quiz.images).toHaveLength(1);
-    expect(quiz.warnings).toEqual([
-      "A picture in this file isn't brought in yet — add it to the questions that need it in the editor.",
-    ]);
+    expect(quiz.questions[0].imageIds).toEqual([quiz.images[0].id]);
+    expect(quiz.warnings).toEqual([]);
   });
 });
