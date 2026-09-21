@@ -22,13 +22,13 @@
  * and put `firestore:rules` back in the deploy targets.
  *
  * Usage: node scripts/releaseFirestoreRules.mjs <project-id> [rules-path]
- * Required env: GOOGLE_APPLICATION_CREDENTIALS pointing at a service account
- * JSON file with firebaserules write permission.
+ * Credentials: application default (GOOGLE_APPLICATION_CREDENTIALS key or WIF
+ * config, or a local gcloud ADC login) with firebaserules write permission.
  */
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { cert } from 'firebase-admin/app';
+import { applicationDefault } from 'firebase-admin/app';
 import { stripRulesComments } from './stripRulesComments.mjs';
 
 const API = 'https://firebaserules.googleapis.com/v1';
@@ -51,13 +51,9 @@ function formatIssue(issue) {
   return `[${issue.severity}] ${at.line ?? '?'}:${at.column ?? '?'} - ${issue.description}`;
 }
 
+// Application default credentials: a service-account key in prod, a Workload Identity Federation config in dev.
 async function accessToken() {
-  const keyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  if (!keyPath) {
-    throw new Error('GOOGLE_APPLICATION_CREDENTIALS is not set');
-  }
-  const credential = cert(JSON.parse(readFileSync(keyPath, 'utf8')));
-  const { access_token: token } = await credential.getAccessToken();
+  const { access_token: token } = await applicationDefault().getAccessToken();
   return token;
 }
 
