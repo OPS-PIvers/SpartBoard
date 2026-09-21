@@ -394,7 +394,17 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       if (!stubTitle.trim() && extracted.title.trim()) {
         setStubTitle(extracted.title.trim());
       }
-      setReadDoc({ fileName, questions, warnings: extracted.warnings });
+      setReadDoc({
+        fileName,
+        questions,
+        // Row notes are numbered by the reader, so they name their own row.
+        warnings: [
+          ...extracted.warnings,
+          ...questions.flatMap((q) =>
+            q.warnings.map((w) => `Question ${q.number}: ${w}`)
+          ),
+        ],
+      });
     } catch (err) {
       onError(
         err instanceof Error ? err.message : 'Could not read that test paper.'
@@ -931,11 +941,13 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                     in the quiz editor.
                   </p>
                 )}
-                {readDoc.warnings.map((warning, i) => (
-                  <p key={i} className="mt-2 text-xs text-amber-800">
-                    {warning}
-                  </p>
-                ))}
+                {readDoc.warnings.length > 0 && (
+                  <ul className="mt-2 max-h-24 space-y-1 overflow-y-auto pr-1 text-xs text-amber-800">
+                    {readDoc.warnings.map((warning, i) => (
+                      <li key={i}>{warning}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             ) : (
               <div className="space-y-2">

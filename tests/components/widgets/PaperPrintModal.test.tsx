@@ -423,6 +423,26 @@ describe('PaperPrintModal', () => {
       ).toBeInTheDocument();
     });
 
+    it('shows what the reader doubted about a row, not just the document', async () => {
+      newPaperTest(
+        extracted(
+          [
+            question(1, {
+              warnings: ['Only one answer choice was found.'],
+            }),
+          ],
+          ['The document was read the simple way.']
+        )
+      );
+      dropTestPaper();
+      expect(
+        await screen.findByText('Question 1: Only one answer choice was found.')
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('The document was read the simple way.')
+      ).toBeInTheDocument();
+    });
+
     it('keeps a plain stub when the paper is put back', async () => {
       const { onCreateQuiz, print } = newPaperTest(extracted([question(1)]));
       dropTestPaper();
