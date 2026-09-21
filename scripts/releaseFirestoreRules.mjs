@@ -220,7 +220,7 @@ async function countRulesets(token, projectId) {
   let total = 0;
   let pageToken = '';
   for (let page = 0; page < 40; page += 1) {
-    const query = `pageSize=100${pageToken ? `&pageToken=${pageToken}` : ''}`;
+    const query = `pageSize=100${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
     const { rulesets = [], nextPageToken } = await call(
       token,
       'GET',
@@ -322,10 +322,15 @@ async function main() {
     rejected.push(`${attempt.label}\n  ${note}`);
   }
   if (!release) {
-    console.warn(
-      `the project holds ${await countRulesets(token, projectId)} ruleset(s)`
-    );
-    await diagnoseRefusal(token, projectId, current, ruleset.name);
+    // Nothing here may throw: the rejections below are the point of the run.
+    try {
+      console.warn(
+        `the project holds ${await countRulesets(token, projectId)} ruleset(s)`
+      );
+      await diagnoseRefusal(token, projectId, current, ruleset.name);
+    } catch (error) {
+      console.warn(`diagnostics failed: ${error.message}`);
+    }
     throw new Error(
       `every release request shape was rejected:\n${rejected.join('\n')}`
     );
