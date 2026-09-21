@@ -46,6 +46,7 @@ import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { useQuizDocumentImportGate } from '@/hooks/useQuizDocumentImportGate';
 import {
   attachDocumentImages as attachImagesToQuiz,
+  driveStimulusUploader,
   type ExtractedImage,
 } from '@/utils/quizDocumentImport';
 import {
@@ -272,30 +273,19 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const attachDocumentImages = useCallback(
     async (quiz: QuizData): Promise<QuizData> => {
       const images = documentImagesRef.current;
-      const uploader = {
-        upload: async (image: ExtractedImage) => {
+      const uploader = driveStimulusUploader({
+        uploadFile: (file, name, folder) => {
           if (!driveService) throw new Error('Google Drive is not connected.');
-          const safeName = image.name.replace(/[^\w.-]+/g, '_');
-          const file = new File([image.blob], safeName, {
-            type: image.contentType,
-          });
-          const driveFile = await driveService.uploadFile(
-            file,
-            `stimulus-${Date.now()}-${safeName}`,
-            'Assets/QuizStimuli'
-          );
-          // undefined domain forces type:'anyone' — students open stimuli
-          // without a Google identity a domain grant could match.
-          await driveService.makePublic(driveFile.id, undefined);
-          return {
-            driveFileId: driveFile.id,
-            url: `https://drive.google.com/file/d/${driveFile.id}/view`,
-          };
+          return driveService.uploadFile(file, name, folder);
         },
-        remove: async (driveFileId: string) => {
-          await driveService?.deleteFile(driveFileId);
+        makePublic: (id, domain) => {
+          if (!driveService) throw new Error('Google Drive is not connected.');
+          return driveService.makePublic(id, domain);
         },
-      };
+        deleteFile: async (id) => {
+          await driveService?.deleteFile(id);
+        },
+      });
 
       // Passing no images strips the reader's own ids, so a quiz never
       // carries a pointer to a picture that was not uploaded.

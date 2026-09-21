@@ -24,6 +24,11 @@ export { readPdf, groupItemsIntoLines } from './pdfReader';
 export { extractedToQuizData, rowWarnings } from './toQuizData';
 export { attachDocumentImages, type StimulusUploader } from './attachImages';
 export {
+  driveStimulusUploader,
+  STIMULUS_FOLDER,
+  type StimulusDrive,
+} from './driveStimulusUploader';
+export {
   MAX_DOCUMENT_BYTES,
   MAX_DOCUMENT_PAGES,
   DocumentTooLargeError,
