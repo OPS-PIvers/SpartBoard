@@ -37,7 +37,8 @@ export function usePaperSheetImageSharing(
 ): PaperSheetImageSharing {
   const { driveService } = useGoogleDrive();
   const [checked, setChecked] = useState<Checked | null>(null);
-  const fileIds = sheetImageFileIds(stimuli).join('|');
+  // Sorted: reordering the stack changes nothing about what Drive was asked.
+  const fileIds = sheetImageFileIds(stimuli).sort().join('|');
   const wanted = inPlcGroup && !!driveService && !!fileIds;
 
   useEffect(() => {

@@ -575,6 +575,32 @@ describe('PaperPrintModal', () => {
       );
     });
 
+    it('asks Drive nothing new when the teacher reorders the stack', async () => {
+      const map: PaperSheetStimulus = {
+        id: 'stim-2',
+        label: 'Region map',
+        source: 'image',
+        driveFileId: 'drive-2',
+      };
+      setup({
+        quiz: quiz({ paperSheetStimuli: [graph, map] }),
+        inPlcGroup: true,
+      });
+      await waitFor(() =>
+        expect(drive.listFilePermissions).toHaveBeenCalledTimes(2)
+      );
+      selectWholeClass();
+
+      // The section opens itself when the quiz already has a stack.
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Move Unit 3 graph down' })
+      );
+
+      // Same two files in a different order is the same question.
+      expect(drive.listFilePermissions).toHaveBeenCalledTimes(2);
+      expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled();
+    });
+
     it('asks before printing a PLC quiz whose image only the owner can open', async () => {
       const { print } = setup({ quiz: withGraph(), inPlcGroup: true });
       await waitFor(() =>
