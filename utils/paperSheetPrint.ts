@@ -10,6 +10,8 @@
 
 import {
   BUBBLE_DIAMETER_MM,
+  BUBBLE_LETTER_GREY,
+  BUBBLE_LETTER_SIZE_PT,
   CHOICE_LETTERS,
   COLUMN_X_MM,
   GRID_TOP_MM,
@@ -60,6 +62,10 @@ export interface PaperPrintJob {
 }
 
 const mm = (n: number): string => `${n.toFixed(3)}mm`;
+
+/** `BUBBLE_LETTER_GREY` as a CSS colour, so the print and the reader's floor share one number. */
+const letterGrey = (): string =>
+  `#${BUBBLE_LETTER_GREY.toString(16).padStart(2, '0').repeat(3)}`;
 
 function registrationMarksHtml(): string {
   return REGISTRATION_MARK_CENTERS_MM.map(
@@ -125,7 +131,7 @@ function headerHtml(
     </div>`;
 }
 
-/** "A B C D E" above each answer column; bubbles stay empty so every one inks alike. */
+/** "A B C D E" above each answer column, repeating the letter each bubble carries. */
 function columnLegendsHtml(choiceCount: number, columns: number): string {
   const parts: string[] = [];
   for (let column = 0; column < columns; column += 1) {
@@ -163,7 +169,9 @@ function answerRowsHtml(
     for (let choice = 0; choice < choiceCount; choice += 1) {
       const r = bubbleRectMm(i, choice);
       parts.push(
-        `<div class="bub" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(r.w)};height:${mm(r.h)}"></div>`
+        `<div class="bub" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(r.w)};height:${mm(
+          r.h
+        )}">${CHOICE_LETTERS[choice]}</div>`
       );
     }
   }
@@ -250,7 +258,17 @@ const STYLES = `
     line-height: ${BUBBLE_DIAMETER_MM}mm;
   }
   .legend { font-size: 7pt; text-align: center; color: #444; }
-  .bub { border: 0.35mm solid #000; border-radius: 50%; background: #fff; }
+  .bub {
+    border: 0.35mm solid #000;
+    border-radius: 50%;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    font-size: ${BUBBLE_LETTER_SIZE_PT}pt;
+    color: ${letterGrey()};
+  }
 `;
 
 /**

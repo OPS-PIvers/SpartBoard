@@ -1835,3 +1835,8 @@ find-a-setting filter.
 | Math Tools             | `mathTools`             | 11   | current work                                    | yes  |
 | Math Tool Instance     | `mathTool`              | 11   | current work                                    | yes  |
 | Next Up                | `nextUp`                | 11   | current work                                    | yes  |
+| Music                  | `music`                 | 12   | current work                                    | yes  |
+| Car Rider Pro          | `car-rider-pro`         | 12   | current work                                    | yes  |
+| Blending Board         | `blending-board`        | 12   | current work                                    | yes  |
+| First 5                | `first-5`               | 12   | current work                                    | yes  |
+| Custom Widget          | `custom-widget`         | 12   | current work                                    | yes  |

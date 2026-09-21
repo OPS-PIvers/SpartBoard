@@ -214,7 +214,7 @@ const ListField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
       </div>
       <div className="space-y-2">
         {items.map((item, index) => (
-          <div key={`${index}-${item}`} className="flex items-start gap-2">
+          <div key={index} className="flex items-start gap-2">
             <span className="mt-2 w-5 shrink-0 text-center text-xs font-black text-slate-500">
               {index + 1}.
             </span>

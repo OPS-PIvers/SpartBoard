@@ -488,6 +488,10 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     config: {
       stationId: '',
       syncWithTimeTool: false,
+      source: 'curated',
+      layout: 'default',
+      bgColor: '#ffffff',
+      textColor: '#1e293b',
     },
   },
   'car-rider-pro': {
