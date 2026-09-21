@@ -195,3 +195,81 @@ describe('the separate answer key file (D8)', () => {
     expect(result.warnings.join(' ')).toContain('answer key file couldn');
   });
 });
+
+/**
+ * Which pictures the review table is allowed to offer (D14). Once a teacher
+ * can link a picture to a question by id, a leftover set from an earlier read
+ * is not dead state — it can put an unrelated image from the teacher's Drive
+ * onto a question in a quiz that never had pictures at all.
+ */
+describe('document pictures are scoped to the read that produced them', () => {
+  const images = [
+    {
+      id: 'img-1',
+      blob: new Blob(['png'], { type: 'image/png' }),
+      contentType: 'image/png',
+      name: 'one.png',
+    },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(readQuizDocument).mockResolvedValue({
+      ...extracted('browser'),
+      images,
+    });
+  });
+
+  it('hands over the pictures a document carried', async () => {
+    const onDocumentImages = vi.fn();
+    await adapter({ onDocumentImages }).parse(source);
+    expect(onDocumentImages).toHaveBeenLastCalledWith(images);
+  });
+
+  it('drops them when the next read is a sheet', async () => {
+    const onDocumentImages = vi.fn();
+    const quizAdapter = adapter({ onDocumentImages });
+
+    await quizAdapter.parse(source);
+    await quizAdapter.parse({ kind: 'sheet', url: 'https://sheet' });
+
+    expect(onDocumentImages).toHaveBeenLastCalledWith([]);
+  });
+
+  it('drops them when the next read is a CSV', async () => {
+    const onDocumentImages = vi.fn();
+    const quizAdapter = adapter({ onDocumentImages });
+
+    await quizAdapter.parse(source);
+    await quizAdapter.parse({ kind: 'csv', text: 'a,b' });
+
+    expect(onDocumentImages).toHaveBeenLastCalledWith([]);
+  });
+
+  it('drops them when the document read fails', async () => {
+    // The ref would otherwise still hold the read before this one.
+    const onDocumentImages = vi.fn();
+    const quizAdapter = adapter({ onDocumentImages });
+
+    await quizAdapter.parse(source);
+    vi.mocked(readQuizDocument).mockRejectedValue(new Error('unreadable'));
+    await expect(quizAdapter.parse(source)).rejects.toThrow();
+
+    expect(onDocumentImages).toHaveBeenLastCalledWith([]);
+  });
+
+  it('drops them when the quiz is generated with AI instead', async () => {
+    // Generating skips `parse` entirely but still lands on the review table.
+    const onDocumentImages = vi.fn();
+    const quizAdapter = adapter({ onDocumentImages });
+
+    await quizAdapter.parse(source);
+    // The generate call itself needs Firebase; letting it fail proves the
+    // clearing happens first, which is the point.
+    await expect(
+      quizAdapter.aiAssist?.generate({ prompt: 'the solar system' })
+    ).rejects.toThrow();
+
+    expect(onDocumentImages).toHaveBeenLastCalledWith([]);
+  });
+});

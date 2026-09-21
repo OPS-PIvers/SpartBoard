@@ -8,14 +8,21 @@
  * quick way to clear a "Needs answer" before the quiz is even created.
  */
 
-import React, { useState } from 'react';
-import { AlertCircle, FileWarning } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { AlertCircle, FileWarning, X } from 'lucide-react';
 import type { QuizData, QuizQuestion, QuizQuestionType } from '@/types';
+import type { ExtractedImage } from '@/utils/quizDocumentImport';
 import { questionNeedsKey } from '@/utils/quizNeedsKey';
 
 interface Props {
   data: QuizData;
   onChange: (next: QuizData) => void;
+  /**
+   * The pictures the document carried (D14). The reader proposes which
+   * questions use each one; the teacher corrects that here, before anything
+   * is uploaded.
+   */
+  images?: readonly ExtractedImage[];
 }
 
 const TYPE_LABEL: Record<QuizQuestionType, string> = {
@@ -32,7 +39,11 @@ const choicesOf = (q: QuizQuestion): string[] =>
     ? [q.correctAnswer, ...q.incorrectAnswers]
     : q.incorrectAnswers;
 
-export const QuizDocumentReview: React.FC<Props> = ({ data, onChange }) => {
+export const QuizDocumentReview: React.FC<Props> = ({
+  data,
+  onChange,
+  images = [],
+}) => {
   // The full set read from the document. Unticking removes a question from
   // what gets created, so the master list has to outlive that or a row could
   // never be ticked back on. The preview step mounts once per read.
@@ -46,6 +57,19 @@ export const QuizDocumentReview: React.FC<Props> = ({ data, onChange }) => {
   const [choiceOrder] = useState<ReadonlyMap<string, string[]>>(
     () => new Map(data.questions.map((q) => [q.id, choicesOf(q)]))
   );
+  // An object URL is a browser resource, not derived state: made once for
+  // the thumbnails and released when the review step goes away.
+  const [previews] = useState<ReadonlyMap<string, string>>(
+    () => new Map(images.map((img) => [img.id, URL.createObjectURL(img.blob)]))
+  );
+  useEffect(
+    () => () => previews.forEach((url) => URL.revokeObjectURL(url)),
+    [previews]
+  );
+
+  /** "Picture 2" reads better on a row than `figure-page-3.png` does. */
+  const pictureLabel = (id: string): string =>
+    `Picture ${images.findIndex((img) => img.id === id) + 1}`;
 
   const emit = (
     nextExcluded: ReadonlySet<string>,
@@ -65,6 +89,32 @@ export const QuizDocumentReview: React.FC<Props> = ({ data, onChange }) => {
     setAllQuestions(next);
     emit(excluded, next);
   };
+
+  /**
+   * The other rows using this picture, by the number shown on the row. One
+   * upload serves them all (D14), so a teacher moving it off this question
+   * needs to see where else it lands.
+   */
+  const sharedWith = (imageId: string, questionId: string): number[] =>
+    allQuestions
+      .map((q, i) => ({ q, number: i + 1 }))
+      .filter(
+        ({ q }) => q.id !== questionId && q.stimulusIds?.includes(imageId)
+      )
+      .map(({ number }) => number);
+
+  const linkPicture = (questionId: string, imageId: string): void =>
+    updateQuestion(questionId, (prev) =>
+      prev.stimulusIds?.includes(imageId)
+        ? prev
+        : { ...prev, stimulusIds: [...(prev.stimulusIds ?? []), imageId] }
+    );
+
+  const unlinkPicture = (questionId: string, imageId: string): void =>
+    updateQuestion(questionId, (prev) => ({
+      ...prev,
+      stimulusIds: (prev.stimulusIds ?? []).filter((id) => id !== imageId),
+    }));
 
   const toggle = (id: string, include: boolean): void => {
     const next = new Set(excluded);
@@ -114,6 +164,12 @@ export const QuizDocumentReview: React.FC<Props> = ({ data, onChange }) => {
         {allQuestions.map((q, index) => {
           const included = !excluded.has(q.id);
           const choices = choiceOrder.get(q.id) ?? choicesOf(q);
+          // Only ids the document actually carried; a stimulus added some
+          // other way has no thumbnail to show here.
+          const linked = (q.stimulusIds ?? []).filter((id) => previews.has(id));
+          const unlinked = images
+            .map((img) => img.id)
+            .filter((id) => !linked.includes(id));
           return (
             <li
               key={q.id}
@@ -198,6 +254,66 @@ export const QuizDocumentReview: React.FC<Props> = ({ data, onChange }) => {
                         </label>
                       ))}
                     </fieldset>
+                  )}
+
+                  {images.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xxs font-bold uppercase tracking-wider text-slate-500">
+                        Pictures
+                      </p>
+                      <div className="flex flex-wrap items-start gap-2">
+                        {linked.map((imageId) => {
+                          const alsoOn = sharedWith(imageId, q.id);
+                          return (
+                            <div key={imageId} className="w-24">
+                              <div className="relative">
+                                <img
+                                  src={previews.get(imageId)}
+                                  alt={`${pictureLabel(imageId)} on question ${index + 1}`}
+                                  className="h-16 w-24 rounded-lg border border-slate-200 object-contain"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => unlinkPicture(q.id, imageId)}
+                                  aria-label={`Remove ${pictureLabel(imageId)} from question ${index + 1}`}
+                                  className="absolute -right-1.5 -top-1.5 rounded-full border border-slate-300 bg-white p-0.5 text-slate-600 hover:bg-slate-100"
+                                >
+                                  <X className="h-3 w-3" aria-hidden />
+                                </button>
+                              </div>
+                              <p className="mt-0.5 truncate text-xxs text-slate-500">
+                                {alsoOn.length > 0
+                                  ? `Also on ${alsoOn.join(', ')}`
+                                  : pictureLabel(imageId)}
+                              </p>
+                            </div>
+                          );
+                        })}
+
+                        {unlinked.length > 0 && (
+                          <label className="text-xs text-slate-600">
+                            <span className="sr-only">
+                              Add a picture to question {index + 1}
+                            </span>
+                            <select
+                              value=""
+                              onChange={(e) => {
+                                if (e.target.value)
+                                  linkPicture(q.id, e.target.value);
+                              }}
+                              className="h-16 rounded-lg border border-slate-200 px-2 text-xs text-slate-600 focus:border-brand-blue-primary focus:outline-none"
+                            >
+                              <option value="">Add a picture…</option>
+                              {unlinked.map((imageId) => (
+                                <option key={imageId} value={imageId}>
+                                  {pictureLabel(imageId)}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>

@@ -105,6 +105,13 @@ export interface QuizImportAdapterDeps {
    */
   onDocumentImages?: (images: readonly ExtractedImage[]) => void;
   /**
+   * Reads back what `onDocumentImages` handed over, so the review table can
+   * show each picture and let the teacher change which questions use it
+   * (D14). A getter rather than a value: the adapter is built once, and the
+   * pictures only exist after a read.
+   */
+  documentImages?: () => readonly ExtractedImage[];
+  /**
    * Reads the document through the Cloud Function instead of in the browser
    * (D1, D3). Supplied only when the teacher has AI access; if the call fails
    * the browser reader still runs, because half a quiz to fix beats an error.
@@ -418,6 +425,9 @@ export function createQuizImportAdapter(
       promptPlaceholder:
         'e.g. A 5-question quiz about the solar system for 3rd graders.',
       generate: async ({ prompt }) => {
+        // A generated quiz reaches the review table without going through
+        // `parse`, so it clears the previous read's pictures too.
+        deps.onDocumentImages?.([]);
         // The quiz import wizard has only a free-form prompt textarea — no
         // type-mix picker — so default to 5 MC questions. The richer
         // per-type stepper UX lives in the QuizEditor's "Draft with AI"
@@ -433,6 +443,11 @@ export function createQuizImportAdapter(
       },
     },
     parse: async (source) => {
+      // Whatever is read now owns the pictures. Clearing first covers a
+      // sheet or CSV read after a document one, and a document read that
+      // throws: either way the review table must not offer a previous
+      // read's pictures for the teacher to link (D14).
+      deps.onDocumentImages?.([]);
       if (source.kind === 'sheet') {
         // The sheet was just chosen via the Google Picker, which granted this
         // app per-file `drive.file` access to it — so reading it needs only the
@@ -498,7 +513,11 @@ export function createQuizImportAdapter(
     ...(deps.canImportDocuments
       ? {
           renderReview: (data: QuizData, onChange: (next: QuizData) => void) =>
-            React.createElement(QuizDocumentReview, { data, onChange }),
+            React.createElement(QuizDocumentReview, {
+              data,
+              onChange,
+              images: deps.documentImages?.() ?? [],
+            }),
         }
       : {}),
     // A document import names the quiz after the file (D11); sheet and CSV

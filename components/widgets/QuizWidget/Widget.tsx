@@ -1399,6 +1399,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       onDocumentImages: (images) => {
         documentImagesRef.current = images;
       },
+      documentImages: () => documentImagesRef.current,
       attachDocumentImages,
       saveQuiz: async (data) => {
         await saveQuiz(data);
