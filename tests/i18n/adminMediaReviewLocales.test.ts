@@ -21,9 +21,7 @@ import fr from '@/locales/fr.json';
 
 type MediaReview = typeof en.admin.mediaReview;
 
-// Keys whose EN value is expected to differ by locale (i.e. real prose/labels,
-// not something legitimately language-neutral). Covers every leaf actually
-// rendered by MediaReviewView.tsx via t('admin.mediaReview.*').
+/** Keys whose EN value is expected to differ by locale (real prose/labels, not language-neutral). */
 const TRANSLATABLE_KEYS: (keyof Omit<MediaReview, 'status'>)[] = [
   'title',
   'blurb',
