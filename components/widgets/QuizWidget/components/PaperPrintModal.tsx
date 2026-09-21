@@ -950,7 +950,10 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 )}
               </div>
             ) : (
-              <div className="space-y-2">
+              // The zone is a disabled button while a read runs, and a
+              // disabled control receives no drag events, so the wrapper
+              // carries them.
+              <div className="space-y-2" {...questionsDrop.dropProps}>
                 <input
                   ref={questionsFileRef}
                   type="file"
@@ -967,7 +970,6 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                   type="button"
                   onClick={() => questionsFileRef.current?.click()}
                   disabled={readingDoc || pickingDoc}
-                  {...questionsDrop.dropProps}
                   className={`flex w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-5 text-sm font-semibold transition-colors disabled:opacity-50 ${
                     questionsDrop.dragging
                       ? 'border-brand-blue-primary bg-brand-blue-lighter/30 text-brand-blue-primary'

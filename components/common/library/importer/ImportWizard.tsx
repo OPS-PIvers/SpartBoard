@@ -636,12 +636,13 @@ export function ImportWizard<TData>({
         ))}
 
       {supportsAnyUpload && (
-        <div>
+        // A disabled control receives no drag events, and the button is
+        // disabled while a parse runs, so the wrapper carries them.
+        <div {...uploadDrop.dropProps}>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={loading}
-            {...uploadDrop.dropProps}
             className={`w-full py-4 disabled:opacity-40 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group active:scale-95 ${
               uploadDrop.dragging
                 ? 'bg-brand-blue-lighter/70 border-brand-blue-primary'
@@ -684,7 +685,10 @@ export function ImportWizard<TData>({
           <p className="text-xs font-black uppercase tracking-widest text-slate-500">
             Or build one from a test you already have
           </p>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div
+            className="grid gap-2 sm:grid-cols-2"
+            {...documentDrop.dropProps}
+          >
             {adapter.pickDocument && (
               <button
                 type="button"
@@ -710,7 +714,6 @@ export function ImportWizard<TData>({
               type="button"
               onClick={() => documentInputRef.current?.click()}
               disabled={loading || picking}
-              {...documentDrop.dropProps}
               className={`w-full py-4 px-3 disabled:opacity-40 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group active:scale-95 ${
                 documentDrop.dragging
                   ? 'bg-brand-blue-lighter/70 border-brand-blue-primary'

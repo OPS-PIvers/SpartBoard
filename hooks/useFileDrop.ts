@@ -31,33 +31,36 @@ export function useFileDrop(
   const depth = useRef(0);
   const [dragging, setDragging] = useState(false);
 
-  const active = (e: DragEvent): boolean => !disabled && hasFiles(e);
-
   return {
     dragging,
     dropProps: {
+      // Disabled only stops the file being taken. The default is prevented
+      // either way: a zone that lets the drop through navigates the tab to
+      // the file, and whatever the teacher had half-filled in is gone.
       onDragEnter: (e) => {
-        if (!active(e)) return;
+        if (!hasFiles(e)) return;
         e.preventDefault();
+        if (disabled) return;
         depth.current += 1;
         setDragging(true);
       },
       onDragOver: (e) => {
-        if (!active(e)) return;
+        if (!hasFiles(e)) return;
         e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
+        e.dataTransfer.dropEffect = disabled ? 'none' : 'copy';
       },
       onDragLeave: (e) => {
-        if (!active(e)) return;
+        if (!hasFiles(e) || disabled) return;
         e.preventDefault();
         depth.current = Math.max(0, depth.current - 1);
         if (depth.current === 0) setDragging(false);
       },
       onDrop: (e) => {
-        if (!active(e)) return;
+        if (!hasFiles(e)) return;
         e.preventDefault();
         depth.current = 0;
         setDragging(false);
+        if (disabled) return;
         const file = e.dataTransfer.files?.[0];
         if (file) onFile(file);
       },
