@@ -302,7 +302,6 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
       config={config}
       session={session}
       tabWarningsEnabled={session?.tabWarningsEnabled ?? true}
-      plcView
       onBack={onClose}
       onDeleteResponse={removeStudent}
       onUnlockResultsForStudent={unlockResultsForStudent}
