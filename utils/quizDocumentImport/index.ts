@@ -31,6 +31,15 @@ export { readDocx } from './docxReader';
 export { readPdf, groupItemsIntoLines } from './pdfReader';
 export { extractedToQuizData, rowWarnings } from './toQuizData';
 export {
+  cropPdfFigures,
+  pixelRect,
+  figureKey,
+  FIGURE_PADDING,
+  type FigureBox,
+  type PdfCropperDeps,
+  type PixelRect,
+} from './pdfFigures';
+export {
   readQuizDocumentWithAi,
   aiQuizToExtracted,
   graftDocxImages,

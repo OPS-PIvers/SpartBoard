@@ -27,6 +27,7 @@ import {
   readQuizDocument,
   readQuizDocumentWithAi,
 } from '@/utils/quizDocumentImport';
+import { browserPdfCropper } from '@/utils/quizDocumentImport/pdfCropBrowser';
 import { createQuizImportAdapter } from '@/components/widgets/QuizWidget/adapters/quizImportAdapter';
 
 const extracted = (title: string): ExtractedQuiz => ({
@@ -85,6 +86,8 @@ describe('quiz import reader selection', () => {
     expect(readQuizDocumentWithAi).toHaveBeenCalledWith(source.file, {
       fileName: 'test.pdf',
       extract: aiExtract,
+      // Without a cropper the reader drops every figure silently (D13).
+      cropper: browserPdfCropper,
     });
     expect(readQuizDocument).not.toHaveBeenCalled();
     expect(result.data.title).toBe('ai');

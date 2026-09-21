@@ -16,6 +16,12 @@ import type {
   ExtractedQuestion,
   ExtractedQuiz,
 } from './types';
+import {
+  cropPdfFigures,
+  figureKey,
+  type FigureBox,
+  type PdfCropperDeps,
+} from './pdfFigures';
 import type { QuizQuestionType } from '@/types';
 
 /** What the callable answers with; mirrors `AiExtractedQuiz` on the server. */
@@ -27,6 +33,7 @@ export interface AiExtractedQuiz {
     type: QuizQuestionType;
     options: { letter: string; text: string }[];
     correctAnswer: string;
+    figures?: FigureBox[];
     warnings: string[];
   }[];
   warnings: string[];
@@ -132,9 +139,68 @@ export function graftDocxImages(
   };
 }
 
+/**
+ * Crops the figures the reader pointed at and links them to their questions
+ * (D13). A question whose picture could not be cropped keeps its text; the
+ * teacher is told which, because a diagram question without its diagram is
+ * unanswerable and they need to know to add it.
+ */
+async function attachPdfFigures(
+  quiz: ExtractedQuiz,
+  ai: AiExtractedQuiz,
+  file: Blob,
+  makeCropper: AiReadOptions['cropper']
+): Promise<ExtractedQuiz> {
+  const boxes = (ai.questions ?? []).flatMap((q) => q.figures ?? []);
+  if (boxes.length === 0) return quiz;
+
+  if (!makeCropper) {
+    return {
+      ...quiz,
+      warnings: [
+        ...quiz.warnings,
+        'Pictures in a PDF aren’t brought in — add them to the questions that need them in the editor.',
+      ],
+    };
+  }
+
+  let cropped;
+  try {
+    cropped = await cropPdfFigures(boxes, await makeCropper(file));
+  } catch (err) {
+    console.warn('[quizDocumentImport] could not crop the PDF', err);
+    return {
+      ...quiz,
+      warnings: [
+        ...quiz.warnings,
+        'Pictures in this PDF couldn’t be brought in — add them in the editor.',
+      ],
+    };
+  }
+
+  // aiQuizToExtracted maps one to one with no filtering, so the two lists
+  // stay index-aligned.
+  const questions = quiz.questions.map((question, index) => {
+    const figures = ai.questions?.[index]?.figures ?? [];
+    const imageIds = figures
+      .map((box) => cropped.idByBox.get(figureKey(box)))
+      .filter((id): id is string => typeof id === 'string');
+    return imageIds.length > 0 ? { ...question, imageIds } : question;
+  });
+
+  return {
+    ...quiz,
+    questions,
+    images: cropped.images,
+    warnings: [...quiz.warnings, ...cropped.warnings],
+  };
+}
+
 export interface AiReadOptions {
   fileName?: string;
   extract: AiExtractFn;
+  /** Crops a PDF's figures out of the page (D13); omitted skips them. */
+  cropper?: (file: Blob) => Promise<PdfCropperDeps>;
 }
 
 /**
@@ -161,17 +227,7 @@ export async function readQuizDocumentWithAi(
   });
   const quiz = aiQuizToExtracted(ai, titleFromFileName(fileName));
 
-  if (kind !== 'docx') {
-    // D13: cropping a PDF's figures comes later, so say so rather than
-    // leaving a question whose picture silently isn't there.
-    return {
-      ...quiz,
-      warnings: [
-        ...quiz.warnings,
-        'Pictures in a PDF aren’t brought in — add them to the questions that need them in the editor.',
-      ],
-    };
-  }
+  if (kind !== 'docx') return attachPdfFigures(quiz, ai, file, options.cropper);
 
   try {
     const { lines, images } = await readDocx(file);
