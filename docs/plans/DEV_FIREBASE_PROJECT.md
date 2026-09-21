@@ -1,6 +1,6 @@
 # Dev Firebase project (`spartboard-dev`)
 
-Status: decided 2026-09-21. Step 1 done: project `spartboard-dev` (number 258543092004) and web app `1:258543092004:web:63b9aa080a08cd83c973b1` created. Waiting on step 2 (billing).
+Status: 2026-09-21. Done: steps 1–3 (project, web app, billing, APIs, Firestore + Storage in us-central1, delete protection on), WIF pool `github` / provider `spartboard-repo` + `github-deploy` SA, placeholder `CLASSLINK_*` and `SPOTIFY_OAUTH_CLIENT_*` secrets. Waiting on Paul: step 4 (Auth Get started + Google provider), step 5 (OAuth origins), step 6 (six real secrets).
 
 ## Problem
 
@@ -49,7 +49,9 @@ Owner key: **P** = Paul (billing, credentials, console-only consent), **C** = Cl
 5. **P** Add `https://spartboard-dev.web.app` and `https://spartboard-dev.firebaseapp.com` as
    authorized JavaScript origins on prod's Google OAuth client.
 6. **P** Set function secrets in dev: `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`
-   (prod values), `LTI_TOOL_PRIVATE_KEY` (new key). **C** sets placeholders for deferred secrets.
+   (prod values); new dev-only `GOOGLE_OAUTH_REFRESH_TOKEN_KEY`, `SPOTIFY_OAUTH_REFRESH_TOKEN_KEY`,
+   `STUDENT_PSEUDONYM_HMAC_SECRET`, `LTI_TOOL_PRIVATE_KEY`. **C** sets placeholders for `CLASSLINK_*` and
+   `SPOTIFY_OAUTH_CLIENT_*`.
 7. **P** `gcloud auth login` so **C** can create the WIF pool/provider and deploy service account
    restricted to this repo.
 8. **C** Seed scripts under `scripts/dev-seed/`: copy the config collections from prod, generate
