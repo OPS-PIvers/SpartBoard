@@ -1,6 +1,6 @@
 # Dev Firebase project (`spartboard-dev`)
 
-Status: 2026-09-21. Steps 1–8 done (project, billing, APIs, Firestore + Storage us-central1, Auth Google + anonymous, OAuth origins, all 11 secrets, WIF + `github-deploy` SA, config seeded). Step 9 partial: indexes, Storage rules and Firestore rules released to dev; functions and hosting deploy on the first CI run after step 10 merges.
+Status: 2026-09-21. Live. dev-paul deploys to spartboard-dev via CI (first green run 35667715469 after #3242 + e4437389a). Remaining: Paul checks sign-in, Drive, AI and a mock-class quiz join on the dev site.
 
 ## Problem
 
@@ -71,3 +71,9 @@ single-workflow revert.
   daily backup schedule, independently of this plan.
 - Move prod CI to WIF and delete the JSON key.
 - ClassLink / Spotify / LTI dev registrations when a feature needs them.
+
+## New-project gotchas (hit while provisioning)
+
+- A brand-new project has no `cloud.firestore` rules release, and the Rules API refused to create one with the full ruleset (400). Creating it with a deny-all ruleset first, then updating it, worked.
+- The first CI functions deploy failed for all 15 Firestore/Storage-triggered functions with "Permission denied while using the Eventarc Service Agent". Fix: grant `roles/eventarc.serviceAgent` to `service-<number>@gcp-sa-eventarc`, create the Storage service agent (GET `storage/v1/projects/<id>/serviceAccount`) and grant it `roles/pubsub.publisher`, grant the Pub/Sub agent `roles/iam.serviceAccountTokenCreator` and the compute SA `roles/eventarc.eventReceiver`, then rerun.
+- The CI script `.github/scripts/export-firebase-web-config.sh` needs its git executable bit (`git update-index --chmod=+x`), which Windows does not set.
