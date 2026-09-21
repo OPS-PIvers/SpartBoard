@@ -313,6 +313,9 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   const localZoom = useNotebookZoom('page-editor');
   const zoom = zoomProp ?? localZoom;
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // True while the last pointer-down landed inside this editor — see the
+  // paste handler, which only claims Ctrl+V when the teacher is working here.
+  const engagedRef = useRef(false);
   const svgHostRef = useRef<HTMLDivElement>(null);
   const zoomPanRef = useRef<{ x: number; y: number } | null>(null);
   const spaceDownRef = useRef(false);
@@ -1378,6 +1381,23 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     redo,
   ]);
 
+  // Tracks whether the teacher is working in this editor. Capture phase so a
+  // child that stops propagation can't leave the flag stale, and document-wide
+  // so a click anywhere else — another widget, the dock, a board switch —
+  // hands Ctrl+V back to the board.
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      const container = containerRef.current;
+      // Scope to the whole widget, not just the canvas, so picking a tool from
+      // the toolbar above it still counts as working in the notebook.
+      const scope = container?.closest('[data-widget-id]') ?? container;
+      engagedRef.current = !!scope && scope.contains(e.target as Node);
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () =>
+      document.removeEventListener('pointerdown', onPointerDown, true);
+  }, []);
+
   // Paste handler — runs on the native `paste` event so the browser
   // populates clipboardData with whatever the OS clipboard has. Priority:
   //   1. If the in-app clipboard has objects (a Cmd+C happened inside this
@@ -1389,9 +1409,16 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   // The listener is on window so it fires without the canvas being a
   // focused editable target; we early-return when editing a text node so
   // a paste inside the textarea behaves natively.
+  //
+  // It also only claims the paste while the teacher is working in this
+  // editor (`engaged`). The listener is on window and consumes any plain
+  // text, so without that gate a notebook sitting on a board swallowed the
+  // Dock's smart paste — including from a board the teacher had switched
+  // away from, since the two most recent boards stay mounted.
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
       if (editing) return;
+      if (!engagedRef.current) return;
       if (isEditableTarget(e.target)) return;
       const svgEl = svgRef.current;
       if (!svgEl) return;

@@ -458,3 +458,86 @@ describe('PageEditor at zoom scale 2', () => {
     expect(onChange).toHaveBeenCalled();
   });
 });
+
+/**
+ * Regression test: the notebook swallowed every board-level text paste.
+ *
+ * The paste listener is on `window` in capture phase and calls
+ * `stopImmediatePropagation()` for any plain text, so a notebook open on a
+ * board took Ctrl+V away from the Dock's smart paste — a teacher pasting a
+ * Google Slides link got a text box in her notebook instead of an embed
+ * widget, and no error. Two boards stay mounted, so a notebook on the board
+ * she had just left could do it too.
+ *
+ * Fix: the editor claims the paste only after a pointer-down inside its own
+ * widget.
+ */
+describe('PageEditor — only claims Ctrl+V while the teacher is working in it', () => {
+  const pasteText = (text: string): boolean => {
+    const ev = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(ev, 'clipboardData', {
+      value: { items: [], getData: () => text },
+    });
+    Object.defineProperty(ev, 'target', { value: document.body });
+    window.dispatchEvent(ev);
+    // Smart paste in Dock.tsx skips a paste another handler already consumed.
+    return ev.defaultPrevented;
+  };
+
+  it('leaves the paste for the board when nothing has been clicked in it', async () => {
+    const onChange = vi.fn();
+    render(<PageEditor svg={TEST_SVG} onChange={onChange} />);
+    await tick();
+
+    expect(
+      pasteText('https://docs.google.com/presentation/d/preso-id/edit')
+    ).toBe(false);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('takes the paste once the teacher clicks into it', async () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <PageEditor svg={TEST_SVG} onChange={onChange} />
+    );
+    await tick();
+
+    const editorDiv = container.querySelector(
+      '[data-no-drag="true"] div'
+    ) as HTMLElement;
+    act(() => {
+      editorDiv.dispatchEvent(
+        new Event('pointerdown', { bubbles: true, cancelable: true })
+      );
+    });
+
+    expect(pasteText('Lesson objective')).toBe(true);
+    expect(onChange).toHaveBeenCalled();
+  });
+
+  it('hands the paste back after a click outside the notebook', async () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <PageEditor svg={TEST_SVG} onChange={onChange} />
+    );
+    await tick();
+
+    const editorDiv = container.querySelector(
+      '[data-no-drag="true"] div'
+    ) as HTMLElement;
+    act(() => {
+      editorDiv.dispatchEvent(
+        new Event('pointerdown', { bubbles: true, cancelable: true })
+      );
+    });
+    act(() => {
+      document.body.dispatchEvent(
+        new Event('pointerdown', { bubbles: true, cancelable: true })
+      );
+    });
+
+    expect(
+      pasteText('https://docs.google.com/presentation/d/preso-id/edit')
+    ).toBe(false);
+  });
+});
