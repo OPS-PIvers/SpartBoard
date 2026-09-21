@@ -28,7 +28,8 @@ export const SchemaSettingsFallback: React.FC<SchemaSettingsFallbackProps> = ({
   widget,
 }) => {
   const { t } = useTranslation();
-  const { isAdmin, canAccessFeature, canAccessWidget } = useAuth();
+  const { isAdmin, canAccessFeature, canAccessWidget, profileLoaded } =
+    useAuth();
   const toolLabel = useToolLabel();
   const { updateWidget } = useDashboardActions();
 
@@ -81,10 +82,20 @@ export const SchemaSettingsFallback: React.FC<SchemaSettingsFallbackProps> = ({
       isAdmin: isAdmin === true,
       canAccessFeature,
       canAccessWidget,
+      profileLoaded,
       toolLabel,
       t,
     }),
-    [config, widget, isAdmin, canAccessFeature, canAccessWidget, toolLabel, t]
+    [
+      config,
+      widget,
+      isAdmin,
+      canAccessFeature,
+      canAccessWidget,
+      profileLoaded,
+      toolLabel,
+      t,
+    ]
   );
 
   if (schema === undefined) {
