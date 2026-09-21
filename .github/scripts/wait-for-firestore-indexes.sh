@@ -40,7 +40,8 @@ fi
 
 # gcloud is preinstalled on GitHub-hosted ubuntu runners. Authenticate
 # with the service account and target the project before polling.
-gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" >/dev/null
+# --cred-file accepts both a service-account key (prod) and a Workload Identity Federation config (dev).
+gcloud auth login --cred-file="$GOOGLE_APPLICATION_CREDENTIALS" --quiet >/dev/null 2>&1
 gcloud config set project "$PROJECT_ID" >/dev/null
 
 deadline=$((SECONDS + TIMEOUT_SECONDS))

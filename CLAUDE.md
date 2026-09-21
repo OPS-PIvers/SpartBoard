@@ -87,7 +87,7 @@ allowlist fails toward a cosmetic annoyance.
 
 ## CI and conventions
 
-- Pushes to `dev-*` branches deploy a preview and ship rules, indexes and Cloud Functions to the shared prod project. Pushes to `main` deploy production (https://spartboard.web.app).
+- Pushes to `dev-*` deploy everything (hosting, rules, indexes, functions) to the separate `spartboard-dev` project (https://spartboard-dev.web.app, keyless WIF auth). Only pushes to `main` touch production (https://spartboard.web.app). Rules and function changes must still tolerate the previous client at a `main` release. Plan: `docs/plans/DEV_FIREBASE_PROJECT.md`.
 - `pr-validation.yml` has a `preflight` job: if `firebase-dev-deploy.yml` already passed on the PR's head SHA, everything except E2E is skipped.
 - **Release notes**: `public/changelog.json` is read by teachers, not developers. Never name a feature flag, a Firestore path or an internal mechanism in it, and check every claim against what admin settings actually enable rather than what the code defines. See [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md#how-to-write-a-release-note).
 - **Comments**: One short line max — never multi-paragraph docstrings or multi-line comment blocks. Root-cause narrative and verification rationale belong in the PR description, not the diff. Exception: match the surrounding file's convention where one already differs consistently (e.g. `firestore.rules`). Enforced in review; see [docs/routines/debugger.md](docs/routines/debugger.md).
