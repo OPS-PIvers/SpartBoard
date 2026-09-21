@@ -311,6 +311,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           ...(updatedQuiz.stimuli && updatedQuiz.stimuli.length > 0
             ? { stimuli: updatedQuiz.stimuli }
             : {}),
+          ...(updatedQuiz.paperSheetStimuli?.length
+            ? { paperSheetStimuli: updatedQuiz.paperSheetStimuli }
+            : {}),
           ...(updatedQuiz.language ? { language: updatedQuiz.language } : {}),
           expectedVersion: existingSync.lastSyncedVersion,
           uid: userId,
@@ -397,6 +400,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         questions: canonical.questions,
         ...(canonical.stimuli && canonical.stimuli.length > 0
           ? { stimuli: canonical.stimuli }
+          : {}),
+        ...(canonical.paperSheetStimuli?.length
+          ? { paperSheetStimuli: canonical.paperSheetStimuli }
           : {}),
         ...(canonical.language ? { language: canonical.language } : {}),
         createdAt: quizMeta.createdAt,
@@ -697,6 +703,13 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         ...(sourceData.stimuli && sourceData.stimuli.length > 0
           ? { stimuli: sourceData.stimuli.map((s) => ({ ...s })) }
           : {}),
+        ...(sourceData.paperSheetStimuli?.length
+          ? {
+              paperSheetStimuli: sourceData.paperSheetStimuli.map((s) => ({
+                ...s,
+              })),
+            }
+          : {}),
         ...(sourceData.language ? { language: sourceData.language } : {}),
         createdAt: now,
         updatedAt: now,
@@ -814,6 +827,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         questions: normalizeQuizQuestions(shared.questions),
         ...(shared.stimuli && shared.stimuli.length > 0
           ? { stimuli: shared.stimuli }
+          : {}),
+        ...(shared.paperSheetStimuli?.length
+          ? { paperSheetStimuli: shared.paperSheetStimuli }
           : {}),
         ...(shared.language ? { language: shared.language } : {}),
         createdAt: Date.now(),

@@ -20,6 +20,12 @@ export interface PrintableDocument {
   title: string;
   styles: string;
   body: string;
+  /**
+   * Decode every `<img>` before opening the print dialog. Without it the
+   * browser prints whatever has loaded by the time `print()` runs, which for
+   * an image is usually an empty box.
+   */
+  awaitImages?: boolean;
 }
 
 /** Throws the same pop-up message as `exportPdf` when the window is blocked. */
@@ -59,6 +65,18 @@ export function printHtmlDocument(
   printWindow.onafterprint = closeOnce;
   setTimeout(closeOnce, 60_000);
 
-  printWindow.focus();
-  printWindow.print();
+  const show = () => {
+    printWindow.focus();
+    printWindow.print();
+  };
+  if (!doc.awaitImages) {
+    show();
+    return;
+  }
+  const images = Array.from(printWindow.document.images ?? []);
+  // A failed decode still prints: the modal has already blocked a stimulus it
+  // could not fetch, so the alternative here is a dialog that never opens.
+  void Promise.all(
+    images.map((img) => img.decode().catch(() => undefined))
+  ).then(show);
 }

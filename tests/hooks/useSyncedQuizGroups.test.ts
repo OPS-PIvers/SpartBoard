@@ -18,7 +18,7 @@ import {
   createSyncedQuizGroup,
   useSyncedQuizGroupsByIds,
 } from '@/hooks/useSyncedQuizGroups';
-import type { QuizBehaviorSettings } from '@/types';
+import type { PaperSheetStimulus, QuizBehaviorSettings } from '@/types';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -237,6 +237,102 @@ describe('createSyncedQuizGroup — behavior field threading', () => {
     const [_ref, payload] = (firestore.setDoc as unknown as Mock).mock
       .calls[0] as [unknown, Record<string, unknown>];
     expect(payload).not.toHaveProperty('behavior');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// paperSheetStimuli — the same round trip every PLC member's copy relies on
+// ---------------------------------------------------------------------------
+
+const SHEET_STIMULI: PaperSheetStimulus[] = [
+  {
+    id: 'sheet-1',
+    label: 'Unit 3 graph',
+    source: 'image',
+    driveFileId: 'drive-abc',
+    widthPx: 800,
+    heightPx: 600,
+  },
+];
+
+describe('paperSheetStimuli threading', () => {
+  async function runPublish(
+    paperSheetStimuli?: PaperSheetStimulus[]
+  ): Promise<Record<string, unknown>> {
+    const { tx, updates } = makeFakeTx();
+    tx.get.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({ ...BASE_GROUP_DOC }),
+    });
+    (firestore.runTransaction as unknown as Mock).mockImplementation(
+      async (_db: unknown, fn: (tx: FakeTx) => Promise<unknown>) => fn(tx)
+    );
+    await publishSyncedQuiz(GROUP_ID, {
+      title: BASE_GROUP_DOC.title,
+      questions: BASE_GROUP_DOC.questions as never,
+      expectedVersion: BASE_GROUP_DOC.version,
+      uid: UID,
+      ...(paperSheetStimuli ? { paperSheetStimuli } : {}),
+    });
+    return updates[0].patch;
+  }
+
+  it('publishes the sheet stimuli a teacher printed with', async () => {
+    expect(await runPublish(SHEET_STIMULI)).toMatchObject({
+      paperSheetStimuli: SHEET_STIMULI,
+    });
+  });
+
+  it('clears the canonical field when the last sheet stimulus is removed', async () => {
+    // A stale array would resurrect deleted stimuli on every peer pull, the
+    // same way it would for question stimuli.
+    const patch = await runPublish();
+    expect(patch).toHaveProperty('paperSheetStimuli');
+    expect(patch.paperSheetStimuli).not.toEqual(SHEET_STIMULI);
+    expect(firestore.deleteField).toHaveBeenCalled();
+  });
+
+  it('returns them to a peer pulling the canonical', async () => {
+    (firestore.getDoc as unknown as Mock).mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({ ...BASE_GROUP_DOC, paperSheetStimuli: SHEET_STIMULI }),
+    });
+    const result = await pullSyncedQuizContent(GROUP_ID);
+    expect(result.paperSheetStimuli).toEqual(SHEET_STIMULI);
+  });
+
+  it('leaves them undefined on a group that never had any', async () => {
+    (firestore.getDoc as unknown as Mock).mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({ ...BASE_GROUP_DOC }),
+    });
+    expect(
+      (await pullSyncedQuizContent(GROUP_ID)).paperSheetStimuli
+    ).toBeUndefined();
+  });
+
+  it('seeds them on a group created with them, and omits the key otherwise', async () => {
+    await createSyncedQuizGroup({
+      groupId: GROUP_ID,
+      uid: UID,
+      title: 'New Quiz',
+      questions: [],
+      paperSheetStimuli: SHEET_STIMULI,
+    });
+    const [, withThem] = (firestore.setDoc as unknown as Mock).mock
+      .calls[0] as [unknown, Record<string, unknown>];
+    expect(withThem).toMatchObject({ paperSheetStimuli: SHEET_STIMULI });
+
+    await createSyncedQuizGroup({
+      groupId: GROUP_ID,
+      uid: UID,
+      title: 'New Quiz',
+      questions: [],
+      paperSheetStimuli: [],
+    });
+    const [, withNone] = (firestore.setDoc as unknown as Mock).mock
+      .calls[1] as [unknown, Record<string, unknown>];
+    expect(withNone).not.toHaveProperty('paperSheetStimuli');
   });
 });
 

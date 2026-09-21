@@ -1498,7 +1498,7 @@ service cloud.firestore {
              'id', 'version', 'title', 'questions',
              'participants', 'plcId', 'createdAt',
              'updatedAt', 'updatedBy', 'behavior', 'stimuli',
-             'translations'
+             'paperSheetStimuli', 'translations'
            ])
         && request.resource.data.id == groupId
         && request.resource.data.version is int
@@ -1512,6 +1512,8 @@ service cloud.firestore {
         && (!('plcId' in request.resource.data) || request.resource.data.plcId is string)
         && (!('behavior' in request.resource.data) || request.resource.data.behavior is map)
         && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list)
+        // Items printed on a paper answer sheet; same list shape as `stimuli`.
+        && (!('paperSheetStimuli' in request.resource.data) || request.resource.data.paperSheetStimuli is list)
         && (!('translations' in request.resource.data) || request.resource.data.translations is map);
 
       // Content updates: caller must be a participant; participants + id are
@@ -1523,7 +1525,7 @@ service cloud.firestore {
              'id', 'version', 'title', 'questions',
              'participants', 'plcId', 'createdAt',
              'updatedAt', 'updatedBy', 'behavior', 'stimuli',
-             'translations'
+             'paperSheetStimuli', 'translations'
            ])
         && request.resource.data.id == resource.data.id
         && request.resource.data.participants == resource.data.participants
@@ -1534,6 +1536,7 @@ service cloud.firestore {
         && request.resource.data.get('plcId', null) == resource.data.get('plcId', null)
         && (!('behavior' in request.resource.data) || request.resource.data.behavior is map)
         && (!('stimuli' in request.resource.data) || request.resource.data.stimuli is list)
+        && (!('paperSheetStimuli' in request.resource.data) || request.resource.data.paperSheetStimuli is list)
         && (!('translations' in request.resource.data) || request.resource.data.translations is map);
 
       // No client delete. An orphaned (empty-participants) group stays so an old
