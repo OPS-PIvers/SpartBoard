@@ -25,6 +25,55 @@ describe('detectWidgetType (Smart Paste)', () => {
     }
   });
 
+  // Every shape a teacher can realistically copy for one presentation has to
+  // land on a URL that actually frames — a widget with a dead src reads to her
+  // as "nothing showed up".
+  it.each([
+    [
+      'address bar',
+      'https://docs.google.com/presentation/d/preso-id/edit#slide=id.g123_0_0',
+      'https://docs.google.com/presentation/d/preso-id/preview',
+    ],
+    [
+      'share dialog',
+      'https://docs.google.com/presentation/d/preso-id/edit?usp=sharing',
+      'https://docs.google.com/presentation/d/preso-id/preview',
+    ],
+    [
+      'present mode',
+      'https://docs.google.com/presentation/d/preso-id/present?slide=id.p',
+      'https://docs.google.com/presentation/d/preso-id/preview',
+    ],
+    [
+      'published to web',
+      'https://docs.google.com/presentation/d/e/2PACX-1vQtoken/pub?start=false&loop=false&delayms=3000',
+      'https://docs.google.com/presentation/d/e/2PACX-1vQtoken/embed?start=false&loop=false&delayms=3000',
+    ],
+    [
+      'Classroom link wrapper',
+      'https://www.google.com/url?q=https://docs.google.com/presentation/d/preso-id/edit&sa=D',
+      'https://docs.google.com/presentation/d/preso-id/preview',
+    ],
+    [
+      'uppercase scheme',
+      'HTTPS://docs.google.com/presentation/d/preso-id/edit',
+      'https://docs.google.com/presentation/d/preso-id/preview',
+    ],
+    [
+      'trailing newline from a copy',
+      'https://docs.google.com/presentation/d/preso-id/edit\n',
+      'https://docs.google.com/presentation/d/preso-id/preview',
+    ],
+  ])('embeds a Google Slides link pasted from the %s', (_shape, input, url) => {
+    const result = detectWidgetType(input);
+
+    if (result?.action !== 'create-widget') {
+      throw new Error('Expected create-widget action');
+    }
+    expect(result.type).toBe('embed');
+    expect((result.config as EmbedConfig).url).toBe(url);
+  });
+
   it('detects Google Docs and converts to edit with minimal UI', () => {
     const input = 'https://docs.google.com/document/d/1abc123/edit';
     const result = detectWidgetType(input);

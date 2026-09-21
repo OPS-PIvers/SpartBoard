@@ -243,6 +243,31 @@ describe('urlHelpers', () => {
           'https://docs.google.com/presentation/d/preso-id/preview'
         );
       });
+
+      // A published-to-web link has an opaque token at /d/e/{token}/, and the
+      // /d/{id} pattern used to read the literal "e" as the file ID.
+      it('converts a published-to-web /pub link to /embed', () => {
+        const url =
+          'https://docs.google.com/presentation/d/e/2PACX-1vQtoken/pub?start=false&loop=false&delayms=3000';
+        expect(convertToEmbedUrl(url)).toBe(
+          'https://docs.google.com/presentation/d/e/2PACX-1vQtoken/embed?start=false&loop=false&delayms=3000'
+        );
+      });
+
+      it('leaves a published-to-web /embed link alone', () => {
+        const url =
+          'https://docs.google.com/presentation/d/e/2PACX-1vQtoken/embed?start=false&loop=false';
+        expect(convertToEmbedUrl(url)).toBe(url);
+      });
+    });
+
+    describe('published-to-web Docs and Sheets', () => {
+      it.each([
+        'https://docs.google.com/document/d/e/2PACX-1vQtoken/pub',
+        'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtoken/pubhtml?gid=0&single=true',
+      ])('frames %s as published', (url) => {
+        expect(convertToEmbedUrl(url)).toBe(url);
+      });
     });
 
     describe('Google Sheets', () => {
@@ -343,6 +368,21 @@ describe('urlHelpers', () => {
             'https://www.google.com/url?q=https://vids.google.com/vids/abc123'
           )
         ).toBe('https://vids.google.com/vids/abc123/preview');
+      });
+
+      // The docs branch is host-gated, so a wrapped Slides link only converts
+      // once the wrapper is unwrapped — Classroom hands teachers this shape.
+      it('converts a google.com/url-wrapped Slides link', () => {
+        expect(
+          convertToEmbedUrl(
+            'https://www.google.com/url?q=https://docs.google.com/presentation/d/preso-id/edit&sa=D&source=editors'
+          )
+        ).toBe('https://docs.google.com/presentation/d/preso-id/preview');
+      });
+
+      it('does not unwrap a wrapper pointing at a non-Google host', () => {
+        const url = 'https://www.google.com/url?q=https://evil.test/landing';
+        expect(convertToEmbedUrl(url)).toBe(url);
       });
     });
   });
