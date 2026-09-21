@@ -77,7 +77,14 @@ vi.mock('@/i18n/index', () => ({
   default: { t: (key: string) => key },
 }));
 
-const useAuthMock = vi.fn<() => { user: { uid: string } | null }>();
+const useAuthMock = vi.fn<
+  () => {
+    user: { uid: string; email?: string } | null;
+    orgId?: string | null;
+    roleId?: string | null;
+    userRoles?: { superAdmins?: string[] } | null;
+  }
+>();
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => useAuthMock(),
 }));
@@ -95,6 +102,8 @@ const mockSetDoc = setDoc as Mock;
 const mockWriteActivity = writePlcActivityEvent as Mock;
 
 const USER_UID = 'user-1';
+const USER_EMAIL = 'admin@orono.k12.mn.us';
+const ORG_ID = 'org-orono';
 
 /**
  * Drive the mocked `runTransaction` against a single fake root doc. Returns
@@ -149,6 +158,18 @@ afterEach(() => {
 });
 
 describe('usePlcs - subscription wiring', () => {
+  // Admin-mode tests below need a caller isSuperAdminActor() accepts, since
+  // the unfiltered "browse every PLC" query is now only authorized for a
+  // genuine site-wide super admin (see the org-scoped admin describe block
+  // further down for the non-super building_admin variant).
+  beforeEach(() => {
+    useAuthMock.mockReturnValue({
+      user: { uid: USER_UID, email: USER_EMAIL },
+      orgId: ORG_ID,
+      userRoles: { superAdmins: [USER_EMAIL] },
+    });
+  });
+
   it('member mode (default) scopes the listen to memberUids array-contains uid', () => {
     renderHook(() => usePlcs());
 
@@ -288,6 +309,37 @@ describe('usePlcs - subscription wiring', () => {
   it('defaults error to null before any snapshot resolves', () => {
     const { result } = renderHook(() => usePlcs({ asAdmin: true }));
     expect(result.current.error).toBeNull();
+  });
+});
+
+// A non-super admin's rules branch requires isOrgMember(resource.data.orgId),
+// which Firestore can only prove for a query filtered on orgId — the
+// site-wide unfiltered listen above is authorized for a super admin only.
+describe('usePlcs - admin mode for an org-scoped (non-super) admin', () => {
+  it("scopes the admin listen to the caller's own orgId instead of the whole collection", () => {
+    useAuthMock.mockReturnValue({
+      user: { uid: USER_UID, email: USER_EMAIL },
+      orgId: ORG_ID,
+      userRoles: { superAdmins: [] },
+    });
+
+    renderHook(() => usePlcs({ asAdmin: true }));
+
+    expect(mockWhere).toHaveBeenCalledWith('orgId', '==', ORG_ID);
+    expect(mockLimit).toHaveBeenCalledWith(500);
+    expect(mockOnSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips the listener entirely for an org-less non-super admin (no query the rules could ever authorize)', () => {
+    useAuthMock.mockReturnValue({
+      user: { uid: USER_UID, email: USER_EMAIL },
+      orgId: null,
+      userRoles: { superAdmins: [] },
+    });
+
+    renderHook(() => usePlcs({ asAdmin: true }));
+
+    expect(mockOnSnapshot).not.toHaveBeenCalled();
   });
 });
 

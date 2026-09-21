@@ -24,6 +24,7 @@ import {
 } from '@/types';
 import { tsToMillis } from '@/utils/plc';
 import { writePlcActivityEvent } from '@/utils/plcActivity';
+import { isSuperAdminActor } from '@/utils/superAdmin';
 import i18n from '@/i18n/index';
 
 const PLCS_COLLECTION = 'plcs';
@@ -422,12 +423,16 @@ interface UsePlcsOptions {
    */
   enabled?: boolean;
   /**
-   * Admin read mode. When true, subscribe to the WHOLE `/plcs` collection
-   * (unfiltered) instead of the membership `array-contains` query, so an
-   * admin who isn't a member of every PLC can still enumerate them (e.g. the
-   * admin "push resource to specific PLCs" picker). Firestore rules already
-   * permit admins to read `/plcs` (firestore.rules `... || isAdmin()`), so
-   * the unfiltered listen is authorized.
+   * Admin read mode. When true, subscribe to every PLC the caller's rules
+   * permit instead of the membership `array-contains` query, so an admin who
+   * isn't a member of every PLC can still enumerate them (e.g. the admin
+   * "push resource to specific PLCs" picker). A site-wide super admin
+   * (`isSuperAdminActor`) gets the whole `/plcs` collection, unfiltered — the
+   * rules' `isSuperAdmin()` branch is resource-independent, so Firestore can
+   * prove an unconstrained query is authorized. Any other admin (e.g. an
+   * org-scoped `building_admin`) instead gets a `where('orgId', '==', orgId)`
+   * query, since the rules' admin branch for them requires same-org
+   * membership and Firestore can only prove that for a filtered query.
    *
    * In this mode the mutation methods are no-ops — the picker only needs the
    * list, and admins manage PLC membership through other surfaces. Defaults
@@ -458,7 +463,15 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     orgId = null,
     selectedBuildings = [],
     buildingIds = [],
+    roleId = null,
+    userRoles = null,
   } = useAuth();
+  const isSuperAdmin = isSuperAdminActor(
+    user?.email,
+    userRoles?.superAdmins,
+    roleId,
+    orgId
+  );
   // Extract the resolved building as primitives so the `createPlc` callback's
   // dependency array stays referentially stable (the source arrays may be new
   // references each render). Optional chaining guards against a `null` (not just
@@ -481,9 +494,17 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   plcsRef.current = plcs;
 
   useEffect(() => {
-    if (!enabled || !user || isAuthBypass) {
+    if (
+      !enabled ||
+      !user ||
+      isAuthBypass ||
+      (asAdmin && !isSuperAdmin && !orgId)
+    ) {
       // Defer so we don't trip react-hooks/set-state-in-effect. Same pattern as
-      // useRosters.ts for the signed-out branch.
+      // useRosters.ts for the signed-out branch. The org-less-admin case can't
+      // build a query the rules will ever authorize (see below), so it's
+      // treated the same as disabled rather than firing a guaranteed
+      // permission-denied listener.
       const timer = setTimeout(() => {
         setPlcs([]);
         setLoading(false);
@@ -492,15 +513,28 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       return () => clearTimeout(timer);
     }
 
-    // Admin mode reads the whole collection (unfiltered apart from a bounded
-    // `limit`); member mode scopes to PLCs the current user belongs to. We do
-    // NOT `orderBy('name')` on the server — that would add an index dependency
-    // (and the latency/index-build surprises that come with it). Instead the
-    // snapshot handler sorts by name client-side, so the admin list ordering
-    // the user sees is unchanged while the query relies only on the automatic
-    // `__name__` index.
+    // Admin mode reads every PLC the caller's rules permit (apart from a
+    // bounded `limit`); member mode scopes to PLCs the current user belongs
+    // to. A super admin gets the whole collection unfiltered — the rules'
+    // isSuperAdmin() branch is resource-independent, so Firestore can prove
+    // an unconstrained query is authorized. Any other admin gets a
+    // same-org-filtered query instead: their rules branch requires
+    // isOrgMember(resource.data.orgId), which Firestore can only prove holds
+    // for every possible result with a matching where() clause — an
+    // unfiltered query would be rejected outright for them, not narrowed.
+    // We do NOT `orderBy('name')` on the server — that would add an index
+    // dependency (and the latency/index-build surprises that come with it).
+    // Instead the snapshot handler sorts by name client-side, so the admin
+    // list ordering the user sees is unchanged while the query relies only
+    // on the automatic `__name__` index (or the single-field `orgId` index).
     const q = asAdmin
-      ? query(collection(db, PLCS_COLLECTION), limit(ADMIN_PLCS_LIMIT))
+      ? isSuperAdmin
+        ? query(collection(db, PLCS_COLLECTION), limit(ADMIN_PLCS_LIMIT))
+        : query(
+            collection(db, PLCS_COLLECTION),
+            where('orgId', '==', orgId),
+            limit(ADMIN_PLCS_LIMIT)
+          )
       : query(
           collection(db, PLCS_COLLECTION),
           where('memberUids', 'array-contains', user.uid)
@@ -526,7 +560,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       }
     );
     return () => unsubscribe();
-  }, [user, enabled, asAdmin]);
+  }, [user, enabled, asAdmin, isSuperAdmin, orgId]);
 
   const createPlc = useCallback(
     async (name: string): Promise<string> => {
