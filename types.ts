@@ -4253,10 +4253,9 @@ export interface QuizSession {
    * `/my-assignments` Completed review screen to decide which fields
    * (score / per-answer correctness / correct-answer text) to surface.
    *
-   * `revealedAnswers` (above) is the source of truth for correct-answer
-   * text when `scoreVisibility === 'score-responses-and-answers'` —
-   * `publishAssignmentScores` populates it with every question's
-   * canonical answer in one batch.
+   * Correct-answer text for a publish lives on each response's
+   * `revealedAnswers`; `revealedAnswers` above is only read as a fallback
+   * for publishes made before that move.
    */
   scoreVisibility?: QuizScoreVisibility;
   /**
@@ -4722,7 +4721,35 @@ export interface QuizResponse {
    * auto-submit.
    */
   handRaisedAt?: import('firebase/firestore').Timestamp | null;
+  /**
+   * Correct-answer text written by a class-wide publish at the
+   * `score-responses-and-answers` level. Teacher-written only; the student app
+   * prefers it over the legacy `QuizSession.revealedAnswers`.
+   */
+  revealedAnswers?: Record<string, string>;
+  /**
+   * Per-student results publication, independent of the class setting.
+   * Absent = follows the class. Teacher-written only.
+   */
+  resultsOverride?: QuizResultsOverride;
 }
+
+/** A single student's results publication, overriding the class setting. */
+export type QuizResultsOverride =
+  | {
+      mode: 'shown';
+      visibility: Exclude<QuizScoreVisibility, 'none'>;
+      publishedAt: number;
+      /** Epoch ms after which the student follows the class again; null = never. */
+      expiresAt?: number | null;
+      /** Answer key, present only at the `score-responses-and-answers` level. */
+      revealedAnswers?: Record<string, string>;
+    }
+  | {
+      mode: 'hidden';
+      publishedAt: number;
+      expiresAt?: number | null;
+    };
 
 /**
  * Which roster row a printed seat belongs to. Carries the roster id as well as

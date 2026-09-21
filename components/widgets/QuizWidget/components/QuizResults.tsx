@@ -77,6 +77,17 @@ import { scoreColorClasses } from '@/utils/scoreColor';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { FreeResponseGrader } from './FreeResponseGrader';
 import {
+  StudentResultsSelectionContext,
+  useStudentResultsSelection,
+  useStudentResultsSelectionState,
+  type StudentResultsActions,
+} from './results/studentResultsSelection';
+import {
+  ResultsOverrideBadge,
+  StudentResultsControl,
+} from './results/StudentResultsControl';
+import { StudentResultsBulkBar } from './results/StudentResultsBulkBar';
+import {
   computeQuestionStats,
   makeQuestionGradeFn,
   type QuestionStat,
@@ -256,9 +267,22 @@ interface QuizResultsProps {
   servedLanguageByStudentUid?: Record<string, string> | null;
   /** PLC page mount: question results show counts only, never student names (D24). */
   plcView?: boolean;
+  /** Per-student publishing handlers; the controls render only when provided. */
+  studentResultsActions?: StudentResultsActions;
 }
 
-export const QuizResults: React.FC<QuizResultsProps> = ({
+export const QuizResults: React.FC<QuizResultsProps> = (props) => {
+  const selection = useStudentResultsSelectionState();
+  return (
+    <StudentResultsSelectionContext.Provider
+      value={props.studentResultsActions ? selection : null}
+    >
+      <QuizResultsContent {...props} />
+    </StudentResultsSelectionContext.Provider>
+  );
+};
+
+const QuizResultsContent: React.FC<QuizResultsProps> = ({
   quiz,
   responses: rawResponses,
   config,
@@ -278,6 +302,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   overridesByStudentUid = null,
   servedLanguageByStudentUid = null,
   plcView = false,
+  studentResultsActions,
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
@@ -1718,6 +1743,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               }
               addToast={addToast}
               fibGrading={fibGrading}
+              studentResultsActions={studentResultsActions}
             />
           )}
         </div>
@@ -2687,6 +2713,7 @@ const StudentsScreen: React.FC<{
   resultsTabWarningThreshold: number;
   addToast: (message: string, type?: import('@/types').Toast['type']) => void;
   fibGrading?: FibGradingContext | null;
+  studentResultsActions?: StudentResultsActions;
 }> = ({
   responses,
   questions,
@@ -2699,7 +2726,19 @@ const StudentsScreen: React.FC<{
   resultsTabWarningThreshold,
   addToast,
   fibGrading = null,
+  studentResultsActions,
 }) => {
+  const selection = useStudentResultsSelection();
+  const resultsActions = selection ? studentResultsActions : undefined;
+  const classVisibility = session?.scoreVisibility ?? 'none';
+  const allKeys = responses.map((r) => getResponseDocKey(r) as string);
+  const allSelected =
+    allKeys.length > 0 &&
+    allKeys.every((k) => selection?.selectedResponseKeys.has(k));
+  const checkboxStyle = {
+    width: 'min(14px, 4.5cqmin)',
+    height: 'min(14px, 4.5cqmin)',
+  };
   const [confirmDeleteKey, setConfirmDeleteKey] =
     useState<ResponseDocKey | null>(null);
   const [deletingKey, setDeletingKey] = useState<ResponseDocKey | null>(null);
@@ -2747,6 +2786,41 @@ const StudentsScreen: React.FC<{
         >
           No students in this period yet.
         </p>
+      )}
+      {selection && resultsActions && responses.length > 0 && (
+        <>
+          <StudentResultsBulkBar
+            responses={responses}
+            selection={selection}
+            actions={resultsActions}
+            classVisibility={classVisibility}
+            resolveName={(r) =>
+              resolveResponseDisplayName(r, pinToName, byStudentUid)
+            }
+            addToast={addToast}
+          />
+          <label
+            className="flex items-center font-sans text-brand-gray-primary cursor-pointer self-start"
+            style={{
+              gap: 'min(6px, 1.5cqmin)',
+              fontSize: 'min(11px, 3.5cqmin)',
+              paddingInline: 'min(10px, 2.5cqmin)',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={() =>
+                allSelected
+                  ? selection.clearSelection()
+                  : selection.addToSelection(allKeys)
+              }
+              className="accent-brand-blue-primary"
+              style={checkboxStyle}
+            />
+            Select all
+          </label>
+        </>
       )}
       {responses
         .slice()
@@ -2879,12 +2953,25 @@ const StudentsScreen: React.FC<{
                 className="flex items-center min-w-0"
                 style={{ gap: 'min(6px, 1.5cqmin)' }}
               >
+                {selection && resultsActions && (
+                  <input
+                    type="checkbox"
+                    aria-label={`Select ${displayName}`}
+                    checked={selection.selectedResponseKeys.has(rowKey)}
+                    onChange={() => selection.toggle(rowKey)}
+                    className="shrink-0 accent-brand-blue-primary"
+                    style={checkboxStyle}
+                  />
+                )}
                 <p
                   className={`font-sans font-medium text-brand-gray-dark truncate ${isResolved ? '' : 'font-mono'}`}
                   style={{ fontSize: 'min(13px, 4.5cqmin)' }}
                 >
                   {displayName}
                 </p>
+                {resultsActions && (
+                  <ResultsOverrideBadge override={r.resultsOverride} />
+                )}
                 {tabWarningsEnabled && warnings > 0 && (
                   <span
                     title={`${warnings} Tab Switch Warning(s)`}
@@ -3021,6 +3108,16 @@ const StudentsScreen: React.FC<{
                     )}
                     Unlock results
                   </button>
+                )}
+
+                {resultsActions && (
+                  <StudentResultsControl
+                    response={r}
+                    displayName={displayName}
+                    classVisibility={classVisibility}
+                    actions={resultsActions}
+                    addToast={addToast}
+                  />
                 )}
 
                 {canDelete && (

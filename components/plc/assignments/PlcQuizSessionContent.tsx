@@ -75,6 +75,9 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
     updateAssignmentSettings,
     setAssignmentExportUrl,
     setAssignmentExportedResponseIds,
+    publishResultsForStudents,
+    hideResultsForStudents,
+    clearResultsOverride,
   } = useQuizAssignments(user?.uid);
   const {
     session,
@@ -316,6 +319,25 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
       onExportedResponseIdsSaved={(ids) =>
         setAssignmentExportedResponseIds(assignment.id, ids)
       }
+      studentResultsActions={{
+        publish: async (keys, visibility, expiresAt) => {
+          // Bank-draw assignments grade against their frozen Drive copy.
+          const answerKey =
+            assignment.resolvedDriveFileId &&
+            assignment.resolvedDriveFileId !== assignment.quizDriveFileId
+              ? await loadQuizData(assignment.resolvedDriveFileId)
+              : quizData;
+          return publishResultsForStudents(
+            assignment.id,
+            answerKey,
+            keys,
+            visibility,
+            expiresAt
+          );
+        },
+        hide: (keys) => hideResultsForStudents(assignment.id, keys),
+        clear: (keys) => clearResultsOverride(assignment.id, keys),
+      }}
       onPlcSheetUrlReplaced={async (newUrl) => {
         if (assignment.plc) {
           try {

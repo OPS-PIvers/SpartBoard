@@ -156,6 +156,7 @@ import {
 import { isValidDraw, orderServedQuestions } from '@/utils/questionBanks';
 import { chooseServedDraw } from '@/utils/quizBankDraw';
 import { groupQuestionsByTargets } from '@/utils/quizTargetStats';
+import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
 import {
   countAnsweredQuestions,
   listOpenQuestions,
@@ -1209,13 +1210,15 @@ const QuizJoinFlow: React.FC<{
     // never see the score the teacher already published. Until results are
     // published (scoreVisibility 'none'), fall back to the submitted-wait
     // screen as before. Mirrors the post-end ResultsScreen branch.
-    const publishedVisibility = session.scoreVisibility ?? 'none';
-    if (publishedVisibility !== 'none' && myResponse.status === 'completed') {
+    const published = resolveResultsVisibility(session, myResponse);
+    if (published.visibility !== 'none' && myResponse.status === 'completed') {
       return (
         <PublishedScoreReview
           session={session}
           myResponse={myResponse}
-          visibility={publishedVisibility}
+          visibility={published.visibility}
+          revealedAnswers={published.revealedAnswers}
+          publishedAt={published.publishedAt}
           pin={pin}
           embedded={embedded}
           watermarkNameOverride={watermarkNameOverride}
@@ -4243,15 +4246,17 @@ const ResultsScreen: React.FC<{
   override,
   drawIds,
 }) => {
-  const visibility = session.scoreVisibility ?? 'none';
-  const showReview = visibility !== 'none' && !!myResponse;
+  const published = resolveResultsVisibility(session, myResponse);
+  const showReview = published.visibility !== 'none' && !!myResponse;
 
   if (showReview) {
     return (
       <PublishedScoreReview
         session={session}
         myResponse={myResponse}
-        visibility={visibility}
+        visibility={published.visibility}
+        revealedAnswers={published.revealedAnswers}
+        publishedAt={published.publishedAt}
         pin={pin}
         embedded={embedded}
         watermarkNameOverride={watermarkNameOverride}
@@ -4315,8 +4320,8 @@ const ResultsScreen: React.FC<{
 //     student's answers tagged correct (green) or incorrect (red), but
 //     never the canonical correct answer.
 //   - score-responses-and-answers: above + the canonical correct answer
-//     under each row, sourced from `session.revealedAnswers` (populated
-//     atomically by `publishAssignmentScores`).
+//     under each row, from the student's own response (older publishes:
+//     `session.revealedAnswers`), resolved by `resolveResultsVisibility`.
 //
 // All data the screen needs already lives on `myResponse` (score + each
 // answer's `isCorrect`) and `session` (publicQuestions, revealedAnswers).
@@ -4331,6 +4336,10 @@ export const PublishedScoreReview: React.FC<{
     ReturnType<typeof useQuizSessionStudent>['myResponse']
   >;
   visibility: NonNullable<QuizSession['scoreVisibility']>;
+  /** Answer key for this student; falls back to the legacy session copy. */
+  revealedAnswers?: Record<string, string>;
+  /** Publish time for the watermark; falls back to the session's. */
+  publishedAt?: number;
   pin: string;
   /**
    * Inside the Classroom add-on iframe: on tab-warning lockout, render an
@@ -4351,6 +4360,8 @@ export const PublishedScoreReview: React.FC<{
   session,
   myResponse,
   visibility,
+  revealedAnswers,
+  publishedAt: publishedAtProp,
   pin,
   embedded = false,
   watermarkNameOverride,
@@ -4486,7 +4497,8 @@ export const PublishedScoreReview: React.FC<{
   // `Date.now()` in render (which would violate react-hooks/purity). The
   // listener will swap in the real publish time on its next snapshot.
   const [fallbackPublishedAt] = useState(() => Date.now());
-  const publishedAt = session.scorePublishedAt ?? fallbackPublishedAt;
+  const publishedAt =
+    publishedAtProp ?? session.scorePublishedAt ?? fallbackPublishedAt;
   // Prefer an explicit override (the Classroom SSO session is nameless, so the
   // add-on passes the roster-resolved / userinfo name down). Otherwise treat a
   // blank/whitespace-only displayName as missing and fall through to the PIN
@@ -4754,7 +4766,8 @@ export const PublishedScoreReview: React.FC<{
                     const isIncorrect = isWritten
                       ? false
                       : ans?.isCorrect === false;
-                    const correctAnswer = session.revealedAnswers?.[q.id];
+                    const correctAnswer = (revealedAnswers ??
+                      session.revealedAnswers)?.[q.id];
                     // A recorded answer IS the response; "no response" would lie.
                     const hasRecordedTake =
                       mediaEnabled &&

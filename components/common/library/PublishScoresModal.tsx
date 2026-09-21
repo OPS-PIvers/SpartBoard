@@ -15,23 +15,16 @@
  *     for every question.
  *
  * The modal is purely a level-picker — the actual publish work
- * (computing scores, writing per-response `isCorrect`, populating
- * `session.revealedAnswers`, mirroring the visibility flag) is done by
+ * (computing scores, writing per-response `isCorrect` and answer keys,
+ * mirroring the visibility flag) is done by
  * the caller's `publishAssignmentScores` hook.
  */
 
 import React, { useState } from 'react';
-import {
-  CheckCircle2,
-  EyeOff,
-  Gauge,
-  ListChecks,
-  Loader2,
-  Trophy,
-  X,
-} from 'lucide-react';
+import { EyeOff, Gauge, Loader2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
+import { PUBLISH_LEVEL_OPTIONS } from './publishScoreLevels';
 import {
   RESULTS_PROTECTION_DEFAULTS,
   RESULTS_TAB_WARNING_THRESHOLD_MAX,
@@ -75,34 +68,6 @@ interface PublishScoresModalProps {
    */
   initialProtection?: ResultsProtection;
 }
-
-interface VisibilityOption {
-  id: PublishScoresVisibility;
-  title: string;
-  body: string;
-  Icon: React.ComponentType<{ className?: string }>;
-}
-
-const OPTIONS: VisibilityOption[] = [
-  {
-    id: 'score-only',
-    title: 'Score only',
-    body: 'Students see just their final score.',
-    Icon: Trophy,
-  },
-  {
-    id: 'score-and-responses',
-    title: 'Score & Responses',
-    body: 'Students see their score and which of their answers were correct or incorrect.',
-    Icon: ListChecks,
-  },
-  {
-    id: 'score-responses-and-answers',
-    title: 'Score, Responses, & Answers',
-    body: 'Students see their score, their answers marked correct or incorrect, and the correct answer for each question.',
-    Icon: CheckCircle2,
-  },
-];
 
 export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
   assignmentTitle,
@@ -243,12 +208,12 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
                   : e.key;
             handleRadioGroupKeyDown(
               { ...e, key, preventDefault: () => e.preventDefault() },
-              OPTIONS,
+              PUBLISH_LEVEL_OPTIONS,
               (opt) => setSelected(opt.id)
             );
           }}
         >
-          {OPTIONS.map((opt) => {
+          {PUBLISH_LEVEL_OPTIONS.map((opt) => {
             const isActive = selected === opt.id;
             const Icon = opt.Icon;
             return (
