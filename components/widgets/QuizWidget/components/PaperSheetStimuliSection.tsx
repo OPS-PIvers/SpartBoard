@@ -13,11 +13,16 @@ import {
   ArrowUp,
   ChevronDown,
   ChevronRight,
+  Grid3x3,
   ImagePlus,
   Trash2,
   Upload,
 } from 'lucide-react';
-import type { PaperSheetStimulus, QuizStimulus } from '@/types';
+import type {
+  PaperSheetStimulus,
+  PaperSheetTemplate,
+  QuizStimulus,
+} from '@/types';
 import {
   PAGE_HEIGHT_MM,
   PAGE_WIDTH_MM,
@@ -30,6 +35,56 @@ import {
   stimuliOffTheEnd,
   stimuliOnPage,
 } from '@/utils/paperSheetStimulusLayout';
+import {
+  renderTemplateSvg,
+  templateLabel,
+} from '@/utils/paperSheetTemplateSvg';
+
+/** The five templates D9 specifies, with a starting point for each. */
+const TEMPLATE_CHOICES: readonly PaperSheetTemplate[] = [
+  {
+    kind: 'coordinate-grid',
+    quadrants: 4,
+    min: -10,
+    max: 10,
+    step: 1,
+    showNumbers: true,
+  },
+  {
+    kind: 'coordinate-grid',
+    quadrants: 1,
+    min: 0,
+    max: 10,
+    step: 1,
+    showNumbers: true,
+  },
+  { kind: 'number-line', min: 0, max: 10, step: 1 },
+  { kind: 'graph-paper', heightMm: 80 },
+  { kind: 'lined', heightMm: 64 },
+  { kind: 'blank-box', heightMm: 60 },
+];
+
+const numberField = (
+  label: string,
+  value: number,
+  onChange: (next: number) => void,
+  extra: { min?: number; step?: number } = {}
+): React.ReactNode => (
+  <label key={label} className="flex items-center gap-1 text-xs text-slate-600">
+    {label}
+    <input
+      type="number"
+      value={value}
+      aria-label={label}
+      onChange={(e) => {
+        const next = Number(e.target.value);
+        if (Number.isFinite(next)) onChange(next);
+      }}
+      className="w-14 rounded border border-slate-200 px-1.5 py-0.5 text-xs"
+      {...extra}
+    />
+  </label>
+);
 
 export interface PaperSheetStimuliSectionProps {
   stimuli: PaperSheetStimulus[];
@@ -50,6 +105,88 @@ export interface PaperSheetStimuliSectionProps {
   onPickFromDrive: () => Promise<PaperSheetStimulus | null>;
   busy: boolean;
   disabled?: boolean;
+}
+
+/** The parameters D9 gives each template, edited in place on its row. */
+function templateFields(
+  template: PaperSheetTemplate,
+  onChange: (next: PaperSheetTemplate) => void
+): React.ReactNode {
+  switch (template.kind) {
+    case 'coordinate-grid':
+      return (
+        <>
+          <label className="flex items-center gap-1 text-xs text-slate-600">
+            Quadrants
+            <select
+              value={template.quadrants}
+              aria-label="Quadrants"
+              onChange={(e) => {
+                const quadrants = Number(e.target.value) === 1 ? 1 : 4;
+                onChange({
+                  ...template,
+                  quadrants,
+                  // One quadrant starts at the origin, whatever was typed.
+                  min: quadrants === 1 ? 0 : Math.min(template.min, 0),
+                });
+              }}
+              className="rounded border border-slate-200 px-1.5 py-0.5 text-xs"
+            >
+              <option value={1}>1</option>
+              <option value={4}>4</option>
+            </select>
+          </label>
+          {template.quadrants === 4 &&
+            numberField('Lowest', template.min, (min) =>
+              onChange({ ...template, min })
+            )}
+          {numberField('Highest', template.max, (max) =>
+            onChange({ ...template, max })
+          )}
+          {numberField(
+            'Step',
+            template.step,
+            (step) => onChange({ ...template, step }),
+            { min: 0 }
+          )}
+          <label className="flex items-center gap-1 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              checked={template.showNumbers}
+              onChange={(e) =>
+                onChange({ ...template, showNumbers: e.target.checked })
+              }
+              className="h-3.5 w-3.5 rounded border-slate-300"
+            />
+            Number the axes
+          </label>
+        </>
+      );
+    case 'number-line':
+      return (
+        <>
+          {numberField('Lowest', template.min, (min) =>
+            onChange({ ...template, min })
+          )}
+          {numberField('Highest', template.max, (max) =>
+            onChange({ ...template, max })
+          )}
+          {numberField(
+            'Step',
+            template.step,
+            (step) => onChange({ ...template, step }),
+            { min: 0 }
+          )}
+        </>
+      );
+    default:
+      return numberField(
+        'Height (mm)',
+        template.heightMm,
+        (heightMm) => onChange({ ...template, heightMm }),
+        { min: 10, step: 5 }
+      );
+  }
 }
 
 const pct = (value: number, total: number): string =>
@@ -110,6 +247,19 @@ const SheetPreview: React.FC<{
                 draggable={false}
               />
             )}
+            {item.stimulus.source === 'template' && item.stimulus.template && (
+              <div
+                className="h-full w-full"
+                // Generated from the template's own numbers; no user text.
+                dangerouslySetInnerHTML={{
+                  __html: renderTemplateSvg(
+                    item.stimulus.template,
+                    item.rect.w,
+                    item.rect.h
+                  ),
+                }}
+              />
+            )}
           </div>
         );
       })}
@@ -134,6 +284,7 @@ export const PaperSheetStimuliSection: React.FC<
 }) => {
   const [open, setOpen] = useState(stimuli.length > 0);
   const [showQuizPicker, setShowQuizPicker] = useState(false);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const add = (stimulus: PaperSheetStimulus | null) => {
@@ -258,12 +409,46 @@ export const PaperSheetStimuliSection: React.FC<
                 From this quiz
               </button>
             )}
+            <button
+              type="button"
+              disabled={busy || disabled}
+              onClick={() => setShowTemplatePicker((v) => !v)}
+              aria-expanded={showTemplatePicker}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+            >
+              <Grid3x3 className="h-3.5 w-3.5" />
+              Grid or lines
+            </button>
             <span className="text-xs text-slate-500">
               or paste an image with{' '}
               {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}
               +V
             </span>
           </div>
+
+          {showTemplatePicker && (
+            <ul className="space-y-1 rounded-lg border border-slate-200 p-2">
+              {TEMPLATE_CHOICES.map((template) => (
+                <li key={templateLabel(template)}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      add({
+                        id: crypto.randomUUID(),
+                        label: templateLabel(template),
+                        source: 'template',
+                        template,
+                      });
+                      setShowTemplatePicker(false);
+                    }}
+                    className="w-full truncate rounded px-2 py-1 text-left text-xs text-slate-700 hover:bg-slate-50"
+                  >
+                    {templateLabel(template)}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
           {showQuizPicker && (
             <ul className="space-y-1 rounded-lg border border-slate-200 p-2">
@@ -338,6 +523,16 @@ export const PaperSheetStimuliSection: React.FC<
                       <p className="mt-1 text-xs font-semibold text-rose-700">
                         Could not load this image — it will not print.
                       </p>
+                    )}
+                    {stimulus.template && (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        {templateFields(stimulus.template, (template) =>
+                          update(stimulus.id, {
+                            template,
+                            label: templateLabel(template),
+                          })
+                        )}
+                      </div>
                     )}
                     <div className="mt-1.5 flex items-center gap-2">
                       <input

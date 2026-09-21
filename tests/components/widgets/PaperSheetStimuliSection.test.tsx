@@ -182,6 +182,120 @@ describe('PaperSheetStimuliSection', () => {
     expect(screen.getByText(/Could not load this image/)).toBeInTheDocument();
   });
 
+  describe('grids and lines', () => {
+    const openTemplates = () => {
+      expand();
+      fireEvent.click(screen.getByRole('button', { name: 'Grid or lines' }));
+    };
+
+    it('offers every kind the plan names, the grid both ways', () => {
+      setup();
+      openTemplates();
+      for (const name of [
+        'Coordinate grid',
+        'Coordinate grid (first quadrant)',
+        'Number line 0 to 10',
+        'Graph paper',
+        'Lined writing area',
+        'Blank box',
+      ]) {
+        expect(screen.getByRole('button', { name })).toBeInTheDocument();
+      }
+    });
+
+    it('adds a template as a spec, with no file behind it', () => {
+      const { onChange } = setup();
+      openTemplates();
+      fireEvent.click(screen.getByRole('button', { name: 'Graph paper' }));
+      const [added] = onChange.mock.calls[0][0];
+      expect(added).toMatchObject({
+        source: 'template',
+        label: 'Graph paper',
+        template: { kind: 'graph-paper', heightMm: 80 },
+      });
+      expect(added.driveFileId).toBeUndefined();
+      expect(added.url).toBeUndefined();
+    });
+
+    it('edits a grid in place and renames the row to match', () => {
+      const grid: PaperSheetStimulus = {
+        id: 'g',
+        label: 'Number line 0 to 10',
+        source: 'template',
+        template: { kind: 'number-line', min: 0, max: 10, step: 1 },
+      };
+      const { onChange } = setup({ stimuli: [grid] });
+      fireEvent.change(screen.getByLabelText('Highest'), {
+        target: { value: '20' },
+      });
+      expect(onChange.mock.calls[0][0][0]).toMatchObject({
+        label: 'Number line 0 to 20',
+        template: { kind: 'number-line', min: 0, max: 20, step: 1 },
+      });
+    });
+
+    it('pins a one-quadrant grid to the origin whatever the lowest was', () => {
+      const grid: PaperSheetStimulus = {
+        id: 'g',
+        label: 'Coordinate grid',
+        source: 'template',
+        template: {
+          kind: 'coordinate-grid',
+          quadrants: 4,
+          min: -10,
+          max: 10,
+          step: 1,
+          showNumbers: true,
+        },
+      };
+      const { onChange } = setup({ stimuli: [grid] });
+      fireEvent.change(screen.getByLabelText('Quadrants'), {
+        target: { value: '1' },
+      });
+      expect(onChange.mock.calls[0][0][0].template).toMatchObject({
+        quadrants: 1,
+        min: 0,
+      });
+    });
+
+    it('hides the lowest value where one quadrant makes it meaningless', () => {
+      setup({
+        stimuli: [
+          {
+            id: 'g',
+            label: 'Coordinate grid (first quadrant)',
+            source: 'template',
+            template: {
+              kind: 'coordinate-grid',
+              quadrants: 1,
+              min: 0,
+              max: 10,
+              step: 1,
+              showNumbers: true,
+            },
+          },
+        ],
+      });
+      expect(screen.queryByLabelText('Lowest')).toBeNull();
+      expect(screen.getByLabelText('Highest')).toBeInTheDocument();
+    });
+
+    it('gives a plain box just its height', () => {
+      setup({
+        stimuli: [
+          {
+            id: 'b',
+            label: 'Blank box',
+            source: 'template',
+            template: { kind: 'blank-box', heightMm: 60 },
+          },
+        ],
+      });
+      expect(screen.getByLabelText('Height (mm)')).toHaveValue(60);
+      expect(screen.queryByLabelText('Step')).toBeNull();
+    });
+  });
+
   it('keeps saying which images the PLC still cannot open', () => {
     const unshared = stim({ label: 'Amelia map' });
     setup({ stimuli: [stim(), unshared], unshared: [unshared] });
