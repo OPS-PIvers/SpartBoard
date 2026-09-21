@@ -267,6 +267,7 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
           }
           renderCard={(entry) => (
             <LibraryItemCard
+              key={entry.id}
               id={entry.id}
               title={entry.title || 'Untitled wall'}
               subtitle={`${layoutLabel(entry)} · ${

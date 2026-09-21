@@ -477,6 +477,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
 
     return (
       <LibraryItemCard<ProjectDefinition>
+        key={project.id}
         id={project.id}
         title={project.title}
         subtitle={
