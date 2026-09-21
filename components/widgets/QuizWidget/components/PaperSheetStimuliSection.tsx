@@ -364,15 +364,16 @@ export const PaperSheetStimuliSection: React.FC<
         <div className="space-y-3 border-t border-slate-100 px-3 pb-3 pt-3">
           <p className="text-xs text-slate-600">
             Images print beside the bubbles, so students have the reference on
-            the same page. A sheet with anything here carries 25 questions a
-            page instead of 50. Nothing students draw on one is read back.
+            the same page. A page of a PDF works too. A sheet with anything here
+            carries 25 questions a page instead of 50. Nothing students draw on
+            one is read back.
           </p>
 
           <div className="flex flex-wrap items-center gap-2">
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/png,image/jpeg,image/gif,image/webp"
+              accept="image/png,image/jpeg,image/gif,image/webp,application/pdf"
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
@@ -387,7 +388,7 @@ export const PaperSheetStimuliSection: React.FC<
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
             >
               <Upload className="h-3.5 w-3.5" />
-              Upload
+              Upload or PDF
             </button>
             <button
               type="button"

@@ -35,6 +35,14 @@ import {
   MIN_CHOICE_COUNT,
   pageCountForQuestions,
 } from '@/utils/paperSheetLayout';
+import {
+  MAX_PDF_PAGES_LISTED,
+  isPdf,
+  openPdfPages,
+  pdfPageFileName,
+  pdfPageLabel,
+  type PdfPages,
+} from '@/utils/paperSheetPdfPage';
 import { stimulusLoadErrorMessage } from '@/utils/paperSheetStimulusImages';
 import { shareSheetImagesPrompt } from '@/utils/paperSheetStimulusSharing';
 import { PaperSheetStimuliSection } from './PaperSheetStimuliSection';
@@ -163,6 +171,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const [sharingAnswered, setSharingAnswered] = useState(false);
   const [sharingBusy, setSharingBusy] = useState(false);
   const [askingToShare, setAskingToShare] = useState(false);
+  /** A PDF waiting on the teacher to say which page goes on the sheet (D7). */
+  const [pdfPick, setPdfPick] = useState<{
+    file: File;
+    pages: PdfPages;
+  } | null>(null);
   const sheetStimuliChanged =
     JSON.stringify(sheetStimuli) !==
     JSON.stringify(quiz.paperSheetStimuli ?? []);
@@ -171,10 +184,41 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     [quiz.stimuli]
   );
 
+  /** Put the bytes in Drive and make the stimulus that points at them. */
+  const uploadToDrive = useCallback(
+    async (
+      blob: Blob,
+      fileName: string,
+      label: string,
+      size: { widthPx: number; heightPx: number } | null
+    ): Promise<PaperSheetStimulus | null> => {
+      if (!driveService) {
+        onError('Connect Google Drive to add an image to the answer sheet.');
+        return null;
+      }
+      // Uploaded unshared: it stays the teacher's until the quiz is
+      // published to a PLC, which is where the sharing prompt belongs (D6).
+      const driveFile = await driveService.uploadFile(
+        blob,
+        `sheet-${Date.now()}-${fileName.replace(/[^\w.-]+/g, '_')}`,
+        SHEET_IMAGE_FOLDER
+      );
+      return {
+        id: crypto.randomUUID(),
+        label,
+        source: 'image',
+        driveFileId: driveFile.id,
+        ...(size ?? {}),
+      };
+    },
+    [driveService, onError]
+  );
+
   const uploadSheetImage = useCallback(
     async (file: File): Promise<PaperSheetStimulus | null> => {
-      if (!file.type.startsWith('image/')) {
-        onError(`"${file.name}" is not an image.`);
+      const pdf = isPdf(file);
+      if (!pdf && !file.type.startsWith('image/')) {
+        onError(`"${file.name}" is not an image or a PDF.`);
         return null;
       }
       if (file.size > MAX_SHEET_IMAGE_BYTES) {
@@ -183,27 +227,21 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         );
         return null;
       }
-      if (!driveService) {
-        onError('Connect Google Drive to add an image to the answer sheet.');
-        return null;
-      }
       setStimulusBusy(true);
       try {
-        const size = await imagePixelSize(file);
-        // Uploaded unshared: it stays the teacher's until the quiz is
-        // published to a PLC, which is where the sharing prompt belongs (D6).
-        const driveFile = await driveService.uploadFile(
+        // A PDF is not printable as it stands: the teacher picks the page and
+        // it is rendered and uploaded as a PNG, so the print never sees pdf.js.
+        if (pdf) {
+          const pages = await openPdfPages(file);
+          setPdfPick({ file, pages });
+          return null;
+        }
+        return await uploadToDrive(
           file,
-          `sheet-${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`,
-          SHEET_IMAGE_FOLDER
+          file.name,
+          file.name,
+          await imagePixelSize(file)
         );
-        return {
-          id: crypto.randomUUID(),
-          label: file.name,
-          source: 'image',
-          driveFileId: driveFile.id,
-          ...(size ?? {}),
-        };
       } catch (err) {
         onError(
           err instanceof Error ? err.message : 'Could not upload that image.'
@@ -213,7 +251,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         setStimulusBusy(false);
       }
     },
-    [driveService, onError]
+    [onError, uploadToDrive]
   );
 
   const pickSheetImage =
@@ -396,6 +434,34 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     void handlePrint();
   };
 
+  const closePdfPick = () => {
+    pdfPick?.pages.close();
+    setPdfPick(null);
+  };
+
+  const addPdfPage = async (pageNumber: number) => {
+    if (!pdfPick) return;
+    const { file, pages } = pdfPick;
+    setStimulusBusy(true);
+    try {
+      const rendered = await pages.render(pageNumber);
+      const stimulus = await uploadToDrive(
+        rendered.blob,
+        pdfPageFileName(file.name, pageNumber),
+        pdfPageLabel(file.name, pageNumber, pages.pageCount),
+        { widthPx: rendered.widthPx, heightPx: rendered.heightPx }
+      );
+      if (stimulus) setSheetStimuli((prev) => [...prev, stimulus]);
+    } catch (err) {
+      onError(
+        err instanceof Error ? err.message : 'Could not read that PDF page.'
+      );
+    } finally {
+      setStimulusBusy(false);
+      closePdfPick();
+    }
+  };
+
   const handlePrintTest = () => {
     if (!printedBatch) return;
     try {
@@ -417,6 +483,59 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       );
     }
   };
+
+  if (pdfPick) {
+    const listed = Math.min(pdfPick.pages.pageCount, MAX_PDF_PAGES_LISTED);
+    return (
+      <Modal
+        isOpen
+        onClose={closePdfPick}
+        ariaLabel="Pick a page"
+        maxWidth="max-w-md"
+        footer={
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={closePdfPick}
+              className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3 px-6 pb-4">
+          <h2 className="text-base font-semibold text-slate-800">
+            Which page goes on the sheet?
+          </h2>
+          <p className="text-sm text-slate-700">
+            {pdfPick.file.name} has {pdfPick.pages.pageCount} page
+            {pdfPick.pages.pageCount === 1 ? '' : 's'}. One page goes on the
+            answer sheet, as a picture.
+          </p>
+          <div className="flex max-h-64 flex-wrap gap-2 overflow-y-auto">
+            {Array.from({ length: listed }, (_, i) => (
+              <button
+                key={i + 1}
+                type="button"
+                disabled={stimulusBusy}
+                onClick={() => void addPdfPage(i + 1)}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+              >
+                Page {i + 1}
+              </button>
+            ))}
+          </div>
+          {pdfPick.pages.pageCount > listed && (
+            <p className="text-xs text-slate-600">
+              Only the first {listed} pages are offered. Split the PDF if you
+              need one from further in.
+            </p>
+          )}
+        </div>
+      </Modal>
+    );
+  }
 
   if (askingToShare) {
     return (
