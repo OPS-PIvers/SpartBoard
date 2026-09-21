@@ -105,7 +105,6 @@ export const Dock: React.FC = () => {
     setPendingAssignmentShareId,
     annotationActive,
     annotationState,
-    isActiveBoardReadOnly,
   } = useDashboard();
   const {
     visibleTools,
@@ -471,13 +470,6 @@ export const Dock: React.FC = () => {
         return;
       }
 
-      // addWidget is a no-op on a view-only board, so say so rather than
-      // letting the success toast below claim a widget that never lands.
-      if (isActiveBoardReadOnly) {
-        addToast('This board is view-only, so paste is turned off', 'info');
-        return;
-      }
-
       // 1. Handle Image Paste
       if (e.clipboardData?.files?.length) {
         const file = e.clipboardData.files[0];
@@ -579,7 +571,6 @@ export const Dock: React.FC = () => {
     setPendingAssignmentShareId,
     importSharedNotebookCopy,
     annotationActive,
-    isActiveBoardReadOnly,
   ]);
 
   const classesButtonRef = useRef<HTMLButtonElement>(null);
