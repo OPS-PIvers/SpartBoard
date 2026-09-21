@@ -87,6 +87,35 @@ describe('ImportWizard — test document source', () => {
     expect(screen.queryByText(/Choose a test from Drive/i)).toBeNull();
   });
 
+  it('keeps test documents out of the generic upload button', () => {
+    const { adapter } = makeAdapter();
+    renderWizard(adapter);
+    // That button is labelled "CSV" here, so offering .pdf/.docx behind it
+    // would duplicate the dedicated tile under a name that fits neither.
+    expect(
+      screen.getByLabelText('Upload import file').getAttribute('accept')
+    ).toBe('.csv');
+    expect(
+      screen.getByLabelText('Upload a test document').getAttribute('accept')
+    ).toBe('.pdf,.docx');
+  });
+
+  it('still reads a test document forced through the generic button', async () => {
+    const { adapter, parseSpy } = makeAdapter();
+    renderWizard(adapter);
+    // `accept` is only a hint, so a teacher can still pick a PDF there. It
+    // must reach the reader, never `file.text()`.
+    fireEvent.change(screen.getByLabelText('Upload import file'), {
+      target: { files: [PDF_BYTES] },
+    });
+    await waitFor(() => expect(parseSpy).toHaveBeenCalledTimes(1));
+    expect(parseSpy.mock.calls[0][0]).toEqual({
+      kind: 'document',
+      file: PDF_BYTES,
+      fileName: 'Unit 3 Test.pdf',
+    });
+  });
+
   it('parses an uploaded PDF as bytes rather than reading it as text', async () => {
     const { adapter, parseSpy } = makeAdapter();
     renderWizard(adapter);

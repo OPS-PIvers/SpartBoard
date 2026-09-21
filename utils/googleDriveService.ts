@@ -905,9 +905,11 @@ export class GoogleDriveService {
    * Uses `alt=media` so the raw bytes come back, not metadata.
    */
   async downloadFileAsBlob(
-    fileId: string
+    fileId: string,
+    /** Pass it when the caller already fetched it, to save a round trip. */
+    knownMetadata?: DriveFile
   ): Promise<{ blob: Blob; mimeType: string; name: string }> {
-    const metadata = await this.getFileMetadata(fileId);
+    const metadata = knownMetadata ?? (await this.getFileMetadata(fileId));
     const response = await this.fetchWithRetry(
       `${DRIVE_API_URL}/files/${fileId}?alt=media`,
       { headers: this.headers }
@@ -947,7 +949,7 @@ export class GoogleDriveService {
     const sourceType = metadata.mimeType ?? '';
 
     if (sourceType !== GOOGLE_DOC_MIME_TYPE) {
-      return this.downloadFileAsBlob(fileId);
+      return this.downloadFileAsBlob(fileId, metadata);
     }
 
     const response = await this.fetchWithRetry(

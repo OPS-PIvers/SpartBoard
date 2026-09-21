@@ -59,10 +59,8 @@ function acceptExtensionsForSources(sources: ImportSourceKind[]): string {
     exts.add('.json');
     exts.add('.txt');
   }
-  if (sources.includes('document')) {
-    exts.add('.pdf');
-    exts.add('.docx');
-  }
+  // Not '.pdf'/'.docx': the dedicated "Test document" tile owns those, and
+  // offering them here too would put them behind a button labelled "CSV".
   return Array.from(exts).join(',');
 }
 

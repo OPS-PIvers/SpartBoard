@@ -641,6 +641,26 @@ describe('GoogleDriveService', () => {
       expect(result.name).toBe('Unit 3 Test.pdf');
     });
 
+    it('fetches the metadata once for a file it downloads as-is', async () => {
+      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            id: 'pdf-1',
+            name: 'Unit 3 Test.pdf',
+            mimeType: 'application/pdf',
+          }),
+        blob: () => Promise.resolve(new Blob(['%PDF'])),
+      } as Response);
+
+      await service.downloadDocumentAsBlob('pdf-1');
+
+      const metadataCalls = fetchSpy.mock.calls.filter(([url]) =>
+        (url as string).includes('?fields=')
+      );
+      expect(metadataCalls).toHaveLength(1);
+    });
+
     it('says the export failed rather than handing back an empty file', async () => {
       vi.spyOn(global, 'fetch')
         .mockResolvedValueOnce({
