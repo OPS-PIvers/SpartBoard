@@ -169,3 +169,30 @@ B. Venus`)
     expect(q.warnings).toEqual([]);
   });
 });
+
+describe('a key for a question that parsed with no choices', () => {
+  it('says the choices were probably missed (deferred from #3219)', () => {
+    // The document answered question 2, so it had choices there. Reading it
+    // as written-response silently would leave the teacher wondering why one
+    // question came out the wrong type on a test where the rest are fine.
+    const [, second] = parseQuestionLines(
+      lines(`1. Which planet is closest to the sun?
+A. Mercury
+B. Venus
+2. Name the largest planet in the solar system
+Answer Key
+1. A
+2. B`)
+    );
+    expect(second.type).toBe('free-response');
+    expect(second.warnings.join(' ')).toMatch(
+      /answer key says B for this question, so its answer choices were probably missed/i
+    );
+  });
+
+  it('says nothing extra when the key had no answer for it either', () => {
+    const [q] = parseQuestionLines(lines(`1. Explain why the moon has phases`));
+    expect(q.type).toBe('free-response');
+    expect(q.warnings.join(' ')).not.toMatch(/probably missed/i);
+  });
+});

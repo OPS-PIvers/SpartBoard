@@ -81,3 +81,58 @@ export function applyQuestionText(
   });
   return changed ? { ...quiz, questions, updatedAt: now } : quiz;
 }
+
+/** What a read document offers for one stub row (D17). */
+export interface QuestionFill {
+  text: string;
+  /** Every choice the document listed, answer included. Absent for a written response. */
+  options?: string[];
+  /** The choice the document's key names; '' when it named none. */
+  correctAnswer?: string;
+}
+
+/**
+ * Fill stem, choices and key onto the stub rows the teacher ticked (D17).
+ *
+ * The option count follows the document, so a 3-choice question stops being
+ * a 4-choice stub. A row the document had no choices for keeps the type it
+ * already had: a stub that was built as multiple choice is more likely to
+ * have had its choices misread than to have been written-response all along.
+ */
+export function applyQuestionFill(
+  quiz: QuizData,
+  fillByRow: Readonly<Record<number, QuestionFill>>,
+  now: number
+): QuizData {
+  let changed = false;
+  const questions = quiz.questions.map((q, i) => {
+    const fill = fillByRow[i + 1];
+    if (!fill || !fill.text.trim()) return q;
+
+    const next = { ...q, text: fill.text.trim() };
+    const options = fill.options?.filter((o) => o.trim());
+    if (options && options.length > 0) {
+      const answer = fill.correctAnswer?.trim() ?? '';
+      next.type = 'MC';
+      next.correctAnswer = answer;
+      next.incorrectAnswers = options.filter((o) => o !== answer);
+      // An answer the document supplied is a key the teacher no longer owes.
+      if (answer) delete next.needsKey;
+      else next.needsKey = true;
+    }
+
+    if (
+      next.text === q.text &&
+      next.type === q.type &&
+      next.correctAnswer === q.correctAnswer &&
+      next.incorrectAnswers.join('\u0000') ===
+        q.incorrectAnswers.join('\u0000') &&
+      next.needsKey === q.needsKey
+    ) {
+      return q;
+    }
+    changed = true;
+    return next;
+  });
+  return changed ? { ...quiz, questions, updatedAt: now } : quiz;
+}

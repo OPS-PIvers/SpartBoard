@@ -14,9 +14,16 @@ vi.mock('@/utils/quizDocumentImport', async () => {
   return {
     ...actual,
     readQuizDocument: vi.fn(),
-    readQuizDocumentWithAi: vi.fn(),
     readAnswerKeyFile: vi.fn(),
   };
+});
+// `readTestDocument` imports the AI reader from its own module, not the
+// barrel, so the barrel's re-export is not the function it calls.
+vi.mock('@/utils/quizDocumentImport/aiReader', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/utils/quizDocumentImport/aiReader')
+  >('@/utils/quizDocumentImport/aiReader');
+  return { ...actual, readQuizDocumentWithAi: vi.fn() };
 });
 vi.mock('@/utils/quizDocumentImport/pdfBrowserDeps', () => ({
   browserPdfDeps: vi.fn(() => Promise.resolve({})),
@@ -25,8 +32,8 @@ vi.mock('@/utils/quizDocumentImport/pdfBrowserDeps', () => ({
 import {
   readAnswerKeyFile,
   readQuizDocument,
-  readQuizDocumentWithAi,
 } from '@/utils/quizDocumentImport';
+import { readQuizDocumentWithAi } from '@/utils/quizDocumentImport/aiReader';
 import { browserPdfCropper } from '@/utils/quizDocumentImport/pdfCropBrowser';
 import { createQuizImportAdapter } from '@/components/widgets/QuizWidget/adapters/quizImportAdapter';
 

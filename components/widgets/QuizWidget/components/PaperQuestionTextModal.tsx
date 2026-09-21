@@ -12,10 +12,13 @@ import { CloudDownload, FileUp, Loader2, ScanText, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import type { QuizData } from '@/types';
 import {
+  applyQuestionFill,
   applyQuestionText,
   isPlaceholderQuestion,
   parseNumberedQuestions,
+  type QuestionFill,
 } from '@/utils/paperQuestionOcr';
+import type { ExtractedQuiz } from '@/utils/quizDocumentImport';
 import { rasterizeScan, type RasterizedPage } from '@/utils/paperScanRaster';
 import type { RasterPage } from '@/utils/paperSheetReader';
 
@@ -25,6 +28,13 @@ interface PaperQuestionTextModalProps {
   onPickFromDrive?: () => Promise<File | null>;
   onClose: () => void;
   onError: (message: string) => void;
+  /**
+   * Reads the paper with the import wizard's own readers (D17), which bring
+   * back choices and a key rather than stem text alone. Supplied only when
+   * the document-import feature is on; without it the OCR path below runs
+   * exactly as it did before.
+   */
+  readDocument?: (file: Blob, fileName: string) => Promise<ExtractedQuiz>;
   /** Test seams. */
   rasterize?: (file: Blob) => AsyncGenerator<RasterizedPage>;
   recognize?: (page: RasterPage) => Promise<string>;
@@ -58,6 +68,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   onPickFromDrive,
   onClose,
   onError,
+  readDocument,
   rasterize = rasterizeScan,
   recognize = recognizeWithTesseract,
 }) => {
@@ -67,6 +78,10 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   const [drafts, setDrafts] = useState<Record<number, string>>({});
   const [apply, setApply] = useState<Record<number, boolean>>({});
   const [missing, setMissing] = useState<number[]>([]);
+  // The choices and key the reader found, by row. Empty on the OCR path,
+  // which only ever produced stem text.
+  const [fills, setFills] = useState<Record<number, QuestionFill>>({});
+  const [notes, setNotes] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const rows = useMemo(
@@ -75,27 +90,79 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
     [quiz]
   );
 
+  /** Pre-tick a row only if it is still a placeholder (unchanged, D17). */
+  const tickFor = (existing: string): boolean =>
+    isPlaceholderQuestion(existing) || !existing.trim();
+
+  /** The shared readers, which bring back choices and a key as well (D17). */
+  const readWithImporter = async (
+    file: File,
+    read: NonNullable<PaperQuestionTextModalProps['readDocument']>
+  ) => {
+    setProgress('Reading the test…');
+    const extracted = await read(file, file.name);
+    const byNumber = new Map(extracted.questions.map((q) => [q.number, q]));
+    const nextDrafts: Record<number, string> = {};
+    const nextApply: Record<number, boolean> = {};
+    const nextFills: Record<number, QuestionFill> = {};
+    const nextMissing: number[] = [];
+
+    for (const { row, text: existing } of rows) {
+      const found = byNumber.get(row);
+      if (!found || !found.text.trim()) {
+        nextMissing.push(row);
+        continue;
+      }
+      nextDrafts[row] = found.text;
+      nextApply[row] = tickFor(existing);
+      nextFills[row] = {
+        text: found.text,
+        options: found.options.map((o) => o.text),
+        correctAnswer: found.correctAnswer,
+      };
+    }
+
+    setDrafts(nextDrafts);
+    setApply(nextApply);
+    setFills(nextFills);
+    setMissing(nextMissing);
+    // Row notes are numbered by the reader, so they line up with these rows.
+    setNotes([
+      ...extracted.warnings,
+      ...extracted.questions.flatMap((q) =>
+        q.warnings.map((w) => `Question ${q.number}: ${w}`)
+      ),
+    ]);
+  };
+
+  const readWithOcr = async (file: File) => {
+    let text = '';
+    for await (const page of rasterize(file)) {
+      setProgress(`Reading page ${page.pageNumber}…`);
+      text += `${await recognize(page.page)}\n`;
+    }
+    const parsed = parseNumberedQuestions(text, rows.length);
+    const nextDrafts: Record<number, string> = {};
+    const nextApply: Record<number, boolean> = {};
+    for (const { row, text: existing } of rows) {
+      const found = parsed.byNumber[row];
+      if (!found) continue;
+      nextDrafts[row] = found;
+      // Real text a teacher typed is never replaced without a tick.
+      nextApply[row] = tickFor(existing);
+    }
+    setDrafts(nextDrafts);
+    setApply(nextApply);
+    setFills({});
+    setNotes([]);
+    setMissing(parsed.missing);
+  };
+
   const readFile = async (file: File) => {
     setStep('reading');
     try {
-      let text = '';
-      for await (const page of rasterize(file)) {
-        setProgress(`Reading page ${page.pageNumber}…`);
-        text += `${await recognize(page.page)}\n`;
-      }
-      const parsed = parseNumberedQuestions(text, rows.length);
-      const nextDrafts: Record<number, string> = {};
-      const nextApply: Record<number, boolean> = {};
-      for (const { row, text: existing } of rows) {
-        const found = parsed.byNumber[row];
-        if (!found) continue;
-        nextDrafts[row] = found;
-        // Real text a teacher typed is never replaced without a tick.
-        nextApply[row] = isPlaceholderQuestion(existing) || !existing.trim();
-      }
-      setDrafts(nextDrafts);
-      setApply(nextApply);
-      setMissing(parsed.missing);
+      if (readDocument) await readWithImporter(file, readDocument);
+      else await readWithOcr(file);
       setStep('review');
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Could not read the scan.');
@@ -125,12 +192,21 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   const handleSave = async () => {
     setStep('saving');
     try {
-      const chosen: Record<number, string> = {};
-      for (const [row, on] of Object.entries(apply)) {
-        if (on && drafts[Number(row)])
-          chosen[Number(row)] = drafts[Number(row)];
+      const chosenText: Record<number, string> = {};
+      const chosenFills: Record<number, QuestionFill> = {};
+      for (const [key, on] of Object.entries(apply)) {
+        const row = Number(key);
+        if (!on || !drafts[row]) continue;
+        chosenText[row] = drafts[row];
+        const fill = fills[row];
+        // The teacher may have corrected the stem in the box; their wording
+        // wins over the reader's, and the choices ride along with it.
+        if (fill) chosenFills[row] = { ...fill, text: drafts[row] };
       }
-      const next = applyQuestionText(quiz, chosen, Date.now());
+      const next =
+        Object.keys(chosenFills).length > 0
+          ? applyQuestionFill(quiz, chosenFills, Date.now())
+          : applyQuestionText(quiz, chosenText, Date.now());
       if (next !== quiz) await onSave(next);
       onClose();
     } catch (err) {
@@ -226,6 +302,13 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
           {missing.join(', ')}.
         </p>
       )}
+      {notes.length > 0 && (
+        <ul className="space-y-1 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          {notes.map((note, i) => (
+            <li key={i}>{note}</li>
+          ))}
+        </ul>
+      )}
       <ol className="space-y-2">
         {rows.map(({ row, text }) => {
           const draft = drafts[row];
@@ -257,6 +340,33 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
                   }
                   className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm"
                 />
+                {fills[row]?.options && fills[row].options.length > 0 && (
+                  <p className="mt-1 text-xs text-slate-600">
+                    Choices:{' '}
+                    {fills[row].options.map((choice, i) => (
+                      <React.Fragment key={i}>
+                        {i > 0 && ', '}
+                        <span
+                          className={
+                            choice === fills[row].correctAnswer
+                              ? 'font-bold text-slate-800'
+                              : undefined
+                          }
+                        >
+                          {choice}
+                          {choice === fills[row].correctAnswer && ' (answer)'}
+                        </span>
+                      </React.Fragment>
+                    ))}
+                  </p>
+                )}
+                {fills[row]?.options &&
+                  fills[row].options.length > 0 &&
+                  !fills[row].correctAnswer?.trim() && (
+                    <p className="mt-0.5 text-xs text-amber-800">
+                      No answer was marked, so this still needs one.
+                    </p>
+                  )}
                 {!isPlaceholderQuestion(text) && text.trim() && (
                   <p className="mt-0.5 truncate text-xs text-slate-500">
                     Now: {text}

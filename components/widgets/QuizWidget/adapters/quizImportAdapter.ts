@@ -27,15 +27,13 @@ import {
   assertWithinByteLimit,
   extractedToQuizData,
   readAnswerKeyFile,
-  readQuizDocument,
-  readQuizDocumentWithAi,
   rowWarnings,
   type AiExtractFn,
   type ExtractedImage,
   type ExtractedQuiz,
 } from '@/utils/quizDocumentImport';
 import { browserPdfDeps } from '@/utils/quizDocumentImport/pdfBrowserDeps';
-import { browserPdfCropper } from '@/utils/quizDocumentImport/pdfCropBrowser';
+import { readTestDocument } from '@/utils/quizDocumentImport/readTestDocument';
 import { QuizDocumentReview } from '../components/QuizDocumentReview';
 import { QuizDriveService } from '@/utils/quizDriveService';
 
@@ -118,9 +116,6 @@ export interface QuizImportAdapterDeps {
    */
   aiExtract?: AiExtractFn;
 }
-
-const AI_READER_FELL_BACK =
-  'The document was read the simple way because the smarter reader wasn’t available. Check the questions and answers below.';
 
 const DRIVE_ACCESS_ERROR =
   'Google Drive access is required. Please sign in again and try again.';
@@ -321,40 +316,6 @@ function renderQuizPreview(data: QuizData): React.ReactNode {
 /* ─── Adapter factory ─────────────────────────────────────────────────────── */
 
 /** The AI reader when the teacher has it, the browser reader otherwise (D1). */
-async function readDocumentWith(
-  deps: QuizImportAdapterDeps,
-  file: Blob,
-  fileName: string
-): Promise<ExtractedQuiz> {
-  // pdf.js and tesseract are only loaded when the file is a PDF, so a Word
-  // import never pays for them.
-  const inBrowser = async (): Promise<ExtractedQuiz> => {
-    const isPdf =
-      file.type === 'application/pdf' ||
-      fileName.toLowerCase().endsWith('.pdf');
-    return readQuizDocument(file, {
-      fileName,
-      ...(isPdf ? { pdf: await browserPdfDeps(file) } : {}),
-    });
-  };
-
-  if (!deps.aiExtract) return inBrowser();
-
-  try {
-    return await readQuizDocumentWithAi(file, {
-      fileName,
-      extract: deps.aiExtract,
-      cropper: browserPdfCropper,
-    });
-  } catch (err) {
-    console.warn('[quizImport] AI reader unavailable', err);
-    const extracted = await inBrowser();
-    return {
-      ...extracted,
-      warnings: [AI_READER_FELL_BACK, ...extracted.warnings],
-    };
-  }
-}
 
 /** A key file is numbers and letters, which the plain reader handles (D8). */
 async function readKeyFile(keyFile: {
@@ -397,7 +358,7 @@ export function createQuizImportAdapter(
   deps: QuizImportAdapterDeps
 ): ImportAdapter<QuizData> {
   const readDocument = (file: Blob, fileName: string) =>
-    readDocumentWith(deps, file, fileName);
+    readTestDocument(file, fileName, { aiExtract: deps.aiExtract });
   return {
     widgetLabel: deps.widgetLabel ?? 'Quiz',
     supportedSources: deps.canImportDocuments

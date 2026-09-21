@@ -49,6 +49,7 @@ import {
   driveStimulusUploader,
   type ExtractedImage,
 } from '@/utils/quizDocumentImport';
+import { readTestDocument } from '@/utils/quizDocumentImport/readTestDocument';
 import {
   callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
@@ -3464,6 +3465,18 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             addToast('Question text updated.', 'success');
           }}
           onPickFromDrive={pickScanFromDrive}
+          {...(canImportDocuments
+            ? {
+                // The same readers the import wizard uses, so a stub fills
+                // with choices and a key rather than stem text alone (D17).
+                readDocument: (file: Blob, fileName: string) =>
+                  readTestDocument(file, fileName, {
+                    ...(canUseAiReader
+                      ? { aiExtract: extractQuizFromDocument }
+                      : {}),
+                  }),
+              }
+            : {})}
           onClose={() => setPaperOcr(null)}
           onError={(message) => addToast(message, 'error')}
         />
