@@ -6,6 +6,7 @@ import type {
 } from '@/components/settings/schema/types';
 import type { MusicConfig } from '@/types';
 import { STANDARD_COLORS, WIDGET_PALETTE } from '@/config/colors';
+import { canUsePersonal } from './canUsePersonal';
 import {
   MusicSourceField,
   MusicStationField,
@@ -13,8 +14,6 @@ import {
 } from './settingsFields';
 
 const source = (ctx: FieldCtx) => ctx.config.source ?? 'curated';
-const canUsePersonal = (ctx: FieldCtx) =>
-  ctx.profileLoaded !== true || ctx.canAccessFeature('personal-spotify');
 
 const renderSource = (ctx: CustomRenderCtx) =>
   React.createElement(MusicSourceField, { ctx });

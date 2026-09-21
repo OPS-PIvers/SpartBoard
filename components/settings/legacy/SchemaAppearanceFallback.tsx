@@ -30,7 +30,8 @@ export const SchemaAppearanceFallback: React.FC<
   SchemaAppearanceFallbackProps
 > = ({ widget }) => {
   const { t } = useTranslation();
-  const { isAdmin, canAccessFeature, canAccessWidget } = useAuth();
+  const { isAdmin, canAccessFeature, canAccessWidget, profileLoaded } =
+    useAuth();
   const toolLabel = useToolLabel();
   const { updateWidget } = useDashboardActions();
 
@@ -83,10 +84,20 @@ export const SchemaAppearanceFallback: React.FC<
       isAdmin: isAdmin === true,
       canAccessFeature,
       canAccessWidget,
+      profileLoaded,
       toolLabel,
       t,
     }),
-    [config, widget, isAdmin, canAccessFeature, canAccessWidget, toolLabel, t]
+    [
+      config,
+      widget,
+      isAdmin,
+      canAccessFeature,
+      canAccessWidget,
+      profileLoaded,
+      toolLabel,
+      t,
+    ]
   );
 
   if (!schema) return null;

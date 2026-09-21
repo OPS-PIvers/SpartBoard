@@ -7,6 +7,7 @@ import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { useMusicStations } from '@/hooks/useMusicStations';
 import { PersonalSpotifyPanel } from './PersonalSpotifyPanel';
 import { buildSpotifyEmbedUrl } from './utils';
+import { canUsePersonal } from './canUsePersonal';
 
 const SOURCE_OPTIONS: ReadonlyArray<{
   value: MusicSource;
@@ -98,7 +99,7 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
   const { stations, isLoading } = useMusicStations();
   const t = (leaf: string) => ctx.t(`widgetSettings.music.${leaf}`);
 
-  if ((config.source ?? 'curated') === 'personal') {
+  if ((config.source ?? 'curated') === 'personal' && canUsePersonal(ctx)) {
     return (
       <div
         id={ctx.id}
