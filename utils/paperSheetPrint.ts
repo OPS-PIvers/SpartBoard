@@ -73,6 +73,11 @@ export interface PaperPrintJob {
    * path, which renders exactly as it did before delegation existed.
    */
   printedForTeacherName?: string;
+  /**
+   * Called once the print document has decoded the stimulus images, so a
+   * caller that owns their object URLs knows when it may free them.
+   */
+  onImagesReady?: () => void;
 }
 
 const mm = (n: number): string => `${n.toFixed(3)}mm`;
@@ -359,6 +364,7 @@ export function printPaperSheets(
       body: buildPaperSheetsHtml(job),
       // A remote image that has not decoded yet prints as an empty box.
       awaitImages: !!job.sheetStimuli?.length,
+      ...(job.onImagesReady ? { onImagesReady: job.onImagesReady } : {}),
     },
     openWindow
   );

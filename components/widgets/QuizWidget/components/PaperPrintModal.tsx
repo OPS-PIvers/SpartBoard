@@ -6,7 +6,7 @@
  * the paper exists. See docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md §6.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -18,12 +18,23 @@ import {
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { Toggle } from '@/components/common/Toggle';
-import type { ClassRoster, PaperBatch, QuizData, Student } from '@/types';
+import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { useGooglePicker } from '@/hooks/useGooglePicker';
+import { usePaperSheetStimulusImages } from '@/hooks/usePaperSheetStimulusImages';
+import type {
+  ClassRoster,
+  PaperBatch,
+  PaperSheetStimulus,
+  QuizData,
+  Student,
+} from '@/types';
 import {
   MAX_CHOICE_COUNT,
   MIN_CHOICE_COUNT,
   pageCountForQuestions,
 } from '@/utils/paperSheetLayout';
+import { stimulusLoadErrorMessage } from '@/utils/paperSheetStimulusImages';
+import { PaperSheetStimuliSection } from './PaperSheetStimuliSection';
 import {
   analyzePaperQuiz,
   buildPaperStubQuiz,
@@ -34,6 +45,31 @@ import { printPaperTest } from '@/utils/paperTestPrint';
 
 const MAX_SPARES = 20;
 const DEFAULT_STUB_QUESTIONS = 25;
+/** Upload cap for a sheet image; a page of toner cannot use more than this. */
+const MAX_SHEET_IMAGE_BYTES = 10 * 1024 * 1024;
+const SHEET_IMAGE_FOLDER = 'Assets/PaperSheetStimuli';
+
+/** Natural pixel size, so auto-fit knows the shape without loading the file. */
+async function imagePixelSize(
+  file: Blob
+): Promise<{ widthPx: number; heightPx: number } | null> {
+  const url = URL.createObjectURL(file);
+  try {
+    const size = await new Promise<{
+      widthPx: number;
+      heightPx: number;
+    } | null>((resolve) => {
+      const img = new Image();
+      img.onload = () =>
+        resolve({ widthPx: img.naturalWidth, heightPx: img.naturalHeight });
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+    return size;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
 interface PaperPrintModalProps {
   quiz: QuizData;
@@ -45,6 +81,12 @@ interface PaperPrintModalProps {
    * test" door, where `quiz` is an unsaved shell the teacher is still naming.
    */
   onCreateQuiz?: (quiz: QuizData) => Promise<void>;
+  /**
+   * Persist the answer-sheet stimuli onto the quiz. Called just before the
+   * print, so what is on the paper is what the quiz records (D18). Absent on
+   * the "Paper test" door, where the stub carries them instead.
+   */
+  onSaveSheetStimuli?: (stimuli: PaperSheetStimulus[]) => Promise<void>;
   onClose: () => void;
   onError: (message: string) => void;
   /** Test seam mirroring `printPaperSheets`. */
@@ -60,11 +102,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   rosters,
   onSaveBatch,
   onCreateQuiz,
+  onSaveSheetStimuli,
   onClose,
   onError,
   print = printPaperSheets,
   printTest = printPaperTest,
 }) => {
+  const { driveService } = useGoogleDrive();
+  const { openPicker } = useGooglePicker();
   const analysis = useMemo(() => analyzePaperQuiz(quiz), [quiz]);
   const isStub = analysis.rows.length === 0;
   const [stubTitle, setStubTitle] = useState(quiz.title);
@@ -99,6 +144,89 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const questionCount = isStub ? stubQuestionCount : analysis.rows.length;
   const choiceCount = isStub ? stubChoiceCount : analysis.sheetChoiceCount;
 
+  const [sheetStimuli, setSheetStimuli] = useState<PaperSheetStimulus[]>(
+    quiz.paperSheetStimuli ?? []
+  );
+  const [stimulusBusy, setStimulusBusy] = useState(false);
+  // Anything in the band takes the page's right half, so the answers drop to
+  // one column and the test spreads over twice as many pages (D1).
+  const columnsPerPage = sheetStimuli.length > 0 ? 1 : 2;
+  const sheetImages = usePaperSheetStimulusImages(sheetStimuli);
+  const sheetStimuliChanged =
+    JSON.stringify(sheetStimuli) !==
+    JSON.stringify(quiz.paperSheetStimuli ?? []);
+  const quizImageStimuli = useMemo(
+    () => (quiz.stimuli ?? []).filter((s) => s.type === 'image'),
+    [quiz.stimuli]
+  );
+
+  const uploadSheetImage = useCallback(
+    async (file: File): Promise<PaperSheetStimulus | null> => {
+      if (!file.type.startsWith('image/')) {
+        onError(`"${file.name}" is not an image.`);
+        return null;
+      }
+      if (file.size > MAX_SHEET_IMAGE_BYTES) {
+        onError(
+          `"${file.name}" is too large (max ${MAX_SHEET_IMAGE_BYTES / 1024 / 1024}MB).`
+        );
+        return null;
+      }
+      if (!driveService) {
+        onError('Connect Google Drive to add an image to the answer sheet.');
+        return null;
+      }
+      setStimulusBusy(true);
+      try {
+        const size = await imagePixelSize(file);
+        // Uploaded unshared: it stays the teacher's until the quiz is
+        // published to a PLC, which is where the sharing prompt belongs (D6).
+        const driveFile = await driveService.uploadFile(
+          file,
+          `sheet-${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`,
+          SHEET_IMAGE_FOLDER
+        );
+        return {
+          id: crypto.randomUUID(),
+          label: file.name,
+          source: 'image',
+          driveFileId: driveFile.id,
+          ...(size ?? {}),
+        };
+      } catch (err) {
+        onError(
+          err instanceof Error ? err.message : 'Could not upload that image.'
+        );
+        return null;
+      } finally {
+        setStimulusBusy(false);
+      }
+    },
+    [driveService, onError]
+  );
+
+  const pickSheetImage =
+    useCallback(async (): Promise<PaperSheetStimulus | null> => {
+      setStimulusBusy(true);
+      try {
+        const picked = await openPicker({ mode: 'images' });
+        if (!picked) return null;
+        return {
+          id: crypto.randomUUID(),
+          label: picked.name,
+          source: 'image',
+          driveFileId: picked.id,
+        };
+      } catch (err) {
+        onError(
+          err instanceof Error ? err.message : 'Could not open Google Drive.'
+        );
+        return null;
+      } finally {
+        setStimulusBusy(false);
+      }
+    }, [openPicker, onError]);
+
   const selectionsForPrint = useMemo(
     () =>
       rosters
@@ -117,8 +245,13 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     0
   );
   const sheetCount = studentSheetCount + spareCount + (includeKeySheet ? 1 : 0);
-  const pagesPerSheet = pageCountForQuestions(questionCount);
-  const canPrint = sheetCount > 0 && questionCount > 0 && !printing;
+  const pagesPerSheet = pageCountForQuestions(questionCount, columnsPerPage);
+  const canPrint =
+    sheetCount > 0 &&
+    questionCount > 0 &&
+    !printing &&
+    !stimulusBusy &&
+    !sheetImages.loading;
 
   const toggleRoster = (roster: ClassRoster, checked: boolean) => {
     setSelectedStudentIds((prev) => ({
@@ -143,6 +276,12 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   };
 
   const handlePrint = async () => {
+    // A stimulus that cannot be fetched would print as an empty box the
+    // teacher only discovers at the copier, so it blocks the print instead.
+    if (sheetImages.failed.length > 0) {
+      onError(stimulusLoadErrorMessage(sheetImages.failed));
+      return;
+    }
     setPrinting(true);
     try {
       const { batch, sheets } = planPaperBatch({
@@ -154,21 +293,33 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         spareCount,
         includeKeySheet,
         ...(isStub ? {} : { questions: sheetQuestions }),
+        ...(columnsPerPage === 1 ? { columnsPerPage: 1 as const } : {}),
         createdAt: Date.now(),
       });
       // Create the quiz before the batch that points at it, and both before
       // printing: a sheet whose batch or quiz was never stored can never be
       // imported, and the teacher cannot tell that by looking at the paper.
       const printedQuiz = onCreateQuiz
-        ? buildPaperStubQuiz({
-            quizId: quiz.id,
-            title: stubTitle,
-            questionCount,
-            choiceCount,
-            createdAt: Date.now(),
-          })
+        ? {
+            ...buildPaperStubQuiz({
+              quizId: quiz.id,
+              title: stubTitle,
+              questionCount,
+              choiceCount,
+              createdAt: Date.now(),
+            }),
+            ...(sheetStimuli.length > 0
+              ? { paperSheetStimuli: sheetStimuli }
+              : {}),
+          }
         : quiz;
       if (onCreateQuiz) await onCreateQuiz(printedQuiz);
+      // The stub carries them already; an authored quiz records them here, so
+      // the next print and every PLC copy start from the same sheet (D18).
+      // Only when they changed: an unchanged save would publish a new version
+      // to the PLC and tell every peer to pull a print they did not make.
+      else if (onSaveSheetStimuli && sheetStimuliChanged)
+        await onSaveSheetStimuli(sheetStimuli);
       await onSaveBatch(batch);
       print({
         batchId: batch.id,
@@ -178,12 +329,23 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         ...(batch.columnsPerPage
           ? { columnsPerPage: batch.columnsPerPage }
           : {}),
+        ...(sheetStimuli.length > 0
+          ? {
+              sheetStimuli,
+              stimulusImageSrc: sheetImages.src,
+              // Closing unmounts this modal, which revokes the object URLs the
+              // print window is reading from; wait until it has them.
+              onImagesReady: () => {
+                if (isStub) onClose();
+              },
+            }
+          : {}),
         sheets,
       });
       // An authored quiz needs its test paper printed from the same batch, so
       // the letters on the paper match the order the import will decode.
-      if (isStub) onClose();
-      else setPrintedBatch(batch);
+      if (isStub && sheetStimuli.length === 0) onClose();
+      else if (!isStub) setPrintedBatch(batch);
     } catch (err) {
       onError(
         err instanceof Error ? err.message : 'Could not print answer sheets.'
@@ -553,6 +715,18 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             className="w-20 rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
           />
         </div>
+
+        <PaperSheetStimuliSection
+          stimuli={sheetStimuli}
+          onChange={setSheetStimuli}
+          quizImageStimuli={quizImageStimuli}
+          pageCount={pagesPerSheet}
+          imageSrc={sheetImages.src}
+          failed={sheetImages.failed}
+          onUploadFile={uploadSheetImage}
+          onPickFromDrive={pickSheetImage}
+          busy={stimulusBusy}
+        />
 
         <div className="flex items-start justify-between gap-3">
           <div>

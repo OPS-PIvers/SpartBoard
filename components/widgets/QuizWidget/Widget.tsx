@@ -534,6 +534,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       paperSheetsRollout.enabled && canAccessFeature('paper-answer-sheets'),
   };
   const [paperPrintQuiz, setPaperPrintQuiz] = useState<QuizData | null>(null);
+  /** Library entry behind `paperPrintQuiz`; absent on the "Paper test" door. */
+  const [paperPrintMeta, setPaperPrintMeta] = useState<QuizMetadata | null>(
+    null
+  );
   const [paperPrintIsNew, setPaperPrintIsNew] = useState(false);
   const [paperImport, setPaperImport] = useState<{
     quiz: QuizData;
@@ -1697,6 +1701,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 const data = await loadQuiz(meta);
                 if (!data) return;
                 setPaperPrintIsNew(false);
+                setPaperPrintMeta(meta);
                 setPaperPrintQuiz(data);
               }
             : undefined
@@ -1727,6 +1732,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             ? () => {
                 const now = Date.now();
                 setPaperPrintIsNew(true);
+                setPaperPrintMeta(null);
                 setPaperPrintQuiz({
                   id: crypto.randomUUID(),
                   title: '',
@@ -3345,8 +3351,37 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 }
               : undefined
           }
+          onSaveSheetStimuli={
+            paperPrintMeta
+              ? async (paperSheetStimuli) => {
+                  // Dropping the key rather than writing an empty array, so
+                  // clearing the last one clears it everywhere it synced to.
+                  const next: QuizData = { ...paperPrintQuiz };
+                  if (paperSheetStimuli.length > 0)
+                    next.paperSheetStimuli = paperSheetStimuli;
+                  else delete next.paperSheetStimuli;
+                  try {
+                    setPaperPrintMeta(
+                      await saveQuiz(next, paperPrintMeta.driveFileId)
+                    );
+                  } catch (err) {
+                    // A peer published first. The paper is the point of this
+                    // click, so it still prints; only the record of what is on
+                    // it did not stick.
+                    if (!(err instanceof SyncedQuizVersionConflictError))
+                      throw err;
+                    addToast(
+                      'Another teacher published an update to this quiz, so your answer-sheet images were not saved to it. The sheets still print.',
+                      'warning'
+                    );
+                  }
+                  setPaperPrintQuiz(next);
+                }
+              : undefined
+          }
           onClose={() => {
             setPaperPrintQuiz(null);
+            setPaperPrintMeta(null);
             setPaperPrintIsNew(false);
           }}
           onError={(message) => addToast(message, 'error')}

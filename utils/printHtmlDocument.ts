@@ -26,6 +26,12 @@ export interface PrintableDocument {
    * an image is usually an empty box.
    */
   awaitImages?: boolean;
+  /**
+   * Called once every image is decoded and the dialog is about to open, or
+   * immediately when there is nothing to wait for. A caller whose `<img>`
+   * sources are object URLs it owns uses this to know when it may free them.
+   */
+  onImagesReady?: () => void;
 }
 
 /** Throws the same pop-up message as `exportPdf` when the window is blocked. */
@@ -66,6 +72,7 @@ export function printHtmlDocument(
   setTimeout(closeOnce, 60_000);
 
   const show = () => {
+    doc.onImagesReady?.();
     printWindow.focus();
     printWindow.print();
   };
