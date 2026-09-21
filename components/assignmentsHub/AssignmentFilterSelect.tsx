@@ -1,8 +1,9 @@
 // AssignmentFilterSelect — dropdown used by the Assignments hub filter bar; single- or multi-select over a flat option list.
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 export interface AssignmentFilterOption {
   value: string;
@@ -50,17 +51,27 @@ export const AssignmentFilterSelect: React.FC<AssignmentFilterSelectProps> = ({
     );
   };
 
-  // Escape closes the dropdown only — the hub's document-level handler would
-  // otherwise close the whole modal on the same keypress.
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key !== 'Escape' || !open) return;
-    event.preventDefault();
-    event.stopPropagation();
-    setOpen(false);
-  };
+  // Capture phase + stopImmediatePropagation so this dropdown's Escape wins
+  // over the hub's own document-level Escape handler regardless of mount
+  // order — same pattern as MoveToCollectionMenu/CollectionColorPicker. A
+  // React onKeyDown on the wrapper div isn't enough: opening via a mouse
+  // click doesn't reliably focus the trigger button in every browser, so
+  // focus may never be inside this div when Escape is pressed.
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (isEscapeFromWidgetInput(event)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      setOpen(false);
+    };
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [open]);
 
   return (
-    <div ref={ref} className="relative" onKeyDown={handleKeyDown}>
+    <div ref={ref} className="relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
