@@ -99,14 +99,21 @@ describe('SchemaAppearanceFallback', () => {
     }
   });
 
-  it('renders nothing when the schema declares no styleKeys and no display group', async () => {
+  it('keeps the window font and text size when the schema declares no style content', async () => {
+    // Rendering null here reads upstream as "this widget has a custom
+    // appearance panel", which drops UniversalStyleSettings entirely.
     const originalLoader = WIDGET_SETTINGS_SCHEMAS.clock;
     WIDGET_SETTINGS_SCHEMAS.clock = () => Promise.resolve({ groups: [] });
     try {
-      const { container } = render(
-        <SchemaAppearanceFallback widget={widget} />
+      render(<SchemaAppearanceFallback widget={widget} />);
+      await waitFor(() =>
+        expect(
+          screen.getByRole('button', { name: 'Handwritten' })
+        ).toBeInTheDocument()
       );
-      await waitFor(() => expect(container.firstChild).toBeNull());
+      expect(
+        screen.getByRole('combobox', { name: 'Select default text size' })
+      ).toBeInTheDocument();
     } finally {
       WIDGET_SETTINGS_SCHEMAS.clock = originalLoader;
     }

@@ -316,9 +316,14 @@ export const ScheduleListField: React.FC<{
       days: [],
     };
     if (config.items?.length && !config.schedules?.length) {
+      // 'default' is the legacy sentinel; a persisted schedule needs a real id.
+      const migrated: DailySchedule = {
+        ...buildDefaultSchedule(config.items),
+        id: crypto.randomUUID(),
+      };
       updateConfig({
         items: [],
-        schedules: [buildDefaultSchedule(config.items), newSchedule],
+        schedules: [migrated, newSchedule],
         settingsSelectedScheduleId: newSchedule.id,
       });
     } else {
@@ -334,7 +339,7 @@ export const ScheduleListField: React.FC<{
     id: string,
     updates: Partial<DailySchedule>
   ) => {
-    if (id === 'default') {
+    if (id === 'default' && (config.schedules?.length ?? 0) === 0) {
       const migrated: DailySchedule = {
         id: crypto.randomUUID(),
         name: updates.name ?? translate(ctx, 'defaultSchedule'),
@@ -372,9 +377,7 @@ export const ScheduleListField: React.FC<{
       updateConfig({ items: [], settingsSelectedScheduleId: null });
     } else {
       updateConfig({
-        schedules: schedules
-          .filter((schedule) => schedule.id !== 'default')
-          .filter((schedule) => schedule.id !== id),
+        schedules: schedules.filter((schedule) => schedule.id !== id),
         settingsSelectedScheduleId: null,
       });
     }

@@ -6,6 +6,7 @@ import type {
 } from '@/components/settings/schema/types';
 import type { RevealGridConfig } from '@/types';
 import { RevealGridCardsField } from './settingsFields';
+import { WINDOW_BACKGROUND_PRESETS } from '@/config/widgetAppearance';
 
 const renderCards = (ctx: CustomRenderCtx) =>
   React.createElement(RevealGridCardsField, { ctx });
@@ -72,12 +73,14 @@ export default defineSettings<RevealGridConfig>({
           key: 'defaultCardColor',
           type: 'color',
           label: 'defaultCardColor',
+          presets: WINDOW_BACKGROUND_PRESETS,
           readValue: (ctx) => ctx.config.defaultCardColor ?? '#dbeafe',
         },
         {
           key: 'defaultCardBackColor',
           type: 'color',
           label: 'defaultCardBackColor',
+          presets: WINDOW_BACKGROUND_PRESETS,
           readValue: (ctx) => ctx.config.defaultCardBackColor ?? '#dcfce7',
         },
       ],

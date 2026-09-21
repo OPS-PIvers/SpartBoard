@@ -83,6 +83,22 @@ describe('wave 12 settings-drawer widget migrations', () => {
     });
   });
 
+  it('shows the Default layout for a Music widget saved before layout existed', () => {
+    const field = musicSchema.groups
+      .flatMap((group) => group.fields as ReadonlyArray<Field>)
+      .find((candidate) => candidate.key === 'layout');
+    if (!field) throw new Error('Missing Music settings field: layout');
+    const ctx = {
+      config: {},
+      widget: { id: 'music-old', type: 'music', config: {} } as WidgetData,
+      isAdmin: false,
+      canAccessFeature: () => true,
+      t: (key: string) => key,
+    } as FieldCtx;
+
+    expect(field.readValue?.(ctx)).toBe('default');
+  });
+
   it('keeps Music usable while the personal Spotify gate loads or is revoked', () => {
     const fields = musicSchema.groups.flatMap(
       (group) => group.fields as ReadonlyArray<Field>

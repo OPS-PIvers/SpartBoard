@@ -1,4 +1,5 @@
 import type { AppearanceKey, Field } from './types';
+import { WIDGET_PALETTE } from '@/config/colors';
 
 // Content-tier Style fields (D18): one shared field per appearance key the generic tier can render.
 // `layout` is deliberately absent — its options are per-widget, so it stays a schema field in the widget's own `display` group.
@@ -31,7 +32,12 @@ export const UNIVERSAL_STYLE_FIELDS: Partial<Record<AppearanceKey, Field>> = {
     step: 1,
   },
   textColor: { type: 'color', key: 'textColor', label: 'style.textColor' },
-  titleColor: { type: 'color', key: 'titleColor', label: 'style.titleColor' },
+  titleColor: {
+    type: 'color',
+    key: 'titleColor',
+    label: 'style.titleColor',
+    presets: WIDGET_PALETTE,
+  },
   scaleMultiplier: {
     type: 'slider',
     key: 'scaleMultiplier',

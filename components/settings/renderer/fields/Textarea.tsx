@@ -1,6 +1,7 @@
 import React from 'react';
 import type { FieldProps } from '../FieldProps';
 import type { TextareaField as TextareaFieldSchema } from '@/components/settings/schema/types';
+import { resolveLabel } from '../resolveLabel';
 
 const BASE_CLASS =
   'w-full text-xs border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50';
@@ -10,17 +11,23 @@ const CODE_CLASS =
 
 export const TextareaField: React.FC<
   FieldProps<TextareaFieldSchema<string>>
-> = ({ field, value, onChange, id, describedBy, disabled }) => (
-  <textarea
-    id={id}
-    value={typeof value === 'string' ? value : ''}
-    onChange={(e) => onChange(e.target.value)}
-    placeholder={field.placeholder}
-    maxLength={field.maxLength}
-    rows={field.rows ?? 3}
-    disabled={disabled}
-    spellCheck={field.monospace ? false : undefined}
-    aria-describedby={describedBy}
-    className={`${BASE_CLASS} ${field.monospace ? CODE_CLASS : PROSE_CLASS}`}
-  />
-);
+> = ({ field, value, onChange, id, describedBy, disabled, ctx }) => {
+  const placeholder = field.placeholder
+    ? resolveLabel(ctx.t, ctx.widget.type, field.placeholder)
+    : undefined;
+
+  return (
+    <textarea
+      id={id}
+      value={typeof value === 'string' ? value : ''}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      maxLength={field.maxLength}
+      rows={field.rows ?? 3}
+      disabled={disabled}
+      spellCheck={field.monospace ? false : undefined}
+      aria-describedby={describedBy}
+      className={`${BASE_CLASS} ${field.monospace ? CODE_CLASS : PROSE_CLASS}`}
+    />
+  );
+};

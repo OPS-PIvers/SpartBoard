@@ -57,14 +57,12 @@ export const WidgetBackgroundSettings: React.FC<
   );
 };
 
-export const UniversalStyleSettings: React.FC<UniversalStyleSettingsProps> = ({
-  widget,
-  updateWidget,
-}) => {
+// Window font and text size, without the background box the Style tab renders separately.
+export const WidgetTypographySettings: React.FC<
+  UniversalStyleSettingsProps
+> = ({ widget, updateWidget }) => {
   return (
     <div className="flex flex-col gap-4">
-      <WidgetBackgroundSettings widget={widget} updateWidget={updateWidget} />
-
       {/* Typography */}
       <div className="flex flex-col gap-2 bg-slate-50/80 px-4 py-3 rounded-xl border border-slate-100">
         <div className="flex items-center justify-between">
@@ -153,3 +151,13 @@ export const UniversalStyleSettings: React.FC<UniversalStyleSettingsProps> = ({
     </div>
   );
 };
+
+export const UniversalStyleSettings: React.FC<UniversalStyleSettingsProps> = ({
+  widget,
+  updateWidget,
+}) => (
+  <div className="flex flex-col gap-4">
+    <WidgetBackgroundSettings widget={widget} updateWidget={updateWidget} />
+    <WidgetTypographySettings widget={widget} updateWidget={updateWidget} />
+  </div>
+);

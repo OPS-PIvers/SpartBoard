@@ -142,6 +142,66 @@ describe('NumberField', () => {
     expect(input).toHaveValue(5);
   });
 
+  it('keeps a partial entry while typing past a clamped prefix', () => {
+    const clampedField: NumberFieldType<string> = {
+      ...field,
+      min: 60,
+      max: 300,
+    };
+    // The renderer clamps and commits on every keystroke; the parent stores it,
+    // exactly as the live dashboard does, so a stale draft resync would show.
+    const Harness: React.FC = () => {
+      const [config, setConfig] = React.useState<Record<string, unknown>>({
+        count: 96,
+      });
+      return (
+        <FieldRenderer
+          field={clampedField}
+          widget={widget}
+          ctx={makeCtx(config)}
+          updateConfig={(patch) => setConfig((prev) => ({ ...prev, ...patch }))}
+        />
+      );
+    };
+    render(<Harness />);
+    const input = screen.getByRole('spinbutton');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '1' } });
+    expect(input).toHaveValue(1);
+    fireEvent.change(input, { target: { value: '15' } });
+    fireEvent.change(input, { target: { value: '150' } });
+    expect(input).toHaveValue(150);
+    fireEvent.blur(input);
+    expect(input).toHaveValue(150);
+  });
+
+  it('snaps a below-min draft back to the clamped value on blur', () => {
+    const clampedField: NumberFieldType<string> = {
+      ...field,
+      min: 60,
+      max: 300,
+    };
+    const Harness: React.FC = () => {
+      const [config, setConfig] = React.useState<Record<string, unknown>>({
+        count: 96,
+      });
+      return (
+        <FieldRenderer
+          field={clampedField}
+          widget={widget}
+          ctx={makeCtx(config)}
+          updateConfig={(patch) => setConfig((prev) => ({ ...prev, ...patch }))}
+        />
+      );
+    };
+    render(<Harness />);
+    const input = screen.getByRole('spinbutton');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '1' } });
+    fireEvent.blur(input);
+    expect(input).toHaveValue(60);
+  });
+
   it('honours disabled', () => {
     const disabledField: NumberFieldType<string> = {
       ...field,

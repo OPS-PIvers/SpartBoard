@@ -14,9 +14,11 @@ export const NumberField: React.FC<FieldProps<NumberFieldSchema<string>>> = ({
   // Local draft so the field can be cleared and retyped; an empty/invalid draft snaps back on blur.
   const [draft, setDraft] = useState(committed);
   const [prevCommitted, setPrevCommitted] = useState(committed);
+  const [focused, setFocused] = useState(false);
   if (prevCommitted !== committed) {
     setPrevCommitted(committed);
-    setDraft(committed);
+    // While typing, the clamped commit must not overwrite a partial entry.
+    if (!focused) setDraft(committed);
   }
 
   return (
@@ -38,7 +40,11 @@ export const NumberField: React.FC<FieldProps<NumberFieldSchema<string>>> = ({
         if (field.max !== undefined) clamped = Math.min(field.max, clamped);
         onChange(clamped);
       }}
-      onBlur={() => setDraft(committed)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => {
+        setFocused(false);
+        setDraft(committed);
+      }}
       className="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
     />
   );

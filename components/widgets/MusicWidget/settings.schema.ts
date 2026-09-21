@@ -44,6 +44,7 @@ export default defineSettings<MusicConfig>({
             { value: 'minimal', label: 'layoutMinimal' },
             { value: 'small', label: 'layoutSmall' },
           ],
+          readValue: (ctx) => ctx.config.layout ?? 'default',
         },
         {
           key: 'stationId',
