@@ -20,6 +20,8 @@ interface QuizTargetResultsProps {
   responses: QuizResponse[];
   stats: QuizTargetStats;
   resolveName: (response: QuizResponse) => string;
+  /** Name written to the CSV; defaults to `resolveName`. */
+  resolveExportName?: (response: QuizResponse) => string;
 }
 
 type SortState = { key: string; descending: boolean };
@@ -170,6 +172,7 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
   responses,
   stats,
   resolveName,
+  resolveExportName = resolveName,
 }) => {
   const columns = stats.targets.filter((row) => row.servedCount > 0);
   const standards = stats.standards.filter((row) => row.servedCount > 0);
@@ -184,6 +187,7 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
       .map((response) => ({
         key: response._responseKey ?? response.studentUid,
         name: resolveName(response),
+        exportName: resolveExportName(response),
         stats:
           stats.byStudent.get(response._responseKey ?? response.studentUid) ??
           new Map<string, never>(),
@@ -206,7 +210,7 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
       return sort.descending ? -compared : compared;
     });
     return next;
-  }, [responses, resolveName, sort, stats.byStudent]);
+  }, [responses, resolveName, resolveExportName, sort, stats.byStudent]);
 
   const changeSort = (key: SortState['key']): void => {
     setSort((current) => ({
@@ -219,7 +223,7 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
     const csv = buildTargetGridCsv(
       columns,
       rows.map((row) => ({
-        name: row.name,
+        name: row.exportName,
         values: new Map(
           columns.map((column) => [
             column.target.id,

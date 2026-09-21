@@ -155,6 +155,8 @@ export interface FreeResponseGraderProps {
   /** Whether a finished grade moves the grader on by itself. */
   autoAdvance?: boolean;
   onAutoAdvanceChange?: (enabled: boolean) => void;
+  /** Open on this student's answer to this question instead of the first in the queue. */
+  initialTarget?: { questionId: string; responseKey: string };
   onClose: () => void;
 }
 
@@ -301,6 +303,39 @@ function buildQueue(
   return rows;
 }
 
+/** Question and rail indexes that land on `target`; 0/0 when it isn't in a queue. */
+function initialIndexes(
+  questions: QuizQuestion[],
+  responses: QuizResponse[],
+  mode: GraderMode,
+  target: { questionId: string; responseKey: string } | undefined
+): { questionIdx: number; studentIdx: number } {
+  const questionIdx = target
+    ? questions.findIndex((q) => q.id === target.questionId)
+    : -1;
+  if (!target || questionIdx < 0) return { questionIdx: 0, studentIdx: 0 };
+  let keys: (string | undefined)[];
+  if (mode === 'question') {
+    keys = buildQueue(questions[questionIdx], responses).map(
+      (r) => r.responseKey
+    );
+  } else {
+    const seen = new Set<string | undefined>();
+    keys = [];
+    for (const q of questions) {
+      for (const row of buildQueue(q, responses)) {
+        if (seen.has(row.responseKey)) continue;
+        seen.add(row.responseKey);
+        keys.push(row.responseKey);
+      }
+    }
+  }
+  return {
+    questionIdx,
+    studentIdx: Math.max(0, keys.indexOf(target.responseKey)),
+  };
+}
+
 export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   quiz,
   responses,
@@ -316,6 +351,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   onGraderModeChange,
   autoAdvance = true,
   onAutoAdvanceChange,
+  initialTarget,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -336,8 +372,11 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
 
   const [mode, setMode] = useState<GraderMode>(graderMode);
   const [autoAdvanceOn, setAutoAdvanceOn] = useState(autoAdvance);
-  const [questionIdx, setQuestionIdx] = useState(0);
-  const [studentIdx, setStudentIdx] = useState(0);
+  const [initial] = useState(() =>
+    initialIndexes(questions, responses, graderMode, initialTarget)
+  );
+  const [questionIdx, setQuestionIdx] = useState(initial.questionIdx);
+  const [studentIdx, setStudentIdx] = useState(initial.studentIdx);
   const [slotName, setSlotName] = useState<ArtifactSlot>('primary');
   const [clearing, setClearing] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
