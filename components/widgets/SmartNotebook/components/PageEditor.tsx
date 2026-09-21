@@ -1384,18 +1384,23 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   // Tracks whether the teacher is working in this editor. Capture phase so a
   // child that stops propagation can't leave the flag stale, and document-wide
   // so a click anywhere else — another widget, the dock, a board switch —
-  // hands Ctrl+V back to the board.
+  // hands Ctrl+V back to the board. `focusin` covers reaching the canvas by
+  // Tab: it carries tabIndex={0}, so a pointer-only gate would lock a
+  // keyboard-only teacher out of pasting.
   useEffect(() => {
-    const onPointerDown = (e: PointerEvent) => {
+    const track = (e: Event) => {
       const container = containerRef.current;
       // Scope to the whole widget, not just the canvas, so picking a tool from
       // the toolbar above it still counts as working in the notebook.
       const scope = container?.closest('[data-widget-id]') ?? container;
       engagedRef.current = !!scope && scope.contains(e.target as Node);
     };
-    document.addEventListener('pointerdown', onPointerDown, true);
-    return () =>
-      document.removeEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('pointerdown', track, true);
+    document.addEventListener('focusin', track, true);
+    return () => {
+      document.removeEventListener('pointerdown', track, true);
+      document.removeEventListener('focusin', track, true);
+    };
   }, []);
 
   // Paste handler — runs on the native `paste` event so the browser

@@ -515,6 +515,24 @@ describe('PageEditor — only claims Ctrl+V while the teacher is working in it',
     expect(onChange).toHaveBeenCalled();
   });
 
+  it('takes the paste when the canvas is reached by keyboard', async () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <PageEditor svg={TEST_SVG} onChange={onChange} />
+    );
+    await tick();
+
+    const editorDiv = container.querySelector(
+      '[data-no-drag="true"] div'
+    ) as HTMLElement;
+    act(() => {
+      editorDiv.focus();
+    });
+
+    expect(pasteText('Lesson objective')).toBe(true);
+    expect(onChange).toHaveBeenCalled();
+  });
+
   it('hands the paste back after a click outside the notebook', async () => {
     const onChange = vi.fn();
     const { container } = render(
