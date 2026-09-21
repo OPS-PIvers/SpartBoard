@@ -9,6 +9,11 @@
 import { parseQuestionLines } from './parseQuestions';
 import { readDocx } from './docxReader';
 import { readPdf, type PdfReaderDeps } from './pdfReader';
+import {
+  MAX_DOCUMENT_PAGES,
+  assertWithinByteLimit,
+  assertWithinPageLimit,
+} from './limits';
 import type { ExtractedQuiz } from './types';
 
 export * from './types';
@@ -16,10 +21,13 @@ export { parseQuestionLines, isTrueFalse } from './parseQuestions';
 export { findAnswerKey } from './answerKey';
 export { readDocx } from './docxReader';
 export { readPdf, groupItemsIntoLines } from './pdfReader';
-
-/** D18: the reader is a classroom tool, not a batch job. */
-export const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
-export const MAX_DOCUMENT_PAGES = 20;
+export {
+  MAX_DOCUMENT_BYTES,
+  MAX_DOCUMENT_PAGES,
+  DocumentTooLargeError,
+  assertWithinByteLimit,
+  assertWithinPageLimit,
+} from './limits';
 
 export type DocumentKind = 'pdf' | 'docx';
 
@@ -47,17 +55,6 @@ export function titleFromFileName(name: string): string {
   return base || 'Imported Quiz';
 }
 
-/** Thrown before anything is read, so an oversized file costs nothing. */
-export class DocumentTooLargeError extends Error {}
-
-export function assertWithinLimits(file: Blob): void {
-  if (file.size > MAX_DOCUMENT_BYTES) {
-    throw new DocumentTooLargeError(
-      `This file is larger than ${Math.round(MAX_DOCUMENT_BYTES / 1024 / 1024)} MB. Split it into smaller files and import them one at a time.`
-    );
-  }
-}
-
 export interface ReadDocumentOptions {
   /** Shown as the quiz title; defaults to the file's own name. */
   fileName?: string;
@@ -81,7 +78,7 @@ export async function readQuizDocument(
       'That file type can’t be read. Upload a PDF, a Word file (.docx) or a Google Doc.'
     );
   }
-  assertWithinLimits(file);
+  assertWithinByteLimit(file);
 
   const warnings: string[] = [];
 
@@ -102,15 +99,16 @@ export async function readQuizDocument(
     throw new Error('Reading a PDF needs the PDF reader to be available.');
   }
 
-  const { lines, scannedPages, usedOcr } = await readPdf(file, options.pdf);
-
-  const pages = new Set(lines.map((l) => l.page));
-  const pageCount = Math.max(pages.size, scannedPages.length);
-  if (pageCount > MAX_DOCUMENT_PAGES) {
-    throw new DocumentTooLargeError(
-      `This file is ${pageCount} pages. Split it into files of ${MAX_DOCUMENT_PAGES} pages or fewer and import them one at a time.`
-    );
-  }
+  // The page limit is the document's own page count, checked inside the
+  // reader the moment the file opens. Counting the pages that produced lines
+  // would undercount: a page whose text layer is empty and that OCR could not
+  // recover never reaches `lines` at all.
+  const { lines, pageCount, scannedPages, usedOcr } = await readPdf(
+    file,
+    options.pdf,
+    { maxPages: MAX_DOCUMENT_PAGES }
+  );
+  assertWithinPageLimit(pageCount);
 
   if (usedOcr) {
     warnings.push(

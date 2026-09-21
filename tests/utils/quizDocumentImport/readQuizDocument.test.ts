@@ -12,6 +12,7 @@ import {
   readQuizDocument,
   titleFromFileName,
 } from '@/utils/quizDocumentImport';
+import { readPdf } from '@/utils/quizDocumentImport/pdfReader';
 import type {
   PdfDocumentLike,
   PdfTextItem,
@@ -144,6 +145,42 @@ describe('readQuizDocument', () => {
         pdf: pdfDeps(pages),
       })
     ).rejects.toThrow(/20 pages or fewer/i);
+  });
+
+  // The limit is the document's page count, not the number of pages that
+  // happened to produce text: a page whose text layer is empty and that OCR
+  // cannot recover never reaches `lines`, so counting those would let a long
+  // document through.
+  it('refuses a long PDF most of whose pages yielded nothing', async () => {
+    const pages = [
+      ...Array.from({ length: 13 }, (_, i) => [
+        item(`${i + 1}. A question long enough to count as text`, 0, 700),
+      ]),
+      ...Array.from({ length: 12 }, () => [] as PdfTextItem[]),
+    ];
+    expect(pages).toHaveLength(25);
+
+    await expect(
+      readQuizDocument(new Blob(['%PDF-']), {
+        fileName: 'mostly-blank.pdf',
+        // No recognizer, so the 12 empty pages produce no lines at all.
+        pdf: pdfDeps(pages),
+      })
+    ).rejects.toThrow(/25 pages/i);
+  });
+
+  it('refuses an over-long PDF before parsing a single page', async () => {
+    const getPage = vi.fn();
+    await expect(
+      readPdf(
+        new Blob(['%PDF-']),
+        {
+          loadPdf: () => Promise.resolve({ numPages: 40, getPage }),
+        },
+        { maxPages: 20 }
+      )
+    ).rejects.toThrow(DocumentTooLargeError);
+    expect(getPage).not.toHaveBeenCalled();
   });
 
   it('drops a Word picture no question points at', async () => {

@@ -9,6 +9,7 @@
  * grouped back into lines by their y coordinate before anything is parsed.
  */
 
+import { assertWithinPageLimit } from './limits';
 import type { DocLine } from './types';
 
 /** Fragments within this many points of each other sit on the same line. */
@@ -41,10 +42,17 @@ export interface PdfReaderDeps {
 
 export interface PdfContent {
   lines: DocLine[];
+  /** The document's own page count, whether or not a page yielded text. */
+  pageCount: number;
   /** Pages that had no text layer, 1-based. */
   scannedPages: number[];
   /** True once any page needed OCR. */
   usedOcr: boolean;
+}
+
+export interface ReadPdfOptions {
+  /** Refuse a longer document before any page is read. */
+  maxPages?: number;
 }
 
 /** Group positioned fragments back into lines, top-to-bottom. */
@@ -85,15 +93,23 @@ export function groupItemsIntoLines(items: readonly PdfTextItem[]): string[] {
  */
 export async function readPdf(
   file: Blob,
-  deps: PdfReaderDeps
+  deps: PdfReaderDeps,
+  options: ReadPdfOptions = {}
 ): Promise<PdfContent> {
   const pdf = await deps.loadPdf(file);
+  const pageCount = pdf.numPages;
   const lines: DocLine[] = [];
   const scannedPages: number[] = [];
   let usedOcr = false;
 
   try {
-    for (let n = 1; n <= pdf.numPages; n += 1) {
+    // The page count is known as soon as the document opens, so an over-long
+    // one is refused before a single page is parsed or OCR'd.
+    if (options.maxPages !== undefined) {
+      assertWithinPageLimit(pageCount, options.maxPages);
+    }
+
+    for (let n = 1; n <= pageCount; n += 1) {
       const page = await pdf.getPage(n);
       const content = await page.getTextContent();
       const pageLines = groupItemsIntoLines(content.items);
@@ -117,5 +133,5 @@ export async function readPdf(
     await pdf.destroy?.();
   }
 
-  return { lines, scannedPages, usedOcr };
+  return { lines, pageCount, scannedPages, usedOcr };
 }
