@@ -151,6 +151,7 @@ import type {
   LocalizedFibAnswers,
 } from '@/utils/quizFibAnswers';
 import { QuizTargetResults } from './QuizTargetResults';
+import { formatExportPoints } from '@/utils/assignmentExportShared';
 
 /**
  * Export-error banner state. Generic errors render as a plain message; a
@@ -2894,9 +2895,6 @@ const MARK_STYLE: Record<
   noAnswer: { icon: Circle, className: 'text-brand-gray-primary' },
 };
 
-const formatPoints = (n: number): string =>
-  Number.isInteger(n) ? String(n) : (Math.round(n * 100) / 100).toString();
-
 const StudentQuestionLineView: React.FC<{
   line: StudentQuestionLine;
   onOpenGrader?: () => void;
@@ -2929,7 +2927,8 @@ const StudentQuestionLineView: React.FC<{
             className="font-sans text-brand-gray-primary tabular-nums shrink-0"
             style={SMALL_TEXT}
           >
-            {formatPoints(line.pointsEarned)}/{formatPoints(line.pointsMax)}
+            {formatExportPoints(line.pointsEarned)}/
+            {formatExportPoints(line.pointsMax)}
           </span>
         )}
       </span>
