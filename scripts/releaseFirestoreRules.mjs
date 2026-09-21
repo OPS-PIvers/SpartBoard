@@ -176,9 +176,13 @@ async function diagnoseRefusal(token, projectId, live, attempted) {
   });
   if (!live?.rulesetName || live.rulesetName === attempted) return;
 
+  // Read-back proves nothing here, since the release already holds this
+  // ruleset. What the probe reads is the status: accepted rather than refused.
   try {
     await call(token, 'PATCH', path, releaseBody(live.rulesetName));
-    console.warn('probe: re-releasing the live ruleset was accepted');
+    console.warn(
+      'probe: re-releasing the live ruleset was accepted, not refused'
+    );
   } catch (error) {
     console.warn(
       `probe: re-releasing the live ruleset failed too: ${error.message}`
@@ -203,14 +207,23 @@ async function diagnoseRefusal(token, projectId, live, attempted) {
     return;
   }
   // Same rules, new ruleset: releasing it changes nothing a teacher can see.
+  // This one is a real state change, so read it back rather than trusting 200.
   try {
     await call(token, 'PATCH', path, releaseBody(copy.name));
-    console.warn(
-      `probe: a new ruleset holding the live rules (${copy.name}) released fine, so the refusal follows the rules content`
-    );
   } catch (error) {
     console.warn(
       `probe: a new ruleset holding the live rules was refused too (${error.message}), so the content is not what matters`
+    );
+    return;
+  }
+  const applied = await call(token, 'GET', path);
+  if (applied.rulesetName === copy.name) {
+    console.warn(
+      `probe: a new ruleset holding the live rules (${copy.name}) released, so the refusal follows the rules content`
+    );
+  } else {
+    console.warn(
+      `probe: the copy was accepted but left the release on ${applied.rulesetName}, so a 200 here means nothing`
     );
   }
 }
