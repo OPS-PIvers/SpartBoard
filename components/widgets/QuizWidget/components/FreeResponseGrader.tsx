@@ -576,8 +576,6 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     setDraftAnnotations(hydrated.annotations);
     setDraftRubricScores(hydrated.rubricScores);
     setActiveAnnotationId(null);
-    // The audio view remounts per target with a fresh handled-nonce, so a
-    // stale seek would replay on the next student's take.
     setSeek({ ms: 0, nonce: 0 });
     lastJumpRef.current = null;
     setPinnedTakeIndex(hydrated.pinnedTakeIndex);
@@ -599,6 +597,17 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
             )
           )
         : '';
+  }
+
+  // The audio view remounts per take with a fresh handled-nonce, so a seek
+  // from the previous take would replay on this one. Keyed on the take
+  // rather than the Takes-list click, so every path that swaps one resets.
+  const takeKey = `${targetKey}::${activeTake?.takeIndex ?? 0}`;
+  const [seekTakeKey, setSeekTakeKey] = useState(takeKey);
+  if (takeKey !== seekTakeKey) {
+    setSeekTakeKey(takeKey);
+    setSeek({ ms: 0, nonce: 0 });
+    lastJumpRef.current = null;
   }
 
   const handleRubricScoresChange = useCallback(
@@ -1554,7 +1563,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
 
             {isMedia && !isUnavailable && (
               <AudioAnnotatedResponseView
-                key={`${targetKey}::${activeTake?.takeIndex ?? 0}`}
+                key={takeKey}
                 src={takeUrl}
                 durationMs={activeTake?.artifact.durationMs ?? 0}
                 loading={loadingTake}

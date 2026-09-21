@@ -784,6 +784,85 @@ describe('FreeResponseGrader rubric strand tags', () => {
     expect(document.querySelector('audio')?.currentTime).toBe(0);
   });
 
+  // Asserts the invariant, not a reproduction: the outgoing element consumes
+  // the nonce before the new take's URL lands, so this passes either way.
+  it("leaves a newly picked take at the start, not the last take's seek", async () => {
+    const spokenQuiz = {
+      id: 'quiz-4',
+      title: 'Spoken checks',
+      questions: [
+        {
+          id: 'q1',
+          text: 'Explain your reasoning out loud.',
+          type: 'free-response',
+          correctAnswer: '',
+          incorrectAnswers: [],
+          timeLimit: 0,
+          points: 4,
+          recording: RECORDING,
+          rubricSnapshot: ESSAY_RUBRIC,
+        },
+      ],
+    } as unknown as QuizData;
+
+    const twoTakes = {
+      ...(recorded('ada', 2) as unknown as Record<string, unknown>),
+      grading: {
+        q1: {
+          pointsAwarded: 3,
+          annotationUnit: 'ms',
+          annotations: [
+            {
+              id: 'ada-n1',
+              from: 8_000,
+              to: 8_000,
+              highlightColor: 'yellow',
+              authorUid: 'teacher-1',
+              createdAt: 0,
+              rubricCriteria: [{ criterionId: 'c1', name: 'Thesis' }],
+            },
+          ],
+          rubricScores: [{ criterionId: 'c1', levelId: 'c1l2', points: 3 }],
+          gradedBy: 'teacher-1',
+          gradedAt: 1,
+        },
+      },
+    } as unknown as QuizResponse;
+
+    render(
+      <FreeResponseGrader
+        quiz={spokenQuiz}
+        responses={[twoTakes]}
+        displayNameByResponseKey={names}
+        teacherUid="teacher-1"
+        // A URL per take, as production does: the remounted view only runs
+        // its seek once a `src` lands, so one shared URL hides the bug.
+        resolveTakeUrl={(driveFileId: string) =>
+          Promise.resolve(`blob:${driveFileId}`)
+        }
+        onSaveGrade={vi.fn<FreeResponseGraderProps['onSaveGrade']>(() =>
+          Promise.resolve()
+        )}
+        onClose={() => undefined}
+      />
+    );
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: /notes? as evidence for thesis/i,
+      })
+    );
+    await waitFor(() =>
+      expect(document.querySelector('audio')?.currentTime).toBe(8)
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /take 1/i }));
+    await waitFor(() =>
+      expect(document.querySelector('audio')?.src).toContain('drive-ada-1')
+    );
+    expect(document.querySelector('audio')?.currentTime).toBe(0);
+  });
+
   it('lists a tagged highlight under its strand in the highlights rail', async () => {
     renderEssayGrader();
     const mark = await waitFor(() => {
