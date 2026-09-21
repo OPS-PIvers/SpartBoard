@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
-# Deploy the Firebase backend (functions, Firestore rules + indexes,
-# storage) with automatic retry on transient Google API failures.
+# Deploy the Firebase backend (functions, Firestore indexes, storage) with
+# automatic retry on transient Google API failures, then release
+# firestore.rules through scripts/releaseFirestoreRules.mjs.
 #
 # Background: `firebase deploy` makes many googleapis calls while it
 # reconciles Firestore fields/indexes, uploads functions, and enables
@@ -15,7 +16,7 @@
 # This wrapper retries the deploy a few times with exponential backoff
 # when the output matches a known transient signature, mirroring the
 # retry-on-blip philosophy already used in wait-for-firestore-indexes.sh.
-# A `firebase deploy` of these targets is idempotent (rules/indexes/storage
+# A `firebase deploy` of these targets is idempotent (indexes/storage
 # reconcile to the committed manifest; functions redeploy the same source),
 # so re-running after a partial transient failure is safe.
 #
@@ -43,13 +44,13 @@ trap 'rm -f "$LOG_FILE"' EXIT
 # `code.?UNAVAILABLE` matches the gRPC UNAVAILABLE status whether the
 # Firebase SDK logs it as "code: UNAVAILABLE" or "code=UNAVAILABLE".
 #
-# The 409 on the firebaserules `/releases` endpoint is transient despite
-# its status code. firebase-tools releases a ruleset with
-# `updateOrCreateRelease`, which PATCHes the existing release and, if that
-# call throws for any reason, falls back to POSTing a new one. The POST
-# then 409s precisely because the release does exist — so the 409 is the
-# echo of a swallowed transient failure on the PATCH, not a real conflict,
-# and the next attempt's PATCH normally goes through. Scoped to that one
+# A 409 on the firebaserules `/releases` endpoint is an echo rather than a
+# conflict. firebase-tools releases a ruleset with `updateOrCreateRelease`,
+# which PATCHes the existing release and, on any thrown error, POSTs a new
+# one; the POST then 409s precisely because the release does exist. The
+# real error is whatever the PATCH returned, and it is discarded. Firestore
+# rules no longer take that path (see the release step below), but the
+# storage rules release still does, so keep retrying it. Scoped to that one
 # endpoint: a 409 anywhere else (e.g. functions) is left non-retryable.
 RULES_RELEASE_409='firebaserules\.googleapis\.com[^ ]*/releases had HTTP Error: 409'
 TRANSIENT_PATTERN="HTTP Error: 5[0-9][0-9]|HTTP Error: 429|service is currently unavailable|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|premature close|Client network socket disconnected|Deadline exceeded|code.?UNAVAILABLE|${RULES_RELEASE_409}"
@@ -59,32 +60,37 @@ TRANSIENT_PATTERN="HTTP Error: 5[0-9][0-9]|HTTP Error: 429|service is currently 
 # against the commented file. Idempotent, so retries are unaffected.
 node scripts/stripRulesComments.mjs firestore.rules --write
 
-# firebase-tools discards the error from the release PATCH (`.catch(() =>
-# createRelease(...))`), so a repeated 409 says nothing about what actually
-# failed. Re-deploy just the rules with --debug once before retrying: the
-# apiv2 lines name the PATCH's real status and body, and the only traffic
-# this logs is the rules source, which is already public in this repo.
-diagnose_rules_release() {
-  echo "::group::firestore rules release diagnostic (--debug)"
-  pnpm exec firebase deploy --only firestore:rules --project "$PROJECT_ID" --force --debug 2>&1 |
-    grep -iE 'apiv2|releases|error' || true
+# firestore:rules is deployed here rather than by the CLI: since 2026-09-21
+# the API rejects the CLI's release call with 400 INVALID_ARGUMENT, and the
+# CLI hides that behind a 409. The script sends the same calls with the
+# updateMask the API now wants, and has its own retry for transient statuses.
+# It runs after the CLI deploy, which is where the rules release sat when the
+# CLI still owned it.
+release_firestore_rules() {
+  echo "::group::release firestore.rules"
+  node scripts/releaseFirestoreRules.mjs "$PROJECT_ID"
+  local code=$?
   echo "::endgroup::"
+  if [[ "$code" -ne 0 ]]; then
+    echo "ERROR: firestore.rules release failed (exit ${code})." >&2
+  fi
+  return "$code"
 }
 
 attempt=1
 backoff=10
-diagnosed=0
 while true; do
   echo "::group::firebase deploy (attempt ${attempt}/${MAX_ATTEMPTS})"
   # `tee` keeps the deploy output streaming in the CI log while also
   # capturing it for the transient-error check. PIPESTATUS[0] is the
   # firebase exit code (tee always succeeds).
-  pnpm exec firebase deploy --only functions,firestore,storage --project "$PROJECT_ID" --force 2>&1 | tee "$LOG_FILE"
+  pnpm exec firebase deploy --only functions,firestore:indexes,storage --project "$PROJECT_ID" --force 2>&1 | tee "$LOG_FILE"
   code=${PIPESTATUS[0]}
   echo "::endgroup::"
 
   if [[ "$code" -eq 0 ]]; then
-    exit 0
+    release_firestore_rules
+    exit $?
   fi
 
   if (( attempt >= MAX_ATTEMPTS )); then
@@ -93,10 +99,6 @@ while true; do
   fi
 
   if grep -qiE "$TRANSIENT_PATTERN" "$LOG_FILE"; then
-    if (( diagnosed == 0 )) && grep -qiE "$RULES_RELEASE_409" "$LOG_FILE"; then
-      diagnosed=1
-      diagnose_rules_release
-    fi
     echo "::warning::Transient Google API error during firebase deploy; retrying in ${backoff}s (attempt ${attempt}/${MAX_ATTEMPTS})."
     sleep "$backoff"
     attempt=$((attempt + 1))
