@@ -10,10 +10,12 @@
  * after the backend deploy, nothing reached the dev URL for four hours. The
  * CLI sends the same request in 15.30.2, so there was no version to move to.
  *
- * The fix hands the three calls to our own script, which adds the
- * `updateMask` the API now wants. If `firestore:rules` ever goes back into the
- * bundled `firebase deploy` targets while that is still true, deploys break
- * again in exactly the same silent way — hence this test.
+ * The three calls now go through our own script, so the real status is
+ * printed. `updateMask` turned out not to be the answer, and the script walks
+ * the remaining request shapes instead. If `firestore:rules` ever goes back
+ * into the bundled `firebase deploy` targets while the CLI's release call is
+ * still refused, deploys break again in exactly the same silent way — hence
+ * this test.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { readFileSync } from 'fs';
@@ -23,6 +25,7 @@ import {
   blockingIssues,
   isTransientStatus,
   call,
+  releaseAttempts,
 } from '../scripts/releaseFirestoreRules.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -169,5 +172,46 @@ describe('releaseFirestoreRules call()', () => {
       call('token', 'POST', '/projects/p/rulesets', {}, { baseDelayMs: 0 })
     ).resolves.toEqual({ ok: true });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('releaseFirestoreRules releaseAttempts()', () => {
+  const attempts = releaseAttempts(
+    'spartboard',
+    'projects/spartboard/rulesets/abc'
+  );
+
+  it('points every shape at the cloud.firestore release', () => {
+    expect(attempts.length).toBeGreaterThan(1);
+    for (const attempt of attempts) {
+      expect(attempt.path).toContain(
+        '/projects/spartboard/releases/cloud.firestore'
+      );
+      expect(attempt.label).toBeTruthy();
+      expect(JSON.stringify(attempt.body)).toContain(
+        'projects/spartboard/rulesets/abc'
+      );
+    }
+  });
+
+  // The mask the deploy shipped first. It was rejected, so no shape should use it.
+  it('never sends the release-prefixed mask path again', () => {
+    for (const attempt of attempts) {
+      expect(attempt.path).not.toContain('updateMask=release.rulesetName');
+      expect(JSON.stringify(attempt.body)).not.toContain('release.rulesetName');
+    }
+  });
+
+  it('covers a mask in the body, a mask in the query and no mask at all', () => {
+    const bodies = attempts.map((a) => JSON.stringify(a.body));
+    expect(bodies.some((b) => b.includes('"updateMask"'))).toBe(true);
+    expect(attempts.some((a) => a.path.includes('?updateMask='))).toBe(true);
+    expect(
+      attempts.some(
+        (a) =>
+          !a.path.includes('updateMask') &&
+          !JSON.stringify(a.body).includes('updateMask')
+      )
+    ).toBe(true);
   });
 });
