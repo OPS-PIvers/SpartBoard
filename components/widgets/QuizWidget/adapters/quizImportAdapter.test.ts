@@ -158,4 +158,41 @@ describe('createQuizImportAdapter — drive.file token threading', () => {
       expect(deps.createQuizTemplate).not.toHaveBeenCalled();
     });
   });
+
+  // docs/plans/QUIZ_DOCUMENT_IMPORT.md D5/D7: a document import that read the
+  // question but not its key must still reach the editor.
+  describe('validate — questions imported without an answer key', () => {
+    const quizWith = (
+      question: Partial<QuizData['questions'][number]>
+    ): QuizData => ({
+      ...SAMPLE_QUIZ,
+      questions: [{ ...SAMPLE_QUIZ.questions[0], ...question }],
+    });
+
+    it('rejects a keyless question nothing flagged', () => {
+      const adapter = createQuizImportAdapter(makeDeps());
+      const result = adapter.validate(quizWith({ correctAnswer: '' }));
+      expect(result.ok).toBe(false);
+      expect(result.errors).toContain(
+        'Question 1 is missing a correct answer.'
+      );
+    });
+
+    it('accepts a keyless question the reader flagged as needing one', () => {
+      const adapter = createQuizImportAdapter(makeDeps());
+      const result = adapter.validate(
+        quizWith({ correctAnswer: '', needsKey: true })
+      );
+      expect(result).toEqual({ ok: true, errors: [] });
+    });
+
+    it('still rejects a flagged question with no text', () => {
+      const adapter = createQuizImportAdapter(makeDeps());
+      const result = adapter.validate(
+        quizWith({ text: '', correctAnswer: '', needsKey: true })
+      );
+      expect(result.ok).toBe(false);
+      expect(result.errors).toContain('Question 1 is missing text.');
+    });
+  });
 });

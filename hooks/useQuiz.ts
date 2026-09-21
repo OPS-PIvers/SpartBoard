@@ -43,6 +43,10 @@ import {
 } from './useSyncedQuizGroups';
 import { migrateQuizMetadataShape } from '@/utils/quizSyncMigration';
 import { buildQuizSearchText } from '@/utils/quizSearchText';
+import {
+  clearSatisfiedNeedsKey,
+  countQuestionsNeedingKey,
+} from '@/utils/quizNeedsKey';
 import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
@@ -249,7 +253,12 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     ): Promise<QuizMetadata> => {
       if (!userId) throw new Error('Not authenticated');
       const drive = getDriveService();
-      const updatedQuiz: QuizData = { ...quiz, updatedAt: Date.now() };
+      // Drop `needsKey` from any question that now has an answer, so the flag
+      // never outlives the gap it describes.
+      const updatedQuiz: QuizData = clearSatisfiedNeedsKey({
+        ...quiz,
+        updatedAt: Date.now(),
+      });
 
       // Read the existing metadata so we know whether this quiz is part
       // of a synced group and what version we're publishing on top of.
@@ -335,6 +344,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         driveFileId,
         questionCount: quiz.questions.length,
         searchText: buildQuizSearchText(quiz.questions),
+        needsKeyCount: countQuestionsNeedingKey(updatedQuiz.questions),
         createdAt: quiz.createdAt,
         updatedAt: updatedQuiz.updatedAt,
         // Preserve folder assignment + synced linkage + behavior settings
@@ -438,6 +448,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         driveFileId,
         questionCount: canonical.questions.length,
         searchText: buildQuizSearchText(canonical.questions),
+        needsKeyCount: countQuestionsNeedingKey(canonical.questions),
         createdAt: quizMeta.createdAt,
         updatedAt: now,
         ...(quizMeta.folderId !== undefined
@@ -524,6 +535,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         questionCount: quizMeta.questionCount,
         ...(quizMeta.searchText !== undefined
           ? { searchText: quizMeta.searchText }
+          : {}),
+        ...(quizMeta.needsKeyCount !== undefined
+          ? { needsKeyCount: quizMeta.needsKeyCount }
           : {}),
         createdAt: quizMeta.createdAt,
         updatedAt: Date.now(),
@@ -722,6 +736,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           driveFileId: createdDriveFileId,
           questionCount: fresh.questions.length,
           searchText: buildQuizSearchText(fresh.questions),
+          needsKeyCount: countQuestionsNeedingKey(fresh.questions),
           createdAt: fresh.createdAt,
           updatedAt: fresh.updatedAt,
           // Preserve folder placement. Setting folderId to undefined on
