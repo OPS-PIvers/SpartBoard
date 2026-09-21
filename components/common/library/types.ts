@@ -541,7 +541,17 @@ export type ImportSourcePayload =
   | { kind: 'json'; text: string; fileName?: string }
   | { kind: 'html'; text: string; fileName?: string }
   | { kind: 'file'; file: File }
-  | { kind: 'document'; file: Blob; fileName: string };
+  | {
+      kind: 'document';
+      file: Blob;
+      fileName: string;
+      /**
+       * The optional answer key picked beside the test
+       * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D8). Absent when the teacher
+       * attached none, which is the common case.
+       */
+      keyFile?: { file: Blob; fileName: string };
+    };
 
 /** Parser result — `warnings` surface non-fatal issues in the preview. */
 export interface ImportParseResult<TData> {
@@ -586,6 +596,11 @@ export interface ImportAdapter<TData> {
    * .docx) or `null` if the teacher cancels.
    */
   pickDocument?: () => Promise<{ file: Blob; fileName: string } | null>;
+  /**
+   * True when this adapter reads a separate answer key file (D8); the wizard
+   * then offers a slot for one beside the test document.
+   */
+  supportsKeyFile?: boolean;
   /** Optional helper for Google Sheets template creation. */
   templateHelper?: {
     createTemplate: () => Promise<{ url: string }>;

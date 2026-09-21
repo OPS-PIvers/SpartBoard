@@ -21,6 +21,12 @@ export * from './types';
 export { documentKind, titleFromFileName, type DocumentKind } from './fileKind';
 export { parseQuestionLines, isTrueFalse } from './parseQuestions';
 export { findAnswerKey } from './answerKey';
+export {
+  keyFromLines,
+  applyAnswerKey,
+  readAnswerKeyFile,
+  type ReadKeyFileOptions,
+} from './keyFile';
 export { readDocx } from './docxReader';
 export { readPdf, groupItemsIntoLines } from './pdfReader';
 export { extractedToQuizData, rowWarnings } from './toQuizData';

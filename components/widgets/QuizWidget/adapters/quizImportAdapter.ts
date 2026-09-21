@@ -23,7 +23,9 @@ import type { ImportAdapter } from '@/components/common/library';
 import type { QuizData, QuizQuestion } from '@/types';
 import { generateQuiz, type GeneratedQuestion } from '@/utils/ai';
 import {
+  applyAnswerKey,
   extractedToQuizData,
+  readAnswerKeyFile,
   readQuizDocument,
   readQuizDocumentWithAi,
   rowWarnings,
@@ -344,6 +346,43 @@ async function readDocumentWith(
   }
 }
 
+/** A key file is numbers and letters, which the plain reader handles (D8). */
+async function readKeyFile(keyFile: {
+  file: Blob;
+  fileName: string;
+}): Promise<Map<number, string>> {
+  const isPdf =
+    keyFile.file.type === 'application/pdf' ||
+    keyFile.fileName.toLowerCase().endsWith('.pdf');
+  return readAnswerKeyFile(keyFile.file, {
+    fileName: keyFile.fileName,
+    ...(isPdf ? { pdf: await browserPdfDeps(keyFile.file) } : {}),
+  });
+}
+
+/**
+ * Applies the attached key, or says it couldn't be read. The questions are
+ * already in hand by then, so a key that won't open is a note on the review
+ * table rather than an error that throws the whole read away.
+ */
+async function withAnswerKey(
+  quiz: ExtractedQuiz,
+  keyFile: { file: Blob; fileName: string }
+): Promise<ExtractedQuiz> {
+  try {
+    return applyAnswerKey(quiz, await readKeyFile(keyFile));
+  } catch (err) {
+    console.warn('[quizImport] could not read the answer key', err);
+    return {
+      ...quiz,
+      warnings: [
+        ...quiz.warnings,
+        'The answer key file couldn’t be read, so the answers below are only the ones printed on the test.',
+      ],
+    };
+  }
+}
+
 export function createQuizImportAdapter(
   deps: QuizImportAdapterDeps
 ): ImportAdapter<QuizData> {
@@ -355,6 +394,7 @@ export function createQuizImportAdapter(
       ? ['sheet', 'csv', 'document']
       : ['sheet', 'csv'],
     pickSheet: deps.pickSheet,
+    ...(deps.canImportDocuments ? { supportsKeyFile: true } : {}),
     ...(deps.canImportDocuments && deps.pickDocument
       ? { pickDocument: deps.pickDocument }
       : {}),
@@ -409,7 +449,10 @@ export function createQuizImportAdapter(
         return { data, warnings: [] };
       }
       if (source.kind === 'document') {
-        const extracted = await readDocument(source.file, source.fileName);
+        const read = await readDocument(source.file, source.fileName);
+        const extracted = source.keyFile
+          ? await withAnswerKey(read, source.keyFile)
+          : read;
         deps.onDocumentImages?.(extracted.images);
         return {
           data: extractedToQuizData(extracted),

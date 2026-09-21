@@ -22,6 +22,7 @@ function makeAdapter(
     supportedSources?: ImportSourceKind[];
     pickDocument?: ImportAdapter<FakeData>['pickDocument'];
     withReview?: boolean;
+    supportsKeyFile?: boolean;
   } = {}
 ) {
   const parseSpy = vi.fn((_source: ImportSourcePayload) =>
@@ -34,6 +35,7 @@ function makeAdapter(
     widgetLabel: 'Quiz',
     supportedSources: opts.supportedSources ?? ['csv', 'document'],
     pickDocument: opts.pickDocument,
+    ...(opts.supportsKeyFile ? { supportsKeyFile: true } : {}),
     parse: parseSpy as unknown as ImportAdapter<FakeData>['parse'],
     validate: () => ({ ok: true, errors: [] }),
     renderPreview: (data) => (
@@ -211,5 +213,73 @@ describe('ImportWizard — editable review step', () => {
 
     await waitFor(() => expect(saveSpy).toHaveBeenCalledTimes(1));
     expect(saveSpy.mock.calls[0][0]).toEqual({ rows: ['a', 'edited'] });
+  });
+});
+
+describe('the optional answer key slot (D8)', () => {
+  const upload = (label: string, name: string) => {
+    const input = screen.getByLabelText(label);
+    fireEvent.change(input, {
+      target: { files: [new File(['x'], name, { type: 'application/pdf' })] },
+    });
+  };
+
+  it('is not offered by an adapter that does not read a key', () => {
+    const { adapter } = makeAdapter();
+    renderWizard(adapter);
+    expect(
+      screen.queryByText(/Add a separate answer key/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('sends an attached key along with the test document', async () => {
+    const { adapter, parseSpy } = makeAdapter({ supportsKeyFile: true });
+    renderWizard(adapter);
+
+    upload('Upload a separate answer key', 'key.pdf');
+    await screen.findByText(/Answer key: key\.pdf/);
+    upload('Upload a test document', 'test.pdf');
+
+    await waitFor(() => expect(parseSpy).toHaveBeenCalled());
+    expect(parseSpy.mock.calls[0][0]).toMatchObject({
+      kind: 'document',
+      fileName: 'test.pdf',
+      keyFile: { fileName: 'key.pdf' },
+    });
+  });
+
+  it('forgets an attached key when the wizard is reopened', async () => {
+    const { adapter, parseSpy } = makeAdapter({ supportsKeyFile: true });
+    const { rerender } = render(
+      <ImportWizard isOpen onClose={vi.fn()} adapter={adapter} />
+    );
+
+    upload('Upload a separate answer key', 'key.pdf');
+    await screen.findByText(/Answer key: key\.pdf/);
+
+    // Closing and reopening starts a fresh import; last week's key silently
+    // marking this week's test would be invisible until a student's paper.
+    rerender(
+      <ImportWizard isOpen={false} onClose={vi.fn()} adapter={adapter} />
+    );
+    rerender(<ImportWizard isOpen onClose={vi.fn()} adapter={adapter} />);
+
+    expect(screen.queryByText(/Answer key: key\.pdf/)).not.toBeInTheDocument();
+
+    upload('Upload a test document', 'test.pdf');
+    await waitFor(() => expect(parseSpy).toHaveBeenCalled());
+    expect(parseSpy.mock.calls[0][0]).not.toHaveProperty('keyFile');
+  });
+
+  it('sends no key when the teacher removed it', async () => {
+    const { adapter, parseSpy } = makeAdapter({ supportsKeyFile: true });
+    renderWizard(adapter);
+
+    upload('Upload a separate answer key', 'key.pdf');
+    fireEvent.click(await screen.findByText('Remove'));
+    upload('Upload a test document', 'test.pdf');
+
+    await waitFor(() => expect(parseSpy).toHaveBeenCalled());
+    expect(parseSpy.mock.calls[0][0]).not.toHaveProperty('keyFile');
   });
 });
