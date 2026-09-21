@@ -35,6 +35,23 @@ import { stripRulesComments } from './stripRulesComments.mjs';
 const MAX_BYTES = 262144; // 256 KiB, enforced by the Firebase Rules API
 const WARN_RATIO = 0.9;
 
+/**
+ * The binding limit in practice is the OTHER one: Firestore caps the COMPILED
+ * ruleset at 250 KB, separately from the 256 KiB source cap above, and enforces
+ * it only when the ruleset is RELEASED — never at the `:test` compile or at
+ * ruleset creation, both of which return 200. The rejection is a bare
+ * `400 INVALID_ARGUMENT` naming no field, and firebase-tools hides even that
+ * behind a 409, so the deploy log reads like a harmless race while nothing
+ * ships.
+ *
+ * Compiled size cannot be measured without releasing, so this is an empirical
+ * proxy measured on 2026-09-21, when it stopped every deploy for ten hours:
+ * 182349 stripped bytes released (3dd8514a); 182493 was refused (56d0070b).
+ * Anything at or above the smaller number is assumed to be over.
+ */
+const COMPILED_CLIFF_BYTES = 182349;
+const COMPILED_WARN_RATIO = 0.98;
+
 const RULES_PATH = fileURLToPath(
   new URL('../firestore.rules', import.meta.url)
 );
@@ -61,6 +78,30 @@ if (bytes > MAX_BYTES) {
       `— that is a comments-only change with no rule-logic impact.\n`
   );
   process.exit(1);
+}
+
+if (bytes >= COMPILED_CLIFF_BYTES) {
+  console.error(
+    `\nfirestore.rules is ${bytes} bytes stripped, at or past the ` +
+      `${COMPILED_CLIFF_BYTES}-byte mark where Firestore stops accepting the ` +
+      `compiled ruleset.\n\n` +
+      `The rules will compile and upload fine and then be refused at release ` +
+      `with "400 Request contains an invalid argument", which firebase-tools ` +
+      `reports as a 409. test:rules will still pass — the emulator does not ` +
+      `enforce this.\n\n` +
+      `Compiled size tracks the number of expressions, not bytes, so condensing ` +
+      `comments will not help here: remove dead rules or factor repeated ` +
+      `conditions into functions (see the optString/optMap helpers).\n`
+  );
+  process.exit(1);
+}
+
+if (bytes > COMPILED_CLIFF_BYTES * COMPILED_WARN_RATIO) {
+  console.warn(
+    `warning: firestore.rules is ${bytes} bytes stripped, within ` +
+      `${COMPILED_CLIFF_BYTES - bytes} bytes of the compiled-ruleset limit that ` +
+      `blocks releases. Factor conditions into functions before adding rules.`
+  );
 }
 
 if (bytes > MAX_BYTES * WARN_RATIO) {
