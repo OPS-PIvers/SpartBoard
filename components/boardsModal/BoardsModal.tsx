@@ -8,7 +8,7 @@ import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { CollectionTree } from './CollectionTree';
-import { filterCollectionsBySearch } from './collectionTree';
+import { filterCollectionsBySearch } from './collectionTreeUtils';
 import { BoardGrid } from './BoardGrid';
 import { BoardsModalHeader } from './BoardsModalHeader';
 import { useMultiSelect } from './useMultiSelect';

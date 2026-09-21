@@ -10,7 +10,7 @@ import { dirname, join } from 'path';
 const SOURCE_PROJECT = 'spartboard';
 const TARGET_PROJECT = 'spartboard-dev';
 
-// Whole collections (with any subcollections) that carry no student data.
+// Top-level docs only: subcollections are never followed, so a student-writable one (e.g. announcements/*/pollVotes) cannot leak in.
 const CONFIG_COLLECTIONS = [
   'admins',
   'admin_settings',
@@ -32,7 +32,13 @@ const CONFIG_COLLECTIONS = [
 ];
 
 // Organization subcollections copied whole; `members` is filtered to admins below.
-const ORG_SUBCOLLECTIONS = ['buildings', 'domains', 'roles', 'studentPageConfig', 'testClasses'];
+const ORG_SUBCOLLECTIONS = [
+  'buildings',
+  'domains',
+  'roles',
+  'studentPageConfig',
+  'testClasses',
+];
 
 // Kill switches forced off in dev regardless of prod's value.
 const DEV_OVERRIDES = { 'admin_settings/classlink_sync': { enabled: false } };
@@ -41,36 +47,46 @@ const dryRun = process.argv.includes('--dry-run');
 const here = dirname(fileURLToPath(import.meta.url));
 
 const sourceApp = initializeApp(
-    {
-      credential: cert(JSON.parse(readFileSync(join(here, '..', 'service-account-key.json'), 'utf8'))),
-      projectId: SOURCE_PROJECT,
-    },
+  {
+    credential: cert(
+      JSON.parse(
+        readFileSync(join(here, '..', 'service-account-key.json'), 'utf8')
+      )
+    ),
+    projectId: SOURCE_PROJECT,
+  },
   'source'
 );
 const source = getFirestore(sourceApp);
-const targetApp = initializeApp({ credential: applicationDefault(), projectId: TARGET_PROJECT }, 'target');
+const targetApp = initializeApp(
+  { credential: applicationDefault(), projectId: TARGET_PROJECT },
+  'target'
+);
 const target = getFirestore(targetApp);
 
-if (targetApp.options.projectId !== TARGET_PROJECT || sourceApp.options.projectId === TARGET_PROJECT) {
-  throw new Error('Refusing to run: target must be spartboard-dev and source must be prod.');
+if (
+  targetApp.options.projectId !== TARGET_PROJECT ||
+  sourceApp.options.projectId === TARGET_PROJECT
+) {
+  throw new Error(
+    'Refusing to run: target must be spartboard-dev and source must be prod.'
+  );
 }
 
 let written = 0;
 const writer = target.bulkWriter();
 
-async function copyDoc(snap) {
-  if (!dryRun) writer.set(target.doc(snap.ref.path), snap.data());
-  written++;
-  for (const sub of await snap.ref.listCollections()) await copyCollection(sub);
-}
-
 async function copyCollection(ref) {
   const snaps = await ref.get();
-  for (const snap of snaps.docs) await copyDoc(snap);
+  for (const snap of snaps.docs) {
+    if (!dryRun) writer.set(target.doc(snap.ref.path), snap.data());
+    written++;
+  }
   console.log(`${dryRun ? '[dry] ' : ''}${ref.path}: ${snaps.size}`);
 }
 
-for (const name of CONFIG_COLLECTIONS) await copyCollection(source.collection(name));
+for (const name of CONFIG_COLLECTIONS)
+  await copyCollection(source.collection(name));
 
 const adminEmails = new Set(
   (await source.collection('admins').get()).docs.map((d) => d.id.toLowerCase())
@@ -79,15 +95,20 @@ const adminEmails = new Set(
 for (const org of (await source.collection('organizations').get()).docs) {
   if (!dryRun) writer.set(target.doc(org.ref.path), org.data());
   written++;
-  for (const sub of ORG_SUBCOLLECTIONS) await copyCollection(org.ref.collection(sub));
+  for (const sub of ORG_SUBCOLLECTIONS)
+    await copyCollection(org.ref.collection(sub));
   const members = (await org.ref.collection('members').get()).docs.filter(
-    (m) => adminEmails.has(String(m.data().email ?? m.id).toLowerCase()) && m.data().roleId !== 'student'
+    (m) =>
+      adminEmails.has(String(m.data().email ?? m.id).toLowerCase()) &&
+      m.data().roleId !== 'student'
   );
   for (const m of members) {
     if (!dryRun) writer.set(target.doc(m.ref.path), m.data());
     written++;
   }
-  console.log(`${dryRun ? '[dry] ' : ''}${org.ref.path}/members (admins only): ${members.length}`);
+  console.log(
+    `${dryRun ? '[dry] ' : ''}${org.ref.path}/members (admins only): ${members.length}`
+  );
 }
 
 for (const [path, data] of Object.entries(DEV_OVERRIDES)) {
@@ -96,4 +117,6 @@ for (const [path, data] of Object.entries(DEV_OVERRIDES)) {
 }
 
 await writer.close();
-console.log(`${dryRun ? 'Would write' : 'Wrote'} ${written} docs to ${TARGET_PROJECT}.`);
+console.log(
+  `${dryRun ? 'Would write' : 'Wrote'} ${written} docs to ${TARGET_PROJECT}.`
+);
