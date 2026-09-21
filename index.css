@@ -246,14 +246,6 @@ body.is-dragging-widget video {
   animation: dice-jitter 0.15s infinite linear;
 }
 
-/* Google Picker stacks at ~1001 inline, which renders behind our editor
-   modals (z-modal = 10000). Bump above the modal stack so the picker
-   surfaces correctly when launched from inside an editor. */
-.picker-dialog-bg,
-.picker-dialog {
-  z-index: 14500 !important;
-}
-
 /* Edited-widget marker while the settings drawer is open */
 [data-settings-target] {
   outline: 2px solid var(--spart-primary, #2d3f89);
