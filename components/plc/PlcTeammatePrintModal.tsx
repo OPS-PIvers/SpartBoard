@@ -120,7 +120,12 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
   );
   const totalSheetCount = sheetCount + spareCount;
   const canPrint =
-    !!context && context.blocked === null && totalSheetCount > 0 && !printing;
+    !!context &&
+    context.blocked === null &&
+    totalSheetCount > 0 &&
+    !printing &&
+    // A click that beat the image loads would drop every one of them silently.
+    !sheetImages.loading;
 
   const backToPicker = () => {
     setTargetUid(null);

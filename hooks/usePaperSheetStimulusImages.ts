@@ -7,7 +7,7 @@
  * has the sources already in hand.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { PaperSheetStimulus } from '@/types';
 import { useGoogleDrive } from './useGoogleDrive';
 import {
@@ -34,6 +34,13 @@ const imageKey = (stimuli: readonly PaperSheetStimulus[]): string =>
     .sort()
     .join('|');
 
+/** A finished answer, held with the list it was about so a stale one is never read. */
+interface Resolved {
+  key: string;
+  src: Record<string, string>;
+  failed: PaperSheetStimulus[];
+}
+
 export interface PaperSheetStimulusImageOptions {
   /**
    * Skip the private Drive read and use the link-shared URL only. A teammate
@@ -48,30 +55,19 @@ export function usePaperSheetStimulusImages(
   options: PaperSheetStimulusImageOptions = {}
 ): PaperSheetStimulusImages {
   const { getDriveFileAsBlob } = useGoogleDrive();
-  const [resolved, setResolved] = useState<PaperSheetStimulusImages>({
+  const [resolved, setResolved] = useState<Resolved>({
+    key: '',
     src: {},
     failed: [],
-    loading: false,
   });
   const key = imageKey(stimuli);
   const { publicOnly = false } = options;
+  const answered = resolved.key === key ? resolved : null;
 
   useEffect(() => {
-    if (!key) {
-      // Keeping the same object when there was nothing to clear: a fresh one
-      // re-renders the caller, which can re-run this effect without end.
-      setResolved((prev) =>
-        prev.loading ||
-        prev.failed.length > 0 ||
-        Object.keys(prev.src).length > 0
-          ? { src: {}, failed: [], loading: false }
-          : prev
-      );
-      return;
-    }
+    if (!key) return;
     let live = true;
     let release: (() => void) | null = null;
-    setResolved((prev) => ({ ...prev, loading: true }));
     void resolveStimulusImages(
       stimuli,
       browserStimulusImageDeps(async (fileId) => {
@@ -85,7 +81,7 @@ export function usePaperSheetStimulusImages(
         return;
       }
       release = result.release;
-      setResolved({ src: result.src, failed: result.failed, loading: false });
+      setResolved({ key, src: result.src, failed: result.failed });
     });
     return () => {
       live = false;
@@ -96,5 +92,14 @@ export function usePaperSheetStimulusImages(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, publicOnly, getDriveFileAsBlob]);
 
-  return resolved;
+  return useMemo(
+    () => ({
+      src: answered?.src ?? {},
+      failed: answered?.failed ?? [],
+      // Derived rather than stored, so the first render before the effect has
+      // run already reads as loading and a click cannot beat the fetch.
+      loading: !!key && !answered,
+    }),
+    [key, answered]
+  );
 }

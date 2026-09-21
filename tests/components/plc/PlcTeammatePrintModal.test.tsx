@@ -36,6 +36,8 @@ vi.mock('react-i18next', () => ({
  * resolver is driven here by which URLs an <img> agrees to load.
  */
 let loadableUrls = new Set<string>();
+/** URLs whose <img> neither loads nor errors, so the resolver stays in flight. */
+let pendingUrls = new Set<string>();
 const getDriveFileAsBlob = vi.fn(() => Promise.resolve(null));
 vi.mock('@/hooks/useGoogleDrive', () => ({
   useGoogleDrive: () => ({ getDriveFileAsBlob }),
@@ -169,12 +171,14 @@ const pick = (name: string) =>
 
 beforeEach(() => {
   loadableUrls = new Set<string>();
+  pendingUrls = new Set<string>();
   vi.stubGlobal(
     'Image',
     class {
       onload: (() => void) | null = null;
       onerror: (() => void) | null = null;
       set src(value: string) {
+        if (pendingUrls.has(value)) return;
         queueMicrotask(() =>
           loadableUrls.has(value) ? this.onload?.() : this.onerror?.()
         );
@@ -548,6 +552,16 @@ describe('PlcTeammatePrintModal — printing', () => {
       expect(
         await screen.findByText(/Whoever added them can share them/)
       ).toBeInTheDocument();
+    });
+
+    it('holds the print until the images have answered', () => {
+      pendingUrls.add(driveImageUrl('drive-shared'));
+      open(withStimuli(shared));
+      pick('Bob Teacher');
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Period 1' }));
+      // Printing now would leave the image out with nothing said about it.
+      expect(screen.getByRole('button', { name: /^Print$/ })).toBeDisabled();
+      expect(print).not.toHaveBeenCalled();
     });
 
     it('says nothing when the quiz has no sheet images at all', async () => {
