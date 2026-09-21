@@ -392,6 +392,107 @@ describe('AnnotatedResponseView — rubric strand tagging', () => {
   });
 });
 
+describe('AnnotatedResponseView — jumping to a tagged passage', () => {
+  const stubRect = (top: number, bottom: number): DOMRect =>
+    ({
+      top,
+      bottom,
+      left: 0,
+      right: 80,
+      width: 80,
+      height: bottom - top,
+      x: 0,
+      y: top,
+      toJSON: () => ({}),
+    }) as DOMRect;
+
+  // The grader's center column is the scroll container; `window.innerHeight`
+  // is jsdom's 768, so a mark below the column is still above the window.
+  const COLUMN = stubRect(0, 200);
+  const MARK = stubRect(400, 420);
+
+  const renderInColumn = (scrollIntoView: () => void) => {
+    const proto = Element.prototype as unknown as {
+      scrollIntoView?: () => void;
+      getClientRects: () => DOMRectList;
+      getBoundingClientRect: () => DOMRect;
+    };
+    const original = {
+      scrollIntoView: proto.scrollIntoView,
+      getClientRects: proto.getClientRects,
+      getBoundingClientRect: proto.getBoundingClientRect,
+      scrollHeight: Object.getOwnPropertyDescriptor(
+        Element.prototype,
+        'scrollHeight'
+      ),
+      clientHeight: Object.getOwnPropertyDescriptor(
+        Element.prototype,
+        'clientHeight'
+      ),
+    };
+    const isColumn = (el: Element) => el.hasAttribute('data-scroll-column');
+    proto.scrollIntoView = scrollIntoView;
+    proto.getClientRects = function (this: Element) {
+      return (this.tagName === 'MARK' ? [MARK] : []) as unknown as DOMRectList;
+    };
+    proto.getBoundingClientRect = function (this: Element) {
+      if (isColumn(this)) return COLUMN;
+      return this.tagName === 'MARK' ? MARK : stubRect(0, 0);
+    };
+    Object.defineProperty(Element.prototype, 'scrollHeight', {
+      configurable: true,
+      get(this: Element) {
+        return isColumn(this) ? 1000 : 0;
+      },
+    });
+    Object.defineProperty(Element.prototype, 'clientHeight', {
+      configurable: true,
+      get(this: Element) {
+        return isColumn(this) ? 200 : 0;
+      },
+    });
+    const restore = () => {
+      proto.scrollIntoView = original.scrollIntoView;
+      proto.getClientRects = original.getClientRects;
+      proto.getBoundingClientRect = original.getBoundingClientRect;
+      if (original.scrollHeight)
+        Object.defineProperty(
+          Element.prototype,
+          'scrollHeight',
+          original.scrollHeight
+        );
+      if (original.clientHeight)
+        Object.defineProperty(
+          Element.prototype,
+          'clientHeight',
+          original.clientHeight
+        );
+    };
+    render(
+      <div data-scroll-column style={{ overflowY: 'auto' }}>
+        <EditHarness
+          snapshot="<p>alpha beta gamma</p>"
+          annotations={[ann(0, 5, { id: 'a1' })]}
+          onChange={vi.fn()}
+          initialActiveId="a1"
+          rubric={rubric}
+        />
+      </div>
+    );
+    return restore;
+  };
+
+  it('scrolls to a mark that is out of the scrolling column but inside the window', () => {
+    const scrollIntoView = vi.fn();
+    const restore = renderInColumn(scrollIntoView);
+    try {
+      expect(scrollIntoView).toHaveBeenCalled();
+    } finally {
+      restore();
+    }
+  });
+});
+
 describe('AudioAnnotatedResponseView — rubric strand tagging', () => {
   const note = (over: Partial<WrittenAnswerAnnotation> = {}) => ({
     id: 'n1',

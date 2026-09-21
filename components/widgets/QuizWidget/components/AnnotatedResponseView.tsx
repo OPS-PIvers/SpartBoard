@@ -425,6 +425,24 @@ const CommentChip: React.FC<{
   </div>
 );
 
+// The response scrolls inside the grader's center column, not the window, so
+// the window's height would judge an out-of-view mark visible.
+const scrollViewportFor = (
+  el: HTMLElement
+): { top: number; bottom: number } => {
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    const { overflowY } = window.getComputedStyle(node);
+    if (
+      (overflowY === 'auto' || overflowY === 'scroll') &&
+      node.scrollHeight > node.clientHeight
+    ) {
+      const rect = node.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom };
+    }
+  }
+  return { top: 0, bottom: window.innerHeight };
+};
+
 // ─── Edit (teacher grader) ──────────────────────────────────────────────────
 
 const EditView: React.FC<EditProps> = ({
@@ -736,8 +754,9 @@ const EditView: React.FC<EditProps> = ({
       // nothing meaningful to scroll to, and "above the fold" would be the
       // wrong reading of it.
       const laidOut = markRect.width > 0 || markRect.height > 0;
+      const viewport = scrollViewportFor(el);
       const offscreen =
-        markRect.bottom <= 0 || markRect.top >= window.innerHeight;
+        markRect.bottom <= viewport.top || markRect.top >= viewport.bottom;
       if (laidOut && offscreen && typeof el.scrollIntoView === 'function') {
         el.scrollIntoView({ block: 'nearest' });
       }
