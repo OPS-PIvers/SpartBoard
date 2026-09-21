@@ -70,10 +70,10 @@ export const MAX_CHOICE_COUNT = 5;
 /** Choice letters, indexed by choice number. */
 export const CHOICE_LETTERS: readonly string[] = ['A', 'B', 'C', 'D', 'E'];
 
-/** Grey the choice letter prints at; the reader's Otsu cut (measured 129-140) drops it before sampling. */
+/** Grey the choice letter prints at; the reader's Otsu cut drops it before sampling. */
 export const BUBBLE_LETTER_GREY = 0xd0;
 
-/** Darkest letter grey that still binarises away on a gamma-2.2 scan; 0xbb does not. */
+/** Safety floor, from rendered-scan measurement (PR #3199). Unit tests pin the margin, not this boundary. */
 export const MIN_BUBBLE_LETTER_GREY = 0xc8;
 
 /** Letter point size. Free to tune: binarisation drops the glyph whatever its size. */

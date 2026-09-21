@@ -53,6 +53,10 @@ export interface SyntheticSheetOptions {
    * Paint the printed choice letter inside every bubble, as a filled grey disc
    * covering the whole area the reader samples. Shape is irrelevant — the page
    * is binarised before sampling — so this is the worst case any glyph could be.
+   *
+   * This painter is hard bimodal, so its Otsu cut lands near the ink value
+   * rather than a real scan's. Good for proving the margin exists, not for
+   * pinning the grey at which it runs out.
    */
   printedLetters?: boolean;
   /** Grey the printed letter is painted at; defaults to what the sheet prints. */
