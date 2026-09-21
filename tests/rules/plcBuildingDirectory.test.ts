@@ -34,6 +34,7 @@ import { getDoc, setDoc, updateDoc, doc } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-plc-building-directory';
 const ORG_ID = 'org-orono';
+const OTHER_ORG_ID = 'org-elsewhere';
 
 const MEMBER_UID = 'member-uid';
 const MEMBER_EMAIL = 'member@orono.k12.mn.us';
@@ -43,6 +44,10 @@ const ORG_PEER_EMAIL = 'peer@orono.k12.mn.us';
 // Outsider: neither a PLC member nor an org member.
 const OUTSIDER_UID = 'outsider-uid';
 const OUTSIDER_EMAIL = 'outsider@elsewhere.org';
+// Out-of-org admin: an /admins doc (mirrors e.g. building_admin — see
+// functions/src/organizationMembersSync.ts), but a member of a DIFFERENT org.
+const OTHER_ADMIN_UID = 'other-admin-uid';
+const OTHER_ADMIN_EMAIL = 'admin@elsewhere.org';
 
 const ORG_PLC_ID = 'plc-org-stamped';
 const LEGACY_PLC_ID = 'plc-no-org';
@@ -67,6 +72,13 @@ const asOrgPeer = () =>
 const asOutsider = () =>
   testEnv
     .authenticatedContext(OUTSIDER_UID, { email: OUTSIDER_EMAIL })
+    .firestore();
+const asOtherAdmin = () =>
+  testEnv
+    .authenticatedContext(OTHER_ADMIN_UID, {
+      email: OTHER_ADMIN_EMAIL,
+      email_verified: true,
+    })
     .firestore();
 
 beforeAll(async () => {
@@ -98,6 +110,12 @@ beforeEach(async () => {
     await setDoc(doc(db, `organizations/${ORG_ID}/members/${ORG_PEER_EMAIL}`), {
       roleId: 'staff',
     });
+    // Out-of-org admin: /admins doc + membership in a DIFFERENT org.
+    await setDoc(doc(db, `admins/${OTHER_ADMIN_EMAIL}`), {});
+    await setDoc(
+      doc(db, `organizations/${OTHER_ORG_ID}/members/${OTHER_ADMIN_EMAIL}`),
+      { roleId: 'admin' }
+    );
 
     // Full root docs carry member PII (members map + memberEmails).
     await setDoc(doc(db, `plcs/${ORG_PLC_ID}`), {
@@ -165,6 +183,10 @@ describe('plcIndex/{plcId} read — PII-free discovery mirror', () => {
 
   it('an org peer canNOT read a legacy index entry that has no orgId', async () => {
     await assertFails(getDoc(doc(asOrgPeer(), `plcIndex/${LEGACY_PLC_ID}`)));
+  });
+
+  it('an admin in a DIFFERENT org canNOT read an org-stamped index entry (bare isAdmin() is not org-scoped)', async () => {
+    await assertFails(getDoc(doc(asOtherAdmin(), `plcIndex/${ORG_PLC_ID}`)));
   });
 
   it('an org peer canNOT WRITE an index entry (server-only mirror)', async () => {
