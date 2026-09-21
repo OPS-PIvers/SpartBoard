@@ -1,13 +1,4 @@
-// Regression: AssignmentFilterSelect's Escape handling lives on a React
-// onKeyDown bound to the popover's wrapper div, which only fires when the
-// browser's focus happens to be inside that div. Opening the dropdown never
-// moves focus there (no autoFocus/`.focus()` call — a mouse click on the
-// trigger button does not focus it in every browser, e.g. Safari), so an
-// Escape pressed right after opening it bubbles straight past this
-// component to the Assignments Hub's own document-level Escape handler and
-// closes the whole hub instead of just the filter dropdown. Same bug class
-// already fixed elsewhere (ToolDockItem, RemoteControlMenu, ClassRosterMenu,
-// OverflowMenu, ActiveClassChip, AIGeneratorOverlay) but reintroduced here.
+// Regression: Escape in the filter dropdown was closing the whole Assignments Hub instead (focus-fragility bug class).
 
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -22,9 +13,7 @@ const OPTIONS = [
 ];
 
 function renderWithHubEscapeHandler(onHubClose: () => void) {
-  // Stand-in for AssignmentsHubModal's own document-level Escape handler,
-  // which mounts unconditionally as soon as the hub opens — i.e. always
-  // BEFORE any filter dropdown inside it is ever opened.
+  // Stand-in for AssignmentsHubModal's own document-level Escape handler, mounted before the dropdown opens.
   const handleHubEscape = (e: KeyboardEvent) => {
     if (e.key !== 'Escape') return;
     onHubClose();
@@ -52,9 +41,7 @@ describe('AssignmentFilterSelect — Escape dismissal', () => {
     const cleanupListener = renderWithHubEscapeHandler(onHubClose);
 
     try {
-      // Opening via click does not move browser focus into the popover in
-      // every browser — same assumption the FolderItem regression test
-      // makes (fireEvent.click never focuses in jsdom either).
+      // fireEvent.click never focuses in jsdom, matching real-browser click-doesn't-focus behavior.
       fireEvent.click(screen.getByRole('button', { name: 'Filter by type' }));
       expect(screen.getByRole('listbox')).toBeInTheDocument();
 

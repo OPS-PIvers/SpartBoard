@@ -51,12 +51,7 @@ export const AssignmentFilterSelect: React.FC<AssignmentFilterSelectProps> = ({
     );
   };
 
-  // Capture phase + stopImmediatePropagation so this dropdown's Escape wins
-  // over the hub's own document-level Escape handler regardless of mount
-  // order — same pattern as MoveToCollectionMenu/CollectionColorPicker. A
-  // React onKeyDown on the wrapper div isn't enough: opening via a mouse
-  // click doesn't reliably focus the trigger button in every browser, so
-  // focus may never be inside this div when Escape is pressed.
+  // Document-level capture listener wins over the hub's own Escape handler regardless of focus/mount order.
   useEffect(() => {
     if (!open) return undefined;
     const handleKeyDown = (event: KeyboardEvent) => {
