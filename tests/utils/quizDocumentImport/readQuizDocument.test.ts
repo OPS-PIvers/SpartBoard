@@ -204,5 +204,36 @@ describe('readQuizDocument', () => {
     );
     expect(quiz.questions).toEqual([]);
     expect(quiz.images).toEqual([]);
+    expect(quiz.warnings).toEqual([]);
+  });
+
+  it('says a Word picture a question uses is not brought in yet', async () => {
+    const zip = new JSZip();
+    zip.file(
+      'word/document.xml',
+      `<?xml version="1.0"?><w:document ${W} xmlns:r="r" xmlns:a="a"><w:body>` +
+        `<w:p><w:r><w:t>1. Which shape is this?</w:t></w:r></w:p>` +
+        `<w:p><w:drawing><a:blip r:embed="rId5"/></w:drawing></w:p>` +
+        `<w:p><w:r><w:t>A. Circle</w:t></w:r></w:p>` +
+        `<w:p><w:r><w:t>B. Square</w:t></w:r></w:p>` +
+        `</w:body></w:document>`
+    );
+    zip.file(
+      'word/_rels/document.xml.rels',
+      '<?xml version="1.0"?><Relationships><Relationship Id="rId5" Target="media/shape.png"/></Relationships>'
+    );
+    zip.file('word/media/shape.png', 'PNGDATA');
+
+    const quiz = await readQuizDocument(
+      await zip.generateAsync({ type: 'blob' }),
+      { fileName: 'shapes.docx' }
+    );
+
+    // The bytes ride along for the slice that uploads them; until then the
+    // teacher is told rather than left wondering where the picture went.
+    expect(quiz.images).toHaveLength(1);
+    expect(quiz.warnings).toEqual([
+      "A picture in this file isn't brought in yet — add it to the questions that need it in the editor.",
+    ]);
   });
 });

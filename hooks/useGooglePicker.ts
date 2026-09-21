@@ -23,6 +23,13 @@ const SUPPORTED_MIME_TYPES = [
 /** Image MIME types offered in the image-picker mode. */
 const IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'].join(',');
 
+/** A printed test: a PDF, a Word file, or a Google Doc (plan D9). */
+const TEST_DOCUMENT_MIME_TYPES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.google-apps.document',
+].join(',');
+
 /** What a copier's scan-to-Drive produces: a PDF or page images. */
 const SCAN_MIME_TYPES = [
   'application/pdf',
@@ -33,7 +40,7 @@ const SCAN_MIME_TYPES = [
 
 /** Options for `openPicker`. Default mode is `'docs'`. */
 export interface OpenPickerOptions {
-  mode?: 'docs' | 'images' | 'sheets' | 'scans';
+  mode?: 'docs' | 'images' | 'sheets' | 'scans' | 'documents';
   /**
    * Optional OAuth token override. When supplied, the Picker authenticates with
    * this instead of the hook's render-time `googleAccessToken`. Lets a caller
@@ -170,7 +177,9 @@ export const useGooglePicker = () => {
                   ? 'application/vnd.google-apps.spreadsheet'
                   : mode === 'scans'
                     ? SCAN_MIME_TYPES
-                    : SUPPORTED_MIME_TYPES;
+                    : mode === 'documents'
+                      ? TEST_DOCUMENT_MIME_TYPES
+                      : SUPPORTED_MIME_TYPES;
 
             const fileIds = options?.fileIds ?? [];
             const docsView =
@@ -203,7 +212,9 @@ export const useGooglePicker = () => {
                   ? 'Select a Google Sheet'
                   : mode === 'scans'
                     ? 'Select a scanned PDF'
-                    : 'Select a file for AI context');
+                    : mode === 'documents'
+                      ? 'Select a test document'
+                      : 'Select a file for AI context');
 
             const builder = new google.picker.PickerBuilder()
               .addView(docsView)

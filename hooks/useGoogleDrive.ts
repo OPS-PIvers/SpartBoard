@@ -202,6 +202,26 @@ export const useGoogleDrive = () => {
     [driveService]
   );
 
+  /**
+   * Download a test document (PDF, .docx or Google Doc) as bytes the quiz
+   * document reader can open. A Google Doc is exported as .docx so the
+   * reader still sees bold answer marks.
+   */
+  const getDriveDocumentAsBlob = useCallback(
+    async (
+      fileId: string
+    ): Promise<{ blob: Blob; mimeType: string; name: string } | null> => {
+      if (!driveService) return null;
+      try {
+        return await driveService.downloadDocumentAsBlob(fileId);
+      } catch (error) {
+        console.error('Failed to download Drive document:', error);
+        return null;
+      }
+    },
+    [driveService]
+  );
+
   return {
     driveService,
     isConnected,
@@ -212,6 +232,7 @@ export const useGoogleDrive = () => {
     getUserBackgroundsFromDrive,
     getDriveFileTextContent,
     getDriveFileAsBlob,
+    getDriveDocumentAsBlob,
     saveDrawingToDrive,
   };
 };
