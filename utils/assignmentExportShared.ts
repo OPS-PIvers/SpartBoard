@@ -16,6 +16,8 @@
 
 import type {
   GradeResult,
+  QuizQuestion,
+  QuizResponseAnswer,
   Rubric,
   UnrespondedReason,
   WrittenAnswerRubricScore,
@@ -77,13 +79,66 @@ export interface ExportableQuestion {
   rubricSnapshot?: Rubric;
 }
 
-export interface BuildResultsSheetDataOptions {
+export interface BuildResultsSheetDataOptions<
+  Q extends ExportableQuestion = ExportableQuestion,
+  R extends ExportableResponse = ExportableResponse,
+> {
   /** PIN → roster student name lookup. Per-period when keyed. */
   pinToName?: Record<string, string>;
   /** SSO uid → resolved ClassLink name. Wins over `pinToName` when present. */
   byStudentUid?: Map<string, { givenName: string; familyName: string }>;
   /** Teacher display name for the "Teacher" column. */
   teacherName?: string;
+  /** When present, adds a "Qn Answer" column after each points column. */
+  formatAnswer?: (question: Q, answer: R['answers'][number]) => string;
+}
+
+/** Sheets rejects any cell over 50,000 characters. */
+const MAX_ANSWER_CELL_CHARS = 49_000;
+
+/** Header of the answer-text column for 1-based question number `n`. */
+export function answerColumnHeader(n: number): string {
+  return `Q${n} Answer`;
+}
+
+/** True when a results-sheet header row carries answer-text columns. */
+export function headersHaveAnswerColumns(headers: string[]): boolean {
+  return headers.some((h) => /^Q\d+ Answer$/.test(h));
+}
+
+/** Readable answer text for a quiz answer; Matching/Ordering unpacked from their pipe encoding. */
+export function formatQuizAnswerText(
+  question: Pick<QuizQuestion, 'type'>,
+  answer: Pick<QuizResponseAnswer, 'answer' | 'artifacts' | 'unresponded'>
+): string {
+  if (answer.unresponded) return '';
+  const raw = answer.answer ?? '';
+  let text = raw;
+  if (raw && question.type === 'Matching') {
+    text = raw
+      .split('|')
+      .map((pair) => {
+        const sep = pair.indexOf(':');
+        return sep < 0
+          ? pair
+          : `${pair.slice(0, sep)} → ${pair.slice(sep + 1)}`;
+      })
+      .join('; ');
+  } else if (raw && question.type === 'Ordering') {
+    text = raw
+      .split('|')
+      .map((item, i) => `${i + 1}. ${item}`)
+      .join('; ');
+  }
+  const parts = [text.trim()];
+  for (const art of answer.artifacts ?? []) {
+    if (art.kind === 'text') parts.push(art.text?.trim() ?? '');
+    else parts.push(`[${art.kind}]`);
+  }
+  const joined = parts.filter(Boolean).join(' ');
+  return joined.length > MAX_ANSWER_CELL_CHARS
+    ? `${joined.slice(0, MAX_ANSWER_CELL_CHARS)}…`
+    : joined;
 }
 
 /**
@@ -105,7 +160,7 @@ export function buildResultsSheetData<
    * widgets (or VA's grader) can ignore it.
    */
   gradeFn: (question: Q, studentAnswer: string, response?: R) => GradeResult,
-  options?: BuildResultsSheetDataOptions
+  options?: BuildResultsSheetDataOptions<Q, R>
 ): { headers: string[]; dataRows: string[][] } {
   const pinToName = options?.pinToName ?? {};
   const byStudentUid = options?.byStudentUid;
@@ -113,6 +168,7 @@ export function buildResultsSheetData<
     (options?.teacherName?.trim() ? options.teacherName.trim() : null) ??
     'Unknown Teacher';
   const timestamp = new Date().toISOString();
+  const formatAnswer = options?.formatAnswer;
 
   // Deduplicate questions by id before all downstream point math. Drive-
   // sync duplication and arrayUnion races on the template doc can leave
@@ -185,6 +241,7 @@ export function buildResultsSheetData<
       const cols = [
         `Q${i + 1} (${q.points ?? 1}pt): ${q.text.substring(0, 40)}`,
       ];
+      if (formatAnswer) cols.push(answerColumnHeader(i + 1));
       if (rubricQuestionIds.has(q.id) && q.rubricSnapshot) {
         for (const c of q.rubricSnapshot.criteria) {
           cols.push(`Q${i + 1} Rubric - ${c.name}`);
@@ -224,6 +281,10 @@ export function buildResultsSheetData<
           ? 'Ungraded'
           : formatExportPoints(grade.pointsEarned);
       const cols = [baseCell];
+      if (formatAnswer) {
+        const ans = answerMap.get(q.id);
+        cols.push(ans && !ans.unresponded ? formatAnswer(q, ans) : '');
+      }
       if (rubricQuestionIds.has(q.id) && q.rubricSnapshot) {
         const scores = r.grading?.[q.id]?.rubricScores ?? [];
         const scoreMap = new Map<string, (typeof scores)[number]>();
