@@ -373,16 +373,18 @@ export async function extractQuizFromDocument(
       );
   }
 
-  // Charged once the request is going to be sent, and once per import
-  // whatever the page count (D19).
-  await deps.chargeQuiz(caller.uid, email);
-
+  // Checked before the charge: a request that bails out here never reaches
+  // Gemini, so it must not spend one of the teacher's daily uses either.
   const remaining = EXTRACT_DEADLINE_MS - (deps.now() - startedAt);
   if (remaining <= 0)
     throw new HttpsError(
       'deadline-exceeded',
       'Reading the document took too long. Try a shorter file.'
     );
+
+  // Charged once the request is going to be sent, and once per import
+  // whatever the page count (D19).
+  await deps.chargeQuiz(caller.uid, email);
 
   let outcome: Awaited<ReturnType<typeof withDeadline<string>>>;
   try {

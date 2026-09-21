@@ -547,6 +547,8 @@ describe('extractQuizFromDocument', () => {
       extractQuizFromDocument(request(), teacher, deps)
     ).rejects.toThrow(/took too long/);
     expect(deps.extract).not.toHaveBeenCalled();
+    // Nothing reached Gemini, so the teacher keeps the daily use.
+    expect(deps.chargeQuiz).not.toHaveBeenCalled();
   });
 
   it('names the quiz after the file when the model gave no title', async () => {
