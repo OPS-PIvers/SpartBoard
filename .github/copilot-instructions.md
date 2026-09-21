@@ -302,8 +302,8 @@ Use `min(Xpx, Ycqmin)` to cap the maximum size (prevents blurring on large monit
 **3. Dev Preview Deploy** (`.github/workflows/firebase-dev-deploy.yml`)
 
 - Triggers: Push to `dev-*` branches
-- Steps: Same validation + deploy to persistent preview channels (30-day URLs)
-- Preview URLs: `spartboard--dev-<name>-<hash>.web.app`
+- Steps: Same validation + deploy hosting, rules, indexes and functions to the `spartboard-dev` project
+- URL: `https://spartboard-dev.web.app`
 
 ### Pre-commit Hook
 
@@ -316,10 +316,10 @@ Husky runs `lint-staged` automatically on commit:
 ## Branching Strategy
 
 - `main` - Production branch (protected, requires PR)
-- `dev-*` branches - Developer environments (auto-deploy to preview)
+- `dev-*` branches - Developer environment (auto-deploy to `spartboard-dev`)
 - Feature branches: Create PR from `dev-*` → `main`
 
-**Workflow:** Make changes on dev branch → push → preview URL updates → create PR → merge to main → production deploy
+**Workflow:** Make changes on dev branch → push → spartboard-dev updates → create PR → merge to main → production deploy
 
 ## Firebase Configuration
 

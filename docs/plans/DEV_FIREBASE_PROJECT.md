@@ -1,6 +1,6 @@
 # Dev Firebase project (`spartboard-dev`)
 
-Status: 2026-09-21. Done: steps 1–3 (project, web app, billing, APIs, Firestore + Storage in us-central1, delete protection on), WIF pool `github` / provider `spartboard-repo` + `github-deploy` SA, placeholder `CLASSLINK_*` and `SPOTIFY_OAUTH_CLIENT_*` secrets. Waiting on Paul: step 4 (Auth Get started + Google provider), step 5 (OAuth origins), step 6 (six real secrets).
+Status: 2026-09-21. Steps 1–8 done (project, billing, APIs, Firestore + Storage us-central1, Auth Google + anonymous, OAuth origins, all 11 secrets, WIF + `github-deploy` SA, config seeded). Step 9 partial: indexes, Storage rules and Firestore rules released to dev; functions and hosting deploy on the first CI run after step 10 merges.
 
 ## Problem
 

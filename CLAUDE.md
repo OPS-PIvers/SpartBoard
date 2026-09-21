@@ -37,8 +37,27 @@ Do not duplicate that locally.
 
 ## Environment
 
-- Firebase config goes in `.env.local` (see `.env.example`). Never commit `.env.local`.
+- Firebase config goes in `.env.local` (see `.env.example`). Never commit `.env.local`. It points local dev servers at prod (`spartboard`) unless swapped for the `spartboard-dev` web config.
 - `VITE_AUTH_BYPASS='true'` signs in a mock admin (`mock-user-id`) and skips Auth/permission listeners. It is disabled in production builds and is client-side only — it does **not** bypass Firestore security rules.
+
+## Firebase projects: `spartboard` (prod) and `spartboard-dev`
+
+| Branch  | Firebase project | Gets                                                        | URL                            |
+| ------- | ---------------- | ----------------------------------------------------------- | ------------------------------ |
+| `dev-*` | `spartboard-dev` | hosting, Firestore rules, indexes, Storage rules, functions | https://spartboard-dev.web.app |
+| `main`  | `spartboard`     | the same, and nothing else writes to prod                   | https://spartboard.web.app     |
+
+Since 2026-09-21 a push to `dev-paul` never touches production. Plan and decisions: `docs/plans/DEV_FIREBASE_PROJECT.md`.
+
+- **Compatibility is a release-time rule now, not a per-merge rule.** Merges into `dev-paul` no longer need gating on a marker only the new client writes. At a `main` release, rules and function changes still have to tolerate a teacher's already-open tab running the previous client, and read-rule tightening still needs that marker.
+- **CLI and MCP default to prod.** `.firebaserc` `default` (and the Firebase MCP's active project) is `spartboard`. Pass `--project dev` for any ad-hoc deploy, rules release, log read or data change, and never deploy to prod by hand unless Paul asks.
+- **Verify on dev.** Browser checks of unreleased work go to https://spartboard-dev.web.app, not prod or a `spartboard--*` preview channel (preview channels are retired).
+- **Dev data is config only.** Admins, admin settings, feature/global permissions, standards, buildings, help content and the mock test class, copied by `node scripts/dev-seed/copy-config-from-prod.mjs` (`--dry-run` first; read-only on prod, top-level docs only). Never copy student-bearing collections (sessions, responses, rosters, `users`) into dev. Student sign-in on dev uses the mock class (`organizations/orono/testClasses`).
+- **Credentials.** Prod scripts use `scripts/service-account-key.json`; dev uses `gcloud auth application-default login`. CI deploys dev with keyless Workload Identity Federation (`github-deploy@spartboard-dev`, only `dev-*` refs); prod CI still uses the `FIREBASE_SERVICE_ACCOUNT` key.
+- **New function secrets go in both projects.** A `defineSecret` missing from `spartboard-dev` fails the dev deploy. Paul sets real values; ClassLink and Spotify are placeholders in dev (ClassLink nightly sync is off there).
+- **Shared Drive app.** Dev reuses prod's Google OAuth client (`drive.file` is per client), so a dev bug can still edit Paul's real Drive files. AI runs on Vertex billed to the dev project.
+- **Rules have two size caps**: 256 KiB of source (comments are stripped at deploy) and 250 KB compiled. Crossing the compiled cap makes every release fail with a bare 400. Test a rules change with `node scripts/releaseFirestoreRules.mjs spartboard-dev` before it reaches `main`.
+- A new `admin_settings` kill switch ships off in both projects; toggle it on dev through the admin panel to test.
 
 ## Architecture gotchas
 
@@ -87,7 +106,7 @@ allowlist fails toward a cosmetic annoyance.
 
 ## CI and conventions
 
-- Pushes to `dev-*` branches deploy a preview and ship rules, indexes and Cloud Functions to the shared prod project. Pushes to `main` deploy production (https://spartboard.web.app).
+- Pushes to `dev-*` deploy to `spartboard-dev`; pushes to `main` deploy production. See "Firebase projects" above.
 - `pr-validation.yml` has a `preflight` job: if `firebase-dev-deploy.yml` already passed on the PR's head SHA, everything except E2E is skipped.
 - **Release notes**: `public/changelog.json` is read by teachers, not developers. Never name a feature flag, a Firestore path or an internal mechanism in it, and check every claim against what admin settings actually enable rather than what the code defines. See [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md#how-to-write-a-release-note).
 - **Comments**: One short line max — never multi-paragraph docstrings or multi-line comment blocks. Root-cause narrative and verification rationale belong in the PR description, not the diff. Exception: match the surrounding file's convention where one already differs consistently (e.g. `firestore.rules`). Enforced in review; see [docs/routines/debugger.md](docs/routines/debugger.md).
