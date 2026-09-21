@@ -70,6 +70,15 @@ export const MAX_CHOICE_COUNT = 5;
 /** Choice letters, indexed by choice number. */
 export const CHOICE_LETTERS: readonly string[] = ['A', 'B', 'C', 'D', 'E'];
 
+/** Grey the choice letter prints at; the reader's Otsu cut drops it before sampling. */
+export const BUBBLE_LETTER_GREY = 0xd0;
+
+/** Safety floor, from rendered-scan measurement (PR #3199). Unit tests pin the margin, not this boundary. */
+export const MIN_BUBBLE_LETTER_GREY = 0xc8;
+
+/** Letter point size. Free to tune: binarisation drops the glyph whatever its size. */
+export const BUBBLE_LETTER_SIZE_PT = 8;
+
 /** Where cell `index` of the marker grid sits, filled row-major. */
 export function markerCellRectMm(index: number): RectMm {
   if (index < 0 || index >= MARKER_CELL_COUNT) {
