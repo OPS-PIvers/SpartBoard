@@ -36,6 +36,8 @@ export interface PdfCropperDeps {
   /** The page's pixels inside `rect`, as an image file. */
   crop: (page: number, rect: PixelRect) => Promise<Blob>;
   pageCount: number;
+  /** Releases the pdf.js document and its worker once cropping is done. */
+  destroy?: () => Promise<unknown> | void;
 }
 
 /** Grown by this fraction of the page on every side before cropping. */
@@ -99,33 +101,37 @@ export async function cropPdfFigures(
   const warnings: string[] = [];
   let failed = 0;
 
-  for (const box of boxes) {
-    const key = boxKey(box);
-    if (idByBox.has(key)) continue;
-    if (box.page > deps.pageCount) {
-      failed += 1;
-      continue;
-    }
-    try {
-      const size = await deps.pageSize(box.page);
-      const rect = pixelRect(box, size);
-      if (!rect) {
+  try {
+    for (const box of boxes) {
+      const key = boxKey(box);
+      if (idByBox.has(key)) continue;
+      if (box.page > deps.pageCount) {
         failed += 1;
         continue;
       }
-      const blob = await deps.crop(box.page, rect);
-      const id = `pdf-figure-${images.length + 1}`;
-      images.push({
-        id,
-        blob,
-        contentType: blob.type || 'image/png',
-        name: `figure-page-${box.page}.png`,
-      });
-      idByBox.set(key, id);
-    } catch {
-      // One figure that won't crop must not cost the teacher the whole read.
-      failed += 1;
+      try {
+        const size = await deps.pageSize(box.page);
+        const rect = pixelRect(box, size);
+        if (!rect) {
+          failed += 1;
+          continue;
+        }
+        const blob = await deps.crop(box.page, rect);
+        const id = `pdf-figure-${images.length + 1}`;
+        images.push({
+          id,
+          blob,
+          contentType: blob.type || 'image/png',
+          name: `figure-page-${box.page}.png`,
+        });
+        idByBox.set(key, id);
+      } catch {
+        // One figure that won't crop must not cost the teacher the whole read.
+        failed += 1;
+      }
     }
+  } finally {
+    await deps.destroy?.();
   }
 
   if (failed > 0) {

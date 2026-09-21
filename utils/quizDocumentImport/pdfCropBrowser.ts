@@ -16,8 +16,8 @@ export async function browserPdfCropper(file: Blob): Promise<PdfCropperDeps> {
     'pdfjs-dist/build/pdf.worker.min.mjs',
     import.meta.url
   ).toString();
-  const doc = await pdfjs.getDocument({ data: bytes, wasmUrl: '/pdfjs-wasm/' })
-    .promise;
+  const task = pdfjs.getDocument({ data: bytes, wasmUrl: '/pdfjs-wasm/' });
+  const doc = await task.promise;
 
   const viewportOf = async (page: number) =>
     (await doc.getPage(page)).getViewport({ scale: CROP_SCALE });
@@ -69,5 +69,6 @@ export async function browserPdfCropper(file: Blob): Promise<PdfCropperDeps> {
         canvas.height = 0;
       }
     },
+    destroy: () => task.destroy(),
   };
 }

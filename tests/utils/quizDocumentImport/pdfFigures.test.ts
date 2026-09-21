@@ -141,6 +141,23 @@ describe('cropPdfFigures', () => {
     expect(result.warnings[0]).toContain('2 pictures');
   });
 
+  it('releases the PDF once the crops are done', async () => {
+    // pdf.js holds a worker and the page buffers; the sibling readers all
+    // destroy theirs, and an import that leaked one per file would pile up.
+    const deps = cropper({ destroy: vi.fn() });
+    await cropPdfFigures([box()], deps);
+    expect(deps.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it('releases the PDF even when a crop throws', async () => {
+    const deps = cropper({
+      destroy: vi.fn(),
+      pageSize: vi.fn(() => Promise.reject(new Error('worker gone'))),
+    });
+    await cropPdfFigures([box()], deps);
+    expect(deps.destroy).toHaveBeenCalledTimes(1);
+  });
+
   it('does nothing when the reader pointed at no pictures', async () => {
     const deps = cropper();
     const result = await cropPdfFigures([], deps);
