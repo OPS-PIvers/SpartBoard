@@ -68,6 +68,10 @@ export function usePaperSheetImageSharing(
   const share = useCallback(async (): Promise<PaperSheetStimulus[]> => {
     if (!driveService) return [...unshared];
     const failed = await shareSheetImages(unshared, (fileId) =>
+      // undefined domain forces type:'anyone'. A domain grant does not make a
+      // file loadable from lh3.googleusercontent.com, which is the only route
+      // a teammate's sheet has to it — the same reason quiz stimuli and
+      // backgrounds share this way.
       driveService.makePublic(fileId, undefined)
     );
     setChecked({ fileIds, unshared: failed });
