@@ -34,7 +34,7 @@ Grilled and settled 2026-09-21. Three stacked PRs to dev-paul, in the order belo
 ### Content and sources
 
 - **D5. Sources:** device upload, Drive picker, clipboard paste, the quiz's own image stimuli, and built-in templates. No URL paste.
-- **D6. Uploads, paste and PDF pages go to the teacher's Drive** through the same upload and "anyone with the link" confirm as quiz stimuli (`StimulusManagerPanel` intake). PLC teammates' browsers must be able to load the file (D14).
+- **D6. Private until the quiz is shared with a PLC** (settled 2026-09-21, after the first push). Uploads, paste and PDF pages go to the teacher's Drive **unshared**. The app's only Drive scope is `drive.file` (`config/firebase.ts:84`), which reads files the user created through SpartBoard or picked in the Picker regardless of sharing. So the owner's own prints fetch privately with their token, and district-only sharing would not let a teammate's SpartBoard read the file. When the quiz is published to a PLC sync group (`publishSyncedQuiz`), or a sheet image is added to a quiz already in one, a confirm names the sheet images and switches them to "anyone with the link" (`driveService.makePublic(id, undefined)`). Declining still publishes the quiz, but teammates' sheets show those stimuli as "not shared — ask {owner}" in their print modal, and those stimuli do not print. Images reused from quiz stimuli (D8) are already link-shared.
 - **D7. File types:** PNG, JPG, GIF, WebP, plus PDF. For a PDF the teacher picks one page. It is rendered with pdf.js at 200 dpi and uploaded as a PNG, so printing never touches pdf.js.
 - **D8. "From this quiz"** lists the quiz's `image` stimuli. Picking one copies its `driveFileId`/`url` into a sheet stimulus. No Drive copy is made, and the two are independent afterwards.
 - **D9. Templates are specs, not files.** They are drawn as SVG at print time, so they are always sharp and need no Drive. Each kind has a few parameters:
@@ -55,7 +55,7 @@ Grilled and settled 2026-09-21. Three stacked PRs to dev-paul, in the order belo
 
 - **D14. Saved on the quiz, synced like content.** New `QuizData.paperSheetStimuli?: PaperSheetStimulus[]`. It is added to every pass-through listed above (save, duplicate, share/import shared, PLC publish/pull/restore, and `quizFromContent`), so every PLC member's copy and every delegated teammate print carries the same stimuli.
 - **D15. Every sheet in the stack carries them**: named sheets, spares and the key sheet. The layout and stimuli are the same for the whole batch.
-- **D16. Images are loaded before the print window opens.** Each image is fetched once to a blob and handed to the print document as an object URL (same origin as the `about:blank` print window). A load failure blocks printing with the stimulus named ("Couldn't load 'Unit 3 graph' — is it still in your Drive?") instead of printing an empty box. `printHtmlDocument` gains an option to await `img.decode()` for every image before calling `print()`, and object URLs are revoked on close.
+- **D16. Images are loaded before the print window opens.** Each image is fetched once to a blob, first through the Drive API (`alt=media`) with the printer's token, which covers the owner's private files, then from the public `driveImageUrl` for a teammate's link-shared file. The blob is handed to the print document as an object URL (same origin as the `about:blank` print window). A load failure blocks printing with the stimulus named ("Couldn't load 'Unit 3 graph' — is it still in your Drive?") instead of printing an empty box. `printHtmlDocument` gains an option to await `img.decode()` for every image before calling `print()`, and object URLs are revoked on close.
 - **D17. Print happens after the batch save, as today.** The batch now also stores `columnsPerPage`, so a stack's layout is fixed at print time whatever happens to the quiz later.
 
 ### Scope and rollout
@@ -117,6 +117,7 @@ columnsPerPage?: 1 | 2;
 - `paperSheetPrint.ts` draws the stack in `STIMULUS_RECT_MM` from the fitted layout. `printHtmlDocument` gets the await-images option. The print modal resolves images to blobs first (D16).
 - `PaperPrintModal`: "Add to the answer sheet" section with upload, Drive picker, clipboard paste (the GL capture-listener pattern), "From this quiz", captions, page pinning, reorder and remove, a live page-1 thumbnail, and an updated page count. Selecting any stimulus switches the job to one column.
 - The teammate print path (`PlcTeammatePrintModal`) passes the returned quiz's stimuli through unchanged.
+- D6 sharing: uploads stay private, and a share-on-PLC-publish confirm is added in `useSyncedQuizGroups.ts` `publishSyncedQuiz` and on adding an image to an already-synced quiz. A teammate sees a "not shared" row for any stimulus whose fetch fails. Tested: a private image prints for the owner, and a declined share never blocks the publish.
 
 ## PR 3 — Templates and PDF pages
 
@@ -132,5 +133,4 @@ columnsPerPage?: 1 | 2;
 
 ## Open
 
-- "Anyone with the link" sharing (D6) matches quiz stimuli, but these images are never shown to students online. Domain-only sharing would be tighter, but it is unproven that `lh3` renders domain-shared files for a teammate. Kept as link-sharing unless Paul wants it tested.
 - Colour images print as the copier makes them. There is no greyscale or contrast option in v1.
