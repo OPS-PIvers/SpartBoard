@@ -6,7 +6,7 @@
  * the paper exists. See docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md §6.
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -434,10 +434,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     void handlePrint();
   };
 
-  const closePdfPick = () => {
-    pdfPick?.pages.close();
-    setPdfPick(null);
-  };
+  // A pdf.js worker outlives React state, so it is released where React can
+  // promise it happens: when the pick changes, and when the modal goes away.
+  useEffect(() => {
+    const pages = pdfPick?.pages;
+    return () => pages?.close();
+  }, [pdfPick]);
+
+  const closePdfPick = () => setPdfPick(null);
 
   const addPdfPage = async (pageNumber: number) => {
     if (!pdfPick) return;

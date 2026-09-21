@@ -111,7 +111,7 @@ const setup = (
   const print = vi.fn<(job: PaperPrintJob) => void>();
   const onClose = vi.fn();
   const onError = vi.fn();
-  render(
+  const { unmount } = render(
     <PaperPrintModal
       quiz={quiz()}
       rosters={[roster]}
@@ -122,7 +122,7 @@ const setup = (
       {...over}
     />
   );
-  return { onSaveBatch, print, onClose, onError };
+  return { onSaveBatch, print, onClose, onError, unmount };
 };
 
 /** The section's file input is hidden, and the modal renders in a portal. */
@@ -774,6 +774,20 @@ describe('PaperPrintModal', () => {
       await waitFor(() => expect(closePdf).toHaveBeenCalled());
       expect(drive.uploadFile).not.toHaveBeenCalled();
       expect(screen.getByText('Nothing yet')).toBeInTheDocument();
+    });
+
+    it('lets the PDF go even if the modal is closed out from under it', async () => {
+      const { unmount } = setup({ quiz: quiz() });
+      fireEvent.click(
+        screen.getByRole('button', { name: /Add to the answer sheet/ })
+      );
+      fireEvent.change(fileInput(), { target: { files: [pdf()] } });
+      await screen.findByRole('button', { name: 'Page 1' });
+      expect(closePdf).not.toHaveBeenCalled();
+
+      // Nothing here clicks Cancel, so only unmount can release the worker.
+      unmount();
+      expect(closePdf).toHaveBeenCalled();
     });
 
     it('still turns away a file that is neither an image nor a PDF', async () => {
