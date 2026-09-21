@@ -135,7 +135,11 @@ export function buildGradeFromDraft(
     draft.rubricScores.length > 0 ? draft.rubricScores : undefined;
 
   if (ctx.kind === 'media') {
-    const cleaned = draft.annotations.filter((a) => (a.comment ?? '').trim());
+    // A note tagged to a rubric strand says something even with no text;
+    // dropping it here would silently discard the teacher's tag.
+    const cleaned = draft.annotations.filter(
+      (a) => (a.comment ?? '').trim() || (a.rubricCriteria?.length ?? 0) > 0
+    );
     return {
       ok: true,
       grade: {

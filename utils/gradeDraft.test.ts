@@ -194,6 +194,32 @@ describe('buildGradeFromDraft', () => {
     expect(r.ok && r.grade.gradedTakeIndex).toBe(2);
   });
 
+  it('keeps a media note that carries only a rubric strand tag', () => {
+    const r = buildGradeFromDraft(
+      draft({
+        pointsInput: '3',
+        annotations: [
+          {
+            id: 'a1',
+            from: 4_000,
+            to: 4_000,
+            authorUid: 't1',
+            createdAt: 1,
+            comment: '   ',
+            rubricCriteria: [{ criterionId: 'c1', name: 'Fluency' }],
+          },
+          // Neither a comment nor a tag — still dropped.
+          { id: 'a2', from: 9_000, to: 9_000, authorUid: 't1', createdAt: 1 },
+        ],
+      }),
+      ctx({ kind: 'media', gradedTakeIndex: 1 }),
+      1
+    );
+    expect(r.ok && r.grade.annotations).toHaveLength(1);
+    expect(r.ok && r.grade.annotations?.[0].id).toBe('a1');
+    expect(r.ok && r.grade.annotationUnit).toBe('ms');
+  });
+
   it('adjudicates an unavailable capture', () => {
     const media = ctx({ kind: 'media', captureUnavailable: true });
     expect(buildGradeFromDraft(draft(), media)).toEqual({

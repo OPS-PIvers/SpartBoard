@@ -1524,6 +1524,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 activeId={activeAnnotationId}
                 onActiveIdChange={setActiveAnnotationId}
                 disabled={false}
+                rubric={taggableRubric}
               />
             )}
           </div>
