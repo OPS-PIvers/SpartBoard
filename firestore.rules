@@ -786,6 +786,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Rollout switch for building a quiz from a test document — teachers read
+    // it to decide whether to offer the import source; admins flip it.
+    match /admin_settings/quiz_document_import {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     // Admin audit log — admin-only read; create-only (append-only so an admin
     // can't edit/delete their own trail). Written by GlobalPermissionsManager on
     // sensitive settings changes. timestamp is set server-side via
