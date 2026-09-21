@@ -1,6 +1,6 @@
 /**
  * Helpers for quiz question stimuli (image / pdf / audio / video / youtube /
- * gdoc-embed). Pure functions shared by the editor, the session-create
+ * gdoc-embed / text). Pure functions shared by the editor, the session-create
  * projection, and the student renderers.
  */
 import type {
@@ -13,7 +13,9 @@ import { extractYouTubeId } from '@/utils/youtube';
 
 /** Doc-shaped stimuli render in the side panel on wide student screens. */
 export function isDocShapedStimulus(type: QuizStimulusType): boolean {
-  return type === 'pdf' || type === 'gdoc-embed';
+  // A passage is read alongside the question the way a PDF is, so it takes
+  // the same side panel rather than pushing the question off the screen.
+  return type === 'pdf' || type === 'gdoc-embed' || type === 'text';
 }
 
 /** Types whose completed plays are counted against `playLimit`. */
@@ -29,6 +31,7 @@ export const STIMULUS_TYPE_LABELS: Record<QuizStimulusType, string> = {
   video: 'Video',
   youtube: 'YouTube',
   'gdoc-embed': 'Doc/Slides embed',
+  text: 'Passage',
 };
 
 /**
@@ -62,6 +65,8 @@ export function driveMediaUrl(fileId: string): string | null {
 
 /** Best `<img>`/`<video>`/`<audio>` source for a stimulus. */
 export function stimulusMediaUrl(s: QuizStimulus): string {
+  // A passage has no file to fetch; its content travels on the stimulus.
+  if (s.type === 'text') return '';
   if (s.driveFileId) {
     if (s.type === 'image') return driveImageUrl(s.driveFileId);
     return driveMediaUrl(s.driveFileId) ?? s.url;
@@ -128,6 +133,12 @@ export function readAloudTextByStimulusId(
   const out: Record<string, string> = {};
   for (const s of quiz.stimuli ?? []) {
     if (!referenced.has(s.id) || out[s.id] !== undefined) continue;
+    // A passage is its own spoken text, so it needs no review pass (D16).
+    if (s.type === 'text') {
+      const passage = s.text?.trim();
+      if (passage) out[s.id] = passage;
+      continue;
+    }
     if (s.type !== 'image' && s.type !== 'pdf') continue;
     const text = s.readAloudText?.trim();
     if (text) out[s.id] = text;

@@ -105,6 +105,7 @@ const stimuliEqual = (a: QuizStimulus[], b: QuizStimulus[]): boolean => {
       sa.url !== sb.url ||
       (sa.driveFileId ?? '') !== (sb.driveFileId ?? '') ||
       sa.label !== sb.label ||
+      (sa.text ?? '') !== (sb.text ?? '') ||
       (sa.playLimit ?? 0) !== (sb.playLimit ?? 0) ||
       (sa.readAloudText ?? '') !== (sb.readAloudText ?? '') ||
       (sa.readAloudSource ?? '') !== (sb.readAloudSource ?? '')

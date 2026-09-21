@@ -91,3 +91,44 @@ describe('StimulusRenderer play limit', () => {
     expect(player(container)).not.toBeNull();
   });
 });
+
+describe('StimulusRenderer text passage (D16)', () => {
+  const passage = (text: string): QuizStimulus => ({
+    id: 'stim-text',
+    type: 'text',
+    url: '',
+    text,
+    label: 'Reading',
+  });
+
+  it('shows the passage itself', () => {
+    render(<StimulusRenderer stimulus={passage('The tide pool.')} />);
+    expect(screen.getByText('The tide pool.')).toBeTruthy();
+  });
+
+  it('keeps the line breaks the author wrote', () => {
+    const { container } = render(
+      <StimulusRenderer stimulus={passage('Line one.\nLine two.')} />
+    );
+    const body = container.querySelector('[data-stimulus-id="stim-text"] div');
+    expect(body?.className).toContain('whitespace-pre-wrap');
+  });
+
+  it('renders nothing to load, so there is no error card to show', () => {
+    const onLoadError = vi.fn();
+    const { container } = render(
+      <StimulusRenderer stimulus={passage('Text.')} onLoadError={onLoadError} />
+    );
+    expect(container.querySelector('img,iframe,video,audio')).toBeNull();
+    expect(onLoadError).not.toHaveBeenCalled();
+  });
+
+  it('survives a passage that is somehow missing its text', () => {
+    const { container } = render(
+      <StimulusRenderer stimulus={{ ...passage(''), text: undefined }} />
+    );
+    expect(
+      container.querySelector('[data-stimulus-id="stim-text"]')
+    ).toBeTruthy();
+  });
+});

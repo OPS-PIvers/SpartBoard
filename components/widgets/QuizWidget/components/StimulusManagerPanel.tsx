@@ -14,6 +14,7 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronRight,
+  FileText,
   Link2,
   Loader2,
   Paperclip,
@@ -47,6 +48,7 @@ const TYPE_BADGE: Record<QuizStimulusType, string> = {
   video: 'bg-blue-100 text-blue-700',
   youtube: 'bg-rose-100 text-rose-700',
   'gdoc-embed': 'bg-indigo-100 text-indigo-700',
+  text: 'bg-slate-200 text-slate-700',
 };
 
 /** Accept list for the device-upload input. */
@@ -178,7 +180,21 @@ function useStimulusIntake(state: QuizEditorController) {
   // type:'anyone' (anonymous students), never domain-scoped.
   void userDomain;
 
-  return { addFromFile, addFromUrl, busy };
+  /** A passage has no file and no URL; the text is the stimulus (D16). */
+  const addPassage = useCallback((): QuizStimulus => {
+    const stimulus: QuizStimulus = {
+      id: crypto.randomUUID(),
+      type: 'text',
+      url: '',
+      text: '',
+      label: 'Passage',
+      readAloudSource: 'text',
+    };
+    state.addStimulus(stimulus);
+    return stimulus;
+  }, [state]);
+
+  return { addFromFile, addFromUrl, addPassage, busy };
 }
 
 const UrlAddRow: React.FC<{
@@ -275,12 +291,22 @@ export const StimulusManagerPanel: React.FC<{
           )}
           Upload to your Drive
         </button>
+        <button
+          type="button"
+          onClick={() => intake.addPassage()}
+          disabled={intake.busy}
+          className="flex items-center gap-2 px-3 py-2 bg-white border-2 border-slate-300 hover:border-brand-blue-primary/50 disabled:opacity-40 rounded-lg text-sm font-bold text-slate-700"
+        >
+          <FileText className="w-4 h-4" />
+          Add a passage
+        </button>
         <UrlAddRow onAdd={intake.addFromUrl} busy={intake.busy} />
       </div>
 
       {stimuli.length === 0 ? (
         <div className="text-center text-slate-500 text-sm py-6 border-2 border-dashed border-slate-300 rounded-lg bg-white">
-          No stimuli yet. Upload a file or paste a URL to get started.
+          No stimuli yet. Upload a file, paste a URL or add a passage to get
+          started.
         </div>
       ) : (
         <div className="space-y-2">
@@ -303,8 +329,9 @@ export const StimulusManagerPanel: React.FC<{
   );
 };
 
+/** 'text' is absent on purpose: a passage shows no read-aloud row (D16). */
 const SOURCE_LABEL_KEY: Record<
-  NonNullable<QuizStimulus['readAloudSource']>,
+  Exclude<NonNullable<QuizStimulus['readAloudSource']>, 'text'>,
   string
 > = {
   'pdf-text': 'quizReadAloud.sourcePdfText',
@@ -322,8 +349,10 @@ const ReadAloudTextRow: React.FC<{
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<'needs-manual' | 'failed' | null>(null);
   const text = s.readAloudText ?? '';
+  // A passage never reaches this row, so 'text' has no badge of its own.
+  const source = s.readAloudSource === 'text' ? 'edited' : s.readAloudSource;
   const badge = text
-    ? t(SOURCE_LABEL_KEY[s.readAloudSource ?? 'edited'])
+    ? t(SOURCE_LABEL_KEY[source ?? 'edited'])
     : t('quizReadAloud.sourceNone', 'None');
 
   const extract = async () => {
@@ -514,10 +543,30 @@ const StimulusCard: React.FC<{
       </div>
       {open && (
         <div className="px-3 pb-3 pt-1 border-t border-slate-100 space-y-3">
-          <p className="text-xs text-slate-500 break-all">
-            <Link2 className="w-3 h-3 inline mr-1" aria-hidden />
-            {s.url}
-          </p>
+          {s.type === 'text' ? (
+            <div>
+              <label className={labelClass} htmlFor={`passage-${s.id}`}>
+                Passage
+              </label>
+              <textarea
+                id={`passage-${s.id}`}
+                value={s.text ?? ''}
+                onChange={(e) => updateStimulus(s.id, { text: e.target.value })}
+                rows={6}
+                placeholder="Paste or type the passage students will read."
+                className="w-full px-2.5 py-2 border-2 border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary/50"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Read-aloud speaks this passage as written, so there is nothing
+                to review.
+              </p>
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500 break-all">
+              <Link2 className="w-3 h-3 inline mr-1" aria-hidden />
+              {s.url}
+            </p>
+          )}
           {s.type === 'gdoc-embed' && !s.driveFileId && (
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
               Make sure this doc is shared as &ldquo;anyone with the link can
