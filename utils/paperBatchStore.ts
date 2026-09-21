@@ -12,6 +12,8 @@ import {
   deleteField,
   doc,
   getDocs,
+  limit,
+  orderBy,
   query,
   setDoc,
   updateDoc,
@@ -22,6 +24,9 @@ import { db } from '@/config/firebase';
 import type { PaperBatch, PaperPendingReview } from '@/types';
 
 const PAPER_BATCHES_COLLECTION = 'paper_batches';
+
+/** Bounds the sign-in sweep; a teacher never has more deferred stacks than this. */
+const PENDING_COPY_SCAN_LIMIT = 25;
 
 const batchesRef = (userId: string) =>
   collection(db, 'users', userId, PAPER_BATCHES_COLLECTION);
@@ -45,6 +50,37 @@ export async function listPaperBatchesForQuiz(
   return snap.docs
     .map((d) => d.data() as PaperBatch)
     .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+/**
+ * Batches a teammate printed before this teacher had the quiz in their library
+ * (PLC_DELEGATED_PAPER_PRINTING.md D20). Ordering on the marker is what filters:
+ * a doc without the field is not in that index, so a normal library scans none.
+ */
+export async function listPendingQuizCopyBatches(
+  userId: string,
+  max = PENDING_COPY_SCAN_LIMIT
+): Promise<PaperBatch[]> {
+  const snap = await getDocs(
+    query(
+      batchesRef(userId),
+      orderBy('pendingQuizCopy.requestedAt'),
+      limit(max)
+    )
+  );
+  return snap.docs.map((d) => d.data() as PaperBatch);
+}
+
+/** Bind a deferred batch to the copy that now exists and drop the marker. */
+export async function clearPendingQuizCopy(
+  userId: string,
+  batchId: string,
+  quizId: string
+): Promise<void> {
+  await updateDoc(doc(batchesRef(userId), batchId), {
+    quizId,
+    pendingQuizCopy: deleteField(),
+  });
 }
 
 /** Park or clear an unfinished review on its batch (plan Q26). */
