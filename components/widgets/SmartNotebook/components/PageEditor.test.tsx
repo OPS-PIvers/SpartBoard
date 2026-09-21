@@ -458,3 +458,186 @@ describe('PageEditor at zoom scale 2', () => {
     expect(onChange).toHaveBeenCalled();
   });
 });
+
+/**
+ * Regression test: the notebook swallowed every board-level text paste.
+ *
+ * The paste listener is on `window` in capture phase and calls
+ * `stopImmediatePropagation()` for any plain text, so a notebook open on a
+ * board took Ctrl+V away from the Dock's smart paste — a teacher pasting a
+ * Google Slides link got a text box in her notebook instead of an embed
+ * widget, and no error. Two boards stay mounted, so a notebook on the board
+ * she had just left could do it too.
+ *
+ * Fix: the editor claims the paste only after a pointer-down inside its own
+ * widget.
+ */
+describe('PageEditor — only claims Ctrl+V while the teacher is working in it', () => {
+  const pasteText = (text: string): boolean => {
+    const ev = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(ev, 'clipboardData', {
+      value: { items: [], getData: () => text },
+    });
+    Object.defineProperty(ev, 'target', { value: document.body });
+    window.dispatchEvent(ev);
+    // Smart paste in Dock.tsx skips a paste another handler already consumed.
+    return ev.defaultPrevented;
+  };
+
+  it('leaves the paste for the board when nothing has been clicked in it', async () => {
+    const onChange = vi.fn();
+    render(<PageEditor svg={TEST_SVG} onChange={onChange} />);
+    await tick();
+
+    expect(
+      pasteText('https://docs.google.com/presentation/d/preso-id/edit')
+    ).toBe(false);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('takes the paste once the teacher clicks into it', async () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <PageEditor svg={TEST_SVG} onChange={onChange} />
+    );
+    await tick();
+
+    const editorDiv = container.querySelector(
+      '[data-no-drag="true"] div'
+    ) as HTMLElement;
+    act(() => {
+      editorDiv.dispatchEvent(
+        new Event('pointerdown', { bubbles: true, cancelable: true })
+      );
+    });
+
+    expect(pasteText('Lesson objective')).toBe(true);
+    expect(onChange).toHaveBeenCalled();
+  });
+
+  it('takes the paste when the canvas is reached by keyboard', async () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <PageEditor svg={TEST_SVG} onChange={onChange} />
+    );
+    await tick();
+
+    const editorDiv = container.querySelector(
+      '[data-no-drag="true"] div'
+    ) as HTMLElement;
+    act(() => {
+      editorDiv.focus();
+    });
+
+    expect(pasteText('Lesson objective')).toBe(true);
+    expect(onChange).toHaveBeenCalled();
+  });
+
+  // PageEditorOverlay keys PageEditor on the page number, so a page turn
+  // remounts it. Engagement has to survive that or the teacher loses the paste
+  // exactly when she wants it: flip to a blank page, Ctrl+V.
+  it('keeps the paste across a page turn that remounts the editor', async () => {
+    const onChange = vi.fn();
+    const widget = document.createElement('div');
+    widget.setAttribute('data-widget-id', 'notebook-1');
+    document.body.appendChild(widget);
+
+    const pageButton = document.createElement('button');
+    widget.appendChild(pageButton);
+
+    const { rerender } = render(
+      <PageEditor svg={TEST_SVG} onChange={onChange} />,
+      {
+        container: widget.appendChild(document.createElement('div')),
+      }
+    );
+    await tick();
+
+    // The teacher clicks the next-page control, which lives in the widget.
+    act(() => {
+      pageButton.focus();
+      pageButton.dispatchEvent(
+        new Event('pointerdown', { bubbles: true, cancelable: true })
+      );
+    });
+
+    // The page turn remounts the editor — a new key in the real overlay.
+    rerender(<PageEditor key="page-2" svg={TEST_SVG} onChange={onChange} />);
+    await tick();
+
+    expect(pasteText('Lesson objective')).toBe(true);
+    expect(onChange).toHaveBeenCalled();
+
+    document.body.removeChild(widget);
+  });
+
+  // The keydown listener has the same window-capture reach. Undo/redo consume
+  // the event with no selection required, so a notebook on a background board
+  // swallowed the active board's Ctrl+Z.
+  it('leaves Ctrl+Z for the board when nothing has been clicked in it', async () => {
+    render(<PageEditor svg={TEST_SVG} onChange={vi.fn()} />);
+    await tick();
+
+    const ev = new KeyboardEvent('keydown', {
+      key: 'z',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    window.dispatchEvent(ev);
+
+    expect(ev.defaultPrevented).toBe(false);
+  });
+
+  it('takes Ctrl+Z once the teacher clicks into it', async () => {
+    const { container } = render(
+      <PageEditor svg={TEST_SVG} onChange={vi.fn()} />
+    );
+    await tick();
+
+    const editorDiv = container.querySelector(
+      '[data-no-drag="true"] div'
+    ) as HTMLElement;
+    act(() => {
+      editorDiv.dispatchEvent(
+        new Event('pointerdown', { bubbles: true, cancelable: true })
+      );
+    });
+
+    const ev = new KeyboardEvent('keydown', {
+      key: 'z',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    window.dispatchEvent(ev);
+
+    expect(ev.defaultPrevented).toBe(true);
+  });
+
+  it('hands the paste back after a click outside the notebook', async () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <PageEditor svg={TEST_SVG} onChange={onChange} />
+    );
+    await tick();
+
+    const editorDiv = container.querySelector(
+      '[data-no-drag="true"] div'
+    ) as HTMLElement;
+    act(() => {
+      editorDiv.dispatchEvent(
+        new Event('pointerdown', { bubbles: true, cancelable: true })
+      );
+    });
+    act(() => {
+      document.body.dispatchEvent(
+        new Event('pointerdown', { bubbles: true, cancelable: true })
+      );
+    });
+
+    expect(
+      pasteText('https://docs.google.com/presentation/d/preso-id/edit')
+    ).toBe(false);
+  });
+});

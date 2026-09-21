@@ -161,7 +161,7 @@ function tryParseUrlBasedWidgets(text: string): PasteResult | null {
   }
 
   // URL Detection
-  const isUrl = /^(http|https):\/\/[^ "]+$/.test(normalizedUrl);
+  const isUrl = /^(http|https):\/\/[^ "]+$/i.test(normalizedUrl);
 
   if (!isUrl) return null;
 
@@ -186,7 +186,7 @@ function tryParseImageWidget(url: string): PasteResult | null {
 }
 
 const EMBED_PROVIDERS =
-  /(youtube\.com|youtu\.be|vimeo\.com|docs\.google\.com|drive\.google\.com\/(?:file\/d\/|open\?(?:.*&)?id=)|vids\.google\.com\/(?:u\/\d+\/)?vids\/)/;
+  /(youtube\.com|youtu\.be|vimeo\.com|docs\.google\.com|drive\.google\.com\/(?:file\/d\/|open\?(?:.*&)?id=)|vids\.google\.com\/(?:u\/\d+\/)?vids\/)/i;
 
 function tryParseEmbedWidget(url: string): PasteResult | null {
   if (EMBED_PROVIDERS.test(url)) {
