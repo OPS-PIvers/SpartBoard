@@ -1,7 +1,11 @@
 import React, { useMemo, useState } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import {
+  Check,
   ChevronLeft,
   ClipboardList,
+  Ellipsis,
+  Flag,
   Hand,
   Loader2,
   SquarePen,
@@ -25,6 +29,7 @@ import {
   COMFORTABLE_GROUPS,
   COMFORTABLE_STEPS,
   STEP_STATE_LABELS,
+  STEP_STATE_ORDER,
   completedStepCount,
   groupsForClass,
   projectClassIdFor,
@@ -33,12 +38,24 @@ import {
   studentStateOptions,
 } from '../projectSteps';
 
-/** Purposeful colour: one hue per state, nothing decorative (components/CLAUDE.md). */
-const SEGMENT_COLORS: Record<ProjectStepState, string> = {
-  notStarted: 'bg-slate-300/70',
-  inProgress: 'bg-brand-blue-primary',
-  readyForReview: 'bg-amber-400',
-  done: 'bg-emerald-500',
+/** Purposeful colour, one hue per state, each with a mark so colour is never the only cue. */
+const STATE_STYLES: Record<
+  ProjectStepState,
+  { tone: string; Mark: LucideIcon | null }
+> = {
+  notStarted: { tone: 'bg-slate-300/70', Mark: null },
+  inProgress: { tone: 'bg-brand-blue-primary text-white', Mark: Ellipsis },
+  readyForReview: { tone: 'bg-amber-400 text-amber-950', Mark: Flag },
+  done: { tone: 'bg-emerald-600 text-white', Mark: Check },
+};
+
+const StateMark: React.FC<{ state: ProjectStepState; size: string }> = ({
+  state,
+  size,
+}) => {
+  const Mark = STATE_STYLES[state].Mark;
+  if (!Mark) return null;
+  return <Mark aria-hidden style={{ width: size, height: size }} />;
 };
 
 const nextState = (
@@ -52,104 +69,97 @@ const nextState = (
   return options[(options.indexOf(current) + 1) % options.length];
 };
 
+const CELL_PAD_Y = 'min(3px, 0.8cqmin)';
+const CELL_PAD_X = 'min(4px, 1cqmin)';
+const HEADER_PAD_Y = 'min(4px, 1cqmin)';
+const NAME_PAD_X = 'min(10px, 2.2cqmin)';
+
 const GroupRow: React.FC<{
   group: ProjectGroup;
   steps: ProjectStep[];
   showStatus: boolean;
-  cardStyle: React.CSSProperties;
   busyKeys: ReadonlySet<string>;
   onCycleStep: (stepId: string, state: ProjectStepState) => void;
   onClearSupport: () => void;
-}> = ({
-  group,
-  steps,
-  showStatus,
-  cardStyle,
-  busyKeys,
-  onCycleStep,
-  onClearSupport,
-}) => (
-  <li
-    className="flex items-center rounded-xl border-l-4 overflow-hidden"
-    style={{
-      ...cardStyle,
-      borderLeftColor: group.needsSupport ? '#f59e0b' : 'transparent',
-      gap: 'min(10px, 2cqmin)',
-      padding: 'min(8px, 1.8cqmin) min(10px, 2.2cqmin)',
-      // Grow into spare height, never below natural size, so a long roster scrolls.
-      flex: '1 0 auto',
-      maxHeight: 'min(96px, 20cqmin)',
-    }}
-  >
-    <span
-      className="font-bold text-slate-800 truncate shrink-0"
-      style={{
-        fontSize: 'min(15px, 5cqmin)',
-        width: 'clamp(72px, 28%, 240px)',
-      }}
+}> = ({ group, steps, showStatus, busyKeys, onCycleStep, onClearSupport }) => (
+  <tr>
+    <th
+      scope="row"
+      className="text-left align-middle font-normal"
+      style={{ padding: `${CELL_PAD_Y} ${NAME_PAD_X}` }}
     >
-      {group.name}
-    </span>
+      <span
+        className="flex flex-wrap items-center min-w-0"
+        style={{ gap: 'min(6px, 1.4cqmin)' }}
+      >
+        <span
+          className="font-bold text-slate-800 truncate"
+          style={{
+            fontSize: 'min(15px, 5cqmin)',
+            minWidth: 'min(96px, 24cqmin)',
+          }}
+        >
+          {group.name}
+        </span>
+        {group.needsSupport && (
+          <button
+            type="button"
+            onClick={onClearSupport}
+            disabled={busyKeys.has(`${group.id}:support`)}
+            className="shrink-0 flex items-center rounded-full bg-amber-100 text-amber-800 font-semibold disabled:opacity-50"
+            style={{
+              gap: 'min(4px, 1cqmin)',
+              padding: 'min(3px, 0.7cqmin) min(8px, 1.8cqmin)',
+              fontSize: 'min(12px, 3.6cqmin)',
+            }}
+            aria-label={`Clear the help flag for ${group.name}`}
+          >
+            <Hand
+              aria-hidden
+              style={{
+                width: 'min(13px, 3.4cqmin)',
+                height: 'min(13px, 3.4cqmin)',
+              }}
+            />
+            Help
+          </button>
+        )}
+      </span>
+    </th>
 
     {showStatus ? (
-      <div
-        className="flex flex-1 min-w-0 self-stretch items-center"
-        style={{ gap: 'min(3px, 0.6cqmin)' }}
-        role="group"
-        aria-label={`${group.name} progress`}
-      >
-        {steps.map((step) => {
-          const state = stepStateOf(group, step.id);
-          return (
+      steps.map((step) => {
+        const state = stepStateOf(group, step.id);
+        return (
+          <td key={step.id} style={{ padding: `${CELL_PAD_Y} ${CELL_PAD_X}` }}>
             <button
-              key={step.id}
               type="button"
               onClick={() => onCycleStep(step.id, state)}
               disabled={busyKeys.has(`${group.id}:${step.id}`)}
-              title={`${step.title} — ${STEP_STATE_LABELS[state]}`}
               aria-label={`${group.name}, ${step.title}, ${STEP_STATE_LABELS[state]}`}
-              className={`h-full flex-1 rounded-full transition-colors disabled:opacity-50 ${SEGMENT_COLORS[state]}`}
+              className={`w-full h-full flex items-center justify-center rounded-md transition-colors disabled:opacity-50 ${STATE_STYLES[state].tone}`}
               style={{
-                minHeight: 'min(14px, 3.2cqmin)',
-                maxHeight: 'min(22px, 4.6cqmin)',
+                minHeight: 'min(26px, 6cqmin)',
+                maxHeight: 'min(56px, 13cqmin)',
               }}
-            />
-          );
-        })}
-      </div>
+            >
+              <StateMark state={state} size="min(14px, 3.6cqmin)" />
+            </button>
+          </td>
+        );
+      })
     ) : (
-      <span
-        className="flex-1 text-slate-500 font-medium"
-        style={{ fontSize: 'min(13px, 4.2cqmin)' }}
+      <td
+        className="text-slate-500 font-medium"
+        style={{
+          padding: `${CELL_PAD_Y} ${CELL_PAD_X}`,
+          fontSize: 'min(13px, 4.2cqmin)',
+        }}
       >
         {completedStepCount(group, steps)} of {steps.length} done
-      </span>
+      </td>
     )}
-
-    {group.needsSupport && (
-      <button
-        type="button"
-        onClick={onClearSupport}
-        disabled={busyKeys.has(`${group.id}:support`)}
-        className="shrink-0 flex items-center rounded-full bg-amber-100 text-amber-800 font-semibold disabled:opacity-50"
-        style={{
-          gap: 'min(4px, 1cqmin)',
-          padding: 'min(3px, 0.7cqmin) min(8px, 1.8cqmin)',
-          fontSize: 'min(12px, 3.6cqmin)',
-        }}
-        aria-label={`Clear the help flag for ${group.name}`}
-      >
-        <Hand
-          aria-hidden
-          style={{
-            width: 'min(13px, 3.4cqmin)',
-            height: 'min(13px, 3.4cqmin)',
-          }}
-        />
-        Help
-      </button>
-    )}
-  </li>
+  </tr>
 );
 
 interface ProjectBoardViewProps {
@@ -294,7 +304,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
     );
   }
 
-  // D26 — past the ceiling, counts beat segments drawn too small to read.
+  // D26 — past the ceiling, counts beat cells drawn too small to read.
   const tooDenseToDraw =
     visibleGroups.length > COMFORTABLE_GROUPS ||
     steps.length > COMFORTABLE_STEPS;
@@ -361,44 +371,131 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
           style={{ fontSize: 'min(11px, 3.4cqmin)' }}
         >
           {visibleGroups.length} groups × {steps.length} steps — showing counts
-          instead of the bar.
+          instead of the grid.
         </p>
       )}
 
-      <ul
-        className="flex-1 min-h-0 overflow-y-auto flex flex-col"
-        style={{ gap: 'min(6px, 1.4cqmin)' }}
+      <div
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-xl"
+        style={{
+          ...cardStyle,
+          padding: 'min(6px, 1.4cqmin) min(4px, 1cqmin) min(8px, 1.8cqmin)',
+        }}
       >
-        {visibleGroups.map((group) => (
-          <GroupRow
-            key={group.id}
-            group={group}
-            steps={steps}
-            showStatus={renderStatus}
-            cardStyle={cardStyle}
-            busyKeys={busyKeys}
-            onCycleStep={(stepId, state) => {
-              const step = steps.find((s) => s.id === stepId);
-              if (!step) return;
-              void runAction(
-                setStepState(
-                  group.id,
-                  stepId,
-                  nextState(step, state),
-                  'teacher'
-                ),
-                `${group.id}:${stepId}`
-              );
-            }}
-            onClearSupport={() =>
-              void runAction(
-                setNeedsSupport(group.id, false, 'teacher'),
-                `${group.id}:support`
-              )
-            }
-          />
-        ))}
-      </ul>
+        <table
+          className="w-full h-full table-fixed border-separate"
+          style={{ borderSpacing: 0 }}
+        >
+          <caption className="sr-only">
+            {run.title} — each group&apos;s progress through every step
+          </caption>
+          <thead>
+            <tr>
+              <th
+                scope="col"
+                className="sticky top-0 text-left"
+                style={{
+                  ...cardStyle,
+                  width: '34%',
+                  padding: `${HEADER_PAD_Y} ${NAME_PAD_X}`,
+                }}
+              >
+                <span className="sr-only">Group</span>
+              </th>
+              {renderStatus ? (
+                steps.map((step) => (
+                  <th
+                    key={step.id}
+                    scope="col"
+                    title={step.title}
+                    className="sticky top-0 align-bottom text-center font-semibold text-slate-600"
+                    style={{
+                      ...cardStyle,
+                      padding: `${HEADER_PAD_Y} ${CELL_PAD_X}`,
+                      fontSize: 'min(11px, 3.4cqmin)',
+                    }}
+                  >
+                    <span className="block leading-tight break-words line-clamp-2">
+                      {step.title}
+                    </span>
+                  </th>
+                ))
+              ) : (
+                <th
+                  scope="col"
+                  className="sticky top-0"
+                  style={{
+                    ...cardStyle,
+                    padding: `${HEADER_PAD_Y} ${CELL_PAD_X}`,
+                  }}
+                >
+                  <span className="sr-only">Progress</span>
+                </th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {visibleGroups.map((group) => (
+              <GroupRow
+                key={group.id}
+                group={group}
+                steps={steps}
+                showStatus={renderStatus}
+                busyKeys={busyKeys}
+                onCycleStep={(stepId, state) => {
+                  const step = steps.find((s) => s.id === stepId);
+                  if (!step) return;
+                  void runAction(
+                    setStepState(
+                      group.id,
+                      stepId,
+                      nextState(step, state),
+                      'teacher'
+                    ),
+                    `${group.id}:${stepId}`
+                  );
+                }}
+                onClearSupport={() =>
+                  void runAction(
+                    setNeedsSupport(group.id, false, 'teacher'),
+                    `${group.id}:support`
+                  )
+                }
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {renderStatus && (
+        <div
+          className="shrink-0 flex flex-wrap items-center text-slate-600"
+          style={{
+            gap: 'min(10px, 2.2cqmin)',
+            fontSize: 'min(11px, 3.4cqmin)',
+          }}
+        >
+          {STEP_STATE_ORDER.map((state) => (
+            <span
+              key={state}
+              className="flex items-center"
+              style={{ gap: 'min(4px, 1cqmin)' }}
+            >
+              <span
+                aria-hidden
+                className={`flex items-center justify-center rounded ${STATE_STYLES[state].tone}`}
+                style={{
+                  width: 'min(16px, 4cqmin)',
+                  height: 'min(16px, 4cqmin)',
+                }}
+              >
+                <StateMark state={state} size="min(10px, 2.6cqmin)" />
+              </span>
+              {STEP_STATE_LABELS[state]}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

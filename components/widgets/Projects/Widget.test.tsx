@@ -141,13 +141,52 @@ describe('ProjectsWidget', () => {
     });
   });
 
-  it('draws one segment per step, labelled with its state', () => {
+  it('draws one cell per step, labelled with its state', () => {
     render(<ProjectsWidget widget={widget()} />);
     expect(
       screen.getByRole('button', { name: 'Group 1, Research, Done' })
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
+    ).toBeInTheDocument();
+  });
+
+  it('names every step in a column header', () => {
+    render(<ProjectsWidget widget={widget()} />);
+    expect(
+      screen.getByRole('columnheader', { name: 'Research' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Draft' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('rowheader', { name: /Group 1/ })
+    ).toBeInTheDocument();
+  });
+
+  it('spells out what each colour means', () => {
+    render(<ProjectsWidget widget={widget()} />);
+    for (const label of [
+      'Not started',
+      'Working',
+      'Ready for review',
+      'Done',
+    ]) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+  });
+
+  it('marks a group needing help with a chip, never an edge border', () => {
+    mockRun({ groups: [group({ needsSupport: true })] });
+    render(<ProjectsWidget widget={widget()} />);
+    const row = screen
+      .getByRole('rowheader', { name: /Group 1/ })
+      .closest('tr');
+    expect(row).not.toBeNull();
+    expect(row?.className).not.toMatch(/border-l/);
+    expect(row?.getAttribute('style') ?? '').not.toMatch(/border-left/i);
+    expect(
+      screen.getByRole('button', { name: 'Clear the help flag for Group 1' })
     ).toBeInTheDocument();
   });
 
@@ -274,7 +313,7 @@ describe('ProjectsWidget', () => {
     });
     render(<ProjectsWidget widget={widget()} />);
     expect(
-      screen.getByText(/showing\s+counts instead of the bar/)
+      screen.getByText(/showing\s+counts instead of the grid/)
     ).toBeInTheDocument();
     expect(screen.getAllByText('1 of 2 done')).toHaveLength(9);
   });
