@@ -116,6 +116,7 @@ describe('PaperPrintModal', () => {
     sheetImages = { src: {}, failed: [], loading: false };
     vi.clearAllMocks();
     // clearAllMocks keeps whatever a test set with mockResolvedValue.
+    drive.listFilePermissions.mockReset();
     drive.listFilePermissions.mockResolvedValue([]);
     drive.makePublic.mockResolvedValue(undefined);
   });
@@ -554,6 +555,24 @@ describe('PaperPrintModal', () => {
       await waitFor(() => expect(print).toHaveBeenCalled());
       expect(drive.listFilePermissions).not.toHaveBeenCalled();
       expect(drive.makePublic).not.toHaveBeenCalled();
+    });
+
+    it('will not let a click beat the Drive lookup and skip the ask', async () => {
+      let answer!: (permissions: Array<{ id: string; type?: string }>) => void;
+      drive.listFilePermissions.mockReturnValue(
+        new Promise((resolve) => {
+          answer = resolve;
+        })
+      );
+      setup({ quiz: withGraph(), inPlcGroup: true });
+      selectWholeClass();
+      // Empty `unshared` while Drive is still thinking is not "nothing to
+      // share", so the button stays out of reach until it answers.
+      expect(screen.getByRole('button', { name: /^Print$/ })).toBeDisabled();
+      answer([]);
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled()
+      );
     });
 
     it('asks before printing a PLC quiz whose image only the owner can open', async () => {

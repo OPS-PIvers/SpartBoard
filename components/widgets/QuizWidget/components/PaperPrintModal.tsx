@@ -262,7 +262,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     questionCount > 0 &&
     !printing &&
     !stimulusBusy &&
-    !sheetImages.loading;
+    !sheetImages.loading &&
+    // A click that beat the Drive lookup would skip the sharing ask entirely.
+    !sharing.checking;
 
   const toggleRoster = (roster: ClassRoster, checked: boolean) => {
     setSelectedStudentIds((prev) => ({

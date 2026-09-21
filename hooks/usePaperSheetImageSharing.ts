@@ -7,7 +7,7 @@
  * see has nothing to decide, and Drive should not be asked either way.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { PaperSheetStimulus } from '@/types';
 import { useGoogleDrive } from './useGoogleDrive';
 import {
@@ -19,9 +19,16 @@ import {
 export interface PaperSheetImageSharing {
   /** Images a teammate cannot open yet; empty for a quiz not in a PLC. */
   unshared: PaperSheetStimulus[];
+  /** Drive has not answered about the current images yet. */
   checking: boolean;
   /** Share them all with anyone who has the link; resolves to what failed. */
   share: () => Promise<PaperSheetStimulus[]>;
+}
+
+/** What Drive said, and about which files, so a stale answer is never used. */
+interface Checked {
+  fileIds: string;
+  unshared: PaperSheetStimulus[];
 }
 
 export function usePaperSheetImageSharing(
@@ -29,24 +36,18 @@ export function usePaperSheetImageSharing(
   inPlcGroup: boolean
 ): PaperSheetImageSharing {
   const { driveService } = useGoogleDrive();
-  const [unshared, setUnshared] = useState<PaperSheetStimulus[]>([]);
-  const [checking, setChecking] = useState(false);
+  const [checked, setChecked] = useState<Checked | null>(null);
   const fileIds = sheetImageFileIds(stimuli).join('|');
+  const wanted = inPlcGroup && !!driveService && !!fileIds;
 
   useEffect(() => {
-    if (!inPlcGroup || !driveService || !fileIds) {
-      setUnshared([]);
-      return;
-    }
+    if (!wanted || !driveService) return;
     let live = true;
-    setChecking(true);
     void findUnsharedSheetImages(stimuli, async (fileId) => {
       const permissions = await driveService.listFilePermissions(fileId);
       return permissions.some((p) => p.type === 'anyone');
-    }).then((found) => {
-      if (!live) return;
-      setUnshared(found);
-      setChecking(false);
+    }).then((unshared) => {
+      if (live) setChecked({ fileIds, unshared });
     });
     return () => {
       live = false;
@@ -54,16 +55,24 @@ export function usePaperSheetImageSharing(
     // `stimuli` is a new array on every keystroke; the Drive files are what
     // decide whether anything has to be looked up again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileIds, inPlcGroup, driveService]);
+  }, [fileIds, wanted, driveService]);
+
+  // Derived rather than stored, so the first render before the effect runs
+  // already reads as "checking" and the Print button cannot beat the lookup.
+  const answered = checked?.fileIds === fileIds ? checked : null;
+  const unshared = useMemo(
+    () => (wanted && answered ? answered.unshared : []),
+    [wanted, answered]
+  );
 
   const share = useCallback(async (): Promise<PaperSheetStimulus[]> => {
     if (!driveService) return [...unshared];
     const failed = await shareSheetImages(unshared, (fileId) =>
       driveService.makePublic(fileId, undefined)
     );
-    setUnshared(failed);
+    setChecked({ fileIds, unshared: failed });
     return failed;
-  }, [driveService, unshared]);
+  }, [driveService, unshared, fileIds]);
 
-  return { unshared, checking, share };
+  return { unshared, checking: wanted && !answered, share };
 }
