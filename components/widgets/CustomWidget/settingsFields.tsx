@@ -104,7 +104,7 @@ const CustomWidgetSettingsForm: React.FC<SettingsFormProps> = ({
                     value={String(
                       definition.options?.includes(String(value))
                         ? value
-                        : definition.defaultValue
+                        : (definition.defaultValue ?? '')
                     )}
                     onChange={(event) =>
                       change(definition.key, event.target.value)
