@@ -3586,7 +3586,12 @@
         "label": "Rubric strands",
         "add": "Tag as evidence for {{name}}",
         "remove": "Remove {{name}} tag",
-        "evidenceFor": "Evidence for"
+        "evidenceFor": "Evidence for",
+        "highlightCount_one": "{{count}} highlight",
+        "highlightCount_other": "{{count}} highlights",
+        "noteCount_one": "{{count}} note",
+        "noteCount_other": "{{count}} notes",
+        "jumpToSuffix": " as evidence for {{name}}"
       },
       "rubricOverrideNote": "Alternate rubric for this student",
       "pointsOverrideNote": "Points only for this student — rubric override.",

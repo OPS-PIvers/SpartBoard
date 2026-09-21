@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AnnotatedResponseView';
 import { AudioAnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AudioAnnotatedResponseView';
@@ -389,6 +389,73 @@ describe('AnnotatedResponseView — rubric strand tagging', () => {
     );
     expect(screen.getByText('Teacher notes')).toBeInTheDocument();
     expect(screen.getByText('Thesis')).toBeInTheDocument();
+  });
+});
+
+describe('AnnotatedResponseView — jumping to a tagged passage', () => {
+  // jsdom has no scrollIntoView; the jump brings the mark into the grader's
+  // scrolled column, which `block: 'nearest'` resolves natively.
+  let scrollIntoView: ReturnType<typeof vi.fn>;
+  let original: PropertyDescriptor | undefined;
+
+  beforeEach(() => {
+    scrollIntoView = vi.fn();
+    original = Object.getOwnPropertyDescriptor(
+      Element.prototype,
+      'scrollIntoView'
+    );
+    Object.defineProperty(Element.prototype, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value: scrollIntoView,
+    });
+  });
+
+  afterEach(() => {
+    if (original)
+      Object.defineProperty(Element.prototype, 'scrollIntoView', original);
+    else
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+  });
+
+  it('scrolls the newly active mark into its own scroll container', () => {
+    render(
+      <EditHarness
+        snapshot="<p>alpha beta gamma</p>"
+        annotations={[ann(0, 5, { id: 'a1' })]}
+        onChange={vi.fn()}
+        initialActiveId="a1"
+        rubric={rubric}
+      />
+    );
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+  });
+
+  // The edit feeds back into the annotation list, so the layout effect
+  // re-runs — which is what a missing once-per-activation guard would
+  // turn into a second scroll.
+  const StatefulHarness: React.FC = () => {
+    const [annotations, setAnnotations] = React.useState([
+      ann(0, 5, { id: 'a1', comment: '' }),
+    ]);
+    return (
+      <EditHarness
+        snapshot="<p>alpha beta gamma</p>"
+        annotations={annotations}
+        onChange={setAnnotations}
+        initialActiveId="a1"
+        rubric={rubric}
+      />
+    );
+  };
+
+  it('does not re-scroll while the teacher types in the popover', () => {
+    render(<StatefulHarness />);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    fireEvent.change(screen.getByPlaceholderText(/margin comment/i), {
+      target: { value: 'still here' },
+    });
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });
 });
 

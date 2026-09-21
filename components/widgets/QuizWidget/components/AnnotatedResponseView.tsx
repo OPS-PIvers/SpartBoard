@@ -691,8 +691,12 @@ const EditView: React.FC<EditProps> = ({
     y: number;
     placement: 'below' | 'above';
   } | null>(null);
+  // The id we last scrolled to, so the effect below scrolls once per change
+  // of active annotation rather than on every reflow.
+  const lastScrolledIdRef = useRef<string | null>(null);
   useLayoutEffect(() => {
     if (!activeId || !articleRef.current || !containerRef.current) {
+      lastScrolledIdRef.current = null;
       setPopoverPos((prev) => (prev === null ? prev : null));
       return;
     }
@@ -721,6 +725,15 @@ const EditView: React.FC<EditProps> = ({
       rects.length > 0
         ? rects[0]
         : (mark as HTMLElement).getBoundingClientRect();
+    // The rubric panel's jump link can make a mark active while it sits
+    // outside the grader's scrolled column. `block: 'nearest'` already
+    // no-ops on a mark that is visible in its real scroll container, so the
+    // only thing to gate is firing once per activation — otherwise a
+    // keystroke in the popover would re-scroll on every reflow.
+    if (lastScrolledIdRef.current !== activeId) {
+      lastScrolledIdRef.current = activeId;
+      (mark as HTMLElement).scrollIntoView?.({ block: 'nearest' });
+    }
     const containerRect = containerRef.current.getBoundingClientRect();
     const x = clampPopoverX(
       markRect.left - containerRect.left + markRect.width / 2,

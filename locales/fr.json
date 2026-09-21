@@ -2459,7 +2459,12 @@
         "label": "Critères de la grille",
         "add": "Marquer comme preuve pour {{name}}",
         "remove": "Retirer l'étiquette {{name}}",
-        "evidenceFor": "Preuve pour"
+        "evidenceFor": "Preuve pour",
+        "highlightCount_one": "{{count}} surlignage",
+        "highlightCount_other": "{{count}} surlignages",
+        "noteCount_one": "{{count}} note",
+        "noteCount_other": "{{count}} notes",
+        "jumpToSuffix": " comme preuve pour {{name}}"
       },
       "rubricOverrideNote": "Grille alternative pour cet élève",
       "pointsOverrideNote": "Points seulement pour cet élève — grille remplacée.",
