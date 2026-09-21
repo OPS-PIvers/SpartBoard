@@ -62,10 +62,10 @@ node scripts/stripRulesComments.mjs firestore.rules --write
 
 # firestore:rules is deployed here rather than by the CLI: since 2026-09-21
 # the API rejects the CLI's release call with 400 INVALID_ARGUMENT, and the
-# CLI hides that behind a 409. The script sends the same calls with the
-# updateMask the API now wants, and has its own retry for transient statuses.
-# It runs after the CLI deploy, which is where the rules release sat when the
-# CLI still owned it.
+# CLI hides that behind a 409. The script makes the same calls, prints the real
+# status, tries the release request shapes the API might accept, and has its own
+# retry for transient statuses. It runs after the CLI deploy, which is where the
+# rules release sat when the CLI still owned it.
 release_firestore_rules() {
   echo "::group::release firestore.rules"
   node scripts/releaseFirestoreRules.mjs "$PROJECT_ID"

@@ -216,12 +216,18 @@ async function main() {
   }
   console.log(`uploaded ruleset ${ruleset.name}`);
 
-  const current = await call(
-    token,
-    'GET',
-    `/projects/${projectId}/releases/${RELEASE_NAME}`
-  );
-  console.log(`current release: ${JSON.stringify(current)}`);
+  // Diagnostic only, so a project without this release yet must not stop us.
+  let current = {};
+  try {
+    current = await call(
+      token,
+      'GET',
+      `/projects/${projectId}/releases/${RELEASE_NAME}`
+    );
+    console.log(`current release: ${JSON.stringify(current)}`);
+  } catch (error) {
+    console.warn(`could not read the current release: ${error.message}`);
+  }
 
   // Splits the hypothesis in half: re-pointing the release at the ruleset it
   // already serves is a no-op, so a rejection here is about the request or the
