@@ -194,24 +194,18 @@ describe('releaseFirestoreRules releaseAttempts()', () => {
     }
   });
 
-  // The mask the deploy shipped first. It was rejected, so no shape should use it.
-  it('never sends the release-prefixed mask path again', () => {
+  // v1 declares no updateMask query parameter on releases.patch, and an
+  // undeclared query parameter is itself a 400 — which is what the first
+  // attempt at this shipped.
+  it('never puts the mask in the query string', () => {
     for (const attempt of attempts) {
-      expect(attempt.path).not.toContain('updateMask=release.rulesetName');
-      expect(JSON.stringify(attempt.body)).not.toContain('release.rulesetName');
+      expect(attempt.path).not.toContain('updateMask=');
     }
   });
 
-  it('covers a mask in the body, a mask in the query and no mask at all', () => {
+  it('covers a mask in the body and no mask at all', () => {
     const bodies = attempts.map((a) => JSON.stringify(a.body));
     expect(bodies.some((b) => b.includes('"updateMask"'))).toBe(true);
-    expect(attempts.some((a) => a.path.includes('?updateMask='))).toBe(true);
-    expect(
-      attempts.some(
-        (a) =>
-          !a.path.includes('updateMask') &&
-          !JSON.stringify(a.body).includes('updateMask')
-      )
-    ).toBe(true);
+    expect(bodies.some((b) => !b.includes('updateMask'))).toBe(true);
   });
 });

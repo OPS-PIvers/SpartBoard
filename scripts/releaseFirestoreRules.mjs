@@ -159,16 +159,11 @@ export function releaseAttempts(projectId, rulesetName) {
       body: { release: { rulesetName }, updateMask: 'rulesetName' },
     },
     {
-      label: 'mask in query, path relative to the release',
-      path: `${path}?updateMask=rulesetName`,
-      body: { release },
+      label: 'mask in body, release-prefixed path',
+      path,
+      body: { release, updateMask: 'release.rulesetName' },
     },
-    {
-      label: 'unwrapped release body, mask in query',
-      path: `${path}?updateMask=rulesetName`,
-      body: release,
-    },
-    { label: 'unwrapped release body, no mask', path, body: release },
+    { label: 'unwrapped release body', path, body: release },
     { label: 'what the CLI sends', path, body: { release } },
   ];
 }
@@ -227,6 +222,30 @@ async function main() {
     `/projects/${projectId}/releases/${RELEASE_NAME}`
   );
   console.log(`current release: ${JSON.stringify(current)}`);
+
+  // Splits the hypothesis in half: re-pointing the release at the ruleset it
+  // already serves is a no-op, so a rejection here is about the request or the
+  // permission, and an acceptance means the new ruleset is what gets refused.
+  if (current.rulesetName && current.rulesetName !== ruleset.name) {
+    try {
+      await call(
+        token,
+        'PATCH',
+        `/projects/${projectId}/releases/${RELEASE_NAME}`,
+        {
+          release: {
+            name: `projects/${projectId}/releases/${RELEASE_NAME}`,
+            rulesetName: current.rulesetName,
+          },
+        }
+      );
+      console.log('probe: re-releasing the live ruleset was accepted');
+    } catch (error) {
+      console.warn(
+        `probe: re-releasing the live ruleset failed: ${error.message}`
+      );
+    }
+  }
 
   let release;
   const rejected = [];
