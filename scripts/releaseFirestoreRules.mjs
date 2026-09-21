@@ -168,6 +168,37 @@ export function releaseAttempts(projectId, rulesetName) {
   ];
 }
 
+/**
+ * Splits the hypothesis in half once every shape has been refused: re-pointing
+ * the release at the ruleset it already serves is a no-op, so a rejection here
+ * is about the request or the permission and an acceptance means the new
+ * ruleset is what gets refused. Only runs on the failure path, so a healthy
+ * deploy never makes this extra write.
+ */
+async function probeLiveRuleset(token, projectId, liveRulesetName, attempted) {
+  if (!liveRulesetName || liveRulesetName === attempted) return;
+  try {
+    await call(
+      token,
+      'PATCH',
+      `/projects/${projectId}/releases/${RELEASE_NAME}`,
+      {
+        release: {
+          name: `projects/${projectId}/releases/${RELEASE_NAME}`,
+          rulesetName: liveRulesetName,
+        },
+      }
+    );
+    console.warn(
+      'probe: re-releasing the live ruleset was accepted, so the new ruleset is what the API refuses'
+    );
+  } catch (error) {
+    console.warn(
+      `probe: re-releasing the live ruleset failed too: ${error.message}`
+    );
+  }
+}
+
 async function main() {
   const projectId = process.argv[2];
   if (!projectId) {
@@ -229,30 +260,6 @@ async function main() {
     console.warn(`could not read the current release: ${error.message}`);
   }
 
-  // Splits the hypothesis in half: re-pointing the release at the ruleset it
-  // already serves is a no-op, so a rejection here is about the request or the
-  // permission, and an acceptance means the new ruleset is what gets refused.
-  if (current.rulesetName && current.rulesetName !== ruleset.name) {
-    try {
-      await call(
-        token,
-        'PATCH',
-        `/projects/${projectId}/releases/${RELEASE_NAME}`,
-        {
-          release: {
-            name: `projects/${projectId}/releases/${RELEASE_NAME}`,
-            rulesetName: current.rulesetName,
-          },
-        }
-      );
-      console.log('probe: re-releasing the live ruleset was accepted');
-    } catch (error) {
-      console.warn(
-        `probe: re-releasing the live ruleset failed: ${error.message}`
-      );
-    }
-  }
-
   let release;
   const rejected = [];
   for (const attempt of releaseAttempts(projectId, ruleset.name)) {
@@ -281,6 +288,7 @@ async function main() {
     rejected.push(`${attempt.label}\n  ${note}`);
   }
   if (!release) {
+    await probeLiveRuleset(token, projectId, current.rulesetName, ruleset.name);
     throw new Error(
       `every release request shape was rejected:\n${rejected.join('\n')}`
     );
