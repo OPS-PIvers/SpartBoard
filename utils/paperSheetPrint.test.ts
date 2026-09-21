@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  BUBBLE_LETTER_GREY,
   MARKER_CELL_COUNT,
+  MIN_BUBBLE_LETTER_GREY,
   QUESTIONS_PER_PAGE,
   markerCellRectMm,
 } from './paperSheetLayout';
@@ -91,6 +93,46 @@ describe('buildPaperSheetsHtml', () => {
     for (const page of pages(html)) {
       expect(page.match(/class="reg"/g)).toHaveLength(4);
     }
+  });
+
+  it('prints each bubble with its own choice letter inside it', () => {
+    const html = buildPaperSheetsHtml(
+      job({ questionCount: 3, choiceCount: 4 })
+    );
+    const letters = [
+      ...html.matchAll(/<div class="bub"[^>]*>([A-E])<\/div>/g),
+    ].map((m) => m[1]);
+    expect(letters).toEqual([...'ABCD', ...'ABCD', ...'ABCD']);
+  });
+
+  it('stops at the choice count rather than always printing A-E', () => {
+    const html = buildPaperSheetsHtml(
+      job({ questionCount: 1, choiceCount: 3 })
+    );
+    const letters = [
+      ...html.matchAll(/<div class="bub"[^>]*>([A-E])<\/div>/g),
+    ].map((m) => m[1]);
+    expect(letters).toEqual(['A', 'B', 'C']);
+  });
+
+  it('prints the in-bubble letter no darker than the reader can binarise away', () => {
+    expect(BUBBLE_LETTER_GREY).toBeGreaterThanOrEqual(MIN_BUBBLE_LETTER_GREY);
+    const grey = BUBBLE_LETTER_GREY.toString(16).padStart(2, '0');
+    const doc = { open: vi.fn(), write: vi.fn(), close: vi.fn() };
+    printPaperSheets(
+      job(),
+      () =>
+        ({
+          document: doc,
+          focus: vi.fn(),
+          print: vi.fn(),
+          close: vi.fn(),
+          onafterprint: null,
+        }) as unknown as Window
+    );
+    expect(doc.write.mock.calls[0][0]).toContain(
+      `color: #${grey}${grey}${grey};`
+    );
   });
 
   it('brands every sheet with the Spartron footer', () => {

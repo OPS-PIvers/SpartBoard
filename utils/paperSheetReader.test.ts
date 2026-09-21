@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { paintSyntheticSheet } from '@/tests/testHelpers/paperSheetRaster';
-import { QUESTIONS_PER_PAGE } from './paperSheetLayout';
+import {
+  BUBBLE_LETTER_GREY,
+  MIN_BUBBLE_LETTER_GREY,
+  QUESTIONS_PER_PAGE,
+} from './paperSheetLayout';
 import { paperBatchTag } from './paperSheetMarker';
 import {
   READER_THRESHOLDS,
@@ -211,6 +215,59 @@ describe('readPaperPage', () => {
     const first = read.rows[0].crop;
     const second = read.rows[1].crop;
     expect(second.y).toBeGreaterThan(first.y);
+  });
+
+  it('reads a sheet whose bubbles carry printed letters exactly as a blank one', () => {
+    const marks = [0, 1, 2, 3, 0, 3, 2, 1, 1, 1].map((choice, row) => ({
+      row,
+      choice,
+    }));
+    const opts = { marker, questionCount: 10, choiceCount: 4, marks };
+    const plain = readPaperPage(paintSyntheticSheet(opts), {
+      questionCount: 10,
+      choiceCount: 4,
+    });
+    const lettered = readPaperPage(
+      paintSyntheticSheet({ ...opts, printedLetters: true }),
+      { questionCount: 10, choiceCount: 4 }
+    );
+    // Binarisation drops the letter before sampling, so this is equality, not
+    // a tolerance: the printed letter is invisible to the reader.
+    expect(ok(lettered).rows).toEqual(ok(plain).rows);
+    expect(ok(lettered).rows.map((r) => r.choice)).toEqual(
+      marks.map((m) => m.choice)
+    );
+  });
+
+  it('leaves a lettered but unanswered row blank, with no ink counted', () => {
+    const page = paintSyntheticSheet({
+      marker,
+      questionCount: 50,
+      choiceCount: 5,
+      printedLetters: true,
+    });
+    const read = ok(readPaperPage(page, { questionCount: 50, choiceCount: 5 }));
+    expect(read.rows.every((r) => r.choice === null && !r.doubt)).toBe(true);
+    const worst = Math.max(...read.rows.flatMap((r) => r.fills));
+    expect(worst).toBe(0);
+  });
+
+  it('would misread the row if the printed letter were darker than the floor', () => {
+    const page = paintSyntheticSheet({
+      marker,
+      questionCount: 10,
+      choiceCount: 4,
+      printedLetters: true,
+      letterGrey: 0x40,
+    });
+    const read = ok(readPaperPage(page, { questionCount: 10, choiceCount: 4 }));
+    // Guards the test above from passing for the wrong reason: the sampler does
+    // see in-bubble ink, so the grey is what buys the margin.
+    expect(read.rows.some((r) => r.doubt === 'multiple')).toBe(true);
+  });
+
+  it('keeps the printed letter grey at or above the safety floor', () => {
+    expect(BUBBLE_LETTER_GREY).toBeGreaterThanOrEqual(MIN_BUBBLE_LETTER_GREY);
   });
 
   it('rejects a page missing a registration mark', () => {

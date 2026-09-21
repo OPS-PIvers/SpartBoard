@@ -70,6 +70,15 @@ export const MAX_CHOICE_COUNT = 5;
 /** Choice letters, indexed by choice number. */
 export const CHOICE_LETTERS: readonly string[] = ['A', 'B', 'C', 'D', 'E'];
 
+/** Grey the choice letter prints at; the reader's Otsu cut (measured 129-140) drops it before sampling. */
+export const BUBBLE_LETTER_GREY = 0xd0;
+
+/** Darkest letter grey that still binarises away on a gamma-2.2 scan; 0xbb does not. */
+export const MIN_BUBBLE_LETTER_GREY = 0xc8;
+
+/** Letter point size. Free to tune: binarisation drops the glyph whatever its size. */
+export const BUBBLE_LETTER_SIZE_PT = 8;
+
 /** Where cell `index` of the marker grid sits, filled row-major. */
 export function markerCellRectMm(index: number): RectMm {
   if (index < 0 || index >= MARKER_CELL_COUNT) {

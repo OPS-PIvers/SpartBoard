@@ -6,6 +6,7 @@
 
 import {
   BUBBLE_DIAMETER_MM,
+  BUBBLE_LETTER_GREY,
   MARKER_CELL_COUNT,
   PAGE_HEIGHT_MM,
   PAGE_WIDTH_MM,
@@ -48,6 +49,14 @@ export interface SyntheticSheetOptions {
   noise?: number;
   /** Deterministic pseudo-random source. */
   seed?: number;
+  /**
+   * Paint the printed choice letter inside every bubble, as a filled grey disc
+   * covering the whole area the reader samples. Shape is irrelevant — the page
+   * is binarised before sampling — so this is the worst case any glyph could be.
+   */
+  printedLetters?: boolean;
+  /** Grey the printed letter is painted at; defaults to what the sheet prints. */
+  letterGrey?: number;
 }
 
 const mulberry32 = (seed: number) => () => {
@@ -73,13 +82,14 @@ export function paintSyntheticSheet(opts: SyntheticSheetOptions): RasterPage {
     const ry = x * Math.sin(skew) + y * Math.cos(skew) + PAGE_HEIGHT_MM / 2;
     return { x: rx * pxPerMm + offset.x, y: ry * pxPerMm + offset.y };
   };
-  const ink = (px: number, py: number, density = 1) => {
+  const ink = (px: number, py: number, density = 1, tone = 20) => {
     if (px < 0 || py < 0 || px >= width || py >= height) return;
     if (density < 1 && rand() > density) return;
     const o = (py * width + px) * 4;
-    data[o] = 20;
-    data[o + 1] = 20;
-    data[o + 2] = 20;
+    if (data[o] <= tone) return;
+    data[o] = tone;
+    data[o + 1] = tone;
+    data[o + 2] = tone;
   };
   const fillRect = (r: RectMm, density = 1) => {
     const a = toPx(r.x, r.y);
@@ -97,14 +107,20 @@ export function paintSyntheticSheet(opts: SyntheticSheetOptions): RasterPage {
         ink(x, y, density);
     }
   };
-  const fillDisc = (r: RectMm, radiusMm: number, density = 1, innerMm = 0) => {
+  const fillDisc = (
+    r: RectMm,
+    radiusMm: number,
+    density = 1,
+    innerMm = 0,
+    tone = 20
+  ) => {
     const c = toPx(r.x + r.w / 2, r.y + r.h / 2);
     const rp = radiusMm * pxPerMm;
     const ip = innerMm * pxPerMm;
     for (let y = Math.floor(c.y - rp); y <= Math.ceil(c.y + rp); y += 1) {
       for (let x = Math.floor(c.x - rp); x <= Math.ceil(c.x + rp); x += 1) {
         const d = Math.hypot(x + 0.5 - c.x, y + 0.5 - c.y);
-        if (d <= rp && d >= ip) ink(x, y, density);
+        if (d <= rp && d >= ip) ink(x, y, density, tone);
       }
     }
   };
@@ -126,9 +142,14 @@ export function paintSyntheticSheet(opts: SyntheticSheetOptions): RasterPage {
 
   const rows = rowsOnPage(opts.marker.page, opts.questionCount);
   const radius = BUBBLE_DIAMETER_MM / 2;
+  const letterTone = opts.letterGrey ?? BUBBLE_LETTER_GREY;
   for (let row = 0; row < rows; row += 1) {
     for (let c = 0; c < opts.choiceCount; c += 1) {
-      fillDisc(bubbleRectMm(row, c), radius, 1, radius - 0.3);
+      const rect = bubbleRectMm(row, c);
+      fillDisc(rect, radius, 1, radius - 0.3);
+      if (opts.printedLetters) {
+        fillDisc(rect, radius - 0.4, 1, 0, letterTone);
+      }
     }
   }
   for (const mark of opts.marks ?? []) {
