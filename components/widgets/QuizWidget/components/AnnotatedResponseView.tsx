@@ -425,24 +425,6 @@ const CommentChip: React.FC<{
   </div>
 );
 
-// The response scrolls inside the grader's center column, not the window, so
-// the window's height would judge an out-of-view mark visible.
-const scrollViewportFor = (
-  el: HTMLElement
-): { top: number; bottom: number } => {
-  for (let node = el.parentElement; node; node = node.parentElement) {
-    const { overflowY } = window.getComputedStyle(node);
-    if (
-      (overflowY === 'auto' || overflowY === 'scroll') &&
-      node.scrollHeight > node.clientHeight
-    ) {
-      const rect = node.getBoundingClientRect();
-      return { top: rect.top, bottom: rect.bottom };
-    }
-  }
-  return { top: 0, bottom: window.innerHeight };
-};
-
 // ─── Edit (teacher grader) ──────────────────────────────────────────────────
 
 const EditView: React.FC<EditProps> = ({
@@ -744,22 +726,13 @@ const EditView: React.FC<EditProps> = ({
         ? rects[0]
         : (mark as HTMLElement).getBoundingClientRect();
     // The rubric panel's jump link can make a mark active while it sits
-    // outside the scrolled view. Bring it in, but only on an actual change
-    // of active annotation and only when it isn't already visible, so a
-    // keystroke in the popover never yanks the page.
+    // outside the grader's scrolled column. `block: 'nearest'` already
+    // no-ops on a mark that is visible in its real scroll container, so the
+    // only thing to gate is firing once per activation — otherwise a
+    // keystroke in the popover would re-scroll on every reflow.
     if (lastScrolledIdRef.current !== activeId) {
       lastScrolledIdRef.current = activeId;
-      const el = mark as HTMLElement;
-      // An un-laid-out mark (or jsdom) reports an empty rect; there is
-      // nothing meaningful to scroll to, and "above the fold" would be the
-      // wrong reading of it.
-      const laidOut = markRect.width > 0 || markRect.height > 0;
-      const viewport = scrollViewportFor(el);
-      const offscreen =
-        markRect.bottom <= viewport.top || markRect.top >= viewport.bottom;
-      if (laidOut && offscreen && typeof el.scrollIntoView === 'function') {
-        el.scrollIntoView({ block: 'nearest' });
-      }
+      (mark as HTMLElement).scrollIntoView?.({ block: 'nearest' });
     }
     const containerRect = containerRef.current.getBoundingClientRect();
     const x = clampPopoverX(

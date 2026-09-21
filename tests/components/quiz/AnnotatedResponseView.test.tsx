@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AnnotatedResponseView';
 import { AudioAnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AudioAnnotatedResponseView';
@@ -393,103 +393,69 @@ describe('AnnotatedResponseView — rubric strand tagging', () => {
 });
 
 describe('AnnotatedResponseView — jumping to a tagged passage', () => {
-  const stubRect = (top: number, bottom: number): DOMRect =>
-    ({
-      top,
-      bottom,
-      left: 0,
-      right: 80,
-      width: 80,
-      height: bottom - top,
-      x: 0,
-      y: top,
-      toJSON: () => ({}),
-    }) as DOMRect;
+  // jsdom has no scrollIntoView; the jump brings the mark into the grader's
+  // scrolled column, which `block: 'nearest'` resolves natively.
+  let scrollIntoView: ReturnType<typeof vi.fn>;
+  let original: PropertyDescriptor | undefined;
 
-  // The grader's center column is the scroll container; `window.innerHeight`
-  // is jsdom's 768, so a mark below the column is still above the window.
-  const COLUMN = stubRect(0, 200);
-  const MARK = stubRect(400, 420);
-
-  const renderInColumn = (scrollIntoView: () => void) => {
-    const proto = Element.prototype as unknown as {
-      scrollIntoView?: () => void;
-      getClientRects: () => DOMRectList;
-      getBoundingClientRect: () => DOMRect;
-    };
-    const original = {
-      scrollIntoView: proto.scrollIntoView,
-      getClientRects: proto.getClientRects,
-      getBoundingClientRect: proto.getBoundingClientRect,
-      scrollHeight: Object.getOwnPropertyDescriptor(
-        Element.prototype,
-        'scrollHeight'
-      ),
-      clientHeight: Object.getOwnPropertyDescriptor(
-        Element.prototype,
-        'clientHeight'
-      ),
-    };
-    const isColumn = (el: Element) => el.hasAttribute('data-scroll-column');
-    proto.scrollIntoView = scrollIntoView;
-    proto.getClientRects = function (this: Element) {
-      return (this.tagName === 'MARK' ? [MARK] : []) as unknown as DOMRectList;
-    };
-    proto.getBoundingClientRect = function (this: Element) {
-      if (isColumn(this)) return COLUMN;
-      return this.tagName === 'MARK' ? MARK : stubRect(0, 0);
-    };
-    Object.defineProperty(Element.prototype, 'scrollHeight', {
-      configurable: true,
-      get(this: Element) {
-        return isColumn(this) ? 1000 : 0;
-      },
-    });
-    Object.defineProperty(Element.prototype, 'clientHeight', {
-      configurable: true,
-      get(this: Element) {
-        return isColumn(this) ? 200 : 0;
-      },
-    });
-    const restore = () => {
-      proto.scrollIntoView = original.scrollIntoView;
-      proto.getClientRects = original.getClientRects;
-      proto.getBoundingClientRect = original.getBoundingClientRect;
-      if (original.scrollHeight)
-        Object.defineProperty(
-          Element.prototype,
-          'scrollHeight',
-          original.scrollHeight
-        );
-      if (original.clientHeight)
-        Object.defineProperty(
-          Element.prototype,
-          'clientHeight',
-          original.clientHeight
-        );
-    };
-    render(
-      <div data-scroll-column style={{ overflowY: 'auto' }}>
-        <EditHarness
-          snapshot="<p>alpha beta gamma</p>"
-          annotations={[ann(0, 5, { id: 'a1' })]}
-          onChange={vi.fn()}
-          initialActiveId="a1"
-          rubric={rubric}
-        />
-      </div>
+  beforeEach(() => {
+    scrollIntoView = vi.fn();
+    original = Object.getOwnPropertyDescriptor(
+      Element.prototype,
+      'scrollIntoView'
     );
-    return restore;
+    Object.defineProperty(Element.prototype, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value: scrollIntoView,
+    });
+  });
+
+  afterEach(() => {
+    if (original)
+      Object.defineProperty(Element.prototype, 'scrollIntoView', original);
+    else
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+  });
+
+  it('scrolls the newly active mark into its own scroll container', () => {
+    render(
+      <EditHarness
+        snapshot="<p>alpha beta gamma</p>"
+        annotations={[ann(0, 5, { id: 'a1' })]}
+        onChange={vi.fn()}
+        initialActiveId="a1"
+        rubric={rubric}
+      />
+    );
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+  });
+
+  // The edit feeds back into the annotation list, so the layout effect
+  // re-runs — which is what a missing once-per-activation guard would
+  // turn into a second scroll.
+  const StatefulHarness: React.FC = () => {
+    const [annotations, setAnnotations] = React.useState([
+      ann(0, 5, { id: 'a1', comment: '' }),
+    ]);
+    return (
+      <EditHarness
+        snapshot="<p>alpha beta gamma</p>"
+        annotations={annotations}
+        onChange={setAnnotations}
+        initialActiveId="a1"
+        rubric={rubric}
+      />
+    );
   };
 
-  it('scrolls to a mark that is out of the scrolling column but inside the window', () => {
-    const scrollIntoView = vi.fn();
-    const restore = renderInColumn(scrollIntoView);
-    try {
-      expect(scrollIntoView).toHaveBeenCalled();
-    } finally {
-      restore();
-    }
+  it('does not re-scroll while the teacher types in the popover', () => {
+    render(<StatefulHarness />);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    fireEvent.change(screen.getByPlaceholderText(/margin comment/i), {
+      target: { value: 'still here' },
+    });
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });
 });
 
