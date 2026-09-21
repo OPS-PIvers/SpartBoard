@@ -2126,12 +2126,21 @@ service cloud.firestore {
     // memberUids + count. Read by same-org peers, members, and admins; writes are
     // server-only so a client can't forge a discovery entry.
     match /plcIndex/{plcId} {
+      // isAdmin() is a bare /admins/{email} doc, which also mirrors org-scoped
+      // building_admin (see functions/src/organizationMembersSync.ts) — used
+      // bare here it let a building_admin of one org browse another org's PLC
+      // directory. Scoped the same way as isAdminManagingPlc() below: same-org
+      // admin only, same as the org-peer branch it sits next to.
       allow read: if request.auth != null
         && (
           request.auth.uid in resource.data.get('memberUids', [])
-          || isAdmin()
           || (
             resource.data.get('orgId', null) is string
+            && isOrgMember(resource.data.orgId)
+          )
+          || (
+            isAdmin()
+            && resource.data.get('orgId', null) is string
             && isOrgMember(resource.data.orgId)
           )
         );
@@ -2140,16 +2149,27 @@ service cloud.firestore {
     }
 
     match /plcs/{plcId} {
-      // Members + admins only. The root doc carries member PII (emails/names), so
-      // it's NOT exposed to same-org peers — discovery reads the PII-free
-      // /plcIndex mirror instead. The gate reads BOTH the canonical members map
-      // and the denormalized memberUids index (either shape authorizes during
-      // rollout). Admins read for the PLC-resource push UI.
+      // Members + same-org admins only. The root doc carries member PII
+      // (emails/names), so it's NOT exposed to same-org peers — discovery reads
+      // the PII-free /plcIndex mirror instead. The gate reads BOTH the canonical
+      // members map and the denormalized memberUids index (either shape
+      // authorizes during rollout). isAdmin() is a bare /admins/{email} doc,
+      // which also mirrors org-scoped building_admin (see
+      // functions/src/organizationMembersSync.ts) — used bare it let a
+      // building_admin of one org read another org's member emails/names off
+      // this doc. Scoped to same-org, matching isAdminManagingPlc() and the
+      // admin delete branch below (both already same-org-gated and tested in
+      // plcAdminRecovery.test.ts) instead of the write side being scoped while
+      // read stayed open.
       allow read: if request.auth != null
         && (
           request.auth.uid in resource.data.get('members', {})
           || request.auth.uid in resource.data.memberUids
-          || isAdmin()
+          || (
+            isAdmin()
+            && resource.data.get('orgId', null) is string
+            && isOrgMember(resource.data.orgId)
+          )
         );
 
       // The creating teacher is the lead and only initial member: members map

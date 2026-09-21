@@ -22,6 +22,12 @@
 //       an invitee accepts, a lead/co-lead changes a role. The admin branch
 //       requires isAdmin()+same-org, which no member branch grants, so the
 //       branches stay mutually exclusive.
+//   (6) READ scoping — isAdmin() is a bare /admins/{email} doc, which also
+//       mirrors org-scoped building_admin (functions/src/organizationMembersSync.ts).
+//       An out-of-org admin can already NOT write/dissolve (see (3) above);
+//       this pins that a non-member admin also can't just READ the PII-bearing
+//       root doc (member emails/displayNames) of an org they don't belong to,
+//       matching the same-org gate the write/delete branches already enforce.
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -34,7 +40,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { setDoc, updateDoc, deleteDoc, getDoc, doc } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-plc-admin-recovery';
 
@@ -441,5 +447,24 @@ describe('plcs/{plcId} — member branches unaffected by the admin branch', () =
         updatedAt: 2,
       })
     );
+  });
+});
+
+// ===========================================================================
+// (6) READ scoping — an admin's bare /admins doc must also be org-scoped for
+//     reads, not just for the write/delete branches above.
+// ===========================================================================
+
+describe('plcs/{plcId} — admin READ scoping (PII boundary)', () => {
+  it('an in-org site admin CAN read the PLC root (existing support path preserved)', async () => {
+    await assertSucceeds(getDoc(doc(asAdmin(), `plcs/${ORG_PLC_ID}`)));
+  });
+
+  it('an admin in a DIFFERENT org canNOT read the PLC root (member emails/names)', async () => {
+    await assertFails(getDoc(doc(asOtherAdmin(), `plcs/${ORG_PLC_ID}`)));
+  });
+
+  it('an in-org admin canNOT read an org-LESS PLC (no orgId to scope on)', async () => {
+    await assertFails(getDoc(doc(asAdmin(), `plcs/${LEGACY_PLC_ID}`)));
   });
 });
