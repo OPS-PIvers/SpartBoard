@@ -435,13 +435,9 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const handleSave = async (set: GuidedLearningSet, driveFileId?: string) => {
     // Saved content invalidates any prefetched copy.
     prefetchCacheRef.current.invalidate(set.id);
-    if (set.isBuilding) {
-      await saveBuildingSet(set);
-      addToast('Building set saved.', 'success');
-    } else {
-      await saveSet(set, driveFileId);
-      addToast('Set saved to Drive.', 'success');
-    }
+    // The editor autosaves and shows its own save state, so no toast per write.
+    if (set.isBuilding) await saveBuildingSet(set);
+    else await saveSet(set, driveFileId);
   };
 
   const handleDelete = async (setId: string, driveFileId: string) => {

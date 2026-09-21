@@ -370,7 +370,38 @@ export const GuidedLearningEditorModal: React.FC<
     markSpotlightRadiiV2,
   ]);
 
-  const handleSave = async () => {
+  // New identity on every draft edit — the autosave quiet period restarts on it.
+  const draftToken = useMemo(
+    () => [
+      editorState.title,
+      editorState.description,
+      editorState.mode,
+      editorState.hotspotPulse,
+      editorState.imageTransition,
+      editorState.welcomeEnabled,
+      editorState.welcomeMessage,
+      editorState.imageUrls,
+      editorState.imageKinds,
+      editorState.videoTrims,
+      editorState.steps,
+    ],
+    [
+      editorState.title,
+      editorState.description,
+      editorState.mode,
+      editorState.hotspotPulse,
+      editorState.imageTransition,
+      editorState.welcomeEnabled,
+      editorState.welcomeMessage,
+      editorState.imageUrls,
+      editorState.imageKinds,
+      editorState.videoTrims,
+      editorState.steps,
+    ]
+  );
+
+  // Persist only — the shell owns closing.
+  const persistDraft = async () => {
     if (!set) return;
     setSaving(true);
     try {
@@ -425,7 +456,6 @@ export const GuidedLearningEditorModal: React.FC<
           : {}),
       };
       await onSave(builtSet, meta?.driveFileId);
-      onClose();
     } finally {
       setSaving(false);
     }
@@ -520,7 +550,13 @@ export const GuidedLearningEditorModal: React.FC<
         headerExtras={headerExtras}
         isDirty={isDirty}
         isSaving={saving}
-        onSave={handleSave}
+        onSave={persistDraft}
+        autosave={{
+          draftToken,
+          // A set with no slide has nothing to persist, and an in-flight
+          // upload would be written as a half-set.
+          enabled: editorState.imageUrls.length > 0 && !editorState.uploading,
+        }}
         onClose={onClose}
         saveLabel="Save Set"
         saveDisabled={

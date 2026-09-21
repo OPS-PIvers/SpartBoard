@@ -195,10 +195,12 @@ export function useQuizEditorState({
   const [aiFileName, setAiFileName] = useState<string | null>(null);
   const [aiFileExtracting, setAiFileExtracting] = useState(false);
 
-  // Reset draft state when quiz prop identity changes.
-  const [prevQuiz, setPrevQuiz] = useState<QuizData | null>(quiz);
-  if (quiz !== prevQuiz) {
-    setPrevQuiz(quiz);
+  // Reset draft state when the editor is pointed at a different quiz. Keyed on
+  // id, not object identity: autosave writes come back through the listener as
+  // a fresh object, and resetting on that would wipe keystrokes mid-edit.
+  const [prevQuizId, setPrevQuizId] = useState<string | null>(quiz?.id ?? null);
+  if ((quiz?.id ?? null) !== prevQuizId) {
+    setPrevQuizId(quiz?.id ?? null);
     setTitle(originalTitle);
     setLanguage(originalLanguage);
     setQuestions(originalQuestions);

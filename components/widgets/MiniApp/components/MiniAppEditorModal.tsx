@@ -81,12 +81,14 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
   );
 
   // --- Save ---
-  const handleSave = async () => {
+  // New identity on every draft edit — the autosave quiet period restarts on it.
+  const draftToken = useMemo(() => [title, html], [title, html]);
+
+  const incompleteNotice = title.trim() ? null : 'App title is required';
+
+  // Persist only — the shell owns closing.
+  const persistDraft = async () => {
     if (!app) return;
-    if (!title.trim()) {
-      setError('Please enter a title');
-      return;
-    }
     setSaving(true);
     setError(null);
     try {
@@ -95,9 +97,6 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
         title: title.trim(),
         html,
       });
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
     } finally {
       setSaving(false);
     }
@@ -183,7 +182,9 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
       }
       isDirty={isDirty}
       isSaving={saving}
-      onSave={handleSave}
+      onSave={persistDraft}
+      autosave={{ draftToken }}
+      incompleteNotice={incompleteNotice}
       onClose={onClose}
       saveLabel="Save App"
       saveDisabled={!title.trim()}

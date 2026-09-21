@@ -2803,6 +2803,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             : null
         }
         bankApi={bankApi}
+        // A synced quiz publishes a new version to its PLC on every save, so
+        // that path keeps an explicit Save.
+        autosave={!editingMeta?.sync}
         behavior={editingMeta ? getQuizBehavior(editingMeta) : undefined}
         folders={editingMeta ? quizFolders : undefined}
         folderId={
@@ -2891,7 +2894,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             setSavingQuizId(null);
           }
           setLoadedQuizData(updated);
-          addToast(isNew ? 'Quiz created!' : 'Quiz saved!', 'success');
+          // The editor autosaves, so only the first write is news.
+          if (isNew) addToast('Quiz created!', 'success');
         }}
       />
       {syncConflicts[0] && (

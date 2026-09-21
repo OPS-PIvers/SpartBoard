@@ -1158,6 +1158,9 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         activity={editingActivity}
         aiEnabled={aiEnabled}
         isAdmin={isAdmin === true}
+        // A synced activity publishes a new version to its PLC on every save,
+        // so that path keeps an explicit Save.
+        autosave={!editingMeta?.sync}
         folders={editingMeta ? videoActivityFolders : undefined}
         folderId={editingMeta?.folderId ?? null}
         behavior={
@@ -1187,10 +1190,8 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         onSave={async (updated, behavior) => {
           const isNew = !editingMeta;
           await saveActivity(updated, editingMeta?.driveFileId, behavior);
-          addToast(
-            isNew ? 'Activity created!' : 'Activity updated!',
-            'success'
-          );
+          // The editor autosaves, so only the first write is news.
+          if (isNew) addToast('Activity created!', 'success');
         }}
       />
       {shareWithPlcTarget && (

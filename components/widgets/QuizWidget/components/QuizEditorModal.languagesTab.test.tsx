@@ -81,6 +81,11 @@ vi.mock('@/hooks/useRubrics', () => ({
   }),
 }));
 
+// The real shell reports a rejected write in its save-state line; the stand-in
+// just records it, so a test can assert the modal let the failure through
+// instead of swallowing it into an inline banner.
+const saveOutcome = vi.hoisted(() => ({ error: null as Error | null }));
+
 vi.mock('@/components/common/EditorWorkspace', () => ({
   EditorWorkspace: vi.fn(
     ({
@@ -92,13 +97,20 @@ vi.mock('@/components/common/EditorWorkspace', () => ({
     }: {
       isOpen: boolean;
       isDirty: boolean;
-      onSave: () => void;
+      onSave: () => void | Promise<void>;
       contextPane: React.ReactNode;
       detailPane: React.ReactNode;
     }) =>
       isOpen ? (
         <div data-testid="editor-workspace" data-dirty={String(isDirty)}>
-          <button type="button" onClick={onSave}>
+          <button
+            type="button"
+            onClick={() => {
+              void Promise.resolve(onSave()).catch((err: Error) => {
+                saveOutcome.error = err;
+              });
+            }}
+          >
             workspace-save
           </button>
           <div data-testid="context-pane">{contextPane}</div>
@@ -150,6 +162,7 @@ const openTab = (label: string) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  saveOutcome.error = null;
   translationsApi.byLocale = {};
   translationsApi.translatableIds = ['q1'];
   translationsApi.loadFailed = {};
@@ -171,21 +184,23 @@ describe('QuizEditorModal Languages tab', () => {
     expect(screen.getByTestId('editor-workspace').dataset.dirty).toBe('true');
   });
 
-  it('saves translations before the quiz on the main Save', async () => {
+  it('saves translations before the quiz on every write', async () => {
     const onSave = vi.fn(() => Promise.resolve());
     const onClose = vi.fn();
     render(
       <QuizEditorModal isOpen quiz={quiz} onClose={onClose} onSave={onSave} />
     );
     fireEvent.click(screen.getByRole('button', { name: 'workspace-save' }));
-    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     expect(translationsApi.saveAll).toHaveBeenCalledTimes(1);
     expect(translationsApi.saveAll.mock.invocationCallOrder[0]).toBeLessThan(
       onSave.mock.invocationCallOrder[0]
     );
+    // Writing is not closing — the shell owns that now.
+    expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('keeps the editor open when saving translations fails', async () => {
+  it('writes nothing and reports the failure when translations fail to save', async () => {
     translationsApi.saveAll.mockImplementation(() =>
       Promise.reject(new Error('Drive is unavailable'))
     );
@@ -196,7 +211,7 @@ describe('QuizEditorModal Languages tab', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'workspace-save' }));
     await waitFor(() =>
-      expect(screen.getByText('Drive is unavailable')).toBeTruthy()
+      expect(saveOutcome.error?.message).toBe('Drive is unavailable')
     );
     expect(onSave).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();

@@ -10,7 +10,7 @@
  * the quiz. The behavior is persisted via the `behavior` 2nd arg of `onSave`.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { AlertTriangle, Plus, Sparkles, Target } from 'lucide-react';
 import {
   LibraryFolder,
@@ -92,6 +92,11 @@ interface QuizEditorModalProps {
   aiAllowed?: boolean;
   /** Library metadata for this quiz; backs the Languages tab's translation index. */
   metadata?: QuizMetadata | null;
+  /**
+   * Off for flows whose save is a submit that moves on somewhere else — PLC
+   * authoring hands the saved quiz to the assignment config modal.
+   */
+  autosave?: boolean;
 }
 
 const stimuliEqual = (a: QuizStimulus[], b: QuizStimulus[]): boolean => {
@@ -254,6 +259,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   bankTargetsDirty = false,
   aiAllowed,
   metadata,
+  autosave = true,
 }) => {
   const { t } = useTranslation();
   const { canAccessFeature } = useAuth();
@@ -358,31 +364,66 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     ]
   );
 
-  const handleSave = async () => {
-    if (!quiz) return;
-    const errors: string[] = [];
+  // What still has to be filled in before the quiz can be assigned, started
+  // live or shared. It no longer gates the save: autosave persists whatever is
+  // on screen, and these checks run again at the points that need a complete
+  // quiz.
+  const incompleteNotice = useMemo(() => {
     if (!title.trim())
-      errors.push(isBank ? 'Bank title is required' : 'Quiz title is required');
+      return isBank ? 'Bank title is required' : 'Quiz title is required';
     if (questions.length === 0 && bankSlots.length === 0)
-      errors.push('Add at least one question');
-    bankSlots.forEach((s) => {
-      if (s.mode === 'random' && (s.count ?? 0) < 1)
-        errors.push(
-          `"${s.bankTitle}" draws 0 questions. Set how many to draw or remove the slot.`
-        );
-    });
-    questions.forEach((q, i) => {
-      if (!q.text.trim()) errors.push(`Question ${i + 1}: text is required`);
+      return 'Add at least one question';
+    const emptySlot = bankSlots.find(
+      (s) => s.mode === 'random' && (s.count ?? 0) < 1
+    );
+    if (emptySlot)
+      return `"${emptySlot.bankTitle}" draws 0 questions. Set how many to draw or remove the slot.`;
+    for (let i = 0; i < questions.length; i += 1) {
+      const q = questions[i];
+      if (!q.text.trim()) return `Question ${i + 1}: text is required`;
       // Free-response questions have no correct answer — they
       // are manually graded by the teacher after the quiz closes.
-      const isWritten = isFreeResponseType(q.type);
-      // A `needsKey` question saves without one on purpose (D7); the quiz
-      // can't be assigned, started live or shared to a PLC until it's filled.
-      if (!isWritten && !q.needsKey && !q.correctAnswer.trim())
-        errors.push(`Question ${i + 1}: correct answer is required`);
-    });
-    if (errors.length > 0) {
-      setError(errors[0]);
+      // A `needsKey` question saves without one on purpose (D7).
+      if (!isFreeResponseType(q.type) && !q.needsKey && !q.correctAnswer.trim())
+        return `Question ${i + 1}: correct answer is required`;
+    }
+    return null;
+  }, [title, questions, bankSlots, isBank]);
+
+  // New identity on every draft edit — the autosave quiet period restarts on it.
+  const draftToken = useMemo(
+    () => [
+      title,
+      language,
+      questions,
+      stimuli,
+      bankSlots,
+      order,
+      behavior,
+      bankTargetsDirty,
+      translations.hasUnsavedChanges,
+    ],
+    [
+      title,
+      language,
+      questions,
+      stimuli,
+      bankSlots,
+      order,
+      behavior,
+      bankTargetsDirty,
+      translations.hasUnsavedChanges,
+    ]
+  );
+
+  // Persist only. The shell owns closing, and rethrows land in its save-state
+  // line rather than an inline banner.
+  const persistDraft = useCallback(async () => {
+    if (!quiz) return;
+    // Without autosave, Save is a submit: it still refuses an incomplete quiz
+    // and closes on success, because no later write will fix either.
+    if (!autosave && incompleteNotice) {
+      setError(incompleteNotice);
       return;
     }
     setSaving(true);
@@ -412,13 +453,28 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
         },
         isBank ? DEFAULT_QUIZ_BEHAVIOR : behavior
       );
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
+      if (!autosave) onClose();
     } finally {
       setSaving(false);
     }
-  };
+  }, [
+    quiz,
+    autosave,
+    incompleteNotice,
+    onClose,
+    translations,
+    questions,
+    stimuli,
+    bankSlots,
+    order,
+    title,
+    language,
+    behavior,
+    isBank,
+    onSave,
+    setSaving,
+    setError,
+  ]);
 
   // Stable chrome elements so the shell's memoized header/footer don't
   // re-render on question-content keystrokes.
@@ -520,7 +576,9 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       subtitle={subtitle}
       isDirty={isDirty}
       isSaving={saving}
-      onSave={handleSave}
+      onSave={persistDraft}
+      autosave={autosave ? { draftToken } : undefined}
+      incompleteNotice={incompleteNotice}
       onClose={onClose}
       saveLabel={isBank ? 'Save Bank' : 'Save Quiz'}
       footerExtras={footerExtras}

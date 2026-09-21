@@ -41,6 +41,15 @@ const renderEditor = (
   return onSave;
 };
 
+/**
+ * The editor autosaves, so there is no Save button: closing flushes whatever
+ * the quiet period has not written yet.
+ */
+const closeEditor = () =>
+  fireEvent.click(
+    screen.getAllByRole('button', { name: 'Close' }).slice(-1)[0]
+  );
+
 describe('ProjectEditorModal', () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -50,7 +59,7 @@ describe('ProjectEditorModal', () => {
     fireEvent.change(screen.getByLabelText('What this step means'), {
       target: { value: 'Two paragraphs, cited.' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Save project' }));
+    closeEditor();
 
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
     const saved = onSave.mock.calls[0][0] as ProjectDefinition;
@@ -65,7 +74,7 @@ describe('ProjectEditorModal', () => {
       target: { value: 'Research\nBuild an outline' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Use these steps' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save project' }));
+    closeEditor();
 
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
     const saved = onSave.mock.calls[0][0] as ProjectDefinition;
@@ -75,21 +84,25 @@ describe('ProjectEditorModal', () => {
     expect(saved.steps[1].id).not.toBe('step-2');
   });
 
-  it('drops a step left untitled rather than saving a blank row', async () => {
+  // Autosave writes a step the moment it is added, so a blank row is kept
+  // rather than deleted out from under the teacher who is still naming it.
+  it('keeps a step left untitled', async () => {
     const onSave = renderEditor();
     fireEvent.click(screen.getByRole('button', { name: 'Add step' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save project' }));
+    closeEditor();
 
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
     const saved = onSave.mock.calls[0][0] as ProjectDefinition;
-    expect(saved.steps).toHaveLength(2);
+    expect(saved.steps).toHaveLength(3);
+    expect(saved.steps[2].title).toBe('');
+    expect(screen.queryByText(/Every step needs a title/)).not.toBeNull();
   });
 
   it('marks a step as needing approval (D3)', async () => {
     const onSave = renderEditor();
     fireEvent.click(screen.getByRole('button', { name: 'Edit Research' }));
     fireEvent.click(screen.getByLabelText('Research needs approval'));
-    fireEvent.click(screen.getByRole('button', { name: 'Save project' }));
+    closeEditor();
 
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
     const saved = onSave.mock.calls[0][0] as ProjectDefinition;

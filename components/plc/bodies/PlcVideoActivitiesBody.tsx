@@ -1145,6 +1145,8 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
         activity={editing?.activity ?? null}
         behavior={editing ? getVideoActivityBehavior(editing.meta) : undefined}
         onClose={() => setEditing(null)}
+        // A save here publishes to teammates, so it stays explicit.
+        autosave={false}
         onSave={handleSaveEdit}
       />
       {versionTarget && canEdit && (

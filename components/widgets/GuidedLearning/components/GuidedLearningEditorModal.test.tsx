@@ -140,6 +140,24 @@ function renderModal(set: GuidedLearningSet) {
   return { onClose, onSave };
 }
 
+/** The footer's Close; the header X carries the same accessible name. */
+const closeEditor = () =>
+  fireEvent.click(
+    screen.getAllByRole('button', { name: 'Close' }).slice(-1)[0]
+  );
+
+/**
+ * The editor autosaves, so there is no Save button: an edit is written after a
+ * quiet period, and closing flushes whatever that period has not reached yet.
+ * Tests that want a write therefore make an edit and close.
+ */
+const editTitleAndClose = (title = 'Edited Title') => {
+  fireEvent.change(screen.getByLabelText('Title'), {
+    target: { value: title },
+  });
+  closeEditor();
+};
+
 beforeEach(() => {
   showConfirmMock.mockReset().mockResolvedValue(false);
   paneConfig.measure = null;
@@ -148,31 +166,37 @@ beforeEach(() => {
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('GuidedLearningEditorModal dirty state', () => {
-  it('closes without a discard prompt when nothing was edited', async () => {
-    const { onClose } = renderModal(buildSet());
+  it('closes without writing when nothing was edited', async () => {
+    const { onClose, onSave } = renderModal(buildSet());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    closeEditor();
 
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(showConfirmMock).not.toHaveBeenCalled();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('closes after an edit without asking, writing it on the way out', async () => {
+    const { onClose, onSave } = renderModal(buildSet());
+
+    editTitleAndClose('Original Title!');
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     expect(showConfirmMock).not.toHaveBeenCalled();
   });
 
-  it('prompts on close after an edit, and is clean again after reverting it', async () => {
-    const { onClose } = renderModal(buildSet());
+  it('stays clean when an edit is reverted, so closing writes nothing', async () => {
+    const { onClose, onSave } = renderModal(buildSet());
     const titleInput = screen.getByLabelText('Title');
 
-    // Edit → dirty → close is guarded (showConfirm resolves false = keep editing).
     fireEvent.change(titleInput, { target: { value: 'Original Title!' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    await waitFor(() => expect(showConfirmMock).toHaveBeenCalledTimes(1));
-    expect(onClose).not.toHaveBeenCalled();
-
-    // Revert to the original value → equality-based isDirty goes clean →
-    // close proceeds without another prompt.
+    // Equality-based isDirty: back to the original value is clean again.
     fireEvent.change(titleInput, { target: { value: 'Original Title' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    closeEditor();
+
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
-    expect(showConfirmMock).toHaveBeenCalledTimes(1);
+    expect(onSave).not.toHaveBeenCalled();
   });
 });
 
@@ -181,7 +205,7 @@ describe('GuidedLearningEditorModal save payload', () => {
     const set = buildSet();
     const { onSave, onClose } = renderModal(set);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save Set' }));
+    editTitleAndClose();
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
 
     const [saved, driveFileId] = onSave.mock.calls[0] as [
@@ -208,7 +232,7 @@ describe('GuidedLearningEditorModal save payload', () => {
     );
     expect(saved).toMatchObject({
       id: 'set-1',
-      title: 'Original Title',
+      title: 'Edited Title',
       description: undefined,
       imageUrls: set.imageUrls,
       steps: set.steps,
@@ -247,7 +271,7 @@ describe('GuidedLearningEditorModal save payload', () => {
     await waitFor(() =>
       expect(screen.getByTestId('radii-v2')).toHaveTextContent('true')
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Save Set' }));
+    editTitleAndClose();
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     const [saved] = onSave.mock.calls[0] as [GuidedLearningSet];
     expect(saved.schemaVersion).toBe(2);
@@ -260,7 +284,7 @@ describe('GuidedLearningEditorModal save payload', () => {
     await waitFor(() =>
       expect(screen.getByTestId('radii-v2')).toHaveTextContent('true')
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Save Set' }));
+    editTitleAndClose('Edited Again');
     await waitFor(() => expect(onSaveAgain).toHaveBeenCalledTimes(1));
     const [resaved] = onSaveAgain.mock.calls[0] as [GuidedLearningSet];
     expect(resaved.schemaVersion).toBe(2);
@@ -294,7 +318,7 @@ describe('GuidedLearningEditorModal save payload', () => {
     );
     // Post-conversion edit is already image-relative; save must keep it as-is.
     fireEvent.click(screen.getByRole('button', { name: 'Set Radius 40' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save Set' }));
+    closeEditor();
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     const [saved] = onSave.mock.calls[0] as [GuidedLearningSet];
     expect(saved.schemaVersion).toBe(2);
@@ -318,7 +342,7 @@ describe('GuidedLearningEditorModal save payload', () => {
 
     // Panes are mocked out, so the canvas never measures — the one-time
     // radius conversion is impossible and v2 must NOT be stamped.
-    fireEvent.click(screen.getByRole('button', { name: 'Save Set' }));
+    editTitleAndClose();
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     const [saved] = onSave.mock.calls[0] as [GuidedLearningSet];
     expect('schemaVersion' in saved).toBe(false);
@@ -342,7 +366,7 @@ describe('GuidedLearningEditorModal save payload', () => {
     ];
     const { onSave } = renderModal(set);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save Set' }));
+    editTitleAndClose();
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     const [saved] = onSave.mock.calls[0] as [GuidedLearningSet];
     expect(saved.schemaVersion).toBe(2);
@@ -352,10 +376,7 @@ describe('GuidedLearningEditorModal save payload', () => {
   it('saves the live (trimmed) title after an edit', async () => {
     const { onSave } = renderModal(buildSet());
 
-    fireEvent.change(screen.getByLabelText('Title'), {
-      target: { value: '  Renamed Set  ' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Save Set' }));
+    editTitleAndClose('  Renamed Set  ');
 
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     const [saved] = onSave.mock.calls[0] as [GuidedLearningSet];
