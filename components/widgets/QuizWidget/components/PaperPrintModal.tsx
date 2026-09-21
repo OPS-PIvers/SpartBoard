@@ -330,14 +330,22 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           ? { columnsPerPage: batch.columnsPerPage }
           : {}),
         ...(sheetStimuli.length > 0
-          ? { sheetStimuli, stimulusImageSrc: sheetImages.src }
+          ? {
+              sheetStimuli,
+              stimulusImageSrc: sheetImages.src,
+              // Closing unmounts this modal, which revokes the object URLs the
+              // print window is reading from; wait until it has them.
+              onImagesReady: () => {
+                if (isStub) onClose();
+              },
+            }
           : {}),
         sheets,
       });
       // An authored quiz needs its test paper printed from the same batch, so
       // the letters on the paper match the order the import will decode.
-      if (isStub) onClose();
-      else setPrintedBatch(batch);
+      if (isStub && sheetStimuli.length === 0) onClose();
+      else if (!isStub) setPrintedBatch(batch);
     } catch (err) {
       onError(
         err instanceof Error ? err.message : 'Could not print answer sheets.'

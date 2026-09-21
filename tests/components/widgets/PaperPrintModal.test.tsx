@@ -467,6 +467,31 @@ describe('PaperPrintModal', () => {
       expect(onSaveSheetStimuli).not.toHaveBeenCalled();
     });
 
+    it('stays open until the print window has the images, then closes', async () => {
+      const onCreateQuiz = vi.fn().mockResolvedValue(undefined);
+      const { print, onClose } = setup({
+        quiz: quiz({ title: '', questions: [] }),
+        onCreateQuiz,
+      });
+      fireEvent.change(screen.getByLabelText('Title'), {
+        target: { value: 'Pop quiz' },
+      });
+      fireEvent.click(
+        screen.getByRole('button', { name: /Add to the answer sheet/ })
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'From Drive' }));
+      await screen.findByText('1 item');
+      selectWholeClass();
+      fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+      await waitFor(() => expect(print).toHaveBeenCalled());
+
+      // Closing unmounts the modal, which revokes the object URLs the print
+      // window is still reading from.
+      expect(onClose).not.toHaveBeenCalled();
+      print.mock.calls[0][0].onImagesReady?.();
+      expect(onClose).toHaveBeenCalledOnce();
+    });
+
     it("uploads a chosen file unshared, so it stays the teacher's until the quiz is shared", async () => {
       const { print } = setup({ quiz: quiz({ paperSheetStimuli: [graph] }) });
       const file = new File(['x'], 'photo.png', { type: 'image/png' });

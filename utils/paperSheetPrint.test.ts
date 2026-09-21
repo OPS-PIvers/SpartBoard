@@ -452,6 +452,24 @@ describe('printPaperSheets — waiting for images', () => {
     await vi.waitFor(() => expect(print).toHaveBeenCalledTimes(1));
   });
 
+  it('says when the images are in, so the caller can free their blobs', async () => {
+    let release!: () => void;
+    const decoded = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const image = { decode: () => decoded } as unknown as HTMLImageElement;
+    const { win, print } = fakeWindow([image]);
+    const onImagesReady = vi.fn();
+
+    printPaperSheets({ ...stimulusJob, onImagesReady }, () => win);
+    // Revoking an object URL before the print window has read it would leave
+    // an empty box on the paper.
+    expect(onImagesReady).not.toHaveBeenCalled();
+    release();
+    await vi.waitFor(() => expect(onImagesReady).toHaveBeenCalledTimes(1));
+    expect(print).toHaveBeenCalledTimes(1);
+  });
+
   it('prints straight away when there is nothing to wait for', () => {
     const { win, print } = fakeWindow([]);
     printPaperSheets(job(), () => win);

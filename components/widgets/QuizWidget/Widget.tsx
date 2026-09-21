@@ -3271,9 +3271,21 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   if (paperSheetStimuli.length > 0)
                     next.paperSheetStimuli = paperSheetStimuli;
                   else delete next.paperSheetStimuli;
-                  setPaperPrintMeta(
-                    await saveQuiz(next, paperPrintMeta.driveFileId)
-                  );
+                  try {
+                    setPaperPrintMeta(
+                      await saveQuiz(next, paperPrintMeta.driveFileId)
+                    );
+                  } catch (err) {
+                    // A peer published first. The paper is the point of this
+                    // click, so it still prints; only the record of what is on
+                    // it did not stick.
+                    if (!(err instanceof SyncedQuizVersionConflictError))
+                      throw err;
+                    addToast(
+                      'Another teacher published an update to this quiz, so your answer-sheet images were not saved to it. The sheets still print.',
+                      'warning'
+                    );
+                  }
                   setPaperPrintQuiz(next);
                 }
               : undefined
