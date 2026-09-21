@@ -1521,6 +1521,62 @@
       "visualStyle": "Visual style",
       "themeColor": "Theme color {{color}}"
     },
+    "music": {
+      "source": "Source",
+      "curatedStations": "Curated stations",
+      "curatedStationsHelp": "Pick from stations your admin has added.",
+      "mySpotify": "My Spotify",
+      "mySpotifyHelp": "Connect your own Spotify account. Premium is recommended.",
+      "layout": "Layout",
+      "layoutDefault": "Default",
+      "layoutMinimal": "Minimal",
+      "layoutSmall": "Small",
+      "selectStation": "Select a station",
+      "loadingStations": "Loading stations…",
+      "noStations": "No stations are available. An admin needs to add them in Admin Settings.",
+      "personalSpotify": "Personal Spotify",
+      "connections": "Connections",
+      "syncWithTimeTool": "Sync with Time Tool",
+      "syncHelp": "Music will automatically play and pause with your active Time Tool.",
+      "syncSpotifyHelp": "Auto-sync is only available for YouTube stations because Spotify does not expose the same browser controls.",
+      "addTimeToolHelp": "Add a Time Tool widget to play and pause music automatically.",
+      "background": "Background",
+      "textColor": "Text color",
+      "spotifyChecking": "Checking Spotify connection…",
+      "spotifyConnect": "Connect Spotify account",
+      "spotifyWaiting": "Waiting for Spotify consent…",
+      "spotifyConnectError": "Couldn’t connect Spotify",
+      "spotifyWrongAccountPrefix": "If you connected the wrong Spotify account, click",
+      "spotifyWrongAccountMiddle": "below, then log out at",
+      "spotifyWrongAccountSuffix": "before connecting again.",
+      "spotifyDisconnect": "Disconnect",
+      "spotifyTryAgain": "Try again",
+      "spotifyConnected": "Spotify connected",
+      "spotifyPremium": "Premium",
+      "spotifyFree": "Free (preview-only playback)",
+      "spotifyPremiumRequired": "Your Spotify account isn’t Premium. Playback will use Spotify’s embed player with preview-only playback."
+    },
+    "car-rider-pro": {
+      "centrallyManaged": "Centrally managed",
+      "managedHelp": "Your district administrator configures the login URL for all classrooms."
+    },
+    "blending-board": {
+      "centrallyManaged": "Centrally managed",
+      "managedHelp": "Your district administrator configures the embedded URL for all classrooms."
+    },
+    "first-5": {
+      "automaticContent": "Automatic content",
+      "automaticHelp": "This widget shows today’s First 5 content for your selected building and updates each weekday at 6:00 AM.",
+      "currentUrl": "Current URL: {{url}}"
+    },
+    "custom-widget": {
+      "configuration": "Configuration",
+      "widgetId": "Widget ID:",
+      "saveSettings": "Save settings",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "noSettings": "This custom widget has no configurable settings."
+    },
     "poll": {
       "questions": "Questions",
       "importClass": "Import Class",

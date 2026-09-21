@@ -1,8 +1,9 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MusicSettings } from '@/components/widgets/MusicWidget/Settings';
 import { MusicWidget } from '@/components/widgets/MusicWidget/Widget';
+import musicSchema from '@/components/widgets/MusicWidget/settings.schema';
+import type { Field, FieldCtx } from '@/components/settings/schema/types';
 import type { WidgetData } from '@/types';
 
 // Replace `useAuth` so we can flip `canAccessFeature` per test without
@@ -12,7 +13,7 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     canAccessFeature: canAccessFeatureMock,
     // profileLoaded must be true so the optimistic-render gate logic in
-    // Widget.tsx and Settings.tsx can produce a definitive denial when
+    // Widget.tsx and the settings schema can produce a definitive denial when
     // canAccessFeature returns false. Without it, gateDenied is always false
     // (profile hasn't "loaded") and the gate never fires in tests.
     profileLoaded: true,
@@ -20,7 +21,6 @@ vi.mock('@/context/useAuth', () => ({
   }),
 }));
 
-// MusicSettings calls useDashboard().updateWidget; mock it minimally.
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ updateWidget: vi.fn() }),
 }));
@@ -53,20 +53,26 @@ beforeEach(() => {
   canAccessFeatureMock.mockReset();
 });
 
-describe('MusicWidget Settings — personal Spotify gate', () => {
-  it('shows the Source toggle when canAccessFeature("personal-spotify") returns true', () => {
-    canAccessFeatureMock.mockReturnValue(true);
-    render(<MusicSettings widget={baseWidget} />);
-    expect(screen.getByText(/source/i)).toBeInTheDocument();
-    // The "My Spotify" option label should be reachable when the toggle is rendered.
-    expect(screen.getByText(/my spotify/i)).toBeInTheDocument();
+describe('MusicWidget settings schema — personal Spotify gate', () => {
+  const sourceField = musicSchema.groups
+    .flatMap((group) => group.fields as ReadonlyArray<Field>)
+    .find((field) => field.key === 'source');
+
+  const fieldContext = (allowed: boolean): FieldCtx => ({
+    config: baseWidget.config as Record<string, unknown>,
+    widget: baseWidget,
+    isAdmin: false,
+    profileLoaded: true,
+    canAccessFeature: () => allowed,
+    t: (key) => key,
   });
 
-  it('hides the Source toggle entirely when canAccessFeature returns false', () => {
-    canAccessFeatureMock.mockReturnValue(false);
-    render(<MusicSettings widget={baseWidget} />);
-    expect(screen.queryByText(/source/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/my spotify/i)).not.toBeInTheDocument();
+  it('shows the Source control when personal Spotify is allowed', () => {
+    expect(sourceField?.visibleWhen?.(fieldContext(true))).toBe(true);
+  });
+
+  it('hides the Source control when personal Spotify is denied', () => {
+    expect(sourceField?.visibleWhen?.(fieldContext(false))).toBe(false);
   });
 });
 

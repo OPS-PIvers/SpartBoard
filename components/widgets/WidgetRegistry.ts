@@ -346,6 +346,14 @@ export const WIDGET_SETTINGS_SCHEMAS: Partial<
   mathTool: () =>
     import('./MathToolInstance/settings.schema').then((m) => m.default),
   nextUp: () => import('./NextUp/settings.schema').then((m) => m.default),
+  music: () => import('./MusicWidget/settings.schema').then((m) => m.default),
+  'car-rider-pro': () =>
+    import('./CarRiderPro/settings.schema').then((m) => m.default),
+  'blending-board': () =>
+    import('./BlendingBoard/settings.schema').then((m) => m.default),
+  'first-5': () => import('./First5/settings.schema').then((m) => m.default),
+  'custom-widget': () =>
+    import('./CustomWidget/settings.schema').then((m) => m.default),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
@@ -368,20 +376,6 @@ export const WIDGET_SETTINGS_COMPONENTS: Partial<
   traffic: DefaultSettings,
   classes: DefaultSettings,
   // onboarding has no settings panel
-  music: lazyNamed(() => import('./MusicWidget/index'), 'MusicSettings'),
-  'car-rider-pro': lazyNamed(
-    () => import('./CarRiderPro/Settings'),
-    'CarRiderProSettings'
-  ),
-  'blending-board': lazyNamed(
-    () => import('./BlendingBoard/Settings'),
-    'BlendingBoardSettings'
-  ),
-  'first-5': lazyNamed(() => import('./First5/Settings'), 'First5Settings'),
-  'custom-widget': lazyNamed(
-    () => import('./CustomWidget/Settings'),
-    'CustomWidgetSettings'
-  ),
   'activity-wall': lazyNamed(
     () => import('./ActivityWall/Settings'),
     'ActivityWallSettings'
@@ -397,14 +391,6 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
   Record<WidgetType, SettingsComponent>
 > = {
   // Populated per-widget in components/widgets/*/Settings.tsx
-  'blending-board': lazyNamed(
-    () => import('./BlendingBoard/Settings'),
-    'BlendingBoardAppearanceSettings'
-  ),
-  music: lazyNamed(
-    () => import('./MusicWidget/index'),
-    'MusicAppearanceSettings'
-  ),
   'activity-wall': lazyNamed(
     () => import('./ActivityWall/Settings'),
     'ActivityWallAppearanceSettings'

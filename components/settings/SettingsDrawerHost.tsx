@@ -150,6 +150,7 @@ export const SettingsDrawerHost: React.FC = () => {
     settingsDrawerWidth,
     updateUserPreference,
     isAdmin,
+    profileLoaded,
     selectedBuildings,
     savedWidgetConfigs,
     saveWidgetDefault,
@@ -465,6 +466,7 @@ export const SettingsDrawerHost: React.FC = () => {
         legacyStyleContent={legacyStyleContent}
         readOnly={readOnly}
         isAdmin={isAdmin === true}
+        profileLoaded={profileLoaded}
         canAccessFeature={canAccessFeature}
         canAccessWidget={canAccessWidget}
         toolLabel={toolLabel}
