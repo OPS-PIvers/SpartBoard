@@ -336,6 +336,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     shareAssignment,
     publishAssignmentScores,
     unpublishAssignmentScores,
+    publishResultsForStudents,
+    hideResultsForStudents,
+    clearResultsOverride,
     syncAssignmentToLatest,
     shareAssignmentWithPlc,
     stopSharingAssignmentWithPlc,
@@ -1395,6 +1398,23 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         onExportedResponseIdsSaved={
           activeAssignmentId
             ? (ids) => setAssignmentExportedResponseIds(activeAssignmentId, ids)
+            : undefined
+        }
+        studentResultsActions={
+          activeAssignmentId
+            ? {
+                publish: (keys, visibility, expiresAt) =>
+                  publishResultsForStudents(
+                    activeAssignmentId,
+                    loadedQuizData,
+                    keys,
+                    visibility,
+                    expiresAt
+                  ),
+                hide: (keys) =>
+                  hideResultsForStudents(activeAssignmentId, keys),
+                clear: (keys) => clearResultsOverride(activeAssignmentId, keys),
+              }
             : undefined
         }
       />

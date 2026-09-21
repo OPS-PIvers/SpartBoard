@@ -437,9 +437,9 @@ export interface UseQuizAssignmentsResult {
    *   2. Mirrors `scoreVisibility` onto both the assignment doc and the
    *      session doc so the `/my-assignments` student view can read it
    *      without a teacher-scoped fetch.
-   *   3. When `'score-responses-and-answers'`, populates
-   *      `session.revealedAnswers` with every question's canonical answer
-   *      so the student review screen can render the correct answer text.
+   *   3. When `'score-responses-and-answers'`, writes the answer key to each
+   *      response's `revealedAnswers` (never the session doc, which any
+   *      signed-in user can read) and clears the legacy session copy.
    *
    * Returns the number of responses whose score was (re)computed.
    *
@@ -463,12 +463,34 @@ export interface UseQuizAssignmentsResult {
    * `scoreVisibility` + `scorePublishedAt` on the assignment doc (via
    * `deleteField()`, so the unpublished and never-published states are
    * indistinguishable on disk) and wipes `revealedAnswers` on the
-   * mirrored session doc. Already-written per-response `score` /
+   * mirrored session doc and on every response. Already-written per-response `score` /
    * `isCorrect` fields are left intact — student-side rendering gates
    * on `session.scoreVisibility`, and re-publishing safely overwrites
    * them.
    */
   unpublishAssignmentScores: (assignmentId: string) => Promise<void>;
+  /**
+   * Show results to chosen students only, grading their responses the same
+   * way a class publish does. Never pushes grades anywhere. Responses that
+   * aren't completed are skipped.
+   */
+  publishResultsForStudents: (
+    assignmentId: string,
+    quizData: QuizData,
+    responseKeys: string[],
+    visibility: Exclude<QuizScoreVisibility, 'none'>,
+    expiresAt: number | null
+  ) => Promise<{ responsesUpdated: number; skipped: number }>;
+  /** Hide results from chosen students, whatever the class setting is. */
+  hideResultsForStudents: (
+    assignmentId: string,
+    responseKeys: string[]
+  ) => Promise<void>;
+  /** Return chosen students to the class setting. */
+  clearResultsOverride: (
+    assignmentId: string,
+    responseKeys: string[]
+  ) => Promise<void>;
   /**
    * Retroactively pool an existing assignment's results with a PLC (D12).
    * Stamps `plcId` / `syncGroupId` / `plcLinkedAt` on the session doc and
@@ -760,6 +782,191 @@ export function selectQuestionTranslations(
     out[locale] = entry;
   }
   return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** Teacher-only inputs `gradeResponseForPublish` needs beyond the response itself. */
+export interface ResponseGradingContext {
+  questionsById: Map<string, QuizQuestion>;
+  overridesByStudentUid: Record<string, StudentOverride>;
+  servedLanguageByStudentUid: Record<string, string>;
+  localizedFibAnswers: Record<string, Record<string, string[]>>;
+}
+
+export function buildResponseGradingContext(
+  quizData: QuizData,
+  assignmentData: Record<string, unknown> | undefined
+): ResponseGradingContext {
+  // Canonical questions (from Drive) carry the full `correctAnswer`.
+  const questionsById = new Map<string, QuizQuestion>();
+  for (const q of quizData.questions) questionsById.set(q.id, q);
+  return {
+    questionsById,
+    overridesByStudentUid: (assignmentData?.overridesByStudentUid ??
+      {}) as Record<string, StudentOverride>,
+    servedLanguageByStudentUid: (assignmentData?.servedLanguageByStudentUid ??
+      {}) as Record<string, string>,
+    localizedFibAnswers: (assignmentData?.localizedFibAnswers ?? {}) as Record<
+      string,
+      Record<string, string[]>
+    >,
+  };
+}
+
+/** Every question's answer text, as published at the answers level. */
+export function buildRevealedAnswers(
+  quizData: QuizData
+): Record<string, string> {
+  const revealed: Record<string, string> = {};
+  for (const q of quizData.questions) revealed[q.id] = q.correctAnswer;
+  return revealed;
+}
+
+/** Grades one response for publishing; `score` is null while a slot awaits a teacher grade. */
+export function gradeResponseForPublish(
+  data: QuizResponse,
+  ctx: ResponseGradingContext
+): { score: number | null; answers: QuizResponseAnswer[] } {
+  const {
+    questionsById,
+    overridesByStudentUid,
+    servedLanguageByStudentUid,
+    localizedFibAnswers,
+  } = ctx;
+  const answers = Array.isArray(data.answers) ? data.answers : [];
+  // Prefer the response doc's own served-subset snapshot (written by
+  // the student app at answer time) over the live override map — the
+  // live map reflects CURRENT targeting, so removing a student's
+  // override after they submit would otherwise re-score their subset
+  // answers against the full question set. Absent snapshot AND absent
+  // override (or no subset on it) = the full quiz, unchanged.
+  const snapshotIds =
+    Array.isArray(data.servedQuestionIds) && data.servedQuestionIds.length > 0
+      ? data.servedQuestionIds
+      : undefined;
+  const subsetIds =
+    snapshotIds ?? overridesByStudentUid[data.studentUid]?.questionIds;
+  const servedIds =
+    Array.isArray(subsetIds) && subsetIds.length > 0
+      ? new Set(subsetIds)
+      : null;
+  // Teacher-side truth only: never the client-asserted `response.locale`.
+  const servedLocale =
+    overridesByStudentUid[data.studentUid]?.language ??
+    servedLanguageByStudentUid[data.studentUid] ??
+    undefined;
+  let pointsEarned = 0;
+  let pointsMax = 0;
+  // Set when any answered slot is still owed a teacher grade (ungraded
+  // written response, or a rubric with criteria left unscored). Such a
+  // response gets its `answers` refreshed but NO published `score` —
+  // the ungraded slot counts as 0 here, so publishing now would show
+  // the student a grade the teacher hasn't finished awarding.
+  let awaitingGrade = false;
+  // Pick one representative answer per questionId — highest takeIndex
+  // wins, ties (equal or absent takeIndex, e.g. an arrayUnion race)
+  // broken by earliest answeredAt — so a duplicate answer can't
+  // inflate pointsEarned and pointsMax. Each answer is still graded
+  // for its `isCorrect` flag, but only the representative contributes
+  // to the totals — matching the dedup already applied in the
+  // unanswered loop below and mirroring the identical guard in
+  // `useVideoActivityAssignments.publishAssignmentScores` (#1728,
+  // #1787, #1803).
+  const representativeAnswers = selectRepresentativeAnswers(answers);
+  const gradedAnswers: QuizResponseAnswer[] = answers.map((a) => {
+    const q = questionsById.get(a.questionId);
+    if (!q) {
+      // Question deleted between submission and publish — we can't
+      // claim correctness any more. Strip any stale `isCorrect`
+      // from a prior publish so the response doesn't carry a
+      // value the canonical quiz no longer supports.
+      const { isCorrect: _stale, ...rest } = a;
+      void _stale;
+      return rest;
+    }
+    // Pull manual grades for written types so a teacher's stored
+    // grade survives the archive snapshot. Without this, archiving
+    // a quiz that contained essays would freeze them at 0 points
+    // and the archive would silently disagree with the live results
+    // view forever after.
+    const manualGrade = isFreeResponseType(q.type)
+      ? readSlotGrade(data.grading, q.id)
+      : undefined;
+    const result = applyMediaSlots(
+      q,
+      data,
+      gradeAnswer(
+        q,
+        a.answer,
+        manualGrade,
+        fibAcceptedAnswers(localizedFibAnswers, q.id, servedLocale)
+      )
+    );
+    if (result.state === 'awaiting-grade') awaitingGrade = true;
+    if (
+      representativeAnswers.get(a.questionId) === a &&
+      (!servedIds || servedIds.has(a.questionId))
+    ) {
+      pointsEarned += result.pointsEarned;
+      pointsMax += result.pointsMax;
+    }
+    return { ...a, isCorrect: result.isCorrect };
+  });
+  // Count questions the student didn't answer toward the denominator
+  // so a blank response scores 0%, not undefined. Use a Set lookup
+  // (O(Q) total) rather than `answers.some(...)` per question (O(Q*A))
+  // — the inner `.some` would otherwise become a noticeable stall on
+  // PLC-shared assignments with hundreds of submissions × dozens of
+  // questions.
+  //
+  // Iterate questionsById (already deduped) rather than the raw
+  // quizData.questions array. A duplicate question id in the raw array
+  // (possible when a Drive export writes the same question twice via an
+  // arrayUnion-style race) would cause pointsMax to count the same
+  // question's points more than once, inflating the denominator and
+  // deflating every student's published score. Mirrors the identical
+  // fix in publishAssignmentScores for Video Activity (#1728, #1787).
+  const answeredQuestionIds = new Set<string>();
+  for (const a of answers) answeredQuestionIds.add(a.questionId);
+  for (const [qId, q] of questionsById) {
+    if (servedIds && !servedIds.has(qId)) continue;
+    if (!answeredQuestionIds.has(qId)) {
+      pointsMax += q.points ?? 1;
+    }
+  }
+  const score =
+    pointsMax === 0 ? 0 : Math.round((pointsEarned / pointsMax) * 100);
+  return { score: awaitingGrade ? null : score, answers: gradedAnswers };
+}
+
+const RESPONSE_BATCH_WRITES = 400;
+
+interface ResponsePatch {
+  ref: ReturnType<typeof doc>;
+  patch: Record<string, unknown>;
+}
+
+/** Commits `firstBatch` (holding `reserved` writes) plus patches, split under the batch cap. */
+async function commitResponsePatches(
+  firstBatch: ReturnType<typeof writeBatch>,
+  reserved: number,
+  patches: ResponsePatch[]
+): Promise<void> {
+  const firstChunk = Math.min(patches.length, RESPONSE_BATCH_WRITES - reserved);
+  for (let i = 0; i < firstChunk; i++) {
+    firstBatch.update(patches[i].ref, patches[i].patch);
+  }
+  await firstBatch.commit();
+  for (
+    let cursor = firstChunk;
+    cursor < patches.length;
+    cursor += RESPONSE_BATCH_WRITES
+  ) {
+    const chunkBatch = writeBatch(db);
+    for (const u of patches.slice(cursor, cursor + RESPONSE_BATCH_WRITES)) {
+      chunkBatch.update(u.ref, u.patch);
+    }
+    await chunkBatch.commit();
+  }
 }
 
 export const useQuizAssignments = (
@@ -2511,8 +2718,28 @@ export const useQuizAssignments = (
         // would keep rendering against a no-longer-published result set.
         protection: deleteField(),
       });
+      // The answer key also sits on each response since D4; clear it there too.
+      const keyedRefs = (
+        await readAllDocsPaged(
+          collection(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            assignmentId,
+            RESPONSES_COLLECTION
+          )
+        )
+      )
+        .filter((d) => (d.data() as QuizResponse).revealedAnswers != null)
+        .map((d) => d.ref);
       try {
-        await batch.commit();
+        await commitResponsePatches(
+          batch,
+          2,
+          keyedRefs.map((ref) => ({
+            ref,
+            patch: { revealedAnswers: deleteField() },
+          }))
+        );
       } catch (err) {
         logError('useQuizAssignments.unpublishAssignmentScores', err, {
           assignmentId,
@@ -2549,33 +2776,17 @@ export const useQuizAssignments = (
       );
       const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId);
 
-      // Index questions by id for O(1) grading lookups. Use the canonical
-      // `quizData.questions` (loaded from Drive on the teacher side) so
-      // grading sees the full `correctAnswer` text — `session.publicQuestions`
-      // strips it for student-safety.
-      const questionsById = new Map<string, QuizQuestion>();
-      for (const q of quizData.questions) {
-        questionsById.set(q.id, q);
-      }
-
-      // Per-student served subsets, keyed by the pseudonym uid the CF wrote —
-      // an individually-targeted student's denominator must come from their
-      // own subset, not the teacher's full question list.
       const assignmentSnap = await getDoc(assignmentRef);
-      const overridesByStudentUid = (assignmentSnap.data()
-        ?.overridesByStudentUid ?? {}) as Record<string, StudentOverride>;
-      // Write-once served language, kept when a student is skipped or de-targeted.
-      const servedLanguageByStudentUid = (assignmentSnap.data()
-        ?.servedLanguageByStudentUid ?? {}) as Record<string, string>;
-      // Translated FIB answer keys snapshotted at assign time; absent on older assignments.
-      const localizedFibAnswers = (assignmentSnap.data()?.localizedFibAnswers ??
-        {}) as Record<string, Record<string, string[]>>;
+      const ctx = buildResponseGradingContext(quizData, assignmentSnap.data());
+      const answerKey =
+        visibility === 'score-responses-and-answers'
+          ? buildRevealedAnswers(quizData)
+          : null;
 
       // Read responses in bounded pages (limit + documentId cursor) rather
       // than one unbounded `getDocs` so a PLC-shared assignment with
       // thousands of submissions can't pull the whole subcollection in a
-      // single read. Grading still visits every response — the page loop
-      // only changes how the reads are bounded, not the scoring math.
+      // single read.
       const responseDocs = await readAllDocsPaged(
         collection(
           db,
@@ -2585,133 +2796,20 @@ export const useQuizAssignments = (
         )
       );
 
-      // Compute the score + per-answer correctness for every response. Per-
-      // response payload is built up front so the batch loop below stays
-      // straightforward and we can slice it across the 500-write cap.
-      interface ResponseUpdate {
-        ref: ReturnType<typeof doc>;
-        patch: {
-          score: number | ReturnType<typeof deleteField>;
-          answers: QuizResponseAnswer[];
-        };
-      }
-      const updates: ResponseUpdate[] = [];
+      const updates: ResponsePatch[] = [];
       let paperResponses = 0;
       for (const d of responseDocs) {
         const data = d.data() as QuizResponse;
         if (typeof data.paperBatchId === 'string') paperResponses += 1;
-        const answers = Array.isArray(data.answers) ? data.answers : [];
-        // Prefer the response doc's own served-subset snapshot (written by
-        // the student app at answer time) over the live override map — the
-        // live map reflects CURRENT targeting, so removing a student's
-        // override after they submit would otherwise re-score their subset
-        // answers against the full question set. Absent snapshot AND absent
-        // override (or no subset on it) = the full quiz, unchanged.
-        const snapshotIds =
-          Array.isArray(data.servedQuestionIds) &&
-          data.servedQuestionIds.length > 0
-            ? data.servedQuestionIds
-            : undefined;
-        const subsetIds =
-          snapshotIds ?? overridesByStudentUid[data.studentUid]?.questionIds;
-        const servedIds =
-          Array.isArray(subsetIds) && subsetIds.length > 0
-            ? new Set(subsetIds)
-            : null;
-        // Teacher-side truth only: never the client-asserted `response.locale`.
-        const servedLocale =
-          overridesByStudentUid[data.studentUid]?.language ??
-          servedLanguageByStudentUid[data.studentUid] ??
-          undefined;
-        let pointsEarned = 0;
-        let pointsMax = 0;
-        // Set when any answered slot is still owed a teacher grade (ungraded
-        // written response, or a rubric with criteria left unscored). Such a
-        // response gets its `answers` refreshed but NO published `score` —
-        // the ungraded slot counts as 0 here, so publishing now would show
-        // the student a grade the teacher hasn't finished awarding.
-        let awaitingGrade = false;
-        // Pick one representative answer per questionId — highest takeIndex
-        // wins, ties (equal or absent takeIndex, e.g. an arrayUnion race)
-        // broken by earliest answeredAt — so a duplicate answer can't
-        // inflate pointsEarned and pointsMax. Each answer is still graded
-        // for its `isCorrect` flag, but only the representative contributes
-        // to the totals — matching the dedup already applied in the
-        // unanswered loop below and mirroring the identical guard in
-        // `useVideoActivityAssignments.publishAssignmentScores` (#1728,
-        // #1787, #1803).
-        const representativeAnswers = selectRepresentativeAnswers(answers);
-        const gradedAnswers: QuizResponseAnswer[] = answers.map((a) => {
-          const q = questionsById.get(a.questionId);
-          if (!q) {
-            // Question deleted between submission and publish — we can't
-            // claim correctness any more. Strip any stale `isCorrect`
-            // from a prior publish so the response doesn't carry a
-            // value the canonical quiz no longer supports.
-            const { isCorrect: _stale, ...rest } = a;
-            void _stale;
-            return rest;
-          }
-          // Pull manual grades for written types so a teacher's stored
-          // grade survives the archive snapshot. Without this, archiving
-          // a quiz that contained essays would freeze them at 0 points
-          // and the archive would silently disagree with the live results
-          // view forever after.
-          const manualGrade = isFreeResponseType(q.type)
-            ? readSlotGrade(data.grading, q.id)
-            : undefined;
-          const result = applyMediaSlots(
-            q,
-            data,
-            gradeAnswer(
-              q,
-              a.answer,
-              manualGrade,
-              fibAcceptedAnswers(localizedFibAnswers, q.id, servedLocale)
-            )
-          );
-          if (result.state === 'awaiting-grade') awaitingGrade = true;
-          if (
-            representativeAnswers.get(a.questionId) === a &&
-            (!servedIds || servedIds.has(a.questionId))
-          ) {
-            pointsEarned += result.pointsEarned;
-            pointsMax += result.pointsMax;
-          }
-          return { ...a, isCorrect: result.isCorrect };
-        });
-        // Count questions the student didn't answer toward the denominator
-        // so a blank response scores 0%, not undefined. Use a Set lookup
-        // (O(Q) total) rather than `answers.some(...)` per question (O(Q*A))
-        // — the inner `.some` would otherwise become a noticeable stall on
-        // PLC-shared assignments with hundreds of submissions × dozens of
-        // questions.
-        //
-        // Iterate questionsById (already deduped) rather than the raw
-        // quizData.questions array. A duplicate question id in the raw array
-        // (possible when a Drive export writes the same question twice via an
-        // arrayUnion-style race) would cause pointsMax to count the same
-        // question's points more than once, inflating the denominator and
-        // deflating every student's published score. Mirrors the identical
-        // fix in publishAssignmentScores for Video Activity (#1728, #1787).
-        const answeredQuestionIds = new Set<string>();
-        for (const a of answers) answeredQuestionIds.add(a.questionId);
-        for (const [qId, q] of questionsById) {
-          if (servedIds && !servedIds.has(qId)) continue;
-          if (!answeredQuestionIds.has(qId)) {
-            pointsMax += q.points ?? 1;
-          }
-        }
-        const score =
-          pointsMax === 0 ? 0 : Math.round((pointsEarned / pointsMax) * 100);
+        const graded = gradeResponseForPublish(data, ctx);
         updates.push({
           ref: d.ref,
-          // `deleteField()` rather than an omitted key so a stale score from
-          // an earlier publish can't linger on a response that has since
-          // become awaiting-grade; the student sees "being prepared" instead.
+          // `deleteField()` so a stale score can't linger once a slot awaits grading.
           patch: {
-            score: awaitingGrade ? deleteField() : score,
-            answers: gradedAnswers,
+            score: graded.score ?? deleteField(),
+            answers: graded.answers,
+            // The answer key lives on each response, never the session (D4).
+            revealedAnswers: answerKey ?? deleteField(),
           },
         });
       }
@@ -2751,19 +2849,8 @@ export const useQuizAssignments = (
         // honor them.
         protection: protectionWrite,
       };
-      // Populate `revealedAnswers` only when the teacher chose to share
-      // correct-answer text. The other two visibility levels deliberately
-      // leave it untouched (or wiped on unpublish) so the student review
-      // screen can't surface answers the teacher hasn't opted in to.
-      if (visibility === 'score-responses-and-answers') {
-        const revealedAnswers: Record<string, string> = {};
-        for (const q of quizData.questions) {
-          revealedAnswers[q.id] = q.correctAnswer;
-        }
-        sessionPatch.revealedAnswers = revealedAnswers;
-      } else {
-        sessionPatch.revealedAnswers = deleteField();
-      }
+      // Clears a legacy key; a live-reveal map is moot once results are published.
+      sessionPatch.revealedAnswers = deleteField();
       firstBatch.update(sessionRef, sessionPatch);
 
       // 2 writes already consumed (assignment + session); fill the rest
@@ -2826,6 +2913,138 @@ export const useQuizAssignments = (
       return { responsesUpdated: updates.length, paperResponses };
     },
     [userId]
+  );
+
+  const publishResultsForStudents = useCallback<
+    UseQuizAssignmentsResult['publishResultsForStudents']
+  >(
+    async (assignmentId, quizData, responseKeys, visibility, expiresAt) => {
+      if (!userId) throw new Error('Not authenticated');
+      if ((visibility as string) === 'none') {
+        throw new Error(
+          'publishResultsForStudents: use hideResultsForStudents to hide results.'
+        );
+      }
+      const keys = Array.from(new Set(responseKeys));
+      if (keys.length === 0) return { responsesUpdated: 0, skipped: 0 };
+      const now = Date.now();
+      const assignmentSnap = await getDoc(
+        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
+      );
+      const ctx = buildResponseGradingContext(quizData, assignmentSnap.data());
+      const revealedAnswers =
+        visibility === 'score-responses-and-answers'
+          ? buildRevealedAnswers(quizData)
+          : undefined;
+      const snaps = await Promise.all(
+        keys.map((key) =>
+          getDoc(
+            doc(
+              db,
+              QUIZ_SESSIONS_COLLECTION,
+              assignmentId,
+              RESPONSES_COLLECTION,
+              key
+            )
+          )
+        )
+      );
+      const patches: ResponsePatch[] = [];
+      let skipped = 0;
+      for (const snap of snaps) {
+        const data = snap.exists() ? (snap.data() as QuizResponse) : null;
+        // D8: only a finished response can be shown.
+        if (!data || data.status !== 'completed') {
+          skipped += 1;
+          continue;
+        }
+        const graded = gradeResponseForPublish(data, ctx);
+        patches.push({
+          ref: snap.ref,
+          patch: {
+            score: graded.score ?? deleteField(),
+            answers: graded.answers,
+            resultsOverride: {
+              mode: 'shown',
+              visibility,
+              publishedAt: now,
+              expiresAt,
+              ...(revealedAnswers ? { revealedAnswers } : {}),
+            },
+          },
+        });
+      }
+      if (patches.length === 0) return { responsesUpdated: 0, skipped };
+      try {
+        await commitResponsePatches(writeBatch(db), 0, patches);
+      } catch (err) {
+        logError('useQuizAssignments.publishResultsForStudents', err, {
+          assignmentId,
+          visibility,
+          count: patches.length,
+        });
+        throw err;
+      }
+      return { responsesUpdated: patches.length, skipped };
+    },
+    [userId]
+  );
+
+  const writeResultsOverride = useCallback(
+    async (
+      assignmentId: string,
+      responseKeys: string[],
+      value: Record<string, unknown> | ReturnType<typeof deleteField>,
+      context: string
+    ) => {
+      if (!userId) throw new Error('Not authenticated');
+      const patches: ResponsePatch[] = Array.from(new Set(responseKeys)).map(
+        (key) => ({
+          ref: doc(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            assignmentId,
+            RESPONSES_COLLECTION,
+            key
+          ),
+          patch: { resultsOverride: value },
+        })
+      );
+      if (patches.length === 0) return;
+      try {
+        await commitResponsePatches(writeBatch(db), 0, patches);
+      } catch (err) {
+        logError(context, err, { assignmentId, count: patches.length });
+        throw err;
+      }
+    },
+    [userId]
+  );
+
+  const hideResultsForStudents = useCallback<
+    UseQuizAssignmentsResult['hideResultsForStudents']
+  >(
+    (assignmentId, responseKeys) =>
+      writeResultsOverride(
+        assignmentId,
+        responseKeys,
+        { mode: 'hidden', publishedAt: Date.now() },
+        'useQuizAssignments.hideResultsForStudents'
+      ),
+    [writeResultsOverride]
+  );
+
+  const clearResultsOverride = useCallback<
+    UseQuizAssignmentsResult['clearResultsOverride']
+  >(
+    (assignmentId, responseKeys) =>
+      writeResultsOverride(
+        assignmentId,
+        responseKeys,
+        deleteField(),
+        'useQuizAssignments.clearResultsOverride'
+      ),
+    [writeResultsOverride]
   );
 
   const shareAssignmentWithPlc = useCallback<
@@ -2896,6 +3115,9 @@ export const useQuizAssignments = (
     syncAssignmentToLatest,
     publishAssignmentScores,
     unpublishAssignmentScores,
+    publishResultsForStudents,
+    hideResultsForStudents,
+    clearResultsOverride,
     shareAssignmentWithPlc,
     stopSharingAssignmentWithPlc,
   };

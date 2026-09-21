@@ -3609,6 +3609,9 @@ service cloud.firestore {
           // is validated against the student's own pointer doc. Blocking it
           // at create stops a forged subset riding in on the join write.
           request.resource.data.get('servedQuestionIds', null) == null &&
+          // Per-student publication and the answer key are teacher-written only.
+          request.resource.data.get('resultsOverride', null) == null &&
+          request.resource.data.get('revealedAnswers', null) == null &&
           // studentRole users must be enrolled in the session's class
           passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)

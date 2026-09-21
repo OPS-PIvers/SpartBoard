@@ -570,3 +570,118 @@ describe('QuizStudentApp — recorded-answer playback on published results', () 
     ).toBeInTheDocument();
   });
 });
+
+describe('QuizStudentApp — per-student results override', () => {
+  const wrongAnswer = [
+    { questionId: 'q1', answer: '3', answeredAt: 3, isCorrect: false },
+  ];
+
+  it('shows results to a Shown student while the class is unpublished', async () => {
+    hookState.session = buildSession();
+    hookState.myResponse = buildResponse({
+      resultsOverride: {
+        mode: 'shown',
+        visibility: 'score-only',
+        publishedAt: 5,
+      },
+    });
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+  });
+
+  it('keeps a Hidden student on the wait screen when the class is published', async () => {
+    hookState.session = buildSession({ scoreVisibility: 'score-only' });
+    hookState.myResponse = buildResponse({
+      resultsOverride: { mode: 'hidden', publishedAt: 5 },
+    });
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Quiz Submitted!')).toBeInTheDocument();
+    expect(screen.queryByText('Your Results')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the class once a Shown override has expired', async () => {
+    hookState.session = buildSession();
+    hookState.myResponse = buildResponse({
+      resultsOverride: {
+        mode: 'shown',
+        visibility: 'score-only',
+        publishedAt: 5,
+        expiresAt: 10,
+      },
+    });
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Quiz Submitted!')).toBeInTheDocument();
+  });
+
+  it('renders correct answers from the Shown override, not the session', async () => {
+    hookState.session = buildSession({ revealedAnswers: { q1: '3' } });
+    hookState.myResponse = buildResponse({
+      answers: wrongAnswer,
+      resultsOverride: {
+        mode: 'shown',
+        visibility: 'score-responses-and-answers',
+        publishedAt: 5,
+        revealedAnswers: { q1: '4' },
+      },
+    });
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(screen.getByText(/Correct answer:/)).toHaveTextContent(
+      'Correct answer: 4'
+    );
+  });
+
+  it('reads a class publish answer key from the response, falling back to the session', async () => {
+    hookState.session = buildSession({
+      scoreVisibility: 'score-responses-and-answers',
+      revealedAnswers: { q1: 'legacy' },
+    });
+    hookState.myResponse = buildResponse({
+      answers: wrongAnswer,
+      revealedAnswers: { q1: '4' },
+    });
+
+    const { unmount } = render(<QuizStudentApp />);
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(screen.getByText(/Correct answer:/)).toHaveTextContent(
+      'Correct answer: 4'
+    );
+    unmount();
+
+    hookState.myResponse = buildResponse({ answers: wrongAnswer });
+    render(<QuizStudentApp />);
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(screen.getByText(/Correct answer:/)).toHaveTextContent(
+      'Correct answer: legacy'
+    );
+  });
+
+  it('hides correct answers from a Shown student below the answers level', async () => {
+    hookState.session = buildSession({
+      scoreVisibility: 'score-responses-and-answers',
+      revealedAnswers: { q1: '4' },
+    });
+    hookState.myResponse = buildResponse({
+      answers: wrongAnswer,
+      revealedAnswers: { q1: '4' },
+      resultsOverride: {
+        mode: 'shown',
+        visibility: 'score-and-responses',
+        publishedAt: 5,
+      },
+    });
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(screen.queryByText(/Correct answer:/)).not.toBeInTheDocument();
+  });
+});
