@@ -3411,7 +3411,8 @@ export type QuizStimulusType =
   | 'audio'
   | 'video'
   | 'youtube'
-  | 'gdoc-embed';
+  | 'gdoc-embed'
+  | 'text';
 
 /**
  * A stimulus attached to one or more quiz questions. Lives on
@@ -3426,14 +3427,23 @@ export interface QuizStimulus {
   url: string;
   /** Set when the file lives in the teacher's Google Drive. */
   driveFileId?: string;
+  /**
+   * text only: the passage students read
+   * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D16). A text stimulus has no file, so
+   * `url` is empty and this carries the content.
+   */
+  text?: string;
   /** Authoring-only name; stripped before the session doc is written. */
   label: string;
   /** audio/video/youtube only: max completed plays per attempt. Undefined = unlimited. */
   playLimit?: number;
   /** image/pdf only: teacher-reviewed text spoken by read-aloud. Absent = no speaker (plan §3). */
   readAloudText?: string;
-  /** How `readAloudText` was produced; 'edited' once the teacher touches it. */
-  readAloudSource?: 'pdf-text' | 'ocr' | 'edited';
+  /**
+   * How `readAloudText` was produced; 'edited' once the teacher touches it.
+   * 'text' means the passage is its own spoken text and needs no review.
+   */
+  readAloudSource?: 'pdf-text' | 'ocr' | 'edited' | 'text';
 }
 
 export interface QuizQuestion {

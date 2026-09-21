@@ -8,6 +8,7 @@ import {
   readAloudTextByStimulusId,
   resolveStimuli,
   sanitizeStimulusPointers,
+  stimulusMediaUrl,
   stimulusPlayKey,
 } from './quizStimuli';
 
@@ -38,6 +39,23 @@ describe('type predicates', () => {
     expect(isPlayLimitedType('video')).toBe(true);
     expect(isPlayLimitedType('youtube')).toBe(true);
     expect(isPlayLimitedType('pdf')).toBe(false);
+  });
+
+  it('reads a passage alongside the question, like a PDF (D16)', () => {
+    expect(isDocShapedStimulus('text')).toBe(true);
+    // Nothing plays, so no play limit applies.
+    expect(isPlayLimitedType('text')).toBe(false);
+  });
+});
+
+describe('a passage has no file to fetch', () => {
+  it('asks for no media URL even when one was left on it', () => {
+    const passage = stim('s1', {
+      type: 'text',
+      url: 'https://example.com/stale.png',
+      text: 'The tide pool.',
+    });
+    expect(stimulusMediaUrl(passage)).toBe('');
   });
 });
 
@@ -111,6 +129,27 @@ describe('projectSessionStimuli', () => {
     expect(projected[0]).not.toHaveProperty('readAloudText');
     expect(projected[0]).not.toHaveProperty('readAloudSource');
   });
+
+  it('carries a passage through to the session (D16)', () => {
+    // The projection strips authoring-only fields and blanks the label; a
+    // passage's text is the content itself, so losing it would leave the
+    // student an empty box where the reading should be.
+    const projected = projectSessionStimuli({
+      questions: [q('a', ['s1'])],
+      stimuli: [
+        stim('s1', {
+          type: 'text',
+          url: '',
+          text: 'The tide pool holds more life than it looks.',
+          label: 'Reading',
+        }),
+      ],
+    });
+    expect(projected[0].text).toBe(
+      'The tide pool holds more life than it looks.'
+    );
+    expect(projected[0].label).toBe('');
+  });
 });
 
 describe('readAloudTextByStimulusId', () => {
@@ -126,6 +165,18 @@ describe('readAloudTextByStimulusId', () => {
       ],
     });
     expect(out).toEqual({ s1: 'Passage one.', s2: 'Passage two.' });
+  });
+
+  it('speaks a passage as written, with no review pass (D16)', () => {
+    const out = readAloudTextByStimulusId({
+      questions: [q('a', ['s1', 's2'])],
+      stimuli: [
+        stim('s1', { type: 'text', url: '', text: '  The tide pool.  ' }),
+        // An empty passage has nothing to speak.
+        stim('s2', { type: 'text', url: '', text: '   ' }),
+      ],
+    });
+    expect(out).toEqual({ s1: 'The tide pool.' });
   });
 
   it('is empty when nothing has text', () => {

@@ -333,6 +333,26 @@ const GdocStimulus: React.FC<
   />
 );
 
+// ─── Text passage ────────────────────────────────────────────────────────────
+
+/**
+ * A passage the student reads (D16). No file, no network: the text travels
+ * on the stimulus itself, so there is nothing here that can fail to load.
+ * Whitespace is preserved because a passage's line breaks are the author's.
+ */
+const TextStimulus: React.FC<StimulusRendererProps> = ({
+  stimulus,
+  light = false,
+}) => (
+  <div
+    className={`w-full h-full min-h-[120px] overflow-auto rounded-xl p-4 text-base leading-relaxed whitespace-pre-wrap ${
+      light ? 'bg-white text-slate-800' : 'bg-slate-800/60 text-slate-100'
+    }`}
+  >
+    {stimulus.text ?? ''}
+  </div>
+);
+
 // ─── PDF (pdf.js with Drive-preview fallback) ────────────────────────────────
 
 type PdfPageRender = { pageNumber: number; canvas: HTMLCanvasElement };
@@ -591,6 +611,9 @@ export const StimulusRenderer: React.FC<StimulusRendererProps> = (props) => {
       break;
     case 'pdf':
       body = <PdfStimulus {...inner} />;
+      break;
+    case 'text':
+      body = <TextStimulus {...inner} />;
       break;
   }
 
