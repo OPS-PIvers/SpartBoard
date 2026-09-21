@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PaperBatch } from '@/types';
 import { assemblePaperScan, type ScannedPage } from './paperImportAssemble';
-import { QUESTIONS_PER_PAGE } from './paperSheetLayout';
+import { QUESTIONS_PER_PAGE, ROWS_PER_COLUMN } from './paperSheetLayout';
 import { paperBatchTag } from './paperSheetMarker';
 import type { PageReadResult, RowRead } from './paperSheetReader';
 
@@ -167,5 +167,34 @@ describe('assemblePaperScan', () => {
       page(1, 1, 1, []),
     ]);
     expect(result.sheets.map((s) => s.seat)).toEqual([1, 2]);
+  });
+});
+
+describe('assemblePaperScan on a single-column batch', () => {
+  const narrow: PaperBatch = {
+    ...batch,
+    questionCount: 40,
+    columnsPerPage: 1,
+    pagesPerSheet: 2,
+  };
+
+  it('numbers page two from the 25 rows page one carried', () => {
+    const result = assemblePaperScan(narrow, [
+      page(0, 1, 1, [row(0, 2), row(24, 1)]),
+      page(1, 1, 2, [row(0, 3), row(14, 0)]),
+    ]);
+    expect(result.sheets[0].answers.map((a) => [a.question, a.choice])).toEqual(
+      [
+        [0, 2],
+        [24, 1],
+        [ROWS_PER_COLUMN, 3],
+        [ROWS_PER_COLUMN + 14, 0],
+      ]
+    );
+  });
+
+  it('leaves a batch without the field on the two-column numbering', () => {
+    const result = assemblePaperScan(batch, [page(0, 1, 2, [row(0, 3)])]);
+    expect(result.sheets[0].answers[0].question).toBe(QUESTIONS_PER_PAGE);
   });
 });

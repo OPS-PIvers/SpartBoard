@@ -8,6 +8,7 @@
 import type {
   ClassRoster,
   PaperBatch,
+  PaperColumns,
   PaperSeatAssignment,
   QuizData,
   QuizQuestion,
@@ -15,6 +16,7 @@ import type {
 } from '@/types';
 import {
   CHOICE_LETTERS,
+  DEFAULT_COLUMNS_PER_PAGE,
   MAX_CHOICE_COUNT,
   MIN_CHOICE_COUNT,
   pageCountForQuestions,
@@ -193,6 +195,8 @@ export interface PaperBatchInput {
   includeKeySheet: boolean;
   /** The authored MC questions in sheet order; absent for a stub. */
   questions?: readonly QuizQuestion[];
+  /** Answer columns each page prints; absent = 2 (D1). */
+  columnsPerPage?: PaperColumns;
   createdAt: number;
 }
 
@@ -214,6 +218,7 @@ const studentLabel = (s: Student): string =>
  * the key.
  */
 export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
+  const columnsPerPage = input.columnsPerPage ?? DEFAULT_COLUMNS_PER_PAGE;
   const sheets: PaperSheetPlan[] = [];
   const seats: Record<number, PaperSeatAssignment> = {};
   const spareSeats: number[] = [];
@@ -283,7 +288,10 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
     spareSeats,
     ...(keySheetSeat !== undefined ? { keySheetSeat } : {}),
     ...(input.questions?.length ? { choiceOrder } : {}),
-    pagesPerSheet: pageCountForQuestions(input.questionCount),
+    pagesPerSheet: pageCountForQuestions(input.questionCount, columnsPerPage),
+    // Written only when it is not the default, so a batch printed without sheet
+    // stimuli is the same document it was before this field existed.
+    ...(columnsPerPage === DEFAULT_COLUMNS_PER_PAGE ? {} : { columnsPerPage }),
     createdAt: input.createdAt,
   };
 

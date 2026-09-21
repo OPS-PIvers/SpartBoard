@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   BUBBLE_DIAMETER_MM,
+  FOOTER_RECT_MM,
+  HEADER_RECT_MM,
   MARKER_CELL_COUNT,
   MAX_CHOICE_COUNT,
   PAGE_HEIGHT_MM,
@@ -8,13 +10,18 @@ import {
   QUESTIONS_PER_PAGE,
   REGISTRATION_MARK_CENTERS_MM,
   REGISTRATION_MARK_SIZE_MM,
+  ROWS_PER_COLUMN,
+  STIMULUS_RECT_MM,
   bubbleRectMm,
   markerCellRectMm,
   pageCountForQuestions,
   questionRowRectMm,
   questionSlotOnPage,
+  questionsPerPage,
+  type PaperColumns,
   type RectMm,
 } from './paperSheetLayout';
+import { READER_THRESHOLDS } from './paperSheetReader';
 
 const overlaps = (a: RectMm, b: RectMm): boolean =>
   a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
@@ -25,11 +32,11 @@ const onPage = (r: RectMm): boolean =>
   r.x + r.w <= PAGE_WIDTH_MM &&
   r.y + r.h <= PAGE_HEIGHT_MM;
 
-const allBubbles = (): RectMm[] => {
+const allBubbles = (columns: PaperColumns = 2): RectMm[] => {
   const rects: RectMm[] = [];
-  for (let q = 0; q < QUESTIONS_PER_PAGE; q += 1) {
+  for (let q = 0; q < questionsPerPage(columns); q += 1) {
     for (let c = 0; c < MAX_CHOICE_COUNT; c += 1)
-      rects.push(bubbleRectMm(q, c));
+      rects.push(bubbleRectMm(q, c, columns));
   }
   return rects;
 };
@@ -115,5 +122,57 @@ describe('paperSheetLayout', () => {
     expect(pageCountForQuestions(QUESTIONS_PER_PAGE)).toBe(1);
     expect(pageCountForQuestions(QUESTIONS_PER_PAGE + 1)).toBe(2);
     expect(pageCountForQuestions(QUESTIONS_PER_PAGE * 3)).toBe(3);
+  });
+});
+
+describe('paperSheetLayout, single column', () => {
+  it('halves the per-page capacity and keeps every row in the left column', () => {
+    expect(questionsPerPage(1)).toBe(ROWS_PER_COLUMN);
+    for (let q = 0; q < ROWS_PER_COLUMN; q += 1) {
+      expect(questionSlotOnPage(q, 1)).toEqual({ column: 0, row: q });
+      expect(bubbleRectMm(q, 0, 1)).toEqual(bubbleRectMm(q, 0, 2));
+    }
+    expect(() => questionSlotOnPage(ROWS_PER_COLUMN, 1)).toThrow(RangeError);
+  });
+
+  it('spreads the same test over twice as many pages', () => {
+    expect(pageCountForQuestions(ROWS_PER_COLUMN, 1)).toBe(1);
+    expect(pageCountForQuestions(ROWS_PER_COLUMN + 1, 1)).toBe(2);
+    expect(pageCountForQuestions(40, 1)).toBe(2);
+    expect(pageCountForQuestions(40, 2)).toBe(1);
+  });
+
+  it('keeps the stimulus band clear of everything the sheet already prints', () => {
+    expect(onPage(STIMULUS_RECT_MM)).toBe(true);
+    for (const bubble of allBubbles(1)) {
+      expect(overlaps(STIMULUS_RECT_MM, bubble)).toBe(false);
+    }
+    for (const row of Array.from({ length: ROWS_PER_COLUMN }, (_, q) =>
+      questionRowRectMm(q, MAX_CHOICE_COUNT, 1)
+    )) {
+      expect(overlaps(STIMULUS_RECT_MM, row)).toBe(false);
+    }
+    expect(overlaps(STIMULUS_RECT_MM, HEADER_RECT_MM)).toBe(false);
+    expect(overlaps(STIMULUS_RECT_MM, FOOTER_RECT_MM)).toBe(false);
+    for (let i = 0; i < MARKER_CELL_COUNT; i += 1) {
+      expect(overlaps(STIMULUS_RECT_MM, markerCellRectMm(i))).toBe(false);
+    }
+  });
+
+  it('keeps the stimulus band out of the windows the reader hunts corners in', () => {
+    // A stimulus reaching into a corner window could be picked as a
+    // registration mark, and the page would then fail to fit or fit wrong.
+    const f = READER_THRESHOLDS.registrationSearchFraction;
+    const w = PAGE_WIDTH_MM * f;
+    const h = PAGE_HEIGHT_MM * f;
+    const windows: RectMm[] = [
+      { x: 0, y: 0, w, h },
+      { x: PAGE_WIDTH_MM - w, y: 0, w, h },
+      { x: 0, y: PAGE_HEIGHT_MM - h, w, h },
+      { x: PAGE_WIDTH_MM - w, y: PAGE_HEIGHT_MM - h, w, h },
+    ];
+    for (const win of windows) {
+      expect(overlaps(STIMULUS_RECT_MM, win)).toBe(false);
+    }
   });
 });

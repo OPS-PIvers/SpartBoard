@@ -14,6 +14,8 @@ import {
   BUBBLE_LETTER_SIZE_PT,
   CHOICE_LETTERS,
   COLUMN_X_MM,
+  DEFAULT_COLUMNS_PER_PAGE,
+  FOOTER_RECT_MM,
   GRID_TOP_MM,
   HEADER_RECT_MM,
   MARKER_CELL_COUNT,
@@ -22,7 +24,6 @@ import {
   NUMBER_WIDTH_MM,
   PAGE_HEIGHT_MM,
   PAGE_WIDTH_MM,
-  QUESTIONS_PER_PAGE,
   REGISTRATION_MARK_CENTERS_MM,
   REGISTRATION_MARK_SIZE_MM,
   ROWS_PER_COLUMN,
@@ -31,6 +32,8 @@ import {
   markerCellRectMm,
   pageCountForQuestions,
   questionSlotOnPage,
+  questionsPerPage,
+  type PaperColumns,
 } from './paperSheetLayout';
 import { encodePaperMarker, paperBatchTag } from './paperSheetMarker';
 import type { PaperSheetPlan } from './paperSheetPlan';
@@ -41,18 +44,17 @@ import {
 } from './printHtmlDocument';
 import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
 
-// Bottom-centre footer: clear of the corner windows the reader searches for
-// registration marks and below the last bubble row.
-const FOOTER_TOP_MM = PAGE_HEIGHT_MM - 13;
-const FOOTER_HEIGHT_MM = 9;
-const FOOTER_INSET_MM = 40;
-
 export interface PaperPrintJob {
   batchId: string;
   quizTitle: string;
   questionCount: number;
   choiceCount: number;
   sheets: readonly PaperSheetPlan[];
+  /**
+   * Answer columns per page; absent = 2, the layout every batch printed before
+   * sheet stimuli existed used (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D1).
+   */
+  columnsPerPage?: PaperColumns;
   /**
    * Whose classes this stack is for, when a PLC teammate printed it
    * (docs/plans/PLC_DELEGATED_PAPER_PRINTING.md D17). Absent on the self-print
@@ -100,10 +102,10 @@ function markerHtml(
 }
 
 function footerHtml(): string {
-  return `<div class="foot" style="left:${mm(FOOTER_INSET_MM)};top:${mm(
-    FOOTER_TOP_MM
-  )};width:${mm(PAGE_WIDTH_MM - FOOTER_INSET_MM * 2)};height:${mm(
-    FOOTER_HEIGHT_MM
+  return `<div class="foot" style="left:${mm(FOOTER_RECT_MM.x)};top:${mm(
+    FOOTER_RECT_MM.y
+  )};width:${mm(FOOTER_RECT_MM.w)};height:${mm(
+    FOOTER_RECT_MM.h
   )}">${spartronLogoSvg(4.2)}<span class="foot-tag">${escapeHtml(SPARTRON_TAGLINE)}</span></div>`;
 }
 
@@ -132,12 +134,16 @@ function headerHtml(
 }
 
 /** "A B C D E" above each answer column, repeating the letter each bubble carries. */
-function columnLegendsHtml(choiceCount: number, columns: number): string {
+function columnLegendsHtml(
+  choiceCount: number,
+  columns: number,
+  columnsPerPage: PaperColumns
+): string {
   const parts: string[] = [];
   for (let column = 0; column < columns; column += 1) {
     for (let choice = 0; choice < choiceCount; choice += 1) {
       // Read the x straight off the bubble it labels so the two cannot drift.
-      const r = bubbleRectMm(column * ROWS_PER_COLUMN, choice);
+      const r = bubbleRectMm(column * ROWS_PER_COLUMN, choice, columnsPerPage);
       parts.push(
         `<div class="legend" style="left:${mm(r.x)};top:${mm(
           GRID_TOP_MM - 5
@@ -151,15 +157,17 @@ function columnLegendsHtml(choiceCount: number, columns: number): string {
 function answerRowsHtml(
   page: number,
   questionCount: number,
-  choiceCount: number
+  choiceCount: number,
+  columnsPerPage: PaperColumns
 ): { html: string; columns: number } {
-  const first = (page - 1) * QUESTIONS_PER_PAGE;
-  const onThisPage = Math.min(QUESTIONS_PER_PAGE, questionCount - first);
+  const perPage = questionsPerPage(columnsPerPage);
+  const first = (page - 1) * perPage;
+  const onThisPage = Math.min(perPage, questionCount - first);
   const parts: string[] = [];
   let columns = 0;
 
   for (let i = 0; i < onThisPage; i += 1) {
-    const { column, row } = questionSlotOnPage(i);
+    const { column, row } = questionSlotOnPage(i, columnsPerPage);
     columns = Math.max(columns, column + 1);
     parts.push(
       `<div class="num" style="left:${mm(COLUMN_X_MM[column])};top:${mm(
@@ -167,7 +175,7 @@ function answerRowsHtml(
       )};width:${mm(NUMBER_WIDTH_MM - 2)}">${first + i + 1}</div>`
     );
     for (let choice = 0; choice < choiceCount; choice += 1) {
-      const r = bubbleRectMm(i, choice);
+      const r = bubbleRectMm(i, choice, columnsPerPage);
       parts.push(
         `<div class="bub" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(r.w)};height:${mm(
           r.h
@@ -188,9 +196,15 @@ function sheetPagesHtml(
     Math.max(job.choiceCount, MIN_CHOICE_COUNT),
     MAX_CHOICE_COUNT
   );
+  const columnsPerPage = job.columnsPerPage ?? DEFAULT_COLUMNS_PER_PAGE;
   const pages: string[] = [];
   for (let page = 1; page <= pageCount; page += 1) {
-    const rows = answerRowsHtml(page, job.questionCount, choiceCount);
+    const rows = answerRowsHtml(
+      page,
+      job.questionCount,
+      choiceCount,
+      columnsPerPage
+    );
     pages.push(
       `<div class="sheet">${registrationMarksHtml()}${markerHtml(
         job.batchId,
@@ -205,7 +219,8 @@ function sheetPagesHtml(
         job.printedForTeacherName
       )}${columnLegendsHtml(
         choiceCount,
-        rows.columns
+        rows.columns,
+        columnsPerPage
       )}${rows.html}${footerHtml()}</div>`
     );
   }
@@ -295,6 +310,9 @@ export function printPaperSheets(
 
 /** The document `printPaperSheets` would write. Exported for tests and preview. */
 export function buildPaperSheetsHtml(job: PaperPrintJob): string {
-  const pageCount = pageCountForQuestions(job.questionCount);
+  const pageCount = pageCountForQuestions(
+    job.questionCount,
+    job.columnsPerPage
+  );
   return job.sheets.map((s) => sheetPagesHtml(s, job, pageCount)).join('');
 }

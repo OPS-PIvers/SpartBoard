@@ -175,6 +175,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         quizTitle: printedQuiz.title,
         questionCount: batch.questionCount,
         choiceCount: batch.choiceCount,
+        ...(batch.columnsPerPage
+          ? { columnsPerPage: batch.columnsPerPage }
+          : {}),
         sheets,
       });
       // An authored quiz needs its test paper printed from the same batch, so
