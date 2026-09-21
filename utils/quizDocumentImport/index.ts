@@ -21,6 +21,7 @@ export { parseQuestionLines, isTrueFalse } from './parseQuestions';
 export { findAnswerKey } from './answerKey';
 export { readDocx } from './docxReader';
 export { readPdf, groupItemsIntoLines } from './pdfReader';
+export { extractedToQuizData, rowWarnings } from './toQuizData';
 export {
   MAX_DOCUMENT_BYTES,
   MAX_DOCUMENT_PAGES,
@@ -86,11 +87,19 @@ export async function readQuizDocument(
     const { lines, images } = await readDocx(file);
     const questions = parseQuestionLines(lines);
     const used = new Set(questions.flatMap((q) => q.imageIds));
+    // A picture nothing points at would upload to Drive unused.
+    const attached = images.filter((img) => used.has(img.id));
+    if (attached.length > 0) {
+      // The bytes are carried on ExtractedQuiz; uploading them to Drive as
+      // stimuli is D13's own slice, so say so rather than dropping them mute.
+      warnings.push(
+        `${attached.length === 1 ? 'A picture' : `${attached.length} pictures`} in this file ${attached.length === 1 ? "isn't" : "aren't"} brought in yet — add ${attached.length === 1 ? 'it' : 'them'} to the questions that need ${attached.length === 1 ? 'it' : 'them'} in the editor.`
+      );
+    }
     return {
       title: titleFromFileName(fileName),
       questions,
-      // A picture nothing points at would upload to Drive unused.
-      images: images.filter((img) => used.has(img.id)),
+      images: attached,
       warnings,
     };
   }

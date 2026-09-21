@@ -22,6 +22,13 @@ import React from 'react';
 import type { ImportAdapter } from '@/components/common/library';
 import type { QuizData, QuizQuestion } from '@/types';
 import { generateQuiz, type GeneratedQuestion } from '@/utils/ai';
+import {
+  extractedToQuizData,
+  readQuizDocument,
+  rowWarnings,
+} from '@/utils/quizDocumentImport';
+import { browserPdfDeps } from '@/utils/quizDocumentImport/pdfBrowserDeps';
+import { QuizDocumentReview } from '../components/QuizDocumentReview';
 import { QuizDriveService } from '@/utils/quizDriveService';
 
 export interface QuizImportAdapterDeps {
@@ -64,10 +71,25 @@ export interface QuizImportAdapterDeps {
    * app per-file `drive.file` access to the chosen sheet.
    */
   pickSheet: () => Promise<{ url: string } | null>;
+  /**
+   * Opens the Google Picker to choose a printed test from Drive, returning its
+   * bytes. A Google Doc arrives already exported as .docx so it takes the Word
+   * path (docs/plans/QUIZ_DOCUMENT_IMPORT.md D4). Omitted when the teacher
+   * can't use the feature, which also hides the Drive button.
+   */
+  pickDocument?: () => Promise<{ file: Blob; fileName: string } | null>;
+  /**
+   * True when the document-import rollout switch AND the per-user permission
+   * are both on (D21). False keeps the import wizard exactly as it was.
+   */
+  canImportDocuments?: boolean;
 }
 
 const DRIVE_ACCESS_ERROR =
   'Google Drive access is required. Please sign in again and try again.';
+
+/** Stand-in title; Quiz's services need one before the wizard's Confirm step. */
+const PLACEHOLDER_TITLE = '__quiz_import__';
 
 /* ─── Template instructions (rendered in the wizard's "Format help" block) ─ */
 
@@ -266,8 +288,13 @@ export function createQuizImportAdapter(
 ): ImportAdapter<QuizData> {
   return {
     widgetLabel: deps.widgetLabel ?? 'Quiz',
-    supportedSources: ['sheet', 'csv'],
+    supportedSources: deps.canImportDocuments
+      ? ['sheet', 'csv', 'document']
+      : ['sheet', 'csv'],
     pickSheet: deps.pickSheet,
+    ...(deps.canImportDocuments && deps.pickDocument
+      ? { pickDocument: deps.pickDocument }
+      : {}),
     templateHelper: {
       createTemplate: async () => {
         // The template is a NEW app-owned Sheet → the non-sensitive `drive.file`
@@ -300,9 +327,6 @@ export function createQuizImportAdapter(
       },
     },
     parse: async (source) => {
-      // Defer the title to the Confirm step; Quiz's services need a title up
-      // front, so use a placeholder that the wizard will overwrite on save.
-      const PLACEHOLDER_TITLE = '__quiz_import__';
       if (source.kind === 'sheet') {
         // The sheet was just chosen via the Google Picker, which granted this
         // app per-file `drive.file` access to it — so reading it needs only the
@@ -320,6 +344,23 @@ export function createQuizImportAdapter(
       if (source.kind === 'csv') {
         const data = await deps.importFromCSV(source.text, PLACEHOLDER_TITLE);
         return { data, warnings: [] };
+      }
+      if (source.kind === 'document') {
+        // pdf.js and tesseract are only loaded when the file is a PDF, so a
+        // Word import never pays for them.
+        const isPdf =
+          source.file.type === 'application/pdf' ||
+          source.fileName.toLowerCase().endsWith('.pdf');
+        const extracted = await readQuizDocument(source.file, {
+          fileName: source.fileName,
+          ...(isPdf ? { pdf: await browserPdfDeps(source.file) } : {}),
+        });
+        return {
+          data: extractedToQuizData(extracted),
+          // Row notes ride the wizard's own warnings list, numbered so they
+          // line up with the review rows (D10).
+          warnings: [...extracted.warnings, ...rowWarnings(extracted)],
+        };
       }
       throw new Error(
         `Unsupported source kind for Quiz import: ${source.kind}`
@@ -344,6 +385,19 @@ export function createQuizImportAdapter(
       return { ok: errors.length === 0, errors };
     },
     renderPreview: renderQuizPreview,
+    // The read of a test document is never certain, so the teacher checks and
+    // corrects it before anything is created (D10). Only offered when the
+    // feature is on; otherwise the wizard keeps its read-only preview.
+    ...(deps.canImportDocuments
+      ? {
+          renderReview: (data: QuizData, onChange: (next: QuizData) => void) =>
+            React.createElement(QuizDocumentReview, { data, onChange }),
+        }
+      : {}),
+    // A document import names the quiz after the file (D11); sheet and CSV
+    // imports carry the placeholder, so they keep the wizard's own title box.
+    suggestTitle: (data) =>
+      data.title && data.title !== PLACEHOLDER_TITLE ? data.title : undefined,
     save: async (data, title) => {
       const finalTitle = title.trim() || data.title || 'Untitled Quiz';
       const now = Date.now();

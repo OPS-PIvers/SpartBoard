@@ -43,6 +43,7 @@ import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { useFolders } from '@/hooks/useFolders';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
+import { useQuizDocumentImportGate } from '@/hooks/useQuizDocumentImportGate';
 import {
   callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
@@ -198,6 +199,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const quizAssignmentMode = getAssignmentMode('quiz');
   const { showConfirm } = useDialog();
   const { openPicker } = useGooglePicker();
+  const canImportDocuments = useQuizDocumentImportGate();
   const config = widget.config as QuizConfig;
 
   // Opens the Google Picker so the teacher selects a Sheet to import. Picking
@@ -219,7 +221,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Paper scan from Drive (plan Q17): the pick grants per-file access, the
   // bytes come down and are read locally exactly like a chosen file.
-  const { getDriveFileAsBlob } = useGoogleDrive();
+  const { getDriveFileAsBlob, getDriveDocumentAsBlob } = useGoogleDrive();
   const pickScanFromDrive = useCallback(async (): Promise<File | null> => {
     const token = await ensureGoogleScope('drive.file', { interactive: true });
     if (!token) {
@@ -234,6 +236,27 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       type: downloaded.mimeType || picked.mimeType,
     });
   }, [ensureGoogleScope, openPicker, getDriveFileAsBlob]);
+
+  // Test document from Drive (D9): the Picker lists PDFs, Word files and
+  // Google Docs, and a Doc comes back already exported as .docx (D4).
+  const pickDocument = useCallback(async (): Promise<{
+    file: Blob;
+    fileName: string;
+  } | null> => {
+    const token = await ensureGoogleScope('drive.file', { interactive: true });
+    if (!token) {
+      throw new Error('Google Drive access is required. Please sign in again.');
+    }
+    const picked = await openPicker({ mode: 'documents', token });
+    if (!picked) return null;
+    const downloaded = await getDriveDocumentAsBlob(picked.id);
+    if (!downloaded)
+      throw new Error('Could not download that file from Drive.');
+    return {
+      file: downloaded.blob,
+      fileName: downloaded.name || picked.name,
+    };
+  }, [ensureGoogleScope, openPicker, getDriveDocumentAsBlob]);
 
   const {
     quizzes,
@@ -1301,6 +1324,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   if (view === 'import') {
     const adapter = createQuizImportAdapter({
       ...sharedImportDeps,
+      // A question bank has no review table of its own, so the test-document
+      // tile is offered on the quiz import only.
+      canImportDocuments,
+      pickDocument,
       saveQuiz: async (data) => {
         await saveQuiz(data);
       },

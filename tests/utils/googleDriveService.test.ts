@@ -562,6 +562,108 @@ describe('GoogleDriveService', () => {
     });
   });
 
+  // docs/plans/QUIZ_DOCUMENT_IMPORT.md D4: one path for all three file types.
+  describe('downloadDocumentAsBlob', () => {
+    const DOCX =
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+    it('exports a Google Doc as .docx, not plain text', async () => {
+      const blob = new Blob(['PK']);
+      const fetchSpy = vi
+        .spyOn(global, 'fetch')
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              id: 'doc-1',
+              name: 'Unit 3 Test',
+              mimeType: 'application/vnd.google-apps.document',
+            }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          blob: () => Promise.resolve(blob),
+        } as Response);
+
+      const result = await service.downloadDocumentAsBlob('doc-1');
+
+      // Plain text would lose the bold the teacher marked the answer with.
+      expect(fetchSpy.mock.calls[1][0]).toContain(
+        `/files/doc-1/export?mimeType=${encodeURIComponent(DOCX)}`
+      );
+      expect(result.mimeType).toBe(DOCX);
+      expect(result.blob).toBe(blob);
+      // The reader routes on type, but this name becomes the quiz title.
+      expect(result.name).toBe('Unit 3 Test.docx');
+    });
+
+    it('does not double up an extension the Doc already has', async () => {
+      vi.spyOn(global, 'fetch')
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              id: 'doc-1',
+              name: 'Unit 3 Test.docx',
+              mimeType: 'application/vnd.google-apps.document',
+            }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          blob: () => Promise.resolve(new Blob(['PK'])),
+        } as Response);
+
+      const result = await service.downloadDocumentAsBlob('doc-1');
+      expect(result.name).toBe('Unit 3 Test.docx');
+    });
+
+    it('downloads a PDF as-is rather than exporting it', async () => {
+      const blob = new Blob(['%PDF']);
+      const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            id: 'pdf-1',
+            name: 'Unit 3 Test.pdf',
+            mimeType: 'application/pdf',
+          }),
+        blob: () => Promise.resolve(blob),
+      } as Response);
+
+      const result = await service.downloadDocumentAsBlob('pdf-1');
+
+      expect(
+        fetchSpy.mock.calls.some(([url]) =>
+          (url as string).includes('/export?')
+        )
+      ).toBe(false);
+      expect(result.mimeType).toBe('application/pdf');
+      expect(result.name).toBe('Unit 3 Test.pdf');
+    });
+
+    it('says the export failed rather than handing back an empty file', async () => {
+      vi.spyOn(global, 'fetch')
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              id: 'doc-1',
+              name: 'Unit 3 Test',
+              mimeType: 'application/vnd.google-apps.document',
+            }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 403,
+          statusText: 'Forbidden',
+        } as Response);
+
+      await expect(service.downloadDocumentAsBlob('doc-1')).rejects.toThrow(
+        /Failed to export the Google Doc \(403 Forbidden\)/
+      );
+    });
+  });
+
   describe('exportFileText', () => {
     it('should export Google Doc as plain text', async () => {
       const mockText = 'Extracted text content';

@@ -21,6 +21,7 @@ import {
   Copy,
   ExternalLink,
   FileSpreadsheet,
+  FileText,
   FileUp,
   Info,
   Loader2,
@@ -58,6 +59,10 @@ function acceptExtensionsForSources(sources: ImportSourceKind[]): string {
     exts.add('.json');
     exts.add('.txt');
   }
+  if (sources.includes('document')) {
+    exts.add('.pdf');
+    exts.add('.docx');
+  }
   return Array.from(exts).join(',');
 }
 
@@ -66,6 +71,11 @@ function inferKindFromFileName(
   supported: ImportSourceKind[]
 ): Exclude<ImportSourceKind, 'sheet'> {
   const lower = fileName.toLowerCase();
+  if (
+    (lower.endsWith('.pdf') || lower.endsWith('.docx')) &&
+    supported.includes('document')
+  )
+    return 'document';
   if (
     (lower.endsWith('.html') || lower.endsWith('.htm')) &&
     supported.includes('html')
@@ -111,6 +121,7 @@ export function ImportWizard<TData>({
   const [creatingTemplate, setCreatingTemplate] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const documentInputRef = useRef<HTMLInputElement>(null);
 
   // Bumped on every open/close transition; in-flight handlers check it to drop results from a cancelled session.
   const sessionRef = useRef(0);
@@ -146,6 +157,7 @@ export function ImportWizard<TData>({
   const supportsJson = adapter.supportedSources.includes('json');
   const supportsHtml = adapter.supportedSources.includes('html');
   const supportsFile = adapter.supportedSources.includes('file');
+  const supportsDocument = adapter.supportedSources.includes('document');
   const supportsAnyUpload =
     supportsCsv || supportsJson || supportsHtml || supportsFile;
   const supportsJsonPaste = supportsJson && adapter.supportsJsonPaste === true;
@@ -214,6 +226,43 @@ export function ImportWizard<TData>({
     }
   };
 
+  const handleDocumentPicked = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ): Promise<void> => {
+    const file = e.target.files?.[0];
+    if (documentInputRef.current) documentInputRef.current.value = '';
+    if (!file) return;
+    await runParse({ kind: 'document', file, fileName: file.name });
+  };
+
+  const handlePickDocument = async (): Promise<void> => {
+    if (!adapter.pickDocument) return;
+    const session = sessionRef.current;
+    setParseError(null);
+    setPicking(true);
+    try {
+      const picked = await adapter.pickDocument();
+      if (session !== sessionRef.current) return;
+      // Null = the teacher dismissed the Picker; stay put with no error.
+      if (picked) {
+        await runParse({
+          kind: 'document',
+          file: picked.file,
+          fileName: picked.fileName,
+        });
+      }
+    } catch (err) {
+      if (session !== sessionRef.current) return;
+      setParseError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to open the Google Drive picker.'
+      );
+    } finally {
+      if (session === sessionRef.current) setPicking(false);
+    }
+  };
+
   const handleFilePicked = async (
     e: React.ChangeEvent<HTMLInputElement>
   ): Promise<void> => {
@@ -225,6 +274,11 @@ export function ImportWizard<TData>({
     const kind = inferKindFromFileName(file.name, adapter.supportedSources);
     if (kind === 'file') {
       await runParse({ kind: 'file', file });
+      return;
+    }
+    if (kind === 'document') {
+      // A test document is bytes, never text — the reader opens it itself.
+      await runParse({ kind: 'document', file, fileName: file.name });
       return;
     }
     try {
@@ -580,6 +634,64 @@ export function ImportWizard<TData>({
         </div>
       )}
 
+      {supportsDocument && (
+        <div className="space-y-2">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-500">
+            Or build one from a test you already have
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {adapter.pickDocument && (
+              <button
+                type="button"
+                onClick={() => void handlePickDocument()}
+                disabled={loading || picking}
+                className="w-full py-4 px-3 bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/60 disabled:opacity-40 border-2 border-brand-blue-primary/30 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group active:scale-95"
+                aria-label="Choose a test document from Google Drive"
+              >
+                {picking ? (
+                  <Loader2 className="w-6 h-6 text-brand-blue-primary animate-spin" />
+                ) : (
+                  <FileText className="w-6 h-6 text-brand-blue-primary group-hover:scale-110 transition-transform" />
+                )}
+                <span className="font-bold text-brand-blue-primary text-sm text-center">
+                  Choose a test from Drive
+                </span>
+                <p className="text-[11px] text-brand-blue-primary/60 font-bold text-center">
+                  Google Doc, Word file or PDF
+                </p>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => documentInputRef.current?.click()}
+              disabled={loading || picking}
+              className="w-full py-4 px-3 bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/60 disabled:opacity-40 border-2 border-dashed border-brand-blue-primary/30 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group active:scale-95"
+            >
+              <FileUp className="w-6 h-6 text-brand-blue-primary group-hover:scale-110 transition-transform" />
+              <span className="font-bold text-brand-blue-primary text-sm text-center">
+                Upload a test document
+              </span>
+              <p className="text-[11px] text-brand-blue-primary/60 font-bold text-center">
+                .pdf or .docx
+              </p>
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-500 font-medium">
+            We&apos;ll read the questions and answer choices, and the answer key
+            if the document has one. You can check everything before the quiz is
+            created.
+          </p>
+          <input
+            type="file"
+            ref={documentInputRef}
+            accept=".pdf,.docx"
+            onChange={(e) => void handleDocumentPicked(e)}
+            className="hidden"
+            aria-label="Upload a test document"
+          />
+        </div>
+      )}
+
       {supportsJsonPaste && (
         <div className="space-y-2">
           <label
@@ -631,7 +743,13 @@ export function ImportWizard<TData>({
     <div className="space-y-4">
       <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
         {parsed != null ? (
-          adapter.renderPreview(parsed)
+          // An adapter with a review step owns this pane and hands back the
+          // teacher's corrections; everything else keeps the read-only preview.
+          adapter.renderReview ? (
+            adapter.renderReview(parsed, setParsed)
+          ) : (
+            adapter.renderPreview(parsed)
+          )
         ) : (
           <p className="text-sm text-slate-500">No preview available.</p>
         )}
