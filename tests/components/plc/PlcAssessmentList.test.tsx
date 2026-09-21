@@ -435,7 +435,7 @@ describe('PlcAssessmentList', () => {
     expect(within(row).queryByRole('menuitem', { name: 'Rename' })).toBeNull();
   });
 
-  const printMenuItem = 'Print answer sheets for a teammate';
+  const printMenuItem = 'Print response sheets for a teammate';
 
   it('offers printing for a teammate once every gate passes', () => {
     render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);

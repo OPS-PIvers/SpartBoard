@@ -436,7 +436,8 @@ const AssessmentRow: React.FC<RowProps> = ({
                         >
                           <Printer className="w-3.5 h-3.5" aria-hidden="true" />
                           {t('plcDashboard.teammatePrint.rowAction', {
-                            defaultValue: 'Print answer sheets for a teammate',
+                            defaultValue:
+                              'Print response sheets for a teammate',
                           })}
                         </button>
                       )}

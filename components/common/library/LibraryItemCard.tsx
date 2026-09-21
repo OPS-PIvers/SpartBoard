@@ -94,7 +94,7 @@ interface OverflowMenuProps {
   actions: LibraryMenuAction[];
 }
 
-const MENU_WIDTH = 176;
+const MENU_WIDTH = 224; // w-56; fits the longest current item label ("Print response sheets") without truncating
 const MENU_GAP = 4;
 const MENU_ITEM_HEIGHT = 32;
 const MENU_CHROME_HEIGHT = 10;
@@ -173,7 +173,7 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({ actions }) => {
           <div
             role="menu"
             data-click-outside-ignore="true"
-            className="min-w-[176px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
+            className="min-w-[224px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
             style={{
               position: 'fixed',
               top: menuPos.top,

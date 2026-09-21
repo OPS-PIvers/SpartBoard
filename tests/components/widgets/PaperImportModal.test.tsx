@@ -450,7 +450,7 @@ describe('PaperImportModal', () => {
   it('explains when nothing has been printed yet', () => {
     setup([], { batches: [] });
     expect(
-      screen.getByText(/No answer sheets have been printed/)
+      screen.getByText(/No response sheets have been printed/)
     ).toBeInTheDocument();
   });
   it('parks the review on the batch as it changes and clears it after import', async () => {

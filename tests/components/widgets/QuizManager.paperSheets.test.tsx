@@ -98,35 +98,35 @@ describe('QuizManager — paper answer sheets', () => {
     renderLibrary();
     expect(screen.queryByRole('button', { name: 'Paper test' })).toBeNull();
     openRowMenu();
-    expect(screen.queryByText('Print answer sheets')).toBeNull();
-    expect(screen.queryByText('Read questions from test paper')).toBeNull();
+    expect(screen.queryByText('Print response sheets')).toBeNull();
+    expect(screen.queryByText('Import questions')).toBeNull();
   });
 
-  it('offers Print answer sheets in the row menu when the feature is on', () => {
+  it('offers Print response sheets in the row menu when the feature is on', () => {
     const onPrintPaperSheets = vi.fn();
     renderLibrary({ onPrintPaperSheets });
     openRowMenu();
-    fireEvent.click(screen.getByText('Print answer sheets'));
+    fireEvent.click(screen.getByText('Print response sheets'));
     expect(onPrintPaperSheets).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'quiz-1' })
     );
   });
 
-  it('offers Import scanned sheets in the row menu when wired', () => {
+  it('offers Import responses in the row menu when wired', () => {
     const onImportPaperScan = vi.fn();
     renderLibrary({ onImportPaperScan });
     openRowMenu();
-    fireEvent.click(screen.getByText('Import scanned sheets'));
+    fireEvent.click(screen.getByText('Import responses'));
     expect(onImportPaperScan).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'quiz-1' })
     );
   });
 
-  it('offers Read questions from test paper in the row menu when wired', () => {
+  it('offers Import questions in the row menu when wired', () => {
     const onReadPaperQuestions = vi.fn();
     renderLibrary({ onReadPaperQuestions });
     openRowMenu();
-    fireEvent.click(screen.getByText('Read questions from test paper'));
+    fireEvent.click(screen.getByText('Import questions'));
     expect(onReadPaperQuestions).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'quiz-1' })
     );

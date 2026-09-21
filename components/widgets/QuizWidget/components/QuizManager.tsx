@@ -1041,7 +1041,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         ? [
             {
               id: 'print-paper',
-              label: 'Print answer sheets',
+              label: 'Print response sheets',
               icon: Printer,
               onClick: () => onPrintPaperSheets(quiz),
             },
@@ -1051,7 +1051,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         ? [
             {
               id: 'import-paper',
-              label: 'Import scanned sheets',
+              label: 'Import responses',
               icon: ScanLine,
               onClick: () => onImportPaperScan(quiz),
             },
@@ -1061,7 +1061,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         ? [
             {
               id: 'read-paper-questions',
-              label: 'Read questions from test paper',
+              label: 'Import questions',
               icon: ScanText,
               onClick: () => onReadPaperQuestions(quiz),
             },

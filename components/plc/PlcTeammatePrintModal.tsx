@@ -156,7 +156,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
         err instanceof Error
           ? err.message
           : t('plcDashboard.teammatePrint.printFailed', {
-              defaultValue: 'Could not print those answer sheets.',
+              defaultValue: 'Could not print those response sheets.',
             })
       );
       setPrinting(false);
@@ -180,7 +180,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
         err instanceof Error
           ? err.message
           : t('plcDashboard.teammatePrint.printFailed', {
-              defaultValue: 'Could not print those answer sheets.',
+              defaultValue: 'Could not print those response sheets.',
             })
       );
     }
@@ -551,7 +551,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
                   defaultValue: 'That print run has been removed',
                 })
               : t('plcDashboard.teammatePrint.sent', {
-                  defaultValue: 'Answer sheets sent to print',
+                  defaultValue: 'Response sheets sent to print',
                 })}
           </p>
           <p className="mt-1 text-sm text-slate-600">
@@ -681,7 +681,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
       onClose={onClose}
       maxWidth="max-w-lg"
       title={t('plcDashboard.teammatePrint.title', {
-        defaultValue: 'Print answer sheets for a teammate',
+        defaultValue: 'Print response sheets for a teammate',
       })}
       footer={printed ? confirmationFooter : footer}
     >

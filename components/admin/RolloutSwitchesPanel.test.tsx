@@ -75,7 +75,7 @@ describe('RolloutSwitchesPanel', () => {
     render(<RolloutSwitchesPanel />);
     fireEvent.click(
       screen.getByRole('switch', {
-        name: 'Print answer sheets for a PLC teammate',
+        name: 'Print response sheets for a PLC teammate',
       })
     );
     await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());

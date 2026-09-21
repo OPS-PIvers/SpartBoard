@@ -147,7 +147,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
         </div>
         <div>
           <h2 className="text-base font-bold text-slate-900">
-            Read questions from the test paper
+            Import questions
           </h2>
           <p className="mt-0.5 max-w-[24rem] truncate text-xs text-slate-500">
             {quiz.title || 'Untitled paper test'}
@@ -295,7 +295,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
     <Modal
       isOpen
       onClose={onClose}
-      ariaLabel="Read questions from the test paper"
+      ariaLabel="Import questions"
       maxWidth="max-w-2xl"
       contentClassName=""
       customHeader={header}
