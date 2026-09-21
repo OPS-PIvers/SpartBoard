@@ -81,6 +81,11 @@ import {
   makeQuestionGradeFn,
   type QuestionStat,
 } from '@/utils/quizQuestionStats';
+import {
+  computeQuestionDrilldowns,
+  type DrilldownStudent,
+  type QuestionDrilldown,
+} from '@/utils/quizQuestionDrilldown';
 import { createDriveTakeUrlResolver } from '@/utils/quizMediaPlayback';
 import { deleteField, doc, updateDoc, FieldPath } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -249,6 +254,8 @@ interface QuizResultsProps {
   > | null;
   /** Write-once served language per uid; grades a de-targeted student's old work. */
   servedLanguageByStudentUid?: Record<string, string> | null;
+  /** PLC page mount: question results show counts only, never student names (D24). */
+  plcView?: boolean;
 }
 
 export const QuizResults: React.FC<QuizResultsProps> = ({
@@ -270,6 +277,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   localizedFibAnswers = null,
   overridesByStudentUid = null,
   servedLanguageByStudentUid = null,
+  plcView = false,
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
@@ -634,6 +642,12 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     (response: QuizResponse) =>
       resolveResponseDisplayName(response, pinToName, byStudentUid),
     [pinToName, byStudentUid]
+  );
+
+  // Every drill-down name renders through here, so a names mask has one place to hook in.
+  const formatStudentName = useCallback(
+    (student: DrilldownStudent) => student.name,
+    []
   );
 
   const handleSendToScoreboard = useCallback(
@@ -1676,6 +1690,9 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               questions={quiz.questions}
               responses={filteredResponses}
               fibGrading={fibGrading}
+              resolveStudentName={resolveTargetStudentName}
+              formatStudentName={formatStudentName}
+              showStudentNames={!plcView}
             />
           )}
           {effectiveScreen === 'targets' && hasTargetResults && (
@@ -2031,38 +2048,422 @@ const EMPTY_QUESTION_STAT: QuestionStat = {
   averagePct: null,
 };
 
+type QuestionSort = 'order' | 'missed';
+
+const pctOf = (count: number, total: number): number =>
+  total > 0 ? Math.round((count / total) * 100) : 0;
+
+const SMALL_TEXT = { fontSize: 'min(11px, 3.8cqmin)' } as const;
+const SMALL_ICON = {
+  width: 'min(12px, 3.8cqmin)',
+  height: 'min(12px, 3.8cqmin)',
+} as const;
+
+const NameChips: React.FC<{
+  students: DrilldownStudent[];
+  formatStudentName: (student: DrilldownStudent) => string;
+}> = ({ students, formatStudentName }) => (
+  <ul
+    className="flex flex-wrap"
+    style={{ gap: 'min(4px, 1cqmin)', marginTop: 'min(4px, 1cqmin)' }}
+  >
+    {students.map((s) => (
+      <li
+        key={s.responseKey}
+        className="rounded-full bg-brand-gray-lightest text-brand-gray-darkest font-sans"
+        style={{
+          fontSize: 'min(10px, 3.5cqmin)',
+          padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
+        }}
+      >
+        {formatStudentName(s)}
+      </li>
+    ))}
+  </ul>
+);
+
+/** One distribution line; with names shown it toggles its name chips (D16). */
+const DistributionRow: React.FC<{
+  label: string;
+  count: number;
+  total: number;
+  correct: boolean;
+  countLabel: string;
+  students: DrilldownStudent[];
+  studentsLabel: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  showStudentNames: boolean;
+  formatStudentName: (student: DrilldownStudent) => string;
+}> = ({
+  label,
+  count,
+  total,
+  correct,
+  countLabel,
+  students,
+  studentsLabel,
+  isOpen,
+  onToggle,
+  showStudentNames,
+  formatStudentName,
+}) => {
+  const pct = pctOf(count, total);
+  const canOpen = showStudentNames && students.length > 0;
+  const line = (
+    <>
+      <span
+        className="flex items-center justify-between"
+        style={{ gap: 'min(8px, 2cqmin)' }}
+      >
+        <span
+          className={`flex items-center min-w-0 font-sans ${correct ? 'text-emerald-700 font-semibold' : 'text-brand-gray-darkest'}`}
+          style={{ ...SMALL_TEXT, gap: 'min(4px, 1cqmin)' }}
+        >
+          {canOpen && (
+            <ChevronRight
+              aria-hidden
+              className={`shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`}
+              style={SMALL_ICON}
+            />
+          )}
+          {correct && (
+            <CheckCircle2
+              aria-label="Correct answer"
+              className="shrink-0"
+              style={SMALL_ICON}
+            />
+          )}
+          <span className="truncate">{label}</span>
+        </span>
+        <span
+          className="font-sans text-brand-gray-dark tabular-nums shrink-0"
+          style={SMALL_TEXT}
+        >
+          {countLabel} · {pct}%
+        </span>
+      </span>
+      <span
+        aria-hidden
+        className="block bg-brand-gray-lightest rounded-full overflow-hidden"
+        style={{
+          height: 'min(6px, 1.5cqmin)',
+          marginTop: 'min(3px, 0.8cqmin)',
+        }}
+      >
+        <span
+          className={`block h-full rounded-full ${correct ? 'bg-emerald-500' : 'bg-brand-gray-light'}`}
+          style={{ width: `${pct}%` }}
+        />
+      </span>
+    </>
+  );
+  return (
+    <li>
+      {canOpen ? (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={isOpen}
+          className="block w-full text-left rounded hover:bg-brand-gray-lightest/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
+        >
+          {line}
+        </button>
+      ) : (
+        line
+      )}
+      {canOpen && isOpen && (
+        <div role="group" aria-label={studentsLabel}>
+          <NameChips
+            students={students}
+            formatStudentName={formatStudentName}
+          />
+        </div>
+      )}
+    </li>
+  );
+};
+
+const OUTCOME_COLUMNS: {
+  key: 'correct' | 'partial' | 'incorrect';
+  label: string;
+  className: string;
+}[] = [
+  { key: 'correct', label: 'Correct', className: 'text-emerald-700' },
+  { key: 'partial', label: 'Partial', className: 'text-amber-700' },
+  { key: 'incorrect', label: 'Incorrect', className: 'text-brand-red-primary' },
+];
+
+const OUTCOME_STRIPS: {
+  key: 'ungraded' | 'noAnswer' | 'excused';
+  label: string;
+}[] = [
+  { key: 'ungraded', label: 'Ungraded' },
+  { key: 'noAnswer', label: 'No answer' },
+  { key: 'excused', label: 'Excused' },
+];
+
+const QuestionDrilldownPanel: React.FC<{
+  id: string;
+  drilldown: QuestionDrilldown;
+  showStudentNames: boolean;
+  formatStudentName: (student: DrilldownStudent) => string;
+}> = ({ id, drilldown, showStudentNames, formatStudentName }) => {
+  const [openRows, setOpenRows] = useState<Set<string>>(() => new Set());
+  const toggleRow = (key: string) =>
+    setOpenRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  const { servedCount, outcomes, distribution } = drilldown;
+  const columns = OUTCOME_COLUMNS.filter(
+    (c) => c.key !== 'partial' || outcomes.partial.length > 0
+  );
+  const strips = OUTCOME_STRIPS.filter((s) => outcomes[s.key].length > 0);
+  const rowProps = (key: string) => ({
+    total: servedCount,
+    isOpen: openRows.has(key),
+    onToggle: () => toggleRow(key),
+    showStudentNames,
+    formatStudentName,
+  });
+
+  return (
+    <div
+      id={id}
+      className="flex flex-col border-t border-brand-gray-lightest"
+      style={{
+        gap: 'min(10px, 2.5cqmin)',
+        marginTop: 'min(8px, 2cqmin)',
+        paddingTop: 'min(8px, 2cqmin)',
+      }}
+    >
+      {servedCount === 0 && (
+        <p className="font-sans text-brand-gray-primary" style={SMALL_TEXT}>
+          No students have answered this question yet.
+        </p>
+      )}
+
+      {servedCount > 0 &&
+        distribution.kind !== 'none' &&
+        distribution.rows.length > 0 && (
+          <div>
+            <p
+              className="font-sans font-semibold text-brand-gray-primary uppercase tracking-wider"
+              style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+            >
+              {distribution.kind === 'pairs'
+                ? 'Pairs matched correctly'
+                : distribution.kind === 'orders'
+                  ? 'Most common wrong orders'
+                  : 'Answers'}
+            </p>
+            <ul
+              className="flex flex-col"
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                marginTop: 'min(4px, 1cqmin)',
+              }}
+            >
+              {distribution.kind === 'pairs'
+                ? distribution.rows.map((row) => (
+                    <DistributionRow
+                      key={row.key}
+                      {...rowProps(row.key)}
+                      label={`${row.prompt} → ${row.answer}`}
+                      count={row.correctCount}
+                      correct={false}
+                      countLabel={`${row.correctCount} correct`}
+                      students={row.missedBy}
+                      studentsLabel={`Missed ${row.prompt}`}
+                    />
+                  ))
+                : distribution.rows.map((row) => (
+                    <DistributionRow
+                      key={row.key}
+                      {...rowProps(row.key)}
+                      label={row.label || '(blank)'}
+                      count={row.students.length}
+                      correct={row.isCorrect}
+                      countLabel={`${row.students.length}`}
+                      students={row.students}
+                      studentsLabel={`Answered ${row.label}`}
+                    />
+                  ))}
+            </ul>
+          </div>
+        )}
+
+      {servedCount > 0 && (
+        <div
+          className="grid"
+          style={{
+            gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`,
+            gap: 'min(8px, 2cqmin)',
+          }}
+        >
+          {columns.map((c) => {
+            const list = outcomes[c.key];
+            return (
+              <div key={c.key} data-testid={`drilldown-column-${c.key}`}>
+                <p
+                  className={`font-sans font-semibold ${c.className}`}
+                  style={SMALL_TEXT}
+                >
+                  {`${c.label} · ${list.length} (${pctOf(list.length, servedCount)}%)`}
+                </p>
+                {showStudentNames && list.length > 0 && (
+                  <NameChips
+                    students={list}
+                    formatStudentName={formatStudentName}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {strips.map((s) => (
+        <div
+          key={s.key}
+          data-testid={`drilldown-strip-${s.key}`}
+          className="bg-brand-gray-lightest/60 rounded"
+          style={{ padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)' }}
+        >
+          <p
+            className="font-sans font-semibold text-brand-gray-dark"
+            style={SMALL_TEXT}
+          >
+            {`${s.label} · ${outcomes[s.key].length}`}
+          </p>
+          {showStudentNames && (
+            <NameChips
+              students={outcomes[s.key]}
+              formatStudentName={formatStudentName}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const QuestionsScreen: React.FC<{
   questions: QuizData['questions'];
   responses: QuizResponse[];
   fibGrading?: FibGradingContext | null;
-}> = ({ questions, responses, fibGrading }) => {
+  resolveStudentName: (response: QuizResponse) => string;
+  /** The single place a drill-down student becomes display text. */
+  formatStudentName: (student: DrilldownStudent) => string;
+  /** False in the PLC view: counts and percentages only (D24). */
+  showStudentNames: boolean;
+}> = ({
+  questions,
+  responses,
+  fibGrading,
+  resolveStudentName,
+  formatStudentName,
+  showStudentNames,
+}) => {
   const { t } = useTranslation();
+  const [sortBy, setSortBy] = useState<QuestionSort>('order');
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const gradeFn = React.useMemo(
+    () => makeQuestionGradeFn(fibGrading),
+    [fibGrading]
+  );
   const questionStats = React.useMemo(
+    () => computeQuestionStats(questions, responses, gradeFn),
+    [responses, questions, gradeFn]
+  );
+  const drilldowns = React.useMemo(
     () =>
-      computeQuestionStats(
+      computeQuestionDrilldowns(
         questions,
         responses,
-        makeQuestionGradeFn(fibGrading)
+        resolveStudentName,
+        gradeFn
       ),
-    [responses, questions, fibGrading]
+    [questions, responses, resolveStudentName, gradeFn]
   );
+
+  const rows = React.useMemo(() => {
+    const built = questions.map((q, index) => {
+      const stats = questionStats.get(q.id) ?? EMPTY_QUESTION_STAT;
+      const autoPct =
+        stats.autoTotal > 0
+          ? Math.round((stats.correct / stats.autoTotal) * 100)
+          : null;
+      // Until a mixed question's addendum is graded, the auto part is all that is known.
+      return { q, index, stats, pct: stats.averagePct ?? autoPct };
+    });
+    if (sortBy === 'order') return built;
+    return [...built].sort(
+      (a, b) =>
+        (a.pct ?? Number.POSITIVE_INFINITY) -
+          (b.pct ?? Number.POSITIVE_INFINITY) || a.index - b.index
+    );
+  }, [questions, questionStats, sortBy]);
+
+  const toggleExpanded = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   return (
     <div className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
-      {questions.map((q, i) => {
-        const stats = questionStats.get(q.id) ?? EMPTY_QUESTION_STAT;
+      {questions.length > 1 && (
+        <div
+          role="group"
+          aria-label="Sort questions"
+          className="flex flex-wrap"
+          style={{ gap: 'min(4px, 1cqmin)' }}
+        >
+          {(
+            [
+              ['order', 'Quiz order'],
+              ['missed', 'Most missed'],
+            ] as const
+          ).map(([value, label]) => {
+            const on = sortBy === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setSortBy(value)}
+                aria-pressed={on}
+                className={`rounded-full border font-sans transition-colors ${
+                  on
+                    ? 'bg-brand-blue-lighter border-brand-blue-primary text-brand-blue-dark'
+                    : 'bg-white border-brand-gray-lighter text-brand-gray-primary'
+                }`}
+                style={{
+                  fontSize: 'min(10px, 3.5cqmin)',
+                  padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {rows.map(({ q, index: i, stats, pct }) => {
+        const drilldown = drilldowns.get(q.id);
+        const isOpen = expanded.has(q.id);
+        const panelId = `quiz-results-question-${q.id}`;
         // With no responses yet, fall back to the question's own shape.
         const manualByShape = isFreeResponseType(q.type) || !!q.recording;
         const showAuto =
           stats.autoTotal > 0 || (stats.manualTotal === 0 && !manualByShape);
         const showManual =
           stats.manualTotal > 0 || (stats.autoTotal === 0 && manualByShape);
-        const autoPct =
-          stats.autoTotal > 0
-            ? Math.round((stats.correct / stats.autoTotal) * 100)
-            : null;
-        // Until a mixed question's addendum is graded, the auto part is all that is known.
-        const pct = stats.averagePct ?? autoPct;
         const caption = !showManual
           ? null
           : pct === null
@@ -2071,6 +2472,7 @@ const QuestionsScreen: React.FC<{
                 n: stats.graded,
                 m: stats.manualTotal,
               });
+        const commonWrong = drilldown?.commonWrongAnswer ?? null;
 
         return (
           <div
@@ -2078,50 +2480,86 @@ const QuestionsScreen: React.FC<{
             className="bg-white border border-brand-gray-lighter rounded-lg"
             style={{ padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)' }}
           >
-            <div
-              className="flex items-center justify-between"
-              style={{ gap: 'min(8px, 2cqmin)' }}
+            <button
+              type="button"
+              onClick={() => toggleExpanded(q.id)}
+              aria-expanded={isOpen}
+              aria-controls={isOpen ? panelId : undefined}
+              className="block w-full text-left rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
             >
-              <p
-                className="font-sans font-semibold text-brand-blue-primary uppercase tracking-wider shrink-0"
-                style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+              <span
+                className="flex items-center justify-between"
+                style={{ gap: 'min(8px, 2cqmin)' }}
               >
-                Q{i + 1}
-              </p>
-              {(q.stimulusIds?.length ?? 0) > 0 && (
-                <Paperclip
-                  className="text-brand-gray-primary shrink-0"
-                  aria-label="Question has attached stimuli"
+                <span
+                  className="flex items-center font-sans font-semibold text-brand-blue-primary uppercase tracking-wider shrink-0"
                   style={{
-                    width: 'min(12px, 4cqmin)',
-                    height: 'min(12px, 4cqmin)',
+                    fontSize: 'min(10px, 3.5cqmin)',
+                    gap: 'min(4px, 1cqmin)',
                   }}
+                >
+                  <ChevronRight
+                    aria-hidden
+                    className={`transition-transform ${isOpen ? 'rotate-90' : ''}`}
+                    style={SMALL_ICON}
+                  />
+                  Q{i + 1}
+                </span>
+                {(q.stimulusIds?.length ?? 0) > 0 && (
+                  <Paperclip
+                    className="text-brand-gray-primary shrink-0"
+                    aria-label="Question has attached stimuli"
+                    style={{
+                      width: 'min(12px, 4cqmin)',
+                      height: 'min(12px, 4cqmin)',
+                    }}
+                  />
+                )}
+                {showManual && <SessionBadge tone="warn" label="Manual" />}
+                {caption && (
+                  <span
+                    className="font-sans text-brand-gray-dark shrink-0 ml-auto"
+                    style={SMALL_TEXT}
+                  >
+                    {caption}
+                  </span>
+                )}
+                {pct !== null && (
+                  <span
+                    className={`font-sans font-semibold tabular-nums shrink-0 ${scoreColorClasses(pct).text}`}
+                    style={{ fontSize: 'min(13px, 4.5cqmin)' }}
+                  >
+                    {pct}%
+                  </span>
+                )}
+              </span>
+              <span
+                className="block font-sans text-brand-gray-dark truncate"
+                style={{ fontSize: 'min(13px, 4.5cqmin)' }}
+              >
+                {q.text}
+              </span>
+            </button>
+
+            {commonWrong && (
+              <p
+                className="flex items-center font-sans font-medium text-amber-800 min-w-0"
+                style={{
+                  ...SMALL_TEXT,
+                  gap: 'min(4px, 1cqmin)',
+                  marginTop: 'min(4px, 1cqmin)',
+                }}
+              >
+                <AlertTriangle
+                  aria-hidden
+                  className="shrink-0"
+                  style={SMALL_ICON}
                 />
-              )}
-              {showManual && <SessionBadge tone="warn" label="Manual" />}
-              {caption && (
-                <span
-                  className="font-sans text-brand-gray-dark shrink-0 ml-auto"
-                  style={{ fontSize: 'min(11px, 3.8cqmin)' }}
-                >
-                  {caption}
+                <span className="truncate">
+                  {`Common wrong answer: ${commonWrong.label}`}
                 </span>
-              )}
-              {pct !== null && (
-                <span
-                  className={`font-sans font-semibold tabular-nums shrink-0 ${scoreColorClasses(pct).text}`}
-                  style={{ fontSize: 'min(13px, 4.5cqmin)' }}
-                >
-                  {pct}%
-                </span>
-              )}
-            </div>
-            <p
-              className="font-sans text-brand-gray-dark truncate"
-              style={{ fontSize: 'min(13px, 4.5cqmin)' }}
-            >
-              {q.text}
-            </p>
+              </p>
+            )}
 
             <div
               className="flex items-center flex-wrap"
@@ -2219,6 +2657,14 @@ const QuestionsScreen: React.FC<{
                 />
               </div>
             </div>
+            {isOpen && drilldown && (
+              <QuestionDrilldownPanel
+                id={panelId}
+                drilldown={drilldown}
+                showStudentNames={showStudentNames}
+                formatStudentName={formatStudentName}
+              />
+            )}
           </div>
         );
       })}

@@ -2,6 +2,7 @@
 // stuck heuristic, sort/filter, and banding logic are unit-testable.
 
 import { QuizResponse, QuizQuestion } from '@/types';
+import { groupAnswersByOption } from '@/utils/quizQuestionDrilldown';
 
 /** In-progress students with no answer write for this long count as stuck. */
 export const STUCK_THRESHOLD_MS = 120_000;
@@ -107,7 +108,7 @@ export function matchesFilter(
 
 export interface AnswerDistribution {
   totalAnswered: number;
-  /** Ordered rows: MC uses the option list, others aggregate raw answers. */
+  /** Ordered rows: MC uses the option list, others group normalized answers. */
   rows: { label: string; count: number; isCorrect: boolean }[];
 }
 
@@ -116,34 +117,17 @@ export function buildDistribution(
   responses: QuizResponse[],
   gradeAnswer: (q: QuizQuestion, answer: string) => { isCorrect: boolean }
 ): AnswerDistribution {
-  const counts: Record<string, number> = {};
-  let totalAnswered = 0;
+  const entries: { answer: string; item: null }[] = [];
   for (const r of responses) {
     const ans = r.answers.find((a) => a.questionId === question.id);
-    if (!ans) continue;
-    totalAnswered++;
-    counts[ans.answer] = (counts[ans.answer] ?? 0) + 1;
+    if (ans) entries.push({ answer: ans.answer, item: null });
   }
-  if (question.type === 'MC') {
-    const options = [
-      question.correctAnswer,
-      ...question.incorrectAnswers.filter(Boolean),
-    ];
-    return {
-      totalAnswered,
-      rows: options.map((opt) => ({
-        label: opt,
-        count: counts[opt] ?? 0,
-        isCorrect: gradeAnswer(question, opt).isCorrect,
-      })),
-    };
-  }
-  const rows = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .map(([label, count]) => ({
-      label,
-      count,
-      isCorrect: gradeAnswer(question, label).isCorrect,
-    }));
-  return { totalAnswered, rows };
+  return {
+    totalAnswered: entries.length,
+    rows: groupAnswersByOption(question, entries).map((g) => ({
+      label: g.label,
+      count: g.items.length,
+      isCorrect: gradeAnswer(question, g.label).isCorrect,
+    })),
+  };
 }
