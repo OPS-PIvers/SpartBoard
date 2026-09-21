@@ -313,6 +313,9 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   const localZoom = useNotebookZoom('page-editor');
   const zoom = zoomProp ?? localZoom;
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // True while the last pointer-down landed inside this editor — see the
+  // paste handler, which only claims Ctrl+V when the teacher is working here.
+  const engagedRef = useRef(false);
   const svgHostRef = useRef<HTMLDivElement>(null);
   const zoomPanRef = useRef<{ x: number; y: number } | null>(null);
   const spaceDownRef = useRef(false);
@@ -1293,6 +1296,12 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (editing) return;
+      // Same window-capture reach as the paste handler below, so the same
+      // engagement gate: undo/redo consume the event whether or not anything
+      // is selected, which let a notebook on a background board swallow the
+      // active board's Ctrl+Z — and Delete, once that notebook held a
+      // selection, remove objects the teacher could not see.
+      if (!engagedRef.current) return;
       if (isEditableTarget(e.target)) return;
       // Undo / Redo land in their own branch so they fire whether or not
       // anything is selected — the prior emit might've been a paste with
@@ -1378,6 +1387,38 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     redo,
   ]);
 
+  // Tracks whether the teacher is working in this editor. Capture phase so a
+  // child that stops propagation can't leave the flag stale, and document-wide
+  // so a click anywhere else — another widget, the dock, a board switch —
+  // hands Ctrl+V back to the board. `focusin` covers reaching the canvas by
+  // Tab: it carries tabIndex={0}, so a pointer-only gate would lock a
+  // keyboard-only teacher out of pasting.
+  useEffect(() => {
+    // Scope to the whole widget, not just the canvas, so picking a tool from
+    // the toolbar above it still counts as working in the notebook.
+    const widgetScope = (): Element | null => {
+      const container = containerRef.current;
+      return container?.closest('[data-widget-id]') ?? container;
+    };
+    // Seed from focus. The overlay keys this component on the page number, so
+    // turning a page remounts it and would otherwise drop the engagement the
+    // teacher had — she clicks Next (focusing a control inside the widget),
+    // lands on a blank page and pastes.
+    const scopeAtMount = widgetScope();
+    engagedRef.current =
+      !!scopeAtMount && scopeAtMount.contains(document.activeElement);
+    const track = (e: Event) => {
+      const scope = widgetScope();
+      engagedRef.current = !!scope && scope.contains(e.target as Node);
+    };
+    document.addEventListener('pointerdown', track, true);
+    document.addEventListener('focusin', track, true);
+    return () => {
+      document.removeEventListener('pointerdown', track, true);
+      document.removeEventListener('focusin', track, true);
+    };
+  }, []);
+
   // Paste handler — runs on the native `paste` event so the browser
   // populates clipboardData with whatever the OS clipboard has. Priority:
   //   1. If the in-app clipboard has objects (a Cmd+C happened inside this
@@ -1389,9 +1430,16 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   // The listener is on window so it fires without the canvas being a
   // focused editable target; we early-return when editing a text node so
   // a paste inside the textarea behaves natively.
+  //
+  // It also only claims the paste while the teacher is working in this
+  // editor (`engaged`). The listener is on window and consumes any plain
+  // text, so without that gate a notebook sitting on a board swallowed the
+  // Dock's smart paste — including from a board the teacher had switched
+  // away from, since the two most recent boards stay mounted.
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
       if (editing) return;
+      if (!engagedRef.current) return;
       if (isEditableTarget(e.target)) return;
       const svgEl = svgRef.current;
       if (!svgEl) return;

@@ -69,6 +69,30 @@ const embedHostname = (url: string): string => {
   }
 };
 
+// Classroom, Gmail and Docs hand teachers a google.com/url?q=… redirect wrapper
+// instead of the link itself, and google.com refuses to be framed.
+const unwrapGoogleRedirect = (url: string): string => {
+  try {
+    const parsed = new URL(ensureProtocol(url));
+    if (!/(?:^|\.)google\.[a-z.]+$/i.test(parsed.hostname)) return url;
+    if (parsed.pathname !== '/url') return url;
+    const target =
+      parsed.searchParams.get('q') ?? parsed.searchParams.get('url');
+    if (!target || !/^https?:\/\//i.test(target)) return url;
+    // Only unwrap Google targets: those are the ones the branches below can
+    // convert, and it keeps this from becoming an open framing redirect.
+    const targetHost = new URL(target).hostname.toLowerCase();
+    if (/(?:^|\.)google\.com$/.test(targetHost)) return target;
+  } catch {
+    // Not parseable — leave it alone
+  }
+  return url;
+};
+
+// Published-to-web links carry an opaque token at /d/e/{token}/, not a file ID.
+const PUBLISHED_TO_WEB =
+  /^\/(document|presentation|spreadsheets)\/d\/e\/([a-zA-Z0-9_-]+)(?:\/([a-z]+))?/;
+
 /**
  * Converts various service URLs (YouTube, Google Docs/Slides/Sheets/Forms) to their embeddable counterparts.
  * @param url The original URL to convert
@@ -76,7 +100,7 @@ const embedHostname = (url: string): string => {
  */
 export const convertToEmbedUrl = (url: string): string => {
   if (!url) return '';
-  const trimmedUrl = url.trim();
+  const trimmedUrl = unwrapGoogleRedirect(url.trim());
   const host = embedHostname(trimmedUrl);
 
   // YouTube watch & short links.
@@ -134,6 +158,20 @@ export const convertToEmbedUrl = (url: string): string => {
   if (host === 'docs.google.com') {
     try {
       const parsed = new URL(ensureProtocol(trimmedUrl));
+
+      // Published to web. Must come first: the /d/{id} patterns below would
+      // read the literal "e" as the file ID and build a dead embed.
+      const published = PUBLISHED_TO_WEB.exec(parsed.pathname);
+      if (published) {
+        const [, kind, token, view] = published;
+        if (kind === 'presentation' && view !== 'embed') {
+          // /pub is the viewer page; /embed is what Google's own embed code uses.
+          parsed.pathname = `/presentation/d/e/${token}/embed`;
+          return parsed.toString();
+        }
+        // Published Docs and Sheets pages already frame as-is.
+        return trimmedUrl;
+      }
 
       // Google Docs
       if (parsed.pathname.includes('/document/')) {
