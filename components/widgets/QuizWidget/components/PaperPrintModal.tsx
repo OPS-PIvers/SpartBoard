@@ -14,12 +14,14 @@ import {
   ChevronRight,
   FileText,
   Printer,
+  Share2,
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { Toggle } from '@/components/common/Toggle';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
+import { usePaperSheetImageSharing } from '@/hooks/usePaperSheetImageSharing';
 import { usePaperSheetStimulusImages } from '@/hooks/usePaperSheetStimulusImages';
 import type {
   ClassRoster,
@@ -34,6 +36,7 @@ import {
   pageCountForQuestions,
 } from '@/utils/paperSheetLayout';
 import { stimulusLoadErrorMessage } from '@/utils/paperSheetStimulusImages';
+import { shareSheetImagesPrompt } from '@/utils/paperSheetStimulusSharing';
 import { PaperSheetStimuliSection } from './PaperSheetStimuliSection';
 import {
   analyzePaperQuiz,
@@ -87,6 +90,8 @@ interface PaperPrintModalProps {
    * the "Paper test" door, where the stub carries them instead.
    */
   onSaveSheetStimuli?: (stimuli: PaperSheetStimulus[]) => Promise<void>;
+  /** The quiz is in a PLC sync group, so its sheet images need sharing (D6). */
+  inPlcGroup?: boolean;
   onClose: () => void;
   onError: (message: string) => void;
   /** Test seam mirroring `printPaperSheets`. */
@@ -103,6 +108,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   onSaveBatch,
   onCreateQuiz,
   onSaveSheetStimuli,
+  inPlcGroup = false,
   onClose,
   onError,
   print = printPaperSheets,
@@ -152,6 +158,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   // one column and the test spreads over twice as many pages (D1).
   const columnsPerPage = sheetStimuli.length > 0 ? 1 : 2;
   const sheetImages = usePaperSheetStimulusImages(sheetStimuli);
+  const sharing = usePaperSheetImageSharing(sheetStimuli, inPlcGroup);
+  /** Set once the teacher has answered the sharing ask, either way. */
+  const [sharingAnswered, setSharingAnswered] = useState(false);
+  const [sharingBusy, setSharingBusy] = useState(false);
+  const [askingToShare, setAskingToShare] = useState(false);
   const sheetStimuliChanged =
     JSON.stringify(sheetStimuli) !==
     JSON.stringify(quiz.paperSheetStimuli ?? []);
@@ -251,7 +262,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     questionCount > 0 &&
     !printing &&
     !stimulusBusy &&
-    !sheetImages.loading;
+    !sheetImages.loading &&
+    // A click that beat the Drive lookup would skip the sharing ask entirely.
+    !sharing.checking;
 
   const toggleRoster = (roster: ClassRoster, checked: boolean) => {
     setSelectedStudentIds((prev) => ({
@@ -355,6 +368,34 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     }
   };
 
+  /**
+   * Sharing is the owner's call, and this is the moment they are looking at
+   * the images, so the ask comes before the paper rather than after (D6).
+   */
+  const handlePrintClick = () => {
+    if (inPlcGroup && !sharingAnswered && sharing.unshared.length > 0) {
+      setAskingToShare(true);
+      return;
+    }
+    void handlePrint();
+  };
+
+  const answerSharing = async (share: boolean) => {
+    if (share) {
+      setSharingBusy(true);
+      const failed = await sharing.share();
+      setSharingBusy(false);
+      if (failed.length > 0) {
+        onError(
+          `Could not share ${failed.map((s) => `"${s.label}"`).join(', ')} — your PLC will see an empty box there.`
+        );
+      }
+    }
+    setSharingAnswered(true);
+    setAskingToShare(false);
+    void handlePrint();
+  };
+
   const handlePrintTest = () => {
     if (!printedBatch) return;
     try {
@@ -376,6 +417,51 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       );
     }
   };
+
+  if (askingToShare) {
+    return (
+      <Modal
+        isOpen
+        onClose={() => setAskingToShare(false)}
+        ariaLabel="Share these images with your PLC"
+        maxWidth="max-w-md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              disabled={sharingBusy}
+              onClick={() => void answerSharing(false)}
+              className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
+            >
+              Print without sharing
+            </button>
+            <button
+              type="button"
+              disabled={sharingBusy}
+              onClick={() => void answerSharing(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-50"
+            >
+              <Share2 className="h-4 w-4" />
+              {sharingBusy ? 'Sharing…' : 'Share and print'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3 px-6 pb-4">
+          <h2 className="text-base font-semibold text-slate-800">
+            Share these images with your PLC?
+          </h2>
+          <p className="text-sm text-slate-700">
+            {shareSheetImagesPrompt(sharing.unshared)}
+          </p>
+          <p className="text-sm text-slate-700">
+            Sharing lets anyone with the link open them, which is what a
+            teammate printing your test needs. Your own copies print either way.
+          </p>
+        </div>
+      </Modal>
+    );
+  }
 
   if (printedBatch) {
     return (
@@ -476,7 +562,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => void handlePrint()}
+              onClick={handlePrintClick}
               disabled={!canPrint}
               className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -723,6 +809,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           pageCount={pagesPerSheet}
           imageSrc={sheetImages.src}
           failed={sheetImages.failed}
+          unshared={sharing.unshared}
           onUploadFile={uploadSheetImage}
           onPickFromDrive={pickSheetImage}
           busy={stimulusBusy}

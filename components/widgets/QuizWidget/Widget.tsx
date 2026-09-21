@@ -3357,6 +3357,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 }
               : undefined
           }
+          inPlcGroup={!!paperPrintMeta?.sync}
           onSaveSheetStimuli={
             paperPrintMeta
               ? async (paperSheetStimuli) => {

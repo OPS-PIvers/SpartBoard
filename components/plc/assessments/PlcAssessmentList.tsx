@@ -1143,6 +1143,9 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
           plcQuizId={teammatePrintRow.plcQuizId}
           quizTitle={teammatePrintRow.title}
           teammates={teammates}
+          {...(teammatePrintRow.sharedByName
+            ? { ownerName: teammatePrintRow.sharedByName }
+            : {})}
           onClose={() => setTeammatePrintRow(null)}
         />
       )}

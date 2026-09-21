@@ -9,7 +9,7 @@
 import { useEffect, useState } from 'react';
 import { httpsCallable, type FunctionsError } from 'firebase/functions';
 import { functions } from '@/config/firebase';
-import type { PaperBatch } from '@/types';
+import type { PaperBatch, PaperSheetStimulus } from '@/types';
 import type { PaperSheetPlan } from '@/utils/paperSheetPlan';
 import type { PaperTestQuestion } from '@/utils/paperTestPrint';
 import { logError } from '@/utils/logError';
@@ -35,6 +35,8 @@ export interface TeammatePrintQuiz {
   title: string;
   questions: unknown[];
   stimuli?: unknown[];
+  /** What the owner put beside the bubbles; drawn only if they shared it (D6). */
+  paperSheetStimuli?: PaperSheetStimulus[];
   language?: string;
 }
 

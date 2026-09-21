@@ -8,6 +8,12 @@ const drive = {
   uploadFile: vi.fn<
     (file: File, name: string, folder: string) => Promise<{ id: string }>
   >(() => Promise.resolve({ id: 'uploaded-1' })),
+  makePublic: vi.fn<(fileId: string, domain?: string) => Promise<void>>(() =>
+    Promise.resolve()
+  ),
+  listFilePermissions: vi.fn<
+    (fileId: string) => Promise<Array<{ id: string; type?: string }>>
+  >(() => Promise.resolve([])),
 };
 const openPicker = vi.fn(() =>
   Promise.resolve({
@@ -109,6 +115,10 @@ describe('PaperPrintModal', () => {
   beforeEach(() => {
     sheetImages = { src: {}, failed: [], loading: false };
     vi.clearAllMocks();
+    // clearAllMocks keeps whatever a test set with mockResolvedValue.
+    drive.listFilePermissions.mockReset();
+    drive.listFilePermissions.mockResolvedValue([]);
+    drive.makePublic.mockResolvedValue(undefined);
   });
 
   it('cannot print until somebody is getting a sheet', () => {
@@ -525,6 +535,147 @@ describe('PaperPrintModal', () => {
         expect(onError).toHaveBeenCalledWith('"notes.pdf" is not an image.')
       );
       expect(drive.uploadFile).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('sharing sheet images with a PLC (D6)', () => {
+    const graph: PaperSheetStimulus = {
+      id: 'stim-1',
+      label: 'Unit 3 graph',
+      source: 'image',
+      driveFileId: 'drive-1',
+    };
+    const withGraph = () => quiz({ paperSheetStimuli: [graph] });
+
+    const clickPrint = () =>
+      fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+
+    it('never asks about a quiz nobody else can see', async () => {
+      const { print } = setup({ quiz: withGraph() });
+      selectWholeClass();
+      clickPrint();
+      await waitFor(() => expect(print).toHaveBeenCalled());
+      expect(drive.listFilePermissions).not.toHaveBeenCalled();
+      expect(drive.makePublic).not.toHaveBeenCalled();
+    });
+
+    it('will not let a click beat the Drive lookup and skip the ask', async () => {
+      let answer!: (permissions: Array<{ id: string; type?: string }>) => void;
+      drive.listFilePermissions.mockReturnValue(
+        new Promise((resolve) => {
+          answer = resolve;
+        })
+      );
+      setup({ quiz: withGraph(), inPlcGroup: true });
+      selectWholeClass();
+      // Empty `unshared` while Drive is still thinking is not "nothing to
+      // share", so the button stays out of reach until it answers.
+      expect(screen.getByRole('button', { name: /^Print$/ })).toBeDisabled();
+      answer([]);
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled()
+      );
+    });
+
+    it('asks Drive nothing new when the teacher reorders the stack', async () => {
+      const map: PaperSheetStimulus = {
+        id: 'stim-2',
+        label: 'Region map',
+        source: 'image',
+        driveFileId: 'drive-2',
+      };
+      setup({
+        quiz: quiz({ paperSheetStimuli: [graph, map] }),
+        inPlcGroup: true,
+      });
+      await waitFor(() =>
+        expect(drive.listFilePermissions).toHaveBeenCalledTimes(2)
+      );
+      selectWholeClass();
+
+      // The section opens itself when the quiz already has a stack.
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Move Unit 3 graph down' })
+      );
+
+      // Same two files in a different order is the same question.
+      expect(drive.listFilePermissions).toHaveBeenCalledTimes(2);
+      expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled();
+    });
+
+    it('asks before printing a PLC quiz whose image only the owner can open', async () => {
+      const { print } = setup({ quiz: withGraph(), inPlcGroup: true });
+      await waitFor(() =>
+        expect(drive.listFilePermissions).toHaveBeenCalledWith('drive-1')
+      );
+      selectWholeClass();
+      clickPrint();
+
+      expect(
+        await screen.findByText(/"Unit 3 graph" is only visible to you/)
+      ).toBeInTheDocument();
+      expect(print).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('button', { name: /Share and print/ }));
+      await waitFor(() => expect(print).toHaveBeenCalled());
+      expect(drive.makePublic).toHaveBeenCalledWith('drive-1', undefined);
+    });
+
+    it('prints anyway when the teacher would rather not share', async () => {
+      const { print } = setup({ quiz: withGraph(), inPlcGroup: true });
+      await waitFor(() => expect(drive.listFilePermissions).toHaveBeenCalled());
+      selectWholeClass();
+      clickPrint();
+      fireEvent.click(
+        await screen.findByRole('button', { name: /Print without sharing/ })
+      );
+      await waitFor(() => expect(print).toHaveBeenCalled());
+      expect(drive.makePublic).not.toHaveBeenCalled();
+    });
+
+    it('does not ask again in the same sitting', async () => {
+      const { print } = setup({ quiz: withGraph(), inPlcGroup: true });
+      await waitFor(() => expect(drive.listFilePermissions).toHaveBeenCalled());
+      selectWholeClass();
+      clickPrint();
+      fireEvent.click(
+        await screen.findByRole('button', { name: /Print without sharing/ })
+      );
+      await waitFor(() => expect(print).toHaveBeenCalled());
+
+      fireEvent.click(screen.getByRole('button', { name: /Print test paper/ }));
+      // Back on the sheet screen the teacher would print again; no second ask.
+      expect(screen.queryByText(/is only visible to you/)).toBeNull();
+    });
+
+    it('says nothing about an image the PLC can already open', async () => {
+      drive.listFilePermissions.mockResolvedValue([
+        { id: 'perm-1', type: 'anyone' },
+      ]);
+      const { print } = setup({ quiz: withGraph(), inPlcGroup: true });
+      await waitFor(() => expect(drive.listFilePermissions).toHaveBeenCalled());
+      selectWholeClass();
+      clickPrint();
+      await waitFor(() => expect(print).toHaveBeenCalled());
+      expect(screen.queryByText(/is only visible to you/)).toBeNull();
+    });
+
+    it('tells the teacher when Drive refused to share, and still prints', async () => {
+      drive.makePublic.mockRejectedValueOnce(new Error('403'));
+      const { print, onError } = setup({
+        quiz: withGraph(),
+        inPlcGroup: true,
+      });
+      await waitFor(() => expect(drive.listFilePermissions).toHaveBeenCalled());
+      selectWholeClass();
+      clickPrint();
+      fireEvent.click(
+        await screen.findByRole('button', { name: /Share and print/ })
+      );
+      await waitFor(() => expect(print).toHaveBeenCalled());
+      expect(onError).toHaveBeenCalledWith(
+        expect.stringContaining('Unit 3 graph')
+      );
     });
   });
 });

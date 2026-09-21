@@ -22,6 +22,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { usePaperSheetStimulusImages } from '@/hooks/usePaperSheetStimulusImages';
 import type { Plc, PlcMember } from '@/types';
 import { printPaperSheets } from '@/utils/paperSheetPrint';
 import { printPaperTest } from '@/utils/paperTestPrint';
@@ -44,6 +45,8 @@ interface PlcTeammatePrintModalProps {
   quizTitle: string;
   /** Teammates the caller may print for — the PLC's members minus themselves. */
   teammates: PlcMember[];
+  /** Who shared the quiz — the person to ask about an unshared image (D6). */
+  ownerName?: string;
   onClose: () => void;
   /** Test seams mirroring the self-print path. */
   print?: typeof printPaperSheets;
@@ -61,6 +64,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
   plcQuizId,
   quizTitle,
   teammates,
+  ownerName,
   onClose,
   print = printPaperSheets,
   printTest = printPaperTest,
@@ -94,6 +98,21 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
   );
 
   const rosters = context?.rosters ?? [];
+  // Only the link-shared route can work here: `drive.file` gives this teacher
+  // nothing on somebody else's upload (D6).
+  const sheetStimuli = useMemo(
+    () => context?.quiz.paperSheetStimuli ?? [],
+    [context?.quiz.paperSheetStimuli]
+  );
+  const sheetImages = usePaperSheetStimulusImages(sheetStimuli, {
+    publicOnly: true,
+  });
+  const failedStimulusNames = sheetImages.failed
+    .map((stimulus) => `“${stimulus.label}”`)
+    .join(', ');
+  const printableStimuli = sheetStimuli.filter(
+    (stimulus) => stimulus.source !== 'image' || sheetImages.src[stimulus.id]
+  );
   const sheetCount = countSelectedSheets(
     rosters,
     selectedRosterIds,
@@ -101,7 +120,12 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
   );
   const totalSheetCount = sheetCount + spareCount;
   const canPrint =
-    !!context && context.blocked === null && totalSheetCount > 0 && !printing;
+    !!context &&
+    context.blocked === null &&
+    totalSheetCount > 0 &&
+    !printing &&
+    // A click that beat the image loads would drop every one of them silently.
+    !sheetImages.loading;
 
   const backToPicker = () => {
     setTargetUid(null);
@@ -174,6 +198,14 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
         choiceCount: result.batch.choiceCount,
         ...(result.batch.columnsPerPage
           ? { columnsPerPage: result.batch.columnsPerPage }
+          : {}),
+        // An image the owner never shared is left out rather than blocking the
+        // print: the page keeps its layout and the banner says what is missing.
+        ...(printableStimuli.length > 0
+          ? {
+              sheetStimuli: printableStimuli,
+              stimulusImageSrc: sheetImages.src,
+            }
           : {}),
         sheets: result.sheets,
         printedForTeacherName: result.printedForTeacherName,
@@ -326,6 +358,30 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
                 'These questions come from the PLC’s shared copy, not from {{name}}’s own. If they have edited theirs since, the sheets would not match it.',
               name: context.targetName,
             })}
+          </span>
+        </p>
+      )}
+      {sheetImages.failed.length > 0 && (
+        <p
+          className={`${bannerClass} border-amber-200 bg-amber-50 text-amber-800`}
+        >
+          <AlertTriangle
+            className="mt-0.5 h-4 w-4 shrink-0"
+            aria-hidden="true"
+          />
+          <span>
+            {ownerName
+              ? t('plcDashboard.teammatePrint.stimuliNotShared', {
+                  defaultValue:
+                    'Not shared with the PLC: {{images}}. The sheet prints without them. Ask {{owner}} to share them from Print answer sheets.',
+                  images: failedStimulusNames,
+                  owner: ownerName,
+                })
+              : t('plcDashboard.teammatePrint.stimuliNotSharedNoOwner', {
+                  defaultValue:
+                    'Not shared with the PLC: {{images}}. The sheet prints without them. Whoever added them can share them from Print answer sheets.',
+                  images: failedStimulusNames,
+                })}
           </span>
         </p>
       )}
