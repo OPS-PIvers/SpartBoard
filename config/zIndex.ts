@@ -56,6 +56,8 @@ export const Z_INDEX = {
   tooltip: 13000, // Tooltips
   toast: 14000, // Toast notifications
   dialog: 15000, // Custom alert/confirm/prompt dialogs (above toasts)
+  googlePickerBackdrop: 15500, // Google Picker's own backdrop (above every modal layer)
+  googlePicker: 15510, // Google Picker dialog (above its backdrop)
 
   // Critical layers
   critical: 20000, // Overlays that must block everything (e.g. Dock expanded, Critical Errors)
