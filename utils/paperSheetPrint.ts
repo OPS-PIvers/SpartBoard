@@ -130,10 +130,10 @@ function footerHtml(): string {
 /**
  * The stimulus stack for one page (D12).
  *
- * Only images are drawn: a template is a spec rather than a file and its
- * renderer arrives with the template picker. `object-fit: contain` is the
- * belt to the fit function's braces — a stored pixel size that turns out to
- * be wrong letterboxes rather than stretching the teacher's diagram.
+ * An image is an `<img>`; a template is drawn inline as SVG (D9).
+ * `object-fit: contain` is the belt to the fit function's braces — a stored
+ * pixel size that turns out to be wrong letterboxes rather than stretching
+ * the teacher's diagram.
  */
 function stimuliHtml(job: PaperPrintJob, page: number): string {
   // Two columns of answers leave no band to print into, whatever the job says.
