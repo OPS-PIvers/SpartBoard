@@ -76,18 +76,24 @@ const GroupRow: React.FC<{
       borderLeftColor: group.needsSupport ? '#f59e0b' : 'transparent',
       gap: 'min(10px, 2cqmin)',
       padding: 'min(8px, 1.8cqmin) min(10px, 2.2cqmin)',
+      // Grow into spare height, never below natural size, so a long roster scrolls.
+      flex: '1 0 auto',
+      maxHeight: 'min(96px, 20cqmin)',
     }}
   >
     <span
       className="font-bold text-slate-800 truncate shrink-0"
-      style={{ fontSize: 'min(15px, 5cqmin)', width: '28%' }}
+      style={{
+        fontSize: 'min(15px, 5cqmin)',
+        width: 'clamp(72px, 28%, 240px)',
+      }}
     >
       {group.name}
     </span>
 
     {showStatus ? (
       <div
-        className="flex flex-1 min-w-0"
+        className="flex flex-1 min-w-0 self-stretch items-center"
         style={{ gap: 'min(3px, 0.6cqmin)' }}
         role="group"
         aria-label={`${group.name} progress`}
@@ -102,8 +108,11 @@ const GroupRow: React.FC<{
               disabled={busyKeys.has(`${group.id}:${step.id}`)}
               title={`${step.title} — ${STEP_STATE_LABELS[state]}`}
               aria-label={`${group.name}, ${step.title}, ${STEP_STATE_LABELS[state]}`}
-              className={`flex-1 rounded-full transition-colors disabled:opacity-50 ${SEGMENT_COLORS[state]}`}
-              style={{ height: 'min(14px, 3.2cqmin)' }}
+              className={`h-full flex-1 rounded-full transition-colors disabled:opacity-50 ${SEGMENT_COLORS[state]}`}
+              style={{
+                minHeight: 'min(14px, 3.2cqmin)',
+                maxHeight: 'min(22px, 4.6cqmin)',
+              }}
             />
           );
         })}
