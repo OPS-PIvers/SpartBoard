@@ -138,8 +138,9 @@ async function pruneRulesets(token, projectId) {
 
 /**
  * Request shapes for the release call, tried in order until one is accepted.
- * The API rejects the wrong shape with a bare INVALID_ARGUMENT naming no field,
- * so trying them is the only way to find the one it wants.
+ * Run 35657418157 showed the CLI's own shape releasing the live ruleset, so the
+ * shape is probably not the fault; the masked variant stays as the one other
+ * reading of a bare INVALID_ARGUMENT that names no field.
  */
 export function releaseAttempts(projectId, rulesetName) {
   const path = `/projects/${projectId}/releases/${RELEASE_NAME}`;
@@ -148,55 +149,88 @@ export function releaseAttempts(projectId, rulesetName) {
     rulesetName,
   };
   return [
+    { label: 'what the CLI sends', path, body: { release } },
     {
       label: 'mask in body',
       path,
       body: { release, updateMask: 'rulesetName' },
     },
-    {
-      label: 'mask in body, no resource name',
-      path,
-      body: { release: { rulesetName }, updateMask: 'rulesetName' },
-    },
-    {
-      label: 'mask in body, release-prefixed path',
-      path,
-      body: { release, updateMask: 'release.rulesetName' },
-    },
-    { label: 'unwrapped release body', path, body: release },
-    { label: 'what the CLI sends', path, body: { release } },
   ];
 }
 
 /**
- * Splits the hypothesis in half once every shape has been refused: re-pointing
- * the release at the ruleset it already serves is a no-op, so a rejection here
- * is about the request or the permission and an acceptance means the new
- * ruleset is what gets refused. Only runs on the failure path, so a healthy
- * deploy never makes this extra write.
+ * Run when every request shape has been refused. Re-pointing the release at the
+ * ruleset it already serves is a no-op, so an acceptance there means the new
+ * ruleset is what the API refuses rather than the request. A copy of the live
+ * ruleset's own source then separates the two remaining readings: rules content
+ * the service will not take, or nothing newly created being releasable at all.
+ * Only runs on the failure path, so a healthy deploy makes none of these writes.
  */
-async function probeLiveRuleset(token, projectId, liveRulesetName, attempted) {
-  if (!liveRulesetName || liveRulesetName === attempted) return;
+async function diagnoseRefusal(token, projectId, live, attempted) {
+  const path = `/projects/${projectId}/releases/${RELEASE_NAME}`;
+  const releaseBody = (rulesetName) => ({
+    release: {
+      name: `projects/${projectId}/releases/${RELEASE_NAME}`,
+      rulesetName,
+    },
+  });
+  if (!live?.rulesetName || live.rulesetName === attempted) return;
+
   try {
-    await call(
-      token,
-      'PATCH',
-      `/projects/${projectId}/releases/${RELEASE_NAME}`,
-      {
-        release: {
-          name: `projects/${projectId}/releases/${RELEASE_NAME}`,
-          rulesetName: liveRulesetName,
-        },
-      }
-    );
-    console.warn(
-      'probe: re-releasing the live ruleset was accepted, so the new ruleset is what the API refuses'
-    );
+    await call(token, 'PATCH', path, releaseBody(live.rulesetName));
+    console.warn('probe: re-releasing the live ruleset was accepted');
   } catch (error) {
     console.warn(
       `probe: re-releasing the live ruleset failed too: ${error.message}`
     );
+    return;
   }
+
+  let copy;
+  try {
+    const { source } = await call(token, 'GET', `/${live.rulesetName}`);
+    copy = await call(token, 'POST', `/projects/${projectId}/rulesets`, {
+      source,
+    });
+  } catch (error) {
+    console.warn(`probe: could not copy the live ruleset: ${error.message}`);
+    return;
+  }
+  if (copy.name === live.rulesetName) {
+    console.warn(
+      'probe: the API returned the live ruleset itself, so the copy proves nothing'
+    );
+    return;
+  }
+  // Same rules, new ruleset: releasing it changes nothing a teacher can see.
+  try {
+    await call(token, 'PATCH', path, releaseBody(copy.name));
+    console.warn(
+      `probe: a new ruleset holding the live rules (${copy.name}) released fine, so the refusal follows the rules content`
+    );
+  } catch (error) {
+    console.warn(
+      `probe: a new ruleset holding the live rules was refused too (${error.message}), so the content is not what matters`
+    );
+  }
+}
+
+/** Page through the project's rulesets so the log carries how close the cap is. */
+async function countRulesets(token, projectId) {
+  let total = 0;
+  let pageToken = '';
+  for (let page = 0; page < 40; page += 1) {
+    const query = `pageSize=100${pageToken ? `&pageToken=${pageToken}` : ''}`;
+    const { rulesets = [], nextPageToken } = await call(
+      token,
+      'GET',
+      `/projects/${projectId}/rulesets?${query}`
+    );
+    total += rulesets.length;
+    if (!nextPageToken) return total;
+    pageToken = nextPageToken;
+  }
+  return total;
 }
 
 async function main() {
@@ -288,7 +322,10 @@ async function main() {
     rejected.push(`${attempt.label}\n  ${note}`);
   }
   if (!release) {
-    await probeLiveRuleset(token, projectId, current.rulesetName, ruleset.name);
+    console.warn(
+      `the project holds ${await countRulesets(token, projectId)} ruleset(s)`
+    );
+    await diagnoseRefusal(token, projectId, current, ruleset.name);
     throw new Error(
       `every release request shape was rejected:\n${rejected.join('\n')}`
     );
