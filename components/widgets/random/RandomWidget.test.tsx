@@ -956,3 +956,151 @@ describe('RandomWidget — class groups', () => {
     }
   });
 });
+
+describe('RandomWidget — groups mode by group count', () => {
+  const names = Array.from({ length: 21 }, (_, i) => `Student${i + 1}`);
+
+  const countWidget = (override: Partial<RandomConfig> = {}): WidgetData => ({
+    id: 'test-id',
+    type: 'random',
+    config: {
+      firstNames: names.join('\n'),
+      lastNames: '',
+      mode: 'groups',
+      rosterMode: 'custom',
+      groupingMode: 'count',
+      numGroups: 6,
+      ...override,
+    } as RandomConfig,
+    x: 0,
+    y: 0,
+    w: 100,
+    h: 100,
+    z: 1,
+    flipped: false,
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockDashboardContext
+    );
+  });
+
+  const randomize = () => {
+    act(() => {
+      fireEvent.click(
+        screen.getByRole('button', { name: /^Randomize$|^Picking$/ })
+      );
+    });
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    const calls = mockUpdateWidget.mock.calls;
+    const last = calls[calls.length - 1][1] as {
+      config: { lastResult?: RandomGroup[] };
+    };
+    return last.config.lastResult ?? [];
+  };
+
+  it('makes exactly the requested number of groups when the roster does not divide evenly', () => {
+    vi.useFakeTimers();
+    try {
+      render(<RandomWidget widget={countWidget()} />);
+      const groups = randomize();
+      expect(groups).toHaveLength(6);
+      const sizes = groups.map((g) => g.names.length).sort((a, b) => a - b);
+      // 21 students across 6 groups: the remainder spreads, so 3s and 4s only.
+      expect(sizes).toEqual([3, 3, 3, 4, 4, 4]);
+      expect(groups.flatMap((g) => g.names).sort()).toEqual([...names].sort());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('still chunks by members per group in size mode', () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <RandomWidget
+          widget={countWidget({ groupingMode: 'size', groupSize: 5 })}
+        />
+      );
+      const sizes = randomize().map((g) => g.names.length);
+      expect(Math.max(...sizes)).toBe(5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows one empty group card per requested group before any pick', () => {
+    render(<RandomWidget widget={countWidget({ numGroups: 6 })} />);
+    expect(screen.getByText('Group 6')).toBeInTheDocument();
+    expect(screen.queryByText('Group 7')).not.toBeInTheDocument();
+  });
+
+  it('the stepper writes numGroups in count mode', () => {
+    render(<RandomWidget widget={countWidget()} />);
+    const stepper = screen.getByRole('group', { name: /Number of Groups/i });
+    fireEvent.click(
+      stepper.querySelector(
+        'button[aria-label*="Increase"]'
+      ) as HTMLButtonElement
+    );
+    const calls = mockUpdateWidget.mock.calls;
+    const lastConfig = (
+      calls[calls.length - 1][1] as { config: Record<string, unknown> }
+    ).config;
+    expect(lastConfig).toEqual({ numGroups: 7 });
+  });
+
+  it('switches from group size to group count without changing how many groups are shown', () => {
+    // numGroups is 6 here, left over from an earlier count-mode session: the
+    // switch must seed from what size mode is showing, not from that leftover.
+    render(
+      <RandomWidget
+        widget={countWidget({ groupingMode: 'size', groupSize: 5 })}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Switch to number of groups/i })
+    );
+    const calls = mockUpdateWidget.mock.calls;
+    const lastConfig = (
+      calls[calls.length - 1][1] as { config: Record<string, unknown> }
+    ).config;
+    // 21 students at 5 per group already showed 5 cards; keep 5.
+    expect(lastConfig).toEqual({ groupingMode: 'count', numGroups: 5 });
+  });
+
+  it('switches back from group count to group size', () => {
+    render(<RandomWidget widget={countWidget({ numGroups: 6 })} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: /Switch to students per group/i })
+    );
+    const calls = mockUpdateWidget.mock.calls;
+    const lastConfig = (
+      calls[calls.length - 1][1] as { config: Record<string, unknown> }
+    ).config;
+    expect(lastConfig).toEqual({ groupingMode: 'size', groupSize: 4 });
+  });
+
+  it('warns when the class cannot fill the requested number of groups', () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <RandomWidget
+          widget={countWidget({ firstNames: 'Alice\nBob', numGroups: 6 })}
+        />
+      );
+      const groups = randomize();
+      expect(groups).toHaveLength(2);
+      expect(mockAddToast).toHaveBeenCalledWith(
+        expect.stringContaining('Only 2 groups fit this class'),
+        'warning'
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

@@ -139,6 +139,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     autoStartTimer = false,
     visualStyle = 'flash',
     groupSize: configGroupSize,
+    groupingMode = 'size',
+    numGroups: configNumGroups,
     jigsawHomeGroups,
     jigsawExpertGroups,
     jigsawView = 'home',
@@ -175,6 +177,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // modes keep the historical default of 3. An explicit user choice always
   // wins (slider writes config.groupSize, which short-circuits the fallback).
   const groupSize = configGroupSize ?? (mode === 'jigsaw' ? 4 : 3);
+  // Groups mode can be driven by members-per-group or by a target group count.
+  const groupCountMode = mode === 'groups' && groupingMode === 'count';
 
   const remainingStudents = Array.isArray(config.remainingStudents)
     ? config.remainingStudents
@@ -420,6 +424,13 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const displayNumExpertGroups =
     configNumExpertGroups ?? Math.max(2, Math.ceil(displayNumHomeGroups / 2));
 
+  // Groups mode, count variant: fall back to the count the size control would
+  // have produced so flipping the label doesn't jump to an unrelated number.
+  const displayNumGroups = Math.max(
+    2,
+    configNumGroups ?? estimatedHomeGroupCount
+  );
+
   const setGroupSize = (next: number) => {
     // updateWidget merges partial config into existing state — don't spread
     // ...config here, since it's a closure-captured snapshot that may be stale.
@@ -437,6 +448,33 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       config: { numHomeGroups: next } as WidgetConfig,
     });
   };
+  const setNumGroups = (next: number) => {
+    updateWidget(widget.id, {
+      config: { numGroups: next } as WidgetConfig,
+    });
+  };
+  // Seed the incoming control from the outgoing one so the group cards on
+  // screen stay put when the teacher switches what the stepper means.
+  const toggleGroupingMode = () => {
+    updateWidget(widget.id, {
+      config: (groupCountMode
+        ? {
+            groupingMode: 'size',
+            // Floor of 2 matches the stepper's min so the control can never
+            // display a value it refuses to step back to.
+            groupSize: Math.max(
+              2,
+              Math.ceil(students.length / Math.max(1, displayNumGroups))
+            ),
+          }
+        : {
+            groupingMode: 'count',
+            // Seed from what size mode is showing right now, not from a
+            // numGroups left behind by an earlier count-mode session.
+            numGroups: Math.max(2, estimatedHomeGroupCount),
+          }) as WidgetConfig,
+    });
+  };
 
   // ───────── Manual editing state (locks, unassigned, placeholders) ─────────
   //
@@ -448,9 +486,19 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // student count) changes.
   const desiredPlaceholderCount = useMemo(() => {
     if (mode === 'jigsaw') return Math.max(1, displayNumHomeGroups);
-    if (mode === 'groups') return Math.max(1, estimatedHomeGroupCount);
+    if (mode === 'groups')
+      return Math.max(
+        1,
+        groupCountMode ? displayNumGroups : estimatedHomeGroupCount
+      );
     return 0;
-  }, [mode, displayNumHomeGroups, estimatedHomeGroupCount]);
+  }, [
+    mode,
+    displayNumHomeGroups,
+    estimatedHomeGroupCount,
+    groupCountMode,
+    displayNumGroups,
+  ]);
 
   const buildPlaceholders = (count: number): RandomGroup[] =>
     Array.from({ length: count }, () => ({
@@ -1423,7 +1471,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 makeGroupsWithLockedCohorts({
                   students: poolStudents,
                   lockedCohorts,
-                  groupSize,
+                  ...(groupCountMode
+                    ? { numGroups: displayNumGroups }
+                    : { groupSize }),
                 });
               result = groups;
               if (lockConflicts > 0) {
@@ -1445,10 +1495,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 );
               }
             } else {
-              const { groups, unsatisfied } = makeRestrictedGroups(
-                poolStudents,
-                groupSize
-              );
+              const { groups, unsatisfied } = groupCountMode
+                ? makeRestrictedGroupsByCount(poolStudents, displayNumGroups)
+                : makeRestrictedGroups(poolStudents, groupSize);
               result = preserveIds(groups);
               if (unsatisfied > 0) {
                 addToast(
@@ -1471,8 +1520,28 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 freshGroups: fresh,
               });
             } else {
-              result = preserveIds(makeNameGroups(students, groupSize));
+              result = preserveIds(
+                groupCountMode
+                  ? makeNameGroupsByCount(students, displayNumGroups)
+                  : makeNameGroups(students, groupSize)
+              );
             }
+          }
+          // The count makers clamp to the student count rather than emit empty
+          // groups, so say so when the class can't fill the requested number.
+          if (
+            groupCountMode &&
+            !useLockPath &&
+            result.length < displayNumGroups
+          ) {
+            addToast(
+              t('widgets.random.groupCountReduced', {
+                count: result.length,
+                defaultValue:
+                  'Only {{count}} groups fit this class — lower the number of groups or add more students.',
+              }),
+              'warning'
+            );
           }
         }
         if (soundEnabledRef.current) playWinner();
@@ -2060,11 +2129,36 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 )}
               {mode === 'groups' && (
                 <GroupSizeStepper
-                  value={groupSize}
-                  onChange={setGroupSize}
-                  title={t('widgets.random.groupSize', {
-                    defaultValue: 'Group Size',
-                  })}
+                  value={groupCountMode ? displayNumGroups : groupSize}
+                  onChange={groupCountMode ? setNumGroups : setGroupSize}
+                  label={
+                    groupCountMode
+                      ? t('widgets.random.groupsLabelShort', {
+                          defaultValue: 'GROUPS',
+                        })
+                      : t('widgets.random.perGroupLabelShort', {
+                          defaultValue: 'PER GROUP',
+                        })
+                  }
+                  onLabelClick={toggleGroupingMode}
+                  labelTitle={
+                    groupCountMode
+                      ? t('widgets.random.switchToGroupSize', {
+                          defaultValue: 'Switch to students per group',
+                        })
+                      : t('widgets.random.switchToGroupCount', {
+                          defaultValue: 'Switch to number of groups',
+                        })
+                  }
+                  title={
+                    groupCountMode
+                      ? t('widgets.random.groupCount', {
+                          defaultValue: 'Number of Groups',
+                        })
+                      : t('widgets.random.groupSize', {
+                          defaultValue: 'Group Size',
+                        })
+                  }
                 />
               )}
               {mode === 'jigsaw' && !hasJigsawGroups && (

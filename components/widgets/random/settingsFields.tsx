@@ -35,18 +35,27 @@ function useStudentCount(config: RandomConfig): number {
 
 export const RandomGroupCountField: React.FC<{
   ctx: CustomRenderCtx;
-  kind: 'home' | 'expert';
+  kind: 'home' | 'expert' | 'groups';
 }> = ({ ctx, kind }) => {
   const config = ctx.config as unknown as RandomConfig;
   const count = useStudentCount(config);
-  const groupSize = config.groupSize ?? 4;
+  // Groups mode defaults to 3 per group, jigsaw to 4 — mirror RandomWidget so
+  // the panel and the on-widget stepper never disagree.
+  const groupSize = config.groupSize ?? (kind === 'groups' ? 3 : 4);
   const estimatedHome = Math.max(2, Math.ceil(count / Math.max(1, groupSize)));
   const home = Math.max(2, config.numHomeGroups ?? estimatedHome);
   const value =
     kind === 'home'
       ? home
-      : (config.numExpertGroups ?? Math.max(2, Math.ceil(home / 2)));
-  const key = kind === 'home' ? 'numHomeGroups' : 'numExpertGroups';
+      : kind === 'groups'
+        ? Math.max(2, config.numGroups ?? estimatedHome)
+        : (config.numExpertGroups ?? Math.max(2, Math.ceil(home / 2)));
+  const key =
+    kind === 'home'
+      ? 'numHomeGroups'
+      : kind === 'groups'
+        ? 'numGroups'
+        : 'numExpertGroups';
 
   return (
     <div
