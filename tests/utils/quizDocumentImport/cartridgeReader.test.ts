@@ -254,6 +254,37 @@ describe('readCartridge — pictures', () => {
     expect(quiz.questions[0].text).toBe('Name this shape.');
   });
 
+  it('does not throw the import away over an undecodable picture path', async () => {
+    const file = await cartridge({
+      'imsmanifest.xml': MANIFEST,
+      // A stray `%` makes decodeURIComponent throw; the read must survive it.
+      'quiz1/assessment_qti.xml': assessment(
+        'T',
+        imageItem('media/100%25 scale%.png')
+      ),
+    });
+    const quiz = await readCartridge(file, 'x');
+    expect(quiz.questions).toHaveLength(1);
+    expect(quiz.questions[0].imageIds).toEqual([]);
+    expect(quiz.questions[0].warnings.join(' ')).toMatch(
+      /A picture could not/i
+    );
+  });
+
+  it('still finds a picture whose path is percent-encoded', async () => {
+    const file = await cartridge({
+      'imsmanifest.xml': MANIFEST,
+      'quiz1/assessment_qti.xml': assessment(
+        'T',
+        imageItem('$IMS-CC-FILEBASE$/media/unit%203.png')
+      ),
+      'web_resources/media/unit 3.png': PNG,
+    });
+    const quiz = await readCartridge(file, 'x');
+    expect(quiz.images).toHaveLength(1);
+    expect(quiz.questions[0].imageIds).toEqual([quiz.images[0].id]);
+  });
+
   it('says so when a picture is referenced but not in the zip', async () => {
     const file = await cartridge({
       'imsmanifest.xml': MANIFEST,

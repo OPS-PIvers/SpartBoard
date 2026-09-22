@@ -274,9 +274,18 @@ function itemsIn(xml: string): { title: string; items: Element[] } | null {
   return { title: holder?.getAttribute('title')?.trim() ?? '', items };
 }
 
+/** A stray `%` in an export's path must not throw the whole import away. */
+function decodePath(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
 /** `$IMS-CC-FILEBASE$/media/a.png` and `../web_resources/a.png` alike. */
 function zipPathFor(src: string, zip: JSZip): string | null {
-  const cleaned = decodeURIComponent(src.replace(FILE_BASE, ''))
+  const cleaned = decodePath(src.replace(FILE_BASE, ''))
     .replace(/^\.{1,2}\//, '')
     .replace(/^\/+/, '')
     .split('?')[0];
@@ -303,19 +312,22 @@ async function attachCartridgeImages(
     for (const src of question.imageIds) {
       if (idBySrc.has(src)) continue;
       const path = zipPathFor(src, zip);
-      const contentType = path
-        ? IMAGE_TYPES[path.split('.').pop()?.toLowerCase() ?? '']
-        : undefined;
-      const entry = path ? zip.file(path) : null;
+      if (!path) continue;
+      const contentType =
+        IMAGE_TYPES[path.split('.').pop()?.toLowerCase() ?? ''];
+      const entry = zip.file(path);
       if (!entry || !contentType) continue;
+      let blob: Blob;
+      try {
+        blob = await entry.async('blob');
+      } catch (err) {
+        // A picture that will not unzip is one row's note, not a failed import.
+        console.warn('[quizDocumentImport] could not unzip a picture', err);
+        continue;
+      }
       const id = `img-${images.length + 1}`;
       idBySrc.set(src, id);
-      images.push({
-        id,
-        blob: await entry.async('blob'),
-        contentType,
-        name: path?.split('/').pop() ?? id,
-      });
+      images.push({ id, blob, contentType, name: path.split('/').pop() ?? id });
     }
   }
 
