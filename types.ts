@@ -9816,6 +9816,28 @@ export interface SubShareCustomWidgetPayload {
   doc: SubShareCustomWidgetView;
 }
 
+/** Only what the read-only tracker draws: no rubric, due date or class list. */
+export type SubShareProjectRunView = Pick<
+  ProjectRun,
+  'id' | 'projectId' | 'title' | 'steps'
+>;
+
+/**
+ * Only the row the tracker draws. `memberUids` and `workLinks` stay out —
+ * `content/` is readable by any verified district account holding the share,
+ * and neither appears on that face.
+ */
+export type SubShareProjectGroupView = Pick<
+  ProjectGroup,
+  'id' | 'name' | 'classId' | 'order' | 'stepStates' | 'needsSupport'
+>;
+
+/** A project's tracker as it stood at share time. */
+export interface SubShareProjectPayload {
+  run: SubShareProjectRunView;
+  groups: SubShareProjectGroupView[];
+}
+
 /**
  * Input to `shareSubstituteCollection()`. Mirrors `SubstituteShareInput`
  * for single Boards but operates on a whole Collection.

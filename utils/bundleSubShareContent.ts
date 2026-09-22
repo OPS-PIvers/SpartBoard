@@ -11,6 +11,7 @@ import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { subShareContentId } from '@/utils/subShareContent';
+import { RUNS_COLLECTION, runIdFor } from '@/utils/projectRunWrites';
 import type {
   CustomWidgetConfig,
   CustomWidgetDoc,
@@ -18,12 +19,17 @@ import type {
   DrawableObject,
   DrawingPage,
   NotebookItem,
+  ProjectGroup,
+  ProjectRun,
+  ProjectsConfig,
   SmartNotebookConfig,
   SubShareContentDoc,
   SubShareContentKind,
   SubShareCustomWidgetPayload,
   SubShareDrawingPayload,
   SubShareNotebookPayload,
+  SubShareProjectGroupView,
+  SubShareProjectPayload,
   WidgetData,
 } from '@/types';
 
@@ -157,6 +163,53 @@ async function bundleCustomWidget(
   };
 }
 
+/** The project each Projects widget on the board has open. */
+function openProjectIds(board: Dashboard): string[] {
+  const ids: string[] = [];
+  for (const widget of board.widgets ?? []) {
+    if (widget.type !== 'projects') continue;
+    const id = (widget.config as ProjectsConfig | undefined)?.projectId;
+    if (id) ids.push(id);
+  }
+  return ids;
+}
+
+async function bundleProject(
+  hostUid: string,
+  projectId: string
+): Promise<SubShareProjectPayload> {
+  // D13 — one run per project, so its id is derivable rather than stored.
+  const runId = runIdFor(hostUid, projectId);
+  const snap = await getDoc(doc(db, RUNS_COLLECTION, runId));
+  if (!snap.exists()) throw new Error('project run not started');
+  const data = snap.data();
+  const groupSnap = await getDocs(
+    collection(db, RUNS_COLLECTION, runId, 'groups')
+  );
+  // Field by field, not a spread: a group carries `memberUids` and work links
+  // the tracker never draws, and `content/` is broadly readable.
+  const groups: SubShareProjectGroupView[] = groupSnap.docs.map((groupDoc) => {
+    const group = groupDoc.data() as ProjectGroup;
+    return {
+      id: groupDoc.id,
+      name: group.name ?? 'Group',
+      classId: group.classId ?? '',
+      order: group.order ?? 0,
+      stepStates: group.stepStates ?? {},
+      needsSupport: group.needsSupport === true,
+    };
+  });
+  return {
+    run: {
+      id: snap.id,
+      projectId: (data.projectId as string) ?? projectId,
+      title: (data.title as string) ?? 'Project',
+      steps: (data.steps as ProjectRun['steps']) ?? [],
+    },
+    groups,
+  };
+}
+
 export async function bundleSubShareContent({
   hostUid,
   boards,
@@ -216,6 +269,29 @@ export async function bundleSubShareContent({
           kind: 'notebook',
           itemId: id,
           label: `Notebook on ${board.name}`,
+        });
+      }
+    }
+
+    for (const id of openProjectIds(board)) {
+      const contentId = subShareContentId('project', id);
+      if (done.has(contentId)) continue;
+      done.add(contentId);
+      try {
+        const payload = await bundleProject(hostUid, id);
+        items.push({
+          id: contentId,
+          doc: { kind: 'project', itemId: id, bundledAt, payload },
+        });
+      } catch (err) {
+        logError('bundleSubShareContent.project', err, {
+          boardId: board.id,
+          projectId: id,
+        });
+        failures.push({
+          kind: 'project',
+          itemId: id,
+          label: `Project on ${board.name}`,
         });
       }
     }
