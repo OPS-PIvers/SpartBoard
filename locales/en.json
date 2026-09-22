@@ -4036,7 +4036,8 @@
       "menuLabel": "This teacher's boards",
       "currentTag": "Open",
       "unnamedBoard": "Board …{{suffix}}",
-      "opening": "Opening…"
+      "opening": "Opening…",
+      "openFailed": "{{reason}} You are still on this board."
     }
   }
 }

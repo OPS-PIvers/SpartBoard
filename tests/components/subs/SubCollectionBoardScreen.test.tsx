@@ -119,6 +119,20 @@ describe('SubCollectionBoardScreen', () => {
     expect(screen.queryByTestId('panel')).not.toBeInTheDocument();
   });
 
+  // Tearing the provider down over a network blip would lose every board's
+  // session state, so the failure is reported beside the board, not instead
+  // of it.
+  it('keeps the open board when the next one fails to read', () => {
+    renderScreen('b1');
+    readError = 'This board is not part of the shared Collection.';
+    fireEvent.click(nextButton());
+    expect(screen.getByTestId('board')).toHaveTextContent('Warm up');
+    expect(screen.queryByTestId('panel')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'This board is not part of the shared Collection. You are still on this board.'
+    );
+  });
+
   it('reports a board it could not read', () => {
     readError = 'This board is not part of the shared Collection.';
     renderScreen('b1');

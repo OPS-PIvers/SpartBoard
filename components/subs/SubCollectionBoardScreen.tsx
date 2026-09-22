@@ -19,7 +19,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSubstituteCollectionBoard } from '@/hooks/useSubstituteShares';
 import { useSubstituteRosters } from '@/hooks/useSubstituteRosters';
@@ -105,7 +105,11 @@ export const SubCollectionBoardScreen: React.FC<
     );
   }, [shownNavSource, t]);
 
-  if (!!error || expired) {
+  // Expiry is terminal for the whole share, so it takes the screen down. A
+  // failed read of the *next* board is not: tearing the provider down here
+  // would throw away every board's session state over a network blip, so the
+  // board the sub is on stays put and the failure is reported beside it.
+  if (expired || (!!error && !shown)) {
     return (
       <div className="min-h-screen bg-slate-900">
         <ExpiredOrErrorPanel
@@ -161,6 +165,20 @@ export const SubCollectionBoardScreen: React.FC<
         >
           <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
           {t('subShare.nav.opening', { defaultValue: 'Opening…' })}
+        </div>
+      )}
+      {!!error && (
+        <div
+          role="alert"
+          className="fixed bottom-6 right-4 z-dock flex max-w-sm items-center gap-2 rounded-full bg-amber-500/25 backdrop-blur-sm border border-amber-300/40 px-3 py-1.5 text-xs font-bold text-white"
+        >
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden />
+          <span>
+            {t('subShare.nav.openFailed', {
+              defaultValue: '{{reason}} You are still on this board.',
+              reason: error,
+            })}
+          </span>
         </div>
       )}
     </SubsDashboardProvider>
