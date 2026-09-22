@@ -52,6 +52,10 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as admin from 'firebase-admin';
 
+// Mirrors SHARE_SUBCOLLECTIONS in utils/subShareContent.ts; functions/ is its
+// own package and cannot import from the app.
+const SHARE_SUBCOLLECTIONS = ['boards', 'content', 'keys'] as const;
+
 /**
  * Overall safety ceiling on expired docs visited per run (per collection) —
  * a runaway guard, NOT an expected limit. The fetch PAGINATES
@@ -196,9 +200,9 @@ async function sweepCollection(
     return { deleted: 0, inGrace: stillInGrace, orphanedGrants: 0 };
   }
 
-  // Collection parents carry a `boards/` subcollection — reap those sub-docs
-  // first so the parent delete doesn't orphan them. Done before the batched
-  // parent delete because subcollections aren't cascaded by Firestore.
+  // Collection parents carry boards/, content/ and keys/ sub-collections — reap
+  // those sub-docs first so the parent delete doesn't orphan them. Done before
+  // the batched parent delete because subcollections aren't cascaded.
   if (deleteBoardsSubcollection) {
     // Reap each parent's boards/ subcollection. Parallelize across parents
     // (with bounded concurrency) so a sweep that catches many expired
@@ -212,14 +216,16 @@ async function sweepCollection(
       const group = readyToDelete.slice(i, i + BOARD_CLEANUP_CONCURRENCY);
       await Promise.all(
         group.map(async (doc) => {
-          const boardsSnap = await doc.ref.collection('boards').get();
-          if (boardsSnap.empty) return;
-          for (let j = 0; j < boardsSnap.docs.length; j += boardBatchSize) {
-            const batch = db.batch();
-            for (const b of boardsSnap.docs.slice(j, j + boardBatchSize)) {
-              batch.delete(b.ref);
+          for (const name of SHARE_SUBCOLLECTIONS) {
+            const subSnap = await doc.ref.collection(name).get();
+            if (subSnap.empty) continue;
+            for (let j = 0; j < subSnap.docs.length; j += boardBatchSize) {
+              const batch = db.batch();
+              for (const b of subSnap.docs.slice(j, j + boardBatchSize)) {
+                batch.delete(b.ref);
+              }
+              await batch.commit();
             }
-            await batch.commit();
           }
         })
       );

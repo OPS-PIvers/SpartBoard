@@ -11,6 +11,7 @@ import {
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { logError } from '@/utils/logError';
+import { useSubShareDrawingObjects } from './useSubShareDrawingObjects';
 import type { DrawableObject } from '@/types';
 
 /**
@@ -169,6 +170,8 @@ export const useDrawingObjectsDoc = ({
   // the effect below transitions loading via cache-reuse hydration or via
   // the snapshot callback — both legitimate external-system synchronization
   // sites that the rule has no quarrel with.
+  const inSubShare = useSubShareDrawingObjects(widgetId, pageId);
+  const inShare = inSubShare.active;
   const hasPreconditions = !!uid && !!dashboardId && !!pageId;
   const [objects, setObjects] = useState<DrawableObject[]>([]);
   const [loading, setLoading] = useState(hasPreconditions);
@@ -182,7 +185,7 @@ export const useDrawingObjectsDoc = ({
   } | null>(null);
 
   useEffect(() => {
-    if (!uid || !dashboardId || !pageId) {
+    if (inShare || !uid || !dashboardId || !pageId) {
       // Hook is parked — synchronize local state with the absence of the
       // subscription. The functional updaters short-circuit when the new
       // value would match the old, so re-renders only fire when state
@@ -309,7 +312,7 @@ export const useDrawingObjectsDoc = ({
         activeSubsByContext.delete(ctxKey);
       });
     };
-  }, [uid, dashboardId, widgetId, pageId]);
+  }, [inShare, uid, dashboardId, widgetId, pageId]);
 
   const buildDocRef = useCallback(
     (objectId: string) => {
@@ -395,6 +398,19 @@ export const useDrawingObjectsDoc = ({
       await batch.commit();
     }
   }, [uid, dashboardId, widgetId, pageId, objects]);
+
+  // In a sub share the teacher's strokes are the content, and the sub's own
+  // are session-only — neither belongs in the signed-in user's Firestore tree.
+  if (inShare) {
+    return {
+      objects: inSubShare.objects,
+      addObject: inSubShare.addObject,
+      updateObject: inSubShare.updateObject,
+      removeObject: inSubShare.removeObject,
+      clear: inSubShare.clear,
+      loading: inSubShare.loading,
+    };
+  }
 
   return { objects, addObject, updateObject, removeObject, clear, loading };
 };
