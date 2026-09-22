@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest';
 import JSZip from 'jszip';
 import { readCartridge } from '@/utils/quizDocumentImport/cartridgeReader';
 import { readQuizDocument } from '@/utils/quizDocumentImport';
+import { DocumentTooLargeError } from '@/utils/quizDocumentImport/limits';
 
 const MANIFEST = `<?xml version="1.0"?>
 <manifest identifier="m1"><resources/></manifest>`;
@@ -222,6 +223,13 @@ describe('readCartridge', () => {
       'course_settings/canvas_export.txt': 'nothing here',
     });
     await expect(readCartridge(file, 'x')).rejects.toThrow(/No questions/i);
+  });
+
+  it('stops unzipping once the export unpacks past the ceiling', async () => {
+    const file = await oneQuiz(mcItem().repeat(50));
+    await expect(readCartridge(file, 'x', 1024)).rejects.toThrow(
+      DocumentTooLargeError
+    );
   });
 });
 

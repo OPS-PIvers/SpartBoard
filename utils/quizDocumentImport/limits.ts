@@ -6,6 +6,8 @@
 
 export const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
 export const MAX_DOCUMENT_PAGES = 20;
+/** An LMS export is a zip, so its unpacked size needs its own ceiling. */
+export const MAX_CARTRIDGE_UNZIPPED_BYTES = 100 * 1024 * 1024;
 
 /** Thrown before the document is read, so an oversized file costs nothing. */
 export class DocumentTooLargeError extends Error {}

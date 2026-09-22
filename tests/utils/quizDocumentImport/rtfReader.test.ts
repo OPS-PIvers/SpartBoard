@@ -88,6 +88,17 @@ describe('parseRtf', () => {
     expect(lines[0].text.trim()).toBe('Café — a “quote”');
   });
 
+  it('decodes hex escapes in the codepage \\ansicpg declares', () => {
+    const cyrillic = parseRtf(
+      `{\\rtf1\\ansi\\ansicpg1251\\deff0\\pard \\'cc\\'e8\\'f0\\par}`
+    );
+    expect(cyrillic[0].text.trim()).toBe('Мир');
+    const japanese = parseRtf(
+      `{\\rtf1\\ansi\\ansicpg932\\deff0\\pard \\'82\\'a0\\par}`
+    );
+    expect(japanese[0].text.trim()).toBe('あ');
+  });
+
   it('honours \\ucN when skipping a unicode substitute', () => {
     const lines = parseRtf(`${HEADER}\\uc2\\pard x\\u233 ??y\\par}`);
     expect(lines[0].text.trim()).toBe('xéy');
