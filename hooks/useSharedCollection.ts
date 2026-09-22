@@ -28,6 +28,11 @@ import {
   sanitizeBoardForRecipient,
   sanitizeBoardForSubShare,
 } from '@/utils/dashboardSanitize';
+import {
+  bundleSubShareContent,
+  type SubShareBundle,
+  type SubShareBundleItem,
+} from '@/utils/bundleSubShareContent';
 import type {
   Dashboard,
   SharedCollection,
@@ -157,6 +162,8 @@ type SubstituteShareInput = ShareCollectionInput &
      * no rosters are shared.
      */
     driveGrants?: SubstituteShareDriveGrant[];
+    /** Called with what was and was not bundled, for the teacher to see. */
+    onBundle?: (bundle: SubShareBundle) => void;
   };
 
 /**
@@ -170,6 +177,49 @@ type SubstituteShareInput = ShareCollectionInput &
  * a descriptive error so the modal's catch can surface it to the host as
  * a real failure instead of returning a share URL that won't fully load.
  */
+/**
+ * Writes the bundled content docs, and clears out any the new push dropped.
+ * Content is written after the boards for the same reason the boards go after
+ * the parent: the rule reads the parent's hostUid.
+ */
+async function commitContentBatches({
+  shareId,
+  items,
+  previousIds,
+}: {
+  shareId: string;
+  items: SubShareBundleItem[];
+  previousIds?: string[];
+}): Promise<void> {
+  const BATCH_LIMIT = 400;
+  const keep = new Set(items.map((i) => i.id));
+  const stale = (previousIds ?? []).filter((id) => !keep.has(id));
+  const writes: (() => void)[] = [];
+  let batch = writeBatch(db);
+  let inBatch = 0;
+
+  const contentRef = (id: string) =>
+    doc(db, SHARED_COLLECTIONS_SUBPATH, shareId, 'content', id);
+
+  for (const item of items) {
+    writes.push(() => batch.set(contentRef(item.id), item.doc));
+  }
+  for (const id of stale) {
+    writes.push(() => batch.delete(contentRef(id)));
+  }
+
+  for (const write of writes) {
+    if (inBatch >= BATCH_LIMIT) {
+      await batch.commit();
+      batch = writeBatch(db);
+      inBatch = 0;
+    }
+    write();
+    inBatch += 1;
+  }
+  if (inBatch > 0) await batch.commit();
+}
+
 async function commitBoardBatches({
   shareId,
   boards,
@@ -412,6 +462,16 @@ export const useSharedCollection = () => {
         scope: 'shareSubstituteCollection',
       });
 
+      // Widget data the sub cannot reach in their own account. Reported, not
+      // thrown: a board that reaches the sub without its strokes still beats
+      // no share at all, and the caller shows the teacher what was missed.
+      const bundle = await bundleSubShareContent({
+        hostUid: input.hostUid,
+        boards: input.boards,
+      });
+      await commitContentBatches({ shareId, items: bundle.items });
+      input.onBundle?.(bundle);
+
       return shareId;
     },
     []
@@ -433,6 +493,7 @@ export const useSharedCollection = () => {
         subEmails?: string[];
         driveGrants?: SubstituteShareDriveGrant[];
         sharedRosters?: SubstituteShareRoster[];
+        onBundle?: (bundle: SubShareBundle) => void;
       }
     ): Promise<void> => {
       const { shareId } = input;
@@ -502,6 +563,23 @@ export const useSharedCollection = () => {
         boards: input.boards,
         scope: 'updateSubShare',
       });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: current.hostUid,
+        boards: input.boards,
+      });
+      // What the last push bundled, read back rather than tracked on the
+      // parent doc: the host can list it, and a list that drifts from the docs
+      // themselves would leave a stale drawing on the sub's screen.
+      const existing = await getDocs(
+        collection(db, SHARED_COLLECTIONS_SUBPATH, shareId, 'content')
+      );
+      await commitContentBatches({
+        shareId,
+        items: bundle.items,
+        previousIds: existing.docs.map((d) => d.id),
+      });
+      input.onBundle?.(bundle);
 
       // Boards the teacher removed from the collection since the last push.
       const stale = (current.boardIds ?? []).filter(

@@ -9769,6 +9769,34 @@ export interface SharedCollectionBoardDoc {
 }
 
 /**
+ * What a widget's data is, when that data does not live on the board itself.
+ * A Drawing's strokes, a notebook, a Next Up queue: all read from the
+ * teacher's own `users/` tree or Drive, none of it reachable by a substitute.
+ */
+export type SubShareContentKind =
+  | 'drawing'
+  | 'notebook'
+  | 'flashcards'
+  | 'nextup'
+  | 'project'
+  | 'calendar'
+  | 'customWidget';
+
+/** A `content/{kind}_{itemId}` doc: what the sub sees in place of their own. */
+export interface SubShareContentDoc<T = unknown> {
+  kind: SubShareContentKind;
+  /** Widget id, or the id of the library item the widget points at. */
+  itemId: string;
+  bundledAt: number;
+  payload: T;
+}
+
+/** Strokes for one Drawing widget, page by page, as they were at share time. */
+export interface SubShareDrawingPayload {
+  pages: { pageId: string; objects: DrawableObject[] }[];
+}
+
+/**
  * Input to `shareSubstituteCollection()`. Mirrors `SubstituteShareInput`
  * for single Boards but operates on a whole Collection.
  */

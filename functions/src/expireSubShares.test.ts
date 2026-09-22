@@ -63,7 +63,16 @@ interface StubDoc {
 function makeStubDb(seed: {
   shared_boards?: StubDoc[];
   shared_collections?: StubDoc[];
+  /** Sub-collection doc ids per parent: { 'collection-1': { content: ['a'] } }. */
+  subcollections?: Record<string, Record<string, string[]>>;
 }) {
+  // Sub-docs the sweep is expected to reap, keyed `${parentId}/${name}/${id}`.
+  const subDocs = new Set<string>();
+  for (const [parentId, byName] of Object.entries(seed.subcollections ?? {})) {
+    for (const [name, ids] of Object.entries(byName)) {
+      for (const id of ids) subDocs.add(`${parentId}/${name}/${id}`);
+    }
+  }
   const stores: Record<string, Map<string, Record<string, unknown>>> = {
     shared_boards: new Map(
       (seed.shared_boards ?? []).map((d) => [d.id, d.data])
@@ -172,13 +181,18 @@ function makeStubDb(seed: {
             ref: {
               id,
               collection: (subName: string) => {
-                if (subName !== 'boards') {
+                if (!['boards', 'content', 'keys'].includes(subName)) {
                   throw new Error(
                     `Unexpected subcollection in stub: ${subName}`
                   );
                 }
+                const prefix = `${id}/${subName}/`;
+                const docs = [...subDocs]
+                  .filter((k) => k.startsWith(prefix))
+                  .map((k) => ({ id: k, ref: { id: k } }));
                 return {
-                  get: () => Promise.resolve({ empty: true, docs: [] }),
+                  get: () =>
+                    Promise.resolve({ empty: docs.length === 0, docs }),
                 };
               },
             },
@@ -199,7 +213,11 @@ function makeStubDb(seed: {
       const pendingDeletes: { id: string; collectionName: string }[] = [];
       return {
         delete: (ref: { id: string }) => {
-          // Every doc ref in this stub comes from `shared_boards` or
+          if (subDocs.has(ref.id)) {
+            subDocs.delete(ref.id);
+            return;
+          }
+          // Every other doc ref in this stub comes from `shared_boards` or
           // `shared_collections` — figure out which store it belongs to by
           // checking membership (both id spaces are disjoint in these tests).
           for (const [name, store] of Object.entries(stores)) {
@@ -222,6 +240,7 @@ function makeStubDb(seed: {
   return {
     db: db as unknown as Parameters<typeof runExpireSubShares>[0],
     stores,
+    subDocs,
   };
 }
 
@@ -265,6 +284,31 @@ describe('runExpireSubShares', () => {
       inGrace: 0,
       orphanedGrants: 0,
     });
+    expect(stores.shared_collections.has('collection-1')).toBe(false);
+  });
+
+  // Bundled content and answer keys are read-gated by the parent's expiresAt,
+  // so a parent deleted without them leaves docs nothing will ever reap.
+  it('reaps boards, content and keys before deleting the parent', async () => {
+    const { db, stores, subDocs } = makeStubDb({
+      shared_collections: [
+        {
+          id: 'collection-1',
+          data: { intendedMode: 'substitute', expiresAt: NOW - DAY },
+        },
+      ],
+      subcollections: {
+        'collection-1': {
+          boards: ['b1', 'b2'],
+          content: ['drawing_w1'],
+          keys: ['quiz_q1'],
+        },
+      },
+    });
+
+    await runExpireSubShares(db, NOW);
+
+    expect([...subDocs]).toEqual([]);
     expect(stores.shared_collections.has('collection-1')).toBe(false);
   });
 

@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import React from 'react';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import type { DrawableObject, PathObject } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -335,5 +337,71 @@ describe('useDrawingObjectsDoc', () => {
       await result.current.clear();
     });
     expect(writeBatchMock).not.toHaveBeenCalled();
+  });
+
+  // Inside a sub share the strokes are the teacher's, bundled at share time,
+  // and the sub is a different signed-in user — so the ordinary path would
+  // read an empty canvas from the sub's own account and write their strokes
+  // there, where they outlive the share.
+  describe('inside a sub share', () => {
+    const inShare = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(
+        SubShareContentContext.Provider,
+        {
+          value: {
+            shareId: 'share-1',
+            load: () =>
+              Promise.resolve({
+                pages: [
+                  { pageId: 'pA', objects: [pathObj({ id: 'from-teacher' })] },
+                ],
+              }),
+          } as never,
+        },
+        children
+      );
+
+    it('shows the bundled strokes and never subscribes', async () => {
+      const { result } = renderHook(
+        () =>
+          useDrawingObjectsDoc({
+            dashboardId: 'd1',
+            widgetId: 'w-share-1',
+            pageId: 'pA',
+          }),
+        { wrapper: inShare }
+      );
+
+      await waitFor(() =>
+        expect(result.current.objects.map((o) => o.id)).toEqual([
+          'from-teacher',
+        ])
+      );
+      expect(onSnapshotMock).not.toHaveBeenCalled();
+    });
+
+    it('keeps the sub’s own strokes out of Firestore', async () => {
+      const { result } = renderHook(
+        () =>
+          useDrawingObjectsDoc({
+            dashboardId: 'd1',
+            widgetId: 'w-share-2',
+            pageId: 'pA',
+          }),
+        { wrapper: inShare }
+      );
+
+      await waitFor(() => expect(result.current.objects).toHaveLength(1));
+      await act(async () => {
+        await result.current.addObject(pathObj({ id: 'from-sub' }));
+      });
+
+      expect(result.current.objects.map((o) => o.id)).toEqual([
+        'from-teacher',
+        'from-sub',
+      ]);
+      expect(setDocMock).not.toHaveBeenCalled();
+      expect(deleteDocMock).not.toHaveBeenCalled();
+    });
   });
 });
