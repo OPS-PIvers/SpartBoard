@@ -299,6 +299,139 @@ describe('readCartridge — pictures', () => {
   });
 });
 
+/**
+ * Schoology writes no `question_type` at all: a Common Cartridge states the
+ * type as a `cc_profile`. These items are shaped after a real export.
+ */
+describe('readCartridge — a cc_profile instead of question_type', () => {
+  const ccItem = (profile: string, body: string): string => `
+    <item ident="9">
+      <itemmetadata><qtimetadata><qtimetadatafield>
+        <fieldlabel>cc_profile</fieldlabel><fieldentry>${profile}</fieldentry>
+      </qtimetadatafield></qtimetadata></itemmetadata>
+      ${body}
+    </item>`;
+
+  it('reads a true/false question and its answer', async () => {
+    const item = ccItem(
+      'cc.true_false.v0p1',
+      `<presentation>
+         <material><mattext texttype="text/html">A 89.5% rounds up to an A.</mattext></material>
+         <response_lid ident="10" rcardinality="Single"><render_choice>
+           <response_label ident="33"><material><mattext texttype="text/html">True</mattext></material></response_label>
+           <response_label ident="34"><material><mattext texttype="text/html">False</mattext></material></response_label>
+         </render_choice></response_lid>
+       </presentation>
+       <resprocessing>
+         <outcomes><decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/></outcomes>
+         <respcondition continue="No">
+           <conditionvar><varequal respident="10">34</varequal></conditionvar>
+           <setvar action="Set" varname="SCORE">100</setvar>
+         </respcondition>
+       </resprocessing>`
+    );
+    const quiz = await readCartridge(await oneQuiz(item), 'fallback');
+    expect(quiz.questions[0].type).toBe('MC');
+    expect(quiz.questions[0].correctAnswer).toBe('False');
+  });
+
+  it('reads a fill-in question, which has no choice list to infer from', async () => {
+    const item = ccItem(
+      'cc.fib.v0p1',
+      `<presentation>
+         <material><mattext texttype="text/plain">The largest planet is ___.</mattext></material>
+         <response_str ident="r1"><render_fib><response_label ident="a1"/></render_fib></response_str>
+       </presentation>
+       <resprocessing>
+         <outcomes><decvar/></outcomes>
+         <respcondition continue="No">
+           <conditionvar><varequal respident="r1">Jupiter</varequal></conditionvar>
+           <setvar action="Set" varname="SCORE">100</setvar>
+         </respcondition>
+       </resprocessing>`
+    );
+    const quiz = await readCartridge(await oneQuiz(item), 'fallback');
+    expect(quiz.questions[0].type).toBe('FIB');
+    expect(quiz.questions[0].correctAnswer).toBe('Jupiter');
+  });
+
+  it('reads a pattern-match question as fill-in', async () => {
+    const item = ccItem(
+      'cc.pattern_match.v0p1',
+      `<presentation>
+         <material><mattext texttype="text/plain">Spell the capital of France.</mattext></material>
+         <response_str ident="r1"><render_fib><response_label ident="a1"/></render_fib></response_str>
+       </presentation>
+       <resprocessing>
+         <outcomes><decvar/></outcomes>
+         <respcondition continue="No">
+           <conditionvar><varequal respident="r1">Paris</varequal></conditionvar>
+           <setvar action="Set" varname="SCORE">100</setvar>
+         </respcondition>
+       </resprocessing>`
+    );
+    const quiz = await readCartridge(await oneQuiz(item), 'fallback');
+    expect(quiz.questions[0].type).toBe('FIB');
+  });
+
+  it('reads an essay question as free response', async () => {
+    const item = ccItem(
+      'cc.essay.v0p1',
+      `<presentation>
+         <material><mattext texttype="text/html">Explain why.</mattext></material>
+       </presentation>`
+    );
+    const quiz = await readCartridge(await oneQuiz(item), 'fallback');
+    expect(quiz.questions[0].type).toBe('free-response');
+  });
+
+  it('leaves a select-all question blank, whose answers sit inside an <and>', async () => {
+    const item = ccItem(
+      'cc.multiple_response.v0p1',
+      `<presentation>
+         <material><mattext texttype="text/html">Choose all that apply.</mattext></material>
+         <response_lid ident="15" rcardinality="Multiple"><render_choice>
+           <response_label ident="47"><material><mattext texttype="text/html">One</mattext></material></response_label>
+           <response_label ident="48"><material><mattext texttype="text/html">Two</mattext></material></response_label>
+           <response_label ident="49"><material><mattext texttype="text/html">Three</mattext></material></response_label>
+         </render_choice></response_lid>
+       </presentation>
+       <resprocessing>
+         <outcomes><decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/></outcomes>
+         <respcondition continue="No">
+           <conditionvar><and>
+             <varequal respident="15">48</varequal>
+             <varequal respident="15">49</varequal>
+           </and></conditionvar>
+           <setvar action="Set" varname="SCORE">100</setvar>
+         </respcondition>
+       </resprocessing>`
+    );
+    const quiz = await readCartridge(await oneQuiz(item), 'fallback');
+    expect(quiz.questions[0].type).toBe('MC');
+    expect(quiz.questions[0].options).toHaveLength(3);
+    expect(quiz.questions[0].correctAnswer).toBe('');
+    expect(quiz.questions[0].warnings.join(' ')).toMatch(
+      /more than one correct answer/i
+    );
+  });
+
+  it('still prefers question_type when an export writes both', async () => {
+    const item = `
+      <item ident="9">
+        <itemmetadata><qtimetadata>
+          <qtimetadatafield><fieldlabel>question_type</fieldlabel><fieldentry>essay_question</fieldentry></qtimetadatafield>
+          <qtimetadatafield><fieldlabel>cc_profile</fieldlabel><fieldentry>cc.multiple_choice.v0p1</fieldentry></qtimetadatafield>
+        </qtimetadata></itemmetadata>
+        <presentation>
+          <material><mattext texttype="text/plain">Explain why.</mattext></material>
+        </presentation>
+      </item>`;
+    const quiz = await readCartridge(await oneQuiz(item), 'fallback');
+    expect(quiz.questions[0].type).toBe('free-response');
+  });
+});
+
 describe('readQuizDocument — .imscc', () => {
   it('routes an .imscc to the cartridge reader', async () => {
     const quiz = await readQuizDocument(await oneQuiz(mcItem()));
