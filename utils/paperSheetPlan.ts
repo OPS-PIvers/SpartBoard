@@ -195,6 +195,12 @@ export interface PaperBatchInput {
   includeKeySheet: boolean;
   /** The authored MC questions in sheet order; absent for a stub. */
   questions?: readonly QuizQuestion[];
+  /**
+   * Option text per question id in the order the paper already prints it,
+   * for a test SpartBoard did not lay out. Used as given — the shuffle
+   * `questions` would apply would not match the paper in the teacher's hand.
+   */
+  choiceOrder?: Readonly<Record<string, readonly string[]>>;
   /** Answer columns each page prints; absent = 2 (D1). */
   columnsPerPage?: PaperColumns;
   createdAt: number;
@@ -277,6 +283,9 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
   for (const q of input.questions ?? []) {
     choiceOrder[q.id] = paperChoiceOrder(input.batchId, q);
   }
+  for (const [id, options] of Object.entries(input.choiceOrder ?? {})) {
+    choiceOrder[id] = [...options];
+  }
 
   const batch: PaperBatch = {
     id: input.batchId,
@@ -287,7 +296,7 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
     seats,
     spareSeats,
     ...(keySheetSeat !== undefined ? { keySheetSeat } : {}),
-    ...(input.questions?.length ? { choiceOrder } : {}),
+    ...(Object.keys(choiceOrder).length > 0 ? { choiceOrder } : {}),
     pagesPerSheet: pageCountForQuestions(input.questionCount, columnsPerPage),
     // Written only when it is not the default, so a batch printed without sheet
     // stimuli is the same document it was before this field existed.
