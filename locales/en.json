@@ -3999,7 +3999,7 @@
     "saving": "Saving…",
     "failed": "Could not share with your sub. Try again.",
     "linkCopied": "Link copied. Your sub signs in with their school account and lands on this straight away.",
-    "linkReady": "Send this link to your sub \u2014 they sign in with their school account and land on this straight away.",
+    "linkReady": "Send this link to your sub — they sign in with their school account and land on this straight away.",
     "urlLabel": "Sub share link"
   },
   "subShare": {
@@ -4028,6 +4028,17 @@
       "endConfirm": "End the sub share of {{name}} now? Your sub loses the boards and your class lists right away.",
       "ended": "Sub share ended",
       "endFailed": "Could not end the share. Try again."
+    },
+    "nav": {
+      "position": "{{current}} of {{total}}",
+      "previous": "Previous board",
+      "next": "Next board",
+      "menuLabel": "This teacher's boards",
+      "currentTag": "Open",
+      "unnamedBoard": "Board …{{suffix}}",
+      "opening": "Opening…",
+      "openFailed": "{{reason}} You are still on “{{board}}”.",
+      "tryAgain": "Try again"
     }
   }
 }

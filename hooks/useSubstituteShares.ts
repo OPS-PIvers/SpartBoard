@@ -24,6 +24,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { canonicalBuildingId } from '@/config/buildings';
+import type { SubShareNavSource } from '@/components/subs/subShareNav';
 import { logError } from '@/utils/logError';
 import type {
   Dashboard,
@@ -288,12 +289,15 @@ interface UseSubstituteCollectionBoardState {
   share: SubstituteShareDoc | null;
   loading: boolean;
   error: string | null;
+  /** The whole share's boards, so the sub can move between them in place. */
+  navSource: SubShareNavSource | null;
 }
 
 interface CollectionBoardSnapshot {
   key: string;
   share: SubstituteShareDoc | null;
   error: string | null;
+  navSource: SubShareNavSource | null;
 }
 
 /**
@@ -313,6 +317,11 @@ interface CollectionBoardSnapshot {
  *   - expiresAt / buildingId / originalAuthor(+Name) come from the parent
  *   - `initialState` is seeded from the board's widgets so the sub's
  *     "Reset board" deep-clones from the same baseline.
+ *
+ * The parent is re-read on every board switch on purpose, not as an oversight
+ * to optimise away: it is where expiry, the building gate and boardIds
+ * membership are re-checked, so a share ended mid-class stops the sub at their
+ * next hop rather than at the next 60s tick.
  */
 export function useSubstituteCollectionBoard(
   shareId: string | null,
@@ -320,18 +329,21 @@ export function useSubstituteCollectionBoard(
   // Non-nullable: the building gate is a security control, so the type forces
   // every caller to supply a building rather than silently failing open on
   // null. (shareId/boardId stay nullable — the hook early-returns on those.)
-  expectedBuildingId: string
+  expectedBuildingId: string,
+  // Bumping this re-reads the same board. Without it, retrying a board that
+  // failed would be a no-op, since nothing else about the request changed.
+  attempt = 0
 ): UseSubstituteCollectionBoardState {
   const [snapshot, setSnapshot] = useState<CollectionBoardSnapshot | null>(
     null
   );
 
-  const key = shareId && boardId ? `${shareId}::${boardId}` : '';
+  const key = shareId && boardId ? `${shareId}::${boardId}::${attempt}` : '';
 
   useEffect(() => {
     if (!shareId || !boardId) return;
     let cancelled = false;
-    const requestKey = `${shareId}::${boardId}`;
+    const requestKey = `${shareId}::${boardId}::${attempt}`;
 
     void (async () => {
       try {
@@ -342,6 +354,7 @@ export function useSubstituteCollectionBoard(
           setSnapshot({
             key: requestKey,
             share: null,
+            navSource: null,
             error: 'This Collection could not be found.',
           });
           return;
@@ -351,6 +364,7 @@ export function useSubstituteCollectionBoard(
           setSnapshot({
             key: requestKey,
             share: null,
+            navSource: null,
             error: 'Not a substitute Collection share.',
           });
           return;
@@ -362,6 +376,7 @@ export function useSubstituteCollectionBoard(
           setSnapshot({
             key: requestKey,
             share: null,
+            navSource: null,
             error: 'This share has expired.',
           });
           return;
@@ -370,6 +385,7 @@ export function useSubstituteCollectionBoard(
           setSnapshot({
             key: requestKey,
             share: null,
+            navSource: null,
             error: 'This board is not part of the shared Collection.',
           });
           return;
@@ -387,6 +403,7 @@ export function useSubstituteCollectionBoard(
           setSnapshot({
             key: requestKey,
             share: null,
+            navSource: null,
             error: 'This share is not available in your building.',
           });
           return;
@@ -405,6 +422,7 @@ export function useSubstituteCollectionBoard(
           setSnapshot({
             key: requestKey,
             share: null,
+            navSource: null,
             error: 'This board could not be found in the Collection.',
           });
           return;
@@ -435,7 +453,21 @@ export function useSubstituteCollectionBoard(
           name: board.name ?? parent.collection.name,
         };
 
-        setSnapshot({ key: requestKey, share, error: null });
+        setSnapshot({
+          key: requestKey,
+          share,
+          navSource: {
+            boardIds: parent.boardIds,
+            ...(parent.boards !== undefined && { boards: parent.boards }),
+            ...(parent.sections !== undefined && {
+              sections: parent.sections,
+            }),
+            ...(parent.defaultBoardId !== undefined && {
+              defaultBoardId: parent.defaultBoardId,
+            }),
+          },
+          error: null,
+        });
       } catch (err) {
         logError('useSubstituteCollectionBoard.load', err, {
           shareId,
@@ -445,6 +477,7 @@ export function useSubstituteCollectionBoard(
           setSnapshot({
             key: requestKey,
             share: null,
+            navSource: null,
             error: friendlySubShareError(
               err as { code?: string; message?: string }
             ),
@@ -456,18 +489,19 @@ export function useSubstituteCollectionBoard(
     return () => {
       cancelled = true;
     };
-  }, [shareId, boardId, expectedBuildingId]);
+  }, [shareId, boardId, expectedBuildingId, attempt]);
 
   if (!shareId || !boardId) {
-    return { share: null, loading: false, error: null };
+    return { share: null, loading: false, error: null, navSource: null };
   }
   if (!snapshot || snapshot.key !== key) {
-    return { share: null, loading: true, error: null };
+    return { share: null, loading: true, error: null, navSource: null };
   }
   return {
     share: snapshot.share,
     loading: false,
     error: snapshot.error,
+    navSource: snapshot.navSource,
   };
 }
 

@@ -646,6 +646,52 @@ describe('useSubstituteCollectionBoard — cross-building gate', () => {
     );
   });
 
+  // The screen retries a failed board by bumping `attempt`; nothing else
+  // about the request changes, so the key has to carry it or no read fires.
+  it('re-reads the same board when attempt changes', async () => {
+    mockGetDoc.mockRejectedValueOnce(
+      Object.assign(new Error('offline'), { code: 'unavailable' })
+    );
+    const { result, rerender } = renderHook(
+      ({ attempt }: { attempt: number }) =>
+        useSubstituteCollectionBoard('share1', 'b1', 'high', attempt),
+      { initialProps: { attempt: 0 } }
+    );
+
+    await waitFor(() =>
+      expect(result.current.error).toBe(
+        'Could not reach the server. Check your internet connection.'
+      )
+    );
+
+    mockGetDoc
+      .mockResolvedValueOnce(
+        fakeDocSnap('share1', {
+          shareId: 'share1',
+          intendedMode: 'substitute',
+          buildingId: 'high',
+          expiresAt: Date.now() + 60_000,
+          boardIds: ['b1'],
+          collection: { name: 'Monday' },
+          hostUid: 'host-1',
+        })
+      )
+      .mockResolvedValueOnce(
+        fakeDocSnap('b1', {
+          dashboard: { id: 'b1', name: 'Warm up', widgets: [] },
+        })
+      );
+
+    rerender({ attempt: 1 });
+
+    // Waiting on `error` alone would pass in the transient loading state,
+    // where it is already null.
+    await waitFor(() => expect(result.current.share).not.toBeNull());
+    expect(result.current.error).toBeNull();
+    expect(result.current.share?.name).toBe('Warm up');
+    expect(result.current.navSource?.boardIds).toEqual(['b1']);
+  });
+
   it('rejects a parent doc with no buildingId (fail closed)', async () => {
     mockGetDoc.mockResolvedValueOnce(
       fakeDocSnap('share1', {
