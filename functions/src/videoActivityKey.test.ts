@@ -51,15 +51,18 @@ function makeDb(docs: Record<string, Doc>) {
     doc: (id: string) => docRef(`${path}/${id}`),
     where: (field: string, _op: string, value: unknown) => ({
       limit: () => ({
-        get: () =>
-          Promise.resolve({
-            empty: !Object.entries(docs).some(
-              ([p, d]) =>
-                p.startsWith(`${path}/`) &&
-                !p.slice(path.length + 1).includes('/') &&
-                d[field] === value
-            ),
-          }),
+        get: () => {
+          const matches = Object.entries(docs).filter(
+            ([p, d]) =>
+              p.startsWith(`${path}/`) &&
+              !p.slice(path.length + 1).includes('/') &&
+              d[field] === value
+          );
+          return Promise.resolve({
+            empty: matches.length === 0,
+            docs: matches.map(([, d]) => ({ data: () => d })),
+          });
+        },
       }),
     }),
   });
@@ -173,6 +176,57 @@ describe('handleCheckVideoActivityAnswer', () => {
     await expect(
       handleCheckVideoActivityAnswer(db, 't1', input('x'.repeat(2001)))
     ).rejects.toMatchObject({ code: 'invalid-argument' });
+  });
+});
+
+describe('handleCheckVideoActivityAnswer question order', () => {
+  const TWO = [
+    ...KEYED,
+    {
+      id: 'q2',
+      type: 'FIB',
+      text: 'Later?',
+      timestamp: 20,
+      correctAnswer: 'blue',
+      incorrectAnswers: [],
+    },
+  ];
+  const later = { sessionId: 's1', questionId: 'q2', answer: 'blue' };
+  const RESPONSE = `${SESSION}/responses/pin-p1-01`;
+  const dbWith = (answers: Doc[], settings: Doc = {}) =>
+    makeDb({
+      [SESSION]: { teacherUid: 't1', questions: [], settings },
+      [KEY]: { questions: TWO },
+      [RESPONSE]: { studentUid: 'stu', answers },
+    });
+
+  it('refuses a later question until the earlier ones are recorded', async () => {
+    await expect(
+      handleCheckVideoActivityAnswer(dbWith([]), 'stu', later)
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    await expect(
+      handleCheckVideoActivityAnswer(
+        dbWith([{ questionId: 'q1', answer: 'Paris' }]),
+        'stu',
+        later
+      )
+    ).resolves.toMatchObject({ isCorrect: true });
+  });
+
+  it('lets the first question, skipping sessions and the teacher through', async () => {
+    await expect(
+      handleCheckVideoActivityAnswer(dbWith([]), 'stu', input('Paris'))
+    ).resolves.toMatchObject({ isCorrect: true });
+    await expect(
+      handleCheckVideoActivityAnswer(
+        dbWith([], { allowSkipping: true }),
+        'stu',
+        later
+      )
+    ).resolves.toMatchObject({ isCorrect: true });
+    await expect(
+      handleCheckVideoActivityAnswer(dbWith([]), 't1', later)
+    ).resolves.toMatchObject({ isCorrect: true });
   });
 });
 

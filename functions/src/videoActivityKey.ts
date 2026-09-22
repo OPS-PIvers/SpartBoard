@@ -71,6 +71,29 @@ const keyQuestions = (raw: unknown): VaKeyQuestion[] =>
       )
     : [];
 
+// Server-side mirror of the player's no-skip rule, so the check can't be walked ahead to harvest the key.
+export function allEarlierAnswered(
+  questions: VaKeyQuestion[],
+  target: VaKeyQuestion,
+  rawAnswers: unknown
+): boolean {
+  const answered = new Set(
+    Array.isArray(rawAnswers)
+      ? rawAnswers
+          .map((a: unknown) =>
+            typeof a === 'object' && a !== null
+              ? (a as { questionId?: unknown }).questionId
+              : undefined
+          )
+          .filter((id): id is string => typeof id === 'string')
+      : []
+  );
+  const at = target.timestamp ?? 0;
+  return questions.every(
+    (q) => q.id === target.id || (q.timestamp ?? 0) >= at || answered.has(q.id)
+  );
+}
+
 export async function handleCheckVideoActivityAnswer(
   db: admin.firestore.Firestore,
   callerUid: string | null,
@@ -91,12 +114,10 @@ export async function handleCheckVideoActivityAnswer(
   if (!sessionSnap.exists)
     throw new HttpsError('not-found', 'Activity not found.');
   const session = sessionSnap.data() ?? {};
+  const isTeacher = session.teacherUid === callerUid;
+  const isViewOnly = session.mode === 'view-only';
   // Joined students, the owning teacher (preview), and view-only share viewers.
-  const allowed =
-    !responseSnap.empty ||
-    session.teacherUid === callerUid ||
-    session.mode === 'view-only';
-  if (!allowed)
+  if (responseSnap.empty && !isTeacher && !isViewOnly)
     throw new HttpsError('permission-denied', 'Join the activity first.');
 
   // Docs the scrub trigger has not reached yet still embed the key.
@@ -108,6 +129,15 @@ export async function handleCheckVideoActivityAnswer(
   const question = questions.find((q) => q.id === input.questionId);
   if (!question)
     throw new HttpsError('not-found', 'Question not found in this activity.');
+  const settings = (session.settings ?? {}) as { allowSkipping?: boolean };
+  if (!isTeacher && !isViewOnly && settings.allowSkipping !== true) {
+    const answers: unknown = responseSnap.docs[0]?.data().answers;
+    if (!allEarlierAnswered(questions, question, answers))
+      throw new HttpsError(
+        'failed-precondition',
+        'Answer the earlier questions first.'
+      );
+  }
   return {
     isCorrect: gradeVaAnswer(question, input.answer),
     correctAnswer: question.correctAnswer ?? '',
