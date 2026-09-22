@@ -7,7 +7,9 @@
 //   - boardIds list validation (non-empty, max 500)
 //   - collection.name must be a non-empty string
 //   - intendedMode must be 'copy' or 'substitute'
-//   - Substitute shares are immutable post-creation (no update)
+//   - Substitute shares take only the sub-shares manager's keys on update
+//     (re-push, extend, retarget, end now), and who may read them is
+//     unchanged by an update
 //   - Copy shares are host-or-admin updatable
 //   - Delete: host or admin only
 //   - /boards/{boardId} subcollection: read mirrors parent, write = host only
@@ -437,21 +439,26 @@ describe('shared_collections — create, substitute Drive-grant fields', () => {
     );
   });
 
-  it('driveGrants are pinned post-create (host cannot rewrite them)', async () => {
+  it('only the host rewrites driveGrants, which is how a sub is added later', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         doc(ctx.firestore(), sharePath),
         subShareDoc({ subEmails: ['sub@orono.k12.mn.us'], driveGrants })
       );
     });
-    // Substitute shares are fully immutable — any update (incl. driveGrants)
-    // is rejected even for the host.
-    await assertFails(
+    const added = [
+      ...driveGrants,
+      { email: 'ohssub@orono.k12.mn.us', fileId: 'f', permissionId: 'p2' },
+    ];
+    await assertSucceeds(
       updateDoc(doc(asHost(), sharePath), {
-        driveGrants: [
-          { email: 'evil@orono.k12.mn.us', fileId: 'f', permissionId: 'p' },
-        ],
+        subEmails: ['sub@orono.k12.mn.us', 'ohssub@orono.k12.mn.us'],
+        driveGrants: added,
+        updatedAt: NOW_MS,
       })
+    );
+    await assertFails(
+      updateDoc(doc(asOronoTeacher(), sharePath), { driveGrants: added })
     );
   });
 });
@@ -476,23 +483,165 @@ describe('shared_collections — create, hostUid impersonation', () => {
 // 14. UPDATE — substitute shares are immutable
 // ---------------------------------------------------------------------------
 
-describe('shared_collections — update, substitute immutability', () => {
+describe('shared_collections — update, substitute manager writes', () => {
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), sharePath), subShareDoc());
     });
   });
 
-  it('update rejected for substitute share even by host', async () => {
+  it('host can re-push the boards, sections and contentVersion', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        boardIds: ['board-1', 'board-2'],
+        boards: [
+          { id: 'board-1', name: 'Monday', sectionId: 'col-xyz', order: 0 },
+          { id: 'board-2', name: 'Tuesday', sectionId: 'col-xyz', order: 1 },
+        ],
+        sections: [{ id: 'col-xyz', name: 'Sub Collection' }],
+        kind: 'collection',
+        defaultBoardId: 'board-1',
+        contentVersion: 2,
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  it('host can extend the expiry inside the 14-day cap', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        expiresAt: NOW_MS + FOURTEEN_DAYS_MS - 60_000,
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  it('extend past 14 days is rejected', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        expiresAt: NOW_MS + FOURTEEN_DAYS_MS + 60_000,
+      })
+    );
+  });
+
+  it('host can stamp the expiry in the past to end the share now', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        expiresAt: NOW_MS - 1,
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  it('host can retarget the named subs', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        subEmails: ['ohssub@orono.k12.mn.us'],
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  it('more than 20 named subs is rejected', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        subEmails: Array.from(
+          { length: 21 },
+          (_, i) => `sub${i.toString()}@orono.k12.mn.us`
+        ),
+      })
+    );
+  });
+
+  it('buildingId stays pinned', async () => {
     await assertFails(
       updateDoc(doc(asHost(), sharePath), { buildingId: 'oms' })
     );
   });
 
-  it('update rejected for substitute share even by admin', async () => {
+  it('intendedMode stays pinned', async () => {
     await assertFails(
-      updateDoc(doc(asAdmin(), sharePath), { buildingId: 'oms' })
+      updateDoc(doc(asHost(), sharePath), { intendedMode: 'copy' })
     );
+  });
+
+  it('hostUid stays pinned', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), { hostUid: ORONO_UID })
+    );
+  });
+
+  it('a key outside the allowlist is rejected even alongside allowed ones', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        contentVersion: 2,
+        initialState: { widgets: [] },
+      })
+    );
+  });
+
+  it('a named sub cannot update the share', async () => {
+    await assertFails(
+      updateDoc(doc(asOronoTeacher(), sharePath), { contentVersion: 99 })
+    );
+  });
+
+  it('a non-host teacher cannot end the share', async () => {
+    await assertFails(
+      updateDoc(doc(asExternalTeacher(), sharePath), { expiresAt: NOW_MS - 1 })
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 14b. READ after a manager write — an update must not change who can read,
+// and ending a share must cut the sub off on the parent AND the boards.
+// ---------------------------------------------------------------------------
+
+describe('shared_collections — read after substitute manager writes', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), subShareDoc());
+      await setDoc(doc(ctx.firestore(), boardPath), boardSnapshotDoc());
+    });
+  });
+
+  it('an Orono sub still reads the share and its boards after an update', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        contentVersion: 2,
+        updatedAt: NOW_MS,
+      })
+    );
+    await assertSucceeds(getDoc(doc(asOronoTeacher(), sharePath)));
+    await assertSucceeds(getDoc(doc(asOronoTeacher(), boardPath)));
+  });
+
+  it('ending the share denies the sub the share doc and its boards', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        expiresAt: NOW_MS - 1,
+        updatedAt: NOW_MS,
+      })
+    );
+    await assertFails(getDoc(doc(asOronoTeacher(), sharePath)));
+    await assertFails(getDoc(doc(asOronoTeacher(), boardPath)));
+  });
+
+  it('the host still reads an ended share, so the sweep can clean it up', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), { expiresAt: NOW_MS - 1 })
+    );
+    await assertSucceeds(getDoc(doc(asHost(), sharePath)));
+    await assertSucceeds(getDoc(doc(asHost(), boardPath)));
+  });
+
+  it('an external teacher is still denied after an update', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), { contentVersion: 3 })
+    );
+    await assertFails(getDoc(doc(asExternalTeacher(), sharePath)));
+    await assertFails(getDoc(doc(asExternalTeacher(), boardPath)));
   });
 });
 

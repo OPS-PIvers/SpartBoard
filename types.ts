@@ -9656,6 +9656,29 @@ export type SharedCollectionImportMode = 'copy' | 'substitute';
  * 1MB-per-doc limit. The parent doc stores Collection metadata + an
  * ordered `boardIds` list for the recipient flow.
  */
+/**
+ * Whether a share carries one Board or a whole Collection. New sub shares of a
+ * single Board are written as a one-board Collection share so bundling, names,
+ * update and end-now are built once (docs/plans/SUB_SHARE_COLLECTIONS.md A1).
+ * Absent on shares written before that change: read as 'collection'.
+ */
+export type SharedCollectionKind = 'board' | 'collection';
+
+/** One group in a sub share's board list — the root, then each sub-collection. */
+export interface SharedCollectionSection {
+  id: string;
+  name: string;
+  color?: string;
+}
+
+/** A shared Board's name, section and place in the walk order. */
+export interface SharedCollectionBoardEntry {
+  id: string;
+  name: string;
+  sectionId: string;
+  order: number;
+}
+
 export interface SharedCollection {
   shareId: string;
   hostUid: string;
@@ -9687,6 +9710,21 @@ export interface SharedCollection {
   driveGrants?: SubstituteShareDriveGrant[];
   /** Substitute-only: mirrors `SubstituteShareFields.sharedRosters`. */
   sharedRosters?: SubstituteShareRoster[];
+  /** Absent on pre-v2 shares; read as 'collection'. */
+  kind?: SharedCollectionKind;
+  /** Root section first, then sub-collections in tree order. Absent pre-v2. */
+  sections?: SharedCollectionSection[];
+  /**
+   * Board names, sections and walk order. Absent on pre-v2 shares, where /subs
+   * falls back to `boardIds` and a "Board …" label.
+   */
+  boards?: SharedCollectionBoardEntry[];
+  /** Board the sub lands on; falls back to the first board in walk order. */
+  defaultBoardId?: string;
+  /** Bumped by "Update sub share" so an open /subs session knows to reload. */
+  contentVersion?: number;
+  /** ms epoch of the last host update to this share. */
+  updatedAt?: number;
 }
 
 /**

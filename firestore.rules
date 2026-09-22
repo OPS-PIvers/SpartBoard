@@ -17,6 +17,15 @@ service cloud.firestore {
              exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()));
     }
 
+    // A signed-in district address, verified. email_verified is required because
+    // email/password sign-in is enabled, so an unverified self-reported address
+    // could otherwise claim an @orono one. Written once for the substitute and
+    // shared-board read rules that all gate on it.
+    function isVerifiedDistrictEmail() {
+      return request.auth.token.get('email_verified', false) == true &&
+             request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$');
+    }
+
     // ---- Optional-field type guards ----
     // optX(d, 'k') is exactly `!('k' in d) || d.k is X`, written once instead of
     // inline at every callsite. Firestore caps the COMPILED ruleset at 250 KB,
@@ -1021,8 +1030,7 @@ service cloud.firestore {
         || resource.data.get('originalAuthor', null) == request.auth.uid
         || isAdmin()
         || (
-          request.auth.token.get('email_verified', false) == true
-          && request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
+          isVerifiedDistrictEmail()
           && resource.data.get('expiresAt', 0) > request.time.toMillis()
         )
       );
@@ -1045,8 +1053,7 @@ service cloud.firestore {
         || resource.data.get('originalAuthor', null) == request.auth.uid
         || (
           resource.data.get('intendedMode', null) == 'substitute'
-          && request.auth.token.get('email_verified', false) == true
-          && request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
+          && isVerifiedDistrictEmail()
         )
         || (
           resource.data.get('plcId', null) != null
@@ -1186,8 +1193,7 @@ service cloud.firestore {
         || resource.data.get('hostUid', null) == request.auth.uid
         || isAdmin()
         || (
-          request.auth.token.get('email_verified', false) == true
-          && request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
+          isVerifiedDistrictEmail()
           && resource.data.get('expiresAt', 0) > request.time.toMillis()
         )
       );
@@ -1203,8 +1209,7 @@ service cloud.firestore {
         || resource.data.get('hostUid', null) == request.auth.uid
         || (
           resource.data.get('intendedMode', null) == 'substitute'
-          && request.auth.token.get('email_verified', false) == true
-          && request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
+          && isVerifiedDistrictEmail()
         )
       );
 
@@ -1238,13 +1243,29 @@ service cloud.firestore {
           )
         );
 
-      // UPDATE: host-only, copy shares ONLY — substitute shares are fully
-      // immutable post-create (the intendedMode=='copy' guard applies even to
-      // admins, so every substitute field incl. expiresAt/buildingId/subEmails/
-      // driveGrants is pinned). Emergency fixes go via console/Admin SDK.
+      // UPDATE: host-only (or admin). A copy share is unrestricted. A substitute
+      // share takes only the keys the sub-shares manager writes — re-pushing the
+      // boards, retargeting the subs, extending, or stamping it expired to end it
+      // — so hostUid, intendedMode and buildingId stay pinned by omission from
+      // the allowlist. expiresAt is capped at 14 days out, the same cap as create;
+      // it may be set into the past, which is how "End now" cuts the sub off.
       allow update: if request.auth != null
         && (resource.data.get('hostUid', null) == request.auth.uid || isAdmin())
-        && resource.data.get('intendedMode', null) == 'copy';
+        && (
+          resource.data.get('intendedMode', null) == 'copy'
+          || (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'boards', 'boardIds', 'sections', 'collection', 'defaultBoardId',
+              'kind', 'subEmails', 'sharedRosters', 'driveGrants',
+              'contentVersion', 'updatedAt', 'expiresAt'
+            ])
+            && request.resource.data.expiresAt is number
+            && request.resource.data.expiresAt <= request.time.toMillis() + 1209600000
+            && (!('subEmails' in request.resource.data)
+                || (request.resource.data.subEmails is list
+                    && request.resource.data.subEmails.size() <= 20))
+          )
+        );
 
       allow delete: if request.auth != null
         && (resource.data.get('hostUid', null) == request.auth.uid || isAdmin());
@@ -1259,8 +1280,7 @@ service cloud.firestore {
           || get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('hostUid', null) == request.auth.uid
           || isAdmin()
           || (
-            request.auth.token.get('email_verified', false) == true
-            && request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
+            isVerifiedDistrictEmail()
             && get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('expiresAt', 0) > request.time.toMillis()
           )
         );

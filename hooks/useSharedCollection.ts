@@ -18,18 +18,27 @@ import {
   doc,
   getDoc,
   getDocs,
+  query,
+  where,
   writeBatch,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { logError } from '@/utils/logError';
-import { sanitizeBoardForRecipient } from '@/utils/dashboardSanitize';
+import {
+  sanitizeBoardForRecipient,
+  sanitizeBoardForSubShare,
+} from '@/utils/dashboardSanitize';
 import type {
   Dashboard,
   SharedCollection,
   SharedCollectionBoardDoc,
+  SharedCollectionBoardEntry,
+  SharedCollectionKind,
+  SharedCollectionSection,
   Collection as CollectionType,
   CollectionSubstituteShareInput,
   SubstituteShareDriveGrant,
+  SubstituteShareRoster,
 } from '@/types';
 
 const SHARED_COLLECTIONS_SUBPATH = 'shared_collections';
@@ -123,8 +132,21 @@ interface ShareCollectionInput {
   hostDisplayName: string | null;
 }
 
+/**
+ * The share's shape as the sub will walk it: one section per collection in the
+ * tree, boards named and ordered (docs/plans/SUB_SHARE_COLLECTIONS.md §3.1).
+ * Built on the teacher's client by `utils/subShareSnapshot`.
+ */
+export interface SubShareTree {
+  kind: SharedCollectionKind;
+  sections: SharedCollectionSection[];
+  boardEntries: SharedCollectionBoardEntry[];
+  defaultBoardId?: string;
+}
+
 type SubstituteShareInput = ShareCollectionInput &
-  CollectionSubstituteShareInput & {
+  CollectionSubstituteShareInput &
+  SubShareTree & {
     /**
      * Resolved Drive permission grants. The caller (DashboardContext's
      * `shareSubstituteCollection`) performs the actual Drive `permissions.create`
@@ -153,8 +175,14 @@ async function commitBoardBatches({
 }: {
   shareId: string;
   boards: Dashboard[];
-  scope: 'shareCollection' | 'shareSubstituteCollection';
+  scope: 'shareCollection' | 'shareSubstituteCollection' | 'updateSubShare';
 }): Promise<void> {
+  // A sub is looking at the teacher's board for the day, so a substitute
+  // snapshot keeps the pen marks and groups a recipient copy drops.
+  const sanitize =
+    scope === 'shareCollection'
+      ? sanitizeBoardForRecipient
+      : sanitizeBoardForSubShare;
   const BATCH_LIMIT = 400;
   let currentBatch = writeBatch(db);
   let inBatch = 0;
@@ -177,7 +205,7 @@ async function commitBoardBatches({
       );
       const boardPayload: SharedCollectionBoardDoc = {
         boardId: board.id,
-        dashboard: sanitizeBoardForRecipient(board),
+        dashboard: sanitize(board),
       };
       currentBatch.set(boardRef, boardPayload);
       inBatch += 1;
@@ -197,8 +225,12 @@ async function commitBoardBatches({
     // to the recipient. If cleanup itself fails, log and continue — the
     // original failure is the one we re-throw.
     try {
-      const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
-      await deleteDoc(parentRef);
+      // Only a failed CREATE leaves a share worth dropping; an update failure
+      // must leave the teacher's live share alone.
+      if (scope !== 'updateSubShare') {
+        const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
+        await deleteDoc(parentRef);
+      }
     } catch (cleanupErr) {
       logError(`useSharedCollection.${scope}.partialCleanup`, cleanupErr, {
         shareId,
@@ -324,6 +356,14 @@ export const useSharedCollection = () => {
         ...(input.sharedRosters && input.sharedRosters.length > 0
           ? { sharedRosters: input.sharedRosters }
           : {}),
+        kind: input.kind,
+        sections: input.sections,
+        boards: input.boardEntries,
+        ...(input.defaultBoardId !== undefined && {
+          defaultBoardId: input.defaultBoardId,
+        }),
+        contentVersion: 1,
+        updatedAt: now,
       };
 
       if (isAuthBypass) {
@@ -346,6 +386,186 @@ export const useSharedCollection = () => {
       });
 
       return shareId;
+    },
+    []
+  );
+
+  /**
+   * Host action: re-push the current boards into an existing sub share — same
+   * link, same /subs entry (D1). Boards dropped from the collection since the
+   * last push are deleted; `contentVersion` is bumped so an open /subs session
+   * knows to offer a reload.
+   */
+  const updateSubstituteShare = useCallback(
+    async (
+      input: SubShareTree & {
+        shareId: string;
+        collection: CollectionType;
+        boards: Dashboard[];
+        expiresAt?: number;
+        subEmails?: string[];
+        driveGrants?: SubstituteShareDriveGrant[];
+        sharedRosters?: SubstituteShareRoster[];
+      }
+    ): Promise<void> => {
+      const { shareId } = input;
+      const now = Date.now();
+      const boardIds = input.boards.map((b) => b.id);
+
+      if (isAuthBypass) {
+        const meta = mockCollStore.getCollection(shareId);
+        if (!meta) throw new Error('Share not found');
+        mockCollStore.save(
+          shareId,
+          {
+            ...meta,
+            boardIds,
+            kind: input.kind,
+            sections: input.sections,
+            boards: input.boardEntries,
+            contentVersion: (meta.contentVersion ?? 1) + 1,
+            updatedAt: now,
+          },
+          input.boards
+        );
+        return;
+      }
+
+      const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
+      const snap = await getDoc(parentRef);
+      if (!snap.exists()) throw new Error('Share not found');
+      const current = snap.data() as SharedCollection;
+
+      const parentBatch = writeBatch(db);
+      parentBatch.update(parentRef, {
+        boardIds,
+        kind: input.kind,
+        sections: input.sections,
+        boards: input.boardEntries,
+        collection: {
+          name: input.collection.name,
+          ...(input.collection.color !== undefined && {
+            color: input.collection.color,
+          }),
+          ...(input.collection.icon !== undefined && {
+            icon: input.collection.icon,
+          }),
+        },
+        contentVersion: (current.contentVersion ?? 1) + 1,
+        updatedAt: now,
+        expiresAt: input.expiresAt ?? current.expiresAt,
+        ...(input.defaultBoardId !== undefined && {
+          defaultBoardId: input.defaultBoardId,
+        }),
+        ...(input.subEmails ? { subEmails: input.subEmails } : {}),
+        ...(input.driveGrants ? { driveGrants: input.driveGrants } : {}),
+        ...(input.sharedRosters ? { sharedRosters: input.sharedRosters } : {}),
+      });
+      await parentBatch.commit();
+
+      await commitBoardBatches({
+        shareId,
+        boards: input.boards,
+        scope: 'updateSubShare',
+      });
+
+      // Boards the teacher removed from the collection since the last push.
+      const stale = (current.boardIds ?? []).filter(
+        (id) => !boardIds.includes(id)
+      );
+      if (stale.length > 0) {
+        const cleanup = writeBatch(db);
+        for (const id of stale) {
+          cleanup.delete(
+            doc(
+              db,
+              SHARED_COLLECTIONS_SUBPATH,
+              shareId,
+              SHARED_COLLECTION_BOARDS_SUBPATH,
+              id
+            )
+          );
+        }
+        await cleanup.commit();
+      }
+    },
+    []
+  );
+
+  /** Host action: push the expiry out, capped at 14 days from now (D11). */
+  const extendSubstituteShare = useCallback(
+    async (shareId: string, expiresAt: number): Promise<void> => {
+      if (isAuthBypass) {
+        const meta = mockCollStore.getCollection(shareId);
+        if (meta) {
+          mockCollStore.save(
+            shareId,
+            { ...meta, expiresAt, updatedAt: Date.now() },
+            mockCollStore.getBoards(shareId)
+          );
+        }
+        return;
+      }
+      const batch = writeBatch(db);
+      batch.update(doc(db, SHARED_COLLECTIONS_SUBPATH, shareId), {
+        expiresAt,
+        updatedAt: Date.now(),
+      });
+      await batch.commit();
+    },
+    []
+  );
+
+  /**
+   * Host action: end a share now. Stamping the expiry in the past is what
+   * actually cuts the sub off — every read rule gates on it — and it hands the
+   * share to the existing expiry sweep, which revokes the Drive grants no other
+   * active share still references and deletes the docs. Deleting here instead
+   * would drop the grant records with them and leave a sub holding roster
+   * access. The caller runs the sweep straight after.
+   */
+  const expireSubstituteShare = useCallback(
+    async (shareId: string): Promise<void> => {
+      if (isAuthBypass) return;
+      const batch = writeBatch(db);
+      batch.update(doc(db, SHARED_COLLECTIONS_SUBPATH, shareId), {
+        expiresAt: Date.now() - 1,
+        updatedAt: Date.now(),
+      });
+      await batch.commit();
+    },
+    []
+  );
+
+  /**
+   * Host action: the teacher's own live sub shares, most recently touched
+   * first. Filtered on `hostUid` alone — the single-field index every project
+   * has — with mode and expiry filtered here so no composite index is needed.
+   */
+  const listHostSubShares = useCallback(
+    async (hostUid: string): Promise<SharedCollection[]> => {
+      if (isAuthBypass) return [];
+      try {
+        const snap = await getDocs(
+          query(
+            collection(db, SHARED_COLLECTIONS_SUBPATH),
+            where('hostUid', '==', hostUid)
+          )
+        );
+        const now = Date.now();
+        return snap.docs
+          .map((d) => d.data() as SharedCollection)
+          .filter(
+            (c) => c.intendedMode === 'substitute' && (c.expiresAt ?? 0) > now
+          )
+          .sort(
+            (a, b) =>
+              (b.updatedAt ?? b.createdAt) - (a.updatedAt ?? a.createdAt)
+          );
+      } catch (err) {
+        logError('useSharedCollection.listHostSubShares', err, { hostUid });
+        return [];
+      }
     },
     []
   );
@@ -462,6 +682,10 @@ export const useSharedCollection = () => {
   return {
     shareCollection,
     shareSubstituteCollection,
+    updateSubstituteShare,
+    extendSubstituteShare,
+    expireSubstituteShare,
+    listHostSubShares,
     loadSharedCollection,
     loadSharedCollectionBoards,
   };
