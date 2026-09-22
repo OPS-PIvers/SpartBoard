@@ -18,6 +18,7 @@ import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import type { SharedCollection } from '@/types';
 import type { SubsDeepLink } from './subsDeepLink';
+import { pickLandingBoard } from './subShareNav';
 
 export type SubShareTarget =
   | { status: 'loading' }
@@ -33,15 +34,6 @@ export type SubShareTarget =
 const NOT_FOUND =
   'That link does not point to a share we can find. It may have been ended.';
 const EXPIRED = 'This share has expired.';
-
-/** The board the sub lands on: the teacher's pick, else first in walk order. */
-function landingBoardId(share: SharedCollection): string | null {
-  const ids = Array.isArray(share.boardIds) ? share.boardIds : [];
-  if (share.defaultBoardId && ids.includes(share.defaultBoardId)) {
-    return share.defaultBoardId;
-  }
-  return ids[0] ?? null;
-}
 
 function resolveCollection(
   share: SharedCollection,
@@ -60,7 +52,12 @@ function resolveCollection(
       message: 'That board is not part of this share any more.',
     };
   }
-  const landing = boardId ?? landingBoardId(share);
+  const landing =
+    boardId ??
+    pickLandingBoard(
+      Array.isArray(share.boardIds) ? share.boardIds : [],
+      share.defaultBoardId
+    );
   if (!landing) {
     return {
       status: 'error',

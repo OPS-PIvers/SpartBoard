@@ -24,6 +24,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { canonicalBuildingId } from '@/config/buildings';
+import type { SubShareNavSource } from '@/components/subs/subShareNav';
 import { logError } from '@/utils/logError';
 import type {
   Dashboard,
@@ -288,12 +289,15 @@ interface UseSubstituteCollectionBoardState {
   share: SubstituteShareDoc | null;
   loading: boolean;
   error: string | null;
+  /** The whole share's boards, so the sub can move between them in place. */
+  navSource: SubShareNavSource | null;
 }
 
 interface CollectionBoardSnapshot {
   key: string;
   share: SubstituteShareDoc | null;
   error: string | null;
+  navSource: SubShareNavSource | null;
 }
 
 /**
@@ -342,6 +346,7 @@ export function useSubstituteCollectionBoard(
           setSnapshot({
             key: requestKey,
             share: null,
+            navSource: null,
             error: 'This Collection could not be found.',
           });
           return;
@@ -351,6 +356,7 @@ export function useSubstituteCollectionBoard(
           setSnapshot({
             key: requestKey,
             share: null,
+            navSource: null,
             error: 'Not a substitute Collection share.',
           });
           return;
@@ -362,6 +368,7 @@ export function useSubstituteCollectionBoard(
           setSnapshot({
             key: requestKey,
             share: null,
+            navSource: null,
             error: 'This share has expired.',
           });
           return;
@@ -370,6 +377,7 @@ export function useSubstituteCollectionBoard(
           setSnapshot({
             key: requestKey,
             share: null,
+            navSource: null,
             error: 'This board is not part of the shared Collection.',
           });
           return;
@@ -387,6 +395,7 @@ export function useSubstituteCollectionBoard(
           setSnapshot({
             key: requestKey,
             share: null,
+            navSource: null,
             error: 'This share is not available in your building.',
           });
           return;
@@ -405,6 +414,7 @@ export function useSubstituteCollectionBoard(
           setSnapshot({
             key: requestKey,
             share: null,
+            navSource: null,
             error: 'This board could not be found in the Collection.',
           });
           return;
@@ -435,7 +445,21 @@ export function useSubstituteCollectionBoard(
           name: board.name ?? parent.collection.name,
         };
 
-        setSnapshot({ key: requestKey, share, error: null });
+        setSnapshot({
+          key: requestKey,
+          share,
+          navSource: {
+            boardIds: parent.boardIds,
+            ...(parent.boards !== undefined && { boards: parent.boards }),
+            ...(parent.sections !== undefined && {
+              sections: parent.sections,
+            }),
+            ...(parent.defaultBoardId !== undefined && {
+              defaultBoardId: parent.defaultBoardId,
+            }),
+          },
+          error: null,
+        });
       } catch (err) {
         logError('useSubstituteCollectionBoard.load', err, {
           shareId,
@@ -445,6 +469,7 @@ export function useSubstituteCollectionBoard(
           setSnapshot({
             key: requestKey,
             share: null,
+            navSource: null,
             error: friendlySubShareError(
               err as { code?: string; message?: string }
             ),
@@ -459,15 +484,16 @@ export function useSubstituteCollectionBoard(
   }, [shareId, boardId, expectedBuildingId]);
 
   if (!shareId || !boardId) {
-    return { share: null, loading: false, error: null };
+    return { share: null, loading: false, error: null, navSource: null };
   }
   if (!snapshot || snapshot.key !== key) {
-    return { share: null, loading: true, error: null };
+    return { share: null, loading: true, error: null, navSource: null };
   }
   return {
     share: snapshot.share,
     loading: false,
     error: snapshot.error,
+    navSource: snapshot.navSource,
   };
 }
 

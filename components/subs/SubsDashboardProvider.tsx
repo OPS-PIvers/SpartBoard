@@ -27,6 +27,7 @@
 
 import React, { useCallback, useMemo, useState } from 'react';
 import { DashboardContext } from '@/context/DashboardContextValue';
+import { WidgetBuildingOverrideContext } from '@/context/WidgetBuildingContextValue';
 import type {
   DashboardContextValue,
   PendingShareImport,
@@ -56,6 +57,13 @@ import type { SubstituteRosterState } from '@/hooks/useSubstituteRosters';
 interface SubsDashboardProviderProps {
   share: SubstituteShareDoc;
   rosterState?: SubstituteRosterState;
+  /**
+   * Which board's session state to use. A Collection share carries one
+   * shareId for every board in it, so without this the sub would walk to the
+   * next board and find the previous one's widgets. Defaults to the share id,
+   * which is what a single-board share wants.
+   */
+  boardKey?: string;
   children: React.ReactNode;
 }
 
@@ -90,6 +98,7 @@ function cloneInitialWidgets(source: WidgetData[]): WidgetData[] {
 export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   share,
   rosterState = NO_ROSTERS,
+  boardKey: boardKeyProp,
   children,
 }) => {
   const { rosters, status: rosterStatus, loadRosters } = rosterState;
@@ -98,18 +107,24 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
     ? selectedRosterId
     : (rosters[0]?.id ?? null);
 
+  const boardKey = boardKeyProp ?? share.shareId;
+  const seed = share.initialState ?? share.widgets ?? [];
+
   // Freeze the reset target at mount time. Firestore onSnapshot may fire
   // new array references for the same logical data; useMemo would chase
   // those identities and silently retarget reset. Use lazy useState so
   // "reset to initial state" means "reset to the state when the sub
   // opened this board".
-  const [initialSnapshot, setInitialSnapshot] = useState<WidgetData[]>(
-    () => share.initialState ?? share.widgets ?? []
-  );
+  const [initialByBoard, setInitialByBoard] = useState<
+    ReadonlyMap<string, WidgetData[]>
+  >(() => new Map([[boardKey, seed]]));
 
-  const [widgets, setWidgets] = useState<WidgetData[]>(() =>
-    cloneInitialWidgets(initialSnapshot)
-  );
+  // Kept per board so walking to the next board and back does not throw away
+  // a running timer or a ticked checklist (plan D3). Session only — nothing
+  // here is ever written to Firestore, and a reload starts over.
+  const [widgetsByBoard, setWidgetsByBoard] = useState<
+    ReadonlyMap<string, WidgetData[]>
+  >(() => new Map([[boardKey, cloneInitialWidgets(seed)]]));
 
   // Stable fallback for `createdAt` — captured once so `activeDashboard`
   // useMemo does not observe a new value each render when the share doc
@@ -117,21 +132,45 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   // than a ref so the purity lint rule is satisfied.
   const [fallbackCreatedAt] = useState<number>(() => Date.now());
 
-  // When the share doc swaps (extremely unusual — the share id changes
-  // when the sub picks a different teacher), reseed local state from the
-  // new snapshot. Done with the "adjusting state while rendering" pattern
-  // rather than useEffect, per CLAUDE.md guidance.
-  const [prevShareId, setPrevShareId] = useState(share.shareId);
-  if (prevShareId !== share.shareId) {
-    const nextSnapshot = share.initialState ?? share.widgets ?? [];
-    setPrevShareId(share.shareId);
-    setInitialSnapshot(nextSnapshot);
-    setWidgets(cloneInitialWidgets(nextSnapshot));
+  // Reseeding uses the "adjusting state while rendering" pattern rather than
+  // useEffect, per CLAUDE.md. A different share drops every board's state; a
+  // different board inside the same share only adds its own, leaving the
+  // boards the sub already visited as they left them.
+  const [prev, setPrev] = useState({ shareId: share.shareId, boardKey });
+  if (prev.shareId !== share.shareId) {
+    setPrev({ shareId: share.shareId, boardKey });
+    setInitialByBoard(new Map([[boardKey, seed]]));
+    setWidgetsByBoard(new Map([[boardKey, cloneInitialWidgets(seed)]]));
+  } else if (prev.boardKey !== boardKey) {
+    setPrev({ shareId: share.shareId, boardKey });
+    if (!widgetsByBoard.has(boardKey)) {
+      setInitialByBoard((m) => new Map(m).set(boardKey, seed));
+      setWidgetsByBoard((m) =>
+        new Map(m).set(boardKey, cloneInitialWidgets(seed))
+      );
+    }
   }
 
+  const widgets = widgetsByBoard.get(boardKey) ?? seed;
+
+  /** Rewrites only the open board's widgets, never another board's. */
+  const applyToBoard = useCallback(
+    (update: (current: WidgetData[]) => WidgetData[]) => {
+      setWidgetsByBoard((m) => {
+        const current = m.get(boardKey);
+        if (!current) return m;
+        return new Map(m).set(boardKey, update(current));
+      });
+    },
+    [boardKey]
+  );
+
+  // Resets the open board only, per plan D3.
   const resetWidgets = useCallback(() => {
-    setWidgets(cloneInitialWidgets(initialSnapshot));
-  }, [initialSnapshot]);
+    const base = initialByBoard.get(boardKey);
+    if (!base) return;
+    applyToBoard(() => cloneInitialWidgets(base));
+  }, [applyToBoard, boardKey, initialByBoard]);
 
   // Local-only widget mutation. Deliberately does NOT honour the
   // isActiveBoardReadOnly flag — that flag exists to lock chrome (drag /
@@ -145,8 +184,8 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   // config keys.
   const updateWidget = useCallback(
     (id: string, updates: Partial<WidgetData>) => {
-      setWidgets((prev) =>
-        prev.map((w) => {
+      applyToBoard((current) =>
+        current.map((w) => {
           if (w.id !== id) return w;
           const mergedConfig = updates.config
             ? { ...w.config, ...updates.config }
@@ -155,20 +194,23 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
         })
       );
     },
-    []
+    [applyToBoard]
   );
 
-  const bringToFront = useCallback((id: string) => {
-    // Subs can still tap to focus a widget visually. We bump z but keep
-    // the change local (no Firestore write). Skipped silently if the
-    // widget is already on top.
-    setWidgets((prev) => {
-      const maxZ = prev.reduce((acc, w) => Math.max(acc, w.z ?? 0), 0);
-      return prev.map((w) =>
-        w.id === id && (w.z ?? 0) < maxZ ? { ...w, z: maxZ + 1 } : w
-      );
-    });
-  }, []);
+  const bringToFront = useCallback(
+    (id: string) => {
+      // Subs can still tap to focus a widget visually. We bump z but keep
+      // the change local (no Firestore write). Skipped silently if the
+      // widget is already on top.
+      applyToBoard((current) => {
+        const maxZ = current.reduce((acc, w) => Math.max(acc, w.z ?? 0), 0);
+        return current.map((w) =>
+          w.id === id && (w.z ?? 0) < maxZ ? { ...w, z: maxZ + 1 } : w
+        );
+      });
+    },
+    [applyToBoard]
+  );
 
   const activeDashboard = useMemo<Dashboard>(
     () => ({
@@ -414,6 +456,11 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
     };
   }, [activeDashboard, updateWidget, bringToFront, rosters, activeRosterId]);
 
+  // Schedule / soundboard / specialist widgets read building defaults. The
+  // sub belongs to no building of the teacher's, so the share's building is
+  // the only right answer for them.
+  const buildingOverride = share.buildingId ?? null;
+
   const controlValue = useMemo<SubsControlContextValue>(
     () => ({ resetWidgets, rosterStatus, loadRosters }),
     [resetWidgets, rosterStatus, loadRosters]
@@ -422,7 +469,9 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   return (
     <DashboardContext.Provider value={value}>
       <SubsControlContext.Provider value={controlValue}>
-        {children}
+        <WidgetBuildingOverrideContext.Provider value={buildingOverride}>
+          {children}
+        </WidgetBuildingOverrideContext.Provider>
       </SubsControlContext.Provider>
     </DashboardContext.Provider>
   );
