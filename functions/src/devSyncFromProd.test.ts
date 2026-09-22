@@ -41,6 +41,7 @@ vi.mock('firebase-functions/v2/https', () => ({
 import {
   currentProjectId,
   fromRestFields,
+  readProdTree,
   SYNCED_USER_COLLECTIONS,
   syncMyMaterialsFromProdV1,
 } from './devSyncFromProd';
@@ -99,6 +100,85 @@ describe('SYNCED_USER_COLLECTIONS', () => {
     ]) {
       expect(SYNCED_USER_COLLECTIONS).not.toContain(name);
     }
+  });
+});
+
+describe('SYNCED_USER_COLLECTIONS folders', () => {
+  it('carries every folder tree whose items are synced', () => {
+    for (const name of [
+      'quiz_folders',
+      'question_bank_folders',
+      'video_activity_folders',
+      'guided_learning_folders',
+      'miniapp_folders',
+      'projects_folders',
+      'flashcard_folders',
+    ]) {
+      expect(SYNCED_USER_COLLECTIONS).toContain(name);
+    }
+  });
+});
+
+describe('readProdTree', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('walks a dashboard down to its drawing objects, keeping missing parents as path-only', async () => {
+    const base = 'projects/spartboard/databases/(default)/documents/';
+    const t = '2026-09-22T00:00:00Z';
+    const pages: Record<string, unknown[]> = {
+      'users/p/dashboards': [
+        { name: base + 'users/p/dashboards/b1', createTime: t, fields: {} },
+      ],
+      'users/p/dashboards/b1/drawings': [
+        { name: base + 'users/p/dashboards/b1/drawings/w1' },
+      ],
+      'users/p/dashboards/b1/drawings/w1/pages': [
+        {
+          name: base + 'users/p/dashboards/b1/drawings/w1/pages/pg1',
+          createTime: t,
+          fields: {},
+        },
+      ],
+      'users/p/dashboards/b1/drawings/w1/pages/pg1/objects': [
+        {
+          name: base + 'users/p/dashboards/b1/drawings/w1/pages/pg1/objects/o1',
+          createTime: t,
+          fields: {},
+        },
+      ],
+    };
+    const urls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        urls.push(url);
+        const path = decodeURIComponent(
+          url.split('/documents/')[1].split('?')[0]
+        );
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ documents: pages[path] ?? [] }),
+        });
+      })
+    );
+
+    const entries = await readProdTree(
+      'tok',
+      'users/p/dashboards',
+      'dashboards'
+    );
+
+    expect(entries.map((e) => [e.path, e.fields === null])).toEqual([
+      ['users/p/dashboards/b1', false],
+      ['users/p/dashboards/b1/drawings/w1', true],
+      ['users/p/dashboards/b1/drawings/w1/pages/pg1', false],
+      ['users/p/dashboards/b1/drawings/w1/pages/pg1/objects/o1', false],
+    ]);
+    expect(urls.find((u) => u.includes('/drawings?'))).toContain(
+      'showMissing=true'
+    );
   });
 });
 

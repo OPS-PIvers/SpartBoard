@@ -14,21 +14,34 @@ export const SYNCED_USER_COLLECTIONS = [
   'activity_wall_activities',
   'collections',
   'dashboards',
+  'flashcard_folders',
   'flashcard_sets',
   'guided_learning',
   'guided_learning_folders',
+  'miniapp_folders',
   'miniapps',
-  'pdfs',
   'notebooks',
+  'pdfs',
   'projects',
+  'projects_folders',
+  'question_bank_folders',
   'question_banks',
   'quiz_folders',
   'quizzes',
+  'rubrics',
   'saved_widgets',
   'starterPacks',
   'userProfile',
   'video_activities',
+  'video_activity_folders',
 ] as const;
+
+// Nested subcollections copied under a synced doc: Drawing widget canvases live at dashboards/{id}/drawings/{widgetId}/pages/{pageId}/objects/{objectId}.
+export const NESTED_COLLECTIONS: Record<string, string[]> = {
+  dashboards: ['drawings'],
+  drawings: ['pages'],
+  pages: ['objects'],
+};
 
 export interface RestValue {
   nullValue?: null;
@@ -47,6 +60,12 @@ export interface RestValue {
 interface RestDocument {
   name: string;
   fields?: Record<string, RestValue>;
+  createTime?: string;
+}
+
+interface ProdEntry {
+  path: string;
+  fields: Record<string, RestValue> | null;
 }
 
 function toTimestamp(iso: string): admin.firestore.Timestamp {
@@ -167,7 +186,8 @@ async function findProdUid(token: string, email: string): Promise<string> {
 
 async function listProdDocs(
   token: string,
-  path: string
+  path: string,
+  showMissing = false
 ): Promise<RestDocument[]> {
   const docs: RestDocument[] = [];
   let pageToken = '';
@@ -177,7 +197,7 @@ async function listProdDocs(
       nextPageToken?: string;
     }>(
       token,
-      `${PROD_DOCS}/${path}?pageSize=300${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`
+      `${PROD_DOCS}/${path}?pageSize=300${showMissing ? '&showMissing=true' : ''}${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`
     );
     docs.push(...(page.documents ?? []));
     pageToken = page.nextPageToken ?? '';
@@ -197,6 +217,29 @@ export function currentProjectId(): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+// Lists a prod collection and its allowlisted nested subcollections; drawings/{widgetId} parents may be missing docs.
+export async function readProdTree(
+  token: string,
+  path: string,
+  name: string
+): Promise<ProdEntry[]> {
+  const docs = await listProdDocs(token, path, name === 'drawings');
+  const entries: ProdEntry[] = [];
+  for (const doc of docs) {
+    const docPath = doc.name.split('/documents/')[1] ?? '';
+    entries.push({
+      path: docPath,
+      fields: doc.createTime ? (doc.fields ?? {}) : null,
+    });
+    for (const child of NESTED_COLLECTIONS[name] ?? []) {
+      entries.push(
+        ...(await readProdTree(token, `${docPath}/${child}`, child))
+      );
+    }
+  }
+  return entries;
 }
 
 export const syncMyMaterialsFromProdV1 = onCall(
@@ -223,36 +266,45 @@ export const syncMyMaterialsFromProdV1 = onCall(
     const swapUid = (s: string) => s.split(prodUid).join(devUid);
 
     // Read everything from prod first so a failed read never leaves a dev collection emptied.
-    const prodByCollection = new Map<string, RestDocument[]>();
+    const prodByCollection = new Map<string, ProdEntry[]>();
     for (const name of SYNCED_USER_COLLECTIONS) {
       prodByCollection.set(
         name,
-        await listProdDocs(token, `users/${prodUid}/${name}`)
+        await readProdTree(token, `users/${prodUid}/${name}`, name)
       );
     }
 
     const copied: Record<string, number> = {};
-    const writer = db.bulkWriter();
-    try {
-      for (const [name, prodDocs] of prodByCollection) {
-        const devCol = db.collection(`users/${devUid}/${name}`);
-        const keep = new Set(
-          prodDocs.map((doc) => swapUid(doc.name.split('/').pop() ?? ''))
-        );
-        for (const doc of prodDocs) {
-          const id = swapUid(doc.name.split('/').pop() ?? '');
-          void writer.set(
-            devCol.doc(id),
-            fromRestFields(doc.fields ?? {}, swapUid)
-          );
+    for (const [name, entries] of prodByCollection) {
+      const devCol = db.collection(`users/${devUid}/${name}`);
+      const topPrefix = `users/${devUid}/${name}/`;
+      const devEntries = entries.map((e) => ({ ...e, path: swapUid(e.path) }));
+      const keep = new Set(
+        devEntries
+          .filter((e) => e.path.startsWith(topPrefix))
+          .map((e) => e.path.slice(topPrefix.length))
+          .filter((rest) => !rest.includes('/'))
+      );
+      // Clear stale dev docs and every nested subtree under the synced ones before rewriting.
+      for (const ref of await devCol.listDocuments()) {
+        if (!keep.has(ref.id)) {
+          await db.recursiveDelete(ref);
+        } else {
+          for (const child of NESTED_COLLECTIONS[name] ?? []) {
+            await db.recursiveDelete(ref.collection(child));
+          }
         }
-        for (const ref of await devCol.listDocuments()) {
-          if (!keep.has(ref.id)) void writer.delete(ref);
-        }
-        copied[name] = prodDocs.length;
       }
-    } finally {
-      await writer.close();
+      const writer = db.bulkWriter();
+      try {
+        for (const e of devEntries) {
+          if (e.fields)
+            void writer.set(db.doc(e.path), fromRestFields(e.fields, swapUid));
+        }
+      } finally {
+        await writer.close();
+      }
+      copied[name] = keep.size;
     }
     return { copied };
   }
