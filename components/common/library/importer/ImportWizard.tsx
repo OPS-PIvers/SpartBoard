@@ -60,8 +60,8 @@ function acceptExtensionsForSources(sources: ImportSourceKind[]): string {
     exts.add('.json');
     exts.add('.txt');
   }
-  // Not '.pdf'/'.docx'/'.rtf': the dedicated "Test document" tile owns those,
-  // and offering them here too would put them behind a button labelled "CSV".
+  // Not the test-document extensions: the dedicated tile owns those, and
+  // offering them here too would put them behind a button labelled "CSV".
   return Array.from(exts).join(',');
 }
 
@@ -73,7 +73,8 @@ function inferKindFromFileName(
   if (
     (lower.endsWith('.pdf') ||
       lower.endsWith('.docx') ||
-      lower.endsWith('.rtf')) &&
+      lower.endsWith('.rtf') ||
+      lower.endsWith('.imscc')) &&
     supported.includes('document')
   )
     return 'document';
@@ -717,7 +718,7 @@ export function ImportWizard<TData>({
                   Choose a test from Drive
                 </span>
                 <p className="text-[11px] text-brand-blue-primary/60 font-bold text-center">
-                  Google Doc, Word file, PDF or .rtf
+                  Google Doc, Word file, PDF, .rtf or LMS export
                 </p>
               </button>
             )}
@@ -738,7 +739,7 @@ export function ImportWizard<TData>({
                   : 'Drop or upload a test document'}
               </span>
               <p className="text-[11px] text-brand-blue-primary/60 font-bold text-center">
-                .pdf, .docx or .rtf
+                .pdf, .docx, .rtf or .imscc
               </p>
             </button>
           </div>
@@ -768,13 +769,13 @@ export function ImportWizard<TData>({
             ))}
           <p className="text-[11px] text-slate-500 font-medium">
             We&apos;ll read the questions and answer choices, and the answer key
-            if the document has one. You can check everything before the quiz is
+            if the file has one. You can check everything before the quiz is
             created.
           </p>
           <input
             type="file"
             ref={documentInputRef}
-            accept=".pdf,.docx,.rtf"
+            accept=".pdf,.docx,.rtf,.imscc"
             onChange={(e) => void handleDocumentPicked(e)}
             className="hidden"
             aria-label="Upload a test document"

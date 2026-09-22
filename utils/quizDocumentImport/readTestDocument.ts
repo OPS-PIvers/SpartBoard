@@ -34,9 +34,12 @@ export async function readTestDocument(
       ...(kind === 'pdf' ? { pdf: await browserPdfDeps(file) } : {}),
     });
 
-  // Rich text goes straight to the plain reader: the callable takes a PDF or a
-  // Word file, and an .rtf states its own paragraphs and emphasis anyway.
-  if (!options.aiExtract || kind === 'rtf') return inBrowser();
+  // Rich text and LMS exports go straight to the plain reader: the callable
+  // takes a PDF or a Word file, and both of those already state their own
+  // structure — an export even states its own answers.
+  if (!options.aiExtract || kind === 'rtf' || kind === 'cartridge') {
+    return inBrowser();
+  }
 
   try {
     return await readQuizDocumentWithAi(file, {

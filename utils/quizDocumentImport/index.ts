@@ -1,6 +1,6 @@
 /**
- * The browser reader: a PDF, Word file, rich text file or exported Google
- * Doc in, an `ExtractedQuiz` out (docs/plans/QUIZ_DOCUMENT_IMPORT.md D1, D2, D11, D18).
+ * The browser reader: a PDF, Word file, rich text file, LMS export or
+ * exported Google Doc in, an `ExtractedQuiz` out (docs/plans/QUIZ_DOCUMENT_IMPORT.md D1, D2, D11, D18).
  *
  * The AI reader (PR 2) returns the same shape, so the review table and the
  * create step never learn which one ran.
@@ -9,6 +9,7 @@
 import { parseQuestionLines } from './parseQuestions';
 import { readDocx } from './docxReader';
 import { readRtf } from './rtfReader';
+import { readCartridge } from './cartridgeReader';
 import { readPdf, type PdfReaderDeps } from './pdfReader';
 import {
   MAX_DOCUMENT_PAGES,
@@ -35,6 +36,7 @@ export {
 } from './keyFile';
 export { readDocx } from './docxReader';
 export { readRtf, parseRtf } from './rtfReader';
+export { readCartridge } from './cartridgeReader';
 export { readPdf, groupItemsIntoLines } from './pdfReader';
 export { extractedToQuizData, rowWarnings } from './toQuizData';
 export {
@@ -92,6 +94,11 @@ export async function readQuizDocument(
   assertWithinByteLimit(file);
 
   const warnings: string[] = [];
+
+  // An LMS export brings its own answers and its own pictures (see the reader).
+  if (kind === 'cartridge') {
+    return readCartridge(file, titleFromFileName(fileName));
+  }
 
   if (kind === 'rtf') {
     const { lines } = await readRtf(file);

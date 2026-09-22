@@ -99,7 +99,7 @@ describe('ImportWizard — test document source', () => {
     ).toBe('.csv');
     expect(
       screen.getByLabelText('Upload a test document').getAttribute('accept')
-    ).toBe('.pdf,.docx,.rtf');
+    ).toBe('.pdf,.docx,.rtf,.imscc');
   });
 
   it('still reads a test document forced through the generic button', async () => {
@@ -216,6 +216,34 @@ describe('ImportWizard — busy state', () => {
 
     fireEvent.click(screen.getByLabelText('Close import wizard'));
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('ImportWizard — LMS exports', () => {
+  it('reads an uploaded .imscc as a document', async () => {
+    const { adapter, parseSpy } = makeAdapter();
+    renderWizard(adapter);
+    const imscc = new File([new Uint8Array([80, 75])], 'Unit 3 Test.imscc');
+    fireEvent.change(screen.getByLabelText('Upload a test document'), {
+      target: { files: [imscc] },
+    });
+    await waitFor(() => expect(parseSpy).toHaveBeenCalledTimes(1));
+    expect(parseSpy.mock.calls[0][0]).toEqual({
+      kind: 'document',
+      file: imscc,
+      fileName: 'Unit 3 Test.imscc',
+    });
+  });
+
+  it('does not offer an .imscc as a separate answer key', () => {
+    const { adapter } = makeAdapter({ supportsKeyFile: true });
+    renderWizard(adapter);
+    // An export carries its own answers, so it is never the key file.
+    expect(
+      screen
+        .getByLabelText('Upload a separate answer key')
+        .getAttribute('accept')
+    ).toBe('.pdf,.docx,.rtf');
   });
 });
 

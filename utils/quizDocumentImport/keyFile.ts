@@ -138,6 +138,11 @@ export async function readAnswerKeyFile(
     const { lines } = await readRtf(file);
     return keyFromLines(lines);
   }
+  if (kind === 'cartridge') {
+    throw new Error(
+      'An LMS export already carries its answers, so it can’t also be used as a separate answer key.'
+    );
+  }
   if (!options.pdf) {
     throw new Error('Reading a PDF answer key needs the PDF reader.');
   }
