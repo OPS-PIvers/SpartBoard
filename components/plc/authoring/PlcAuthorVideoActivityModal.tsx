@@ -99,6 +99,8 @@ export const PlcAuthorVideoActivityModal: React.FC<
       isOpen={isOpen}
       activity={newActivity}
       onClose={onClose}
+      // Saving here creates the activity and moves on to assignment config.
+      autosave={false}
       onSave={handleSave}
     />
   );

@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { decrementOpenModalCount, incrementOpenModalCount } from './modalStore';
 import { acquireBodyScrollLock, releaseBodyScrollLock } from './bodyScrollLock';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
 
 interface ModalProps {
   variant?: 'default' | 'bare';
@@ -40,6 +41,10 @@ export const Modal: React.FC<ModalProps> = ({
   ariaLabel,
   ariaLabelledby,
 }) => {
+  // Dismiss only when the press and the release both land on the backdrop, so
+  // a select-drag out of the panel doesn't read as a backdrop click.
+  const backdropProps = useBackdropDismiss(onClose);
+
   // Store onClose in a ref so the effect never needs to list it as a dep.
   // Callers almost always pass an inline arrow function (e.g.
   // `onClose={() => setOpen(false)}`), which creates a new reference on every
@@ -99,7 +104,7 @@ export const Modal: React.FC<ModalProps> = ({
   return createPortal(
     <div
       className={`fixed inset-0 ${zIndex} flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200`}
-      onClick={onClose}
+      {...backdropProps}
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel ?? (!ariaLabelledby ? title : undefined)}

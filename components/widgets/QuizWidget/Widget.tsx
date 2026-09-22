@@ -17,6 +17,7 @@ import {
   QuizBehaviorSettings,
 } from '@/types';
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
+import { quizAssignBlocker } from '@/utils/activityCompleteness';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
@@ -1781,6 +1782,13 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           // exactly once, here.
           const data = preloadedQuizData ?? (await loadQuiz(meta));
           if (!data) return;
+          // Autosave persists unfinished work, so assign can no longer assume
+          // a saved quiz is a finished one.
+          const blocker = quizAssignBlocker(data);
+          if (blocker) {
+            addToast(`This quiz can't be assigned yet: ${blocker}.`, 'error');
+            return;
+          }
           // Behavior comes from the assign modal — the quiz's saved settings
           // plus any per-assignment overrides the teacher made there.
           const { sessionMode: mode, sessionOptions, attemptLimit } = behavior;
@@ -2803,6 +2811,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             : null
         }
         bankApi={bankApi}
+        // A synced quiz publishes a new version to its PLC on every save, so
+        // that path keeps an explicit Save.
+        autosave={!editingMeta?.sync}
         behavior={editingMeta ? getQuizBehavior(editingMeta) : undefined}
         folders={editingMeta ? quizFolders : undefined}
         folderId={
@@ -2840,6 +2851,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               editingMeta?.driveFileId,
               behavior
             );
+            // Adopt what was written. Without this a new quiz keeps saving
+            // with no drive file id, so every retitled autosave orphans a file.
+            setEditingMeta(saved);
             // Keep every PLC library row for this quiz in step with what was published.
             if (saved.sync && plcs.length > 0) {
               const published = getQuizBehavior(saved);
@@ -2891,7 +2905,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             setSavingQuizId(null);
           }
           setLoadedQuizData(updated);
-          addToast(isNew ? 'Quiz created!' : 'Quiz saved!', 'success');
+          // Autosaved writes are not news; a synced Save publishes, so it is.
+          if (isNew) addToast('Quiz created!', 'success');
+          else if (editingMeta?.sync)
+            addToast('Update published to your PLC.', 'success');
         }}
       />
       {syncConflicts[0] && (

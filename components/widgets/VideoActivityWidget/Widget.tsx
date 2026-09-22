@@ -37,6 +37,7 @@ import {
   CLASSROOM_ASSIGN_ADMIN_ONLY,
 } from '@/config/constants';
 import { hasValidMaxPoints } from '@/utils/runClassroomGradePush';
+import { videoActivityAssignBlocker } from '@/utils/activityCompleteness';
 import {
   videoActivityMaxPoints,
   buildVideoActivityGradeEntries,
@@ -573,6 +574,11 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           // which would cause the Manager component to unmount and destroy the modal
           const data = await loadActivityData(meta.driveFileId);
           if (!data) throw new Error('Failed to load activity data');
+          // Autosave persists unfinished work, so assign checks; the modal
+          // catches the throw and shows it inline.
+          const blocker = videoActivityAssignBlocker(data);
+          if (blocker)
+            throw new Error(`This activity can't be assigned yet: ${blocker}.`);
           // Source behavior (sessionOptions, attemptLimit) from the activity
           // itself now that it lives on the activity (VA Task 9 parity).
           const behavior = getVideoActivityBehavior(meta);
@@ -1158,6 +1164,9 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         activity={editingActivity}
         aiEnabled={aiEnabled}
         isAdmin={isAdmin === true}
+        // A synced activity publishes a new version to its PLC on every save,
+        // so that path keeps an explicit Save.
+        autosave={!editingMeta?.sync}
         folders={editingMeta ? videoActivityFolders : undefined}
         folderId={editingMeta?.folderId ?? null}
         behavior={
@@ -1186,11 +1195,18 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         }}
         onSave={async (updated, behavior) => {
           const isNew = !editingMeta;
-          await saveActivity(updated, editingMeta?.driveFileId, behavior);
-          addToast(
-            isNew ? 'Activity created!' : 'Activity updated!',
-            'success'
+          const saved = await saveActivity(
+            updated,
+            editingMeta?.driveFileId,
+            behavior
           );
+          // Adopt what was written. Without this a new activity keeps saving
+          // with no drive file id, so every retitled autosave orphans a file.
+          setEditingMeta(saved);
+          // Autosaved writes are not news; a synced Save publishes, so it is.
+          if (isNew) addToast('Activity created!', 'success');
+          else if (editingMeta?.sync)
+            addToast('Update published to your PLC.', 'success');
         }}
       />
       {shareWithPlcTarget && (

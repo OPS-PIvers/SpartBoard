@@ -106,6 +106,17 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
     );
   }, [draft, project]);
 
+  // New identity on every draft edit — the autosave quiet period restarts on it.
+  const draftToken = useMemo(() => [draft], [draft]);
+
+  const incompleteNotice = useMemo(() => {
+    if (!draft) return null;
+    if (!draft.title.trim()) return 'Project title is required';
+    if (draft.steps.some((step) => !step.title.trim()))
+      return 'Every step needs a title';
+    return null;
+  }, [draft]);
+
   if (!draft) return null;
 
   const patch = (updates: Partial<ProjectDefinition>): void =>
@@ -149,17 +160,20 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
 
   const atStepCeiling = draft.steps.length >= MAX_STEPS;
 
-  const handleSave = async (): Promise<void> => {
+  // Persist only — the shell owns closing. Steps keep their blank titles: an
+  // unnamed step is one the teacher is still writing, not one to throw away.
+  const persistDraft = async (): Promise<void> => {
+    if (!draft) return;
     setSaving(true);
     try {
       await onSave({
         ...draft,
         title: draft.title.trim() || 'Untitled project',
-        steps: draft.steps
-          .map((step) => ({ ...step, title: step.title.trim() }))
-          .filter((step) => step.title.length > 0),
+        steps: draft.steps.map((step) => ({
+          ...step,
+          title: step.title.trim(),
+        })),
       });
-      onClose();
     } finally {
       setSaving(false);
     }
@@ -484,7 +498,9 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
       isDirty={isDirty}
       isSaving={saving}
       saveLabel="Save project"
-      onSave={handleSave}
+      onSave={persistDraft}
+      autosave={{ draftToken, resetKey: draft.id }}
+      incompleteNotice={incompleteNotice}
       onClose={onClose}
       contextRatio={50}
       contextPane={contextPane}

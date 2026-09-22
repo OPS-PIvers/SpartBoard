@@ -242,6 +242,14 @@ export const GuidedLearningEditorModal: React.FC<
     onFolderChange,
   });
 
+  // A nudge, not a gate: autosave writes regardless. Without a slide the
+  // editor cannot save at all, so that comes first.
+  const incompleteNotice = useMemo(() => {
+    if (editorState.imageUrls.length === 0) return 'Add at least one slide';
+    if (!editorState.title.trim()) return 'Set title is required';
+    return null;
+  }, [editorState.imageUrls.length, editorState.title]);
+
   const isDirty = useMemo(() => {
     return (
       editorState.title !== originalTitle ||
@@ -370,7 +378,38 @@ export const GuidedLearningEditorModal: React.FC<
     markSpotlightRadiiV2,
   ]);
 
-  const handleSave = async () => {
+  // New identity on every draft edit — the autosave quiet period restarts on it.
+  const draftToken = useMemo(
+    () => [
+      editorState.title,
+      editorState.description,
+      editorState.mode,
+      editorState.hotspotPulse,
+      editorState.imageTransition,
+      editorState.welcomeEnabled,
+      editorState.welcomeMessage,
+      editorState.imageUrls,
+      editorState.imageKinds,
+      editorState.videoTrims,
+      editorState.steps,
+    ],
+    [
+      editorState.title,
+      editorState.description,
+      editorState.mode,
+      editorState.hotspotPulse,
+      editorState.imageTransition,
+      editorState.welcomeEnabled,
+      editorState.welcomeMessage,
+      editorState.imageUrls,
+      editorState.imageKinds,
+      editorState.videoTrims,
+      editorState.steps,
+    ]
+  );
+
+  // Persist only — the shell owns closing.
+  const persistDraft = async () => {
     if (!set) return;
     setSaving(true);
     try {
@@ -425,7 +464,6 @@ export const GuidedLearningEditorModal: React.FC<
           : {}),
       };
       await onSave(builtSet, meta?.driveFileId);
-      onClose();
     } finally {
       setSaving(false);
     }
@@ -520,9 +558,17 @@ export const GuidedLearningEditorModal: React.FC<
         headerExtras={headerExtras}
         isDirty={isDirty}
         isSaving={saving}
-        onSave={handleSave}
+        onSave={persistDraft}
+        autosave={{
+          draftToken,
+          resetKey: set?.id,
+          // A set with no slide has nothing to persist, and an in-flight
+          // upload would be written as a half-set.
+          enabled: editorState.imageUrls.length > 0 && !editorState.uploading,
+        }}
         onClose={onClose}
         saveLabel="Save Set"
+        incompleteNotice={incompleteNotice}
         saveDisabled={
           !editorState.title.trim() ||
           editorState.imageUrls.length === 0 ||

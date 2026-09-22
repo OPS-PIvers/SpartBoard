@@ -69,6 +69,55 @@ describe('Modal Component', () => {
     expect(defaultProps.onClose).not.toHaveBeenCalled();
   });
 
+  it('calls onClose when a press and release both land on the backdrop', () => {
+    render(<Modal {...defaultProps} />);
+    const dialog = screen.getByRole('dialog');
+    fireEvent.pointerDown(dialog);
+    fireEvent.pointerUp(dialog);
+    fireEvent.click(dialog);
+    expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // Regression: a click fires on the nearest common ancestor of the pointerdown
+  // and pointerup targets, so selecting text inside the modal and releasing over
+  // the backdrop produced a click ON the backdrop — closing the modal and
+  // discarding everything the user had typed.
+  it('does not call onClose when a drag starts inside the content and ends on the backdrop', () => {
+    render(<Modal {...defaultProps} />);
+    const dialog = screen.getByRole('dialog');
+    const content = screen.getByText('Modal Content');
+    fireEvent.pointerDown(content);
+    fireEvent.pointerUp(dialog);
+    // The browser dispatches the click on the common ancestor: the backdrop.
+    fireEvent.click(dialog);
+    expect(defaultProps.onClose).not.toHaveBeenCalled();
+  });
+
+  it('does not call onClose when a drag starts on the backdrop and ends inside the content', () => {
+    render(<Modal {...defaultProps} />);
+    const dialog = screen.getByRole('dialog');
+    const content = screen.getByText('Modal Content');
+    fireEvent.pointerDown(dialog);
+    fireEvent.pointerUp(content);
+    fireEvent.click(dialog);
+    expect(defaultProps.onClose).not.toHaveBeenCalled();
+  });
+
+  it('still closes on a later genuine backdrop click after a drag was ignored', () => {
+    render(<Modal {...defaultProps} />);
+    const dialog = screen.getByRole('dialog');
+    const content = screen.getByText('Modal Content');
+    fireEvent.pointerDown(content);
+    fireEvent.pointerUp(dialog);
+    fireEvent.click(dialog);
+    expect(defaultProps.onClose).not.toHaveBeenCalled();
+
+    fireEvent.pointerDown(dialog);
+    fireEvent.pointerUp(dialog);
+    fireEvent.click(dialog);
+    expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('calls onClose when Escape key is pressed', () => {
     render(<Modal {...defaultProps} />);
     fireEvent.keyDown(window, { key: 'Escape' });

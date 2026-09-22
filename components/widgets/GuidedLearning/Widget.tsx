@@ -435,12 +435,13 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const handleSave = async (set: GuidedLearningSet, driveFileId?: string) => {
     // Saved content invalidates any prefetched copy.
     prefetchCacheRef.current.invalidate(set.id);
-    if (set.isBuilding) {
-      await saveBuildingSet(set);
-      addToast('Building set saved.', 'success');
-    } else {
-      await saveSet(set, driveFileId);
-      addToast('Set saved to Drive.', 'success');
+    // The editor autosaves and shows its own save state, so no toast per write.
+    if (set.isBuilding) await saveBuildingSet(set);
+    else {
+      // Adopt what was written. Without this a new set keeps autosaving with no
+      // drive file id, so every retitled write orphans another .gl.json file.
+      const meta = await saveSet(set, driveFileId);
+      setEditingMeta(meta);
     }
   };
 

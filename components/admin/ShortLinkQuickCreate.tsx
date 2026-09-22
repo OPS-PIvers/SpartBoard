@@ -3,6 +3,7 @@ import { X, Link2 } from 'lucide-react';
 
 import { ShortLinkCreateForm } from './LinkShortenerManager';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
 
 interface ShortLinkQuickCreateProps {
   onClose: () => void;
@@ -28,15 +29,15 @@ export const ShortLinkQuickCreate: React.FC<ShortLinkQuickCreateProps> = ({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [onClose]);
 
+  const backdropProps = useBackdropDismiss(onClose);
+
   return (
     <div
       className="fixed inset-0 z-modal bg-black/50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="short-link-quick-create-title"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+      {...backdropProps}
     >
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 flex flex-col gap-4">
         <div className="flex items-start justify-between">

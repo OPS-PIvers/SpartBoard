@@ -1,5 +1,8 @@
 import React from 'react';
-import { EditorModalShell } from './EditorModalShell';
+import {
+  EditorModalShell,
+  type EditorAutosaveConfig,
+} from './EditorModalShell';
 
 interface EditorWorkspaceProps {
   isOpen: boolean;
@@ -17,6 +20,10 @@ interface EditorWorkspaceProps {
   saveDisabled?: boolean;
   footerExtras?: React.ReactNode;
   onSave: () => void | Promise<void>;
+  /** Pass-through to `EditorModalShell.autosave`. */
+  autosave?: EditorAutosaveConfig;
+  /** Pass-through to `EditorModalShell.incompleteNotice`. */
+  incompleteNotice?: string | null;
   onClose: () => void;
   confirmDiscardMessage?: string;
   confirmDiscardTitle?: string;

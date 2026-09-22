@@ -7,6 +7,7 @@ import {
   Info,
   AlertTriangle,
 } from 'lucide-react';
+import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
 
 // Capture-phase + stopImmediatePropagation to pre-empt AdminSettings' bubble-phase document listener; mirrors captureEscape in components/common/Modal.tsx.
 // Constraint: first-mounted wins, so nesting two of these would dismiss the outer one — no call site does today.
@@ -735,10 +736,11 @@ const ConfirmInner: React.FC<ConfirmProps> = ({
 }) => {
   const [typed, setTyped] = useState('');
   const typingOk = !requireTyping || typed === requireTyping;
+  const backdropProps = useBackdropDismiss(busy ? undefined : onCancel);
   return (
     <div
       className="fixed inset-0 z-modal-deep flex items-center justify-center p-4 bg-[rgba(29,42,93,0.45)] animate-in fade-in duration-150"
-      onClick={busy ? undefined : onCancel}
+      {...backdropProps}
       role="dialog"
       aria-modal="true"
       aria-label={title}
@@ -791,13 +793,14 @@ export const LocalModal: React.FC<{
   size?: 'md' | 'lg' | 'xl';
 }> = ({ isOpen, onClose, title, icon, children, footer, size = 'md' }) => {
   useCaptureEscape(isOpen, onClose);
+  const backdropProps = useBackdropDismiss(onClose);
   if (!isOpen) return null;
   const widthClass =
     size === 'xl' ? 'max-w-4xl' : size === 'lg' ? 'max-w-2xl' : 'max-w-lg';
   return (
     <div
       className="fixed inset-0 z-modal-nested flex items-center justify-center p-4 bg-[rgba(29,42,93,0.45)] animate-in fade-in duration-150"
-      onClick={onClose}
+      {...backdropProps}
       role="dialog"
       aria-modal="true"
       aria-label={title}
