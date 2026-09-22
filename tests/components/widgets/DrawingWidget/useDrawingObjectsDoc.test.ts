@@ -350,6 +350,7 @@ describe('useDrawingObjectsDoc', () => {
         {
           value: {
             shareId: 'share-1',
+            version: 0,
             load: () =>
               Promise.resolve({
                 pages: [

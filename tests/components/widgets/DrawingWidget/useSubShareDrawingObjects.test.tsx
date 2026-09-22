@@ -19,7 +19,7 @@ const wrapWith = (load: () => Promise<unknown>) => {
   function InShare({ children }: { children: React.ReactNode }) {
     return (
       <SubShareContentContext.Provider
-        value={{ shareId: 'share-1', load: load as never }}
+        value={{ shareId: 'share-1', version: 0, load: load as never }}
       >
         {children}
       </SubShareContentContext.Provider>

@@ -4,11 +4,14 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import { useShareContent } from '@/hooks/useShareContent';
 
-const wrapWith = (load: (kind: string, itemId: string) => Promise<unknown>) => {
+const wrapWith = (
+  load: (kind: string, itemId: string) => Promise<unknown>,
+  version = 0
+) => {
   function InShare({ children }: { children: React.ReactNode }) {
     return (
       <SubShareContentContext.Provider
-        value={{ shareId: 'share-1', load: load as never }}
+        value={{ shareId: 'share-1', version, load: load as never }}
       >
         {children}
       </SubShareContentContext.Provider>
@@ -64,6 +67,42 @@ describe('useShareContent', () => {
     await waitFor(() =>
       expect(result.current.payload).toEqual({ pages: ['two'] })
     );
+  });
+
+  // A teacher's push bumps the version while the widget stays mounted; the
+  // hook has to go back to loading and re-read, or the sub keeps looking at
+  // the pre-push copy.
+  it('re-reads the item when the content version changes', async () => {
+    const load = vi
+      .fn()
+      .mockResolvedValueOnce({ pages: ['before'] })
+      .mockResolvedValueOnce({ pages: ['after'] });
+    let version = 0;
+    function InShare({ children }: { children: React.ReactNode }) {
+      return (
+        <SubShareContentContext.Provider
+          value={{ shareId: 'share-1', version, load: load as never }}
+        >
+          {children}
+        </SubShareContentContext.Provider>
+      );
+    }
+    const { result, rerender } = renderHook(
+      () => useShareContent('drawing', 'w1'),
+      { wrapper: InShare }
+    );
+
+    await waitFor(() =>
+      expect(result.current.payload).toEqual({ pages: ['before'] })
+    );
+
+    version = 1;
+    rerender();
+    expect(result.current.status).toBe('loading');
+    await waitFor(() =>
+      expect(result.current.payload).toEqual({ pages: ['after'] })
+    );
+    expect(load).toHaveBeenCalledTimes(2);
   });
 
   it('stays off when the widget has no item id', () => {

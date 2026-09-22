@@ -9,6 +9,8 @@ import type { SubShareContentKind } from '@/types';
  */
 export interface SubShareContentValue {
   shareId: string;
+  /** The content version on screen; a teacher's push bumps it. */
+  version: number;
   /** Resolves to the bundled payload, or null when nothing was bundled. */
   load: (kind: SubShareContentKind, itemId: string) => Promise<unknown>;
 }

@@ -228,6 +228,7 @@ export const SubCollectionBoardScreen: React.FC<
       share={shown.share}
       boardKey={`${shown.boardId}::${view.version}`}
       contentShareId={shareId}
+      contentVersion={view.version}
       rosterState={rosterState}
     >
       <SubBoardScreenContent

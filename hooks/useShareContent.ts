@@ -31,7 +31,10 @@ export function useShareContent<T>(
     payload: T | null;
   } | null>(null);
 
-  const key = share && itemId ? `${share.shareId}::${kind}::${itemId}` : '';
+  const key =
+    share && itemId
+      ? `${share.shareId}::${share.version}::${kind}::${itemId}`
+      : '';
 
   useEffect(() => {
     if (!share || !itemId) return;

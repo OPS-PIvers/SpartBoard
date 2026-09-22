@@ -72,6 +72,11 @@ interface SubsDashboardProviderProps {
    * by a single-board share, which has nothing bundled.
    */
   contentShareId?: string;
+  /**
+   * The version of that bundled content. A teacher's push rewrites it while
+   * the portal stays mounted, so the loader is keyed by this, not the share.
+   */
+  contentVersion?: number;
   children: React.ReactNode;
 }
 
@@ -108,6 +113,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   rosterState = NO_ROSTERS,
   boardKey: boardKeyProp,
   contentShareId,
+  contentVersion = 0,
   children,
 }) => {
   const { rosters, status: rosterStatus, loadRosters } = rosterState;
@@ -469,7 +475,10 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   // sub belongs to no building of the teacher's, so the share's building is
   // the only right answer for them.
   const buildingOverride = share.buildingId ?? null;
-  const shareContent = useSubShareContentLoader(contentShareId ?? null);
+  const shareContent = useSubShareContentLoader(
+    contentShareId ?? null,
+    contentVersion
+  );
 
   const controlValue = useMemo<SubsControlContextValue>(
     () => ({ resetWidgets, rosterStatus, loadRosters }),
