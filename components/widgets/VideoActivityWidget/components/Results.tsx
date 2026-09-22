@@ -76,6 +76,9 @@ import { scoreColorClasses } from '@/utils/scoreColor';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useVideoActivityKeyQuestions } from '@/hooks/useVideoActivityKeyQuestions';
 
+const KEY_LOADING_TOAST =
+  'Still loading the answer key — try again in a moment.';
+
 interface ResultsProps {
   session: VideoActivitySession;
   responses: VideoActivityResponse[];
@@ -302,6 +305,10 @@ export const Results: React.FC<ResultsProps> = ({
   // payload fans out to each (Item D multi-course).
   const classroomAttachments = getClassroomAttachments(session);
   const handlePushGrades = async () => {
+    if (keyLoading) {
+      addToast(KEY_LOADING_TOAST, 'info');
+      return;
+    }
     // Guard the grade scale FIRST (a malformed/stale attachment could carry
     // NaN/0 maxPoints, scaling every grade to 0/NaN), then the eligible list —
     // completed responses with a resolvable pseudonym — so we never pop a
@@ -381,6 +388,10 @@ export const Results: React.FC<ResultsProps> = ({
   const ltiAttachment = session?.ltiAttachment ?? null;
   const handlePushSchoologyGrades = async () => {
     if (!ltiAttachment) return;
+    if (keyLoading) {
+      addToast(KEY_LOADING_TOAST, 'info');
+      return;
+    }
 
     // The gradebook denominator = the activity's summed question points (= the
     // line item `scoreMaximum` the picker set at deep-link time). Shared with
