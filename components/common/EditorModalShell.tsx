@@ -337,7 +337,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
         <div className="flex items-center gap-2 min-w-0">
           {footerEnd && closeButton}
           {footerExtras}
-          {autosaveOn && incompleteNotice && (
+          {incompleteNotice && (
             <div
               role="status"
               className="flex items-center gap-1.5 min-w-0 text-xs font-bold text-amber-700"

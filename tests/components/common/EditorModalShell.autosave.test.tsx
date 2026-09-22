@@ -41,6 +41,25 @@ describe('EditorModalShell autosave', () => {
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
   });
 
+  // The submit-mode Save is enabled even when incomplete, so without the
+  // notice a click just silently no-ops. The notice is the only feedback.
+  it('shows what is missing in submit mode too', () => {
+    render(
+      <EditorModalShell
+        {...baseProps}
+        isDirty
+        onSave={vi.fn()}
+        incompleteNotice="Question 2: correct answer is required"
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Not ready to use yet: Question 2: correct answer is required'
+      )
+    ).toBeInTheDocument();
+  });
+
   it('replaces the Save button with a save-state line', async () => {
     const onSave = vi.fn((): Promise<void> => Promise.resolve());
     render(
