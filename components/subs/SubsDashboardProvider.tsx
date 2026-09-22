@@ -28,6 +28,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { WidgetBuildingOverrideContext } from '@/context/WidgetBuildingContextValue';
+import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import { useSubShareContentLoader } from '@/hooks/useSubShareContentLoader';
 import type {
   DashboardContextValue,
   PendingShareImport,
@@ -64,6 +66,17 @@ interface SubsDashboardProviderProps {
    * which is what a single-board share wants.
    */
   boardKey?: string;
+  /**
+   * The Collection share whose bundled content this board's widgets read, so
+   * a Drawing shows the teacher's strokes rather than the sub's own. Omitted
+   * by a single-board share, which has nothing bundled.
+   */
+  contentShareId?: string;
+  /**
+   * The version of that bundled content. A teacher's push rewrites it while
+   * the portal stays mounted, so the loader is keyed by this, not the share.
+   */
+  contentVersion?: number;
   children: React.ReactNode;
 }
 
@@ -99,6 +112,8 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   share,
   rosterState = NO_ROSTERS,
   boardKey: boardKeyProp,
+  contentShareId,
+  contentVersion = 0,
   children,
 }) => {
   const { rosters, status: rosterStatus, loadRosters } = rosterState;
@@ -460,6 +475,10 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   // sub belongs to no building of the teacher's, so the share's building is
   // the only right answer for them.
   const buildingOverride = share.buildingId ?? null;
+  const shareContent = useSubShareContentLoader(
+    contentShareId ?? null,
+    contentVersion
+  );
 
   const controlValue = useMemo<SubsControlContextValue>(
     () => ({ resetWidgets, rosterStatus, loadRosters }),
@@ -470,7 +489,9 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
     <DashboardContext.Provider value={value}>
       <SubsControlContext.Provider value={controlValue}>
         <WidgetBuildingOverrideContext.Provider value={buildingOverride}>
-          {children}
+          <SubShareContentContext.Provider value={shareContent}>
+            {children}
+          </SubShareContentContext.Provider>
         </WidgetBuildingOverrideContext.Provider>
       </SubsControlContext.Provider>
     </DashboardContext.Provider>

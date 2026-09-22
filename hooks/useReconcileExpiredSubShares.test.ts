@@ -205,6 +205,50 @@ describe('useReconcileExpiredSubShares', () => {
     expect(firestore.deleteDoc).toHaveBeenCalledWith(boardDocRefs[1]);
   });
 
+  // Bundled content and answer keys are read-gated by the parent's expiresAt,
+  // so a parent deleted without them leaves docs nothing will ever reap.
+  it('reaps content/ and keys/ alongside boards/', async () => {
+    const now = Date.now();
+    const collectionRef = {
+      id: 'expired-coll',
+      parent: { id: 'shared_collections' },
+      collection: vi.fn((_ref: unknown, name: string) => ({ __col: name })),
+    } as unknown as firestore.DocumentReference;
+    const expiredCollection = {
+      id: 'expired-coll',
+      ref: collectionRef,
+      data: () => ({ expiresAt: now - 1000 }),
+    };
+
+    (paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([]) // /shared_boards
+      .mockResolvedValueOnce([expiredCollection]); // /shared_collections
+
+    // One doc per sub-collection, named after the collection asked for.
+    (
+      firestore.collection as unknown as ReturnType<typeof vi.fn>
+    ).mockImplementation((_ref: unknown, name: string) => ({ __col: name }));
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockImplementation((col: { __col: string }) =>
+      Promise.resolve({ docs: [{ ref: { __sub: col.__col } }] })
+    );
+
+    renderHook(() =>
+      useReconcileExpiredSubShares({
+        uid: 'teacher-1',
+        driveService: makeDriveService(),
+      })
+    );
+
+    await waitFor(() =>
+      expect(firestore.deleteDoc).toHaveBeenCalledWith(collectionRef)
+    );
+    for (const name of ['boards', 'content', 'keys']) {
+      expect(firestore.deleteDoc).toHaveBeenCalledWith({ __sub: name });
+    }
+  });
+
   it('honours the once-per-session guard for a given uid', async () => {
     window.sessionStorage.setItem('spart_sub_reconcile_teacher-1', '1');
     (

@@ -12,7 +12,11 @@
 //     unchanged by an update
 //   - Copy shares are host-or-admin updatable
 //   - Delete: host or admin only
-//   - /boards/{boardId} subcollection: read mirrors parent, write = host only
+//   - /boards/{boardId} and /content/{contentId} subcollections: read mirrors
+//     parent, write = host only
+//   - /keys/{keyId} subcollection: host, admin or a sub the share names by
+//     email, and never past expiry — a district teacher the share does not name
+//     is denied, which is what separates keys/ from content/
 //
 // Requires a running Firestore emulator. Invoke via:
 //   pnpm run test:rules
@@ -161,6 +165,39 @@ const boardSnapshotDoc = (boardId: string = BOARD_ID) => ({
 
 const sharePath = `shared_collections/${SHARE_ID}`;
 const boardPath = `shared_collections/${SHARE_ID}/boards/${BOARD_ID}`;
+const contentPath = `shared_collections/${SHARE_ID}/content/drawing_w1`;
+const keyPath = `shared_collections/${SHARE_ID}/keys/quiz_q1`;
+
+/** Bundled display content for a widget whose data lives outside the board. */
+const contentDoc = () => ({
+  kind: 'drawing',
+  itemId: 'w1',
+  bundledAt: NOW_MS,
+  payload: { pages: [] },
+});
+
+/** A full copy of an activity, answers included. */
+const keyDoc = () => ({
+  kind: 'quiz',
+  itemId: 'q1',
+  bundledAt: NOW_MS,
+  payload: { questions: [] },
+});
+
+/** A substitute share that names one sub by email. */
+const namedSubShareDoc = (overrides: Record<string, unknown> = {}) =>
+  subShareDoc({ subEmails: [ORONO_EMAIL], ...overrides });
+
+const UNNAMED_SUB_UID = 'unnamed-orono-sub-uid';
+const UNNAMED_SUB_EMAIL = 'someone.else@orono.k12.mn.us';
+
+const asUnnamedOronoSub = () =>
+  testEnv
+    .authenticatedContext(UNNAMED_SUB_UID, {
+      email: UNNAMED_SUB_EMAIL,
+      email_verified: true,
+    })
+    .firestore();
 
 // ---------------------------------------------------------------------------
 // Setup / teardown
@@ -1011,5 +1048,201 @@ describe('shared_collections — substitute directory list query', () => {
     await assertFails(
       getDocs(query(collection(asOronoTeacher(), 'shared_collections')))
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 20. Subcollection /content/{contentId} — read mirrors parent, write = host
+// ---------------------------------------------------------------------------
+
+describe('shared_collections/content — read', () => {
+  it('positive: Orono sub reads bundled content on a live substitute share', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), subShareDoc());
+      await setDoc(doc(ctx.firestore(), contentPath), contentDoc());
+    });
+    await assertSucceeds(getDoc(doc(asOronoTeacher(), contentPath)));
+  });
+
+  it('positive: non-host authed teacher reads content on a copy share', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), copyShareDoc());
+      await setDoc(doc(ctx.firestore(), contentPath), contentDoc());
+    });
+    await assertSucceeds(getDoc(doc(asExternalTeacher(), contentPath)));
+  });
+
+  it('negative: non-Orono teacher denied content on a substitute share', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), subShareDoc());
+      await setDoc(doc(ctx.firestore(), contentPath), contentDoc());
+    });
+    await assertFails(getDoc(doc(asExternalTeacher(), contentPath)));
+  });
+
+  it('negative: Orono sub denied content once the share has expired', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), sharePath),
+        subShareDoc({ expiresAt: NOW_MS - 60_000 })
+      );
+      await setDoc(doc(ctx.firestore(), contentPath), contentDoc());
+    });
+    await assertFails(getDoc(doc(asOronoTeacher(), contentPath)));
+  });
+
+  it('negative: an unverified account self-reporting an @orono email is denied content', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), subShareDoc());
+      await setDoc(doc(ctx.firestore(), contentPath), contentDoc());
+    });
+    await assertFails(
+      getDoc(doc(asUnverifiedOronoImpersonator(), contentPath))
+    );
+  });
+
+  it('negative: unauthenticated read of content fails', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), copyShareDoc());
+      await setDoc(doc(ctx.firestore(), contentPath), contentDoc());
+    });
+    await assertFails(getDoc(doc(asUnauth(), contentPath)));
+  });
+
+  it('positive: host reads content on an expired share, for cleanup', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), sharePath),
+        subShareDoc({ expiresAt: NOW_MS - 60_000 })
+      );
+      await setDoc(doc(ctx.firestore(), contentPath), contentDoc());
+    });
+    await assertSucceeds(getDoc(doc(asHost(), contentPath)));
+  });
+});
+
+describe('shared_collections/content — write authorization', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), subShareDoc());
+    });
+  });
+
+  it('host can write and delete bundled content', async () => {
+    await assertSucceeds(setDoc(doc(asHost(), contentPath), contentDoc()));
+    await assertSucceeds(deleteDoc(doc(asHost(), contentPath)));
+  });
+
+  it('a sub cannot write content', async () => {
+    await assertFails(setDoc(doc(asOronoTeacher(), contentPath), contentDoc()));
+  });
+
+  it('a sub cannot delete content', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), contentPath), contentDoc());
+    });
+    await assertFails(deleteDoc(doc(asOronoTeacher(), contentPath)));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 21. Subcollection /keys/{keyId} — named subs only
+// ---------------------------------------------------------------------------
+
+describe('shared_collections/keys — read', () => {
+  it('positive: a sub the share names by email can read a key', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), namedSubShareDoc());
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertSucceeds(getDoc(doc(asOronoTeacher(), keyPath)));
+  });
+
+  // The whole point of keys/ being separate from content/: any verified
+  // district account can read the boards of any live substitute share, and
+  // answer keys must not travel that far.
+  it('negative: a district teacher the share does not name is denied', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), namedSubShareDoc());
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertFails(getDoc(doc(asUnnamedOronoSub(), keyPath)));
+  });
+
+  it('negative: a named sub is denied once the share has expired', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), sharePath),
+        namedSubShareDoc({ expiresAt: NOW_MS - 60_000 })
+      );
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertFails(getDoc(doc(asOronoTeacher(), keyPath)));
+  });
+
+  it('negative: an unverified account self-reporting a named @orono email is denied', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), namedSubShareDoc());
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertFails(getDoc(doc(asUnverifiedOronoImpersonator(), keyPath)));
+  });
+
+  it('negative: a share naming nobody exposes its keys to nobody but the host', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), subShareDoc());
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertFails(getDoc(doc(asOronoTeacher(), keyPath)));
+    await assertSucceeds(getDoc(doc(asHost(), keyPath)));
+  });
+
+  it('negative: a copy share does not open its keys to every authed user', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), copyShareDoc());
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertFails(getDoc(doc(asExternalTeacher(), keyPath)));
+  });
+
+  it('positive: host and admin can read a key', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), namedSubShareDoc());
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertSucceeds(getDoc(doc(asHost(), keyPath)));
+    await assertSucceeds(getDoc(doc(asAdmin(), keyPath)));
+  });
+
+  it('negative: unauthenticated read of a key fails', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), namedSubShareDoc());
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertFails(getDoc(doc(asUnauth(), keyPath)));
+  });
+});
+
+describe('shared_collections/keys — write authorization', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), namedSubShareDoc());
+    });
+  });
+
+  it('host can write and delete a key', async () => {
+    await assertSucceeds(setDoc(doc(asHost(), keyPath), keyDoc()));
+    await assertSucceeds(deleteDoc(doc(asHost(), keyPath)));
+  });
+
+  it('a named sub cannot write a key', async () => {
+    await assertFails(setDoc(doc(asOronoTeacher(), keyPath), keyDoc()));
+  });
+
+  it('a named sub cannot delete a key', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertFails(deleteDoc(doc(asOronoTeacher(), keyPath)));
   });
 });

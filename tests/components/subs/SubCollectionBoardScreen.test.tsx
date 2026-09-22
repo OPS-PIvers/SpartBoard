@@ -27,6 +27,8 @@ let readVersion = 1;
 let liveVersion: number | null = 1;
 /** Every boardKey the provider has been given, in order. */
 let boardKeys: string[] = [];
+/** Every contentVersion the provider has been given, in order. */
+let contentVersions: number[] = [];
 
 // The name carries the content version so a test can tell a re-read apart
 // from a stale `shown` still holding the previous share object.
@@ -82,12 +84,15 @@ vi.mock('@/hooks/useSubstituteShares', () => ({
 vi.mock('@/components/subs/SubsDashboardProvider', () => ({
   SubsDashboardProvider: ({
     boardKey,
+    contentVersion,
     children,
   }: {
     boardKey: string;
+    contentVersion: number;
     children: React.ReactNode;
   }) => {
     boardKeys.push(boardKey);
+    contentVersions.push(contentVersion);
     return <>{children}</>;
   },
 }));
@@ -134,6 +139,7 @@ describe('SubCollectionBoardScreen', () => {
     readError = null;
     attempts = [];
     boardKeys = [];
+    contentVersions = [];
     readVersion = 1;
     liveVersion = 1;
   });
@@ -233,6 +239,9 @@ describe('SubCollectionBoardScreen', () => {
       fireEvent.click(reloadButton());
       expect(Math.max(...attempts)).toBe(1);
       expect(boardKeys.at(-1)).toBe('b1::2');
+      // Bundled content is cached per version, so the provider has to be told
+      // the new one or the sub keeps seeing pre-push drawings.
+      expect(contentVersions.at(-1)).toBe(2);
       expect(banner()).not.toBeInTheDocument();
       // The new content actually reaches the screen: `shown` has to be keyed
       // on the request, not the board, or the re-read lands nowhere.
@@ -341,6 +350,9 @@ describe('SubCollectionBoardScreen', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
       expect(screen.getByTestId('board')).toHaveTextContent('Warm up v2');
       expect(boardKeys.at(-1)).toBe('b1::2');
+      // Bundled content is cached per version, so the provider has to be told
+      // the new one or the sub keeps seeing pre-push drawings.
+      expect(contentVersions.at(-1)).toBe(2);
       expect(banner()).not.toBeInTheDocument();
     });
 

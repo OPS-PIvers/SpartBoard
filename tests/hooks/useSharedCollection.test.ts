@@ -337,6 +337,165 @@ describe('useSharedCollection', () => {
     return { shareId, api: result.current };
   };
 
+  // A Drawing's strokes live in the teacher's own account, so a sub signed in
+  // as themselves sees an empty canvas unless the strokes travel with the share.
+  describe('bundled widget content', () => {
+    const drawingBoard = (id: string): Dashboard => ({
+      ...dashboard(id),
+      widgets: [
+        {
+          id: 'w1',
+          type: 'drawing',
+          position: { x: 0, y: 0 },
+          config: {
+            subcollectionMigrated: true,
+            pages: [{ id: 'p1' }],
+          },
+        },
+      ] as unknown as Dashboard['widgets'],
+    });
+
+    const seedStrokes = async (boardId: string) => {
+      const helpers = await getHelpers();
+      helpers.docs.set(
+        `users/host-uid/dashboards/${boardId}/drawings/w1/pages/p1/objects/o1`,
+        { id: 'o1', z: 1, kind: 'pen' }
+      );
+    };
+
+    const shareWithDrawing = async (
+      boards: Dashboard[],
+      onBundle?: (bundle: { failures: unknown[] }) => void
+    ) => {
+      const { result } = renderHook(() => useSharedCollection());
+      const shareId = await result.current.shareSubstituteCollection({
+        collection: sourceCollection(),
+        boards,
+        hostUid: 'host-uid',
+        hostDisplayName: 'Mr. Teacher',
+        collectionId: 'src-collection',
+        sourceId: 'src-collection',
+        expiresAt: 9999999999999,
+        buildingId: 'middle-school',
+        ...tree(),
+        ...(onBundle ? { onBundle: onBundle as never } : {}),
+      });
+      return { shareId, api: result.current };
+    };
+
+    it('writes the teacher’s strokes into the share', async () => {
+      await seedStrokes('b1');
+      const { shareId } = await shareWithDrawing([drawingBoard('b1')]);
+
+      const helpers = await getHelpers();
+      const content = helpers.docs.get(
+        `shared_collections/${shareId}/content/drawing_w1`
+      ) as { kind: string; payload: { pages: { pageId: string }[] } };
+      expect(content.kind).toBe('drawing');
+      expect(content.payload.pages).toEqual([
+        { pageId: 'p1', objects: [{ id: 'o1', z: 1, kind: 'pen' }] },
+      ]);
+    });
+
+    it('tells the caller what could not be bundled', async () => {
+      const helpers = await getHelpers();
+      helpers.failNextGetDocs({ code: 'permission-denied' });
+      const onBundle = vi.fn();
+      await shareWithDrawing([drawingBoard('b1')], onBundle);
+
+      expect(onBundle).toHaveBeenCalledTimes(1);
+      const bundle = onBundle.mock.calls[0][0] as {
+        failures: { label: string }[];
+      };
+      expect(bundle.failures.map((f) => f.label)).toEqual([
+        'Drawing on Board b1',
+      ]);
+    });
+
+    // A blip on re-read must not regress a widget that worked on the last
+    // push: the sub would see an empty canvas where strokes used to be.
+    it('keeps the last good bundle when a re-push cannot read the item', async () => {
+      await seedStrokes('b1');
+      const { shareId, api } = await shareWithDrawing([drawingBoard('b1')]);
+      const contentPath = `shared_collections/${shareId}/content/drawing_w1`;
+      const helpers = await getHelpers();
+      const before = helpers.docs.get(contentPath);
+      expect(before).toBeDefined();
+
+      // The bundler's per-page read fails; the existing-content read after it
+      // must still succeed, so only one getDocs is poisoned.
+      helpers.failNextGetDocs({ code: 'unavailable' });
+      const onBundle = vi.fn();
+      await api.updateSubstituteShare({
+        shareId,
+        collection: sourceCollection(),
+        boards: [drawingBoard('b1')],
+        onBundle: onBundle as never,
+        ...tree(),
+      });
+
+      expect(onBundle).toHaveBeenCalledTimes(1);
+      expect(helpers.docs.get(contentPath)).toEqual(before);
+    });
+
+    // The sub watches contentVersion live and reloads on it, and a bundled
+    // read that lands early caches "nothing bundled" with no retry anywhere,
+    // so the bump has to be the last thing the push writes.
+    it('leaves the version alone when the content write fails', async () => {
+      await seedStrokes('b1');
+      const { shareId, api } = await shareWithDrawing([drawingBoard('b1')]);
+      const fsMod = (await vi.importMock('firebase/firestore')) as {
+        writeBatch: ReturnType<typeof vi.fn>;
+      };
+      // The first two batches write for real, so a version bumped in the
+      // parent's own batch would land and be seen below.
+      const real = fsMod.writeBatch.getMockImplementation() as () => unknown;
+      fsMod.writeBatch.mockImplementationOnce(real);
+      fsMod.writeBatch.mockImplementationOnce(real);
+      fsMod.writeBatch.mockImplementationOnce(() => ({
+        set: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+        commit: vi.fn(() => Promise.reject(new Error('rules denied write'))),
+      }));
+
+      await expect(
+        api.updateSubstituteShare({
+          shareId,
+          collection: sourceCollection(),
+          boards: [drawingBoard('b1')],
+          ...tree(),
+        })
+      ).rejects.toThrow();
+
+      const helpers = await getHelpers();
+      const parent = helpers.docs.get(`shared_collections/${shareId}`) as {
+        contentVersion: number;
+      };
+      expect(parent.contentVersion).toBe(1);
+    });
+
+    // A board dropped from the collection takes its content with it, or the
+    // sub keeps seeing a drawing from a board that is no longer shared.
+    it('drops content the next push no longer covers', async () => {
+      await seedStrokes('b1');
+      const { shareId, api } = await shareWithDrawing([drawingBoard('b1')]);
+      const contentPath = `shared_collections/${shareId}/content/drawing_w1`;
+      const helpers = await getHelpers();
+      expect(helpers.docs.has(contentPath)).toBe(true);
+
+      await api.updateSubstituteShare({
+        shareId,
+        collection: sourceCollection(),
+        boards: [dashboard('b2')],
+        ...tree(),
+      });
+
+      expect(helpers.docs.has(contentPath)).toBe(false);
+      expect(helpers.deletedPaths).toContain(contentPath);
+    });
+  });
+
   it('shareSubstituteCollection writes the walk order, sections and version', async () => {
     const { shareId } = await seedSubShare();
     const helpers = await getHelpers();

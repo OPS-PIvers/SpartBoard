@@ -1295,23 +1295,57 @@ service cloud.firestore {
       allow delete: if request.auth != null
         && (resource.data.get('hostUid', null) == request.auth.uid || isAdmin());
 
-      // Per-Board snapshots. Read mirrors parent semantics (incl. substitute
-      // expiresAt cutoff). Write only by the parent's host (the create batch
-      // writes the parent first, so the get() resolves). email_verified is
-      // REQUIRED on the @orono branch, same reason as isAdmin() above.
-      match /boards/{boardId} {
-        allow read: if request.auth != null && (
-          get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('intendedMode', null) != 'substitute'
-          || get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('hostUid', null) == request.auth.uid
+      // The parent's gates, written once for every sub-collection below. Reads
+      // mirror parent semantics (incl. the substitute expiresAt cutoff); writes
+      // are the parent's host only, and the create batch writes the parent
+      // first, so the get() resolves. email_verified is REQUIRED on the @orono
+      // branch, same reason as isAdmin() above.
+      function shareData() {
+        return get(/databases/$(database)/documents/shared_collections/$(shareId)).data;
+      }
+      function canReadShared() {
+        return request.auth != null && (
+          shareData().get('intendedMode', null) != 'substitute'
+          || shareData().get('hostUid', null) == request.auth.uid
           || isAdmin()
           || (
             isVerifiedDistrictEmail()
-            && get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('expiresAt', 0) > request.time.toMillis()
+            && shareData().get('expiresAt', 0) > request.time.toMillis()
           )
         );
+      }
+      function isShareHost() {
+        return request.auth != null
+          && shareData().get('hostUid', null) == request.auth.uid;
+      }
 
-        allow create, update, delete: if request.auth != null
-          && get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('hostUid', null) == request.auth.uid;
+      // Per-Board snapshots.
+      match /boards/{boardId} {
+        allow read: if canReadShared();
+        allow create, update, delete: if isShareHost();
+      }
+
+      // Display content for widgets whose data lives outside the board, so a
+      // sub sees the teacher's drawing, notebook or queue rather than their own.
+      match /content/{contentId} {
+        allow read: if canReadShared();
+        allow create, update, delete: if isShareHost();
+      }
+
+      // Answer keys and full activity copies. Narrower than content/: the host,
+      // an admin, or a sub this share names by email, and never past expiry.
+      match /keys/{keyId} {
+        allow read: if request.auth != null && (
+          isShareHost()
+          || isAdmin()
+          || (
+            isVerifiedDistrictEmail()
+            && shareData().get('expiresAt', 0) > request.time.toMillis()
+            && request.auth.token.get('email', '').lower()
+               in shareData().get('subEmails', [])
+          )
+        );
+        allow create, update, delete: if isShareHost();
       }
     }
 
@@ -4522,38 +4556,44 @@ service cloud.firestore {
       allow update, delete: if request.auth != null &&
         (resource.data.teacherUid == request.auth.uid || isAdmin());
 
+      // The session doc, named once: the full path repeated a dozen times in
+      // the sub-collections below is worth real bytes against the cap.
+      function glSession() {
+        return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data;
+      }
+
       match /responses/{studentUid} {
         function glSessionClassId() {
-          return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('classId', '');
+          return glSession().get('classId', '');
         }
         function glSessionClassIds() {
-          return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('classIds', []);
+          return glSession().get('classIds', []);
         }
         function glSessionTeacherUid() {
-          return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.teacherUid;
+          return glSession().teacherUid;
         }
         // Block response writes on view-only sessions. GL stores assignment mode
         // under `assignmentMode` (its `mode` is play-mode: structured/guided/
         // explore); other widgets use `mode`.
         function glSessionMode() {
-          return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('assignmentMode', 'submissions');
+          return glSession().get('assignmentMode', 'submissions');
         }
         // M17 session-level close window (epoch-ms number; absent pre-M17).
         function glWithinSessionCloseWindow() {
-          return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('closeAt', null) == null ||
-                 request.time.toMillis() < get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.closeAt + assignmentCloseGraceMs();
+          return glSession().get('closeAt', null) == null ||
+                 request.time.toMillis() < glSession().closeAt + assignmentCloseGraceMs();
         }
         /* M17 session-level open window (create-only mirror of the close gate;
            absent openAt = always open). */
         function glWithinSessionOpenWindow() {
-          return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('openAt', null) == null ||
-                 request.time.toMillis() >= get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.openAt - assignmentOpenGraceMs();
+          return glSession().get('openAt', null) == null ||
+                 request.time.toMillis() >= glSession().openAt - assignmentOpenGraceMs();
         }
 
         // Teacher can read all responses; students can only read their own
         allow read: if request.auth != null && (
           isAdmin() ||
-          get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.teacherUid == request.auth.uid ||
+          glSession().teacherUid == request.auth.uid ||
           (studentUid == request.auth.uid && passesStudentClassGateCompat(glSessionClassIds(), glSessionClassId()))
         );
         // Students create their own response; doc ID, studentAnonymousId, and sessionId must match.
@@ -4596,7 +4636,7 @@ service cloud.firestore {
         // Owning teacher (or admin) may delete responses — used when the
         // teacher permanently deletes an assignment.
         allow delete: if request.auth != null && (
-          get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.teacherUid == request.auth.uid ||
+          glSession().teacherUid == request.auth.uid ||
           isAdmin()
         );
       }
@@ -4606,13 +4646,13 @@ service cloud.firestore {
       match /views/{viewId} {
         allow read: if request.auth != null && (
           isAdmin() ||
-          get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.teacherUid == request.auth.uid
+          glSession().teacherUid == request.auth.uid
         );
         allow create: if request.auth != null &&
           request.resource.data.keys().hasOnly(['viewedAt']) &&
           request.resource.data.viewedAt is timestamp &&
           exists(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)) &&
-          get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('assignmentMode', 'submissions') == 'view-only';
+          glSession().get('assignmentMode', 'submissions') == 'view-only';
         allow update, delete: if false;
       }
     }
