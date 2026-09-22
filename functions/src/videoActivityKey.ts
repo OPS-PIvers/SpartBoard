@@ -72,7 +72,7 @@ const keyQuestions = (raw: unknown): VaKeyQuestion[] =>
       )
     : [];
 
-// Server-side mirror of the player's no-skip rule, so the check can't be walked ahead to harvest the key.
+// Mirrors the player's no-skip order; a scripted client can still walk it, but recorded answers are locked.
 export function allEarlierAnswered(
   questions: VaKeyQuestion[],
   target: VaKeyQuestion,
