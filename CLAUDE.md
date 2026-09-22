@@ -58,6 +58,19 @@ Since 2026-09-21 a push to `dev-paul` never touches production. Plan and decisio
 - **Shared Drive app.** Dev reuses prod's Google OAuth client (`drive.file` is per client), so a dev bug can still edit Paul's real Drive files. AI runs on Vertex billed to the dev project.
 - **Rules have two size caps**: 256 KiB of source (comments are stripped at deploy) and 250 KB compiled. Crossing the compiled cap makes every release fail with a bare 400. Test a rules change with `node scripts/releaseFirestoreRules.mjs spartboard-dev` before it reaches `main`.
 - A new `admin_settings` kill switch ships off in both projects; toggle it on dev through the admin panel to test.
+- **"Sync from prod" button** (sidebar footer, dev site only, admins only): replaces the signed-in admin's dev boards, quizzes, guided learning, notebooks and other authored materials with a fresh copy of their prod ones via `syncMyMaterialsFromProdV1` (`functions/src/devSyncFromProd.ts`). One-way and read-only on prod; it borrows the `prod-reader@spartboard-dev` identity, which has read-only Firestore access to prod. Rosters, OAuth tokens, assignments and PLC state are never copied. Nothing flows dev → prod, by design: never build a two-way sync.
+
+## Releasing a feature: behind a flag, on for Paul first
+
+Every new user-facing feature or behaviour change reaches `main` switched **off for teachers** and switched on only for Paul, who uses it in prod on his real account before it opens to everyone. Paul tests on `spartboard-dev` while building; the flag is how he tests in prod after release.
+
+- **Non-widget features:** add an id to `GlobalFeature` (`types.ts`) and a `FEATURE_DEFAULTS` entry in `config/featureDefaults.ts` with `defaultAccessLevel: 'admin'`, `defaultEnabled: true`, `missingDocPublic: false`, so nobody outside admins gets it before a doc exists. Gate every entry point with `canAccessFeature('<id>')`.
+- **New widgets / internal tools:** the same idea through `feature_permissions` (`canAccessWidget`): ship at access level `admin` (or `beta` with Paul's email).
+- **Org-wide rollout switches** (`admin_settings/*`, the Rollouts panel) have no per-user targeting; when one is needed, AND it with a `global_permissions` gate, as the Quiz widget does with `paperSheetsRollout.enabled && canAccessFeature('paper-answer-sheets')`.
+- **Admins always pass admin/beta gates**, so "on for Paul" really means Paul plus the other `/admins`. Say so in the PR if that matters for the feature.
+- **The PR description must say** which flag gates the feature, its starting access level, and the admin path to open it: Admin Settings > Access > Global Settings (or Feature Permissions for widgets) > set to Public. Paul flips it after testing in prod; agents never open a flag to Public on prod themselves.
+- **Exempt:** bug fixes that restore intended behaviour, copy and styling tweaks, internal/admin-only tools, and dev-only tooling. When in doubt, flag it.
+- **Changelog:** a flagged feature gets its `public/changelog.json` entry when the flag opens to everyone, not when the code merges.
 
 ## Architecture gotchas
 

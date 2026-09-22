@@ -3239,6 +3239,8 @@ describe('index barrel — deployed export set', () => {
     'recomputePlcAssessments',
     'migratePlcs',
     'mirrorPlcIndex',
+    // Dev-only prod → dev materials sync
+    'syncMyMaterialsFromProdV1',
     // Guided Learning Storage slide GC
     'gcGuidedLearningMedia',
     'gcBuildingGuidedLearningMedia',
