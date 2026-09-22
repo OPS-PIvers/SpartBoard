@@ -412,6 +412,32 @@ describe('useSharedCollection', () => {
       ]);
     });
 
+    // A blip on re-read must not regress a widget that worked on the last
+    // push: the sub would see an empty canvas where strokes used to be.
+    it('keeps the last good bundle when a re-push cannot read the item', async () => {
+      await seedStrokes('b1');
+      const { shareId, api } = await shareWithDrawing([drawingBoard('b1')]);
+      const contentPath = `shared_collections/${shareId}/content/drawing_w1`;
+      const helpers = await getHelpers();
+      const before = helpers.docs.get(contentPath);
+      expect(before).toBeDefined();
+
+      // The bundler's per-page read fails; the existing-content read after it
+      // must still succeed, so only one getDocs is poisoned.
+      helpers.failNextGetDocs({ code: 'unavailable' });
+      const onBundle = vi.fn();
+      await api.updateSubstituteShare({
+        shareId,
+        collection: sourceCollection(),
+        boards: [drawingBoard('b1')],
+        onBundle: onBundle as never,
+        ...tree(),
+      });
+
+      expect(onBundle).toHaveBeenCalledTimes(1);
+      expect(helpers.docs.get(contentPath)).toEqual(before);
+    });
+
     // The sub watches contentVersion live and reloads on it, and a bundled
     // read that lands early caches "nothing bundled" with no retry anywhere,
     // so the bump has to be the last thing the push writes.

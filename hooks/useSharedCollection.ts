@@ -33,6 +33,7 @@ import {
   type SubShareBundle,
   type SubShareBundleItem,
 } from '@/utils/bundleSubShareContent';
+import { subShareContentId } from '@/utils/subShareContent';
 import type {
   Dashboard,
   SharedCollection,
@@ -186,13 +187,17 @@ async function commitContentBatches({
   shareId,
   items,
   previousIds,
+  failedIds,
 }: {
   shareId: string;
   items: SubShareBundleItem[];
   previousIds?: string[];
+  failedIds?: string[];
 }): Promise<void> {
   const BATCH_LIMIT = 400;
-  const keep = new Set(items.map((i) => i.id));
+  // An item this push could not read keeps its last good copy: deleting it
+  // would turn a network blip into an empty widget on the sub's screen.
+  const keep = new Set([...items.map((i) => i.id), ...(failedIds ?? [])]);
   const stale = (previousIds ?? []).filter((id) => !keep.has(id));
   const writes: (() => void)[] = [];
   let batch = writeBatch(db);
@@ -577,6 +582,9 @@ export const useSharedCollection = () => {
         shareId,
         items: bundle.items,
         previousIds: existing.docs.map((d) => d.id),
+        failedIds: bundle.failures.map((f) =>
+          subShareContentId(f.kind, f.itemId)
+        ),
       });
       input.onBundle?.(bundle);
 
