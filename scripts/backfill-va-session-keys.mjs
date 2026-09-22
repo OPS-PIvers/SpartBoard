@@ -8,8 +8,13 @@
  * (functions/src/videoActivityKey.ts) does the move. Deploy functions first.
  *
  * Usage:
- *   node scripts/backfill-va-session-keys.mjs           # dry run, counts legacy docs
- *   node scripts/backfill-va-session-keys.mjs --apply   # stamps them
+ *   node scripts/backfill-va-session-keys.mjs                            # dry run, counts legacy docs
+ *   node scripts/backfill-va-session-keys.mjs --apply                    # stamps ended sessions
+ *   node scripts/backfill-va-session-keys.mjs --apply --include-active   # also active ones
+ *
+ * Active sessions are opt-in: a student tab loaded before the release reads
+ * `session.questions`, so scrubbing its session mid-activity drops its remaining
+ * questions. Run the --include-active pass outside school hours.
  *
  * Credentials: FIREBASE_SERVICE_ACCOUNT env var (JSON) or scripts/service-account-key.json.
  * Idempotent: a scrubbed doc no longer matches, so re-running touches nothing.
@@ -22,7 +27,9 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const apply = process.argv.slice(2).includes('--apply');
+const args = process.argv.slice(2);
+const apply = args.includes('--apply');
+const includeActive = args.includes('--include-active');
 const PAGE_SIZE = 300;
 const BATCH_LIMIT = 400;
 
@@ -47,25 +54,32 @@ const hasEmbeddedKey = (questions) =>
   );
 
 let scanned = 0;
+let activeLegacy = 0;
 const legacy = [];
 let cursor = null;
 for (;;) {
   let q = db
     .collection('video_activity_sessions')
     .orderBy('__name__')
-    .select('questions')
+    .select('questions', 'status')
     .limit(PAGE_SIZE);
   if (cursor) q = q.startAfter(cursor);
   const snap = await q.get();
   for (const d of snap.docs) {
     scanned++;
-    if (hasEmbeddedKey(d.get('questions'))) legacy.push(d.ref);
+    if (!hasEmbeddedKey(d.get('questions'))) continue;
+    const active = d.get('status') === 'active';
+    if (active) activeLegacy++;
+    if (!active || includeActive) legacy.push(d.ref);
   }
   if (snap.size < PAGE_SIZE) break;
   cursor = snap.docs[snap.size - 1];
 }
 
-console.log(`Scanned ${scanned} sessions; ${legacy.length} still embed a key.`);
+console.log(
+  `Scanned ${scanned} sessions; ${legacy.length} selected to scrub, ${activeLegacy} of the key-embedding ones are active` +
+    (includeActive ? ' (included).' : ' (skipped; pass --include-active).')
+);
 if (!apply) {
   console.log('Dry run. Re-run with --apply to stamp them for the scrub trigger.');
   process.exit(0);
