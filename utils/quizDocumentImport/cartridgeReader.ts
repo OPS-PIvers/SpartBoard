@@ -136,14 +136,36 @@ const asOptions = (choices: Choice[]): ExtractedOption[] =>
     text: choice.text,
   }));
 
+/** Common Cartridge states the type as a `cc_profile`; Canvas writes `question_type`. */
+function typeFromProfile(profile: string): QuizQuestionType | null {
+  const kind = profile.toLowerCase();
+  if (!kind.startsWith('cc.')) return null;
+  if (kind.includes('essay')) return 'free-response';
+  if (kind.includes('fib') || kind.includes('pattern_match')) return 'FIB';
+  if (
+    kind.includes('multiple_choice') ||
+    kind.includes('multiple_response') ||
+    kind.includes('true_false')
+  ) {
+    return 'MC';
+  }
+  return null;
+}
+
 /** Question types an LMS writes; anything unknown is decided by its shape. */
-function typeOf(declared: string, responseLids: Element[]): QuizQuestionType {
+function typeOf(
+  declared: string,
+  profile: string,
+  responseLids: Element[]
+): QuizQuestionType {
   const kind = declared.toLowerCase();
   if (kind.includes('essay')) return 'free-response';
   if (kind.includes('matching')) return 'Matching';
   if (kind.includes('ordering')) return 'Ordering';
   if (kind.includes('short_answer') || kind.includes('numerical')) return 'FIB';
   if (kind.includes('fill_in') || kind.includes('fib')) return 'FIB';
+  const fromProfile = typeFromProfile(profile);
+  if (fromProfile) return fromProfile;
   if (responseLids.length > 1) return 'Matching';
   if (responseLids.length === 1) return 'MC';
   return 'free-response';
@@ -192,7 +214,8 @@ function toQuestion(item: Element, number: number): ExtractedQuestion {
     ? descendants(presentation, 'response_lid')
     : [];
   const declared = metadataField(item, 'question_type');
-  const type = typeOf(declared, responseLids);
+  const profile = metadataField(item, 'cc_profile');
+  const type = typeOf(declared, profile, responseLids);
 
   // The stem is the material that is not inside a choice list.
   const stemHolders = presentation
