@@ -316,6 +316,11 @@ describe('useSharedCollection', () => {
     defaultBoardId: 'b1',
   });
 
+  const helpersDeletedParent = (
+    helpers: { deletedPaths: string[] },
+    shareId: string
+  ) => helpers.deletedPaths.includes(`shared_collections/${shareId}`);
+
   const seedSubShare = async () => {
     const { result } = renderHook(() => useSharedCollection());
     const shareId = await result.current.shareSubstituteCollection({
@@ -416,6 +421,40 @@ describe('useSharedCollection', () => {
     expect(helpers.docs.has(`shared_collections/${shareId}/boards/b1`)).toBe(
       true
     );
+  });
+
+  // A half-finished re-push leaves the share standing, so the message must
+  // not tell the teacher it was cancelled.
+  it('updateSubstituteShare says the share is still live when a board batch fails', async () => {
+    const { shareId, api } = await seedSubShare();
+    const fsMod = (await vi.importMock('firebase/firestore')) as {
+      writeBatch: ReturnType<typeof vi.fn>;
+    };
+    // Parent batch commits; the board batch that follows it rejects.
+    fsMod.writeBatch.mockImplementationOnce(() => ({
+      update: vi.fn(),
+      set: vi.fn(),
+      commit: vi.fn(() => Promise.resolve(undefined)),
+    }));
+    fsMod.writeBatch.mockImplementationOnce(() => ({
+      set: vi.fn(),
+      commit: vi.fn(() => Promise.reject(new Error('rules denied write'))),
+    }));
+
+    await expect(
+      api.updateSubstituteShare({
+        shareId,
+        collection: sourceCollection(),
+        boards: [dashboard('b1')],
+        kind: 'collection',
+        sections: [{ id: 'src-collection', name: 'Source' }],
+        boardEntries: [
+          { id: 'b1', name: 'Warm-up', sectionId: 'src-collection', order: 0 },
+        ],
+      })
+    ).rejects.toThrow(/still has the share/);
+    // And the share itself is left standing for the retry.
+    expect(helpersDeletedParent(await getHelpers(), shareId)).toBe(false);
   });
 
   // A grant the update no longer resolves is still a live Drive permission,

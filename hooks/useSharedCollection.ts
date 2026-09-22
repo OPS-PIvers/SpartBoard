@@ -240,8 +240,14 @@ async function commitBoardBatches({
       });
     }
     const cause = err instanceof Error ? err.message : String(err);
+    // A failed create is gone; a failed re-push left the share standing with
+    // some boards new and some still the old ones, so it says so.
+    const outcome =
+      scope === 'updateSubShare'
+        ? 'Your sub still has the share, with some boards not yet updated — try again.'
+        : 'The share has been cancelled — please try again.';
     throw new Error(
-      `Failed to upload all boards (${boardsCommitted.toString()} of ${boards.length.toString()} committed). The share has been cancelled — please try again. (${cause})`
+      `Failed to upload all boards (${boardsCommitted.toString()} of ${boards.length.toString()} committed). ${outcome} (${cause})`
     );
   }
 }
