@@ -546,7 +546,6 @@ export const useSharedCollection = () => {
             icon: input.collection.icon,
           }),
         },
-        contentVersion: (current.contentVersion ?? 1) + 1,
         updatedAt: now,
         expiresAt: input.expiresAt ?? current.expiresAt,
         ...(input.defaultBoardId !== undefined && {
@@ -600,6 +599,15 @@ export const useSharedCollection = () => {
         }
         await cleanup.commit();
       }
+
+      // Last, because the sub watches this live and reloads on it: bumping it
+      // before the content is written serves them an empty widget they cannot
+      // retry out of.
+      const versionBatch = writeBatch(db);
+      versionBatch.update(parentRef, {
+        contentVersion: (current.contentVersion ?? 1) + 1,
+      });
+      await versionBatch.commit();
     },
     []
   );

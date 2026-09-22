@@ -412,6 +412,43 @@ describe('useSharedCollection', () => {
       ]);
     });
 
+    // The sub watches contentVersion live and reloads on it, and a bundled
+    // read that lands early caches "nothing bundled" with no retry anywhere,
+    // so the bump has to be the last thing the push writes.
+    it('leaves the version alone when the content write fails', async () => {
+      await seedStrokes('b1');
+      const { shareId, api } = await shareWithDrawing([drawingBoard('b1')]);
+      const fsMod = (await vi.importMock('firebase/firestore')) as {
+        writeBatch: ReturnType<typeof vi.fn>;
+      };
+      // The first two batches write for real, so a version bumped in the
+      // parent's own batch would land and be seen below.
+      const real = fsMod.writeBatch.getMockImplementation() as () => unknown;
+      fsMod.writeBatch.mockImplementationOnce(real);
+      fsMod.writeBatch.mockImplementationOnce(real);
+      fsMod.writeBatch.mockImplementationOnce(() => ({
+        set: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+        commit: vi.fn(() => Promise.reject(new Error('rules denied write'))),
+      }));
+
+      await expect(
+        api.updateSubstituteShare({
+          shareId,
+          collection: sourceCollection(),
+          boards: [drawingBoard('b1')],
+          ...tree(),
+        })
+      ).rejects.toThrow();
+
+      const helpers = await getHelpers();
+      const parent = helpers.docs.get(`shared_collections/${shareId}`) as {
+        contentVersion: number;
+      };
+      expect(parent.contentVersion).toBe(1);
+    });
+
     // A board dropped from the collection takes its content with it, or the
     // sub keeps seeing a drawing from a board that is no longer shared.
     it('drops content the next push no longer covers', async () => {
