@@ -22,7 +22,7 @@ import {
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { logError } from '@/utils/logError';
-import { sanitizeBoardSnapshot } from '@/utils/dashboardSanitize';
+import { sanitizeBoardForRecipient } from '@/utils/dashboardSanitize';
 import type {
   Dashboard,
   SharedCollection,
@@ -177,7 +177,7 @@ async function commitBoardBatches({
       );
       const boardPayload: SharedCollectionBoardDoc = {
         boardId: board.id,
-        dashboard: sanitizeBoardSnapshot(board),
+        dashboard: sanitizeBoardForRecipient(board),
       };
       currentBatch.set(boardRef, boardPayload);
       inBatch += 1;

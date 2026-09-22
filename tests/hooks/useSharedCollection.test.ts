@@ -117,6 +117,23 @@ const dashboard = (id: string): Dashboard => ({
   collectionId: 'src-collection',
 });
 
+const dashboardWithNames = (id: string): Dashboard => ({
+  ...dashboard(id),
+  widgets: [
+    {
+      id: 'w1',
+      type: 'random',
+      position: { x: 0, y: 0 },
+      config: {
+        firstNames: 'Alice\nBob',
+        lastNames: 'Smith\nJones',
+        lastResult: { picked: 'Alice Smith' },
+        mode: 'pick',
+      },
+    },
+  ] as unknown as Dashboard['widgets'],
+});
+
 const sourceCollection = (): Collection => ({
   id: 'src-collection',
   name: 'Source',
@@ -176,6 +193,45 @@ describe('useSharedCollection', () => {
     expect(parent.intendedMode).toBe('substitute');
     expect(parent.expiresAt).toBe(9999999999999);
     expect(parent.buildingId).toBe('middle-school');
+  });
+
+  it('scrubs student names from shared board snapshots', async () => {
+    const { result } = renderHook(() => useSharedCollection());
+    const boards = [dashboardWithNames('b1')];
+    const copyId = await result.current.shareCollection({
+      collection: sourceCollection(),
+      boards,
+      hostUid: 'host-uid',
+      hostDisplayName: 'Mr. Teacher',
+    });
+    const subId = await result.current.shareSubstituteCollection({
+      collection: sourceCollection(),
+      boards,
+      hostUid: 'host-uid',
+      hostDisplayName: 'Mr. Teacher',
+      collectionId: 'src-collection',
+      expiresAt: 9999999999999,
+      buildingId: 'middle-school',
+    });
+
+    const helpers = await getHelpers();
+    for (const shareId of [copyId, subId]) {
+      const written = helpers.docs.get(
+        `shared_collections/${shareId}/boards/b1`
+      ) as { dashboard: Dashboard };
+      const config = written.dashboard.widgets[0].config as Record<
+        string,
+        unknown
+      >;
+      expect(config.firstNames).toBeUndefined();
+      expect(config.lastNames).toBeUndefined();
+      expect(config.lastResult).toBeUndefined();
+      expect(config.mode).toBe('pick');
+    }
+    // The host's in-memory board keeps its names.
+    expect(
+      (boards[0].widgets[0].config as Record<string, unknown>).firstNames
+    ).toBe('Alice\nBob');
   });
 
   it('shareCollection cleans up the parent doc when a board batch fails', async () => {
