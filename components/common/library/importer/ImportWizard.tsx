@@ -60,8 +60,8 @@ function acceptExtensionsForSources(sources: ImportSourceKind[]): string {
     exts.add('.json');
     exts.add('.txt');
   }
-  // Not '.pdf'/'.docx': the dedicated "Test document" tile owns those, and
-  // offering them here too would put them behind a button labelled "CSV".
+  // Not '.pdf'/'.docx'/'.rtf': the dedicated "Test document" tile owns those,
+  // and offering them here too would put them behind a button labelled "CSV".
   return Array.from(exts).join(',');
 }
 
@@ -71,7 +71,9 @@ function inferKindFromFileName(
 ): Exclude<ImportSourceKind, 'sheet'> {
   const lower = fileName.toLowerCase();
   if (
-    (lower.endsWith('.pdf') || lower.endsWith('.docx')) &&
+    (lower.endsWith('.pdf') ||
+      lower.endsWith('.docx') ||
+      lower.endsWith('.rtf')) &&
     supported.includes('document')
   )
     return 'document';
@@ -106,6 +108,7 @@ export function ImportWizard<TData>({
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingLabel, setLoadingLabel] = useState('Importing…');
   const [saving, setSaving] = useState(false);
   // True while the Google Picker dialog is open (sheet import via pickSheet).
   const [picking, setPicking] = useState(false);
@@ -149,6 +152,7 @@ export function ImportWizard<TData>({
       setValidationErrors([]);
       setSaveError(null);
       setLoading(false);
+      setLoadingLabel('Importing…');
       setSaving(false);
       setPicking(false);
       setAiOpen(false);
@@ -172,6 +176,11 @@ export function ImportWizard<TData>({
 
   const runParse = async (payload: ImportSourcePayload): Promise<void> => {
     const session = sessionRef.current;
+    setLoadingLabel(
+      payload.kind === 'document'
+        ? 'Reading your document…'
+        : 'Importing your file…'
+    );
     setLoading(true);
     setParseError(null);
     try {
@@ -435,9 +444,11 @@ export function ImportWizard<TData>({
     }
   };
 
-  // Ignore close attempts (Escape, backdrop click, X) while a save is in flight.
+  // Ignore close attempts (Escape, backdrop click, X) while a read or a save is
+  // in flight — both leave the wizard with nothing to show if they are dropped.
+  const busy = loading || saving;
   const handleClose = (): void => {
-    if (saving) return;
+    if (busy) return;
     onClose();
   };
 
@@ -494,7 +505,7 @@ export function ImportWizard<TData>({
       <button
         type="button"
         onClick={handleClose}
-        disabled={saving}
+        disabled={busy}
         className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
         aria-label="Close import wizard"
       >
@@ -706,7 +717,7 @@ export function ImportWizard<TData>({
                   Choose a test from Drive
                 </span>
                 <p className="text-[11px] text-brand-blue-primary/60 font-bold text-center">
-                  Google Doc, Word file or PDF
+                  Google Doc, Word file, PDF or .rtf
                 </p>
               </button>
             )}
@@ -727,7 +738,7 @@ export function ImportWizard<TData>({
                   : 'Drop or upload a test document'}
               </span>
               <p className="text-[11px] text-brand-blue-primary/60 font-bold text-center">
-                .pdf or .docx
+                .pdf, .docx or .rtf
               </p>
             </button>
           </div>
@@ -763,7 +774,7 @@ export function ImportWizard<TData>({
           <input
             type="file"
             ref={documentInputRef}
-            accept=".pdf,.docx"
+            accept=".pdf,.docx,.rtf"
             onChange={(e) => void handleDocumentPicked(e)}
             className="hidden"
             aria-label="Upload a test document"
@@ -772,7 +783,7 @@ export function ImportWizard<TData>({
             <input
               type="file"
               ref={keyFileInputRef}
-              accept=".pdf,.docx"
+              accept=".pdf,.docx,.rtf"
               onChange={handleKeyFilePicked}
               className="hidden"
               aria-label="Upload a separate answer key"
@@ -804,13 +815,6 @@ export function ImportWizard<TData>({
           >
             Import pasted JSON
           </button>
-        </div>
-      )}
-
-      {loading && (
-        <div className="flex items-center justify-center gap-2 py-2 text-brand-blue-primary font-bold text-sm">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Parsing…
         </div>
       )}
 
@@ -920,7 +924,8 @@ export function ImportWizard<TData>({
         <button
           type="button"
           onClick={handleClose}
-          className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+          disabled={busy}
+          className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Cancel
         </button>
@@ -998,6 +1003,21 @@ export function ImportWizard<TData>({
       // wizard would render invisibly behind it. Same fix as
       // SpotifyPremiumDialog.tsx.
       zIndex="z-dialog"
+      overlay={
+        loading ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="absolute inset-0 z-20 rounded-2xl bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 animate-in fade-in duration-150"
+          >
+            <Loader2 className="w-8 h-8 text-brand-blue-primary animate-spin" />
+            <p className="font-bold text-slate-700 text-sm">{loadingLabel}</p>
+            <p className="text-xs text-slate-500 font-medium">
+              This can take a moment. Please keep this window open.
+            </p>
+          </div>
+        ) : null
+      }
     >
       <div className="relative">
         {body}

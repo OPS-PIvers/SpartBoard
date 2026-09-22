@@ -15,6 +15,7 @@
 import { entriesOnLine } from './answerKey';
 import { documentKind } from './fileKind';
 import { readDocx } from './docxReader';
+import { readRtf } from './rtfReader';
 import { readPdf, type PdfReaderDeps } from './pdfReader';
 import { MAX_DOCUMENT_PAGES, assertWithinByteLimit } from './limits';
 import type { DocLine, ExtractedQuestion, ExtractedQuiz } from './types';
@@ -107,7 +108,7 @@ export function applyAnswerKey(
 
 export interface ReadKeyFileOptions {
   fileName?: string;
-  /** Required to read a PDF key; a Word file needs none. */
+  /** Required to read a PDF key; a Word or rich text file needs none. */
   pdf?: PdfReaderDeps;
 }
 
@@ -124,13 +125,17 @@ export async function readAnswerKeyFile(
   const kind = documentKind(file, fileName);
   if (!kind) {
     throw new Error(
-      'That answer key can’t be read. Upload a PDF, a Word file (.docx) or a Google Doc.'
+      'That answer key can’t be read. Upload a PDF, a Word file (.docx), a rich text file (.rtf) or a Google Doc.'
     );
   }
   assertWithinByteLimit(file);
 
   if (kind === 'docx') {
     const { lines } = await readDocx(file);
+    return keyFromLines(lines);
+  }
+  if (kind === 'rtf') {
+    const { lines } = await readRtf(file);
     return keyFromLines(lines);
   }
   if (!options.pdf) {

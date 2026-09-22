@@ -25,6 +25,7 @@ import { generateQuiz, type GeneratedQuestion } from '@/utils/ai';
 import {
   applyAnswerKey,
   assertWithinByteLimit,
+  documentKind,
   extractedToQuizData,
   readAnswerKeyFile,
   rowWarnings,
@@ -322,9 +323,7 @@ async function readKeyFile(keyFile: {
   file: Blob;
   fileName: string;
 }): Promise<Map<number, string>> {
-  const isPdf =
-    keyFile.file.type === 'application/pdf' ||
-    keyFile.fileName.toLowerCase().endsWith('.pdf');
+  const isPdf = documentKind(keyFile.file, keyFile.fileName) === 'pdf';
   return readAnswerKeyFile(keyFile.file, {
     fileName: keyFile.fileName,
     ...(isPdf ? { pdf: await browserPdfDeps(keyFile.file) } : {}),

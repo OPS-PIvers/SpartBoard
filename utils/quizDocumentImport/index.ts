@@ -1,6 +1,6 @@
 /**
- * The browser reader: a PDF, Word file or exported Google Doc in, an
- * `ExtractedQuiz` out (docs/plans/QUIZ_DOCUMENT_IMPORT.md D1, D2, D11, D18).
+ * The browser reader: a PDF, Word file, rich text file or exported Google
+ * Doc in, an `ExtractedQuiz` out (docs/plans/QUIZ_DOCUMENT_IMPORT.md D1, D2, D11, D18).
  *
  * The AI reader (PR 2) returns the same shape, so the review table and the
  * create step never learn which one ran.
@@ -8,6 +8,7 @@
 
 import { parseQuestionLines } from './parseQuestions';
 import { readDocx } from './docxReader';
+import { readRtf } from './rtfReader';
 import { readPdf, type PdfReaderDeps } from './pdfReader';
 import {
   MAX_DOCUMENT_PAGES,
@@ -15,10 +16,15 @@ import {
   assertWithinPageLimit,
 } from './limits';
 import type { ExtractedQuiz } from './types';
-import { documentKind, titleFromFileName } from './fileKind';
+import { UNREADABLE_FILE, documentKind, titleFromFileName } from './fileKind';
 
 export * from './types';
-export { documentKind, titleFromFileName, type DocumentKind } from './fileKind';
+export {
+  documentKind,
+  titleFromFileName,
+  UNREADABLE_FILE,
+  type DocumentKind,
+} from './fileKind';
 export { parseQuestionLines, isTrueFalse } from './parseQuestions';
 export { findAnswerKey } from './answerKey';
 export {
@@ -28,6 +34,7 @@ export {
   type ReadKeyFileOptions,
 } from './keyFile';
 export { readDocx } from './docxReader';
+export { readRtf, parseRtf } from './rtfReader';
 export { readPdf, groupItemsIntoLines } from './pdfReader';
 export { extractedToQuizData, rowWarnings } from './toQuizData';
 export {
@@ -80,13 +87,25 @@ export async function readQuizDocument(
   const fileName = options.fileName ?? (file as File).name ?? '';
   const kind = documentKind(file, fileName);
   if (!kind) {
-    throw new Error(
-      'That file type can’t be read. Upload a PDF, a Word file (.docx) or a Google Doc.'
-    );
+    throw new Error(UNREADABLE_FILE);
   }
   assertWithinByteLimit(file);
 
   const warnings: string[] = [];
+
+  if (kind === 'rtf') {
+    const { lines } = await readRtf(file);
+    // Rich text carries its pictures as hex blobs the reader skips (D15).
+    warnings.push(
+      'Pictures in a rich text file aren’t brought in — add them to the questions that need them in the editor.'
+    );
+    return {
+      title: titleFromFileName(fileName),
+      questions: parseQuestionLines(lines),
+      images: [],
+      warnings,
+    };
+  }
 
   if (kind === 'docx') {
     const { lines, images } = await readDocx(file);

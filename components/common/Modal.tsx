@@ -14,6 +14,12 @@ interface ModalProps {
   customHeader?: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  /**
+   * Covers the whole panel — header, body and footer — e.g. a busy state. The
+   * panel only becomes a positioning context when one is supplied, so no
+   * existing modal's absolutely-placed children move.
+   */
+  overlay?: React.ReactNode;
   zIndex?: string; // e.g. "z-modal", "z-modal-deep"
   maxWidth?: string; // e.g. "max-w-md", "max-w-2xl"
   className?: string; // For additional styling on the content container
@@ -31,6 +37,7 @@ export const Modal: React.FC<ModalProps> = ({
   customHeader,
   children,
   footer,
+  overlay,
   zIndex = 'z-modal',
   maxWidth = 'max-w-md',
   className = '',
@@ -111,7 +118,7 @@ export const Modal: React.FC<ModalProps> = ({
       aria-labelledby={ariaLabelledby}
     >
       <div
-        className={`w-full ${maxWidth} flex flex-col max-h-[90vh] ${variant === 'default' ? 'bg-white rounded-2xl shadow-2xl' : ''} ${className} animate-in zoom-in-95 duration-200`}
+        className={`${overlay ? 'relative' : ''} w-full ${maxWidth} flex flex-col max-h-[90vh] ${variant === 'default' ? 'bg-white rounded-2xl shadow-2xl' : ''} ${className} animate-in zoom-in-95 duration-200`}
         onClick={(e) => e.stopPropagation()}
       >
         {variant === 'default' &&
@@ -137,6 +144,8 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
 
         {footer && <div className={footerClassName}>{footer}</div>}
+
+        {overlay}
       </div>
     </div>,
     document.body
