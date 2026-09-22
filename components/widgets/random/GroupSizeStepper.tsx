@@ -11,6 +11,10 @@ interface GroupSizeStepperProps {
   label?: string;
   /** Tooltip + accessible name for the whole control. */
   title: string;
+  /** When set, the label becomes a button that switches what the value means. */
+  onLabelClick?: () => void;
+  /** Tooltip + accessible name for the label button. */
+  labelTitle?: string;
 }
 
 export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
@@ -20,6 +24,8 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
   max = 20,
   label,
   title,
+  onLabelClick,
+  labelTitle,
 }) => {
   const { t } = useTranslation();
   const decrement = () => onChange(Math.max(min, value - 1));
@@ -63,14 +69,29 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
           minWidth: 'clamp(28px, 6cqmin, 44px)',
         }}
       >
-        {label && (
-          <span
-            className="uppercase tracking-wider text-slate-400 font-bold leading-none"
-            style={{ fontSize: 'clamp(9px, 1.8cqmin, 12px)' }}
-          >
-            {label}
-          </span>
-        )}
+        {label &&
+          (onLabelClick ? (
+            <button
+              type="button"
+              onClick={onLabelClick}
+              title={labelTitle}
+              aria-label={labelTitle}
+              className="uppercase tracking-wider text-slate-500 font-bold leading-none rounded bg-slate-100 hover:bg-slate-200 transition-colors"
+              style={{
+                fontSize: 'clamp(9px, 1.8cqmin, 12px)',
+                padding: '1px clamp(3px, 0.8cqmin, 6px)',
+              }}
+            >
+              {label}
+            </button>
+          ) : (
+            <span
+              className="uppercase tracking-wider text-slate-400 font-bold leading-none"
+              style={{ fontSize: 'clamp(9px, 1.8cqmin, 12px)' }}
+            >
+              {label}
+            </span>
+          ))}
         <span
           className="font-bold font-mono text-slate-700 tabular-nums leading-tight"
           style={{ fontSize: 'clamp(14px, 3.5cqmin, 22px)' }}

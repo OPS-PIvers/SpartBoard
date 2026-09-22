@@ -27,6 +27,8 @@ const renderHomeGroups = (ctx: CustomRenderCtx) =>
   React.createElement(RandomGroupCountField, { ctx, kind: 'home' });
 const renderExpertGroups = (ctx: CustomRenderCtx) =>
   React.createElement(RandomGroupCountField, { ctx, kind: 'expert' });
+const renderGroupCount = (ctx: CustomRenderCtx) =>
+  React.createElement(RandomGroupCountField, { ctx, kind: 'groups' });
 const renderRosterActions = (ctx: CustomRenderCtx) =>
   React.createElement(RandomRosterActionsField, { ctx });
 const renderSendToStations = (ctx: CustomRenderCtx) =>
@@ -127,6 +129,17 @@ export default defineSettings<RandomConfig>({
           ],
         },
         {
+          key: 'groupingMode',
+          type: 'segmented',
+          label: 'groupBy',
+          visibleWhen: isMode('groups'),
+          readValue: (ctx) => ctx.config.groupingMode ?? 'size',
+          options: [
+            { value: 'size', label: 'groupBySize' },
+            { value: 'count', label: 'groupByCount' },
+          ],
+        },
+        {
           key: 'groupSize',
           type: 'slider',
           label: 'groupSize',
@@ -134,7 +147,18 @@ export default defineSettings<RandomConfig>({
           max: 20,
           step: 1,
           readValue: (ctx) => ctx.config.groupSize ?? 3,
-          visibleWhen: isMode('groups'),
+          visibleWhen: (ctx) =>
+            isMode('groups')(ctx) &&
+            (ctx.config.groupingMode ?? 'size') === 'size',
+        },
+        // schema-gap: rosterDerivedSlider
+        {
+          key: 'numGroups',
+          type: 'custom',
+          label: 'groupCount',
+          visibleWhen: (ctx) =>
+            isMode('groups')(ctx) && ctx.config.groupingMode === 'count',
+          render: renderGroupCount,
         },
         // schema-gap: rosterDerivedSlider
         {

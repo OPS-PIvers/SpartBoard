@@ -1490,6 +1490,12 @@ export interface RandomConfig {
   lastNames: string;
   mode: string;
   groupSize?: number;
+  /** Groups mode: whether the sizing control means members per group ('size',
+   *  the historical default) or a target number of groups ('count'). */
+  groupingMode?: 'size' | 'count';
+  /** Groups mode: target number of groups when `groupingMode` is 'count'.
+   *  The remainder spreads across groups, so sizes differ by at most one. */
+  numGroups?: number;
   lastResult?: string | string[] | RandomGroup[] | null;
   soundEnabled?: boolean;
   remainingStudents?: string[];
