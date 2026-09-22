@@ -437,7 +437,12 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     prefetchCacheRef.current.invalidate(set.id);
     // The editor autosaves and shows its own save state, so no toast per write.
     if (set.isBuilding) await saveBuildingSet(set);
-    else await saveSet(set, driveFileId);
+    else {
+      // Adopt what was written. Without this a new set keeps autosaving with no
+      // drive file id, so every retitled write orphans another .gl.json file.
+      const meta = await saveSet(set, driveFileId);
+      setEditingMeta(meta);
+    }
   };
 
   const handleDelete = async (setId: string, driveFileId: string) => {
