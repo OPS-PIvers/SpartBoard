@@ -74,6 +74,7 @@ import {
 import type { OverflowMenuItem } from '@/components/common/sessionViews';
 import { scoreColorClasses } from '@/utils/scoreColor';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { useVideoActivityKeyQuestions } from '@/hooks/useVideoActivityKeyQuestions';
 
 interface ResultsProps {
   session: VideoActivitySession;
@@ -140,7 +141,7 @@ export const Results: React.FC<ResultsProps> = ({
   // Per-instance prefix for the ARIA tab↔panel linkage.
   const tabPanelId = useId();
 
-  const questions = session.questions;
+  const { questions } = useVideoActivityKeyQuestions(session);
   const totalStudents = responses.length;
 
   /**

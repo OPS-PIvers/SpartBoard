@@ -56,10 +56,12 @@ import type {
   VideoActivityScoreVisibility,
   VideoActivitySession,
 } from '@/types';
+import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
 import {
-  dedupeQuestionsById,
-  gradeVideoActivityAnswer,
-} from '@/utils/videoActivityGrading';
+  splitVideoActivitySessionQuestions,
+  VA_KEY_DOC_ID,
+  VA_KEY_SUBCOLLECTION,
+} from '@/utils/videoActivityPublicQuestions';
 
 /**
  * Map VA assignment status onto the PLC index's shared `QuizAssignmentStatus`
@@ -312,8 +314,8 @@ export const useVideoActivityAssignments = (
       const targetRosterIds = rosterIds ?? [];
       const assignmentId = crypto.randomUUID();
       const now = Date.now();
-      // Dedupe so a duplicated question id can't inflate "Question X of N".
-      const sessionQuestions = dedupeQuestionsById(activity.questions);
+      // Dedupes, so a duplicated question id can't inflate "Question X of N".
+      const split = splitVideoActivitySessionQuestions(activity.questions);
 
       const assignment: VideoActivityAssignment = {
         id: assignmentId,
@@ -358,7 +360,7 @@ export const useVideoActivityAssignments = (
         assignmentName: settings.className ?? activity.title,
         teacherUid: userId,
         youtubeUrl: activity.youtubeUrl,
-        questions: sessionQuestions,
+        ...split.sessionFields,
         settings: settings.sessionSettings,
         ...(settings.sessionOptions
           ? { sessionOptions: settings.sessionOptions }
@@ -395,6 +397,16 @@ export const useVideoActivityAssignments = (
       batch.set(
         doc(db, VIDEO_ACTIVITY_SESSIONS_COLLECTION, assignmentId),
         session
+      );
+      batch.set(
+        doc(
+          db,
+          VIDEO_ACTIVITY_SESSIONS_COLLECTION,
+          assignmentId,
+          VA_KEY_SUBCOLLECTION,
+          VA_KEY_DOC_ID
+        ),
+        split.key
       );
       await batch.commit();
 
@@ -553,8 +565,17 @@ export const useVideoActivityAssignments = (
         await batch.commit();
       }
 
-      // Delete the session doc and the assignment doc in one batch
+      // Delete the key, session and assignment docs in one batch
       const batch = writeBatch(db);
+      batch.delete(
+        doc(
+          db,
+          VIDEO_ACTIVITY_SESSIONS_COLLECTION,
+          assignmentId,
+          VA_KEY_SUBCOLLECTION,
+          VA_KEY_DOC_ID
+        )
+      );
       batch.delete(doc(db, VIDEO_ACTIVITY_SESSIONS_COLLECTION, assignmentId));
       batch.delete(
         doc(

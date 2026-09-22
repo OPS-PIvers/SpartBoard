@@ -36,7 +36,11 @@ import {
   AttemptLimitReachedError,
 } from '@/hooks/useQuizSession';
 import { normalizeVideoActivitySession } from '@/utils/videoActivityNormalize';
-import { dedupeQuestionsById } from '@/utils/videoActivityGrading';
+import {
+  splitVideoActivitySessionQuestions,
+  VA_KEY_DOC_ID,
+  VA_KEY_SUBCOLLECTION,
+} from '@/utils/videoActivityPublicQuestions';
 import {
   createLeadingTrailingThrottle,
   RESPONSES_THROTTLE_MS,
@@ -50,6 +54,7 @@ import {
   VideoActivityAnswer,
   VideoActivitySessionSettings,
   VideoActivitySessionOptions,
+  VideoActivityCheckResult,
 } from '@/types';
 
 const SESSIONS_COLLECTION = 'video_activity_sessions';
@@ -204,6 +209,8 @@ export const useVideoActivitySessionTeacher =
           allowSkipping: settings?.allowSkipping ?? false,
         };
 
+        // Dedupes, so a duplicated question id can't inflate "Question X of N".
+        const split = splitVideoActivitySessionQuestions(activity.questions);
         const session: VideoActivitySession = {
           id: sessionId,
           activityId: activity.id,
@@ -214,8 +221,7 @@ export const useVideoActivitySessionTeacher =
               : `${activity.title} ${new Date().toLocaleString()}`,
           teacherUid,
           youtubeUrl: activity.youtubeUrl,
-          // Dedupe so a duplicated question id can't inflate "Question X of N".
-          questions: dedupeQuestionsById(activity.questions),
+          ...split.sessionFields,
           settings: sessionSettings,
           status: 'active',
           allowedPins,
@@ -235,7 +241,19 @@ export const useVideoActivitySessionTeacher =
           mode,
         };
 
-        await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), session);
+        const batch = writeBatch(db);
+        batch.set(doc(db, SESSIONS_COLLECTION, sessionId), session);
+        batch.set(
+          doc(
+            db,
+            SESSIONS_COLLECTION,
+            sessionId,
+            VA_KEY_SUBCOLLECTION,
+            VA_KEY_DOC_ID
+          ),
+          split.key
+        );
+        await batch.commit();
 
         return sessionId;
       },
@@ -560,6 +578,11 @@ export interface UseVideoActivitySessionStudentResult {
     classPeriod?: string
   ) => Promise<void>;
   submitAnswer: (questionId: string, answer: string) => Promise<void>;
+  /** Server-grades one answer; the key never reaches the student client. */
+  checkAnswer: (
+    questionId: string,
+    answer: string
+  ) => Promise<VideoActivityCheckResult>;
   completeActivity: () => Promise<void>;
   /**
    * Atomically increment the student's `tabSwitchWarnings` counter on
@@ -1191,6 +1214,27 @@ export const useVideoActivitySessionStudent =
       return newCount;
     }, [sessionId, responseDocId]);
 
+    const activeSessionId = session?.id ?? null;
+    const checkAnswer = useCallback(
+      async (
+        questionId: string,
+        answer: string
+      ): Promise<VideoActivityCheckResult> => {
+        if (!activeSessionId) throw new Error('No active session');
+        const callable = httpsCallable<
+          { sessionId: string; questionId: string; answer: string },
+          VideoActivityCheckResult
+        >(functions, 'checkVideoActivityAnswerV1');
+        const res = await callable({
+          sessionId: activeSessionId,
+          questionId,
+          answer,
+        });
+        return res.data;
+      },
+      [activeSessionId]
+    );
+
     return {
       session,
       myResponse,
@@ -1199,6 +1243,7 @@ export const useVideoActivitySessionStudent =
       lookupSession,
       joinSession,
       submitAnswer,
+      checkAnswer,
       completeActivity,
       reportTabSwitch,
     };

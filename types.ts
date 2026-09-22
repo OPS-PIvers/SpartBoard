@@ -5915,6 +5915,23 @@ export type VideoActivityQuestion = Omit<
   acceptableVariants?: string[];
 };
 
+/** Student-safe VA question on the session doc; the key lives in `key/answers`. */
+export interface VideoActivityPublicQuestion {
+  id: string;
+  timestamp: number;
+  text: string;
+  type: VideoActivityQuestionType;
+  /** MC/MA choices, correct and incorrect mixed in random order. */
+  options?: string[];
+}
+
+/** Server grading of one VA answer (`checkVideoActivityAnswerV1`). */
+export interface VideoActivityCheckResult {
+  isCorrect: boolean;
+  /** Canonical key for feedback; MA selections are `|`-joined. */
+  correctAnswer: string;
+}
+
 /** Full video activity data stored in Google Drive as JSON. */
 export interface VideoActivityData {
   id: string;
@@ -6087,8 +6104,13 @@ export interface VideoActivitySession {
   assignmentName: string;
   teacherUid: string;
   youtubeUrl: string;
-  /** Full questions including correctAnswer — used server-side for grading. */
+  /**
+   * Keyed questions. Empty on stored docs that carry `publicQuestions`; teacher
+   * code reads the key via `useVideoActivityKeyQuestions`.
+   */
   questions: VideoActivityQuestion[];
+  /** Student-facing projection with no answer key. Absent on legacy docs. */
+  publicQuestions?: VideoActivityPublicQuestion[];
   /** Session-level player-behavior controls configured at assignment time. */
   settings?: VideoActivitySessionSettings;
   /**

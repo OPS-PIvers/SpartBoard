@@ -1,0 +1,165 @@
+[
+  {
+    "name": "MC exact",
+    "question": {
+      "id": "q",
+      "type": "MC",
+      "correctAnswer": "Paris",
+      "incorrectAnswers": ["Rome"]
+    },
+    "answer": "Paris",
+    "isCorrect": true
+  },
+  {
+    "name": "MC case and spacing",
+    "question": {
+      "id": "q",
+      "type": "MC",
+      "correctAnswer": "New  York",
+      "incorrectAnswers": []
+    },
+    "answer": " new york ",
+    "isCorrect": true
+  },
+  {
+    "name": "MC wrong option",
+    "question": {
+      "id": "q",
+      "type": "MC",
+      "correctAnswer": "Paris",
+      "incorrectAnswers": ["Rome"]
+    },
+    "answer": "Rome",
+    "isCorrect": false
+  },
+  {
+    "name": "MC missing type defaults to MC",
+    "question": { "id": "q", "correctAnswer": "A", "incorrectAnswers": ["B"] },
+    "answer": "a",
+    "isCorrect": true
+  },
+  {
+    "name": "MC blank key fails closed",
+    "question": {
+      "id": "q",
+      "type": "MC",
+      "correctAnswer": "",
+      "incorrectAnswers": []
+    },
+    "answer": "",
+    "isCorrect": false
+  },
+  {
+    "name": "FIB diacritics forgiven",
+    "question": {
+      "id": "q",
+      "type": "FIB",
+      "correctAnswer": "café",
+      "incorrectAnswers": []
+    },
+    "answer": "cafe",
+    "isCorrect": true
+  },
+  {
+    "name": "FIB variant accepted",
+    "question": {
+      "id": "q",
+      "type": "FIB",
+      "correctAnswer": "color",
+      "incorrectAnswers": [],
+      "acceptableVariants": ["colour"]
+    },
+    "answer": "Colour",
+    "isCorrect": true
+  },
+  {
+    "name": "FIB wrong",
+    "question": {
+      "id": "q",
+      "type": "FIB",
+      "correctAnswer": "color",
+      "incorrectAnswers": []
+    },
+    "answer": "hue",
+    "isCorrect": false
+  },
+  {
+    "name": "FIB blank key fails closed",
+    "question": {
+      "id": "q",
+      "type": "FIB",
+      "correctAnswer": "",
+      "incorrectAnswers": [],
+      "acceptableVariants": [""]
+    },
+    "answer": "",
+    "isCorrect": false
+  },
+  {
+    "name": "FIB yo folds to e",
+    "question": {
+      "id": "q",
+      "type": "FIB",
+      "correctAnswer": "ёлка",
+      "incorrectAnswers": []
+    },
+    "answer": "елка",
+    "isCorrect": true
+  },
+  {
+    "name": "MA set match in any order",
+    "question": {
+      "id": "q",
+      "type": "MA",
+      "correctAnswer": "b|a",
+      "incorrectAnswers": ["c"]
+    },
+    "answer": "a|b",
+    "isCorrect": true
+  },
+  {
+    "name": "MA missing a selection",
+    "question": {
+      "id": "q",
+      "type": "MA",
+      "correctAnswer": "a|b",
+      "incorrectAnswers": ["c"]
+    },
+    "answer": "a",
+    "isCorrect": false
+  },
+  {
+    "name": "MA extra wrong selection",
+    "question": {
+      "id": "q",
+      "type": "MA",
+      "correctAnswer": "a|b",
+      "incorrectAnswers": ["c"]
+    },
+    "answer": "a|b|c",
+    "isCorrect": false
+  },
+  {
+    "name": "MA partial credit is still not correct",
+    "question": {
+      "id": "q",
+      "type": "MA",
+      "correctAnswer": "a|b",
+      "incorrectAnswers": ["c"],
+      "allowPartialCredit": true
+    },
+    "answer": "a",
+    "isCorrect": false
+  },
+  {
+    "name": "MA empty key fails closed",
+    "question": {
+      "id": "q",
+      "type": "MA",
+      "correctAnswer": "",
+      "incorrectAnswers": ["c"]
+    },
+    "answer": "",
+    "isCorrect": false
+  }
+]

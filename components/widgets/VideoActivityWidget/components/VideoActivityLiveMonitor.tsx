@@ -46,6 +46,7 @@ import {
   ActionButton,
 } from '@/components/common/sessionViews';
 import { logError } from '@/utils/logError';
+import { useVideoActivityKeyQuestions } from '@/hooks/useVideoActivityKeyQuestions';
 
 interface VideoActivityLiveMonitorProps {
   session: VideoActivitySession;
@@ -392,7 +393,7 @@ export const VideoActivityLiveMonitor: React.FC<
     }
     return merged;
   }, [classLinkNames, ltiNames]);
-  const questions = session.questions;
+  const { questions } = useVideoActivityKeyQuestions(session);
   const [ending, setEnding] = useState(false);
   const [toggling, setToggling] = useState(false);
 

@@ -3204,6 +3204,9 @@ describe('index barrel — deployed export set', () => {
     // Flashcards Check submission
     'submitFlashcardCheckV1',
     'resolveFlashcardFlagV1',
+    // Video Activity answer key
+    'checkVideoActivityAnswerV1',
+    'scrubVideoActivitySessionKeyV1',
     // Organizations
     'createOrganizationInvites',
     'claimOrganizationInvite',

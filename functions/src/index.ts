@@ -119,6 +119,12 @@ export {
 export { submitFlashcardCheckV1 } from './flashcardCheck';
 export { resolveFlashcardFlagV1 } from './flashcardFlags';
 
+// ── Video Activity answer key (server-graded; key kept off session docs) ────
+export {
+  checkVideoActivityAnswerV1,
+  scrubVideoActivitySessionKeyV1,
+} from './videoActivityKey';
+
 // ── Organization invitations + membership write-through (Phase 4) ──────────
 export {
   createOrganizationInvites,

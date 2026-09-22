@@ -4186,12 +4186,20 @@ service cloud.firestore {
 
     // Video Activity Sessions — Teacher creates, anonymous students can read and submit responses
     match /video_activity_sessions/{sessionId} {
+      function vaS() {
+        return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data;
+      }
+      function vaOwner(s) {
+        return request.auth != null && (s.teacherUid == request.auth.uid || isAdmin());
+      }
       // `get` stays permissive (see quiz_sessions); `list` is scoped so a signed-in
       // caller can't enumerate every teacher's sessions.
       allow get: if request.auth != null;
       allow list: if request.auth != null && sessionListScoped();
-      // Only authenticated (non-anonymous) users can create sessions (teachers)
-      allow create: if request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous';
+      // Non-anonymous teachers create only sessions they own.
+      allow create: if request.auth != null &&
+        request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+        request.resource.data.teacherUid == request.auth.uid;
       // Teacher owners update their own session (renames, status, sync-pull, PLC
       // attach, score-publish, sharing fields); identity immutable. Looser
       // allowlist like Quiz sessions (ownership + immutable identity, no per-field
@@ -4205,49 +4213,39 @@ service cloud.firestore {
         request.resource.data.createdAt == resource.data.createdAt;
       // Owning teacher (or admin) may delete (VA "Delete permanently" cleanup).
       // Mirrors GL sessions.
-      allow delete: if request.auth != null &&
-        (resource.data.teacherUid == request.auth.uid || isAdmin());
+      allow delete: if vaOwner(resource.data);
+
+      // Answer key, kept off the student-readable session doc. getAfter lets the
+      // create batch write it alongside the session.
+      match /key/{keyId} {
+        allow read: if vaOwner(vaS());
+        allow write: if vaOwner(vaS()) ||
+          vaOwner(getAfter(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data);
+      }
 
       // Doc id (responseDocId): auth.uid (SSO) or pin-{period}-{pin} (anon).
       // Mirrors the Quiz keying contract (computeResponseKey / encodeResponseKeySegment).
       match /responses/{responseDocId} {
-        function vaSessionClassId() {
-          return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('classId', '');
-        }
-        function vaSessionClassIds() {
-          return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('classIds', []);
-        }
-        function vaSessionTeacherUid() {
-          return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.teacherUid;
-        }
-        // Defense in depth — block response writes on view-only sessions.
-        function vaSessionMode() {
-          return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('mode', 'submissions');
-        }
-        // Server-side attempt cap (nested under sessionOptions; pre-PR1 sessions
-        // lack it, defaulted to {}). null = no cap.
-        function vaSessionAttemptLimit() {
-          return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('sessionOptions', {}).get('attemptLimit', null);
+        function vaGate() {
+          return passesStudentClassGateCompat(vaS().get('classIds', []), vaS().get('classId', ''));
         }
         // M17 session-level close window (epoch-ms number; absent pre-M17).
         function vaWithinSessionCloseWindow() {
-          return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('closeAt', null) == null ||
-                 request.time.toMillis() < get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.closeAt + assignmentCloseGraceMs();
+          return vaS().get('closeAt', null) == null ||
+                 request.time.toMillis() < vaS().closeAt + assignmentCloseGraceMs();
         }
-        /* M17 session-level open window (create-only mirror of the close gate;
-           absent openAt = always open). */
+        // M17 open window (create-only mirror of the close gate; absent = always open).
         function vaWithinSessionOpenWindow() {
-          return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('openAt', null) == null ||
-                 request.time.toMillis() >= get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.openAt - assignmentOpenGraceMs();
+          return vaS().get('openAt', null) == null ||
+                 request.time.toMillis() >= vaS().openAt - assignmentOpenGraceMs();
         }
 
         // Student branch allows resource == null so the join flow can probe via
         // getDoc() before create (else a Null-value throw on studentUid). Mirrors
         // the Quiz response read.
         allow read: if request.auth != null && (
-          isAdmin() ||
-          request.auth.uid == vaSessionTeacherUid() ||
-          (passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()) &&
+          vaOwner(vaS()) ||
+          (vaGate() &&
            (resource == null || request.auth.uid == resource.data.studentUid))
         );
         // Students create their own response: studentUid == auth uid (no
@@ -4262,9 +4260,9 @@ service cloud.firestore {
           // Students cannot forge prior completions — initialize to 0.
           request.resource.data.get('completedAttempts', 0) == 0 &&
           request.resource.data.get('tabSwitchWarnings', 0) == 0 &&
-          passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()) &&
+          vaGate() &&
           // Block submissions on view-only sessions (mode is frozen at creation)
-          vaSessionMode() == 'submissions' &&
+          vaS().get('mode', 'submissions') == 'submissions' &&
           // Block joins after the assignment's close time (M17).
           vaWithinSessionCloseWindow() &&
           // Block joins before the assignment's open time (M17).
@@ -4276,14 +4274,14 @@ service cloud.firestore {
         // scoreVisibility; gated by parent teacherUid, admins also pass) and
         // STUDENT branch (answer-submit, append-only invariants). Mutually
         // exclusive by intent — the teacher branch checks only
-        // vaSessionTeacherUid(), so a student falls through to the student branch.
+        // session owner, so a student falls through to the student branch.
         allow update: if request.auth != null && (
           // Teacher branch.
-          (request.auth.uid == vaSessionTeacherUid() || isAdmin()) ||
+          vaOwner(vaS()) ||
           // Student branch — same invariants as before PR3.
           (
             resource.data.studentUid == request.auth.uid &&
-            passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()) &&
+            vaGate() &&
             // Student writes stop at the session close time (M17); the teacher
             // branch above is unaffected. A teacher-granted extension
             // (`unlocked: true`) is exempt so the resumed attempt can finish.
@@ -4322,8 +4320,8 @@ service cloud.firestore {
              request.resource.data.get('completedAttempts', 0) >= resource.data.get('completedAttempts', 0)) &&
             // Attempt-cap enforcement — last line of defense behind the
             // client-side join + completeActivity transactions.
-            (vaSessionAttemptLimit() == null ||
-             request.resource.data.get('completedAttempts', 0) <= vaSessionAttemptLimit()) &&
+            (vaS().get('sessionOptions', {}).get('attemptLimit', null) == null ||
+             request.resource.data.get('completedAttempts', 0) <= vaS().sessionOptions.attemptLimit) &&
             // completedAt gate: blocks non-null → non-null (race/bug). Completion
             // is null → non-null; rejoin is non-null → null.
             (resource.data.get('completedAt', null) == null ||
@@ -4332,23 +4330,17 @@ service cloud.firestore {
         );
         // Owning teacher (or admin) may delete responses when permanently
         // deleting the assignment (matches GL responses).
-        allow delete: if request.auth != null && (
-          request.auth.uid == vaSessionTeacherUid() || isAdmin()
-        );
+        allow delete: if vaOwner(vaS());
       }
 
       // View tracking for view-only Share links (see quiz_sessions/views).
       // Create requires the parent session to exist AND be in view-only mode.
       match /views/{viewId} {
-        allow read: if request.auth != null && (
-          isAdmin() ||
-          get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.teacherUid == request.auth.uid
-        );
+        allow read: if vaOwner(vaS());
         allow create: if request.auth != null &&
           request.resource.data.keys().hasOnly(['viewedAt']) &&
           request.resource.data.viewedAt is timestamp &&
-          exists(/databases/$(database)/documents/video_activity_sessions/$(sessionId)) &&
-          get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('mode', 'submissions') == 'view-only';
+          vaS().get('mode', 'submissions') == 'view-only';
         allow update, delete: if false;
       }
     }
