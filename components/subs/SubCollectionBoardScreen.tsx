@@ -67,11 +67,7 @@ interface PendingAccept {
   requestKey: string;
 }
 
-/**
- * Folds a completed read into what is on screen, returning the same state when
- * there is nothing to take. Pure, so the caller can hold the result in a const
- * and the React compiler can still memoize off it.
- */
+/** Folds a completed read into what is on screen. Pure, so it holds in a const. */
 function takeRead(
   state: ShownState,
   version: number,
@@ -81,9 +77,7 @@ function takeRead(
 ): ShownState {
   if (!board || state.key === requestKey) return state;
   if (accepting && accepting.requestKey === requestKey) {
-    // Accepting replaces every snapshot at once, so no board is left on the
-    // old content — and it happens here, when the new content has actually
-    // arrived, not when the sub pressed the button.
+    // Accepting replaces every snapshot at once, once the content is in hand.
     return {
       version: accepting.version,
       key: requestKey,
@@ -109,17 +103,11 @@ export const SubCollectionBoardScreen: React.FC<
 }) => {
   const { t } = useTranslation();
   const [boardId, setBoardId] = useState(initialBoardId);
-  // Bumped by "Try again". Picking the board that just failed sets state to
-  // the value it already holds, so React bails out and nothing re-reads —
-  // this is what makes a retry of the same board actually fire.
+  // Bumped by "Try again": re-picking the same board would bail out.
   const [attempt, setAttempt] = useState(0);
-  // The content the sub accepted. Bumping it re-keys every board in the
-  // provider, which is how accepting an update replaces what they are looking
-  // at; until then their edits stand.
+  // The content the sub accepted; until it moves, their edits stand.
   const [acceptedVersion, setAcceptedVersion] = useState<number | null>(null);
-  // Set by Reload and cleared when its read lands. The version is not accepted
-  // on the click: a re-read that fails would otherwise have re-keyed the board
-  // and wiped the sub's work on it with nothing to put in its place.
+  // Set by Reload, cleared when its read lands — never on the click itself.
   const [pendingAccept, setPendingAccept] = useState<PendingAccept | null>(
     null
   );
@@ -127,18 +115,11 @@ export const SubCollectionBoardScreen: React.FC<
     useSubstituteCollectionBoard(shareId, boardId, buildingId, attempt);
   const liveVersion = useSubShareContentVersion(shareId);
 
-  // Adjusting state while rendering, per CLAUDE.md: hold on to the boards the
-  // sub has opened, so a board switch neither falls back through the loading
-  // branch and unmounts the provider, nor re-dresses a board they are already
-  // working in. The provider keeps widgets per board, but the background,
-  // display settings and viewport size come from the share doc itself, so a
-  // board has to keep the whole snapshot it was opened with, not just its
-  // widgets — otherwise going away and back after a push would swap the
-  // chrome around the sub's own work.
+  // Adjusting state while rendering, per CLAUDE.md. Each opened board keeps
+  // its whole snapshot, not just its widgets: the rest of the board comes from
+  // the share doc, which a revisit would otherwise re-dress.
   const requestKey = `${boardId}::${attempt}`;
-  // The version the first read establishes as the baseline. A board opened for
-  // the first time after a push does show the new copy, because there is no
-  // older one to show, but the banner stays up for the ones behind it.
+  // The baseline the first read establishes.
   const version = acceptedVersion ?? contentVersion ?? 0;
   const [state, setState] = useState<ShownState>({
     version,
@@ -191,10 +172,7 @@ export const SubCollectionBoardScreen: React.FC<
     return () => window.clearTimeout(id);
   }, [expired, onBackToDirectory]);
 
-  // Grouping a handful of boards, so it is computed during render rather than
-  // memoized — the snapshot it reads comes out of a map the fold rebuilds, and
-  // a dependency the compiler cannot prove immutable makes useMemo here a
-  // compile-skip for the whole component.
+  // Computed during render: useMemo on a value out of `boards` compile-skips.
   const nav = shown?.navSource
     ? buildSubShareNav(shown.navSource, (id) =>
         t('subShare.nav.unnamedBoard', {
@@ -204,9 +182,7 @@ export const SubCollectionBoardScreen: React.FC<
       )
     : null;
 
-  // "Push my changes" bumps contentVersion on the parent doc. Nothing on
-  // screen moves until the sub presses Reload, so a teacher updating
-  // mid-lesson cannot wipe a running timer or a half-taken lunch count.
+  // Nothing on screen moves until the sub presses Reload.
   const reloading =
     !error && pendingAccept !== null && pendingAccept.requestKey === requestKey;
   const hasUpdate =
@@ -215,10 +191,7 @@ export const SubCollectionBoardScreen: React.FC<
     liveVersion !== acceptedVersion &&
     !reloading;
 
-  // Expiry is terminal for the whole share, so it takes the screen down. A
-  // failed read of the *next* board is not: tearing the provider down here
-  // would throw away every board's session state over a network blip, so the
-  // board the sub is on stays put and the failure is reported beside it.
+  // Expiry takes the screen down; a failed read of the next board does not.
   if (expired || (!!error && !shown)) {
     return (
       <div className="min-h-screen bg-slate-900">
@@ -266,9 +239,7 @@ export const SubCollectionBoardScreen: React.FC<
           nav={nav}
           currentBoardId={shown.boardId}
           onPickBoard={(id) => {
-            // Walking away abandons a reload that has not landed: its read is
-            // cancelled, and letting it complete when the sub wanders back
-            // would replace the boards they have worked on since.
+            // Walking away abandons a reload that has not landed.
             setPendingAccept(null);
             setBoardId(id);
           }}
