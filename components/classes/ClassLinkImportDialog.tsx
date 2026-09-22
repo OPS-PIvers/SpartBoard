@@ -176,11 +176,24 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
             });
 
       try {
-        const [data, testResult] = await Promise.all([
-          classLinkService.getRosters(true),
+        const [rosterResult, testResult] = await Promise.all([
+          classLinkService.getRosters(true).then(
+            (d) => ({ ok: true as const, d }),
+            (err: unknown) => ({ ok: false as const, err })
+          ),
           testPromise,
         ]);
         if (cancelled) return;
+        // A ClassLink failure must not hide admin test classes that loaded fine.
+        if (!rosterResult.ok && testResult.extraClasses.length === 0) {
+          throw rosterResult.err;
+        }
+        if (!rosterResult.ok) {
+          console.error('Failed to fetch from ClassLink', rosterResult.err);
+        }
+        const data = rosterResult.ok
+          ? rosterResult.d
+          : { classes: [], studentsByClass: {} };
         // Sort the merged list alphabetically so the real ClassLink rosters
         // and synthetic test classes interleave predictably in the picker.
         const combinedClasses = [
