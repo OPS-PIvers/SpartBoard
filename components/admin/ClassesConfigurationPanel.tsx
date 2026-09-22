@@ -66,6 +66,7 @@ export const ClassesConfigurationPanel: React.FC<
               </span>
             </div>
             <Toggle
+              label="Enable ClassLink Sync"
               checked={activeConfig.classLinkEnabled !== false}
               onChange={(checked) =>
                 handleUpdate({ classLinkEnabled: checked })

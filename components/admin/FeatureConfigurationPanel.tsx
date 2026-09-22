@@ -408,6 +408,7 @@ export const FeatureConfigurationPanel: React.FC<
                     Show &quot;Feels Like&quot; Temperature
                   </span>
                   <Toggle
+                    label="Show Feels Like Temperature"
                     checked={config.showFeelsLike ?? false}
                     onChange={(checked) =>
                       updatePermission(tool.type, {
