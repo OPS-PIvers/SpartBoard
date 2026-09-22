@@ -9,8 +9,11 @@
 // org read (and, on the write rule, also create/update/delete) another
 // org's org-scoped announcements. The fix swaps that bare isAdmin() for
 // isSuperAdmin() (resource-independent, actually site-wide) on read, and
-// scopes write to "that org's admin, or a super admin for global/legacy
-// docs" via announcementWriteScopeOk().
+// scopes write to "that org's admin, or a real super admin (any org,
+// including global/legacy docs)" via announcementWriteScopeOk() — a super
+// admin's write access mirrors their read access, since the manager UI's
+// edit/delete/toggle actions apply to whatever row the browse query
+// returned with no separate org check of their own.
 //
 // This suite pins:
 //   READ:
@@ -31,6 +34,9 @@
 //       orgId (or to global) through an update.
 //     - only a real super admin can write a global/legacy (no orgId, or
 //       orgId:null) announcement; a same-org (non-super) admin can NOT.
+//     - a real super admin CAN also create/update/delete an org-scoped
+//       announcement belonging to a DIFFERENT org (matches their read
+//       access; a building_admin of that different org still can NOT).
 //   UNFILTERED LIST QUERY (components/admin/Announcements/Widget.tsx's
 //   AnnouncementsManager, which gates entry on plain isAdmin() and — before
 //   this fix — ran collection(db,'announcements') with no where()):
@@ -339,6 +345,21 @@ describe('announcements/{id} write — cross-org admin scoping', () => {
         doc(asSuperAdmin(), `announcements/${LEGACY_ANNOUNCEMENT_ID}`),
         { isActive: false, updatedAt: 2 }
       )
+    );
+  });
+
+  it('a real super admin CAN update a foreign org-scoped announcement (matches their read access and the manager UI, which gates edit/delete on the unfiltered browse list with no org check)', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asSuperAdmin(), `announcements/${ORG_ANNOUNCEMENT_ID}`), {
+        isActive: false,
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('a real super admin CAN delete a foreign org-scoped announcement', async () => {
+    await assertSucceeds(
+      deleteDoc(doc(asSuperAdmin(), `announcements/${ORG_ANNOUNCEMENT_ID}`))
     );
   });
 

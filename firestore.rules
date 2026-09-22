@@ -3991,7 +3991,7 @@ service cloud.firestore {
       // present) — matches helpScopeOk()'s scoping idiom above.
       function announcementWriteScopeOk(d) {
         return d.get('orgId', null) is string
-          ? isOrgMember(d.orgId)
+          ? (isOrgMember(d.orgId) || isSuperAdmin())
           : isSuperAdmin();
       }
       allow create: if isAdmin() && announcementWriteScopeOk(request.resource.data);
