@@ -189,6 +189,43 @@ describe('useAutosave', () => {
     await waitFor(() => expect(result.current.hasUnsavedWork).toBe(false));
   });
 
+  // MiniAppEditorModal stays mounted between records, so a failed write for
+  // one app used to leave the next one reading "Couldn't save" untouched, and
+  // its close flush wrote a record nobody had edited.
+  it('leaves no failure behind when pointed at a different record', async () => {
+    const onSave = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue(undefined);
+    const { result, rerender } = setup({ draftToken: ['a'], onSave });
+    rerender({
+      draftToken: ['a!'],
+      resetKey: 'item-1',
+      enabled: true,
+      onSave,
+    });
+    await waitFor(() => expect(result.current.status).toBe('error'));
+
+    rerender({
+      draftToken: ['b'],
+      resetKey: 'item-2',
+      enabled: true,
+      onSave,
+    });
+    expect(result.current.status).toBe('idle');
+    expect(result.current.error).toBeNull();
+    expect(result.current.hasUnsavedWork).toBe(false);
+
+    // The stale failure also drove `flush` past its fast path, writing a
+    // record the teacher never touched.
+    let ok = false;
+    await act(async () => {
+      ok = await result.current.flush();
+    });
+    expect(ok).toBe(true);
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
   // The other half of dropping `isDirty`: opening a record must not write it
   // straight back out.
   it('writes nothing when pointed at a different record', async () => {

@@ -80,11 +80,6 @@ export const useAutosave = ({
   const [savedToken, setSavedToken] = useState<unknown>(draftToken);
   const savedTokenRef = useRef<unknown>(draftToken);
   const [prevResetKey, setPrevResetKey] = useState(resetKey);
-  if (!Object.is(resetKey, prevResetKey)) {
-    setPrevResetKey(resetKey);
-    setSavedToken(draftToken);
-    savedTokenRef.current = draftToken;
-  }
 
   const onSaveRef = useRef(onSave);
   const inFlightRef = useRef<Promise<void> | null>(null);
@@ -100,6 +95,18 @@ export const useAutosave = ({
     enabledRef.current = enabled;
     draftTokenRef.current = draftToken;
   });
+
+  if (!Object.is(resetKey, prevResetKey)) {
+    setPrevResetKey(resetKey);
+    setSavedToken(draftToken);
+    savedTokenRef.current = draftToken;
+    // A different record starts clean, so the previous one's failure must not
+    // follow it here and leave it reading "Couldn't save" untouched.
+    setStatus('idle');
+    setError(null);
+    lastWriteOkRef.current = true;
+    settledStatusRef.current = 'idle';
+  }
 
   const runSave = useCallback(async (): Promise<void> => {
     if (inFlightRef.current) return inFlightRef.current;
