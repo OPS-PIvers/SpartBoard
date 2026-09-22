@@ -106,6 +106,9 @@ export const TimeToolConfigurationPanel: React.FC<
   ] ?? {
     buildingId: canonicalId,
   };
+  const hasThemeColorSelected = WIDGET_PALETTE.some(
+    (c) => c === currentBuildingConfig.themeColor
+  );
 
   const handleUpdateBuilding = (updates: Partial<BuildingTimeToolDefaults>) => {
     onChange({
@@ -364,22 +367,35 @@ export const TimeToolConfigurationPanel: React.FC<
             </SettingsLabel>
             <div
               className="flex gap-1.5"
-              role="group"
+              role="radiogroup"
               aria-labelledby={accentColorLabelId}
+              onKeyDown={(e) =>
+                handleRadioGroupKeyDown(e, WIDGET_PALETTE, (color) =>
+                  handleUpdateBuilding({ themeColor: color })
+                )
+              }
             >
-              {WIDGET_PALETTE.map((color) => (
-                <button
-                  key={color}
-                  onClick={() => handleUpdateBuilding({ themeColor: color })}
-                  aria-label={`Accent color ${color}`}
-                  className={`w-6 h-6 rounded-full border-2 transition-all ${
-                    currentBuildingConfig.themeColor === color
-                      ? 'border-slate-800 scale-110 shadow-md'
-                      : 'border-transparent hover:scale-105'
-                  }`}
-                  style={{ backgroundColor: color }}
-                />
-              ))}
+              {WIDGET_PALETTE.map((color, idx) => {
+                const checked = currentBuildingConfig.themeColor === color;
+                const tabbable =
+                  checked || (!hasThemeColorSelected && idx === 0);
+                return (
+                  <button
+                    key={color}
+                    role="radio"
+                    aria-checked={checked}
+                    tabIndex={tabbable ? 0 : -1}
+                    onClick={() => handleUpdateBuilding({ themeColor: color })}
+                    aria-label={`Accent color ${color}`}
+                    className={`w-6 h-6 rounded-full border-2 transition-all ${
+                      checked
+                        ? 'border-slate-800 scale-110 shadow-md'
+                        : 'border-transparent hover:scale-105'
+                    }`}
+                    style={{ backgroundColor: color }}
+                  />
+                );
+              })}
             </div>
             {currentBuildingConfig.themeColor && (
               <button
@@ -445,26 +461,38 @@ export const TimeToolConfigurationPanel: React.FC<
           </p>
           <div
             className="flex gap-1.5"
-            role="group"
+            role="radiogroup"
             aria-labelledby={trafficLightColorLabelId}
+            onKeyDown={(e) =>
+              handleRadioGroupKeyDown(e, TRAFFIC_COLORS, ({ value }) =>
+                handleUpdateBuilding({ timerEndTrafficColor: value })
+              )
+            }
           >
-            {TRAFFIC_COLORS.map(({ value, label }) => (
-              <button
-                key={String(value)}
-                onClick={() =>
-                  handleUpdateBuilding({ timerEndTrafficColor: value })
-                }
-                className={`flex-1 py-1.5 text-xxs font-bold rounded-lg border transition-colors ${
-                  (currentBuildingConfig.timerEndTrafficColor ?? null) === value
-                    ? value
-                      ? COLOR_CLASSES[value]
-                      : 'bg-slate-700 text-white border-slate-700'
-                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            {TRAFFIC_COLORS.map(({ value, label }) => {
+              const checked =
+                (currentBuildingConfig.timerEndTrafficColor ?? null) === value;
+              return (
+                <button
+                  key={String(value)}
+                  role="radio"
+                  aria-checked={checked}
+                  tabIndex={checked ? 0 : -1}
+                  onClick={() =>
+                    handleUpdateBuilding({ timerEndTrafficColor: value })
+                  }
+                  className={`flex-1 py-1.5 text-xxs font-bold rounded-lg border transition-colors ${
+                    checked
+                      ? value
+                        ? COLOR_CLASSES[value]
+                        : 'bg-slate-700 text-white border-slate-700'
+                      : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         </div>
       </Card>

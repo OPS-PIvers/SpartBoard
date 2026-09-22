@@ -18,6 +18,8 @@ const RADIOGROUP_NAMES = [
   'Display Style',
   'Number Style',
   'Default Alert Sound',
+  'Accent Color',
+  'Timer-End Traffic Light Color',
 ];
 
 describe('TimeToolConfigurationPanel — radiogroup accessible names', () => {
