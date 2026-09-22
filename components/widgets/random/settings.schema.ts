@@ -56,14 +56,16 @@ export default defineSettings<RandomConfig>({
           placeholder: 'firstNamesPlaceholder',
           rows: 8,
           visibleWhen: isCustomRoster,
-          pasteToPatch: (paste) =>
-            splitPastedNames({
+          pasteToPatch: (paste) => {
+            const lastNames = paste.ctx.config.lastNames;
+            return splitPastedNames({
               pasted: paste.pasted,
               value: paste.value,
-              lastNames: (paste.ctx.config as RandomConfig).lastNames ?? '',
+              lastNames: typeof lastNames === 'string' ? lastNames : '',
               selectionStart: paste.selectionStart,
               selectionEnd: paste.selectionEnd,
-            }),
+            });
+          },
         },
         {
           key: 'lastNames',
