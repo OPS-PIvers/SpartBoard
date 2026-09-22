@@ -1055,9 +1055,11 @@ describe('RandomWidget — groups mode by group count', () => {
   });
 
   it('switches from group size to group count without changing how many groups are shown', () => {
+    // numGroups is 6 here, left over from an earlier count-mode session: the
+    // switch must seed from what size mode is showing, not from that leftover.
     render(
       <RandomWidget
-        widget={countWidget({ groupingMode: 'size', groupSize: 4 })}
+        widget={countWidget({ groupingMode: 'size', groupSize: 5 })}
       />
     );
     fireEvent.click(
@@ -1067,8 +1069,8 @@ describe('RandomWidget — groups mode by group count', () => {
     const lastConfig = (
       calls[calls.length - 1][1] as { config: Record<string, unknown> }
     ).config;
-    // 21 students at 4 per group already showed 6 cards; keep 6.
-    expect(lastConfig).toEqual({ groupingMode: 'count', numGroups: 6 });
+    // 21 students at 5 per group already showed 5 cards; keep 5.
+    expect(lastConfig).toEqual({ groupingMode: 'count', numGroups: 5 });
   });
 
   it('switches back from group count to group size', () => {

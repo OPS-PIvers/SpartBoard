@@ -486,7 +486,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }
         : {
             groupingMode: 'count',
-            numGroups: displayNumGroups,
+            // Seed from what size mode is showing right now, not from a
+            // numGroups left behind by an earlier count-mode session.
+            numGroups: Math.max(2, estimatedHomeGroupCount),
           }) as WidgetConfig,
     });
   };
