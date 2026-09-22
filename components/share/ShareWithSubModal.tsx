@@ -576,11 +576,11 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
             {copied
               ? t('shareWithSub.linkCopied', {
                   defaultValue:
-                    "Link copied. Your sub signs in with their school account, then opens it from their building's list.",
+                    'Link copied. Your sub signs in with their school account and lands on this straight away.',
                 })
               : t('shareWithSub.linkReady', {
                   defaultValue:
-                    "Send this link to your sub. They sign in with their school account, then open it from their building's list.",
+                    'Send this link to your sub — they sign in with their school account and land on this straight away.',
                 })}
           </p>
           <div className="flex gap-1">

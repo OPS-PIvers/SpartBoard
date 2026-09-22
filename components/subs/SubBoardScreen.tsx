@@ -206,12 +206,15 @@ const RosterLoadButton: React.FC<{
 export const ExpiredOrErrorPanel: React.FC<{
   message: string;
   onBack: () => void;
-}> = ({ message, onBack }) => (
+  /** Defaults to the auto-return line, which only fits a board that lapsed. */
+  hint?: string;
+  actionLabel?: string;
+}> = ({ message, onBack, hint, actionLabel }) => (
   <main className="min-h-screen flex items-center justify-center px-8">
     <div className="max-w-md text-center text-white">
       <h2 className="text-2xl font-bold tracking-tight">{message}</h2>
       <p className="mt-2 text-sm text-white/60">
-        Returning you to the teacher directory.
+        {hint ?? 'Returning you to the teacher directory.'}
       </p>
       <button
         type="button"
@@ -219,7 +222,7 @@ export const ExpiredOrErrorPanel: React.FC<{
         className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 text-xs font-bold text-white transition-colors cursor-pointer"
       >
         <ArrowLeft className="w-3.5 h-3.5" />
-        Back to directory
+        {actionLabel ?? 'Back to directory'}
       </button>
     </div>
   </main>
