@@ -72,3 +72,22 @@ describe('hasEmbeddedKey', () => {
     expect(hasEmbeddedKey(undefined)).toBe(false);
   });
 });
+
+interface PublicCase {
+  name: string;
+  question: VaKeyQuestion;
+  expected: Record<string, unknown> & { options?: string[] };
+}
+
+const publicCases = JSON.parse(
+  readFileSync(resolve(__dirname, 'videoActivityPublic.cases.json'), 'utf8')
+) as PublicCase[];
+
+describe('toVaPublicQuestion shared cases', () => {
+  it.each(publicCases)('$name', ({ question, expected }) => {
+    const pub = toVaPublicQuestion(question);
+    expect({ ...pub, options: pub.options && [...pub.options].sort() }).toEqual(
+      { ...expected, options: expected.options }
+    );
+  });
+});

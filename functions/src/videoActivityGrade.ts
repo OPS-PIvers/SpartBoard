@@ -1,4 +1,4 @@
-// Port of utils/videoActivityGrading.ts gradeVideoActivityAnswer; videoActivityGrade.cases.json pins both.
+// Ports of gradeVideoActivityAnswer and toVideoActivityPublicQuestion; videoActivity{Grade,Public}.cases.json pin both sides.
 
 export interface VaKeyQuestion {
   id: string;

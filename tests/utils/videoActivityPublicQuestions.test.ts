@@ -1,6 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   hasEmbeddedAnswerKey,
+  toVideoActivityPublicQuestion,
   splitVideoActivitySessionQuestions,
   studentQuestionsFromSession,
 } from '@/utils/videoActivityPublicQuestions';
@@ -82,5 +85,33 @@ describe('hasEmbeddedAnswerKey', () => {
     expect(hasEmbeddedAnswerKey([q({ correctAnswer: '' })])).toBe(true);
     expect(hasEmbeddedAnswerKey([])).toBe(false);
     expect(hasEmbeddedAnswerKey(undefined)).toBe(false);
+  });
+});
+
+// Same cases the server projection (functions/src/videoActivityGrade.ts) runs.
+interface PublicCase {
+  name: string;
+  question: VideoActivityQuestion;
+  expected: Record<string, unknown> & { options?: string[] };
+}
+
+const publicCases = JSON.parse(
+  readFileSync(
+    resolve(
+      process.cwd(),
+      'functions',
+      'src',
+      'videoActivityPublic.cases.json'
+    ),
+    'utf8'
+  )
+) as PublicCase[];
+
+describe('toVideoActivityPublicQuestion shared cases', () => {
+  it.each(publicCases)('$name', ({ question, expected }) => {
+    const pub = toVideoActivityPublicQuestion(question);
+    expect({ ...pub, options: pub.options && [...pub.options].sort() }).toEqual(
+      { ...expected, options: expected.options }
+    );
   });
 });
