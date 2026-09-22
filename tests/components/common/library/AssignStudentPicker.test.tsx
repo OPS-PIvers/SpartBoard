@@ -185,6 +185,37 @@ describe('AssignStudentPicker', () => {
     expect(screen.queryByText('Kid Test')).not.toBeInTheDocument();
   });
 
+  // Regression: the active roster can disappear out from under an already-open
+  // picker (e.g. a roster listener update removes it), not just start empty.
+  // The adjust-during-render seed only handled `activeRosterId === null`, so a
+  // stale id pointing at a now-gone roster was never replaced — the picker got
+  // stuck on the "Select a roster" empty state even though other rosters were
+  // still available and visible in the left-hand roster list.
+  it('falls back to another roster when the active one is removed from the list', () => {
+    const { rerender } = renderPicker({
+      rosters: [emptyRoster, mixedRoster],
+    });
+
+    // Activate the second roster (mixedRoster) so activeRosterId !== null.
+    fireEvent.click(screen.getByRole('button', { name: /period 2/i }));
+    expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
+
+    // mixedRoster is removed from the list out from under the open picker.
+    rerender(
+      <AssignStudentPicker
+        isOpen
+        onClose={vi.fn()}
+        rosters={[emptyRoster]}
+        selected={[]}
+        overridesByKey={{}}
+        onConfirm={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByText('Select a roster')).not.toBeInTheDocument();
+    expect(screen.getByText('No students')).toBeInTheDocument();
+  });
+
   it('offers to switch rosters from the load-error empty state when another roster exists', () => {
     renderPicker({ rosters: [loadErrorRoster, mixedRoster] });
 

@@ -112,10 +112,14 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
   }
 
   // Rosters can populate asynchronously after the modal is already open
-  // (rosters=[] at open time). Adjust-state-during-render (CLAUDE.md) rather
-  // than an effect: once rosters arrive, seed the first one as active.
-  if (activeRosterId === null && rosters.length > 0) {
+  // (rosters=[] at open time), and the active roster can also disappear out
+  // from under an already-open picker (e.g. a roster listener update drops
+  // it). Adjust-state-during-render (CLAUDE.md) rather than an effect: seed
+  // or re-seed the first available roster whenever the current id doesn't
+  // resolve to one, instead of only handling the initial `null` case.
+  if (rosters.length > 0 && !rosters.some((r) => r.id === activeRosterId)) {
     setActiveRosterId(rosters[0].id);
+    setSearch('');
   }
 
   const activeRoster = useMemo(
