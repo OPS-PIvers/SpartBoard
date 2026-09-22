@@ -26,6 +26,7 @@ import {
   isResponseAwaitingGrade,
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { questionPointsFor } from '@/utils/mediaGrading';
+import { dedupeQuestionsById } from '@/utils/quizMaxPoints';
 import type { QuizQuestion, QuizResponse } from '@/types';
 
 /** A single PII-free grade entry: ClassLink pseudonym → earned points. */
@@ -81,23 +82,26 @@ export function buildQuizClassroomGradeEntries(
   /** Translated FIB answer keys + served-locale overrides from the assignment. */
   fibGrading?: FibGradingContext | null
 ): ClassroomGradeEntry[] {
-  // Deduplicate by question id before summing — Drive-sync duplication and
-  // arrayUnion races can write the same question id twice into `questions`.
-  // Without this guard, `currentTotal` inflates while `getEarnedPoints`
-  // stays correct (it builds a Map that naturally deduplicates by id), so
-  // the scaling `(earned / currentTotal) * maxPoints` understates the grade.
-  // Mirrors the identical fence in `getResponseScore`, `buildResultsSheetData`,
-  // `buildContributionDoc`, and `publishAssignmentScores` (#1728–#1855).
+  // Deduplicate by question id ONCE, up front, before either the numerator or
+  // the denominator reads `questions` — Drive-sync duplication and arrayUnion
+  // races can write the same question id twice into `questions`. Deduping
+  // separately in each half used to be the bug: `getEarnedPoints` resolves a
+  // duplicate id via a `Map` (keeps the LAST occurrence) while the old inline
+  // denominator loop kept the FIRST via a `seenIds` Set. When the two
+  // duplicate entries carried different `points`, the numerator and
+  // denominator were scored against two different point weights for the same
+  // question, which could inflate a pushed grade past what the student
+  // actually earned. Deduping once — first occurrence, matching
+  // `dedupeQuestionsById`'s convention everywhere else in this codebase
+  // (session creation, `quizMaxPoints`) — guarantees both halves read the
+  // same representative question. Mirrors the identical fence in
+  // `getResponseScore`, `buildResultsSheetData`, `buildContributionDoc`, and
+  // `publishAssignmentScores` (#1728–#1855).
+  const dedupedQuestions = dedupeQuestionsById(questions);
   // The denominator is PER STUDENT: `questionPointsFor` drops a question this
   // student was excused from, exactly as `getResponseScore` does.
-  const denominatorFor = (r: QuizResponse): number => {
-    const seenIds = new Set<string>();
-    return questions.reduce((s, q) => {
-      if (seenIds.has(q.id)) return s;
-      seenIds.add(q.id);
-      return s + questionPointsFor(q, r);
-    }, 0);
-  };
+  const denominatorFor = (r: QuizResponse): number =>
+    dedupedQuestions.reduce((s, q) => s + questionPointsFor(q, r), 0);
   return responses
     .filter(
       (r) =>
@@ -105,14 +109,19 @@ export function buildQuizClassroomGradeEntries(
         !!r.studentUid &&
         // Skip responses we can't actually score (answer key not loaded /
         // question-id drift) so a phantom 0 never reaches the gradebook.
-        canScoreResponse(r, questions) &&
+        canScoreResponse(r, dedupedQuestions) &&
         // Skip responses still owed a teacher grade — see the doc above.
-        !isResponseAwaitingGrade(r, questions)
+        !isResponseAwaitingGrade(r, dedupedQuestions)
     )
     .map((r) => {
       // No session arg → correctness points only (no speed/streak bonus); see
       // the function doc for why the gradebook grade excludes gamification.
-      const rawPoints = getEarnedPoints(r, questions, undefined, fibGrading);
+      const rawPoints = getEarnedPoints(
+        r,
+        dedupedQuestions,
+        undefined,
+        fibGrading
+      );
       const earned = Number.isFinite(rawPoints) ? rawPoints : 0;
       const currentTotal = denominatorFor(r);
       const scaled = currentTotal > 0 ? (earned / currentTotal) * maxPoints : 0;
