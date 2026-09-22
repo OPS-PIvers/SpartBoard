@@ -19,6 +19,8 @@ const BOARD_NAMES: Record<string, string> = { b1: 'Warm up', b2: 'Reading' };
 let stillLoading = new Set<string>();
 /** Set to make every read fail, whichever board is asked for. */
 let readError: string | null = null;
+/** Every `attempt` the screen has asked the loader for, in order. */
+let attempts: number[] = [];
 
 const makeShare = (boardId: string): SubstituteShareDoc =>
   ({
@@ -33,7 +35,13 @@ const makeShare = (boardId: string): SubstituteShareDoc =>
 vi.mock('@/hooks/useSubstituteShares', () => ({
   // A pure function of the board asked for — no state, so the test drives it
   // by setting `stillLoading` / `readError` before the click.
-  useSubstituteCollectionBoard: (_shareId: string, boardId: string) => {
+  useSubstituteCollectionBoard: (
+    _shareId: string,
+    boardId: string,
+    _buildingId: string,
+    attempt = 0
+  ) => {
+    attempts.push(attempt);
     if (readError) {
       return { share: null, loading: false, error: readError, navSource: null };
     }
@@ -87,6 +95,7 @@ describe('SubCollectionBoardScreen', () => {
   beforeEach(() => {
     stillLoading = new Set();
     readError = null;
+    attempts = [];
   });
 
   it('opens the board the link named, with the collection’s navigator', () => {
@@ -129,8 +138,24 @@ describe('SubCollectionBoardScreen', () => {
     expect(screen.getByTestId('board')).toHaveTextContent('Warm up');
     expect(screen.queryByTestId('panel')).not.toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'This board is not part of the shared Collection. You are still on this board.'
+      'This board is not part of the shared Collection. You are still on “Warm up”.'
     );
+  });
+
+  // Picking the failed board again sets state to the value it already holds,
+  // so React bails out and nothing re-reads — the banner's own button is what
+  // makes a retry of the same board possible.
+  it('re-reads the same board when the sub tries again', () => {
+    renderScreen('b1');
+    readError = 'This board could not be loaded.';
+    fireEvent.click(nextButton());
+    expect(Math.max(...attempts)).toBe(0);
+
+    readError = null;
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(Math.max(...attempts)).toBe(1);
+    expect(screen.getByTestId('board')).toHaveTextContent('Reading');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('reports a board it could not read', () => {

@@ -55,10 +55,15 @@ export const SubCollectionBoardScreen: React.FC<
 }) => {
   const { t } = useTranslation();
   const [boardId, setBoardId] = useState(initialBoardId);
+  // Bumped by "Try again". Picking the board that just failed sets state to
+  // the value it already holds, so React bails out and nothing re-reads —
+  // this is what makes a retry of the same board actually fire.
+  const [attempt, setAttempt] = useState(0);
   const { share, loading, error, navSource } = useSubstituteCollectionBoard(
     shareId,
     boardId,
-    buildingId
+    buildingId,
+    attempt
   );
 
   // Adjusting state while rendering, per CLAUDE.md: hold on to the board that
@@ -170,15 +175,23 @@ export const SubCollectionBoardScreen: React.FC<
       {!!error && (
         <div
           role="alert"
-          className="fixed bottom-6 right-4 z-dock flex max-w-sm items-center gap-2 rounded-full bg-amber-500/25 backdrop-blur-sm border border-amber-300/40 px-3 py-1.5 text-xs font-bold text-white"
+          className="fixed bottom-6 right-4 z-dock flex max-w-sm items-center gap-2 rounded-full bg-amber-500/25 backdrop-blur-sm border border-amber-300/40 px-3 py-1.5 text-xs text-white"
         >
           <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden />
-          <span>
+          <span className="font-bold">
             {t('subShare.nav.openFailed', {
-              defaultValue: '{{reason}} You are still on this board.',
+              defaultValue: '{{reason}} You are still on “{{board}}”.',
               reason: error,
+              board: shown.share.name ?? '',
             })}
           </span>
+          <button
+            type="button"
+            onClick={() => setAttempt((n) => n + 1)}
+            className="shrink-0 rounded-full bg-white/20 hover:bg-white/30 px-2 py-0.5 font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          >
+            {t('subShare.nav.tryAgain', { defaultValue: 'Try again' })}
+          </button>
         </div>
       )}
     </SubsDashboardProvider>

@@ -324,18 +324,21 @@ export function useSubstituteCollectionBoard(
   // Non-nullable: the building gate is a security control, so the type forces
   // every caller to supply a building rather than silently failing open on
   // null. (shareId/boardId stay nullable — the hook early-returns on those.)
-  expectedBuildingId: string
+  expectedBuildingId: string,
+  // Bumping this re-reads the same board. Without it, retrying a board that
+  // failed would be a no-op, since nothing else about the request changed.
+  attempt = 0
 ): UseSubstituteCollectionBoardState {
   const [snapshot, setSnapshot] = useState<CollectionBoardSnapshot | null>(
     null
   );
 
-  const key = shareId && boardId ? `${shareId}::${boardId}` : '';
+  const key = shareId && boardId ? `${shareId}::${boardId}::${attempt}` : '';
 
   useEffect(() => {
     if (!shareId || !boardId) return;
     let cancelled = false;
-    const requestKey = `${shareId}::${boardId}`;
+    const requestKey = `${shareId}::${boardId}::${attempt}`;
 
     void (async () => {
       try {
@@ -481,7 +484,7 @@ export function useSubstituteCollectionBoard(
     return () => {
       cancelled = true;
     };
-  }, [shareId, boardId, expectedBuildingId]);
+  }, [shareId, boardId, expectedBuildingId, attempt]);
 
   if (!shareId || !boardId) {
     return { share: null, loading: false, error: null, navSource: null };

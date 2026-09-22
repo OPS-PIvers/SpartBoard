@@ -4037,7 +4037,8 @@
       "currentTag": "Open",
       "unnamedBoard": "Board …{{suffix}}",
       "opening": "Opening…",
-      "openFailed": "{{reason}} You are still on this board."
+      "openFailed": "{{reason}} You are still on “{{board}}”.",
+      "tryAgain": "Try again"
     }
   }
 }
