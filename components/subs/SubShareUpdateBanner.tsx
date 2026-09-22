@@ -7,7 +7,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { RefreshCw } from 'lucide-react';
-import { Z_INDEX } from '@/config/zIndex';
 
 interface SubShareUpdateBannerProps {
   teacherName: string;
@@ -23,8 +22,7 @@ export const SubShareUpdateBanner: React.FC<SubShareUpdateBannerProps> = ({
     <div
       role="status"
       data-screenshot="exclude"
-      className="fixed top-20 left-1/2 -translate-x-1/2 flex items-center gap-3 rounded-full bg-slate-800/90 backdrop-blur-xl border border-white/20 shadow-xl px-4 py-2 text-sm text-slate-200"
-      style={{ zIndex: Z_INDEX.dock }}
+      className="fixed top-20 left-1/2 z-dock -translate-x-1/2 flex items-center gap-3 rounded-full bg-slate-800/90 backdrop-blur-xl border border-white/20 shadow-xl px-4 py-2 text-sm text-slate-200"
     >
       <span>
         {t('subShare.update.available', {
