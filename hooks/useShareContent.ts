@@ -13,6 +13,15 @@ export interface ShareContentState<T> {
 const OFF = { status: 'off', payload: null } as const;
 
 /**
+ * Whether this board is being viewed inside a sub share at all, which the
+ * bundled-content hook cannot answer for a widget that points at nothing yet:
+ * without it an empty widget falls back to the substitute's own library.
+ */
+export function useInSubShare(): boolean {
+  return useContext(SubShareContentContext) !== null;
+}
+
+/**
  * The teacher's copy of whatever this widget would otherwise load from its
  * owner's account, bundled when the share was made.
  *

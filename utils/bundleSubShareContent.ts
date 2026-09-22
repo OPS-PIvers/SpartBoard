@@ -7,7 +7,7 @@
  * finding out mid-lesson.
  */
 
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { subShareContentId } from '@/utils/subShareContent';
@@ -15,9 +15,12 @@ import type {
   Dashboard,
   DrawableObject,
   DrawingPage,
+  NotebookItem,
+  SmartNotebookConfig,
   SubShareContentDoc,
   SubShareContentKind,
   SubShareDrawingPayload,
+  SubShareNotebookPayload,
   WidgetData,
 } from '@/types';
 
@@ -83,6 +86,41 @@ async function bundleDrawing(
   return { pages: bundled };
 }
 
+/** The notebook each Smart Notebook widget on the board is open on. */
+function openNotebookIds(board: Dashboard): string[] {
+  const ids: string[] = [];
+  for (const widget of board.widgets ?? []) {
+    if (widget.type !== 'smartNotebook') continue;
+    const id = (widget.config as SmartNotebookConfig | undefined)
+      ?.activeNotebookId;
+    if (id) ids.push(id);
+  }
+  return ids;
+}
+
+async function bundleNotebook(
+  hostUid: string,
+  notebookId: string
+): Promise<SubShareNotebookPayload> {
+  const snap = await getDoc(doc(db, 'users', hostUid, 'notebooks', notebookId));
+  if (!snap.exists()) throw new Error('notebook not found');
+  const data = snap.data();
+  // Page images are Storage download URLs, which carry their own token, so the
+  // sub can load them without a rule of their own.
+  const notebook: NotebookItem = {
+    id: snap.id,
+    title: (data.title as string) ?? 'Untitled',
+    pageUrls: (data.pageUrls as string[]) ?? [],
+    pagePaths: (data.pagePaths as string[]) ?? [],
+    assetUrls: (data.assetUrls as string[]) ?? [],
+    createdAt: (data.createdAt as number) ?? 0,
+    sections: data.sections as NotebookItem['sections'],
+    objectLinks: data.objectLinks as NotebookItem['objectLinks'],
+    hiddenPages: data.hiddenPages as number[] | undefined,
+  };
+  return { notebook };
+}
+
 export async function bundleSubShareContent({
   hostUid,
   boards,
@@ -93,6 +131,9 @@ export async function bundleSubShareContent({
   const items: SubShareBundleItem[] = [];
   const failures: SubShareBundleFailure[] = [];
   const bundledAt = Date.now();
+
+  // One item shared by two boards is bundled once.
+  const done = new Set<string>();
 
   for (const board of boards) {
     for (const widget of migratedDrawings(board)) {
@@ -116,6 +157,29 @@ export async function bundleSubShareContent({
           kind: 'drawing',
           itemId: widget.id,
           label: `Drawing on ${board.name}`,
+        });
+      }
+    }
+
+    for (const id of openNotebookIds(board)) {
+      const contentId = subShareContentId('notebook', id);
+      if (done.has(contentId)) continue;
+      done.add(contentId);
+      try {
+        const payload = await bundleNotebook(hostUid, id);
+        items.push({
+          id: contentId,
+          doc: { kind: 'notebook', itemId: id, bundledAt, payload },
+        });
+      } catch (err) {
+        logError('bundleSubShareContent.notebook', err, {
+          boardId: board.id,
+          notebookId: id,
+        });
+        failures.push({
+          kind: 'notebook',
+          itemId: id,
+          label: `Notebook on ${board.name}`,
         });
       }
     }

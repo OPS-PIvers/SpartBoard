@@ -9796,6 +9796,11 @@ export interface SubShareDrawingPayload {
   pages: { pageId: string; objects: DrawableObject[] }[];
 }
 
+/** The teacher's notebook, as it was at share time. */
+export interface SubShareNotebookPayload {
+  notebook: NotebookItem;
+}
+
 /**
  * Input to `shareSubstituteCollection()`. Mirrors `SubstituteShareInput`
  * for single Boards but operates on a whole Collection.
