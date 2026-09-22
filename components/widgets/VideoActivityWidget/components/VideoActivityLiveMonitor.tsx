@@ -393,7 +393,12 @@ export const VideoActivityLiveMonitor: React.FC<
     }
     return merged;
   }, [classLinkNames, ltiNames]);
-  const { questions } = useVideoActivityKeyQuestions(session);
+  const { questions, loading: keyLoading } =
+    useVideoActivityKeyQuestions(session);
+  // The public projection has the count while the key doc is still loading.
+  const questionCount = keyLoading
+    ? (session.publicQuestions?.length ?? 0)
+    : questions.length;
   const [ending, setEnding] = useState(false);
   const [toggling, setToggling] = useState(false);
 
@@ -475,8 +480,8 @@ export const VideoActivityLiveMonitor: React.FC<
         onBack={onBack}
         status={isLive ? 'live' : 'paused'}
         title={session.assignmentName}
-        subtitle={`${session.activityTitle} · ${questions.length} question${
-          questions.length === 1 ? '' : 's'
+        subtitle={`${session.activityTitle} · ${questionCount} question${
+          questionCount === 1 ? '' : 's'
         }`}
         actions={
           <>

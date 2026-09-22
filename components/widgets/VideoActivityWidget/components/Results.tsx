@@ -141,7 +141,8 @@ export const Results: React.FC<ResultsProps> = ({
   // Per-instance prefix for the ARIA tab↔panel linkage.
   const tabPanelId = useId();
 
-  const { questions } = useVideoActivityKeyQuestions(session);
+  const { questions, loading: keyLoading } =
+    useVideoActivityKeyQuestions(session);
   const totalStudents = responses.length;
 
   /**
@@ -618,8 +619,10 @@ export const Results: React.FC<ResultsProps> = ({
           (questions.length === 0 ? (
             <ScaledEmptyState
               icon={Clock}
-              title="No questions"
-              subtitle="This activity has no questions."
+              title={keyLoading ? 'Loading questions…' : 'No questions'}
+              subtitle={
+                keyLoading ? undefined : 'This activity has no questions.'
+              }
             />
           ) : (
             <div className="bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm overflow-hidden">
