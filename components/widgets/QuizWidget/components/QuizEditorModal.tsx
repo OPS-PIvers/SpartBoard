@@ -364,10 +364,8 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     ]
   );
 
-  // What still has to be filled in before the quiz can be assigned, started
-  // live or shared. It no longer gates the save: autosave persists whatever is
-  // on screen, and these checks run again at the points that need a complete
-  // quiz.
+  // A nudge, not a gate: autosave writes regardless. Assigning is gated
+  // separately by the narrower quizAssignBlocker.
   const incompleteNotice = useMemo(
     () => quizIncompleteReason({ title, questions, bankSlots }, isBank),
     [title, questions, bankSlots, isBank]
