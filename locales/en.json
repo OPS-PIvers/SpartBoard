@@ -2266,7 +2266,7 @@
       "rosterSource": "Roster source",
       "firstNames": "First names",
       "lastNames": "Last names",
-      "firstNamesPlaceholder": "One first name per line",
+      "firstNamesPlaceholder": "One first name per line, or paste full names",
       "lastNamesPlaceholder": "One last name per line",
       "customRosterActions": "Custom roster actions",
       "importClass": "Import active class",

@@ -16,6 +16,7 @@ import {
 } from '@/components/widgets/Stations/nexus';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { countRosterGroupMembers } from '@/utils/rosterGroups';
+import { combineRosterNames } from '@/utils/rosterNameLists';
 import { useRosterGroupsIntegrationSettings } from '@/hooks/useRosterGroupsIntegrationSettings';
 
 function useStudentCount(config: RandomConfig): number {
@@ -28,13 +29,8 @@ function useStudentCount(config: RandomConfig): number {
         : 0;
     return Math.max(0, activeRoster.students.length - absent);
   }
-  const firstNames = (config.firstNames ?? '')
-    .split('\n')
-    .filter((name) => name.trim()).length;
-  const lastNames = (config.lastNames ?? '')
-    .split('\n')
-    .filter((name) => name.trim()).length;
-  return Math.max(firstNames, lastNames);
+  return combineRosterNames(config.firstNames ?? '', config.lastNames ?? '')
+    .length;
 }
 
 export const RandomGroupCountField: React.FC<{
@@ -97,11 +93,11 @@ export const RandomRosterActionsField: React.FC<{
     if (!activeRoster) return;
     ctx.updateConfig({
       firstNames: activeRoster.students
-        .map((student) =>
-          [student.firstName, student.lastName].filter(Boolean).join(' ')
-        )
+        .map((student) => student.firstName)
         .join('\n'),
-      lastNames: '',
+      lastNames: activeRoster.students
+        .map((student) => student.lastName)
+        .join('\n'),
       lastResult: null,
       remainingStudents: [],
     });
