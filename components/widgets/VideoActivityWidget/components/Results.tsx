@@ -78,6 +78,8 @@ import { useVideoActivityKeyQuestions } from '@/hooks/useVideoActivityKeyQuestio
 
 const KEY_LOADING_TOAST =
   'Still loading the answer key — try again in a moment.';
+const KEY_FAILED_TOAST =
+  "Couldn't load this activity's answer key, so grades can't be pushed. Reload and try again.";
 
 interface ResultsProps {
   session: VideoActivitySession;
@@ -144,8 +146,11 @@ export const Results: React.FC<ResultsProps> = ({
   // Per-instance prefix for the ARIA tab↔panel linkage.
   const tabPanelId = useId();
 
-  const { questions, loading: keyLoading } =
-    useVideoActivityKeyQuestions(session);
+  const {
+    questions,
+    loading: keyLoading,
+    failed: keyFailed,
+  } = useVideoActivityKeyQuestions(session);
   const totalStudents = responses.length;
 
   /**
@@ -305,8 +310,8 @@ export const Results: React.FC<ResultsProps> = ({
   // payload fans out to each (Item D multi-course).
   const classroomAttachments = getClassroomAttachments(session);
   const handlePushGrades = async () => {
-    if (keyLoading) {
-      addToast(KEY_LOADING_TOAST, 'info');
+    if (keyLoading || keyFailed) {
+      addToast(keyFailed ? KEY_FAILED_TOAST : KEY_LOADING_TOAST, 'info');
       return;
     }
     // Guard the grade scale FIRST (a malformed/stale attachment could carry
@@ -388,8 +393,8 @@ export const Results: React.FC<ResultsProps> = ({
   const ltiAttachment = session?.ltiAttachment ?? null;
   const handlePushSchoologyGrades = async () => {
     if (!ltiAttachment) return;
-    if (keyLoading) {
-      addToast(KEY_LOADING_TOAST, 'info');
+    if (keyLoading || keyFailed) {
+      addToast(keyFailed ? KEY_FAILED_TOAST : KEY_LOADING_TOAST, 'info');
       return;
     }
 
@@ -630,9 +635,19 @@ export const Results: React.FC<ResultsProps> = ({
           (questions.length === 0 ? (
             <ScaledEmptyState
               icon={Clock}
-              title={keyLoading ? 'Loading questions…' : 'No questions'}
+              title={
+                keyLoading
+                  ? 'Loading questions…'
+                  : keyFailed
+                    ? "Couldn't load the answer key"
+                    : 'No questions'
+              }
               subtitle={
-                keyLoading ? undefined : 'This activity has no questions.'
+                keyLoading
+                  ? undefined
+                  : keyFailed
+                    ? 'Reload to try again. Scores stay hidden until it loads.'
+                    : 'This activity has no questions.'
               }
             />
           ) : (

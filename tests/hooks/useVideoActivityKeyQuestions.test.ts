@@ -34,12 +34,17 @@ describe('useVideoActivityKeyQuestions', () => {
     const { result } = renderHook(() =>
       useVideoActivityKeyQuestions({ id: 's1', questions: [keyed] })
     );
-    expect(result.current).toEqual({ questions: [keyed], loading: false });
+    expect(result.current).toEqual({
+      questions: [keyed],
+      loading: false,
+      failed: false,
+    });
     expect(getDoc).not.toHaveBeenCalled();
   });
 
   it('loads the key doc for a split session', async () => {
     (getDoc as Mock).mockResolvedValue({
+      exists: () => true,
       data: () => ({ questions: [keyed] }),
     });
     const { result } = renderHook(() =>
@@ -57,12 +62,23 @@ describe('useVideoActivityKeyQuestions', () => {
     );
   });
 
-  it('degrades to no questions when the key read is refused', async () => {
+  it('reports a refused key read as failed, not as zero questions', async () => {
     (getDoc as Mock).mockRejectedValue(new Error('permission-denied'));
     const { result } = renderHook(() =>
       useVideoActivityKeyQuestions({ id: 's1', questions: [], publicQuestions })
     );
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.questions).toEqual([]);
+    expect(result.current).toMatchObject({ questions: [], failed: true });
+  });
+
+  it('reports a missing key doc as failed', async () => {
+    (getDoc as Mock).mockResolvedValue({
+      exists: () => false,
+      data: () => undefined,
+    });
+    const { result } = renderHook(() =>
+      useVideoActivityKeyQuestions({ id: 's1', questions: [], publicQuestions })
+    );
+    await waitFor(() => expect(result.current.failed).toBe(true));
   });
 });
