@@ -317,6 +317,11 @@ interface CollectionBoardSnapshot {
  *   - expiresAt / buildingId / originalAuthor(+Name) come from the parent
  *   - `initialState` is seeded from the board's widgets so the sub's
  *     "Reset board" deep-clones from the same baseline.
+ *
+ * The parent is re-read on every board switch on purpose, not as an oversight
+ * to optimise away: it is where expiry, the building gate and boardIds
+ * membership are re-checked, so a share ended mid-class stops the sub at their
+ * next hop rather than at the next 60s tick.
  */
 export function useSubstituteCollectionBoard(
   shareId: string | null,
