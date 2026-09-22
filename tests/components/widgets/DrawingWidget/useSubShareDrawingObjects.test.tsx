@@ -91,6 +91,34 @@ describe('useSubShareDrawingObjects', () => {
     expect(result.current.objects).toEqual([]);
   });
 
+  // Nothing the sub draws is persisted anywhere, so a single slot would drop
+  // their work the moment they flipped a page and came back to it.
+  it('keeps the sub’s strokes on every page they have visited', async () => {
+    const { result, rerender } = renderHook(
+      ({ page }: { page: string }) => useSubShareDrawingObjects('w1', page),
+      {
+        wrapper: wrapWith(vi.fn().mockResolvedValue(BUNDLED)),
+        initialProps: { page: 'p1' },
+      }
+    );
+
+    await waitFor(() => expect(result.current.objects).toHaveLength(1));
+    await act(async () => {
+      await result.current.addObject(stroke('sub-on-p1', 2));
+    });
+
+    rerender({ page: 'p2' });
+    await waitFor(() =>
+      expect(result.current.objects).toEqual([stroke('teacher-2')])
+    );
+
+    rerender({ page: 'p1' });
+    expect(result.current.objects.map((o) => o.id)).toEqual([
+      'teacher-1',
+      'sub-on-p1',
+    ]);
+  });
+
   it('renders an empty canvas when the drawing was not bundled', async () => {
     const { result } = renderHook(() => useSubShareDrawingObjects('w1', 'p1'), {
       wrapper: wrapWith(vi.fn().mockResolvedValue(null)),

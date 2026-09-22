@@ -14,6 +14,7 @@ export interface SubShareDrawingObjects {
 }
 
 const EMPTY: DrawableObject[] = [];
+const NO_PAGES: ReadonlyMap<string, DrawableObject[]> = new Map();
 
 /**
  * A Drawing's strokes inside a sub share: the teacher's, bundled at share
@@ -30,25 +31,37 @@ export function useSubShareDrawingObjects(
   const bundled = useShareContent<SubShareDrawingPayload>('drawing', widgetId);
   const active = bundled.status !== 'off';
 
-  const seedKey = `${widgetId}::${pageId ?? ''}::${bundled.status}`;
+  // Every page the sub has visited, because nothing here is persisted: one
+  // slot would lose their strokes the moment they flipped a page and back.
+  const seed = `${widgetId}::${bundled.status}`;
+  const key = pageId ?? '';
   const [local, setLocal] = useState<{
-    key: string;
-    objects: DrawableObject[];
-  }>({ key: '', objects: EMPTY });
+    seed: string;
+    pages: ReadonlyMap<string, DrawableObject[]>;
+  }>({ seed: '', pages: NO_PAGES });
 
   let current = local;
-  if (active && local.key !== seedKey) {
+  if (active && (local.seed !== seed || !local.pages.has(key))) {
     const page = bundled.payload?.pages.find((p) => p.pageId === pageId);
-    current = { key: seedKey, objects: page?.objects ?? EMPTY };
+    const pages =
+      local.seed === seed
+        ? new Map(local.pages)
+        : new Map<string, DrawableObject[]>();
+    pages.set(key, page?.objects ?? EMPTY);
+    current = { seed, pages };
     setLocal(current);
   }
 
   const apply = useCallback(
     (update: (objects: DrawableObject[]) => DrawableObject[]) => {
-      setLocal((prev) => ({ key: prev.key, objects: update(prev.objects) }));
+      setLocal((prev) => {
+        const pages = new Map(prev.pages);
+        pages.set(key, update(pages.get(key) ?? EMPTY));
+        return { seed: prev.seed, pages };
+      });
       return Promise.resolve();
     },
-    []
+    [key]
   );
 
   const addObject = useCallback(
@@ -68,7 +81,7 @@ export function useSubShareDrawingObjects(
 
   return {
     active,
-    objects: current.objects,
+    objects: current.pages.get(key) ?? EMPTY,
     loading: bundled.status === 'loading',
     addObject,
     updateObject,
