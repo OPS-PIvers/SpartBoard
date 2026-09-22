@@ -18,7 +18,7 @@
  * board's session state (plan D3).
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -41,13 +41,48 @@ interface SubCollectionBoardScreenProps {
   onChangeBuilding: () => void;
 }
 
-/** The board currently on screen, kept while the next one is being read. */
+/** A board the sub has opened, as it looked when they opened it. */
 interface ShownBoard {
-  /** The request that produced it: board plus attempt, so a re-read lands. */
-  key: string;
   boardId: string;
   share: SubstituteShareDoc;
   navSource: SubShareNavSource | null;
+}
+
+/** Every board the sub has open, all at the content version they accepted. */
+interface ShownState {
+  /** The accepted version these snapshots came from. */
+  version: number;
+  /** The request already taken, so a re-render does not take it twice. */
+  key: string | null;
+  /** The board on screen. */
+  current: string | null;
+  boards: ReadonlyMap<string, ShownBoard>;
+}
+
+const NO_BOARDS: ReadonlyMap<string, ShownBoard> = new Map();
+
+/**
+ * Folds a completed read into what is on screen, returning the same state when
+ * there is nothing to take. Pure, so the caller can hold the result in a const
+ * and the React compiler can still memoize off it.
+ */
+function takeRead(
+  state: ShownState,
+  version: number,
+  requestKey: string,
+  board: ShownBoard | null
+): ShownState {
+  // Accepting drops every snapshot, so no board is left on old content.
+  const base =
+    state.version === version
+      ? state
+      : { version, key: null, current: null, boards: NO_BOARDS };
+  if (!board || base.key === requestKey) return base;
+  // A board already opened keeps the snapshot the sub has been working in.
+  const boards = base.boards.has(board.boardId)
+    ? base.boards
+    : new Map(base.boards).set(board.boardId, board);
+  return { version, key: requestKey, current: board.boardId, boards };
 }
 
 export const SubCollectionBoardScreen: React.FC<
@@ -73,23 +108,43 @@ export const SubCollectionBoardScreen: React.FC<
     useSubstituteCollectionBoard(shareId, boardId, buildingId, attempt);
   const liveVersion = useSubShareContentVersion(shareId);
 
-  // Adjusting state while rendering, per CLAUDE.md: hold on to the board that
-  // is on screen so a board switch does not fall back through the loading
-  // branch and unmount the provider.
-  const [shown, setShown] = useState<ShownBoard | null>(null);
+  // Adjusting state while rendering, per CLAUDE.md: hold on to the boards the
+  // sub has opened, so a board switch neither falls back through the loading
+  // branch and unmounts the provider, nor re-dresses a board they are already
+  // working in. The provider keeps widgets per board, but the background,
+  // display settings and viewport size come from the share doc itself, so a
+  // board has to keep the whole snapshot it was opened with, not just its
+  // widgets — otherwise going away and back after a push would swap the
+  // chrome around the sub's own work.
   const requestKey = `${boardId}::${attempt}`;
-  if (share && shown?.key !== requestKey) {
-    setShown({ key: requestKey, boardId, share, navSource });
-    // Only the first read sets the baseline. A later hop must not silently
-    // accept an update and throw away the boards the sub has worked on —
-    // that is what the banner asks them about.
+  // The version the sub has accepted, and the one the first read sets. A board
+  // opened for the first time after a push does show the new copy, because
+  // there is no older one to show, but the banner stays up for the ones
+  // behind it.
+  const version = acceptedVersion ?? contentVersion ?? 0;
+  const [state, setState] = useState<ShownState>({
+    version,
+    key: null,
+    current: null,
+    boards: NO_BOARDS,
+  });
+
+  const view = takeRead(
+    state,
+    version,
+    requestKey,
+    share ? { boardId, share, navSource } : null
+  );
+  if (view !== state) {
+    setState(view);
     if (acceptedVersion === null && contentVersion !== null) {
       setAcceptedVersion(contentVersion);
     }
   }
+  const shown = view.current ? (view.boards.get(view.current) ?? null) : null;
 
   const rosterState = useSubstituteRosters(
-    share?.sharedRosters ?? shown?.share.sharedRosters
+    shown?.share.sharedRosters ?? share?.sharedRosters
   );
   const [expired, setExpired] = useState(false);
 
@@ -113,16 +168,18 @@ export const SubCollectionBoardScreen: React.FC<
     return () => window.clearTimeout(id);
   }, [expired, onBackToDirectory]);
 
-  const shownNavSource = shown?.navSource ?? null;
-  const nav = useMemo(() => {
-    if (!shownNavSource) return null;
-    return buildSubShareNav(shownNavSource, (id) =>
-      t('subShare.nav.unnamedBoard', {
-        defaultValue: 'Board …{{suffix}}',
-        suffix: id.slice(-4),
-      })
-    );
-  }, [shownNavSource, t]);
+  // Grouping a handful of boards, so it is computed during render rather than
+  // memoized — the snapshot it reads comes out of a map the fold rebuilds, and
+  // a dependency the compiler cannot prove immutable makes useMemo here a
+  // compile-skip for the whole component.
+  const nav = shown?.navSource
+    ? buildSubShareNav(shown.navSource, (id) =>
+        t('subShare.nav.unnamedBoard', {
+          defaultValue: 'Board …{{suffix}}',
+          suffix: id.slice(-4),
+        })
+      )
+    : null;
 
   // "Push my changes" bumps contentVersion on the parent doc. Nothing on
   // screen moves until the sub presses Reload, so a teacher updating
@@ -170,7 +227,7 @@ export const SubCollectionBoardScreen: React.FC<
   return (
     <SubsDashboardProvider
       share={shown.share}
-      boardKey={`${shown.boardId}::${acceptedVersion ?? 0}`}
+      boardKey={`${shown.boardId}::${view.version}`}
       rosterState={rosterState}
     >
       <SubBoardScreenContent

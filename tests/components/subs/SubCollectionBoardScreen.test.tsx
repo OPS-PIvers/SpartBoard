@@ -125,6 +125,8 @@ const renderScreen = (boardId = 'b1') =>
 const noop = () => undefined;
 
 const nextButton = () => screen.getByRole('button', { name: 'Next board' });
+const prevButton = () => screen.getByRole('button', { name: 'Previous board' });
+const reloadButton = () => screen.getByRole('button', { name: 'Reload' });
 
 describe('SubCollectionBoardScreen', () => {
   beforeEach(() => {
@@ -228,7 +230,7 @@ describe('SubCollectionBoardScreen', () => {
       liveVersion = 2;
       renderScreen('b1');
       readVersion = 2;
-      fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
+      fireEvent.click(reloadButton());
       expect(Math.max(...attempts)).toBe(1);
       expect(boardKeys.at(-1)).toBe('b1::2');
       expect(banner()).not.toBeInTheDocument();
@@ -247,6 +249,49 @@ describe('SubCollectionBoardScreen', () => {
       expect(screen.getByTestId('board')).toHaveTextContent('Reading');
       expect(banner()).toBeInTheDocument();
       expect(boardKeys.at(-1)).toBe('b2::1');
+    });
+
+    // The provider keeps widgets per board, but the background, display
+    // settings and viewport size come from the share doc, so serving a fresh
+    // read to a board the sub has already worked in would re-dress it around
+    // their own work without them accepting anything.
+    it('shows a board the sub goes back to exactly as they left it', () => {
+      liveVersion = 2;
+      renderScreen('b1');
+      readVersion = 2;
+      fireEvent.click(nextButton());
+      expect(screen.getByTestId('board')).toHaveTextContent('Reading v2');
+      fireEvent.click(prevButton());
+      expect(screen.getByTestId('board')).toHaveTextContent('Warm up v1');
+      expect(boardKeys.at(-1)).toBe('b1::1');
+      expect(banner()).toBeInTheDocument();
+    });
+
+    // Re-keying the board before the new read lands would reseed the provider
+    // from the copy the sub was already looking at, and the read that follows
+    // would find the key already there and never reseed — Reload would clear
+    // the banner and change nothing.
+    it('waits for the new content before re-keying on accept', () => {
+      liveVersion = 2;
+      const { rerender } = renderScreen('b1');
+      readVersion = 2;
+      stillLoading = new Set(['b1']);
+      fireEvent.click(reloadButton());
+      expect(screen.queryByTestId('board')).not.toBeInTheDocument();
+      expect(boardKeys).not.toContain('b1::2');
+
+      stillLoading = new Set();
+      rerender(
+        <SubCollectionBoardScreen
+          shareId="share-1"
+          boardId="b1"
+          buildingId="ohs"
+          onBackToDirectory={noop}
+          onChangeBuilding={noop}
+        />
+      );
+      expect(screen.getByTestId('board')).toHaveTextContent('Warm up v2');
+      expect(boardKeys.at(-1)).toBe('b1::2');
     });
 
     it('says nothing when the watcher has nothing to report', () => {
