@@ -128,7 +128,7 @@ async function bundleNotebook(
 function customWidgetIds(board: Dashboard): string[] {
   const ids: string[] = [];
   for (const widget of board.widgets ?? []) {
-    if (widget.type !== 'customWidget') continue;
+    if (widget.type !== 'custom-widget') continue;
     const id = (widget.config as CustomWidgetConfig | undefined)
       ?.customWidgetId;
     if (id) ids.push(id);

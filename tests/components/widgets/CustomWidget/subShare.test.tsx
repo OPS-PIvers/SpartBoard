@@ -22,7 +22,7 @@ const grid = {
 const widget = (customWidgetId: string | null) =>
   ({
     id: 'w1',
-    type: 'customWidget',
+    type: 'custom-widget',
     config: { customWidgetId },
   }) as unknown as WidgetData;
 

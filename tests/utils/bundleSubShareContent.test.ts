@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { bundleSubShareContent } from '@/utils/bundleSubShareContent';
-import type { Dashboard, DrawableObject, WidgetData } from '@/types';
+import type {
+  Dashboard,
+  DrawableObject,
+  WidgetData,
+  WidgetType,
+} from '@/types';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn((_db: unknown, ...path: string[]) => ({
@@ -26,7 +31,7 @@ const stroke = (id: string, z: number): DrawableObject =>
 const drawing = (id: string, migrated: boolean, pageIds: string[]) =>
   ({
     id,
-    type: 'drawing',
+    type: 'drawing' satisfies WidgetType,
     config: {
       subcollectionMigrated: migrated,
       pages: pageIds.map((pid) => ({ id: pid })),
@@ -36,7 +41,7 @@ const drawing = (id: string, migrated: boolean, pageIds: string[]) =>
 const notebookWidget = (id: string, notebookId: string | null) =>
   ({
     id,
-    type: 'smartNotebook',
+    type: 'smartNotebook' satisfies WidgetType,
     config: { activeNotebookId: notebookId },
   }) as unknown as WidgetData;
 
@@ -49,7 +54,9 @@ const notebookDoc = (id: string, fields: Record<string, unknown>) => ({
 const customWidget = (id: string, customWidgetId: string | null) =>
   ({
     id,
-    type: 'customWidget',
+    // `satisfies WidgetType` on purpose: the first cut of this said
+    // 'customWidget', which the bundler's filter never matched.
+    type: 'custom-widget' satisfies WidgetType,
     config: { customWidgetId },
   }) as unknown as WidgetData;
 
