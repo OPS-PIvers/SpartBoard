@@ -4278,8 +4278,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // grants those subs hold are revoked by the sweep, not dropped here.
       const clearedEverySub =
         input.subEmails !== undefined && subEmails.length === 0;
-      // Rosters the named subs can actually read. Left as they were when no
-      // grant resolved, since a Drive outage is not proof the subs lost access.
+      // Narrows the caller's list to the rosters a grant actually landed for.
+      // Undefined when none did, which leaves the caller's list to stand via
+      // the spread below — a Drive outage should not rewrite the share.
       const rostersGranted = grantedRosters(input.sharedRosters, driveGrants);
 
       await sharedCollectionApi.updateSubstituteShare({

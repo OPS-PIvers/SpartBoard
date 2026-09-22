@@ -131,6 +131,25 @@ describe('useSubShares', () => {
     expect(input.boards.map((b) => b.id)).toEqual(['b1', 'b2']);
   });
 
+  // A roster no board references any more has to reach Firestore as a clear,
+  // or the sub keeps seeing a class list the teacher took off the boards.
+  it('states the roster list on a re-push even when it is empty', async () => {
+    const { result } = await load();
+
+    await act(async () => {
+      result.current.updateNow(shares[0]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() =>
+      expect(updateSubstituteCollectionShare).toHaveBeenCalled()
+    );
+    const input = updateSubstituteCollectionShare.mock.calls[0]?.[0] as {
+      sharedRosters?: unknown;
+    };
+    expect(input.sharedRosters).toEqual([]);
+  });
+
   it('refuses to re-push a collection whose boards are all gone', async () => {
     collections = [];
     const { result } = await load();

@@ -189,7 +189,9 @@ export function useSubShares(enabled: boolean): SubSharesApi {
             ...(share.subEmails && share.subEmails.length > 0
               ? { subEmails: share.subEmails }
               : {}),
-            ...(sharedRosters.length > 0 ? { sharedRosters } : {}),
+            // Always stated, so a roster no board references any more is
+            // dropped from the share instead of reading as "unchanged".
+            sharedRosters,
           });
           addToast(
             t('subShare.panel.updated', {
