@@ -173,6 +173,7 @@ interface ContextSnapshot {
   updateWidget: (id: string, updates: Partial<WidgetData>) => void;
   renameDashboard: (id: string, name: string) => Promise<void>;
   toasts: Toast[];
+  saveRetrying: boolean;
 }
 
 const TestConsumer: React.FC<{
@@ -189,6 +190,7 @@ const TestConsumer: React.FC<{
       updateWidget: ctx.updateWidget,
       renameDashboard: ctx.renameDashboard,
       toasts: ctx.toasts,
+      saveRetrying: ctx.saveRetrying,
     };
   });
   return null;
@@ -1007,5 +1009,148 @@ describe('DashboardContext stale PII supplement', () => {
     expect(configOf(stateRef.current?.activeDashboard, 'w-pii').names).toBe(
       'Alice'
     );
+  });
+});
+
+describe('DashboardContext autosave when the Drive PII backup fails', () => {
+  beforeEach(() => {
+    capturedSnapshotCb = null;
+    saveDashboardMock.mockClear();
+    uploadFileMock.mockReset();
+    updateFileContentMock.mockReset();
+    listFilesMock.mockReset();
+    downloadFileMock.mockReset();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    uploadFileMock.mockResolvedValue({ id: 'pii-file-1', name: 'x' });
+    updateFileContentMock.mockResolvedValue(undefined);
+    listFilesMock.mockResolvedValue([]);
+    vi.useRealTimers();
+  });
+
+  const serverRandom = (): WidgetData => ({
+    id: 'w-rand',
+    type: 'random',
+    x: 0,
+    y: 0,
+    w: 1,
+    h: 1,
+    z: 1,
+    flipped: false,
+    version: 1,
+    // Firestore only ever holds the scrubbed config.
+    config: { rosterMode: 'custom' } as unknown as WidgetConfig,
+  });
+
+  const typeNames = (
+    stateRef: { current: ContextSnapshot | null },
+    firstNames: string
+  ) =>
+    act(() => {
+      stateRef.current?.updateWidget('w-rand', {
+        config: { rosterMode: 'custom', firstNames } as unknown as WidgetConfig,
+      });
+    });
+
+  it('keeps names being typed, retries, and never writes them to Firestore', async () => {
+    listFilesMock.mockResolvedValue([{ id: 'pii-1', name: 'dash-1-pii.json' }]);
+    downloadFileMock.mockResolvedValue(
+      piiBlob({ 'w-rand': { firstNames: 'Ada' } })
+    );
+    updateFileContentMock.mockRejectedValue(
+      new Error('Google Drive request timed out.')
+    );
+
+    const stateRef = setup();
+    const server = makeDashboard('dash-1', [serverRandom()]);
+    await settleSnapshot(stateRef, [server]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(
+      configOf(stateRef.current?.activeDashboard, 'w-rand').firstNames
+    ).toBe('Ada');
+    saveDashboardMock.mockClear();
+
+    typeNames(stateRef, 'Ada\nGrace');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+    expect(updateFileContentMock).toHaveBeenCalled();
+    expect(stateRef.current?.saveRetrying).toBe(true);
+
+    // Any snapshot (another board, another tab) still carries widget version 1.
+    // It used to read as another device's edit and restore Drive's "Ada" over the typing.
+    await pushSnapshot([{ ...server, updatedAt: 2000 }]);
+    typeNames(stateRef, 'Ada\nGrace\nAlan');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(
+      configOf(stateRef.current?.activeDashboard, 'w-rand').firstNames
+    ).toBe('Ada\nGrace\nAlan');
+
+    // The PII guarantee holds: a failed backup never reaches Firestore.
+    expect(saveDashboardMock).not.toHaveBeenCalled();
+    // One non-blocking notice per failure streak, not one per attempt.
+    const notices =
+      stateRef.current?.toasts.filter((t) =>
+        t.message.startsWith("Couldn't save yet")
+      ) ?? [];
+    expect(notices).toHaveLength(1);
+    expect(notices[0].type).toBe('warning');
+
+    // Drive recovers: the backoff retry saves without another keystroke.
+    updateFileContentMock.mockReset();
+    updateFileContentMock.mockResolvedValue(undefined);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(updateFileContentMock).toHaveBeenCalledTimes(1);
+    expect(saveDashboardMock).toHaveBeenCalledTimes(1);
+    const written = saveDashboardMock.mock.calls[0][0] as Dashboard;
+    expect(configOf(written, 'w-rand').firstNames).toBeUndefined();
+    expect(stateRef.current?.saveRetrying).toBe(false);
+    expect(
+      stateRef.current?.toasts.some((t) =>
+        t.message.startsWith("Couldn't save yet")
+      )
+    ).toBe(false);
+    expect(
+      configOf(stateRef.current?.activeDashboard, 'w-rand').firstNames
+    ).toBe('Ada\nGrace\nAlan');
+  });
+
+  it('backs off between retries instead of re-hitting Drive on every debounce', async () => {
+    listFilesMock.mockResolvedValue([]);
+    uploadFileMock.mockRejectedValue(
+      new Error('Google Drive request timed out.')
+    );
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [makeDashboard('dash-1', [serverRandom()])]);
+
+    typeNames(stateRef, 'Grace');
+    // First attempt after the debounce, then retries at +2s, +4s, +8s.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(uploadFileMock).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2100);
+    });
+    expect(uploadFileMock).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect(uploadFileMock).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1100);
+    });
+    expect(uploadFileMock).toHaveBeenCalledTimes(3);
+    expect(
+      configOf(stateRef.current?.activeDashboard, 'w-rand').firstNames
+    ).toBe('Grace');
   });
 });

@@ -74,6 +74,7 @@
       "allChangesSaved": "Alle Änderungen gespeichert",
       "syncingChanges": "Änderungen synchronisieren...",
       "allChangesSavedTooltip": "Alle Änderungen gespeichert",
+      "saveRetryingTooltip": "Noch nicht gespeichert. Ihre Änderungen bleiben auf diesem Gerät und werden erneut gespeichert.",
       "googleDriveConnected": "Google Drive verbunden",
       "googleDriveDisconnected": "Google Drive getrennt",
       "signOut": "Abmelden",

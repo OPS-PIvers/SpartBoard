@@ -130,6 +130,8 @@ export interface DashboardContextValue {
   toasts: Toast[];
   loading: boolean;
   isSaving: boolean;
+  /** The active board's autosave failed and is retrying; local edits are kept. */
+  saveRetrying: boolean;
   gradeFilter: GradeFilter;
   setGradeFilter: (filter: GradeFilter) => void;
   addToast: (

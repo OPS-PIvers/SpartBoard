@@ -351,6 +351,36 @@ const stampPiiVersions = (
   return { supplement, versions };
 };
 
+/** Ids of widgets whose config still differs from the save baseline (unsaved local edits). */
+const unsavedConfigWidgetIds = (
+  local: Dashboard | undefined,
+  baselineWidgets: string
+): Set<string> => {
+  const ids = new Set<string>();
+  if (!local || !baselineWidgets) return ids;
+  let saved: WidgetData[];
+  try {
+    saved = JSON.parse(baselineWidgets) as WidgetData[];
+  } catch {
+    return ids;
+  }
+  const savedById = new Map(saved.map((w) => [w.id, w]));
+  for (const w of local.widgets) {
+    const s = savedById.get(w.id);
+    const changed = !s
+      ? true
+      : w.version !== undefined && s.version !== undefined
+        ? w.version !== s.version
+        : stableStringify(w.config) !== stableStringify(s.config);
+    if (changed) ids.add(w.id);
+  }
+  return ids;
+};
+
+/** Delay before retrying a failed autosave: 2s, 4s, 8s … capped at 60s. */
+const saveRetryDelayMs = (failures: number): number =>
+  Math.min(60_000, 2000 * 2 ** Math.max(0, failures - 1));
+
 /** Capture the serialized state used to populate lastSaved* refs. */
 const getDashboardSaveState = (d: Dashboard) => ({
   serializedData: serializeDashboard(d),
@@ -780,6 +810,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  // True while the active board's autosave keeps failing and is being retried.
+  const [saveRetrying, setSaveRetrying] = useState(false);
   const [migrated, setMigrated] = useState(false);
   // Guards against re-kicking off the localStorage→Firestore migration when
   // this effect re-runs before `migrated` flips true (the role-flag deps
@@ -1511,13 +1543,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       const pii = extractDashboardPII(dashboard);
-      // Record before the upload: the snapshot overlay needs this even if Drive
-      // is momentarily unreachable, or the failed save's next snapshot strips
-      // the roster from local state too.
-      dashboardPiiRef.current.set(
-        dashboard.id,
-        stampPiiVersions(dashboard, pii)
-      );
       const blob = new Blob([JSON.stringify(pii)], {
         type: 'application/json',
       });
@@ -1533,6 +1558,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           );
           piiDriveFileIdRef.current.set(dashboard.id, file.id);
         }
+        // Only once Drive holds it: a cache stamped with unsaved versions reads as another device's edit and triggers a Drive restore over the local text.
+        dashboardPiiRef.current.set(
+          dashboard.id,
+          stampPiiVersions(dashboard, pii)
+        );
       } catch (e) {
         console.error('[PII] Failed to save PII supplement to Drive:', e);
         // Rejecting stops callers' success toasts/ref updates/localStorage removal from firing.
@@ -1932,6 +1962,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const { vpW, vpH } = getCurrentViewport();
         const staleSupplementBoardIds = new Set<string>();
+        // A version gap on these is this device's own unsaved edit, not another device's.
+        const activeUnsavedWidgetIds =
+          lastSavedDashboardIdRef.current === activeIdRef.current
+            ? unsavedConfigWidgetIds(
+                dashboardsRef.current.find((d) => d.id === activeIdRef.current),
+                lastSavedFieldsRef.current.widgets
+              )
+            : new Set<string>();
         const migratedDashboards = sortedDashboards.map((db) => {
           const collectionsMigrated = migrateBoardForCollections(db);
           const widgetMigrated: Dashboard = {
@@ -1957,6 +1995,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             if (!cached.supplement[widget.id]) continue;
             if (cached.versions[widget.id] === widget.version) {
               applicable[widget.id] = cached.supplement[widget.id];
+            } else if (
+              hydrated.id === activeIdRef.current &&
+              activeUnsavedWidgetIds.has(widget.id)
+            ) {
+              // The merge below keeps the local config; re-reading Drive would overwrite it.
+              continue;
             } else {
               // Drop it so the staleness is detected once, not on every snapshot.
               delete cached.supplement[widget.id];
@@ -2665,6 +2709,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // When the oldest still-unsaved edit landed, or null when everything is saved.
   const oldestUnsavedEditAtRef = useRef<number | null>(null);
+  // Consecutive autosave failures, and the earliest time the next attempt may run.
+  const saveFailureCountRef = useRef(0);
+  const saveRetryAtRef = useRef(0);
+  // Bumped after a failed autosave so the effect re-runs and schedules the retry.
+  const [saveRetryNonce, setSaveRetryNonce] = useState(0);
+  // The "couldn't save yet" toast stays up until the retry lands, so it is removed by id.
+  const saveRetryToastIdRef = useRef<string | null>(null);
+  const clearSaveRetry = useCallback(() => {
+    saveFailureCountRef.current = 0;
+    saveRetryAtRef.current = 0;
+    setSaveRetrying(false);
+    const toastId = saveRetryToastIdRef.current;
+    if (toastId) {
+      saveRetryToastIdRef.current = null;
+      setToasts((prev) => prev.filter((t) => t.id !== toastId));
+    }
+  }, []);
   // Track auxiliary timeouts spawned by save handlers so they can be
   // cleaned up when the effect re-runs or the component unmounts.
   const auxTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
@@ -2748,6 +2809,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // reverted to match the last-saved data, so pendingSaveCountRef doesn't
       // get stuck positive.
       oldestUnsavedEditAtRef.current = null;
+      clearSaveRetry();
       if (pendingSaveCountRef.current === 0) {
         setIsSaving(false);
       }
@@ -2805,6 +2867,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // The refs now describe a different board, so any pending window from
       // the previous one is meaningless here.
       oldestUnsavedEditAtRef.current = null;
+      clearSaveRetry();
       if (pendingSaveCountRef.current === 0) {
         setIsSaving(false);
       }
@@ -2844,7 +2907,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       Math.min(
         baseDebounceMs,
         maxUnsavedAgeMs - (Date.now() - oldestUnsavedEditAtRef.current)
-      )
+      ),
+      // After a failure, edits wait out the backoff instead of re-hitting a failing Drive/Firestore.
+      saveRetryAtRef.current - Date.now()
     );
     // The immediate-write flag has now been consumed for this scheduling pass.
     // Reset it immediately so that a normal write whose state update lands
@@ -2888,6 +2953,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             lastSavedDataRef.current = savedData;
             lastSavedFieldsRef.current = savedFields;
           }
+          clearSaveRetry();
           pendingSaveCountRef.current = Math.max(
             0,
             pendingSaveCountRef.current - 1
@@ -2913,14 +2979,25 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           if (pendingSaveCountRef.current === 0) {
             setIsSaving(false);
           }
-          setToasts((prev) => [
-            ...prev,
-            {
-              id: crypto.randomUUID(),
-              message: 'Failed to sync changes',
-              type: 'error' as const,
-            },
-          ]);
+          // Local state is untouched; retry with backoff and tell the teacher once per failure streak.
+          saveFailureCountRef.current++;
+          saveRetryAtRef.current =
+            Date.now() + saveRetryDelayMs(saveFailureCountRef.current);
+          if (!saveRetryToastIdRef.current) {
+            const toastId = crypto.randomUUID();
+            saveRetryToastIdRef.current = toastId;
+            setToasts((prev) => [
+              ...prev,
+              {
+                id: toastId,
+                message:
+                  "Couldn't save yet. Your changes are kept on this device and will keep retrying.",
+                type: 'warning' as const,
+              },
+            ]);
+          }
+          setSaveRetrying(true);
+          setSaveRetryNonce((n) => n + 1);
         });
     }, debounceMs);
 
@@ -2930,7 +3007,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       for (const t of auxTimers) clearTimeout(t);
       auxTimers.clear();
     };
-  }, [dashboards, activeId, user, loading, saveDashboard, buildSaveBaseline]);
+  }, [
+    dashboards,
+    activeId,
+    user,
+    loading,
+    saveDashboard,
+    buildSaveBaseline,
+    clearSaveRetry,
+    saveRetryNonce,
+  ]);
 
   // --- GOOGLE DRIVE SYNC EFFECT ---
   // Decoupled from Firestore auto-save to ensure performance.
@@ -3057,14 +3143,28 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // Stamp it against the versions currently in state — that is the server
         // copy this supplement is known to belong to.
         const current = dashboardsRef.current.find((d) => d.id === currentId);
+        // Drive holds the last saved roster; never overlay it on an edit that hasn't saved yet.
+        const unsaved =
+          lastSavedDashboardIdRef.current === currentId
+            ? unsavedConfigWidgetIds(
+                current,
+                lastSavedFieldsRef.current.widgets
+              )
+            : new Set<string>();
+        const restorable: DashboardPiiSupplement = Object.fromEntries(
+          Object.entries(pii).filter(([widgetId]) => !unsaved.has(widgetId))
+        );
+        if (Object.keys(restorable).length === 0) return;
         if (current) {
           dashboardPiiRef.current.set(
             currentId,
-            stampPiiVersions(current, pii)
+            stampPiiVersions(current, restorable)
           );
         }
         setDashboards((prev) =>
-          prev.map((d) => (d.id === currentId ? mergeDashboardPII(d, pii) : d))
+          prev.map((d) =>
+            d.id === currentId ? mergeDashboardPII(d, restorable) : d
+          )
         );
       })
       .catch((err: unknown) => {
@@ -6800,6 +6900,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       toasts,
       loading,
       isSaving,
+      saveRetrying,
       gradeFilter,
       setGradeFilter: handleSetGradeFilter,
       addToast,
@@ -6920,6 +7021,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       toasts,
       loading,
       isSaving,
+      saveRetrying,
       gradeFilter,
       handleSetGradeFilter,
       addToast,

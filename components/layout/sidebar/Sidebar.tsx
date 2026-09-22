@@ -17,6 +17,7 @@ import {
   Trash2,
   Cloud,
   CloudCheck,
+  CloudAlert,
   AlertCircle,
   Zap,
   SlidersHorizontal,
@@ -115,6 +116,7 @@ export const Sidebar: React.FC = () => {
     dashboards,
     activeDashboard,
     isSaving,
+    saveRetrying,
     clearAllWidgets,
     rosters,
     annotationActive,
@@ -760,15 +762,21 @@ export const Sidebar: React.FC = () => {
                   {/* Sync Status */}
                   <div
                     className={`transition-colors duration-500 ${
-                      isSaving ? 'text-amber-500' : 'text-emerald-500'
+                      isSaving || saveRetrying
+                        ? 'text-amber-500'
+                        : 'text-emerald-500'
                     }`}
                     title={
-                      isSaving
-                        ? t('sidebar.header.syncingChanges')
-                        : t('sidebar.header.allChangesSavedTooltip')
+                      saveRetrying
+                        ? t('sidebar.header.saveRetryingTooltip')
+                        : isSaving
+                          ? t('sidebar.header.syncingChanges')
+                          : t('sidebar.header.allChangesSavedTooltip')
                     }
                   >
-                    {isSaving ? (
+                    {saveRetrying ? (
+                      <CloudAlert className="w-4 h-4" />
+                    ) : isSaving ? (
                       <Cloud className="w-4 h-4 animate-pulse" />
                     ) : (
                       <CloudCheck className="w-4 h-4" />
