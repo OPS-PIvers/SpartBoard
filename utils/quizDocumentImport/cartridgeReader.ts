@@ -293,7 +293,7 @@ interface UnzipBudget {
 
 /** JSZip's `internalStream`, which its type definitions leave out. */
 interface ZipStream {
-  on(event: 'data', cb: (chunk: Uint8Array) => void): ZipStream;
+  on(event: 'data', cb: (chunk: Uint8Array<ArrayBuffer>) => void): ZipStream;
   on(event: 'error', cb: (err: Error) => void): ZipStream;
   on(event: 'end', cb: () => void): ZipStream;
   pause(): ZipStream;
@@ -304,16 +304,16 @@ interface ZipStream {
 function unzipCapped(
   entry: JSZip.JSZipObject,
   budget: UnzipBudget
-): Promise<Uint8Array[]> {
+): Promise<Uint8Array<ArrayBuffer>[]> {
   return new Promise((resolve, reject) => {
-    const chunks: Uint8Array[] = [];
+    const chunks: Uint8Array<ArrayBuffer>[] = [];
     const stream = (
       entry as unknown as {
         internalStream: (type: 'uint8array') => ZipStream;
       }
     ).internalStream('uint8array');
     stream
-      .on('data', (chunk: Uint8Array) => {
+      .on('data', (chunk: Uint8Array<ArrayBuffer>) => {
         budget.remaining -= chunk.length;
         if (budget.remaining < 0) {
           stream.pause();
