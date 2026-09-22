@@ -309,6 +309,41 @@ describe('SubCollectionBoardScreen', () => {
       expect(banner()).toBeInTheDocument();
     });
 
+    // The reload's read is cancelled when the sub navigates away, so leaving a
+    // pending accept alive would let it complete on a later visit and replace
+    // boards the sub has worked on in between.
+    it('abandons a reload the sub walks away from', () => {
+      liveVersion = 2;
+      renderScreen('b1');
+      readVersion = 2;
+      stillLoading = new Set(['b1']);
+      fireEvent.click(reloadButton());
+      fireEvent.click(nextButton());
+      expect(screen.getByTestId('board')).toHaveTextContent('Reading v2');
+
+      stillLoading = new Set();
+      fireEvent.click(prevButton());
+      expect(screen.getByTestId('board')).toHaveTextContent('Warm up v1');
+      expect(banner()).toBeInTheDocument();
+      fireEvent.click(nextButton());
+      expect(boardKeys.at(-1)).toBe('b2::1');
+    });
+
+    it('carries the reload onto the retry when its read fails', () => {
+      liveVersion = 2;
+      renderScreen('b1');
+      readVersion = 2;
+      readError = 'This board could not be loaded.';
+      fireEvent.click(reloadButton());
+      expect(boardKeys.at(-1)).toBe('b1::1');
+
+      readError = null;
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+      expect(screen.getByTestId('board')).toHaveTextContent('Warm up v2');
+      expect(boardKeys.at(-1)).toBe('b1::2');
+      expect(banner()).not.toBeInTheDocument();
+    });
+
     it('says nothing when the watcher has nothing to report', () => {
       liveVersion = null;
       renderScreen('b1');

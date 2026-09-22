@@ -265,7 +265,13 @@ export const SubCollectionBoardScreen: React.FC<
         <SubBoardNav
           nav={nav}
           currentBoardId={shown.boardId}
-          onPickBoard={setBoardId}
+          onPickBoard={(id) => {
+            // Walking away abandons a reload that has not landed: its read is
+            // cancelled, and letting it complete when the sub wanders back
+            // would replace the boards they have worked on since.
+            setPendingAccept(null);
+            setBoardId(id);
+          }}
         />
       )}
       {hasUpdate && (
@@ -304,7 +310,12 @@ export const SubCollectionBoardScreen: React.FC<
           </span>
           <button
             type="button"
-            onClick={() => setAttempt((n) => n + 1)}
+            onClick={() => {
+              setPendingAccept((p) =>
+                p ? { ...p, requestKey: `${boardId}::${attempt + 1}` } : null
+              );
+              setAttempt(attempt + 1);
+            }}
             className="shrink-0 rounded-full bg-white/20 hover:bg-white/30 px-2 py-0.5 font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
             {t('subShare.nav.tryAgain', { defaultValue: 'Try again' })}
