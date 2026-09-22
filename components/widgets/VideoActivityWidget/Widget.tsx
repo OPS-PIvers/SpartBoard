@@ -1189,7 +1189,14 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         }}
         onSave={async (updated, behavior) => {
           const isNew = !editingMeta;
-          await saveActivity(updated, editingMeta?.driveFileId, behavior);
+          const saved = await saveActivity(
+            updated,
+            editingMeta?.driveFileId,
+            behavior
+          );
+          // Adopt what was written. Without this a new activity keeps saving
+          // with no drive file id, so every retitled autosave orphans a file.
+          setEditingMeta(saved);
           // Autosaved writes are not news; a synced Save publishes, so it is.
           if (isNew) addToast('Activity created!', 'success');
           else if (editingMeta?.sync)

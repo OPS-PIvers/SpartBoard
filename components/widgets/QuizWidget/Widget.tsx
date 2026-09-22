@@ -2843,6 +2843,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               editingMeta?.driveFileId,
               behavior
             );
+            // Adopt what was written. Without this a new quiz keeps saving
+            // with no drive file id, so every retitled autosave orphans a file.
+            setEditingMeta(saved);
             // Keep every PLC library row for this quiz in step with what was published.
             if (saved.sync && plcs.length > 0) {
               const published = getQuizBehavior(saved);
