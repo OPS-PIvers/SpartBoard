@@ -17,6 +17,7 @@ import {
   QuizBehaviorSettings,
 } from '@/types';
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
+import { quizAssignBlocker } from '@/utils/activityCompleteness';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
@@ -1781,6 +1782,13 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           // exactly once, here.
           const data = preloadedQuizData ?? (await loadQuiz(meta));
           if (!data) return;
+          // Autosave persists unfinished work, so assign can no longer assume
+          // a saved quiz is a finished one.
+          const blocker = quizAssignBlocker(data);
+          if (blocker) {
+            addToast(`This quiz can't be assigned yet: ${blocker}.`, 'error');
+            return;
+          }
           // Behavior comes from the assign modal — the quiz's saved settings
           // plus any per-assignment overrides the teacher made there.
           const { sessionMode: mode, sessionOptions, attemptLimit } = behavior;

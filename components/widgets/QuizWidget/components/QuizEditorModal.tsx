@@ -24,8 +24,8 @@ import {
   QuizQuestion,
   QuizStimulus,
   Rubric,
-  isFreeResponseType,
 } from '@/types';
+import { quizIncompleteReason } from '@/utils/activityCompleteness';
 import type { BankSource } from '@/hooks/useBankSources';
 import type { UseQuestionBanksResult } from '@/hooks/useQuestionBanks';
 import type { BankContent } from '@/utils/questionBanks';
@@ -368,27 +368,10 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   // live or shared. It no longer gates the save: autosave persists whatever is
   // on screen, and these checks run again at the points that need a complete
   // quiz.
-  const incompleteNotice = useMemo(() => {
-    if (!title.trim())
-      return isBank ? 'Bank title is required' : 'Quiz title is required';
-    if (questions.length === 0 && bankSlots.length === 0)
-      return 'Add at least one question';
-    const emptySlot = bankSlots.find(
-      (s) => s.mode === 'random' && (s.count ?? 0) < 1
-    );
-    if (emptySlot)
-      return `"${emptySlot.bankTitle}" draws 0 questions. Set how many to draw or remove the slot.`;
-    for (let i = 0; i < questions.length; i += 1) {
-      const q = questions[i];
-      if (!q.text.trim()) return `Question ${i + 1}: text is required`;
-      // Free-response questions have no correct answer — they
-      // are manually graded by the teacher after the quiz closes.
-      // A `needsKey` question saves without one on purpose (D7).
-      if (!isFreeResponseType(q.type) && !q.needsKey && !q.correctAnswer.trim())
-        return `Question ${i + 1}: correct answer is required`;
-    }
-    return null;
-  }, [title, questions, bankSlots, isBank]);
+  const incompleteNotice = useMemo(
+    () => quizIncompleteReason({ title, questions, bankSlots }, isBank),
+    [title, questions, bankSlots, isBank]
+  );
 
   // New identity on every draft edit — the autosave quiet period restarts on it.
   const draftToken = useMemo(

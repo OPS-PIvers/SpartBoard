@@ -16,6 +16,7 @@ import {
   VideoActivityQuestion,
 } from '@/types';
 import { EditorWorkspace } from '@/components/common/EditorWorkspace';
+import { videoActivityIncompleteReason } from '@/utils/activityCompleteness';
 import { useAuth } from '@/context/useAuth';
 import { VideoActivityBehaviorSettingsPanel } from '@/components/common/library/VideoActivityBehaviorSettingsPanel';
 import {
@@ -206,38 +207,10 @@ export const VideoActivityEditorModal: React.FC<
 
   // What still has to be filled in before the activity can be assigned. It no
   // longer gates the save: autosave persists whatever is on screen.
-  const incompleteNotice = useMemo(() => {
-    if (!title.trim()) return 'Activity title is required';
-    if (!youtubeUrl.trim()) return 'YouTube URL is required';
-    if (questions.length === 0) return 'Add at least one question';
-    for (let i = 0; i < questions.length; i += 1) {
-      const q = questions[i];
-      if (!q.text.trim()) return `Question ${i + 1}: text is required`;
-      const type = q.type ?? 'MC';
-      if (type === 'MA') {
-        const correctCount = q.correctAnswer
-          .split('|')
-          .map((s) => s.trim())
-          .filter((s) => s.length > 0).length;
-        const incorrectCount = (q.incorrectAnswers ?? []).filter(
-          (s) => s.trim().length > 0
-        ).length;
-        if (correctCount + incorrectCount === 0)
-          return `Question ${i + 1}: add at least one option`;
-        if (correctCount === 0)
-          return `Question ${i + 1}: select at least one correct option`;
-        const hasPipe = [
-          ...q.correctAnswer.split('|'),
-          ...(q.incorrectAnswers ?? []),
-        ].some((s) => s.includes('|'));
-        if (hasPipe)
-          return `Question ${i + 1}: option text cannot contain the | character`;
-      } else if (!q.correctAnswer.trim()) {
-        return `Question ${i + 1}: correct answer is required`;
-      }
-    }
-    return null;
-  }, [title, youtubeUrl, questions]);
+  const incompleteNotice = useMemo(
+    () => videoActivityIncompleteReason({ title, youtubeUrl, questions }),
+    [title, youtubeUrl, questions]
+  );
 
   // New identity on every draft edit — the autosave quiet period restarts on it.
   const draftToken = useMemo(
