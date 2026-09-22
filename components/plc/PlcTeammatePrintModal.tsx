@@ -119,9 +119,11 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
     excludedStudentIds
   );
   const totalSheetCount = sheetCount + spareCount;
+  // Their copy is built on their own next sign-in when they have none and their
+  // Drive is out of reach (D20), so nothing here waits on their account.
+  const copyDeferred = !!context && !context.hasCopy && !context.driveReachable;
   const canPrint =
     !!context &&
-    context.blocked === null &&
     totalSheetCount > 0 &&
     !printing &&
     // A click that beat the image loads would drop every one of them silently.
@@ -316,24 +318,21 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
 
   const banners = context ? (
     <div className="flex flex-col gap-2">
-      {context.blocked === 'no-copy-no-drive' && (
+      {copyDeferred && (
         <p
-          className={`${bannerClass} border-brand-red-primary/30 bg-brand-red-primary/5 text-brand-red-dark`}
+          className={`${bannerClass} border-slate-200 bg-slate-50 text-slate-600`}
         >
-          <AlertTriangle
-            className="mt-0.5 h-4 w-4 shrink-0"
-            aria-hidden="true"
-          />
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <span>
-            {t('plcDashboard.teammatePrint.blocked', {
+            {t('plcDashboard.teammatePrint.copyDeferred', {
               defaultValue:
-                '{{name}} has not added this quiz to their library, and SpartBoard cannot reach their Google Drive to add it for them. Ask them to open SpartBoard once and reconnect Drive — then this will work even when they are out.',
+                'This quiz is not in {{name}}’s library yet. It lands there, linked to the PLC’s shared copy, the next time they open SpartBoard — which is before they can scan this stack anyway.',
               name: context.targetName,
             })}
           </span>
         </p>
       )}
-      {context.blocked === null && !context.driveReachable && (
+      {!context.driveReachable && (
         <p
           className={`${bannerClass} border-amber-200 bg-amber-50 text-amber-800`}
         >
@@ -547,39 +546,34 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
               {rosterList}
             </div>
           )}
-          {context.blocked === null && (
-            <div className="flex items-center justify-between gap-3">
-              <label
-                htmlFor="teammate-print-spares"
-                className="text-sm text-slate-700"
-              >
-                {t('plcDashboard.teammatePrint.spares', {
-                  defaultValue: 'Blank spare sheets',
+          <div className="flex items-center justify-between gap-3">
+            <label
+              htmlFor="teammate-print-spares"
+              className="text-sm text-slate-700"
+            >
+              {t('plcDashboard.teammatePrint.spares', {
+                defaultValue: 'Blank spare sheets',
+              })}
+              <span className="ml-1 text-xs text-slate-500">
+                {t('plcDashboard.teammatePrint.sparesHint', {
+                  defaultValue: 'for walk-ins and make-ups',
                 })}
-                <span className="ml-1 text-xs text-slate-500">
-                  {t('plcDashboard.teammatePrint.sparesHint', {
-                    defaultValue: 'for walk-ins and make-ups',
-                  })}
-                </span>
-              </label>
-              <input
-                id="teammate-print-spares"
-                type="number"
-                min={0}
-                max={MAX_SPARES}
-                value={spareCount}
-                onChange={(e) =>
-                  setSpareCount(
-                    Math.max(
-                      0,
-                      Math.min(MAX_SPARES, Number(e.target.value) || 0)
-                    )
-                  )
-                }
-                className="w-20 rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
-              />
-            </div>
-          )}
+              </span>
+            </label>
+            <input
+              id="teammate-print-spares"
+              type="number"
+              min={0}
+              max={MAX_SPARES}
+              value={spareCount}
+              onChange={(e) =>
+                setSpareCount(
+                  Math.max(0, Math.min(MAX_SPARES, Number(e.target.value) || 0))
+                )
+              }
+              className="w-20 rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
+            />
+          </div>
           {printError && (
             <p
               className={`${bannerClass} border-brand-red-primary/30 bg-brand-red-primary/5 text-brand-red-dark`}
@@ -637,6 +631,20 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
             {t('plcDashboard.teammatePrint.copyCreated', {
               defaultValue:
                 'This quiz was not in {{name}}’s library yet, so it was added and linked to the PLC’s shared copy for them.',
+              name: printed.printedForTeacherName,
+            })}
+          </span>
+        </p>
+      )}
+      {printed.pendingCopy && !withdrawn && (
+        <p
+          className={`${bannerClass} border-slate-200 bg-slate-50 text-slate-600`}
+        >
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>
+            {t('plcDashboard.teammatePrint.copyPending', {
+              defaultValue:
+                'This quiz was not in {{name}}’s library yet. It lands there, linked to the PLC’s shared copy, the next time they open SpartBoard — which is before they can scan this stack.',
               name: printed.printedForTeacherName,
             })}
           </span>

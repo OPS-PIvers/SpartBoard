@@ -90,11 +90,22 @@ export interface TeammateTestPaperRow {
   choices: string[];
 }
 
+/** Deferred library copy the owner's client materializes on next sign-in (D20). */
+export interface PendingQuizCopy {
+  groupId: string;
+  plcId: string;
+  plcQuizId: string;
+  title: string;
+  requestedByName: string;
+  requestedAt: number;
+}
+
 export interface CreateTeammatePaperBatchResult {
   batch: PaperBatchDoc & {
     printedByUid: string;
     printedByName: string;
     printedAt: number;
+    pendingQuizCopy?: PendingQuizCopy;
   };
   sheets: PaperSheetPlan[];
   quizTitle: string;
@@ -103,6 +114,8 @@ export interface CreateTeammatePaperBatchResult {
   testPaper: TeammateTestPaperRow[];
   /** True when this run created the target's copy and joined it to the group (D9). */
   createdCopy: boolean;
+  /** True when their copy is deferred to their next sign-in instead (D20). */
+  pendingCopy: boolean;
 }
 
 /** Drive writes as the target, seamed like the read path so tests need no HTTP. */
@@ -489,16 +502,11 @@ export async function handleCreateTeammatePaperBatch(
   // Nothing below this point writes until the whole run is known to be
   // printable: a rejected print must never leave a quiz — or a sync-group
   // membership — behind in someone else's account (§9).
-  let copyToken: string | null = null;
-  if (!copy) {
-    // No copy and no Drive is the one combination with nowhere to put one (D20).
-    if (!accessToken)
-      throw new HttpsError(
-        'failed-precondition',
-        `${targetName} has not added this quiz to their library, and SpartBoard cannot reach their Google Drive to add it for them.`
-      );
-    copyToken = accessToken;
-  }
+  // No copy and no Drive: reserve the id here and let their own client build
+  // the copy on next sign-in (D20), rather than making the print wait on their
+  // account being reachable — they open SpartBoard to scan the stack anyway.
+  const copyToken = !copy && accessToken ? accessToken : null;
+  const deferCopy = !copy && !accessToken;
   const quizId = copy ? copy.id : randomUUID();
   const driveFileId =
     copy && typeof copy.data().driveFileId === 'string'
@@ -627,6 +635,18 @@ export async function handleCreateTeammatePaperBatch(
     printedByUid: actor.uid,
     printedByName: callerName,
     printedAt: now,
+    ...(deferCopy
+      ? {
+          pendingQuizCopy: {
+            groupId,
+            plcId: input.plcId,
+            plcQuizId: input.plcQuizId,
+            title: content.title,
+            requestedByName: callerName,
+            requestedAt: now,
+          },
+        }
+      : {}),
   };
   await targetRef.collection('paper_batches').doc(batchId).set(batch);
 
@@ -660,6 +680,7 @@ export async function handleCreateTeammatePaperBatch(
       ];
     }),
     createdCopy,
+    pendingCopy: deferCopy,
   };
 }
 
