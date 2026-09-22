@@ -418,6 +418,52 @@ describe('useSharedCollection', () => {
     );
   });
 
+  // A grant the update no longer resolves is still a live Drive permission,
+  // and only the ledger tells the expiry sweep to take it back.
+  it('updateSubstituteShare keeps grant records it no longer resolves', async () => {
+    const { result } = renderHook(() => useSharedCollection());
+    const shareId = await result.current.shareSubstituteCollection({
+      collection: sourceCollection(),
+      boards: [dashboard('b1')],
+      hostUid: 'host-uid',
+      hostDisplayName: 'Mr. Teacher',
+      collectionId: 'src-collection',
+      sourceId: 'src-collection',
+      expiresAt: 9999999999999,
+      buildingId: 'middle-school',
+      ...tree(),
+      driveGrants: [
+        {
+          email: 'sub-a@orono.k12.mn.us',
+          fileId: 'file-1',
+          permissionId: 'p1',
+        },
+      ],
+    });
+    await result.current.updateSubstituteShare({
+      shareId,
+      collection: sourceCollection(),
+      boards: [dashboard('b1')],
+      kind: 'collection',
+      sections: [{ id: 'src-collection', name: 'Source' }],
+      boardEntries: [
+        { id: 'b1', name: 'Warm-up', sectionId: 'src-collection', order: 0 },
+      ],
+      driveGrants: [
+        {
+          email: 'sub-b@orono.k12.mn.us',
+          fileId: 'file-1',
+          permissionId: 'p2',
+        },
+      ],
+    });
+    const helpers = await getHelpers();
+    const parent = helpers.docs.get(`shared_collections/${shareId}`) as {
+      driveGrants: { permissionId: string }[];
+    };
+    expect(parent.driveGrants.map((g) => g.permissionId)).toEqual(['p1', 'p2']);
+  });
+
   it('extendSubstituteShare moves the expiry without touching the boards', async () => {
     const { shareId, api } = await seedSubShare();
     await api.extendSubstituteShare(shareId, 123456789);

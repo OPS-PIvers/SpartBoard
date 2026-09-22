@@ -246,6 +246,24 @@ async function commitBoardBatches({
   }
 }
 
+/** Union of two grant lists, keyed on the (email, file, permission) triple. */
+function mergeDriveGrants(
+  current: SubstituteShareDriveGrant[] | undefined,
+  next: SubstituteShareDriveGrant[]
+): SubstituteShareDriveGrant[] {
+  const merged = [...(current ?? [])];
+  const seen = new Set(
+    merged.map((g) => `${g.email}|${g.fileId}|${g.permissionId}`)
+  );
+  for (const grant of next) {
+    const key = `${grant.email}|${grant.fileId}|${grant.permissionId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(grant);
+  }
+  return merged;
+}
+
 export const useSharedCollection = () => {
   /**
    * Host action: write the share metadata + every Board snapshot in a
@@ -439,6 +457,13 @@ export const useSharedCollection = () => {
       if (!snap.exists()) throw new Error('Share not found');
       const current = snap.data() as SharedCollection;
 
+      // The grant ledger only ever grows while a share lives: it is what the
+      // expiry sweep revokes, and a pair dropped from it is a Drive permission
+      // nothing would ever take back.
+      const mergedGrants = input.driveGrants
+        ? mergeDriveGrants(current.driveGrants, input.driveGrants)
+        : undefined;
+
       const parentBatch = writeBatch(db);
       parentBatch.update(parentRef, {
         boardIds,
@@ -461,7 +486,7 @@ export const useSharedCollection = () => {
           defaultBoardId: input.defaultBoardId,
         }),
         ...(input.subEmails ? { subEmails: input.subEmails } : {}),
-        ...(input.driveGrants ? { driveGrants: input.driveGrants } : {}),
+        ...(mergedGrants ? { driveGrants: mergedGrants } : {}),
         ...(input.sharedRosters ? { sharedRosters: input.sharedRosters } : {}),
       });
       await parentBatch.commit();

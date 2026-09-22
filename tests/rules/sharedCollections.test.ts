@@ -580,6 +580,59 @@ describe('shared_collections — update, substitute manager writes', () => {
     );
   });
 
+  // The /subs directory and the host's manager render boardIds and
+  // collection.name unguarded, so the shape create demands has to hold after
+  // an update too — a direct REST write is the boundary, not the client.
+  it('emptying the board list is rejected', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), { boardIds: [], updatedAt: NOW_MS })
+    );
+  });
+
+  it('a board list that is not a list is rejected', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        boardIds: 'board-1',
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  it('a board list past the 500 cap is rejected', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        boardIds: Array.from(
+          { length: 501 },
+          (_, i) => `board-${i.toString()}`
+        ),
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  it('blanking the collection name is rejected', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        collection: { name: '' },
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  it('a board tree past the 500 cap is rejected', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        boards: Array.from({ length: 501 }, (_, i) => ({
+          id: `board-${i.toString()}`,
+          name: 'Board',
+          sectionId: 'col-xyz',
+          order: i,
+        })),
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
   it('a named sub cannot update the share', async () => {
     await assertFails(
       updateDoc(doc(asOronoTeacher(), sharePath), { contentVersion: 99 })

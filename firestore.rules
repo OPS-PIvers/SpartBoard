@@ -1181,6 +1181,23 @@ service cloud.firestore {
     // subcollection holds frozen Board snapshots. Mirrors /shared_boards
     // substitute gating + 14-day expiresAt cap.
     match /shared_collections/{shareId} {
+      // Shape the doc must hold after any write: a non-empty, capped board list,
+      // a named collection, and capped tree lists. Enforced on create AND update
+      // because /subs and the host's manager render these fields unguarded.
+      function validCollectionShareShape() {
+        return request.resource.data.boardIds is list
+          && request.resource.data.boardIds.size() > 0
+          && request.resource.data.boardIds.size() <= 500
+          && request.resource.data.collection.name is string
+          && request.resource.data.collection.name.size() > 0
+          && (!('sections' in request.resource.data)
+              || (request.resource.data.sections is list
+                  && request.resource.data.sections.size() <= 500))
+          && (!('boards' in request.resource.data)
+              || (request.resource.data.boards is list
+                  && request.resource.data.boards.size() <= 500));
+      }
+
       // GET: any authed user for non-substitute. Substitute shares gated by
       // host/admin/@orono.k12.mn.us email AND not past expiresAt (a hostile
       // direct-REST client would otherwise read stale snapshots forever). Host
@@ -1213,19 +1230,14 @@ service cloud.firestore {
         )
       );
 
-      // CREATE: host writes their own share. boardIds = non-empty list ≤500;
-      // collection.name non-empty; intendedMode in the legal set. Substitute adds
+      // CREATE: host writes their own share. Shape per
+      // validCollectionShareShape(); intendedMode in the legal set. Substitute adds
       // a 14-day TTL cap (1209600000ms) + non-empty buildingId (mirrors
       // /shared_boards). Optional subEmails/driveGrants are allowed at create and
-      // PINNED by the update rule below (substitute Collection shares are fully
-      // immutable post-create).
+      // constrained again by the update rule below.
       allow create: if request.auth != null
         && request.resource.data.hostUid == request.auth.uid
-        && request.resource.data.boardIds is list
-        && request.resource.data.boardIds.size() > 0
-        && request.resource.data.boardIds.size() <= 500
-        && request.resource.data.collection.name is string
-        && request.resource.data.collection.name.size() > 0
+        && validCollectionShareShape()
         && request.resource.data.intendedMode in ['copy', 'substitute']
         && (
           request.resource.data.intendedMode != 'substitute'
@@ -1251,6 +1263,7 @@ service cloud.firestore {
       // it may be set into the past, which is how "End now" cuts the sub off.
       allow update: if request.auth != null
         && (resource.data.get('hostUid', null) == request.auth.uid || isAdmin())
+        && validCollectionShareShape()
         && (
           resource.data.get('intendedMode', null) == 'copy'
           || (
