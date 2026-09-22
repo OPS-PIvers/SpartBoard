@@ -1,10 +1,13 @@
 import { useInSubShare, useShareContent } from '@/hooks/useShareContent';
-import type { CustomWidgetDoc, SubShareCustomWidgetPayload } from '@/types';
+import type {
+  SubShareCustomWidgetPayload,
+  SubShareCustomWidgetView,
+} from '@/types';
 
 export interface SubShareCustomWidget {
   /** False everywhere but `/subs`, where the caller must use this instead. */
   active: boolean;
-  doc: CustomWidgetDoc | null;
+  doc: SubShareCustomWidgetView | null;
   loading: boolean;
 }
 

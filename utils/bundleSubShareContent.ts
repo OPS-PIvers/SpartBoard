@@ -142,7 +142,19 @@ async function bundleCustomWidget(
   // Read as the teacher, who can read a beta-gated widget the sub cannot.
   const snap = await getDoc(doc(db, 'custom_widgets', id));
   if (!snap.exists()) throw new Error('custom widget not found');
-  return { doc: { ...snap.data(), id: snap.id } as CustomWidgetDoc };
+  const data = snap.data();
+  // Field by field, not a spread: the raw doc carries `betaUsers`, and
+  // `content/` is readable by any verified district account with the share.
+  return {
+    doc: {
+      id: snap.id,
+      title: (data.title as string) ?? 'Custom Widget',
+      mode: (data.mode as CustomWidgetDoc['mode']) ?? 'block',
+      updatedAt: (data.updatedAt as number) ?? 0,
+      gridDefinition: data.gridDefinition as CustomWidgetDoc['gridDefinition'],
+      codeContent: data.codeContent as string | undefined,
+    },
+  };
 }
 
 export async function bundleSubShareContent({

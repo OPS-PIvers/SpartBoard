@@ -9801,9 +9801,19 @@ export interface SubShareNotebookPayload {
   notebook: NotebookItem;
 }
 
-/** A custom widget's definition doc, so a sub sees a beta-gated one too. */
+/**
+ * Only what the widget renders. `content/` is readable by any verified
+ * district account holding the share, so the rest of the definition doc —
+ * `betaUsers` above all, which is other teachers' emails — stays out.
+ */
+export type SubShareCustomWidgetView = Pick<
+  CustomWidgetDoc,
+  'id' | 'title' | 'mode' | 'updatedAt' | 'gridDefinition' | 'codeContent'
+>;
+
+/** A custom widget's definition, so a sub sees a beta-gated one too. */
 export interface SubShareCustomWidgetPayload {
-  doc: CustomWidgetDoc;
+  doc: SubShareCustomWidgetView;
 }
 
 /**
