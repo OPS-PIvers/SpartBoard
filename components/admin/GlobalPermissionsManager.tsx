@@ -47,6 +47,7 @@ import {
   Mic,
   Library,
   PanelRight,
+  UserCheck,
   Printer,
   Volume2,
   Languages,
@@ -216,6 +217,13 @@ const GLOBAL_FEATURES: {
     icon: FileText,
     description:
       'Lets teachers make a new quiz by uploading a PDF, Word file, rich text file, Google Doc or LMS export of a test: questions, answer choices and the answer key when the file has one. Questions with no answer found are marked \u201CNeeds answer\u201D and block assigning until a teacher fills them in. Fail-closed: admin-only until this is saved and opened up, and the whole feature stays off until it is also switched on under Access \u2192 Rollouts.',
+  },
+  {
+    id: 'sub-share-collections',
+    label: 'Share a board or a collection with a sub',
+    icon: UserCheck,
+    description:
+      'Lets teachers hand a substitute a board or a whole collection for a set number of days, and manage what is out: push the boards as they stand now, add a week, or end it early, which takes back the class lists the sub was given. The sub sees the boards without student names unless the teacher names them as covering. Admin-only until this is saved and opened up.',
   },
   {
     id: 'settings-drawer',

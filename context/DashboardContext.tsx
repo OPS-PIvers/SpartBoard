@@ -25,7 +25,7 @@ import {
   DrawingConfig,
   DrawingPage,
   UserProfile,
-  SubstituteShareDriveGrant,
+  SharedCollection,
   SubstituteShareRoster,
   ROOT_COLLECTION_KEY,
   Collection,
@@ -91,13 +91,21 @@ import {
 import { migrateBoardForCollections } from '@/utils/collectionsMigration';
 import { pickInitialBoard } from '@/utils/pickInitialBoard';
 import { sanitizeBoardSnapshot } from '@/utils/dashboardSanitize';
+import {
+  grantedRosters,
+  resolveSubShareDriveGrants,
+} from '@/utils/subShareDriveGrants';
+import { reconcileExpiredSubShares } from '@/hooks/useReconcileExpiredSubShares';
 import { logError } from '@/utils/logError';
 import { mergeSubsetOrder } from '@/utils/reorderIds';
 import { useRosters } from '@/hooks/useRosters';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDriveReconnected } from '@/hooks/useDriveReconnected';
 import { useCollections } from '@/hooks/useCollections';
-import { useSharedCollection } from '@/hooks/useSharedCollection';
+import {
+  useSharedCollection,
+  type SubShareTree,
+} from '@/hooks/useSharedCollection';
 import { authError, setDriveAuthErrorHandler } from '@/utils/driveAuthErrors';
 import { setGlobalPermissionsErrorHandler } from '@/utils/globalPermissionsErrors';
 import {
@@ -398,18 +406,6 @@ const getDashboardSaveState = (d: Dashboard) => ({
     ) as Record<MergedDashboardField, string>,
   },
 });
-
-// Only rosters with a landed Drive grant are loadable by the sub; share docs are immutable.
-function grantedRosters(
-  rosters: SubstituteShareRoster[] | undefined,
-  grants: SubstituteShareDriveGrant[]
-): SubstituteShareRoster[] | undefined {
-  const grantedFileIds = new Set(grants.map((g) => g.fileId));
-  const granted = (rosters ?? []).filter((r) =>
-    grantedFileIds.has(r.driveFileId)
-  );
-  return granted.length > 0 ? granted : undefined;
-}
 
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -1834,64 +1830,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // permissionId when present so the refcounting logic in the reconcile
       // sweep (`useReconcileExpiredSubShares`) sees the conflict and skips
       // the revoke if other active shares still reference it.
-      const driveGrants: SubstituteShareDriveGrant[] = [];
       const subEmails = input.subEmails ?? [];
       const fileIds = (input.sharedRosters ?? []).map((r) => r.driveFileId);
-      const driveSharingRequested = subEmails.length > 0 && fileIds.length > 0;
-      // Track failed pairs so the caller can warn the host — without this,
-      // a partial network failure would silently produce a share doc with
-      // missing driveGrants and the host would never know.
-      const failedPairs: Array<{ email: string; fileId: string }> = [];
-      if (driveSharingRequested && driveService) {
-        for (const fileId of fileIds) {
-          let existingPerms: Awaited<
-            ReturnType<typeof driveService.listFilePermissions>
-          > = [];
-          try {
-            existingPerms = await driveService.listFilePermissions(fileId);
-          } catch (err) {
-            console.error(
-              `[shareSubstituteDashboard] listFilePermissions(${fileId}) failed; will fall back to grant calls:`,
-              err
-            );
-          }
-
-          for (const email of subEmails) {
-            const lower = email.toLowerCase();
-            const existing = existingPerms.find(
-              (p) =>
-                p.type === 'user' &&
-                p.emailAddress?.toLowerCase() === lower &&
-                typeof p.id === 'string'
-            );
-            if (existing) {
-              driveGrants.push({ email, fileId, permissionId: existing.id });
-              continue;
-            }
-            try {
-              const permissionId = await driveService.grantUserReaderPermission(
-                fileId,
-                email
-              );
-              driveGrants.push({ email, fileId, permissionId });
-            } catch (err) {
-              console.error(
-                `[shareSubstituteDashboard] Drive grant failed for ${email} on ${fileId}:`,
-                err
-              );
-              failedPairs.push({ email, fileId });
-            }
-          }
-        }
-      } else if (driveSharingRequested && !driveService) {
-        // Drive sharing was asked for but the teacher has no live Drive
-        // service (no token / disconnected). Every requested pair fails.
-        for (const fileId of fileIds) {
-          for (const email of subEmails) {
-            failedPairs.push({ email, fileId });
-          }
-        }
-      }
+      // Failed pairs are surfaced to the host below — without that, a partial
+      // network failure would leave a share with missing grants and no signal.
+      const { driveGrants, failedPairs } = await resolveSubShareDriveGrants({
+        driveService,
+        fileIds,
+        emails: subEmails,
+        scope: 'shareSubstituteDashboard',
+      });
 
       const shareId = await shareSubstituteDashboardFirestore({
         dashboard: scrubbedSeed,
@@ -1906,18 +1854,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // Deliberately DO NOT tag the host's local dashboard with a
       // linkedShareId — substitute shares are frozen snapshots and the host
       // continues editing their live board independently.
-      const attempted = driveSharingRequested
-        ? subEmails.length * fileIds.length
-        : 0;
+      const attempted = subEmails.length * fileIds.length;
       return {
         shareId,
-        driveGrants: driveSharingRequested
-          ? {
-              attempted,
-              succeeded: driveGrants.length,
-              failed: failedPairs,
-            }
-          : null,
+        driveGrants:
+          attempted > 0
+            ? {
+                attempted,
+                succeeded: driveGrants.length,
+                failed: failedPairs,
+              }
+            : null,
       };
     },
     [shareSubstituteDashboardFirestore, driveService, user]
@@ -4236,10 +4183,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const shareSubstituteCollection = useCallback(
     async (
-      input: CollectionSubstituteShareInput & {
-        collection: Collection;
-        boards: Dashboard[];
-      }
+      input: CollectionSubstituteShareInput &
+        SubShareTree & {
+          collection: Collection;
+          boards: Dashboard[];
+          sourceId: string;
+        }
     ): Promise<string> => {
       if (!user) throw new Error('Not authenticated');
 
@@ -4249,59 +4198,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // the SAME permissionId), so we pre-list each file's permissions and
       // reuse an existing grant when present. This lets the reconcile sweep's
       // refcounting skip a revoke that another active share still depends on.
-      const driveGrants: SubstituteShareDriveGrant[] = [];
       const subEmails = input.subEmails ?? [];
       const fileIds = (input.sharedRosters ?? []).map((r) => r.driveFileId);
-      const driveSharingRequested = subEmails.length > 0 && fileIds.length > 0;
-      const failedPairs: Array<{ email: string; fileId: string }> = [];
-
-      if (driveSharingRequested && driveService) {
-        for (const fileId of fileIds) {
-          let existingPerms: Awaited<
-            ReturnType<typeof driveService.listFilePermissions>
-          > = [];
-          try {
-            existingPerms = await driveService.listFilePermissions(fileId);
-          } catch (err) {
-            console.error(
-              `[shareSubstituteCollection] listFilePermissions(${fileId}) failed; will fall back to grant calls:`,
-              err
-            );
-          }
-          for (const email of subEmails) {
-            const lower = email.toLowerCase();
-            const existing = existingPerms.find(
-              (p) =>
-                p.type === 'user' &&
-                p.emailAddress?.toLowerCase() === lower &&
-                typeof p.id === 'string'
-            );
-            if (existing) {
-              driveGrants.push({ email, fileId, permissionId: existing.id });
-              continue;
-            }
-            try {
-              const permissionId = await driveService.grantUserReaderPermission(
-                fileId,
-                email
-              );
-              driveGrants.push({ email, fileId, permissionId });
-            } catch (err) {
-              console.error(
-                `[shareSubstituteCollection] Drive grant failed for ${email} on ${fileId}:`,
-                err
-              );
-              failedPairs.push({ email, fileId });
-            }
-          }
-        }
-      } else if (driveSharingRequested && !driveService) {
-        for (const fileId of fileIds) {
-          for (const email of subEmails) {
-            failedPairs.push({ email, fileId });
-          }
-        }
-      }
+      const { driveGrants, failedPairs } = await resolveSubShareDriveGrants({
+        driveService,
+        fileIds,
+        emails: subEmails,
+        scope: 'shareSubstituteCollection',
+      });
 
       const shareId = await sharedCollectionApi.shareSubstituteCollection({
         ...input,
@@ -4313,9 +4217,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Surface partial Drive-grant failures so the host can retry / hand-share
       // rather than a sub silently lacking roster access (mirrors the
-      // single-board substitute-share toast). The share doc is already written
-      // and substitute shares are immutable post-create, so the remedy is to
-      // create a NEW share or hand-share — not "retry" against this one.
+      // single-board substitute-share toast). The share doc is already
+      // written, so the remedy is "Add sub email" in the sub-shares manager,
+      // which retries the grant, or hand-sharing the file.
       if (failedPairs.length > 0) {
         const missedEmails = Array.from(
           new Set(failedPairs.map((p) => p.email))
@@ -4341,6 +4245,109 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [user, sharedCollectionApi, driveService, addToast]
   );
+
+  /**
+   * Host action: re-push the collection's current boards into an existing sub
+   * share, optionally with new named subs. Drive grants for any newly named sub
+   * are resolved first, the same way create does, so the share doc lands with
+   * them.
+   */
+  const updateSubstituteCollectionShare = useCallback(
+    async (
+      input: SubShareTree & {
+        shareId: string;
+        collection: Collection;
+        boards: Dashboard[];
+        expiresAt?: number;
+        subEmails?: string[];
+        sharedRosters?: SubstituteShareRoster[];
+      }
+    ): Promise<void> => {
+      if (!user) throw new Error('Not authenticated');
+      const subEmails = input.subEmails ?? [];
+      const fileIds = (input.sharedRosters ?? []).map((r) => r.driveFileId);
+      const { driveGrants, failedPairs } = await resolveSubShareDriveGrants({
+        driveService,
+        fileIds,
+        emails: subEmails,
+        scope: 'updateSubstituteCollectionShare',
+      });
+
+      // An empty list is a real edit — the teacher took every named sub off —
+      // so it goes through as [] rather than reading as "left alone". The
+      // grants those subs hold are revoked by the sweep, not dropped here.
+      const clearedEverySub =
+        input.subEmails !== undefined && subEmails.length === 0;
+      // Narrows the caller's list to the rosters a grant actually landed for.
+      // Undefined when none did, which leaves the caller's list to stand via
+      // the spread below — a Drive outage should not rewrite the share.
+      const rostersGranted = grantedRosters(input.sharedRosters, driveGrants);
+
+      await sharedCollectionApi.updateSubstituteShare({
+        ...input,
+        ...(input.subEmails !== undefined ? { subEmails } : {}),
+        ...(driveGrants.length > 0 ? { driveGrants } : {}),
+        ...(clearedEverySub
+          ? { sharedRosters: [] }
+          : rostersGranted
+            ? { sharedRosters: rostersGranted }
+            : {}),
+      });
+
+      if (failedPairs.length > 0) {
+        const missedEmails = Array.from(
+          new Set(failedPairs.map((g) => g.email))
+        );
+        addToast(
+          `Boards updated, but roster access could not be granted to: ${missedEmails.join(
+            ', '
+          )}. Reconnect Google Drive and try again.`,
+          'error'
+        );
+      }
+    },
+    [user, sharedCollectionApi, driveService, addToast]
+  );
+
+  const extendSubstituteCollectionShare = useCallback(
+    async (shareId: string, expiresAt: number): Promise<void> => {
+      await sharedCollectionApi.extendSubstituteShare(shareId, expiresAt);
+    },
+    [sharedCollectionApi]
+  );
+
+  /**
+   * Host action: end a share now. The expiry stamp is what cuts the sub off;
+   * the sweep that follows revokes the Drive grants no other active share still
+   * references and deletes the docs. A failed revoke leaves the docs for the
+   * next sweep, so the share is gone for the sub either way.
+   */
+  const endSubstituteCollectionShare = useCallback(
+    async (shareId: string): Promise<void> => {
+      if (!user) throw new Error('Not authenticated');
+      await sharedCollectionApi.expireSubstituteShare(shareId);
+      if (!driveService) return;
+      try {
+        await reconcileExpiredSubShares(user.uid, driveService);
+      } catch (err) {
+        logError('DashboardContext.endSubstituteCollectionShare', err, {
+          shareId,
+        });
+        addToast(
+          'Share ended. Some roster access could not be withdrawn yet — reconnect Google Drive and it will be retried.',
+          'warning'
+        );
+      }
+    },
+    [user, sharedCollectionApi, driveService, addToast]
+  );
+
+  const listSubstituteCollectionShares = useCallback(async (): Promise<
+    SharedCollection[]
+  > => {
+    if (!user) return [];
+    return sharedCollectionApi.listHostSubShares(user.uid);
+  }, [user, sharedCollectionApi]);
 
   const importSharedCollection = useCallback(
     async (
@@ -6989,6 +6996,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       clearPendingAssignmentEdit,
       shareCollection,
       shareSubstituteCollection,
+      updateSubstituteCollectionShare,
+      extendSubstituteCollectionShare,
+      endSubstituteCollectionShare,
+      listSubstituteCollectionShares,
       loadSharedCollection: sharedCollectionApi.loadSharedCollection,
       loadSharedCollectionBoards:
         sharedCollectionApi.loadSharedCollectionBoards,
@@ -7113,6 +7124,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       sharedCollectionApi.loadSharedCollection,
       sharedCollectionApi.loadSharedCollectionBoards,
       importSharedCollection,
+      updateSubstituteCollectionShare,
+      extendSubstituteCollectionShare,
+      endSubstituteCollectionShare,
+      listSubstituteCollectionShares,
       pendingSharedCollectionId,
       setPendingSharedCollectionId,
       clearPendingSharedCollection,

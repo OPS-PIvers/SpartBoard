@@ -17,11 +17,15 @@ import {
   Collection,
   CollectionSubstituteShareInput,
   SubstituteShareRoster,
+  SharedCollection,
 } from '@/types';
 import type { RosterCreateMeta } from '@/hooks/useRosters';
 import type { GoogleDriveService } from '@/utils/googleDriveService';
 import type { UseCollectionsResult } from '@/hooks/useCollections';
-import type { LoadSharedCollectionResult } from '@/hooks/useSharedCollection';
+import type {
+  LoadSharedCollectionResult,
+  SubShareTree,
+} from '@/hooks/useSharedCollection';
 
 /**
  * Mode applied to a shared-board import. Substitute shares are intentionally
@@ -382,12 +386,40 @@ export interface DashboardContextValue {
     collection: Collection;
     boards: Dashboard[];
   }) => Promise<string>;
+  /**
+   * Create a sub share of a Collection — or of a single Board, written as a
+   * one-board Collection share (docs/plans/SUB_SHARE_COLLECTIONS.md A1). The
+   * tree says how the sub walks it; `sourceId` is the Board or Collection it
+   * came from, so the dialog can offer to update this share later.
+   */
   shareSubstituteCollection: (
-    input: CollectionSubstituteShareInput & {
+    input: CollectionSubstituteShareInput &
+      SubShareTree & {
+        collection: Collection;
+        boards: Dashboard[];
+        sourceId: string;
+      }
+  ) => Promise<string>;
+  /** Re-push the current boards into an existing sub share. */
+  updateSubstituteCollectionShare: (
+    input: SubShareTree & {
+      shareId: string;
       collection: Collection;
       boards: Dashboard[];
+      expiresAt?: number;
+      subEmails?: string[];
+      sharedRosters?: SubstituteShareRoster[];
     }
-  ) => Promise<string>;
+  ) => Promise<void>;
+  /** Push a sub share's expiry out; the 14-day cap is enforced in rules. */
+  extendSubstituteCollectionShare: (
+    shareId: string,
+    expiresAt: number
+  ) => Promise<void>;
+  /** End a sub share now: expire it, then revoke and reap. */
+  endSubstituteCollectionShare: (shareId: string) => Promise<void>;
+  /** The teacher's live sub shares, most recently touched first. */
+  listSubstituteCollectionShares: () => Promise<SharedCollection[]>;
   loadSharedCollection: (
     shareId: string
   ) => Promise<LoadSharedCollectionResult>;

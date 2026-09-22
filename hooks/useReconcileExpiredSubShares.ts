@@ -129,7 +129,13 @@ export function useReconcileExpiredSubShares({
   }, [uid, driveService]);
 }
 
-async function reconcileExpiredSubShares(
+/**
+ * One sweep pass. Exported so "End now" in the sub-shares manager can run it
+ * the moment a share is stamped expired, instead of waiting for the next
+ * session's throttled run. Throws when a Drive revoke failed, leaving the doc
+ * for the next attempt.
+ */
+export async function reconcileExpiredSubShares(
   uid: string,
   driveService: GoogleDriveService
 ): Promise<void> {

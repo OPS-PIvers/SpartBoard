@@ -17,6 +17,15 @@ service cloud.firestore {
              exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()));
     }
 
+    // A signed-in district address, verified. email_verified is required because
+    // email/password sign-in is enabled, so an unverified self-reported address
+    // could otherwise claim an @orono one. Written once for the substitute and
+    // shared-board read rules that all gate on it.
+    function isVerifiedDistrictEmail() {
+      return request.auth.token.get('email_verified', false) == true &&
+             request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$');
+    }
+
     // ---- Optional-field type guards ----
     // optX(d, 'k') is exactly `!('k' in d) || d.k is X`, written once instead of
     // inline at every callsite. Firestore caps the COMPILED ruleset at 250 KB,
@@ -263,6 +272,18 @@ service cloud.firestore {
                operatorMember().data.get('status', 'active') == 'inactive');
     }
 
+    // The owner-only boundary on /users/{userId}/**, written once. Same operand
+    // order as the inline form it replaces, so the cheap checks still short-circuit
+    // before notDeactivated()'s get(). ownsUserTeacher also denies studentRole
+    // tokens, which never own teacher-namespace docs.
+    function ownsUser(userId) {
+      return request.auth != null && request.auth.uid == userId && notDeactivated();
+    }
+    function ownsUserTeacher(userId) {
+      return request.auth != null && request.auth.uid == userId &&
+             !isStudentRoleUser() && notDeactivated();
+    }
+
     // ---- Organizations collection (Phase 3: scoped writes enabled) ----
     // Super admins: any field, any org. Domain admins: org-wide writes for their org
     // (except AI/plan flags, super-admin only). Building admins: read-only except
@@ -505,27 +526,24 @@ service cloud.firestore {
     // /my-assignments), and this rule is the real boundary against a studentRole
     // user creating a dashboard doc under their own uid via direct Firestore.
     match /users/{userId}/dashboards/{dashboardId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId
-                         && !isStudentRoleUser() && notDeactivated();
+      allow read, write: if ownsUserTeacher(userId);
 
       // DrawingWidget objects live in a page-nested subcollection so one write is
       // one object, not the whole canvas. /pages/{pageId} holds page metadata,
       // /objects/{objectId} the DrawableObject list. These nested rules repeat the
       // parent's owner-only boundary so the subcollection inherits it.
       match /drawings/{widgetId}/pages/{pageId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId
-                           && !isStudentRoleUser() && notDeactivated();
+        allow read, write: if ownsUserTeacher(userId);
 
         match /objects/{objectId} {
-          allow read, write: if request.auth != null && request.auth.uid == userId
-                             && !isStudentRoleUser() && notDeactivated();
+          allow read, write: if ownsUserTeacher(userId);
         }
       }
     }
 
     // Rosters - users can only access their own rosters in their subcollection
     match /users/{userId}/rosters/{rosterId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
 
       // Non-PII PIN index sidecar bridging PIN-joining students into the SSO uid
       // space. commitRosterPinIndexV1 writes and pinLoginV1 reads via Admin SDK;
@@ -556,11 +574,8 @@ service cloud.firestore {
     // usePlcOverviewLayout.ts (CEL has no .every()); blast radius is owner-only
     // and the tiles size cap below bounds doc size.
     match /users/{userId}/plc_layouts/{plcId} {
-      allow read, delete: if request.auth != null && request.auth.uid == userId
-                          && notDeactivated();
-      allow write: if request.auth != null
-                   && request.auth.uid == userId
-                   && notDeactivated()
+      allow read, delete: if ownsUser(userId);
+      allow write: if ownsUser(userId)
                    && request.resource.data.keys().hasOnly(['tiles', 'updatedAt'])
                    && request.resource.data.tiles is list
                    && request.resource.data.tiles.size() <= 50
@@ -571,11 +586,8 @@ service cloud.firestore {
     // `{ lastSeenAt }`. Strictly owner-only. Schema locked to `lastSeenAt`, which
     // dual-accepts int || timestamp during the serverTimestamp rollout.
     match /users/{userId}/plc_state/{plcId} {
-      allow read, delete: if request.auth != null && request.auth.uid == userId
-                          && notDeactivated();
-      allow create, update: if request.auth != null
-                   && request.auth.uid == userId
-                   && notDeactivated()
+      allow read, delete: if ownsUser(userId);
+      allow create, update: if ownsUser(userId)
                    && request.resource.data.keys().hasOnly(['lastSeenAt'])
                    && (
                         request.resource.data.lastSeenAt is int
@@ -585,34 +597,34 @@ service cloud.firestore {
 
     // Mini Apps - users can only access their own mini apps in their subcollection
     match /users/{userId}/miniapps/{appId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
 
     // Saved Widgets - per-user "Save as widget" shortcuts (frozen widget configs
     // surfaced as dock/library entries). Owner-only.
     match /users/{userId}/saved_widgets/{savedWidgetId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
 
     // Notebooks - users can only access their own notebooks in their subcollection
     match /users/{userId}/notebooks/{notebookId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
 
     // PDFs - users can only access their own PDFs in their subcollection
     match /users/{userId}/pdfs/{pdfId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
 
     // Quiz metadata - users can only access their own quiz metadata
     match /users/{userId}/quizzes/{quizId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
 
     // Question-bank metadata (docs/plans/QUIZ_QUESTION_BANKS_AND_LEARNING_TARGETS.md §4.2).
     // Content is Drive JSON like quizzes; PLC shares publish to /synced_question_banks.
     match /users/{userId}/question_banks/{bankId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
 
     // Activity Wall library - per-user reusable activity definitions.
@@ -620,7 +632,7 @@ service cloud.firestore {
     // moving them here lets teachers reuse the same activity across widgets
     // and survive widget removal. Owner-only.
     match /users/{userId}/activity_wall_activities/{activityId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
 
     // Quiz assignments - archive of past/current assignments of a quiz. Per-user.
@@ -628,16 +640,11 @@ service cloud.firestore {
     // those are relied on by ownership checks elsewhere (session rules, shared
     // assignment author checks). Keep teacherUid and id immutable after create.
     match /users/{userId}/quiz_assignments/{assignmentId} {
-      allow read, delete: if request.auth != null && request.auth.uid == userId
-                          && notDeactivated();
-      allow create: if request.auth != null
-                    && request.auth.uid == userId
-                    && notDeactivated()
+      allow read, delete: if ownsUser(userId);
+      allow create: if ownsUser(userId)
                     && request.resource.data.teacherUid == userId
                     && request.resource.data.id == assignmentId;
-      allow update: if request.auth != null
-                    && request.auth.uid == userId
-                    && notDeactivated()
+      allow update: if ownsUser(userId)
                     && request.resource.data.teacherUid == resource.data.teacherUid
                     && request.resource.data.id == resource.data.id;
     }
@@ -647,11 +654,8 @@ service cloud.firestore {
     // time (criterion internals are client-validated; CEL can't deep-validate
     // nested lists). studentRole tokens denied — students never own rubrics.
     match /users/{userId}/rubrics/{rubricId} {
-      allow read, delete: if request.auth != null && request.auth.uid == userId
-                          && !isStudentRoleUser() && notDeactivated();
-      allow create: if request.auth != null
-                    && request.auth.uid == userId
-                    && !isStudentRoleUser() && notDeactivated()
+      allow read, delete: if ownsUserTeacher(userId);
+      allow create: if ownsUserTeacher(userId)
                     && request.resource.data.id == rubricId
                     && request.resource.data.keys().hasOnly([
                          'id', 'title', 'description', 'criteria', 'createdAt', 'updatedAt'
@@ -660,9 +664,7 @@ service cloud.firestore {
                     && request.resource.data.criteria is list
                     && request.resource.data.createdAt is int
                     && request.resource.data.updatedAt is int;
-      allow update: if request.auth != null
-                    && request.auth.uid == userId
-                    && !isStudentRoleUser() && notDeactivated()
+      allow update: if ownsUserTeacher(userId)
                     && request.resource.data.id == resource.data.id
                     && request.resource.data.keys().hasOnly([
                          'id', 'title', 'description', 'criteria', 'createdAt', 'updatedAt'
@@ -733,8 +735,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     match /artifacts/{appId}/users/{userId}/starterPacks/{packId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId
-                          && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
 
     // Admin-only collections
@@ -964,7 +965,7 @@ service cloud.firestore {
 
     // Guided Learning
     match /users/{userId}/guided_learning/{setId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
 
     match /building_guided_learning/{setId} {
@@ -1029,8 +1030,7 @@ service cloud.firestore {
         || resource.data.get('originalAuthor', null) == request.auth.uid
         || isAdmin()
         || (
-          request.auth.token.get('email_verified', false) == true
-          && request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
+          isVerifiedDistrictEmail()
           && resource.data.get('expiresAt', 0) > request.time.toMillis()
         )
       );
@@ -1053,8 +1053,7 @@ service cloud.firestore {
         || resource.data.get('originalAuthor', null) == request.auth.uid
         || (
           resource.data.get('intendedMode', null) == 'substitute'
-          && request.auth.token.get('email_verified', false) == true
-          && request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
+          && isVerifiedDistrictEmail()
         )
         || (
           resource.data.get('plcId', null) != null
@@ -1182,6 +1181,23 @@ service cloud.firestore {
     // subcollection holds frozen Board snapshots. Mirrors /shared_boards
     // substitute gating + 14-day expiresAt cap.
     match /shared_collections/{shareId} {
+      // Shape the doc must hold after any write: a non-empty, capped board list,
+      // a named collection, and capped tree lists. Enforced on create AND update
+      // because /subs and the host's manager render these fields unguarded.
+      function validCollectionShareShape() {
+        return request.resource.data.boardIds is list
+          && request.resource.data.boardIds.size() > 0
+          && request.resource.data.boardIds.size() <= 500
+          && request.resource.data.collection.name is string
+          && request.resource.data.collection.name.size() > 0
+          && (!('sections' in request.resource.data)
+              || (request.resource.data.sections is list
+                  && request.resource.data.sections.size() <= 500))
+          && (!('boards' in request.resource.data)
+              || (request.resource.data.boards is list
+                  && request.resource.data.boards.size() <= 500));
+      }
+
       // GET: any authed user for non-substitute. Substitute shares gated by
       // host/admin/@orono.k12.mn.us email AND not past expiresAt (a hostile
       // direct-REST client would otherwise read stale snapshots forever). Host
@@ -1194,8 +1210,7 @@ service cloud.firestore {
         || resource.data.get('hostUid', null) == request.auth.uid
         || isAdmin()
         || (
-          request.auth.token.get('email_verified', false) == true
-          && request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
+          isVerifiedDistrictEmail()
           && resource.data.get('expiresAt', 0) > request.time.toMillis()
         )
       );
@@ -1211,24 +1226,18 @@ service cloud.firestore {
         || resource.data.get('hostUid', null) == request.auth.uid
         || (
           resource.data.get('intendedMode', null) == 'substitute'
-          && request.auth.token.get('email_verified', false) == true
-          && request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
+          && isVerifiedDistrictEmail()
         )
       );
 
-      // CREATE: host writes their own share. boardIds = non-empty list ≤500;
-      // collection.name non-empty; intendedMode in the legal set. Substitute adds
+      // CREATE: host writes their own share. Shape per
+      // validCollectionShareShape(); intendedMode in the legal set. Substitute adds
       // a 14-day TTL cap (1209600000ms) + non-empty buildingId (mirrors
       // /shared_boards). Optional subEmails/driveGrants are allowed at create and
-      // PINNED by the update rule below (substitute Collection shares are fully
-      // immutable post-create).
+      // constrained again by the update rule below.
       allow create: if request.auth != null
         && request.resource.data.hostUid == request.auth.uid
-        && request.resource.data.boardIds is list
-        && request.resource.data.boardIds.size() > 0
-        && request.resource.data.boardIds.size() <= 500
-        && request.resource.data.collection.name is string
-        && request.resource.data.collection.name.size() > 0
+        && validCollectionShareShape()
         && request.resource.data.intendedMode in ['copy', 'substitute']
         && (
           request.resource.data.intendedMode != 'substitute'
@@ -1246,13 +1255,42 @@ service cloud.firestore {
           )
         );
 
-      // UPDATE: host-only, copy shares ONLY — substitute shares are fully
-      // immutable post-create (the intendedMode=='copy' guard applies even to
-      // admins, so every substitute field incl. expiresAt/buildingId/subEmails/
-      // driveGrants is pinned). Emergency fixes go via console/Admin SDK.
+      // UPDATE: host-only (or admin). intendedMode is pinned on BOTH branches:
+      // gating on the pre-update value alone would let a host flip a copy share
+      // (unrestricted here) into a substitute one with any buildingId, any
+      // expiry and any number of subs, which every verified district account
+      // could then read. The subEmails cap is pinned on both for the same reason.
+      // hostUid is pinned on both branches too: the host/admin check reads the
+      // pre-update doc, so without the pin a host could hand their own share to
+      // an arbitrary uid and lose the ability to update or delete it.
+      // A substitute share then takes only the keys the sub-shares manager
+      // writes — re-pushing the boards, retargeting the subs, extending, or
+      // stamping it expired to end it — so buildingId stays pinned by omission
+      // from the allowlist. expiresAt is capped at 14 days out, the same cap as
+      // create; it may be set into the past, which is how "End now" cuts the
+      // sub off.
       allow update: if request.auth != null
         && (resource.data.get('hostUid', null) == request.auth.uid || isAdmin())
-        && resource.data.get('intendedMode', null) == 'copy';
+        && validCollectionShareShape()
+        && request.resource.data.get('intendedMode', null)
+           == resource.data.get('intendedMode', null)
+        && request.resource.data.get('hostUid', null)
+           == resource.data.get('hostUid', null)
+        && (!('subEmails' in request.resource.data)
+            || (request.resource.data.subEmails is list
+                && request.resource.data.subEmails.size() <= 20))
+        && (
+          resource.data.get('intendedMode', null) == 'copy'
+          || (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'boards', 'boardIds', 'sections', 'collection', 'defaultBoardId',
+              'kind', 'subEmails', 'sharedRosters', 'driveGrants',
+              'contentVersion', 'updatedAt', 'expiresAt'
+            ])
+            && request.resource.data.expiresAt is number
+            && request.resource.data.expiresAt <= request.time.toMillis() + 1209600000
+          )
+        );
 
       allow delete: if request.auth != null
         && (resource.data.get('hostUid', null) == request.auth.uid || isAdmin());
@@ -1267,8 +1305,7 @@ service cloud.firestore {
           || get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('hostUid', null) == request.auth.uid
           || isAdmin()
           || (
-            request.auth.token.get('email_verified', false) == true
-            && request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$')
+            isVerifiedDistrictEmail()
             && get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('expiresAt', 0) > request.time.toMillis()
           )
         );
@@ -4347,7 +4384,7 @@ service cloud.firestore {
 
     // Video Activity metadata — stored per teacher user
     match /users/{userId}/video_activities/{activityId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
 
     // MiniApp Assignment Sessions — Teacher creates, anonymous students can read
@@ -5009,66 +5046,56 @@ service cloud.firestore {
     // === Video Activity assignments (Wave 2-VA) ===
     // Per-teacher archive of video activity assignments — mirrors quiz_assignments.
     match /users/{userId}/video_activity_assignments/{id} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
 
     // === Wave 2 library assignment archives (appended) ===
     // MiniApp assignment archive (Wave 2-MA).
     match /users/{userId}/miniapp_assignments/{id} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
     // === /Wave 2 library assignment archives ===
 
     // === Guided Learning assignments (Wave 2-GL) ===
     // Per-teacher archive of guided learning assignments. Owner-only read/write.
     match /users/{userId}/guided_learning_assignments/{id} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
 
     // === Library folders (Wave 3) ===
     // Per-teacher folder tree per library widget (Quiz/VA/GL/MiniApp); folders
     // never cross widgets. Owner-only read/write, like *_assignments above.
     match /users/{userId}/collections/{collectionId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
     match /users/{userId}/quiz_folders/{folderId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
     match /users/{userId}/question_bank_folders/{folderId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
     match /users/{userId}/video_activity_folders/{folderId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
     match /users/{userId}/guided_learning_folders/{folderId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
     match /users/{userId}/miniapp_folders/{folderId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && notDeactivated();
+      allow read, write: if ownsUser(userId);
     }
     match /users/{userId}/projects_folders/{folderId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId
-                         && !isStudentRoleUser() && notDeactivated();
+      allow read, write: if ownsUserTeacher(userId);
     }
 
     // === Flashcards (PR 1: teacher-owned authoring library) ===
     match /users/{userId}/flashcard_sets/{setId} {
-      allow read, write: if request.auth != null
-                         && request.auth.uid == userId
-                         && !isStudentRoleUser()
-                         && notDeactivated();
+      allow read, write: if ownsUserTeacher(userId);
     }
     match /users/{userId}/flashcard_folders/{folderId} {
-      allow read, write: if request.auth != null
-                         && request.auth.uid == userId
-                         && !isStudentRoleUser()
-                         && notDeactivated();
+      allow read, write: if ownsUserTeacher(userId);
     }
     match /users/{userId}/flashcard_assignments/{assignmentId} {
-      allow read, write: if request.auth != null
-                         && request.auth.uid == userId
-                         && !isStudentRoleUser()
-                         && notDeactivated();
+      allow read, write: if ownsUserTeacher(userId);
     }
 
     // Public Flashcards snapshots — single-document reads work without auth so
@@ -5218,20 +5245,15 @@ service cloud.firestore {
     // Projects library — teacher-owned reusable project definitions (D12).
     // studentRole tokens denied; students only ever see a run, never the library.
     match /users/{userId}/projects/{projectId} {
-      allow read, delete: if request.auth != null && request.auth.uid == userId
-                          && !isStudentRoleUser() && notDeactivated();
-      allow create: if request.auth != null
-                    && request.auth.uid == userId
-                    && !isStudentRoleUser() && notDeactivated()
+      allow read, delete: if ownsUserTeacher(userId);
+      allow create: if ownsUserTeacher(userId)
                     && request.resource.data.id == projectId
                     && request.resource.data.title is string
                     && request.resource.data.steps is list
                     && request.resource.data.steps.size() <= 32
                     && request.resource.data.createdAt is int
                     && request.resource.data.updatedAt is int;
-      allow update: if request.auth != null
-                    && request.auth.uid == userId
-                    && !isStudentRoleUser() && notDeactivated()
+      allow update: if ownsUserTeacher(userId)
                     && request.resource.data.id == resource.data.id
                     && request.resource.data.steps is list
                     && request.resource.data.steps.size() <= 32

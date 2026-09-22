@@ -58,11 +58,14 @@ test.describe('Board Sharing', () => {
 
     await firstBoardCard.click({ button: 'right' });
 
-    // BoardContextMenu items render as role="menuitem" (not "button").
-    // Wait for the menu, then click the "Share…" item.
+    // BoardContextMenu items render as role="menuitem" (not "button"). The
+    // menu also carries "Share with a sub…", so match the peer-teacher item
+    // exactly rather than on a substring.
     const contextMenu = page.getByRole('menu');
     await expect(contextMenu).toBeVisible({ timeout: 5000 });
-    await contextMenu.getByRole('menuitem', { name: /share/i }).click();
+    await contextMenu
+      .getByRole('menuitem', { name: 'Share…', exact: true })
+      .click();
 
     // ShareLinkCreatorModal opens. Default mode is "Synced" — just hit
     // "Create link".
