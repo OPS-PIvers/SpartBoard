@@ -683,6 +683,15 @@ describe('shared_collections — update, a copy share cannot become a sub share'
     );
   });
 
+  // The host/admin check reads the pre-update doc, so without the top-level pin
+  // a host could hand their own copy share to an arbitrary uid — and lose the
+  // ability to update or delete it afterwards.
+  it('a copy share cannot be reassigned to another host', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), { hostUid: ORONO_UID })
+    );
+  });
+
   it('a copy share cannot take more than 20 named subs', async () => {
     await assertFails(
       updateDoc(doc(asHost(), sharePath), {

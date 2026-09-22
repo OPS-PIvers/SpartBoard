@@ -1260,17 +1260,22 @@ service cloud.firestore {
       // (unrestricted here) into a substitute one with any buildingId, any
       // expiry and any number of subs, which every verified district account
       // could then read. The subEmails cap is pinned on both for the same reason.
+      // hostUid is pinned on both branches too: the host/admin check reads the
+      // pre-update doc, so without the pin a host could hand their own share to
+      // an arbitrary uid and lose the ability to update or delete it.
       // A substitute share then takes only the keys the sub-shares manager
       // writes — re-pushing the boards, retargeting the subs, extending, or
-      // stamping it expired to end it — so hostUid and buildingId stay pinned by
-      // omission from the allowlist. expiresAt is capped at 14 days out, the same
-      // cap as create; it may be set into the past, which is how "End now" cuts
-      // the sub off.
+      // stamping it expired to end it — so buildingId stays pinned by omission
+      // from the allowlist. expiresAt is capped at 14 days out, the same cap as
+      // create; it may be set into the past, which is how "End now" cuts the
+      // sub off.
       allow update: if request.auth != null
         && (resource.data.get('hostUid', null) == request.auth.uid || isAdmin())
         && validCollectionShareShape()
         && request.resource.data.get('intendedMode', null)
            == resource.data.get('intendedMode', null)
+        && request.resource.data.get('hostUid', null)
+           == resource.data.get('hostUid', null)
         && (!('subEmails' in request.resource.data)
             || (request.resource.data.subEmails is list
                 && request.resource.data.subEmails.size() <= 20))
