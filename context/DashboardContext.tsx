@@ -4273,13 +4273,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         scope: 'updateSubstituteCollectionShare',
       });
 
+      // An empty list is a real edit — the teacher took every named sub off —
+      // so it goes through as [] rather than reading as "left alone". The
+      // grants those subs hold are revoked by the sweep, not dropped here.
+      const clearedEverySub =
+        input.subEmails !== undefined && subEmails.length === 0;
+      // Rosters the named subs can actually read. Left as they were when no
+      // grant resolved, since a Drive outage is not proof the subs lost access.
+      const rostersGranted = grantedRosters(input.sharedRosters, driveGrants);
+
       await sharedCollectionApi.updateSubstituteShare({
         ...input,
-        ...(subEmails.length > 0 ? { subEmails } : {}),
+        ...(input.subEmails !== undefined ? { subEmails } : {}),
         ...(driveGrants.length > 0 ? { driveGrants } : {}),
-        ...(grantedRosters(input.sharedRosters, driveGrants)
-          ? { sharedRosters: grantedRosters(input.sharedRosters, driveGrants) }
-          : {}),
+        ...(clearedEverySub
+          ? { sharedRosters: [] }
+          : rostersGranted
+            ? { sharedRosters: rostersGranted }
+            : {}),
       });
 
       if (failedPairs.length > 0) {

@@ -280,8 +280,10 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
           boardEntries: tree.boards,
           ...(defaultBoardId !== undefined && { defaultBoardId }),
           expiresAt,
-          ...(selectedEmails.length > 0 ? { subEmails: selectedEmails } : {}),
-          ...(sharedRosters.length > 0 ? { sharedRosters } : {}),
+          // Always stated on an update, so taking every sub off the share
+          // reaches Firestore instead of reading as "unchanged".
+          subEmails: selectedEmails,
+          sharedRosters,
         });
       } else {
         shareId = await shareSubstituteCollection({

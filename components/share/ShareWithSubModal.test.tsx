@@ -288,6 +288,23 @@ describe('ShareWithSubModal — an existing share', () => {
     expect(input.subEmails).toEqual(['named@orono.k12.mn.us']);
   });
 
+  // Taking every named sub off is an edit like any other; it used to read as
+  // "left alone" downstream, so the sub stayed on the share.
+  it('sends an empty list when the teacher takes every sub off', async () => {
+    openModal([existing]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove email' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Update the share' }));
+
+    await waitFor(() =>
+      expect(updateSubstituteCollectionShare).toHaveBeenCalled()
+    );
+    const input = updateSubstituteCollectionShare.mock.calls[0]?.[0] as {
+      subEmails?: string[];
+    };
+    expect(input.subEmails).toEqual([]);
+  });
+
   it('keeps the share on the building it was created for', () => {
     openModal([existing]);
 

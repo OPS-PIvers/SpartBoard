@@ -633,6 +633,15 @@ describe('shared_collections — update, substitute manager writes', () => {
     );
   });
 
+  it('the share cannot be turned back into a copy share', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        intendedMode: 'copy',
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
   it('a named sub cannot update the share', async () => {
     await assertFails(
       updateDoc(doc(asOronoTeacher(), sharePath), { contentVersion: 99 })
@@ -642,6 +651,46 @@ describe('shared_collections — update, substitute manager writes', () => {
   it('a non-host teacher cannot end the share', async () => {
     await assertFails(
       updateDoc(doc(asExternalTeacher(), sharePath), { expiresAt: NOW_MS - 1 })
+    );
+  });
+});
+
+describe('shared_collections — update, a copy share cannot become a sub share', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), copyShareDoc());
+    });
+  });
+
+  // The copy branch of the update rule is unrestricted, so without the pin a
+  // host could promote their own copy share into a substitute one — readable by
+  // every verified district account, in any building, for as long as they liked.
+  it('flipping intendedMode to substitute is rejected', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        intendedMode: 'substitute',
+        buildingId: 'ohs',
+        expiresAt: NOW_MS + FOURTEEN_DAYS_MS * 100,
+      })
+    );
+  });
+
+  it('a copy share still takes an ordinary edit', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        collection: { name: 'Renamed' },
+      })
+    );
+  });
+
+  it('a copy share cannot take more than 20 named subs', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        subEmails: Array.from(
+          { length: 21 },
+          (_, i) => `sub${i.toString()}@orono.k12.mn.us`
+        ),
+      })
     );
   });
 });
