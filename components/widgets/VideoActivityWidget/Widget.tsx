@@ -1190,8 +1190,10 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         onSave={async (updated, behavior) => {
           const isNew = !editingMeta;
           await saveActivity(updated, editingMeta?.driveFileId, behavior);
-          // The editor autosaves, so only the first write is news.
+          // Autosaved writes are not news; a synced Save publishes, so it is.
           if (isNew) addToast('Activity created!', 'success');
+          else if (editingMeta?.sync)
+            addToast('Update published to your PLC.', 'success');
         }}
       />
       {shareWithPlcTarget && (

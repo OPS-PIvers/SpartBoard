@@ -2894,8 +2894,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             setSavingQuizId(null);
           }
           setLoadedQuizData(updated);
-          // The editor autosaves, so only the first write is news.
+          // Autosaved writes are not news; a synced Save publishes, so it is.
           if (isNew) addToast('Quiz created!', 'success');
+          else if (editingMeta?.sync)
+            addToast('Update published to your PLC.', 'success');
         }}
       />
       {syncConflicts[0] && (
