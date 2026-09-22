@@ -35,10 +35,7 @@ export function splitNameLine(line: string): { first: string; last: string } {
   };
 }
 
-/**
- * Pair the two boxes by line number. Lines are never compacted first: a student
- * with no last name must not pull every later last name up a row.
- */
+/** Pair the two boxes by line number, never compacting blanks out first. */
 export function combineRosterNames(
   firstNames: string,
   lastNames: string
@@ -66,11 +63,7 @@ export interface PastedNameSplit {
   selectionEnd: number;
 }
 
-/**
- * Rewrite a "First Last" paste into both boxes, or return null to let the
- * paste land untouched. Only the pasted lines are re-split; lines already in
- * the box keep their text and their existing last name.
- */
+/** Rewrite a "First Last" paste into both boxes; null lets it land untouched. */
 export function splitPastedNames(
   input: PastedNameSplit
 ): { firstNames: string; lastNames: string } | null {
@@ -84,8 +77,7 @@ export function splitPastedNames(
   const oldLines = input.value.split('\n');
   const oldLasts = input.lastNames.split('\n');
 
-  // The paste occupies new lines [pasteStart, pasteEnd]; everything outside is
-  // untouched text whose last name still lives at its own row.
+  // The paste occupies new lines [pasteStart, pasteEnd]; the rest is untouched.
   const pasteStart = before.split('\n').length - 1;
   const pasteEnd = pasteStart + pastedLines.length - 1;
   const shift = nextLines.length - oldLines.length;
@@ -93,8 +85,7 @@ export function splitPastedNames(
   const firsts: string[] = [];
   const lasts: string[] = [];
   nextLines.forEach((line, i) => {
-    // Rows outside the paste, and the two rows the paste merges into, keep the
-    // last name they already had.
+    // Rows outside the paste, and the two it merges into, keep their last name.
     const oldIndex =
       i >= pasteEnd ? i - shift : i <= pasteStart ? i : undefined;
     const carried =
