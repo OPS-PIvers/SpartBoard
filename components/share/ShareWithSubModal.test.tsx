@@ -488,3 +488,63 @@ describe('ShareWithSubModal — how long it runs', () => {
     expect(shareSubstituteCollection).not.toHaveBeenCalled();
   });
 });
+
+// A widget whose content could not be collected reaches the sub empty, so the
+// teacher has to be told at share time — that is the whole point of bundling.
+describe('ShareWithSubModal — what could not be collected', () => {
+  beforeEach(() => {
+    shareSubstituteCollection.mockClear();
+    addToast.mockClear();
+    usePresetSubEmailsMock.mockReturnValue({
+      emails: ['sub@orono.k12.mn.us'],
+      loading: false,
+    });
+    cleanup();
+  });
+
+  const share = async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Share' }));
+    await waitFor(() => expect(shareSubstituteCollection).toHaveBeenCalled());
+  };
+
+  it('names the widgets whose content stayed behind', async () => {
+    shareSubstituteCollection.mockImplementation((input: unknown) => {
+      (
+        input as {
+          onBundle?: (b: {
+            items: unknown[];
+            failures: { label: string }[];
+          }) => void;
+        }
+      ).onBundle?.({
+        items: [],
+        failures: [{ label: 'Drawing on Period 3' }],
+      });
+      return Promise.resolve('share-1');
+    });
+
+    openModal();
+    await share();
+
+    expect(
+      screen.getByText('Some widget content did not come along')
+    ).toBeTruthy();
+    expect(screen.getByText('Drawing on Period 3')).toBeTruthy();
+  });
+
+  it('says nothing when everything came along', async () => {
+    shareSubstituteCollection.mockImplementation((input: unknown) => {
+      (
+        input as {
+          onBundle?: (b: { items: unknown[]; failures: unknown[] }) => void;
+        }
+      ).onBundle?.({ items: [{ id: 'drawing_w1' }], failures: [] });
+      return Promise.resolve('share-1');
+    });
+
+    openModal();
+    await share();
+
+    expect(screen.queryByText(/did not come along/)).toBeNull();
+  });
+});

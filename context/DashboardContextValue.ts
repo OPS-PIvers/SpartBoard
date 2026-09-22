@@ -26,6 +26,7 @@ import type {
   LoadSharedCollectionResult,
   SubShareTree,
 } from '@/hooks/useSharedCollection';
+import type { SubShareBundle } from '@/utils/bundleSubShareContent';
 
 /**
  * Mode applied to a shared-board import. Substitute shares are intentionally
@@ -398,6 +399,8 @@ export interface DashboardContextValue {
         collection: Collection;
         boards: Dashboard[];
         sourceId: string;
+        /** What travelled with the share, and what could not be collected. */
+        onBundle?: (bundle: SubShareBundle) => void;
       }
   ) => Promise<string>;
   /** Re-push the current boards into an existing sub share. */
@@ -409,6 +412,7 @@ export interface DashboardContextValue {
       expiresAt?: number;
       subEmails?: string[];
       sharedRosters?: SubstituteShareRoster[];
+      onBundle?: (bundle: SubShareBundle) => void;
     }
   ) => Promise<void>;
   /** Push a sub share's expiry out; the 14-day cap is enforced in rules. */
