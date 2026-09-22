@@ -6,6 +6,8 @@ import {
   setDoc,
   deleteDoc,
   updateDoc,
+  query,
+  where,
 } from 'firebase/firestore';
 import {
   Bell,
@@ -37,6 +39,7 @@ import {
   PollConfig,
 } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { isSuperAdminActor } from '@/utils/superAdmin';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { Toggle } from '@/components/common/Toggle';
 import { TOOLS } from '@/config/tools';
@@ -646,7 +649,13 @@ export const PollResponsesPanel: React.FC<{
 };
 
 export const AnnouncementsManager: React.FC = () => {
-  const { user, orgId } = useAuth();
+  const { user, orgId, roleId, userRoles } = useAuth();
+  const isSuperAdmin = isSuperAdminActor(
+    user?.email,
+    userRoles?.superAdmins,
+    roleId,
+    orgId
+  );
   const { addToast } = useDashboard();
   const BUILDINGS = useAdminBuildings();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -667,12 +676,36 @@ export const AnnouncementsManager: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Subscribe to announcements collection
+  // Subscribe to announcements collection. A site-wide super admin gets the
+  // whole collection unfiltered — the rules' isSuperAdmin() read branch is
+  // resource-independent. Any other admin (e.g. an org-scoped building_admin)
+  // MUST instead get a where('orgId','==', orgId) query: unlike plcs, this
+  // collection's read rule also has an "any authed user" branch for legacy/
+  // global docs, so Firestore does NOT reject an unfiltered query for a
+  // non-super admin outright — it actually returns every doc, including a
+  // foreign org's (see tests/rules/announcementCrossOrgAdmin.test.ts's LEAK
+  // case). The where() filter is the only thing that excludes it. Mirrors
+  // hooks/usePlcs.ts's asAdmin mode. An admin with no org at all can't build
+  // a query the rules will ever authorize for their own docs, so the
+  // listener stays closed for them (same as usePlcs).
   useEffect(() => {
     if (!user) return;
+    if (!isSuperAdmin && !orgId) {
+      // Deferred so this doesn't trip react-hooks/set-state-in-effect
+      // (same pattern as usePlcs.ts's org-less-admin branch).
+      const timer = setTimeout(() => {
+        setAnnouncements([]);
+        setLoading(false);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+
+    const q = isSuperAdmin
+      ? collection(db, 'announcements')
+      : query(collection(db, 'announcements'), where('orgId', '==', orgId));
 
     const unsub = onSnapshot(
-      collection(db, 'announcements'),
+      q,
       (snap) => {
         const items: Announcement[] = [];
         snap.forEach((d) =>
@@ -688,7 +721,7 @@ export const AnnouncementsManager: React.FC = () => {
       }
     );
     return unsub;
-  }, [user]);
+  }, [user, isSuperAdmin, orgId]);
 
   const openCreate = useCallback(() => {
     setForm(buildDefaultForm());

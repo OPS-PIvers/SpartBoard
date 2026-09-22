@@ -3960,8 +3960,19 @@ service cloud.firestore {
     // Announcements — admins write; reads are tenant-scoped. Legacy docs (no
     // orgId) stay readable by any authed user (preserves pre-isolation behavior);
     // a doc WITH an orgId is readable only by that org's members (isOrgMember) or
-    // any admin (the manager UI subscribes to the whole collection).
+    // a real super admin.
     match /announcements/{announcementId} {
+      // isAdmin() is a bare /admins/{email} doc, which also mirrors org-scoped
+      // building_admin (see functions/src/organizationMembersSync.ts) — used
+      // bare it let a building_admin of one org read (and write) another org's
+      // announcements. isSuperAdmin() is resource-independent (matching
+      // help_resources/plcs), so the admin "browse every announcement" manager
+      // (components/admin/Announcements/Widget.tsx's unfiltered onSnapshot)
+      // stays provable for a genuine site-wide admin. A same-org admin's read
+      // is already covered by the isOrgMember(orgId) branch below — an admin
+      // role is itself a member doc in its own org via the same sync — so no
+      // separate same-org-admin read branch is needed here (unlike plcs, which
+      // has no "any org member" read branch to fall back on).
       allow read: if request.auth != null
         && (
           // Missing orgId OR explicit orgId:null = legacy/global, any authed user.
@@ -3969,9 +3980,26 @@ service cloud.firestore {
           !('orgId' in resource.data)
           || resource.data.orgId == null
           || isOrgMember(resource.data.orgId)
-          || isAdmin()
+          || isSuperAdmin()
         );
-      allow write: if isAdmin();
+
+      // Global/legacy (missing or null orgId) is super-admin only; an
+      // org-scoped doc is writable by that org's admin or a super admin.
+      // The ternary's condition uses .get(key, default) since 'orgId' may be
+      // absent on a legacy doc; the true branch's dot-access is then safe
+      // (that branch only runs once 'is string' has confirmed the key is
+      // present) — matches helpScopeOk()'s scoping idiom above.
+      function announcementWriteScopeOk(d) {
+        return d.get('orgId', null) is string
+          ? (isOrgMember(d.orgId) || isSuperAdmin())
+          : isSuperAdmin();
+      }
+      allow create: if isAdmin() && announcementWriteScopeOk(request.resource.data);
+      // orgId is immutable through this path — a same-org admin editing their
+      // own announcement can't re-home it to another org or to global.
+      allow update: if isAdmin() && announcementWriteScopeOk(resource.data)
+        && request.resource.data.get('orgId', null) == resource.data.get('orgId', null);
+      allow delete: if isAdmin() && announcementWriteScopeOk(resource.data);
 
       // Poll votes subcollection - authed users read live tallies and cast votes.
       // Value-locked to exactly what PollWidget's setDoc({count: increment(1)}, {merge:true})
