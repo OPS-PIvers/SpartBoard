@@ -60,7 +60,7 @@ function makeDb(docs: Record<string, Doc>) {
           );
           return Promise.resolve({
             empty: matches.length === 0,
-            docs: matches.map(([, d]) => ({ data: () => d })),
+            docs: matches.map(([p, d]) => ({ data: () => d, ref: docRef(p) })),
           });
         },
       }),
@@ -68,6 +68,14 @@ function makeDb(docs: Record<string, Doc>) {
   });
   return {
     collection: (c: string) => collectionRef(c),
+    runTransaction: (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        get: (ref: { path: string }) =>
+          Promise.resolve({ data: () => docs[ref.path] }),
+        update: (ref: { path: string }, data: Doc) => {
+          docs[ref.path] = { ...docs[ref.path], ...data };
+        },
+      }),
     batch: () => {
       const ops: (() => void)[] = [];
       return {
@@ -227,6 +235,57 @@ describe('handleCheckVideoActivityAnswer question order', () => {
     await expect(
       handleCheckVideoActivityAnswer(dbWith([]), 't1', later)
     ).resolves.toMatchObject({ isCorrect: true });
+  });
+});
+
+describe('handleCheckVideoActivityAnswer when wrong answers are kept', () => {
+  const RESPONSE = `${SESSION}/responses/pin-p1-01`;
+  const setup = (response: Doc = {}, session: Doc = {}) => {
+    const docs: Record<string, Doc> = {
+      [SESSION]: {
+        teacherUid: 't1',
+        questions: [],
+        settings: { requireCorrectAnswer: false },
+        ...session,
+      },
+      [KEY]: { questions: KEYED },
+      [RESPONSE]: {
+        studentUid: 'stu',
+        answers: [],
+        completedAt: null,
+        ...response,
+      },
+    };
+    return { docs, db: makeDb(docs) };
+  };
+
+  it('records the first checked answer so a probe spends the attempt', async () => {
+    const { docs, db } = setup();
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'stu', input(''), 1000)
+    ).resolves.toEqual({ isCorrect: false, correctAnswer: 'Paris' });
+    expect(docs[RESPONSE].answers).toEqual([
+      { questionId: 'q1', answer: '', answeredAt: 1000 },
+    ]);
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'stu', input('Paris'), 2000)
+    ).resolves.toMatchObject({ isCorrect: false });
+    expect(docs[RESPONSE].answers).toHaveLength(1);
+  });
+
+  it('records nothing once the response is complete or the window closed', async () => {
+    const done = setup({ completedAt: 5 });
+    await handleCheckVideoActivityAnswer(done.db, 'stu', input('Rome'), 1000);
+    expect(done.docs[RESPONSE].answers).toEqual([]);
+    const closed = setup({}, { closeAt: 0 });
+    await handleCheckVideoActivityAnswer(closed.db, 'stu', input('Rome'), 1e9);
+    expect(closed.docs[RESPONSE].answers).toEqual([]);
+  });
+
+  it('leaves require-correct sessions to the client, which retries until right', async () => {
+    const { docs, db } = setup({}, { settings: {} });
+    await handleCheckVideoActivityAnswer(db, 'stu', input('Rome'), 1000);
+    expect(docs[RESPONSE].answers).toEqual([]);
   });
 });
 

@@ -16,6 +16,7 @@ import {
 const SESSIONS = 'video_activity_sessions';
 const MAX_ID_LENGTH = 128;
 const MAX_ANSWER_LENGTH = 2000;
+const CLOSE_GRACE_MS = 120_000;
 
 export interface CheckVideoActivityAnswerInput {
   sessionId: string;
@@ -97,7 +98,8 @@ export function allEarlierAnswered(
 export async function handleCheckVideoActivityAnswer(
   db: admin.firestore.Firestore,
   callerUid: string | null,
-  rawInput: unknown
+  rawInput: unknown,
+  nowMs = Date.now()
 ): Promise<CheckVideoActivityAnswerResult> {
   if (!callerUid) throw new HttpsError('unauthenticated', 'Sign in required.');
   const input = parseCheckVideoActivityAnswerInput(rawInput);
@@ -129,19 +131,50 @@ export async function handleCheckVideoActivityAnswer(
   const question = questions.find((q) => q.id === input.questionId);
   if (!question)
     throw new HttpsError('not-found', 'Question not found in this activity.');
-  const settings = (session.settings ?? {}) as { allowSkipping?: boolean };
-  if (!isTeacher && !isViewOnly && settings.allowSkipping !== true) {
-    const answers: unknown = responseSnap.docs[0]?.data().answers;
-    if (!allEarlierAnswered(questions, question, answers))
-      throw new HttpsError(
-        'failed-precondition',
-        'Answer the earlier questions first.'
-      );
-  }
-  return {
-    isCorrect: gradeVaAnswer(question, input.answer),
-    correctAnswer: question.correctAnswer ?? '',
+  const settings = (session.settings ?? {}) as {
+    allowSkipping?: boolean;
+    requireCorrectAnswer?: boolean;
   };
+  const result = (answer: string): CheckVideoActivityAnswerResult => ({
+    isCorrect: gradeVaAnswer(question, answer),
+    correctAnswer: question.correctAnswer ?? '',
+  });
+  const responseDoc = responseSnap.docs[0];
+  if (isTeacher || isViewOnly || !responseDoc) return result(input.answer);
+  if (
+    settings.allowSkipping !== true &&
+    !allEarlierAnswered(questions, question, responseDoc.data().answers)
+  )
+    throw new HttpsError(
+      'failed-precondition',
+      'Answer the earlier questions first.'
+    );
+  // Require-correct mode only ever records correct answers, so revealing the key can't change a score.
+  if (settings.requireCorrectAnswer !== false) return result(input.answer);
+  // Otherwise the checked answer is the graded one: record it first, so probing spends the attempt.
+  const closeAt: unknown = session.closeAt;
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(responseDoc.ref);
+    const data = snap.data() ?? {};
+    const answers = Array.isArray(data.answers)
+      ? (data.answers as { questionId?: unknown; answer?: unknown }[])
+      : [];
+    const recorded = answers.find((a) => a?.questionId === question.id);
+    if (recorded)
+      return result(typeof recorded.answer === 'string' ? recorded.answer : '');
+    const closed =
+      typeof closeAt === 'number' &&
+      nowMs > closeAt + CLOSE_GRACE_MS &&
+      data.unlocked !== true;
+    if (data.completedAt == null && !closed)
+      tx.update(responseDoc.ref, {
+        answers: [
+          ...answers,
+          { questionId: question.id, answer: input.answer, answeredAt: nowMs },
+        ],
+      });
+    return result(input.answer);
+  });
 }
 
 export const checkVideoActivityAnswerV1 = onCall(
