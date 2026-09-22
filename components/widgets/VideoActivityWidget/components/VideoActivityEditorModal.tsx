@@ -312,7 +312,7 @@ export const VideoActivityEditorModal: React.FC<
       isDirty={isDirty}
       isSaving={saving}
       onSave={persistDraft}
-      autosave={autosave ? { draftToken } : undefined}
+      autosave={autosave ? { draftToken, resetKey: activity?.id } : undefined}
       incompleteNotice={incompleteNotice}
       onClose={onClose}
       saveLabel="Save Activity"

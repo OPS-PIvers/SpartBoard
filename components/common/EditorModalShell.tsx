@@ -17,6 +17,11 @@ export interface EditorAutosaveConfig {
    * period, so continuous typing produces one write rather than one a second.
    */
   draftToken: unknown;
+  /**
+   * Identifies the record being edited, so pointing the editor at a different
+   * one re-baselines instead of writing it straight back.
+   */
+  resetKey?: unknown;
   /** Off while the editor can't persist yet (no record, an upload in flight). */
   enabled?: boolean;
   /** Quiet period after the last edit. */
@@ -184,8 +189,8 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   const autosaveOn = autosave !== undefined && (autosave.enabled ?? true);
   const persist = useCallback(() => onSaveRef.current(), []);
   const autosaveCtl = useAutosave({
-    isDirty,
     draftToken: autosave?.draftToken,
+    resetKey: autosave?.resetKey,
     enabled: autosaveOn,
     delayMs: autosave?.delayMs,
     onSave: persist,

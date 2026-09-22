@@ -553,6 +553,7 @@ export const GuidedLearningEditorModal: React.FC<
         onSave={persistDraft}
         autosave={{
           draftToken,
+          resetKey: set?.id,
           // A set with no slide has nothing to persist, and an in-flight
           // upload would be written as a half-set.
           enabled: editorState.imageUrls.length > 0 && !editorState.uploading,

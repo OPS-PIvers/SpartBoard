@@ -60,18 +60,41 @@ describe('EditorModalShell autosave', () => {
     ).toBeInTheDocument();
   });
 
-  it('replaces the Save button with a save-state line', async () => {
-    const onSave = vi.fn((): Promise<void> => Promise.resolve());
-    render(
+  // Autosave is driven by the draft moving, so a test that wants a write has
+  // to edit: mounting an editor on a record must never write it straight back.
+  const renderShell = (props: {
+    onSave: () => void | Promise<void>;
+    onClose?: () => void;
+    incompleteNotice?: string;
+    delayMs?: number;
+  }) => {
+    const { delayMs = 20, ...rest } = props;
+    const ui = (token: string) => (
       <EditorModalShell
         {...baseProps}
+        {...rest}
         isDirty
-        onSave={onSave}
-        autosave={{ draftToken: 'a', delayMs: 20 }}
+        autosave={{ draftToken: [token], resetKey: 'item-1', delayMs }}
       />
     );
+    const view = render(ui('a'));
+    return { ...view, edit: () => view.rerender(ui('b')) };
+  };
+
+  it('writes nothing until the draft moves', async () => {
+    const onSave = vi.fn((): Promise<void> => Promise.resolve());
+    renderShell({ onSave });
+    await new Promise((r) => setTimeout(r, 80));
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('replaces the Save button with a save-state line', async () => {
+    const onSave = vi.fn((): Promise<void> => Promise.resolve());
+    const { edit } = renderShell({ onSave });
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
     expect(footerClose()).toBeInTheDocument();
+
+    edit();
     expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByText('Saved')).toBeInTheDocument());
@@ -82,15 +105,9 @@ describe('EditorModalShell autosave', () => {
   it('closes without a discard prompt', async () => {
     const onClose = vi.fn();
     const onSave = vi.fn((): Promise<void> => Promise.resolve());
-    render(
-      <EditorModalShell
-        {...baseProps}
-        onClose={onClose}
-        isDirty
-        onSave={onSave}
-        autosave={{ draftToken: 'a', delayMs: 5000 }}
-      />
-    );
+    const { edit } = renderShell({ onSave, onClose, delayMs: 5000 });
+
+    edit();
     await userEvent.click(footerClose());
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     expect(showConfirm).not.toHaveBeenCalled();
@@ -104,17 +121,11 @@ describe('EditorModalShell autosave', () => {
       (): Promise<void> => Promise.reject(new Error('offline'))
     );
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    render(
-      <EditorModalShell
-        {...baseProps}
-        onClose={onClose}
-        isDirty
-        onSave={onSave}
-        autosave={{ draftToken: 'a', delayMs: 20 }}
-      />
-    );
+    const { edit } = renderShell({ onSave, onClose });
+
+    edit();
     await waitFor(() =>
-      expect(screen.getByText('Couldn’t save')).toBeInTheDocument()
+      expect(screen.getByText('Couldn\u2019t save')).toBeInTheDocument()
     );
     await userEvent.click(footerClose());
     await waitFor(() => expect(showConfirm).toHaveBeenCalledTimes(1));
@@ -127,14 +138,9 @@ describe('EditorModalShell autosave', () => {
       .mockRejectedValueOnce(new Error('offline'))
       .mockResolvedValue(undefined);
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    render(
-      <EditorModalShell
-        {...baseProps}
-        isDirty
-        onSave={onSave}
-        autosave={{ draftToken: 'a', delayMs: 20 }}
-      />
-    );
+    const { edit } = renderShell({ onSave });
+
+    edit();
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
     );
@@ -144,20 +150,17 @@ describe('EditorModalShell autosave', () => {
 
   it('shows what is still missing without blocking the write', async () => {
     const onSave = vi.fn((): Promise<void> => Promise.resolve());
-    render(
-      <EditorModalShell
-        {...baseProps}
-        isDirty
-        onSave={onSave}
-        autosave={{ draftToken: 'a', delayMs: 20 }}
-        incompleteNotice="Question 2: correct answer is required"
-      />
-    );
+    const { edit } = renderShell({
+      onSave,
+      incompleteNotice: 'Question 2: correct answer is required',
+    });
     expect(
       screen.getByText(
         'Not ready to use yet: Question 2: correct answer is required'
       )
     ).toBeInTheDocument();
+
+    edit();
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
   });
 });
