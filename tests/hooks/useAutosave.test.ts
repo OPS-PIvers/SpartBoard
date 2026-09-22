@@ -134,6 +134,29 @@ describe('useAutosave', () => {
     await waitFor(() => expect(result.current.status).toBe('saved'));
   });
 
+  // Regression: `flush` used to decide from `status`, which lags a render
+  // behind the write it just waited out, so a save that failed as the editor
+  // closed was reported as a success and the editor closed without a word.
+  it('reports failure when the write it waited on failed', async () => {
+    const onSave = vi.fn(
+      (): Promise<void> =>
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('offline')), 100)
+        )
+    );
+    const { result, rerender } = setup({ onSave });
+    rerender({ isDirty: true, draftToken: 'a', enabled: true, onSave });
+    // Let the quiet period elapse so the write is in flight, not scheduled.
+    await new Promise((r) => setTimeout(r, 70));
+    expect(onSave).toHaveBeenCalledTimes(1);
+
+    let ok = true;
+    await act(async () => {
+      ok = await result.current.flush();
+    });
+    expect(ok).toBe(false);
+  });
+
   it('never runs two writes at once', async () => {
     let inFlight = 0;
     let peak = 0;

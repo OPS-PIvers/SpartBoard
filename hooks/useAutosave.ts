@@ -65,21 +65,19 @@ export const useAutosave = ({
   const inFlightRef = useRef<Promise<void> | null>(null);
   const isDirtyRef = useRef(isDirty);
   const enabledRef = useRef(enabled);
-  const statusRef = useRef(status);
   const draftTokenRef = useRef(draftToken);
   // The draft as it stood when the last write started. An editor whose
   // `isDirty` can't settle back to false — because what it persists is a
   // normalized copy of the draft rather than the draft itself — would
   // otherwise be written again every cycle, forever.
   const savedTokenRef = useRef<unknown>(NEVER_SAVED);
-  // Set synchronously inside the write; `status` lags it by a React render, and
-  // `flush`'s caller needs the outcome the moment the promise settles.
+  // Set synchronously inside the write; `status` lags it by a React render, so
+  // reading that instead would call a just-failed write a success.
   const lastWriteOkRef = useRef(true);
   useLayoutEffect(() => {
     onSaveRef.current = onSave;
     isDirtyRef.current = isDirty;
     enabledRef.current = enabled;
-    statusRef.current = status;
     draftTokenRef.current = draftToken;
   });
 
@@ -123,7 +121,7 @@ export const useAutosave = ({
     if (inFlightRef.current) await inFlightRef.current;
     if (!enabledRef.current || !isDirtyRef.current) return true;
     const unsaved = !Object.is(draftTokenRef.current, savedTokenRef.current);
-    if (!unsaved && statusRef.current !== 'error') return true;
+    if (!unsaved && lastWriteOkRef.current) return true;
     await runSave();
     return lastWriteOkRef.current;
   }, [runSave]);
