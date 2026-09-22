@@ -24,6 +24,7 @@ import {
   buildConnectionLookup,
 } from './blockReducer';
 import { BlockRenderer } from './BlockRenderer';
+import { useSubShareCustomWidget } from './useSubShareCustomWidget';
 import {
   WidgetStateContext,
   WidgetStateContextValue,
@@ -64,12 +65,14 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
   const config = widget.config as CustomWidgetConfig;
   const { customWidgetId } = config;
   const { addToast } = useDashboardActions();
+  const shared = useSubShareCustomWidget(customWidgetId);
 
-  // Live Firestore doc for the custom widget definition
-  const [widgetDoc, setWidgetDoc] = React.useState<CustomWidgetDoc | null>(
-    null
-  );
-  const [docLoading, setDocLoading] = React.useState(true);
+  // Live Firestore doc for the custom widget definition — the sub reads the
+  // bundled copy instead, since the teacher's beta widget is closed to them.
+  const [ownDoc, setOwnDoc] = React.useState<CustomWidgetDoc | null>(null);
+  const [ownLoading, setOwnLoading] = React.useState(true);
+  const widgetDoc = shared.active ? shared.doc : ownDoc;
+  const docLoading = shared.active ? shared.loading : ownLoading;
 
   // Active grid definition — sourced from live Firestore doc only
   const activeGrid: CustomGridDefinition | undefined =
@@ -98,8 +101,9 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
 
   // Subscribe to Firestore doc
   useEffect(() => {
+    if (shared.active) return;
     if (!isConfigured || !customWidgetId) {
-      const timer = setTimeout(() => setDocLoading(false), 0);
+      const timer = setTimeout(() => setOwnLoading(false), 0);
       return () => clearTimeout(timer);
     }
     const ref = doc(db, 'custom_widgets', customWidgetId);
@@ -107,19 +111,19 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
       ref,
       (snap) => {
         if (snap.exists()) {
-          setWidgetDoc({ ...snap.data(), id: snap.id } as CustomWidgetDoc);
+          setOwnDoc({ ...snap.data(), id: snap.id } as CustomWidgetDoc);
         } else {
-          setWidgetDoc(null);
+          setOwnDoc(null);
         }
-        setDocLoading(false);
+        setOwnLoading(false);
       },
       () => {
-        setWidgetDoc(null);
-        setDocLoading(false);
+        setOwnDoc(null);
+        setOwnLoading(false);
       }
     );
     return unsub;
-  }, [customWidgetId]);
+  }, [customWidgetId, shared.active]);
 
   // Re-initialize block state when grid *content* changes (not just reference).
   // Two-level guard:

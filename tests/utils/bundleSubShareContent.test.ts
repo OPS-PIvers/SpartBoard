@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { bundleSubShareContent } from '@/utils/bundleSubShareContent';
-import type { Dashboard, DrawableObject, WidgetData } from '@/types';
+import type {
+  Dashboard,
+  DrawableObject,
+  WidgetData,
+  WidgetType,
+} from '@/types';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn((_db: unknown, ...path: string[]) => ({
@@ -26,7 +31,7 @@ const stroke = (id: string, z: number): DrawableObject =>
 const drawing = (id: string, migrated: boolean, pageIds: string[]) =>
   ({
     id,
-    type: 'drawing',
+    type: 'drawing' satisfies WidgetType,
     config: {
       subcollectionMigrated: migrated,
       pages: pageIds.map((pid) => ({ id: pid })),
@@ -36,11 +41,26 @@ const drawing = (id: string, migrated: boolean, pageIds: string[]) =>
 const notebookWidget = (id: string, notebookId: string | null) =>
   ({
     id,
-    type: 'smartNotebook',
+    type: 'smartNotebook' satisfies WidgetType,
     config: { activeNotebookId: notebookId },
   }) as unknown as WidgetData;
 
 const notebookDoc = (id: string, fields: Record<string, unknown>) => ({
+  id,
+  exists: () => true,
+  data: () => fields,
+});
+
+const customWidget = (id: string, customWidgetId: string | null) =>
+  ({
+    id,
+    // `satisfies WidgetType` on purpose: the first cut of this said
+    // 'customWidget', which the bundler's filter never matched.
+    type: 'custom-widget' satisfies WidgetType,
+    config: { customWidgetId },
+  }) as unknown as WidgetData;
+
+const customWidgetDoc = (id: string, fields: Record<string, unknown>) => ({
   id,
   exists: () => true,
   data: () => fields,
@@ -231,6 +251,129 @@ describe('bundleSubShareContent', () => {
 
       expect(bundle.items).toEqual([]);
       expect(bundle.failures.map((f) => f.kind)).toEqual(['notebook']);
+    });
+  });
+
+  describe('custom widget', () => {
+    it('bundles the definition doc the widget points at', async () => {
+      mockGetDoc.mockResolvedValue(
+        customWidgetDoc('cw-1', {
+          title: 'Dice',
+          accessLevel: 'beta',
+          betaUsers: ['teacher@orono.k12.mn.us'],
+          mode: 'block',
+        })
+      );
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Warm up', [customWidget('w1', 'cw-1')])],
+      });
+
+      expect(bundle.failures).toEqual([]);
+      expect(bundle.items.map((i) => i.id)).toEqual(['customWidget_cw-1']);
+      expect(bundle.items[0].doc.payload).toEqual({
+        doc: {
+          id: 'cw-1',
+          title: 'Dice',
+          mode: 'block',
+          updatedAt: 0,
+          gridDefinition: undefined,
+          codeContent: undefined,
+        },
+      });
+      const ref = (doc as Mock).mock.results.at(-1)?.value as {
+        __path: string;
+      };
+      expect(ref.__path).toBe('custom_widgets/cw-1');
+    });
+
+    // `content/` is readable by any verified district account holding the
+    // share, so the definition's own access list must not travel with it.
+    it('leaves the beta-access email list out of the bundle', async () => {
+      mockGetDoc.mockResolvedValue(
+        customWidgetDoc('cw-1', {
+          title: 'Dice',
+          mode: 'block',
+          accessLevel: 'beta',
+          betaUsers: ['someone.else@orono.k12.mn.us'],
+          createdBy: 'teacher-1',
+          buildings: ['ohs'],
+          slug: 'dice',
+          settings: [{ key: 'sides' }],
+        })
+      );
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Warm up', [customWidget('w1', 'cw-1')])],
+      });
+
+      const payload = bundle.items[0].doc.payload as { doc: object };
+      expect(Object.keys(payload.doc).sort()).toEqual([
+        'codeContent',
+        'gridDefinition',
+        'id',
+        'mode',
+        'title',
+        'updatedAt',
+      ]);
+      expect(JSON.stringify(payload.doc)).not.toContain('someone.else');
+    });
+
+    it('skips a custom widget with no definition chosen', async () => {
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Warm up', [customWidget('w1', null)])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(mockGetDoc).not.toHaveBeenCalled();
+    });
+
+    it('bundles a definition shared by two boards once', async () => {
+      mockGetDoc.mockResolvedValue(customWidgetDoc('cw-1', { title: 'Dice' }));
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [
+          board('b1', 'Warm up', [customWidget('w1', 'cw-1')]),
+          board('b2', 'Reading', [customWidget('w2', 'cw-1')]),
+        ],
+      });
+
+      expect(bundle.items.map((i) => i.id)).toEqual(['customWidget_cw-1']);
+      expect(mockGetDoc).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a definition that no longer exists', async () => {
+      mockGetDoc.mockResolvedValue({ id: 'cw-1', exists: () => false });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Warm up', [customWidget('w1', 'cw-1')])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(bundle.failures).toEqual([
+        {
+          kind: 'customWidget',
+          itemId: 'cw-1',
+          label: 'Custom widget on Warm up',
+        },
+      ]);
+    });
+
+    it('reports a definition it could not read', async () => {
+      mockGetDoc.mockRejectedValue(new Error('offline'));
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Warm up', [customWidget('w1', 'cw-1')])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(bundle.failures.map((f) => f.kind)).toEqual(['customWidget']);
     });
   });
 });

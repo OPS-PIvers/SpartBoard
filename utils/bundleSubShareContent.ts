@@ -12,6 +12,8 @@ import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { subShareContentId } from '@/utils/subShareContent';
 import type {
+  CustomWidgetConfig,
+  CustomWidgetDoc,
   Dashboard,
   DrawableObject,
   DrawingPage,
@@ -19,6 +21,7 @@ import type {
   SmartNotebookConfig,
   SubShareContentDoc,
   SubShareContentKind,
+  SubShareCustomWidgetPayload,
   SubShareDrawingPayload,
   SubShareNotebookPayload,
   WidgetData,
@@ -121,6 +124,39 @@ async function bundleNotebook(
   return { notebook };
 }
 
+/** The custom widget each Custom Widget on the board points at. */
+function customWidgetIds(board: Dashboard): string[] {
+  const ids: string[] = [];
+  for (const widget of board.widgets ?? []) {
+    if (widget.type !== 'custom-widget') continue;
+    const id = (widget.config as CustomWidgetConfig | undefined)
+      ?.customWidgetId;
+    if (id) ids.push(id);
+  }
+  return ids;
+}
+
+async function bundleCustomWidget(
+  id: string
+): Promise<SubShareCustomWidgetPayload> {
+  // Read as the teacher, who can read a beta-gated widget the sub cannot.
+  const snap = await getDoc(doc(db, 'custom_widgets', id));
+  if (!snap.exists()) throw new Error('custom widget not found');
+  const data = snap.data();
+  // Field by field, not a spread: the raw doc carries `betaUsers`, and
+  // `content/` is readable by any verified district account with the share.
+  return {
+    doc: {
+      id: snap.id,
+      title: (data.title as string) ?? 'Custom Widget',
+      mode: (data.mode as CustomWidgetDoc['mode']) ?? 'block',
+      updatedAt: (data.updatedAt as number) ?? 0,
+      gridDefinition: data.gridDefinition as CustomWidgetDoc['gridDefinition'],
+      codeContent: data.codeContent as string | undefined,
+    },
+  };
+}
+
 export async function bundleSubShareContent({
   hostUid,
   boards,
@@ -180,6 +216,29 @@ export async function bundleSubShareContent({
           kind: 'notebook',
           itemId: id,
           label: `Notebook on ${board.name}`,
+        });
+      }
+    }
+
+    for (const id of customWidgetIds(board)) {
+      const contentId = subShareContentId('customWidget', id);
+      if (done.has(contentId)) continue;
+      done.add(contentId);
+      try {
+        const payload = await bundleCustomWidget(id);
+        items.push({
+          id: contentId,
+          doc: { kind: 'customWidget', itemId: id, bundledAt, payload },
+        });
+      } catch (err) {
+        logError('bundleSubShareContent.customWidget', err, {
+          boardId: board.id,
+          customWidgetId: id,
+        });
+        failures.push({
+          kind: 'customWidget',
+          itemId: id,
+          label: `Custom widget on ${board.name}`,
         });
       }
     }
