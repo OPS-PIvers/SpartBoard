@@ -52,7 +52,7 @@ describe('QuestionOverlay server grading', () => {
     act(() => {
       vi.advanceTimersByTime(1200);
     });
-    expect(onAnswer).toHaveBeenCalledWith('Rome', false);
+    expect(onAnswer).toHaveBeenCalledWith('Rome', false, true);
     vi.useRealTimers();
   });
 
@@ -90,7 +90,7 @@ describe('QuestionOverlay server grading', () => {
     act(() => {
       vi.advanceTimersByTime(800);
     });
-    expect(onAnswer).toHaveBeenCalledWith('Paris', true);
+    expect(onAnswer).toHaveBeenCalledWith('Paris', true, false);
     vi.useRealTimers();
   });
 });

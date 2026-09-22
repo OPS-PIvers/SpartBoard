@@ -6236,8 +6236,7 @@ export interface VideoActivitySessionSyncLinkage {
 export interface VideoActivityAnswer {
   questionId: string;
   answer: string;
-  /** Whether the answer was correct. Not written by the student client; derived from
-   *  authoritative question data (correctAnswer) when displaying teacher results. */
+  /** Server-check verdict for the student's own summary; teacher views and Publish re-grade from the key. */
   isCorrect?: boolean;
   answeredAt: number;
 }

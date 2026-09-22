@@ -265,7 +265,7 @@ describe('handleCheckVideoActivityAnswer when wrong answers are kept', () => {
       handleCheckVideoActivityAnswer(db, 'stu', input(''), 1000)
     ).resolves.toEqual({ isCorrect: false, correctAnswer: 'Paris' });
     expect(docs[RESPONSE].answers).toEqual([
-      { questionId: 'q1', answer: '', answeredAt: 1000 },
+      { questionId: 'q1', answer: '', answeredAt: 1000, isCorrect: false },
     ]);
     await expect(
       handleCheckVideoActivityAnswer(db, 'stu', input('Paris'), 2000)

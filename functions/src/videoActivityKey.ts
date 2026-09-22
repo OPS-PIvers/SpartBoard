@@ -170,7 +170,12 @@ export async function handleCheckVideoActivityAnswer(
       tx.update(responseDoc.ref, {
         answers: [
           ...answers,
-          { questionId: question.id, answer: input.answer, answeredAt: nowMs },
+          {
+            questionId: question.id,
+            answer: input.answer,
+            answeredAt: nowMs,
+            isCorrect: gradeVaAnswer(question, input.answer),
+          },
         ],
       });
     return result(input.answer);

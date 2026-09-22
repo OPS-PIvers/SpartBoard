@@ -407,7 +407,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   );
 
   const handleAnswer = useCallback(
-    async (answer: string, isCorrect: boolean) => {
+    async (answer: string, isCorrect: boolean, graded: boolean) => {
       if (!activeQuestion) return;
       const requireCorrect = session?.settings?.requireCorrectAnswer ?? true;
       if (requireCorrect && !isCorrect) {
@@ -425,7 +425,11 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       // rejects the write defense-in-depth, but skip it client-side too so
       // the console stays clean.
       if (!isViewOnly) {
-        await submitAnswer(activeQuestion.id, answer);
+        await submitAnswer(
+          activeQuestion.id,
+          answer,
+          graded ? isCorrect : undefined
+        );
       }
       setActiveQuestion(null);
     },
@@ -803,7 +807,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     // teacher set visibility to `'none'`.
     const visibility = session?.scoreVisibility ?? 'none';
     const showScore = visibility !== 'none';
-    // Publish stamps `isCorrect` on each answer; the key never reaches this client.
+    // `isCorrect` comes from the server check at submit time, and Publish re-grades it.
     const correct = showScore
       ? sortedQuestions.filter(
           (q) =>

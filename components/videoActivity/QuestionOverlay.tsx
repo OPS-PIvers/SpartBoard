@@ -22,8 +22,8 @@ interface QuestionOverlayProps {
   question: VideoActivityPublicQuestion;
   /** Server grading; rejects when the check can't reach the server. */
   checkAnswer: (answer: string) => Promise<VideoActivityCheckResult>;
-  /** Called with submitted answer + correctness once feedback is shown. */
-  onAnswer: (answer: string, isCorrect: boolean) => void;
+  /** Called once feedback is shown; `graded` is false when the check couldn't reach the server. */
+  onAnswer: (answer: string, isCorrect: boolean, graded: boolean) => void;
   /** 1-based index for display */
   questionIndex: number;
   totalQuestions: number;
@@ -126,7 +126,10 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
         setCorrectAnswer(key);
         setSubmittedIsCorrect(isCorrect);
         setSubmitted(true);
-        setTimeout(() => onAnswer(answer, isCorrect), isCorrect ? 800 : 1200);
+        setTimeout(
+          () => onAnswer(answer, isCorrect, key !== null),
+          isCorrect ? 800 : 1200
+        );
       });
   };
 

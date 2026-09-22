@@ -577,7 +577,12 @@ export interface UseVideoActivitySessionStudentResult {
     pin: string | undefined,
     classPeriod?: string
   ) => Promise<void>;
-  submitAnswer: (questionId: string, answer: string) => Promise<void>;
+  /** `isCorrect` is the server check's verdict, kept for the student's own summary only. */
+  submitAnswer: (
+    questionId: string,
+    answer: string,
+    isCorrect?: boolean
+  ) => Promise<void>;
   /** Server-grades one answer; the key never reaches the student client. */
   checkAnswer: (
     questionId: string,
@@ -1037,7 +1042,11 @@ export const useVideoActivitySessionStudent =
     );
 
     const submitAnswer = useCallback(
-      async (questionId: string, answer: string): Promise<void> => {
+      async (
+        questionId: string,
+        answer: string,
+        isCorrect?: boolean
+      ): Promise<void> => {
         if (!sessionId || !responseDocId) return;
 
         const responseRef = doc(
@@ -1050,8 +1059,7 @@ export const useVideoActivitySessionStudent =
 
         // Use a transaction so the duplicate-answer check and write are atomic,
         // preventing race conditions where two rapid submits both pass the UI guard.
-        // isCorrect is intentionally not stored — correctness is always derived
-        // server-side from authoritative question data when displaying results.
+        // A stored isCorrect is display-only: teacher views and Publish re-grade from the key.
         await runTransaction(db, async (tx) => {
           const snap = await tx.get(responseRef);
           if (!snap.exists()) return;
@@ -1061,6 +1069,7 @@ export const useVideoActivitySessionStudent =
             questionId,
             answer,
             answeredAt: Date.now(),
+            ...(isCorrect === undefined ? {} : { isCorrect }),
           };
           tx.update(responseRef, { answers: arrayUnion(answerEntry) });
         });
