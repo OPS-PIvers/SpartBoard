@@ -9801,6 +9801,11 @@ export interface SubShareNotebookPayload {
   notebook: NotebookItem;
 }
 
+/** A custom widget's definition doc, so a sub sees a beta-gated one too. */
+export interface SubShareCustomWidgetPayload {
+  doc: CustomWidgetDoc;
+}
+
 /**
  * Input to `shareSubstituteCollection()`. Mirrors `SubstituteShareInput`
  * for single Boards but operates on a whole Collection.

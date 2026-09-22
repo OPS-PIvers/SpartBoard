@@ -46,6 +46,19 @@ const notebookDoc = (id: string, fields: Record<string, unknown>) => ({
   data: () => fields,
 });
 
+const customWidget = (id: string, customWidgetId: string | null) =>
+  ({
+    id,
+    type: 'customWidget',
+    config: { customWidgetId },
+  }) as unknown as WidgetData;
+
+const customWidgetDoc = (id: string, fields: Record<string, unknown>) => ({
+  id,
+  exists: () => true,
+  data: () => fields,
+});
+
 const board = (id: string, name: string, widgets: WidgetData[]) =>
   ({ id, name, widgets }) as unknown as Dashboard;
 
@@ -231,6 +244,95 @@ describe('bundleSubShareContent', () => {
 
       expect(bundle.items).toEqual([]);
       expect(bundle.failures.map((f) => f.kind)).toEqual(['notebook']);
+    });
+  });
+
+  describe('custom widget', () => {
+    it('bundles the definition doc the widget points at', async () => {
+      mockGetDoc.mockResolvedValue(
+        customWidgetDoc('cw-1', {
+          title: 'Dice',
+          accessLevel: 'beta',
+          betaUsers: ['teacher@orono.k12.mn.us'],
+          mode: 'block',
+        })
+      );
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Warm up', [customWidget('w1', 'cw-1')])],
+      });
+
+      expect(bundle.failures).toEqual([]);
+      expect(bundle.items.map((i) => i.id)).toEqual(['customWidget_cw-1']);
+      expect(bundle.items[0].doc.payload).toEqual({
+        doc: {
+          id: 'cw-1',
+          title: 'Dice',
+          accessLevel: 'beta',
+          betaUsers: ['teacher@orono.k12.mn.us'],
+          mode: 'block',
+        },
+      });
+      const ref = (doc as Mock).mock.results.at(-1)?.value as {
+        __path: string;
+      };
+      expect(ref.__path).toBe('custom_widgets/cw-1');
+    });
+
+    it('skips a custom widget with no definition chosen', async () => {
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Warm up', [customWidget('w1', null)])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(mockGetDoc).not.toHaveBeenCalled();
+    });
+
+    it('bundles a definition shared by two boards once', async () => {
+      mockGetDoc.mockResolvedValue(customWidgetDoc('cw-1', { title: 'Dice' }));
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [
+          board('b1', 'Warm up', [customWidget('w1', 'cw-1')]),
+          board('b2', 'Reading', [customWidget('w2', 'cw-1')]),
+        ],
+      });
+
+      expect(bundle.items.map((i) => i.id)).toEqual(['customWidget_cw-1']);
+      expect(mockGetDoc).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a definition that no longer exists', async () => {
+      mockGetDoc.mockResolvedValue({ id: 'cw-1', exists: () => false });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Warm up', [customWidget('w1', 'cw-1')])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(bundle.failures).toEqual([
+        {
+          kind: 'customWidget',
+          itemId: 'cw-1',
+          label: 'Custom widget on Warm up',
+        },
+      ]);
+    });
+
+    it('reports a definition it could not read', async () => {
+      mockGetDoc.mockRejectedValue(new Error('offline'));
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Warm up', [customWidget('w1', 'cw-1')])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(bundle.failures.map((f) => f.kind)).toEqual(['customWidget']);
     });
   });
 });
