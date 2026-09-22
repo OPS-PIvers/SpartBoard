@@ -24,7 +24,7 @@ import {
 import { useAuth } from '@/context/useAuth';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { logError } from '@/utils/logError';
-import { sanitizeBoardSnapshot } from '@/utils/dashboardSanitize';
+import { sanitizeBoardForRecipient } from '@/utils/dashboardSanitize';
 import { mockTemplateStore } from '@/hooks/useTemplateStore';
 
 /**
@@ -139,7 +139,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
 
   /** Board-template payload: widgets + style snapshot, sanitized. */
   const captureBoardForBoardTemplate = (dashboard: Dashboard) => {
-    const cleaned = sanitizeBoardSnapshot(dashboard);
+    const cleaned = sanitizeBoardForRecipient(dashboard);
     return {
       widgets: cleaned.widgets.map((w: WidgetData) => ({
         ...w,
@@ -155,7 +155,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
   const captureBoardForCollectionTemplate = (
     dashboard: Dashboard
   ): BoardTemplateSnapshot => {
-    const cleaned = sanitizeBoardSnapshot(dashboard);
+    const cleaned = sanitizeBoardForRecipient(dashboard);
     return {
       id: cleaned.id,
       name: cleaned.name,
