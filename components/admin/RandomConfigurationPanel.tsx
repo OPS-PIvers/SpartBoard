@@ -125,6 +125,7 @@ export const RandomConfigurationPanel: React.FC<
             </span>
           </div>
           <Toggle
+            label="Sound Effects"
             checked={currentBuildingConfig.soundEnabled ?? true}
             onChange={(checked) =>
               handleUpdateBuilding({ soundEnabled: checked })
