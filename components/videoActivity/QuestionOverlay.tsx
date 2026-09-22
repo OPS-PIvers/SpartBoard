@@ -13,6 +13,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { logError } from '@/utils/logError';
 import type {
   VideoActivityCheckResult,
   VideoActivityPublicQuestion,
@@ -118,8 +119,13 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
           isCorrect: result.isCorrect,
           key: result.correctAnswer as string | null,
         }),
-        // An unreachable grader must not strand the class: keep the answer, skip feedback.
-        () => ({ isCorrect: true, key: null })
+        // Any failed check (network or server refusal) must not strand the class: keep the answer, skip feedback.
+        (err: unknown) => {
+          logError('QuestionOverlay.checkAnswer', err, {
+            questionId: question.id,
+          });
+          return { isCorrect: true, key: null };
+        }
       )
       .then(({ isCorrect, key }) => {
         setChecking(false);
