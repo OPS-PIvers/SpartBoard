@@ -913,11 +913,8 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           // Subscribe to the responses subcollection up-front so the listener
           // is live by the time Results mounts.
           subscribeToSession(assignment.id);
-          // Hydrate the full session document — Results.tsx relies on
-          // `session.questions` to compute scores/accuracy and to export.
-          // Using a synthetic session with `questions: []` would render
-          // empty or incorrect results even though the real session doc has
-          // the full question set.
+          // Hydrate the real session doc: Results loads the key from it (legacy
+          // `questions` or `publicQuestions` + `key/answers`); a synthetic one has neither.
           try {
             const snap = await getDoc(
               doc(db, 'video_activity_sessions', assignment.id)

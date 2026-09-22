@@ -153,7 +153,8 @@ describe('useVideoActivityAssignments — createAssignment persists sessionOptio
       await result.current.createAssignment(ACTIVITY, settings);
     });
 
-    expect(batchSet).toHaveBeenCalledTimes(2);
+    // Assignment doc, session doc, then the teacher-only key doc.
+    expect(batchSet).toHaveBeenCalledTimes(3);
 
     // First batch.set is the assignment doc; second is the session doc.
     const assignmentPayload = batchSet.mock.calls[0][1] as Record<
@@ -233,7 +234,16 @@ describe('useVideoActivityAssignments — createAssignment persists sessionOptio
     });
 
     const sessionPayload = batchSet.mock.calls[1][1] as VideoActivitySession;
-    expect(sessionPayload.questions.map((q) => q.id)).toEqual(['q1', 'q2']);
+    expect(sessionPayload.questions).toEqual([]);
+    expect(sessionPayload.publicQuestions?.map((q) => q.id)).toEqual([
+      'q1',
+      'q2',
+    ]);
+    expect(JSON.stringify(sessionPayload)).not.toContain('correctAnswer');
+    const keyPayload = batchSet.mock.calls[2][1] as {
+      questions: { id: string }[];
+    };
+    expect(keyPayload.questions.map((q) => q.id)).toEqual(['q1', 'q2']);
   });
 });
 

@@ -46,6 +46,7 @@ import {
   ActionButton,
 } from '@/components/common/sessionViews';
 import { logError } from '@/utils/logError';
+import { useVideoActivityKeyQuestions } from '@/hooks/useVideoActivityKeyQuestions';
 
 interface VideoActivityLiveMonitorProps {
   session: VideoActivitySession;
@@ -392,7 +393,16 @@ export const VideoActivityLiveMonitor: React.FC<
     }
     return merged;
   }, [classLinkNames, ltiNames]);
-  const questions = session.questions;
+  const {
+    questions,
+    loading: keyLoading,
+    failed: keyFailed,
+  } = useVideoActivityKeyQuestions(session);
+  // The public projection has the count while the key is loading or unreadable.
+  const questionCount =
+    keyLoading || keyFailed
+      ? (session.publicQuestions?.length ?? 0)
+      : questions.length;
   const [ending, setEnding] = useState(false);
   const [toggling, setToggling] = useState(false);
 
@@ -474,8 +484,8 @@ export const VideoActivityLiveMonitor: React.FC<
         onBack={onBack}
         status={isLive ? 'live' : 'paused'}
         title={session.assignmentName}
-        subtitle={`${session.activityTitle} · ${questions.length} question${
-          questions.length === 1 ? '' : 's'
+        subtitle={`${session.activityTitle} · ${questionCount} question${
+          questionCount === 1 ? '' : 's'
         }`}
         actions={
           <>

@@ -102,7 +102,14 @@ const fakeDocSnap = (id: string, data: Record<string, unknown> | null) => ({
 });
 
 let batchUpdate: Mock;
+let batchSet: Mock;
 let batchCommit: Mock;
+
+// The session doc written by createSession's batch (the key doc is the second set).
+const sessionWrite = (): unknown =>
+  batchSet.mock.calls.find(
+    (c) => !String(c[0]).includes('/key/')
+  )?.[1] as unknown;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -116,8 +123,13 @@ beforeEach(() => {
   mockUpdateDoc.mockResolvedValue(undefined);
   mockOnSnapshot.mockReturnValue(() => undefined);
   batchUpdate = vi.fn();
+  batchSet = vi.fn();
   batchCommit = vi.fn().mockResolvedValue(undefined);
-  mockWriteBatch.mockReturnValue({ update: batchUpdate, commit: batchCommit });
+  mockWriteBatch.mockReturnValue({
+    update: batchUpdate,
+    set: batchSet,
+    commit: batchCommit,
+  });
 });
 
 afterEach(() => {
@@ -146,11 +158,13 @@ describe('useVideoActivitySessionTeacher — createSession', () => {
     });
 
     expect(returned).toBe('11111111-1111-4111-8111-111111111111');
-    expect(mockSetDoc).toHaveBeenCalledTimes(1);
-    const [path, payload] = mockSetDoc.mock.calls[0] ?? [];
-    expect(path).toBe(
-      'video_activity_sessions/11111111-1111-4111-8111-111111111111'
-    );
+    expect(mockSetDoc).not.toHaveBeenCalled();
+    expect(batchSet.mock.calls.map((c) => c[0] as unknown)).toEqual([
+      'video_activity_sessions/11111111-1111-4111-8111-111111111111',
+      'video_activity_sessions/11111111-1111-4111-8111-111111111111/key/answers',
+    ]);
+    expect(batchCommit).toHaveBeenCalledTimes(1);
+    const payload = sessionWrite();
     expect(payload).toEqual({
       id: '11111111-1111-4111-8111-111111111111',
       activityId: ACTIVITY_ID,
@@ -159,6 +173,7 @@ describe('useVideoActivitySessionTeacher — createSession', () => {
       teacherUid: TEACHER_UID,
       youtubeUrl: 'https://youtu.be/abc',
       questions: [],
+      publicQuestions: [],
       settings: {
         autoPlay: false,
         requireCorrectAnswer: true,
@@ -191,8 +206,14 @@ describe('useVideoActivitySessionTeacher — createSession', () => {
       await result.current.createSession(activity, TEACHER_UID, []);
     });
 
-    const payload = mockSetDoc.mock.calls[0]?.[1] as VideoActivitySession;
-    expect(payload.questions.map((q) => q.id)).toEqual(['q1', 'q2']);
+    const payload = sessionWrite() as VideoActivitySession;
+    expect(payload.questions).toEqual([]);
+    expect(payload.publicQuestions?.map((q) => q.id)).toEqual(['q1', 'q2']);
+    expect(JSON.stringify(payload)).not.toContain('correctAnswer');
+    const key = batchSet.mock.calls.find((c) =>
+      String(c[0]).endsWith('/key/answers')
+    )?.[1] as { questions: VideoActivityQuestion[] };
+    expect(key.questions.map((q) => q.id)).toEqual(['q1', 'q2']);
   });
 
   it('trims the assignment name', async () => {
@@ -208,7 +229,7 @@ describe('useVideoActivitySessionTeacher — createSession', () => {
       );
     });
 
-    const payload = mockSetDoc.mock.calls[0]?.[1] as VideoActivitySession;
+    const payload = sessionWrite() as VideoActivitySession;
     expect(payload.assignmentName).toBe('Padded Name');
   });
 
@@ -227,7 +248,7 @@ describe('useVideoActivitySessionTeacher — createSession', () => {
 
     // The fallback uses `new Date().toLocaleString()` (live clock), so only the
     // title-prefixed shape is asserted rather than an exact timestamp.
-    const payload = mockSetDoc.mock.calls[0]?.[1] as VideoActivitySession;
+    const payload = sessionWrite() as VideoActivitySession;
     expect(payload.assignmentName).toMatch(/^Photosynthesis /);
   });
 
@@ -241,7 +262,7 @@ describe('useVideoActivitySessionTeacher — createSession', () => {
       });
     });
 
-    const payload = mockSetDoc.mock.calls[0]?.[1] as VideoActivitySession;
+    const payload = sessionWrite() as VideoActivitySession;
     expect(payload.settings).toEqual({
       autoPlay: true,
       requireCorrectAnswer: true, // default preserved
@@ -263,7 +284,7 @@ describe('useVideoActivitySessionTeacher — createSession', () => {
       );
     });
 
-    const payload = mockSetDoc.mock.calls[0]?.[1] as VideoActivitySession;
+    const payload = sessionWrite() as VideoActivitySession;
     expect(payload.classIds).toEqual(['c1', 'c2']);
     expect(payload.classId).toBe('c1');
   });
@@ -290,7 +311,7 @@ describe('useVideoActivitySessionTeacher — createSession', () => {
       );
     });
 
-    const payload = mockSetDoc.mock.calls[0]?.[1] as VideoActivitySession;
+    const payload = sessionWrite() as VideoActivitySession;
     expect(payload.periodNames).toEqual(['Period 1']);
     expect(payload.rosterIds).toEqual(['r1']);
     expect(payload.classPeriodByClassId).toEqual({ c1: 'Period 1' });
@@ -313,7 +334,7 @@ describe('useVideoActivitySessionTeacher — createSession', () => {
       );
     });
 
-    const payload = mockSetDoc.mock.calls[0]?.[1] as Record<string, unknown>;
+    const payload = sessionWrite() as Record<string, unknown>;
     expect('classIds' in payload).toBe(false);
     expect('classId' in payload).toBe(false);
     expect('periodNames' in payload).toBe(false);
@@ -339,7 +360,7 @@ describe('useVideoActivitySessionTeacher — createSession', () => {
       );
     });
 
-    const payload = mockSetDoc.mock.calls[0]?.[1] as VideoActivitySession;
+    const payload = sessionWrite() as VideoActivitySession;
     expect(payload.mode).toBe('view-only');
   });
 });

@@ -32,8 +32,8 @@ import { logError } from '@/utils/logError';
 import { useVideoActivitySessionStudent } from '@/hooks/useVideoActivitySession';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
-import { VideoActivityQuestion, VideoActivitySession } from '@/types';
-import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
+import { VideoActivityPublicQuestion, VideoActivitySession } from '@/types';
+import { studentQuestionsFromSession } from '@/utils/videoActivityPublicQuestions';
 import { VideoPlayer } from './VideoPlayer';
 import { QuestionOverlay } from './QuestionOverlay';
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
@@ -215,7 +215,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
   const [pin, setPin] = useState('');
   const [activeQuestion, setActiveQuestion] =
-    useState<VideoActivityQuestion | null>(null);
+    useState<VideoActivityPublicQuestion | null>(null);
   const [videoEnded, setVideoEnded] = useState(false);
   const [seekRequest, setSeekRequest] = useState<{
     time: number;
@@ -230,6 +230,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     lookupSession,
     joinSession,
     submitAnswer,
+    checkAnswer,
     completeActivity,
     reportTabSwitch,
   } = useVideoActivitySessionStudent();
@@ -386,20 +387,27 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   }, [joinSession, sessionId, pin, selectedPeriod]);
 
   const handleQuestionTrigger = useCallback(
-    (question: VideoActivityQuestion) => {
+    (question: VideoActivityPublicQuestion) => {
       setActiveQuestion(question);
     },
     []
   );
 
+  const sessionQuestions = session?.questions;
+  const sessionPublicQuestions = session?.publicQuestions;
   const sortedQuestions = React.useMemo(
     () =>
-      [...(session?.questions ?? [])].sort((a, b) => a.timestamp - b.timestamp),
-    [session?.questions]
+      [
+        ...studentQuestionsFromSession({
+          questions: sessionQuestions ?? [],
+          publicQuestions: sessionPublicQuestions,
+        }),
+      ].sort((a, b) => a.timestamp - b.timestamp),
+    [sessionQuestions, sessionPublicQuestions]
   );
 
   const handleAnswer = useCallback(
-    async (answer: string, isCorrect: boolean) => {
+    async (answer: string, isCorrect: boolean, graded: boolean) => {
       if (!activeQuestion) return;
       const requireCorrect = session?.settings?.requireCorrectAnswer ?? true;
       if (requireCorrect && !isCorrect) {
@@ -417,7 +425,11 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       // rejects the write defense-in-depth, but skip it client-side too so
       // the console stays clean.
       if (!isViewOnly) {
-        await submitAnswer(activeQuestion.id, answer);
+        await submitAnswer(
+          activeQuestion.id,
+          answer,
+          graded ? isCorrect : undefined
+        );
       }
       setActiveQuestion(null);
     },
@@ -786,7 +798,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const atCap = attemptLimit !== null && completedCount >= attemptLimit;
   if (videoEnded || myResponse?.completedAt || atCap) {
     const answeredCount = myResponse?.answers.length ?? 0;
-    const totalQuestions = session?.questions.length ?? 0;
+    const totalQuestions = sortedQuestions.length;
     // Score visibility gates whether the student sees their percentage. The
     // teacher's Publish Scores flow flips `session.scoreVisibility` from
     // `'none'` (or absent) to one of the reveal modes. Until then, the
@@ -795,15 +807,13 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     // teacher set visibility to `'none'`.
     const visibility = session?.scoreVisibility ?? 'none';
     const showScore = visibility !== 'none';
-    // Derive correctness via the shared grader so MA / FIB-variants /
-    // partial-credit semantics line up with the teacher Results view and
-    // the in-flight QuestionOverlay submit path. Only computed when the
-    // visibility gate would actually display the result.
+    // `isCorrect` comes from the server check at submit time, and Publish re-grades it.
     const correct = showScore
-      ? (session?.questions.filter((q) => {
-          const a = myResponse?.answers.find((x) => x.questionId === q.id);
-          return a ? gradeVideoActivityAnswer(q, a.answer).isCorrect : false;
-        }).length ?? 0)
+      ? sortedQuestions.filter(
+          (q) =>
+            myResponse?.answers.find((x) => x.questionId === q.id)
+              ?.isCorrect === true
+        ).length
       : 0;
 
     return (
@@ -972,6 +982,9 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                   <QuestionOverlay
                     key={activeQuestion.id}
                     question={activeQuestion}
+                    checkAnswer={(answer) =>
+                      checkAnswer(activeQuestion.id, answer)
+                    }
                     onAnswer={handleAnswer}
                     questionIndex={
                       sortedQuestions.findIndex(

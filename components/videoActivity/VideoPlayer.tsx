@@ -18,15 +18,15 @@ import {
   extractYouTubeId,
 } from '@/utils/youtube';
 import type { YTPlayer } from '@/utils/youtube';
-import { VideoActivityQuestion } from '@/types';
+import { VideoActivityPublicQuestion } from '@/types';
 
 interface VideoPlayerProps {
   youtubeUrl: string;
-  questions: VideoActivityQuestion[];
+  questions: VideoActivityPublicQuestion[];
   /** IDs of already-answered questions — used for anti-skip enforcement. */
   answeredQuestionIds: Set<string>;
   /** Fired when the playhead first reaches a question's timestamp. */
-  onQuestionTrigger: (question: VideoActivityQuestion) => void;
+  onQuestionTrigger: (question: VideoActivityPublicQuestion) => void;
   /** Fired when the video ends (after all questions answered). */
   onVideoEnd: () => void;
   /** Whether the overlay is visible (prevents time-tracking while paused for Q). */
@@ -86,7 +86,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Refs used inside RAF/callbacks — synced via useLayoutEffect so they are
   // always up-to-date before the next paint without triggering extra renders.
-  const unansweredRef = useRef<VideoActivityQuestion[]>([]);
+  const unansweredRef = useRef<VideoActivityPublicQuestion[]>([]);
   const maxAllowedRef = useRef(maxAllowedTime);
   const questionVisibleRef = useRef(questionVisible);
   const allowSkippingRef = useRef(allowSkipping);
