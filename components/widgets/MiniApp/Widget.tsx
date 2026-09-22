@@ -1115,7 +1115,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     };
     const docRef = doc(db, 'users', user.uid, 'miniapps', appData.id);
     await setDoc(docRef, appData);
-    addToast('App saved to cloud', 'success');
+    // The editor autosaves, so only the first write is news.
+    if (!existing) addToast('App created!', 'success');
   };
 
   const handleReorder = useCallback(

@@ -50,7 +50,6 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
   const [title, setTitle] = useState(originalTitle);
   const [html, setHtml] = useState(originalHtml);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // AI generator state
   const [prompt, setPrompt] = useState('');
@@ -66,7 +65,6 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
     setTitle(app?.title ?? '');
     setHtml(app?.html ?? '');
     setSaving(false);
-    setError(null);
     setPrompt('');
     setShowPromptInput(false);
     setIsGenerating(false);
@@ -90,7 +88,6 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
   const persistDraft = async () => {
     if (!app) return;
     setSaving(true);
-    setError(null);
     try {
       await onSave({
         ...app,
@@ -278,13 +275,6 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
             placeholder="Paste your HTML, CSS, and JS here..."
           />
         </div>
-
-        {/* Inline error (validation) */}
-        {error && (
-          <div className="px-4 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-            {error}
-          </div>
-        )}
       </div>
     </EditorModalShell>
   );
