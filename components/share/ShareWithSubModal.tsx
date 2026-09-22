@@ -142,18 +142,32 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const { emails: presetEmails } = usePresetSubEmails(buildingId);
+  const { emails: presetEmails, loading: presetsLoading } =
+    usePresetSubEmails(buildingId);
 
-  // The building's generic sub accounts start ticked (D10) — that is who
-  // usually covers the class — and the teacher can untick or add to them.
-  // Tracked against the building the seed came from, so switching buildings
-  // re-seeds without clobbering an edited list.
-  const [seededBuilding, setSeededBuilding] = useState<string | null>(null);
-  if (isOpen && buildingId && seededBuilding !== buildingId) {
-    setSeededBuilding(buildingId);
+  // Everything the dialog asks for belongs to the board or collection it was
+  // opened on, so the fields re-seed whenever that changes — otherwise the
+  // next board opens on the last one's success screen and its expiry. Done
+  // while rendering rather than in an effect (CLAUDE.md), and not keyed on the
+  // live share, so the refresh that follows a save leaves the link on screen.
+  // Waits for the presets so the building's sub accounts still start ticked
+  // (D10) when they arrive after the first render.
+  const seedKey = `${sourceId ?? ''}|${buildingId}`;
+  const [seededFor, setSeededFor] = useState<string | null>(null);
+  if (isOpen && buildingId && !presetsLoading && seededFor !== seedKey) {
+    setSeededFor(seedKey);
     setEmails(
       existing?.subEmails ?? presetEmails.filter((e) => isValidOronoEmail(e))
     );
+    setExpiresAtIso(
+      existing?.expiresAt
+        ? formatLocalDateTime(new Date(existing.expiresAt))
+        : defaultExpirationIso()
+    );
+    setEmailDraft('');
+    setEmailError(null);
+    setCreatedUrl(null);
+    setCopied(false);
   }
   const selectedEmails = useMemo(() => emails ?? [], [emails]);
 

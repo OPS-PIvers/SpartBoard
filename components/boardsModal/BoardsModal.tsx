@@ -771,13 +771,16 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
           onClose={() => setShareCollectionTarget(null)}
         />
       )}
-      <ShareWithSubModal
-        isOpen={subShareTarget !== null}
-        target={subShareTarget}
-        existingShares={subShares.shares}
-        onClose={() => setSubShareTarget(null)}
-        onSaved={subShares.refresh}
-      />
+      {/* Mounted only while open, so a second trip through the dialog starts clean. */}
+      {subShareTarget && (
+        <ShareWithSubModal
+          isOpen
+          target={subShareTarget}
+          existingShares={subShares.shares}
+          onClose={() => setSubShareTarget(null)}
+          onSaved={subShares.refresh}
+        />
+      )}
       <SaveAsTemplateModal
         isOpen={saveAsTemplateTarget !== null}
         onClose={() => setSaveAsTemplateTarget(null)}

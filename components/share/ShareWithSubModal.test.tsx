@@ -108,6 +108,14 @@ const openModal = (existingShares: SharedCollection[] = []) =>
     />
   );
 
+const otherBoard: Dashboard = {
+  id: 'dash-2',
+  name: 'Period 5',
+  background: 'bg-slate-900',
+  widgets: [],
+  createdAt: 1_700_000_000_000,
+};
+
 const addEmail = (value: string) => {
   fireEvent.change(screen.getByPlaceholderText('name@orono.k12.mn.us'), {
     target: { value },
@@ -284,6 +292,127 @@ describe('ShareWithSubModal — an existing share', () => {
     openModal([existing]);
 
     expect(screen.getByLabelText('Building')).toBeDisabled();
+  });
+});
+
+describe('ShareWithSubModal — opening it again', () => {
+  beforeEach(() => {
+    usePresetSubEmailsMock.mockReturnValue({
+      emails: ['sub@orono.k12.mn.us'],
+      loading: false,
+    });
+    Object.assign(navigator, {
+      clipboard: { writeText: vi.fn(() => Promise.resolve()) },
+    });
+  });
+
+  afterEach(() => {
+    usePresetSubEmailsMock.mockReset();
+    shareSubstituteCollection.mockClear();
+    updateSubstituteCollectionShare.mockClear();
+    addToast.mockClear();
+    cleanup();
+  });
+
+  // The Boards screen keeps one dialog around, so the second board must not
+  // open on the first board's "here is the link" screen.
+  it('shows the form again when it opens on another board', async () => {
+    const view = render(
+      <ShareWithSubModal
+        isOpen
+        target={{ kind: 'board', dashboard: board }}
+        existingShares={[]}
+        onClose={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Share' }));
+    await waitFor(() =>
+      expect(screen.getByLabelText('Sub share link')).toBeTruthy()
+    );
+
+    view.rerender(
+      <ShareWithSubModal
+        isOpen
+        target={{ kind: 'board', dashboard: otherBoard }}
+        existingShares={[]}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByLabelText('Sub share link')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Share' })).toBeTruthy();
+  });
+
+  // "same end time unless you change it" has to be true: the field starts on
+  // the share's real expiry, not 48 hours from whenever the dialog mounted.
+  it('starts on the end time the live share already has', () => {
+    const expiresAt = Date.UTC(2026, 9, 9, 15, 30);
+    render(
+      <ShareWithSubModal
+        isOpen
+        target={{ kind: 'board', dashboard: board }}
+        existingShares={[
+          {
+            shareId: 'share-existing',
+            hostUid: 'host-1',
+            hostDisplayName: 'Teacher',
+            intendedMode: 'substitute',
+            collection: { name: 'Period 3' },
+            boardIds: [board.id],
+            createdAt: 1_700_000_000_000,
+            expiresAt,
+            buildingId: 'high',
+            kind: 'board',
+            sourceId: board.id,
+          },
+        ]}
+        onClose={vi.fn()}
+      />
+    );
+
+    const field = screen.getByLabelText<HTMLInputElement>('Ends');
+    const local = new Date(expiresAt);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    expect(field.value).toBe(
+      `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(
+        local.getDate()
+      )}T${pad(local.getHours())}:${pad(local.getMinutes())}`
+    );
+  });
+
+  // The presets arrive from Firestore a beat after the first render.
+  it('ticks the building presets when they arrive after the first render', async () => {
+    usePresetSubEmailsMock.mockReturnValue({ emails: [], loading: true });
+    const view = render(
+      <ShareWithSubModal
+        isOpen
+        target={{ kind: 'board', dashboard: board }}
+        existingShares={[]}
+        onClose={vi.fn()}
+      />
+    );
+
+    usePresetSubEmailsMock.mockReturnValue({
+      emails: ['sub@orono.k12.mn.us'],
+      loading: false,
+    });
+    view.rerender(
+      <ShareWithSubModal
+        isOpen
+        target={{ kind: 'board', dashboard: board }}
+        existingShares={[]}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole('button', { name: 'sub@orono.k12.mn.us' })
+          .getAttribute('aria-pressed')
+      ).toBe('true')
+    );
   });
 });
 
