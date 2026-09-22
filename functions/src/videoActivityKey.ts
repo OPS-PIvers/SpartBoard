@@ -197,17 +197,33 @@ export const checkVideoActivityAnswerV1 = onCall(
     )
 );
 
+const stampMillis = (value: unknown): number | null =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as { toMillis?: unknown }).toMillis === 'function'
+    ? (value as { toMillis: () => number }).toMillis()
+    : typeof value === 'number'
+      ? value
+      : null;
+
 /** Moves an embedded key into `key/answers`; drops the key doc when the session goes. */
 export async function scrubVideoActivitySessionKey(
   db: admin.firestore.Firestore,
   sessionId: string,
-  after: Record<string, unknown> | null
-): Promise<'deleted' | 'scrubbed' | 'clean'> {
+  after: Record<string, unknown> | null,
+  before: Record<string, unknown> | null = null
+): Promise<'deleted' | 'scrubbed' | 'clean' | 'deferred'> {
   if (!after) {
     await keyRef(db, sessionId).delete();
     return 'deleted';
   }
   if (!hasEmbeddedKey(after.questions)) return 'clean';
+  // A pre-release student tab reads `questions` directly, so a live session keeps it until it ends or the backfill asks.
+  const requested = stampMillis(after.keyScrubRequestedAt);
+  const backfillAsked =
+    requested !== null &&
+    requested !== stampMillis(before?.keyScrubRequestedAt);
+  if (before && after.status === 'active' && !backfillAsked) return 'deferred';
   const questions = dedupeById(keyQuestions(after.questions));
   const batch = db.batch();
   batch.set(keyRef(db, sessionId), { questions });
@@ -228,11 +244,12 @@ export const scrubVideoActivitySessionKeyV1 = onDocumentWritten(
   async (event) => {
     const { sessionId } = event.params;
     if (!event.data) return;
-    const { after } = event.data;
+    const { after, before } = event.data;
     const result = await scrubVideoActivitySessionKey(
       admin.firestore(),
       sessionId,
-      after.exists ? (after.data() ?? {}) : null
+      after.exists ? (after.data() ?? {}) : null,
+      before.exists ? (before.data() ?? {}) : null
     );
     if (result === 'scrubbed')
       logger.info('scrubVideoActivitySessionKeyV1: moved embedded key', {

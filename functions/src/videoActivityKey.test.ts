@@ -306,6 +306,44 @@ describe('scrubVideoActivitySessionKey', () => {
     ]);
   });
 
+  it('leaves a live legacy session for a pre-release tab until it ends or the backfill asks', async () => {
+    const live = { teacherUid: 't1', status: 'active', questions: KEYED };
+    const docs: Record<string, Doc> = { [SESSION]: { ...live } };
+    const db = makeDb(docs);
+    await expect(
+      scrubVideoActivitySessionKey(db, 's1', docs[SESSION], live)
+    ).resolves.toBe('deferred');
+    expect(docs[SESSION].questions).toEqual(KEYED);
+    await expect(
+      scrubVideoActivitySessionKey(
+        db,
+        's1',
+        { ...live, keyScrubRequestedAt: 5 },
+        live
+      )
+    ).resolves.toBe('scrubbed');
+  });
+
+  it('scrubs a legacy session on create and once it ends', async () => {
+    const live = { teacherUid: 't1', status: 'active', questions: KEYED };
+    await expect(
+      scrubVideoActivitySessionKey(
+        makeDb({ [SESSION]: { ...live } }),
+        's1',
+        live
+      )
+    ).resolves.toBe('scrubbed');
+    const ended = { ...live, status: 'ended' };
+    await expect(
+      scrubVideoActivitySessionKey(
+        makeDb({ [SESSION]: { ...ended } }),
+        's1',
+        ended,
+        live
+      )
+    ).resolves.toBe('scrubbed');
+  });
+
   it('leaves an already-split session alone', async () => {
     const docs: Record<string, Doc> = {
       [SESSION]: { questions: [], publicQuestions: [{ id: 'q1' }] },
