@@ -51,6 +51,20 @@ const GROUPS = [
     defaultIndex: 2,
     nextValue: 'Alert',
   },
+  {
+    name: 'Accent Color',
+    configField: 'themeColor',
+    // Nothing selected by default — roving tabindex falls back to swatch 0 (slate, #1e293b).
+    defaultIndex: 0,
+    nextValue: '#ef4444', // red, the 2nd WIDGET_PALETTE entry
+  },
+  {
+    name: 'Timer-End Traffic Light Color',
+    configField: 'timerEndTrafficColor',
+    // Default is null, matching the 'None' option at index 0.
+    defaultIndex: 0,
+    nextValue: 'green',
+  },
 ];
 
 describe('TimeToolConfigurationPanel — radiogroup keyboard navigation', () => {
