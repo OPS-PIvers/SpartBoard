@@ -291,6 +291,8 @@ interface UseSubstituteCollectionBoardState {
   error: string | null;
   /** The whole share's boards, so the sub can move between them in place. */
   navSource: SubShareNavSource | null;
+  /** The content the sub is looking at, to notice a teacher's later push. */
+  contentVersion: number | null;
 }
 
 interface CollectionBoardSnapshot {
@@ -298,6 +300,7 @@ interface CollectionBoardSnapshot {
   share: SubstituteShareDoc | null;
   error: string | null;
   navSource: SubShareNavSource | null;
+  contentVersion: number | null;
 }
 
 /**
@@ -355,6 +358,7 @@ export function useSubstituteCollectionBoard(
             key: requestKey,
             share: null,
             navSource: null,
+            contentVersion: null,
             error: 'This Collection could not be found.',
           });
           return;
@@ -365,6 +369,7 @@ export function useSubstituteCollectionBoard(
             key: requestKey,
             share: null,
             navSource: null,
+            contentVersion: null,
             error: 'Not a substitute Collection share.',
           });
           return;
@@ -377,6 +382,7 @@ export function useSubstituteCollectionBoard(
             key: requestKey,
             share: null,
             navSource: null,
+            contentVersion: null,
             error: 'This share has expired.',
           });
           return;
@@ -386,6 +392,7 @@ export function useSubstituteCollectionBoard(
             key: requestKey,
             share: null,
             navSource: null,
+            contentVersion: null,
             error: 'This board is not part of the shared Collection.',
           });
           return;
@@ -404,6 +411,7 @@ export function useSubstituteCollectionBoard(
             key: requestKey,
             share: null,
             navSource: null,
+            contentVersion: null,
             error: 'This share is not available in your building.',
           });
           return;
@@ -423,6 +431,7 @@ export function useSubstituteCollectionBoard(
             key: requestKey,
             share: null,
             navSource: null,
+            contentVersion: null,
             error: 'This board could not be found in the Collection.',
           });
           return;
@@ -456,6 +465,7 @@ export function useSubstituteCollectionBoard(
         setSnapshot({
           key: requestKey,
           share,
+          contentVersion: parent.contentVersion ?? 1,
           navSource: {
             boardIds: parent.boardIds,
             ...(parent.boards !== undefined && { boards: parent.boards }),
@@ -478,6 +488,7 @@ export function useSubstituteCollectionBoard(
             key: requestKey,
             share: null,
             navSource: null,
+            contentVersion: null,
             error: friendlySubShareError(
               err as { code?: string; message?: string }
             ),
@@ -492,17 +503,64 @@ export function useSubstituteCollectionBoard(
   }, [shareId, boardId, expectedBuildingId, attempt]);
 
   if (!shareId || !boardId) {
-    return { share: null, loading: false, error: null, navSource: null };
+    return {
+      share: null,
+      loading: false,
+      error: null,
+      navSource: null,
+      contentVersion: null,
+    };
   }
   if (!snapshot || snapshot.key !== key) {
-    return { share: null, loading: true, error: null, navSource: null };
+    return {
+      share: null,
+      loading: true,
+      error: null,
+      navSource: null,
+      contentVersion: null,
+    };
   }
   return {
     share: snapshot.share,
     loading: false,
     error: snapshot.error,
     navSource: snapshot.navSource,
+    contentVersion: snapshot.contentVersion,
   };
+}
+
+/**
+ * Watches a Collection share's `contentVersion` so a sub with the portal open
+ * finds out their teacher pushed new boards. Only the parent doc is watched —
+ * the boards themselves stay one-shot reads, taken when the sub accepts.
+ *
+ * Returns null until the first snapshot lands, and on a denied or failed read:
+ * an unreadable share is the ended-share path, which the expiry check owns.
+ */
+export function useSubShareContentVersion(
+  shareId: string | null
+): number | null {
+  const [live, setLive] = useState<{ shareId: string; version: number } | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (!shareId) return;
+    const unsub = onSnapshot(
+      doc(db, 'shared_collections', shareId),
+      (snap) => {
+        if (!snap.exists()) return;
+        const data = snap.data() as SharedCollection;
+        setLive({ shareId, version: data.contentVersion ?? 1 });
+      },
+      (err) => {
+        logError('useSubShareContentVersion.snapshot', err, { shareId });
+      }
+    );
+    return unsub;
+  }, [shareId]);
+
+  return live?.shareId === shareId ? live.version : null;
 }
 
 /** Re-export for callers (e.g. Phase 5 Drive grant types). */

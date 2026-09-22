@@ -4039,6 +4039,10 @@
       "opening": "Opening…",
       "openFailed": "{{reason}} You are still on “{{board}}”.",
       "tryAgain": "Try again"
+    },
+    "update": {
+      "available": "{{teacher}} updated these boards.",
+      "reload": "Reload"
     }
   }
 }

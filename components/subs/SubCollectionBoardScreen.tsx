@@ -21,11 +21,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useSubstituteCollectionBoard } from '@/hooks/useSubstituteShares';
+import {
+  useSubstituteCollectionBoard,
+  useSubShareContentVersion,
+} from '@/hooks/useSubstituteShares';
 import { useSubstituteRosters } from '@/hooks/useSubstituteRosters';
 import { SubsDashboardProvider } from './SubsDashboardProvider';
 import { SubBoardScreenContent, ExpiredOrErrorPanel } from './SubBoardScreen';
 import { SubBoardNav } from './SubBoardNav';
+import { SubShareUpdateBanner } from './SubShareUpdateBanner';
 import { buildSubShareNav, type SubShareNavSource } from './subShareNav';
 import type { SubstituteShareDoc } from '@/hooks/useSubstituteShares';
 
@@ -39,6 +43,8 @@ interface SubCollectionBoardScreenProps {
 
 /** The board currently on screen, kept while the next one is being read. */
 interface ShownBoard {
+  /** The request that produced it: board plus attempt, so a re-read lands. */
+  key: string;
   boardId: string;
   share: SubstituteShareDoc;
   navSource: SubShareNavSource | null;
@@ -59,19 +65,27 @@ export const SubCollectionBoardScreen: React.FC<
   // the value it already holds, so React bails out and nothing re-reads —
   // this is what makes a retry of the same board actually fire.
   const [attempt, setAttempt] = useState(0);
-  const { share, loading, error, navSource } = useSubstituteCollectionBoard(
-    shareId,
-    boardId,
-    buildingId,
-    attempt
-  );
+  // The content the sub accepted. Bumping it re-keys every board in the
+  // provider, which is how accepting an update replaces what they are looking
+  // at; until then their edits stand.
+  const [acceptedVersion, setAcceptedVersion] = useState<number | null>(null);
+  const { share, loading, error, navSource, contentVersion } =
+    useSubstituteCollectionBoard(shareId, boardId, buildingId, attempt);
+  const liveVersion = useSubShareContentVersion(shareId);
 
   // Adjusting state while rendering, per CLAUDE.md: hold on to the board that
   // is on screen so a board switch does not fall back through the loading
   // branch and unmount the provider.
   const [shown, setShown] = useState<ShownBoard | null>(null);
-  if (share && (!shown || shown.boardId !== boardId)) {
-    setShown({ boardId, share, navSource });
+  const requestKey = `${boardId}::${attempt}`;
+  if (share && shown?.key !== requestKey) {
+    setShown({ key: requestKey, boardId, share, navSource });
+    // Only the first read sets the baseline. A later hop must not silently
+    // accept an update and throw away the boards the sub has worked on —
+    // that is what the banner asks them about.
+    if (acceptedVersion === null && contentVersion !== null) {
+      setAcceptedVersion(contentVersion);
+    }
   }
 
   const rosterState = useSubstituteRosters(
@@ -109,6 +123,14 @@ export const SubCollectionBoardScreen: React.FC<
       })
     );
   }, [shownNavSource, t]);
+
+  // "Push my changes" bumps contentVersion on the parent doc. Nothing on
+  // screen moves until the sub presses Reload, so a teacher updating
+  // mid-lesson cannot wipe a running timer or a half-taken lunch count.
+  const hasUpdate =
+    liveVersion !== null &&
+    acceptedVersion !== null &&
+    liveVersion !== acceptedVersion;
 
   // Expiry is terminal for the whole share, so it takes the screen down. A
   // failed read of the *next* board is not: tearing the provider down here
@@ -148,7 +170,7 @@ export const SubCollectionBoardScreen: React.FC<
   return (
     <SubsDashboardProvider
       share={shown.share}
-      boardKey={shown.boardId}
+      boardKey={`${shown.boardId}::${acceptedVersion ?? 0}`}
       rosterState={rosterState}
     >
       <SubBoardScreenContent
@@ -161,6 +183,15 @@ export const SubCollectionBoardScreen: React.FC<
           nav={nav}
           currentBoardId={shown.boardId}
           onPickBoard={setBoardId}
+        />
+      )}
+      {hasUpdate && (
+        <SubShareUpdateBanner
+          teacherName={shown.share.originalAuthorName ?? 'Your teacher'}
+          onReload={() => {
+            setAcceptedVersion(liveVersion);
+            setAttempt((n) => n + 1);
+          }}
         />
       )}
       {loading && (

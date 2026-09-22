@@ -14,6 +14,7 @@ import {
   useSubstituteShares,
   useSubstituteShare,
   useSubstituteCollectionBoard,
+  useSubShareContentVersion,
 } from '@/hooks/useSubstituteShares';
 
 vi.mock('firebase/firestore', () => ({
@@ -709,5 +710,82 @@ describe('useSubstituteCollectionBoard — cross-building gate', () => {
     expect(result.current.error).toBe(
       'This share is not available in your building.'
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// useSubShareContentVersion(shareId)
+// ---------------------------------------------------------------------------
+
+describe('useSubShareContentVersion', () => {
+  it('reports nothing until the first snapshot lands', () => {
+    const { result } = renderHook(() => useSubShareContentVersion('share1'));
+    expect(result.current).toBeNull();
+  });
+
+  it('reports the version the teacher has pushed', () => {
+    const { result } = renderHook(() => useSubShareContentVersion('share1'));
+    act(() => {
+      lastListener().next(fakeDocSnap('share1', { contentVersion: 4 }));
+    });
+    expect(result.current).toBe(4);
+  });
+
+  // Shares written before contentVersion existed are still live in outboxes.
+  it('treats a share with no version as the first one', () => {
+    const { result } = renderHook(() => useSubShareContentVersion('share1'));
+    act(() => {
+      lastListener().next(fakeDocSnap('share1', { boardIds: ['b1'] }));
+    });
+    expect(result.current).toBe(1);
+  });
+
+  it('follows a later push', () => {
+    const { result } = renderHook(() => useSubShareContentVersion('share1'));
+    act(() => {
+      lastListener().next(fakeDocSnap('share1', { contentVersion: 1 }));
+    });
+    act(() => {
+      lastListener().next(fakeDocSnap('share1', { contentVersion: 2 }));
+    });
+    expect(result.current).toBe(2);
+  });
+
+  it('ignores a share that is not there', () => {
+    const { result } = renderHook(() => useSubShareContentVersion('share1'));
+    act(() => {
+      lastListener().next(fakeDocSnap('share1', null));
+    });
+    expect(result.current).toBeNull();
+  });
+
+  // An unreadable share is the ended-share path, which the expiry check owns;
+  // reporting a version here would be a lie.
+  it('stays quiet on a denied read, and logs it', () => {
+    const { result } = renderHook(() => useSubShareContentVersion('share1'));
+    act(() => {
+      lastListener().error({ code: 'permission-denied' });
+    });
+    expect(result.current).toBeNull();
+    expect(mockLogError).toHaveBeenCalled();
+  });
+
+  it('does not carry one share’s version onto another', () => {
+    const { result, rerender } = renderHook(
+      ({ id }: { id: string }) => useSubShareContentVersion(id),
+      { initialProps: { id: 'share1' } }
+    );
+    act(() => {
+      lastListener().next(fakeDocSnap('share1', { contentVersion: 7 }));
+    });
+    rerender({ id: 'share2' });
+    expect(result.current).toBeNull();
+  });
+
+  it('unsubscribes on unmount', () => {
+    const { unmount } = renderHook(() => useSubShareContentVersion('share1'));
+    const { unsub } = lastListener();
+    unmount();
+    expect(unsub).toHaveBeenCalledTimes(1);
   });
 });

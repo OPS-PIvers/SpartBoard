@@ -21,11 +21,19 @@ let stillLoading = new Set<string>();
 let readError: string | null = null;
 /** Every `attempt` the screen has asked the loader for, in order. */
 let attempts: number[] = [];
+/** What the board read reports as the content the sub is looking at. */
+let readVersion = 1;
+/** What the live watcher reports, i.e. what the teacher has pushed. */
+let liveVersion: number | null = 1;
+/** Every boardKey the provider has been given, in order. */
+let boardKeys: string[] = [];
 
+// The name carries the content version so a test can tell a re-read apart
+// from a stale `shown` still holding the previous share object.
 const makeShare = (boardId: string): SubstituteShareDoc =>
   ({
     shareId: 'share-1',
-    name: BOARD_NAMES[boardId],
+    name: `${BOARD_NAMES[boardId]} v${readVersion}`,
     widgets: [],
     initialState: [],
     expiresAt: Date.now() + 60_000,
@@ -43,17 +51,44 @@ vi.mock('@/hooks/useSubstituteShares', () => ({
   ) => {
     attempts.push(attempt);
     if (readError) {
-      return { share: null, loading: false, error: readError, navSource: null };
+      return {
+        share: null,
+        loading: false,
+        error: readError,
+        navSource: null,
+        contentVersion: null,
+      };
     }
     if (stillLoading.has(boardId)) {
-      return { share: null, loading: true, error: null, navSource: null };
+      return {
+        share: null,
+        loading: true,
+        error: null,
+        navSource: null,
+        contentVersion: null,
+      };
     }
     return {
       share: makeShare(boardId),
       loading: false,
       error: null,
       navSource: NAV_SOURCE,
+      contentVersion: readVersion,
     };
+  },
+  useSubShareContentVersion: () => liveVersion,
+}));
+
+vi.mock('@/components/subs/SubsDashboardProvider', () => ({
+  SubsDashboardProvider: ({
+    boardKey,
+    children,
+  }: {
+    boardKey: string;
+    children: React.ReactNode;
+  }) => {
+    boardKeys.push(boardKey);
+    return <>{children}</>;
   },
 }));
 
@@ -96,6 +131,9 @@ describe('SubCollectionBoardScreen', () => {
     stillLoading = new Set();
     readError = null;
     attempts = [];
+    boardKeys = [];
+    readVersion = 1;
+    liveVersion = 1;
   });
 
   it('opens the board the link named, with the collection’s navigator', () => {
@@ -138,7 +176,7 @@ describe('SubCollectionBoardScreen', () => {
     expect(screen.getByTestId('board')).toHaveTextContent('Warm up');
     expect(screen.queryByTestId('panel')).not.toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'This board is not part of the shared Collection. You are still on “Warm up”.'
+      'This board is not part of the shared Collection. You are still on “Warm up v1”.'
     );
   });
 
@@ -156,6 +194,66 @@ describe('SubCollectionBoardScreen', () => {
     expect(Math.max(...attempts)).toBe(1);
     expect(screen.getByTestId('board')).toHaveTextContent('Reading');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  // Plan §3.5: the sub is told, not interrupted. A teacher pushing new boards
+  // mid-lesson must not wipe a running timer.
+  describe('a teacher pushing new boards', () => {
+    const banner = () => screen.queryByText(/updated these boards/);
+
+    it('says nothing while the content has not moved', () => {
+      renderScreen('b1');
+      expect(banner()).not.toBeInTheDocument();
+    });
+
+    it('offers a reload once the teacher has pushed', () => {
+      liveVersion = 2;
+      renderScreen('b1');
+      expect(banner()).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Reload' })
+      ).toBeInTheDocument();
+    });
+
+    // The whole point: the board keeps its key, so the provider keeps the
+    // widgets the sub has been working on.
+    it('leaves the open board alone until the sub accepts', () => {
+      liveVersion = 2;
+      renderScreen('b1');
+      expect(screen.getByTestId('board')).toHaveTextContent('Warm up');
+      expect(new Set(boardKeys)).toEqual(new Set(['b1::1']));
+    });
+
+    it('re-keys every board and re-reads on accept', () => {
+      liveVersion = 2;
+      renderScreen('b1');
+      readVersion = 2;
+      fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
+      expect(Math.max(...attempts)).toBe(1);
+      expect(boardKeys.at(-1)).toBe('b1::2');
+      expect(banner()).not.toBeInTheDocument();
+      // The new content actually reaches the screen: `shown` has to be keyed
+      // on the request, not the board, or the re-read lands nowhere.
+      expect(screen.getByTestId('board')).toHaveTextContent('Warm up v2');
+    });
+
+    // Otherwise stepping to the next board would silently take the update and
+    // discard what the sub had done on the boards behind it.
+    it('keeps asking when the sub walks to another board instead', () => {
+      liveVersion = 2;
+      renderScreen('b1');
+      readVersion = 2;
+      fireEvent.click(nextButton());
+      expect(screen.getByTestId('board')).toHaveTextContent('Reading');
+      expect(banner()).toBeInTheDocument();
+      expect(boardKeys.at(-1)).toBe('b2::1');
+    });
+
+    it('says nothing when the watcher has nothing to report', () => {
+      liveVersion = null;
+      renderScreen('b1');
+      expect(banner()).not.toBeInTheDocument();
+    });
   });
 
   it('reports a board it could not read', () => {
