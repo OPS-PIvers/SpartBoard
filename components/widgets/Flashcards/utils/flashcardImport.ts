@@ -119,7 +119,11 @@ export function flashcardsFromRows(
   const warnings: string[] = [];
   const rows = sourceRows.map((row) => row.map((cell) => String(cell).trim()));
   const first = rows[0];
+  // Only strip row 0 as a header when there's a row after it — otherwise a
+  // lone card whose term/definition happen to read like "Question"/"Answer"
+  // would be stripped down to zero cards with no warning shown.
   const hasHeader =
+    rows.length > 1 &&
     first != null &&
     TERM_HEADERS.has((first[0] ?? '').toLowerCase()) &&
     DEFINITION_HEADERS.has((first[1] ?? '').toLowerCase());
