@@ -5,6 +5,7 @@ import type {
   FieldCtx,
 } from '@/components/settings/schema/types';
 import type { RandomConfig } from '@/types';
+import { splitPastedNames } from '@/utils/rosterNameLists';
 import {
   RandomGroupCountField,
   RandomRosterActionsField,
@@ -55,6 +56,16 @@ export default defineSettings<RandomConfig>({
           placeholder: 'firstNamesPlaceholder',
           rows: 8,
           visibleWhen: isCustomRoster,
+          pasteToPatch: (paste) => {
+            const lastNames = paste.ctx.config.lastNames;
+            return splitPastedNames({
+              pasted: paste.pasted,
+              value: paste.value,
+              lastNames: typeof lastNames === 'string' ? lastNames : '',
+              selectionStart: paste.selectionStart,
+              selectionEnd: paste.selectionEnd,
+            });
+          },
         },
         {
           key: 'lastNames',

@@ -50,6 +50,7 @@ import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { getAudioCtx, playTick, playWinner } from './audioUtils';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { logError } from '@/utils/logError';
+import { combineRosterNames } from '@/utils/rosterNameLists';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 import {
   makeGroupsWithLockedCohorts,
@@ -384,25 +385,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       );
     }
 
-    const firsts = firstNames
-      .split('\n')
-      .map((n: string) => n.trim())
-      .filter((n: string) => n);
-
-    const lasts = lastNames
-      .split('\n')
-      .map((n: string) => n.trim())
-      .filter((n: string) => n);
-
-    const count = Math.max(firsts.length, lasts.length);
-    const combined = [];
-    for (let i = 0; i < count; i++) {
-      const f = firsts[i] || '';
-      const l = lasts[i] || '';
-      const name = `${f} ${l}`.trim();
-      if (name) combined.push(name);
-    }
-    return combined;
+    return combineRosterNames(firstNames, lastNames);
   }, [firstNames, lastNames, activeRoster, rosterMode, presentClassStudents]);
 
   // Keep a ref to the latest `students` array so the flash/slots setInterval
