@@ -18,14 +18,18 @@
  * board's session state (plan D3).
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useSubstituteCollectionBoard } from '@/hooks/useSubstituteShares';
+import {
+  useSubstituteCollectionBoard,
+  useSubShareContentVersion,
+} from '@/hooks/useSubstituteShares';
 import { useSubstituteRosters } from '@/hooks/useSubstituteRosters';
 import { SubsDashboardProvider } from './SubsDashboardProvider';
 import { SubBoardScreenContent, ExpiredOrErrorPanel } from './SubBoardScreen';
 import { SubBoardNav } from './SubBoardNav';
+import { SubShareUpdateBanner } from './SubShareUpdateBanner';
 import { buildSubShareNav, type SubShareNavSource } from './subShareNav';
 import type { SubstituteShareDoc } from '@/hooks/useSubstituteShares';
 
@@ -37,11 +41,55 @@ interface SubCollectionBoardScreenProps {
   onChangeBuilding: () => void;
 }
 
-/** The board currently on screen, kept while the next one is being read. */
+/** A board the sub has opened, as it looked when they opened it. */
 interface ShownBoard {
   boardId: string;
   share: SubstituteShareDoc;
   navSource: SubShareNavSource | null;
+}
+
+/** Every board the sub has open, all at the content version they accepted. */
+interface ShownState {
+  /** The accepted version these snapshots came from. */
+  version: number;
+  /** The request already taken, so a re-render does not take it twice. */
+  key: string | null;
+  /** The board on screen. */
+  current: string | null;
+  boards: ReadonlyMap<string, ShownBoard>;
+}
+
+const NO_BOARDS: ReadonlyMap<string, ShownBoard> = new Map();
+
+/** The reload the sub asked for, and the read that will complete it. */
+interface PendingAccept {
+  version: number;
+  requestKey: string;
+}
+
+/** Folds a completed read into what is on screen. Pure, so it holds in a const. */
+function takeRead(
+  state: ShownState,
+  version: number,
+  requestKey: string,
+  board: ShownBoard | null,
+  accepting: PendingAccept | null
+): ShownState {
+  if (!board || state.key === requestKey) return state;
+  if (accepting && accepting.requestKey === requestKey) {
+    // Accepting replaces every snapshot at once, once the content is in hand.
+    return {
+      version: accepting.version,
+      key: requestKey,
+      current: board.boardId,
+      boards: new Map([[board.boardId, board]]),
+    };
+  }
+  // A board already opened keeps the snapshot the sub has been working in.
+  const boards = state.boards.has(board.boardId)
+    ? state.boards
+    : new Map(state.boards).set(board.boardId, board);
+  return { version, key: requestKey, current: board.boardId, boards };
 }
 
 export const SubCollectionBoardScreen: React.FC<
@@ -55,27 +103,52 @@ export const SubCollectionBoardScreen: React.FC<
 }) => {
   const { t } = useTranslation();
   const [boardId, setBoardId] = useState(initialBoardId);
-  // Bumped by "Try again". Picking the board that just failed sets state to
-  // the value it already holds, so React bails out and nothing re-reads —
-  // this is what makes a retry of the same board actually fire.
+  // Bumped by "Try again": re-picking the same board would bail out.
   const [attempt, setAttempt] = useState(0);
-  const { share, loading, error, navSource } = useSubstituteCollectionBoard(
-    shareId,
-    boardId,
-    buildingId,
-    attempt
+  // The content the sub accepted; until it moves, their edits stand.
+  const [acceptedVersion, setAcceptedVersion] = useState<number | null>(null);
+  // Set by Reload, cleared when its read lands — never on the click itself.
+  const [pendingAccept, setPendingAccept] = useState<PendingAccept | null>(
+    null
   );
+  const { share, loading, error, navSource, contentVersion } =
+    useSubstituteCollectionBoard(shareId, boardId, buildingId, attempt);
+  const liveVersion = useSubShareContentVersion(shareId);
 
-  // Adjusting state while rendering, per CLAUDE.md: hold on to the board that
-  // is on screen so a board switch does not fall back through the loading
-  // branch and unmount the provider.
-  const [shown, setShown] = useState<ShownBoard | null>(null);
-  if (share && (!shown || shown.boardId !== boardId)) {
-    setShown({ boardId, share, navSource });
+  // Adjusting state while rendering, per CLAUDE.md. Each opened board keeps
+  // its whole snapshot, not just its widgets: the rest of the board comes from
+  // the share doc, which a revisit would otherwise re-dress.
+  const requestKey = `${boardId}::${attempt}`;
+  // The baseline the first read establishes.
+  const version = acceptedVersion ?? contentVersion ?? 0;
+  const [state, setState] = useState<ShownState>({
+    version,
+    key: null,
+    current: null,
+    boards: NO_BOARDS,
+  });
+
+  const view = takeRead(
+    state,
+    version,
+    requestKey,
+    share ? { boardId, share, navSource } : null,
+    pendingAccept
+  );
+  if (view !== state) {
+    setState(view);
+    if (acceptedVersion === null && contentVersion !== null) {
+      setAcceptedVersion(contentVersion);
+    }
+    if (pendingAccept && pendingAccept.requestKey === requestKey) {
+      setAcceptedVersion(pendingAccept.version);
+      setPendingAccept(null);
+    }
   }
+  const shown = view.current ? (view.boards.get(view.current) ?? null) : null;
 
   const rosterState = useSubstituteRosters(
-    share?.sharedRosters ?? shown?.share.sharedRosters
+    shown?.share.sharedRosters ?? share?.sharedRosters
   );
   const [expired, setExpired] = useState(false);
 
@@ -99,21 +172,26 @@ export const SubCollectionBoardScreen: React.FC<
     return () => window.clearTimeout(id);
   }, [expired, onBackToDirectory]);
 
-  const shownNavSource = shown?.navSource ?? null;
-  const nav = useMemo(() => {
-    if (!shownNavSource) return null;
-    return buildSubShareNav(shownNavSource, (id) =>
-      t('subShare.nav.unnamedBoard', {
-        defaultValue: 'Board …{{suffix}}',
-        suffix: id.slice(-4),
-      })
-    );
-  }, [shownNavSource, t]);
+  // Computed during render: useMemo on a value out of `boards` compile-skips.
+  const nav = shown?.navSource
+    ? buildSubShareNav(shown.navSource, (id) =>
+        t('subShare.nav.unnamedBoard', {
+          defaultValue: 'Board …{{suffix}}',
+          suffix: id.slice(-4),
+        })
+      )
+    : null;
 
-  // Expiry is terminal for the whole share, so it takes the screen down. A
-  // failed read of the *next* board is not: tearing the provider down here
-  // would throw away every board's session state over a network blip, so the
-  // board the sub is on stays put and the failure is reported beside it.
+  // Nothing on screen moves until the sub presses Reload.
+  const reloading =
+    !error && pendingAccept !== null && pendingAccept.requestKey === requestKey;
+  const hasUpdate =
+    liveVersion !== null &&
+    acceptedVersion !== null &&
+    liveVersion !== acceptedVersion &&
+    !reloading;
+
+  // Expiry takes the screen down; a failed read of the next board does not.
   if (expired || (!!error && !shown)) {
     return (
       <div className="min-h-screen bg-slate-900">
@@ -148,7 +226,7 @@ export const SubCollectionBoardScreen: React.FC<
   return (
     <SubsDashboardProvider
       share={shown.share}
-      boardKey={shown.boardId}
+      boardKey={`${shown.boardId}::${view.version}`}
       rosterState={rosterState}
     >
       <SubBoardScreenContent
@@ -160,7 +238,23 @@ export const SubCollectionBoardScreen: React.FC<
         <SubBoardNav
           nav={nav}
           currentBoardId={shown.boardId}
-          onPickBoard={setBoardId}
+          onPickBoard={(id) => {
+            // Walking away abandons a reload that has not landed.
+            setPendingAccept(null);
+            setBoardId(id);
+          }}
+        />
+      )}
+      {hasUpdate && (
+        <SubShareUpdateBanner
+          teacherName={shown.share.originalAuthorName ?? 'Your teacher'}
+          onReload={() => {
+            setPendingAccept({
+              version: liveVersion,
+              requestKey: `${boardId}::${attempt + 1}`,
+            });
+            setAttempt(attempt + 1);
+          }}
         />
       )}
       {loading && (
@@ -187,7 +281,12 @@ export const SubCollectionBoardScreen: React.FC<
           </span>
           <button
             type="button"
-            onClick={() => setAttempt((n) => n + 1)}
+            onClick={() => {
+              setPendingAccept((p) =>
+                p ? { ...p, requestKey: `${boardId}::${attempt + 1}` } : null
+              );
+              setAttempt(attempt + 1);
+            }}
             className="shrink-0 rounded-full bg-white/20 hover:bg-white/30 px-2 py-0.5 font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
             {t('subShare.nav.tryAgain', { defaultValue: 'Try again' })}
