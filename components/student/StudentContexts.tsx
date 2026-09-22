@@ -153,6 +153,7 @@ const mockDashboard: DashboardContextValue = {
   toasts: [],
   loading: false,
   isSaving: false,
+  saveRetrying: false,
   gradeFilter: 'all',
   setGradeFilter: () => {
     // No-op

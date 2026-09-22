@@ -74,6 +74,7 @@
       "allChangesSaved": "Toutes les modifications enregistrées",
       "syncingChanges": "Synchronisation des modifications...",
       "allChangesSavedTooltip": "Toutes les modifications enregistrées",
+      "saveRetryingTooltip": "Enregistrement impossible pour le moment. Vos modifications sont conservées sur cet appareil et l'enregistrement sera réessayé.",
       "googleDriveConnected": "Google Drive connecté",
       "googleDriveDisconnected": "Google Drive déconnecté",
       "signOut": "Se déconnecter",

@@ -74,6 +74,7 @@
       "allChangesSaved": "All Changes Saved",
       "syncingChanges": "Syncing changes...",
       "allChangesSavedTooltip": "All changes saved",
+      "saveRetryingTooltip": "Couldn't save yet. Your changes are kept on this device and will keep retrying.",
       "googleDriveConnected": "Google Drive Connected",
       "googleDriveDisconnected": "Google Drive Disconnected",
       "signOut": "Sign Out",

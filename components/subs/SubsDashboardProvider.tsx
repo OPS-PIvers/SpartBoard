@@ -241,6 +241,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       toasts: EMPTY_ARRAY as Toast[],
       loading: false,
       isSaving: false,
+      saveRetrying: false,
       gradeFilter: 'all' as GradeFilter,
       annotationActive: false,
       annotationState: DEFAULT_ANNOTATION_STATE,

@@ -378,7 +378,7 @@ describe('DashboardContext auto-save starvation ceiling', () => {
     expect(saveDashboardMock).toHaveBeenCalled();
   });
 
-  it('keeps the normal debounce after a rejected save instead of firing per keystroke', async () => {
+  it('waits out the retry backoff after a rejected save instead of firing per keystroke', async () => {
     const stateRef = setup();
     await settleSnapshot(stateRef, [makeDashboard([makeWidget('w1')])]);
     saveDashboardMock.mockClear();
@@ -401,12 +401,13 @@ describe('DashboardContext auto-save starvation ceiling', () => {
         config: { text: 'ab' } as WidgetData['config'],
       });
     });
+    // The normal 800 ms debounce has elapsed, but the 2 s backoff has not.
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(300);
+      await vi.advanceTimersByTimeAsync(900);
     });
     expect(saveDashboardMock).not.toHaveBeenCalled();
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(600);
+      await vi.advanceTimersByTimeAsync(1200);
     });
     expect(saveDashboardMock).toHaveBeenCalledTimes(1);
   });
