@@ -242,6 +242,14 @@ export const GuidedLearningEditorModal: React.FC<
     onFolderChange,
   });
 
+  // A nudge, not a gate: autosave writes regardless. Without a slide the
+  // editor cannot save at all, so that comes first.
+  const incompleteNotice = useMemo(() => {
+    if (editorState.imageUrls.length === 0) return 'Add at least one slide';
+    if (!editorState.title.trim()) return 'Set title is required';
+    return null;
+  }, [editorState.imageUrls.length, editorState.title]);
+
   const isDirty = useMemo(() => {
     return (
       editorState.title !== originalTitle ||
@@ -560,6 +568,7 @@ export const GuidedLearningEditorModal: React.FC<
         }}
         onClose={onClose}
         saveLabel="Save Set"
+        incompleteNotice={incompleteNotice}
         saveDisabled={
           !editorState.title.trim() ||
           editorState.imageUrls.length === 0 ||

@@ -200,6 +200,34 @@ describe('GuidedLearningEditorModal dirty state', () => {
   });
 });
 
+// Autosave writes a blank-titled set regardless, so the footer notice is the
+// only thing left telling the teacher it is not ready to hand out.
+describe('GuidedLearningEditorModal incomplete notice', () => {
+  it('names the missing title while still autosaving', async () => {
+    const { onSave } = renderModal({ ...buildSet(), title: '' });
+
+    expect(
+      screen.getByText('Not ready to use yet: Set title is required')
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: { value: 'A' },
+    });
+    closeEditor();
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(
+      screen.queryByText('Not ready to use yet: Set title is required')
+    ).toBeNull();
+  });
+
+  it('asks for a slide before a title, since nothing saves without one', () => {
+    renderModal({ ...buildSet(), title: '', imageUrls: [] });
+    expect(
+      screen.getByText('Not ready to use yet: Add at least one slide')
+    ).toBeInTheDocument();
+  });
+});
+
 describe('GuidedLearningEditorModal save payload', () => {
   it('builds the saved set from the draft, omitting default-valued optional fields', async () => {
     const set = buildSet();
