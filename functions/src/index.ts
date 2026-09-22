@@ -173,6 +173,9 @@ export { mirrorPlcIndex } from './mirrorPlcIndex';
 // ── One-shot PLC migration (arrays→members map, orgId inference, aggregates
 // skeleton). Admin-only callable; see functions/src/migratePlcs.ts. ─────────
 export { migratePlcs } from './migratePlcs';
+
+// Dev-only: copy the caller's own prod materials into spartboard-dev.
+export { syncMyMaterialsFromProdV1 } from './devSyncFromProd';
 export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 export { expireSubShares } from './expireSubShares';
 export { expireActivityWallShares } from './expireActivityWallShares';
