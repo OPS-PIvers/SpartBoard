@@ -92,14 +92,14 @@ describe('ImportWizard — test document source', () => {
   it('keeps test documents out of the generic upload button', () => {
     const { adapter } = makeAdapter();
     renderWizard(adapter);
-    // That button is labelled "CSV" here, so offering .pdf/.docx behind it
-    // would duplicate the dedicated tile under a name that fits neither.
+    // That button is labelled "CSV" here, so offering .pdf/.docx/.rtf behind
+    // it would duplicate the dedicated tile under a name that fits neither.
     expect(
       screen.getByLabelText('Upload import file').getAttribute('accept')
     ).toBe('.csv');
     expect(
       screen.getByLabelText('Upload a test document').getAttribute('accept')
-    ).toBe('.pdf,.docx');
+    ).toBe('.pdf,.docx,.rtf,.imscc');
   });
 
   it('still reads a test document forced through the generic button', async () => {
@@ -169,6 +169,119 @@ describe('ImportWizard — test document source', () => {
         screen.getByText('Could not download that file from Drive.')
       ).toBeTruthy()
     );
+  });
+});
+
+describe('ImportWizard — busy state', () => {
+  it('covers the whole modal while a document is read, and says so', async () => {
+    const deferred: {
+      release?: (v: { data: FakeData; warnings: string[] }) => void;
+    } = {};
+    const { adapter } = makeAdapter();
+    adapter.parse = (() =>
+      new Promise<{ data: FakeData; warnings: string[] }>((resolve) => {
+        deferred.release = resolve;
+      })) as unknown as ImportAdapter<FakeData>['parse'];
+    renderWizard(adapter);
+
+    fireEvent.change(screen.getByLabelText('Upload a test document'), {
+      target: { files: [PDF_BYTES] },
+    });
+
+    // The old inline banner sat below the document tiles, off-screen until the
+    // teacher scrolled; this one covers the whole panel.
+    const busy = await screen.findByRole('status');
+    expect(busy.textContent).toMatch(/Reading your document/i);
+    expect(busy.className).toContain('absolute');
+    expect(busy.className).toContain('inset-0');
+
+    deferred.release?.({ data: { rows: ['a'] }, warnings: [] });
+    await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+  });
+
+  it('will not let the teacher close the wizard mid-read', async () => {
+    const { adapter } = makeAdapter();
+    // Never resolves: the read is still in flight when the teacher tries to
+    // close.
+    adapter.parse = (() =>
+      new Promise(
+        () => undefined
+      )) as unknown as ImportAdapter<FakeData>['parse'];
+    const { onClose } = renderWizard(adapter);
+
+    fireEvent.change(screen.getByLabelText('Upload a test document'), {
+      target: { files: [PDF_BYTES] },
+    });
+    await screen.findByRole('status');
+
+    fireEvent.click(screen.getByLabelText('Close import wizard'));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('ImportWizard — LMS exports', () => {
+  it('reads an uploaded .imscc as a document', async () => {
+    const { adapter, parseSpy } = makeAdapter();
+    renderWizard(adapter);
+    const imscc = new File([new Uint8Array([80, 75])], 'Unit 3 Test.imscc');
+    fireEvent.change(screen.getByLabelText('Upload a test document'), {
+      target: { files: [imscc] },
+    });
+    await waitFor(() => expect(parseSpy).toHaveBeenCalledTimes(1));
+    expect(parseSpy.mock.calls[0][0]).toEqual({
+      kind: 'document',
+      file: imscc,
+      fileName: 'Unit 3 Test.imscc',
+    });
+  });
+
+  it('does not offer an .imscc as a separate answer key', () => {
+    const { adapter } = makeAdapter({ supportsKeyFile: true });
+    renderWizard(adapter);
+    // An export carries its own answers, so it is never the key file.
+    expect(
+      screen
+        .getByLabelText('Upload a separate answer key')
+        .getAttribute('accept')
+    ).toBe('.pdf,.docx,.rtf');
+  });
+});
+
+describe('ImportWizard — rich text documents', () => {
+  const RTF = new File(['{\\rtf1}'], 'Unit 3 Test.rtf', {
+    type: 'application/rtf',
+  });
+
+  it('reads an uploaded .rtf as a document rather than as text', async () => {
+    const { adapter, parseSpy } = makeAdapter();
+    renderWizard(adapter);
+    fireEvent.change(screen.getByLabelText('Upload import file'), {
+      target: { files: [RTF] },
+    });
+    await waitFor(() => expect(parseSpy).toHaveBeenCalledTimes(1));
+    expect(parseSpy.mock.calls[0][0]).toEqual({
+      kind: 'document',
+      file: RTF,
+      fileName: 'Unit 3 Test.rtf',
+    });
+  });
+
+  it('takes a .rtf answer key too', async () => {
+    const { adapter, parseSpy } = makeAdapter({ supportsKeyFile: true });
+    renderWizard(adapter);
+    const key = new File(['{\\rtf1}'], 'key.rtf', { type: 'application/rtf' });
+    fireEvent.change(screen.getByLabelText('Upload a separate answer key'), {
+      target: { files: [key] },
+    });
+    await screen.findByText(/Answer key: key\.rtf/);
+    fireEvent.change(screen.getByLabelText('Upload a test document'), {
+      target: { files: [RTF] },
+    });
+    await waitFor(() => expect(parseSpy).toHaveBeenCalledTimes(1));
+    expect(parseSpy.mock.calls[0][0]).toMatchObject({
+      kind: 'document',
+      keyFile: { fileName: 'key.rtf' },
+    });
   });
 });
 
