@@ -66,6 +66,23 @@ const customWidgetDoc = (id: string, fields: Record<string, unknown>) => ({
   data: () => fields,
 });
 
+const projectsWidget = (id: string, projectId: string | null) =>
+  ({
+    id,
+    type: 'projects' satisfies WidgetType,
+    config: { projectId },
+  }) as unknown as WidgetData;
+
+const runDoc = (id: string, fields: Record<string, unknown>) => ({
+  id,
+  exists: () => true,
+  data: () => fields,
+});
+
+const groupSnap = (groups: Record<string, unknown>[]) => ({
+  docs: groups.map((g) => ({ id: g.id as string, data: () => g })),
+});
+
 const board = (id: string, name: string, widgets: WidgetData[]) =>
   ({ id, name, widgets }) as unknown as Dashboard;
 
@@ -374,6 +391,168 @@ describe('bundleSubShareContent', () => {
 
       expect(bundle.items).toEqual([]);
       expect(bundle.failures.map((f) => f.kind)).toEqual(['customWidget']);
+    });
+  });
+
+  describe('project', () => {
+    const run = {
+      projectId: 'p-1',
+      teacherUid: 'teacher-1',
+      title: 'Ecosystem poster',
+      steps: [{ id: 's1', title: 'Research' }],
+      classIds: ['class-a'],
+      approvalStepIds: [],
+      rubric: { criteria: [] },
+      dueAt: 123,
+      showStatusToStudents: true,
+      acceptingUpdates: true,
+      updatedAt: 9,
+    };
+
+    const group = {
+      id: 'g1',
+      name: 'Group 1',
+      classId: 'class-a',
+      order: 0,
+      stepStates: { s1: 'done' },
+      needsSupport: true,
+      memberUids: ['student-uid-1'],
+      workLinks: [
+        { id: 'l1', url: 'https://docs/x', addedByUid: 'student-uid-1' },
+      ],
+      driveFolderId: 'folder-1',
+      updatedAt: 9,
+    };
+
+    // D13 — the run id is derived from the pair, never stored in config.
+    it('bundles the run derived from the host uid and its groups', async () => {
+      mockGetDoc.mockResolvedValue(runDoc('teacher-1_p-1', run));
+      mockGetDocs.mockResolvedValue(groupSnap([group]));
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Science', [projectsWidget('w1', 'p-1')])],
+      });
+
+      expect(bundle.failures).toEqual([]);
+      expect(bundle.items.map((i) => i.id)).toEqual(['project_p-1']);
+      expect(bundle.items[0].doc.payload).toEqual({
+        run: {
+          id: 'teacher-1_p-1',
+          projectId: 'p-1',
+          title: 'Ecosystem poster',
+          steps: [{ id: 's1', title: 'Research' }],
+        },
+        groups: [
+          {
+            id: 'g1',
+            name: 'Group 1',
+            classId: 'class-a',
+            order: 0,
+            stepStates: { s1: 'done' },
+            needsSupport: true,
+          },
+        ],
+      });
+      const runRef = (doc as Mock).mock.results.at(-1)?.value as {
+        __path: string;
+      };
+      expect(runRef.__path).toBe('project_runs/teacher-1_p-1');
+      const groupsRef = (collection as Mock).mock.results.at(-1)?.value as {
+        __path: string;
+      };
+      expect(groupsRef.__path).toBe('project_runs/teacher-1_p-1/groups');
+    });
+
+    // `content/` is readable by any verified district account holding the
+    // share, so nothing the tracker does not draw may travel with it.
+    it('leaves student uids, work links and the rubric out of the bundle', async () => {
+      mockGetDoc.mockResolvedValue(runDoc('teacher-1_p-1', run));
+      mockGetDocs.mockResolvedValue(groupSnap([group]));
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Science', [projectsWidget('w1', 'p-1')])],
+      });
+
+      const payload = bundle.items[0].doc.payload as {
+        run: object;
+        groups: object[];
+      };
+      expect(Object.keys(payload.run).sort()).toEqual([
+        'id',
+        'projectId',
+        'steps',
+        'title',
+      ]);
+      expect(Object.keys(payload.groups[0]).sort()).toEqual([
+        'classId',
+        'id',
+        'name',
+        'needsSupport',
+        'order',
+        'stepStates',
+      ]);
+      const json = JSON.stringify(payload);
+      expect(json).not.toContain('student-uid-1');
+      expect(json).not.toContain('https://docs/x');
+      expect(json).not.toContain('rubric');
+    });
+
+    it('skips a widget with no project open', async () => {
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Science', [projectsWidget('w1', null)])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(mockGetDoc).not.toHaveBeenCalled();
+    });
+
+    it('bundles a project shared by two boards once', async () => {
+      mockGetDoc.mockResolvedValue(runDoc('teacher-1_p-1', run));
+      mockGetDocs.mockResolvedValue(groupSnap([group]));
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [
+          board('b1', 'Science', [projectsWidget('w1', 'p-1')]),
+          board('b2', 'Period 2', [projectsWidget('w2', 'p-1')]),
+        ],
+      });
+
+      expect(bundle.items.map((i) => i.id)).toEqual(['project_p-1']);
+      expect(mockGetDoc).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a project that was never started', async () => {
+      mockGetDoc.mockResolvedValue({
+        id: 'teacher-1_p-1',
+        exists: () => false,
+      });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Science', [projectsWidget('w1', 'p-1')])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(bundle.failures).toEqual([
+        { kind: 'project', itemId: 'p-1', label: 'Project on Science' },
+      ]);
+    });
+
+    it('reports groups it could not read', async () => {
+      mockGetDoc.mockResolvedValue(runDoc('teacher-1_p-1', run));
+      mockGetDocs.mockRejectedValue(new Error('offline'));
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Science', [projectsWidget('w1', 'p-1')])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(bundle.failures.map((f) => f.kind)).toEqual(['project']);
     });
   });
 });

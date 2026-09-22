@@ -75,7 +75,9 @@ export function studentStateOptions(step: ProjectStep): ProjectStepState[] {
 }
 
 /** D25 — help-flagged groups sort to the top; the rest keep their own order. */
-export function sortGroupsForBoard(groups: ProjectGroup[]): ProjectGroup[] {
+export function sortGroupsForBoard<
+  T extends Pick<ProjectGroup, 'needsSupport' | 'order' | 'name'>,
+>(groups: T[]): T[] {
   return [...groups].sort((a, b) => {
     if (a.needsSupport !== b.needsSupport) return a.needsSupport ? -1 : 1;
     if (a.order !== b.order) return a.order - b.order;
@@ -94,10 +96,10 @@ export function projectClassIdFor(
 }
 
 /** D14 — the board renders only the groups in the active roster's class. */
-export function groupsForClass(
-  groups: ProjectGroup[],
+export function groupsForClass<T extends Pick<ProjectGroup, 'classId'>>(
+  groups: T[],
   classId: string | null | undefined
-): ProjectGroup[] {
+): T[] {
   if (!classId) return [];
   return groups.filter((group) => group.classId === classId);
 }

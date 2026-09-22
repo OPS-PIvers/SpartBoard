@@ -12,15 +12,16 @@ import {
   Users,
 } from 'lucide-react';
 import type {
-  ProjectGroup,
   ProjectStep,
   ProjectStepState,
   ProjectsConfig,
+  SubShareProjectGroupView,
   WidgetData,
 } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useProjectRun } from '@/hooks/useProjectRun';
+import { useSubShareProject } from '../useSubShareProject';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { ActiveClassChip } from '@/components/common/ActiveClassChip';
 import { OverflowMenu } from '@/components/common/sessionViews/OverflowMenu';
@@ -75,13 +76,23 @@ const HEADER_PAD_Y = 'min(4px, 1cqmin)';
 const NAME_PAD_X = 'min(10px, 2.2cqmin)';
 
 const GroupRow: React.FC<{
-  group: ProjectGroup;
+  group: SubShareProjectGroupView;
   steps: ProjectStep[];
   showStatus: boolean;
+  /** A substitute sees the tracker but cannot move it. */
+  readOnly: boolean;
   busyKeys: ReadonlySet<string>;
   onCycleStep: (stepId: string, state: ProjectStepState) => void;
   onClearSupport: () => void;
-}> = ({ group, steps, showStatus, busyKeys, onCycleStep, onClearSupport }) => (
+}> = ({
+  group,
+  steps,
+  showStatus,
+  readOnly,
+  busyKeys,
+  onCycleStep,
+  onClearSupport,
+}) => (
   <tr>
     <th
       scope="row"
@@ -101,50 +112,84 @@ const GroupRow: React.FC<{
         >
           {group.name}
         </span>
-        {group.needsSupport && (
-          <button
-            type="button"
-            onClick={onClearSupport}
-            disabled={busyKeys.has(`${group.id}:support`)}
-            className="shrink-0 flex items-center rounded-full bg-amber-100 text-amber-800 font-semibold disabled:opacity-50"
-            style={{
-              gap: 'min(4px, 1cqmin)',
-              padding: 'min(3px, 0.7cqmin) min(8px, 1.8cqmin)',
-              fontSize: 'min(12px, 3.6cqmin)',
-            }}
-            aria-label={`Clear the help flag for ${group.name}`}
-          >
-            <Hand
-              aria-hidden
+        {group.needsSupport &&
+          (readOnly ? (
+            <span
+              className="shrink-0 flex items-center rounded-full bg-amber-100 text-amber-800 font-semibold"
               style={{
-                width: 'min(13px, 3.4cqmin)',
-                height: 'min(13px, 3.4cqmin)',
+                gap: 'min(4px, 1cqmin)',
+                padding: 'min(3px, 0.7cqmin) min(8px, 1.8cqmin)',
+                fontSize: 'min(12px, 3.6cqmin)',
               }}
-            />
-            Help
-          </button>
-        )}
+            >
+              <Hand
+                aria-hidden
+                style={{
+                  width: 'min(13px, 3.4cqmin)',
+                  height: 'min(13px, 3.4cqmin)',
+                }}
+              />
+              Help
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={onClearSupport}
+              disabled={busyKeys.has(`${group.id}:support`)}
+              className="shrink-0 flex items-center rounded-full bg-amber-100 text-amber-800 font-semibold disabled:opacity-50"
+              style={{
+                gap: 'min(4px, 1cqmin)',
+                padding: 'min(3px, 0.7cqmin) min(8px, 1.8cqmin)',
+                fontSize: 'min(12px, 3.6cqmin)',
+              }}
+              aria-label={`Clear the help flag for ${group.name}`}
+            >
+              <Hand
+                aria-hidden
+                style={{
+                  width: 'min(13px, 3.4cqmin)',
+                  height: 'min(13px, 3.4cqmin)',
+                }}
+              />
+              Help
+            </button>
+          ))}
       </span>
     </th>
 
     {showStatus ? (
       steps.map((step) => {
         const state = stepStateOf(group, step.id);
+        const label = `${group.name}, ${step.title}, ${STEP_STATE_LABELS[state]}`;
+        const cell = `w-full h-full flex items-center justify-center rounded-md ${STATE_STYLES[state].tone}`;
         return (
           <td key={step.id} style={{ padding: `${CELL_PAD_Y} ${CELL_PAD_X}` }}>
-            <button
-              type="button"
-              onClick={() => onCycleStep(step.id, state)}
-              disabled={busyKeys.has(`${group.id}:${step.id}`)}
-              aria-label={`${group.name}, ${step.title}, ${STEP_STATE_LABELS[state]}`}
-              className={`w-full h-full flex items-center justify-center rounded-md transition-colors disabled:opacity-50 ${STATE_STYLES[state].tone}`}
-              style={{
-                minHeight: 'min(26px, 6cqmin)',
-                maxHeight: 'min(56px, 13cqmin)',
-              }}
-            >
-              <StateMark state={state} size="min(14px, 3.6cqmin)" />
-            </button>
+            {readOnly ? (
+              <span
+                aria-label={label}
+                className={cell}
+                style={{
+                  minHeight: 'min(26px, 6cqmin)',
+                  maxHeight: 'min(56px, 13cqmin)',
+                }}
+              >
+                <StateMark state={state} size="min(14px, 3.6cqmin)" />
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onCycleStep(step.id, state)}
+                disabled={busyKeys.has(`${group.id}:${step.id}`)}
+                aria-label={label}
+                className={`${cell} transition-colors disabled:opacity-50`}
+                style={{
+                  minHeight: 'min(26px, 6cqmin)',
+                  maxHeight: 'min(56px, 13cqmin)',
+                }}
+              >
+                <StateMark state={state} size="min(14px, 3.6cqmin)" />
+              </button>
+            )}
           </td>
         );
       })
@@ -189,11 +234,19 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
   const { updateWidget, rosters, activeRosterId, addToast, activeDashboard } =
     useDashboard();
   const { user } = useAuth();
-  const { run, groups, loading, setStepState, setNeedsSupport } = useProjectRun(
+  const shared = useSubShareProject(projectId);
+  const readOnly = shared.active;
+  // A substitute can read neither the project nor its run, so in a share the
+  // bundled copy stands in and no listener is opened against either.
+  const live = useProjectRun(
     user?.uid,
-    projectId,
+    readOnly ? undefined : projectId,
     user?.uid
   );
+  const { setStepState, setNeedsSupport } = live;
+  const run = readOnly ? shared.run : live.run;
+  const groups = readOnly ? shared.groups : live.groups;
+  const loading = readOnly ? shared.loading : live.loading;
 
   // A set, not a scalar: two rows can be in flight at once and each owns its key.
   const [busyKeys, setBusyKeys] = useState<ReadonlySet<string>>(
@@ -257,7 +310,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
       className="h-full w-full bg-transparent flex flex-col"
       style={{ gap: 'min(8px, 1.8cqmin)', padding: 'min(12px, 2.6cqmin)' }}
     >
-      <div className="shrink-0">{backButton}</div>
+      {!readOnly && <div className="shrink-0">{backButton}</div>}
       <div className="flex-1 min-h-0">{body}</div>
     </div>
   );
@@ -279,7 +332,11 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
       <ScaledEmptyState
         icon={ClipboardList}
         title="Not started yet"
-        subtitle="Set up groups from the Library tab to start this project."
+        subtitle={
+          readOnly
+            ? 'This project had no groups yet when it was shared.'
+            : 'Set up groups from the Library tab to start this project.'
+        }
       />
     );
   }
@@ -299,7 +356,11 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
       <ScaledEmptyState
         icon={ClipboardList}
         title="No groups in this class"
-        subtitle="Add groups to this class from the In Progress tab."
+        subtitle={
+          readOnly
+            ? 'This project runs with another class.'
+            : 'Add groups to this class from the In Progress tab.'
+        }
       />
     );
   }
@@ -326,7 +387,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
           className="flex items-center min-w-0"
           style={{ gap: 'min(6px, 1.4cqmin)' }}
         >
-          {backButton}
+          {!readOnly && backButton}
           <span
             className="font-black text-slate-800 truncate"
             style={{ fontSize: 'min(18px, 6cqmin)' }}
@@ -339,29 +400,34 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
           style={{ gap: 'min(6px, 1.4cqmin)' }}
         >
           <ActiveClassChip compact />
-          <button
-            type="button"
-            onClick={() =>
-              updateWidget(widget.id, {
-                config: { ...config, showStatus: !showStatus },
-              })
-            }
-            className="rounded-full bg-white/70 border border-slate-200 text-slate-600 font-semibold"
-            style={{
-              padding: 'min(4px, 0.9cqmin) min(10px, 2.2cqmin)',
-              fontSize: 'min(12px, 3.6cqmin)',
-            }}
-            aria-pressed={showStatus}
-          >
-            {showStatus ? 'Hide status' : 'Show status'}
-          </button>
-          <OverflowMenu
-            ariaLabel="Project actions"
-            items={[
-              { label: 'Grade groups', icon: SquarePen, onClick: onGrade },
-              { label: 'Add groups', icon: Users, onClick: onManageGroups },
-            ]}
-          />
+          {/* Every control here writes the teacher's board or their run. */}
+          {!readOnly && (
+            <>
+              <button
+                type="button"
+                onClick={() =>
+                  updateWidget(widget.id, {
+                    config: { ...config, showStatus: !showStatus },
+                  })
+                }
+                className="rounded-full bg-white/70 border border-slate-200 text-slate-600 font-semibold"
+                style={{
+                  padding: 'min(4px, 0.9cqmin) min(10px, 2.2cqmin)',
+                  fontSize: 'min(12px, 3.6cqmin)',
+                }}
+                aria-pressed={showStatus}
+              >
+                {showStatus ? 'Hide status' : 'Show status'}
+              </button>
+              <OverflowMenu
+                ariaLabel="Project actions"
+                items={[
+                  { label: 'Grade groups', icon: SquarePen, onClick: onGrade },
+                  { label: 'Add groups', icon: Users, onClick: onManageGroups },
+                ]}
+              />
+            </>
+          )}
         </div>
       </div>
 
@@ -441,6 +507,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
                 group={group}
                 steps={steps}
                 showStatus={renderStatus}
+                readOnly={readOnly}
                 busyKeys={busyKeys}
                 onCycleStep={(stepId, state) => {
                   const step = steps.find((s) => s.id === stepId);
