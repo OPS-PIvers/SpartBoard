@@ -192,7 +192,7 @@ Runs on pushes to `dev-*` branches:
 - ✅ Type checking, linting (app / functions / format as parallel legs)
 - ✅ Unit tests (3 shards + count guard) and Firestore rules tests
 - 🏗️ Preview build (parallel job; uploaded as an artifact the deploy reuses)
-- 🚀 Deploy to Firebase preview channel (30-day persistent URLs)
+- 🚀 Deploy to the `spartboard-dev` Firebase project (https://spartboard-dev.web.app)
 
 **Purpose**: Validates and creates preview deployments for development branches.
 

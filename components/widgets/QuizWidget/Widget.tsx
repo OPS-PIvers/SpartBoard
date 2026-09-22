@@ -3376,6 +3376,19 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 }
               : undefined
           }
+          {...(canImportDocuments
+            ? {
+                // The same readers the import wizard uses, so a new paper
+                // test can start from the teacher's own test paper (D17).
+                readDocument: (file: Blob, fileName: string) =>
+                  readTestDocument(file, fileName, {
+                    ...(canUseAiReader
+                      ? { aiExtract: extractQuizFromDocument }
+                      : {}),
+                  }),
+                pickDocument,
+              }
+            : {})}
           inPlcGroup={!!paperPrintMeta?.sync}
           onSaveSheetStimuli={
             paperPrintMeta

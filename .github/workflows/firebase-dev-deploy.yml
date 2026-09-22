@@ -1,4 +1,4 @@
-name: Deploy Dev Branches to Firebase Preview
+name: Deploy Dev Branches to spartboard-dev
 
 on:
   push:
@@ -14,7 +14,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Deploys authenticate with the service-account secret, so GITHUB_TOKEN only needs to read the repo.
+# Build and deploy add id-token: write for keyless Workload Identity Federation into spartboard-dev.
 permissions:
   contents: read
 
@@ -29,6 +29,10 @@ env:
   VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
   VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY }}
   VITE_SPOTIFY_CLIENT_ID: ${{ secrets.VITE_SPOTIFY_CLIENT_ID }}
+  DEV_PROJECT_ID: spartboard-dev
+  DEV_WEB_APP_ID: '1:258543092004:web:63b9aa080a08cd83c973b1'
+  DEV_WIF_PROVIDER: projects/258543092004/locations/global/workloadIdentityPools/github/providers/spartboard-repo
+  DEV_DEPLOY_SA: github-deploy@spartboard-dev.iam.gserviceaccount.com
 
 jobs:
   # The app ESLint pass (type-aware, ~3.5 min), the functions ESLint pass and
@@ -123,11 +127,23 @@ jobs:
   # Builds in parallel with the checks; deploy downloads the artifact instead of rebuilding.
   build:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.DEV_WIF_PROVIDER }}
+          service_account: ${{ env.DEV_DEPLOY_SA }}
+      # The repo's VITE_FIREBASE_* secrets are prod's; the dev bundle takes the dev app's public config instead.
       - name: Build project
-        run: pnpm run build:all
+        run: |
+          ./.github/scripts/export-firebase-web-config.sh "$DEV_PROJECT_ID" "$DEV_WEB_APP_ID" firebase-web.env
+          set -a; . ./firebase-web.env; set +a
+          rm -f firebase-web.env
+          pnpm run build:all
       - uses: actions/upload-artifact@v4
         with:
           name: build-output
@@ -140,6 +156,9 @@ jobs:
   deploy:
     needs: [lint, type-check, test, test-counts, rules, build]
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
@@ -148,12 +167,10 @@ jobs:
         with:
           name: build-output
 
-      - name: Extract branch name
-        id: extract_branch
-        run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
-
-      - name: Create Service Account File
-        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > service-account.json
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.DEV_WIF_PROVIDER }}
+          service_account: ${{ env.DEV_DEPLOY_SA }}
 
       # Wrapped in a retry helper: `firebase deploy` occasionally hits a
       # transient Google API blip (e.g. an HTTP 503 on the Firestore
@@ -161,42 +178,20 @@ jobs:
       # though the code is fine. The script retries those transient
       # signatures with exponential backoff and fails fast on real errors.
       - name: Deploy Firebase Rules, Indexes, Functions, Storage
-        run: ./.github/scripts/firebase-deploy-with-retry.sh spartboard
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
+        run: ./.github/scripts/firebase-deploy-with-retry.sh "$DEV_PROJECT_ID"
 
       # `firebase deploy --only firestore` returns once index creation is
-      # queued, not when the build is ready. Wait here so the preview
-      # channel's client bundle can't run a query before its index is
-      # built — matches the production workflow's safety order.
+      # queued, not when the build is ready. Wait here so the new client
+      # bundle can't run a query before its index is built — matches the
+      # production workflow's safety order.
       - name: Wait for Firestore composite indexes to be READY
-        run: ./.github/scripts/wait-for-firestore-indexes.sh spartboard
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
+        run: ./.github/scripts/wait-for-firestore-indexes.sh "$DEV_PROJECT_ID"
 
-      - name: Deploy to Firebase Preview Channel
-        id: deploy
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
-        run: |
-          # --json removed: firebase-tools 15.22.3 fails hosting:channel:deploy
-          # under --json in CI (the human-readable deploy succeeds). `tee` keeps
-          # the deploy output in the log, and the GH default shell's pipefail
-          # still fails this step if the deploy errors. The Channel URL is parsed
-          # from the normal output for the summary comment.
-          pnpm exec firebase hosting:channel:deploy ${{ steps.extract_branch.outputs.branch }} --expires 30d --project spartboard 2>&1 | tee channel-deploy.log
-          URL=$(grep -i 'Channel URL' channel-deploy.log | grep -oE 'https://[^ ]+\.web\.app' | head -n 1)
-          echo "details_url=$URL" >> $GITHUB_OUTPUT
-          rm -f channel-deploy.log
-
-      - name: Cleanup Service Account File
-        if: always()
-        run: rm -f service-account.json
+      - name: Deploy Hosting
+        run: pnpm exec firebase deploy --only hosting --project "$DEV_PROJECT_ID" --force
 
       - name: Comment deployment URL
         run: |
-          echo "### 🚀 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
-          echo "**Preview URL:** ${{ steps.deploy.outputs.details_url }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** ${{ steps.extract_branch.outputs.branch }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "This preview will be available for 30 days and updates with each push to this branch." >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Deployed to spartboard-dev" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** https://spartboard-dev.web.app" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${GITHUB_REF#refs/heads/}" >> $GITHUB_STEP_SUMMARY

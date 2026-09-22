@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "spartboard"
+    "default": "spartboard",
+    "prod": "spartboard",
+    "dev": "spartboard-dev"
   }
 }

@@ -31,22 +31,18 @@ This machine runs several agents at once and has crashed under full-repo checks.
 
 ## Production safety — zero regressions for users signing in tomorrow
 
-**Every push to `dev-paul` deploys `firestore.rules`, `firestore.indexes.json`,
-`storage.rules` AND `functions/` to the shared production project** (see
-`.github/workflows/firebase-dev-deploy.yml`, step "Deploy Firebase Rules, Indexes,
-Functions, Storage"). Only hosting is isolated to a preview channel. Therefore:
+Since 2026-09-21, pushes to `dev-paul` deploy to the separate `spartboard-dev` Firebase
+project; only a merge to `main` deploys `firestore.rules`, `firestore.indexes.json`,
+`storage.rules` and `functions/` to production (see "Firebase projects" in `CLAUDE.md`).
+At that release, teachers with an already-open tab are still running the previous client, so:
 
-- A change to an EXISTING Cloud Function's behaviour goes live for production clients
-  immediately. Any such change must be gated on a marker that only the new client
-  writes (a session/quiz/assignment field that production clients never set), so
-  documents produced by the old client are handled exactly as today.
+- A change to an EXISTING Cloud Function's behaviour must still handle documents the
+  previous client wrote exactly as today; gate new behaviour on a marker only the new
+  client writes.
 - NEW callables are safe (nothing in production calls them) but must fail closed on
   missing or malformed input.
 - Rules changes must be purely additive: a new path or a new optional field, never a
-  tightened condition on a path production clients already write.
-
-Production and `dev-paul` share the same Firestore project, rules, Storage bucket and
-Cloud Functions deployment.
+  tightened condition on a path the previous client already writes.
 
 - Every new Firestore field is **optional at read time**. A document written by the
   current production client, with none of your fields, must behave exactly as today.

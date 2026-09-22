@@ -74,12 +74,12 @@ These shaped the decisions and are easy to re-derive wrongly later:
 
 ### 2.4 Failure modes and aftermath
 
-| #   | Decision             | Choice                                                                                                                                                                      |
-| --- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D19 | No Drive grant       | **Spares-only stack.** Unnamed sheets with real seat markers; students write their names; the owner assigns seats in the review queue, which already supports this.         |
-| D20 | No grant AND no copy | **Blocked**, naming exactly what is missing — and surfaced preventively in the PLC members list so the gap is fixable in September, not on the morning it matters.          |
-| D21 | Audit                | **`printedBy` stamped on the batch, plus a `PlcActivityFeed` entry.** The owner sees who printed it in their own import modal, where it matters.                            |
-| D22 | Cleanup              | **Owner always; the helper only until the batch is imported.** Covers the jammed printer and the wrong class without letting a third party delete a batch already on desks. |
+| #   | Decision             | Choice                                                                                                                                                                                                                                                                                    |
+| --- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D19 | No Drive grant       | **Spares-only stack.** Unnamed sheets with real seat markers; students write their names; the owner assigns seats in the review queue, which already supports this.                                                                                                                       |
+| D20 | No grant AND no copy | **Deferred copy, never blocked** (revised 2026-09-21). The batch reserves a quiz id and carries a `pendingQuizCopy` marker; the owner's own next sign-in builds the copy, joins the group and clears the marker. They open SpartBoard before they can scan the stack, so nothing is late. |
+| D21 | Audit                | **`printedBy` stamped on the batch, plus a `PlcActivityFeed` entry.** The owner sees who printed it in their own import modal, where it matters.                                                                                                                                          |
+| D22 | Cleanup              | **Owner always; the helper only until the batch is imported.** Covers the jammed printer and the wrong class without letting a third party delete a batch already on desks.                                                                                                               |
 
 ### 2.5 Assumptions carried without a decision
 
@@ -139,7 +139,7 @@ Returns everything needed to render the picker. **Writes nothing.**
 
 Input `{ plcId, targetUid, plcQuizId, selections, choiceCount, spareCount }`. After §4:
 
-1. If the target has no copy: pull canonical content, save a copy to **their** Drive with their offline token, write `users/{targetUid}/quizzes/{newId}`, and call `handleJoinPlcQuizSyncGroup(db, targetUid, plcId, plcQuizId)` (D9, D10). Roll back the quiz doc if the join fails, mirroring `usePlcQuizActions.tsx:327-347`. If Drive is unreachable here, fail with D20's message — there is nowhere to put the copy.
+1. If the target has no copy **and** their Drive is reachable: pull canonical content, save a copy to **their** Drive with their offline token, write `users/{targetUid}/quizzes/{newId}`, and call `handleJoinPlcQuizSyncGroup(db, targetUid, plcId, plcQuizId)` (D9, D10). Roll back the quiz doc if the join fails, mirroring `usePlcQuizActions.tsx:327-347`. If their Drive is unreachable, reserve a quiz id instead and stamp `pendingQuizCopy` on the batch (D20) — `usePendingTeammateQuizCopies` builds it in their own session.
 2. Validate every selected `rosterId` and `studentId` against the target's real rosters.
 3. Run `planPaperBatch` **server-side** (D16) and write `users/{targetUid}/paper_batches/{batchId}` with `printedBy*` stamped.
 4. Write the `PlcActivityFeed` entry (D21).
@@ -158,9 +158,8 @@ Input `{ plcId, targetUid, batchId }`. After §4, deletes the batch only when `p
 ## 6. UI
 
 - **`PlcQuizLibraryBody` row kebab** — "Print answer sheets for a teammate", shown only when the Rollouts switch is on, the PLC feature is on, the caller is a non-viewer, and `canAccessFeature('paper-answer-sheets')` passes.
-- **`PlcTeammatePrintModal`** — teacher picker (PLC members, minus the caller), then `getTeammatePrintContextV1`, then the existing `PaperPrintModal` fed with the returned quiz and rosters. Banners for: content came from the synced group (D11), no Drive grant so this is a spares-only stack (D19), and batches already printed for this teacher (D18). Printing calls `createTeammatePaperBatchV1`, then `printPaperSheets` and `printPaperTest` in the browser.
+- **`PlcTeammatePrintModal`** — teacher picker (PLC members, minus the caller), then `getTeammatePrintContextV1`, then the existing `PaperPrintModal` fed with the returned quiz and rosters. Banners for: content came from the synced group (D11), no Drive grant so this is a spares-only stack (D19), the copy landing on their own next sign-in (D20), and batches already printed for this teacher (D18). Printing calls `createTeammatePaperBatchV1`, then `printPaperSheets` and `printPaperTest` in the browser.
 - **`PaperPrintModal`** — one new optional `printedForTeacherName` prop threaded to the header (D17). Absent for the self-print path, which renders byte-identically to today.
-- **PLC members list** — a quiet marker on teammates with no offline Drive grant, explaining that printing for them will not work (D20).
 - **`PaperImportModal`** — show `printedByName` when present, so the owner sees who printed the stack they are scanning.
 
 ---
@@ -188,7 +187,7 @@ The half that writes into someone else's account lands only after the read half 
 - **A standing entanglement is created for an absent teacher.** D9 does not just create a copy — joining the sync group means `usePlcAutoPullSync` will pull teammates' edits into their library from then on, and their own future edits publish back to the group. That is a durable change to someone's account made while they were out, and it is not undone when the stack is imported. It was chosen knowingly over an unlinked copy; it is the single thing most likely to generate a support question.
 - **The PLC toggle is not consent.** Any member can flip `printForTeammates`, including the member who wants to print. It is an off-switch for a PLC that does not want the feature, and the UI copy must not imply otherwise.
 - **Drive writes as another user are new ground for quizzes.** The offline-token path is exercised by archive and grade-push functions, none of which create a user-visible file in a teacher's Drive.
-- **The `needs-consent` rate is unknown.** `DriveOfflineGrantCard` is dismissible, so the fraction of teachers who can be printed for at all is an empirical question. D20's preventive surfacing exists to make that number visible before it matters.
+- **The `needs-consent` rate no longer gates printing.** `DriveOfflineGrantCard` is dismissible, so many teachers have no offline grant. Since D20 was revised that only costs them a named stack (D19) and a copy that arrives on their next sign-in, not the print itself.
 - **Rules ship to shared prod on a `dev-*` push** and cannot be exercised locally.
 
 ---

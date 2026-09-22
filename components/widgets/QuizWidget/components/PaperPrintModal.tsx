@@ -6,19 +6,29 @@
  * the paper exists. See docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md §6.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  CloudDownload,
   FileText,
+  FileUp,
+  Loader2,
   Printer,
   Share2,
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { Toggle } from '@/components/common/Toggle';
+import { useFileDrop } from '@/hooks/useFileDrop';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { usePaperSheetImageSharing } from '@/hooks/usePaperSheetImageSharing';
@@ -30,11 +40,16 @@ import type {
   QuizData,
   Student,
 } from '@/types';
+import { applyQuestionFill, type QuestionFill } from '@/utils/paperQuestionOcr';
 import {
   MAX_CHOICE_COUNT,
   MIN_CHOICE_COUNT,
   pageCountForQuestions,
 } from '@/utils/paperSheetLayout';
+import type {
+  ExtractedQuestion,
+  ExtractedQuiz,
+} from '@/utils/quizDocumentImport';
 import {
   MAX_PDF_PAGES_LISTED,
   isPdf,
@@ -98,6 +113,14 @@ interface PaperPrintModalProps {
    * the "Paper test" door, where the stub carries them instead.
    */
   onSaveSheetStimuli?: (stimuli: PaperSheetStimulus[]) => Promise<void>;
+  /**
+   * Reads a test document with the import wizard's readers, so a new paper
+   * test carries its real questions from the start instead of placeholders.
+   * Absent when the document-import feature is off, which hides the upload.
+   */
+  readDocument?: (file: Blob, fileName: string) => Promise<ExtractedQuiz>;
+  /** Drive picker for that document; absent hides the Drive button. */
+  pickDocument?: () => Promise<{ file: Blob; fileName: string } | null>;
   /** The quiz is in a PLC sync group, so its sheet images need sharing (D6). */
   inPlcGroup?: boolean;
   onClose: () => void;
@@ -116,6 +139,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   onSaveBatch,
   onCreateQuiz,
   onSaveSheetStimuli,
+  readDocument,
+  pickDocument,
   inPlcGroup = false,
   onClose,
   onError,
@@ -136,6 +161,15 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     DEFAULT_STUB_QUESTIONS
   );
   const [stubChoiceCount, setStubChoiceCount] = useState(4);
+  // The test paper this stub's questions came from, when one was uploaded.
+  const [readDoc, setReadDoc] = useState<{
+    fileName: string;
+    questions: ExtractedQuestion[];
+    warnings: string[];
+  } | null>(null);
+  const [readingDoc, setReadingDoc] = useState(false);
+  const [pickingDoc, setPickingDoc] = useState(false);
+  const questionsFileRef = useRef<HTMLInputElement>(null);
   const [spareCount, setSpareCount] = useState(2);
   const [includeKeySheet, setIncludeKeySheet] = useState(isStub);
   const [printing, setPrinting] = useState(false);
@@ -156,6 +190,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   );
 
   const questionCount = isStub ? stubQuestionCount : analysis.rows.length;
+  const unanswered = (readDoc?.questions ?? []).filter(
+    (q) => !q.correctAnswer.trim()
+  ).length;
   const choiceCount = isStub ? stubChoiceCount : analysis.sheetChoiceCount;
 
   const [sheetStimuli, setSheetStimuli] = useState<PaperSheetStimulus[]>(
@@ -331,6 +368,101 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     });
   };
 
+  /**
+   * Read the teacher's own test paper so the stub starts with its questions
+   * (D17). The numbers printed on the paper are the rows, so the count
+   * follows the highest number read rather than how many were found.
+   */
+  const readQuestionsFrom = async (file: Blob, fileName: string) => {
+    if (!readDocument) return;
+    setReadingDoc(true);
+    try {
+      const extracted = await readDocument(file, fileName);
+      const questions = extracted.questions.filter((q) => q.text.trim());
+      if (questions.length === 0) {
+        onError(
+          'No numbered questions were found in that file. Check that every question starts with its number.'
+        );
+        return;
+      }
+      const highest = Math.max(...questions.map((q) => q.number));
+      setStubQuestionCount(Math.max(1, Math.min(500, highest)));
+      const widest = Math.max(...questions.map((q) => q.options.length));
+      if (widest >= MIN_CHOICE_COUNT) {
+        setStubChoiceCount(Math.min(widest, MAX_CHOICE_COUNT));
+      }
+      if (!stubTitle.trim() && extracted.title.trim()) {
+        setStubTitle(extracted.title.trim());
+      }
+      setReadDoc({
+        fileName,
+        questions,
+        // Row notes are numbered by the reader, so they name their own row.
+        warnings: [
+          ...extracted.warnings,
+          ...questions.flatMap((q) =>
+            q.warnings.map((w) => `Question ${q.number}: ${w}`)
+          ),
+        ],
+      });
+    } catch (err) {
+      onError(
+        err instanceof Error ? err.message : 'Could not read that test paper.'
+      );
+    } finally {
+      setReadingDoc(false);
+    }
+  };
+
+  const pickQuestionsFromDrive = async () => {
+    if (!pickDocument) return;
+    setPickingDoc(true);
+    try {
+      const picked = await pickDocument();
+      if (picked) await readQuestionsFrom(picked.file, picked.fileName);
+    } catch (err) {
+      onError(
+        err instanceof Error ? err.message : 'Could not open the Drive file.'
+      );
+    } finally {
+      setPickingDoc(false);
+    }
+  };
+
+  const questionsDrop = useFileDrop(
+    (file) => void readQuestionsFrom(file, file.name),
+    readingDoc || pickingDoc
+  );
+
+  /** What the read paper gives each stub row, by the number printed on it. */
+  const documentFills = (): Record<number, QuestionFill> => {
+    const fills: Record<number, QuestionFill> = {};
+    for (const q of readDoc?.questions ?? []) {
+      fills[q.number] = {
+        text: q.text,
+        options: q.options.map((o) => o.text),
+        correctAnswer: q.correctAnswer,
+      };
+    }
+    return fills;
+  };
+
+  /**
+   * The bubble letters stand for the choices the teacher's own paper prints,
+   * in its order — never a reshuffle, because that paper is already printed.
+   * Without this the import would read every bubble back as a bare letter.
+   */
+  const documentChoiceOrder = (stub: QuizData): Record<string, string[]> => {
+    const order: Record<string, string[]> = {};
+    for (const q of readDoc?.questions ?? []) {
+      const row = stub.questions[q.number - 1];
+      if (row && q.options.length > 0) {
+        order[row.id] = q.options.map((o) => o.text);
+      }
+    }
+    return order;
+  };
+
   const handlePrint = async () => {
     // A stimulus that cannot be fetched would print as an empty box the
     // teacher only discovers at the copier, so it blocks the print instead.
@@ -340,6 +472,31 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     }
     setPrinting(true);
     try {
+      const now = Date.now();
+      // Create the quiz before the batch that points at it, and both before
+      // printing: a sheet whose batch or quiz was never stored can never be
+      // imported, and the teacher cannot tell that by looking at the paper.
+      const printedQuiz = onCreateQuiz
+        ? {
+            ...applyQuestionFill(
+              buildPaperStubQuiz({
+                quizId: quiz.id,
+                title: stubTitle,
+                questionCount,
+                choiceCount,
+                createdAt: now,
+              }),
+              documentFills(),
+              now
+            ),
+            ...(sheetStimuli.length > 0
+              ? { paperSheetStimuli: sheetStimuli }
+              : {}),
+          }
+        : quiz;
+      const readChoiceOrder = onCreateQuiz
+        ? documentChoiceOrder(printedQuiz)
+        : {};
       const { batch, sheets } = planPaperBatch({
         batchId: crypto.randomUUID(),
         quizId: quiz.id,
@@ -349,26 +506,12 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         spareCount,
         includeKeySheet,
         ...(isStub ? {} : { questions: sheetQuestions }),
+        ...(Object.keys(readChoiceOrder).length > 0
+          ? { choiceOrder: readChoiceOrder }
+          : {}),
         ...(columnsPerPage === 1 ? { columnsPerPage: 1 as const } : {}),
-        createdAt: Date.now(),
+        createdAt: now,
       });
-      // Create the quiz before the batch that points at it, and both before
-      // printing: a sheet whose batch or quiz was never stored can never be
-      // imported, and the teacher cannot tell that by looking at the paper.
-      const printedQuiz = onCreateQuiz
-        ? {
-            ...buildPaperStubQuiz({
-              quizId: quiz.id,
-              title: stubTitle,
-              questionCount,
-              choiceCount,
-              createdAt: Date.now(),
-            }),
-            ...(sheetStimuli.length > 0
-              ? { paperSheetStimuli: sheetStimuli }
-              : {}),
-          }
-        : quiz;
       if (onCreateQuiz) await onCreateQuiz(printedQuiz);
       // The stub carries them already; an authored quiz records them here, so
       // the next print and every PLC copy start from the same sheet (D18).
@@ -750,6 +893,122 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
             />
           </label>
+        )}
+
+        {onCreateQuiz && readDocument && (
+          <div className="space-y-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Import questions (optional)
+            </span>
+            {readDoc ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-800">
+                      {readDoc.fileName}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-600">
+                      {readDoc.questions.length} question
+                      {readDoc.questions.length === 1 ? '' : 's'} read. Results
+                      will name the question a student missed, not just its
+                      number.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReadDoc(null)}
+                    className="shrink-0 text-xs font-bold uppercase tracking-wide text-slate-500 transition-colors hover:text-brand-red-primary"
+                  >
+                    Remove
+                  </button>
+                </div>
+                <ol className="mt-2 max-h-36 space-y-1 overflow-y-auto pr-1">
+                  {readDoc.questions.map((q) => (
+                    <li key={q.number} className="flex gap-2 text-xs">
+                      <span className="w-5 shrink-0 text-right font-semibold text-slate-500">
+                        {q.number}.
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-slate-700">
+                        {q.text}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+                {unanswered > 0 && (
+                  <p className="mt-2 text-xs text-amber-800">
+                    {unanswered} question{unanswered === 1 ? '' : 's'} came in
+                    without an answer. Bubble the ANSWER KEY sheet, or fill them
+                    in the quiz editor.
+                  </p>
+                )}
+                {readDoc.warnings.length > 0 && (
+                  <ul className="mt-2 max-h-24 space-y-1 overflow-y-auto pr-1 text-xs text-amber-800">
+                    {readDoc.warnings.map((warning, i) => (
+                      <li key={i}>{warning}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              // The zone is a disabled button while a read runs, and a
+              // disabled control receives no drag events, so the wrapper
+              // carries them.
+              <div className="space-y-2" {...questionsDrop.dropProps}>
+                <input
+                  ref={questionsFileRef}
+                  type="file"
+                  accept=".pdf,.docx"
+                  aria-label="Test paper file"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (file) void readQuestionsFrom(file, file.name);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => questionsFileRef.current?.click()}
+                  disabled={readingDoc || pickingDoc}
+                  className={`flex w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-5 text-sm font-semibold transition-colors disabled:opacity-50 ${
+                    questionsDrop.dragging
+                      ? 'border-brand-blue-primary bg-brand-blue-lighter/30 text-brand-blue-primary'
+                      : 'border-slate-300 text-slate-600 hover:border-brand-blue-primary hover:text-brand-blue-primary'
+                  }`}
+                >
+                  {readingDoc ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <FileUp className="h-5 w-5" />
+                  )}
+                  {readingDoc
+                    ? 'Reading the test…'
+                    : questionsDrop.dragging
+                      ? 'Drop the test here'
+                      : 'Drop the test here, or choose a PDF or Word file'}
+                </button>
+                {pickDocument && (
+                  <button
+                    type="button"
+                    onClick={() => void pickQuestionsFromDrive()}
+                    disabled={readingDoc || pickingDoc}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:border-brand-blue-primary hover:text-brand-blue-primary disabled:opacity-50"
+                  >
+                    {pickingDoc ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CloudDownload className="h-4 w-4" />
+                    )}
+                    Pick the test from Google Drive
+                  </button>
+                )}
+                <p className="text-xs text-slate-500">
+                  The questions and answer choices are read on this computer.
+                  Students still answer on the bubble sheet.
+                </p>
+              </div>
+            )}
+          </div>
         )}
 
         <div className="grid grid-cols-2 gap-3">

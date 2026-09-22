@@ -365,7 +365,6 @@ describe('print context', () => {
     expect(result.quiz.id).toBe('their-quiz-id');
     expect(result.quiz.title).toBe('Unit 3 Common Assessment (their copy)');
     expect(result.driveReachable).toBe(true);
-    expect(result.blocked).toBeNull();
   });
 
   it('returns the answer key with the questions (D12)', async () => {
@@ -394,21 +393,23 @@ describe('print context', () => {
     expect(result.rosters[0].loadError).toBe('no-drive-access');
     // The count survives the failed read, so the picker can still size a stack.
     expect(result.rosters[0].studentCount).toBe(2);
-    expect(result.blocked).toBeNull();
   });
 
-  it('blocks when there is neither a copy nor a Drive grant (D20)', async () => {
+  it('reports no copy and no Drive grant without refusing the run (D20)', async () => {
     const result = await run(baseState(), caller, NO_GRANT);
     expect(result.hasCopy).toBe(false);
     expect(result.quizId).toBeNull();
-    expect(result.blocked).toBe('no-copy-no-drive');
+    expect(result.driveReachable).toBe(false);
+    // Their copy is deferred to their own sign-in, so the run still has
+    // canonical questions to print from.
+    expect(result.contentSource).toBe('synced-group');
+    expect(result.quiz.questions.length).toBeGreaterThan(0);
   });
 
-  it('reports no copy without blocking while Drive is reachable', async () => {
+  it('reports no copy while Drive is reachable', async () => {
     const result = await run(baseState());
     expect(result.hasCopy).toBe(false);
     expect(result.contentSource).toBe('synced-group');
-    expect(result.blocked).toBeNull();
   });
 
   // Which quiz a batch belongs to is the query's job now; what is pinned here

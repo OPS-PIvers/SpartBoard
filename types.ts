@@ -4882,6 +4882,23 @@ export interface PaperBatch {
   printedByUid?: string;
   printedByName?: string;
   printedAt?: number;
+  /**
+   * Set when a teammate printed this stack before the owner had the quiz in
+   * their library and their Drive was unreachable, so the copy is materialized
+   * on the owner's next sign-in instead (PLC_DELEGATED_PAPER_PRINTING.md D20).
+   */
+  pendingQuizCopy?: PaperBatchPendingQuizCopy;
+}
+
+/** What the owner's client needs to build the deferred library copy itself. */
+export interface PaperBatchPendingQuizCopy {
+  /** Canonical content lives at `/synced_quizzes/{groupId}`. */
+  groupId: string;
+  plcId: string;
+  plcQuizId: string;
+  title: string;
+  requestedByName: string;
+  requestedAt: number;
 }
 
 /** One read row, compact enough for 150 sheets to sit inside the batch doc. */

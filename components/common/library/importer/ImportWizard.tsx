@@ -29,6 +29,7 @@ import {
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { useFileDrop } from '@/hooks/useFileDrop';
 import type {
   ImportAdapter,
   ImportSourceKind,
@@ -233,18 +234,21 @@ export function ImportWizard<TData>({
     }
   };
 
-  const handleDocumentPicked = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ): Promise<void> => {
-    const file = e.target.files?.[0];
-    if (documentInputRef.current) documentInputRef.current.value = '';
-    if (!file) return;
+  const importDocument = async (file: File): Promise<void> => {
     await runParse({
       kind: 'document',
       file,
       fileName: file.name,
       ...(keyFile ? { keyFile } : {}),
     });
+  };
+
+  const handleDocumentPicked = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ): Promise<void> => {
+    const file = e.target.files?.[0];
+    if (documentInputRef.current) documentInputRef.current.value = '';
+    if (file) await importDocument(file);
   };
 
   const handleKeyFilePicked = (
@@ -284,13 +288,7 @@ export function ImportWizard<TData>({
     }
   };
 
-  const handleFilePicked = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ): Promise<void> => {
-    const file = e.target.files?.[0];
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    if (!file) return;
-
+  const importFile = async (file: File): Promise<void> => {
     const session = sessionRef.current;
     const kind = inferKindFromFileName(file.name, adapter.supportedSources);
     if (kind === 'file') {
@@ -318,6 +316,20 @@ export function ImportWizard<TData>({
       );
     }
   };
+
+  const handleFilePicked = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ): Promise<void> => {
+    const file = e.target.files?.[0];
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (file) await importFile(file);
+  };
+
+  const uploadDrop = useFileDrop((file) => void importFile(file), loading);
+  const documentDrop = useFileDrop(
+    (file) => void importDocument(file),
+    loading || picking
+  );
 
   const handleCreateTemplate = async (): Promise<void> => {
     if (!adapter.templateHelper) return;
@@ -624,18 +636,26 @@ export function ImportWizard<TData>({
         ))}
 
       {supportsAnyUpload && (
-        <div>
+        // A disabled control receives no drag events, and the button is
+        // disabled while a parse runs, so the wrapper carries them.
+        <div {...uploadDrop.dropProps}>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={loading}
-            className="w-full py-4 bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/60 disabled:opacity-40 border-2 border-dashed border-brand-blue-primary/30 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group active:scale-95"
+            className={`w-full py-4 disabled:opacity-40 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group active:scale-95 ${
+              uploadDrop.dragging
+                ? 'bg-brand-blue-lighter/70 border-brand-blue-primary'
+                : 'bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/60 border-brand-blue-primary/30'
+            }`}
           >
             <FileUp className="w-6 h-6 text-brand-blue-primary group-hover:scale-110 transition-transform" />
             <span className="font-bold text-brand-blue-primary text-sm">
-              {supportsHtml && !supportsCsv && !supportsJson && !supportsFile
-                ? 'Upload HTML file'
-                : 'Upload file'}
+              {uploadDrop.dragging
+                ? 'Drop it here'
+                : supportsHtml && !supportsCsv && !supportsJson && !supportsFile
+                  ? 'Drop or upload an HTML file'
+                  : 'Drop or upload a file'}
             </span>
             <p className="text-[11px] text-brand-blue-primary/60 font-bold">
               {supportsHtml && !supportsCsv && !supportsJson && !supportsFile
@@ -665,7 +685,10 @@ export function ImportWizard<TData>({
           <p className="text-xs font-black uppercase tracking-widest text-slate-500">
             Or build one from a test you already have
           </p>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div
+            className="grid gap-2 sm:grid-cols-2"
+            {...documentDrop.dropProps}
+          >
             {adapter.pickDocument && (
               <button
                 type="button"
@@ -691,11 +714,17 @@ export function ImportWizard<TData>({
               type="button"
               onClick={() => documentInputRef.current?.click()}
               disabled={loading || picking}
-              className="w-full py-4 px-3 bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/60 disabled:opacity-40 border-2 border-dashed border-brand-blue-primary/30 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group active:scale-95"
+              className={`w-full py-4 px-3 disabled:opacity-40 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group active:scale-95 ${
+                documentDrop.dragging
+                  ? 'bg-brand-blue-lighter/70 border-brand-blue-primary'
+                  : 'bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/60 border-brand-blue-primary/30'
+              }`}
             >
               <FileUp className="w-6 h-6 text-brand-blue-primary group-hover:scale-110 transition-transform" />
               <span className="font-bold text-brand-blue-primary text-sm text-center">
-                Upload a test document
+                {documentDrop.dragging
+                  ? 'Drop the test here'
+                  : 'Drop or upload a test document'}
               </span>
               <p className="text-[11px] text-brand-blue-primary/60 font-bold text-center">
                 .pdf or .docx
