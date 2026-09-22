@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { bundleSubShareContent } from '@/utils/bundleSubShareContent';
 import type { Dashboard, DrawableObject, WidgetData } from '@/types';
 
@@ -7,13 +7,18 @@ vi.mock('firebase/firestore', () => ({
   collection: vi.fn((_db: unknown, ...path: string[]) => ({
     __path: path.join('/'),
   })),
+  doc: vi.fn((_db: unknown, ...path: string[]) => ({
+    __path: path.join('/'),
+  })),
   getDocs: vi.fn(),
+  getDoc: vi.fn(),
 }));
 
 vi.mock('@/config/firebase', () => ({ db: { __mock: 'db' } }));
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 
 const mockGetDocs = getDocs as Mock;
+const mockGetDoc = getDoc as Mock;
 
 const stroke = (id: string, z: number): DrawableObject =>
   ({ id, z, kind: 'pen' }) as unknown as DrawableObject;
@@ -27,6 +32,19 @@ const drawing = (id: string, migrated: boolean, pageIds: string[]) =>
       pages: pageIds.map((pid) => ({ id: pid })),
     },
   }) as unknown as WidgetData;
+
+const notebookWidget = (id: string, notebookId: string | null) =>
+  ({
+    id,
+    type: 'smartNotebook',
+    config: { activeNotebookId: notebookId },
+  }) as unknown as WidgetData;
+
+const notebookDoc = (id: string, fields: Record<string, unknown>) => ({
+  id,
+  exists: () => true,
+  data: () => fields,
+});
 
 const board = (id: string, name: string, widgets: WidgetData[]) =>
   ({ id, name, widgets }) as unknown as Dashboard;
@@ -119,5 +137,100 @@ describe('bundleSubShareContent', () => {
 
     expect(bundle.failures.map((f) => f.itemId)).toEqual(['w1']);
     expect(bundle.items.map((i) => i.id)).toEqual(['drawing_w2']);
+  });
+
+  describe('smart notebook', () => {
+    it('bundles the notebook the widget is open on', async () => {
+      mockGetDoc.mockResolvedValue(
+        notebookDoc('nb-1', {
+          title: 'Fractions',
+          pageUrls: ['https://storage/page1?token=a'],
+          pagePaths: ['users/teacher-1/notebooks/nb-1/page0.svg'],
+          createdAt: 7,
+          hiddenPages: [2],
+        })
+      );
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Warm up', [notebookWidget('w1', 'nb-1')])],
+      });
+
+      expect(bundle.failures).toEqual([]);
+      expect(bundle.items.map((i) => i.id)).toEqual(['notebook_nb-1']);
+      expect(bundle.items[0].doc.itemId).toBe('nb-1');
+      expect(bundle.items[0].doc.payload).toEqual({
+        notebook: {
+          id: 'nb-1',
+          title: 'Fractions',
+          pageUrls: ['https://storage/page1?token=a'],
+          pagePaths: ['users/teacher-1/notebooks/nb-1/page0.svg'],
+          assetUrls: [],
+          createdAt: 7,
+          sections: undefined,
+          objectLinks: undefined,
+          hiddenPages: [2],
+        },
+      });
+      const ref = (doc as Mock).mock.results[0].value as { __path: string };
+      expect(ref.__path).toBe('users/teacher-1/notebooks/nb-1');
+    });
+
+    it('skips a widget with no notebook chosen', async () => {
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Warm up', [notebookWidget('w1', null)])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(mockGetDoc).not.toHaveBeenCalled();
+    });
+
+    // Two boards of the day's plan can open the same notebook; bundling it
+    // twice would write the same doc twice and count against the batch twice.
+    it('bundles a notebook shared by two boards once', async () => {
+      mockGetDoc.mockResolvedValue(
+        notebookDoc('nb-1', { title: 'Fractions', pageUrls: [] })
+      );
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [
+          board('b1', 'Warm up', [notebookWidget('w1', 'nb-1')]),
+          board('b2', 'Reading', [notebookWidget('w2', 'nb-1')]),
+        ],
+      });
+
+      expect(bundle.items.map((i) => i.id)).toEqual(['notebook_nb-1']);
+      expect(mockGetDoc).toHaveBeenCalledTimes(1);
+    });
+
+    // A deleted notebook still referenced by the board reads as a missing doc,
+    // which the teacher must be told about rather than the sub finding out.
+    it('reports a notebook that no longer exists', async () => {
+      mockGetDoc.mockResolvedValue({ id: 'nb-1', exists: () => false });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Warm up', [notebookWidget('w1', 'nb-1')])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(bundle.failures).toEqual([
+        { kind: 'notebook', itemId: 'nb-1', label: 'Notebook on Warm up' },
+      ]);
+    });
+
+    it('reports a notebook it could not read', async () => {
+      mockGetDoc.mockRejectedValue(new Error('offline'));
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Warm up', [notebookWidget('w1', 'nb-1')])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(bundle.failures.map((f) => f.kind)).toEqual(['notebook']);
+    });
   });
 });

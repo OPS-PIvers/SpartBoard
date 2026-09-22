@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
-import { useShareContent } from '@/hooks/useShareContent';
+import { useInSubShare, useShareContent } from '@/hooks/useShareContent';
 
 const wrapWith = (
   load: (kind: string, itemId: string) => Promise<unknown>,
@@ -112,5 +112,21 @@ describe('useShareContent', () => {
     });
     expect(result.current.status).toBe('off');
     expect(load).not.toHaveBeenCalled();
+  });
+});
+
+describe('useInSubShare', () => {
+  it('is false outside a share', () => {
+    const { result } = renderHook(() => useInSubShare());
+    expect(result.current).toBe(false);
+  });
+
+  // A widget pointing at nothing yet reads 'off' from useShareContent inside a
+  // share too, so only this can keep it off the substitute's own library.
+  it('is true inside a share even with no item to load', () => {
+    const { result } = renderHook(() => useInSubShare(), {
+      wrapper: wrapWith(vi.fn()),
+    });
+    expect(result.current).toBe(true);
   });
 });
