@@ -55,14 +55,37 @@ vi.mock('firebase/firestore', () => {
       docs.delete(ref.path);
       return Promise.resolve(undefined);
     }),
+    // `query`/`where` are pass-throughs: the mock has no query engine, so
+    // listHostSubShares' hostUid filter is not exercised here — its mode and
+    // expiry filtering is.
+    query: vi.fn((ref: unknown) => ref),
+    where: vi.fn(() => ({})),
     writeBatch: vi.fn(() => {
-      const staged: Array<[string, unknown]> = [];
+      const staged: Array<[string, unknown, 'set' | 'update' | 'delete']> = [];
       return {
         set: vi.fn((ref: { path: string }, data: unknown) => {
-          staged.push([ref.path, data]);
+          staged.push([ref.path, data, 'set']);
+        }),
+        update: vi.fn((ref: { path: string }, data: unknown) => {
+          staged.push([ref.path, data, 'update']);
+        }),
+        delete: vi.fn((ref: { path: string }) => {
+          staged.push([ref.path, null, 'delete']);
         }),
         commit: vi.fn(() => {
-          for (const [p, d] of staged) docs.set(p, d);
+          for (const [p, d, op] of staged) {
+            if (op === 'delete') {
+              deletedPaths.push(p);
+              docs.delete(p);
+            } else if (op === 'update') {
+              docs.set(p, {
+                ...(docs.get(p) as Record<string, unknown> | undefined),
+                ...(d as Record<string, unknown>),
+              });
+            } else {
+              docs.set(p, d);
+            }
+          }
           return Promise.resolve(undefined);
         }),
       };
@@ -181,8 +204,10 @@ describe('useSharedCollection', () => {
       hostUid: 'host-uid',
       hostDisplayName: 'Mr. Teacher',
       collectionId: 'src-collection',
+      sourceId: 'src-collection',
       expiresAt: 9999999999999,
       buildingId: 'middle-school',
+      ...tree(),
     });
     const helpers = await getHelpers();
     const parent = helpers.docs.get(`shared_collections/${shareId}`) as {
@@ -210,8 +235,10 @@ describe('useSharedCollection', () => {
       hostUid: 'host-uid',
       hostDisplayName: 'Mr. Teacher',
       collectionId: 'src-collection',
+      sourceId: 'src-collection',
       expiresAt: 9999999999999,
       buildingId: 'middle-school',
+      ...tree(),
     });
 
     const helpers = await getHelpers();
@@ -277,6 +304,180 @@ describe('useSharedCollection', () => {
     expect(
       helpers.deletedPaths.some((p) => p.startsWith('shared_collections/'))
     ).toBe(true);
+  });
+
+  const tree = () => ({
+    kind: 'collection' as const,
+    sections: [{ id: 'src-collection', name: 'Source' }],
+    boardEntries: [
+      { id: 'b1', name: 'Warm-up', sectionId: 'src-collection', order: 0 },
+      { id: 'b2', name: 'Lesson', sectionId: 'src-collection', order: 1 },
+    ],
+    defaultBoardId: 'b1',
+  });
+
+  const seedSubShare = async () => {
+    const { result } = renderHook(() => useSharedCollection());
+    const shareId = await result.current.shareSubstituteCollection({
+      collection: sourceCollection(),
+      boards: [dashboard('b1'), dashboard('b2')],
+      hostUid: 'host-uid',
+      hostDisplayName: 'Mr. Teacher',
+      collectionId: 'src-collection',
+      sourceId: 'src-collection',
+      expiresAt: 9999999999999,
+      buildingId: 'middle-school',
+      ...tree(),
+    });
+    return { shareId, api: result.current };
+  };
+
+  it('shareSubstituteCollection writes the walk order, sections and version', async () => {
+    const { shareId } = await seedSubShare();
+    const helpers = await getHelpers();
+    const parent = helpers.docs.get(`shared_collections/${shareId}`) as {
+      kind: string;
+      sections: { id: string }[];
+      boards: { id: string; name: string; order: number }[];
+      defaultBoardId: string;
+      contentVersion: number;
+      updatedAt: number;
+    };
+    expect(parent.kind).toBe('collection');
+    expect(parent.sections).toEqual([{ id: 'src-collection', name: 'Source' }]);
+    expect(parent.boards.map((b) => b.name)).toEqual(['Warm-up', 'Lesson']);
+    expect(parent.defaultBoardId).toBe('b1');
+    expect(parent.contentVersion).toBe(1);
+    expect(parent.updatedAt).toBeGreaterThan(0);
+  });
+
+  it('a substitute snapshot keeps the pen marks a copy share drops', async () => {
+    const { result } = renderHook(() => useSharedCollection());
+    const inked = {
+      ...dashboard('b1'),
+      annotationOverlay: { objects: [{ id: 'stroke-1' }] },
+    } as unknown as Dashboard;
+    const subId = await result.current.shareSubstituteCollection({
+      collection: sourceCollection(),
+      boards: [inked],
+      hostUid: 'host-uid',
+      hostDisplayName: 'Mr. Teacher',
+      collectionId: 'src-collection',
+      sourceId: 'src-collection',
+      expiresAt: 9999999999999,
+      buildingId: 'middle-school',
+      ...tree(),
+    });
+    const copyId = await result.current.shareCollection({
+      collection: sourceCollection(),
+      boards: [inked],
+      hostUid: 'host-uid',
+      hostDisplayName: 'Mr. Teacher',
+    });
+    const helpers = await getHelpers();
+    const read = (shareId: string) =>
+      (
+        helpers.docs.get(`shared_collections/${shareId}/boards/b1`) as {
+          dashboard: Dashboard;
+        }
+      ).dashboard;
+    expect(read(subId).annotationOverlay).toEqual({
+      objects: [{ id: 'stroke-1' }],
+    });
+    expect(read(copyId).annotationOverlay).toBeUndefined();
+  });
+
+  it('updateSubstituteShare bumps the version and drops removed boards', async () => {
+    const { shareId, api } = await seedSubShare();
+    await api.updateSubstituteShare({
+      shareId,
+      collection: sourceCollection(),
+      boards: [dashboard('b1')],
+      kind: 'collection',
+      sections: [{ id: 'src-collection', name: 'Source' }],
+      boardEntries: [
+        { id: 'b1', name: 'Warm-up', sectionId: 'src-collection', order: 0 },
+      ],
+      defaultBoardId: 'b1',
+    });
+    const helpers = await getHelpers();
+    const parent = helpers.docs.get(`shared_collections/${shareId}`) as {
+      boardIds: string[];
+      contentVersion: number;
+      expiresAt: number;
+    };
+    expect(parent.boardIds).toEqual(['b1']);
+    expect(parent.contentVersion).toBe(2);
+    // Untouched fields survive the update.
+    expect(parent.expiresAt).toBe(9999999999999);
+    expect(
+      helpers.deletedPaths.includes(`shared_collections/${shareId}/boards/b2`)
+    ).toBe(true);
+    expect(helpers.docs.has(`shared_collections/${shareId}/boards/b1`)).toBe(
+      true
+    );
+  });
+
+  it('extendSubstituteShare moves the expiry without touching the boards', async () => {
+    const { shareId, api } = await seedSubShare();
+    await api.extendSubstituteShare(shareId, 123456789);
+    const helpers = await getHelpers();
+    const parent = helpers.docs.get(`shared_collections/${shareId}`) as {
+      expiresAt: number;
+      boardIds: string[];
+    };
+    expect(parent.expiresAt).toBe(123456789);
+    expect(parent.boardIds).toEqual(['b1', 'b2']);
+  });
+
+  it('expireSubstituteShare stamps the expiry in the past and keeps the docs', async () => {
+    const { shareId, api } = await seedSubShare();
+    await api.expireSubstituteShare(shareId);
+    const helpers = await getHelpers();
+    const parent = helpers.docs.get(`shared_collections/${shareId}`) as {
+      expiresAt: number;
+    };
+    expect(parent.expiresAt).toBeLessThan(Date.now());
+    // The sweep deletes them, once it has revoked the Drive grants.
+    expect(helpers.docs.has(`shared_collections/${shareId}/boards/b1`)).toBe(
+      true
+    );
+  });
+
+  it('listHostSubShares skips copy shares and expired ones, newest first', async () => {
+    const helpers = await getHelpers();
+    helpers.docs.set('shared_collections/live-2', {
+      shareId: 'live-2',
+      hostUid: 'host-uid',
+      intendedMode: 'substitute',
+      expiresAt: Date.now() + 60_000,
+      createdAt: 2,
+      updatedAt: 20,
+    });
+    helpers.docs.set('shared_collections/live-1', {
+      shareId: 'live-1',
+      hostUid: 'host-uid',
+      intendedMode: 'substitute',
+      expiresAt: Date.now() + 60_000,
+      createdAt: 1,
+      updatedAt: 30,
+    });
+    helpers.docs.set('shared_collections/gone', {
+      shareId: 'gone',
+      hostUid: 'host-uid',
+      intendedMode: 'substitute',
+      expiresAt: Date.now() - 60_000,
+      createdAt: 3,
+    });
+    helpers.docs.set('shared_collections/copy', {
+      shareId: 'copy',
+      hostUid: 'host-uid',
+      intendedMode: 'copy',
+      createdAt: 4,
+    });
+    const { result } = renderHook(() => useSharedCollection());
+    const shares = await result.current.listHostSubShares('host-uid');
+    expect(shares.map((s) => s.shareId)).toEqual(['live-1', 'live-2']);
   });
 
   it('loadSharedCollection returns not-found when parent doc is missing', async () => {

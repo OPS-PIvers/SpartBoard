@@ -3977,5 +3977,57 @@
   "studentAssignment": {
     "excludedTitle": "This assignment is not for you",
     "excludedBody": "Your teacher did not assign this to you. Check with them if you think this is a mistake."
+  },
+  "shareWithSub": {
+    "title": "Share with a sub",
+    "updateTitle": "Update what your sub sees",
+    "boardSummary": "Your sub sees this board exactly as you set it up.",
+    "collectionSummary": "Your sub clicks through {{boards}} boards, grouped the way you group them ({{sections}} groups).",
+    "updatingHint": "You already share this with a sub. Saving replaces what they see — same link, same end time unless you change it.",
+    "building": "Building",
+    "noBuildings": "No buildings available",
+    "buildingRequired": "Pick the building your sub signs in at.",
+    "endsAt": "Ends",
+    "endsAtHint": "Defaults to two days from now. Fourteen days is the most a sub share can run.",
+    "subs": "Who is covering",
+    "subsHint": "These subs get your class lists for as long as the share runs, and the access is withdrawn when it ends. Anyone else in the building still sees the boards, without student names.",
+    "noBoards": "There are no boards in this collection to share.",
+    "expiryPast": "Pick an end time in the future.",
+    "expiryTooFar": "A sub share can run for at most 14 days.",
+    "create": "Share",
+    "update": "Update the share",
+    "saving": "Saving…",
+    "failed": "Could not share with your sub. Try again.",
+    "linkCopied": "Link copied. Send it to your sub — they sign in with their school account to open it.",
+    "linkReady": "Send this link to your sub — they sign in with their school account to open it.",
+    "urlLabel": "Sub share link"
+  },
+  "subShare": {
+    "menu": {
+      "share": "Share with a sub…",
+      "update": "Update sub share…",
+      "sharedUntil": "Shared with a sub until {{date}}"
+    },
+    "panel": {
+      "title": "Shared with subs",
+      "summary": "{{boards}} boards · {{subs}} named subs · until {{date}}",
+      "copyLink": "Copy link",
+      "copied": "Link copied",
+      "copyFailed": "Copy this link by hand: {{url}}",
+      "updateNow": "Push my changes",
+      "updating": "Updating…",
+      "updated": "Your sub now sees the current boards",
+      "updateFailed": "Could not update the share. Try again.",
+      "sourceGone": "The boards behind this share are gone. End it and share again.",
+      "nowEmpty": "This collection has no boards left to share. End the share instead.",
+      "extend": "Add a week",
+      "extended": "Share now runs until {{date}}",
+      "extendFailed": "Could not change the end time. Try again.",
+      "atCap": "A sub share can run for at most 14 days.",
+      "end": "End now",
+      "endConfirm": "End the sub share of {{name}} now? Your sub loses the boards and your class lists right away.",
+      "ended": "Sub share ended",
+      "endFailed": "Could not end the share. Try again."
+    }
   }
 }

@@ -10,6 +10,7 @@ import {
   PinOff,
   FolderInput,
   Share2,
+  UserCheck,
   LayoutTemplate,
   Trash2,
 } from 'lucide-react';
@@ -28,6 +29,9 @@ interface BoardContextMenuProps {
   onTogglePin: () => void;
   onMove: () => void;
   onShare: () => void;
+  onShareWithSub: () => void;
+  /** When this board/collection is already shared with a sub: its end time. */
+  subShareEndsAt?: number | null;
   onSaveAsTemplate: () => void;
   onDelete: () => void;
 }
@@ -45,6 +49,8 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
   onTogglePin,
   onMove,
   onShare,
+  onShareWithSub,
+  subShareEndsAt,
   onSaveAsTemplate,
   onDelete,
 }) => {
@@ -105,6 +111,16 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
     });
   }
 
+  if (canShare) {
+    items.push({
+      label: subShareEndsAt
+        ? t('subShare.menu.update', { defaultValue: 'Update sub share…' })
+        : t('subShare.menu.share', { defaultValue: 'Share with a sub…' }),
+      icon: UserCheck,
+      action: onShareWithSub,
+    });
+  }
+
   if (isAdmin) {
     items.push({
       label: t('boardsModal.menu.saveAsTemplate', {
@@ -151,6 +167,19 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
           </button>
         );
       })}
+      {subShareEndsAt !== undefined && subShareEndsAt !== null && (
+        <p className="border-t border-slate-100 mt-1 px-3 pt-2 pb-1 text-[11px] text-slate-500">
+          {t('subShare.menu.sharedUntil', {
+            date: new Date(subShareEndsAt).toLocaleString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+            }),
+            defaultValue: 'Shared with a sub until {{date}}',
+          })}
+        </p>
+      )}
     </div>
   );
 };

@@ -296,6 +296,10 @@ const mockDashboard: DashboardContextValue = {
   // Collection sharing system mocks
   shareCollection: () => Promise.resolve(''),
   shareSubstituteCollection: () => Promise.resolve(''),
+  updateSubstituteCollectionShare: () => Promise.resolve(),
+  extendSubstituteCollectionShare: () => Promise.resolve(),
+  endSubstituteCollectionShare: () => Promise.resolve(),
+  listSubstituteCollectionShares: () => Promise.resolve([]),
   loadSharedCollection: () =>
     Promise.resolve({ ok: false as const, reason: 'not-found' as const }),
   loadSharedCollectionBoards: () => Promise.resolve([]),

@@ -7,6 +7,7 @@ import {
   FolderInput,
   Palette,
   Share2,
+  UserCheck,
   LayoutTemplate,
   Trash2,
 } from 'lucide-react';
@@ -20,6 +21,9 @@ interface CollectionContextMenuProps {
   onColor: () => void;
   canShare: boolean;
   onShare: () => void;
+  onShareWithSub: () => void;
+  /** When this board/collection is already shared with a sub: its end time. */
+  subShareEndsAt?: number | null;
   canSaveAsTemplate: boolean;
   onSaveAsTemplate: () => void;
   onDelete: () => void;
@@ -34,6 +38,8 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
   onColor,
   canShare,
   onShare,
+  onShareWithSub,
+  subShareEndsAt,
   canSaveAsTemplate,
   onSaveAsTemplate,
   onDelete,
@@ -76,6 +82,16 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
       label: t('collectionMenu.share', { defaultValue: 'Share Collection…' }),
       icon: Share2,
       action: onShare,
+    });
+  }
+
+  if (canShare) {
+    items.push({
+      label: subShareEndsAt
+        ? t('subShare.menu.update', { defaultValue: 'Update sub share…' })
+        : t('subShare.menu.share', { defaultValue: 'Share with a sub…' }),
+      icon: UserCheck,
+      action: onShareWithSub,
     });
   }
 
@@ -125,6 +141,19 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
           </button>
         );
       })}
+      {subShareEndsAt !== undefined && subShareEndsAt !== null && (
+        <p className="border-t border-slate-100 mt-1 px-3 pt-2 pb-1 text-[11px] text-slate-500">
+          {t('subShare.menu.sharedUntil', {
+            date: new Date(subShareEndsAt).toLocaleString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+            }),
+            defaultValue: 'Shared with a sub until {{date}}',
+          })}
+        </p>
+      )}
     </div>
   );
 };

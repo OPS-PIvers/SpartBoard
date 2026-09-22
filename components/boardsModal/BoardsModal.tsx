@@ -19,6 +19,12 @@ import { BoardCardDragPreview } from './BoardCard';
 import { CollectionCardDragPreview } from './CollectionCard';
 import { ShareLinkCreatorModal } from '@/components/share/ShareLinkCreatorModal';
 import { ShareCollectionLinkCreatorModal } from '@/components/share/ShareCollectionLinkCreatorModal';
+import {
+  ShareWithSubModal,
+  type SubShareTarget,
+} from '@/components/share/ShareWithSubModal';
+import { SubSharesPanel } from './SubSharesPanel';
+import { useSubShares } from './useSubShares';
 import { SaveAsTemplateModal } from '@/components/admin/SaveAsTemplateModal';
 import { CreateFromTemplateModal } from './CreateFromTemplateModal';
 import { CollectionColorPicker } from './CollectionColorPicker';
@@ -81,6 +87,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   // disabled-state re-render on each card.
   const boardDuplicateBusy = useBusyIdSet();
   const collectionDuplicateBusy = useBusyIdSet();
+  const subShares = useSubShares();
 
   // Filter by search (substring on Board + Collection names)
   const searchTerm = search.trim().toLowerCase();
@@ -148,6 +155,9 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   const [shareTarget, setShareTarget] = useState<Dashboard | null>(null);
   const [shareCollectionTarget, setShareCollectionTarget] =
     useState<Collection | null>(null);
+  const [subShareTarget, setSubShareTarget] = useState<SubShareTarget | null>(
+    null
+  );
   const [saveAsTemplateTarget, setSaveAsTemplateTarget] =
     useState<Dashboard | null>(null);
   const [saveAsCollectionTemplateTarget, setSaveAsCollectionTemplateTarget] =
@@ -560,6 +570,17 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
           onBulkUnpin={handleBulkUnpin}
         />
 
+        {canShare && (
+          <SubSharesPanel
+            shares={subShares.shares}
+            busyShareId={subShares.busyShareId}
+            onCopyLink={subShares.copyLink}
+            onUpdateNow={subShares.updateNow}
+            onExtend={subShares.extend}
+            onEnd={subShares.end}
+          />
+        )}
+
         <DndContext
           sensors={sensors}
           collisionDetection={collisionDetection}
@@ -655,6 +676,10 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               }}
               onMove={() => handleSingleMove(board.id)}
               onShare={() => setShareTarget(board)}
+              onShareWithSub={() =>
+                setSubShareTarget({ kind: 'board', dashboard: board })
+              }
+              subShareEndsAt={subShares.endsAtFor(board.id)}
               onSaveAsTemplate={() => setSaveAsTemplateTarget(board)}
               onDelete={async () => {
                 const ok = await showConfirm(
@@ -680,6 +705,10 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               onOpen={() => setSelectedCollectionId(c.id)}
               canShare={canShare}
               onShare={() => setShareCollectionTarget(c)}
+              onShareWithSub={() =>
+                setSubShareTarget({ kind: 'collection', collection: c })
+              }
+              subShareEndsAt={subShares.endsAtFor(c.id)}
               canSaveAsTemplate={Boolean(isAdmin)}
               onSaveAsTemplate={() => setSaveAsCollectionTemplateTarget(c)}
               onRename={async () => {
@@ -739,6 +768,13 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
           onClose={() => setShareCollectionTarget(null)}
         />
       )}
+      <ShareWithSubModal
+        isOpen={subShareTarget !== null}
+        target={subShareTarget}
+        existingShares={subShares.shares}
+        onClose={() => setSubShareTarget(null)}
+        onSaved={subShares.refresh}
+      />
       <SaveAsTemplateModal
         isOpen={saveAsTemplateTarget !== null}
         onClose={() => setSaveAsTemplateTarget(null)}

@@ -9712,6 +9712,12 @@ export interface SharedCollection {
   sharedRosters?: SubstituteShareRoster[];
   /** Absent on pre-v2 shares; read as 'collection'. */
   kind?: SharedCollectionKind;
+  /**
+   * The Board or Collection this share was made from, so the share dialog can
+   * offer "update the existing share" instead of making a second one, and the
+   * Boards modal can badge what is currently shared. Pinned after create.
+   */
+  sourceId?: string;
   /** Root section first, then sub-collections in tree order. Absent pre-v2. */
   sections?: SharedCollectionSection[];
   /**

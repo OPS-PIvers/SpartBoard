@@ -147,6 +147,8 @@ export interface SubShareTree {
 type SubstituteShareInput = ShareCollectionInput &
   CollectionSubstituteShareInput &
   SubShareTree & {
+    /** The Board or Collection the share was made from. */
+    sourceId: string;
     /**
      * Resolved Drive permission grants. The caller (DashboardContext's
      * `shareSubstituteCollection`) performs the actual Drive `permissions.create`
@@ -357,6 +359,7 @@ export const useSharedCollection = () => {
           ? { sharedRosters: input.sharedRosters }
           : {}),
         kind: input.kind,
+        sourceId: input.sourceId,
         sections: input.sections,
         boards: input.boardEntries,
         ...(input.defaultBoardId !== undefined && {
