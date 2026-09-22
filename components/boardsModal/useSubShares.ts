@@ -77,7 +77,11 @@ export function useSubShares(enabled: boolean): SubSharesApi {
     const map = new Map<string, number>();
     for (const share of shares) {
       if (share.sourceId && share.expiresAt) {
-        map.set(share.sourceId, share.expiresAt);
+        // Keep the latest end time if two live shares ever share a source.
+        const existing = map.get(share.sourceId);
+        if (existing === undefined || share.expiresAt > existing) {
+          map.set(share.sourceId, share.expiresAt);
+        }
       }
     }
     return map;

@@ -78,6 +78,24 @@ const CP1252_HIGH: Record<number, string> = {
   0x9f: 'Ÿ',
 };
 
+/** WHATWG labels for the double-byte codepages `\ansicpg` can name. */
+const DBCS_LABELS: Record<number, string> = {
+  932: 'shift_jis',
+  936: 'gbk',
+  949: 'euc-kr',
+  950: 'big5',
+};
+
+/** A decoder for `\ansicpg`, or null to keep the built-in Windows-1252 table. */
+function codepageDecoder(codepage: number): TextDecoder | null {
+  if (codepage === 1252) return null;
+  try {
+    return new TextDecoder(DBCS_LABELS[codepage] ?? `windows-${codepage}`);
+  } catch {
+    return null;
+  }
+}
+
 /** Control words that stand in for a character. */
 const LITERALS: Record<string, string> = {
   emdash: '—',
@@ -142,6 +160,7 @@ export function parseRtf(rtf: string): DocLine[] {
   /** Non-zero while inside a group we are throwing away. */
   let skipDepth = 0;
   let depth = 0;
+  let decoder: TextDecoder | null = null;
 
   const append = (chunk: string): void => {
     if (state.ignore || skipDepth > 0 || !chunk) return;
@@ -193,11 +212,22 @@ export function parseRtf(rtf: string): DocLine[] {
         else if (next === '~') append('\u00a0');
         else if (next === '_') append('-');
         else if (next === "'") {
-          const code = Number.parseInt(rtf.slice(i, i + 2), 16);
-          i += 2;
-          if (Number.isFinite(code)) {
-            append(CP1252_HIGH[code] ?? String.fromCharCode(code));
+          // Adjacent escapes are one run, so a double-byte character decodes whole.
+          const bytes: number[] = [];
+          for (;;) {
+            const code = Number.parseInt(rtf.slice(i, i + 2), 16);
+            i += 2;
+            if (Number.isFinite(code)) bytes.push(code);
+            if (rtf[i] !== '\\' || rtf[i + 1] !== "'") break;
+            i += 2;
           }
+          append(
+            decoder
+              ? decoder.decode(Uint8Array.from(bytes))
+              : bytes
+                  .map((code) => CP1252_HIGH[code] ?? String.fromCharCode(code))
+                  .join('')
+          );
         }
         continue;
       }
@@ -263,6 +293,10 @@ export function parseRtf(rtf: string): DocLine[] {
         continue;
       }
 
+      if (word === 'ansicpg') {
+        if (param !== null) decoder = codepageDecoder(param);
+        continue;
+      }
       if (word === 'uc') {
         if (param !== null && param >= 0) state = { ...state, uc: param };
         continue;

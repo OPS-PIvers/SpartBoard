@@ -1003,8 +1003,8 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                   </button>
                 )}
                 <p className="text-xs text-slate-500">
-                  The questions and answer choices are read on this computer.
-                  Students still answer on the bubble sheet.
+                  The questions and answer choices come from your file. Students
+                  still answer on the bubble sheet.
                 </p>
               </div>
             )}

@@ -294,8 +294,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
         </button>
       )}
       <p className="text-xs text-slate-500">
-        Questions are matched by the number printed before them. The file is
-        read on this computer and never uploaded.
+        Questions are matched by the number printed before them.
       </p>
     </div>
   );

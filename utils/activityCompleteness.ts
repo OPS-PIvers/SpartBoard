@@ -56,6 +56,10 @@ const questionKeyProblem = (questions: QuizQuestion[]): string | null => {
   return null;
 };
 
+/** MA answers are |-joined for grading, so an option containing | is misgraded. */
+const maOptionHasPipe = (q: VideoActivityQuestion): boolean =>
+  (q.incorrectAnswers ?? []).some((s) => s.includes('|'));
+
 interface VideoActivityCompletenessInput {
   title: string;
   youtubeUrl: string;
@@ -86,11 +90,7 @@ export const videoActivityIncompleteReason = ({
         return `Question ${i + 1}: add at least one option`;
       if (correctCount === 0)
         return `Question ${i + 1}: select at least one correct option`;
-      const hasPipe = [
-        ...q.correctAnswer.split('|'),
-        ...(q.incorrectAnswers ?? []),
-      ].some((s) => s.includes('|'));
-      if (hasPipe)
+      if (maOptionHasPipe(q))
         return `Question ${i + 1}: option text cannot contain the | character`;
     } else if (!q.correctAnswer.trim()) {
       return `Question ${i + 1}: correct answer is required`;
@@ -125,6 +125,8 @@ export const videoActivityAssignBlocker = ({
         ? q.correctAnswer.split('|').some((s) => s.trim().length > 0)
         : q.correctAnswer.trim().length > 0;
     if (!answered) return `question ${i + 1} has no correct answer`;
+    if (type === 'MA' && maOptionHasPipe(q))
+      return `question ${i + 1} has an option containing the | character`;
   }
   return null;
 };

@@ -135,11 +135,11 @@ jobs:
       - name: Run Firestore rules tests
         run: pnpm run test:rules
 
-  # Builds in parallel with the checks; deploy downloads the artifact instead of rebuilding.
-  build:
+  # Dev's public web config (repo VITE_FIREBASE_* secrets are prod's), fetched apart from build so no build code sees the deploy credential.
+  web-config:
     runs-on: ubuntu-24.04
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-build
+      group: ${{ github.workflow }}-${{ github.ref }}-web-config
       cancel-in-progress: true
     permissions:
       contents: read
@@ -151,10 +151,33 @@ jobs:
         with:
           workload_identity_provider: ${{ env.DEV_WIF_PROVIDER }}
           service_account: ${{ env.DEV_DEPLOY_SA }}
-      # The repo's VITE_FIREBASE_* secrets are prod's; the dev bundle takes the dev app's public config instead.
+      - name: Export dev web config
+        run: ./.github/scripts/export-firebase-web-config.sh "$DEV_PROJECT_ID" "$DEV_WEB_APP_ID" firebase-web.env
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firebase-web-env
+          path: firebase-web.env
+          include-hidden-files: true
+          retention-days: 1
+          if-no-files-found: error
+
+  # Builds in parallel with the checks; deploy downloads the artifact instead of rebuilding.
+  build:
+    needs: web-config
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-build
+      cancel-in-progress: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: firebase-web-env
       - name: Build project
         run: |
-          ./.github/scripts/export-firebase-web-config.sh "$DEV_PROJECT_ID" "$DEV_WEB_APP_ID" firebase-web.env
           set -a; . ./firebase-web.env; set +a
           rm -f firebase-web.env
           pnpm run build:all

@@ -16,6 +16,7 @@ import type {
   ExtractedQuiz,
 } from './types';
 import type { QuizQuestionType } from '@/types';
+import { DocumentTooLargeError, MAX_CARTRIDGE_UNZIPPED_BYTES } from './limits';
 
 const MANIFEST = 'imsmanifest.xml';
 const FILE_BASE = /\$IMS-?CC-?FILEBASE\$\/?/gi;
@@ -285,6 +286,64 @@ function toQuestion(item: Element, number: number): ExtractedQuestion {
   };
 }
 
+/** Unpacked bytes still allowed for this import, shared across every entry. */
+interface UnzipBudget {
+  remaining: number;
+}
+
+/** JSZip's `internalStream`, which its type definitions leave out. */
+interface ZipStream {
+  on(event: 'data', cb: (chunk: Uint8Array) => void): ZipStream;
+  on(event: 'error', cb: (err: Error) => void): ZipStream;
+  on(event: 'end', cb: () => void): ZipStream;
+  pause(): ZipStream;
+  resume(): ZipStream;
+}
+
+/** Streams an entry out of the zip and stops once the budget runs out. */
+function unzipCapped(
+  entry: JSZip.JSZipObject,
+  budget: UnzipBudget
+): Promise<Uint8Array[]> {
+  return new Promise((resolve, reject) => {
+    const chunks: Uint8Array[] = [];
+    const stream = (
+      entry as unknown as {
+        internalStream: (type: 'uint8array') => ZipStream;
+      }
+    ).internalStream('uint8array');
+    stream
+      .on('data', (chunk: Uint8Array) => {
+        budget.remaining -= chunk.length;
+        if (budget.remaining < 0) {
+          stream.pause();
+          reject(
+            new DocumentTooLargeError(
+              `This export unpacks to more than ${Math.round(MAX_CARTRIDGE_UNZIPPED_BYTES / 1024 / 1024)} MB. Export the test on its own from your LMS and try again.`
+            )
+          );
+          return;
+        }
+        chunks.push(chunk);
+      })
+      .on('error', reject)
+      .on('end', () => resolve(chunks))
+      .resume();
+  });
+}
+
+async function unzipText(
+  entry: JSZip.JSZipObject,
+  budget: UnzipBudget
+): Promise<string> {
+  const decoder = new TextDecoder();
+  const chunks = await unzipCapped(entry, budget);
+  return (
+    chunks.map((c) => decoder.decode(c, { stream: true })).join('') +
+    decoder.decode()
+  );
+}
+
 /** Every QTI item in one XML file, in the order the file lists them. */
 function itemsIn(xml: string): { title: string; items: Element[] } | null {
   const doc = new DOMParser().parseFromString(xml, 'application/xml');
@@ -326,7 +385,8 @@ function zipPathFor(src: string, zip: JSZip): string | null {
  */
 async function attachCartridgeImages(
   questions: ExtractedQuestion[],
-  zip: JSZip
+  zip: JSZip,
+  budget: UnzipBudget
 ): Promise<{ questions: ExtractedQuestion[]; images: ExtractedImage[] }> {
   const images: ExtractedImage[] = [];
   const idBySrc = new Map<string, string>();
@@ -342,8 +402,11 @@ async function attachCartridgeImages(
       if (!entry || !contentType) continue;
       let blob: Blob;
       try {
-        blob = await entry.async('blob');
+        blob = new Blob(await unzipCapped(entry, budget), {
+          type: contentType,
+        });
       } catch (err) {
+        if (err instanceof DocumentTooLargeError) throw err;
         // A picture that will not unzip is one row's note, not a failed import.
         console.warn('[quizDocumentImport] could not unzip a picture', err);
         continue;
@@ -379,8 +442,10 @@ async function attachCartridgeImages(
 /** Reads the one test in a cartridge; several means the first is taken. */
 export async function readCartridge(
   file: Blob,
-  fallbackTitle: string
+  fallbackTitle: string,
+  maxUnzippedBytes: number = MAX_CARTRIDGE_UNZIPPED_BYTES
 ): Promise<ExtractedQuiz> {
+  const budget: UnzipBudget = { remaining: maxUnzippedBytes };
   const zip = await new JSZip().loadAsync(file);
   if (!zip.file(MANIFEST)) {
     throw new Error(
@@ -391,7 +456,7 @@ export async function readCartridge(
   const found: Array<{ title: string; items: Element[] }> = [];
   for (const entry of zip.file(/\.xml$/i)) {
     if (entry.name.endsWith(MANIFEST)) continue;
-    const parsed = itemsIn(await entry.async('string'));
+    const parsed = itemsIn(await unzipText(entry, budget));
     if (parsed) found.push(parsed);
   }
 
@@ -410,7 +475,7 @@ export async function readCartridge(
   }
 
   const read = first.items.map((item, index) => toQuestion(item, index + 1));
-  const { questions, images } = await attachCartridgeImages(read, zip);
+  const { questions, images } = await attachCartridgeImages(read, zip, budget);
 
   return {
     title: first.title || fallbackTitle,

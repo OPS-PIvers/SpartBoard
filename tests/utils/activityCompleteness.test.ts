@@ -209,4 +209,18 @@ describe('assign gates', () => {
       })
     ).toBeNull();
   });
+
+  it('blocks an MA option containing the | separator', () => {
+    expect(
+      videoActivityAssignBlocker({
+        questions: [
+          vaQuestion({
+            type: 'MA',
+            correctAnswer: 'A',
+            incorrectAnswers: ['B|C'],
+          }),
+        ],
+      })
+    ).toBe('question 1 has an option containing the | character');
+  });
 });
