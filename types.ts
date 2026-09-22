@@ -8397,7 +8397,9 @@ export type GlobalFeature =
   /** Saved class groups inside board widgets; AND-ed with the Rollouts switch. */
   | 'roster-groups'
   /** Importing a quiz from a test document; AND-ed with the Rollouts switch. */
-  | 'quiz-document-import';
+  | 'quiz-document-import'
+  /** Handing a board or a collection to a substitute, and managing live shares. */
+  | 'sub-share-collections';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

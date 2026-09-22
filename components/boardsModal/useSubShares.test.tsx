@@ -94,10 +94,15 @@ describe('useSubShares', () => {
   });
 
   const load = async () => {
-    const view = renderHook(() => useSubShares());
+    const view = renderHook(() => useSubShares(true));
     await waitFor(() => expect(view.result.current.shares).toHaveLength(1));
     return view;
   };
+
+  it('reads nothing while the feature is off for this teacher', () => {
+    renderHook(() => useSubShares(false));
+    expect(listSubstituteCollectionShares).not.toHaveBeenCalled();
+  });
 
   it('reports the end time by the Board or Collection the share came from', async () => {
     const { result } = await load();

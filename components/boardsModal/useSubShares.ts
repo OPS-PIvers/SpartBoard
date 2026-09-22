@@ -36,7 +36,7 @@ export interface SubSharesApi {
   end: (share: SharedCollection) => void;
 }
 
-export function useSubShares(): SubSharesApi {
+export function useSubShares(enabled: boolean): SubSharesApi {
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
   const {
@@ -56,6 +56,7 @@ export function useSubShares(): SubSharesApi {
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -68,7 +69,7 @@ export function useSubShares(): SubSharesApi {
     return () => {
       cancelled = true;
     };
-  }, [listSubstituteCollectionShares, reloadKey]);
+  }, [enabled, listSubstituteCollectionShares, reloadKey]);
 
   const refresh = useCallback(() => setReloadKey((n) => n + 1), []);
 

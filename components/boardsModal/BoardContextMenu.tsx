@@ -29,6 +29,7 @@ interface BoardContextMenuProps {
   onTogglePin: () => void;
   onMove: () => void;
   onShare: () => void;
+  canShareWithSub: boolean;
   onShareWithSub: () => void;
   /** When this board/collection is already shared with a sub: its end time. */
   subShareEndsAt?: number | null;
@@ -49,6 +50,7 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
   onTogglePin,
   onMove,
   onShare,
+  canShareWithSub,
   onShareWithSub,
   subShareEndsAt,
   onSaveAsTemplate,
@@ -111,7 +113,7 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
     });
   }
 
-  if (canShare) {
+  if (canShareWithSub) {
     items.push({
       label: subShareEndsAt
         ? t('subShare.menu.update', { defaultValue: 'Update sub share…' })
