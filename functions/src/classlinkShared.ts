@@ -27,6 +27,8 @@ import OAuth from 'oauth-1.0a';
 export const ALLOWED_ORIGINS: (string | RegExp)[] = [
   'https://spartboard.web.app',
   'https://spartboard.firebaseapp.com',
+  'https://spartboard-dev.web.app',
+  'https://spartboard-dev.firebaseapp.com',
   /^https:\/\/spartboard--[\w-]+\.web\.app$/,
   /^http:\/\/localhost(:\d+)?$/,
 ];
