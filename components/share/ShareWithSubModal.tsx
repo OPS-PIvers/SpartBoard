@@ -143,10 +143,15 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   // Widgets whose content could not be collected, named for the teacher.
-  const [missed, setMissed] = useState<string[]>([]);
+  const [missed, setMissed] = useState<{ id: string; label: string }[]>([]);
 
   const takeBundle = useCallback((bundle: SubShareBundle) => {
-    setMissed(bundle.failures.map((f) => f.label));
+    setMissed(
+      bundle.failures.map((f) => ({
+        id: `${f.kind}-${f.itemId}`,
+        label: f.label,
+      }))
+    );
   }, []);
 
   const { emails: presetEmails, loading: presetsLoading } =
@@ -603,8 +608,8 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
                 })}
               </p>
               <ul className="mt-1 ml-4 list-disc">
-                {missed.map((label) => (
-                  <li key={label}>{label}</li>
+                {missed.map((f) => (
+                  <li key={f.id}>{f.label}</li>
                 ))}
               </ul>
               <p className="mt-1">

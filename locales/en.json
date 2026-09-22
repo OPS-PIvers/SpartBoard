@@ -4000,7 +4000,9 @@
     "failed": "Could not share with your sub. Try again.",
     "linkCopied": "Link copied. Your sub signs in with their school account and lands on this straight away.",
     "linkReady": "Send this link to your sub — they sign in with their school account and land on this straight away.",
-    "urlLabel": "Sub share link"
+    "urlLabel": "Sub share link",
+    "missedTitle": "Some widget content did not come along",
+    "missedHelp": "Your sub will see these empty. Open the board, check the widget loads, then push your changes again."
   },
   "subShare": {
     "menu": {
