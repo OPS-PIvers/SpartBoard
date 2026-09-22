@@ -27,6 +27,7 @@ import {
   flattenSharedCollection,
   singleBoardTree,
 } from '@/utils/subShareSnapshot';
+import type { SubShareBundle } from '@/utils/bundleSubShareContent';
 import type {
   Collection,
   Dashboard,
@@ -141,6 +142,12 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
   const [busy, setBusy] = useState(false);
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // Widgets whose content could not be collected, named for the teacher.
+  const [missed, setMissed] = useState<string[]>([]);
+
+  const takeBundle = useCallback((bundle: SubShareBundle) => {
+    setMissed(bundle.failures.map((f) => f.label));
+  }, []);
 
   const { emails: presetEmails, loading: presetsLoading } =
     usePresetSubEmails(buildingId);
@@ -168,6 +175,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     setEmailError(null);
     setCreatedUrl(null);
     setCopied(false);
+    setMissed([]);
   }
   const selectedEmails = useMemo(() => emails ?? [], [emails]);
 
@@ -267,12 +275,14 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
         : target.dashboard.id;
 
     setBusy(true);
+    setMissed([]);
     try {
       let shareId: string;
       if (existing) {
         shareId = existing.shareId;
         await updateSubstituteCollectionShare({
           shareId,
+          onBundle: takeBundle,
           collection,
           boards: tree.orderedBoards,
           kind: target.kind,
@@ -288,6 +298,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
       } else {
         shareId = await shareSubstituteCollection({
           collection,
+          onBundle: takeBundle,
           boards: tree.orderedBoards,
           collectionId: collection.id,
           sourceId: collection.id,
@@ -340,6 +351,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
     sourceId,
     shareSubstituteCollection,
     updateSubstituteCollectionShare,
+    takeBundle,
     addToast,
     onSaved,
     t,
@@ -583,6 +595,26 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
                     'Send this link to your sub — they sign in with their school account and land on this straight away.',
                 })}
           </p>
+          {missed.length > 0 && (
+            <div className="p-2 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded">
+              <p className="font-bold">
+                {t('shareWithSub.missedTitle', {
+                  defaultValue: 'Some widget content did not come along',
+                })}
+              </p>
+              <ul className="mt-1 ml-4 list-disc">
+                {missed.map((label) => (
+                  <li key={label}>{label}</li>
+                ))}
+              </ul>
+              <p className="mt-1">
+                {t('shareWithSub.missedHelp', {
+                  defaultValue:
+                    'Your sub will see these empty. Open the board, check the widget loads, then push your changes again.',
+                })}
+              </p>
+            </div>
+          )}
           <div className="flex gap-1">
             <input
               type="text"

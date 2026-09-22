@@ -106,6 +106,7 @@ import {
   useSharedCollection,
   type SubShareTree,
 } from '@/hooks/useSharedCollection';
+import type { SubShareBundle } from '@/utils/bundleSubShareContent';
 import { authError, setDriveAuthErrorHandler } from '@/utils/driveAuthErrors';
 import { setGlobalPermissionsErrorHandler } from '@/utils/globalPermissionsErrors';
 import {
@@ -4188,6 +4189,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           collection: Collection;
           boards: Dashboard[];
           sourceId: string;
+          onBundle?: (bundle: SubShareBundle) => void;
         }
     ): Promise<string> => {
       if (!user) throw new Error('Not authenticated');
@@ -4261,6 +4263,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         expiresAt?: number;
         subEmails?: string[];
         sharedRosters?: SubstituteShareRoster[];
+        onBundle?: (bundle: SubShareBundle) => void;
       }
     ): Promise<void> => {
       if (!user) throw new Error('Not authenticated');
