@@ -39,6 +39,7 @@ vi.mock('firebase-functions/v2/https', () => ({
 }));
 
 import {
+  currentProjectId,
   fromRestFields,
   SYNCED_USER_COLLECTIONS,
   syncMyMaterialsFromProdV1,
@@ -102,8 +103,18 @@ describe('SYNCED_USER_COLLECTIONS', () => {
 });
 
 describe('syncMyMaterialsFromProdV1', () => {
+  const saved = { ...process.env };
   afterEach(() => {
+    process.env = { ...saved };
+  });
+
+  it('falls back to FIREBASE_CONFIG when GCLOUD_PROJECT is unset (gen2)', () => {
     delete process.env.GCLOUD_PROJECT;
+    delete process.env.GOOGLE_CLOUD_PROJECT;
+    process.env.FIREBASE_CONFIG = JSON.stringify({
+      projectId: 'spartboard-dev',
+    });
+    expect(currentProjectId()).toBe('spartboard-dev');
   });
 
   it('refuses to run outside the dev project', async () => {

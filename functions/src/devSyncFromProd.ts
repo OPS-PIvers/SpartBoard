@@ -185,10 +185,24 @@ async function listProdDocs(
   return docs;
 }
 
+// GCLOUD_PROJECT isn't guaranteed on gen2 functions; FIREBASE_CONFIG.projectId is (same chain as aiGeneration.ts).
+export function currentProjectId(): string | undefined {
+  if (process.env.GCLOUD_PROJECT) return process.env.GCLOUD_PROJECT;
+  if (process.env.GOOGLE_CLOUD_PROJECT) return process.env.GOOGLE_CLOUD_PROJECT;
+  try {
+    const cfg = JSON.parse(process.env.FIREBASE_CONFIG ?? '{}') as {
+      projectId?: string;
+    };
+    return cfg.projectId;
+  } catch {
+    return undefined;
+  }
+}
+
 export const syncMyMaterialsFromProdV1 = onCall(
   { memory: '512MiB', timeoutSeconds: 300, maxInstances: 2 },
   async (request): Promise<{ copied: Record<string, number> }> => {
-    if (process.env.GCLOUD_PROJECT !== DEV_PROJECT_ID) {
+    if (currentProjectId() !== DEV_PROJECT_ID) {
       throw new HttpsError(
         'failed-precondition',
         'This only runs in the dev project.'
@@ -208,23 +222,38 @@ export const syncMyMaterialsFromProdV1 = onCall(
     const prodUid = await findProdUid(token, email);
     const swapUid = (s: string) => s.split(prodUid).join(devUid);
 
+    // Read everything from prod first so a failed read never leaves a dev collection emptied.
+    const prodByCollection = new Map<string, RestDocument[]>();
+    for (const name of SYNCED_USER_COLLECTIONS) {
+      prodByCollection.set(
+        name,
+        await listProdDocs(token, `users/${prodUid}/${name}`)
+      );
+    }
+
     const copied: Record<string, number> = {};
     const writer = db.bulkWriter();
-    for (const name of SYNCED_USER_COLLECTIONS) {
-      const devCol = db.collection(`users/${devUid}/${name}`);
-      for (const ref of await devCol.listDocuments()) void writer.delete(ref);
-      await writer.flush();
-      const prodDocs = await listProdDocs(token, `users/${prodUid}/${name}`);
-      for (const doc of prodDocs) {
-        const id = swapUid(doc.name.split('/').pop() ?? '');
-        void writer.set(
-          devCol.doc(id),
-          fromRestFields(doc.fields ?? {}, swapUid)
+    try {
+      for (const [name, prodDocs] of prodByCollection) {
+        const devCol = db.collection(`users/${devUid}/${name}`);
+        const keep = new Set(
+          prodDocs.map((doc) => swapUid(doc.name.split('/').pop() ?? ''))
         );
+        for (const doc of prodDocs) {
+          const id = swapUid(doc.name.split('/').pop() ?? '');
+          void writer.set(
+            devCol.doc(id),
+            fromRestFields(doc.fields ?? {}, swapUid)
+          );
+        }
+        for (const ref of await devCol.listDocuments()) {
+          if (!keep.has(ref.id)) void writer.delete(ref);
+        }
+        copied[name] = prodDocs.length;
       }
-      copied[name] = prodDocs.length;
+    } finally {
+      await writer.close();
     }
-    await writer.close();
     return { copied };
   }
 );
