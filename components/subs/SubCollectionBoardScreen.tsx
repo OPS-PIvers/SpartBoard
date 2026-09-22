@@ -61,6 +61,12 @@ interface ShownState {
 
 const NO_BOARDS: ReadonlyMap<string, ShownBoard> = new Map();
 
+/** The reload the sub asked for, and the read that will complete it. */
+interface PendingAccept {
+  version: number;
+  requestKey: string;
+}
+
 /**
  * Folds a completed read into what is on screen, returning the same state when
  * there is nothing to take. Pure, so the caller can hold the result in a const
@@ -70,18 +76,25 @@ function takeRead(
   state: ShownState,
   version: number,
   requestKey: string,
-  board: ShownBoard | null
+  board: ShownBoard | null,
+  accepting: PendingAccept | null
 ): ShownState {
-  // Accepting drops every snapshot, so no board is left on old content.
-  const base =
-    state.version === version
-      ? state
-      : { version, key: null, current: null, boards: NO_BOARDS };
-  if (!board || base.key === requestKey) return base;
+  if (!board || state.key === requestKey) return state;
+  if (accepting && accepting.requestKey === requestKey) {
+    // Accepting replaces every snapshot at once, so no board is left on the
+    // old content — and it happens here, when the new content has actually
+    // arrived, not when the sub pressed the button.
+    return {
+      version: accepting.version,
+      key: requestKey,
+      current: board.boardId,
+      boards: new Map([[board.boardId, board]]),
+    };
+  }
   // A board already opened keeps the snapshot the sub has been working in.
-  const boards = base.boards.has(board.boardId)
-    ? base.boards
-    : new Map(base.boards).set(board.boardId, board);
+  const boards = state.boards.has(board.boardId)
+    ? state.boards
+    : new Map(state.boards).set(board.boardId, board);
   return { version, key: requestKey, current: board.boardId, boards };
 }
 
@@ -104,6 +117,12 @@ export const SubCollectionBoardScreen: React.FC<
   // provider, which is how accepting an update replaces what they are looking
   // at; until then their edits stand.
   const [acceptedVersion, setAcceptedVersion] = useState<number | null>(null);
+  // Set by Reload and cleared when its read lands. The version is not accepted
+  // on the click: a re-read that fails would otherwise have re-keyed the board
+  // and wiped the sub's work on it with nothing to put in its place.
+  const [pendingAccept, setPendingAccept] = useState<PendingAccept | null>(
+    null
+  );
   const { share, loading, error, navSource, contentVersion } =
     useSubstituteCollectionBoard(shareId, boardId, buildingId, attempt);
   const liveVersion = useSubShareContentVersion(shareId);
@@ -117,10 +136,9 @@ export const SubCollectionBoardScreen: React.FC<
   // widgets — otherwise going away and back after a push would swap the
   // chrome around the sub's own work.
   const requestKey = `${boardId}::${attempt}`;
-  // The version the sub has accepted, and the one the first read sets. A board
-  // opened for the first time after a push does show the new copy, because
-  // there is no older one to show, but the banner stays up for the ones
-  // behind it.
+  // The version the first read establishes as the baseline. A board opened for
+  // the first time after a push does show the new copy, because there is no
+  // older one to show, but the banner stays up for the ones behind it.
   const version = acceptedVersion ?? contentVersion ?? 0;
   const [state, setState] = useState<ShownState>({
     version,
@@ -133,12 +151,17 @@ export const SubCollectionBoardScreen: React.FC<
     state,
     version,
     requestKey,
-    share ? { boardId, share, navSource } : null
+    share ? { boardId, share, navSource } : null,
+    pendingAccept
   );
   if (view !== state) {
     setState(view);
     if (acceptedVersion === null && contentVersion !== null) {
       setAcceptedVersion(contentVersion);
+    }
+    if (pendingAccept && pendingAccept.requestKey === requestKey) {
+      setAcceptedVersion(pendingAccept.version);
+      setPendingAccept(null);
     }
   }
   const shown = view.current ? (view.boards.get(view.current) ?? null) : null;
@@ -184,10 +207,13 @@ export const SubCollectionBoardScreen: React.FC<
   // "Push my changes" bumps contentVersion on the parent doc. Nothing on
   // screen moves until the sub presses Reload, so a teacher updating
   // mid-lesson cannot wipe a running timer or a half-taken lunch count.
+  const reloading =
+    !error && pendingAccept !== null && pendingAccept.requestKey === requestKey;
   const hasUpdate =
     liveVersion !== null &&
     acceptedVersion !== null &&
-    liveVersion !== acceptedVersion;
+    liveVersion !== acceptedVersion &&
+    !reloading;
 
   // Expiry is terminal for the whole share, so it takes the screen down. A
   // failed read of the *next* board is not: tearing the provider down here
@@ -246,8 +272,11 @@ export const SubCollectionBoardScreen: React.FC<
         <SubShareUpdateBanner
           teacherName={shown.share.originalAuthorName ?? 'Your teacher'}
           onReload={() => {
-            setAcceptedVersion(liveVersion);
-            setAttempt((n) => n + 1);
+            setPendingAccept({
+              version: liveVersion,
+              requestKey: `${boardId}::${attempt + 1}`,
+            });
+            setAttempt(attempt + 1);
           }}
         />
       )}

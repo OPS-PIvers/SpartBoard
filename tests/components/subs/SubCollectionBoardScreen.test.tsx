@@ -277,8 +277,9 @@ describe('SubCollectionBoardScreen', () => {
       readVersion = 2;
       stillLoading = new Set(['b1']);
       fireEvent.click(reloadButton());
-      expect(screen.queryByTestId('board')).not.toBeInTheDocument();
+      expect(screen.getByTestId('board')).toHaveTextContent('Warm up v1');
       expect(boardKeys).not.toContain('b1::2');
+      expect(screen.getByRole('status')).toHaveTextContent('Opening…');
 
       stillLoading = new Set();
       rerender(
@@ -292,6 +293,20 @@ describe('SubCollectionBoardScreen', () => {
       );
       expect(screen.getByTestId('board')).toHaveTextContent('Warm up v2');
       expect(boardKeys.at(-1)).toBe('b1::2');
+    });
+
+    // A network blip must not cost the sub their work: accepting a version
+    // whose read never arrived would re-key the board and reseed it from the
+    // frozen copy with nothing new to show.
+    it('keeps the board and its work when the reload fails', () => {
+      liveVersion = 2;
+      renderScreen('b1');
+      readError = 'This board could not be loaded.';
+      fireEvent.click(reloadButton());
+      expect(screen.getByTestId('board')).toHaveTextContent('Warm up v1');
+      expect(boardKeys.at(-1)).toBe('b1::1');
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(banner()).toBeInTheDocument();
     });
 
     it('says nothing when the watcher has nothing to report', () => {
