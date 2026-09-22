@@ -3998,8 +3998,8 @@
     "update": "Update the share",
     "saving": "Saving…",
     "failed": "Could not share with your sub. Try again.",
-    "linkCopied": "Link copied. Send it to your sub — they sign in with their school account to open it.",
-    "linkReady": "Send this link to your sub — they sign in with their school account to open it.",
+    "linkCopied": "Link copied. Your sub signs in with their school account, then opens it from their building's list.",
+    "linkReady": "Send this link to your sub. They sign in with their school account, then open it from their building's list.",
     "urlLabel": "Sub share link"
   },
   "subShare": {
