@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildPeriodAccess,
+  buildPeriodGate,
   periodKeyForRoster,
   resolveRowWindow,
   type PeriodRoster,
@@ -107,5 +108,48 @@ describe('resolveRowWindow', () => {
         () => null
       )
     ).toEqual({ openAt: 5, closeAt: 9 });
+  });
+});
+
+describe('buildPeriodGate', () => {
+  const bellWindow = () => bell;
+
+  it('gives each targeted class its own period', () => {
+    const gate = buildPeriodGate({
+      plan: { mode: 'assessment' },
+      rosters: [sso, test],
+      sharedWindow: {},
+      bellWindow,
+    });
+    expect(gate?.accessMode).toBe('assessment');
+    expect(Object.keys(gate?.periodAccess ?? {})).toEqual(['cl-1', 't-3']);
+  });
+
+  it('defaults to assignment mode with the shared window', () => {
+    const gate = buildPeriodGate({
+      plan: undefined,
+      rosters: [sso, local],
+      sharedWindow: { openAt: 5, closeAt: 9 },
+      bellWindow,
+    });
+    expect(gate?.accessMode).toBe('assignment');
+    expect(gate?.periodAccess['cl-1']).toMatchObject({ openAt: 5, closeAt: 9 });
+  });
+
+  it('stays legacy with the flag off, one roster, or one shared class id', () => {
+    const args = { plan: undefined, sharedWindow: {} };
+    expect(
+      buildPeriodGate({ ...args, rosters: [sso, test], bellWindow: undefined })
+    ).toBeUndefined();
+    expect(buildPeriodGate({ ...args, rosters: [sso], bellWindow })).toBe(
+      undefined
+    );
+    expect(
+      buildPeriodGate({
+        ...args,
+        rosters: [sso, { ...sso, id: 'r9' }],
+        bellWindow,
+      })
+    ).toBeUndefined();
   });
 });

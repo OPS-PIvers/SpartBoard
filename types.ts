@@ -2930,11 +2930,13 @@ export interface MiniAppConfig {
  * Lives in the `/mini_app_sessions/{sessionId}` Firestore collection.
  * Created by teachers; read by students via the `/miniapp/{sessionId}` route.
  */
-export interface MiniAppSession {
+export interface MiniAppSession extends PeriodAccessSessionFields {
   id: string;
   appId: string;
   appTitle: string;
   appHtml: string;
+  /** Per-period sessions keep the app in `content/app`; `appHtml` here stays empty. */
+  appInContent?: boolean;
   teacherUid: string;
   assignmentName: string;
   status: 'active' | 'ended';
@@ -9649,7 +9651,7 @@ export interface VideoActivityAssignment
  *   - `active`: session is live.
  *   - `inactive`: session has been ended.
  */
-export interface MiniAppAssignment {
+export interface MiniAppAssignment extends PeriodAccessSessionFields {
   id: string;
   sessionId: string;
   appId: string;

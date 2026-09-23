@@ -85,3 +85,34 @@ export function resolveRowWindow(
   if (row.source === 'bell') return bell() ?? shared;
   return { openAt: row.openAt ?? null, closeAt: row.closeAt ?? null };
 }
+
+/** A multi-period assign's gate, or undefined when it stays a legacy session (flag off, one period). */
+export function buildPeriodGate({
+  plan,
+  rosters,
+  sharedWindow,
+  bellWindow,
+}: {
+  plan: PeriodPlan | undefined;
+  rosters: readonly PeriodRoster[];
+  sharedWindow: { openAt?: number | null; closeAt?: number | null };
+  bellWindow:
+    | ((roster: PeriodRoster, date: Date) => EpochWindow | null)
+    | undefined;
+}):
+  | { accessMode: AccessMode; periodAccess: Record<string, PeriodAccess> }
+  | undefined {
+  if (!bellWindow || rosters.length < 2) return undefined;
+  const resolved = plan ?? { mode: 'assignment' };
+  const periodAccess = buildPeriodAccess({
+    plan: resolved,
+    rosters,
+    sharedWindow,
+    bellWindow: (roster) =>
+      bellWindow(roster, new Date(sharedWindow.openAt ?? Date.now())),
+  });
+  // Two rosters on one class id share a gate, so they are one period.
+  return Object.keys(periodAccess).length > 1
+    ? { accessMode: resolved.mode, periodAccess }
+    : undefined;
+}

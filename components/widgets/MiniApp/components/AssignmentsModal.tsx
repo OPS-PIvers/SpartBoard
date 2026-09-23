@@ -300,6 +300,10 @@ export const AssignmentsModal: React.FC<AssignmentsModalProps> = ({
           sessionId={viewingSubmissionsFor.id}
           assignmentName={viewingSubmissionsFor.assignmentName}
           classIds={viewingSubmissionsFor.classIds}
+          session={
+            sessions.find((s) => s.id === viewingSubmissionsFor.id) ??
+            viewingSubmissionsFor
+          }
           onClose={() => setViewingSubmissionsFor(null)}
         />
       )}

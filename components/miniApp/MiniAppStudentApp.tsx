@@ -44,6 +44,22 @@ import {
   MiniAppSubmission,
   StudentAssignmentPointer,
 } from '@/types';
+import { useSeatedPeriodContent } from '@/hooks/useSeatedPeriodContent';
+import { useServerNow } from '@/hooks/useServerNow';
+import {
+  hasPeriodAccess,
+  studentCanEnter,
+  studentPeriodKeys,
+} from '@/utils/periodAccess';
+import {
+  MA_CONTENT_DOC,
+  mergeMiniAppSessionContent,
+  type MiniAppSessionContent,
+} from '@/utils/miniAppSessionContent';
+import {
+  MiniAppPeriodLockedScreen,
+  MiniAppPeriodPausedOverlay,
+} from './MiniAppPeriodLockedScreen';
 
 type SubmissionStatus =
   | { kind: 'idle' }
@@ -152,7 +168,170 @@ const SessionLoader: React.FC = () => {
     return <EndedScreen appTitle={session.appTitle} />;
   }
 
+  if (hasPeriodAccess(session) && session.mode !== 'view-only') {
+    return <PeriodGatedAppViewer session={session} />;
+  }
+
   return <AppViewer session={session} />;
+};
+
+// ─── Per-period gate ───────────────────────────────────────────────────────────
+
+type SeatState =
+  | { kind: 'claims' }
+  | { kind: 'pick' }
+  | { kind: 'seating' }
+  | { kind: 'seated' }
+  | { kind: 'error'; message: string };
+
+const NOT_ASSIGNED =
+  "You're not in a class this activity was assigned to. Ask your teacher.";
+
+/** Seats the student in their period, then shows the app only while it is open. */
+const PeriodGatedAppViewer: React.FC<{ session: MiniAppSession }> = ({
+  session,
+}) => {
+  const uid = auth.currentUser?.uid ?? null;
+  const { periodKeys, content, contentPending, takeSeat } =
+    useSeatedPeriodContent<MiniAppSessionContent>({
+      sessionCollection: SESSIONS_COLLECTION,
+      sessionId: session.id,
+      session,
+      inContent: session.appInContent === true,
+      contentDoc: MA_CONTENT_DOC,
+      uid,
+    });
+  const [claims, setClaims] = useState<{
+    studentRole: boolean;
+    classIds: string[];
+  } | null>(null);
+  const [seat, setSeat] = useState<SeatState>({ kind: 'claims' });
+  const now = useServerNow(5000);
+  const canEnter = studentCanEnter(session, periodKeys, uid, now);
+
+  const seatIn = useCallback(
+    async (keys: string[]) => {
+      setSeat({ kind: 'seating' });
+      try {
+        const seated = await takeSeat(keys);
+        setSeat(
+          seated ? { kind: 'seated' } : { kind: 'error', message: NOT_ASSIGNED }
+        );
+      } catch (err) {
+        logError('MiniAppStudentApp.seat', err, { sessionId: session.id });
+        setSeat({
+          kind: 'error',
+          message: "Couldn't join your class. Please refresh and try again.",
+        });
+      }
+    },
+    [takeSeat, session.id]
+  );
+
+  // A signed-in student is seated from their class claim; an anonymous one picks a period.
+  const seatStarted = useRef(false);
+  useEffect(() => {
+    if (seatStarted.current) return;
+    seatStarted.current = true;
+    const load = async () => {
+      let next = { studentRole: false, classIds: [] as string[] };
+      try {
+        const token = await auth.currentUser?.getIdTokenResult();
+        const raw: unknown = token?.claims?.classIds;
+        next = {
+          studentRole: token?.claims?.studentRole === true,
+          classIds: Array.isArray(raw)
+            ? raw.filter((c): c is string => typeof c === 'string')
+            : [],
+        };
+      } catch (err) {
+        logError('MiniAppStudentApp.claims', err, { sessionId: session.id });
+      }
+      setClaims(next);
+      if (!next.studentRole) {
+        setSeat({ kind: 'pick' });
+        return;
+      }
+      await seatIn(studentPeriodKeys(session, next.classIds));
+    };
+    void load();
+  }, [session, seatIn]);
+
+  // Once the app has shown, a later close pauses it in place rather than swapping screens.
+  const [entered, setEntered] = useState(false);
+  if (!entered && seat.kind === 'seated' && canEnter && !contentPending) {
+    setEntered(true);
+  }
+
+  // Assessment mode refuses a join without a school sign-in, whose self-picked period no rule can check.
+  if (claims && !claims.studentRole && session.accessMode === 'assessment') {
+    return (
+      <ErrorScreen message="This activity needs your school sign-in. Sign in with your school account to join." />
+    );
+  }
+  if (seat.kind === 'error') return <ErrorScreen message={seat.message} />;
+  if (seat.kind === 'pick') {
+    return (
+      <PeriodPicker
+        session={session}
+        onPick={(label) => void seatIn(studentPeriodKeys(session, [], label))}
+      />
+    );
+  }
+  if (seat.kind !== 'seated') {
+    return <FullPageLoader message="Joining your class…" />;
+  }
+  if (!entered) {
+    if (!canEnter) {
+      return (
+        <MiniAppPeriodLockedScreen
+          session={session}
+          periodKeys={periodKeys}
+          now={now}
+        />
+      );
+    }
+    return <FullPageLoader message="Loading activity…" />;
+  }
+  return (
+    <AppViewer
+      session={mergeMiniAppSessionContent(session, content)}
+      paused={!canEnter}
+    />
+  );
+};
+
+const PeriodPicker: React.FC<{
+  session: MiniAppSession;
+  onPick: (label: string) => void;
+}> = ({ session, onPick }) => {
+  const labels = [
+    ...new Set(Object.values(session.periodAccess ?? {}).map((p) => p.label)),
+  ].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
+      <div className="bg-slate-800 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+        <p className="text-slate-300 text-sm font-semibold truncate mb-2">
+          {session.appTitle}
+        </p>
+        <h1 className="text-white font-bold text-xl mb-6">
+          Which class are you in?
+        </h1>
+        <div className="flex flex-col gap-2">
+          {labels.map((label) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => onPick(label)}
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // ─── Submission doc-ID resolution ──────────────────────────────────────────────
@@ -201,8 +380,14 @@ function getCachedPseudonym(
 
 // ─── App Viewer ────────────────────────────────────────────────────────────────
 
-const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
+const AppViewer: React.FC<{
+  session: MiniAppSession;
+  /** The student's period is shut: cover the app and hold submissions. */
+  paused?: boolean;
+}> = ({ session, paused = false }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  // The latest submission the app posted while paused, sent once it reopens.
+  const heldPayloadRef = useRef<{ payload: unknown } | null>(null);
   const [status, setStatus] = useState<SubmissionStatus>({ kind: 'idle' });
   // Tracks whether the student has submitted anything (via app or "I'm Done")
   // in this session. Prevents the Done button from reappearing after auto-clear.
@@ -339,6 +524,10 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
 
   const submit = useCallback(
     async (payload: unknown) => {
+      if (paused && submissionsEnabled) {
+        heldPayloadRef.current = { payload };
+        return;
+      }
       if (!submissionsEnabled || status.kind === 'submitting') {
         // View-only session, or a submission is already in flight (guards
         // against double-clicks / duplicate postMessages).
@@ -391,15 +580,23 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
         setStatus({ kind: 'error', payload });
       }
     },
-    [session.id, submissionsEnabled, status.kind]
+    [session.id, submissionsEnabled, status.kind, paused]
   );
+
+  // Held submissions go out once the period reopens.
+  useEffect(() => {
+    if (paused || !heldPayloadRef.current) return;
+    const { payload } = heldPayloadRef.current;
+    heldPayloadRef.current = null;
+    void submit(payload);
+  }, [paused, submit]);
 
   // Writes a minimal {completed: true} completion marker so the student's
   // assignment badge in /my-assignments shows "Completed". Works for both
   // view-only (submissionsEnabled=false) and submission-enabled sessions.
   // The Firestore rule allows this write regardless of submissionsEnabled.
   const markDone = useCallback(async () => {
-    if (hasSubmitted || status.kind === 'submitting') return;
+    if (hasSubmitted || paused || status.kind === 'submitting') return;
     const currentUser = auth.currentUser;
     if (!currentUser) {
       console.warn('[MiniAppStudentApp] No auth user; skipping mark-done.');
@@ -434,7 +631,7 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
       console.error('[MiniAppStudentApp] Mark-done write failed:', err);
       setStatus({ kind: 'idle' });
     }
-  }, [session.id, hasSubmitted, status.kind]);
+  }, [session.id, hasSubmitted, paused, status.kind]);
 
   const handleMessage = useCallback(
     (event: MessageEvent) => {
@@ -463,7 +660,7 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
   if (excluded) return <AssignmentExcludedNotice />;
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-slate-900 flex flex-col">
+    <div className="relative h-screen w-screen overflow-hidden bg-slate-900 flex flex-col">
       <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-500 z-10" />
       <iframe
         ref={iframeRef}
@@ -474,12 +671,13 @@ const AppViewer: React.FC<{ session: MiniAppSession }> = ({ session }) => {
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
         onLoad={handleIframeLoad}
       />
+      {paused && <MiniAppPeriodPausedOverlay />}
       <SubmissionStatusOverlay status={status} onRetry={submit} />
       {/* "I'm Done" button — allows students to mark the assignment complete
           regardless of whether the mini-app itself has a submit button.
           Hidden for view-only shares (no submissions tracked) and once the
           student has submitted (via app or this button). */}
-      {!isViewOnly && !hasSubmitted && (
+      {!isViewOnly && !hasSubmitted && !paused && (
         <button
           type="button"
           onClick={() => void markDone()}

@@ -37,6 +37,8 @@ export interface PeriodAccessCollections {
   assignmentCollection: string;
   /** False for kinds with no idle finalizer, whose responses carry no `lastWriteAt`. */
   refreshIdle?: boolean;
+  /** The hub mirror's doc id, for kinds whose assignment id is not the session id. */
+  assignmentId?: string;
 }
 
 type PeriodSession = PeriodAccessSessionFields & {
@@ -107,6 +109,7 @@ export function usePeriodAccess(
     sessionCollection,
     assignmentCollection,
     refreshIdle = true,
+    assignmentId,
   }: PeriodAccessCollections,
   rosters: readonly BellRoster[] | undefined
 ) {
@@ -121,10 +124,22 @@ export function usePeriodAccess(
     return {
       session: doc(db, sessionCollection, sessionId),
       assignment: ownerUid
-        ? doc(db, 'users', ownerUid, assignmentCollection, sessionId)
+        ? doc(
+            db,
+            'users',
+            ownerUid,
+            assignmentCollection,
+            assignmentId ?? sessionId
+          )
         : null,
     };
-  }, [sessionId, sessionCollection, assignmentCollection, ownerUid]);
+  }, [
+    sessionId,
+    sessionCollection,
+    assignmentCollection,
+    ownerUid,
+    assignmentId,
+  ]);
 
   const stage = useCallback(
     (batch: WriteBatch, key: string, patch: Partial<PeriodAccess>) => {

@@ -199,6 +199,7 @@ export const useUnifiedAssignments = (
         excludedTargets: a.excludedTargets,
         overridesBySourcedId: a.overridesBySourcedId,
         removedStudentRefs: a.removedStudentRefs,
+        ...(a.periodAccess ? { periodAccess: a.periodAccess } : {}),
       })
     );
 
