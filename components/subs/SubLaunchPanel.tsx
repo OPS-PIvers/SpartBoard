@@ -4,8 +4,9 @@
  * Renders nothing unless the org switch is on and the share carries a roster,
  * so a board looks exactly as it did before this shipped everywhere the
  * feature is not turned on. Once a run starts, the panel becomes the join code
- * the substitute reads to the class; monitoring it is the teacher's Results
- * view, which the sub reaches for the run they started (PR #3324).
+ * the substitute reads to the class, with the controls to pause or end it.
+ * Monitoring it is the teacher's Results view, which the sub reaches for the
+ * run they started (PR #3324).
  *
  * Sizes are container-query units because this mounts on a widget front face
  * (components/widgets/CLAUDE.md), and the join code has to carry to the back
@@ -15,6 +16,7 @@
 import React, { useState } from 'react';
 import { Loader2, Play } from 'lucide-react';
 import { useSubLaunch } from '@/hooks/useSubLaunch';
+import { useSubControl } from '@/hooks/useSubControl';
 import { useSubLaunchAsTeacherSettings } from '@/hooks/useSubLaunchAsTeacherSettings';
 import { useSubShareRosters } from '@/hooks/useShareContent';
 import type { SubShareContentKind } from '@/types';
@@ -31,6 +33,109 @@ const PAD = 'min(8px, 2cqmin) min(12px, 3cqmin)';
 const NOTE = 'min(11px, 3.5cqmin)';
 const BODY = 'min(13px, 4cqmin)';
 const ICON = 'min(16px, 4.5cqmin)';
+
+/**
+ * Pause and End for the run the substitute just started. Only a quiz has a
+ * paused state, so the other kinds get End alone. Ending loses the students'
+ * open session, so it takes a second press rather than being one tap away.
+ */
+const RunControls: React.FC<{
+  kind: SubShareContentKind;
+  sessionId: string;
+  label: string;
+}> = ({ kind, sessionId, label }) => {
+  const { state, busy, error, control } = useSubControl(kind, sessionId);
+  const [confirming, setConfirming] = useState(false);
+
+  if (state === 'ended') {
+    return (
+      <p
+        className="text-slate-300"
+        style={{ fontSize: NOTE, marginTop: 'min(6px, 1.5cqmin)' }}
+      >
+        Ended. Your teacher has whatever the class finished.
+      </p>
+    );
+  }
+
+  const act = (action: 'pause' | 'resume' | 'end') => {
+    setConfirming(false);
+    void control(action);
+  };
+
+  return (
+    <div style={{ marginTop: 'min(6px, 1.5cqmin)' }}>
+      {/* Said in words, not by colour alone: on a projector a tint is the one
+          thing that does not carry. */}
+      {state === 'paused' && (
+        <p
+          className="font-medium text-slate-200"
+          style={{ fontSize: NOTE, marginBottom: 'min(4px, 1cqmin)' }}
+        >
+          Paused. Students cannot answer until you start it again.
+        </p>
+      )}
+      {error && (
+        <p
+          className="text-slate-200"
+          style={{ fontSize: NOTE, marginBottom: 'min(4px, 1cqmin)' }}
+        >
+          {error}
+        </p>
+      )}
+      {confirming ? (
+        <div
+          className="flex items-center justify-center"
+          style={{ gap: 'min(8px, 2cqmin)' }}
+        >
+          <button
+            type="button"
+            onClick={() => act('end')}
+            disabled={busy}
+            className="rounded-lg bg-slate-700 font-semibold text-white hover:bg-slate-600 disabled:opacity-60"
+            style={{ padding: PAD, fontSize: NOTE }}
+          >
+            End it now
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirming(false)}
+            className="font-medium text-slate-300 underline hover:text-white"
+            style={{ fontSize: NOTE }}
+          >
+            Keep going
+          </button>
+        </div>
+      ) : (
+        <div
+          className="flex items-center justify-center"
+          style={{ gap: 'min(8px, 2cqmin)' }}
+        >
+          {kind === 'quiz' && (
+            <button
+              type="button"
+              onClick={() => act(state === 'paused' ? 'resume' : 'pause')}
+              disabled={busy}
+              className="rounded-lg bg-slate-700 font-semibold text-white hover:bg-slate-600 disabled:opacity-60"
+              style={{ padding: PAD, fontSize: NOTE }}
+            >
+              {state === 'paused' ? `Start ${label} again` : 'Pause'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            disabled={busy}
+            className="font-medium text-slate-300 underline hover:text-white disabled:opacity-60"
+            style={{ fontSize: NOTE }}
+          >
+            End {label}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
   kind,
@@ -67,6 +172,7 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
           teacher&apos;s account, and their results will show it was started by
           you.
         </p>
+        <RunControls kind={kind} sessionId={result.sessionId} label={label} />
       </div>
     );
   }
@@ -90,6 +196,7 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
           Running in the teacher&apos;s account. Their results will show it was
           started by you.
         </p>
+        <RunControls kind={kind} sessionId={result.sessionId} label={label} />
       </div>
     );
   }
