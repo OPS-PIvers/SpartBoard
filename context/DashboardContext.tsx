@@ -81,6 +81,7 @@ import {
 import {
   findWidgetPlacement,
   getVisibleBoardBounds,
+  isRectInBounds,
   type BoardCamera,
 } from '@/utils/widgetPlacement';
 import { getPan } from '@/components/settings/panSetterRegistry';
@@ -188,7 +189,8 @@ const placeNewWidget = (
   widget: WidgetData,
   others: WidgetData[],
   stretch: StretchBehavior,
-  camera: BoardCamera
+  camera: BoardCamera,
+  preferred?: { x: number; y: number }
 ): WidgetData => {
   const { xProp, yProp, wProp, hProp } = widget;
   if (
@@ -212,7 +214,8 @@ const placeNewWidget = (
   const target = findWidgetPlacement(
     rendered,
     occupied,
-    getVisibleBoardBounds(vpW, vpH, camera)
+    getVisibleBoardBounds(vpW, vpH, camera),
+    preferred
   );
   const { safeW, safeH } = getSafeViewport(vpW, vpH);
   return {
@@ -224,6 +227,25 @@ const placeNewWidget = (
     xProp: xProp + (target.x - rendered.x) / safeW,
     yProp: yProp + (target.y - rendered.y) / safeH,
   };
+};
+
+// Leaves an explicitly positioned widget alone unless it would open off screen, then pulls it into open space nearby.
+const keepNewWidgetOnScreen = (
+  widget: WidgetData,
+  others: WidgetData[],
+  stretch: StretchBehavior,
+  camera: BoardCamera
+): WidgetData => {
+  const { vpW, vpH } = getCurrentViewport();
+  const screen = getVisibleBoardBounds(vpW, vpH, camera, {
+    padding: 0,
+    dock: 0,
+  });
+  if (isRectInBounds(widget, screen)) return widget;
+  return placeNewWidget(widget, others, stretch, camera, {
+    x: widget.x,
+    y: widget.y,
+  });
 };
 
 /**
@@ -5650,12 +5672,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               'y' in overrides ||
               'xProp' in overrides ||
               'yProp' in overrides);
+          const camera = {
+            zoom: zoomRef.current,
+            pan: getPan() ?? { x: 0, y: 0 },
+          };
           const newWidget = overrodePosition
-            ? sizedWidget
-            : placeNewWidget(sizedWidget, d.widgets, stretch, {
-                zoom: zoomRef.current,
-                pan: getPan() ?? { x: 0, y: 0 },
-              });
+            ? keepNewWidgetOnScreen(sizedWidget, d.widgets, stretch, camera)
+            : placeNewWidget(sizedWidget, d.widgets, stretch, camera);
           return { ...d, widgets: [...d.widgets, newWidget] };
         })
       );

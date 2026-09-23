@@ -12,22 +12,25 @@ export interface BoardCamera {
   pan: Point;
 }
 
-// Board-space rect the teacher can currently see, minus edge padding and the dock.
+// Board-space rect the teacher can currently see, minus edge padding and the dock by default.
 export const getVisibleBoardBounds = (
   vw: number,
   vh: number,
-  camera: BoardCamera
+  camera: BoardCamera,
+  {
+    padding = SNAP_LAYOUT_CONSTANTS.PADDING,
+    dock = SNAP_LAYOUT_CONSTANTS.DOCK_HEIGHT,
+  } = {}
 ): Bounds => {
-  const { PADDING, DOCK_HEIGHT } = SNAP_LAYOUT_CONSTANTS;
   const tl = viewportToWrapper(
-    { x: PADDING, y: PADDING },
+    { x: padding, y: padding },
     camera.zoom,
     camera.pan,
     vw,
     vh
   );
   const br = viewportToWrapper(
-    { x: vw - PADDING, y: Math.max(PADDING + 1, vh - DOCK_HEIGHT) },
+    { x: vw - padding, y: Math.max(padding + 1, vh - dock) },
     camera.zoom,
     camera.pan,
     vw,
@@ -51,15 +54,23 @@ const overlaps = (a: PixelRect, b: PixelRect): boolean =>
   a.y < b.y + b.h + GAP &&
   b.y < a.y + a.h + GAP;
 
-// Centered in view if free, else the free spot nearest center, else a cascade off center.
+export const isRectInBounds = (r: PixelRect, b: Bounds): boolean =>
+  r.x >= b.minX && r.y >= b.minY && r.x + r.w <= b.maxX && r.y + r.h <= b.maxY;
+
+// The preferred top-left (default: centered) if free and in view, else the nearest free spot, else a cascade.
 export const findWidgetPlacement = (
   size: { w: number; h: number },
   occupied: PixelRect[],
-  visible: Bounds
+  visible: Bounds,
+  preferred?: Point
 ): Point => {
   const { w, h } = size;
-  const centerX = (visible.minX + visible.maxX) / 2;
-  const centerY = (visible.minY + visible.maxY) / 2;
+  const centerX = preferred
+    ? preferred.x + w / 2
+    : (visible.minX + visible.maxX) / 2;
+  const centerY = preferred
+    ? preferred.y + h / 2
+    : (visible.minY + visible.maxY) / 2;
   // A widget bigger than the view pins to the view's top/left edge.
   const clampX = (x: number) =>
     Math.max(visible.minX, Math.min(visible.maxX - w, x));
@@ -100,7 +111,7 @@ export const findWidgetPlacement = (
   }
   if (best) return roundPoint(best);
 
-  // No room left: step diagonally off the center past any widget already sitting there.
+  // No room left: step diagonally off the preferred spot past any widget already sitting there.
   let p = center;
   for (let i = 1; i <= occupied.length; i++) {
     const taken = occupied.some(

@@ -528,6 +528,27 @@ describe('addWidget — placement', () => {
     expect(rectsOverlap(first, second)).toBe(false);
   });
 
+  it('pulls an explicit position that would open off screen back into view', async () => {
+    setup();
+    await pushSnapshot([makeDashboard(TWO_WIDGETS())]);
+    await settleDock();
+
+    act(() => {
+      getDashboard().addWidget('clock', { x: window.innerWidth - 50, y: 200 });
+    });
+
+    await waitFor(() => {
+      expect(getDashboard().activeDashboard?.widgets.length).toBe(3);
+    });
+    const added = getDashboard().activeDashboard?.widgets.find(
+      (w) => w.type === 'clock'
+    );
+    expect((added?.x ?? -1) + (added?.w ?? 0)).toBeLessThanOrEqual(
+      window.innerWidth
+    );
+    expect(added?.x ?? -1).toBeGreaterThanOrEqual(0);
+  });
+
   it('keeps an explicit position', async () => {
     setup();
     await pushSnapshot([makeDashboard(TWO_WIDGETS())]);

@@ -48,6 +48,19 @@ describe('findWidgetPlacement', () => {
     expect(second).toEqual({ x: 430, y: 280 });
   });
 
+  it('keeps a free preferred spot and moves off-screen ones into view', () => {
+    const source = { x: 700, y: 100, w: 280, h: 200 };
+    expect(
+      findWidgetPlacement({ w: 200, h: 100 }, [source], VIEW, { x: 100, y: 50 })
+    ).toEqual({ x: 100, y: 50 });
+    const p = findWidgetPlacement({ w: 200, h: 100 }, [source], VIEW, {
+      x: 1000,
+      y: 100,
+    });
+    expect(p.x + 200).toBeLessThanOrEqual(1000);
+    expect(p.x + 200 <= source.x || p.y >= source.y + source.h).toBe(true);
+  });
+
   it('pins an oversized widget to the top-left of the view', () => {
     expect(findWidgetPlacement({ w: 1200, h: 800 }, [], VIEW)).toEqual({
       x: 0,
