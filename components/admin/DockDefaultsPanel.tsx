@@ -58,6 +58,7 @@ export const DockDefaultsPanel: React.FC<DockDefaultsPanelProps> = ({
             <Toggle
               checked={!!dockDefaults[canonicalBuildingId(building.id)]}
               onChange={() => handleToggle(building.id)}
+              label={`Dock on ${building.name} by default`}
             />
           </div>
         ))}

@@ -227,6 +227,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
             }
             size="sm"
             activeColor="bg-green-500"
+            label={`${preset.label} active`}
           />
         </div>
 

@@ -594,6 +594,7 @@ export const FeaturePermissionsManager: React.FC = () => {
                           })
                         }
                         size="sm"
+                        label={`${tool.label} enabled`}
                       />
                     </div>
 
@@ -766,6 +767,7 @@ export const FeaturePermissionsManager: React.FC = () => {
                       })
                     }
                     size="md"
+                    label={`${tool.label} enabled`}
                   />
                 </div>
 
