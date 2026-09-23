@@ -299,6 +299,82 @@ describe('parseGuidedLearningJson', () => {
     expect(() => parseGuidedLearningJson('not json')).toThrow(/valid JSON/);
   });
 
+  it('refuses a file from a newer schema version', () => {
+    expect(() =>
+      parseGuidedLearningJson(
+        JSON.stringify(makeSet({ schemaVersion: 4 as 3 }))
+      )
+    ).toThrow(/newer version/);
+  });
+
+  it('re-imports an exported v3 set deep-equal', async () => {
+    const v3 = makeSet({
+      schemaVersion: 3,
+      watchPace: 'calm',
+      imageUrls: [PNG_DATA_URI],
+      steps: [
+        {
+          id: 's1',
+          xPct: 30,
+          yPct: 25,
+          imageIndex: 0,
+          interactionType: 'spotlight',
+          showOverlay: 'none',
+          region: {
+            shape: 'polygon',
+            wPct: 20,
+            hPct: 10,
+            points: [
+              { x: 20, y: 20 },
+              { x: 40, y: 20 },
+              { x: 30, y: 30 },
+            ],
+          },
+          calloutPin: { xPct: 70, yPct: 40 },
+          cursor: { hide: true },
+          narration: {
+            source: 'generated',
+            url: 'https://dl/a.mp3',
+            storagePath: 'quiz_tts_cache/en-US-Neural2-F/a.mp3',
+            durationMs: 1200,
+            voice: 'en-US-Neural2-F',
+            textHash: 'abc',
+          },
+        },
+      ],
+    });
+    const exported = await embedSetImages(v3, vi.fn());
+    const { set, warnings } = parseGuidedLearningJson(
+      JSON.stringify(exported.set)
+    );
+    expect(set).toEqual(v3);
+    expect(warnings).toEqual([]);
+  });
+
+  it('drops recorded narration so two copies never share one take', () => {
+    const recorded = makeSet({
+      imageUrls: [PNG_DATA_URI],
+      steps: [
+        {
+          id: 's1',
+          xPct: 10,
+          yPct: 20,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          narration: {
+            source: 'recorded',
+            url: 'https://dl/take.webm',
+            storagePath: 'guided_learning/u1/take.webm',
+            durationMs: 900,
+          },
+        },
+      ],
+    });
+    const { set, warnings } = parseGuidedLearningJson(JSON.stringify(recorded));
+    expect(set.steps[0].narration).toBeUndefined();
+    expect(warnings.join(' ')).toMatch(/recorded voice narration was left out/);
+  });
+
   it('rejects JSON that is not a guided learning set', () => {
     expect(() => parseGuidedLearningJson('{"foo":1}')).toThrow(
       /does not look like/

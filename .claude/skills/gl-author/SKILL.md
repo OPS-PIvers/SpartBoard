@@ -25,10 +25,13 @@ data URIs.
 3. **Place coordinates.** `xPct`/`yPct` are percentages (0–100) **of the
    image itself**: `xPct = 100 * x_pixels / image_width`. Measure on the
    full-resolution image, never a thumbnail; aim at the center of the
-   feature.
-4. **Verify placement.** Render each slide with the pins overlaid and look
-   at it. Every pin sits on its target before you move on; estimated pins
-   miss small icons about half the time.
+   feature. For app walkthroughs, also write a `region` from the Playwright
+   element bounds (see Regions): the exact box beats an estimated centre.
+4. **Verify placement.** Render each slide with the pins or regions and the
+   callouts overlaid and look at it. Every target is covered before you move
+   on; estimated pins miss small icons about half the time. Leave callouts on
+   auto placement and add a `calloutPin` only when auto placement clearly
+   covers something the learner needs.
 5. **Choose the interaction per step** (see Interaction choice) and write
    the text (see Writing rules). Every step gets a `label`.
 6. **Embed images.** Convert each image to a base64 data URI
@@ -78,11 +81,11 @@ plain.
 ## Interaction choice
 
 - **"Click this" steps** (buttons, icons, tabs): `spotlight` with
-  `showOverlay: "tooltip"`. The player pushes the tooltip outside the lit
-  circle and clamps it inside the canvas, so leave `tooltipPosition` at
-  `auto` — explicit `left`/`right` end up covering the target.
-  `spotlightRadius` is % of the image's smaller side: 8–10 for a small
-  icon, 12–15 for a button or tab, 20–25 for a panel.
+  `showOverlay: "tooltip"` and a `region` matching the control. The player
+  lights the region's shape and places the tooltip so it never overlaps the
+  region, so leave `tooltipPosition` at `auto`. Without a region,
+  `spotlightRadius` is % of the image's smaller side: 8–10 for a small icon,
+  12–15 for a button or tab, 20–25 for a panel.
 - **Concept steps** (what a setting means, why a feature exists):
   `text-popover`, no spotlight.
 - **Free-standing notes** on a wide area (a table column, a modal):
@@ -109,7 +112,7 @@ Required fields:
   "mode": "structured", // "structured" | "guided" | "explore"
   "createdAt": 0, // ms epoch; regenerated on import
   "updatedAt": 0,
-  "schemaVersion": 2, // always stamp 2 — matches this doc's image-relative coordinate model
+  "schemaVersion": 3, // always stamp 3 for new files
 }
 ```
 
@@ -117,12 +120,13 @@ Optional set-level fields: `description` (string), `imageKinds`
 (`("image"|"video")[]` aligned with `imageUrls`; omit unless a slide is a
 video), `hotspotPulse` (`"consistent"|"reminder"|"off"`), `imageTransition`
 (`"none"|"slide"|"fade"`), `welcomeEnabled` (boolean) + `welcomeMessage`
-(string).
+(string), `watchPace` (`"calm"|"standard"`; calm slows Watch playback).
 
-`schemaVersion` is **required and must be `2`**: it version-gates renderer
-behavior, and only v2 uses the image-relative coordinate model this doc
+`schemaVersion` is **required**. Write `3`. It version-gates renderer
+behavior: 2 and above use the image-relative coordinate model this doc
 describes (omitting it would make spotlights render with legacy
-container-relative semantics).
+container-relative semantics), and 3 adds `region`, `calloutPin` and
+`cursor`. The validator also accepts `2`, for editing older exports.
 
 Do NOT include: `imagePaths`, `isBuilding`, `authorUid` (all
 importer-specific; stripped or rewritten on import). Exports carry
@@ -163,8 +167,33 @@ importer-specific; stripped or rewritten on import). Exports carry
 
 `showOverlay`: `"none" | "popover" | "tooltip" | "banner"` (with
 `bannerTone: "blue" | "red" | "neutral"`). Other optional step fields:
-`hotspotAlwaysHidden` (find-it exercises), `autoAdvanceDuration` (seconds,
-guided mode).
+`hotspotAlwaysHidden` (find-it exercises; the hidden target is clickable
+only when the step has a `region`), `autoAdvanceDuration` (seconds, guided
+mode), `cursor: { "hide": true }` (skip the animated cursor for this step).
+
+### Regions and callouts (schemaVersion 3)
+
+A `region` is the step's click zone, spotlight shape and zoom focus. Without
+one, the pin button is the only target, as in older files.
+
+```jsonc
+"region": {
+  "shape": "rect",   // | "ellipse" | "polygon"
+  "wPct": 8.4,       // box width, % of image width, centred on xPct
+  "hPct": 5.1,       // box height, % of image height, centred on yPct
+  "cornerPct": 20    // rect only: corner radius, % of the shorter side, 0–50
+}
+```
+
+- The box `xPct ± wPct/2`, `yPct ± hPct/2` must stay inside 0–100.
+- Polygons (irregular map regions, diagram parts) add `points`: 3–24
+  `{ "x", "y" }` vertices in image-%. Set `xPct`/`yPct` to the centre of the
+  points' bounding box and `wPct`/`hPct` to its size.
+- `calloutPin: { "xPct", "yPct" }` fixes the callout's centre in image-%.
+  Omit it: auto placement keeps the callout off the region. Pin only when
+  the verification render shows auto placement is clearly wrong.
+- Never write `narration` (audio lives in Storage and is made in the Studio)
+  or `tour` (live-tour bindings are made by the recorder).
 
 ### Questions
 
@@ -195,9 +224,11 @@ uses `sortingItems: ["first", "second", …]` in the correct order.
 
 Author-side rules the importer does not check but the player relies on:
 multiple-choice `correctAnswer` must appear verbatim in `choices`;
-matching/sorting arrays must be non-empty; `schemaVersion` must be `2`
-(the importer passes it through, and without it spotlights render with
-legacy container-relative semantics).
+matching/sorting arrays must be non-empty; `schemaVersion` must be `3`
+(or `2` for an older export; the importer passes it through, and without it
+spotlights render with legacy container-relative semantics). The importer
+refuses a file with `schemaVersion` above 3 and one whose `region` or
+`calloutPin` is out of range.
 
 The validator also decodes every embedded image and prints its byte count.
 Large base64 strings are often shortened by file previews, so judge
