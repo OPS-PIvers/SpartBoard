@@ -187,6 +187,15 @@ service cloud.firestore {
       return request.auth != null &&
              getAfter(/databases/$(database)/documents/$(coll)/$(sid)).data.teacherUid == request.auth.uid;
     }
+    // Kinds with no response at join keep the student's period on their seat.
+    function seatPeriodOk(s, uid) {
+      return request.auth != null && request.auth.uid == uid &&
+             request.resource.data.keys().hasOnly(['classId']) && periodJoinOk(s, request.resource.data);
+    }
+    function seatOpen(coll, sid, s) {
+      return s.get('periodAccess', null) == null || studentLetIn(s) ||
+             periodOpen(s, get(/databases/$(database)/documents/$(coll)/$(sid)/seats/$(request.auth.uid)).data.get('classId', null));
+    }
 
     // A substitute who launched session `s` from a sub share may monitor that one
     // run until the share expires (SUB_SHARE_COLLECTIONS.md D7). Both fields are
@@ -4673,6 +4682,9 @@ service cloud.firestore {
       function glSessionMode() {
         return glSession().get('assignmentMode', 'submissions');
       }
+      function glOpen() {
+        return seatOpen('guided_learning_sessions', sessionId, glSession());
+      }
 
       match /responses/{studentUid} {
         // Teacher can read all responses; a substitute who launched this run can
@@ -4694,7 +4706,7 @@ service cloud.firestore {
           glSessionMode() == 'submissions' &&
           // Block joins outside the assignment's open/close window (M17).
           beforeClose(glSession()) &&
-          afterOpen(glSession());
+          afterOpen(glSession()) && glOpen();
         // Two disjoint branches: TEACHER (owning teacher/admin writes score + per-answer
         // isCorrect on publish, clears on unpublish; teacherUid is the sole gate,
         // unconstrained payload) and STUDENT (append answers / set completedAt, score
@@ -4709,7 +4721,7 @@ service cloud.firestore {
             glClassGate() &&
             // Student writes stop at the session close time (M17); the teacher
             // branch above is unaffected.
-            beforeClose(glSession()) &&
+            beforeClose(glSession()) && glOpen() &&
             request.resource.data.studentAnonymousId == resource.data.studentAnonymousId &&
             request.resource.data.sessionId == resource.data.sessionId &&
             request.resource.data.startedAt == resource.data.startedAt &&
@@ -4744,8 +4756,19 @@ service cloud.firestore {
           uid == request.auth.uid &&
           glValidProgress() &&
           (resource == null || request.resource.data.startedAt == resource.data.startedAt) &&
-          beforeClose(glSession()) &&
+          beforeClose(glSession()) && glOpen() &&
           (glSessionMode() == 'view-only' || (glClassGate() && afterOpen(glSession())));
+      }
+
+      // Per-period sessions keep their steps and slides here until the period opens.
+      match /content/{docId} {
+        allow read: if request.auth != null &&
+          (glIsTeacher() || isSubMonitor(glSession()) || glOpen());
+        allow write: if contentWriteOk('guided_learning_sessions', sessionId);
+      }
+      match /seats/{uid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if seatPeriodOk(glSession(), uid);
       }
 
       // View tracking for view-only Share links (see quiz_sessions/views). GL
