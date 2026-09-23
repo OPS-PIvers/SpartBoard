@@ -2952,6 +2952,29 @@
       "importGroupEmpty": "Ce groupe de la classe n’a personne dans la liste."
     }
   },
+  "tours": {
+    "unavailable": "Cette visite n'est pas disponible pour le moment.",
+    "practiceBoardName": "Entraînement à la visite",
+    "readOnlyTitle": "Ce tableau est en lecture seule",
+    "readOnlyBody": "La visite doit ajouter des widgets et cliquer sur des boutons. La lancer plutôt sur un nouveau tableau d'entraînement ?",
+    "cancel": "Annuler",
+    "startPractice": "Lancer sur un tableau d'entraînement",
+    "practiceFailed": "Impossible d'ouvrir le tableau d'entraînement. Relance la visite.",
+    "keepWidgetsTitle": "Garder les widgets de la visite ?",
+    "keepWidgetsBody": "La visite a ajouté des widgets à ce tableau. Les garder ou les retirer maintenant ?",
+    "removeWidgets": "Les retirer",
+    "keepWidgets": "Les garder",
+    "stepFallbackTitle": "Étape suivante",
+    "exit": "Quitter la visite",
+    "anchorMissing": "Élément introuvable à l'écran. Réessayez ou passez cette étape.",
+    "looking": "Recherche à l'écran…",
+    "progress": "{{current}} / {{total}}",
+    "back": "Retour",
+    "retry": "Réessayer",
+    "next": "Suivant",
+    "done": "Terminé",
+    "skip": "Passer"
+  },
   "glPlayer": {
     "watch": "Regarder",
     "tryIt": "Essayer",

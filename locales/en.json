@@ -4109,6 +4109,29 @@
       "reload": "Reload"
     }
   },
+  "tours": {
+    "unavailable": "This tour isn't available right now.",
+    "practiceBoardName": "Tour practice",
+    "readOnlyTitle": "This board is view-only",
+    "readOnlyBody": "The tour needs to add widgets and click around. Start it on a new practice board instead?",
+    "cancel": "Cancel",
+    "startPractice": "Start on a practice board",
+    "practiceFailed": "Couldn't open the practice board. Try the tour again.",
+    "keepWidgetsTitle": "Keep the tour's widgets?",
+    "keepWidgetsBody": "The tour added widgets to this board. Keep them, or remove them now?",
+    "removeWidgets": "Remove them",
+    "keepWidgets": "Keep them",
+    "stepFallbackTitle": "Next step",
+    "exit": "Exit tour",
+    "anchorMissing": "Couldn't find this on your screen. Try again, or skip this step.",
+    "looking": "Finding it on your screen…",
+    "progress": "{{current}} / {{total}}",
+    "back": "Back",
+    "retry": "Try again",
+    "next": "Next",
+    "done": "Done",
+    "skip": "Skip"
+  },
   "glPlayer": {
     "watch": "Watch",
     "tryIt": "Try it",

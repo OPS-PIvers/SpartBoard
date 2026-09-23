@@ -54,6 +54,7 @@ export const Z_INDEX = {
   toolMenu: 12000, // DraggableWindow specific tool menu
   popoverMenu: 12010, // Menus opened from a popover-level surface (e.g. Notes toolbar); must clear toolMenu
   tooltip: 13000, // Tooltips
+  tour: 13500, // Live tour spotlight and callout (below toasts and dialogs)
   toast: 14000, // Toast notifications
   dialog: 15000, // Custom alert/confirm/prompt dialogs (above toasts)
   googlePickerBackdrop: 15500, // Google Picker's own backdrop (above every modal layer)

@@ -2952,6 +2952,29 @@
       "importGroupEmpty": "In dieser Klassengruppe ist niemand auf der Liste."
     }
   },
+  "tours": {
+    "unavailable": "Diese Tour ist gerade nicht verfügbar.",
+    "practiceBoardName": "Tour-Übung",
+    "readOnlyTitle": "Diese Tafel ist schreibgeschützt",
+    "readOnlyBody": "Die Tour muss Widgets hinzufügen und Schaltflächen anklicken. Stattdessen auf einer neuen Übungstafel starten?",
+    "cancel": "Abbrechen",
+    "startPractice": "Auf einer Übungstafel starten",
+    "practiceFailed": "Das Übungsboard ließ sich nicht öffnen. Starte die Tour noch einmal.",
+    "keepWidgetsTitle": "Widgets der Tour behalten?",
+    "keepWidgetsBody": "Die Tour hat dieser Tafel Widgets hinzugefügt. Behalten oder jetzt entfernen?",
+    "removeWidgets": "Entfernen",
+    "keepWidgets": "Behalten",
+    "stepFallbackTitle": "Nächster Schritt",
+    "exit": "Tour beenden",
+    "anchorMissing": "Das wurde auf deinem Bildschirm nicht gefunden. Versuche es erneut oder überspringe diesen Schritt.",
+    "looking": "Wird auf deinem Bildschirm gesucht…",
+    "progress": "{{current}} / {{total}}",
+    "back": "Zurück",
+    "retry": "Erneut versuchen",
+    "next": "Weiter",
+    "done": "Fertig",
+    "skip": "Überspringen"
+  },
   "glPlayer": {
     "watch": "Ansehen",
     "tryIt": "Selbst probieren",

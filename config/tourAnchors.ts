@@ -88,3 +88,16 @@ export const tourTypeAttr = (id: TourAnchorId, widgetType: string) => ({
   'data-tour': id,
   'data-tour-widget-type': widgetType,
 });
+
+// A tour step's anchor ref: the registry id, plus `:<widgetType>` for per-type anchors.
+export const tourAnchorRef = (id: TourAnchorId, widgetType?: string) =>
+  widgetType ? `${id}:${widgetType}` : id;
+
+export const parseTourAnchorRef = (
+  ref: string
+): { id: string; widgetType?: string } => {
+  const sep = ref.indexOf(':');
+  return sep === -1
+    ? { id: ref }
+    : { id: ref.slice(0, sep), widgetType: ref.slice(sep + 1) };
+};

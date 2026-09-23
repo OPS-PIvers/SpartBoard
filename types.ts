@@ -8489,7 +8489,9 @@ export type GlobalFeature =
   /** Handing a board or a collection to a substitute, and managing live shares. */
   | 'sub-share-collections'
   /** Guided Learning player v2: calm motion, learner speed, Watch/Try; stamped on sessions. */
-  | 'gl-player-v2';
+  | 'gl-player-v2'
+  /** Guided Learning live tours in the teacher app and their launch points. */
+  | 'gl-live-tours';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
