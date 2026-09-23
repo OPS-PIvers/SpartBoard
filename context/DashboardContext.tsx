@@ -75,7 +75,15 @@ import {
   REFERENCE_VIEWPORT,
   pixelToProp,
   computeWidgetPixelRect,
+  getSafeViewport,
+  type StretchBehavior,
 } from '@/utils/proportionalLayout';
+import {
+  findWidgetPlacement,
+  getVisibleBoardBounds,
+  type BoardCamera,
+} from '@/utils/widgetPlacement';
+import { getPan } from '@/components/settings/panSetterRegistry';
 import {
   migrateDashboardWidgets,
   hydrateWidgetPixels,
@@ -172,6 +180,49 @@ const getCurrentViewport = (): { vpW: number; vpH: number } => {
   return {
     vpW: window.innerWidth || REFERENCE_VIEWPORT.w,
     vpH: window.innerHeight || REFERENCE_VIEWPORT.h,
+  };
+};
+
+// Moves a new widget to open space in the visible board, keeping its size.
+const placeNewWidget = (
+  widget: WidgetData,
+  others: WidgetData[],
+  stretch: StretchBehavior,
+  camera: BoardCamera
+): WidgetData => {
+  const { xProp, yProp, wProp, hProp } = widget;
+  if (
+    xProp === undefined ||
+    yProp === undefined ||
+    wProp === undefined ||
+    hProp === undefined
+  ) {
+    return widget;
+  }
+  const { vpW, vpH } = getCurrentViewport();
+  const rendered = computeWidgetPixelRect(
+    { xProp, yProp, wProp, hProp, aspectRatio: widget.aspectRatio },
+    vpW,
+    vpH,
+    stretch
+  );
+  const occupied = others
+    .filter((o) => !o.minimized && !o.maximized)
+    .map((o) => ({ x: o.x, y: o.y, w: o.w, h: o.h }));
+  const target = findWidgetPlacement(
+    rendered,
+    occupied,
+    getVisibleBoardBounds(vpW, vpH, camera)
+  );
+  const { safeW, safeH } = getSafeViewport(vpW, vpH);
+  return {
+    ...widget,
+    x: target.x,
+    y: target.y,
+    w: rendered.w,
+    h: rendered.h,
+    xProp: xProp + (target.x - rendered.x) / safeW,
+    yProp: yProp + (target.y - rendered.y) / safeH,
   };
 };
 
@@ -654,6 +705,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [zoom, setZoom] = useState<number>(1);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
 
   // --- Annotation (full-screen draw-over overlay; NOT a widget) ---
   // The `objects` array is stored on the active dashboard's
@@ -5582,7 +5635,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               'yProp' in overrides ||
               'wProp' in overrides ||
               'hProp' in overrides);
-          const newWidget =
+          const sizedWidget =
             overrodePixels && !overrodeProps
               ? syncWidgetProportionsFromPixels(
                   baseWidget,
@@ -5591,6 +5644,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   true
                 )
               : baseWidget;
+          const overrodePosition =
+            !!overrides &&
+            ('x' in overrides ||
+              'y' in overrides ||
+              'xProp' in overrides ||
+              'yProp' in overrides);
+          const newWidget = overrodePosition
+            ? sizedWidget
+            : placeNewWidget(sizedWidget, d.widgets, stretch, {
+                zoom: zoomRef.current,
+                pan: getPan() ?? { x: 0, y: 0 },
+              });
           return { ...d, widgets: [...d.widgets, newWidget] };
         })
       );
@@ -5655,7 +5720,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           const COL_W = usableBoardW / 12;
           const ROW_H = usableBoardH / 12;
 
-          const newWidgets = widgetsToAdd.map((item, index) => {
+          const added: WidgetData[] = [];
+          const camera = {
+            zoom: zoomRef.current,
+            pan: getPan() ?? { x: 0, y: 0 },
+          };
+          const newWidgets = widgetsToAdd.map((item) => {
             const defaults = WIDGET_DEFAULTS[item.type] ?? {};
             const adminConfig = getAdminBuildingConfig(item.type);
             maxZ++;
@@ -5720,28 +5790,30 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             // 1. SMART LAYOUT: If AI provided spatial data
             if (validatedGrid) {
               const { col, row, colSpan, rowSpan } = validatedGrid;
-              return buildWidget({
+              const gridWidget = buildWidget({
                 x: col * COL_W + OFFSET_X,
                 y: row * ROW_H + OFFSET_Y,
                 w: Math.max(1, colSpan * COL_W - GRID_GAP),
                 h: Math.max(1, rowSpan * ROW_H - GRID_GAP),
               });
+              added.push(gridWidget);
+              return gridWidget;
             }
 
-            // 2. FALLBACK LAYOUT: Legacy 3-column placement for missing gridConfigs
-            const col = index % 3;
-            const row = Math.floor(index / 3);
-            const START_X = 50;
-            const START_Y = 80;
-            const COL_WIDTH = 350;
-            const ROW_HEIGHT = 280;
-
-            return buildWidget({
-              x: START_X + col * COL_WIDTH,
-              y: START_Y + row * ROW_HEIGHT,
-              w: defaults.w ?? 250,
-              h: defaults.h ?? 250,
-            });
+            // 2. FALLBACK LAYOUT: open space in view, counting widgets added earlier in this batch
+            const placed = placeNewWidget(
+              buildWidget({
+                x: OFFSET_X,
+                y: OFFSET_Y,
+                w: defaults.w ?? 250,
+                h: defaults.h ?? 250,
+              }),
+              [...d.widgets, ...added],
+              stretch,
+              camera
+            );
+            added.push(placed);
+            return placed;
           });
 
           return { ...d, widgets: [...d.widgets, ...newWidgets] };
