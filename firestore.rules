@@ -4596,17 +4596,21 @@ service cloud.firestore {
       // uid. Share-link viewers have no class, so the class gate and open
       // window apply only to submissions sessions; the close window always does.
       match /progress/{uid} {
+        function glValidProgress() {
+          let d = request.resource.data;
+          return d.keys().hasOnly(['mode', 'modeSwitches', 'furthestStepIdx', 'completed', 'steps', 'startedAt', 'updatedAt']) &&
+            d.furthestStepIdx is int && d.furthestStepIdx >= 0 && d.furthestStepIdx <= 500 &&
+            d.steps is map && d.steps.size() <= 200 &&
+            d.startedAt is timestamp &&
+            (!('mode' in d) || d.mode in ['watch', 'try']) &&
+            optInt(d, 'modeSwitches') && optBool(d, 'completed') &&
+            (!('updatedAt' in d) || d.updatedAt is timestamp);
+        }
         allow get: if request.auth != null && (uid == request.auth.uid || glIsTeacher());
         allow list: if request.auth != null && glIsTeacher();
         allow create, update: if request.auth != null &&
           uid == request.auth.uid &&
-          request.resource.data.keys().hasOnly(['mode', 'modeSwitches', 'furthestStepIdx', 'completed', 'steps', 'startedAt', 'updatedAt']) &&
-          request.resource.data.furthestStepIdx is int &&
-          request.resource.data.furthestStepIdx >= 0 &&
-          request.resource.data.furthestStepIdx <= 500 &&
-          request.resource.data.steps is map &&
-          request.resource.data.steps.size() <= 200 &&
-          request.resource.data.startedAt is timestamp &&
+          glValidProgress() &&
           (resource == null || request.resource.data.startedAt == resource.data.startedAt) &&
           beforeClose(glSession()) &&
           (glSessionMode() == 'view-only' || (glClassGate() && afterOpen(glSession())));

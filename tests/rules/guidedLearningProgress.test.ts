@@ -222,6 +222,14 @@ describe('progress writes', () => {
     await assertFails(setDoc(ref, noStart));
   });
 
+  it('type-checks mode, modeSwitches, completed and updatedAt', async () => {
+    const ref = doc(asViewer(), progressPath(VIEW_ONLY, VIEWER_UID));
+    await assertFails(setDoc(ref, progress({ mode: 'x'.repeat(5000) })));
+    await assertFails(setDoc(ref, progress({ modeSwitches: 'many' })));
+    await assertFails(setDoc(ref, progress({ completed: 'yes' })));
+    await assertFails(setDoc(ref, progress({ updatedAt: 12345 })));
+  });
+
   it('allows a merge update that keeps startedAt', async () => {
     await assertSucceeds(
       setDoc(
