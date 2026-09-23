@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, type Mock } from 'vitest';
 import {
+  driveQueueReader,
   extractSubShareNames,
   parseSubShareNames,
   subShareNamesIsEmpty,
+  withSubShareQueues,
   writeSubShareNamesFile,
   type NamesFileDrive,
 } from '@/utils/subShareNames';
@@ -179,5 +181,167 @@ describe('writeSubShareNamesFile', () => {
         emails: ['sub@orono.k12.mn.us'],
       })
     ).toBeNull();
+  });
+});
+
+// A Next Up queue is a list of student names, so it travels in the names file
+// rather than in the share's broadly readable content (plan §3.4).
+describe('withSubShareQueues', () => {
+  const queueBoard = (id: string, config: Record<string, unknown>): Dashboard =>
+    ({
+      id,
+      name: id,
+      widgets: [{ id: `${id}-q`, type: 'nextUp', config }],
+    }) as unknown as Dashboard;
+
+  const live = (fileId: string) => ({
+    isActive: true,
+    activeDriveFileId: fileId,
+    sessionName: 'Help Queue',
+  });
+
+  const items = [{ id: 'q1', name: 'Ada', status: 'active', joinedAt: 1 }];
+
+  it('lays each live queue over its own widget', async () => {
+    const board = queueBoard('b1', live('queue-file'));
+    const readQueue = vi.fn().mockResolvedValue(items);
+
+    const { names, unreadable } = await withSubShareQueues(
+      extractSubShareNames([board]),
+      [board],
+      readQueue
+    );
+
+    expect(readQueue).toHaveBeenCalledWith('queue-file');
+    expect(names.boards.b1['b1-q']).toEqual({ subShareQueue: items });
+    expect(unreadable).toEqual([]);
+    expect(subShareNamesIsEmpty(names)).toBe(false);
+  });
+
+  it('keeps the names already on the board beside the queue', async () => {
+    const board = {
+      ...queueBoard('b1', live('queue-file')),
+      widgets: [
+        { id: 'b1-q', type: 'nextUp', config: live('queue-file') },
+        { id: 'b1-r', type: 'random', config: { firstNames: 'Cass' } },
+      ],
+    } as unknown as Dashboard;
+
+    const { names } = await withSubShareQueues(
+      extractSubShareNames([board]),
+      [board],
+      () => Promise.resolve(items)
+    );
+
+    expect(names.boards.b1['b1-r']).toEqual({ firstNames: 'Cass' });
+    expect(names.boards.b1['b1-q']).toEqual({ subShareQueue: items });
+  });
+
+  it('reads nothing for a widget with no session running', async () => {
+    const board = queueBoard('b1', {
+      isActive: false,
+      activeDriveFileId: 'queue-file',
+    });
+    const readQueue = vi.fn();
+
+    const { names } = await withSubShareQueues(
+      extractSubShareNames([board]),
+      [board],
+      readQueue
+    );
+
+    expect(readQueue).not.toHaveBeenCalled();
+    expect(names.boards).toEqual({});
+  });
+
+  // The sub gets the board with an empty queue, and the teacher is told which.
+  it('names the queue it could not read', async () => {
+    const board = queueBoard('b1', live('queue-file'));
+
+    const { names, unreadable } = await withSubShareQueues(
+      extractSubShareNames([board]),
+      [board],
+      () => Promise.reject(new Error('404'))
+    );
+
+    expect(unreadable).toEqual(['Help Queue']);
+    expect(names.boards).toEqual({});
+  });
+
+  it('names the queue when the teacher has no Drive connection', async () => {
+    const board = queueBoard('b1', live('queue-file'));
+
+    const { unreadable } = await withSubShareQueues(
+      extractSubShareNames([board]),
+      [board],
+      undefined
+    );
+
+    expect(unreadable).toEqual(['Help Queue']);
+  });
+
+  // Two sessions can carry the same name, and the teacher's warning should not
+  // say it twice.
+  it('names an unreadable queue once however many share its label', async () => {
+    const boards = [
+      queueBoard('b1', live('queue-a')),
+      queueBoard('b2', live('queue-b')),
+    ];
+
+    const { unreadable } = await withSubShareQueues(
+      extractSubShareNames(boards),
+      boards,
+      () => Promise.reject(new Error('404'))
+    );
+
+    expect(unreadable).toEqual(['Help Queue']);
+  });
+
+  it('reads every board’s queue at once', async () => {
+    const boards = [
+      queueBoard('b1', live('queue-a')),
+      queueBoard('b2', live('queue-b')),
+    ];
+    let inFlight = 0;
+    let peak = 0;
+    const readQueue = vi.fn().mockImplementation(async () => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await Promise.resolve();
+      inFlight -= 1;
+      return items;
+    });
+
+    await withSubShareQueues(extractSubShareNames(boards), boards, readQueue);
+
+    expect(peak).toBe(2);
+  });
+
+  it('reports a queue file that is not a list', async () => {
+    const board = queueBoard('b1', live('queue-file'));
+
+    const { unreadable } = await withSubShareQueues(
+      extractSubShareNames([board]),
+      [board],
+      () => Promise.resolve({ nope: true })
+    );
+
+    expect(unreadable).toEqual(['Help Queue']);
+  });
+});
+
+describe('driveQueueReader', () => {
+  it('is absent without a Drive connection', () => {
+    expect(driveQueueReader(null)).toBeUndefined();
+  });
+
+  it('reads the queue file as JSON', async () => {
+    const downloadFile = vi.fn().mockResolvedValue({
+      text: () => Promise.resolve('[{"id":"q1","name":"Ada"}]'),
+    });
+
+    const read = driveQueueReader({ downloadFile } as never);
+
+    expect(await read?.('queue-file')).toEqual([{ id: 'q1', name: 'Ada' }]);
   });
 });

@@ -383,7 +383,7 @@ describe('useSharedCollection', () => {
 
       const shareId = await result.current.shareSubstituteCollection({
         ...subShareInput([dashboardWithNames('b1')]),
-        writeNames,
+        names: { write: writeNames },
       });
 
       const helpers = await getHelpers();
@@ -413,7 +413,7 @@ describe('useSharedCollection', () => {
 
       const shareId = await result.current.shareSubstituteCollection({
         ...subShareInput([dashboard('b1')]),
-        writeNames,
+        names: { write: writeNames },
       });
 
       expect(writeNames).not.toHaveBeenCalled();
@@ -429,12 +429,14 @@ describe('useSharedCollection', () => {
       const { result } = renderHook(() => useSharedCollection());
       const shareId = await result.current.shareSubstituteCollection({
         ...subShareInput([dashboardWithNames('b1')]),
-        writeNames: () =>
-          Promise.resolve({
-            driveFileId: 'names-file',
-            driveGrants: [],
-            failedEmails: [],
-          }),
+        names: {
+          write: () =>
+            Promise.resolve({
+              driveFileId: 'names-file',
+              driveGrants: [],
+              failedEmails: [],
+            }),
+        },
       });
       const writeNames = vi.fn().mockResolvedValue({
         driveFileId: 'names-file',
@@ -447,7 +449,7 @@ describe('useSharedCollection', () => {
         collection: sourceCollection(),
         boards: [dashboard('b1')],
         ...tree(),
-        writeNames,
+        names: { write: writeNames },
       });
 
       const [id, names, existingFileId] = writeNames.mock.calls[0] as [
@@ -467,7 +469,7 @@ describe('useSharedCollection', () => {
 
       const shareId = await result.current.shareSubstituteCollection({
         ...subShareInput([dashboardWithNames('b1')]),
-        writeNames: () => Promise.resolve(null),
+        names: { write: () => Promise.resolve(null) },
       });
 
       const helpers = await getHelpers();

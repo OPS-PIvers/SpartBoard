@@ -26,6 +26,10 @@ import { db } from '@/config/firebase';
 import { ListOrdered, RefreshCcw } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useDialog } from '@/context/useDialog';
+import { useInSubShare } from '@/hooks/useShareContent';
+
+/** A stable reference, so a share does not re-derive the queue every render. */
+const EMPTY_QUEUE: NextUpQueueItem[] = [];
 
 const SESSIONS_COLLECTION = 'nextup_sessions';
 const ENTRIES_SUBCOLLECTION = 'entries';
@@ -36,6 +40,9 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   const { updateWidget, activeDashboard } = useDashboard();
   const { showConfirm } = useDialog();
   const { user } = useAuth();
+  // A sub reads the queue the teacher's client bundled into the share's names
+  // file: the live one lives in the teacher's Drive, which they cannot reach.
+  const inShare = useInSubShare();
 
   const [queue, setQueue] = useState<NextUpQueueItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -64,6 +71,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
 
   // Auto-expiry check: Deactivate session if it's from a previous day
   useEffect(() => {
+    if (inShare) return;
     if (
       shouldExpireNextUpQueue(
         config.isActive,
@@ -76,11 +84,12 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     // config.isActive / config.createdAt are read above but are subsumed by
     // the whole-object `config` dep (the update spreads `...config`), so
     // listing them separately is redundant.
-  }, [config, widget.id, updateWidget, nowTick]);
+  }, [config, widget.id, updateWidget, nowTick, inShare]);
 
   // Sync from Drive when triggered by Firestore
   useEffect(() => {
     let isMounted = true;
+    if (inShare) return;
     if (config.activeDriveFileId && driveService && config.isActive) {
       const loadQueue = async () => {
         setLoading(true);
@@ -114,6 +123,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     config.lastUpdated,
     driveService,
     config.isActive,
+    inShare,
   ]);
 
   const queueRef = React.useRef(queue);
@@ -124,6 +134,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   // Firestore "Buffer" Listener: Watch for incoming student entries
   useEffect(() => {
     if (
+      inShare ||
       !config.isActive ||
       !config.activeDriveFileId ||
       !driveService ||
@@ -196,7 +207,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
         console.error('[NextUp] Entries listener error:', error);
       }
     );
-  }, [sessionId, driveService, config, widget.id, updateWidget]);
+  }, [sessionId, driveService, config, widget.id, updateWidget, inShare]);
 
   const syncToDrive = useCallback(
     async (updatedQueue: NextUpQueueItem[]) => {
@@ -282,12 +293,14 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   // ⚡ Bolt: Consolidate array passes into a single O(N) loop
   // Instead of multiple passes (find, filter, slice, reduce), compute activeStudent,
   // waitingStudents, and totalWaitingCount in one single iteration.
+  const shownQueue = inShare ? (config.subShareQueue ?? EMPTY_QUEUE) : queue;
+
   const { activeStudent, waitingStudents, totalWaitingCount } = useMemo(() => {
     let active: NextUpQueueItem | undefined;
     const waiting: NextUpQueueItem[] = [];
     let waitingCount = 0;
 
-    for (const q of queue) {
+    for (const q of shownQueue) {
       if (q.status === 'active' && !active) {
         active = q;
       } else if (q.status === 'waiting') {
@@ -303,16 +316,20 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
       waitingStudents: waiting,
       totalWaitingCount: waitingCount,
     };
-  }, [queue, config.displayCount]);
+  }, [shownQueue, config.displayCount]);
 
-  if (!config.isActive) {
+  if (inShare ? shownQueue.length === 0 : !config.isActive) {
     return (
       <WidgetLayout
         content={
           <ScaledEmptyState
             icon={ListOrdered}
-            title="Queue is not active"
-            subtitle="Flip to settings to start a session"
+            title={inShare ? 'No queue' : 'Queue is not active'}
+            subtitle={
+              inShare
+                ? 'No one was in the queue when this board was shared.'
+                : 'Flip to settings to start a session'
+            }
           />
         }
       />
@@ -355,33 +372,37 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
             className="flex items-center"
             style={{ gap: 'min(8px, 2cqmin)' }}
           >
-            <button
-              onClick={handleResetQueue}
-              className="hover:bg-white/10 rounded transition-colors"
-              style={{ padding: 'min(4px, 1cqmin)' }}
-              title="Reset Queue"
-            >
-              <RefreshCcw
-                style={{
-                  width: 'min(14px, 3.5cqmin)',
-                  height: 'min(14px, 3.5cqmin)',
-                }}
-              />
-            </button>
-            <button
-              onClick={handleNextStudent}
-              disabled={loading}
-              className="bg-white/20 hover:bg-white/30 rounded font-bold transition-all text-white disabled:opacity-50"
-              style={{
-                fontSize: 'min(12px, 3cqmin)',
-                paddingLeft: 'min(12px, 3cqmin)',
-                paddingRight: 'min(12px, 3cqmin)',
-                paddingTop: 'min(4px, 1cqmin)',
-                paddingBottom: 'min(4px, 1cqmin)',
-              }}
-            >
-              NEXT
-            </button>
+            {!inShare && (
+              <>
+                <button
+                  onClick={handleResetQueue}
+                  className="hover:bg-white/10 rounded transition-colors"
+                  style={{ padding: 'min(4px, 1cqmin)' }}
+                  title="Reset Queue"
+                >
+                  <RefreshCcw
+                    style={{
+                      width: 'min(14px, 3.5cqmin)',
+                      height: 'min(14px, 3.5cqmin)',
+                    }}
+                  />
+                </button>
+                <button
+                  onClick={handleNextStudent}
+                  disabled={loading}
+                  className="bg-white/20 hover:bg-white/30 rounded font-bold transition-all text-white disabled:opacity-50"
+                  style={{
+                    fontSize: 'min(12px, 3cqmin)',
+                    paddingLeft: 'min(12px, 3cqmin)',
+                    paddingRight: 'min(12px, 3cqmin)',
+                    paddingTop: 'min(4px, 1cqmin)',
+                    paddingBottom: 'min(4px, 1cqmin)',
+                  }}
+                >
+                  NEXT
+                </button>
+              </>
+            )}
           </div>
         </div>
       }
