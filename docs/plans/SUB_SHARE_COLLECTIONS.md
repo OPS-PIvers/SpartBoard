@@ -258,6 +258,38 @@ modeled on `createTeammatePaperBatchV1` (`functions/src/createTeammatePaperBatch
    factored out of `setAssignmentTargetsV1` into an internal function the new callable calls
    with the host's uid.
 
+**Amended 2026-09-23 while implementing:** step 3's "moved to a module both client and
+functions import" is not available — `functions/tsconfig.json` sets `rootDir: src`, so nothing
+under `functions/` can import a root module, and this repo's convention for shared logic is a
+documented server mirror (`functions/src/paperBatchPlan.ts` and a dozen others). Mirroring the
+quiz session builder means mirroring ~400 lines of client logic across translations, read-aloud,
+stimuli, bank slots and the session size budget, which would drift silently and lose features for
+a sub-launched run. So the callable takes the session and assignment its caller's client built
+only for **how the run behaves**, from two closed allowlists, and **derives everything a student
+can read from the bundled `keys/` copy** itself.
+
+A first pass took the caller's session wholesale and rejected a list of fields. Review caught why
+that fails: `revealedAnswers` — the session's question-id-to-correct-answer map students read
+after submitting — was not on the list, so a substitute could have started a run with every
+answer pre-revealed, and `readAloud`, `ltiNrps` and the per-locale `answer` inside a public
+question's `localized` block were open the same way. Deny-by-omission fails toward exposure here
+exactly as it did for widget config keys (see "Board isolation" in CLAUDE.md). So the boundary
+moved: the caller sends status, join code, toggles, window and class ids, and anything else is
+refused **by name**, so a field added to the client without review fails loudly instead of
+reaching a student. `publicQuestionFromKey` is the documented server mirror — the student-safe
+question projection alone (~60 lines), not the session builder — and the quiz's own Drive file id
+comes from the teacher's record, not the caller.
+
+What a sub-launched run therefore does without, by construction rather than by omission:
+translated locales, read-aloud, media responses, learning targets and banked questions. Each
+needs a gate or a source that does not travel in a share. Ownership, the ids and the monitor
+stamp are written server-side and cannot be supplied.
+
+**Also reduced for v1:** targeting is class-wide (`classIds`), so step 4's per-student pointer
+fan-out is not factored out of `setAssignmentTargetsV1` yet. A sub picks the class in front of
+them, which is the case the plan describes; roster- and group-targeted launches wait for a later
+slice.
+
 Monitoring: one rules helper, `isSubMonitor(session)` =
 `request.auth.uid in session.subMonitorUids && request.time.toMillis() < session.subMonitorUntil`,
 added to the four session/response read rules. Pause/end go through
