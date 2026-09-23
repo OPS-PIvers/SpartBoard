@@ -58,6 +58,7 @@ export { getQuizArtifactPlaybackUrl } from './getQuizArtifactPlaybackUrl';
 
 // ── Quiz read-aloud (Cloud Text-to-Speech; docs/plans/QUIZ_READ_ALOUD.md) ──
 export { prepareQuizReadAloudV1, synthesizeQuizAudioV1 } from './quizReadAloud';
+export { synthesizeGuidedLearningNarrationV1 } from './guidedLearningNarration';
 export { translateQuizV1, translateResponseV1 } from './quizTranslation';
 export { extractStimulusReadAloudTextV1 } from './quizStimulusText';
 export { extractQuizFromDocumentV1 } from './quizDocumentExtract';
