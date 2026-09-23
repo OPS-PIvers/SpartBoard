@@ -1088,7 +1088,8 @@ export const useVideoActivityAssignments = (
       };
       if (visibility === 'score-responses-and-answers') {
         const revealedAnswers: Record<string, string> = {};
-        for (const q of activityData.questions) {
+        // First-wins, matching the grading map above — the revealed answer must match what the student was graded against.
+        for (const q of dedupeQuestionsById(activityData.questions)) {
           revealedAnswers[q.id] = q.correctAnswer;
         }
         sessionPatch.revealedAnswers = revealedAnswers;

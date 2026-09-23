@@ -818,7 +818,9 @@ export function buildRevealedAnswers(
   quizData: QuizData
 ): Record<string, string> {
   const revealed: Record<string, string> = {};
-  for (const q of quizData.questions) revealed[q.id] = q.correctAnswer;
+  // First-wins, matching buildResponseGradingContext — the revealed answer must match what the student was graded against.
+  for (const q of dedupeQuestionsById(quizData.questions))
+    revealed[q.id] = q.correctAnswer;
   return revealed;
 }
 
