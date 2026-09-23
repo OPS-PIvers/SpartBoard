@@ -13,16 +13,7 @@ import {
 } from '@testing-library/react';
 import type { GuidedLearningSet } from '@/types';
 
-/**
- * Lock down the clamp-warning UI in GuidedLearningAIGenerator.
- *
- * The AI occasionally returns steps whose `imageIndex` points past the end
- * of the uploaded image list. `generateGuidedLearning` clamps to 0 and
- * reports the clamped steps; the generator then pauses before `onGenerated`
- * so the teacher can review. A regression that either (a) fails to render
- * the banner or (b) forwards the set to `onGenerated` anyway would ship a
- * silently-wrong guided learning experience — these tests guard both.
- */
+// Generator hand-off and container-query sizing.
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -95,10 +86,9 @@ async function seedOneImage() {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('GuidedLearningAIGenerator — clamp banner', () => {
+describe('GuidedLearningAIGenerator — generate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default successful response; individual tests override with clamped steps.
     generateGuidedLearningMock.mockResolvedValue({
       suggestedTitle: 'Photosynthesis',
       suggestedMode: 'structured',
@@ -112,87 +102,10 @@ describe('GuidedLearningAIGenerator — clamp banner', () => {
           showOverlay: 'popover',
         },
       ],
-      clampedSteps: [],
     });
   });
 
-  it('shows the amber clamp banner and withholds onGenerated when Gemini overshot imageIndex', async () => {
-    generateGuidedLearningMock.mockResolvedValueOnce({
-      suggestedTitle: 'Photosynthesis',
-      suggestedMode: 'structured',
-      steps: [
-        {
-          id: 'step-1',
-          xPct: 10,
-          yPct: 20,
-          interactionType: 'text-popover',
-          imageIndex: 0,
-          showOverlay: 'popover',
-        },
-        {
-          id: 'step-2',
-          xPct: 40,
-          yPct: 50,
-          interactionType: 'tooltip',
-          imageIndex: 0,
-          showOverlay: 'tooltip',
-        },
-      ],
-      clampedSteps: [
-        {
-          stepIndex: 1,
-          stepId: 'step-2',
-          originalImageIndex: 7,
-          clampedTo: 0,
-        },
-      ],
-    });
-
-    const onGenerated = vi.fn<(set: GuidedLearningSet) => void>();
-    const onClose = vi.fn();
-    render(
-      <GuidedLearningAIGenerator onClose={onClose} onGenerated={onGenerated} />
-    );
-
-    await seedOneImage();
-
-    const draftButton = screen.getByRole('button', { name: /draft with ai/i });
-    await act(async () => {
-      fireEvent.click(draftButton);
-    });
-
-    // Banner is the clamp-warning amber alert; content must mention that
-    // steps had image references that didn't exist. Singular/plural tested
-    // via the presence of "1 step" because we supplied one clamped entry.
-    const banner = await screen.findByRole('alert');
-    expect(banner.textContent ?? '').toMatch(/1 step/i);
-    expect(banner.textContent ?? '').toMatch(/didn't exist/i);
-
-    // Most important invariant: the teacher has NOT been forwarded past the
-    // warning yet. A regression that skipped the `pendingSet` gate would
-    // call onGenerated here.
-    expect(onGenerated).not.toHaveBeenCalled();
-
-    // The primary CTA swaps from "Draft with AI" → "Open in editor to review".
-    expect(
-      screen.queryByRole('button', { name: /draft with ai/i })
-    ).not.toBeInTheDocument();
-    const reviewButton = screen.getByRole('button', {
-      name: /open in editor to review/i,
-    });
-
-    await act(async () => {
-      fireEvent.click(reviewButton);
-    });
-
-    // Now — and only now — the set is forwarded.
-    expect(onGenerated).toHaveBeenCalledTimes(1);
-    const set = onGenerated.mock.calls[0][0];
-    expect(set.title).toBe('Photosynthesis');
-    expect(set.steps).toHaveLength(2);
-  });
-
-  it('skips the banner and calls onGenerated directly when no steps were clamped', async () => {
+  it('calls onGenerated directly after generating', async () => {
     const onGenerated = vi.fn<(set: GuidedLearningSet) => void>();
     const onClose = vi.fn();
     render(

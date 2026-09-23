@@ -194,11 +194,6 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
   const [error, setError] = useState('');
   const [fileContext, setFileContext] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
-  // Pending result + clamp-warning state. When Gemini returns steps whose
-  // imageIndex referenced an image that doesn't exist, we clamp to 0 and pause
-  // here so the teacher gets an explicit heads-up before the editor opens.
-  const [pendingSet, setPendingSet] = useState<GuidedLearningSet | null>(null);
-  const [clampWarning, setClampWarning] = useState<string>('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const sensors = useSensors(
@@ -371,19 +366,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         isBuilding: true,
         authorUid: user?.uid,
       };
-      // If any steps had their imageIndex clamped, pause so the teacher sees
-      // the warning before the editor takes over the surface.
-      if (result.clampedSteps.length > 0) {
-        const n = result.clampedSteps.length;
-        setPendingSet(set);
-        setClampWarning(
-          `AI suggested ${n} step${n === 1 ? '' : 's'} with image references that didn't exist — ${
-            n === 1 ? 'it has' : 'they have'
-          } been moved to image 1. Please review.`
-        );
-      } else {
-        onGenerated(set);
-      }
+      onGenerated(set);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Generation failed';
       setError(msg);
@@ -600,90 +583,42 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
             <span className="whitespace-pre-wrap">{error}</span>
           </div>
         )}
+      </div>
 
-        {clampWarning && (
-          <div
-            role="alert"
-            className="flex items-start bg-amber-50 border border-amber-200 rounded-xl text-amber-800"
-            style={{
-              padding: 'min(12px, 3cqmin)',
-              gap: 'min(8px, 2cqmin)',
-              fontSize: 'min(14px, 5.5cqmin)',
-            }}
-          >
-            <AlertTriangle
-              className="flex-shrink-0 text-amber-600"
+      <button
+        onClick={handleGenerate}
+        disabled={images.length === 0 || busy}
+        className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center"
+        style={{
+          marginTop: 'min(16px, 3.5cqmin)',
+          padding: 'min(12px, 3cqmin) 0',
+          fontSize: 'min(11px, 4cqmin)',
+          gap: 'min(8px, 2cqmin)',
+        }}
+      >
+        {generating ? (
+          <>
+            <Loader2
               style={{
                 width: 'min(16px, 4.5cqmin)',
                 height: 'min(16px, 4.5cqmin)',
-                marginTop: 'min(2px, 0.5cqmin)',
+              }}
+              className="animate-spin"
+            />
+            Generating…
+          </>
+        ) : (
+          <>
+            <Sparkles
+              style={{
+                width: 'min(16px, 4.5cqmin)',
+                height: 'min(16px, 4.5cqmin)',
               }}
             />
-            <span className="whitespace-pre-wrap">{clampWarning}</span>
-          </div>
+            Draft with AI
+          </>
         )}
-      </div>
-
-      {pendingSet ? (
-        <button
-          onClick={() => {
-            const set = pendingSet;
-            setPendingSet(null);
-            setClampWarning('');
-            onGenerated(set);
-          }}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center"
-          style={{
-            marginTop: 'min(16px, 3.5cqmin)',
-            padding: 'min(12px, 3cqmin) 0',
-            fontSize: 'min(11px, 4cqmin)',
-            gap: 'min(8px, 2cqmin)',
-          }}
-        >
-          <Sparkles
-            style={{
-              width: 'min(16px, 4.5cqmin)',
-              height: 'min(16px, 4.5cqmin)',
-            }}
-          />
-          Open in editor to review
-        </button>
-      ) : (
-        <button
-          onClick={handleGenerate}
-          disabled={images.length === 0 || busy}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center"
-          style={{
-            marginTop: 'min(16px, 3.5cqmin)',
-            padding: 'min(12px, 3cqmin) 0',
-            fontSize: 'min(11px, 4cqmin)',
-            gap: 'min(8px, 2cqmin)',
-          }}
-        >
-          {generating ? (
-            <>
-              <Loader2
-                style={{
-                  width: 'min(16px, 4.5cqmin)',
-                  height: 'min(16px, 4.5cqmin)',
-                }}
-                className="animate-spin"
-              />
-              Generating…
-            </>
-          ) : (
-            <>
-              <Sparkles
-                style={{
-                  width: 'min(16px, 4.5cqmin)',
-                  height: 'min(16px, 4.5cqmin)',
-                }}
-              />
-              Draft with AI
-            </>
-          )}
-        </button>
-      )}
+      </button>
     </div>
   );
 };

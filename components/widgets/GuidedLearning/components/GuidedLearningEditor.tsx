@@ -1608,6 +1608,7 @@ const StepNavigator: React.FC<StepNavigatorProps> = ({
         items={steps}
         getId={getStepId}
         onReorder={onReorder}
+        layout="grid"
         renderItem={(s, handle, index) => (
           <StepPill
             step={s}
