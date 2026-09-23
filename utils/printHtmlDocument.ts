@@ -32,6 +32,8 @@ export interface PrintableDocument {
    * sources are object URLs it owns uses this to know when it may free them.
    */
   onImagesReady?: () => void;
+  /** Runs after fonts load and images decode, just before the dialog opens; may reflow the page. */
+  beforePrint?: (win: Window) => void | Promise<void>;
 }
 
 /** Throws the same pop-up message as `exportPdf` when the window is blocked. */
@@ -76,14 +78,26 @@ export function printHtmlDocument(
     printWindow.focus();
     printWindow.print();
   };
-  if (!doc.awaitImages) {
+  if (!doc.awaitImages && !doc.beforePrint) {
     show();
     return;
   }
   const images = Array.from(printWindow.document.images ?? []);
+  const fonts = doc.beforePrint
+    ? printWindow.document.fonts?.ready.catch(() => undefined)
+    : undefined;
   // A failed decode still prints: the modal has already blocked a stimulus it
   // could not fetch, so the alternative here is a dialog that never opens.
-  void Promise.all(
-    images.map((img) => img.decode().catch(() => undefined))
-  ).then(show);
+  void Promise.all([
+    fonts,
+    ...images.map((img) => img.decode().catch(() => undefined)),
+  ])
+    .then(async () => {
+      try {
+        await doc.beforePrint?.(printWindow);
+      } catch {
+        // A failed measurement prints unpadded rather than not at all.
+      }
+    })
+    .then(show);
 }

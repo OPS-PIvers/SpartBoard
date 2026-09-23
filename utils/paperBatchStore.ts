@@ -11,6 +11,7 @@ import {
   deleteDoc,
   deleteField,
   doc,
+  getDoc,
   getDocs,
   limit,
   orderBy,
@@ -37,6 +38,15 @@ export async function savePaperBatch(
   batch: PaperBatch
 ): Promise<void> {
   await setDoc(doc(batchesRef(userId), batch.id), batch);
+}
+
+/** One batch by id, or null when it was never saved or has been deleted. */
+export async function getPaperBatch(
+  userId: string,
+  batchId: string
+): Promise<PaperBatch | null> {
+  const snap = await getDoc(doc(batchesRef(userId), batchId));
+  return snap.exists() ? (snap.data() as PaperBatch) : null;
 }
 
 /** Every batch printed for one quiz, newest first. */

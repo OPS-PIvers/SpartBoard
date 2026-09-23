@@ -266,6 +266,13 @@ const GLOBAL_FEATURES: {
       'When a quiz goes to more than one class period, teachers choose between an in-class assessment, where each period stays closed until they start it, and an assignment that opens on a schedule. The monitor gets one start/pause chip per period, bell times can fill the window from the building schedule, and a teacher can let one student in early. Students in a closed period see the quiz locked, with no questions. Admin-only until this is saved and opened up.',
   },
   {
+    id: 'quiz-results-print',
+    label: 'Quiz results printing',
+    icon: Printer,
+    description:
+      'A Print button on quiz results prints a copy for every student in one go, each starting on its own page, to hand back. Teachers pick what each copy shows: the questions, right and wrong marks, the correct answers, the score, learning targets, written-answer feedback, and passages and pictures. Admin-only until this is saved and opened up.',
+  },
+  {
     id: 'settings-drawer',
     label: 'Widget Settings Drawer (alpha)',
     icon: PanelRight,

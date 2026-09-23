@@ -8628,7 +8628,9 @@ export type GlobalFeature =
   /** Guided Learning Studio editor in place of the classic editor. */
   | 'gl-studio'
   /** Per-period start/pause and windows on assignments shared by several classes. */
-  | 'per-period-access';
+  | 'per-period-access'
+  /** Printing quiz results to hand back: presets, bulk print, bubble-sheet reprints. */
+  | 'quiz-results-print';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
