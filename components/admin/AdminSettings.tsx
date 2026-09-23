@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { getOpenModalCount } from '@/components/common/modalStore';
 import {
   Settings,
   Shield,
@@ -219,6 +220,12 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (isEscapeFromWidgetInput(event)) return;
+      // A dialog opened from a panel (a help item, an activity editor) owns Escape.
+      if (
+        getOpenModalCount() > 0 ||
+        document.querySelector('[data-testid="gl-studio"]')
+      )
+        return;
       onClose();
     };
 

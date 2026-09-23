@@ -38,6 +38,8 @@ import { logError } from '@/utils/logError';
 import { isSuperAdminActor } from '@/utils/superAdmin';
 import { HelpCategoryEditor } from './HelpCategoryEditor';
 import { HelpItemForm } from './HelpItemForm';
+import { LinkedLibrarySets } from './LinkedLibrarySets';
+import { helpCenterSetIdsOf } from '@/components/widgets/GuidedLearning/utils/helpCenterSets';
 import {
   buildHelpItemCreatePayload,
   buildHelpItemUpdatePayload,
@@ -124,6 +126,7 @@ export const HelpCenterManager: React.FC = () => {
       category.id !== '' || items.some((item) => item.categoryId === '')
   );
   const flatByOpens = [...items].sort((a, b) => b.openCount - a.openCount);
+  const helpCenterSetIds = helpCenterSetIdsOf(items);
 
   const scopeLabel = (item: HelpResourceItem): string =>
     item.orgId === null ? 'Everyone' : (orgNames.get(item.orgId) ?? item.orgId);
@@ -456,6 +459,10 @@ export const HelpCenterManager: React.FC = () => {
             );
           })}
         </div>
+      )}
+
+      {!loading && (
+        <LinkedLibrarySets linkedSetIds={helpCenterSetIds} onError={setError} />
       )}
 
       <section className="border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-3">

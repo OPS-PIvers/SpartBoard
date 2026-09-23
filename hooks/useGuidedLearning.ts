@@ -12,6 +12,7 @@ import {
   getDoc,
   onSnapshot,
   setDoc,
+  updateDoc,
   deleteDoc,
   query,
   orderBy,
@@ -369,4 +370,15 @@ export const loadBuildingSet = async (
   const snap = await getDoc(doc(db, BUILDING_GL_COLLECTION, setId));
   if (!snap.exists()) return null;
   return normalizeGuidedLearningSet(snap.data() as GuidedLearningSet);
+};
+
+// Moves building sets out of the Guided Learning library and into the Help Center only.
+export const markHelpCenterSets = async (
+  setIds: readonly string[]
+): Promise<void> => {
+  await Promise.all(
+    setIds.map((setId) =>
+      updateDoc(doc(db, BUILDING_GL_COLLECTION, setId), { helpCenter: true })
+    )
+  );
 };
