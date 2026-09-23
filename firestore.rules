@@ -1290,7 +1290,7 @@ service cloud.firestore {
             request.resource.data.diff(resource.data).affectedKeys().hasOnly([
               'boards', 'boardIds', 'sections', 'collection', 'defaultBoardId',
               'kind', 'subEmails', 'sharedRosters', 'driveGrants',
-              'contentVersion', 'updatedAt', 'expiresAt'
+              'namesFileId', 'contentVersion', 'updatedAt', 'expiresAt'
             ])
             && request.resource.data.expiresAt is number
             && request.resource.data.expiresAt <= request.time.toMillis() + 1209600000
