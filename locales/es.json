@@ -2889,5 +2889,27 @@
       "importWholeClass": "Toda la clase",
       "importGroupEmpty": "Ese grupo de la clase no tiene a nadie en la lista."
     }
+  },
+  "tours": {
+    "unavailable": "Este recorrido no está disponible en este momento.",
+    "practiceBoardName": "Práctica del recorrido",
+    "readOnlyTitle": "Este tablero es de solo lectura",
+    "readOnlyBody": "El recorrido necesita añadir widgets y hacer clic en botones. ¿Quieres empezarlo en un tablero de práctica nuevo?",
+    "cancel": "Cancelar",
+    "startPractice": "Empezar en un tablero de práctica",
+    "keepWidgetsTitle": "¿Conservar los widgets del recorrido?",
+    "keepWidgetsBody": "El recorrido añadió widgets a este tablero. ¿Quieres conservarlos o quitarlos ahora?",
+    "removeWidgets": "Quitarlos",
+    "keepWidgets": "Conservarlos",
+    "stepFallbackTitle": "Siguiente paso",
+    "exit": "Salir del recorrido",
+    "anchorMissing": "No se encontró en tu pantalla. Inténtalo de nuevo u omite este paso.",
+    "looking": "Buscándolo en tu pantalla…",
+    "progress": "{{current}} / {{total}}",
+    "back": "Atrás",
+    "retry": "Intentar de nuevo",
+    "next": "Siguiente",
+    "done": "Listo",
+    "skip": "Omitir"
   }
 }

@@ -33,6 +33,7 @@ import { BoardNavFab } from './BoardNavFab';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
 import { MountedBoardsLayer } from './MountedBoardsLayer';
 import { HelpCenterModal } from '@/components/help/HelpCenterModal';
+import { LiveTourRunner } from '@/components/tours/LiveTourRunner';
 import {
   getLastHelpTab,
   HELP_OPEN_EVENT,
@@ -1862,6 +1863,8 @@ export const DashboardView: React.FC = () => {
 
       {/* Settings drawer surface (flag-gated inside the host). */}
       <SettingsDrawerHost />
+
+      {canAccessFeature('gl-live-tours') && <LiveTourRunner />}
 
       {/* Only mount Help when open — its body builds the whole shortcut tree. */}
       {helpState.open && (

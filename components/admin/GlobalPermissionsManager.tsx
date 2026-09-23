@@ -48,6 +48,7 @@ import {
   Library,
   PanelRight,
   UserCheck,
+  MousePointerClick,
   Printer,
   Volume2,
   Languages,
@@ -224,6 +225,13 @@ const GLOBAL_FEATURES: {
     icon: UserCheck,
     description:
       'Lets teachers hand a substitute a board or a whole collection for a set number of days, and manage what is out: push the boards as they stand now, add a week, or end it early, which takes back the class lists the sub was given. The sub sees the boards without student names unless the teacher names them as covering. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'gl-live-tours',
+    label: 'Guided Learning live tours',
+    icon: MousePointerClick,
+    description:
+      'Lets teachers start a Guided Learning walkthrough on their own board: the tour highlights each button in the real app and waits while they click it, adding any widgets it needs first. Admin-only until this is saved and opened up.',
   },
   {
     id: 'settings-drawer',

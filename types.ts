@@ -8485,7 +8485,9 @@ export type GlobalFeature =
   /** Importing a quiz from a test document; AND-ed with the Rollouts switch. */
   | 'quiz-document-import'
   /** Handing a board or a collection to a substitute, and managing live shares. */
-  | 'sub-share-collections';
+  | 'sub-share-collections'
+  /** Guided Learning live tours in the teacher app and their launch points. */
+  | 'gl-live-tours';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
