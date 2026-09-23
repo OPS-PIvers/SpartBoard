@@ -1088,4 +1088,122 @@ describe('GuidedLearningPlayer', () => {
     fireEvent(video, new Event('timeupdate'));
     expect(video.currentTime).toBe(2);
   });
+
+  describe('player v2 pacing', () => {
+    const pacedSet = (): GuidedLearningSet => ({
+      id: 'set-paced',
+      title: 'Paced',
+      imageUrls: ['https://example.com/image.png'],
+      steps: [
+        {
+          id: 'step-1',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          // 3 words: reading time 2.5s, floored to 3s.
+          text: 'Click the button',
+        },
+        {
+          id: 'step-2',
+          xPct: 30,
+          yPct: 30,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          text: 'Two',
+        },
+      ],
+      mode: 'guided',
+      createdAt: 0,
+      updatedAt: 0,
+    });
+
+    afterEach(() => {
+      window.localStorage.clear();
+    });
+
+    const advance = (ms: number) =>
+      act(() => {
+        vi.advanceTimersByTime(ms);
+      });
+
+    it('keeps today’s 5s default and shows no speed control when off', () => {
+      vi.useFakeTimers();
+      window.localStorage.setItem('spartboard.gl.learnerSpeed', '0.5');
+      render(<GuidedLearningPlayer set={pacedSet()} />);
+      fireEvent.load(screen.getByAltText('Paced'));
+      expect(
+        screen.queryByRole('group', { name: /playback speed/i })
+      ).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
+      advance(4900);
+      expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('50,50');
+      advance(200);
+      expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
+    });
+
+    it('paces by reading time with a 3s floor at 1x', () => {
+      vi.useFakeTimers();
+      render(<GuidedLearningPlayer set={pacedSet()} playerV2 />);
+      fireEvent.load(screen.getByAltText('Paced'));
+      fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
+      advance(2900);
+      expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('50,50');
+      advance(200);
+      expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
+    });
+
+    it('slows auto-advance at 0.5x and remembers the choice', () => {
+      vi.useFakeTimers();
+      const { unmount } = render(
+        <GuidedLearningPlayer set={pacedSet()} playerV2 />
+      );
+      fireEvent.load(screen.getByAltText('Paced'));
+      const half = screen.getByRole('button', { name: /0\.5× speed/i });
+      fireEvent.click(half);
+      expect(half).toHaveAttribute('aria-pressed', 'true');
+      expect(window.localStorage.getItem('spartboard.gl.learnerSpeed')).toBe(
+        '0.5'
+      );
+      fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
+      advance(5900);
+      expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('50,50');
+      advance(200);
+      expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
+      unmount();
+
+      render(<GuidedLearningPlayer set={pacedSet()} playerV2 />);
+      expect(
+        screen.getByRole('button', { name: /0\.5× speed/i })
+      ).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('stretches a calm-paced set by 1.3x', () => {
+      vi.useFakeTimers();
+      render(
+        <GuidedLearningPlayer
+          set={{ ...pacedSet(), watchPace: 'calm' }}
+          playerV2
+        />
+      );
+      fireEvent.load(screen.getByAltText('Paced'));
+      fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
+      advance(3800);
+      expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('50,50');
+      advance(200);
+      expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
+    });
+
+    it('shows the speed control in structured mode too', () => {
+      render(
+        <GuidedLearningPlayer
+          set={{ ...pacedSet(), mode: 'structured' }}
+          playerV2
+        />
+      );
+      expect(
+        screen.getByRole('group', { name: /playback speed/i })
+      ).toBeInTheDocument();
+    });
+  });
 });

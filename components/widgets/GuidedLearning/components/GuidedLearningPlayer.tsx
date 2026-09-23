@@ -6,9 +6,11 @@ import {
   GuidedLearningMode,
   StudentOverride,
 } from '@/types';
-import { applyTimeMultiplier } from '@/utils/applyTimeMultiplier';
 import { isGuidedLearningSetV2 } from '../utils/setMigration';
+import { stepDurationMs } from '../utils/motion';
 import { GuidedLearningStage } from './GuidedLearningStage';
+import { SpeedControl } from './player/SpeedControl';
+import { useLearnerSpeed } from './player/useLearnerSpeed';
 
 interface Props {
   set: GuidedLearningSet;
@@ -23,6 +25,8 @@ interface Props {
   teacherMode?: boolean;
   /** Student's accommodation override (M17 C3-gl) — scales guided-mode auto-advance. */
   timeMultiplier?: StudentOverride['timeMultiplier'];
+  /** Player v2 (`gl-player-v2`): calm motion, learner speed, reading-time pacing. */
+  playerV2?: boolean;
 }
 
 export const GuidedLearningPlayer: React.FC<Props> = ({
@@ -31,6 +35,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   onAnswer,
   teacherMode = false,
   timeMultiplier,
+  playerV2 = false,
 }) => {
   const mode: GuidedLearningMode = set.mode;
   // In teacher mode set.steps is GuidedLearningStep[]; in student mode it is
@@ -82,10 +87,23 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const progressRef = useRef(0);
+  const [speed, setSpeed] = useLearnerSpeed();
 
   const schemaV2 = isGuidedLearningSetV2(set);
 
   const currentStep = steps[currentIdx] ?? null;
+  const stepDuration = currentStep
+    ? stepDurationMs(currentStep, {
+        timeMultiplier,
+        playerV2,
+        speed,
+        watchPace: set.watchPace,
+      })
+    : 0;
+  // Read by the running interval so a speed change keeps the step's progress.
+  const stepDurationRef = useRef(stepDuration);
+  // eslint-disable-next-line react-hooks/refs
+  stepDurationRef.current = stepDuration;
   const activeStep = steps.find((s) => s.id === activeStepId) ?? null;
   const rawCurrentImageIndex =
     mode === 'explore' ? exploreImageIndex : (currentStep?.imageIndex ?? 0);
@@ -154,14 +172,12 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     // Reset display progress at step start (also for zero/unlimited durations).
     setProgress(0);
 
-    const duration = applyTimeMultiplier(
-      (currentStep?.autoAdvanceDuration ?? 5) * 1000,
-      timeMultiplier
-    );
-    if (duration <= 0 || !Number.isFinite(duration)) return;
+    if (stepDurationRef.current <= 0) return;
 
     const interval = 100;
     timerRef.current = setInterval(() => {
+      const duration = stepDurationRef.current;
+      if (duration <= 0) return;
       progressRef.current += interval / duration;
       setProgress(Math.min(progressRef.current, 1));
       if (progressRef.current >= 1) {
@@ -179,7 +195,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         goNext();
       }
     }, interval);
-  }, [currentStep, answeredStepsRef, goNext, timeMultiplier]);
+  }, [currentStep, answeredStepsRef, goNext]);
 
   useEffect(() => {
     if (mode === 'guided' && playing) {
@@ -379,6 +395,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           onAdvance={handleStageAdvance}
           onDismiss={() => setActiveStepId(null)}
           onResetZoom={() => setZoomScale(1)}
+          motionSpeed={playerV2 ? speed : undefined}
         />
       </div>
 
@@ -459,6 +476,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                   ))}
                 </div>
               )}
+              {playerV2 && <SpeedControl speed={speed} onChange={setSpeed} />}
               <span
                 className="text-slate-300 font-bold tabular-nums"
                 style={{ fontSize: 'min(12px, 3.2cqmin)' }}
@@ -541,6 +559,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                   style={{ width: `${guidedProgress * 100}%` }}
                 />
               </div>
+              {playerV2 && <SpeedControl speed={speed} onChange={setSpeed} />}
               <span
                 className="text-slate-300 font-bold tabular-nums"
                 style={{ fontSize: 'min(12px, 3.2cqmin)' }}

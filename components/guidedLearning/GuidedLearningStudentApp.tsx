@@ -427,6 +427,7 @@ const StudentExperience: React.FC<{
           onAnswer={handleAnswer}
           teacherMode={false}
           timeMultiplier={timeMultiplier}
+          playerV2={session.playerV2 === true}
         />
         <button
           onClick={handleComplete}

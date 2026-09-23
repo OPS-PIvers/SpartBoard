@@ -379,3 +379,123 @@ describe('GuidedLearningStage regions and callouts', () => {
     );
   });
 });
+
+describe('GuidedLearningStage calm motion', () => {
+  const zoomTooltip = step({
+    id: 'z',
+    interactionType: 'pan-zoom',
+    panZoomScale: 2.5,
+    showOverlay: 'tooltip',
+  });
+
+  function renderZoom(motionSpeed?: number) {
+    return render(
+      <GuidedLearningStage
+        set={v3([zoomTooltip], 'structured')}
+        steps={[zoomTooltip]}
+        imageIndex={0}
+        activeStepId="z"
+        authorMode="structured"
+        answeredStepIds={new Set()}
+        teacherMode
+        zoomScale={2.5}
+        onPinClick={vi.fn()}
+        onAdvance={vi.fn()}
+        onDismiss={vi.fn()}
+        motionSpeed={motionSpeed}
+      />
+    );
+  }
+
+  const calloutLayer = () => screen.getByTestId('gl-callout-layer');
+  const panZoomLayer = () => screen.getByTestId('gl-panzoom-layer');
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('mounts the callout only after the zoom ends, via the timeout fallback', () => {
+    vi.useFakeTimers();
+    const handle = layout();
+    renderZoom(1);
+    act(() => handle.fireResize());
+    expect(panZoomLayer().style.transition).toBe(
+      'transform 900ms cubic-bezier(0.33, 0, 0.2, 1)'
+    );
+    expect(calloutLayer()).toHaveAttribute('data-camera', 'moving');
+    expect(calloutLayer().style.visibility).toBe('hidden');
+
+    act(() => {
+      vi.advanceTimersByTime(900);
+    });
+    expect(calloutLayer()).toHaveAttribute('data-camera', 'moving');
+
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    expect(calloutLayer()).toHaveAttribute('data-camera', 'settled');
+    expect(calloutLayer().style.visibility).toBe('');
+    expect(calloutLayer().style.animation).toContain('gl-callout-in 280ms');
+    expect(screen.getByTestId('gl-tooltip-card')).toBeInTheDocument();
+  });
+
+  it('settles as soon as the zoom transition ends', () => {
+    vi.useFakeTimers();
+    const handle = layout();
+    renderZoom(1);
+    act(() => handle.fireResize());
+    expect(calloutLayer()).toHaveAttribute('data-camera', 'moving');
+    const end = new Event('transitionend', { bubbles: true });
+    Object.defineProperty(end, 'propertyName', { value: 'transform' });
+    act(() => {
+      panZoomLayer().dispatchEvent(end);
+    });
+    expect(calloutLayer()).toHaveAttribute('data-camera', 'settled');
+  });
+
+  it('stretches the zoom and the wait at 0.5x', () => {
+    vi.useFakeTimers();
+    const handle = layout();
+    renderZoom(0.5);
+    act(() => handle.fireResize());
+    expect(panZoomLayer().style.transition).toBe(
+      'transform 1800ms cubic-bezier(0.33, 0, 0.2, 1)'
+    );
+    act(() => {
+      vi.advanceTimersByTime(1800);
+    });
+    expect(calloutLayer()).toHaveAttribute('data-camera', 'moving');
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    expect(calloutLayer()).toHaveAttribute('data-camera', 'settled');
+    expect(calloutLayer().style.animation).toContain('gl-callout-in 560ms');
+  });
+
+  it('cuts straight to the callout under reduced motion', () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }))
+    );
+    const handle = layout();
+    renderZoom(1);
+    act(() => handle.fireResize());
+    expect(panZoomLayer().style.transition).toBe('none');
+    expect(calloutLayer()).toHaveAttribute('data-camera', 'settled');
+    expect(calloutLayer().style.animation).toBe('');
+    expect(screen.getByTestId('gl-tooltip-card')).toBeInTheDocument();
+  });
+
+  it('keeps today’s motion when player v2 is off', () => {
+    const handle = layout();
+    renderZoom();
+    act(() => handle.fireResize());
+    expect(panZoomLayer().style.transition).toBe('transform 0.6s ease-in-out');
+    expect(screen.queryByTestId('gl-callout-layer')).toBeNull();
+    expect(screen.getByTestId('gl-tooltip-card')).toBeInTheDocument();
+  });
+});

@@ -79,6 +79,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1', displayName: 'Test Teacher' },
     isAdmin: false,
     getAssignmentMode: () => 'graded',
+    canAccessFeature: () => false,
   }),
 }));
 
