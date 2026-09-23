@@ -222,6 +222,8 @@ A teacher prints quiz results to hand back to students, choosing what each copy 
   - a check that the geometry matches `paperSheetLayout`
   - a check that reprints carry no marker grid
 
+**Phase 2 as built (2026-09-23).** Sheet stimuli (pictures, templates) are not redrawn in the right-hand band of a single-column reprint: the band stays blank, the bubbles keep their exact positions. A student's sheet and report count as one hand-back for double-sided padding, so a one-page sheet plus a one-page report gets no blank.
+
 ## Out of scope
 
 - A generated PDF download, or a PDF library.

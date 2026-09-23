@@ -22,6 +22,7 @@ import {
   MAX_CHOICE_COUNT,
   MIN_CHOICE_COUNT,
   NUMBER_WIDTH_MM,
+  BUBBLE_PITCH_MM,
   PAGE_HEIGHT_MM,
   PAGE_WIDTH_MM,
   REGISTRATION_MARK_CENTERS_MM,
@@ -79,6 +80,18 @@ export interface PaperPrintJob {
    * caller that owns their object URLs knows when it may free them.
    */
   onImagesReady?: () => void;
+}
+
+/** A graded paper response redrawn onto its sheet (docs/plans/QUIZ_RESULTS_PRINT.md D22-D23). */
+export interface SheetFill {
+  /** Bubble the student filled, per sheet row; null where the row is empty. */
+  filled: readonly (number | null)[];
+  /** Bubble to ring as the key, per sheet row; null where no ring prints. */
+  key: readonly (number | null)[];
+  /** Margin mark per sheet row. */
+  marks: readonly ('correct' | 'incorrect' | 'unclear' | null)[];
+  /** Printed in the header box when set. */
+  score?: string;
 }
 
 const mm = (n: number): string => `${n.toFixed(3)}mm`;
@@ -175,7 +188,8 @@ function headerHtml(
   quizTitle: string,
   page: number,
   pageCount: number,
-  printedForTeacherName?: string
+  printedForTeacherName?: string,
+  score?: string
 ): string {
   const line2 = [
     printedForTeacherName,
@@ -190,7 +204,9 @@ function headerHtml(
   )};width:${mm(HEADER_RECT_MM.w)};height:${mm(HEADER_RECT_MM.h)}">
       <div class="hdr-name${sheet.isKeySheet ? ' hdr-key' : ''}">${escapeHtml(sheet.displayName)}</div>
       <div class="hdr-quiz">${escapeHtml(quizTitle)}</div>
-      <div class="hdr-meta">${line2}</div>
+      <div class="hdr-meta">${line2}</div>${
+        score ? `\n      <div class="hdr-score">${escapeHtml(score)}</div>` : ''
+      }
     </div>`;
 }
 
@@ -215,11 +231,14 @@ function columnLegendsHtml(
   return parts.join('');
 }
 
+const MARK_GLYPH = { correct: '✓', incorrect: '✗', unclear: '?' } as const;
+
 function answerRowsHtml(
   page: number,
   questionCount: number,
   choiceCount: number,
-  columnsPerPage: PaperColumns
+  columnsPerPage: PaperColumns,
+  fill?: SheetFill
 ): { html: string; columns: number } {
   const perPage = questionsPerPage(columnsPerPage);
   const first = (page - 1) * perPage;
@@ -235,23 +254,43 @@ function answerRowsHtml(
         GRID_TOP_MM + row * ROW_PITCH_MM
       )};width:${mm(NUMBER_WIDTH_MM - 2)}">${first + i + 1}</div>`
     );
+    const index = first + i;
     for (let choice = 0; choice < choiceCount; choice += 1) {
       const r = bubbleRectMm(i, choice, columnsPerPage);
+      const cls = fill
+        ? `bub${fill.filled[index] === choice ? ' filled' : ''}${
+            fill.key[index] === choice ? ' key' : ''
+          }`
+        : 'bub';
       parts.push(
-        `<div class="bub" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(r.w)};height:${mm(
+        `<div class="${cls}" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(r.w)};height:${mm(
           r.h
         )}">${CHOICE_LETTERS[choice]}</div>`
+      );
+    }
+    const mark = fill?.marks[index];
+    if (mark) {
+      const r = bubbleRectMm(i, choiceCount - 1, columnsPerPage);
+      parts.push(
+        `<div class="rowmark" style="left:${mm(r.x + BUBBLE_PITCH_MM)};top:${mm(
+          r.y
+        )}">${MARK_GLYPH[mark]}</div>`
       );
     }
   }
   return { html: parts.join(''), columns };
 }
 
-/** Every page of one student's sheet, each self-identifying (plan Q12). */
+/**
+ * Every page of one student's sheet, each self-identifying (plan Q12). A
+ * `fill` redraws a graded response and leaves off the marker grid and
+ * registration squares, so a reprint can never be scanned back in (D23).
+ */
 function sheetPagesHtml(
   sheet: PaperSheetPlan,
   job: PaperPrintJob,
-  pageCount: number
+  pageCount: number,
+  fill?: SheetFill
 ): string {
   const choiceCount = Math.min(
     Math.max(job.choiceCount, MIN_CHOICE_COUNT),
@@ -264,20 +303,25 @@ function sheetPagesHtml(
       page,
       job.questionCount,
       choiceCount,
-      columnsPerPage
+      columnsPerPage,
+      fill
     );
+    const scanMarks = fill
+      ? ''
+      : `${registrationMarksHtml()}${markerHtml(
+          job.batchId,
+          sheet.seat,
+          page,
+          sheet.isKeySheet
+        )}`;
     pages.push(
-      `<div class="sheet">${registrationMarksHtml()}${markerHtml(
-        job.batchId,
-        sheet.seat,
-        page,
-        sheet.isKeySheet
-      )}${headerHtml(
+      `<div class="sheet">${scanMarks}${headerHtml(
         sheet,
         job.quizTitle,
         page,
         pageCount,
-        job.printedForTeacherName
+        job.printedForTeacherName,
+        fill?.score
       )}${columnLegendsHtml(
         choiceCount,
         rows.columns,
@@ -288,10 +332,7 @@ function sheetPagesHtml(
   return pages.join('');
 }
 
-const STYLES = `
-  @page { size: ${PAGE_WIDTH_MM}mm ${PAGE_HEIGHT_MM}mm; margin: 0; }
-  html, body { margin: 0; padding: 0; background: #fff; }
-  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+const SHEET_STYLES = `
   .sheet {
     position: relative;
     width: ${PAGE_WIDTH_MM}mm;
@@ -354,6 +395,38 @@ const STYLES = `
     color: ${letterGrey()};
   }
 `;
+
+const STYLES = `
+  @page { size: ${PAGE_WIDTH_MM}mm ${PAGE_HEIGHT_MM}mm; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }${SHEET_STYLES}`;
+
+/**
+ * Sheet styles for a reprint inside another document: a named page keeps the
+ * sheet margin-free beside a report that has its own margins.
+ */
+export const SHEET_REPRINT_STYLES = `
+  @page reprint { size: ${PAGE_WIDTH_MM}mm ${PAGE_HEIGHT_MM}mm; margin: 0; }
+  .sheet-set .sheet { page: reprint; }
+  .sheet-set, .sheet-set * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }${SHEET_STYLES}
+  .rowmark { position: absolute; font-size: 10pt; font-weight: 700; line-height: ${BUBBLE_DIAMETER_MM}mm; }
+  .hdr-score { font-size: 11pt; font-weight: 700; }
+  .bub.filled { background: #000; color: #fff; }
+  .bub.key { outline: 0.9mm double #000; outline-offset: 0.3mm; }
+`;
+
+/** One graded sheet's pages, for a reprint. */
+export function buildFilledSheetHtml(
+  sheet: PaperSheetPlan,
+  job: Pick<
+    PaperPrintJob,
+    'batchId' | 'quizTitle' | 'questionCount' | 'choiceCount' | 'columnsPerPage'
+  >,
+  pageCount: number,
+  fill: SheetFill
+): string {
+  return sheetPagesHtml(sheet, { ...job, sheets: [sheet] }, pageCount, fill);
+}
 
 /**
  * Open the print dialog on a batch of answer sheets.

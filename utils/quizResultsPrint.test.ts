@@ -7,6 +7,7 @@ import {
   countPrintedPages,
   padBlocksForDuplex,
   printQuizResults,
+  RESULTS_PRINT_STYLES,
   sortResultsPrintStudents,
   type QuizResultsPrintOptions,
   type ResultsPrintJob,
@@ -416,5 +417,75 @@ describe('buildResultsPrintHtml — students and pages', () => {
     printQuizResults(two, opts({ duplexPadding: false }), () => win2);
     expect(print2).toHaveBeenCalled();
     expect(fakeDoc.querySelectorAll('.pad')).toHaveLength(0);
+  });
+});
+
+describe('buildResultsPrintHtml — bubble-sheet reprints', () => {
+  const reprint = {
+    batchId: 'batch-1',
+    seat: 3,
+    questionCount: 1,
+    choiceCount: 3,
+    columnsPerPage: 2 as const,
+    pageCount: 1,
+    filled: [1],
+    correct: [0],
+    unclear: [false],
+  };
+  const paper = (key: string, sortName: string) =>
+    student({ key, sortName, sheet: reprint }, [mc], {
+      q1: ['Paris', 'Rome', 'Oslo'],
+    });
+
+  const kinds = (html: string) =>
+    Array.from(render(html).querySelectorAll('[data-print-block]')).map(
+      (b) =>
+        `${b.getAttribute('data-print-block')}:${b.getAttribute('data-student')}`
+    );
+
+  it('prints the sheet for paper students and the report for online ones', () => {
+    const html = buildResultsPrintHtml(
+      job([paper('a', 'A'), student({ key: 'b', sortName: 'B' })]),
+      applyPreset('bubble-sheet')
+    );
+    expect(kinds(html)).toEqual(['sheet:a', 'student:b']);
+    expect(html).toContain('bub filled');
+    expect(html).toContain('Score: 0 / 1 (0%)');
+  });
+
+  it('prints the sheet first, then the report, for Both', () => {
+    const html = buildResultsPrintHtml(
+      job([paper('a', 'A')]),
+      opts({ layout: 'both' })
+    );
+    expect(kinds(html)).toEqual(['sheet:a', 'student:a']);
+  });
+
+  it('pads after a student’s sheet and report together, not between them', () => {
+    document.body.innerHTML = buildResultsPrintHtml(
+      job([paper('a', 'A'), paper('b', 'B'), paper('c', 'C')]),
+      opts({ layout: 'both' })
+    );
+    padBlocksForDuplex(document);
+    // One sheet page plus one report page is even: no blanks at all.
+    expect(document.querySelectorAll('.pad')).toHaveLength(0);
+
+    document.body.innerHTML = buildResultsPrintHtml(
+      job([paper('a', 'A'), paper('b', 'B')]),
+      applyPreset('bubble-sheet')
+    );
+    padBlocksForDuplex(document);
+    const blocks = document.querySelectorAll('[data-print-block]');
+    expect(blocks[0].nextElementSibling?.className).toBe('pad');
+    expect(document.querySelectorAll('.pad')).toHaveLength(1);
+  });
+});
+
+describe('results print styles', () => {
+  it('bolds question numbers without borrowing the sheet’s absolutely placed .num', () => {
+    expect(RESULTS_PRINT_STYLES).toContain('.qn { font-weight: bold; }');
+    const html = buildResultsPrintHtml(job([student()]), opts());
+    expect(html).toContain('<span class="qn">1.</span>');
+    expect(html).not.toContain('class="num"');
   });
 });
