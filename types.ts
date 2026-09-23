@@ -4133,8 +4133,23 @@ export interface QuizLeaderboardEntry {
   rank: number;
 }
 
+/**
+ * Stamped on a session a substitute started from a sub share
+ * (docs/plans/SUB_SHARE_COLLECTIONS.md §3.6, D7). Written only by
+ * `launchSubAssignmentV1`; the run itself belongs to the teacher, and the
+ * session rules pin all three fields against a client write.
+ */
+export interface SubLaunchedSessionFields {
+  /** Who started it, for the "Launched by" tag in the teacher's Results. */
+  launchedBy?: { uid: string; email: string; shareId: string };
+  /** Uids that may monitor this one run — read by the `isSubMonitor` rule. */
+  subMonitorUids?: string[];
+  /** ms when monitoring ends: the share's own expiry. */
+  subMonitorUntil?: number;
+}
+
 /** Live quiz session document in Firestore (/quiz_sessions/{sessionId}) */
-export interface QuizSession {
+export interface QuizSession extends SubLaunchedSessionFields {
   id: string; // session UUID (same as QuizAssignment.id)
   /** FK back to /users/{teacherUid}/quiz_assignments/{assignmentId}. 1:1 with session. */
   assignmentId: string;
@@ -6099,7 +6114,7 @@ export interface VideoActivityGlobalConfig {
  * A Firestore session document giving students access to an activity.
  * Stored at /video_activity_sessions/{sessionId}
  */
-export interface VideoActivitySession {
+export interface VideoActivitySession extends SubLaunchedSessionFields {
   id: string;
   activityId: string;
   activityTitle: string;
@@ -7147,7 +7162,7 @@ export interface GuidedLearningPublicStep {
 }
 
 /** Firestore session document granting student access to an experience */
-export interface GuidedLearningSession {
+export interface GuidedLearningSession extends SubLaunchedSessionFields {
   id: string;
   title: string;
   mode: GuidedLearningMode;
@@ -7496,7 +7511,7 @@ export interface FlashcardCheckWriteEntry {
 }
 
 /** `flashcard_sessions/{assignmentId}`: what assigned students load. */
-export interface FlashcardSession {
+export interface FlashcardSession extends SubLaunchedSessionFields {
   id: string;
   teacherUid: string;
   setId: string;
