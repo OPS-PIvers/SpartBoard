@@ -130,19 +130,27 @@ may remain under `.playwright-mcp/`, which is ignored by git.
 ## 6. Measure and verify hotspots
 
 Use `locator.boundingBox()` immediately before capture when a DOM target is
-available. Convert its center to image-relative percentages:
+available, and write the whole box as the step's `region` (exact bounds, not
+an estimated centre point):
 
 ```js
 const box = await locator.boundingBox();
 const xPct = (100 * (box.x + box.width / 2)) / viewportWidth;
 const yPct = (100 * (box.y + box.height / 2)) / viewportHeight;
+const region = {
+  shape: 'rect',
+  wPct: (100 * box.width) / viewportWidth,
+  hPct: (100 * box.height) / viewportHeight,
+  cornerPct: 20, // round buttons: use shape 'ellipse' instead
+};
 ```
 
 For canvas content or a target without stable DOM bounds, inspect the saved PNG
 at full resolution and measure there. Record `imageIndex` with every point.
 
 Render a verification copy of every slide with numbered pins, then inspect a
-contact sheet. A pin must land on the intended control or content, and the
+contact sheet. A pin or region must land on the intended control or content,
+no callout may cover its target, and the
 underlying screenshot must show a populated, readable state. Verification
 overlays are QA artifacts only; embed the unmarked screenshots in the guide.
 
