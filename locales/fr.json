@@ -2923,5 +2923,31 @@
       "importWholeClass": "Toute la classe",
       "importGroupEmpty": "Ce groupe de la classe n’a personne dans la liste."
     }
+  },
+  "glPlayer": {
+    "watch": "Regarder",
+    "tryIt": "Essayer",
+    "watchHint": "Regarder chaque étape jouée pour vous",
+    "tryHint": "Cliquer vous-même sur chaque étape",
+    "playbackMode": "Mode de lecture",
+    "playbackSpeed": "Vitesse de lecture",
+    "speedOption": "vitesse {{speed}}",
+    "position": "Position dans le parcours",
+    "positionValue": "Étape {{current}} sur {{total}}",
+    "outline": {
+      "open": "Étape {{current}} sur {{total}}, afficher toutes les étapes",
+      "title": "Étapes",
+      "slide": "Diapositive {{n}}",
+      "step": "Étape {{n}}",
+      "done": "Terminé",
+      "current": "Étape actuelle"
+    },
+    "resume": {
+      "question": "Reprendre à l’étape {{n}} ?",
+      "resume": "Reprendre",
+      "startOver": "Recommencer"
+    },
+    "live": "Étape {{current}} sur {{total}} : {{text}}",
+    "readAloud": "Lire à voix haute"
   }
 }

@@ -2923,5 +2923,31 @@
       "importWholeClass": "Ganze Klasse",
       "importGroupEmpty": "In dieser Klassengruppe ist niemand auf der Liste."
     }
+  },
+  "glPlayer": {
+    "watch": "Ansehen",
+    "tryIt": "Selbst probieren",
+    "watchHint": "Jeden Schritt vorgespielt bekommen",
+    "tryHint": "Jeden Schritt selbst anklicken",
+    "playbackMode": "Wiedergabemodus",
+    "playbackSpeed": "Wiedergabegeschwindigkeit",
+    "speedOption": "{{speed}} Geschwindigkeit",
+    "position": "Position in der Anleitung",
+    "positionValue": "Schritt {{current}} von {{total}}",
+    "outline": {
+      "open": "Schritt {{current}} von {{total}}, alle Schritte anzeigen",
+      "title": "Schritte",
+      "slide": "Folie {{n}}",
+      "step": "Schritt {{n}}",
+      "done": "Erledigt",
+      "current": "Aktueller Schritt"
+    },
+    "resume": {
+      "question": "Bei Schritt {{n}} weitermachen?",
+      "resume": "Weitermachen",
+      "startOver": "Von vorn beginnen"
+    },
+    "live": "Schritt {{current}} von {{total}}: {{text}}",
+    "readAloud": "Vorlesen"
   }
 }

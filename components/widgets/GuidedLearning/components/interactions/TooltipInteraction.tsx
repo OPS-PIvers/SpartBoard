@@ -97,6 +97,7 @@ export const TooltipInteraction: React.FC<Props> = ({
       )}
       <div
         ref={cardRef}
+        role="note"
         data-testid="gl-tooltip-card"
         data-gl-callout={step.id}
         data-side={placement.side}

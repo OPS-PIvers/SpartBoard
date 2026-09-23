@@ -2923,5 +2923,31 @@
       "importWholeClass": "Toda la clase",
       "importGroupEmpty": "Ese grupo de la clase no tiene a nadie en la lista."
     }
+  },
+  "glPlayer": {
+    "watch": "Ver",
+    "tryIt": "Probar",
+    "watchHint": "Ver cada paso reproducido para ti",
+    "tryHint": "Haz clic en cada paso tú mismo",
+    "playbackMode": "Modo de reproducción",
+    "playbackSpeed": "Velocidad de reproducción",
+    "speedOption": "velocidad {{speed}}",
+    "position": "Posición en el recorrido",
+    "positionValue": "Paso {{current}} de {{total}}",
+    "outline": {
+      "open": "Paso {{current}} de {{total}}, mostrar todos los pasos",
+      "title": "Pasos",
+      "slide": "Diapositiva {{n}}",
+      "step": "Paso {{n}}",
+      "done": "Hecho",
+      "current": "Paso actual"
+    },
+    "resume": {
+      "question": "¿Continuar en el paso {{n}}?",
+      "resume": "Continuar",
+      "startOver": "Empezar de nuevo"
+    },
+    "live": "Paso {{current}} de {{total}}: {{text}}",
+    "readAloud": "Leer en voz alta"
   }
 }

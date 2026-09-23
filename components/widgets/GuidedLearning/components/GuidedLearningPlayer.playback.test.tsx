@@ -68,7 +68,9 @@ function renderPlayer(
   const view = render(
     <GuidedLearningPlayer set={set} teacherMode playerV2 {...props} />
   );
-  fireEvent.load(screen.getByAltText('Walkthrough'));
+  fireEvent.load(
+    document.querySelector('[data-gl-stage] img') as HTMLImageElement
+  );
   act(() => handle.fireResize());
   return view;
 }
