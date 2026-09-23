@@ -8,13 +8,13 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { CircleHelp, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { WidgetBuildingToggle } from '@/components/common/WidgetBuildingToggle';
 import { Z_INDEX } from '@/config/zIndex';
 import { useHelpItemsForWidget } from '@/hooks/useHelpResources';
-import { requestOpenHelp } from '@/components/help/helpCenterState';
+import { WidgetHelpButton } from '@/components/help/WidgetHelpButton';
 import type {
   GlobalFeature,
   GlobalStyle,
@@ -506,18 +506,10 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
         <div className="flex items-center gap-2 shrink-0">
           <WidgetBuildingToggle widget={widget} updateWidget={updateWidget} />
           {helpItems.length > 0 && (
-            <IconButton
-              onClick={() => {
-                requestOpenHelp({ tab: 'guides', widgetType: widget.type });
-                onClose();
-              }}
-              icon={<CircleHelp className="w-4 h-4" />}
-              label={t('helpCenter.widgetHelp')}
-              {...tourAttr('settings.help', widget.id)}
-              title={t('helpCenter.widgetHelp')}
-              variant="ghost"
-              size="sm"
-              shape="square"
+            <WidgetHelpButton
+              widget={widget}
+              helpItems={helpItems}
+              onClose={onClose}
             />
           )}
           <IconButton

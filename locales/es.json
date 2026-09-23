@@ -2995,7 +2995,13 @@
     "retry": "Intentar de nuevo",
     "next": "Siguiente",
     "done": "Listo",
-    "skip": "Omitir"
+    "skip": "Omitir",
+    "showMeLive": "Muéstramelo en vivo",
+    "openGuides": "Abrir guías",
+    "liveHint": "¿Quieres probarlo en tu propio tablero? El recorrido te señala cada botón paso a paso.",
+    "offer": "¿Un recorrido de 1 minuto por {{widget}}?",
+    "offerStart": "Empezar",
+    "showMe": "Muéstramelo"
   },
   "glPlayer": {
     "watch": "Ver",

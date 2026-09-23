@@ -451,6 +451,8 @@ export function useSetDraftPersistence({
       ...(editorState.watchPace ? { watchPace: editorState.watchPace } : {}),
       // The classic editor has no tour controls, so tour setup rides through.
       ...(set.tourSetup ? { tourSetup: set.tourSetup } : {}),
+      // Launch points read this instead of loading every step.
+      ...(set.isBuilding ? { hasLiveTour: steps.some((s) => !!s.tour) } : {}),
     };
   };
 

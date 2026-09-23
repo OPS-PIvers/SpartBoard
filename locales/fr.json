@@ -2981,7 +2981,7 @@
     "readOnlyBody": "La visite doit ajouter des widgets et cliquer sur des boutons. La lancer plutôt sur un nouveau tableau d'entraînement ?",
     "cancel": "Annuler",
     "startPractice": "Lancer sur un tableau d'entraînement",
-    "practiceFailed": "Impossible d'ouvrir le tableau d'entraînement. Relance la visite.",
+    "practiceFailed": "Impossible d'ouvrir le tableau d'entraînement. Relancez la visite.",
     "keepWidgetsTitle": "Garder les widgets de la visite ?",
     "keepWidgetsBody": "La visite a ajouté des widgets à ce tableau. Les garder ou les retirer maintenant ?",
     "removeWidgets": "Les retirer",
@@ -2995,7 +2995,13 @@
     "retry": "Réessayer",
     "next": "Suivant",
     "done": "Terminé",
-    "skip": "Passer"
+    "skip": "Passer",
+    "showMeLive": "Montrez-moi en direct",
+    "openGuides": "Ouvrir les guides",
+    "liveHint": "Vous voulez essayer sur votre propre tableau ? La visite vous montre chaque bouton au fur et à mesure.",
+    "offer": "Une visite d'une minute de {{widget}} ?",
+    "offerStart": "Commencer",
+    "showMe": "Montrez-moi"
   },
   "glPlayer": {
     "watch": "Regarder",

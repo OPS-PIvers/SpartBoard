@@ -37,6 +37,8 @@ export interface ChangelogEntry {
   title: string;
   overview?: ChangelogThemedSection[];
   details: ChangelogHighlight[];
+  /** Building Guided Learning set whose live tour the entry's "Show me" starts. */
+  tourSetId?: string;
 }
 
 interface ChangelogFile {

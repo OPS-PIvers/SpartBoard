@@ -3,6 +3,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WhatsNewModal } from '@/components/layout/WhatsNewModal';
 import type { ChangelogEntry } from '@/hooks/useChangelog';
+import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
+import { TOUR_START_EVENT } from '@/components/tours/tourState';
 
 // The shape returned by useChangelog — typed explicitly so the mock factory
 // can return it without the `as any` cast that triggers @typescript-eslint/no-unsafe-return.
@@ -364,5 +366,51 @@ describe('WhatsNewModal — disclosure', () => {
     await user.click(button);
     expect(button).toHaveAttribute('aria-expanded', 'true');
     expect(document.getElementById(controlsId)).not.toBeNull();
+  });
+});
+
+describe('WhatsNewModal — live tour entries', () => {
+  const tourEntry: ChangelogEntry = { ...detailsOnlyEntry, tourSetId: 'set-1' };
+
+  const renderWithAuth = (canTour: boolean, onClose = vi.fn()) => {
+    useChangelogMock.mockReturnValue(baseHookReturn([tourEntry]));
+    const auth = {
+      canAccessFeature: (id: string) => canTour && id === 'gl-live-tours',
+    } as unknown as AuthContextType;
+    render(
+      <AuthContext.Provider value={auth}>
+        <WhatsNewModal
+          isOpen
+          onClose={onClose}
+          mode="browse"
+          currentVersion={tourEntry.version}
+        />
+      </AuthContext.Provider>
+    );
+    return onClose;
+  };
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('closes and starts the entry tour from Show me', async () => {
+    const user = userEvent.setup();
+    const started = vi.fn();
+    window.addEventListener(TOUR_START_EVENT, started);
+    const onClose = renderWithAuth(true);
+    await user.click(screen.getByRole('button', { name: 'Show me' }));
+    expect(onClose).toHaveBeenCalled();
+    expect(
+      (started.mock.calls[0][0] as CustomEvent<{ setId: string }>).detail
+    ).toEqual({ setId: 'set-1' });
+    window.removeEventListener(TOUR_START_EVENT, started);
+  });
+
+  it('hides Show me without live tours', () => {
+    renderWithAuth(false);
+    expect(
+      screen.queryByRole('button', { name: 'Show me' })
+    ).not.toBeInTheDocument();
   });
 });
