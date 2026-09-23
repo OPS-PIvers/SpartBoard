@@ -3730,7 +3730,16 @@
     "cornerRadius": "Corner radius",
     "calloutPosition": "Callout position",
     "calloutPinned": "Placed by you",
-    "calloutAuto": "Automatic"
+    "calloutAuto": "Automatic",
+    "inlineLabel": "Callout title",
+    "inlineLabelPlaceholder": "Title (optional)",
+    "inlineText": "Callout text",
+    "inlineTextPlaceholder": "What should students do here?",
+    "wordCount_one": "{{count}} word. Aim for {{limit}} or fewer.",
+    "wordCount_other": "{{count}} words. Aim for {{limit}} or fewer.",
+    "linkTitle": "Add a link",
+    "linkPrompt": "Paste a web address that starts with https://",
+    "linkRejected": "Only web addresses that start with https:// can be linked."
   },
   "helpCenter": {
     "title": "Help",

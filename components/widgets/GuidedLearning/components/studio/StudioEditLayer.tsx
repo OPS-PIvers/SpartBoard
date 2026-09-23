@@ -65,6 +65,8 @@ interface StudioEditLayerProps {
   onAdd: (at: PctPoint, region?: GuidedLearningRegion) => void;
   onCalloutFocus: (focused: boolean) => void;
   onEditCallout: (id: string) => void;
+  /** Inline text editing is open; pointer input goes to the callout fields. */
+  editing: boolean;
   beginGesture: () => void;
   endGesture: () => void;
 }
@@ -110,6 +112,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
   onAdd,
   onCalloutFocus,
   onEditCallout,
+  editing,
   beginGesture,
   endGesture,
 }) => {
@@ -457,9 +460,9 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
       ref={rootRef}
       data-testid="gl-studio-edit-layer"
       data-adding={adding || undefined}
-      className={`pointer-events-auto absolute inset-0 touch-none ${
-        adding ? 'cursor-crosshair' : ''
-      }`}
+      className={`absolute inset-0 touch-none ${
+        editing ? 'pointer-events-none' : 'pointer-events-auto'
+      } ${adding ? 'cursor-crosshair' : ''}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={(e) => finish(e, false)}

@@ -10,6 +10,8 @@ interface Props {
   containerHeight: number;
   /** Drawn region in container px; absent = the radius circle. */
   region?: EffectiveRegion;
+  /** Studio inline editor shown in place of the label. */
+  editor?: React.ReactNode;
 }
 
 /**
@@ -22,6 +24,7 @@ export const SpotlightInteraction: React.FC<Props> = ({
   containerWidth,
   containerHeight,
   region,
+  editor,
 }) => {
   const cx = (step.xPct / 100) * containerWidth;
   const cy = (step.yPct / 100) * containerHeight;
@@ -81,10 +84,12 @@ export const SpotlightInteraction: React.FC<Props> = ({
         )}
       </svg>
       {/* Label below the lit area, as HTML so it can carry bold and links */}
-      {step.label && (
+      {(!!step.label || !!editor) && (
         <div
           data-gl-callout={step.id}
-          className="absolute z-20 pointer-events-none text-white font-bold text-center whitespace-nowrap"
+          className={`absolute z-20 pointer-events-none text-white font-bold text-center ${
+            editor ? '' : 'whitespace-nowrap'
+          }`}
           style={{
             left: labelX,
             top: shapeBottom + Math.max(12, containerHeight * 0.04),
@@ -93,7 +98,7 @@ export const SpotlightInteraction: React.FC<Props> = ({
             opacity: 0.9,
           }}
         >
-          {renderStepText(step.label)}
+          {editor ?? renderStepText(step.label)}
         </div>
       )}
     </>

@@ -14,9 +14,10 @@ import { GuidedLearningStage } from '../GuidedLearningStage';
 import { DeviceFrame } from './DeviceFrame';
 import { draftSetForStage } from './draftSet';
 import { StudioEditLayer, type DrawShape } from './StudioEditLayer';
+import { InlineCalloutEditor } from './InlineCalloutEditor';
 import { viewTransform } from './useCanvasViewport';
 import type { CanvasTools } from './useCanvasTools';
-import type { DevicePreset, StageGeometry } from '../../types/stage';
+import type { DevicePreset, StageGeometry, StageStep } from '../../types/stage';
 import type { GuidedLearningEditorController } from '../useGuidedLearningEditorState';
 
 const NO_ANSWERS: ReadonlySet<string> = new Set();
@@ -73,6 +74,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     setCalloutFocused,
     editingStepId,
     setEditingStepId,
+    linkPending,
     onGeometry,
   } = tools;
 
@@ -138,6 +140,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
         onAdd={(at, region) => addStepAt(at.xPct, at.yPct, region)}
         onCalloutFocus={setCalloutFocused}
         onEditCallout={setEditingStepId}
+        editing={editingStepId !== null}
         beginGesture={beginGesture}
         endGesture={endGesture}
       />
@@ -157,9 +160,25 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       addStepAt,
       setCalloutFocused,
       setEditingStepId,
+      editingStepId,
       beginGesture,
       endGesture,
     ]
+  );
+
+  const renderCalloutEditor = useCallback(
+    (shown: StageStep) => {
+      const step = steps.find((s) => s.id === shown.id);
+      return step ? (
+        <InlineCalloutEditor
+          step={step}
+          onChange={updateStep}
+          onDone={() => setEditingStepId(null)}
+          holdOpen={linkPending}
+        />
+      ) : null;
+    },
+    [steps, updateStep, setEditingStepId, linkPending]
   );
 
   if (imageUrls.length === 0) {
@@ -207,6 +226,8 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
             teacherMode
             zoomScale={zoomScale}
             forceOverlay
+            editingStepId={editingStepId}
+            renderCalloutEditor={renderCalloutEditor}
             renderEditLayer={renderEditLayer}
             onGeometry={onGeometry}
             onPinClick={setSelectedStepId}

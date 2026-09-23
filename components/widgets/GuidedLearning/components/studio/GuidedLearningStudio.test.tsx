@@ -31,8 +31,10 @@ vi.mock('@/hooks/useStorage', () => ({
   }),
 }));
 
+const openDialog = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({
+    currentDialog: openDialog.current,
     showAlert: vi.fn().mockResolvedValue(undefined),
     showConfirm: vi.fn().mockResolvedValue(false),
     showPrompt: vi.fn().mockResolvedValue(null),
@@ -151,6 +153,19 @@ describe('GuidedLearningStudio', () => {
     act(() => {
       pressKey('z', { ctrlKey: true });
     });
+    expect(
+      screen.getByLabelText('Activity title').nextSibling
+    ).toHaveTextContent('1 step');
+  });
+
+  it('leaves the keyboard to an open dialog', () => {
+    openDialog.current = { id: 'd1', kind: 'alert' };
+    renderStudio();
+    act(() => {
+      pressKey(']');
+      pressKey('Delete');
+    });
+    openDialog.current = null;
     expect(
       screen.getByLabelText('Activity title').nextSibling
     ).toHaveTextContent('1 step');

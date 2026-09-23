@@ -119,6 +119,8 @@ export const GuidedLearningStage: React.FC<
   authorMode: mode,
   teacherMode,
   zoomScale,
+  editingStepId,
+  renderCalloutEditor,
   renderEditLayer,
   onGeometry,
   onPinClick,
@@ -563,6 +565,15 @@ export const GuidedLearningStage: React.FC<
     onAdvance();
   };
 
+  // Studio inline editing replaces the active callout's label and text.
+  const calloutEditor =
+    activeStep &&
+    editingStepId === activeStep.id &&
+    renderCalloutEditor &&
+    geometry
+      ? renderCalloutEditor(activeStep, geometry)
+      : undefined;
+
   const renderPopover = (spotlightPx?: number) =>
     activeStep ? (
       <div
@@ -580,6 +591,7 @@ export const GuidedLearningStage: React.FC<
             pinned={pinnedCallout}
             containerWidth={containerSize.w}
             containerHeight={containerSize.h}
+            editor={calloutEditor}
           />
         </div>
       </div>
@@ -665,6 +677,7 @@ export const GuidedLearningStage: React.FC<
           target={calloutTarget()}
           pinned={pinnedCallout}
           showAnchor={!activeRegion}
+          editor={calloutEditor}
         />
       ) : null;
     }
@@ -686,6 +699,7 @@ export const GuidedLearningStage: React.FC<
               target={target}
               pinned={pinnedCallout}
               showAnchor={!activeRegion}
+              editor={calloutEditor}
             />
           );
         }
@@ -705,6 +719,7 @@ export const GuidedLearningStage: React.FC<
                     })
                   : 'top'
               }
+              editor={calloutEditor}
             />
           );
         }
@@ -741,6 +756,11 @@ export const GuidedLearningStage: React.FC<
               containerWidth={containerSize.w}
               containerHeight={containerSize.h}
               region={activeRegion ?? undefined}
+              editor={
+                activeStep.showOverlay && activeStep.showOverlay !== 'none'
+                  ? undefined
+                  : calloutEditor
+              }
             />
             {renderOverlay(spotlightPx)}
           </>

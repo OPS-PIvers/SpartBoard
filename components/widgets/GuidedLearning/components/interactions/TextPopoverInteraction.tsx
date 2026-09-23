@@ -18,6 +18,8 @@ interface Props {
   pinned?: Point;
   containerWidth?: number;
   containerHeight?: number;
+  /** Studio inline editor shown in place of the label and text. */
+  editor?: React.ReactNode;
 }
 
 export const TextPopoverInteraction: React.FC<Props> = ({
@@ -27,6 +29,7 @@ export const TextPopoverInteraction: React.FC<Props> = ({
   pinned,
   containerWidth = 0,
   containerHeight = 0,
+  editor,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
@@ -106,20 +109,24 @@ export const TextPopoverInteraction: React.FC<Props> = ({
             }}
           />
         </button>
-        {step.label && (
-          <h3
-            className="text-white font-bold mb-2 pr-6 leading-tight"
-            style={{ fontSize: 'min(16px, 4.5cqmin)' }}
-          >
-            {renderStepText(step.label)}
-          </h3>
+        {editor ?? (
+          <>
+            {step.label && (
+              <h3
+                className="text-white font-bold mb-2 pr-6 leading-tight"
+                style={{ fontSize: 'min(16px, 4.5cqmin)' }}
+              >
+                {renderStepText(step.label)}
+              </h3>
+            )}
+            <p
+              className="text-slate-200 leading-relaxed whitespace-pre-wrap"
+              style={{ fontSize: 'min(14px, 3.5cqmin)' }}
+            >
+              {renderStepText(step.text ?? '')}
+            </p>
+          </>
         )}
-        <p
-          className="text-slate-200 leading-relaxed whitespace-pre-wrap"
-          style={{ fontSize: 'min(14px, 3.5cqmin)' }}
-        >
-          {renderStepText(step.text ?? '')}
-        </p>
       </div>
     </div>
   );
