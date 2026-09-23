@@ -9965,6 +9965,27 @@ export interface SubShareCalendarPayload {
 }
 
 /**
+ * Only what the player draws. Named field by field rather than omitted:
+ * `content/` is readable by any verified district account holding the share,
+ * so a new field on the set has to be let in deliberately. `publicShareId` is
+ * deliberately out — it is a link anyone could then open.
+ */
+export type SubShareFlashcardSetView = Pick<
+  FlashcardSet,
+  | 'id'
+  | 'title'
+  | 'description'
+  | 'termLanguage'
+  | 'definitionLanguage'
+  | 'cards'
+>;
+
+/** The set a Flashcards widget was presenting when the share was made. */
+export interface SubShareFlashcardPayload {
+  set: SubShareFlashcardSetView;
+}
+
+/**
  * Input to `shareSubstituteCollection()`. Mirrors `SubstituteShareInput`
  * for single Boards but operates on a whole Collection.
  */

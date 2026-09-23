@@ -98,6 +98,19 @@ const wallDoc = (id: string, fields: Record<string, unknown>) => ({
   data: () => fields,
 });
 
+const flashcardsWidget = (id: string, presentSetId: string | null) =>
+  ({
+    id,
+    type: 'flashcards' satisfies WidgetType,
+    config: { presentSetId },
+  }) as unknown as WidgetData;
+
+const setDoc = (id: string, fields: Record<string, unknown>) => ({
+  id,
+  exists: () => true,
+  data: () => fields,
+});
+
 const calendarWidget = (id: string, personalCalendarIds: string[]) =>
   ({
     id,
@@ -874,6 +887,101 @@ describe('bundleSubShareContent', () => {
 
       expect(bundle.items).toEqual([]);
       expect(bundle.failures.map((f) => f.kind)).toEqual(['calendar']);
+    });
+  });
+  describe('flashcards', () => {
+    const set = {
+      title: 'Cell biology',
+      description: 'Unit 3 vocabulary',
+      termLanguage: 'en',
+      definitionLanguage: 'en',
+      cards: [{ id: 'c1', term: 'Mitochondria', definition: 'Powerhouse' }],
+      folderId: 'folder-1',
+      publicShareId: 'public-abc',
+      createdAt: 1,
+      updatedAt: 2,
+    };
+
+    it('bundles the set the widget is presenting', async () => {
+      mockGetDoc.mockResolvedValue(setDoc('s-1', set));
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Biology', [flashcardsWidget('w1', 's-1')])],
+      });
+
+      expect(bundle.failures).toEqual([]);
+      expect(bundle.items.map((i) => i.id)).toEqual(['flashcards_s-1']);
+      const payload = bundle.items[0].doc.payload as {
+        set: { cards: unknown[] };
+      };
+      expect(payload.set.cards).toHaveLength(1);
+    });
+
+    // `content/` is readable by any verified district account holding the
+    // share, and `publicShareId` is a link they could then open.
+    it('leaves the public share link and the folder out', async () => {
+      mockGetDoc.mockResolvedValue(setDoc('s-1', set));
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Biology', [flashcardsWidget('w1', 's-1')])],
+      });
+
+      const payload = bundle.items[0].doc.payload as {
+        set: Record<string, unknown>;
+      };
+      expect(Object.keys(payload.set).sort()).toEqual([
+        'cards',
+        'definitionLanguage',
+        'description',
+        'id',
+        'termLanguage',
+        'title',
+      ]);
+      const json = JSON.stringify(payload.set);
+      expect(json).not.toContain('public-abc');
+      expect(json).not.toContain('folder-1');
+    });
+
+    it('reads the teacher’s own set, not the sub’s', async () => {
+      mockGetDoc.mockResolvedValue(setDoc('s-1', set));
+
+      await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Biology', [flashcardsWidget('w1', 's-1')])],
+      });
+
+      expect((doc as Mock).mock.calls.at(-1)?.slice(1)).toEqual([
+        'users',
+        'teacher-1',
+        'flashcard_sets',
+        's-1',
+      ]);
+    });
+
+    it('skips a widget presenting nothing', async () => {
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Biology', [flashcardsWidget('w1', null)])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(bundle.failures).toEqual([]);
+    });
+
+    it('reports a set it could not read', async () => {
+      mockGetDoc.mockResolvedValue({ exists: () => false });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Biology', [flashcardsWidget('w1', 's-1')])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(bundle.failures).toEqual([
+        { kind: 'flashcards', itemId: 's-1', label: 'Flashcards on Biology' },
+      ]);
     });
   });
 });
