@@ -1071,4 +1071,159 @@ describe('bundleSubShareContent', () => {
       ]);
     });
   });
+
+  // A video activity is an answer key too, and unlike a quiz its questions
+  // live in the teacher's Drive rather than Firestore.
+  describe('video activity', () => {
+    const vaWidget = (id: string, activityId: string | null) =>
+      ({
+        id,
+        type: 'video-activity' satisfies WidgetType,
+        config: { selectedActivityId: activityId },
+      }) as unknown as WidgetData;
+
+    const metaDoc = (fields: Record<string, unknown>) => ({
+      id: 'va-1',
+      exists: () => true,
+      data: () => fields,
+    });
+
+    it('bundles the open activity as a key, field by field', async () => {
+      mockGetDoc.mockResolvedValue(
+        metaDoc({
+          id: 'va-1',
+          title: 'Mitosis',
+          youtubeUrl: 'https://youtu.be/abc',
+          driveFileId: 'file-1',
+          questionCount: 1,
+          createdAt: 1,
+          updatedAt: 2,
+          folderId: 'folder-9',
+          sync: { groupId: 'g-1', lastSyncedVersion: 4 },
+        })
+      );
+      const loadVideoActivity = vi.fn().mockResolvedValue({
+        id: 'va-1',
+        title: 'Mitosis',
+        youtubeUrl: 'https://youtu.be/abc',
+        videoDuration: 610,
+        questions: [
+          { id: 'q1', text: 'Which phase?', type: 'MC', timestamp: 30 },
+        ],
+        createdAt: 1,
+        updatedAt: 2,
+      });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [vaWidget('w1', 'va-1')])],
+        services: { loadVideoActivity },
+      });
+
+      expect(loadVideoActivity).toHaveBeenCalledWith('file-1');
+      expect(bundle.items).toEqual([]);
+      expect(bundle.keys).toHaveLength(1);
+      expect(bundle.keys[0].id).toBe('videoActivity_va-1');
+      // The PLC sync linkage and the folder are the teacher's own filing.
+      expect(bundle.keys[0].doc.payload).toEqual({
+        activity: {
+          id: 'va-1',
+          title: 'Mitosis',
+          youtubeUrl: 'https://youtu.be/abc',
+          videoDuration: 610,
+          questions: [
+            { id: 'q1', text: 'Which phase?', type: 'MC', timestamp: 30 },
+          ],
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      });
+    });
+
+    it('reads the metadata from the teacher’s own account', async () => {
+      mockGetDoc.mockResolvedValue(
+        metaDoc({ title: 'Mitosis', driveFileId: 'file-1' })
+      );
+
+      await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [vaWidget('w1', 'va-1')])],
+        services: {
+          loadVideoActivity: vi.fn().mockResolvedValue({ questions: [] }),
+        },
+      });
+
+      expect((doc as Mock).mock.results.at(-1)?.value).toEqual({
+        __path: 'users/teacher-1/video_activities/va-1',
+      });
+    });
+
+    it('reads nothing for a widget with no activity open', async () => {
+      const loadVideoActivity = vi.fn();
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [vaWidget('w1', null)])],
+        services: { loadVideoActivity },
+      });
+
+      expect(mockGetDoc).not.toHaveBeenCalled();
+      expect(loadVideoActivity).not.toHaveBeenCalled();
+      expect(bundle.keys).toEqual([]);
+    });
+
+    // A teacher who never connected Drive gets a line on the share screen,
+    // not a widget that silently shows the sub nothing.
+    it('reports the activity when no Drive reader was passed', async () => {
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [vaWidget('w1', 'va-1')])],
+      });
+
+      expect(bundle.keys).toEqual([]);
+      expect(bundle.failures).toEqual([
+        {
+          kind: 'videoActivity',
+          itemId: 'va-1',
+          label: 'Video activity on Period 2',
+        },
+      ]);
+    });
+
+    it('reports an activity whose Drive file could not be read', async () => {
+      mockGetDoc.mockResolvedValue(
+        metaDoc({ title: 'Mitosis', driveFileId: 'file-1' })
+      );
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [vaWidget('w1', 'va-1')])],
+        services: {
+          loadVideoActivity: vi.fn().mockRejectedValue(new Error('403')),
+        },
+      });
+
+      expect(bundle.keys).toEqual([]);
+      expect(bundle.failures).toEqual([
+        {
+          kind: 'videoActivity',
+          itemId: 'va-1',
+          label: 'Video activity on Period 2',
+        },
+      ]);
+    });
+
+    it('reports an activity whose metadata names no Drive file', async () => {
+      mockGetDoc.mockResolvedValue(metaDoc({ title: 'Mitosis' }));
+      const loadVideoActivity = vi.fn();
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [vaWidget('w1', 'va-1')])],
+        services: { loadVideoActivity },
+      });
+
+      expect(loadVideoActivity).not.toHaveBeenCalled();
+      expect(bundle.failures).toHaveLength(1);
+    });
+  });
 });

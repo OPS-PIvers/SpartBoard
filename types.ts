@@ -9862,6 +9862,7 @@ export interface SharedCollectionBoardDoc {
 export type SubShareContentKind =
   | 'drawing'
   | 'quiz'
+  | 'videoActivity'
   | 'notebook'
   | 'flashcards'
   | 'project'
@@ -9887,6 +9888,26 @@ export type SubShareQuizView = Pick<
 
 export interface SubShareQuizPayload {
   quiz: SubShareQuizView;
+}
+
+/**
+ * A video activity as a substitute sees it: the video plus the teacher's own
+ * questions and their keys. Bundled into `keys/`, not `content/`, for the same
+ * reason a quiz is (A2). The PLC sync linkage and folder do not travel.
+ */
+export type SubShareVideoActivityView = Pick<
+  VideoActivityData,
+  | 'id'
+  | 'title'
+  | 'youtubeUrl'
+  | 'videoDuration'
+  | 'questions'
+  | 'createdAt'
+  | 'updatedAt'
+>;
+
+export interface SubShareVideoActivityPayload {
+  activity: SubShareVideoActivityView;
 }
 
 /** A `content/{kind}_{itemId}` doc: what the sub sees in place of their own. */
