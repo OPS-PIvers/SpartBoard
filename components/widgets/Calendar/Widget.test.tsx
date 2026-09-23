@@ -12,6 +12,7 @@ import {
   useDashboardActions,
   type DashboardActions,
 } from '@/context/dashboardCanvasStore';
+import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
 vi.mock('../WidgetLayout', () => ({
   WidgetLayout: ({ content }: { content: React.ReactNode }) => (
@@ -255,12 +256,12 @@ describe('CalendarWidget — inside a sub share', () => {
   }) {
     return (
       <SubShareContentContext.Provider
-        value={{
+        value={subShareContextValue({
           shareId: 'share-1',
           version: 0,
           loadKey: noSubShareKey,
           load: () => Promise.resolve({ events }),
-        }}
+        })}
       >
         {children}
       </SubShareContentContext.Provider>

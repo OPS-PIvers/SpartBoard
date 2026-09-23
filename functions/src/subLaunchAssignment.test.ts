@@ -522,6 +522,59 @@ describe('the payload allowlist', () => {
 
 // The caller no longer supplies what students read, so these assert the
 // handler's own projection of the bundled key.
+// A mirror of what `subLaunchRunSettings` in utils/subLaunchRunSettings.ts
+// sends. Nothing under functions/ can import a root module, so this is the
+// only place the two sides meet: a key the client adds that this function does
+// not allow fails here by name.
+describe('the run settings the app actually sends', () => {
+  const clientSession = {
+    status: 'active',
+    sessionMode: 'student',
+    currentQuestionIndex: 0,
+    startedAt: NOW,
+    endedAt: null,
+    questionPhase: 'answering',
+    completenessModel: 1,
+    attemptLimit: 1,
+    tabWarningsEnabled: true,
+    blockCopyPaste: false,
+    showResultToStudent: false,
+    showCorrectAnswerToStudent: false,
+    showCorrectOnBoard: false,
+    shuffleQuestions: false,
+    shuffleAnswerOptions: true,
+    speedBonusEnabled: false,
+    streakBonusEnabled: false,
+    showPodiumBetweenQuestions: false,
+    soundEffectsEnabled: false,
+  };
+  const clientAssignment = {
+    status: 'active',
+    mode: 'submissions',
+    className: 'Period 3',
+    sessionMode: 'student',
+    sessionOptions: { tabWarningsEnabled: true, shuffleAnswerOptions: true },
+    attemptLimit: 1,
+  };
+
+  it('accepts every field, and keeps them on the run', async () => {
+    const { run, written } = launch(
+      {},
+      SUB,
+      input({ session: clientSession, assignment: clientAssignment })
+    );
+
+    await run();
+
+    expect(written[0].data.status).toBe('active');
+    expect(written[0].data.sessionMode).toBe('student');
+    expect(written[0].data.currentQuestionIndex).toBe(0);
+    expect(written[0].data.questionPhase).toBe('answering');
+    expect(written[1].data.className).toBe('Period 3');
+    expect(written[1].data.status).toBe('active');
+  });
+});
+
 describe('the content the session carries', () => {
   it('derives the questions, title and counts from the key', async () => {
     const { run, written } = launch();

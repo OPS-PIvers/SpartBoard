@@ -9,6 +9,7 @@ import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import * as firestore from 'firebase/firestore';
 import { WidgetData } from '@/types';
+import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
 // --- Module mocks ---
 
@@ -358,12 +359,12 @@ describe('PdfWidget', () => {
     function InShare({ children }: { children: React.ReactNode }) {
       return (
         <SubShareContentContext.Provider
-          value={{
+          value={subShareContextValue({
             shareId: 'share-1',
             version: 0,
             load: vi.fn() as never,
             loadKey: noSubShareKey,
-          }}
+          })}
         >
           {children}
         </SubShareContentContext.Provider>

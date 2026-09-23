@@ -4,7 +4,13 @@ import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { subShareContentId } from '@/utils/subShareContent';
 import type { SubShareContentValue } from '@/context/SubShareContentContextValue';
-import type { SubShareContentDoc, SubShareContentKind } from '@/types';
+import type {
+  SubShareContentDoc,
+  SubShareContentKind,
+  SubstituteShareRoster,
+} from '@/types';
+
+const NO_ROSTERS: SubstituteShareRoster[] = [];
 
 /** A read a share's rules refused, which for a key means "not your share". */
 function isPermissionDenied(err: unknown): boolean {
@@ -28,9 +34,14 @@ function isPermissionDenied(err: unknown): boolean {
  */
 export function useSubShareContentLoader(
   shareId: string | null,
-  version: number
+  version: number,
+  boardId: string | null = null,
+  rosters: SubstituteShareRoster[] = NO_ROSTERS
 ): SubShareContentValue | null {
-  return useMemo(() => {
+  // The caches are keyed by share and version only. Walking to the next board
+  // and back must not re-read what this share already gave us, so `boardId`
+  // and `rosters` are folded in afterwards rather than becoming cache keys.
+  const readers = useMemo(() => {
     if (!shareId) return null;
     // Lives in the memo, so a different share or version starts empty.
     const cache = new Map<string, Promise<unknown>>();
@@ -39,8 +50,6 @@ export function useSubShareContentLoader(
       Promise<{ payload: unknown; denied: boolean }>
     >();
     return {
-      shareId,
-      version,
       load: (kind: SubShareContentKind, itemId: string) => {
         const id = subShareContentId(kind, itemId);
         const hit = cache.get(id);
@@ -87,5 +96,16 @@ export function useSubShareContentLoader(
         return read;
       },
     };
+    // `version` is what empties the caches on a teacher's push; the readers
+    // themselves never look at it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shareId, version]);
+
+  return useMemo(
+    () =>
+      readers && shareId
+        ? { shareId, version, boardId, rosters, ...readers }
+        : null,
+    [readers, shareId, version, boardId, rosters]
+  );
 }
