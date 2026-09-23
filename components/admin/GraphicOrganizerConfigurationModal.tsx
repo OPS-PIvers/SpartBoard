@@ -140,7 +140,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
       onClose();
     } catch (error) {
       console.error('Error applying config:', error);
-      addToast('Error applying configuration', 'info');
+      addToast('Error applying configuration', 'error');
     } finally {
       setIsSaving(false);
     }
