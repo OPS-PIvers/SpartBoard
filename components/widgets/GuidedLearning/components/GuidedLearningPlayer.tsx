@@ -5,7 +5,16 @@ import React, {
   useRef,
   useCallback,
 } from 'react';
-import { Play, Pause, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import {
+  Play,
+  Pause,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   GuidedLearningSet,
   GuidedLearningPublicStep,
@@ -23,7 +32,14 @@ import { useLearnerSpeed } from './player/useLearnerSpeed';
 import { PlaybackModeToggle } from './player/PlaybackModeToggle';
 import { WatchScrubber } from './player/WatchScrubber';
 import { TRY_HINT_MS, defaultPlayback, hasStepTarget } from './player/playback';
+import { StepOutline } from './player/StepOutline';
+import { ResumePrompt } from './player/ResumePrompt';
+import { useResumeOffer, writeResume } from './player/useResume';
+import { speechAvailable, useReadAloud } from './player/useReadAloud';
+import { spokenStepText } from '../utils/stepText';
 import type { PctPoint, PlaybackMode, StepEvent } from '../types/stage';
+
+const nowMs = (): number => performance.now();
 
 /** Per-visit state of the current step; replaced whenever the step changes. */
 interface StepRun {
@@ -64,6 +80,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   playerV2 = false,
   onStepEvent,
 }) => {
+  const { t } = useTranslation();
   const mode: GuidedLearningMode = set.mode;
   // In teacher mode set.steps is GuidedLearningStep[]; in student mode it is
   // GuidedLearningPublicStep[] (via the student-app cast). We intentionally
@@ -140,6 +157,16 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   const activeStep = steps.find((s) => s.id === activeStepId) ?? null;
 
   const v2Playback = playerV2 && mode !== 'explore';
+  // Saved place from an earlier visit on this device (sets and sessions alike key on set.id).
+  const [resumeOffer, dismissResume] = useResumeOffer(
+    set.id,
+    steps.length,
+    v2Playback
+  );
+  const [readAloud, setReadAloud] = useState(false);
+  const readAloudAvailable =
+    v2Playback &&
+    (speechAvailable() || steps.some((s) => Boolean(s.narration?.url)));
   const isWatch = v2Playback && playback === 'watch';
   const isTry = v2Playback && playback === 'try';
   const autoAdvance = v2Playback ? isWatch : mode === 'guided';
@@ -200,6 +227,24 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           }
         : null;
 
+  // Read-aloud starts once the step is shown (after a Watch glide).
+  const voiceHeldRef = useRef(false);
+  const handleVoiceDone = () => {
+    if (!voiceHeldRef.current) return;
+    voiceHeldRef.current = false;
+    if (currentStep) emitRef.current('complete', currentStep.id);
+    goNextRef.current();
+  };
+  const { speaking } = useReadAloud({
+    enabled: readAloud && readAloudAvailable && !resumeOffer,
+    step: currentStep,
+    stepKey: currentStep && !watchGlide ? `${stepRun.seq}` : null,
+    onDone: handleVoiceDone,
+  });
+  const speakingRef = useRef(speaking);
+  // eslint-disable-next-line react-hooks/refs
+  speakingRef.current = speaking;
+
   // Step events: ms counts from the step's enter.
   const enteredAtRef = useRef(0);
   const eventMode: PlaybackMode | null =
@@ -219,7 +264,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       stepId,
       type,
       mode: eventMode,
-      ms: Math.max(0, Math.round(performance.now() - enteredAtRef.current)),
+      ms: Math.max(0, Math.round(nowMs() - enteredAtRef.current)),
       ...(at ? { xPct: at.xPct, yPct: at.yPct } : {}),
     });
   };
@@ -231,14 +276,18 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     mode === 'explore' ? activeStepId : (currentStep?.id ?? null);
   useEffect(() => {
     if (!eventStepId) return;
-    enteredAtRef.current = performance.now();
+    enteredAtRef.current = nowMs();
     emitRef.current('enter', eventStepId);
     return () => emitRef.current('leave', eventStepId);
   }, [eventStepId]);
 
   // Try: the hint cursor shows the target after a quiet 5s.
   const hintArmed =
-    isTry && cursorAllowed && !stepRun.hinted && currentStep !== null;
+    isTry &&
+    cursorAllowed &&
+    !stepRun.hinted &&
+    currentStep !== null &&
+    !resumeOffer;
   const hintStepId = currentStep?.id;
   const hintSeq = stepRun.seq;
   useEffect(() => {
@@ -282,12 +331,20 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     }
   }
 
+  // Steps the learner has moved past or completed, for the outline's marks.
+  const [doneIds, setDoneIds] = useState<ReadonlySet<string>>(new Set());
+  const markDone = useCallback((id: string) => {
+    setDoneIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  }, []);
+
   const goNext = useCallback(() => {
     if (steps.length === 0) return;
     // Already on the final step — nothing to advance to. Bail out instead of
     // resetting progress to 0, so a completed session's bar holds at 100%
     // rather than dropping back down (auto-advance timer, Continue button,
     // and ArrowRight can all reach this once the last step is done).
+    const leaving = steps[currentIdx];
+    if (leaving) markDone(leaving.id);
     if (currentIdx >= steps.length - 1) return;
     // New step starts with a fresh in-step timer/progress (dot-jump semantics).
     progressRef.current = 0;
@@ -297,7 +354,11 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       setActiveStepId(steps[next]?.id ?? null);
       return next;
     });
-  }, [steps, currentIdx]);
+  }, [steps, currentIdx, markDone]);
+
+  const goNextRef = useRef(goNext);
+  // eslint-disable-next-line react-hooks/refs
+  goNextRef.current = goNext;
 
   const goPrev = useCallback(() => {
     if (steps.length === 0) return;
@@ -346,6 +407,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     progressRef.current = 0;
+    voiceHeldRef.current = false;
     // Reset display progress at step start (also for zero/unlimited durations).
     setProgress(0);
 
@@ -367,6 +429,11 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           currentStep.id &&
           !answeredStepsRef.current.has(currentStep.id)
         ) {
+          return;
+        }
+        // Read-aloud: the step lasts until the voice finishes too.
+        if (speakingRef.current) {
+          voiceHeldRef.current = true;
           return;
         }
         if (currentStep) emitRef.current('complete', currentStep.id);
@@ -456,6 +523,23 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Remember the learner's place; skipped while the resume question is open.
+  useEffect(() => {
+    if (!v2Playback || resumeOffer) return;
+    writeResume({
+      id: set.id,
+      idx: currentIdx,
+      mode: playback,
+      updatedAt: Date.now(),
+    });
+  }, [v2Playback, resumeOffer, set.id, currentIdx, playback]);
+
+  const resumeAt = (idx: number, next: PlaybackMode) => {
+    dismissResume();
+    setPlayback(next);
+    jumpTo(Math.min(Math.max(idx, 0), steps.length - 1));
+  };
+
   const handlePinClick = (step: GuidedLearningPublicStep) => {
     if (mode === 'explore') {
       setExploreImageIndex(step.imageIndex ?? 0);
@@ -477,6 +561,46 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     steps.length > 0
       ? Math.min((currentIdx + Math.min(progress, 1)) / steps.length, 1)
       : 0;
+
+  const readAloudToggle = (
+    <button
+      type="button"
+      aria-pressed={readAloud}
+      aria-label={t('glPlayer.readAloud')}
+      title={t('glPlayer.readAloud')}
+      onClick={() => setReadAloud((v) => !v)}
+      className={`flex items-center justify-center rounded-full border transition-colors flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 ${
+        readAloud
+          ? 'bg-white text-slate-900 border-white'
+          : 'bg-white/10 text-slate-200 border-white/15 hover:bg-white/20'
+      }`}
+      style={{ width: 'min(36px, 5.5cqmin)', height: 'min(36px, 5.5cqmin)' }}
+    >
+      {readAloud ? (
+        <Volume2
+          aria-hidden="true"
+          style={{ width: 'min(18px, 3cqmin)', height: 'min(18px, 3cqmin)' }}
+        />
+      ) : (
+        <VolumeX
+          aria-hidden="true"
+          style={{ width: 'min(18px, 3cqmin)', height: 'min(18px, 3cqmin)' }}
+        />
+      )}
+    </button>
+  );
+
+  // Screen-reader announcement of the step now on screen.
+  const announcedStep = mode === 'explore' ? activeStep : currentStep;
+  const announcedIdx = announcedStep ? steps.indexOf(announcedStep) : -1;
+  const liveText =
+    playerV2 && announcedStep && !watchGlide
+      ? t('glPlayer.live', {
+          current: announcedIdx + 1,
+          total: steps.length,
+          text: spokenStepText(announcedStep),
+        })
+      : '';
 
   const footerKind: 'structured' | 'guided' = v2Playback
     ? isWatch
@@ -607,7 +731,18 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
             isTry && currentTargeted ? handleTargetClick : undefined
           }
           misclickCount={stepRun.misclicks}
+          accessibleOverlays={playerV2}
         />
+        {resumeOffer && (
+          <ResumePrompt
+            stepNumber={resumeOffer.idx + 1}
+            onResume={() => resumeAt(resumeOffer.idx, resumeOffer.mode)}
+            onStartOver={dismissResume}
+          />
+        )}
+        <div aria-live="polite" className="sr-only" data-testid="gl-live">
+          {liveText}
+        </div>
       </div>
 
       {/* Bottom nav footer — structured and guided modes only; v2 follows Watch/Try */}
@@ -687,13 +822,25 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                   ))}
                 </div>
               )}
+              {readAloudAvailable && readAloudToggle}
               {playerV2 && <SpeedControl speed={speed} onChange={setSpeed} />}
-              <span
-                className="text-slate-300 font-bold tabular-nums"
-                style={{ fontSize: 'min(12px, 3.2cqmin)' }}
-              >
-                {currentIdx + 1} / {steps.length}
-              </span>
+              {v2Playback ? (
+                <StepOutline
+                  steps={steps}
+                  currentIdx={currentIdx}
+                  doneIds={doneIds}
+                  showSlides={set.imageUrls.length > 1}
+                  canJump={(i) => !isTry || i <= currentIdx}
+                  onJump={jumpTo}
+                />
+              ) : (
+                <span
+                  className="text-slate-300 font-bold tabular-nums"
+                  style={{ fontSize: 'min(12px, 3.2cqmin)' }}
+                >
+                  {currentIdx + 1} / {steps.length}
+                </span>
+              )}
               <button
                 onClick={goNext}
                 disabled={currentIdx === steps.length - 1}
@@ -779,13 +926,25 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                   />
                 </div>
               )}
+              {readAloudAvailable && readAloudToggle}
               {playerV2 && <SpeedControl speed={speed} onChange={setSpeed} />}
-              <span
-                className="text-slate-300 font-bold tabular-nums"
-                style={{ fontSize: 'min(12px, 3.2cqmin)' }}
-              >
-                {currentIdx + 1} / {steps.length}
-              </span>
+              {v2Playback ? (
+                <StepOutline
+                  steps={steps}
+                  currentIdx={currentIdx}
+                  doneIds={doneIds}
+                  showSlides={set.imageUrls.length > 1}
+                  canJump={(i) => !isTry || i <= currentIdx}
+                  onJump={jumpTo}
+                />
+              ) : (
+                <span
+                  className="text-slate-300 font-bold tabular-nums"
+                  style={{ fontSize: 'min(12px, 3.2cqmin)' }}
+                >
+                  {currentIdx + 1} / {steps.length}
+                </span>
+              )}
               <button
                 onClick={goNext}
                 disabled={currentIdx === steps.length - 1}

@@ -4049,5 +4049,31 @@
       "available": "{{teacher}} updated these boards.",
       "reload": "Reload"
     }
+  },
+  "glPlayer": {
+    "watch": "Watch",
+    "tryIt": "Try it",
+    "watchHint": "Watch each step played for you",
+    "tryHint": "Click each step yourself",
+    "playbackMode": "Playback mode",
+    "playbackSpeed": "Playback speed",
+    "speedOption": "{{speed}} speed",
+    "position": "Walkthrough position",
+    "positionValue": "Step {{current}} of {{total}}",
+    "outline": {
+      "open": "Step {{current}} of {{total}}, show all steps",
+      "title": "Steps",
+      "slide": "Slide {{n}}",
+      "step": "Step {{n}}",
+      "done": "Done",
+      "current": "Current step"
+    },
+    "resume": {
+      "question": "Resume at step {{n}}?",
+      "resume": "Resume",
+      "startOver": "Start over"
+    },
+    "live": "Step {{current}} of {{total}}: {{text}}",
+    "readAloud": "Read aloud"
   }
 }
