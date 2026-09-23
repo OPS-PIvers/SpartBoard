@@ -12,6 +12,7 @@ import {
   useEffect,
   useCallback,
   useRef,
+  useMemo,
   MutableRefObject,
 } from 'react';
 import {
@@ -67,6 +68,16 @@ import {
 // Re-export for backward compatibility with callers that imported
 // QuizSessionOptions from this module before it was moved into types.ts.
 import { normalizeQuizSession } from '@/utils/quizQuestionNormalize';
+import {
+  mergeQuizSessionContent,
+  type QuizSessionContent,
+} from '@/utils/quizSessionContent';
+import {
+  hasPeriodAccess,
+  nextScheduledOpen,
+  pickPeriodKey,
+  studentPeriodKeys,
+} from '@/utils/periodAccess';
 import { isInvalidWordRange } from '@/utils/wordLimit';
 export type { QuizSessionOptions } from '@/types';
 
@@ -876,6 +887,11 @@ function getErrorCode(err: unknown): string | undefined {
 // Always re-throws so callers' control flow is unchanged. Type is `never`
 // so TS narrows correctly when used in `catch` blocks that don't want a
 // dangling promise return path.
+/** `seats/{uid}` points the content rule at the caller's response (anonymous keys aren't the uid). */
+function seatRef(sessionId: string, uid: string) {
+  return doc(db, QUIZ_SESSIONS_COLLECTION, sessionId, 'seats', uid);
+}
+
 function logQuizJoinFirestoreError(
   op: string,
   err: unknown,
@@ -1777,6 +1793,10 @@ export interface UseQuizSessionStudentResult {
   /** Persist this attempt's bank draw on the response doc (rules require `ids.length === session.totalQuestions`). */
   persistServedDraw: (ids: string[]) => Promise<void>;
   warningCount: number;
+  /** The student's periods on a per-period session (empty otherwise), for `studentCanEnter`. */
+  periodKeys: string[];
+  /** True while a per-period session's questions are hidden or still loading. */
+  contentPending: boolean;
 }
 
 export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
@@ -1867,6 +1887,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
 
   // Session listener — only subscribes once sessionId is known
   const [sessionIdState, setSessionIdState] = useState<string | null>(null);
+  const [periodKeys, setPeriodKeys] = useState<string[]>([]);
 
   useEffect(() => {
     if (!sessionIdState) return;
@@ -1945,6 +1966,56 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       }
     );
   }, [sessionIdState, responseKeyState]);
+
+  // Per-period sessions keep their questions in content/questions, readable
+  // once the student's period is open. A denied read retries whenever the
+  // gate fields change or a scheduled open arrives.
+  const [content, setContent] = useState<QuizSessionContent | null>(null);
+  const [contentRetry, setContentRetry] = useState(0);
+  const inContent = session?.questionsInContent === true;
+  const gateSignature = inContent
+    ? JSON.stringify([
+        periodKeys.map((k) => session?.periodAccess?.[k] ?? null),
+        auth.currentUser
+          ? (session?.studentAccess?.[auth.currentUser.uid] ?? null)
+          : null,
+      ])
+    : '';
+  useEffect(() => {
+    if (!inContent || !session) return;
+    const nextOpen = nextScheduledOpen(session, periodKeys, Date.now());
+    if (nextOpen == null) return;
+    const id = setTimeout(
+      () => setContentRetry((n) => n + 1),
+      Math.max(0, nextOpen - Date.now()) + 1000
+    );
+    return () => clearTimeout(id);
+  }, [inContent, session, periodKeys]);
+  useEffect(() => {
+    if (!inContent || !sessionIdState || !responseKeyState) return;
+    return onSnapshot(
+      doc(db, QUIZ_SESSIONS_COLLECTION, sessionIdState, 'content', 'questions'),
+      (snap) => {
+        if (snap.exists()) setContent(snap.data() as QuizSessionContent);
+      },
+      (err) => {
+        if ((err as { code?: string }).code !== 'permission-denied') {
+          console.error('[useQuizSessionStudent] content listener error:', err);
+        }
+      }
+    );
+    // gateSignature and contentRetry re-run a denied read.
+  }, [
+    inContent,
+    sessionIdState,
+    responseKeyState,
+    gateSignature,
+    contentRetry,
+  ]);
+  const mergedSession = useMemo(
+    () => mergeQuizSessionContent(session, content),
+    [session, content]
+  );
 
   const lookupSession = useCallback(
     async (
@@ -2401,6 +2472,47 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           throw new AttemptLimitReachedError();
         }
 
+        // Per-period sessions: the join names one of the student's periods,
+        // an open one first, and seats the caller so the content rule can
+        // find their response.
+        let periodKey: string | null = null;
+        if (hasPeriodAccess(sessionData)) {
+          if (isAnonymous && sessionData.accessMode === 'assessment') {
+            throw new Error(
+              'This quiz needs your school sign-in. Ask your teacher to help you join.'
+            );
+          }
+          const existingClassId = existingSnap?.exists()
+            ? (existingSnap.data() as QuizResponse).classId
+            : undefined;
+          let keys: string[] = [];
+          if (existingClassId && existingClassId in sessionData.periodAccess) {
+            keys = [existingClassId];
+          } else {
+            let claims: string[] = [];
+            if (!isAnonymous) {
+              const tokenResult = await currentUser
+                .getIdTokenResult()
+                .catch(() => null);
+              const raw = tokenResult?.claims?.classIds;
+              if (Array.isArray(raw)) {
+                claims = raw.filter((c): c is string => typeof c === 'string');
+              }
+            }
+            keys = studentPeriodKeys(sessionData, claims, classPeriod);
+          }
+          periodKey = pickPeriodKey(sessionData, keys, Date.now());
+          if (!periodKey) {
+            throw new Error(
+              "You're not in a class this quiz was assigned to. Ask your teacher."
+            );
+          }
+          setPeriodKeys(keys);
+        } else {
+          setPeriodKeys([]);
+        }
+        setContent(null);
+
         setSessionIdState(sessionDoc.id);
         setResponseKeyState(responseKey);
 
@@ -2428,7 +2540,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // map shapes (Firestore type drift); the teacher-side enrichment
         // in QuizResults remains as the legacy fallback.
         let resolvedPeriodName: string | undefined;
-        if (!isAnonymous && !classPeriod) {
+        if (periodKey) {
+          resolvedClassId = periodKey;
+          resolvedPeriodName = sessionData.periodAccess?.[periodKey]?.label;
+        } else if (!isAnonymous && !classPeriod) {
           try {
             const tokenResult = await currentUser.getIdTokenResult();
             const claimClassIds = tokenResult.claims?.classIds;
@@ -2520,7 +2635,13 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             ...(finalClassPeriod ? { classPeriod: finalClassPeriod } : {}),
             ...(resolvedClassId ? { classId: resolvedClassId } : {}),
           };
-          await setDoc(responseRef, newResponse).catch((err: unknown) =>
+          const created = periodKey
+            ? writeBatch(db)
+                .set(responseRef, newResponse)
+                .set(seatRef(sessionDoc.id, studentUid), { responseKey })
+                .commit()
+            : setDoc(responseRef, newResponse);
+          await created.catch((err: unknown) =>
             logQuizJoinFirestoreError('create-response', err, {
               sessionId: sessionDoc.id,
               responseKey,
@@ -2577,6 +2698,21 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           }
         }
 
+        if (periodKey && existingSnap?.exists()) {
+          await setDoc(seatRef(sessionDoc.id, studentUid), {
+            responseKey,
+          }).catch((err: unknown) =>
+            logQuizJoinFirestoreError('seat', err, {
+              sessionId: sessionDoc.id,
+              responseKey,
+              studentUid,
+              isAnonymous,
+            })
+          );
+        }
+
+        // The first content read can race the seat write; retry once seated.
+        if (periodKey) setContentRetry((n) => n + 1);
         setSession(normalizeQuizSession(sessionData));
         return sessionDoc.id;
       } catch (err) {
@@ -3430,7 +3566,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   );
 
   return {
-    session,
+    session: mergedSession,
     myResponse,
     loading,
     error,
@@ -3451,5 +3587,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     setServedQuestionIds,
     persistServedDraw,
     warningCount,
+    periodKeys,
+    contentPending: inContent && !content,
   };
 };
