@@ -209,6 +209,12 @@ describe('validateGlSet callouts, narration and tours', () => {
 });
 
 describe('readTourAnchorIds', () => {
+  it('reads the real registry in config/tourAnchors.ts', () => {
+    const ids = readTourAnchorIds(join(process.cwd(), 'config/tourAnchors.ts'));
+    expect(ids?.has('dock.open-tools')).toBe(true);
+    expect(ids?.has('widget.settings-opener')).toBe(true);
+  });
+
   it('returns null without a registry and the keys of TOUR_ANCHORS with one', () => {
     const dir = mkdtempSync(join(tmpdir(), 'gl-anchors-'));
     expect(readTourAnchorIds(join(dir, 'missing.ts'))).toBeNull();

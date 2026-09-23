@@ -147,6 +147,85 @@ describe('validateGuidedLearningImport', () => {
   });
 });
 
+describe('v3 region and callout checks', () => {
+  const withStep = (over: Partial<GuidedLearningSet['steps'][0]>) => {
+    const set = makeSet({ schemaVersion: 3 });
+    set.steps[0] = { ...set.steps[0], ...over };
+    return validateGuidedLearningImport(set);
+  };
+
+  it('accepts a rect, an ellipse and a matching polygon', () => {
+    expect(
+      withStep({ region: { shape: 'rect', wPct: 10, hPct: 6, cornerPct: 20 } })
+        .ok
+    ).toBe(true);
+    expect(
+      withStep({ region: { shape: 'ellipse', wPct: 100, hPct: 100 } }).ok
+    ).toBe(true);
+    expect(
+      withStep({
+        xPct: 30,
+        yPct: 25,
+        region: {
+          shape: 'polygon',
+          wPct: 20,
+          hPct: 10,
+          points: [
+            { x: 20, y: 20 },
+            { x: 40, y: 20 },
+            { x: 30, y: 30 },
+          ],
+        },
+        calloutPin: { xPct: 0, yPct: 100 },
+      }).ok
+    ).toBe(true);
+  });
+
+  it('rejects a region outside the image, a bad size, shape or corner', () => {
+    for (const region of [
+      { shape: 'rect', wPct: 120, hPct: 5 },
+      { shape: 'rect', wPct: 0, hPct: 5 },
+      { shape: 'star', wPct: 5, hPct: 5 },
+      { shape: 'rect', wPct: 5, hPct: 5, cornerPct: 60 },
+    ]) {
+      const result = withStep({
+        region: region as GuidedLearningSet['steps'][0]['region'],
+      });
+      expect(result.ok).toBe(false);
+      expect(result.errors.join(' ')).toMatch(/outside the image/);
+    }
+    expect(
+      withStep({ xPct: 97, region: { shape: 'rect', wPct: 10, hPct: 5 } }).ok
+    ).toBe(false);
+  });
+
+  it('rejects a polygon whose points disagree with its box or leave the image', () => {
+    const tri = (y3: number) => [
+      { x: 20, y: 20 },
+      { x: 40, y: 20 },
+      { x: 30, y: y3 },
+    ];
+    expect(
+      withStep({
+        xPct: 60,
+        yPct: 25,
+        region: { shape: 'polygon', wPct: 20, hPct: 10, points: tri(30) },
+      }).ok
+    ).toBe(false);
+    expect(
+      withStep({
+        xPct: 30,
+        yPct: 25,
+        region: { shape: 'polygon', wPct: 20, hPct: 10, points: tri(130) },
+      }).ok
+    ).toBe(false);
+  });
+
+  it('rejects a callout pin off the image', () => {
+    expect(withStep({ calloutPin: { xPct: -1, yPct: 5 } }).ok).toBe(false);
+  });
+});
+
 describe('createGuidedLearningImportAdapter', () => {
   it('declares json source with paste support and routes save/preview to deps', async () => {
     const save = vi.fn().mockResolvedValue(undefined);
