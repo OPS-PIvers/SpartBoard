@@ -7154,6 +7154,8 @@ export interface GuidedLearningSet {
   updatedAt: number;
   /** Admin-created building-level sets stored in Firestore, not Drive */
   isBuilding?: boolean;
+  /** Building set owned by the Help Center: edited in Admin Settings, hidden from the library. */
+  helpCenter?: boolean;
   authorUid?: string;
   /**
    * Hotspot pulse animation for the player. Default `'consistent'` (matches

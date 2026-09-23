@@ -429,6 +429,7 @@ export function useSetDraftPersistence({
       createdAt: set.createdAt,
       updatedAt: now,
       isBuilding: set.isBuilding,
+      ...(set.helpCenter ? { helpCenter: true } : {}),
       authorUid: set.authorUid,
       // Only persist a hotspotPulse value when it differs from the default
       // ('consistent') — keeps untouched legacy sets clean of new fields.

@@ -24,6 +24,7 @@ interface HelpItemFormProps {
   isOpen: boolean;
   editing: HelpResourceItem | null;
   categories: HelpCategory[];
+  helpCenterSetIds: ReadonlySet<string>;
   onClose: () => void;
   onSave: (draft: HelpItemDraft) => Promise<void>;
 }
@@ -56,6 +57,7 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
   isOpen,
   editing,
   categories,
+  helpCenterSetIds,
   onClose,
   onSave,
 }) => {
@@ -66,6 +68,8 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
   const relatedWidgetsLabelId = useId();
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // While the activity editor is open, Escape and backdrop clicks belong to it.
+  const [editorOpen, setEditorOpen] = useState(false);
 
   const url = draft.url ?? '';
   const urlValid = url.length > 0 && isAllowedHelpUrl(url);
@@ -115,7 +119,7 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={editorOpen ? () => undefined : onClose}
       title={editing ? 'Edit help item' : 'Add help item'}
       maxWidth="max-w-3xl"
       className="max-h-[88vh]"
@@ -220,8 +224,17 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
         ) : (
           <GuidedLearningPicker
             selectedSetId={draft.setId}
-            onSelect={(setId) => patch({ setId })}
+            helpCenterSetIds={helpCenterSetIds}
+            newTitle={draft.title}
+            onSelect={(setId, title) =>
+              setDraft((prev) => ({
+                ...prev,
+                setId,
+                title: prev.title.trim() ? prev.title : title,
+              }))
+            }
             onError={setError}
+            onEditingChange={setEditorOpen}
           />
         )}
 

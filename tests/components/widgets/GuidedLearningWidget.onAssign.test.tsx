@@ -26,6 +26,10 @@ import type {
   ClassRoster,
 } from '@/types';
 
+vi.mock('@/hooks/useHelpResources', () => ({
+  useSharedHelpItems: () => [],
+}));
+
 vi.mock('@/config/firebase', () => ({
   db: { __mock: 'db' },
   functions: { __mock: 'functions' },
