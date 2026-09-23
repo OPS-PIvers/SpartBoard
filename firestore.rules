@@ -4167,12 +4167,19 @@ service cloud.firestore {
     }
 
     // Help resources — admin-curated guides. orgId == null means global (super
-    // admin only); an org-scoped item is written by that org's admins and read
-    // by its members. Teachers may only bump openCount, by exactly one.
+    // admin only); an org-scoped item is written by that org's admins, or by a
+    // real super admin for any org, and read by its members (also any super
+    // admin). Teachers may only bump openCount, by exactly one.
     match /help_resources/{itemId} {
+      // isSuperAdmin() is also a fallback on the org-scoped branch (not just
+      // the global one): without it, a real super admin could read any org's
+      // item via helpReaderOk() below but not write/delete one outside their
+      // own org membership — the same read/write asymmetry already fixed in
+      // announcements (announcementWriteScopeOk(), #3248) and matching this
+      // function's own reader counterpart, helpReaderOk().
       function helpScopeOk(d) {
         return (d.orgId == null && isSuperAdmin())
-          || (d.orgId is string && isOrgMember(d.orgId));
+          || (d.orgId is string && (isOrgMember(d.orgId) || isSuperAdmin()));
       }
       function helpShapeOk(d) {
         return d.id == itemId

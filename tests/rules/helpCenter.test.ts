@@ -220,6 +220,16 @@ describe('help_resources — create', () => {
     );
   });
 
+  // Same helpScopeOk() fallback this PR added also widens create, not just update/delete — a super admin can now create an item in an org they don't belong to.
+  it('a super admin can create an item scoped to an org they are not a member of', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asSuper(), 'help_resources/org-b-create'),
+        validItem('org-b-create', { orgId: ORG_B })
+      )
+    );
+  });
+
   it('an org admin cannot create an item scoped to another org', async () => {
     await assertFails(
       setDoc(
@@ -371,6 +381,26 @@ describe('help_resources — update', () => {
     );
   });
 
+  // Regression: helpScopeOk()'s org-scoped branch had no isSuperAdmin() fallback, so a super admin could read but not write another org's item.
+  it("a super admin (not a member of that org) CAN edit another org's item", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), 'help_resources/org-b-1'),
+        validItem('org-b-1', {
+          orgId: ORG_B,
+          createdBy: TEACHER_B_UID,
+          createdByEmail: TEACHER_B_EMAIL,
+        })
+      );
+    });
+    await assertSucceeds(
+      updateDoc(doc(asSuper(), 'help_resources/org-b-1'), {
+        title: 'Super admin edit',
+        updatedAt: 2000,
+      })
+    );
+  });
+
   it('an admin cannot change orgId', async () => {
     await assertFails(
       updateDoc(doc(asOrgAdmin(), 'help_resources/org-a-1'), {
@@ -473,5 +503,16 @@ describe('help_resources — delete', () => {
 
   it('a teacher cannot delete items', async () => {
     await assertFails(deleteDoc(doc(asTeacher(), 'help_resources/org-a-1')));
+  });
+
+  // Same regression as the update describe block above, for delete.
+  it("a super admin (not a member of that org) CAN delete another org's item", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), 'help_resources/org-b-1'),
+        validItem('org-b-1', { orgId: ORG_B })
+      );
+    });
+    await assertSucceeds(deleteDoc(doc(asSuper(), 'help_resources/org-b-1')));
   });
 });
