@@ -180,7 +180,7 @@ function parseWallPosts(body: unknown): ActivityWallSubmission[] {
   const posts: ActivityWallSubmission[] = [];
   for (const raw of body as ActivityWallSubmission[]) {
     if (typeof raw !== 'object' || raw === null) continue;
-    if (raw.status === 'pending') continue;
+    if (raw.status !== 'approved') continue;
     posts.push({
       id: raw.id,
       content: raw.content,

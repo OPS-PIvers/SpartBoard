@@ -418,17 +418,20 @@ describe('withSubShareWallPosts', () => {
     expect(bundled).toEqual(post());
   });
 
-  it('leaves a pending post behind', async () => {
-    const board = wallBoard('b1', 'wall-1');
+  it.each(['pending', 'rejected'])(
+    'leaves a %s post behind',
+    async (status) => {
+      const board = wallBoard('b1', 'wall-1');
 
-    const { names } = await withSubShareWallPosts(
-      extractSubShareNames([board]),
-      [board],
-      () => Promise.resolve([post({ id: 'p2', status: 'pending' })])
-    );
+      const { names } = await withSubShareWallPosts(
+        extractSubShareNames([board]),
+        [board],
+        () => Promise.resolve([post({ id: 'p2', status })])
+      );
 
-    expect(names.boards).toEqual({});
-  });
+      expect(names.boards).toEqual({});
+    }
+  );
 
   it('reads nothing for a widget with no wall open', async () => {
     const board = wallBoard('b1', null);
