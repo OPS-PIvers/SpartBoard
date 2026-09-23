@@ -796,9 +796,15 @@ export function buildResponseGradingContext(
   quizData: QuizData,
   assignmentData: Record<string, unknown> | undefined
 ): ResponseGradingContext {
-  // Canonical questions (from Drive) carry the full `correctAnswer`.
+  // Canonical questions (from Drive) carry the full `correctAnswer`. Dedupe
+  // first-wins (matching session creation and quizMaxPoints) before indexing
+  // — a raw `new Map(questions.map(...))` keeps the LAST duplicate, which can
+  // carry a different `correctAnswer`/`points` than the version the student
+  // was actually served, silently grading against the wrong question (#3249
+  // was the identical first-vs-last divergence in the Classroom push path).
   const questionsById = new Map<string, QuizQuestion>();
-  for (const q of quizData.questions) questionsById.set(q.id, q);
+  for (const q of dedupeQuestionsById(quizData.questions))
+    questionsById.set(q.id, q);
   return {
     questionsById,
     overridesByStudentUid: (assignmentData?.overridesByStudentUid ??

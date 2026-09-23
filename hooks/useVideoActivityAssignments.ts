@@ -56,7 +56,10 @@ import type {
   VideoActivityScoreVisibility,
   VideoActivitySession,
 } from '@/types';
-import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
+import {
+  gradeVideoActivityAnswer,
+  dedupeQuestionsById,
+} from '@/utils/videoActivityGrading';
 import {
   splitVideoActivitySessionQuestions,
   VA_KEY_DOC_ID,
@@ -992,8 +995,13 @@ export const useVideoActivityAssignments = (
         assignmentId
       );
 
+      // Dedupe first-wins before indexing — a raw `new Map(questions.map(...))`
+      // keeps the LAST duplicate, which can carry a different
+      // `correctAnswer`/`points` than the version the student was actually
+      // served, silently grading against the wrong question (mirrors the
+      // identical fix in useQuizAssignments.buildResponseGradingContext).
       const questionsById = new Map(
-        activityData.questions.map((q) => [q.id, q])
+        dedupeQuestionsById(activityData.questions).map((q) => [q.id, q])
       );
 
       // Read responses in bounded pages (limit + documentId cursor) rather
