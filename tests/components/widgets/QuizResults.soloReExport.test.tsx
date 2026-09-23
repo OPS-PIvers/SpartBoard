@@ -27,6 +27,7 @@ const { ensureGoogleScopeMock } = vi.hoisted(() => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     canAccessQuizMediaResponse: () => false,
+    canAccessFeature: () => false,
     refreshGoogleToken: () => Promise.resolve(null),
     googleAccessToken: 'token-1',
     // Path B: export handlers acquire the Drive scope on demand.

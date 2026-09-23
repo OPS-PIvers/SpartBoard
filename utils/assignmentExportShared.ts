@@ -19,11 +19,13 @@ import type {
   QuizQuestion,
   QuizResponseAnswer,
   Rubric,
+  TabExit,
   UnrespondedReason,
   WrittenAnswerRubricScore,
 } from '@/types';
 import { resolvePinName } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { logError } from '@/utils/logError';
+import { formatTabAwayTotal } from '@/utils/tabExits';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 
 /**
@@ -58,6 +60,7 @@ export interface ExportableResponse {
    */
   submittedAt: number | null;
   tabSwitchWarnings?: number;
+  tabExits?: TabExit[];
   /** Per-question manual grades; read for rubric score export columns. */
   grading?: {
     [questionId: string]: {
@@ -91,6 +94,8 @@ export interface BuildResultsSheetDataOptions<
   teacherName?: string;
   /** When present, adds a "Qn Answer" column after each points column. */
   formatAnswer?: (question: Q, answer: R['answers'][number]) => string;
+  /** Adds "Time Away" after "Warnings". Solo sheets only: PLC sheets are read by column position. */
+  timeAway?: boolean;
 }
 
 /** Sheets rejects any cell over 50,000 characters. */
@@ -236,6 +241,7 @@ export function buildResultsSheetData<
     'Points Earned',
     'Max Points',
     'Warnings',
+    ...(options?.timeAway ? ['Time Away'] : []),
     'Submitted At',
     ...questions.flatMap((q, i) => {
       const cols = [
@@ -328,6 +334,7 @@ export function buildResultsSheetData<
       formatExportPoints(earnedPoints),
       String(rowMax),
       warnings,
+      ...(options?.timeAway ? [formatTabAwayTotal(r.tabExits)] : []),
       submitted,
       ...answerCols,
     ];

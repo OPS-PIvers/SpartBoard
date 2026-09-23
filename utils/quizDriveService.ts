@@ -829,6 +829,8 @@ export class QuizDriveService {
       ) => import('@/types').GradeResult;
       /** Translated FIB answer keys + served-locale overrides (quiz only). */
       fibGrading?: FibGradingContext | null;
+      /** "Time Away" column; ignored in PLC mode, whose sheets are read by column position. */
+      timeAway?: boolean;
     }
   ): Promise<string> {
     // Quiz's grader threads per-response manual grades through for
@@ -842,14 +844,17 @@ export class QuizDriveService {
         : quizGradeFnWithManualGrades);
     // A caller-supplied grader (Video Activity) keeps its points-only layout.
     const includeAnswerText = !options?.gradeFn;
+    const rowOptions = options?.plcMode
+      ? { ...options, timeAway: false }
+      : options;
     const buildRows = (withAnswers: boolean) =>
       buildResultsSheetDataShared<QuizQuestion, QuizResponse>(
         responses,
         questions,
         gradeFn,
         withAnswers
-          ? { ...options, formatAnswer: formatQuizAnswerText }
-          : options
+          ? { ...rowOptions, formatAnswer: formatQuizAnswerText }
+          : rowOptions
       );
     const { headers, dataRows } = buildRows(includeAnswerText);
 

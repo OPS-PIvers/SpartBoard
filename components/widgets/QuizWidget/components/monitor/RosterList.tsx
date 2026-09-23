@@ -10,6 +10,10 @@ import {
 } from 'lucide-react';
 import { QuizSession, QuizConfig, StudentOverride } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import {
+  AwayNowChip,
+  TabExitsPopover,
+} from '@/components/common/TabExitsPopover';
 import { MonitorStudent } from './useMonitorData';
 import { BucketKey } from './StatusBuckets';
 import {
@@ -483,24 +487,40 @@ export const RosterList: React.FC<RosterListProps> = ({
                   }}
                 />
               )}
+              {showTabs && (
+                <AwayNowChip
+                  exits={r.tabExits}
+                  completed={r.status === 'completed'}
+                  sessionActive={session.status === 'active'}
+                  style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+                />
+              )}
               {showTabs && s.tabWarnings > 0 && (
-                <span
-                  className="inline-flex items-center text-brand-red-primary font-sans font-semibold tabular-nums"
-                  title={`${s.tabWarnings} tab-switch warning${s.tabWarnings === 1 ? '' : 's'}`}
-                  style={{
-                    gap: 'min(2px, 0.5cqmin)',
-                    fontSize: 'min(11px, 3.8cqmin)',
-                  }}
+                <TabExitsPopover
+                  exits={r.tabExits}
+                  warnings={s.tabWarnings}
+                  studentName={s.name}
+                  completed={r.status === 'completed'}
+                  sessionEnded={session.status === 'ended'}
                 >
-                  <AlertTriangle
-                    aria-hidden
+                  <span
+                    className="inline-flex items-center text-brand-red-primary font-sans font-semibold tabular-nums"
+                    title={`${s.tabWarnings} tab-switch warning${s.tabWarnings === 1 ? '' : 's'}`}
                     style={{
-                      width: 'min(12px, 4cqmin)',
-                      height: 'min(12px, 4cqmin)',
+                      gap: 'min(2px, 0.5cqmin)',
+                      fontSize: 'min(11px, 3.8cqmin)',
                     }}
-                  />
-                  {s.tabWarnings}
-                </span>
+                  >
+                    <AlertTriangle
+                      aria-hidden
+                      style={{
+                        width: 'min(12px, 4cqmin)',
+                        height: 'min(12px, 4cqmin)',
+                      }}
+                    />
+                    {s.tabWarnings}
+                  </span>
+                </TabExitsPopover>
               )}
               {locked && (
                 <Lock
