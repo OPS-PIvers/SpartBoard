@@ -63,6 +63,8 @@ import { useSubShareActivityWall } from './useSubShareActivityWall';
 import { useLegacyActivityWallMigration } from './hooks/useLegacyActivityWallMigration';
 
 /** Name stamped on teacher posts; falls back to the email handle. */
+const EMPTY_POSTS: ActivityWallSubmission[] = [];
+
 const teacherLabel = (displayName: string | null, email: string | null) => {
   const name = displayName?.trim();
   if (name) return name;
@@ -187,10 +189,15 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     saveActivity
   );
   const session = inShare ? shared.session : ownSession;
+  // In a share the posts came along in the share's names file, which only the
+  // named substitutes can read; the teacher's own session is unreadable here.
+  const shownSubmissions = inShare
+    ? (config.subSharePosts ?? EMPTY_POSTS)
+    : submissions;
 
   const isOpenWall = activeEntry?.acceptingResponses !== false;
   const isVisibleWall = activeEntry?.studentsCanSeePosts !== false;
-  const visibleCount = visibleSubmissions(submissions, 'widget').length;
+  const visibleCount = visibleSubmissions(shownSubmissions, 'widget').length;
 
   const studentUrl = useMemo(() => {
     if (!sessionId || !activeEntry) return '';
@@ -664,13 +671,13 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         }
       />
     )
-  ) : inShare ? (
+  ) : inShare && visibleCount === 0 ? (
     <ScaledEmptyState
       icon={LayoutGrid}
-      title="No posts here"
-      subtitle="The posts on this wall are the students’ own and stay in your teacher’s account."
+      title="No posts"
+      subtitle="This wall had no approved posts when your teacher shared it."
     />
-  ) : visibleCount === 0 ? (
+  ) : !inShare && visibleCount === 0 ? (
     <ScaledEmptyState
       icon={LayoutGrid}
       title={
@@ -706,18 +713,20 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       <div className={`h-full w-full ${fontClass}`}>
         <LayoutRouter
           session={session}
-          submissions={submissions}
+          submissions={shownSubmissions}
           mode="widget"
           showNames={activeEntry.showNames ?? false}
           imageSize={imageSize}
           cardStyle={cardStyle}
-          onApprove={(id) => void approve(id)}
-          onReject={(id) => void reject(id)}
-          onDelete={(id) => void deletePost(id)}
-          onPin={(id, pinned) => void pinPost(id, pinned)}
-          onMove={(id, patch) => void movePost(id, patch)}
-          onEdit={openTeacherEdit}
-          onAddAt={isActiveBoardReadOnly ? undefined : openTeacherComposer}
+          onApprove={inShare ? undefined : (id) => void approve(id)}
+          onReject={inShare ? undefined : (id) => void reject(id)}
+          onDelete={inShare ? undefined : (id) => void deletePost(id)}
+          onPin={inShare ? undefined : (id, pinned) => void pinPost(id, pinned)}
+          onMove={inShare ? undefined : (id, patch) => void movePost(id, patch)}
+          onEdit={inShare ? undefined : openTeacherEdit}
+          onAddAt={
+            inShare || isActiveBoardReadOnly ? undefined : openTeacherComposer
+          }
         />
       </div>
     )

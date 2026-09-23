@@ -1979,6 +1979,8 @@ export interface ActivityWallGlobalConfig {
 }
 
 export interface ActivityWallConfig {
+  /** Set only inside a substitute share, from the share's names file. */
+  subSharePosts?: ActivityWallSubmission[];
   /**
    * @deprecated Activities now live in the per-user library collection
    * `/users/{userId}/activity_wall_activities/{activityId}` (see

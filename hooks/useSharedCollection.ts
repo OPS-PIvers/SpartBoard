@@ -39,6 +39,7 @@ import {
   extractSubShareNames,
   subShareNamesIsEmpty,
   withSubShareQueues,
+  withSubShareWallPosts,
   type SubShareNamesServices,
 } from '@/utils/subShareNames';
 import { GoogleCalendarService } from '@/utils/googleCalendarService';
@@ -327,13 +328,19 @@ async function collectSubShareNames(
   boards: Dashboard[],
   services: SubShareNamesServices | undefined
 ) {
-  const { names, unreadable } = await withSubShareQueues(
+  const queued = await withSubShareQueues(
     extractSubShareNames(boards),
     boards,
     services?.readQueue
   );
+  const walled = await withSubShareWallPosts(
+    queued.names,
+    boards,
+    services?.readWallPosts
+  );
+  const unreadable = [...queued.unreadable, ...walled.unreadable];
   if (unreadable.length > 0) services?.onIncomplete?.(unreadable);
-  return names;
+  return walled.names;
 }
 
 /** Union of two grant lists, keyed on the (email, file, permission) triple. */

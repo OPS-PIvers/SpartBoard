@@ -5,6 +5,7 @@ import {
   parseSubShareNames,
   subShareNamesIsEmpty,
   withSubShareQueues,
+  withSubShareWallPosts,
   writeSubShareNamesFile,
   type NamesFileDrive,
 } from '@/utils/subShareNames';
@@ -343,5 +344,135 @@ describe('driveQueueReader', () => {
     const read = driveQueueReader({ downloadFile } as never);
 
     expect(await read?.('queue-file')).toEqual([{ id: 'q1', name: 'Ada' }]);
+  });
+});
+
+// A wall post is a student's own words and name, so it travels in the names
+// file too, and only the wall's definition goes in the share's content.
+describe('withSubShareWallPosts', () => {
+  const wallBoard = (id: string, activityId: string | null): Dashboard =>
+    ({
+      id,
+      name: `Board ${id}`,
+      widgets: [
+        {
+          id: `${id}-wall`,
+          type: 'activity-wall',
+          config: { activeActivityId: activityId },
+        },
+      ],
+    }) as unknown as Dashboard;
+
+  const post = (overrides: Record<string, unknown> = {}) => ({
+    id: 'p1',
+    content: 'Ada was here',
+    submittedAt: 7,
+    status: 'approved',
+    participantLabel: 'Ada',
+    type: 'text',
+    ...overrides,
+  });
+
+  it('lays each wall’s posts over its own widget', async () => {
+    const board = wallBoard('b1', 'wall-1');
+    const readPosts = vi.fn().mockResolvedValue([post()]);
+
+    const { names, unreadable } = await withSubShareWallPosts(
+      extractSubShareNames([board]),
+      [board],
+      readPosts
+    );
+
+    expect(readPosts).toHaveBeenCalledWith('wall-1');
+    expect(names.boards.b1['b1-wall']).toEqual({ subSharePosts: [post()] });
+    expect(unreadable).toEqual([]);
+  });
+
+  it('copies only the fields the sub’s wall draws', async () => {
+    const board = wallBoard('b1', 'wall-1');
+
+    const { names } = await withSubShareWallPosts(
+      extractSubShareNames([board]),
+      [board],
+      () =>
+        Promise.resolve([
+          post({
+            authorUid: 'student-9',
+            isGuest: true,
+            driveFileId: 'file-1',
+            archiveError: 'nope',
+            attemptCount: 3,
+            editedAt: 99,
+          }),
+        ])
+    );
+
+    const bundled = (
+      names.boards.b1['b1-wall'] as { subSharePosts: Record<string, unknown>[] }
+    ).subSharePosts[0];
+    expect(bundled).toEqual(post());
+  });
+
+  it('leaves a pending post behind', async () => {
+    const board = wallBoard('b1', 'wall-1');
+
+    const { names } = await withSubShareWallPosts(
+      extractSubShareNames([board]),
+      [board],
+      () => Promise.resolve([post({ id: 'p2', status: 'pending' })])
+    );
+
+    expect(names.boards).toEqual({});
+  });
+
+  it('reads nothing for a widget with no wall open', async () => {
+    const board = wallBoard('b1', null);
+    const readPosts = vi.fn();
+
+    const { names, unreadable } = await withSubShareWallPosts(
+      extractSubShareNames([board]),
+      [board],
+      readPosts
+    );
+
+    expect(readPosts).not.toHaveBeenCalled();
+    expect(names.boards).toEqual({});
+    expect(unreadable).toEqual([]);
+  });
+
+  it('names the wall it could not read', async () => {
+    const board = wallBoard('b1', 'wall-1');
+
+    const { names, unreadable } = await withSubShareWallPosts(
+      extractSubShareNames([board]),
+      [board],
+      () => Promise.reject(new Error('404'))
+    );
+
+    expect(unreadable).toEqual(['Activity Wall on Board b1']);
+    expect(names.boards).toEqual({});
+  });
+
+  it('keeps the names already on the board beside the posts', async () => {
+    const board = {
+      ...wallBoard('b1', 'wall-1'),
+      widgets: [
+        {
+          id: 'b1-wall',
+          type: 'activity-wall',
+          config: { activeActivityId: 'wall-1' },
+        },
+        { id: 'b1-r', type: 'random', config: { firstNames: 'Cass' } },
+      ],
+    } as unknown as Dashboard;
+
+    const { names } = await withSubShareWallPosts(
+      extractSubShareNames([board]),
+      [board],
+      () => Promise.resolve([post()])
+    );
+
+    expect(names.boards.b1['b1-r']).toEqual({ firstNames: 'Cass' });
+    expect(names.boards.b1['b1-wall']).toEqual({ subSharePosts: [post()] });
   });
 });

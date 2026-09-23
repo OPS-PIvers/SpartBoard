@@ -95,6 +95,7 @@ import {
   grantedRosters,
   resolveSubShareDriveGrants,
 } from '@/utils/subShareDriveGrants';
+import { wallPostsReader } from '@/utils/subShareWallPosts';
 import {
   driveQueueReader,
   writeSubShareNamesFile,
@@ -4237,6 +4238,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             return write;
           },
           readQueue: driveQueueReader(driveService),
+          readWallPosts: wallPostsReader(user?.uid),
           onIncomplete: (labels) => {
             namesOutcome.unread = labels;
           },
@@ -4356,6 +4358,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             return write;
           },
           readQueue: driveQueueReader(driveService),
+          readWallPosts: wallPostsReader(user?.uid),
           onIncomplete: (labels) => {
             namesOutcome.unread = labels;
           },

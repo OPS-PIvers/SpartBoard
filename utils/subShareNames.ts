@@ -19,6 +19,8 @@ import {
 } from '@/utils/subShareDriveGrants';
 import { logError } from '@/utils/logError';
 import type {
+  ActivityWallConfig,
+  ActivityWallSubmission,
   Dashboard,
   NextUpConfig,
   NextUpQueueItem,
@@ -105,6 +107,109 @@ export async function withSubShareQueues(
     };
   }
   return { names: withQueues, unreadable: [...unreadable] };
+}
+
+/** Where a wall's bundled posts land in the widget's config. */
+const WALL_POSTS_OVERLAY_KEY = 'subSharePosts';
+
+/** Activity Wall widgets with a wall open, whose posts live under the teacher's session. */
+function openWallWidgets(board: Dashboard): WidgetData[] {
+  return (board.widgets ?? []).filter((widget) => {
+    if (widget.type !== 'activity-wall') return false;
+    const config = widget.config as ActivityWallConfig | undefined;
+    return Boolean(config?.activeActivityId);
+  });
+}
+
+/**
+ * Adds each open Activity Wall's approved posts to the names file. A post is a
+ * student's own words and name, so it goes here rather than into the share's
+ * `content/`, which carries the wall's definition alone.
+ *
+ * A wall whose posts cannot be read is named back to the caller and left out:
+ * the sub gets the wall with no posts on it, as they do today.
+ */
+export async function withSubShareWallPosts(
+  names: SubShareNamesFile,
+  boards: Dashboard[],
+  readPosts: ((activityId: string) => Promise<unknown>) | undefined
+): Promise<{ names: SubShareNamesFile; unreadable: string[] }> {
+  const unreadable = new Set<string>();
+  const withPosts: SubShareNamesFile = {
+    version: 1,
+    boards: { ...names.boards },
+  };
+  const reads = boards.flatMap((board) =>
+    openWallWidgets(board).map(async (widget) => {
+      const config = widget.config as ActivityWallConfig;
+      const label = `Activity Wall on ${board.name}`;
+      if (!readPosts) return { board, widget, label, posts: null };
+      try {
+        const posts = parseWallPosts(
+          await readPosts(config.activeActivityId as string)
+        );
+        return { board, widget, label, posts };
+      } catch (err) {
+        logError('withSubShareWallPosts', err, { widgetId: widget.id });
+        return { board, widget, label, posts: null };
+      }
+    })
+  );
+  for (const read of await Promise.all(reads)) {
+    if (!read.posts) {
+      unreadable.add(read.label);
+      continue;
+    }
+    if (read.posts.length === 0) continue;
+    withPosts.boards[read.board.id] = {
+      ...withPosts.boards[read.board.id],
+      [read.widget.id]: { [WALL_POSTS_OVERLAY_KEY]: read.posts },
+    };
+  }
+  return { names: withPosts, unreadable: [...unreadable] };
+}
+
+/**
+ * Copies each post field by field. The raw doc carries the uploader's uid and
+ * the archive plumbing, and neither belongs in a file the sub can read.
+ */
+function parseWallPosts(body: unknown): ActivityWallSubmission[] {
+  if (!Array.isArray(body)) throw new Error('wall posts are not a list');
+  const posts: ActivityWallSubmission[] = [];
+  for (const raw of body as ActivityWallSubmission[]) {
+    if (typeof raw !== 'object' || raw === null) continue;
+    if (raw.status === 'pending') continue;
+    posts.push({
+      id: raw.id,
+      content: raw.content,
+      submittedAt: raw.submittedAt,
+      status: 'approved',
+      ...(raw.participantLabel
+        ? { participantLabel: raw.participantLabel }
+        : {}),
+      ...(raw.type ? { type: raw.type } : {}),
+      ...(raw.title ? { title: raw.title } : {}),
+      ...(raw.storagePath ? { storagePath: raw.storagePath } : {}),
+      ...(raw.driveUrl ? { driveUrl: raw.driveUrl } : {}),
+      ...(raw.drivePermission ? { drivePermission: raw.drivePermission } : {}),
+      ...(raw.archiveStatus ? { archiveStatus: raw.archiveStatus } : {}),
+      ...(raw.sectionId ? { sectionId: raw.sectionId } : {}),
+      ...(raw.cellKey ? { cellKey: raw.cellKey } : {}),
+      ...(typeof raw.order === 'number' ? { order: raw.order } : {}),
+      ...(raw.label ? { label: raw.label } : {}),
+      ...(typeof raw.lat === 'number' ? { lat: raw.lat } : {}),
+      ...(typeof raw.lng === 'number' ? { lng: raw.lng } : {}),
+      ...(raw.pinned ? { pinned: raw.pinned } : {}),
+      ...(raw.linkPreview ? { linkPreview: raw.linkPreview } : {}),
+      ...(raw.fileName ? { fileName: raw.fileName } : {}),
+      ...(raw.mimeType ? { mimeType: raw.mimeType } : {}),
+      ...(typeof raw.sizeBytes === 'number'
+        ? { sizeBytes: raw.sizeBytes }
+        : {}),
+      ...(raw.authorRole ? { authorRole: raw.authorRole } : {}),
+    });
+  }
+  return posts;
 }
 
 /** The queue file is the teacher's own; read it defensively all the same. */
@@ -240,6 +345,8 @@ export interface SubShareNamesServices {
   write: SubShareNamesWriter;
   /** Reads a Next Up queue file from the teacher's Drive. */
   readQueue?: (fileId: string) => Promise<unknown>;
+  /** Reads an Activity Wall's approved posts from the teacher's session. */
+  readWallPosts?: (activityId: string) => Promise<unknown>;
   /** Called with the labels of whatever could not be read. */
   onIncomplete?: (labels: string[]) => void;
 }
