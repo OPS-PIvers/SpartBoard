@@ -50,8 +50,7 @@ interface WidgetPermissionCardBodyProps {
   showMessage: (type: 'success' | 'error', text: string) => void;
 }
 
-// Shared by both the list and grid rows in FeaturePermissionsManager — only
-// the wrapper markup/layout differs between variants.
+// Shared by both the list and grid rows in FeaturePermissionsManager.
 export const WidgetPermissionCardBody: React.FC<
   WidgetPermissionCardBodyProps
 > = ({
@@ -72,10 +71,7 @@ export const WidgetPermissionCardBody: React.FC<
 }) => {
   if (variant === 'list') {
     return (
-      <div
-        key={tool.type}
-        className="bg-white border-2 border-slate-200 rounded-xl hover:border-brand-blue-light transition-colors overflow-hidden"
-      >
+      <div className="bg-white border-2 border-slate-200 rounded-xl hover:border-brand-blue-light transition-colors overflow-hidden">
         {/* Top Bar */}
         <div className="flex items-center gap-4 p-3">
           {/* Identity Section: Icon + Name Input */}
@@ -216,10 +212,7 @@ export const WidgetPermissionCardBody: React.FC<
   }
 
   return (
-    <div
-      key={tool.type}
-      className="bg-white border-2 border-slate-200 rounded-xl p-4 hover:border-brand-blue-light transition-colors"
-    >
+    <div className="bg-white border-2 border-slate-200 rounded-xl p-4 hover:border-brand-blue-light transition-colors">
       {/* Widget Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3 flex-1 min-w-0">
