@@ -9,6 +9,7 @@ import { describe, it, vi, expect, beforeEach, Mock } from 'vitest';
 import React from 'react';
 import { SmartNotebookWidget } from './Widget';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useStorage } from '@/hooks/useStorage';
@@ -483,7 +484,12 @@ describe('SmartNotebookWidget', () => {
       function InShare({ children }: { children: React.ReactNode }) {
         return (
           <SubShareContentContext.Provider
-            value={{ shareId: 'share-1', version: 0, load: load as never }}
+            value={{
+              shareId: 'share-1',
+              version: 0,
+              load: load as never,
+              loadKey: noSubShareKey,
+            }}
           >
             {children}
           </SubShareContentContext.Provider>

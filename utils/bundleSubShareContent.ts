@@ -29,6 +29,8 @@ import type {
   ProjectGroup,
   ProjectRun,
   ProjectsConfig,
+  QuizConfig,
+  QuizData,
   SmartNotebookConfig,
   SubShareActivityWallPayload,
   SubShareActivityWallView,
@@ -42,6 +44,8 @@ import type {
   SubShareNotebookPayload,
   SubShareProjectGroupView,
   SubShareProjectPayload,
+  SubShareQuizPayload,
+  SubShareQuizView,
   WidgetData,
 } from '@/types';
 
@@ -59,6 +63,8 @@ export interface SubShareBundleFailure {
 
 export interface SubShareBundle {
   items: SubShareBundleItem[];
+  /** Answer keys and full activity copies, for `keys/` rather than `content/`. */
+  keys: SubShareBundleItem[];
   failures: SubShareBundleFailure[];
 }
 
@@ -368,6 +374,41 @@ async function bundleCalendar(
   return { events: perCalendar.flat() };
 }
 
+/** The quiz each Quiz widget on the board has open. */
+function openQuizIds(board: Dashboard): string[] {
+  const ids: string[] = [];
+  for (const widget of board.widgets ?? []) {
+    if (widget.type !== 'quiz') continue;
+    const id = (widget.config as QuizConfig | undefined)?.selectedQuizId;
+    if (id) ids.push(id);
+  }
+  return ids;
+}
+
+/**
+ * The teacher's quiz, field by field. The raw doc carries the PLC linkage,
+ * sync state and bank slots pointing at banks the sub cannot read, and this
+ * one lands in `keys/`, so only what a sub reads off the screen travels.
+ */
+async function bundleQuiz(
+  hostUid: string,
+  quizId: string
+): Promise<SubShareQuizPayload> {
+  const snap = await getDoc(doc(db, 'users', hostUid, 'quizzes', quizId));
+  if (!snap.exists()) throw new Error('quiz not found');
+  const data = snap.data() as Partial<QuizData>;
+  const quiz: SubShareQuizView = {
+    id: snap.id,
+    title: data.title ?? 'Quiz',
+    questions: data.questions ?? [],
+    createdAt: data.createdAt ?? 0,
+    updatedAt: data.updatedAt ?? 0,
+    ...(data.stimuli ? { stimuli: data.stimuli } : {}),
+    ...(data.language ? { language: data.language } : {}),
+  };
+  return { quiz };
+}
+
 export async function bundleSubShareContent({
   hostUid,
   boards,
@@ -378,6 +419,7 @@ export async function bundleSubShareContent({
   services?: SubShareBundleServices;
 }): Promise<SubShareBundle> {
   const items: SubShareBundleItem[] = [];
+  const keys: SubShareBundleItem[] = [];
   const failures: SubShareBundleFailure[] = [];
   const bundledAt = Date.now();
 
@@ -546,7 +588,30 @@ export async function bundleSubShareContent({
         });
       }
     }
+
+    for (const id of openQuizIds(board)) {
+      const contentId = subShareContentId('quiz', id);
+      if (done.has(contentId)) continue;
+      done.add(contentId);
+      try {
+        const payload = await bundleQuiz(hostUid, id);
+        keys.push({
+          id: contentId,
+          doc: { kind: 'quiz', itemId: id, bundledAt, payload },
+        });
+      } catch (err) {
+        logError('bundleSubShareContent.quiz', err, {
+          boardId: board.id,
+          quizId: id,
+        });
+        failures.push({
+          kind: 'quiz',
+          itemId: id,
+          label: `Quiz on ${board.name}`,
+        });
+      }
+    }
   }
 
-  return { items, failures };
+  return { items, keys, failures };
 }

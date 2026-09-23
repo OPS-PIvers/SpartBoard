@@ -9861,12 +9861,33 @@ export interface SharedCollectionBoardDoc {
  */
 export type SubShareContentKind =
   | 'drawing'
+  | 'quiz'
   | 'notebook'
   | 'flashcards'
   | 'project'
   | 'calendar'
   | 'customWidget'
   | 'activityWall';
+
+/**
+ * A quiz as a substitute sees it: the teacher's own questions and their keys.
+ * Bundled into `keys/`, not `content/`, because it is an answer key (A2).
+ * Bank slots do not travel — the banks they draw from are the teacher's.
+ */
+export type SubShareQuizView = Pick<
+  QuizData,
+  | 'id'
+  | 'title'
+  | 'questions'
+  | 'stimuli'
+  | 'language'
+  | 'createdAt'
+  | 'updatedAt'
+>;
+
+export interface SubShareQuizPayload {
+  quiz: SubShareQuizView;
+}
 
 /** A `content/{kind}_{itemId}` doc: what the sub sees in place of their own. */
 export interface SubShareContentDoc<T = unknown> {

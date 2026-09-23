@@ -6,6 +6,15 @@ import { subShareContentId } from '@/utils/subShareContent';
 import type { SubShareContentValue } from '@/context/SubShareContentContextValue';
 import type { SubShareContentDoc, SubShareContentKind } from '@/types';
 
+/** A read a share's rules refused, which for a key means "not your share". */
+function isPermissionDenied(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    (err as { code?: string }).code === 'permission-denied'
+  );
+}
+
 /**
  * Reads a share's bundled content, once per item per accepted version.
  *
@@ -25,6 +34,10 @@ export function useSubShareContentLoader(
     if (!shareId) return null;
     // Lives in the memo, so a different share or version starts empty.
     const cache = new Map<string, Promise<unknown>>();
+    const keyCache = new Map<
+      string,
+      Promise<{ payload: unknown; denied: boolean }>
+    >();
     return {
       shareId,
       version,
@@ -45,6 +58,24 @@ export function useSubShareContentLoader(
             return null;
           });
         cache.set(id, read);
+        return read;
+      },
+      loadKey: (kind: SubShareContentKind, itemId: string) => {
+        const id = subShareContentId(kind, itemId);
+        const hit = keyCache.get(id);
+        if (hit) return hit;
+        const read = getDoc(doc(db, 'shared_collections', shareId, 'keys', id))
+          .then((snap) => ({
+            payload: snap.exists()
+              ? ((snap.data() as SubShareContentDoc).payload ?? null)
+              : null,
+            denied: false,
+          }))
+          .catch((err: unknown) => {
+            logError('useSubShareContentLoader.loadKey', err, { shareId, id });
+            return { payload: null, denied: isPermissionDenied(err) };
+          });
+        keyCache.set(id, read);
         return read;
       },
     };

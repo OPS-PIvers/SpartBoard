@@ -64,3 +64,60 @@ export function useShareContent<T>(
     ? { status: 'missing', payload: null }
     : { status: 'ready', payload: snapshot.payload };
 }
+
+export type ShareKeyStatus = ShareContentStatus | 'denied';
+
+export interface ShareKeyState<T> {
+  /** 'off' means this is not a sub share — read your own data as usual. */
+  status: ShareKeyStatus;
+  payload: T | null;
+}
+
+/**
+ * The teacher's answer key for this widget's item, bundled when the share was
+ * made and readable only by the substitutes the share names.
+ *
+ * 'denied' means the viewer holds the link but is not one of those subs, which
+ * the widget should say rather than calling the item missing.
+ */
+export function useShareKey<T>(
+  kind: SubShareContentKind,
+  itemId: string | null | undefined
+): ShareKeyState<T> {
+  const share = useContext(SubShareContentContext);
+  const [snapshot, setSnapshot] = useState<{
+    key: string;
+    payload: T | null;
+    denied: boolean;
+  } | null>(null);
+
+  const key =
+    share && itemId
+      ? `${share.shareId}::${share.version}::${kind}::${itemId}`
+      : '';
+
+  useEffect(() => {
+    if (!share || !itemId) return;
+    let cancelled = false;
+    void share.loadKey(kind, itemId).then((result) => {
+      if (cancelled) return;
+      setSnapshot({
+        key,
+        payload: (result.payload as T) ?? null,
+        denied: result.denied,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [share, kind, itemId, key]);
+
+  if (!share || !itemId) return OFF;
+  if (!snapshot || snapshot.key !== key) {
+    return { status: 'loading', payload: null };
+  }
+  if (snapshot.denied) return { status: 'denied', payload: null };
+  return snapshot.payload === null
+    ? { status: 'missing', payload: null }
+    : { status: 'ready', payload: snapshot.payload };
+}
