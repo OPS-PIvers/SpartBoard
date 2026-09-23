@@ -3000,5 +3000,28 @@
     },
     "live": "Schritt {{current}} von {{total}}: {{text}}",
     "readAloud": "Vorlesen"
+  },
+  "glEngagement": {
+    "title": "Beteiligung",
+    "empty": "Diese Aktivität hat noch niemand geöffnet.",
+    "loadError": "Die Beteiligung konnte nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen.",
+    "viewers_one": "{{count}} Person",
+    "viewers_other": "{{count}} Personen",
+    "views_one": "{{count}} Aufruf",
+    "views_other": "{{count}} Aufrufe",
+    "watch": "Ansehen",
+    "try": "Ausprobieren",
+    "finished": "{{completed}} von {{viewers}} fertig",
+    "funnelTitle": "Wie weit sie gekommen sind",
+    "reached": "{{reached}} von {{total}}",
+    "medianTime": "Median {{time}}",
+    "stepFallback": "Schritt {{number}}",
+    "heatmapTitle": "Klicks neben dem Ziel",
+    "slide": "Folie {{number}}",
+    "misclicks_one": "{{count}} Fehlklick",
+    "misclicks_other": "{{count}} Fehlklicks",
+    "noMisclicks": "Noch keine Fehlklicks.",
+    "seconds": "{{seconds}} s",
+    "minutes": "{{minutes}} min {{seconds}} s"
   }
 }

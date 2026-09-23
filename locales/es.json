@@ -3000,5 +3000,28 @@
     },
     "live": "Paso {{current}} de {{total}}: {{text}}",
     "readAloud": "Leer en voz alta"
+  },
+  "glEngagement": {
+    "title": "Participación",
+    "empty": "Nadie ha abierto esta actividad todavía.",
+    "loadError": "No se pudo cargar la participación. Actualiza la página para intentarlo de nuevo.",
+    "viewers_one": "{{count}} persona",
+    "viewers_other": "{{count}} personas",
+    "views_one": "{{count}} visita",
+    "views_other": "{{count}} visitas",
+    "watch": "Ver",
+    "try": "Probar",
+    "finished": "{{completed}} de {{viewers}} terminaron",
+    "funnelTitle": "Hasta dónde llegaron",
+    "reached": "{{reached}} de {{total}}",
+    "medianTime": "Mediana {{time}}",
+    "stepFallback": "Paso {{number}}",
+    "heatmapTitle": "Clics fuera del objetivo",
+    "slide": "Diapositiva {{number}}",
+    "misclicks_one": "{{count}} clic fallido",
+    "misclicks_other": "{{count}} clics fallidos",
+    "noMisclicks": "Aún no hay clics fallidos.",
+    "seconds": "{{seconds}} s",
+    "minutes": "{{minutes}} min {{seconds}} s"
   }
 }
