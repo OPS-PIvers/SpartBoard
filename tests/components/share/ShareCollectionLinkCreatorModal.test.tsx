@@ -263,4 +263,39 @@ describe('ShareCollectionLinkCreatorModal', () => {
     ).toBeTruthy();
     expect(screen.getByText('Drawing on Board b1')).toBeTruthy();
   });
+
+  it('counts the boards in nested collections a sub share carries', () => {
+    hasSubShareFlag.value = false;
+    useDashboardMock.mockReturnValue({
+      ...baseMockReturn,
+      collectionsApi: {
+        collections: [
+          collection(),
+          {
+            ...collection(),
+            id: 'c2',
+            name: 'Day 2',
+            parentCollectionId: 'c1',
+          },
+        ],
+      },
+      dashboards: [board('b1'), { ...board('b3'), collectionId: 'c2' }],
+    });
+    render(
+      <ShareCollectionLinkCreatorModal
+        isOpen
+        collection={collection()}
+        boards={[board('b1')]}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByText(/Sharing 1 board\(s\) from this Collection/)
+    ).toBeTruthy();
+    fireEvent.click(screen.getByText('Substitute (view-only)'));
+    expect(
+      screen.getByText(/Sharing 2 board\(s\) from this Collection/)
+    ).toBeTruthy();
+  });
 });

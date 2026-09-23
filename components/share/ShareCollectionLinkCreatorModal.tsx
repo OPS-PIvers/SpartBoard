@@ -78,6 +78,18 @@ export const ShareCollectionLinkCreatorModal: FC<
     [adminBuildings, hasOrg]
   );
   const offerSubstitute = !canAccessFeature('sub-share-collections');
+  // A sub share carries nested sub-collections too, so its count can exceed `boards`.
+  const subTree = useMemo(
+    () =>
+      offerSubstitute && collection
+        ? flattenSharedCollection(
+            collection,
+            collectionsApi.collections,
+            dashboards
+          )
+        : null,
+    [offerSubstitute, collection, collectionsApi.collections, dashboards]
+  );
   const [mode, setMode] = useState<ModeChoice>('copy');
   const [ttlMs, setTtlMs] = useState<number>(SUB_TTL_PRESETS[1].ms);
   const [buildingId, setBuildingId] = useState<string>('');
@@ -148,15 +160,11 @@ export const ShareCollectionLinkCreatorModal: FC<
     try {
       let shareId: string;
       try {
-        if (!asSub) {
+        if (!asSub || !subTree) {
           shareId = await shareCollection({ collection, boards });
         } else {
           // Same tree, rosters and name scrubbing as ShareWithSubModal.
-          const tree = flattenSharedCollection(
-            collection,
-            collectionsApi.collections,
-            dashboards
-          );
+          const tree = subTree;
           const rosterIds = collectShareRosterIds(
             tree.orderedBoards,
             activeRosterId
@@ -237,8 +245,7 @@ export const ShareCollectionLinkCreatorModal: FC<
     subEmails,
     rosters,
     activeRosterId,
-    collectionsApi.collections,
-    dashboards,
+    subTree,
     collection,
     boards,
     shareCollection,
@@ -274,7 +281,10 @@ export const ShareCollectionLinkCreatorModal: FC<
           <div className="p-5 space-y-4">
             <p className="text-sm text-slate-600">
               {t('shareCollection.subtitle', {
-                count: boards.length,
+                count:
+                  subTree && mode === 'substitute'
+                    ? subTree.orderedBoards.length
+                    : boards.length,
                 defaultValue:
                   'Sharing {{count}} board(s) from this Collection.',
               })}
