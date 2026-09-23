@@ -7,10 +7,16 @@ import {
   CheckCircle2,
   Loader2,
   Eye,
+  Play,
+  Pause,
 } from 'lucide-react';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { GuidedLearningSet, type SubLaunchedSessionFields } from '@/types';
+import {
+  GuidedLearningSet,
+  type PeriodAccessSessionFields,
+  type SubLaunchedSessionFields,
+} from '@/types';
 import {
   useGuidedLearningSessionTeacher,
   isAnswerCorrect,
@@ -25,7 +31,30 @@ import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { logError } from '@/utils/logError';
 import { GuidedLearningEngagement } from './results/GuidedLearningEngagement';
 import { LaunchedBySubTag } from '@/components/common/sessionViews/LaunchedBySubTag';
+import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
+import { hasPeriodAccess } from '@/utils/periodAccess';
+import { PeriodAccessStrip } from '@/components/widgets/QuizWidget/components/monitor/PeriodAccessStrip';
 
+type PeriodSession = PeriodAccessSessionFields & {
+  id: string;
+  teacherUid: string;
+};
+
+/** The per-period fields the chips read, or null on a session without them. */
+function toPeriodSession(
+  sessionId: string,
+  data: (PeriodAccessSessionFields & { teacherUid?: string }) | undefined
+): PeriodSession | null {
+  const teacherUid = data?.teacherUid ?? '';
+  if (!hasPeriodAccess(data)) return null;
+  return {
+    id: sessionId,
+    teacherUid,
+    accessMode: data.accessMode,
+    periodAccess: data.periodAccess,
+    studentAccess: data.studentAccess,
+  };
+}
 interface Props {
   set: GuidedLearningSet;
   sessionId: string;
@@ -60,8 +89,11 @@ export const GuidedLearningResults: React.FC<Props> = ({
   // multiple periods resolves names for students from every targeted class,
   // not just `classIds[0]`. Falls back to the legacy single `classId` for
   // older sessions written before multi-class support.
-  const { addToast } = useDashboard();
+  const { addToast, rosters } = useDashboard();
   const [sessionClassIds, setSessionClassIds] = useState<string[]>([]);
+  const [periodSession, setPeriodSession] = useState<PeriodSession | null>(
+    null
+  );
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [playerV2, setPlayerV2] = useState(false);
   const [launchedBy, setLaunchedBy] =
@@ -76,14 +108,16 @@ export const GuidedLearningResults: React.FC<Props> = ({
         );
         if (cancelled) return;
         const data = snap.data() as
-          | {
+          | (PeriodAccessSessionFields & {
               classId?: string;
               classIds?: string[];
               playerV2?: boolean;
               createdAt?: number;
+              teacherUid?: string;
               launchedBy?: SubLaunchedSessionFields['launchedBy'];
-            }
+            })
           | undefined;
+        setPeriodSession(toPeriodSession(sessionId, data));
         setPlayerV2(data?.playerV2 === true);
         setLaunchedBy(data?.launchedBy);
         setStartedAt(
@@ -120,6 +154,48 @@ export const GuidedLearningResults: React.FC<Props> = ({
       cancelled = true;
     };
   }, [sessionId, addToast, viewOnly]);
+  // Per-period sessions keep the chips live; others read the session once above.
+  const perPeriod = !viewOnly && periodSession !== null;
+  useEffect(() => {
+    if (!perPeriod) return;
+    return onSnapshot(
+      doc(db, 'guided_learning_sessions', sessionId),
+      (snap) => {
+        const next = toPeriodSession(
+          sessionId,
+          snap.data() as PeriodAccessSessionFields & { teacherUid?: string }
+        );
+        if (next) setPeriodSession(next);
+      },
+      (err) => logError('GuidedLearningResults.periodListener', err)
+    );
+  }, [perPeriod, sessionId]);
+  const periodActions = usePeriodAccess(
+    perPeriod ? periodSession : null,
+    {
+      sessionCollection: 'guided_learning_sessions',
+      assignmentCollection: 'guided_learning_assignments',
+      refreshIdle: false,
+    },
+    rosters
+  );
+  const runPeriod = async (fn: () => Promise<unknown>) => {
+    try {
+      const untimed = await fn();
+      const labels = (Array.isArray(untimed) ? (untimed as string[]) : [])
+        .map((key) => periodSession?.periodAccess?.[key]?.label)
+        .filter(Boolean);
+      if (labels.length > 0)
+        addToast(
+          `${labels.join(', ')} stays open until you pause it. Tag the class with its bell period in My Classes so it closes at the bell.`,
+          'info'
+        );
+    } catch (err) {
+      logError('GuidedLearningResults.periodAccess', err);
+      addToast('Could not update the period. Try again.', 'error');
+    }
+  };
+
   const { count: viewCount } = useSessionViewCount(
     'guided_learning_sessions',
     sessionId,
@@ -279,6 +355,53 @@ export const GuidedLearningResults: React.FC<Props> = ({
           </button>
         )}
       </div>
+
+      {perPeriod && periodSession?.periodAccess && (
+        <div
+          className="flex shrink-0 flex-wrap items-center border-b border-white/10"
+          style={{
+            gap: 'min(6px, 1.5cqmin)',
+            padding: 'min(6px, 1.4cqmin) min(12px, 2.5cqmin)',
+          }}
+        >
+          <div className="flex-1 min-w-0">
+            <PeriodAccessStrip
+              periodAccess={periodSession.periodAccess}
+              extendMs={EXTEND_MS}
+              onStart={(key) => runPeriod(() => periodActions.startPeriod(key))}
+              onPause={(key) => runPeriod(() => periodActions.pausePeriod(key))}
+              onExtend={(key, by) =>
+                runPeriod(() => periodActions.extendPeriod(key, by))
+              }
+            />
+          </div>
+          {[
+            { label: 'Start all', Icon: Play, fn: periodActions.startAll },
+            { label: 'Pause all', Icon: Pause, fn: periodActions.pauseAll },
+          ].map(({ label, Icon, fn }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => void runPeriod(fn)}
+              className="flex items-center bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+              style={{
+                gap: 'min(4px, 1cqmin)',
+                padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                fontSize: 'min(11px, 3.8cqmin)',
+              }}
+            >
+              <Icon
+                aria-hidden
+                style={{
+                  width: 'min(11px, 3.8cqmin)',
+                  height: 'min(11px, 3.8cqmin)',
+                }}
+              />
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {launchedBy && (
         <div

@@ -21,6 +21,8 @@ interface Options {
   enabled: boolean;
   /** Step ids in set order, for the furthest-step index. */
   stepIds: readonly string[];
+  /** Holds writes (the rules would refuse them) while the student's period is shut. */
+  paused?: boolean;
 }
 
 function toPayload(p: GuidedLearningProgress) {
@@ -33,10 +35,14 @@ export function useGuidedLearningProgress({
   uid,
   enabled,
   stepIds,
+  paused = false,
 }: Options): { onStepEvent: (e: StepEvent) => void } {
   const stepIdsRef = useRef(stepIds);
   // eslint-disable-next-line react-hooks/refs -- render-body ref sync so the load effect doesn't re-run on new step ids (CLAUDE.md pattern)
   stepIdsRef.current = stepIds;
+  const pausedRef = useRef(paused);
+  // eslint-disable-next-line react-hooks/refs -- render-body ref sync, as above
+  pausedRef.current = paused;
   const stateRef = useRef<GuidedLearningProgress>(emptyProgress());
   const pendingRef = useRef<StepEvent[]>([]);
   const loadedRef = useRef(false);
@@ -76,7 +82,7 @@ export function useGuidedLearningProgress({
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
-      if (!loadedRef.current || !dirtyRef.current) return;
+      if (!loadedRef.current || !dirtyRef.current || pausedRef.current) return;
       dirtyRef.current = false;
       lastWriteRef.current = Date.now();
       const creating = !existsRef.current;
@@ -102,7 +108,13 @@ export function useGuidedLearningProgress({
       );
     };
     const schedule = () => {
-      if (timerRef.current || !loadedRef.current || !dirtyRef.current) return;
+      if (
+        timerRef.current ||
+        !loadedRef.current ||
+        !dirtyRef.current ||
+        pausedRef.current
+      )
+        return;
       const wait = Math.max(
         0,
         lastWriteRef.current + PROGRESS_WRITE_INTERVAL_MS - Date.now()
@@ -146,6 +158,11 @@ export function useGuidedLearningProgress({
       scheduleRef.current = () => undefined;
     };
   }, [active, sessionId, uid, apply]);
+
+  // Held writes go out once the period reopens.
+  useEffect(() => {
+    if (!paused) scheduleRef.current();
+  }, [paused]);
 
   const onStepEvent = useCallback(
     (e: StepEvent) => {

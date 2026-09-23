@@ -7259,7 +7259,8 @@ export interface GuidedLearningPublicStep {
 }
 
 /** Firestore session document granting student access to an experience */
-export interface GuidedLearningSession extends SubLaunchedSessionFields {
+export interface GuidedLearningSession
+  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
   id: string;
   title: string;
   mode: GuidedLearningMode;
@@ -7276,6 +7277,8 @@ export interface GuidedLearningSession extends SubLaunchedSessionFields {
   videoTrims?: (GuidedLearningVideoTrim | null)[];
   /** Student-safe steps (no answer keys) */
   publicSteps: GuidedLearningPublicStep[];
+  /** Per-period sessions keep steps and slides in `content/steps`; the session copies stay empty. */
+  stepsInContent?: boolean;
   teacherUid: string;
   createdAt: number;
   expiresAt?: number;
@@ -7372,6 +7375,8 @@ export interface GuidedLearningResponse {
   score: number | null;
   /** Which class period the student selected when joining (multi-class support). */
   classPeriod?: string;
+  /** The `periodAccess` key the student's seat named; set on per-period sessions. */
+  classId?: string;
 }
 
 export interface GuidedLearningGlobalConfig {
@@ -9711,7 +9716,8 @@ export interface MiniAppAssignment {
 // entry (under /users/{userId}/guided_learning_assignments/{id}).
 export type GuidedLearningAssignmentStatus = 'active' | 'archived';
 
-export interface GuidedLearningAssignment extends SubLaunchedSessionFields {
+export interface GuidedLearningAssignment
+  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
   /** Document id — matches the session id. */
   id: string;
   /** ID of the set that was assigned. */
