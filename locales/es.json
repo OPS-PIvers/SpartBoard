@@ -2517,6 +2517,9 @@
     "reset": "Restablecer colores del lápiz",
     "done": "Listo"
   },
+  "glStudio": {
+    "classicEditorNotice": "Esta actividad usa funciones de Studio. Edita las regiones y las llamadas en Studio."
+  },
   "helpCenter": {
     "title": "Ayuda",
     "widgetHelp": "Guías para este widget",

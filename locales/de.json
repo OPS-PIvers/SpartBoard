@@ -2517,6 +2517,9 @@
     "reset": "Stiftfarben zurücksetzen",
     "done": "Fertig"
   },
+  "glStudio": {
+    "classicEditorNotice": "Diese Aktivität nutzt Studio-Funktionen. Bearbeite Bereiche und Hinweise im Studio."
+  },
   "helpCenter": {
     "title": "Hilfe",
     "widgetHelp": "Anleitungen für dieses Widget",

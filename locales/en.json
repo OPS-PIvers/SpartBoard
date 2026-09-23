@@ -3648,6 +3648,9 @@
     "reset": "Reset pen colors",
     "done": "Done"
   },
+  "glStudio": {
+    "classicEditorNotice": "This activity uses Studio features. Edit regions and callouts in the Studio."
+  },
   "helpCenter": {
     "title": "Help",
     "widgetHelp": "Guides for this widget",
