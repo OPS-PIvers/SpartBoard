@@ -45,6 +45,8 @@ import {
 import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import { runPublishGradePush } from '@/utils/publishGradePush';
 import { useDashboard } from '@/context/useDashboard';
+import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
+import { buildPeriodAccess } from '@/utils/periodPlan';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareVideoActivityWidget } from './SubShareWidget';
 import { useAuth } from '@/context/useAuth';
@@ -105,7 +107,8 @@ async function copyUrlToClipboard(
 const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, addToast, rosters } = useDashboard();
+  const { updateWidget, addToast, rosters, updateRoster } = useDashboard();
+  const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const {
     user,
     googleAccessToken,
@@ -566,6 +569,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         }}
         defaultSessionSettings={defaultSessionSettings}
         rosters={rosters}
+        periodAccess={assignPeriodCtx}
         onAssign={async (
           meta,
           rosterIds,
@@ -610,6 +614,25 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             rosters,
             selectedRosterIds: rosterIds,
           });
+          const periodPlan = targeting.periodPlan ?? { mode: 'assignment' };
+          const builtPeriodAccess =
+            assignPeriodCtx && selectedRosters.length > 1
+              ? buildPeriodAccess({
+                  plan: periodPlan,
+                  rosters: selectedRosters,
+                  sharedWindow: targeting,
+                  bellWindow: (roster) =>
+                    assignPeriodCtx.bellWindow(
+                      roster,
+                      new Date(targeting.openAt ?? Date.now())
+                    ),
+                })
+              : null;
+          // Two rosters on one class id share a gate, so they are one period.
+          const periodGate =
+            builtPeriodAccess && Object.keys(builtPeriodAccess).length > 1
+              ? { accessMode: periodPlan.mode, periodAccess: builtPeriodAccess }
+              : undefined;
           const sessionId = await createSession(
             data,
             user.uid,
@@ -621,7 +644,8 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             derived.rosterIds,
             vaAssignmentMode,
             derived.classPeriodByClassId,
-            sessionOptions
+            sessionOptions,
+            periodGate
           );
 
           // M17 §5 B3 — write the new window fields onto the session doc
@@ -635,16 +659,17 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           // session doc, where VA previously only carried it under
           // `sessionOptions`.
           const sessionDueAt = dueAt ?? targeting.dueAt ?? null;
+          // Per-period sessions carry each period's window instead of a shared one.
+          const sessionOpenAt = periodGate ? null : targeting.openAt;
+          const sessionCloseAt = periodGate ? null : targeting.closeAt;
           if (
-            targeting.openAt != null ||
-            targeting.closeAt != null ||
+            sessionOpenAt != null ||
+            sessionCloseAt != null ||
             sessionDueAt != null
           ) {
             await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
-              ...(targeting.openAt != null ? { openAt: targeting.openAt } : {}),
-              ...(targeting.closeAt != null
-                ? { closeAt: targeting.closeAt }
-                : {}),
+              ...(sessionOpenAt != null ? { openAt: sessionOpenAt } : {}),
+              ...(sessionCloseAt != null ? { closeAt: sessionCloseAt } : {}),
               ...(sessionDueAt != null ? { dueAt: sessionDueAt } : {}),
             });
           }
@@ -681,12 +706,13 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             ...(expandedTargeting.dueAt != null
               ? { dueAt: expandedTargeting.dueAt }
               : {}),
-            ...(expandedTargeting.openAt != null
+            ...(expandedTargeting.openAt != null && !periodGate
               ? { openAt: expandedTargeting.openAt }
               : {}),
-            ...(expandedTargeting.closeAt != null
+            ...(expandedTargeting.closeAt != null && !periodGate
               ? { closeAt: expandedTargeting.closeAt }
               : {}),
+            ...(periodGate ?? {}),
           };
           await setDoc(
             doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),

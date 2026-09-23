@@ -55,6 +55,10 @@ import {
   getEffectiveTabWarningThreshold,
   hasReachedTabWarningThreshold,
 } from '@/utils/tabWarningThreshold';
+import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
+import { useServerNow } from '@/hooks/useServerNow';
+import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
+import { PeriodAccessStrip } from '@/components/widgets/QuizWidget/components/monitor/PeriodAccessStrip';
 
 interface VideoActivityLiveMonitorProps {
   session: VideoActivitySession;
@@ -101,6 +105,8 @@ interface StudentRowProps {
    * display name so the confirmation dialog can name the student.
    */
   onUnlock?: (displayName: string) => void;
+  /** Set while the student waits in a closed period; lets them in past it. */
+  onLetIn?: () => void;
 }
 
 /**
@@ -133,6 +139,7 @@ const StudentRow: React.FC<StudentRowProps> = ({
   showTabWarnings,
   attemptLimit,
   onUnlock,
+  onLetIn,
 }) => {
   const warnings = response.tabSwitchWarnings ?? 0;
   const displayName = pickDisplayLabel(response, byStudentUid) ?? '—';
@@ -324,6 +331,19 @@ const StudentRow: React.FC<StudentRowProps> = ({
           </TabExitsPopover>
         )}
         {lockBadge}
+        {onLetIn && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onLetIn();
+            }}
+            className="inline-flex shrink-0 rounded-full transition-opacity hover:opacity-80"
+            aria-label={`Let ${displayName} in now`}
+          >
+            <SessionBadge tone="info" label="Let in now" icon={Unlock} />
+          </button>
+        )}
       </div>
       <p
         className="text-slate-400"
@@ -354,8 +374,36 @@ export const VideoActivityLiveMonitor: React.FC<
   onBack,
 }) => {
   const { showConfirm } = useDialog();
-  const { addToast } = useDashboard();
+  const { addToast, rosters } = useDashboard();
   const { orgId } = useAuth();
+  // Per-period sessions swap the single Pause button for one chip per period.
+  const perPeriod = hasPeriodAccess(session) && session.status !== 'ended';
+  const periodActions = usePeriodAccess(
+    perPeriod ? session : null,
+    {
+      sessionCollection: 'video_activity_sessions',
+      assignmentCollection: 'video_activity_assignments',
+      refreshIdle: false,
+    },
+    rosters
+  );
+  const periodNow = useServerNow(perPeriod ? 30_000 : null);
+  const runPeriod = async (fn: () => Promise<unknown>) => {
+    try {
+      const untimed = await fn();
+      const labels = (Array.isArray(untimed) ? (untimed as string[]) : [])
+        .map((key) => session.periodAccess?.[key]?.label)
+        .filter(Boolean);
+      if (labels.length > 0)
+        addToast(
+          `${labels.join(', ')} stays open until you pause it. Tag the class with its bell period in My Classes so it closes at the bell.`,
+          'info'
+        );
+    } catch (err) {
+      logError('VideoActivityLiveMonitor.periodAccess', err);
+      addToast('Could not update the period. Try again.', 'error');
+    }
+  };
   // Toggle for showing per-row tab-switch warning counts. Off by default
   // so projector-friendly mode keeps the roster uncluttered; the teacher
   // flips it on when triaging a locked student. Mirrors the Quiz pattern.
@@ -520,7 +568,23 @@ export const VideoActivityLiveMonitor: React.FC<
         }`}
         actions={
           <>
-            {(onPause ?? onResume) && (
+            {perPeriod && (
+              <>
+                <ActionButton
+                  variant="secondary"
+                  label="Start all"
+                  icon={Play}
+                  onClick={() => void runPeriod(periodActions.startAll)}
+                />
+                <ActionButton
+                  variant="secondary"
+                  label="Pause all"
+                  icon={Pause}
+                  onClick={() => void runPeriod(periodActions.pauseAll)}
+                />
+              </>
+            )}
+            {!perPeriod && (onPause ?? onResume) && (
               <ActionButton
                 variant="secondary"
                 label={isLive ? 'Pause' : 'Resume'}
@@ -548,6 +612,17 @@ export const VideoActivityLiveMonitor: React.FC<
         style={{ padding: 'min(14px, 3.5cqmin)' }}
       >
         <div className="flex flex-col" style={{ gap: 'min(12px, 3cqmin)' }}>
+          {perPeriod && (
+            <PeriodAccessStrip
+              periodAccess={session.periodAccess}
+              extendMs={EXTEND_MS}
+              onStart={(key) => runPeriod(() => periodActions.startPeriod(key))}
+              onPause={(key) => runPeriod(() => periodActions.pausePeriod(key))}
+              onExtend={(key, by) =>
+                runPeriod(() => periodActions.extendPeriod(key, by))
+              }
+            />
+          )}
           {/* KPI tiles */}
           <div className="grid grid-cols-3" style={{ gap: 'min(8px, 2cqmin)' }}>
             <StatTile
@@ -667,6 +742,21 @@ export const VideoActivityLiveMonitor: React.FC<
                         onUnlockStudent
                           ? (displayName) =>
                               void handleUnlock(rowKey, displayName)
+                          : undefined
+                      }
+                      onLetIn={
+                        perPeriod &&
+                        r.completedAt === null &&
+                        !studentCanEnter(
+                          session,
+                          r.classId ? [r.classId] : [],
+                          r.studentUid,
+                          periodNow
+                        )
+                          ? () =>
+                              void runPeriod(() =>
+                                periodActions.letIn(r.studentUid)
+                              )
                           : undefined
                       }
                     />

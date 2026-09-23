@@ -173,6 +173,21 @@ service cloud.firestore {
                 : s.get('accessMode', '') != 'assessment'));
     }
 
+    // Per-period content docs: the caller's seat names their response, whose
+    // classId picks the period. `coll`/`sid` locate the session.
+    function seatedClassId(coll, sid) {
+      return get(/databases/$(database)/documents/$(coll)/$(sid)/responses/$(get(/databases/$(database)/documents/$(coll)/$(sid)/seats/$(request.auth.uid)).data.responseKey)).data.get('classId', null);
+    }
+    function seatWriteOk(coll, sid, uid) {
+      return request.auth != null && request.auth.uid == uid &&
+             request.resource.data.keys().hasOnly(['responseKey']) &&
+             getAfter(/databases/$(database)/documents/$(coll)/$(sid)/responses/$(request.resource.data.responseKey)).data.studentUid == uid;
+    }
+    function contentWriteOk(coll, sid) {
+      return request.auth != null &&
+             getAfter(/databases/$(database)/documents/$(coll)/$(sid)).data.teacherUid == request.auth.uid;
+    }
+
     // A substitute who launched session `s` from a sub share may monitor that one
     // run until the share expires (SUB_SHARE_COLLECTIONS.md D7). Both fields are
     // written only by launchSubAssignmentV1 through the Admin SDK, and read with
@@ -3981,17 +3996,14 @@ service cloud.firestore {
           request.auth.uid == sessionTeacherUid() || isAdmin() ||
           isSubMonitor(sessionData()) || studentLetIn(sessionData()) ||
           sessionData().status == 'ended' ||
-          periodOpen(sessionData(), get(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(get(/databases/$(database)/documents/quiz_sessions/$(sessionId)/seats/$(request.auth.uid)).data.responseKey)).data.get('classId', null))
+          periodOpen(sessionData(), seatedClassId('quiz_sessions', sessionId))
         );
         // getAfter so the session and its content can land in one batch.
-        allow write: if request.auth != null &&
-          getAfter(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.teacherUid == request.auth.uid;
+        allow write: if contentWriteOk('quiz_sessions', sessionId);
       }
       match /seats/{uid} {
         allow read: if request.auth != null && request.auth.uid == uid;
-        allow create, update: if request.auth != null && request.auth.uid == uid &&
-          request.resource.data.keys().hasOnly(['responseKey']) &&
-          getAfter(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(request.resource.data.responseKey)).data.studentUid == uid;
+        allow create, update: if seatWriteOk('quiz_sessions', sessionId, uid);
       }
 
       // Archived responses — copies of teacher-removed responses (was a hard
@@ -4422,6 +4434,20 @@ service cloud.firestore {
           vaOwner(getAfter(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data);
       }
 
+      // Per-period sessions keep publicQuestions here, readable once the
+      // student's period is open; the seat names the caller's response.
+      match /content/{docId} {
+        allow read: if request.auth != null && (
+          vaOwner(vaS()) || isSubMonitor(vaS()) || studentLetIn(vaS()) ||
+          periodOpen(vaS(), seatedClassId('video_activity_sessions', sessionId))
+        );
+        allow write: if contentWriteOk('video_activity_sessions', sessionId);
+      }
+      match /seats/{uid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if seatWriteOk('video_activity_sessions', sessionId, uid);
+      }
+
       // Doc id (responseDocId): auth.uid (SSO) or pin-{period}-{pin} (anon).
       // Mirrors the Quiz keying contract (computeResponseKey / encodeResponseKeySegment).
       match /responses/{responseDocId} {
@@ -4458,6 +4484,7 @@ service cloud.firestore {
           beforeClose(vaS()) &&
           // Block joins before the assignment's open time (M17).
           afterOpen(vaS()) &&
+          periodJoinOk(vaS(), request.resource.data) &&
           (isStudentRoleUser()
             ? responseDocId == request.auth.uid
             : responseDocId.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$'));
@@ -4478,6 +4505,10 @@ service cloud.firestore {
             // (`unlocked: true`) is exempt so the resumed attempt can finish.
             (beforeClose(vaS()) ||
              resource.data.get('unlocked', false) == true) &&
+            // A closed or paused period freezes answering and finishing.
+            (!changed(['answers', 'completedAt', 'completedAttempts']) ||
+             periodOpen(vaS(), resource.data.get('classId', null)) ||
+             studentLetIn(vaS())) &&
             request.resource.data.studentUid == resource.data.studentUid &&
             request.resource.data.get('pin', null) == resource.data.get('pin', null) &&
             request.resource.data.get('name', null) == resource.data.get('name', null) &&
