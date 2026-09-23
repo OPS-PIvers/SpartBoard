@@ -48,6 +48,14 @@ vi.mock('@/components/widgets/WidgetLayout', () => ({
 
 // Stubbed so the tests can assert on what the widget hands the player rather
 // than on the player's own markup.
+// The panel has its own suite; here it only matters whether it is mounted,
+// and its real settings hook would reach for Firestore.
+vi.mock('@/components/subs/SubLaunchPanel', () => ({
+  SubLaunchPanel: ({ kind, itemId }: { kind: string; itemId: string }) => (
+    <div data-testid="sub-launch" data-kind={kind} data-item={itemId} />
+  ),
+}));
+
 vi.mock('@/components/flashcards/FlashcardPlayer', () => ({
   FlashcardPlayer: ({
     cards,
@@ -204,6 +212,60 @@ describe('FlashcardsWidget — inside a sub share', () => {
 
     expect(await screen.findByText('No flashcards')).toBeInTheDocument();
     expect(screen.queryByTestId('player')).not.toBeInTheDocument();
+  });
+});
+
+describe('FlashcardsWidget — starting a shared set', () => {
+  beforeEach(mockHooks);
+
+  function InShare({
+    payload,
+    children,
+  }: {
+    payload: unknown;
+    children: React.ReactNode;
+  }) {
+    return (
+      <SubShareContentContext.Provider
+        value={subShareContextValue({
+          shareId: 'share-1',
+          version: 0,
+          loadKey: noSubShareKey,
+          load: () => Promise.resolve(payload),
+        })}
+      >
+        {children}
+      </SubShareContentContext.Provider>
+    );
+  }
+
+  const bundled = {
+    set: {
+      id: 's-1',
+      title: 'Cell biology',
+      termLanguage: 'en',
+      definitionLanguage: 'en',
+      cards: [{ id: 'c1', term: 'Bundled term', definition: 'Bundled' }],
+    },
+  };
+
+  it('offers to start the set the sub is presenting', async () => {
+    render(
+      <InShare payload={bundled}>
+        <FlashcardsWidget widget={widget('s-1')} />
+      </InShare>
+    );
+
+    const panel = await screen.findByTestId('sub-launch');
+    expect(panel).toHaveAttribute('data-kind', 'flashcards');
+    expect(panel).toHaveAttribute('data-item', 's-1');
+  });
+
+  // The teacher has Assign; a second way in would be two paths to keep right.
+  it('offers nothing on the teacher\u2019s own board', () => {
+    render(<FlashcardsWidget widget={widget('s-1')} />);
+
+    expect(screen.queryByTestId('sub-launch')).not.toBeInTheDocument();
   });
 });
 

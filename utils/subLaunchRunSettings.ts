@@ -116,6 +116,19 @@ function guidedLearningRunSettings(): SubLaunchRunSettings {
   };
 }
 
+/**
+ * A flashcard run has one setting a sub could choose and it is not theirs to
+ * choose: the Study kind, which the server derives, is the teacher's own
+ * default, while a graded Check brings a mastery threshold and a
+ * score-visibility setting that can reveal answers.
+ */
+function flashcardRunSettings(): SubLaunchRunSettings {
+  return {
+    session: { status: 'active' },
+    assignment: { status: 'active' },
+  };
+}
+
 /** The run settings for whichever kind the substitute is starting. */
 export function subLaunchRunSettings(
   kind: SubShareContentKind,
@@ -124,5 +137,6 @@ export function subLaunchRunSettings(
 ): SubLaunchRunSettings {
   if (kind === 'videoActivity') return videoActivityRunSettings(className);
   if (kind === 'guidedLearning') return guidedLearningRunSettings();
+  if (kind === 'flashcards') return flashcardRunSettings();
   return quizRunSettings(className, startedAt);
 }

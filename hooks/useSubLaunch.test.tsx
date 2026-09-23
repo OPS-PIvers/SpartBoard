@@ -140,6 +140,28 @@ describe('useSubLaunch', () => {
     expect(result.current.result).toEqual({ sessionId: 's1' });
   });
 
+  it('sends the flashcard run settings for a flashcard set', async () => {
+    callable.mockResolvedValue({ data: { sessionId: 's1' } });
+    const { result } = renderHook(
+      () => useSubLaunch('flashcards', 'w1', 'set-1'),
+      { wrapper: inShare() }
+    );
+
+    await act(() => result.current.launch(['roster-1']));
+
+    const sent = callable.mock.calls[0][0] as {
+      kind: string;
+      session: Record<string, unknown>;
+      assignment: Record<string, unknown>;
+    };
+    expect(sent.kind).toBe('flashcards');
+    expect(sent.session).toEqual({ status: 'active' });
+    // The Study kind is the server's to write, so a sub cannot ask for the
+    // graded Check that publishes scores.
+    expect(sent.session.kind).toBeUndefined();
+    expect(sent.assignment.kind).toBeUndefined();
+  });
+
   it('does not call out outside a share', async () => {
     const { result } = renderHook(() => useSubLaunch('quiz', 'w1', 'q-1'));
     await act(() => result.current.launch(['roster-1']));
