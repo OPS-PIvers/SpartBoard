@@ -102,6 +102,63 @@ const vaInput = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+const GL_SET = 'gl-set-1';
+
+const GL_KEY_STEPS = [
+  {
+    id: 'g1',
+    xPct: 10,
+    yPct: 20,
+    imageIndex: 0,
+    interactionType: 'question',
+    tour: { anchorId: 'board-canvas' },
+    question: {
+      type: 'multiple-choice',
+      text: 'Which organ pumps blood?',
+      choices: ['Heart', 'Lung'],
+      correctAnswer: 'Heart',
+    },
+  },
+  {
+    id: 'g1',
+    xPct: 30,
+    yPct: 30,
+    imageIndex: 0,
+    interactionType: 'tooltip',
+    text: 'A duplicate id, which must not inflate the step count',
+  },
+  {
+    id: 'g2',
+    xPct: 50,
+    yPct: 60,
+    imageIndex: 1,
+    interactionType: 'text-popover',
+    text: 'Now look at the valves.',
+  },
+];
+
+const GL_SET_DOC = {
+  id: GL_SET,
+  title: 'The heart',
+  mode: 'guided',
+  imageUrls: ['https://example.test/a.png', 'https://example.test/b.png'],
+  schemaVersion: 3,
+  steps: GL_KEY_STEPS,
+};
+
+/** What `subLaunchRunSettings` sends for a guided activity. */
+const glInput = (over: Record<string, unknown> = {}) => ({
+  shareId: SHARE,
+  boardId: BOARD,
+  widgetId: WIDGET,
+  kind: 'guidedLearning',
+  itemId: GL_SET,
+  rosterIds: [ROSTER],
+  session: { assignmentMode: 'submissions' },
+  assignment: { status: 'active', assignmentMode: 'submissions' },
+  ...over,
+});
+
 const SUB: SubLaunchCaller = {
   uid: 'sub-uid-1',
   email: 'Sub@orono.k12.mn.us',
@@ -165,6 +222,8 @@ interface StubState {
   roster?: Record<string, unknown> | null;
   vaKey?: Record<string, unknown> | null;
   va?: Record<string, unknown> | null;
+  glKey?: Record<string, unknown> | null;
+  gl?: Record<string, unknown> | null;
 }
 
 interface Written {
@@ -206,6 +265,8 @@ function stubDb(state: StubState = {}) {
       },
     },
     va = { driveFileId: VA_DRIVE_FILE },
+    glKey = { payload: { set: GL_SET_DOC } },
+    gl = { title: 'The heart', driveFileId: 'drive-file-3' },
   } = state;
 
   const written: Written[] = [];
@@ -218,6 +279,8 @@ function stubDb(state: StubState = {}) {
     [`users/${HOST}/rosters/${ROSTER}`]: roster,
     [`shared_collections/${SHARE}/keys/videoActivity_${ACTIVITY}`]: vaKey,
     [`users/${HOST}/video_activities/${ACTIVITY}`]: va,
+    [`shared_collections/${SHARE}/keys/guidedLearning_${GL_SET}`]: glKey,
+    [`users/${HOST}/guided_learning/${GL_SET}`]: gl,
   };
 
   const db = {
@@ -1110,5 +1173,201 @@ describe('allocateJoinCode', () => {
 
     expect(out).toBe('BUSY01');
     expect(tries).toBe(6);
+  });
+});
+
+describe('launching a guided activity', () => {
+  const launchGl = (
+    state: StubState = {},
+    over: Record<string, unknown> = {}
+  ) => launch(state, SUB, glInput(over));
+
+  it('writes the session and the teacher’s assignment', async () => {
+    const { run, written } = launchGl();
+
+    const result = await run();
+
+    expect(result).toEqual({ sessionId: 'new-session-id' });
+    expect(written.map((w) => w.path)).toEqual([
+      'guided_learning_sessions/new-session-id',
+      `users/${HOST}/guided_learning_assignments/new-session-id`,
+    ]);
+    for (const w of written) expect(w.data.teacherUid).toBe(HOST);
+  });
+
+  // Students reach it from their assignments, the same way the teacher's own
+  // assign works, so there is no code to mint.
+  it('mints no join code', async () => {
+    const { run, written } = launchGl();
+
+    const result = await run();
+
+    expect(result.code).toBeUndefined();
+    expect(written.some((w) => w.path.startsWith('quiz_join_codes/'))).toBe(
+      false
+    );
+  });
+
+  // Unlike a quiz or a video activity, a guided session holds no key doc at
+  // all: the teacher grades against their own set, and a sub against the copy
+  // the share already bundled them.
+  it('writes no answer key anywhere', async () => {
+    const { run, written } = launchGl();
+
+    await run();
+
+    expect(written.some((w) => w.path.includes('/key'))).toBe(false);
+    for (const w of written) expect(findAnswerField(w.data)).toBeNull();
+    expect(JSON.stringify(written)).not.toContain('correctAnswer');
+  });
+
+  it('ships the steps a student plays, and nothing teacher-only', async () => {
+    const { run, written } = launchGl();
+
+    await run();
+
+    const steps = written[0].data.publicSteps as Record<string, unknown>[];
+    const question = steps[0].question as { choices: string[] };
+    expect([...question.choices].sort()).toEqual(['Heart', 'Lung']);
+    expect(steps[0].tour).toBeUndefined();
+  });
+
+  // The same Drive-sync race the teacher's own path dedupes: a repeated id
+  // would inflate "Step X of N".
+  it('counts a repeated step id once', async () => {
+    const { run, written } = launchGl();
+
+    await run();
+
+    const steps = written[0].data.publicSteps as { id: string }[];
+    expect(steps.map((s) => s.id)).toEqual(['g1', 'g2']);
+  });
+
+  it('mirrors what the player needs to draw the activity', async () => {
+    const { run, written } = launchGl();
+
+    await run();
+
+    expect(written[0].data.title).toBe('The heart');
+    expect(written[0].data.mode).toBe('guided');
+    expect(written[0].data.imageUrls).toEqual([
+      'https://example.test/a.png',
+      'https://example.test/b.png',
+    ]);
+    expect(written[0].data.schemaVersion).toBe(3);
+    expect(written[0].data.createdAt).toBe(NOW);
+  });
+
+  // A default the client also applies: an unrecognised play mode would leave
+  // the player with no way to render the set.
+  it('falls back to guided when the set names no usable play mode', async () => {
+    const { run, written } = launchGl({
+      glKey: { payload: { set: { ...GL_SET_DOC, mode: 'nonsense' } } },
+    });
+
+    await run();
+
+    expect(written[0].data.mode).toBe('guided');
+  });
+
+  it('targets the classes the picked rosters resolve to', async () => {
+    const { run, written } = launchGl();
+
+    await run();
+
+    expect(written[0].data.classIds).toEqual(['class-A']);
+    expect(written[0].data.classId).toBe('class-A');
+    expect(written[0].data.periodNames).toEqual(['Period 3']);
+    expect(written[0].data.rosterIds).toEqual([ROSTER]);
+  });
+
+  it('leaves the teacher a row they can find and grade', async () => {
+    const { run, written } = launchGl();
+
+    await run();
+
+    expect(written[1].data).toMatchObject({
+      id: 'new-session-id',
+      sessionId: 'new-session-id',
+      setId: GL_SET,
+      setTitle: 'The heart',
+      status: 'active',
+      source: 'personal',
+      targetMode: 'class',
+      rosterIds: [ROSTER],
+      archivedAt: null,
+    });
+  });
+
+  it('lets the sub watch the run until the share expires', async () => {
+    const { run, written } = launchGl();
+
+    await run();
+
+    expect(written[0].data.subMonitorUids).toEqual([SUB.uid]);
+    expect(written[0].data.subMonitorUntil).toBe(NOW + 86_400_000);
+    expect(written[0].data.launchedBy).toEqual({
+      uid: SUB.uid,
+      email: 'sub@orono.k12.mn.us',
+      shareId: SHARE,
+    });
+  });
+
+  it('refuses a key the teacher never left', async () => {
+    await expect(launchGl({ glKey: null }).run()).rejects.toThrow(
+      'did not leave this activity'
+    );
+  });
+
+  it('refuses a key for a different set', async () => {
+    await expect(
+      launchGl({
+        glKey: { payload: { set: { ...GL_SET_DOC, id: 'other-set' } } },
+      }).run()
+    ).rejects.toThrow('does not match the share');
+  });
+
+  it('refuses a set with no steps to play', async () => {
+    await expect(
+      launchGl({
+        glKey: { payload: { set: { ...GL_SET_DOC, steps: [] } } },
+      }).run()
+    ).rejects.toThrow('has no steps');
+    await expect(
+      launchGl({
+        glKey: { payload: { set: { ...GL_SET_DOC, steps: [{ xPct: 1 }] } } },
+      }).run()
+    ).rejects.toThrow('no usable steps');
+  });
+
+  it('refuses a set that has left the teacher’s library', async () => {
+    await expect(launchGl({ gl: null }).run()).rejects.toThrow(
+      'no longer in the teacher'
+    );
+  });
+
+  // Publishing scores reveals the answers, so it stays the teacher's own
+  // decision however the run was started.
+  it('refuses to publish scores on the sub’s behalf', async () => {
+    await expect(
+      launchGl(
+        {},
+        { session: { scoreVisibility: 'score-responses-and-answers' } }
+      ).run()
+    ).rejects.toThrow('scoreVisibility is not yours to set on the session');
+    await expect(
+      launchGl({}, { assignment: { scoreVisibility: 'score-only' } }).run()
+    ).rejects.toThrow('scoreVisibility is not yours to set on the assignment');
+  });
+
+  // The quiz's allowlist has these; this one must not, or a sub could rename
+  // the class or re-point the run.
+  it('refuses a field from another kind’s allowlist', async () => {
+    await expect(
+      launchGl({}, { assignment: { className: 'Not my class' } }).run()
+    ).rejects.toThrow('className is not yours to set on the assignment');
+    await expect(
+      launchGl({}, { session: { publicSteps: [] } }).run()
+    ).rejects.toThrow('publicSteps is not yours to set on the session');
   });
 });

@@ -76,6 +76,21 @@ const VA_ASSIGNMENT_FIELDS = new Set([
   'updatedAt',
 ]);
 
+const GL_SESSION_FIELDS = new Set([
+  'assignmentMode',
+  'openAt',
+  'closeAt',
+  'dueAt',
+]);
+const GL_ASSIGNMENT_FIELDS = new Set([
+  'status',
+  'assignmentMode',
+  'openAt',
+  'closeAt',
+  'dueAt',
+  'updatedAt',
+]);
+
 const outside = (payload: Record<string, unknown>, allowed: Set<string>) =>
   Object.keys(payload).filter((key) => !allowed.has(key));
 
@@ -163,5 +178,41 @@ describe('subLaunchRunSettings for a video activity', () => {
   it('sends nothing the callable would refuse', () => {
     expect(outside(session, VA_SESSION_FIELDS)).toEqual([]);
     expect(outside(assignment, VA_ASSIGNMENT_FIELDS)).toEqual([]);
+  });
+});
+
+describe('subLaunchRunSettings for a guided activity', () => {
+  const { session, assignment } = subLaunchRunSettings(
+    'guidedLearning',
+    'Period 5',
+    NOW
+  );
+
+  // The student steps through it on their own device and the teacher publishes
+  // the scores afterwards, so starting it is the only choice there is.
+  it('starts a tracked run and nothing else', () => {
+    expect(session.assignmentMode).toBe('submissions');
+    expect(assignment.status).toBe('active');
+    expect(assignment.assignmentMode).toBe('submissions');
+  });
+
+  // Guided Learning's own `mode` is the play mode, so an assignment mode sent
+  // under that name would either be refused or overwrite how it plays.
+  it('never sends the assignment mode as `mode`', () => {
+    expect(session.mode).toBeUndefined();
+    expect(assignment.mode).toBeUndefined();
+  });
+
+  // The teacher's list names the class from the rosters, and publishing scores
+  // reveals the answers, so neither is the sub's to set.
+  it('names no class and no score visibility', () => {
+    expect(assignment.className).toBeUndefined();
+    expect(session.scoreVisibility).toBeUndefined();
+    expect(assignment.scoreVisibility).toBeUndefined();
+  });
+
+  it('sends nothing the callable would refuse', () => {
+    expect(outside(session, GL_SESSION_FIELDS)).toEqual([]);
+    expect(outside(assignment, GL_ASSIGNMENT_FIELDS)).toEqual([]);
   });
 });

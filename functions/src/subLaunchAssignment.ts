@@ -16,9 +16,14 @@ import {
   toVaPublicQuestion,
   type VaKeyQuestion,
 } from './videoActivityGrade';
+import {
+  dedupeGlStepsById,
+  toGlPublicStep,
+  type GlKeyStep,
+} from './guidedLearningPublicStep';
 
 /** Only the kinds D8 puts in v1; Poll and Activity Wall stay unlaunchable. */
-const LAUNCHABLE_KINDS = ['quiz', 'videoActivity'] as const;
+const LAUNCHABLE_KINDS = ['quiz', 'videoActivity', 'guidedLearning'] as const;
 type LaunchKind = (typeof LAUNCHABLE_KINDS)[number];
 
 const MAX_ID_LENGTH = 128;
@@ -117,6 +122,28 @@ const ALLOWED_VA_ASSIGNMENT_FIELDS = new Set([
   'updatedAt',
 ]);
 
+/**
+ * The same for a guided activity, which has no pacing and no join code to
+ * choose. `periodNames` is derived from the rosters here rather than accepted,
+ * and `scoreVisibility` is not offered at all: publishing scores reveals the
+ * answers and stays the teacher's own decision.
+ */
+const ALLOWED_GL_SESSION_FIELDS = new Set([
+  'assignmentMode',
+  'openAt',
+  'closeAt',
+  'dueAt',
+]);
+
+const ALLOWED_GL_ASSIGNMENT_FIELDS = new Set([
+  'status',
+  'assignmentMode',
+  'openAt',
+  'closeAt',
+  'dueAt',
+  'updatedAt',
+]);
+
 const ANSWER_FIELDS = [
   'correctAnswer',
   'incorrectAnswers',
@@ -144,7 +171,7 @@ export interface LaunchSubAssignmentInput {
 
 export interface LaunchSubAssignmentResult {
   sessionId: string;
-  /** Quiz only. A video activity is reached by class, not by a code. */
+  /** Quiz only. A video activity or guided activity is reached by class. */
   code?: string;
 }
 
@@ -330,6 +357,88 @@ export function vaQuestionsFromKey(keyQuestions: unknown): {
     publicQuestions: key.map(
       (q) => toVaPublicQuestion(q) as unknown as Record<string, unknown>
     ),
+  };
+}
+
+const GL_MODES = new Set(['structured', 'guided', 'explore']);
+
+interface GlKeySet {
+  id?: unknown;
+  title?: unknown;
+  mode?: unknown;
+  imageUrls?: unknown;
+  imageKinds?: unknown;
+  videoTrims?: unknown;
+  steps?: unknown;
+  schemaVersion?: unknown;
+  hotspotPulse?: unknown;
+  imageTransition?: unknown;
+  welcomeEnabled?: unknown;
+  welcomeMessage?: unknown;
+  watchPace?: unknown;
+}
+
+/**
+ * The steps a sub-launched guided activity runs on: deduped so a repeated id
+ * cannot inflate "Step X of N", then projected through the same mirror the
+ * teacher's own `createSession` uses.
+ */
+export function glPublicStepsFromKey(
+  steps: unknown
+): Record<string, unknown>[] {
+  if (!Array.isArray(steps) || steps.length === 0) {
+    denied('The shared guided activity has no steps.');
+  }
+  const usable = steps.filter(
+    (s): s is GlKeyStep =>
+      !!s &&
+      typeof s === 'object' &&
+      typeof (s as GlKeyStep).id === 'string' &&
+      !!(s as GlKeyStep).id
+  );
+  const out = dedupeGlStepsById(usable).map(toGlPublicStep);
+  if (out.length === 0) {
+    denied('The shared guided activity has no usable steps.');
+  }
+  return out;
+}
+
+/**
+ * The display settings the student player reads, mirrored on the same terms
+ * the teacher's own `createSession` mirrors them: only when they differ from
+ * the default, so a sub-launched session doc looks like any other.
+ */
+export function glSessionPresentation(set: GlKeySet): Record<string, unknown> {
+  const imageUrls = Array.isArray(set.imageUrls) ? set.imageUrls : [];
+  const kinds = Array.isArray(set.imageKinds) ? set.imageKinds : null;
+  const trims = Array.isArray(set.videoTrims) ? set.videoTrims : null;
+  const welcome =
+    set.welcomeEnabled === true &&
+    typeof set.welcomeMessage === 'string' &&
+    set.welcomeMessage.trim()
+      ? { welcomeEnabled: true, welcomeMessage: set.welcomeMessage }
+      : {};
+  return {
+    imageUrls,
+    ...(kinds?.some((k) => k === 'video')
+      ? { imageKinds: kinds.slice(0, imageUrls.length) }
+      : {}),
+    ...(trims?.some(Boolean)
+      ? { videoTrims: trims.slice(0, imageUrls.length) }
+      : {}),
+    ...(typeof set.schemaVersion === 'number'
+      ? { schemaVersion: set.schemaVersion }
+      : {}),
+    ...(typeof set.hotspotPulse === 'string' &&
+    set.hotspotPulse !== 'consistent'
+      ? { hotspotPulse: set.hotspotPulse }
+      : {}),
+    ...(typeof set.imageTransition === 'string' &&
+    set.imageTransition !== 'none'
+      ? { imageTransition: set.imageTransition }
+      : {}),
+    ...welcome,
+    ...(set.watchPace === 'calm' ? { watchPace: set.watchPace } : {}),
   };
 }
 
@@ -549,6 +658,110 @@ async function launchVideoActivity(
   return { sessionId };
 }
 
+interface GlLaunchArgs {
+  db: admin.firestore.Firestore;
+  hostUid: string;
+  itemId: string;
+  keyData: admin.firestore.DocumentData | undefined;
+  rawSession: unknown;
+  rawAssignment: unknown;
+  targeting: SubLaunchTargeting;
+  pickedRosters: string[];
+  sessionId: string;
+  now: number;
+  stamp: Record<string, unknown>;
+}
+
+/**
+ * A guided activity has no join code and no answer-key doc of its own: the
+ * session carries only `publicSteps`, and grading happens against the
+ * teacher's own set, which the share already bundled for the sub.
+ */
+async function launchGuidedLearning(
+  args: GlLaunchArgs
+): Promise<LaunchSubAssignmentResult> {
+  const { hostUid, itemId, keyData, targeting, sessionId, now, stamp } = args;
+  const set = (keyData?.payload as { set?: GlKeySet } | undefined)?.set;
+  if (!keyData || !set) {
+    denied('The teacher did not leave this activity for a substitute.');
+  }
+  if (set.id !== itemId) denied('That activity does not match the share.');
+
+  const session = pickAllowed(
+    args.rawSession as Record<string, unknown>,
+    ALLOWED_GL_SESSION_FIELDS,
+    'session'
+  );
+  const assignment = pickAllowed(
+    args.rawAssignment as Record<string, unknown>,
+    ALLOWED_GL_ASSIGNMENT_FIELDS,
+    'assignment'
+  );
+  const answerField = findAnswerField(session) ?? findAnswerField(assignment);
+  if (answerField) bad(`${answerField} must not reach a student session.`);
+
+  // The teacher's own library is the authority that the set still exists; a
+  // share outlives a delete, and a row pointing at nothing grades nothing.
+  const setSnap = await args.db
+    .doc(`users/${hostUid}/guided_learning/${itemId}`)
+    .get();
+  if (!setSnap.exists) {
+    denied('That activity is no longer in the teacher’s library.');
+  }
+
+  const setTitle =
+    typeof set.title === 'string' && set.title ? set.title : 'Guided activity';
+  const publicSteps = glPublicStepsFromKey(set.steps);
+  // The post-PIN period picker reads these; the sub never supplies them.
+  const periodNames = Array.from(
+    new Set(Object.values(targeting.classPeriodByClassId))
+  );
+
+  const sessionDoc = {
+    ...session,
+    ...glSessionPresentation(set),
+    ...stamp,
+    classIds: targeting.classIds,
+    classId: targeting.classIds[0],
+    ...(periodNames.length > 0 ? { periodNames } : {}),
+    rosterIds: args.pickedRosters,
+    id: sessionId,
+    title: setTitle,
+    // GL's own `mode` is the play mode, not the assignment mode.
+    mode: GL_MODES.has(String(set.mode)) ? set.mode : 'guided',
+    publicSteps,
+    createdAt: now,
+  };
+  if (approxBytes(sessionDoc) > MAX_PAYLOAD_BYTES) {
+    denied('That guided activity is too large to start from a share.');
+  }
+
+  const batch = args.db.batch();
+  batch.set(args.db.doc(`guided_learning_sessions/${sessionId}`), sessionDoc);
+  batch.set(
+    args.db.doc(`users/${hostUid}/guided_learning_assignments/${sessionId}`),
+    {
+      ...assignment,
+      ...stamp,
+      rosterIds: args.pickedRosters,
+      id: sessionId,
+      sessionId,
+      setId: itemId,
+      setTitle,
+      // A bundled set always came from the teacher's Drive; a building set is
+      // never bundled, so it can't be launched from a share.
+      source: 'personal',
+      targetMode: 'class',
+      archivedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    }
+  );
+  await batch.commit();
+
+  return { sessionId };
+}
+
 export async function handleLaunchSubAssignment(
   db: admin.firestore.Firestore,
   caller: SubLaunchCaller | null,
@@ -652,6 +865,22 @@ export async function handleLaunchSubAssignment(
     subMonitorUids: [caller.uid],
     subMonitorUntil: expiresAt,
   };
+
+  if (kind === 'guidedLearning') {
+    return launchGuidedLearning({
+      db,
+      hostUid,
+      itemId,
+      keyData: keySnap.exists ? keySnap.data() : undefined,
+      rawSession,
+      rawAssignment,
+      targeting,
+      pickedRosters,
+      sessionId,
+      now,
+      stamp,
+    });
+  }
 
   if (kind === 'videoActivity') {
     return launchVideoActivity({

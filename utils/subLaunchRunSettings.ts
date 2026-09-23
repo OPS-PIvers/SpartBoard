@@ -103,13 +103,26 @@ function videoActivityRunSettings(className: string): SubLaunchRunSettings {
   };
 }
 
+/**
+ * A guided activity paces itself step by step on the student's own device, and
+ * the teacher publishes its scores afterwards, so there is nothing to choose
+ * here beyond starting it. The class is named by the rosters, which the server
+ * writes, so the run carries no `className` of its own.
+ */
+function guidedLearningRunSettings(): SubLaunchRunSettings {
+  return {
+    session: { assignmentMode: 'submissions' },
+    assignment: { status: 'active', assignmentMode: 'submissions' },
+  };
+}
+
 /** The run settings for whichever kind the substitute is starting. */
 export function subLaunchRunSettings(
   kind: SubShareContentKind,
   className: string,
   startedAt: number
 ): SubLaunchRunSettings {
-  return kind === 'videoActivity'
-    ? videoActivityRunSettings(className)
-    : quizRunSettings(className, startedAt);
+  if (kind === 'videoActivity') return videoActivityRunSettings(className);
+  if (kind === 'guidedLearning') return guidedLearningRunSettings();
+  return quizRunSettings(className, startedAt);
 }

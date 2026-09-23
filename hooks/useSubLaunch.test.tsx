@@ -117,6 +117,29 @@ describe('useSubLaunch', () => {
     expect(result.current.result).toEqual({ sessionId: 's1' });
   });
 
+  it('sends the guided activity run settings for a guided activity', async () => {
+    callable.mockResolvedValue({ data: { sessionId: 's1' } });
+    const { result } = renderHook(
+      () => useSubLaunch('guidedLearning', 'w1', 'set-1'),
+      { wrapper: inShare() }
+    );
+
+    await act(() => result.current.launch(['roster-1']));
+
+    const sent = callable.mock.calls[0][0] as {
+      kind: string;
+      session: Record<string, unknown>;
+      assignment: Record<string, unknown>;
+    };
+    expect(sent.kind).toBe('guidedLearning');
+    expect(sent.session.assignmentMode).toBe('submissions');
+    expect(sent.assignment.status).toBe('active');
+    // Guided Learning's own `mode` is the play mode, so the callable refuses
+    // an assignment mode sent under that name.
+    expect(sent.session.mode).toBeUndefined();
+    expect(result.current.result).toEqual({ sessionId: 's1' });
+  });
+
   it('does not call out outside a share', async () => {
     const { result } = renderHook(() => useSubLaunch('quiz', 'w1', 'q-1'));
     await act(() => result.current.launch(['roster-1']));
