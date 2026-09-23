@@ -1683,7 +1683,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         >
           {headerTitle}
         </p>
-        {canPrintResults && responses.length > 0 && (
+        {canPrintResults && filteredResponses.length > 0 && (
           <button
             type="button"
             onClick={() => openPrint(null)}
