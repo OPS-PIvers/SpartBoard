@@ -77,11 +77,19 @@ function videoActivityRunSettings(className: string): SubLaunchRunSettings {
     requireCorrectAnswer: false,
     allowSkipping: true,
   };
+  // `attemptLimit` lives beside the bag in the behaviour type but inside it on
+  // a session doc, which is where the player reads the cap from. Same fold the
+  // teacher's own assign does in VideoActivityWidget/Widget.tsx.
+  const sessionOptions = {
+    ...DEFAULT_VA_BEHAVIOR.sessionOptions,
+    attemptLimit: DEFAULT_VA_BEHAVIOR.attemptLimit,
+  };
   return {
     session: {
       status: 'active',
       mode: 'submissions',
       settings,
+      sessionOptions,
       assignmentName: className,
     },
     assignment: {
@@ -89,7 +97,7 @@ function videoActivityRunSettings(className: string): SubLaunchRunSettings {
       mode: 'submissions',
       className,
       sessionSettings: settings,
-      sessionOptions: { ...DEFAULT_VA_BEHAVIOR.sessionOptions },
+      sessionOptions,
       scoreVisibility: 'score-only',
     },
   };

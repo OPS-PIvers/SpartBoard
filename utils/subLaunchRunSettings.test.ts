@@ -144,6 +144,17 @@ describe('subLaunchRunSettings for a video activity', () => {
     expect(assignment.scoreVisibility).toBe('score-only');
   });
 
+  // The player reads the cap from the session doc, not the assignment, so an
+  // omitted bag there means unlimited retakes.
+  it('caps attempts on the session, where the player reads it', () => {
+    const options = session.sessionOptions as { attemptLimit?: number | null };
+    expect(options.attemptLimit).toBe(1);
+    expect(
+      (assignment.sessionOptions as { attemptLimit?: number | null })
+        .attemptLimit
+    ).toBe(1);
+  });
+
   it('sends no quiz field, which this allowlist would refuse', () => {
     expect(session.sessionMode).toBeUndefined();
     expect(session.currentQuestionIndex).toBeUndefined();
