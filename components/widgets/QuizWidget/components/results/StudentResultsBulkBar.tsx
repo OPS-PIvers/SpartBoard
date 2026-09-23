@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, Eye, EyeOff, Loader2, Users, X } from 'lucide-react';
+import { Copy, Eye, EyeOff, Loader2, Printer, Users, X } from 'lucide-react';
 import type { QuizResponse, QuizScoreVisibility, Toast } from '@/types';
 import { getResponseDocKey } from '@/hooks/useQuizSession';
 import { logError } from '@/utils/logError';
@@ -17,6 +17,8 @@ interface StudentResultsBulkBarProps {
   classVisibility: QuizScoreVisibility;
   resolveName: (response: QuizResponse) => string;
   addToast: (message: string, type?: Toast['type']) => void;
+  /** Opens the results print with these students ticked; absent hides the action. */
+  onPrint?: (responseKeys: string[]) => void;
 }
 
 const plural = (n: number) => `${n} student${n === 1 ? '' : 's'}`;
@@ -28,6 +30,7 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
   classVisibility,
   resolveName,
   addToast,
+  onPrint,
 }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busy, setBusy] = useState<'hide' | 'clear' | null>(null);
@@ -176,6 +179,17 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
         <Copy style={iconStyle} />
         Copy names
       </button>
+      {onPrint && (
+        <button
+          type="button"
+          onClick={() => onPrint(keys)}
+          className={buttonCls}
+          style={buttonStyle}
+        >
+          <Printer style={iconStyle} />
+          Print selected
+        </button>
+      )}
       <button
         type="button"
         onClick={selection.clearSelection}

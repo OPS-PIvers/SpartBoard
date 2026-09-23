@@ -207,6 +207,11 @@ A teacher prints quiz results to hand back to students, choosing what each copy 
   - modal tests for entry-point preselection (everyone listed and ticked), the PLC hide, each banner, and the masked preview name
   - update `QuizResults.studentDrilldown.test.tsx` and `quizStudentDrilldown.test.ts`
 
+**Phase 1 as built (2026-09-23).** Two places follow the plan's intent rather than its letter:
+
+- D14, online option order: authoring order is `[correctAnswer, ...incorrectAnswers]`, so the key is always first and "key off" would still give it away. Online students' options print in one fixed shuffle per question (`paperChoiceOrder` seeded on `results-print`), the same for every student, with True/False kept True-first.
+- D5, the Print button sits in the blue header beside the hide-names toggle. The overflow menu lives in the footer, which only shows on the home screen, and "available on every Results screen" wins.
+
 ### Phase 2 — filled bubble-sheet reprint
 
 - `utils/paperSheetPrint.ts`: a filled bubble class, a double-ring key class, margin marks, a header score, and an option to omit the marker grid and registration squares. Factor the page builder so the blank and filled sheets share geometry.

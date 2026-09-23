@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { QuizQuestion, QuizResponse } from '@/types';
-import { computeStudentDrilldown } from '@/utils/quizStudentDrilldown';
+import {
+  computeStudentDrilldown,
+  showsMissedKey,
+} from '@/utils/quizStudentDrilldown';
 import { makeQuestionGradeFn } from '@/utils/quizQuestionStats';
 import { buildStudentReportHtml } from '@/utils/quizStudentReportPrint';
 
@@ -52,8 +55,10 @@ describe('computeStudentDrilldown', () => {
       [1, 'incorrect', 'Rome'],
       [2, 'correct', 'Blue'],
     ]);
+    // The key rides on every auto-graded line; the screen shows it only when missed.
     expect(d.lines[0].correctAnswerText).toBe('Paris');
-    expect(d.lines[1].correctAnswerText).toBeNull();
+    expect(d.lines[1].correctAnswerText).toBe('blue');
+    expect(d.lines.map(showsMissedKey)).toEqual([true, false]);
     expect([d.pointsEarned, d.pointsMax, d.percent]).toEqual([2, 3, 67]);
   });
 
@@ -147,6 +152,121 @@ describe('computeStudentDrilldown', () => {
     expect(d.lines[0].mark).toBe('excused');
     expect(d.lines[0].pointsMax).toBe(0);
     expect(d.percent).toBe(100);
+  });
+});
+
+describe('computeStudentDrilldown — print data', () => {
+  it('lists every MC option with the pick and the key, in the paper order when given', () => {
+    const mc = q('q1', 'MC', 'Paris', { incorrectAnswers: ['Rome', 'Oslo'] });
+    const online = computeStudentDrilldown([mc], response({ q1: 'rome' }));
+    const opts = online.lines[0].options ?? [];
+    expect(opts.map((o) => o.text).sort()).toEqual(['Oslo', 'Paris', 'Rome']);
+    expect(opts.find((o) => o.picked)?.text).toBe('Rome');
+    expect(opts.find((o) => o.correct)?.text).toBe('Paris');
+
+    const paper = computeStudentDrilldown(
+      [mc],
+      response({ q1: 'Rome' }),
+      undefined,
+      { choiceOrder: { q1: ['Oslo', 'Rome', 'Paris'] } }
+    );
+    expect(paper.lines[0].options?.map((o) => o.text)).toEqual([
+      'Oslo',
+      'Rome',
+      'Paris',
+    ]);
+  });
+
+  it('prints the online option order the same for every student', () => {
+    const mc = q('q1', 'MC', 'a', { incorrectAnswers: ['b', 'c', 'd'] });
+    const order = (uid: string) =>
+      computeStudentDrilldown(
+        [mc],
+        response({ q1: 'b' }, { studentUid: uid })
+      ).lines[0].options?.map((o) => o.text);
+    expect(order('s1')).toEqual(order('s2'));
+  });
+
+  it('breaks Matching into pairs and keeps both Ordering sequences', () => {
+    const d = computeStudentDrilldown(
+      [
+        q('m', 'Matching', 'cat:meow|dog:woof', { allowPartialCredit: true }),
+        q('o', 'Ordering', 'a|b|c'),
+      ],
+      response({ m: 'cat:MEOW|dog:meow', o: 'b|a|c' })
+    );
+    expect(d.lines[0].pairs).toEqual([
+      { term: 'cat', given: 'MEOW', expected: 'meow', correct: true },
+      { term: 'dog', given: 'meow', expected: 'woof', correct: false },
+    ]);
+    expect(d.lines[1].order).toEqual({
+      given: ['b', 'a', 'c'],
+      expected: ['a', 'b', 'c'],
+    });
+  });
+
+  it('carries the written grade, rubric, formatted answer and submitted date', () => {
+    const rubric = {
+      id: 'r',
+      title: 'R',
+      criteria: [],
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    const written = q('w', 'free-response', '', {
+      points: 4,
+      rubricSnapshot: rubric,
+      stimulusIds: ['s1'],
+    });
+    const grade = {
+      pointsAwarded: 3,
+      gradingSnapshot: '<p>Snap</p>',
+      gradedAt: 1,
+      gradedBy: 't',
+    };
+    const d = computeStudentDrilldown(
+      [written],
+      response({ w: '<p>My <b>essay</b></p>' }, {
+        submittedAt: 500,
+        grading: { w: grade },
+      } as Partial<QuizResponse>)
+    );
+    expect(d.submittedAt).toBe(500);
+    expect(d.lines[0]).toMatchObject({
+      answerHtml: '<p>Snap</p>',
+      writtenGrade: grade,
+      rubric,
+      stimulusIds: ['s1'],
+      correctAnswerText: null,
+    });
+
+    const ungraded = computeStudentDrilldown(
+      [written],
+      response({ w: '<p>My <b>essay</b><script>x</script></p>' }),
+      undefined,
+      { rubricFor: () => undefined }
+    );
+    expect(ungraded.lines[0].answerHtml).toBe('<p>My <b>essay</b></p>');
+    expect(ungraded.lines[0].rubric).toBeUndefined();
+  });
+
+  it('flags a recorded answer', () => {
+    const spoken = q('s', 'free-response', '', {
+      recording: { mode: 'audio' },
+    } as unknown as Partial<QuizQuestion>);
+    const r = response({}, {
+      answers: [
+        {
+          questionId: 's',
+          answer: '',
+          answeredAt: 1,
+          artifacts: [{ kind: 'audio', slot: 'primary' }],
+        },
+      ],
+    } as unknown as Partial<QuizResponse>);
+    expect(computeStudentDrilldown([spoken], r).lines[0].recorded).toBe(
+      'audio'
+    );
   });
 });
 

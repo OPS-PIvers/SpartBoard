@@ -29,6 +29,7 @@ vi.mock('@/context/useDashboard', () => ({
 }));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
+    canAccessFeature: () => false,
     canAccessQuizMediaResponse: () => false,
     refreshGoogleToken: () => Promise.resolve(null),
     googleAccessToken: null,
