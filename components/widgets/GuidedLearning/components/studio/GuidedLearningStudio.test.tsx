@@ -387,6 +387,21 @@ describe('GuidedLearningStudio', () => {
       expect(screen.queryByRole('button', { name: /Run live/ })).toBeNull();
     });
 
+    it('shows the Live tour link for a selected step only on building sets', () => {
+      features.add('gl-live-tours');
+      renderStudio({ set: tourSet(false) });
+      act(() => {
+        pressKey(']');
+      });
+      expect(screen.queryByTestId('gl-studio-tour-controls')).toBeNull();
+      cleanup();
+      renderStudio({ set: tourSet() });
+      act(() => {
+        pressKey(']');
+      });
+      expect(screen.getByTestId('gl-studio-tour-controls')).toBeInTheDocument();
+    });
+
     it('closes the Studio and starts the saved tour on the board', async () => {
       features.add('gl-live-tours');
       const started = vi.fn();
