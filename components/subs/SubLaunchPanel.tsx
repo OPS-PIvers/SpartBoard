@@ -6,6 +6,10 @@
  * feature is not turned on. Once a run starts, the panel becomes the join code
  * the substitute reads to the class; monitoring it is the teacher's Results
  * view, which the sub reaches for the run they started (PR #3324).
+ *
+ * Sizes are container-query units because this mounts on a widget front face
+ * (components/widgets/CLAUDE.md), and the join code has to carry to the back
+ * of a classroom.
  */
 
 import React, { useState } from 'react';
@@ -22,6 +26,11 @@ interface SubLaunchPanelProps {
   /** What the substitute is starting, for the button's own words. */
   label: string;
 }
+
+const PAD = 'min(8px, 2cqmin) min(12px, 3cqmin)';
+const NOTE = 'min(11px, 3.5cqmin)';
+const BODY = 'min(13px, 4cqmin)';
+const ICON = 'min(16px, 4.5cqmin)';
 
 export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
   kind,
@@ -44,12 +53,20 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
 
   if (status === 'launched' && result) {
     return (
-      <div className="px-3 py-2 text-center">
-        <p className="text-xs text-slate-300">Students join with this code</p>
-        <p className="text-2xl font-bold tracking-widest text-white tabular-nums">
+      <div className="text-center" style={{ padding: PAD }}>
+        <p className="text-slate-300" style={{ fontSize: NOTE }}>
+          Students join with this code
+        </p>
+        <p
+          className="font-bold tracking-widest text-white tabular-nums"
+          style={{ fontSize: 'clamp(20px, 12cqmin, 64px)' }}
+        >
           {result.code}
         </p>
-        <p className="mt-1 text-xs text-slate-400">
+        <p
+          className="text-slate-300"
+          style={{ fontSize: NOTE, marginTop: 'min(4px, 1cqmin)' }}
+        >
           Running in the teacher&apos;s account. Their results will show it was
           started by you.
         </p>
@@ -59,12 +76,15 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
 
   if (status === 'error') {
     return (
-      <div className="px-3 py-2 text-center">
-        <p className="text-xs text-slate-200">{error}</p>
+      <div className="text-center" style={{ padding: PAD }}>
+        <p className="text-slate-200" style={{ fontSize: NOTE }}>
+          {error}
+        </p>
         <button
           type="button"
           onClick={reset}
-          className="mt-1 text-xs font-medium text-slate-300 underline hover:text-white"
+          className="font-medium text-slate-300 underline hover:text-white"
+          style={{ fontSize: NOTE, marginTop: 'min(4px, 1cqmin)' }}
         >
           Back
         </button>
@@ -74,8 +94,15 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
 
   if (status === 'launching') {
     return (
-      <div className="flex items-center justify-center gap-2 px-3 py-2 text-xs text-slate-200">
-        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+      <div
+        className="flex items-center justify-center text-slate-200"
+        style={{ padding: PAD, gap: 'min(8px, 2cqmin)', fontSize: NOTE }}
+      >
+        <Loader2
+          className="animate-spin"
+          style={{ width: ICON, height: ICON }}
+          aria-hidden="true"
+        />
         Starting {label}…
       </div>
     );
@@ -85,7 +112,7 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
   // rather than making the substitute pick from a list of one.
   if (!picking) {
     return (
-      <div className="px-3 py-2">
+      <div style={{ padding: PAD }}>
         <button
           type="button"
           onClick={() =>
@@ -93,9 +120,10 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
               ? void launch([rosters[0].id])
               : setPicking(true)
           }
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
+          className="flex w-full items-center justify-center rounded-lg bg-emerald-600 font-semibold text-white hover:bg-emerald-500"
+          style={{ gap: 'min(8px, 2cqmin)', padding: PAD, fontSize: BODY }}
         >
-          <Play className="h-4 w-4" aria-hidden="true" />
+          <Play style={{ width: ICON, height: ICON }} aria-hidden="true" />
           {rosters.length === 1
             ? `Start ${label} with ${rosters[0].name}`
             : `Start ${label}`}
@@ -105,15 +133,21 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
   }
 
   return (
-    <div className="px-3 py-2">
-      <p className="mb-1 text-xs text-slate-300">Which class?</p>
-      <div className="flex flex-col gap-1">
+    <div style={{ padding: PAD }}>
+      <p
+        className="text-slate-300"
+        style={{ fontSize: NOTE, marginBottom: 'min(4px, 1cqmin)' }}
+      >
+        Which class?
+      </p>
+      <div className="flex flex-col" style={{ gap: 'min(4px, 1cqmin)' }}>
         {rosters.map((roster) => (
           <button
             key={roster.id}
             type="button"
             onClick={() => void launch([roster.id])}
-            className="rounded-lg bg-slate-700 px-3 py-2 text-left text-sm font-medium text-white hover:bg-slate-600"
+            className="rounded-lg bg-slate-700 text-left font-medium text-white hover:bg-slate-600"
+            style={{ padding: PAD, fontSize: BODY }}
           >
             {roster.name}
           </button>
@@ -122,7 +156,8 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
       <button
         type="button"
         onClick={() => setPicking(false)}
-        className="mt-1 text-xs font-medium text-slate-300 underline hover:text-white"
+        className="font-medium text-slate-300 underline hover:text-white"
+        style={{ fontSize: NOTE, marginTop: 'min(4px, 1cqmin)' }}
       >
         Cancel
       </button>
