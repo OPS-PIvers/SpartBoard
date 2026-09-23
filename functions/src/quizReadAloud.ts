@@ -1222,7 +1222,7 @@ export async function synthesizeQuizAudio(
       .doc(caller.uid)
       .get();
     const response = { ...responseSnap.data(), studentUid: caller.uid };
-    if (isPeriodFrozen(session, response, Date.now()))
+    if (isPeriodFrozen(session, response, deps.now()))
       throw new HttpsError(
         'failed-precondition',
         'This quiz is not open for your class right now.'
