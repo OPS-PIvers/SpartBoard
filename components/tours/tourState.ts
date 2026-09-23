@@ -19,3 +19,10 @@ export const setTourRunning = (running: boolean): void => {
 };
 
 export const isTourRunning = (): boolean => tourRunning;
+
+export const TOUR_RECORD_EVENT = 'spart:record-tour';
+
+/** Asks the recording host to start a new tour recording; admin surfaces close themselves on it. */
+export function requestRecordTour(): void {
+  window.dispatchEvent(new Event(TOUR_RECORD_EVENT));
+}

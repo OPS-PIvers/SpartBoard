@@ -32,6 +32,7 @@ transparency ownership rule:
 | 7   | `components/admin/`                              | Admin config panel or modal (see spart-widget-admin-config skill)                                                                                                                   |
 | 8   | `components/admin/FeaturePermissionsManager.tsx` | Wire admin config modal if using dedicated modal path                                                                                                                               |
 | 9   | `config/tourAnchors.ts`                          | Tag the widget's primary actions with `tourAttr` (add item, start, reset, main settings toggles) and register them as `<widgetType>.<action>`                                       |
+| 10  | `components/widgets/YourWidget/`                 | Tag elements that show student faces, photos or free-form student content with `data-pii`, so tour recordings blur them                                                             |
 
 ---
 

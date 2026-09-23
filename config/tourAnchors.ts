@@ -1,4 +1,5 @@
 // Stable live-tour anchors; tests/tourAnchors.test.ts fails if a key stops being rendered.
+// Separately, `data-pii` marks student faces, photos and free-form work, which tour recordings always blur.
 export interface TourAnchorDef {
   label: string;
   /** One element per widget instance, scoped by `data-tour-widget`. */

@@ -1,7 +1,15 @@
-import React, { lazy, Suspense, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Loader2, Radar } from 'lucide-react';
+import React, { lazy, Suspense, useContext, useState } from 'react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Circle,
+  Loader2,
+  Radar,
+} from 'lucide-react';
 import type { GuidedLearningSet } from '@/types';
 import { useGuidedLearning } from '@/hooks/useGuidedLearning';
+import { AuthContext } from '@/context/AuthContextValue';
+import { requestRecordTour } from '@/components/tours/tourState';
 import {
   checkAnchorsLive,
   tourHealthOf,
@@ -34,6 +42,8 @@ const TourHealthPanel: React.FC = () => {
     stepId: string;
   } | null>(null);
 
+  const canRecord =
+    useContext(AuthContext)?.canAccessFeature('gl-live-tours') ?? false;
   const tours = buildingSets
     .map((set) => ({ set, steps: tourHealthOf(set) }))
     .filter((tour) => tour.steps.length > 0);
@@ -59,15 +69,27 @@ const TourHealthPanel: React.FC = () => {
           Checks every live-tour step against the anchor registry. Check live
           looks for each anchor on the board behind this window as it is now.
         </p>
-        <button
-          type="button"
-          onClick={checkLive}
-          disabled={tours.length === 0}
-          className="flex shrink-0 items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-        >
-          <Radar className="w-4 h-4" aria-hidden="true" />
-          Check live
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {canRecord && (
+            <button
+              type="button"
+              onClick={requestRecordTour}
+              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:bg-slate-50"
+            >
+              <Circle className="w-3.5 h-3.5 fill-current" aria-hidden="true" />
+              Record a tour
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={checkLive}
+            disabled={tours.length === 0}
+            className="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <Radar className="w-4 h-4" aria-hidden="true" />
+            Check live
+          </button>
+        </div>
       </div>
 
       {tours.length === 0 && (

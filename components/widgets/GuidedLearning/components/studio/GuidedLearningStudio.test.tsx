@@ -242,6 +242,18 @@ describe('GuidedLearningStudio', () => {
     expect(screen.getByDisplayValue('Click **Start**')).toBeInTheDocument();
   });
 
+  it('flags recorder-drafted text until it is edited', () => {
+    renderStudio({
+      initialStepId: 'step-1',
+      aiDrafts: new Map([['step-1', { label: '', text: 'Click **Start**' }]]),
+    });
+    expect(screen.getByText('AI draft')).toBeInTheDocument();
+    fireEvent.change(screen.getByDisplayValue('Click **Start**'), {
+      target: { value: 'Press Start' },
+    });
+    expect(screen.queryByText('AI draft')).toBeNull();
+  });
+
   it('lists slides with their step counts', () => {
     renderStudio();
     expect(

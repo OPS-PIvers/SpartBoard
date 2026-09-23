@@ -703,7 +703,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     />
   ) : (
     session && (
-      <div className={`h-full w-full ${fontClass}`}>
+      <div data-pii="" className={`h-full w-full ${fontClass}`}>
         <LayoutRouter
           session={session}
           submissions={submissions}
