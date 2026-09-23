@@ -37,6 +37,7 @@ const {
 const routerProps: { current: Record<string, unknown> | null } = {
   current: null,
 };
+const lastRouterProps = () => routerProps.current;
 let snapshotDocs: Record<string, unknown>[] = [];
 let sessionDocData: Record<string, Record<string, unknown>> = {};
 
@@ -556,7 +557,7 @@ describe('ActivityWallWidget inside a sub share', () => {
     await screen.findByText('Exit tickets');
 
     expect(await screen.findByTestId('layout-router')).toBeInTheDocument();
-    expect(routerProps.current?.submissions).toEqual([
+    expect(lastRouterProps()?.submissions).toEqual([
       expect.objectContaining({ id: 'p1', participantLabel: 'Ada' }),
     ]);
   });
@@ -575,7 +576,7 @@ describe('ActivityWallWidget inside a sub share', () => {
       'onEdit',
       'onAddAt',
     ]) {
-      expect(routerProps.current?.[handler]).toBeUndefined();
+      expect(lastRouterProps()?.[handler]).toBeUndefined();
     }
   });
 
