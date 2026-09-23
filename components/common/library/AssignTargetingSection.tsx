@@ -52,6 +52,12 @@ import type { AssignTranslationContext } from './AssignStudentPicker';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, Users } from 'lucide-react';
 import { CollapsibleSection } from './CollapsibleSection';
+import { WindowField } from './AssignWindowField';
+import { scaledFont } from './assignWindowUtils';
+import {
+  AssignPeriodAccessSection,
+  type AssignPeriodAccessContext,
+} from './AssignPeriodAccessSection';
 import { AssignStudentPicker } from './AssignStudentPicker';
 import {
   OverrideEditorRow,
@@ -130,15 +136,9 @@ export interface AssignTargetingSectionProps {
    * are unaffected (out of scope — see the css-scaling journal).
    */
   cqScaled?: boolean;
+  /** Per-period start and windows; the section shows once two or more classes are checked. */
+  periodAccess?: AssignPeriodAccessContext;
 }
-
-/** `min(Xpx, Ycqmin)` font-size, only when `cqScaled` — else the caller's own Tailwind text class stands. */
-const scaledFont = (
-  cqScaled: boolean | undefined,
-  px: number,
-  cqmin: number
-): React.CSSProperties | undefined =>
-  cqScaled ? { fontSize: `min(${px}px, ${cqmin}cqmin)` } : undefined;
 
 /** `min(Xpx, Ycqmin)` square icon size, only when `cqScaled`. */
 const scaledIcon = (
@@ -152,19 +152,6 @@ const scaledIcon = (
         height: `min(${px}px, ${cqmin}cqmin)`,
       }
     : undefined;
-
-/** ms epoch <-> `<input type="datetime-local">` value (local time, no seconds). */
-const msToLocalInputValue = (ms: number | undefined): string => {
-  if (!ms) return '';
-  const d = new Date(ms);
-  const tzOffsetMs = d.getTimezoneOffset() * 60_000;
-  return new Date(ms - tzOffsetMs).toISOString().slice(0, 16);
-};
-const localInputValueToMs = (value: string): number | undefined => {
-  if (!value) return undefined;
-  const parsed = new Date(value).getTime();
-  return Number.isFinite(parsed) ? parsed : undefined;
-};
 
 /**
  * Every student across every passed roster, for name lookup + override peers.
@@ -186,45 +173,6 @@ function buildStudentIndex(
   }
   return index;
 }
-
-/** `<input type="datetime-local">`-shaped labeled field, shared by the Schedule row. */
-const WindowField: React.FC<{
-  id: string;
-  label: string;
-  className?: string;
-  value: number | undefined;
-  onChange: (ms: number | undefined) => void;
-  cqScaled?: boolean;
-}> = ({ id, label, className, value, onChange, cqScaled }) => (
-  <label className={`block ${className ?? ''}`} htmlFor={id}>
-    <span
-      className={
-        cqScaled
-          ? 'font-medium text-slate-500'
-          : 'text-xs font-medium text-slate-500'
-      }
-      style={scaledFont(cqScaled, 12, 4.5)}
-    >
-      {label}
-    </span>
-    <input
-      id={id}
-      type="datetime-local"
-      className={
-        cqScaled
-          ? 'w-full rounded-md border border-slate-300 px-2 py-1 text-slate-800'
-          : 'mt-1 w-full rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-800'
-      }
-      style={
-        cqScaled
-          ? { marginTop: 'min(4px, 1cqmin)', ...scaledFont(cqScaled, 14, 5.5) }
-          : undefined
-      }
-      value={msToLocalInputValue(value)}
-      onChange={(e) => onChange(localInputValueToMs(e.target.value))}
-    />
-  </label>
-);
 
 /** Compact one-liner used as the Schedule affordance's collapsed-state summary. */
 function formatScheduleSummary(
@@ -352,6 +300,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   canPickClasses = true,
   useRosterDefaults = true,
   cqScaled = false,
+  periodAccess,
 }) => {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -539,6 +488,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
       openAt: value.openAt,
       closeAt: value.closeAt,
       dueAt: value.dueAt,
+      periodPlan: value.periodPlan,
     });
 
   const scheduleSummary = formatScheduleSummary(value, t);
@@ -579,6 +529,20 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
       </div>
     </CollapsibleSection>
   );
+
+  const periodRosters = periodAccess
+    ? rosters.filter((r) => effectiveRosterIds.includes(r.id))
+    : [];
+  const periodSection =
+    periodAccess && periodRosters.length > 1 ? (
+      <AssignPeriodAccessSection
+        rosters={periodRosters}
+        plan={value.periodPlan}
+        onChange={(periodPlan) => patch({ periodPlan })}
+        context={periodAccess}
+        sharedOpenAt={value.openAt}
+      />
+    ) : null;
 
   // Individual students & overrides — a single expand/collapse control (the
   // "+ Individual…" / "Assign to whole class" pair below), never wrapped in a
@@ -986,6 +950,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   return (
     <div className="space-y-0">
       {scheduleSection}
+      {periodSection}
       {value.targetMode === 'students' &&
       (value.excludedStudents ?? []).length === 0
         ? legacySection

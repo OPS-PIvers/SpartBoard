@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Users,
@@ -32,8 +26,7 @@ import {
   Student,
   StudentOverride,
 } from '@/types';
-import { listTeacherBellPeriods } from '@/utils/bellSchedule';
-import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { useTeacherBellPeriodOptions } from '@/hooks/useTeacherBellPeriods';
 import { auth, functions } from '@/config/firebase';
 import { RosterEditorModal } from '@/components/classes/RosterEditorModal';
 import { Modal } from '@/components/common/Modal';
@@ -139,23 +132,8 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     setActiveRoster,
     addToast,
   } = useDashboard();
-  const { user, selectedBuildings, canAccessFeature, featurePermissions } =
-    useAuth();
-  const buildings = useAdminBuildings();
-  const perPeriodAccess = canAccessFeature('per-period-access');
-  const bellPeriodOptions = useMemo(() => {
-    if (!perPeriodAccess) return undefined;
-    const options = listTeacherBellPeriods(
-      featurePermissions,
-      selectedBuildings
-    );
-    const multiBuilding = new Set(options.map((o) => o.buildingId)).size > 1;
-    if (!multiBuilding) return options;
-    return options.map((o) => ({
-      ...o,
-      label: `${buildings.find((b) => b.id === o.buildingId)?.name ?? o.buildingId} · ${o.label}`,
-    }));
-  }, [perPeriodAccess, featurePermissions, selectedBuildings, buildings]);
+  const { user, selectedBuildings, canAccessFeature } = useAuth();
+  const bellPeriodOptions = useTeacherBellPeriodOptions();
   const classLinkEnabled = useClassLinkEnabled(selectedBuildings[0]);
 
   const [editingRosterId, setEditingRosterId] = useState<string | null>(null);

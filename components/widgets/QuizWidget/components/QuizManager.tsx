@@ -119,6 +119,7 @@ import {
   EMPTY_ASSIGN_TARGETING_VALUE,
   toOverrideEditorQuestions,
   type AssignTargetingValue,
+  type AssignPeriodAccessContext,
   type BulkAction,
   type LibraryMenuAction,
   type LibrarySortOption,
@@ -256,6 +257,8 @@ export type QuizManagerTab = 'library' | 'banks' | 'active' | 'archive';
 interface QuizManagerProps {
   /** Teacher's Firebase UID — used to scope the folders subcollection. */
   userId?: string;
+  /** Per-period start and windows in the assign modal; absent while the flag is off. */
+  periodAccess?: AssignPeriodAccessContext;
   quizzes: QuizMetadata[];
   loading: boolean;
   error: string | null;
@@ -609,6 +612,7 @@ const SpinningRefreshIcon: React.ComponentType<{
 
 export const QuizManager: React.FC<QuizManagerProps> = ({
   userId,
+  periodAccess,
   quizzes,
   loading,
   error,
@@ -2332,6 +2336,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               <AssignTargetingSection
                 rosters={rosters}
                 selectedRosterIds={assignOptions.picker.rosterIds}
+                periodAccess={
+                  assignBehavior?.sessionMode === 'student'
+                    ? periodAccess
+                    : undefined
+                }
                 value={assignTargeting}
                 onChange={(next) => {
                   setTargetingPacingError(null);

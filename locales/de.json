@@ -2035,7 +2035,22 @@
     "clearModifications": "Alle Anpassungen löschen",
     "noLinkedClass": "Diese Aufgabe ist mit keiner Klasse verknüpft, die du hier anpassen kannst.",
     "timingNotAppliedConfirm": "Lehrergesteuerte Sitzungen haben keinen Timer pro Schüler/in, daher gilt die verlängerte Zeit für {{names}} nicht. Andere Anpassungen gelten weiterhin. Klicke erneut auf Zuweisen, um fortzufahren.",
-    "pacingBlocked": "Einzelne Schüleranpassungen erfordern den selbstgesteuerten Modus. Stelle die Sitzungseinstellungen unten auf Selbstgesteuert um oder nutze „Alle Anpassungen löschen“ unter „Anpassungen bearbeiten oder hinzufügen“."
+    "pacingBlocked": "Einzelne Schüleranpassungen erfordern den selbstgesteuerten Modus. Stelle die Sitzungseinstellungen unten auf Selbstgesteuert um oder nutze „Alle Anpassungen löschen“ unter „Anpassungen bearbeiten oder hinzufügen“.",
+    "periodsLabel": "Unterrichtsstunden",
+    "periodModeLabel": "Wie Stunden geöffnet werden",
+    "periodModeAssessment": "Prüfung im Unterricht",
+    "periodModeAssignment": "Aufgabe",
+    "periodAssessmentHint": "Jede Stunde bleibt geschlossen, bis du sie in der Live-Ansicht startest. Sie schließt mit dem Klingeln zum Stundenende.",
+    "periodUnverified": "Nur PIN, nicht verifiziert: Schüler/innen ohne Schulanmeldung können nicht an einer Prüfung im Unterricht teilnehmen.",
+    "periodCustomize": "Pro Stunde anpassen",
+    "periodTagPrompt": "Welche Stunde ist {{name}}?",
+    "periodTagPick": "Stunde auswählen",
+    "periodWindowFor": "Zeitfenster für {{name}}",
+    "periodSame": "Wie oben",
+    "periodBell": "Klingelzeiten",
+    "periodCustom": "Benutzerdefiniert",
+    "periodBellTimes": "{{open}} – {{close}}",
+    "periodNoBell": "Diese Stunde hat an dem Tag keine Klingelzeit, daher gilt das Zeitfenster oben."
   },
   "assignmentsHub": {
     "title": "Aufgaben",

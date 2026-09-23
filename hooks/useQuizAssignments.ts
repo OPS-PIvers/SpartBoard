@@ -14,6 +14,7 @@
 import { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import {
   collection,
+  deleteDoc,
   deleteField,
   doc,
   onSnapshot,
@@ -57,7 +58,9 @@ import { invalidateSessionViewCount } from './useSessionViewCount';
 import { mirrorPlcAssignmentStatus } from './usePlcAssignmentIndex';
 import { writePlcAssignmentTemplate } from './usePlcAssignments';
 import type {
+  AccessMode,
   AssignmentMode,
+  PeriodAccess,
   Plc,
   PlcLinkage,
   QuizAssignment,
@@ -83,6 +86,11 @@ import type {
   StudentOverride,
 } from '@/types';
 import { sessionTotalQuestions } from '@/utils/quizBankDraw';
+import {
+  QUIZ_CONTENT_COLLECTION,
+  QUIZ_CONTENT_DOC,
+  type QuizSessionContent,
+} from '@/utils/quizSessionContent';
 import { isFreeResponseType } from '@/types';
 import { normalizeQuizQuestions } from '@/utils/quizQuestionNormalize';
 import {
@@ -207,6 +215,9 @@ export interface CreateAssignmentOptions {
   bankSlots?: QuizSessionBankSlot[];
   /** `QuizMetadata.translations` — lets publish load sidecars with zero extra reads (§4.2). */
   translationIndex?: Record<string, QuizTranslationIndexEntry>;
+  /** Per-period gate; its questions move to `content/questions` until each period opens. */
+  accessMode?: AccessMode;
+  periodAccess?: Record<string, PeriodAccess>;
 }
 
 const QUIZ_ASSIGNMENTS_COLLECTION = 'quiz_assignments';
@@ -1153,8 +1164,12 @@ export const useQuizAssignments = (
         closeAt,
         bankSlots,
         translationIndex,
+        accessMode,
+        periodAccess,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
+      const perPeriod =
+        !!accessMode && !!periodAccess && Object.keys(periodAccess).length > 0;
       const hasBankSlots = !!bankSlots && bankSlots.length > 0;
       if (hasBankSlots && settings.sessionMode !== 'student') {
         throw new Error('Random bank draws need a self-paced session');
@@ -1239,11 +1254,13 @@ export const useQuizAssignments = (
         ...(overridesBySourcedId && Object.keys(overridesBySourcedId).length > 0
           ? { overridesBySourcedId }
           : {}),
-        ...(openAt != null ? { openAt } : {}),
-        ...(closeAt != null ? { closeAt } : {}),
+        // Per-period sessions carry each period's window instead of a shared one.
+        ...(openAt != null && !perPeriod ? { openAt } : {}),
+        ...(closeAt != null && !perPeriod ? { closeAt } : {}),
         ...(settings.resolvedDriveFileId
           ? { resolvedDriveFileId: settings.resolvedDriveFileId }
           : {}),
+        ...(perPeriod ? { accessMode, periodAccess } : {}),
       };
 
       const mode = settings.sessionMode;
@@ -1381,8 +1398,8 @@ export const useQuizAssignments = (
         mode: assignmentMode,
         // M17 window (spec §5 A1/B3). `individualTargeting` is written only
         // by `setAssignmentTargetsV1` (§2a ordering guarantee), never here.
-        ...(openAt != null ? { openAt } : {}),
-        ...(closeAt != null ? { closeAt } : {}),
+        ...(openAt != null && !perPeriod ? { openAt } : {}),
+        ...(closeAt != null && !perPeriod ? { closeAt } : {}),
         // /my-assignments reads the due date off the SESSION doc for class-wide
         // students, so mirror it here alongside the window (the archive doc
         // above already carries it).
@@ -1412,17 +1429,50 @@ export const useQuizAssignments = (
           (o) => o?.readAloud === true
         );
       if (Object.keys(translations.byLocale).length > 0) {
+        // A per-period session's questions land in their own doc, which is what must fit.
         enforceSessionSizeBudget(
-          session,
+          perPeriod
+            ? {
+                publicQuestions: session.publicQuestions,
+                stimuli: session.stimuli,
+                readAloudTextByStimulusId: session.readAloudTextByStimulusId,
+              }
+            : session,
           targetedLocaleCountByCode,
           SESSION_DOC_BYTE_BUDGET,
-          readAloudPlanned
+          readAloudPlanned && !perPeriod
             ? estimateReadAloudManifestBytes(
                 estimateReadAloudPartCount(session.publicQuestions),
                 readAloudLocales.length
               )
             : 0
         );
+      }
+
+      // A per-period session keeps its questions where only an open period can read them.
+      let sessionDoc: QuizSession = session;
+      let sessionContent: QuizSessionContent | null = null;
+      if (perPeriod) {
+        const {
+          publicQuestions: hiddenQuestions,
+          stimuli: hiddenStimuli,
+          readAloudTextByStimulusId: hiddenReadAloud,
+          ...rest
+        } = session;
+        sessionDoc = {
+          ...rest,
+          publicQuestions: [],
+          accessMode,
+          periodAccess,
+          questionsInContent: true,
+        };
+        sessionContent = {
+          publicQuestions: hiddenQuestions,
+          ...(hiddenStimuli ? { stimuli: hiddenStimuli } : {}),
+          ...(hiddenReadAloud
+            ? { readAloudTextByStimulusId: hiddenReadAloud }
+            : {}),
+        };
       }
 
       const batch = writeBatch(db);
@@ -1434,7 +1484,19 @@ export const useQuizAssignments = (
           ? { ...assignment, mediaResponseEnabled: true }
           : assignment
       );
-      batch.set(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), session);
+      batch.set(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), sessionDoc);
+      if (sessionContent) {
+        batch.set(
+          doc(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            assignmentId,
+            QUIZ_CONTENT_COLLECTION,
+            QUIZ_CONTENT_DOC
+          ),
+          sessionContent
+        );
+      }
       // Same batch as the session: a session whose pointer never landed would be
       // unjoinable by code.
       addJoinCodePointerToBatch(batch, code, assignmentId, userId, now);
@@ -1749,6 +1811,18 @@ export const useQuizAssignments = (
       const sessionCodeField: unknown = sessionSnap?.data()?.code;
       const sessionCode =
         typeof sessionCodeField === 'string' ? sessionCodeField : '';
+      // Its own write, and it must land first: once the session goes, no rule can reach it.
+      if (sessionSnap?.data()?.questionsInContent === true) {
+        await deleteDoc(
+          doc(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            assignmentId,
+            QUIZ_CONTENT_COLLECTION,
+            QUIZ_CONTENT_DOC
+          )
+        );
+      }
 
       // Delete the session doc and the assignment doc in one batch
       const batch = writeBatch(db);
@@ -2384,9 +2458,26 @@ export const useQuizAssignments = (
         doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId)
       );
       // A deleted session hands back nothing; treat that as untranslated, not a throw.
-      const sessionData = sessionSnap?.data() as
+      const rawSessionData = sessionSnap?.data() as
         | (QuizSession & { mediaResponseEnabled?: boolean })
         | undefined;
+      const contentRef = doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        assignmentId,
+        QUIZ_CONTENT_COLLECTION,
+        QUIZ_CONTENT_DOC
+      );
+      const inContent = rawSessionData?.questionsInContent === true;
+      const sessionData =
+        rawSessionData && inContent
+          ? {
+              ...rawSessionData,
+              ...((await getDoc(contentRef)).data() as
+                | QuizSessionContent
+                | undefined),
+            }
+          : rawSessionData;
       // Exactly the locales already being served — a re-sync never widens coverage.
       const servedLocales = new Set<string>(
         Object.keys(sessionData?.quizTitleLocalized ?? {})
@@ -2608,7 +2699,7 @@ export const useQuizAssignments = (
                 : {}),
             }
           : {}),
-        publicQuestions,
+        ...(inContent ? {} : { publicQuestions }),
         totalQuestions: canonicalQuestions.length,
         // Only touched for a session that already serves locales, so an
         // untranslated assignment's session doc gains no new field.
@@ -2623,27 +2714,42 @@ export const useQuizAssignments = (
         // Keep the session's stimuli in lockstep with the rebuilt
         // publicQuestions; deleteField clears stale entries when the
         // canonical edit removed the last stimulus.
-        stimuli: canonicalStimuli.length > 0 ? canonicalStimuli : deleteField(),
+        ...(inContent
+          ? {}
+          : {
+              stimuli:
+                canonicalStimuli.length > 0 ? canonicalStimuli : deleteField(),
+              readAloudTextByStimulusId:
+                Object.keys(canonicalReadAloudText).length > 0
+                  ? canonicalReadAloudText
+                  : deleteField(),
+            }),
         language: canonical.language ?? deleteField(),
-        readAloudTextByStimulusId:
-          Object.keys(canonicalReadAloudText).length > 0
-            ? canonicalReadAloudText
-            : deleteField(),
         // Re-derived every sync, so revoking the gate clears a stale marker —
         // unless committed takes still depend on it.
         mediaResponseEnabled:
           syncHasRecording || stickyMediaMarker ? true : deleteField(),
       });
+      if (inContent) {
+        const syncedContent: QuizSessionContent = {
+          publicQuestions,
+          ...(canonicalStimuli.length > 0 ? { stimuli: canonicalStimuli } : {}),
+          ...(Object.keys(canonicalReadAloudText).length > 0
+            ? { readAloudTextByStimulusId: canonicalReadAloudText }
+            : {}),
+        };
+        firstBatch.set(contentRef, syncedContent);
+      }
       const syncReadAloud =
         (behavior?.sessionOptions ?? assignment.sessionOptions)
           ?.readAloudAll === true ||
         Object.values(assignment.overridesBySourcedId ?? {}).some(
           (o) => o?.readAloud === true
         );
-      // 2 writes already used (assignment + session); fill the rest.
+      // Assignment + session (+ content) writes already used; fill the rest.
       const firstChunkSize = Math.min(
         responsesToTag.length,
-        MAX_BATCH_WRITES - 2
+        MAX_BATCH_WRITES - (inContent ? 3 : 2)
       );
       for (let i = 0; i < firstChunkSize; i++) {
         firstBatch.update(responsesToTag[i].ref, {

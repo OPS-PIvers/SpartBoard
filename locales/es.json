@@ -2035,7 +2035,22 @@
     "clearModifications": "Borrar todas las modificaciones",
     "noLinkedClass": "Esta tarea no está vinculada a una clase que puedas modificar aquí.",
     "timingNotAppliedConfirm": "Las sesiones dirigidas por el docente no tienen temporizador por estudiante, así que el tiempo extra para {{names}} no se aplicará. Las demás adaptaciones sí. Haz clic en Asignar otra vez para continuar.",
-    "pacingBlocked": "Las modificaciones individuales requieren el modo A tu ritmo. Cambia la configuración de sesión a A tu ritmo o usa «Borrar todas las modificaciones» en Editar o añadir modificaciones."
+    "pacingBlocked": "Las modificaciones individuales requieren el modo A tu ritmo. Cambia la configuración de sesión a A tu ritmo o usa «Borrar todas las modificaciones» en Editar o añadir modificaciones.",
+    "periodsLabel": "Períodos de clase",
+    "periodModeLabel": "Cómo se abren los períodos",
+    "periodModeAssessment": "Evaluación en clase",
+    "periodModeAssignment": "Tarea",
+    "periodAssessmentHint": "Cada período permanece cerrado hasta que lo inicies desde el monitor. Se cierra con el timbre final.",
+    "periodUnverified": "Solo PIN, sin verificar: los estudiantes sin inicio de sesión escolar no pueden unirse a una evaluación en clase.",
+    "periodCustomize": "Personalizar por período",
+    "periodTagPrompt": "¿Qué período es {{name}}?",
+    "periodTagPick": "Elige un período",
+    "periodWindowFor": "Horario para {{name}}",
+    "periodSame": "Igual que arriba",
+    "periodBell": "Horario del timbre",
+    "periodCustom": "Personalizado",
+    "periodBellTimes": "{{open}} – {{close}}",
+    "periodNoBell": "Este período no tiene timbre ese día, así que usa el horario de arriba."
   },
   "assignmentsHub": {
     "title": "Tareas",

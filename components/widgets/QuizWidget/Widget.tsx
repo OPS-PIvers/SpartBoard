@@ -149,6 +149,8 @@ import {
 } from '@/utils/studentTargetRef';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import type { StudentTargetRef } from '@/types';
+import { buildPeriodAccess } from '@/utils/periodPlan';
+import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
 
 /**
@@ -193,6 +195,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     addWidget,
     addToast,
     rosters,
+    updateRoster,
     activeDashboard,
     pendingAssignmentSetupId,
     clearPendingAssignmentSetup,
@@ -210,6 +213,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     appSettings,
     updateAppSettings,
   } = useAuth();
+  const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const quizAssignmentMode = getAssignmentMode('quiz');
   const { showConfirm } = useDialog();
   const { openPicker } = useGooglePicker();
@@ -1690,6 +1694,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     <>
       <QuizManager
         userId={user?.uid}
+        periodAccess={assignPeriodCtx}
         defaultTeacherName={user?.displayName ?? undefined}
         assignmentMode={quizAssignmentMode}
         quizzes={quizzes}
@@ -1889,6 +1894,25 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             rosterIds.includes(r.id)
           );
           const derived = deriveSessionTargetsFromRosters(selectedRosters);
+          const periodPlan = targeting.periodPlan ?? { mode: 'assignment' };
+          const builtPeriodAccess =
+            assignPeriodCtx && mode === 'student' && selectedRosters.length > 1
+              ? buildPeriodAccess({
+                  plan: periodPlan,
+                  rosters: selectedRosters,
+                  sharedWindow: resolvedTargeting,
+                  bellWindow: (roster) =>
+                    assignPeriodCtx.bellWindow(
+                      roster,
+                      new Date(resolvedTargeting.openAt ?? Date.now())
+                    ),
+                })
+              : null;
+          // Two rosters on one class id share a gate, so they are one period.
+          const sessionPeriodAccess =
+            builtPeriodAccess && Object.keys(builtPeriodAccess).length > 1
+              ? builtPeriodAccess
+              : null;
 
           // PLC link only (D2): results pool server-side, no sheet is
           // created here. Sheet export stays opt-in on the Results screen.
@@ -2017,7 +2041,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 ...(resolvedDriveFileId ? { resolvedDriveFileId } : {}),
               },
               {
-                initialStatus: 'paused',
+                // A per-period session is gated by its periods, not a global pause.
+                initialStatus: sessionPeriodAccess ? 'active' : 'paused',
+                ...(sessionPeriodAccess
+                  ? {
+                      accessMode: periodPlan.mode,
+                      periodAccess: sessionPeriodAccess,
+                    }
+                  : {}),
                 ...(sessionBankSlots ? { bankSlots: sessionBankSlots } : {}),
                 classIds: derived.classIds,
                 rosterIds: derived.rosterIds,
