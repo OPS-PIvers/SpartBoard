@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WhatsNewModal } from '@/components/layout/WhatsNewModal';
 import type { ChangelogEntry } from '@/hooks/useChangelog';
 import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import { TOUR_START_EVENT } from '@/components/tours/tourState';
+import { __resetLiveTourCacheForTests } from '@/components/tours/useTourOffers';
 
 // The shape returned by useChangelog — typed explicitly so the mock factory
 // can return it without the `as any` cast that triggers @typescript-eslint/no-unsafe-return.
@@ -22,6 +23,11 @@ interface ChangelogHookReturn {
 // the modal opens).
 const useChangelogMock = vi.fn<() => ChangelogHookReturn>();
 const writeLastSeenVersionMock = vi.fn<(v: string | null) => void>();
+
+const loadBuildingSetMock = vi.hoisted(() => vi.fn());
+vi.mock('@/hooks/useGuidedLearning', () => ({
+  loadBuildingSet: loadBuildingSetMock,
+}));
 
 vi.mock('@/hooks/useChangelog', () => ({
   useChangelog: () => useChangelogMock(),
@@ -390,6 +396,20 @@ describe('WhatsNewModal — live tour entries', () => {
     return onClose;
   };
 
+  const tourSet = (withTour: boolean) => ({
+    id: 'set-1',
+    steps: [
+      withTour
+        ? { id: 's', tour: { anchor: 'sidebar.boards', action: 'click' } }
+        : { id: 's' },
+    ],
+  });
+
+  beforeEach(() => {
+    __resetLiveTourCacheForTests();
+    loadBuildingSetMock.mockResolvedValue(tourSet(true));
+  });
+
   afterEach(() => {
     vi.clearAllMocks();
   });
@@ -399,7 +419,7 @@ describe('WhatsNewModal — live tour entries', () => {
     const started = vi.fn();
     window.addEventListener(TOUR_START_EVENT, started);
     const onClose = renderWithAuth(true);
-    await user.click(screen.getByRole('button', { name: 'Show me' }));
+    await user.click(await screen.findByRole('button', { name: 'Show me' }));
     expect(onClose).toHaveBeenCalled();
     expect(
       (started.mock.calls[0][0] as CustomEvent<{ setId: string }>).detail
@@ -409,6 +429,19 @@ describe('WhatsNewModal — live tour entries', () => {
 
   it('hides Show me without live tours', () => {
     renderWithAuth(false);
+    expect(
+      screen.queryByRole('button', { name: 'Show me' })
+    ).not.toBeInTheDocument();
+    expect(loadBuildingSetMock).not.toHaveBeenCalled();
+  });
+
+  it('hides Show me when the set no longer has a tour', async () => {
+    loadBuildingSetMock.mockResolvedValue(tourSet(false));
+    renderWithAuth(true);
+    await waitFor(() => expect(loadBuildingSetMock).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(
       screen.queryByRole('button', { name: 'Show me' })
     ).not.toBeInTheDocument();

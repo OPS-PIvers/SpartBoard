@@ -27,6 +27,7 @@ import {
 } from '@/hooks/useChangelog';
 import { AuthContext } from '@/context/AuthContextValue';
 import { requestStartTour } from '@/components/tours/tourState';
+import { useHasLiveTour } from '@/components/tours/useTourOffers';
 
 interface WhatsNewModalProps {
   isOpen: boolean;
@@ -130,6 +131,7 @@ const Entry: React.FC<{
   onShowTour?: (setId: string) => void;
 }> = ({ entry, onShowTour }) => {
   const { t, i18n } = useTranslation();
+  const hasTour = useHasLiveTour(onShowTour ? entry.tourSetId : undefined);
   const groups = useMemo(() => groupHighlights(entry.details), [entry]);
   const overviewByType = useMemo(
     () => (entry.overview ? groupOverviewByType(entry.overview) : null),
@@ -186,7 +188,7 @@ const Entry: React.FC<{
         <p className="mt-0.5 text-xxs text-slate-400">
           {formatEntryDate(entry.date, i18n.language)}
         </p>
-        {entry.tourSetId && onShowTour && (
+        {hasTour && entry.tourSetId && onShowTour && (
           <button
             type="button"
             onClick={() => entry.tourSetId && onShowTour(entry.tourSetId)}

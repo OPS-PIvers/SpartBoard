@@ -2989,6 +2989,7 @@
     "stepFallbackTitle": "Étape suivante",
     "exit": "Quitter la visite",
     "anchorMissing": "Élément introuvable à l'écran. Réessayez ou passez cette étape.",
+    "anchorMissingPreview": "Élément introuvable à l'écran. Voici à quoi il ressemble.",
     "looking": "Recherche à l'écran…",
     "progress": "{{current}} / {{total}}",
     "back": "Retour",

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
 import type { GuidedLearningSet, WidgetType } from '@/types';
 import { LiveTourRunner } from './LiveTourRunner';
+import { TRY_HINT_MS } from '@/components/widgets/GuidedLearning/components/player/playback';
 import { requestStartTour } from './tourState';
 import { ANCHOR_SEARCH_MS } from './useAnchorElement';
 
@@ -78,6 +79,12 @@ vi.mock('@/context/useDashboard', () => ({
 
 vi.mock('@/hooks/useGuidedLearning', () => ({
   loadBuildingSet: h.loadBuildingSet,
+}));
+
+vi.mock('./TourMiniPlayer', () => ({
+  default: ({ step }: { step: { id: string } }) => (
+    <div data-testid="tour-mini-player">{step.id}</div>
+  ),
 }));
 
 type Binding = { anchor: string; action: 'click' | 'observe' };
@@ -157,7 +164,22 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
+
+// Adds step fields (text, cursor, imageIndex) to a set's tour steps, in order.
+const withSteps = (
+  set: GuidedLearningSet,
+  extras: Record<string, unknown>[],
+  imageUrls: string[] = []
+): GuidedLearningSet =>
+  ({
+    ...set,
+    imageUrls,
+    steps: set.steps.map((st) =>
+      st.id.startsWith('s') ? { ...st, ...extras[Number(st.id.slice(1))] } : st
+    ),
+  }) as GuidedLearningSet;
 
 describe('LiveTourRunner', () => {
   it('adds a missing setup widget, anchors to it, and removes it on teardown', async () => {
@@ -374,5 +396,144 @@ describe('LiveTourRunner', () => {
       'error'
     );
     expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
+  });
+});
+
+describe('LiveTourRunner polish', () => {
+  const cursor = () => screen.queryByTestId('gl-cursor');
+
+  it('hints with the cursor after 5s on a click step', async () => {
+    await start(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));
+    await frames();
+    await frames(TRY_HINT_MS - 200);
+    expect(cursor()).not.toBeInTheDocument();
+    await frames(200);
+    expect(cursor()).toBeInTheDocument();
+  });
+
+  it('shows the move at once after Show me, and on later steps too', async () => {
+    await start(
+      makeSet([
+        { anchor: 'dock.item:dice', action: 'click' },
+        { anchor: 'sidebar.boards', action: 'click' },
+      ])
+    );
+    await frames();
+    fireEvent.click(screen.getByRole('button', { name: 'Show me' }));
+    await frames();
+    expect(cursor()).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Dice'));
+    await frames();
+    expect(progress()).toBe('2 / 2');
+    await frames();
+    expect(cursor()).toBeInTheDocument();
+  });
+
+  it('keeps the cursor off observe steps and steps that hide it', async () => {
+    await start(
+      withSteps(
+        makeSet([
+          { anchor: 'sidebar.boards', action: 'observe' },
+          { anchor: 'dock.item:dice', action: 'click' },
+        ]),
+        [{}, { cursor: { hide: true } }]
+      )
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Show me' })
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames(TRY_HINT_MS + 100);
+    expect(progress()).toBe('2 / 2');
+    expect(
+      screen.queryByRole('button', { name: 'Show me' })
+    ).not.toBeInTheDocument();
+    expect(cursor()).not.toBeInTheDocument();
+  });
+
+  it('renders bold and links in step text', async () => {
+    await start(
+      withSteps(makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]), [
+        { text: 'Open **Boards** or [read more](https://example.com)' },
+      ])
+    );
+    expect(screen.getByText('Boards', { selector: 'strong' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'read more' })).toHaveAttribute(
+      'href',
+      'https://example.com'
+    );
+  });
+
+  it("shows the step's slide when its anchor is missing", async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await start(
+      withSteps(
+        makeSet([{ anchor: 'sidebar.classes', action: 'click' }]),
+        [{ imageIndex: 0 }],
+        ['https://example.com/slide.png']
+      )
+    );
+    await frames(ANCHOR_SEARCH_MS + 100);
+    await frames();
+    expect(screen.getByTestId('tour-mini-player')).toHaveTextContent('s0');
+    expect(
+      screen.getByText(
+        "Couldn't find this on your screen. Here's what it looks like."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument();
+  });
+
+  it('reads each step aloud once turned on', async () => {
+    const speak = vi.fn<(u: { text: string }) => void>();
+    vi.stubGlobal('speechSynthesis', { speak, cancel: vi.fn() });
+    vi.stubGlobal(
+      'SpeechSynthesisUtterance',
+      class {
+        text: string;
+        constructor(text: string) {
+          this.text = text;
+        }
+      }
+    );
+    await start(
+      withSteps(
+        makeSet([
+          { anchor: 'sidebar.boards', action: 'observe' },
+          { anchor: 'dock.item:dice', action: 'observe' },
+        ]),
+        [{ text: 'Your **boards** live here.' }, { text: 'Add dice.' }]
+      )
+    );
+    expect(speak).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Read aloud' }));
+    expect(speak.mock.calls[0][0].text).toBe('Step 1. Your boards live here.');
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames();
+    expect(speak.mock.calls[1][0].text).toBe('Step 2. Add dice.');
+  });
+
+  it('skips the callout animation under reduced motion', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }))
+    );
+    await start(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));
+    expect(screen.getByTestId('tour-callout').style.animation).toBe('');
+    await frames();
+    fireEvent.click(screen.getByRole('button', { name: 'Show me' }));
+    await frames();
+    expect(cursor()).toHaveAttribute('data-arrived', 'true');
+  });
+
+  it('animates the callout in by default', async () => {
+    await start(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));
+    expect(screen.getByTestId('tour-callout').style.animation).toContain(
+      'gl-callout-in'
+    );
   });
 });

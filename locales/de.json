@@ -2989,6 +2989,7 @@
     "stepFallbackTitle": "Nächster Schritt",
     "exit": "Tour beenden",
     "anchorMissing": "Das wurde auf deinem Bildschirm nicht gefunden. Versuche es erneut oder überspringe diesen Schritt.",
+    "anchorMissingPreview": "Das wurde auf deinem Bildschirm nicht gefunden. So sieht es aus.",
     "looking": "Wird auf deinem Bildschirm gesucht…",
     "progress": "{{current}} / {{total}}",
     "back": "Zurück",

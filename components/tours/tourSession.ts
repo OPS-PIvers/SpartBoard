@@ -33,3 +33,9 @@ export const addedWidgetIds = (
   widgets
     .filter((w) => !beforeIds.has(w.id) && addedTypes.includes(w.type))
     .map((w) => w.id);
+
+/** Whether a tour step has a recorded slide to show when its anchor is missing. */
+export const hasStepSlide = (
+  set: Pick<GuidedLearningSet, 'imageUrls'>,
+  step: Pick<GuidedLearningStep, 'imageIndex'>
+): boolean => !!set.imageUrls[step.imageIndex ?? 0];

@@ -74,11 +74,16 @@ export const useLiveToursEnabled = (): boolean =>
   useContext(AuthContext)?.canAccessFeature('gl-live-tours') ?? false;
 
 /** The first of these help items whose set has a live tour, once known. */
-export function useLiveTourSet(
+export const useLiveTourSet = (
   items: readonly HelpResourceItem[]
-): string | null {
+): string | null => useFirstLiveSet(guideSetIds(items));
+
+/** Whether this building set has a live tour, once known; false without the flag. */
+export const useHasLiveTour = (setId: string | undefined): boolean =>
+  useFirstLiveSet(setId ? [setId] : []) !== null;
+
+function useFirstLiveSet(ids: readonly string[]): string | null {
   const enabled = useLiveToursEnabled();
-  const ids = guideSetIds(items);
   const idsKey = ids.join(',');
   useSyncExternalStore(subscribe, getVersion);
 

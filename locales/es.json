@@ -2989,6 +2989,7 @@
     "stepFallbackTitle": "Siguiente paso",
     "exit": "Salir del recorrido",
     "anchorMissing": "No se encontró en tu pantalla. Inténtalo de nuevo u omite este paso.",
+    "anchorMissingPreview": "No se encontró en tu pantalla. Así es como se ve.",
     "looking": "Buscándolo en tu pantalla…",
     "progress": "{{current}} / {{total}}",
     "back": "Atrás",
