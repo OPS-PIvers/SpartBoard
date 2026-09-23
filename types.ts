@@ -4634,6 +4634,32 @@ export interface QuizResponseBackTranslation {
   at: number;
 }
 
+/** How an exit from a quiz or video activity ended; unset while the student is still away. */
+export type TabExitOutcome =
+  | 'returned'
+  | 'over-limit'
+  | 'auto-submitted'
+  | 'session-ended';
+
+/** One time a student left a quiz or video activity (docs/plans/TAB_AWAY_TIMER.md §3.1). */
+export interface TabExit {
+  /** Epoch ms on the student's clock. */
+  leftAt: number;
+  returnedAt?: number;
+  /** From performance.now(), so a clock change can't shorten it. */
+  durationMs?: number;
+  /** Quiz: the question on screen. */
+  questionIndex?: number;
+  /** Video Activity: playback position in seconds. */
+  videoTime?: number;
+  /** Completed attempts at the time, since the warning count never resets. */
+  attempt: number;
+  outcome?: TabExitOutcome;
+}
+
+/** Rules refuse a log past this length; the warning count keeps going. */
+export const TAB_EXITS_MAX = 50;
+
 export interface QuizResponse {
   /**
    * The Firestore doc key under /responses. Populated at read time by the
@@ -4718,6 +4744,8 @@ export interface QuizResponse {
    * Used for maintaining quiz integrity.
    */
   tabSwitchWarnings?: number;
+  /** One entry per exit (capped at `TAB_EXITS_MAX`); `tabSwitchWarnings` stays the count. */
+  tabExits?: TabExit[];
   /**
    * Number of tab-switch / focus-loss events the student has accumulated while
    * viewing **published results**. Distinct from `tabSwitchWarnings`, which
@@ -6338,6 +6366,8 @@ export interface VideoActivityResponse {
   classPeriod?: string;
   /** Count of tab/focus losses while the activity is in progress. Append-only at the rules layer. */
   tabSwitchWarnings?: number;
+  /** One entry per exit (capped at `TAB_EXITS_MAX`); `tabSwitchWarnings` stays the count. */
+  tabExits?: TabExit[];
   /**
    * Number of completed activity attempts. Used to enforce
    * `VideoActivitySessionOptions.attemptLimit`. Initialized to 0 at create
@@ -8552,6 +8582,8 @@ export type GlobalFeature =
   | 'sub-share-collections'
   /** Guided Learning player v2: calm motion, learner speed, Watch/Try; stamped on sessions. */
   | 'gl-player-v2'
+  /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
+  | 'tab-away-timer'
   /** Guided Learning live tours in the teacher app and their launch points. */
   | 'gl-live-tours'
   /** Guided Learning Studio editor in place of the classic editor. */

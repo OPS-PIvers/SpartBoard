@@ -52,6 +52,7 @@ import {
   Printer,
   Volume2,
   Languages,
+  Timer,
   UsersRound,
   FileText,
   Footprints,
@@ -235,6 +236,13 @@ const GLOBAL_FEATURES: {
     icon: MousePointerClick,
     description:
       'Slower, smoother zooms with the text appearing once the picture settles, a playback speed choice for learners, and step timing based on how much there is to read. Walkthroughs assigned while someone has this keep it for their students. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'tab-away-timer',
+    label: 'Tab-away timer',
+    icon: Timer,
+    description:
+      'When a student leaves a quiz or video activity, the warning screen shows how long they have been away. Teachers can have the quiz submit itself when a student stays away too long, give one student more time, and click a warning count to see every time a student left and for how long. Admin-only until this is saved and opened up.',
   },
   {
     id: 'gl-live-tours',

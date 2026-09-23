@@ -267,6 +267,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Tab-away clock and exit log. Admin-only until Paul has tested it in prod.
+  'tab-away-timer': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Guided Learning live tours that walk a teacher through the real app. Admin-only until opened up.
   'gl-live-tours': {
     defaultAccessLevel: 'admin',
