@@ -1513,6 +1513,8 @@ export const useQuizAssignments = (
       if (sessionStatus === 'paused' || sessionStatus === 'ended') {
         sessionPatch.autoProgressAt = null;
       }
+      // Rules keep a student's draft flush that lands just after a pause.
+      if (sessionStatus === 'paused') sessionPatch.pausedAt = now;
       if (sessionStatus === 'ended') {
         sessionPatch.endedAt = now;
       } else {

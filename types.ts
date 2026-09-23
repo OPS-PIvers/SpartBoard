@@ -4148,8 +4148,41 @@ export interface SubLaunchedSessionFields {
   subMonitorUntil?: number;
 }
 
+/** Per-period gate state (docs/plans/PER_PERIOD_ASSIGNMENT_ACCESS.md). */
+export type PeriodAccessState = 'closed' | 'open' | 'paused';
+
+/** One targeted class's gate, keyed by the class id its roster contributes. */
+export interface PeriodAccess {
+  state: PeriodAccessState;
+  /** Epoch ms; null = no scheduled open. */
+  openAt: number | null;
+  /** Epoch ms; the bell end in assessment mode, the window end in assignment mode. */
+  closeAt: number | null;
+  bellPeriodId: string | null;
+  /** The roster supports SSO or the PIN bridge, so its students carry a class claim. */
+  verified: boolean;
+  /** Roster name, shown on the chip and matched by anonymous PIN joiners. */
+  label: string;
+  rosterId?: string;
+  /** Epoch ms of the last pause or close, so a draft flush landing just after it is kept. */
+  pausedAt?: number;
+}
+
+export type AccessMode = 'assessment' | 'assignment';
+
+/** Session fields read by the `periodOpen` / `studentLetIn` rules. Absent = legacy global gate. */
+export interface PeriodAccessSessionFields {
+  accessMode?: AccessMode;
+  periodAccess?: Record<string, PeriodAccess>;
+  /** "Let in now": auth uid → epoch ms the pass lasts until. */
+  studentAccess?: Record<string, number>;
+  /** Epoch ms of the last whole-session pause; see `PeriodAccess.pausedAt`. */
+  pausedAt?: number;
+}
+
 /** Live quiz session document in Firestore (/quiz_sessions/{sessionId}) */
-export interface QuizSession extends SubLaunchedSessionFields {
+export interface QuizSession
+  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
   id: string; // session UUID (same as QuizAssignment.id)
   /** FK back to /users/{teacherUid}/quiz_assignments/{assignmentId}. 1:1 with session. */
   assignmentId: string;
@@ -5503,7 +5536,10 @@ export interface QuizAssignmentSettings {
  * also the id of the matching `/quiz_sessions/{sessionId}` document (1:1).
  */
 export interface QuizAssignment
-  extends QuizAssignmentSettings, SubLaunchedSessionFields {
+  extends
+    QuizAssignmentSettings,
+    SubLaunchedSessionFields,
+    PeriodAccessSessionFields {
   /** Assignment UUID — also the sessionId. */
   id: string;
   /**
@@ -8517,7 +8553,9 @@ export type GlobalFeature =
   /** Guided Learning live tours in the teacher app and their launch points. */
   | 'gl-live-tours'
   /** Guided Learning Studio editor in place of the classic editor. */
-  | 'gl-studio';
+  | 'gl-studio'
+  /** Per-period start/pause and windows on assignments shared by several classes. */
+  | 'per-period-access';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
