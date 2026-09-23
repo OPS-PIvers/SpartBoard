@@ -27,7 +27,13 @@ import {
 } from '../utils/imageUtils';
 import { isGuidedLearningSetV2 } from '../utils/setMigration';
 import { buildStageGeometry } from '../utils/stageGeometry';
-import type { GuidedLearningStageProps, StageGeometry } from '../types/stage';
+import { regionRect } from '../utils/regionGeometry';
+import { placeBanner } from '../utils/calloutPlacement';
+import type {
+  GuidedLearningStageProps,
+  PxRect,
+  StageGeometry,
+} from '../types/stage';
 
 /**
  * Clamp a video trim against the player's loaded metadata. The editor already
@@ -118,13 +124,17 @@ export const GuidedLearningStage: React.FC<
   const [mediaEl, setMediaEl] = useState<
     HTMLImageElement | HTMLVideoElement | null
   >(null);
+  // Bumps on every media swap so onGeometry re-fires with the new element.
+  const [mediaVersion, setMediaVersion] = useState(0);
   const attachImg = useCallback((el: HTMLImageElement | null) => {
     imgRef.current = el;
     setMediaEl(el ?? videoElRef.current);
+    if (el) setMediaVersion((v) => v + 1);
   }, []);
   const attachVideo = useCallback((el: HTMLVideoElement | null) => {
     videoElRef.current = el;
     setMediaEl(el ?? imgRef.current);
+    if (el) setMediaVersion((v) => v + 1);
   }, []);
 
   const [imgOffset, setImgOffset] = useState<ImageOffset | null>(null);
@@ -335,7 +345,7 @@ export const GuidedLearningStage: React.FC<
         renderedTransform.scale,
         renderedTransform.tx,
         renderedTransform.ty,
-        mediaEl ? 1 : 0,
+        mediaVersion,
       ].join('|')
     : null;
   const emitGeometry = useEffectEvent(() => {
@@ -367,18 +377,52 @@ export const GuidedLearningStage: React.FC<
     };
   };
 
+  // Drawn region of the active step, in painted container px.
+  const activeRegion =
+    activeStep?.region && geometry ? geometry.regionFor(activeStep) : null;
+  const pinnedCallout =
+    activeStep?.calloutPin && geometry
+      ? geometry.imagePctToContainerPx(activeStep.calloutPin)
+      : undefined;
+  // What a callout must keep clear: the region, else the lit circle, else the pin.
+  const calloutTarget = (spotlightPx?: number): PxRect | undefined => {
+    if (!activeStep || !geometry) return undefined;
+    if (activeRegion) return regionRect(activeRegion);
+    if (spotlightPx !== undefined && activeStepRendered) {
+      const cx = (activeStepRendered.xPct / 100) * containerSize.w;
+      const cy = (activeStepRendered.yPct / 100) * containerSize.h;
+      return {
+        x: cx - spotlightPx,
+        y: cy - spotlightPx,
+        w: spotlightPx * 2,
+        h: spotlightPx * 2,
+      };
+    }
+    return regionRect(geometry.regionFor(activeStep));
+  };
+
+  const renderPopover = (spotlightPx?: number) =>
+    activeStep ? (
+      <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
+        <div className="pointer-events-auto w-full h-full">
+          <TextPopoverInteraction
+            step={activeStep}
+            onClose={onDismiss}
+            target={calloutTarget(spotlightPx)}
+            pinned={pinnedCallout}
+            containerWidth={containerSize.w}
+            containerHeight={containerSize.h}
+          />
+        </div>
+      </div>
+    ) : null;
+
   const renderInteraction = () => {
     if (!activeStep) return null;
     const type = activeStep.interactionType;
 
     if (type === 'text-popover') {
-      return (
-        <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
-          <div className="pointer-events-auto w-full h-full">
-            <TextPopoverInteraction step={activeStep} onClose={onDismiss} />
-          </div>
-        </div>
-      );
+      return renderPopover();
     }
 
     if (type === 'audio') {
@@ -432,6 +476,9 @@ export const GuidedLearningStage: React.FC<
           step={activeStepRendered}
           containerWidth={containerSize.w}
           containerHeight={containerSize.h}
+          target={calloutTarget()}
+          pinned={pinnedCallout}
+          showAnchor={!activeRegion}
         />
       ) : null;
     }
@@ -441,24 +488,42 @@ export const GuidedLearningStage: React.FC<
       type === 'spotlight' ||
       type === 'pan-zoom-spotlight'
     ) {
-      const renderOverlay = (keepOutRadius?: number) =>
-        activeStep.showOverlay === 'tooltip' && activeStepRendered ? (
-          <TooltipInteraction
-            key={activeStepRendered.id}
-            step={activeStepRendered}
-            containerWidth={containerSize.w}
-            containerHeight={containerSize.h}
-            keepOutRadius={keepOutRadius}
-          />
-        ) : activeStep.showOverlay === 'popover' ? (
-          <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
-            <div className="pointer-events-auto w-full h-full">
-              <TextPopoverInteraction step={activeStep} onClose={onDismiss} />
-            </div>
-          </div>
-        ) : activeStep.showOverlay === 'banner' ? (
-          <BannerInteraction step={activeStep} onClose={onDismiss} />
-        ) : null;
+      const renderOverlay = (spotlightPx?: number) => {
+        const target = calloutTarget(spotlightPx);
+        if (activeStep.showOverlay === 'tooltip' && activeStepRendered) {
+          return (
+            <TooltipInteraction
+              key={activeStepRendered.id}
+              step={activeStepRendered}
+              containerWidth={containerSize.w}
+              containerHeight={containerSize.h}
+              target={target}
+              pinned={pinnedCallout}
+              showAnchor={!activeRegion}
+            />
+          );
+        }
+        if (activeStep.showOverlay === 'popover') {
+          return renderPopover(spotlightPx);
+        }
+        if (activeStep.showOverlay === 'banner') {
+          return (
+            <BannerInteraction
+              step={activeStep}
+              onClose={onDismiss}
+              position={
+                target
+                  ? placeBanner(target, {
+                      w: containerSize.w,
+                      h: containerSize.h,
+                    })
+                  : 'top'
+              }
+            />
+          );
+        }
+        return null;
+      };
 
       if (
         (type === 'spotlight' || type === 'pan-zoom-spotlight') &&
@@ -478,7 +543,7 @@ export const GuidedLearningStage: React.FC<
                 ) * renderedTransform.scale,
             }
           : activeStepRendered;
-        // Keep the tooltip card outside the lit circle so it never covers the target.
+        // Keep callouts outside the lit circle so they never cover the target.
         const spotlightPx =
           (Math.min(containerSize.w, containerSize.h) *
             (spotlightStep.spotlightRadius ?? 25)) /
@@ -489,6 +554,7 @@ export const GuidedLearningStage: React.FC<
               step={spotlightStep}
               containerWidth={containerSize.w}
               containerHeight={containerSize.h}
+              region={activeRegion ?? undefined}
             />
             {renderOverlay(spotlightPx)}
           </>
@@ -586,6 +652,65 @@ export const GuidedLearningStage: React.FC<
             draggable={false}
           />
         )}
+
+        {/* Explore click zones for drawn regions, under the pins. Hidden
+            hotspots keep their zone so "find it yourself" steps stay clickable. */}
+        {mode === 'explore' &&
+          imgOffset &&
+          steps.map((step, idx) => {
+            const region = step.region;
+            if (!region || step.imageIndex !== currentImageIndex) return null;
+            if (activeStepId === step.id) return null;
+            const hidden = Boolean(
+              step.hotspotAlwaysHidden ?? step.hideStepNumber
+            );
+            const wPx =
+              (region.wPct / 100) * containerSize.w * imgOffset.scaleX;
+            const hPx =
+              (region.hPct / 100) * containerSize.h * imgOffset.scaleY;
+            const left = step.xPct - region.wPct / 2;
+            const top = step.yPct - region.hPct / 2;
+            let shapeStyle: React.CSSProperties;
+            if (region.shape === 'ellipse') {
+              shapeStyle = { borderRadius: '50%' };
+            } else if (region.shape === 'polygon' && region.points) {
+              const pts = region.points
+                .map(
+                  (p) =>
+                    `${((p.x - left) / region.wPct) * 100}% ${((p.y - top) / region.hPct) * 100}%`
+                )
+                .join(', ');
+              shapeStyle = { clipPath: `polygon(${pts})` };
+            } else {
+              const corner = Math.min(Math.max(region.cornerPct ?? 0, 0), 50);
+              shapeStyle = {
+                borderRadius: (corner / 100) * Math.min(wPx, hPx),
+              };
+            }
+            return (
+              <button
+                key={`region-${step.id}`}
+                type="button"
+                data-gl-region={step.id}
+                onClick={() => onPinClick(step.id)}
+                aria-label={step.label ?? `Step ${idx + 1}`}
+                className={`absolute z-[5] bg-transparent transition-colors focus:outline-none focus-visible:bg-white/20 ${
+                  hidden
+                    ? ''
+                    : region.shape === 'polygon'
+                      ? 'hover:bg-white/15'
+                      : 'hover:bg-white/15 hover:ring-2 hover:ring-white/70'
+                }`}
+                style={{
+                  left: `${imgOffset.left + left * imgOffset.scaleX}%`,
+                  top: `${imgOffset.top + top * imgOffset.scaleY}%`,
+                  width: `${region.wPct * imgOffset.scaleX}%`,
+                  height: `${region.hPct * imgOffset.scaleY}%`,
+                  ...shapeStyle,
+                }}
+              />
+            );
+          })}
 
         {/* Hotspot pins */}
         {steps.map((step, idx) => {

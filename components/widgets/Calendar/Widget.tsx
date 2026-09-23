@@ -20,6 +20,7 @@ import { GAP_STYLE } from './constants';
 import { hexToRgba } from '@/utils/styles';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
+import { useSubShareCalendar } from './useSubShareCalendar';
 
 /** Parses a time string (e.g. "14:30", "2:30 PM") into seconds since midnight, or -1 if invalid. */
 const parseTimeSeconds = (t: string | undefined): number => {
@@ -82,6 +83,12 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   // confirmed silent acquisition failed (not during the in-flight window).
   const [calendarNeedsConnect, setCalendarNeedsConnect] = useState(false);
 
+  // In a share the teacher's events come from the bundle: a substitute holds
+  // no token for someone else's Google account, so nothing here is acquired
+  // or fetched.
+  const shared = useSubShareCalendar(widget.id);
+  const inShare = shared.active;
+
   const isCalendarConnected = calendarToken !== null;
 
   const calendarService = useMemo(
@@ -122,7 +129,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   // granted users get a token silently; never-granted users resolve to null and
   // we flip `calendarNeedsConnect` to surface the connect CTA.
   useEffect(() => {
-    if (personalIds.length === 0 || calendarToken !== null) return;
+    if (inShare || personalIds.length === 0 || calendarToken !== null) return;
     let cancelled = false;
     void (async () => {
       const token = await ensureGoogleScope('calendar.readonly');
@@ -137,7 +144,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     return () => {
       cancelled = true;
     };
-  }, [personalIds.length, calendarToken, ensureGoogleScope]);
+  }, [inShare, personalIds.length, calendarToken, ensureGoogleScope]);
 
   // 2b. Fetch Personal Events once we have a calendar service + IDs.
   useEffect(() => {
@@ -213,8 +220,9 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
       ? (buildingDefaults?.events ?? [])
       : [];
 
-    const validatedPersonalEvents =
-      isCalendarConnected && calendarService && personalIds.length > 0
+    const validatedPersonalEvents = inShare
+      ? shared.events
+      : isCalendarConnected && calendarService && personalIds.length > 0
         ? personalEvents
         : [];
 
@@ -263,6 +271,8 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     calendarService,
     personalIds,
     todayMidnightMs,
+    inShare,
+    shared.events,
   ]);
 
   // Blocked Date logic
@@ -352,6 +362,8 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   // (`calendarNeedsConnect`), and we don't have a token yet. Never shows for
   // already-granted users (the silent path returns a token) or when no personal
   // calendars are configured.
+  // In a share this stays false because the acquisition above never runs, so
+  // a substitute is never asked to connect their own Google account.
   const showConnectCalendar =
     personalIds.length > 0 && calendarNeedsConnect && !isCalendarConnected;
 

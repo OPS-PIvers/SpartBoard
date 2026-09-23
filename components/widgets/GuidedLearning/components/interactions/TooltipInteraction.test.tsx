@@ -10,15 +10,16 @@ const baseStep: GuidedLearningPublicStep = {
   imageIndex: 0,
   interactionType: 'tooltip',
   label: 'Open the menu',
-  text: 'Click the menu button.',
+  text: 'Click the **menu** button.',
 };
 
 // jsdom reports 0 for offsetWidth/Height, so the component falls back to its
 // size estimates: width min(340, 50% of container), height max(76, 16%).
+// Without a target the keep-out is the 32px pin footprint.
 const card = () => screen.getByTestId('gl-tooltip-card');
 
 describe('TooltipInteraction', () => {
-  it('clamps a card anchored near the top-left corner inside the container', () => {
+  it('keeps a card near the top-left corner inside the container and off the pin', () => {
     render(
       <TooltipInteraction
         step={{ ...baseStep, tooltipPosition: 'right' }}
@@ -26,12 +27,12 @@ describe('TooltipInteraction', () => {
         containerHeight={400}
       />
     );
-    // Unclamped top would be 24 - 38 = -14; clamped to the 12px edge padding.
     expect(card().style.top).toBe('12px');
-    expect(card().style.left).toBe('32px');
+    expect(card().style.left).toBe(`${32 + 16}px`);
+    expect(card().dataset.side).toBe('right');
   });
 
-  it('keeps the card fully inside the container on the far edges', () => {
+  it('flips away from the far edges instead of clamping over the target', () => {
     render(
       <TooltipInteraction
         step={{ ...baseStep, xPct: 98, yPct: 96, tooltipPosition: 'below' }}
@@ -39,20 +40,21 @@ describe('TooltipInteraction', () => {
         containerHeight={400}
       />
     );
+    expect(card().dataset.side).toBe('top');
     expect(card().style.left).toBe(`${800 - 340 - 12}px`);
-    expect(card().style.top).toBe(`${400 - 76 - 12}px`);
+    expect(card().style.top).toBe(`${384 - 16 - 16 - 76}px`);
   });
 
-  it('places the card outside a spotlight keep-out radius', () => {
+  it('places the card outside a spotlight target rect', () => {
     render(
       <TooltipInteraction
         step={{ ...baseStep, xPct: 50, yPct: 50, tooltipPosition: 'below' }}
         containerWidth={800}
         containerHeight={400}
-        keepOutRadius={60}
+        target={{ x: 340, y: 140, w: 120, h: 120 }}
       />
     );
-    expect(card().style.top).toBe('272px');
+    expect(card().style.top).toBe('276px');
   });
 
   it('auto placement prefers below when there is room', () => {
@@ -63,7 +65,33 @@ describe('TooltipInteraction', () => {
         containerHeight={400}
       />
     );
-    expect(card().style.top).toBe(`${80 + 16}px`);
+    expect(card().style.top).toBe(`${80 + 16 + 16}px`);
     expect(card().className).toContain('items-start');
+  });
+
+  it('renders a pinned card centred on the pin with an arrow to the target', () => {
+    render(
+      <TooltipInteraction
+        step={{ ...baseStep, xPct: 75, yPct: 25 }}
+        containerWidth={800}
+        containerHeight={400}
+        pinned={{ x: 200, y: 300 }}
+      />
+    );
+    expect(card().style.left).toBe(`${200 - 170}px`);
+    expect(card().style.top).toBe(`${300 - 38}px`);
+    expect(screen.getByTestId('gl-callout-arrow')).toBeInTheDocument();
+  });
+
+  it('marks the card for Studio hit-testing and renders rich text', () => {
+    render(
+      <TooltipInteraction
+        step={{ ...baseStep, xPct: 50, yPct: 50 }}
+        containerWidth={800}
+        containerHeight={400}
+      />
+    );
+    expect(card().getAttribute('data-gl-callout')).toBe('s1');
+    expect(card().querySelector('strong')?.textContent).toBe('menu');
   });
 });

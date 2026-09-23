@@ -98,6 +98,13 @@ const wallDoc = (id: string, fields: Record<string, unknown>) => ({
   data: () => fields,
 });
 
+const calendarWidget = (id: string, personalCalendarIds: string[]) =>
+  ({
+    id,
+    type: 'calendar' satisfies WidgetType,
+    config: { personalCalendarIds },
+  }) as unknown as WidgetData;
+
 const board = (id: string, name: string, widgets: WidgetData[]) =>
   ({ id, name, widgets }) as unknown as Dashboard;
 
@@ -758,6 +765,115 @@ describe('bundleSubShareContent', () => {
 
       expect(bundle.items).toEqual([]);
       expect(bundle.failures.map((f) => f.kind)).toEqual(['activityWall']);
+    });
+  });
+  describe('calendar', () => {
+    const events = [
+      { title: 'Staff meeting', date: '2026-09-24', time: '3:30 PM' },
+      { title: 'Field trip', date: '2026-09-25' },
+    ];
+
+    it('bundles every personal calendar the widget is configured with', async () => {
+      const readCalendar = vi.fn().mockResolvedValue(events);
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [
+          board('b1', 'Homeroom', [
+            calendarWidget('w1', ['primary', 'coach@school.org']),
+          ]),
+        ],
+        services: { readCalendar },
+      });
+
+      expect(bundle.failures).toEqual([]);
+      expect(bundle.items.map((i) => i.id)).toEqual(['calendar_w1']);
+      expect(readCalendar).toHaveBeenCalledTimes(2);
+      expect((readCalendar.mock.calls as string[][]).map((c) => c[0])).toEqual([
+        'primary',
+        'coach@school.org',
+      ]);
+      const payload = bundle.items[0].doc.payload as { events: unknown[] };
+      // Flattened across both calendars, as the widget itself merges them.
+      expect(payload.events).toHaveLength(4);
+    });
+
+    // The plan's §3.3 Calendar row: the share carries two weeks, not a year.
+    it('asks for a fortnight from today', async () => {
+      const readCalendar = vi.fn().mockResolvedValue([]);
+
+      await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Homeroom', [calendarWidget('w1', ['primary'])])],
+        services: { readCalendar },
+      });
+
+      const [, timeMin, timeMax] = readCalendar.mock.calls[0] as string[];
+      const spanDays = (Date.parse(timeMax) - Date.parse(timeMin)) / 86_400_000;
+      expect(spanDays).toBe(14);
+    });
+
+    it('keys the bundle on the widget, since events live in its config', async () => {
+      const readCalendar = vi.fn().mockResolvedValue(events);
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [
+          board('b1', 'Homeroom', [
+            calendarWidget('w1', ['primary']),
+            calendarWidget('w2', ['primary']),
+          ]),
+        ],
+        services: { readCalendar },
+      });
+
+      // Two widgets on one calendar are two items: a teacher can set a
+      // different `daysVisible` on each, so neither can stand in for the other.
+      expect(bundle.items.map((i) => i.id)).toEqual([
+        'calendar_w1',
+        'calendar_w2',
+      ]);
+    });
+
+    it('leaves a widget with no personal calendars alone', async () => {
+      const readCalendar = vi.fn().mockResolvedValue([]);
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Homeroom', [calendarWidget('w1', [])])],
+        services: { readCalendar },
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(bundle.failures).toEqual([]);
+      expect(readCalendar).not.toHaveBeenCalled();
+    });
+
+    // A teacher who never granted the scope gets told, rather than shipping a
+    // calendar that silently drops their events.
+    it('reports a failure when no reader was supplied', async () => {
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Homeroom', [calendarWidget('w1', ['primary'])])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(bundle.failures).toEqual([
+        { kind: 'calendar', itemId: 'w1', label: 'Calendar on Homeroom' },
+      ]);
+    });
+
+    it('reports a failure when the calendar read throws', async () => {
+      const readCalendar = vi.fn().mockRejectedValue(new Error('401'));
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Homeroom', [calendarWidget('w1', ['primary'])])],
+        services: { readCalendar },
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(bundle.failures.map((f) => f.kind)).toEqual(['calendar']);
     });
   });
 });
