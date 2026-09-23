@@ -21,26 +21,26 @@ Out of scope: opening GL beyond admins (Paul does this himself through the exist
 
 ## Product decisions (settled — do not re-litigate)
 
-| Decision           | Answer                                                                                                                                                                                                                                                                                       |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Fidelity           | The Studio canvas renders the **same stage component** the player uses, not a look-alike overlay. A device-frame switcher renders that stage at the true pixel size of each surface and scales it visually to fit.                                                                           |
-| Guiding principle  | The default path costs no extra effort; precision is opt-in. The feature should eventually be smooth enough to open to all teachers.                                                                                                                                                         |
-| Hotspot model      | **Click** places a pin exactly as today, and its callout auto-places so it does not cover the pin. **Click-and-drag** draws a rectangle region instead. **Dragging a callout** pins it; "Reset to auto" unpins it. Existing sets play unchanged.                                             |
-| Editor shell       | Full-screen Studio: slide filmstrip (left), device-framed canvas (center), properties panel (right), step timeline (bottom). "Play from here" runs the real player in the frame.                                                                                                             |
-| Text editing       | Double-click a callout on the canvas to edit its text in place. The properties panel edits the same text. Supported formatting: `**bold**` and `[text](https://…)` links only.                                                                                                               |
-| Precision tools    | Arrow-key nudge (Shift for larger steps), canvas zoom and pan, undo/redo, snapping, select separate from drag, cycle through overlapping hotspots.                                                                                                                                           |
-| Playback           | A learner-side **Watch / Try** toggle. Watch: an animated cursor glides to each target, clicks with a ripple, the camera eases to follow, and steps auto-advance with a scrubber. Try: the learner clicks the target themselves; the cursor appears as a hint after about 5s of no progress. |
-| Pacing             | Calmer eased defaults (glides of about 600–900ms), a learner speed control (0.5× / 1× / 1.5×), a minimum duration authors cannot go below, and `prefers-reduced-motion` reduces all motion to cuts and fades.                                                                                |
-| Audio              | Browser text-to-speech toggle for learners (free, instant) **and** optional generated narration per step, using Google Cloud TTS.                                                                                                                                                            |
-| Analytics          | Keep the share link and view counting. Add step drop-off, a Try-mode misclick/stuck heatmap, and a Watch vs Try split.                                                                                                                                                                       |
-| Live tours         | Folded into GL. **Record once, get both**: one recording produces a screenshot lesson and a live tour. In a live tour the learner performs each action and the tour waits; the tour adds any widgets it needs before starting.                                                               |
-| Tour anchors       | Stable `data-tour="…"` attributes from a typed registry, with a fallback to role + accessible name. A CI test fails if a registered anchor is no longer rendered in source. Tagging key controls is part of the new-widget checklist, and the recorder warns about untagged clicks.          |
-| Tour launch points | Help Center ("Show me live"), the widget settings `?` button, first-run onboarding offers, and What's New entries.                                                                                                                                                                           |
-| Students           | Always get the screenshot version. Live tours are teacher-facing only.                                                                                                                                                                                                                       |
-| Recording privacy  | The recorder only runs on a **demo board** with fake classes and students. Real student data cannot appear in a capture.                                                                                                                                                                     |
-| AI                 | Draft step text after a recording. Keep the `gl-author` skill writing the current schema. No AI pin placement or critique in this plan.                                                                                                                                                      |
-| Migration          | Existing sets play unchanged. Opening a set in the Studio and saving it stamps the new schema version; the new fields are additive. No bulk migration.                                                                                                                                       |
-| Access             | Stays admin-gated through the existing permissions doc. Nothing in this plan changes access.                                                                                                                                                                                                 |
+| Decision           | Answer                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fidelity           | The Studio canvas renders the **same stage component** the player uses, not a look-alike overlay. A device-frame switcher renders that stage at the true pixel size of each surface and scales it visually to fit.                                                                                                                                                                                                                        |
+| Guiding principle  | The default path costs no extra effort; precision is opt-in. The feature should eventually be smooth enough to open to all teachers.                                                                                                                                                                                                                                                                                                      |
+| Hotspot model      | **Click** places a pin exactly as today, and its callout auto-places so it does not cover the pin. **Click-and-drag** draws a rectangle region instead. **Dragging a callout** pins it; "Reset to auto" unpins it. Existing sets play unchanged. Drawn regions can be a rectangle (adjustable corner radius), an ellipse or a polygon, for spotlighting irregular shapes such as map regions or parts of a diagram.                       |
+| Editor shell       | Full-screen Studio: slide filmstrip (left), device-framed canvas (center), properties panel (right), step timeline (bottom). "Play from here" runs the real player in the frame.                                                                                                                                                                                                                                                          |
+| Text editing       | Double-click a callout on the canvas to edit its text in place. The properties panel edits the same text. Supported formatting: `**bold**` and `[text](https://…)` links only.                                                                                                                                                                                                                                                            |
+| Precision tools    | Arrow-key nudge (Shift for larger steps), canvas zoom and pan, undo/redo, snapping, select separate from drag, cycle through overlapping hotspots.                                                                                                                                                                                                                                                                                        |
+| Playback           | A learner-side **Watch / Try** toggle. Watch: an animated cursor glides to each target, clicks with a ripple, the camera eases to follow, and steps auto-advance with a scrubber. Try: the learner clicks the target themselves; the cursor appears as a hint after about 5s of no progress.                                                                                                                                              |
+| Pacing             | Calmer eased defaults (glides of about 600–900ms), a learner speed control (0.5× / 1× / 1.5×), a minimum duration authors cannot go below, and `prefers-reduced-motion` reduces all motion to cuts and fades.                                                                                                                                                                                                                             |
+| Audio              | Browser text-to-speech toggle for learners (free, instant), **plus** an optional per-step narration track from either Google Cloud TTS or the author's own recorded voice. A recorded voice takes priority over generated narration.                                                                                                                                                                                                      |
+| Analytics          | Keep the share link and view counting. Add step drop-off, a Try-mode misclick/stuck heatmap, and a Watch vs Try split.                                                                                                                                                                                                                                                                                                                    |
+| Live tours         | Folded into GL. **Record once, get both**: one recording produces a screenshot lesson and a live tour. In a live tour the learner performs each action and the tour waits; the tour adds any widgets it needs before starting.                                                                                                                                                                                                            |
+| Tour anchors       | Stable `data-tour="…"` attributes from a typed registry, with a fallback to role + accessible name. A CI test fails if a registered anchor is no longer rendered in source. Tagging key controls is part of the new-widget checklist, and the recorder warns about untagged clicks.                                                                                                                                                       |
+| Tour launch points | Help Center ("Show me live"), the widget settings `?` button, first-run onboarding offers, and What's New entries.                                                                                                                                                                                                                                                                                                                        |
+| Students           | Always get the screenshot version. Live tours are teacher-facing only.                                                                                                                                                                                                                                                                                                                                                                    |
+| Recording privacy  | Two options. The default is a **demo board** with fake classes and students. The alternative is recording on the **real board with auto-redaction**: student names from the teacher's rosters and anything tagged `data-pii` (webcam feeds, photos) are blurred into the pixels before a frame leaves the browser, and every frame gets a mandatory blur review before upload. The Studio also has a manual blur tool for any screenshot. |
+| AI                 | Draft step text after a recording. Keep the `gl-author` skill writing the current schema. No AI pin placement or critique in this plan.                                                                                                                                                                                                                                                                                                   |
+| Migration          | Existing sets play unchanged. Opening a set in the Studio and saving it stamps the new schema version; the new fields are additive. No bulk migration.                                                                                                                                                                                                                                                                                    |
+| Access             | Stays admin-gated through the existing permissions doc. Nothing in this plan changes access.                                                                                                                                                                                                                                                                                                                                              |
 
 ## Constraints discovered in code (do not re-derive)
 
@@ -79,17 +79,21 @@ Out of scope: opening GL beyond admins (Paul does this himself through the exist
 ```ts
 /** Click zone / spotlight / zoom focus. Absent = default circle centred on xPct/yPct. */
 region?: {
-  shape: 'ellipse' | 'rect';
-  /** Size as % of image width / height, centred on xPct/yPct. */
+  shape: 'rect' | 'ellipse' | 'polygon';
+  /** Bounding-box size as % of image width / height, centred on xPct/yPct. */
   wPct: number;
   hPct: number;
+  /** rect only: corner radius as % of the shorter side (0–50). */
+  cornerPct?: number;
+  /** polygon only: 3–24 vertices in image-%. The bbox fields and xPct/yPct are derived from them. */
+  points?: { x: number; y: number }[];
 };
 /** Absent = auto placement. Present = callout box centre pinned in image-%. */
 calloutPin?: { xPct: number; yPct: number };
 /** Watch-mode demonstration override; absent = cursor goes to region centre. */
 cursor?: { hide?: boolean };
 /** Generated narration (P2-4). */
-narration?: { url: string; storagePath: string; voice: string; textHash: string; durationMs: number };
+narration?: { source: 'generated' | 'recorded'; url: string; storagePath: string; durationMs: number; voice?: string; textHash?: string };
 /** Live-tour binding (P3). */
 tour?: {
   anchor: string;                 // TOUR_ANCHORS key
@@ -152,7 +156,7 @@ export const tourAttr = (id: TourAnchorId, widgetId?: string) => ({
 
 | Surface                                                                                                           | Gate                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Why                                                                                                                                                      |
 | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Studio, recorder, demo mode, tour health (P1-3–P1-7, P3-2, P3-3, P3-6)                                            | None beyond the existing admin gates                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Admin-only tools are exempt.                                                                                                                             |
+| Studio, blur tool, recorder, redaction, demo mode, tour health (P1-3–P1-7, P1-9, P3-2, P3-3, P3-6, P3-7)          | None beyond the existing admin gates                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Admin-only tools are exempt.                                                                                                                             |
 | Region-aware callout placement and rich text in the player (P1-2)                                                 | None                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Bug fix: callouts covering their target is unintended behaviour. New visuals only appear for sets that use the new fields, which only admins can author. |
 | `containerType` fix and the other P1-8 fixes                                                                      | None                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Bug fixes.                                                                                                                                               |
 | Player v2: Watch/Try, cursor, speed, outline, resume, read-aloud, narration playback, progress writes (P2-1–P2-5) | New `GlobalFeature` `'gl-player-v2'` (`FEATURE_DEFAULTS`: `defaultAccessLevel: 'admin'`, `defaultEnabled: true`, `missingDocPublic: false`). Students are anonymous and can't evaluate it, so the gate is stamped on the **session**: `createSession` writes `playerV2: true` when the creator passes `canAccessFeature('gl-player-v2')`. Teacher-side surfaces (widget, Manager preview, Help viewer) check the flag directly. The player takes `playerV2?: boolean` and renders today's footer and timings when it is false. | This changes behaviour that students and teachers see.                                                                                                   |
@@ -180,7 +184,7 @@ Do:
 
 1. Add the step and set fields from **Data model** to the set, public-step and session types; add `narration`, `tour` and `tourSetup` now so later phases need no type churn. Mirror `region`, `calloutPin`, `cursor`, `narration` (url, voice and durationMs only) and `tour` in `toPublicStep`. Mirror `watchPace` on session create and in `setForPlayer`. Also mirror `welcomeEnabled`/`welcomeMessage` in `setForPlayer`, which is currently missing.
 2. Bump `GL_SET_SCHEMA_VERSION` to 3. `isGuidedLearningSetV2` stays `>= 2`. Add `isGuidedLearningSetV3`.
-3. `regionGeometry.ts`: `effectiveRegion(step, geometry)` returns a container-px rect `{ cx, cy, w, h, shape }`. When `region` is set, it maps image-% through the offset and transform. When it is absent, it returns a circle the size of the pin button (`min(32, 0.08 × min(containerW, containerH))` px). Also `pointInRegion(pt, rect)` and `clampRegion`, which keeps an image-% region inside 0–100 with a minimum size of 1.5%.
+3. `regionGeometry.ts`: `effectiveRegion(step, geometry)` returns a container-px rect `{ cx, cy, w, h, shape }`. When `region` is set, it maps image-% through the offset and transform. When it is absent, it returns a circle the size of the pin button (`min(32, 0.08 × min(containerW, containerH))` px). Also `pointInRegion(pt, rect)` (including point-in-polygon), `regionPath(region, geometry)` (an SVG path for a rounded rect, ellipse or polygon, used by the spotlight mask and outlines), `polygonBBox(points)`, and `clampRegion`, which keeps an image-% region inside 0–100 with a minimum size of 1.5%.
 4. `calloutPlacement.ts`: `placeCallout({ box: {w,h}, target: Rect, container: {w,h}, prefer?: Side, pinned?: {x,y}, padding: 12, offset: 16 })`, returning `{ left, top, side, arrow: {from, to} }` in px.
    - Auto mode scores the four sides by fit, **never overlaps the target rect**, and prefers `prefer`.
    - If no side fits, pick the side with the least overlap and shrink the width down to a minimum of 200px before accepting any overlap.
@@ -206,7 +210,7 @@ Do:
    - `StageGeometry` exposes `containerSize`, `imgOffset`, `renderedTransform` and the mapping helpers so the Studio edit layer uses the same maths.
    - `GuidedLearningPlayer` keeps its props and behaviour and owns step state, the timer, the footer and keyboard handling; it renders the stage. All four render sites stay unchanged.
 2. Rendering changes:
-   - Spotlight draws `effectiveRegion` (ellipse or rounded rect) instead of a radius circle whenever `step.region` is set. Legacy `spotlightRadius` behaviour is unchanged when `region` is absent.
+   - Spotlight cuts out `regionPath` (a rounded rect, ellipse or polygon) instead of a radius circle whenever `step.region` is set. Callout keep-out uses the region's bounding box. Legacy `spotlightRadius` behaviour is unchanged when `region` is absent.
    - Pan-zoom focuses on the region centre.
    - In explore mode, a step with a `region` gets a transparent button covering the region (hover outline, the step label as `aria-label`) in addition to or instead of the pin. A step without a region keeps the pin as its only target.
    - A hidden hotspot (`hotspotAlwaysHidden`) with a region renders that region as an invisible click target. Today hidden hotspots render nothing and cannot be clicked at all, which contradicts the type doc at `types.ts:6908-6913`. This makes the documented "find the click zone yourself" exercise work.
@@ -284,14 +288,14 @@ Do:
 1. The edit layer renders through `renderEditLayer` so it shares `StageGeometry`. All pointer maths is container px ÷ frame `k` → image-% via the imageUtils inverses.
 2. **Add mode** (toolbar button or `A`):
    - A click places a point at the default region and auto callout, then selects it.
-   - A drag beyond 4px draws a rectangle region (Shift gives an ellipse).
+   - A drag beyond 4px draws a region using the current shape tool: Rectangle (`R`, the default), Ellipse (`E`), or Polygon (`P`). For a polygon, click to add vertices; Enter, a double-click or clicking the first vertex closes it; Escape cancels. Shift constrains a rect to a square or an ellipse to a circle.
    - Coordinates are clamped to the image (not 2–98; regions may touch edges).
 3. **Select vs move:**
    - A pointer-down on an unselected hotspot selects it only.
    - Moving requires the hotspot to already be selected, or a drag beyond 6px that starts on it. This removes the click/drag ambiguity.
    - Alt-click (or repeated clicks at the same spot) cycles through overlapping hotspots under the pointer.
    - Tab and Shift+Tab cycle through hotspots on the slide.
-4. The selected region shows 8 resize handles plus a centre move handle, and has a shape toggle in the properties panel. Drag and resize use `beginGesture`/`endGesture`.
+4. A selected rect or ellipse shows 8 resize handles plus a centre move handle. A selected polygon shows a handle per vertex: drag moves a vertex, Alt-click on an edge inserts one, and Delete on a focused vertex removes it (minimum 3). The properties panel has a shape switcher (converting rect or ellipse to polygon seeds 4 or 12 vertices) and, for rects, a corner-radius slider. Drag and resize use `beginGesture`/`endGesture`.
 5. **Callout:**
    - Dragging the rendered callout of the selected step sets `calloutPin`.
    - "Reset to auto" appears in a floating mini-toolbar next to the selection and in the properties panel.
@@ -325,7 +329,7 @@ Key files: `.claude/skills/gl-author/SKILL.md`, `.claude/skills/gl-author/script
 
 Do:
 
-1. The validator accepts `schemaVersion` 2 or 3 and validates `region` (shape enum; `wPct`/`hPct` in (0,100], centre ± half-size inside 0–100) and `calloutPin` (0–100). It rejects `narration` (Storage-bound) and accepts `tour` only with a known anchor id if `config/tourAnchors.ts` exists; until P3-1, treat `tour` as an error.
+1. The validator accepts `schemaVersion` 2 or 3 and validates `region` (shape enum; `wPct`/`hPct` in (0,100], centre ± half-size inside 0–100; `cornerPct` 0–50; polygon `points` 3–24 within 0–100 and consistent with the bbox) and `calloutPin` (0–100). It rejects `narration` (Storage-bound) and accepts `tour` only with a known anchor id if `config/tourAnchors.ts` exists; until P3-1, treat `tour` as an error.
 2. The skill instructs: write v3; for app walkthroughs, set `region` from Playwright element bounds (exact, instead of estimated centre points), leave callouts on auto, and pin only when auto placement is clearly wrong in the verification render.
 3. The importer validates the region and callout ranges the same way. A file with `schemaVersion > 3` fails with "made by a newer version." Legacy files without a version keep importing.
 
@@ -345,6 +349,21 @@ Do:
 4. Pass `layout="grid"` to the `SortableList` in `StepNavigator` (only if P1-4 has not deleted it yet; otherwise drop this sub-step).
 
 Done when: `vitest related` passes for the touched files and the PR lists each defect with its file:line.
+
+#### P1-9 Blur tool for slides — `sonnet`
+
+Depends on: P1-4.
+
+Key files: new `GL/components/studio/BlurTool.tsx`, new `GL/utils/redactImage.ts` and test, `GL/components/studio/StudioCanvas.tsx`, `GL/components/useGuidedLearningEditorState.ts` (replace a slide's image).
+
+Do:
+
+1. A Blur tool (`B`) in the Studio toolbar. Drag rectangles over the slide, which show as a translucent overlay while editing. "Apply blur" bakes them in.
+2. `redactImage(src, rects, { mode: 'blur' | 'solid' })` draws the image to a canvas at natural size and applies a strong blur (at least 16px radius, applied twice so text can't be recovered) or a solid fill to each rect. It returns a PNG blob.
+3. Applying uploads the new image through the normal upload path, replaces the slide's URL, and deletes the old file through the existing image cleanup. **The unblurred original is never kept.** It is one undo entry, but undo can only restore the URL until autosave runs; say so in the tool's confirm text.
+4. Video slides are not supported; the tool is disabled on them.
+
+Done when: unit tests for `redactImage` (pixels inside a blurred rect differ from the source, pixels outside are unchanged) and an RTL test that applying replaces the slide URL and schedules the old path for cleanup.
 
 ### Phase 2 — Player: motion, Watch/Try, read-aloud, analytics (after Phase 1 merges)
 
@@ -415,7 +434,7 @@ Do:
 
 Done when: tests cover the outline jump, the resume prompt, the live-region text, focus moving into a popover, and read-aloud calling `speak` and `cancel` (mock `speechSynthesis`).
 
-#### P2-4 Generated narration (Google Cloud TTS) — `opus`
+#### P2-4 Narration: generated (Google Cloud TTS) or your own recorded voice — `opus`
 
 Depends on: P1-4 (Studio properties panel), P2-3 (player playback).
 
@@ -430,9 +449,15 @@ Do:
    - Neural2 voices from an allow-list, defaulting to the quiz default.
    - Reuses the quiz admin cap and fallback settings; if they are quiz-specific, read them but do not share quotas (flag in the PR).
 2. Studio: "Generate narration" for the selected step, and "Generate all" (sequential, with progress). Show a stale badge when `textHash` no longer matches the current label and text, and a play preview.
-3. The player plays narration per P2-3.
+3. **Record your own voice:** a "Record voice" button next to Generate in the properties panel.
+   - Reuse `hooks/useAudioRecording.ts` and the `components/quiz/recording/AudioResponseCapture` UI (record, stop, play back, re-record) rather than writing a new recorder.
+   - Save uploads the take through `uploadGuidedLearningMedia` (`hooks/useStorage.ts:156`) and stores `narration: { source: 'recorded', url, storagePath, durationMs, textHash }`.
+   - A recorded take replaces generated narration for that step. Deleting it leaves the step with no narration, and the author can generate again. Instead of the stale badge, show "Text changed since recording" when the current label and text hash differs from the saved one.
+   - "Generate all" skips steps with a recorded take.
+   - Include the recorded file's storage path in the set's media cleanup, the same way `audioStoragePath` is handled today.
+4. The player plays either source the same way, per P2-3.
 
-Done when: function unit tests (mock the TTS client) cover the cache hit, the cap, and the admin requirement. RTL tests cover the stale badge and that generate stores the `narration` field.
+Done when: function unit tests (mock the TTS client) cover the cache hit, the cap, and the admin requirement. RTL tests cover the stale badge, that generate stores the `narration` field, that a recorded take (mock `AudioRecordingDeps`) stores `source: 'recorded'`, and that Generate all skips it.
 
 Notes: no new secret. Functions deploy to dev from `dev-paul` CI.
 
@@ -509,7 +534,7 @@ Key files: new `GL/components/recorder/TourRecorder.tsx`, `recorder/useTourCaptu
 
 Do:
 
-1. **Start:** only available in demo mode. A floating recorder pill (Record / Pause / Mark step / Finish / Discard) sits outside the captured UI and is excluded from anchor resolution via `data-tour-ignore`.
+1. **Start:** available in demo mode, or on the real board when auto-redaction is on (P3-7). The recorder refuses to start anywhere else. A floating recorder pill (Record / Pause / Mark step / Finish / Discard) sits outside the captured UI and is excluded from anchor resolution via `data-tour-ignore`.
    - Calls `getDisplayMedia({ video: true, preferCurrentTab: true, selfBrowserSurface: 'include' })`.
    - Rejects the recording if the shared surface is not this tab (track settings `displaySurface !== 'browser'`), with a clear message.
 2. **On each capture-phase `pointerdown`** (before the app handles it):
@@ -591,20 +616,43 @@ Do: list every building set with tour steps. For each step, show whether its anc
 
 Done when: tests cover a set with an unknown anchor flagged by the static check and the live check reporting found or missing on a fixture DOM.
 
+#### P3-7 Real-board recording with auto-redaction — `opus`
+
+Depends on: P3-3, P1-9 (`redactImage`).
+
+Key files: new `GL/components/recorder/redaction.ts` and test, `GL/components/recorder/TourRecorder.tsx`, new `GL/components/recorder/FrameReview.tsx`, `hooks/useRosters.ts` (read only), `components/widgets/Webcam/Widget.tsx` and other widgets that show student media (add `data-pii`), `config/tourAnchors.ts` (document `data-pii` next to `data-tour`), `.claude/skills/new-widget/SKILL.md`.
+
+Do:
+
+1. **Name index:** before recording starts, build a matcher from the teacher's rosters (first, last, and "first last" names, plus nicknames and pseudonyms where present). Match case-insensitively on word boundaries, and ignore names shorter than 3 characters unless they are part of a full-name match.
+2. **At each captured frame**, before anything leaves memory:
+   - walk visible text nodes (a `TreeWalker` over `document.body`, skipping the recorder UI) and collect `Range.getClientRects()` for every roster-name match;
+   - add the rects of every element with `data-pii` (webcam `<video>`, student photos, drawing canvases that may contain names);
+   - add the rects of any `<input>`/`<textarea>` whose value matches a name;
+   - pad each rect by 4px, convert it to frame pixels (same DPR maths as P3-3), and bake it in with `redactImage`.
+     The raw frame is discarded immediately.
+3. **Mandatory review:** on Finish, `FrameReview` shows every frame with its blur boxes highlighted. The author can draw extra boxes before anything uploads; these run `redactImage` on the already-redacted frame, because the raw frame is gone. Upload stays disabled until every frame has been viewed.
+4. **Tagging `data-pii`:** add it to Webcam and to any widget that shows student photos or free-form student content, and list the tagged widgets in the PR. Add one line to the new-widget skill: "Tag elements that show student faces, photos or free-form student content with `data-pii`."
+5. **Choice at start:** the recorder's start dialog offers "Demo board (recommended)" or "My board, with names blurred", and the second option states the review requirement up front. Remember the choice in localStorage (try/catch).
+
+Done when: unit tests cover name matching (full name, first name only, boundary cases such as "Al" inside "Alice", nicknames) and rect collection from a fixture DOM (text match, `data-pii` element, input value). An RTL test shows upload stays disabled until every frame is reviewed. A manual run on spartboard-dev with the mock test class shows every visible name blurred; put before/after screenshots of the review screen in the PR, never raw frames.
+
+Notes: names drawn onto a canvas (for example inside a drawing) can't be found from the DOM. That is why whole `data-pii` canvases are blurred and why the review step is mandatory.
+
 ## Verification matrix (orchestrator, before each phase merge)
 
-| Check                            | How                                                                                                                                                                                                                                              |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| v2 sets unchanged                | P1-2: existing player tests pass unmodified apart from imports. Manually open three existing building sets on spartboard-dev in the player before and after: pins, spotlight and zoom are identical, and tooltips no longer cover their targets. |
-| Studio matches the real surfaces | P1-4: at each device preset, screenshot the Studio frame and the matching surface (widget at 720×520, Help viewer, student app at 1366×657, 1920×1080); callouts land in the same place.                                                         |
-| Students receive new fields      | P1-1 test on `toPublicStep`; the student app renders a region spotlight and a pinned callout from a v3 session on dev.                                                                                                                           |
-| No answer leakage                | P1-1 test: public steps still contain no `correctAnswer`/`matchingPairs`/`sortingItems` in their original order.                                                                                                                                 |
-| Undo is one step per gesture     | P1-3/P1-5 tests.                                                                                                                                                                                                                                 |
-| Motion is calm and reducible     | P2-1 tests; manual check with OS reduced motion on.                                                                                                                                                                                              |
-| Analytics cannot be abused       | P2-5 rules tests: another uid denied, oversized maps denied, writes after `closeAt` denied; `releaseFirestoreRules.mjs spartboard-dev` within size caps.                                                                                         |
-| No student data in recordings    | P3-2 test: no Firestore writes in demo mode; P3-3: recorder disabled outside demo mode.                                                                                                                                                          |
-| Tour anchors do not rot          | P3-1 guard test in CI; P3-6 panel lists zero broken anchors for published tours before release.                                                                                                                                                  |
-| Validation gate                  | Each PR: `vitest related` on the touched files; `type-check` once for shared types; CI is the full gate. Pre-existing failures surfaced in the touched area are fixed or raised to Paul, never waved off.                                        |
+| Check                            | How                                                                                                                                                                                                                                                                           |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v2 sets unchanged                | P1-2: existing player tests pass unmodified apart from imports. Manually open three existing building sets on spartboard-dev in the player before and after: pins, spotlight and zoom are identical, and tooltips no longer cover their targets.                              |
+| Studio matches the real surfaces | P1-4: at each device preset, screenshot the Studio frame and the matching surface (widget at 720×520, Help viewer, student app at 1366×657, 1920×1080); callouts land in the same place.                                                                                      |
+| Students receive new fields      | P1-1 test on `toPublicStep`; the student app renders a region spotlight and a pinned callout from a v3 session on dev.                                                                                                                                                        |
+| No answer leakage                | P1-1 test: public steps still contain no `correctAnswer`/`matchingPairs`/`sortingItems` in their original order.                                                                                                                                                              |
+| Undo is one step per gesture     | P1-3/P1-5 tests.                                                                                                                                                                                                                                                              |
+| Motion is calm and reducible     | P2-1 tests; manual check with OS reduced motion on.                                                                                                                                                                                                                           |
+| Analytics cannot be abused       | P2-5 rules tests: another uid denied, oversized maps denied, writes after `closeAt` denied; `releaseFirestoreRules.mjs spartboard-dev` within size caps.                                                                                                                      |
+| No student data in recordings    | P3-2 test: no Firestore writes in demo mode. P3-3: the recorder refuses to start outside demo mode unless redaction is on. P3-7: name and `data-pii` redaction tests; upload blocked until review; the upload spy only ever receives `redactImage` output, never a raw frame. |
+| Tour anchors do not rot          | P3-1 guard test in CI; P3-6 panel lists zero broken anchors for published tours before release.                                                                                                                                                                               |
+| Validation gate                  | Each PR: `vitest related` on the touched files; `type-check` once for shared types; CI is the full gate. Pre-existing failures surfaced in the touched area are fixed or raised to Paul, never waved off.                                                                     |
 
 ## Open assumptions (flag to Paul if any is wrong)
 
@@ -613,6 +661,6 @@ Done when: tests cover a set with an unknown anchor flagged by the static check 
 3. **Pinned callouts** are stored in image-% (they move with the image). On very different aspect ratios they are clamped into the container, which can shift them slightly. That is accepted over storing a pin per device.
 4. **Tour setup** adds missing widgets to the teacher's current board and offers to remove them at the end, rather than always using a practice board.
 5. **The anchor CI guard** checks registry against source, not against published tours in Firestore. Published-tour breakage is caught by the P3-6 health panel, not CI. If Paul wants CI to read `building_guided_learning`, that needs a read-only credential in CI (a separate decision).
-6. **The `spart-new-widget` plugin skill** lives in Paul's `pauls-skills` repo, so P3-1 only updates the in-repo `new-widget` skill. Paul mirrors the checklist step into the plugin.
-7. **Narration** reuses the quiz read-aloud voices and admin cap settings. GL may need its own cap if usage grows.
-8. **Demo mode** swaps only the board and roster stores. Widgets backed by other personal data show empty states there, which is acceptable for recordings.
+6. **The `spart-new-widget` plugin skill** lives in Paul's `pauls-skills` repo, so P3-1 and P3-7 only update the in-repo `new-widget` skill. Mirroring the `data-tour` and `data-pii` checklist steps into the plugin is a separate follow-up Claude session.
+7. **Narration** reuses the quiz read-aloud voices and admin cap settings. GL may need its own cap if usage grows. Authors can record their own voice instead (P2-4), and a recorded take wins.
+8. **Demo mode** swaps only the board and roster stores, so widgets backed by other personal data show empty states there. For anything the demo board can't show, record on the real board with auto-redaction (P3-7). Redaction covers roster names in DOM text and inputs plus `data-pii` elements, and the mandatory review step catches the rest.
