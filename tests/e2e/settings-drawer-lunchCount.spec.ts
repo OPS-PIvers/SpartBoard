@@ -31,7 +31,8 @@ const openDrawer = async (page: Page) => {
     exact: true,
   });
   await expect(gear).toBeVisible();
-  await gear.click({ force: true });
+  // A toast can sit over the toolbar of a widget placed near the top, so click the element, not its screen point.
+  await gear.dispatchEvent('click');
   const drawer = page.getByRole('dialog');
   await expect(drawer).toBeVisible({ timeout: 10000 });
   return drawer;
