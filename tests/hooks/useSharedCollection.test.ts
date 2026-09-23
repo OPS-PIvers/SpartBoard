@@ -677,6 +677,41 @@ describe('useSharedCollection', () => {
       ]);
     });
 
+    // A quiz is an answer key, so it must land in keys/, which the rules keep
+    // to the subs the share names, and never in the broadly readable content/.
+    it('writes a quiz into the share’s keys, not its content', async () => {
+      const helpers = await getHelpers();
+      helpers.docs.set('users/host-uid/quizzes/q-1', {
+        id: 'q-1',
+        title: 'Cells',
+        questions: [{ id: 'q1', text: 'Nucleus?', correctAnswer: 'yes' }],
+        createdAt: 1,
+        updatedAt: 2,
+      });
+      const quizBoard = {
+        ...dashboard('b1'),
+        widgets: [
+          {
+            id: 'w1',
+            type: 'quiz',
+            position: { x: 0, y: 0 },
+            config: { selectedQuizId: 'q-1' },
+          },
+        ] as unknown as Dashboard['widgets'],
+      };
+
+      const { shareId } = await shareWithDrawing([quizBoard]);
+
+      const key = helpers.docs.get(
+        `shared_collections/${shareId}/keys/quiz_q-1`
+      ) as { kind: string; payload: { quiz: { title: string } } };
+      expect(key.kind).toBe('quiz');
+      expect(key.payload.quiz.title).toBe('Cells');
+      expect(
+        helpers.docs.has(`shared_collections/${shareId}/content/quiz_q-1`)
+      ).toBe(false);
+    });
+
     it('tells the caller what could not be bundled', async () => {
       const helpers = await getHelpers();
       helpers.failNextGetDocs({ code: 'permission-denied' });

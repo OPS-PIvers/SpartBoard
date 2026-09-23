@@ -19,6 +19,8 @@ import {
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
 import { quizAssignBlocker } from '@/utils/activityCompleteness';
 import { useDashboard } from '@/context/useDashboard';
+import { useInSubShare } from '@/hooks/useShareContent';
+import { SubShareQuizWidget } from './SubShareWidget';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useQuiz, SyncedQuizVersionConflictError } from '@/hooks/useQuiz';
@@ -181,7 +183,7 @@ const VIEW_ONLY_SESSION_OPTIONS: Required<QuizSessionOptions> = {
 
 const QUIZZES_COLLECTION = 'quizzes';
 
-export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
+const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const {
     updateWidget,
     addWidget,
@@ -3514,3 +3516,15 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     </>
   );
 };
+
+/**
+ * A substitute gets the bundled quiz instead of the teacher's library, so the
+ * two paths are separate components: the teacher's mounts Drive, assignment
+ * and live-session listeners a sub has no access to.
+ */
+export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) =>
+  useInSubShare() ? (
+    <SubShareQuizWidget widget={widget} />
+  ) : (
+    <TeacherQuizWidget widget={widget} />
+  );

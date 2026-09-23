@@ -4,6 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import * as firestore from 'firebase/firestore';
 import { CustomWidgetWidget } from '@/components/widgets/CustomWidget/Widget';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import type { WidgetData } from '@/types';
 
 vi.mock('firebase/firestore');
@@ -30,7 +31,12 @@ const inShare = (load: () => Promise<unknown>) =>
   function InShare({ children }: { children: React.ReactNode }) {
     return (
       <SubShareContentContext.Provider
-        value={{ shareId: 's1', version: 0, load: load as never }}
+        value={{
+          shareId: 's1',
+          version: 0,
+          load: load as never,
+          loadKey: noSubShareKey,
+        }}
       >
         {children}
       </SubShareContentContext.Provider>

@@ -24,6 +24,7 @@ import { act, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextUpWidget } from './Widget';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import { NextUpConfig, WidgetData } from '@/types';
 
 const mockUpdateWidget = vi.fn();
@@ -148,6 +149,7 @@ describe('NextUpWidget inside a sub share', () => {
         value={{
           shareId: 'share-1',
           version: 0,
+          loadKey: noSubShareKey,
           load: () => Promise.resolve(null),
         }}
       >

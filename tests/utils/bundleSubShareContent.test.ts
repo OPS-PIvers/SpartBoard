@@ -984,4 +984,91 @@ describe('bundleSubShareContent', () => {
       ]);
     });
   });
+  // A quiz is an answer key, so it goes to `keys/` rather than `content/`.
+  describe('quiz', () => {
+    const quizWidget = (id: string, quizId: string | null) =>
+      ({
+        id,
+        type: 'quiz' satisfies WidgetType,
+        config: { selectedQuizId: quizId },
+      }) as unknown as WidgetData;
+
+    it('bundles the open quiz as a key, field by field', async () => {
+      mockGetDoc.mockResolvedValue({
+        id: 'q-1',
+        exists: () => true,
+        data: () => ({
+          id: 'q-1',
+          title: 'Cells',
+          questions: [{ id: 'q1', text: 'Nucleus?', correctAnswer: 'yes' }],
+          createdAt: 1,
+          updatedAt: 2,
+          language: 'es-MX',
+          bankSlots: [{ bankId: 'bank-1', count: 3 }],
+          syncLinkage: { groupId: 'g-1', lastSyncedVersion: 4 },
+          plcSheetUrl: 'https://docs.google.com/spreadsheets/d/x',
+        }),
+      });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [quizWidget('w1', 'q-1')])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(bundle.keys).toHaveLength(1);
+      expect(bundle.keys[0].id).toBe('quiz_q-1');
+      expect(bundle.keys[0].doc.payload).toEqual({
+        quiz: {
+          id: 'q-1',
+          title: 'Cells',
+          questions: [{ id: 'q1', text: 'Nucleus?', correctAnswer: 'yes' }],
+          createdAt: 1,
+          updatedAt: 2,
+          language: 'es-MX',
+        },
+      });
+    });
+
+    it('reads nothing for a widget with no quiz open', async () => {
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [quizWidget('w1', null)])],
+      });
+
+      expect(mockGetDoc).not.toHaveBeenCalled();
+      expect(bundle.keys).toEqual([]);
+    });
+
+    it('reads the quiz from the teacher’s own account', async () => {
+      mockGetDoc.mockResolvedValue({
+        id: 'q-1',
+        exists: () => true,
+        data: () => ({ title: 'Cells', questions: [] }),
+      });
+
+      await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [quizWidget('w1', 'q-1')])],
+      });
+
+      expect((doc as Mock).mock.results.at(-1)?.value).toEqual({
+        __path: 'users/teacher-1/quizzes/q-1',
+      });
+    });
+
+    it('reports a quiz it could not read', async () => {
+      mockGetDoc.mockResolvedValue({ exists: () => false });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [quizWidget('w1', 'q-1')])],
+      });
+
+      expect(bundle.keys).toEqual([]);
+      expect(bundle.failures).toEqual([
+        { kind: 'quiz', itemId: 'q-1', label: 'Quiz on Period 2' },
+      ]);
+    });
+  });
 });

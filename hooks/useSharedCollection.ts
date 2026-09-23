@@ -199,31 +199,47 @@ type SubstituteShareInput = ShareCollectionInput &
 async function commitContentBatches({
   shareId,
   items,
+  keys,
   previousIds,
+  previousKeyIds,
   failedIds,
 }: {
   shareId: string;
   items: SubShareBundleItem[];
+  /** Answer keys, which go to `keys/` and are read-gated to the named subs. */
+  keys?: SubShareBundleItem[];
   previousIds?: string[];
+  previousKeyIds?: string[];
   failedIds?: string[];
 }): Promise<void> {
   const BATCH_LIMIT = 400;
   // An item this push could not read keeps its last good copy: deleting it
   // would turn a network blip into an empty widget on the sub's screen.
-  const keep = new Set([...items.map((i) => i.id), ...(failedIds ?? [])]);
+  const failed = failedIds ?? [];
+  const keep = new Set([...items.map((i) => i.id), ...failed]);
+  const keepKeys = new Set([...(keys ?? []).map((i) => i.id), ...failed]);
   const stale = (previousIds ?? []).filter((id) => !keep.has(id));
+  const staleKeys = (previousKeyIds ?? []).filter((id) => !keepKeys.has(id));
   const writes: (() => void)[] = [];
   let batch = writeBatch(db);
   let inBatch = 0;
 
   const contentRef = (id: string) =>
     doc(db, SHARED_COLLECTIONS_SUBPATH, shareId, 'content', id);
+  const keyRef = (id: string) =>
+    doc(db, SHARED_COLLECTIONS_SUBPATH, shareId, 'keys', id);
 
   for (const item of items) {
     writes.push(() => batch.set(contentRef(item.id), item.doc));
   }
+  for (const item of keys ?? []) {
+    writes.push(() => batch.set(keyRef(item.id), item.doc));
+  }
   for (const id of stale) {
     writes.push(() => batch.delete(contentRef(id)));
+  }
+  for (const id of staleKeys) {
+    writes.push(() => batch.delete(keyRef(id)));
   }
 
   for (const write of writes) {
@@ -547,7 +563,11 @@ export const useSharedCollection = () => {
         boards: input.boards,
         services: await bundleServices(input.boards),
       });
-      await commitContentBatches({ shareId, items: bundle.items });
+      await commitContentBatches({
+        shareId,
+        items: bundle.items,
+        keys: bundle.keys,
+      });
       input.onBundle?.(bundle);
 
       return shareId;
@@ -664,13 +684,16 @@ export const useSharedCollection = () => {
       // What the last push bundled, read back rather than tracked on the
       // parent doc: the host can list it, and a list that drifts from the docs
       // themselves would leave a stale drawing on the sub's screen.
-      const existing = await getDocs(
-        collection(db, SHARED_COLLECTIONS_SUBPATH, shareId, 'content')
-      );
+      const [existing, existingKeys] = await Promise.all([
+        getDocs(collection(db, SHARED_COLLECTIONS_SUBPATH, shareId, 'content')),
+        getDocs(collection(db, SHARED_COLLECTIONS_SUBPATH, shareId, 'keys')),
+      ]);
       await commitContentBatches({
         shareId,
         items: bundle.items,
+        keys: bundle.keys,
         previousIds: existing.docs.map((d) => d.id),
+        previousKeyIds: existingKeys.docs.map((d) => d.id),
         failedIds: bundle.failures.map((f) =>
           subShareContentId(f.kind, f.itemId)
         ),

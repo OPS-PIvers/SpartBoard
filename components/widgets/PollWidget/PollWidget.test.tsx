@@ -9,6 +9,7 @@ import {
 } from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import { vi, describe, it, expect, Mock, beforeEach, afterEach } from 'vitest';
 import { WidgetData, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { GeneratedPoll } from '@/utils/ai';
@@ -491,7 +492,12 @@ describe('PollWidget', () => {
     function InShare({ children }: { children: React.ReactNode }) {
       return (
         <SubShareContentContext.Provider
-          value={{ shareId: 'share-1', version: 0, load: vi.fn() as never }}
+          value={{
+            shareId: 'share-1',
+            version: 0,
+            load: vi.fn() as never,
+            loadKey: noSubShareKey,
+          }}
         >
           {children}
         </SubShareContentContext.Provider>

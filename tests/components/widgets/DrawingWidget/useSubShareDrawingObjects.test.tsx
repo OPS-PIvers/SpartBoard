@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import { useSubShareDrawingObjects } from '@/components/widgets/DrawingWidget/useSubShareDrawingObjects';
 import type { DrawableObject } from '@/types';
 
@@ -19,7 +20,12 @@ const wrapWith = (load: () => Promise<unknown>) => {
   function InShare({ children }: { children: React.ReactNode }) {
     return (
       <SubShareContentContext.Provider
-        value={{ shareId: 'share-1', version: 0, load: load as never }}
+        value={{
+          shareId: 'share-1',
+          version: 0,
+          load: load as never,
+          loadKey: noSubShareKey,
+        }}
       >
         {children}
       </SubShareContentContext.Provider>

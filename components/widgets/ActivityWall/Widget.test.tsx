@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActivityWallWidget } from './Widget';
 import type { ActivityWallLibraryEntry, WidgetData } from '@/types';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 
 const {
   mockAddWidget,
@@ -462,6 +463,7 @@ describe('ActivityWallWidget inside a sub share', () => {
         value={{
           shareId: 'share-1',
           version: 0,
+          loadKey: noSubShareKey,
           load: (() =>
             Promise.resolve({
               entry: makeEntry({ title: 'Exit tickets' }),

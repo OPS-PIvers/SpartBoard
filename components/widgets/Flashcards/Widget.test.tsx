@@ -7,6 +7,7 @@ import { useFlashcardSets } from '@/hooks/useFlashcardSets';
 import { useFlashcardAssignments } from '@/hooks/useFlashcardAssignments';
 import { useFolders } from '@/hooks/useFolders';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import type { FlashcardSet, WidgetData } from '@/types';
 
 vi.mock('@/context/useAuth', () => ({
@@ -122,6 +123,7 @@ describe('FlashcardsWidget — inside a sub share', () => {
         value={{
           shareId: 'share-1',
           version: 0,
+          loadKey: noSubShareKey,
           load: () => Promise.resolve(payload),
         }}
       >

@@ -10,6 +10,7 @@ import { useFolders } from '@/hooks/useFolders';
 import { useMiniAppSync } from './hooks/useMiniAppSync';
 import { WidgetData, MiniAppItem } from '@/types';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
 vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
@@ -122,6 +123,7 @@ describe('MiniAppWidget — inside a sub share', () => {
         value={{
           shareId: 'share-1',
           version: 0,
+          loadKey: noSubShareKey,
           load: (() => Promise.resolve(null)) as never,
         }}
       >

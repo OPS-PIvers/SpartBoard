@@ -201,7 +201,7 @@ teacher's path is untouched. Per widget:
 | Widget                   | Bundled at share time                                             | In `/subs`                                                                                        |
 | ------------------------ | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | Drawing                  | Strokes from `drawings/{widgetId}/pages/*/objects`                | Render bundled strokes; sub strokes stay in memory (D3), never written to the sub's `users/` path |
-| Quiz, VA, GL (personal)  | Display copy in `content/`, full copy in `keys/`                  | Show the teacher's item, not a library; Launch per §3.6                                           |
+| Quiz, VA, GL (personal)  | Full copy in `keys/`; the board snapshot carries the title        | Show the teacher's item, not a library; Launch per §3.6                                           |
 | GL (building set)        | Reference only                                                    | Read `/building_guided_learning` as today                                                         |
 | Flashcards               | Set cards                                                         | Present / Launch                                                                                  |
 | Projects                 | Project + current run (read-only)                                 | Board view renders                                                                                |
