@@ -10,7 +10,7 @@ import { vi } from 'vitest';
 
 /**
  * A PointerEvent stand-in for jsdom, which does not implement `PointerEvent`.
- * Extends `Event` and assigns `clientX`/`clientY` by hand: jsdom drops those
+ * Extends `Event` and assigns coordinates, button and modifiers by hand: jsdom drops those
  * coordinates when they're passed through a `MouseEvent` init dict, and the
  * drag widgets read them off the event to compute movement deltas. Events
  * bubble by default to match how the browser dispatches pointer interactions.
@@ -20,6 +20,12 @@ class MockPointerEvent extends Event {
   clientY: number;
   pointerId: number;
   pointerType: string;
+  button: number;
+  altKey: boolean;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+  detail: number;
 
   constructor(type: string, props: PointerEventInit = {}) {
     super(type, { bubbles: true, ...props });
@@ -27,6 +33,12 @@ class MockPointerEvent extends Event {
     this.clientY = props.clientY ?? 0;
     this.pointerId = props.pointerId ?? 1;
     this.pointerType = props.pointerType ?? 'mouse';
+    this.button = props.button ?? 0;
+    this.altKey = props.altKey ?? false;
+    this.ctrlKey = props.ctrlKey ?? false;
+    this.metaKey = props.metaKey ?? false;
+    this.shiftKey = props.shiftKey ?? false;
+    this.detail = props.detail ?? 0;
   }
 }
 

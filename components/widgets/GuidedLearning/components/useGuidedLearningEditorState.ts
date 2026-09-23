@@ -2,6 +2,7 @@ import { useCallback, useMemo, useReducer, useRef, useState } from 'react';
 import {
   GuidedLearningSet,
   GuidedLearningMode,
+  GuidedLearningRegion,
   GuidedLearningStep,
   GuidedLearningSetMetadata,
   GuidedLearningVideoTrim,
@@ -103,7 +104,12 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   setSelectedStepId: (id: string | null) => void;
   addingStep: boolean;
   setAddingStep: (next: boolean) => void;
-  addStepAt: (xPct: number, yPct: number) => void;
+  /** Adds a step at a point, or with a drawn region centred there, and selects it. */
+  addStepAt: (
+    xPct: number,
+    yPct: number,
+    region?: GuidedLearningRegion
+  ) => void;
   updateStep: (updated: GuidedLearningStep) => void;
   deleteStep: (id: string) => void;
   /** Apply a new ordering of the entire steps array (e.g. from drag-reorder). */
@@ -476,7 +482,7 @@ export function useGuidedLearningEditorState({
   );
 
   const addStepAt = useCallback(
-    (xPct: number, yPct: number) => {
+    (xPct: number, yPct: number, region?: GuidedLearningRegion) => {
       const newStep: GuidedLearningStep = {
         id: crypto.randomUUID(),
         xPct,
@@ -485,6 +491,7 @@ export function useGuidedLearningEditorState({
         interactionType: 'text-popover',
         showOverlay: 'none',
         text: '',
+        ...(region ? { region } : {}),
       };
       setSteps((prev) => [...prev, newStep]);
       setSelectedStepId(newStep.id);

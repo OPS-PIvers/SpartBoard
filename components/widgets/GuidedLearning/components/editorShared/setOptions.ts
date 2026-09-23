@@ -1,4 +1,7 @@
-import type { GuidedLearningMode } from '@/types';
+import type {
+  GuidedLearningInteractionType,
+  GuidedLearningMode,
+} from '@/types';
 
 export const MODE_OPTIONS: {
   value: GuidedLearningMode;
@@ -56,4 +59,18 @@ export const TRANSITION_OPTIONS: {
     label: 'Fade',
     desc: 'Cross-dissolve between the previous and new image.',
   },
+];
+
+export const INTERACTION_TYPES: {
+  value: GuidedLearningInteractionType;
+  label: string;
+}[] = [
+  { value: 'text-popover', label: 'Text Popover' },
+  { value: 'tooltip', label: 'Tooltip' },
+  { value: 'audio', label: 'Audio' },
+  { value: 'video', label: 'Video' },
+  { value: 'pan-zoom', label: 'Pan & Zoom' },
+  { value: 'pan-zoom-spotlight', label: 'Pan & Zoom + Spotlight' },
+  { value: 'spotlight', label: 'Spotlight' },
+  { value: 'question', label: 'Question' },
 ];

@@ -25,6 +25,7 @@ import { useGuidedLearningEditorState } from '../useGuidedLearningEditorState';
 import { useSetDraftPersistence } from '../useSetDraftPersistence';
 import type { DevicePreset } from '../../types/stage';
 import { StudioCanvas } from './StudioCanvas';
+import { useCanvasTools } from './useCanvasTools';
 import { StudioPlayMode } from './StudioPlayMode';
 import { StudioFilmstrip } from './StudioFilmstrip';
 import { StudioTimeline } from './StudioTimeline';
@@ -171,6 +172,9 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
     setCurrentImageIndex(shown.imageIndex);
   }, [steps, setSelectedStepId, setCurrentImageIndex]);
 
+  const tools = useCanvasTools(editorState, preset);
+  const { rows: canvasRows, deleteFocusedVertex } = tools;
+
   const selectedIndex = steps.findIndex((s) => s.id === selectedStepId);
   const editKeymap = useMemo<StudioShortcut[]>(
     () => [
@@ -178,7 +182,13 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
       { id: 'undo', key: 'z', mod: true, run: undo },
       { id: 'redo', key: 'z', mod: true, shift: true, run: redo },
       { id: 'redo-y', key: 'y', mod: true, run: redo },
-      { id: 'delete', key: 'Delete', run: deleteSelected },
+      {
+        id: 'delete',
+        key: 'Delete',
+        run: (e) => {
+          if (!deleteFocusedVertex(e)) deleteSelected();
+        },
+      },
       {
         id: 'prev-step',
         key: '[',
@@ -194,11 +204,14 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
               : Math.min(steps.length - 1, selectedIndex + 1)
           ),
       },
+      ...canvasRows,
     ],
     [
       undo,
       redo,
       deleteSelected,
+      deleteFocusedVertex,
+      canvasRows,
       selectStepAt,
       selectedIndex,
       steps.length,
@@ -325,6 +338,7 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
             ) : (
               <StudioCanvas
                 state={editorState}
+                tools={tools}
                 setId={set.id}
                 preset={preset}
               />
