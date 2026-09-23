@@ -87,6 +87,8 @@ export const ShareCollectionLinkCreatorModal: FC<
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<CopyState>('unknown');
   const [busy, setBusy] = useState(false);
+  // Widgets whose content could not be collected for the sub.
+  const [missed, setMissed] = useState<{ id: string; label: string }[]>([]);
   const headingId = useId();
 
   const { emails: presetEmails } = usePresetSubEmails(buildingId);
@@ -172,6 +174,13 @@ export const ShareCollectionLinkCreatorModal: FC<
             collection.defaultBoardId ?? tree.boards[0]?.id;
           shareId = await shareSubstituteCollection({
             collection,
+            onBundle: (bundle) =>
+              setMissed(
+                bundle.failures.map((f) => ({
+                  id: `${f.kind}-${f.itemId}`,
+                  label: f.label,
+                }))
+              ),
             boards: tree.orderedBoards,
             collectionId: collection.id,
             sourceId: collection.id,
@@ -531,6 +540,26 @@ export const ShareCollectionLinkCreatorModal: FC<
 
         {shareUrl && (
           <div className="p-5 space-y-3">
+            {missed.length > 0 && (
+              <div className="p-2 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded">
+                <p className="font-bold">
+                  {t('shareWithSub.missedTitle', {
+                    defaultValue: 'Some widget content did not come along',
+                  })}
+                </p>
+                <ul className="mt-1 ml-4 list-disc">
+                  {missed.map((f) => (
+                    <li key={f.id}>{f.label}</li>
+                  ))}
+                </ul>
+                <p className="mt-1">
+                  {t('shareCollection.missedHelp', {
+                    defaultValue:
+                      'Your sub will see these empty. Open the board, check the widget loads, then share the collection again.',
+                  })}
+                </p>
+              </div>
+            )}
             {copyState === 'copied' && (
               <p className="text-sm text-slate-600">
                 {t('shareCollection.linkCopied', {

@@ -222,4 +222,45 @@ describe('ShareCollectionLinkCreatorModal', () => {
     const url = screen.getByLabelText<HTMLInputElement>('Share collection URL');
     expect(url.value).toContain('/subs/s/sub-id');
   });
+
+  it('names the widgets whose content did not reach the sub', async () => {
+    hasSubShareFlag.value = false;
+    const shareSubstituteCollection = vi.fn(
+      (input: {
+        onBundle?: (b: {
+          failures: { kind: string; itemId: string; label: string }[];
+        }) => void;
+      }) => {
+        input.onBundle?.({
+          failures: [
+            { kind: 'drawing', itemId: 'w1', label: 'Drawing on Board b1' },
+          ],
+        });
+        return Promise.resolve('sub-id');
+      }
+    );
+    useDashboardMock.mockReturnValue({
+      ...baseMockReturn,
+      shareSubstituteCollection,
+    });
+    render(
+      <ShareCollectionLinkCreatorModal
+        isOpen
+        collection={collection()}
+        boards={[board('b1')]}
+        onClose={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Substitute (view-only)'));
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'high' },
+    });
+    await clickCreate();
+
+    expect(
+      screen.getByText('Some widget content did not come along')
+    ).toBeTruthy();
+    expect(screen.getByText('Drawing on Board b1')).toBeTruthy();
+  });
 });
