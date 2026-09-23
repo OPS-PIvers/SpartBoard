@@ -56,7 +56,7 @@ const STYLES = `
   h2 { font-size: 11pt; margin: 5mm 0 2mm; }
   ol.q { list-style: none; padding: 0; margin: 0; }
   ol.q > li { break-inside: avoid; border-top: 1px solid #ccc; padding: 2mm 0; display: grid; grid-template-columns: 10mm 1fr auto; gap: 2mm; }
-  .qn { font-weight: bold; }
+  .num { font-weight: bold; }
   .text { white-space: pre-wrap; }
   .answer { margin-top: 1mm; white-space: pre-wrap; }
   .key { margin-top: 0.5mm; color: #555; white-space: pre-wrap; }
@@ -581,7 +581,7 @@ export const RESULTS_PRINT_STYLES = `
   ol.q { list-style: none; padding: 0; margin: 0; }
   ol.q > li { break-inside: avoid; border-top: 1px solid #bbb; padding: 2mm 0; display: grid; grid-template-columns: 8mm 1fr auto; gap: 2mm; }
   ol.q > li.q-stim { display: block; }
-  .num { font-weight: bold; }
+  .qn { font-weight: bold; }
   .text { white-space: pre-wrap; margin-bottom: 1mm; }
   .answer { white-space: pre-wrap; }
   .key { margin-top: 0.5mm; font-style: italic; }

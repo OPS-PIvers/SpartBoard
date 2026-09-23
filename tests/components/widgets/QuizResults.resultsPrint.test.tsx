@@ -321,6 +321,8 @@ describe('QuizResults — results print', () => {
         name: 'Bubble sheet',
       })
     );
+    // No "sheet record is gone" while the batch is still loading.
+    expect(d.queryByText(/sheet record is gone/)).toBeNull();
     expect(
       d.getByText('1 student took this online and will get the report.')
     ).toBeInTheDocument();

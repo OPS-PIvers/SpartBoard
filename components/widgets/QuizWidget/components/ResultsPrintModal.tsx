@@ -244,9 +244,11 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   const online = wantsSheets
     ? chosen.filter((s) => !s.response.paperBatchId).length
     : 0;
-  const lostSheets = wantsSheets
-    ? chosen.filter((s) => s.response.paperBatchId && !s.student.sheet).length
-    : 0;
+  // Until the batches load, every paper student would read as a lost sheet.
+  const lostSheets =
+    wantsSheets && batchesReady
+      ? chosen.filter((s) => s.response.paperBatchId && !s.student.sheet).length
+      : 0;
 
   const job = (rows: typeof chosen): ResultsPrintJob => ({
     quizTitle: quiz.title,

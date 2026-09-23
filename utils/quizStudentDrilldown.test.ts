@@ -293,6 +293,7 @@ describe('buildStudentReportHtml', () => {
     expect(html).toContain('Capital of &lt;France&gt;?');
     expect(html).toContain('Answer: Rome');
     expect(html).toContain('Correct answer: Paris');
+    expect(html).toContain('<span class="num">Q1</span>');
     expect(html).toContain('T1 — Geography');
     expect(html).toContain('Beginning');
   });

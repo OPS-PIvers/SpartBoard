@@ -7,6 +7,7 @@ import {
   countPrintedPages,
   padBlocksForDuplex,
   printQuizResults,
+  RESULTS_PRINT_STYLES,
   sortResultsPrintStudents,
   type QuizResultsPrintOptions,
   type ResultsPrintJob,
@@ -477,5 +478,14 @@ describe('buildResultsPrintHtml — bubble-sheet reprints', () => {
     const blocks = document.querySelectorAll('[data-print-block]');
     expect(blocks[0].nextElementSibling?.className).toBe('pad');
     expect(document.querySelectorAll('.pad')).toHaveLength(1);
+  });
+});
+
+describe('results print styles', () => {
+  it('bolds question numbers without borrowing the sheet’s absolutely placed .num', () => {
+    expect(RESULTS_PRINT_STYLES).toContain('.qn { font-weight: bold; }');
+    const html = buildResultsPrintHtml(job([student()]), opts());
+    expect(html).toContain('<span class="qn">1.</span>');
+    expect(html).not.toContain('class="num"');
   });
 });
