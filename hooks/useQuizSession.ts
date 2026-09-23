@@ -2535,7 +2535,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             }
             keys = studentPeriodKeys(sessionData, claims, classPeriod);
           }
-          periodKey = pickPeriodKey(sessionData, keys, Date.now());
+          periodKey = pickPeriodKey(sessionData, keys, getServerNow());
           if (!periodKey) {
             throw new Error(
               "You're not in a class this quiz was assigned to. Ask your teacher."
