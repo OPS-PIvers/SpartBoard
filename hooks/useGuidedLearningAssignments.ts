@@ -318,8 +318,8 @@ export const useGuidedLearningAssignments = (
       // Its own write, and it must land first: once the session goes, no rule can reach it.
       const sessionSnap = await getDoc(
         doc(db, GL_SESSIONS_COLLECTION, assignmentId)
-      ).catch(() => null);
-      if (sessionSnap?.data()?.stepsInContent === true) {
+      );
+      if (sessionSnap.data()?.stepsInContent === true) {
         await deleteDoc(
           doc(
             db,
