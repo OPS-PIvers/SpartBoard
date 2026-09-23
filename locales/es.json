@@ -2983,6 +2983,25 @@
       "importGroupEmpty": "Ese grupo de la clase no tiene a nadie en la lista."
     }
   },
+  "glRecorder": {
+    "record": "Grabar",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "markStep": "Marcar paso",
+    "markStepHint": "Añade un paso con Siguiente para lo que está bajo el puntero (Alt+M)",
+    "finish": "Terminar",
+    "discard": "Descartar",
+    "recording_one": "Grabando · {{count}} paso",
+    "recording_other": "Grabando · {{count}} pasos",
+    "paused_one": "En pausa · {{count}} paso",
+    "paused_other": "En pausa · {{count}} pasos",
+    "notYet": "La grabación se abrirá cuando la ocultación de datos en diapositivas esté lista.",
+    "unsupported": "Este navegador no puede compartir la pantalla aquí.",
+    "notChrome": "Para grabar se necesita Chrome.",
+    "cancelled": "Se canceló compartir pantalla. Elige esta pestaña para grabar.",
+    "notThisTab": "Comparte esta pestaña, no una ventana ni la pantalla, para grabar.",
+    "label": "Grabadora de recorridos"
+  },
   "tours": {
     "unavailable": "Este recorrido no está disponible en este momento.",
     "practiceBoardName": "Práctica del recorrido",

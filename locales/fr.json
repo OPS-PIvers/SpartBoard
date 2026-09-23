@@ -2983,6 +2983,25 @@
       "importGroupEmpty": "Ce groupe de la classe n’a personne dans la liste."
     }
   },
+  "glRecorder": {
+    "record": "Enregistrer",
+    "pause": "Pause",
+    "resume": "Reprendre",
+    "markStep": "Marquer une étape",
+    "markStepHint": "Ajoute une étape avec Suivant pour l'élément sous le pointeur (Alt+M)",
+    "finish": "Terminer",
+    "discard": "Abandonner",
+    "recording_one": "Enregistrement · {{count}} étape",
+    "recording_other": "Enregistrement · {{count}} étapes",
+    "paused_one": "En pause · {{count}} étape",
+    "paused_other": "En pause · {{count}} étapes",
+    "notYet": "L'enregistrement ouvrira quand le masquage des diapositives sera prêt.",
+    "unsupported": "Ce navigateur ne peut pas partager l'écran ici.",
+    "notChrome": "L'enregistrement nécessite Chrome.",
+    "cancelled": "Le partage d'écran a été annulé. Choisissez cet onglet pour enregistrer.",
+    "notThisTab": "Partagez cet onglet, pas une fenêtre ni l'écran, pour enregistrer.",
+    "label": "Enregistreur de visite"
+  },
   "tours": {
     "unavailable": "Cette visite n'est pas disponible pour le moment.",
     "practiceBoardName": "Entraînement à la visite",
