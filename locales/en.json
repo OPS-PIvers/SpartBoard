@@ -4049,5 +4049,28 @@
       "available": "{{teacher}} updated these boards.",
       "reload": "Reload"
     }
+  },
+  "glEngagement": {
+    "title": "Engagement",
+    "empty": "No one has opened this activity yet.",
+    "loadError": "Couldn't load engagement. Refresh to try again.",
+    "viewers_one": "{{count}} viewer",
+    "viewers_other": "{{count}} viewers",
+    "views_one": "{{count}} view",
+    "views_other": "{{count}} views",
+    "watch": "Watch",
+    "try": "Try",
+    "finished": "{{completed}} of {{viewers}} finished",
+    "funnelTitle": "How far viewers got",
+    "reached": "{{reached}} of {{total}}",
+    "medianTime": "Median {{time}}",
+    "stepFallback": "Step {{number}}",
+    "heatmapTitle": "Clicks that missed the target",
+    "slide": "Slide {{number}}",
+    "misclicks_one": "{{count}} missed click",
+    "misclicks_other": "{{count}} missed clicks",
+    "noMisclicks": "No missed clicks yet.",
+    "seconds": "{{seconds}} s",
+    "minutes": "{{minutes}} min {{seconds}} s"
   }
 }

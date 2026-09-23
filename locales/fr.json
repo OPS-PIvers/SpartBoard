@@ -2892,5 +2892,28 @@
       "importWholeClass": "Toute la classe",
       "importGroupEmpty": "Ce groupe de la classe n’a personne dans la liste."
     }
+  },
+  "glEngagement": {
+    "title": "Participation",
+    "empty": "Personne n’a encore ouvert cette activité.",
+    "loadError": "Impossible de charger la participation. Actualisez la page pour réessayer.",
+    "viewers_one": "{{count}} personne",
+    "viewers_other": "{{count}} personnes",
+    "views_one": "{{count}} vue",
+    "views_other": "{{count}} vues",
+    "watch": "Regarder",
+    "try": "Essayer",
+    "finished": "{{completed}} sur {{viewers}} ont terminé",
+    "funnelTitle": "Jusqu’où ils sont allés",
+    "reached": "{{reached}} sur {{total}}",
+    "medianTime": "Médiane {{time}}",
+    "stepFallback": "Étape {{number}}",
+    "heatmapTitle": "Clics à côté de la cible",
+    "slide": "Diapositive {{number}}",
+    "misclicks_one": "{{count}} clic manqué",
+    "misclicks_other": "{{count}} clics manqués",
+    "noMisclicks": "Aucun clic manqué pour l’instant.",
+    "seconds": "{{seconds}} s",
+    "minutes": "{{minutes}} min {{seconds}} s"
   }
 }
