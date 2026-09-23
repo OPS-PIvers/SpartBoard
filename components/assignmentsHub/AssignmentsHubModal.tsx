@@ -15,6 +15,8 @@ import {
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { useServerNow } from '@/hooks/useServerNow';
+import { summarizePeriods } from '@/utils/periodAccess';
 import { AssignmentDetailPane } from './AssignmentDetailPane';
 import {
   AssignmentFilterSelect,
@@ -110,6 +112,8 @@ const AssignmentRow: React.FC<{
   const meta = KIND_META[row.kind];
   const Icon = meta.icon;
   const windowSummary = formatWindowSummary(row.openAt, row.closeAt, t);
+  const now = useServerNow(row.periodAccess ? 60_000 : null);
+  const periods = summarizePeriods(row, now);
 
   return (
     <button
@@ -168,6 +172,18 @@ const AssignmentRow: React.FC<{
           <>
             <span aria-hidden="true">·</span>
             <span>{windowSummary}</span>
+          </>
+        )}
+        {periods && (
+          <>
+            <span aria-hidden="true">·</span>
+            <span>
+              {t('assignmentsHub.periodsLive', {
+                defaultValue: '{{live}} of {{total}} periods live',
+                live: periods.live,
+                total: periods.total,
+              })}
+            </span>
           </>
         )}
       </div>

@@ -14,6 +14,8 @@ import {
   AwayNowChip,
   TabExitsPopover,
 } from '@/components/common/TabExitsPopover';
+import { useServerNow } from '@/hooks/useServerNow';
+import { studentCanEnter } from '@/utils/periodAccess';
 import { MonitorStudent } from './useMonitorData';
 import { BucketKey } from './StatusBuckets';
 import {
@@ -39,6 +41,8 @@ interface RosterListProps {
   onUnlockAttempt?: (key: string) => void;
   onUnlockResults?: (key: string) => void;
   onClearHand?: (key: string) => void;
+  /** Per-period sessions: unlock one student past their period's state. */
+  onLetIn?: (studentUid: string) => void;
   /** M17 E2 F2: the active assignment's per-student overrides, keyed by
    *  `StudentTargetRef` key. */
   overridesBySourcedId?: Record<string, StudentOverride> | null;
@@ -81,17 +85,21 @@ const ToggleChip: React.FC<{
 const RowMenu: React.FC<{
   student: MonitorStudent;
   session: QuizSession;
+  now: number;
   onRemove?: (key: string) => void;
   onUnlockAttempt?: (key: string) => void;
   onUnlockResults?: (key: string) => void;
+  onLetIn?: (studentUid: string) => void;
   overridesBySourcedId?: Record<string, StudentOverride> | null;
   targetRefKeyByStudentUid?: Map<string, string> | null;
 }> = ({
   student,
   session,
+  now,
   onRemove,
   onUnlockAttempt,
   onUnlockResults,
+  onLetIn,
   overridesBySourcedId,
   targetRefKeyByStudentUid,
 }) => {
@@ -120,6 +128,19 @@ const RowMenu: React.FC<{
         (r.completedAttempts ?? 0) >= attemptLimit));
 
   const items: { label: string; danger?: boolean; onClick: () => void }[] = [];
+  if (
+    onLetIn &&
+    r.studentUid &&
+    r.status !== 'completed' &&
+    !studentCanEnter(session, r.classId ? [r.classId] : [], r.studentUid, now)
+  )
+    items.push({
+      label: 'Let in now',
+      onClick: () => {
+        onLetIn(r.studentUid);
+        setOpen(false);
+      },
+    });
   if (locked && onUnlockAttempt)
     items.push({
       label: 'Unlock attempt',
@@ -203,9 +224,11 @@ export const RosterList: React.FC<RosterListProps> = ({
   onUnlockAttempt,
   onUnlockResults,
   onClearHand,
+  onLetIn,
   overridesBySourcedId = null,
   targetRefKeyByStudentUid = null,
 }) => {
+  const now = useServerNow(onLetIn ? 30_000 : null);
   const showToolbar = bucket !== 'notStarted';
   const showScores = (config.monitorShowScores ?? false) && bucket === 'done';
   const tabWarningsAllowed = session.tabWarningsEnabled !== false;
@@ -577,6 +600,8 @@ export const RosterList: React.FC<RosterListProps> = ({
               <RowMenu
                 student={s}
                 session={session}
+                now={now}
+                onLetIn={onLetIn}
                 onRemove={onRemove}
                 onUnlockAttempt={onUnlockAttempt}
                 onUnlockResults={onUnlockResults}
