@@ -22,6 +22,7 @@ import './functionsInit';
 import { LANGUAGE_TAG_RE } from './languageTag';
 import { ttsLanguageForTranslationLocale } from './quizReadAloudVoices';
 import { mp3DurationMs, storedDurationMs } from './mp3Duration';
+import { isPeriodFrozen, withQuizSessionContent } from './quizSessionContent';
 
 export { ttsLanguageForTranslationLocale };
 
@@ -895,7 +896,7 @@ export async function prepareQuizReadAloud(
   const snap = await sessionRef.get();
   if (!snap.exists)
     throw new HttpsError('not-found', 'Quiz session not found.');
-  const session = snap.data() ?? {};
+  const session = await withQuizSessionContent(sessionRef, snap.data() ?? {});
   if (session.teacherUid !== input.callerUid)
     throw new HttpsError('permission-denied', 'Not the owner of this session.');
   if (!(await deps.isFeatureGranted(input.callerUid)))
@@ -1202,7 +1203,10 @@ export async function synthesizeQuizAudio(
   const sessionSnap = await sessionRef.get();
   if (!sessionSnap.exists)
     throw new HttpsError('not-found', 'Quiz session not found.');
-  const session = sessionSnap.data() ?? {};
+  const session = await withQuizSessionContent(
+    sessionRef,
+    sessionSnap.data() ?? {}
+  );
   // Class-wide assignments write no pointer docs; the token's classIds claim
   // is the same membership proof the student app uses to list them.
   if (!pointerSnap.exists && !inSessionClass(session, caller.classIds))
@@ -1212,6 +1216,18 @@ export async function synthesizeQuizAudio(
     );
   if (session.status === 'ended')
     throw new HttpsError('failed-precondition', 'This quiz has ended.');
+  if (session.periodAccess) {
+    const responseSnap = await sessionRef
+      .collection('responses')
+      .doc(caller.uid)
+      .get();
+    const response = { ...responseSnap.data(), studentUid: caller.uid };
+    if (isPeriodFrozen(session, response, Date.now()))
+      throw new HttpsError(
+        'failed-precondition',
+        'This quiz is not open for your class right now.'
+      );
+  }
   const override = (pointer.override ?? {}) as Record<string, unknown>;
   if (override.readAloud !== true && session.readAloudAll !== true)
     throw new HttpsError(

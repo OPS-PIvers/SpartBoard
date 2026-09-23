@@ -12,6 +12,7 @@ import {
   type RawAnswer,
   type SessionInput,
 } from './plcAssessmentMath';
+import { withQuizSessionContent } from './quizSessionContent';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -196,7 +197,7 @@ export async function recomputeOnePlcAssessment(
 
   const sessions: SessionInput[] = [];
   for (const sessionDoc of sessionsSnap.docs) {
-    const s = sessionDoc.data();
+    const s = await withQuizSessionContent(sessionDoc.ref, sessionDoc.data());
     const teacherUid = asString(s.teacherUid);
     const assignmentId = asString(s.assignmentId) || sessionDoc.id;
     const [responsesSnap, assignmentSnap] = await Promise.all([

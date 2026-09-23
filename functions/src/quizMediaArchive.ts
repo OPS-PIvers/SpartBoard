@@ -43,6 +43,7 @@ import {
   GOOGLE_OAUTH_CLIENT_ID,
 } from './secrets';
 import './functionsInit';
+import { withQuizSessionContent } from './quizSessionContent';
 
 const GOOGLE_OAUTH_CLIENT_SECRET = defineSecret('GOOGLE_OAUTH_CLIENT_SECRET');
 const GOOGLE_OAUTH_REFRESH_TOKEN_KEY = defineSecret(
@@ -785,7 +786,10 @@ export async function archiveQuizArtifactCore(
   if (!sessionSnap.exists) {
     throw new HttpsError('not-found', 'Quiz session not found.');
   }
-  const session = sessionSnap.data() ?? {};
+  const session = await withQuizSessionContent(
+    sessionRef,
+    sessionSnap.data() ?? {}
+  );
   const teacherUid =
     typeof session.teacherUid === 'string' ? session.teacherUid : '';
   if (!teacherUid) {
