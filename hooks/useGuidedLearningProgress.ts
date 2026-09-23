@@ -62,6 +62,8 @@ export function useGuidedLearningProgress({
     if (!active || !sessionId || !uid) return;
     const ref = doc(db, 'guided_learning_sessions', sessionId, 'progress', uid);
     let cancelled = false;
+    // Set when the load failed: the doc may exist, so writes omit startedAt until one is rejected.
+    let assumedExists = false;
     stateRef.current = emptyProgress();
     pendingRef.current = [];
     loadedRef.current = false;
@@ -78,6 +80,7 @@ export function useGuidedLearningProgress({
       dirtyRef.current = false;
       lastWriteRef.current = Date.now();
       const creating = !existsRef.current;
+      const guessed = assumedExists;
       existsRef.current = true;
       void setDoc(
         ref,
@@ -87,10 +90,16 @@ export function useGuidedLearningProgress({
           ...(creating ? { startedAt: serverTimestamp() } : {}),
         },
         { merge: true }
-      ).catch((err: unknown) => {
-        if (creating) existsRef.current = false;
-        logError('useGuidedLearningProgress.write', err, { sessionId });
-      });
+      ).then(
+        () => {
+          if (guessed) assumedExists = false;
+        },
+        (err: unknown) => {
+          if (creating || guessed) existsRef.current = false;
+          assumedExists = false;
+          logError('useGuidedLearningProgress.write', err, { sessionId });
+        }
+      );
     };
     const schedule = () => {
       if (timerRef.current || !loadedRef.current || !dirtyRef.current) return;
@@ -102,11 +111,17 @@ export function useGuidedLearningProgress({
     };
     scheduleRef.current = schedule;
 
-    const onLoaded = (stored: GuidedLearningProgress | null) => {
+    const onLoaded = (
+      stored: GuidedLearningProgress | null,
+      loadFailed = false
+    ) => {
       if (cancelled) return;
       if (stored) {
         existsRef.current = true;
         stateRef.current = stored;
+      } else if (loadFailed) {
+        existsRef.current = true;
+        assumedExists = true;
       }
       loadedRef.current = true;
       for (const e of pendingRef.current) apply(e);
@@ -115,7 +130,7 @@ export function useGuidedLearningProgress({
     };
     getDoc(ref).then(
       (snap) => onLoaded(snap.exists() ? parseProgressDoc(snap.data()) : null),
-      () => onLoaded(null)
+      () => onLoaded(null, true)
     );
 
     const onHide = () => {

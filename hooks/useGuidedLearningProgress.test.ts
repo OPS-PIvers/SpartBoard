@@ -133,6 +133,21 @@ describe('useGuidedLearningProgress', () => {
     expect(setDocMock).toHaveBeenCalledTimes(3);
   });
 
+  it('keeps writing when the first load fails', async () => {
+    getDocMock.mockRejectedValue(new Error('offline'));
+    setDocMock.mockRejectedValueOnce(new Error('denied'));
+    const { result } = render();
+    await settle();
+    void act(() => result.current.onStepEvent(ev({ type: 'enter' })));
+    void act(() => vi.advanceTimersByTime(0));
+    expect(payload(0)).not.toHaveProperty('startedAt');
+    await settle();
+    void act(() => result.current.onStepEvent(ev({ type: 'hint' })));
+    void act(() => vi.advanceTimersByTime(PROGRESS_WRITE_INTERVAL_MS));
+    expect(setDocMock).toHaveBeenCalledTimes(2);
+    expect(payload(1)).toHaveProperty('startedAt', 'SERVER_TS');
+  });
+
   it('skips the flush when nothing changed', async () => {
     const { unmount } = render();
     await settle();
