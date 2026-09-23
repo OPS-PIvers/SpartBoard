@@ -165,7 +165,8 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const { updateWidget, addToast, rosters } = useDashboard();
   const { showConfirm } = useDialog();
-  const { user, isAdmin, getAssignmentMode } = useAuth();
+  const { user, isAdmin, getAssignmentMode, canAccessFeature } = useAuth();
+  const playerV2 = canAccessFeature('gl-player-v2');
   const assignmentMode: AssignmentMode = getAssignmentMode('guidedLearning');
   const isViewOnly = assignmentMode === 'view-only';
   const rawConfig = widget.config as GuidedLearningConfig;
@@ -505,7 +506,8 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
             openAt: targeting.openAt,
             closeAt: targeting.closeAt,
             dueAt: targeting.dueAt,
-          }
+          },
+          { playerV2 }
         );
         const sessionId = url.split('/').pop() ?? '';
         setRecentSessionIds((prev) => ({
@@ -623,6 +625,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     [
       rosters,
       createSession,
+      playerV2,
       createAssignment,
       addToast,
       config,
@@ -1234,6 +1237,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                     })
                   }
                   teacherMode
+                  playerV2={playerV2}
                 />
               </Suspense>
             )}

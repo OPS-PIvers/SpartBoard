@@ -17,6 +17,7 @@ import {
 import { incrementHelpOpenCount } from '@/hooks/useHelpResources';
 import { loadBuildingSet } from '@/hooks/useGuidedLearning';
 import { logError } from '@/utils/logError';
+import { useAuth } from '@/context/useAuth';
 
 // Lazy so the Help modal never pulls the Guided Learning player for teachers who only read embeds.
 const GuidedLearningPlayer = lazy(() =>
@@ -41,6 +42,7 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
   fill,
 }) => {
   const { t } = useTranslation();
+  const { canAccessFeature } = useAuth();
   const [state, setState] = useState<GlState>({ status: 'loading' });
 
   useEffect(() => {
@@ -89,7 +91,11 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
           </div>
         }
       >
-        <GuidedLearningPlayer set={state.set} teacherMode />
+        <GuidedLearningPlayer
+          set={state.set}
+          teacherMode
+          playerV2={canAccessFeature('gl-player-v2')}
+        />
       </Suspense>
     </div>
   );

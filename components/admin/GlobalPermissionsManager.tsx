@@ -53,6 +53,7 @@ import {
   Languages,
   UsersRound,
   FileText,
+  MousePointerClick,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -224,6 +225,13 @@ const GLOBAL_FEATURES: {
     icon: UserCheck,
     description:
       'Lets teachers hand a substitute a board or a whole collection for a set number of days, and manage what is out: push the boards as they stand now, add a week, or end it early, which takes back the class lists the sub was given. The sub sees the boards without student names unless the teacher names them as covering. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'gl-player-v2',
+    label: 'Guided Learning: calmer player',
+    icon: MousePointerClick,
+    description:
+      'Slower, smoother zooms with the text appearing once the picture settles, a playback speed choice for learners, and step timing based on how much there is to read. Walkthroughs assigned while someone has this keep it for their students. Admin-only until this is saved and opened up.',
   },
   {
     id: 'settings-drawer',

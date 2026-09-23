@@ -1452,6 +1452,7 @@ const GuidedLearningPreviewPane: React.FC<{
     buildingSet?: GuidedLearningSet
   ) => Promise<GuidedLearningSet | null>;
 }> = ({ entry, onClose, onEdit, canEdit, loadSet }) => {
+  const { canAccessFeature } = useAuth();
   const [previewSet, setPreviewSet] = React.useState<GuidedLearningSet | null>(
     null
   );
@@ -1549,6 +1550,7 @@ const GuidedLearningPreviewPane: React.FC<{
                 set={previewSet}
                 onClose={() => setPreviewState('idle')}
                 teacherMode
+                playerV2={canAccessFeature('gl-player-v2')}
               />
             </Suspense>
             {previewStale && (

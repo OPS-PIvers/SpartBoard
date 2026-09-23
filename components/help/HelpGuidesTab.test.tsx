@@ -45,7 +45,11 @@ vi.mock('@/config/firebase', () => ({
 }));
 
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ orgId: 'org-1', user: { uid: 'u1' } }),
+  useAuth: () => ({
+    orgId: 'org-1',
+    user: { uid: 'u1' },
+    canAccessFeature: () => false,
+  }),
 }));
 
 vi.mock('@/hooks/useOrganization', () => ({
