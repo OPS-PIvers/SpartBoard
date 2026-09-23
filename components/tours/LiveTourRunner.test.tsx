@@ -284,6 +284,21 @@ describe('LiveTourRunner', () => {
     expect(screen.getByText("Keep the tour's widgets?")).toBeInTheDocument();
   });
 
+  it('leaves Escape inside an app panel to that panel', async () => {
+    await start(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));
+    const panel = document.createElement('div');
+    panel.setAttribute('data-widget-portal', '');
+    const input = document.createElement('input');
+    panel.appendChild(input);
+    document.body.appendChild(panel);
+    fireEvent.keyDown(input, { key: 'Escape' });
+    fireEvent.keyDown(panel, { key: 'Escape' });
+    expect(screen.getByTestId('live-tour')).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByTestId('tour-callout'), { key: 'Escape' });
+    expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
+    panel.remove();
+  });
+
   it('exits on Escape with nothing to tear down', async () => {
     await start(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));
     fireEvent.keyDown(window, { key: 'Escape' });

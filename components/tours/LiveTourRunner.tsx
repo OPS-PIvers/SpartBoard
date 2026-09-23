@@ -7,6 +7,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { loadBuildingSet } from '@/hooks/useGuidedLearning';
 import { Z_INDEX } from '@/config/zIndex';
+import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { placeCallout } from '@/components/widgets/GuidedLearning/utils/calloutPlacement';
 import {
   isTourRunning,
@@ -202,7 +203,15 @@ export const LiveTourRunner: React.FC = () => {
   useEffect(() => {
     if (!running) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
+      if (e.key !== 'Escape' || isEscapeFromWidgetInput(e)) return;
+      // Escape inside an app dialog or panel closes that, not the tour.
+      const target = e.target instanceof Element ? e.target : null;
+      if (
+        target &&
+        !target.closest('[data-tour-ignore]') &&
+        target.closest('[role="dialog"], [data-widget-portal]')
+      )
+        return;
       e.stopPropagation();
       e.preventDefault();
       finishRef.current();
