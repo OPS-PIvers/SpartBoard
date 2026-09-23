@@ -3705,20 +3705,20 @@ service cloud.firestore {
         // While a student is frozen (session paused, or their period not open),
         // writes that answer or finish are refused; hand, tab, results and
         // rejoin writes still land. Answers already saved stay saved.
-        // A write landing within 15 s of a pause or close (the student app
-        // flushes its unsaved draft when the question unmounts) is kept.
+        // Answers landing within 15 s of a pause or close (the student app
+        // flushes its unsaved draft when the question unmounts) are kept.
         function justFrozen(s, classId) {
           let t = request.time.toMillis() - 15000;
           return s.get('pausedAt', 0) > t ||
                  (classId is string &&
                   s.get('periodAccess', {}).get(classId, {}).get('pausedAt', 0) > t);
         }
-        function frozenWriteOk() {
+        function frozenWriteOk(s, classId) {
           let d = request.resource.data;
           let k = d.diff(resource.data).affectedKeys();
           return !k.hasAny(['completedAttempts']) &&
-                 (!k.hasAny(['answers']) || d.answers.size() == 0) &&
-                 (!k.hasAny(['status']) || d.status != 'completed');
+                 (!k.hasAny(['status']) || d.status != 'completed') &&
+                 (!k.hasAny(['answers']) || d.answers.size() == 0 || justFrozen(s, classId));
         }
 
         // Student branch allows resource == null so the join flow can probe via
@@ -3793,8 +3793,7 @@ service cloud.firestore {
             isResultsProtectionOnlyWrite() ||
             resource.data.get('unlocked', false) == true) &&
            // Pause is enforced here for every session, and per period where set.
-           (frozenWriteOk() ||
-            justFrozen(sessionData(), resource.data.get('classId', null)) ||
+           (frozenWriteOk(sessionData(), resource.data.get('classId', null)) ||
             (sessionData().status != 'paused' &&
              (periodOpen(sessionData(), resource.data.get('classId', null)) || studentLetIn(sessionData())))) &&
            request.resource.data.studentUid == resource.data.studentUid &&
@@ -3948,12 +3947,13 @@ service cloud.firestore {
       }
 
       // Question content for per-period sessions, readable by a student only
-      // once their period is open. `seats/{uid}` maps the caller to their
+      // once their period is open, or by anyone once the quiz has ended. `seats/{uid}` maps the caller to their
       // response, whose classId is the period (anonymous keys aren't the uid).
       match /content/{docId} {
         allow read: if request.auth != null && (
           request.auth.uid == sessionTeacherUid() || isAdmin() ||
           isSubMonitor(sessionData()) || studentLetIn(sessionData()) ||
+          sessionData().status == 'ended' ||
           periodOpen(sessionData(), get(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(get(/databases/$(database)/documents/quiz_sessions/$(sessionId)/seats/$(request.auth.uid)).data.responseKey)).data.get('classId', null))
         );
         // getAfter so the session and its content can land in one batch.

@@ -232,6 +232,17 @@ describe('global pause (every session)', () => {
     );
   });
 
+  it('refuses finishing even inside the pause grace', async () => {
+    await seedSession(S, { status: 'paused', pausedAt: Date.now() - 2_000 });
+    await assertFails(
+      updateDoc(resp(), {
+        status: 'completed',
+        submittedAt: 5,
+        completedAttempts: increment(1),
+      })
+    );
+  });
+
   it('takes answer writes once active again', async () => {
     await seedSession(S, { status: 'active' });
     await assertSucceeds(
@@ -519,6 +530,11 @@ describe('content/questions', () => {
 
   it('hides it from a student with no seat', async () => {
     await assertFails(getDoc(doc(asStudent(), contentPath)));
+  });
+
+  it('shows it to any signed-in student once the quiz has ended', async () => {
+    await withPeriod({ state: 'closed' }, { status: 'ended' });
+    await assertSucceeds(getDoc(doc(asStudent(OTHER_UID), contentPath)));
   });
 
   it('shows it to a let-in student in a closed period', async () => {
