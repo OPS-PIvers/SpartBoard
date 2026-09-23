@@ -132,6 +132,12 @@ vi.mock('@/utils/quizDriveService', () => ({
     loadQuiz = loadQuizMock;
   },
 }));
+const loadSetMock = vi.fn();
+vi.mock('@/utils/guidedLearningDriveService', () => ({
+  GuidedLearningDriveService: class {
+    loadSet = loadSetMock;
+  },
+}));
 const getEventsMock = vi.fn().mockResolvedValue([]);
 vi.mock('@/utils/googleCalendarService', () => ({
   GoogleCalendarService: class {
@@ -770,6 +776,71 @@ describe('useSharedCollection', () => {
       expect(
         helpers.docs.has(
           `shared_collections/${shareId}/content/videoActivity_va-1`
+        )
+      ).toBe(false);
+    });
+
+    // And the same for a guided learning set, which travels with its answers.
+    it('writes a guided learning set into the share’s keys, not its content', async () => {
+      const helpers = await getHelpers();
+      helpers.docs.set('users/host-uid/guided_learning/set-1', {
+        id: 'set-1',
+        title: 'Plant cell',
+        driveFileId: 'file-gl',
+      });
+      loadSetMock.mockResolvedValueOnce({
+        id: 'set-1',
+        title: 'Plant cell',
+        imageUrls: ['https://storage/one?token=abc'],
+        mode: 'guided',
+        createdAt: 1,
+        updatedAt: 2,
+        authorUid: 'host-uid',
+        steps: [
+          {
+            id: 's1',
+            xPct: 1,
+            yPct: 2,
+            imageIndex: 0,
+            interactionType: 'question',
+            question: { type: 'multiple-choice', correctAnswer: 'Nucleus' },
+            tour: { anchorId: 'a1' },
+          },
+        ],
+      });
+      const glBoard = {
+        ...dashboard('b1'),
+        widgets: [
+          {
+            id: 'w1',
+            type: 'guided-learning',
+            position: { x: 0, y: 0 },
+            config: { view: 'player', playerSetId: 'set-1' },
+          },
+        ] as unknown as Dashboard['widgets'],
+      };
+
+      const { shareId } = await shareWithDrawing([glBoard]);
+
+      expect(loadSetMock).toHaveBeenCalledWith('file-gl');
+      const key = helpers.docs.get(
+        `shared_collections/${shareId}/keys/guidedLearning_set-1`
+      ) as {
+        kind: string;
+        payload: {
+          set: Record<string, unknown> & { steps: Record<string, unknown>[] };
+        };
+      };
+      expect(key.kind).toBe('guidedLearning');
+      expect(key.payload.set.steps[0].question).toEqual({
+        type: 'multiple-choice',
+        correctAnswer: 'Nucleus',
+      });
+      expect('authorUid' in key.payload.set).toBe(false);
+      expect('tour' in key.payload.set.steps[0]).toBe(false);
+      expect(
+        helpers.docs.has(
+          `shared_collections/${shareId}/content/guidedLearning_set-1`
         )
       ).toBe(false);
     });

@@ -46,12 +46,15 @@ import {
 import { GoogleCalendarService } from '@/utils/googleCalendarService';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { MockQuizDriveService } from '@/utils/mockQuizDriveService';
+import { GuidedLearningDriveService } from '@/utils/guidedLearningDriveService';
+import { MockGuidedLearningDriveService } from '@/utils/mockGuidedLearningDriveService';
 import { normalizeVideoActivityQuestions } from '@/utils/videoActivityNormalize';
 import { useAuth } from '@/context/useAuth';
 import { subShareContentId } from '@/utils/subShareContent';
 import type {
   CalendarEvent,
   Dashboard,
+  GuidedLearningSet,
   VideoActivityData,
   SharedCollection,
   SharedCollectionBoardDoc,
@@ -404,15 +407,21 @@ export const useSharedCollection = () => {
         ? await ensureGoogleScope('calendar.readonly')
         : null;
       // `drive.file` is granted at login, so Drive needs no on-demand scope.
-      const drive = !subShareNeedsDrive(boards)
+      // Each widget family keeps its own Drive service, so the share builds
+      // both rather than inventing a third.
+      const needsDrive = subShareNeedsDrive(boards);
+      const driveArg = isAuthBypass ? hostUid : googleAccessToken;
+      const drive = !needsDrive || !driveArg ? null : driveArg;
+      const quizDrive = !drive
         ? null
         : isAuthBypass
-          ? hostUid
-            ? new MockQuizDriveService(hostUid)
-            : null
-          : googleAccessToken
-            ? new QuizDriveService(googleAccessToken)
-            : null;
+          ? new MockQuizDriveService(drive)
+          : new QuizDriveService(drive);
+      const glDrive = !drive
+        ? null
+        : isAuthBypass
+          ? new MockGuidedLearningDriveService(drive)
+          : new GuidedLearningDriveService(drive);
       return {
         ...(calendarToken
           ? {
@@ -428,12 +437,12 @@ export const useSharedCollection = () => {
                 ),
             }
           : {}),
-        ...(drive
+        ...(quizDrive
           ? {
               loadVideoActivity: async (
                 fileId: string
               ): Promise<VideoActivityData> => {
-                const raw = (await drive.loadQuiz(fileId)) as unknown as
+                const raw = (await quizDrive.loadQuiz(fileId)) as unknown as
                   | VideoActivityData
                   | undefined;
                 if (!raw) throw new Error('video activity file was empty');
@@ -443,6 +452,13 @@ export const useSharedCollection = () => {
                   questions: normalizeVideoActivityQuestions(raw.questions),
                 };
               },
+            }
+          : {}),
+        ...(glDrive
+          ? {
+              loadGuidedLearningSet: (
+                fileId: string
+              ): Promise<GuidedLearningSet> => glDrive.loadSet(fileId),
             }
           : {}),
       };
