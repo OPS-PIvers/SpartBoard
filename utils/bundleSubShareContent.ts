@@ -13,6 +13,7 @@ import { logError } from '@/utils/logError';
 import { subShareContentId } from '@/utils/subShareContent';
 import { RUNS_COLLECTION, runIdFor } from '@/utils/projectRunWrites';
 import { normalizeActivityWallLibraryEntry } from '@/utils/activityWallNormalize';
+import { normalizeGuidedLearningSet } from '@/components/widgets/GuidedLearning/utils/setMigration';
 import type {
   ActivityWallConfig,
   ActivityWallLibraryEntry,
@@ -520,7 +521,7 @@ function stepForSub(step: GuidedLearningStep): SubShareGuidedLearningStep {
 async function bundleGuidedLearning(
   hostUid: string,
   setId: string,
-  loadSet: NonNullable<SubShareBundleServices['loadGuidedLearningSet']>
+  loadSet: SubShareBundleServices['loadGuidedLearningSet']
 ): Promise<SubShareGuidedLearningPayload | null> {
   const snap = await getDoc(
     doc(db, 'users', hostUid, 'guided_learning', setId)
@@ -533,7 +534,10 @@ async function bundleGuidedLearning(
   const meta = snap.data() as Partial<GuidedLearningSetMetadata>;
   if (!meta.driveFileId)
     throw new Error('guided learning set has no Drive file');
-  const data = await loadSet(meta.driveFileId);
+  // Only a personal set needs Drive, so this is where a missing reader is a
+  // failure: a building set has already returned above.
+  if (!loadSet) throw new Error('no Drive reader for guided learning');
+  const data = normalizeGuidedLearningSet(await loadSet(meta.driveFileId));
   const {
     authorUid: _authorUid,
     imagePaths: _imagePaths,
@@ -788,13 +792,10 @@ export async function bundleSubShareContent({
       if (done.has(contentId)) continue;
       done.add(contentId);
       try {
-        if (!services?.loadGuidedLearningSet) {
-          throw new Error('no Drive reader for guided learning');
-        }
         const payload = await bundleGuidedLearning(
           hostUid,
           id,
-          services.loadGuidedLearningSet
+          services?.loadGuidedLearningSet
         );
         // A building set bundles to nothing on purpose; the sub reads it.
         if (!payload) continue;

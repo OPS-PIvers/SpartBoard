@@ -1366,6 +1366,89 @@ describe('bundleSubShareContent', () => {
       expect(bundle.failures).toEqual([]);
     });
 
+    // Drive is only needed for a personal set, so a board whose only guided
+    // widget points at a building set must not report a failure when the
+    // share was made without a Drive token.
+    it('reports no failure for a building set when there is no Drive reader', async () => {
+      mockGetDoc
+        .mockResolvedValueOnce({ exists: () => false })
+        .mockResolvedValueOnce({ exists: () => true, data: () => ({}) });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [glWidget('w1', 'set-1')])],
+        services: {},
+      });
+
+      expect(bundle.keys).toEqual([]);
+      expect(bundle.failures).toEqual([]);
+    });
+
+    it('reports a personal set when there is no Drive reader', async () => {
+      mockGetDoc.mockResolvedValue(
+        personalMeta({ title: 'Plant cell', driveFileId: 'file-1' })
+      );
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [glWidget('w1', 'set-1')])],
+        services: {},
+      });
+
+      expect(bundle.failures).toEqual([
+        {
+          kind: 'guidedLearning',
+          itemId: 'set-1',
+          label: 'Guided activity on Period 2',
+        },
+      ]);
+    });
+
+    // Every other Drive load path migrates the raw JSON, so a set authored
+    // before the current schema has to reach the sub the same way it reaches
+    // the teacher: with its legacy single image read and its step indexes in
+    // bounds.
+    it('migrates a legacy set the way the teacher’s own load does', async () => {
+      mockGetDoc.mockResolvedValue(
+        personalMeta({ title: 'Plant cell', driveFileId: 'file-1' })
+      );
+      const loadGuidedLearningSet = vi.fn().mockResolvedValue({
+        id: 'set-1',
+        title: 'Plant cell',
+        imageUrl: 'https://storage/legacy?token=abc',
+        mode: 'guided',
+        createdAt: 1,
+        updatedAt: 2,
+        steps: [
+          {
+            id: 's1',
+            xPct: 10,
+            yPct: 20,
+            imageIndex: 4,
+            interactionType: 'text-popover',
+          },
+        ],
+      });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [glWidget('w1', 'set-1')])],
+        services: { loadGuidedLearningSet },
+      });
+
+      const set = (
+        bundle.keys[0].doc.payload as {
+          set: {
+            imageUrls: string[];
+            steps: { imageIndex: number; showOverlay?: string }[];
+          };
+        }
+      ).set;
+      expect(set.imageUrls).toEqual(['https://storage/legacy?token=abc']);
+      expect(set.steps[0].imageIndex).toBe(0);
+      expect(set.steps[0].showOverlay).toBe('none');
+    });
+
     it('reports a set that is neither the teacher’s nor a building set', async () => {
       mockGetDoc.mockResolvedValue({ exists: () => false });
 
