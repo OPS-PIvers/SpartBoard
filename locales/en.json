@@ -206,6 +206,8 @@
       "splitNameLabel": "Group name",
       "splitConfirm": "Create groups",
       "splitNamePrefix": "Teams",
+      "bellPeriod": "Bell period",
+      "bellPeriodNone": "Not set",
       "accommodationsTab": "Accommodations ({{count}})",
       "accommodationsHelp": "These apply automatically each time you assign work to this student. You can still change them per assignment.",
       "emptyAccommodationsTitle": "No students yet",

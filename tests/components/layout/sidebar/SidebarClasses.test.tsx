@@ -24,6 +24,8 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { email: 'teacher@example.edu' },
     selectedBuildings: [],
+    canAccessFeature: () => false,
+    featurePermissions: [],
   }),
 }));
 vi.mock('@/context/useDialog', () => ({

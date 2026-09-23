@@ -206,6 +206,8 @@
       "splitNameLabel": "Gruppenname",
       "splitConfirm": "Gruppen erstellen",
       "splitNamePrefix": "Teams",
+      "bellPeriod": "Unterrichtsstunde",
+      "bellPeriodNone": "Nicht festgelegt",
       "accommodationsTab": "Nachteilsausgleich ({{count}})",
       "accommodationsHelp": "Diese werden automatisch übernommen, sobald du diesem Schüler/dieser Schülerin eine Aufgabe zuweist. Du kannst sie pro Aufgabe weiterhin anpassen.",
       "emptyAccommodationsTitle": "Noch keine Schüler/innen",

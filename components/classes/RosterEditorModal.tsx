@@ -9,7 +9,14 @@ import {
   UsersRound,
   Shuffle,
 } from 'lucide-react';
-import { Student, ClassRoster, RosterGroup, StudentOverride } from '@/types';
+import {
+  Student,
+  ClassRoster,
+  RosterGroup,
+  StudentOverride,
+  RosterBellPeriod,
+} from '@/types';
+import type { BuildingBellPeriodOption } from '@/utils/bellSchedule';
 import { makeRestrictedGroupsByCount } from '@/components/widgets/random/groupMaker';
 import { Modal } from '@/components/common/Modal';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
@@ -39,11 +46,17 @@ interface RosterEditorModalProps {
     name: string,
     students: Student[],
     groups?: RosterGroup[],
-    defaultOverridesByStudentId?: Record<string, StudentOverride>
+    defaultOverridesByStudentId?: Record<string, StudentOverride>,
+    bellPeriod?: RosterBellPeriod | null
   ) => Promise<void> | void;
   /** Host-resolved 'quiz-read-aloud' gate, forwarded to the accommodations editor. */
   readAloudAvailable?: boolean;
+  /** Bell periods to tag the class with; the picker is hidden when absent. */
+  bellPeriodOptions?: BuildingBellPeriodOption[];
 }
+
+const bellKey = (b: RosterBellPeriod | null | undefined): string =>
+  b ? `${b.buildingId}|${b.periodId}` : '';
 
 /**
  * Account-level roster editor. Used by the "My Classes" sidebar page.
@@ -58,6 +71,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   onClose,
   onSave,
   readAloudAvailable = false,
+  bellPeriodOptions,
 }) => {
   const { t } = useTranslation();
   const {
@@ -93,6 +107,21 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
   const [defaultOverrides, setDefaultOverrides] =
     useState<Record<string, StudentOverride>>(initialOverrides);
 
+  const initialBell = roster?.bellPeriod ?? null;
+  const [bellPeriod, setBellPeriod] = useState<RosterBellPeriod | null>(
+    initialBell
+  );
+  const bellChoices = useMemo(() => {
+    const options = bellPeriodOptions ?? [];
+    // Keep a saved tag selectable even after its building drops out of the list.
+    if (
+      initialBell &&
+      !options.some((o) => bellKey(o) === bellKey(initialBell))
+    )
+      return [...options, { ...initialBell, label: initialBell.periodId }];
+    return options;
+  }, [bellPeriodOptions, initialBell]);
+
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -102,10 +131,19 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
       JSON.stringify(groups) !== JSON.stringify(initialGroups);
     const overridesChanged =
       JSON.stringify(defaultOverrides) !== JSON.stringify(initialOverrides);
+    const bellChanged = bellKey(bellPeriod) !== bellKey(initialBell);
     setSaveError(null);
     setSaving(true);
     try {
-      if (overridesChanged) {
+      if (bellChanged) {
+        await onSave(
+          name.trim(),
+          validStudents,
+          groupsChanged ? groups : undefined,
+          overridesChanged ? defaultOverrides : undefined,
+          bellPeriod
+        );
+      } else if (overridesChanged) {
         await onSave(
           name.trim(),
           validStudents,
@@ -164,6 +202,38 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
             onChange={(e) => setName(e.target.value)}
             autoFocus
           />
+          {bellPeriodOptions && bellChoices.length > 0 && (
+            <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
+              {t('sidebar.classes.bellPeriod', {
+                defaultValue: 'Bell period',
+              })}
+              <select
+                className="px-2 py-2 text-sm border border-slate-200 rounded-xl bg-white font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                value={bellKey(bellPeriod)}
+                onChange={(e) => {
+                  const pick = bellChoices.find(
+                    (o) => bellKey(o) === e.target.value
+                  );
+                  setBellPeriod(
+                    pick
+                      ? { buildingId: pick.buildingId, periodId: pick.periodId }
+                      : null
+                  );
+                }}
+              >
+                <option value="">
+                  {t('sidebar.classes.bellPeriodNone', {
+                    defaultValue: 'Not set',
+                  })}
+                </option>
+                {bellChoices.map((o) => (
+                  <option key={bellKey(o)} value={bellKey(o)}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <button
             onClick={handleSave}
             disabled={!name.trim() || saving}

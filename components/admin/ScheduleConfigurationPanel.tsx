@@ -7,6 +7,7 @@ import {
 } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { useDialog } from '@/context/useDialog';
+import { useAuth } from '@/context/useAuth';
 import {
   ScheduleGlobalConfig,
   BuildingScheduleDefaults,
@@ -26,6 +27,7 @@ import {
   ChevronRight,
   LayoutGrid,
   ArrowUpDown,
+  CalendarDays,
 } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import {
@@ -89,10 +91,12 @@ interface SortableItemProps {
   item: ScheduleItem;
   onUpdate: (itemId: string, updates: Partial<ScheduleItem>) => void;
   onDelete: (itemId: string) => void;
+  /** Show the class-period id field (per-period access). */
+  showPeriodField: boolean;
 }
 
 const SortableItem: React.FC<SortableItemProps> = React.memo(
-  ({ item, onUpdate, onDelete }) => {
+  ({ item, onUpdate, onDelete, showPeriodField }) => {
     const {
       attributes,
       listeners,
@@ -126,7 +130,7 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
           <GripVertical className="w-4 h-4" />
         </div>
         <div className="flex-1 grid grid-cols-12 gap-2">
-          <div className="col-span-6">
+          <div className={showPeriodField ? 'col-span-4' : 'col-span-6'}>
             <input
               type="text"
               value={item.task}
@@ -157,6 +161,28 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
               className="w-full px-1 py-1.5 text-xs border border-slate-200 rounded outline-none"
             />
           </div>
+          {showPeriodField && (
+            <div className="col-span-2">
+              <input
+                type="text"
+                value={item.isClassPeriod ? (item.periodId ?? '') : ''}
+                onChange={(e) => {
+                  if (!item.id) return;
+                  const periodId = e.target.value.trim().slice(0, 20);
+                  onUpdate(
+                    item.id,
+                    periodId
+                      ? { periodId, isClassPeriod: true }
+                      : { periodId: undefined, isClassPeriod: false }
+                  );
+                }}
+                placeholder="Class period"
+                aria-label={`Class period id for ${item.task || 'this item'}`}
+                title="Fill in to make this a class period (e.g. P3). Use the same id on every schedule."
+                className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:border-brand-blue-primary outline-none"
+              />
+            </div>
+          )}
           <div className="col-span-2 flex items-center justify-end">
             <button
               onClick={() => item.id && onDelete(item.id)}
@@ -173,6 +199,91 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
 
 SortableItem.displayName = 'SortableItem';
 
+interface SpecialDaysCardProps {
+  schedules: DailySchedule[];
+  dateOverrides: Record<string, string>;
+  onChange: (dateOverrides: Record<string, string>) => void;
+}
+
+/** Dates that run a named schedule instead of the weekday pick (early release, assemblies). */
+const SpecialDaysCard: React.FC<SpecialDaysCardProps> = ({
+  schedules,
+  dateOverrides,
+  onChange,
+}) => {
+  const [newDate, setNewDate] = useState('');
+  const entries = Object.entries(dateOverrides).sort(([a], [b]) =>
+    a.localeCompare(b)
+  );
+  const without = (date: string) =>
+    Object.fromEntries(entries.filter(([d]) => d !== date));
+  return (
+    <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-3">
+      <div>
+        <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2 mb-1">
+          <CalendarDays className="w-3.5 h-3.5" /> Special days
+        </h5>
+        <p className="text-xxs text-slate-500 leading-tight">
+          On these dates the chosen schedule runs instead of the weekday one,
+          and per-period assignment windows follow its bell times.
+        </p>
+      </div>
+      {entries.map(([date, scheduleId]) => (
+        <div key={date} className="flex items-center gap-2">
+          <span className="text-xs font-medium text-slate-700 w-28">
+            {date}
+          </span>
+          <select
+            value={scheduleId}
+            onChange={(e) =>
+              onChange({ ...dateOverrides, [date]: e.target.value })
+            }
+            aria-label={`Schedule for ${date}`}
+            className="flex-1 px-2 py-1.5 text-xs border border-slate-200 rounded bg-white outline-none"
+          >
+            {!schedules.some((s) => s.id === scheduleId) && (
+              <option value={scheduleId}>Deleted schedule</option>
+            )}
+            {schedules.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => onChange(without(date))}
+            aria-label={`Remove ${date}`}
+            className="text-red-400 hover:text-red-600 p-1 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ))}
+      <div className="flex items-center gap-2">
+        <input
+          type="date"
+          value={newDate}
+          onChange={(e) => setNewDate(e.target.value)}
+          aria-label="Special day date"
+          className="px-2 py-1.5 text-xs border border-slate-200 rounded outline-none"
+        />
+        <button
+          disabled={
+            !newDate || schedules.length === 0 || newDate in dateOverrides
+          }
+          onClick={() => {
+            onChange({ ...dateOverrides, [newDate]: schedules[0].id });
+            setNewDate('');
+          }}
+          className="text-xxs font-bold text-brand-blue-primary hover:text-brand-blue-dark disabled:opacity-40 flex items-center gap-1"
+        >
+          <Plus className="w-3 h-3" /> Add special day
+        </button>
+      </div>
+    </Card>
+  );
+};
+
 export const ScheduleConfigurationPanel: React.FC<
   ScheduleConfigurationPanelProps
 > = ({ config, onChange }) => {
@@ -181,6 +292,8 @@ export const ScheduleConfigurationPanel: React.FC<
     useBuildingSelection(BUILDINGS);
 
   const { showConfirm } = useDialog();
+  const { canAccessFeature } = useAuth();
+  const showPeriodFields = canAccessFeature('per-period-access');
   const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -538,6 +651,7 @@ export const ScheduleConfigurationPanel: React.FC<
                         item={item}
                         onUpdate={handleUpdateItem}
                         onDelete={handleDeleteItem}
+                        showPeriodField={showPeriodFields}
                       />
                     ))}
                 </SortableContext>
@@ -551,6 +665,14 @@ export const ScheduleConfigurationPanel: React.FC<
           </div>
         )}
       </Card>
+
+      {showPeriodFields && !activeScheduleId && (
+        <SpecialDaysCard
+          schedules={currentBuildingConfig.schedules ?? []}
+          dateOverrides={currentBuildingConfig.dateOverrides ?? {}}
+          onChange={(dateOverrides) => handleUpdateBuilding({ dateOverrides })}
+        />
+      )}
 
       {/* Appearance & Behaviour Defaults — only shown in the building overview,
           not while editing a specific schedule's items. */}
