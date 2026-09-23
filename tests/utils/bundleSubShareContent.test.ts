@@ -83,6 +83,21 @@ const groupSnap = (groups: Record<string, unknown>[]) => ({
   docs: groups.map((g) => ({ id: g.id as string, data: () => g })),
 });
 
+const wallWidget = (id: string, activityId: string | null) =>
+  ({
+    id,
+    // `satisfies WidgetType` on purpose: the content kind is camelCase but
+    // this literal is kebab, and the fixtures' casts would hide a wrong one.
+    type: 'activity-wall' satisfies WidgetType,
+    config: { activeActivityId: activityId },
+  }) as unknown as WidgetData;
+
+const wallDoc = (id: string, fields: Record<string, unknown>) => ({
+  id,
+  exists: () => true,
+  data: () => fields,
+});
+
 const board = (id: string, name: string, widgets: WidgetData[]) =>
   ({ id, name, widgets }) as unknown as Dashboard;
 
@@ -553,6 +568,164 @@ describe('bundleSubShareContent', () => {
 
       expect(bundle.items).toEqual([]);
       expect(bundle.failures.map((f) => f.kind)).toEqual(['project']);
+    });
+  });
+
+  describe('activity wall', () => {
+    const entry = {
+      title: 'Exit tickets',
+      prompt: 'What stuck with you today?',
+      mode: 'text',
+      moderationEnabled: true,
+      identificationMode: 'named',
+      createdAt: 1,
+      updatedAt: 2,
+      layout: 'wall',
+      showNames: true,
+      classId: 'class-a',
+      classIds: ['class-a', 'class-b'],
+      rosterIds: ['roster-7'],
+    };
+
+    it('bundles the wall definition the widget has open', async () => {
+      mockGetDoc.mockResolvedValue(wallDoc('aw-1', entry));
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Exit', [wallWidget('w1', 'aw-1')])],
+      });
+
+      expect(bundle.failures).toEqual([]);
+      expect(bundle.items.map((i) => i.id)).toEqual(['activityWall_aw-1']);
+      const payload = bundle.items[0].doc.payload as {
+        entry: { id: string; title: string; prompt: string };
+        hostUid: string;
+      };
+      expect(payload.entry.id).toBe('aw-1');
+      expect(payload.entry.title).toBe('Exit tickets');
+      expect(payload.entry.prompt).toBe('What stuck with you today?');
+      expect(payload.hostUid).toBe('teacher-1');
+      const ref = (doc as Mock).mock.results.at(-1)?.value as {
+        __path: string;
+      };
+      expect(ref.__path).toBe('users/teacher-1/activity_wall_activities/aw-1');
+    });
+
+    // `content/` is readable by any verified district account holding the
+    // share, and a substitute launches nothing, so the targeting stays out.
+    it('leaves the class and roster targeting out of the bundle', async () => {
+      mockGetDoc.mockResolvedValue(wallDoc('aw-1', entry));
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Exit', [wallWidget('w1', 'aw-1')])],
+      });
+
+      const payload = bundle.items[0].doc.payload as { entry: object };
+      expect(Object.keys(payload.entry).sort()).toEqual([
+        'acceptingResponses',
+        'allowCommentResponses',
+        'allowComments',
+        'allowGuests',
+        'allowLikes',
+        'allowStudentDelete',
+        'allowStudentEdit',
+        'allowedTypes',
+        'appearance',
+        'createdAt',
+        'id',
+        'identificationMode',
+        'layout',
+        'mapCenter',
+        'maxPostsPerStudent',
+        'mode',
+        'moderationEnabled',
+        'prompt',
+        'sections',
+        'showNames',
+        'studentsCanSeePosts',
+        'tableCols',
+        'tableRows',
+        'title',
+        'updatedAt',
+      ]);
+      const json = JSON.stringify(payload.entry);
+      expect(json).not.toContain('class-b');
+      expect(json).not.toContain('roster-7');
+    });
+
+    // The posts are the students' own words, names and uids.
+    it('never reads the wall’s submissions', async () => {
+      mockGetDoc.mockResolvedValue(wallDoc('aw-1', entry));
+      mockGetDocs.mockResolvedValue({ docs: [] });
+
+      await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Exit', [wallWidget('w1', 'aw-1')])],
+      });
+
+      const paths = (collection as Mock).mock.results.map(
+        (r) => (r.value as { __path: string }).__path
+      );
+      expect(
+        paths.some((path) => path.includes('activity_wall_sessions'))
+      ).toBe(false);
+      expect(paths.some((path) => path.includes('submissions'))).toBe(false);
+    });
+
+    it('skips a widget with no wall open', async () => {
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Exit', [wallWidget('w1', null)])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(mockGetDoc).not.toHaveBeenCalled();
+    });
+
+    it('bundles a wall shared by two boards once', async () => {
+      mockGetDoc.mockResolvedValue(wallDoc('aw-1', entry));
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [
+          board('b1', 'Exit', [wallWidget('w1', 'aw-1')]),
+          board('b2', 'Period 2', [wallWidget('w2', 'aw-1')]),
+        ],
+      });
+
+      expect(bundle.items.map((i) => i.id)).toEqual(['activityWall_aw-1']);
+      expect(mockGetDoc).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a wall that no longer exists', async () => {
+      mockGetDoc.mockResolvedValue({ id: 'aw-1', exists: () => false });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Exit', [wallWidget('w1', 'aw-1')])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(bundle.failures).toEqual([
+        {
+          kind: 'activityWall',
+          itemId: 'aw-1',
+          label: 'Activity Wall on Exit',
+        },
+      ]);
+    });
+
+    it('reports a wall it could not read', async () => {
+      mockGetDoc.mockRejectedValue(new Error('offline'));
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Exit', [wallWidget('w1', 'aw-1')])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(bundle.failures.map((f) => f.kind)).toEqual(['activityWall']);
     });
   });
 });

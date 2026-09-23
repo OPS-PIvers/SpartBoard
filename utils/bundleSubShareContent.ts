@@ -13,6 +13,8 @@ import { logError } from '@/utils/logError';
 import { subShareContentId } from '@/utils/subShareContent';
 import { RUNS_COLLECTION, runIdFor } from '@/utils/projectRunWrites';
 import type {
+  ActivityWallConfig,
+  ActivityWallLibraryEntry,
   CustomWidgetConfig,
   CustomWidgetDoc,
   Dashboard,
@@ -23,6 +25,8 @@ import type {
   ProjectRun,
   ProjectsConfig,
   SmartNotebookConfig,
+  SubShareActivityWallPayload,
+  SubShareActivityWallView,
   SubShareContentDoc,
   SubShareContentKind,
   SubShareCustomWidgetPayload,
@@ -210,6 +214,60 @@ async function bundleProject(
   };
 }
 
+/** The wall each Activity Wall widget on the board has open. */
+function openActivityWallIds(board: Dashboard): string[] {
+  const ids: string[] = [];
+  for (const widget of board.widgets ?? []) {
+    if (widget.type !== 'activity-wall') continue;
+    const id = (widget.config as ActivityWallConfig | undefined)
+      ?.activeActivityId;
+    if (id) ids.push(id);
+  }
+  return ids;
+}
+
+async function bundleActivityWall(
+  hostUid: string,
+  activityId: string
+): Promise<SubShareActivityWallPayload> {
+  const snap = await getDoc(
+    doc(db, 'users', hostUid, 'activity_wall_activities', activityId)
+  );
+  if (!snap.exists()) throw new Error('activity wall not found');
+  const data = snap.data() as ActivityWallLibraryEntry;
+  // Field by field, not a spread: the entry carries ClassLink class and roster
+  // ids the wall never draws, and `content/` is broadly readable. The student
+  // posts are not bundled at all — they are the students' own words.
+  const entry: SubShareActivityWallView = {
+    id: snap.id,
+    title: data.title ?? 'Untitled wall',
+    prompt: data.prompt ?? '',
+    mode: data.mode,
+    moderationEnabled: data.moderationEnabled === true,
+    identificationMode: data.identificationMode,
+    createdAt: data.createdAt ?? 0,
+    updatedAt: data.updatedAt ?? 0,
+    layout: data.layout,
+    sections: data.sections,
+    tableRows: data.tableRows,
+    tableCols: data.tableCols,
+    mapCenter: data.mapCenter,
+    allowedTypes: data.allowedTypes,
+    appearance: data.appearance,
+    allowGuests: data.allowGuests,
+    showNames: data.showNames,
+    maxPostsPerStudent: data.maxPostsPerStudent,
+    allowStudentEdit: data.allowStudentEdit,
+    allowStudentDelete: data.allowStudentDelete,
+    acceptingResponses: data.acceptingResponses,
+    studentsCanSeePosts: data.studentsCanSeePosts,
+    allowLikes: data.allowLikes,
+    allowComments: data.allowComments,
+    allowCommentResponses: data.allowCommentResponses,
+  };
+  return { entry, hostUid };
+}
+
 export async function bundleSubShareContent({
   hostUid,
   boards,
@@ -269,6 +327,29 @@ export async function bundleSubShareContent({
           kind: 'notebook',
           itemId: id,
           label: `Notebook on ${board.name}`,
+        });
+      }
+    }
+
+    for (const id of openActivityWallIds(board)) {
+      const contentId = subShareContentId('activityWall', id);
+      if (done.has(contentId)) continue;
+      done.add(contentId);
+      try {
+        const payload = await bundleActivityWall(hostUid, id);
+        items.push({
+          id: contentId,
+          doc: { kind: 'activityWall', itemId: id, bundledAt, payload },
+        });
+      } catch (err) {
+        logError('bundleSubShareContent.activityWall', err, {
+          boardId: board.id,
+          activityId: id,
+        });
+        failures.push({
+          kind: 'activityWall',
+          itemId: id,
+          label: `Activity Wall on ${board.name}`,
         });
       }
     }

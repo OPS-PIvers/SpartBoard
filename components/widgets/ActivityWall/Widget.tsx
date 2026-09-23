@@ -59,6 +59,7 @@ import { WallLibraryModal } from './WallLibraryModal';
 import { ModerationDrawer } from './ModerationDrawer';
 import { ActivityWallShareModal } from './ShareModal';
 import { useActivityWallSession } from './hooks/useActivityWallSession';
+import { useSubShareActivityWall } from './useSubShareActivityWall';
 import { useLegacyActivityWallMigration } from './hooks/useLegacyActivityWallMigration';
 
 /** Name stamped on teacher posts; falls back to the email handle. */
@@ -106,17 +107,27 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     [cardColor, config.cardOpacity, config.fontColor]
   );
 
+  // In a share the wall is the teacher's, bundled: their definition is in
+  // their own `users/` tree and the session doc is keyed on their uid, so a
+  // substitute reads neither, and the library behind this widget is the
+  // substitute's own and empty.
+  const shared = useSubShareActivityWall(config.activeActivityId);
+  const inShare = shared.active;
+
   const {
     activities: entries,
     loading: libraryLoading,
     saveActivity,
     deleteActivity,
-  } = useActivityWallLibrary(user?.uid);
+  } = useActivityWallLibrary(inShare ? undefined : user?.uid);
 
-  const activeEntry = useMemo(
+  const ownEntry = useMemo(
     () => entries.find((entry) => entry.id === config.activeActivityId) ?? null,
     [entries, config.activeActivityId]
   );
+  const activeEntry: ActivityWallLibraryEntry | null = inShare
+    ? shared.entry
+    : ownEntry;
 
   const [editorEntry, setEditorEntry] = useState<
     ActivityWallLibraryEntry | null | undefined
@@ -144,7 +155,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   useLegacyActivityWallMigration({
-    uid: user?.uid,
+    uid: inShare ? undefined : user?.uid,
     config,
     widgetId: widget.id,
     libraryLoading,
@@ -156,7 +167,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
 
   const {
     sessionId,
-    session,
+    session: ownSession,
     submissions,
     pendingCount,
     driveSync,
@@ -170,7 +181,12 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     editPost,
     setAcceptingResponses,
     setStudentsCanSeePosts,
-  } = useActivityWallSession(user?.uid, activeEntry, saveActivity);
+  } = useActivityWallSession(
+    inShare ? undefined : user?.uid,
+    activeEntry,
+    saveActivity
+  );
+  const session = inShare ? shared.session : ownSession;
 
   const isOpenWall = activeEntry?.acceptingResponses !== false;
   const isVisibleWall = activeEntry?.studentsCanSeePosts !== false;
@@ -439,141 +455,144 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         </h2>
       </div>
 
-      <div
-        className="flex shrink-0 items-center"
-        style={{ gap: 'min(6px, 1.6cqmin)' }}
-      >
-        <button
-          type="button"
-          onClick={toggleOpenClosed}
-          disabled={isActiveBoardReadOnly}
-          aria-pressed={isOpenWall}
-          className={`rounded-full font-black uppercase tracking-wider transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-40 ${
-            isOpenWall
-              ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-              : 'bg-slate-600 text-slate-100 hover:bg-slate-500'
-          }`}
-          style={{
-            padding: 'min(4px, 1.2cqmin) min(10px, 2.6cqmin)',
-            fontSize: 'min(10px, 3.2cqmin)',
-          }}
+      {/* Every control here writes the teacher's wall or launches for them. */}
+      {!inShare && (
+        <div
+          className="flex shrink-0 items-center"
+          style={{ gap: 'min(6px, 1.6cqmin)' }}
         >
-          {isOpenWall ? 'Open' : 'Closed'}
-        </button>
-
-        <button
-          type="button"
-          onClick={toggleVisibleHidden}
-          disabled={isActiveBoardReadOnly}
-          aria-pressed={isVisibleWall}
-          aria-label={
-            isVisibleWall
-              ? 'Posts visible to students. Hide posts from students'
-              : 'Posts hidden from students. Show posts to students'
-          }
-          className={`rounded-full font-black uppercase tracking-wider transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-40 ${
-            isVisibleWall
-              ? 'bg-sky-500 text-white hover:bg-sky-600'
-              : 'bg-slate-600 text-slate-100 hover:bg-slate-500'
-          }`}
-          style={{
-            padding: 'min(4px, 1.2cqmin) min(10px, 2.6cqmin)',
-            fontSize: 'min(10px, 3.2cqmin)',
-          }}
-        >
-          {isVisibleWall ? 'Visible' : 'Hidden'}
-        </button>
-
-        {activeEntry.moderationEnabled && (
           <button
             type="button"
-            onClick={() => setModerationOpen(true)}
-            aria-label={`Moderate posts, ${pendingCount} pending`}
-            className={`${toolbarButtonClass} relative`}
-            style={{ ...iconButtonSize, marginRight: 'min(4px, 1.2cqmin)' }}
+            onClick={toggleOpenClosed}
+            disabled={isActiveBoardReadOnly}
+            aria-pressed={isOpenWall}
+            className={`rounded-full font-black uppercase tracking-wider transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-40 ${
+              isOpenWall
+                ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                : 'bg-slate-600 text-slate-100 hover:bg-slate-500'
+            }`}
+            style={{
+              padding: 'min(4px, 1.2cqmin) min(10px, 2.6cqmin)',
+              fontSize: 'min(10px, 3.2cqmin)',
+            }}
           >
-            <ShieldCheck style={{ width: '60%', height: '60%' }} />
-            {pendingCount > 0 && (
-              <span
-                className="absolute rounded-full bg-rose-500 font-black text-white"
-                style={{
-                  right: 'max(-4px, -1.2cqmin)',
-                  top: 'max(-4px, -1.2cqmin)',
-                  fontSize: 'min(9px, 2.8cqmin)',
-                  padding: '0 min(4px, 1.2cqmin)',
-                }}
-              >
-                {pendingCount}
-              </span>
-            )}
+            {isOpenWall ? 'Open' : 'Closed'}
           </button>
-        )}
 
-        {compactToolbar ? (
-          <div className="relative" ref={toolbarMenuRef}>
+          <button
+            type="button"
+            onClick={toggleVisibleHidden}
+            disabled={isActiveBoardReadOnly}
+            aria-pressed={isVisibleWall}
+            aria-label={
+              isVisibleWall
+                ? 'Posts visible to students. Hide posts from students'
+                : 'Posts hidden from students. Show posts to students'
+            }
+            className={`rounded-full font-black uppercase tracking-wider transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-40 ${
+              isVisibleWall
+                ? 'bg-sky-500 text-white hover:bg-sky-600'
+                : 'bg-slate-600 text-slate-100 hover:bg-slate-500'
+            }`}
+            style={{
+              padding: 'min(4px, 1.2cqmin) min(10px, 2.6cqmin)',
+              fontSize: 'min(10px, 3.2cqmin)',
+            }}
+          >
+            {isVisibleWall ? 'Visible' : 'Hidden'}
+          </button>
+
+          {activeEntry.moderationEnabled && (
             <button
               type="button"
-              onClick={() => setToolbarMenuOpen((open) => !open)}
-              aria-label="More wall actions"
-              aria-expanded={toolbarMenuOpen}
-              aria-haspopup="menu"
-              className={toolbarButtonClass}
-              style={iconButtonSize}
+              onClick={() => setModerationOpen(true)}
+              aria-label={`Moderate posts, ${pendingCount} pending`}
+              className={`${toolbarButtonClass} relative`}
+              style={{ ...iconButtonSize, marginRight: 'min(4px, 1.2cqmin)' }}
             >
-              <MoreHorizontal style={{ width: '55%', height: '55%' }} />
+              <ShieldCheck style={{ width: '60%', height: '60%' }} />
+              {pendingCount > 0 && (
+                <span
+                  className="absolute rounded-full bg-rose-500 font-black text-white"
+                  style={{
+                    right: 'max(-4px, -1.2cqmin)',
+                    top: 'max(-4px, -1.2cqmin)',
+                    fontSize: 'min(9px, 2.8cqmin)',
+                    padding: '0 min(4px, 1.2cqmin)',
+                  }}
+                >
+                  {pendingCount}
+                </span>
+              )}
             </button>
-            {toolbarMenuOpen && (
-              <div
-                role="menu"
-                className="absolute right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-white/15 bg-slate-900/95 py-1 shadow-xl backdrop-blur-md"
-                style={{ minWidth: 'min(176px, 55cqw)' }}
+          )}
+
+          {compactToolbar ? (
+            <div className="relative" ref={toolbarMenuRef}>
+              <button
+                type="button"
+                onClick={() => setToolbarMenuOpen((open) => !open)}
+                aria-label="More wall actions"
+                aria-expanded={toolbarMenuOpen}
+                aria-haspopup="menu"
+                className={toolbarButtonClass}
+                style={iconButtonSize}
               >
-                {secondaryActions.map((action) => (
-                  <button
-                    key={action.label}
-                    type="button"
-                    role="menuitem"
-                    disabled={action.disabled}
-                    onClick={() => {
-                      setToolbarMenuOpen(false);
-                      action.run();
-                    }}
-                    className="flex w-full items-center text-left font-semibold text-slate-200 transition-colors hover:bg-white/10 focus:outline-none focus-visible:bg-white/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70 disabled:opacity-40"
-                    style={{
-                      gap: 'min(8px, 2cqmin)',
-                      padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                      fontSize: 'min(14px, 5.5cqmin)',
-                    }}
-                  >
-                    <action.icon
-                      aria-hidden="true"
-                      style={{
-                        width: 'min(16px, 5cqmin)',
-                        height: 'min(16px, 5cqmin)',
+                <MoreHorizontal style={{ width: '55%', height: '55%' }} />
+              </button>
+              {toolbarMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-white/15 bg-slate-900/95 py-1 shadow-xl backdrop-blur-md"
+                  style={{ minWidth: 'min(176px, 55cqw)' }}
+                >
+                  {secondaryActions.map((action) => (
+                    <button
+                      key={action.label}
+                      type="button"
+                      role="menuitem"
+                      disabled={action.disabled}
+                      onClick={() => {
+                        setToolbarMenuOpen(false);
+                        action.run();
                       }}
-                    />
-                    {action.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          secondaryActions.map((action) => (
-            <button
-              key={action.label}
-              type="button"
-              onClick={action.run}
-              disabled={action.disabled}
-              aria-label={action.label}
-              className={toolbarButtonClass}
-              style={iconButtonSize}
-            >
-              <action.icon style={{ width: '55%', height: '55%' }} />
-            </button>
-          ))
-        )}
-      </div>
+                      className="flex w-full items-center text-left font-semibold text-slate-200 transition-colors hover:bg-white/10 focus:outline-none focus-visible:bg-white/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/70 disabled:opacity-40"
+                      style={{
+                        gap: 'min(8px, 2cqmin)',
+                        padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                        fontSize: 'min(14px, 5.5cqmin)',
+                      }}
+                    >
+                      <action.icon
+                        aria-hidden="true"
+                        style={{
+                          width: 'min(16px, 5cqmin)',
+                          height: 'min(16px, 5cqmin)',
+                        }}
+                      />
+                      {action.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            secondaryActions.map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                onClick={action.run}
+                disabled={action.disabled}
+                aria-label={action.label}
+                className={toolbarButtonClass}
+                style={iconButtonSize}
+              >
+                <action.icon style={{ width: '55%', height: '55%' }} />
+              </button>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 
@@ -619,23 +638,37 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     );
 
   const body = !activeEntry ? (
+    inShare ? (
+      <ScaledEmptyState
+        icon={LayoutGrid}
+        title="No wall"
+        subtitle="This wall did not come along with the share."
+      />
+    ) : (
+      <ScaledEmptyState
+        icon={LayoutGrid}
+        title="Choose a wall"
+        subtitle="Open the library to pick or create an Activity Wall."
+        action={
+          <button
+            type="button"
+            onClick={() => setLibraryOpen(true)}
+            className="rounded-lg bg-brand-blue-primary font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            style={{
+              padding: 'min(8px, 2cqmin) min(14px, 3.4cqmin)',
+              fontSize: 'min(12px, 3.8cqmin)',
+            }}
+          >
+            Open library
+          </button>
+        }
+      />
+    )
+  ) : inShare ? (
     <ScaledEmptyState
       icon={LayoutGrid}
-      title="Choose a wall"
-      subtitle="Open the library to pick or create an Activity Wall."
-      action={
-        <button
-          type="button"
-          onClick={() => setLibraryOpen(true)}
-          className="rounded-lg bg-brand-blue-primary font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-          style={{
-            padding: 'min(8px, 2cqmin) min(14px, 3.4cqmin)',
-            fontSize: 'min(12px, 3.8cqmin)',
-          }}
-        >
-          Open library
-        </button>
-      }
+      title="No posts here"
+      subtitle="The posts on this wall are the students’ own and stay in your teacher’s account."
     />
   ) : visibleCount === 0 ? (
     <ScaledEmptyState
@@ -703,7 +736,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         }
       />
 
-      {editorEntry !== undefined && (
+      {!inShare && editorEntry !== undefined && (
         <WallEditorModal
           open
           entry={editorEntry}
@@ -716,32 +749,34 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         />
       )}
 
-      <WallLibraryModal
-        open={libraryOpen}
-        onClose={() => setLibraryOpen(false)}
-        uid={user?.uid}
-        entries={entries}
-        activeEntryId={config.activeActivityId ?? null}
-        readOnly={isActiveBoardReadOnly}
-        onOpenOnBoard={(entryId) => {
-          setActiveEntry(entryId);
-          setLibraryOpen(false);
-        }}
-        onCreate={() => setEditorEntry(null)}
-        onEdit={(entry) => setEditorEntry(entry)}
-        onDuplicate={duplicateWall}
-        onDelete={removeWall}
-        addToast={addToast}
-        confirm={(message) =>
-          showConfirm(message, {
-            title: 'Delete',
-            variant: 'danger',
-            confirmLabel: 'Delete',
-          })
-        }
-      />
+      {!inShare && (
+        <WallLibraryModal
+          open={libraryOpen}
+          onClose={() => setLibraryOpen(false)}
+          uid={user?.uid}
+          entries={entries}
+          activeEntryId={config.activeActivityId ?? null}
+          readOnly={isActiveBoardReadOnly}
+          onOpenOnBoard={(entryId) => {
+            setActiveEntry(entryId);
+            setLibraryOpen(false);
+          }}
+          onCreate={() => setEditorEntry(null)}
+          onEdit={(entry) => setEditorEntry(entry)}
+          onDuplicate={duplicateWall}
+          onDelete={removeWall}
+          addToast={addToast}
+          confirm={(message) =>
+            showConfirm(message, {
+              title: 'Delete',
+              variant: 'danger',
+              confirmLabel: 'Delete',
+            })
+          }
+        />
+      )}
 
-      {composer && session && (
+      {!inShare && composer && session && (
         <ComposerSheet
           key={composer.kind === 'edit' ? composer.post.id : 'create'}
           session={session}
@@ -759,33 +794,37 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         />
       )}
 
-      <ModerationDrawer
-        open={moderationOpen}
-        onClose={() => setModerationOpen(false)}
-        submissions={submissions}
-        onApprove={(id) => void approve(id)}
-        onReject={(id) => void reject(id)}
-        onDelete={(id) => void deletePost(id)}
-        onPin={(id, pinned) => void pinPost(id, pinned)}
-        onEdit={(id, changes) => void editPost(id, changes)}
-      />
+      {!inShare && (
+        <ModerationDrawer
+          open={moderationOpen}
+          onClose={() => setModerationOpen(false)}
+          submissions={submissions}
+          onApprove={(id) => void approve(id)}
+          onReject={(id) => void reject(id)}
+          onDelete={(id) => void deletePost(id)}
+          onPin={(id, pinned) => void pinPost(id, pinned)}
+          onEdit={(id, changes) => void editPost(id, changes)}
+        />
+      )}
 
-      <ActivityWallShareModal
-        key={`${activeEntry?.id ?? 'none'}:${shareOpen}`}
-        isOpen={shareOpen}
-        onClose={() => setShareOpen(false)}
-        entry={activeEntry}
-        sessionId={sessionId}
-        teacherUid={user?.uid ?? null}
-        teacherEmail={user?.email ?? null}
-        studentUrl={studentUrl}
-        existingGalleryUrl={galleryUrl || undefined}
-        onAddQr={
-          canOfferAnonymousJoin && !isActiveBoardReadOnly
-            ? spawnQrWidget
-            : undefined
-        }
-      />
+      {!inShare && (
+        <ActivityWallShareModal
+          key={`${activeEntry?.id ?? 'none'}:${shareOpen}`}
+          isOpen={shareOpen}
+          onClose={() => setShareOpen(false)}
+          entry={activeEntry}
+          sessionId={sessionId}
+          teacherUid={user?.uid ?? null}
+          teacherEmail={user?.email ?? null}
+          studentUrl={studentUrl}
+          existingGalleryUrl={galleryUrl || undefined}
+          onAddQr={
+            canOfferAnonymousJoin && !isActiveBoardReadOnly
+              ? spawnQrWidget
+              : undefined
+          }
+        />
+      )}
     </>
   );
 };

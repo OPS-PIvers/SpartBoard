@@ -9780,7 +9780,8 @@ export type SubShareContentKind =
   | 'nextup'
   | 'project'
   | 'calendar'
-  | 'customWidget';
+  | 'customWidget'
+  | 'activityWall';
 
 /** A `content/{kind}_{itemId}` doc: what the sub sees in place of their own. */
 export interface SubShareContentDoc<T = unknown> {
@@ -9836,6 +9837,52 @@ export type SubShareProjectGroupView = Pick<
 export interface SubShareProjectPayload {
   run: SubShareProjectRunView;
   groups: SubShareProjectGroupView[];
+}
+
+/**
+ * Only what the read-only wall draws. Named field by field rather than
+ * omitted: `content/` is readable by any verified district account holding
+ * the share, so a new field on the entry must be let in deliberately. Class
+ * and roster targeting are not on this list — a substitute launches nothing.
+ */
+export type SubShareActivityWallView = Pick<
+  ActivityWallLibraryEntry,
+  | 'id'
+  | 'title'
+  | 'prompt'
+  | 'mode'
+  | 'moderationEnabled'
+  | 'identificationMode'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'layout'
+  | 'sections'
+  | 'tableRows'
+  | 'tableCols'
+  | 'mapCenter'
+  | 'allowedTypes'
+  | 'appearance'
+  | 'allowGuests'
+  | 'showNames'
+  | 'maxPostsPerStudent'
+  | 'allowStudentEdit'
+  | 'allowStudentDelete'
+  | 'acceptingResponses'
+  | 'studentsCanSeePosts'
+  | 'allowLikes'
+  | 'allowComments'
+  | 'allowCommentResponses'
+>;
+
+/**
+ * An Activity Wall's definition, with no student posts: a submission carries
+ * the student's own words, their name and their uid, so the wall's contents
+ * do not belong in `content/`.
+ */
+export interface SubShareActivityWallPayload {
+  entry: SubShareActivityWallView;
+  /** The wall's owner, so the derived session names the right teacher. */
+  hostUid: string;
 }
 
 /**

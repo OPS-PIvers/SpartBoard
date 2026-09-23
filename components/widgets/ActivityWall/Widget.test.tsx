@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActivityWallWidget } from './Widget';
 import type { ActivityWallLibraryEntry, WidgetData } from '@/types';
+import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 
 const {
   mockAddWidget,
@@ -444,5 +445,95 @@ describe('ActivityWallWidget', () => {
       await screen.findByRole('button', { name: /open library/i })
     );
     expect(await screen.findByText(/no walls yet/i)).toBeInTheDocument();
+  });
+});
+
+describe('ActivityWallWidget inside a sub share', () => {
+  function InShare({ children }: { children: React.ReactNode }) {
+    return (
+      <SubShareContentContext.Provider
+        value={{
+          shareId: 'share-1',
+          version: 0,
+          load: (() =>
+            Promise.resolve({
+              entry: makeEntry({ title: 'Exit tickets' }),
+              hostUid: 'teacher-1',
+            })) as never,
+        }}
+      >
+        {children}
+      </SubShareContentContext.Provider>
+    );
+  }
+
+  const renderShared = (widget: WidgetData = baseWidget) => {
+    // Empty: a substitute's own library has none of the teacher's walls, so
+    // anything on screen has to have come from the bundle.
+    mockLibraryEntries.current = [];
+    return render(<ActivityWallWidget widget={widget} />, {
+      wrapper: InShare,
+    });
+  };
+
+  it('shows the teacher’s bundled wall, not the substitute’s own library', async () => {
+    renderShared();
+
+    expect(await screen.findByText('Exit tickets')).toBeInTheDocument();
+    expect(screen.queryByText('Choose a wall')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('wall-library')).not.toBeInTheDocument();
+  });
+
+  // The session doc is keyed on the teacher's uid: a substitute can neither
+  // read it nor write the mirror, and the posts are not theirs to see.
+  it('opens no listener and writes no session mirror', async () => {
+    renderShared();
+    await screen.findByText('Exit tickets');
+
+    expect(mockOnSnapshot).not.toHaveBeenCalled();
+    expect(mockSetDoc).not.toHaveBeenCalled();
+    expect(mockSaveActivity).not.toHaveBeenCalled();
+  });
+
+  it('offers none of the teacher’s wall controls', async () => {
+    renderShared();
+    await screen.findByText('Exit tickets');
+
+    for (const name of [
+      'Open',
+      'Closed',
+      'More wall actions',
+      'Share',
+      'Open wall library',
+    ]) {
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
+    expect(
+      screen.queryByRole('button', { name: /Moderate posts/ })
+    ).not.toBeInTheDocument();
+  });
+
+  it('says the posts stayed behind rather than drawing an empty wall', async () => {
+    renderShared();
+    await screen.findByText('Exit tickets');
+
+    expect(
+      screen.getByText(
+        'The posts on this wall are the students’ own and stay in your teacher’s account.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('layout-router')).not.toBeInTheDocument();
+  });
+
+  it('says so when no wall came along with the share', async () => {
+    const { findByText } = render(
+      <ActivityWallWidget
+        widget={{ ...baseWidget, config: {} } as WidgetData}
+      />,
+      { wrapper: InShare }
+    );
+
+    expect(await findByText('No wall')).toBeInTheDocument();
+    expect(screen.queryByText('Choose a wall')).not.toBeInTheDocument();
   });
 });
