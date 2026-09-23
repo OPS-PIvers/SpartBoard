@@ -77,7 +77,8 @@ function studioFieldsEqual(a: GuidedLearningStep, b: GuidedLearningStep) {
   );
 }
 
-const STUDIO_STEP_FIELDS = [
+// Step fields only the Studio edits; drives dirty checks and the classic editor's notice.
+export const STUDIO_STEP_FIELDS = [
   'region',
   'calloutPin',
   'cursor',

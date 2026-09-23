@@ -22,7 +22,10 @@ import {
   GuidedLearningEditorContextPane,
   GuidedLearningEditorDetailPane,
 } from './GuidedLearningEditor';
-import { useSetDraftPersistence } from './useSetDraftPersistence';
+import {
+  STUDIO_STEP_FIELDS,
+  useSetDraftPersistence,
+} from './useSetDraftPersistence';
 import { useGuidedLearningEditorState } from './useGuidedLearningEditorState';
 import { GuidedLearningAIGenerator } from './GuidedLearningAIGenerator';
 
@@ -45,16 +48,8 @@ interface GuidedLearningEditorModalProps {
   onFolderChange?: (folderId: string | null) => void;
 }
 
-const STUDIO_STEP_KEYS = [
-  'region',
-  'calloutPin',
-  'cursor',
-  'narration',
-  'tour',
-] as const satisfies readonly (keyof GuidedLearningStep)[];
-
 const stepUsesStudioFeatures = (step: GuidedLearningStep): boolean =>
-  STUDIO_STEP_KEYS.some((key) => step[key] !== undefined);
+  STUDIO_STEP_FIELDS.some((key) => step[key] !== undefined);
 
 // ─── Modal ──────────────────────────────────────────────────────────────────
 
