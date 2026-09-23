@@ -181,7 +181,7 @@ describe('MiniAppStudentApp — per-period access', () => {
       expect(el).not.toBeNull();
       return el as HTMLIFrameElement;
     });
-    const frameWindow = {} as Window;
+    const frameWindow = { postMessage: vi.fn() } as unknown as Window;
     Object.defineProperty(iframe, 'contentWindow', { value: frameWindow });
 
     pushSession(
