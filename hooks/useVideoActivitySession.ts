@@ -55,6 +55,7 @@ import {
   VideoActivitySessionSettings,
   VideoActivitySessionOptions,
   VideoActivityCheckResult,
+  TabExit,
 } from '@/types';
 
 const SESSIONS_COLLECTION = 'video_activity_sessions';
@@ -596,6 +597,8 @@ export interface UseVideoActivitySessionStudentResult {
    * handler. Mirrors `useQuizSession.reportTabSwitch`.
    */
   reportTabSwitch: () => Promise<number>;
+  /** Writes the whole tab-away exit log; rules allow one append or one close per write. */
+  saveTabExits: (exits: TabExit[]) => Promise<void>;
 }
 
 export const useVideoActivitySessionStudent =
@@ -1223,6 +1226,23 @@ export const useVideoActivitySessionStudent =
       return newCount;
     }, [sessionId, responseDocId]);
 
+    const saveTabExits = useCallback(
+      async (exits: TabExit[]): Promise<void> => {
+        if (!sessionId || !responseDocId) return;
+        await updateDoc(
+          doc(
+            db,
+            SESSIONS_COLLECTION,
+            sessionId,
+            RESPONSES_SUBCOLLECTION,
+            responseDocId
+          ),
+          { tabExits: exits }
+        );
+      },
+      [sessionId, responseDocId]
+    );
+
     const activeSessionId = session?.id ?? null;
     const checkAnswer = useCallback(
       async (
@@ -1255,5 +1275,6 @@ export const useVideoActivitySessionStudent =
       checkAnswer,
       completeActivity,
       reportTabSwitch,
+      saveTabExits,
     };
   };
