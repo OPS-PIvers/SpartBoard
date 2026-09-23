@@ -2,8 +2,10 @@
 //
 // This callable writes into another teacher's account, so the tests are mostly
 // about refusal: who may call it, which share and board it will act on, and
-// what it will accept as the session to write. The stub Firestore mirrors only
-// the `doc().get()` and `batch().set()/commit()` surface the handler uses.
+// what it will accept from the caller at all. Everything students read is
+// derived from the bundled key, so the content tests assert what the handler
+// built rather than what the caller sent. The stub Firestore mirrors only the
+// `doc().get()` and `batch().set()/commit()` surface the handler uses.
 
 import { describe, it, expect, vi } from 'vitest';
 
@@ -28,7 +30,8 @@ vi.mock('firebase-functions/v2/https', () => ({
 import {
   findAnswerField,
   handleLaunchSubAssignment,
-  publicQuestionsMatchKey,
+  publicQuestionFromKey,
+  publicQuestionsFromKey,
   type SubLaunchCaller,
 } from './subLaunchAssignment';
 
@@ -38,6 +41,7 @@ const SHARE = 'share-1';
 const BOARD = 'board-1';
 const WIDGET = 'widget-1';
 const QUIZ = 'quiz-1';
+const DRIVE_FILE = 'drive-file-1';
 
 const SUB: SubLaunchCaller = {
   uid: 'sub-uid-1',
@@ -48,28 +52,38 @@ const SUB: SubLaunchCaller = {
 };
 
 const KEY_QUESTIONS = [
-  { id: 'q1', text: 'Which phase?', correctAnswer: 'Anaphase' },
-  { id: 'q2', text: 'Name the organelle', correctAnswer: 'Nucleus' },
+  {
+    id: 'q1',
+    type: 'MC',
+    text: 'Which phase?',
+    timeLimit: 30,
+    correctAnswer: 'Anaphase',
+    incorrectAnswers: ['Telophase', 'Prophase'],
+  },
+  {
+    id: 'q2',
+    type: 'free-response',
+    text: 'Name the organelle',
+    timeLimit: 60,
+    points: 4,
+    placeholder: 'Your answer',
+  },
 ];
 
-/** The session a sub's client builds: the key's questions, answers removed. */
+/** Run settings only — the caller has nothing to say about content now. */
 const session = (over: Record<string, unknown> = {}) => ({
-  quizId: QUIZ,
-  quizTitle: 'Cells',
   status: 'waiting',
   code: 'AB12CD',
-  publicQuestions: [
-    { id: 'q1', text: 'Which phase?', choices: ['Anaphase', 'Telophase'] },
-    { id: 'q2', text: 'Name the organelle' },
-  ],
+  sessionMode: 'live',
+  currentQuestionIndex: -1,
   ...over,
 });
 
 const assignment = (over: Record<string, unknown> = {}) => ({
-  quizId: QUIZ,
-  quizTitle: 'Cells',
   status: 'active',
   code: 'AB12CD',
+  sessionMode: 'live',
+  sessionOptions: { readAloudAll: false },
   ...over,
 });
 
@@ -90,6 +104,7 @@ interface StubState {
   share?: Record<string, unknown> | null;
   board?: Record<string, unknown> | null;
   key?: Record<string, unknown> | null;
+  quiz?: Record<string, unknown> | null;
 }
 
 interface Written {
@@ -107,7 +122,12 @@ function stubDb(state: StubState = {}) {
       subEmails: ['sub@orono.k12.mn.us'],
     },
     board = { widgets: [{ id: WIDGET, type: 'quiz' }] },
-    key = { payload: { quiz: { id: QUIZ, questions: KEY_QUESTIONS } } },
+    key = {
+      payload: {
+        quiz: { id: QUIZ, title: 'Cells', questions: KEY_QUESTIONS },
+      },
+    },
+    quiz = { driveFileId: DRIVE_FILE },
   } = state;
 
   const written: Written[] = [];
@@ -116,6 +136,7 @@ function stubDb(state: StubState = {}) {
     [`shared_collections/${SHARE}`]: share,
     [`shared_collections/${SHARE}/boards/${BOARD}`]: board,
     [`shared_collections/${SHARE}/keys/quiz_${QUIZ}`]: key,
+    [`users/${HOST}/quizzes/${QUIZ}`]: quiz,
   };
 
   const db = {
@@ -158,8 +179,7 @@ describe('handleLaunchSubAssignment', () => {
     const result = await run();
 
     expect(result).toEqual({ sessionId: 'new-session-id', code: 'AB12CD' });
-    const paths = written.map((w) => w.path);
-    expect(paths).toEqual([
+    expect(written.map((w) => w.path)).toEqual([
       'quiz_sessions/new-session-id',
       `users/${HOST}/quiz_assignments/new-session-id`,
       'quiz_join_codes/AB12CD/sessions/new-session-id',
@@ -193,6 +213,7 @@ describe('handleLaunchSubAssignment', () => {
 
     expect(written[0].data.classIds).toEqual(['c1', 'c2']);
     expect(written[0].data.classId).toBe('c1');
+    expect(written[1].data.targetMode).toBe('class');
   });
 
   it('refuses a caller who is not signed in', async () => {
@@ -287,74 +308,29 @@ describe('handleLaunchSubAssignment', () => {
     ).rejects.toThrow('cannot be started from a share yet');
   });
 
-  it('refuses a session whose questions are not the shared quiz’s', async () => {
-    await expect(
-      launch(
-        {},
-        SUB,
-        input({
-          session: session({
-            publicQuestions: [{ id: 'q9', text: 'Made up' }],
-          }),
-        })
-      ).run()
-    ).rejects.toThrow('not in the shared quiz');
-
-    await expect(
-      launch(
-        {},
-        SUB,
-        input({
-          session: session({
-            publicQuestions: [{ id: 'q1', text: 'Rewritten by the sub' }],
-          }),
-        })
-      ).run()
-    ).rejects.toThrow('does not match the shared quiz');
-  });
-
-  it('refuses a session for a different quiz', async () => {
-    await expect(
-      launch({}, SUB, input({ session: session({ quizId: 'other' }) })).run()
-    ).rejects.toThrow('another quiz');
-  });
-
-  // The whole point of a public question: a student reads the session doc.
-  it('refuses a session carrying the answer key', async () => {
-    await expect(
-      launch(
-        {},
-        SUB,
-        input({
-          session: session({
-            publicQuestions: [
-              { id: 'q1', text: 'Which phase?', correctAnswer: 'Anaphase' },
-            ],
-          }),
-        })
-      ).run()
-    ).rejects.toThrow('correctAnswer');
-  });
-
-  it('refuses a caller trying to set ownership or the monitor stamp', async () => {
-    for (const field of [
-      'teacherUid',
-      'subMonitorUids',
-      'subMonitorUntil',
-      'launchedBy',
-      'plcId',
-      'rosterIds',
-    ]) {
-      await expect(
-        launch({}, SUB, input({ session: session({ [field]: 'x' }) })).run()
-      ).rejects.toThrow('not yours to set');
-    }
+  it('refuses a quiz that has left the teacher’s library', async () => {
+    await expect(launch({ quiz: null }).run()).rejects.toThrow(
+      'no longer in the teacher'
+    );
+    await expect(launch({ quiz: {} }).run()).rejects.toThrow(
+      'no longer in the teacher'
+    );
   });
 
   it('refuses a session with no usable join code', async () => {
     await expect(
       launch({}, SUB, input({ session: session({ code: 'nope!' }) })).run()
     ).rejects.toThrow('no join code');
+  });
+
+  it('refuses an archive row whose join code disagrees with the session', async () => {
+    await expect(
+      launch(
+        {},
+        SUB,
+        input({ assignment: assignment({ code: 'ZZ99ZZ' }) })
+      ).run()
+    ).rejects.toThrow('disagree on the join code');
   });
 
   it('refuses no class, too many classes, and a path as an id', async () => {
@@ -368,6 +344,164 @@ describe('handleLaunchSubAssignment', () => {
       launch({}, SUB, input({ boardId: '../other' })).run()
     ).rejects.toThrow('must not be a path');
   });
+
+  it('refuses a payload over the size cap', async () => {
+    await expect(
+      launch(
+        {},
+        SUB,
+        input({ session: session({ pauseMessage: 'x'.repeat(800_000) }) })
+      ).run()
+    ).rejects.toThrow('too large to start');
+  });
+});
+
+// The allowlist is the trust boundary: anything the caller sends that is not on
+// it is refused by name rather than quietly dropped, so a field added to the
+// client without being reviewed fails loudly instead of reaching a student.
+describe('the payload allowlist', () => {
+  const REFUSED_SESSION_FIELDS = [
+    'teacherUid',
+    'id',
+    'assignmentId',
+    'launchedBy',
+    'subMonitorUids',
+    'subMonitorUntil',
+    'plcId',
+    'syncGroupId',
+    'plcLinkedAt',
+    'individualTargeting',
+    'rosterIds',
+    'classIds',
+    'classId',
+    'quizId',
+    'quizTitle',
+    'publicQuestions',
+    'totalQuestions',
+    'stimuli',
+    'bankSlots',
+    'revealedAnswers',
+    'readAloud',
+    'readAloudTextByStimulusId',
+    'ltiNrps',
+    'ltiAttachment',
+    'classroomAttachment',
+    'scoreVisibility',
+    'scorePublishedAt',
+    'protection',
+    'mediaResponseEnabled',
+    'showLearningTargets',
+    'liveLeaderboard',
+  ];
+
+  for (const field of REFUSED_SESSION_FIELDS) {
+    it(`refuses ${field} on the session`, async () => {
+      await expect(
+        launch({}, SUB, input({ session: session({ [field]: 'x' }) })).run()
+      ).rejects.toThrow(`${field} is not yours to set on the session`);
+    });
+  }
+
+  const REFUSED_ASSIGNMENT_FIELDS = [
+    'teacherUid',
+    'id',
+    'createdAt',
+    'quizId',
+    'quizTitle',
+    'quizDriveFileId',
+    'localizedFibAnswers',
+    'questionSnapshot',
+    'plc',
+    'sync',
+    'rosterIds',
+    'classIds',
+    'targetMode',
+    'targetStudents',
+    'overridesByStudentUid',
+    'scoreVisibility',
+    'protection',
+    'classroomAttachment',
+    'exportedResponseIds',
+  ];
+
+  for (const field of REFUSED_ASSIGNMENT_FIELDS) {
+    it(`refuses ${field} on the assignment`, async () => {
+      await expect(
+        launch(
+          {},
+          SUB,
+          input({ assignment: assignment({ [field]: 'x' }) })
+        ).run()
+      ).rejects.toThrow(`${field} is not yours to set on the assignment`);
+    });
+  }
+
+  it('keeps the run settings it does allow', async () => {
+    const { run, written } = launch(
+      {},
+      SUB,
+      input({
+        session: session({ blockCopyPaste: true, attemptLimit: 2 }),
+        assignment: assignment({ className: 'Period 3' }),
+      })
+    );
+
+    await run();
+
+    expect(written[0].data.blockCopyPaste).toBe(true);
+    expect(written[0].data.attemptLimit).toBe(2);
+    expect(written[1].data.className).toBe('Period 3');
+  });
+});
+
+// The caller no longer supplies what students read, so these assert the
+// handler's own projection of the bundled key.
+describe('the content the session carries', () => {
+  it('derives the questions, title and counts from the key', async () => {
+    const { run, written } = launch();
+
+    await run();
+
+    const data = written[0].data as {
+      quizId: string;
+      quizTitle: string;
+      totalQuestions: number;
+      publicQuestions: Record<string, unknown>[];
+    };
+    expect(data.quizId).toBe(QUIZ);
+    expect(data.quizTitle).toBe('Cells');
+    expect(data.totalQuestions).toBe(2);
+    expect(data.publicQuestions.map((q) => q.id)).toEqual(['q1', 'q2']);
+    expect(written[1].data.quizDriveFileId).toBe(DRIVE_FILE);
+  });
+
+  it('carries no answer-bearing field at any depth', async () => {
+    const { run, written } = launch();
+
+    await run();
+
+    expect(findAnswerField(written[0].data)).toBeNull();
+    expect(findAnswerField(written[1].data)).toBeNull();
+  });
+
+  // Both need a gate that does not travel in a share, so a sub-launched run
+  // simply does without them.
+  it('leaves media responses and learning targets off', async () => {
+    const { run, written } = launch();
+
+    await run();
+
+    expect(written[0].data.mediaResponseEnabled).toBe(false);
+    expect(written[0].data.showLearningTargets).toBe(false);
+  });
+
+  it('refuses a key whose quiz has no questions', async () => {
+    await expect(
+      launch({
+        key: { payload: { quiz: { id: QUIZ, title: 'Cells', questions: [] } } },
+      }).run()
+    ).rejects.toThrow('no questions');
+  });
 });
 
 describe('findAnswerField', () => {
@@ -378,21 +512,93 @@ describe('findAnswerField', () => {
     expect(findAnswerField({ questions: [{ acceptableVariants: [] }] })).toBe(
       'acceptableVariants'
     );
+    expect(findAnswerField({ a: { revealedAnswers: {} } })).toBe(
+      'revealedAnswers'
+    );
     expect(findAnswerField({ a: [{ b: { text: 'x' } }] })).toBeNull();
   });
 });
 
-describe('publicQuestionsMatchKey', () => {
-  it('accepts the key’s own questions and nothing else', () => {
-    expect(
-      publicQuestionsMatchKey(
-        [{ id: 'q1', text: 'Which phase?' }],
-        KEY_QUESTIONS
-      )
-    ).toBeNull();
-    expect(publicQuestionsMatchKey([], KEY_QUESTIONS)).toMatch('no questions');
-    expect(publicQuestionsMatchKey(['q1'], KEY_QUESTIONS)).toMatch(
-      'not an object'
+describe('publicQuestionFromKey', () => {
+  it('shuffles the MC choices and keeps no correct answer', () => {
+    const q = publicQuestionFromKey(KEY_QUESTIONS[0]);
+
+    expect(q.id).toBe('q1');
+    expect(q.correctAnswer).toBeUndefined();
+    expect((q.choices as string[]).slice().sort()).toEqual([
+      'Anaphase',
+      'Prophase',
+      'Telophase',
+    ]);
+  });
+
+  it('mixes matching distractors into the right column without listing them', () => {
+    const q = publicQuestionFromKey({
+      id: 'q3',
+      type: 'Matching',
+      text: 'Pair them',
+      correctAnswer: 'Mitochondria:Energy|Nucleus:DNA',
+      matchingDistractors: ['Waste'],
+    });
+
+    expect(q.matchingLeft).toEqual(['Mitochondria', 'Nucleus']);
+    expect((q.matchingRight as string[]).slice().sort()).toEqual([
+      'DNA',
+      'Energy',
+      'Waste',
+    ]);
+    expect(q.matchingDistractors).toBeUndefined();
+  });
+
+  it('keeps a definition that contains a colon intact', () => {
+    const q = publicQuestionFromKey({
+      id: 'q4',
+      type: 'Matching',
+      text: 'When?',
+      correctAnswer: 'First period:9:00 AM',
+    });
+
+    expect(q.matchingRight).toEqual(['9:00 AM']);
+  });
+
+  it('shuffles ordering items and keeps free-response bounds', () => {
+    const ordering = publicQuestionFromKey({
+      id: 'q5',
+      type: 'Ordering',
+      text: 'Sequence',
+      correctAnswer: 'One|Two|Three',
+    });
+    expect((ordering.orderingItems as string[]).slice().sort()).toEqual([
+      'One',
+      'Three',
+      'Two',
+    ]);
+
+    const fr = publicQuestionFromKey({
+      id: 'q6',
+      type: 'free-response',
+      text: 'Explain',
+      minWords: 20,
+      enforceWordLimit: true,
+    });
+    expect(fr.minWords).toBe(20);
+    expect(fr.enforceWordLimit).toBe(true);
+  });
+});
+
+describe('publicQuestionsFromKey', () => {
+  it('drops malformed and duplicate questions, and refuses an empty key', () => {
+    const out = publicQuestionsFromKey([
+      { id: 'q1', type: 'MC', text: 'A', correctAnswer: 'x' },
+      { id: 'q1', type: 'MC', text: 'A again', correctAnswer: 'x' },
+      { id: 'q2', type: 'MC' },
+      'not an object',
+    ]);
+
+    expect(out.map((q) => q.id)).toEqual(['q1']);
+    expect(() => publicQuestionsFromKey([])).toThrow('no questions');
+    expect(() => publicQuestionsFromKey([{ nope: true }])).toThrow(
+      'no usable questions'
     );
   });
 });
