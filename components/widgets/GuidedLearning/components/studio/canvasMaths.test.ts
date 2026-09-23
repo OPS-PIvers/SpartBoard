@@ -181,9 +181,7 @@ describe('region edits', () => {
   });
 
   it('keeps a square-locked drag on the image when squaring the short axis would overshoot the edge', () => {
-    // a and b are already on-image; the drag itself never leaves 0-100. But
-    // squaring the shorter axis to match the longer one's screen length can
-    // still push it past 0-100 when the two axes scale very differently.
+    // Squaring the shorter axis to the longer axis's screen length can overshoot 0-100 when the axes scale very differently.
     const b = dragBox({ xPct: 90, yPct: 50 }, { xPct: 100, yPct: 100 }, true, {
       x: 2,
       y: 20,
