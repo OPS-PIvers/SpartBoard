@@ -4134,10 +4134,10 @@ export interface QuizLeaderboardEntry {
 }
 
 /**
- * Stamped on a session a substitute started from a sub share
- * (docs/plans/SUB_SHARE_COLLECTIONS.md §3.6, D7). Written only by
- * `launchSubAssignmentV1`; the run itself belongs to the teacher, and the
- * session rules pin all three fields against a client write.
+ * Stamped on both docs a substitute's launch writes — the session and the
+ * teacher's own assignment record (docs/plans/SUB_SHARE_COLLECTIONS.md §3.6,
+ * D7). Written only by `launchSubAssignmentV1`; the run itself belongs to the
+ * teacher, and the session rules pin all three fields against a client write.
  */
 export interface SubLaunchedSessionFields {
   /** Who started it, for the "Launched by" tag in the teacher's Results. */
@@ -5502,7 +5502,8 @@ export interface QuizAssignmentSettings {
  * `/users/{teacherUid}/quiz_assignments/{assignmentId}`. The assignment id is
  * also the id of the matching `/quiz_sessions/{sessionId}` document (1:1).
  */
-export interface QuizAssignment extends QuizAssignmentSettings {
+export interface QuizAssignment
+  extends QuizAssignmentSettings, SubLaunchedSessionFields {
   /** Assignment UUID — also the sessionId. */
   id: string;
   /**
@@ -7539,7 +7540,7 @@ export interface FlashcardSession extends SubLaunchedSessionFields {
 }
 
 /** `users/{uid}/flashcard_assignments/{assignmentId}`: the teacher's record (id == session id). */
-export interface FlashcardAssignment {
+export interface FlashcardAssignment extends SubLaunchedSessionFields {
   id: string;
   sessionId: string;
   setId: string;
@@ -9458,7 +9459,8 @@ export interface VideoActivityAssignmentSettings {
  * assignment id is the same id as the matching `/video_activity_sessions/{sessionId}`
  * document (1:1 pairing, matches the Quiz pattern).
  */
-export interface VideoActivityAssignment extends VideoActivityAssignmentSettings {
+export interface VideoActivityAssignment
+  extends VideoActivityAssignmentSettings, SubLaunchedSessionFields {
   /** Assignment UUID — also the sessionId. */
   id: string;
   activityId: string;
@@ -9604,7 +9606,7 @@ export interface MiniAppAssignment {
 // entry (under /users/{userId}/guided_learning_assignments/{id}).
 export type GuidedLearningAssignmentStatus = 'active' | 'archived';
 
-export interface GuidedLearningAssignment {
+export interface GuidedLearningAssignment extends SubLaunchedSessionFields {
   /** Document id — matches the session id. */
   id: string;
   /** ID of the set that was assigned. */
