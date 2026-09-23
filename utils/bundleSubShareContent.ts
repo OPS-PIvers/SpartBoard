@@ -12,6 +12,7 @@ import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { subShareContentId } from '@/utils/subShareContent';
 import { RUNS_COLLECTION, runIdFor } from '@/utils/projectRunWrites';
+import { normalizeActivityWallLibraryEntry } from '@/utils/activityWallNormalize';
 import type {
   ActivityWallConfig,
   ActivityWallLibraryEntry,
@@ -234,19 +235,25 @@ async function bundleActivityWall(
     doc(db, 'users', hostUid, 'activity_wall_activities', activityId)
   );
   if (!snap.exists()) throw new Error('activity wall not found');
-  const data = snap.data() as ActivityWallLibraryEntry;
-  // Field by field, not a spread: the entry carries ClassLink class and roster
-  // ids the wall never draws, and `content/` is broadly readable. The student
-  // posts are not bundled at all — they are the students' own words.
+  // Normalized first, so a wall predating the redesign reaches the sub with
+  // the same derived layout and appearance the teacher sees.
+  const data = normalizeActivityWallLibraryEntry(
+    snap.id,
+    snap.data() as Partial<ActivityWallLibraryEntry>
+  );
+  // Then field by field, never the normalizer's own object: it spreads the raw
+  // doc, which carries the ClassLink class and roster ids the wall never draws,
+  // and `content/` is broadly readable. The student posts are not bundled at
+  // all — they are the students' own words.
   const entry: SubShareActivityWallView = {
-    id: snap.id,
-    title: data.title ?? 'Untitled wall',
-    prompt: data.prompt ?? '',
+    id: data.id,
+    title: data.title,
+    prompt: data.prompt,
     mode: data.mode,
-    moderationEnabled: data.moderationEnabled === true,
+    moderationEnabled: data.moderationEnabled,
     identificationMode: data.identificationMode,
-    createdAt: data.createdAt ?? 0,
-    updatedAt: data.updatedAt ?? 0,
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
     layout: data.layout,
     sections: data.sections,
     tableRows: data.tableRows,

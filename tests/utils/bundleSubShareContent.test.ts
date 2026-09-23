@@ -577,7 +577,7 @@ describe('bundleSubShareContent', () => {
       prompt: 'What stuck with you today?',
       mode: 'text',
       moderationEnabled: true,
-      identificationMode: 'named',
+      identificationMode: 'name',
       createdAt: 1,
       updatedAt: 2,
       layout: 'wall',
@@ -652,6 +652,38 @@ describe('bundleSubShareContent', () => {
       const json = JSON.stringify(payload.entry);
       expect(json).not.toContain('class-b');
       expect(json).not.toContain('roster-7');
+    });
+
+    // The teacher's own view runs the doc through the normalizer, which
+    // derives these from the legacy `mode`; without it the sub's copy of an
+    // unmigrated wall would be missing the layout and the background.
+    it('derives the legacy fields a wall predating the redesign has none of', async () => {
+      mockGetDoc.mockResolvedValue(
+        wallDoc('aw-1', {
+          title: 'Old wall',
+          prompt: 'Post a photo',
+          mode: 'photo',
+          identificationMode: 'name',
+        })
+      );
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Exit', [wallWidget('w1', 'aw-1')])],
+      });
+
+      const payload = bundle.items[0].doc.payload as {
+        entry: {
+          layout?: string;
+          appearance?: unknown;
+          allowedTypes?: unknown;
+          showNames?: boolean;
+        };
+      };
+      expect(payload.entry.layout).toBeDefined();
+      expect(payload.entry.appearance).toBeDefined();
+      expect(payload.entry.allowedTypes).toBeDefined();
+      expect(payload.entry.showNames).toBe(true);
     });
 
     // The posts are the students' own words, names and uids.
