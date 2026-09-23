@@ -90,6 +90,7 @@ export const ShareCollectionLinkCreatorModal: FC<
   // Widgets whose content could not be collected for the sub.
   const [missed, setMissed] = useState<{ id: string; label: string }[]>([]);
   const headingId = useId();
+  const buildingSelectId = useId();
 
   const { emails: presetEmails } = usePresetSubEmails(buildingId);
 
@@ -361,10 +362,14 @@ export const ShareCollectionLinkCreatorModal: FC<
                     </button>
                   ))}
                 </div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <label
+                  htmlFor={buildingSelectId}
+                  className="block text-xs font-bold text-slate-500 uppercase tracking-wider"
+                >
                   {t('shareCollection.building', { defaultValue: 'Building' })}
                 </label>
                 <select
+                  id={buildingSelectId}
                   value={buildingId}
                   onChange={(e) => setBuildingId(e.target.value)}
                   className="w-full px-2 py-1 text-sm border border-slate-300 rounded bg-white"
@@ -481,6 +486,9 @@ export const ShareCollectionLinkCreatorModal: FC<
                 <div className="flex gap-1">
                   <input
                     type="email"
+                    aria-label={t('shareCollection.subEmail', {
+                      defaultValue: 'Sub email',
+                    })}
                     value={subEmailDraft}
                     onChange={(e) => {
                       setSubEmailDraft(e.target.value);

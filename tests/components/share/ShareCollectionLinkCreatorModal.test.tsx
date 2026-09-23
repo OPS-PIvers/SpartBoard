@@ -201,7 +201,7 @@ describe('ShareCollectionLinkCreatorModal', () => {
     );
 
     fireEvent.click(screen.getByText('Substitute (view-only)'));
-    fireEvent.change(screen.getByRole('combobox'), {
+    fireEvent.change(screen.getByLabelText('Building'), {
       target: { value: 'high' },
     });
     await clickCreate();
@@ -253,7 +253,7 @@ describe('ShareCollectionLinkCreatorModal', () => {
     );
 
     fireEvent.click(screen.getByText('Substitute (view-only)'));
-    fireEvent.change(screen.getByRole('combobox'), {
+    fireEvent.change(screen.getByLabelText('Building'), {
       target: { value: 'high' },
     });
     await clickCreate();
