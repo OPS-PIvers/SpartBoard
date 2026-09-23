@@ -39,6 +39,8 @@ interface VideoPlayerProps {
   seekRequest?: { time: number; nonce: number } | null;
   /** Receives the playhead (seconds) on every poll, for the tab-away log. */
   playheadRef?: React.MutableRefObject<number>;
+  /** Holds playback (e.g. the class period paused); playback resumes when cleared. */
+  paused?: boolean;
 }
 
 const SEEK_TOLERANCE_SECONDS = 0.75;
@@ -56,6 +58,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   autoPlay,
   seekRequest,
   playheadRef,
+  paused = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
@@ -91,7 +94,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // always up-to-date before the next paint without triggering extra renders.
   const unansweredRef = useRef<VideoActivityPublicQuestion[]>([]);
   const maxAllowedRef = useRef(maxAllowedTime);
-  const questionVisibleRef = useRef(questionVisible);
+  const questionVisibleRef = useRef(questionVisible || paused);
+  const pausedRef = useRef(paused);
   const allowSkippingRef = useRef(allowSkipping);
   const autoPlayRef = useRef(autoPlay);
   const onQuestionTriggerRef = useRef(onQuestionTrigger);
@@ -105,8 +109,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, [questions, answeredQuestionIds, maxAllowedTime]);
 
   useLayoutEffect(() => {
-    questionVisibleRef.current = questionVisible;
-  }, [questionVisible]);
+    questionVisibleRef.current = questionVisible || paused;
+    pausedRef.current = paused;
+  }, [questionVisible, paused]);
 
   useLayoutEffect(() => {
     allowSkippingRef.current = allowSkipping;
@@ -223,7 +228,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         },
         events: {
           onReady: () => {
-            if (autoPlayRef.current) {
+            if (autoPlayRef.current && !pausedRef.current) {
               playerRef.current?.playVideo();
             }
             startPolling();
@@ -258,13 +263,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Resume polling state when question is dismissed
   useEffect(() => {
+    if (paused) {
+      playerRef.current?.pauseVideo();
+      return;
+    }
     if (!questionVisible && playerRef.current) {
       const state = playerRef.current.getPlayerState();
       if (state === YT_PLAYER_STATE.PAUSED) {
         playerRef.current.playVideo();
       }
     }
-  }, [questionVisible]);
+  }, [questionVisible, paused]);
 
   useEffect(() => {
     if (!seekRequest || !playerRef.current) return;

@@ -108,7 +108,8 @@ let batchCommit: Mock;
 // The session doc written by createSession's batch (the key doc is the second set).
 const sessionWrite = (): unknown =>
   batchSet.mock.calls.find(
-    (c) => !String(c[0]).includes('/key/')
+    (c) =>
+      !String(c[0]).includes('/key/') && !String(c[0]).includes('/content/')
   )?.[1] as unknown;
 
 beforeEach(() => {
@@ -214,6 +215,65 @@ describe('useVideoActivitySessionTeacher — createSession', () => {
       String(c[0]).endsWith('/key/answers')
     )?.[1] as { questions: VideoActivityQuestion[] };
     expect(key.questions.map((q) => q.id)).toEqual(['q1', 'q2']);
+  });
+
+  it('hides the questions in the content doc on a per-period session', async () => {
+    const activity = baseActivity({
+      questions: [
+        {
+          id: 'q1',
+          text: 'What?',
+          timestamp: 30,
+          timeLimit: 30,
+          type: 'MC',
+          correctAnswer: 'a',
+          incorrectAnswers: ['b'],
+          points: 1,
+        },
+      ],
+    });
+    const periodAccess = {
+      'cl-1': {
+        state: 'closed' as const,
+        openAt: null,
+        closeAt: null,
+        bellPeriodId: null,
+        verified: true,
+        label: 'P1',
+      },
+    };
+    const { result } = renderHook(() => useVideoActivitySessionTeacher());
+
+    let id = '';
+    await act(async () => {
+      id = await result.current.createSession(
+        activity,
+        TEACHER_UID,
+        [],
+        undefined,
+        'Name',
+        [],
+        [],
+        [],
+        'submissions',
+        undefined,
+        undefined,
+        { accessMode: 'assessment', periodAccess }
+      );
+    });
+
+    expect(sessionWrite()).toMatchObject({
+      publicQuestions: [],
+      questionsInContent: true,
+      accessMode: 'assessment',
+      periodAccess,
+    });
+    const content = batchSet.mock.calls.find(
+      (c) => c[0] === `video_activity_sessions/${id}/content/questions`
+    )?.[1] as { publicQuestions: { id: string }[] };
+    expect(content.publicQuestions.map((q) => q.id)).toEqual(['q1']);
+    expect(JSON.stringify(content)).not.toContain('correctAnswer');
+    expect(batchCommit).toHaveBeenCalledTimes(1);
   });
 
   it('trims the assignment name', async () => {

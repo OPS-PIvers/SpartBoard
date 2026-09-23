@@ -9,7 +9,14 @@
  *   /video_activity_sessions/{sessionId}/responses/{studentUid} — VideoActivityResponse
  */
 
-import { useState, useEffect, useCallback, useRef, useContext } from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useContext,
+  useMemo,
+} from 'react';
 import {
   doc,
   collection,
@@ -25,6 +32,7 @@ import {
   where,
   orderBy,
   writeBatch,
+  type DocumentReference,
 } from 'firebase/firestore';
 import { signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
@@ -39,10 +47,22 @@ import {
 } from '@/hooks/useQuizSession';
 import { normalizeVideoActivitySession } from '@/utils/videoActivityNormalize';
 import {
+  QUIZ_CONTENT_COLLECTION,
+  QUIZ_CONTENT_DOC,
+} from '@/utils/quizSessionContent';
+import {
   splitVideoActivitySessionQuestions,
   VA_KEY_DOC_ID,
   VA_KEY_SUBCOLLECTION,
 } from '@/utils/videoActivityPublicQuestions';
+import {
+  hasPeriodAccess,
+  nextScheduledOpen,
+  pickPeriodKey,
+  studentCanEnter,
+  studentPeriodKeys,
+} from '@/utils/periodAccess';
+import { getServerNow } from '@/utils/serverTime';
 import {
   createLeadingTrailingThrottle,
   RESPONSES_THROTTLE_MS,
@@ -123,7 +143,8 @@ export interface UseVideoActivitySessionTeacherResult {
     /** Assignment-policy options (security, feedback, attempt limits,
      *  scoring). Optional — when omitted the session doc carries player-
      *  behavior settings only and grading falls back to legacy semantics. */
-    sessionOptions?: VideoActivitySessionOptions
+    sessionOptions?: VideoActivitySessionOptions,
+    periodGate?: Pick<VideoActivitySession, 'accessMode' | 'periodAccess'>
   ) => Promise<string>;
   /** Sessions created by the current teacher for the selected activity. */
   sessions: VideoActivitySession[];
@@ -205,7 +226,8 @@ export const useVideoActivitySessionTeacher =
         rosterIds: string[] = [],
         mode: AssignmentMode = 'submissions',
         classPeriodByClassId?: Record<string, string>,
-        sessionOptions?: VideoActivitySessionOptions
+        sessionOptions?: VideoActivitySessionOptions,
+        periodGate?: Pick<VideoActivitySession, 'accessMode' | 'periodAccess'>
       ): Promise<string> => {
         const sessionId = crypto.randomUUID();
         const trimmedAssignmentName = assignmentName?.trim();
@@ -217,6 +239,8 @@ export const useVideoActivitySessionTeacher =
 
         // Dedupes, so a duplicated question id can't inflate "Question X of N".
         const split = splitVideoActivitySessionQuestions(activity.questions);
+        // Per-period sessions hide the questions until each period opens.
+        const inContent = !!periodGate?.periodAccess;
         const session: VideoActivitySession = {
           id: sessionId,
           activityId: activity.id,
@@ -228,6 +252,14 @@ export const useVideoActivitySessionTeacher =
           teacherUid,
           youtubeUrl: activity.youtubeUrl,
           ...split.sessionFields,
+          ...(inContent
+            ? {
+                publicQuestions: [],
+                questionsInContent: true,
+                accessMode: periodGate?.accessMode,
+                periodAccess: periodGate?.periodAccess,
+              }
+            : {}),
           settings: sessionSettings,
           status: 'active',
           allowedPins,
@@ -266,6 +298,17 @@ export const useVideoActivitySessionTeacher =
           ),
           split.key
         );
+        if (inContent)
+          batch.set(
+            doc(
+              db,
+              SESSIONS_COLLECTION,
+              sessionId,
+              QUIZ_CONTENT_COLLECTION,
+              QUIZ_CONTENT_DOC
+            ),
+            { publicQuestions: split.sessionFields.publicQuestions ?? [] }
+          );
         await batch.commit();
 
         return sessionId;
@@ -611,6 +654,23 @@ export interface UseVideoActivitySessionStudentResult {
   reportTabSwitch: () => Promise<number>;
   /** Writes the whole tab-away exit log; rules allow one append or one close per write. */
   saveTabExits: (exits: TabExit[]) => Promise<void>;
+  /** The student's periods on a per-period session (empty otherwise), for `studentCanEnter`. */
+  periodKeys: string[];
+  /** True while a per-period session's questions are hidden or still loading. */
+  contentPending: boolean;
+  /** A retake reset is waiting for the student's period to open (the rules freeze it until then). */
+  retakePending: boolean;
+}
+
+/** `video_activity_sessions/{id}/content/questions`: what a per-period session hides until the period opens. */
+type VideoActivitySessionContent = Pick<
+  VideoActivitySession,
+  'publicQuestions'
+>;
+
+/** `seats/{uid}` points the content rule at the caller's response (anonymous keys aren't the uid). */
+function seatRef(sessionId: string, uid: string) {
+  return doc(db, SESSIONS_COLLECTION, sessionId, 'seats', uid);
 }
 
 export const useVideoActivitySessionStudent =
@@ -627,6 +687,34 @@ export const useVideoActivitySessionStudent =
     // `pin-{period}-{pin}` for anonymous PIN joiners. Computed at join time
     // via `computeResponseKey`; see `useQuizSession.ts`.
     const [responseDocId, setResponseDocId] = useState<string | null>(null);
+    const [periodKeys, setPeriodKeys] = useState<string[]>([]);
+    const [retakePending, setRetakePending] = useState(false);
+    // A rejoin reset the rules would refuse while the period is shut; run once it opens.
+    const deferredResetRef = useRef<{
+      ref: DocumentReference;
+      updates: Record<string, unknown>;
+      keys: string[];
+    } | null>(null);
+
+    const runDeferredReset = useCallback((s: VideoActivitySession) => {
+      const pending = deferredResetRef.current;
+      if (!pending) return;
+      if (
+        !studentCanEnter(s, pending.keys, auth.currentUser?.uid, getServerNow())
+      )
+        return;
+      deferredResetRef.current = null;
+      updateDoc(pending.ref, pending.updates).then(
+        () => setRetakePending(false),
+        (err: unknown) => {
+          // Put it back so the next session snapshot retries.
+          deferredResetRef.current = pending;
+          logError('useVideoActivitySessionStudent.deferredReset', err, {
+            responseDocId: pending.ref.id,
+          });
+        }
+      );
+    }, []);
 
     // Listen to session document
     useEffect(() => {
@@ -636,7 +724,9 @@ export const useVideoActivitySessionStudent =
         doc(db, SESSIONS_COLLECTION, sessionId),
         (snap) => {
           if (snap.exists()) {
-            setSession(snap.data() as VideoActivitySession);
+            const next = snap.data() as VideoActivitySession;
+            setSession(next);
+            runDeferredReset(next);
           }
         },
         (err) => {
@@ -647,7 +737,7 @@ export const useVideoActivitySessionStudent =
       );
 
       return unsub;
-    }, [sessionId]);
+    }, [sessionId, runDeferredReset]);
 
     // Listen to own response document
     useEffect(() => {
@@ -677,6 +767,72 @@ export const useVideoActivitySessionStudent =
       return unsub;
     }, [sessionId, responseDocId]);
 
+    // Per-period sessions keep their questions in content/questions, readable
+    // once the student's period is open. A denied read retries whenever the
+    // gate fields change or a scheduled open arrives.
+    const [content, setContent] = useState<VideoActivitySessionContent | null>(
+      null
+    );
+    const [contentRetry, setContentRetry] = useState(0);
+    const inContent = session?.questionsInContent === true;
+    const gateUid = auth.currentUser?.uid ?? null;
+    const gateSignature = inContent
+      ? JSON.stringify([
+          periodKeys.map((k) => session?.periodAccess?.[k] ?? null),
+          gateUid ? (session?.studentAccess?.[gateUid] ?? null) : null,
+          session?.status === 'ended',
+        ])
+      : '';
+    useEffect(() => {
+      if (!session || !hasPeriodAccess(session)) return;
+      const nextOpen = nextScheduledOpen(session, periodKeys, getServerNow());
+      if (nextOpen == null) return;
+      const id = setTimeout(
+        () => {
+          setContentRetry((n) => n + 1);
+          runDeferredReset(session);
+        },
+        Math.max(0, nextOpen - getServerNow()) + 1000
+      );
+      return () => clearTimeout(id);
+    }, [session, periodKeys, runDeferredReset]);
+    useEffect(() => {
+      if (!inContent || !sessionId || !responseDocId) return;
+      return onSnapshot(
+        doc(
+          db,
+          SESSIONS_COLLECTION,
+          sessionId,
+          QUIZ_CONTENT_COLLECTION,
+          QUIZ_CONTENT_DOC
+        ),
+        (snap) => {
+          if (snap.exists())
+            setContent(snap.data() as VideoActivitySessionContent);
+        },
+        (err) => {
+          if ((err as { code?: string }).code !== 'permission-denied') {
+            logError('useVideoActivitySessionStudent.contentListener', err, {
+              sessionId,
+            });
+          }
+        }
+      );
+      // gateSignature and contentRetry re-run a denied read.
+    }, [inContent, sessionId, responseDocId, gateSignature, contentRetry]);
+    const mergedSession = useMemo<VideoActivitySession | null>(
+      () =>
+        session?.questionsInContent && content
+          ? {
+              ...session,
+              publicQuestions: Array.isArray(content.publicQuestions)
+                ? content.publicQuestions
+                : [],
+            }
+          : session,
+      [session, content]
+    );
+
     const lookupSession = useCallback(
       async (targetSessionId: string): Promise<VideoActivitySession | null> => {
         try {
@@ -703,6 +859,8 @@ export const useVideoActivitySessionStudent =
       ): Promise<void> => {
         setJoinStatus('loading');
         setError(null);
+        deferredResetRef.current = null;
+        setRetakePending(false);
 
         try {
           // Load session document
@@ -846,6 +1004,19 @@ export const useVideoActivitySessionStudent =
             }
           }
 
+          // Assessment mode refuses the anonymous PIN key, whose self-picked period no rule can check.
+          if (
+            hasPeriodAccess(sessionData) &&
+            isAnonymous &&
+            sessionData.accessMode === 'assessment'
+          ) {
+            setJoinStatus('error');
+            setError(
+              'This activity needs your school sign-in. Sign in with your school account to join.'
+            );
+            return;
+          }
+
           // Compute the deterministic response-doc key. Anonymous joiners get
           // `pin-{period}-{pin}` so the same PIN in different periods stays
           // distinct and attempt limits survive a device wipe; SSO joiners
@@ -913,6 +1084,51 @@ export const useVideoActivitySessionStudent =
             }
           }
 
+          // Per-period sessions: the join names one of the student's periods
+          // (their existing response's first, else an open one) and seats them.
+          let periodKey: string | null = null;
+          let keys: string[] = [];
+          if (hasPeriodAccess(sessionData)) {
+            const existingClassId = existingSnap.exists()
+              ? (existingSnap.data() as VideoActivityResponse).classId
+              : undefined;
+            if (
+              existingClassId &&
+              existingClassId in sessionData.periodAccess
+            ) {
+              keys = [existingClassId];
+            } else {
+              let claims: string[] = [];
+              if (!isAnonymous) {
+                const tokenResult = await currentUser
+                  .getIdTokenResult()
+                  .catch(() => null);
+                const raw = tokenResult?.claims?.classIds;
+                if (Array.isArray(raw)) {
+                  claims = raw.filter(
+                    (c): c is string => typeof c === 'string'
+                  );
+                }
+              }
+              keys = studentPeriodKeys(sessionData, claims, classPeriod);
+            }
+            periodKey = pickPeriodKey(sessionData, keys, getServerNow());
+            if (!periodKey) {
+              setJoinStatus('error');
+              setError(
+                "You're not in a class this activity was assigned to. Ask your teacher."
+              );
+              return;
+            }
+          }
+          const effectiveClassPeriod = periodKey
+            ? (sessionData.periodAccess?.[periodKey]?.label ?? classPeriod)
+            : classPeriod;
+          // The rules freeze answers/completedAt while the period is shut, so a rejoin reset waits.
+          const canResetNow =
+            !periodKey ||
+            studentCanEnter(sessionData, keys, currentUser.uid, getServerNow());
+
           // Cross-launch attempt cap (Phase 2). Only meaningful for
           // non-anonymous (SSO/studentRole) joiners — see the matching
           // comment in `useQuizSession.joinQuizSession` for the rationale.
@@ -966,22 +1182,33 @@ export const useVideoActivitySessionStudent =
               // `completedAt`, so this branch handles the safety-net
               // case where a Firestore propagation lag leaves the
               // student's tab seeing the old `completedAt` value.
-              await updateDoc(effectiveResponseRef, {
+              const resume = {
                 completedAt: null,
-                ...(classPeriod && existing.classPeriod !== classPeriod
-                  ? { classPeriod }
+                ...(effectiveClassPeriod &&
+                existing.classPeriod !== effectiveClassPeriod
+                  ? { classPeriod: effectiveClassPeriod }
                   : {}),
-              }).catch((err: unknown) =>
-                logError(
-                  'useVideoActivitySessionStudent.update-resume-unlocked',
-                  err as Error,
-                  {
-                    sessionId: targetSessionId,
-                    responseDocId: responseDocKey,
-                    studentUid: existing.studentUid,
-                  }
-                )
-              );
+              };
+              if (!canResetNow) {
+                deferredResetRef.current = {
+                  ref: effectiveResponseRef,
+                  updates: resume,
+                  keys,
+                };
+                setRetakePending(true);
+              } else
+                await updateDoc(effectiveResponseRef, resume).catch(
+                  (err: unknown) =>
+                    logError(
+                      'useVideoActivitySessionStudent.update-resume-unlocked',
+                      err as Error,
+                      {
+                        sessionId: targetSessionId,
+                        responseDocId: responseDocKey,
+                        studentUid: existing.studentUid,
+                      }
+                    )
+                );
             } else if (existing.completedAt != null) {
               const completed = Math.max(
                 existing.completedAttempts ?? 0,
@@ -991,13 +1218,22 @@ export const useVideoActivitySessionStudent =
               if (limit !== null && completed >= limit) {
                 throw new AttemptLimitReachedError();
               }
-              await updateDoc(effectiveResponseRef, {
+              const reset = {
                 completedAt: null,
                 answers: [],
-                ...(classPeriod && existing.classPeriod !== classPeriod
-                  ? { classPeriod }
+                ...(effectiveClassPeriod &&
+                existing.classPeriod !== effectiveClassPeriod
+                  ? { classPeriod: effectiveClassPeriod }
                   : {}),
-              });
+              };
+              if (!canResetNow) {
+                deferredResetRef.current = {
+                  ref: effectiveResponseRef,
+                  updates: reset,
+                  keys,
+                };
+                setRetakePending(true);
+              } else await updateDoc(effectiveResponseRef, reset);
             }
           } else if (limit !== null && ledgerCompleted >= limit) {
             // No response doc for this session yet, but the ledger says
@@ -1024,9 +1260,31 @@ export const useVideoActivitySessionStudent =
               completedAttempts: 0,
               tabSwitchWarnings: 0,
               ...(studentPin ? { pin: studentPin } : {}),
-              ...(classPeriod ? { classPeriod } : {}),
+              ...(effectiveClassPeriod
+                ? { classPeriod: effectiveClassPeriod }
+                : {}),
+              ...(periodKey ? { classId: periodKey } : {}),
             };
-            await setDoc(effectiveResponseRef, newResponse);
+            // The seat lands in the same batch so the content rule can find the response.
+            if (periodKey)
+              await writeBatch(db)
+                .set(effectiveResponseRef, newResponse)
+                .set(seatRef(targetSessionId, currentUser.uid), {
+                  responseKey: effectiveResponseRef.id,
+                })
+                .commit();
+            else await setDoc(effectiveResponseRef, newResponse);
+          }
+
+          if (periodKey && existingSnap.exists()) {
+            await setDoc(seatRef(targetSessionId, currentUser.uid), {
+              responseKey: effectiveResponseRef.id,
+            }).catch((err: unknown) =>
+              logError('useVideoActivitySessionStudent.seat', err, {
+                sessionId: targetSessionId,
+                responseDocId: effectiveResponseRef.id,
+              })
+            );
           }
 
           setSessionId(targetSessionId);
@@ -1035,6 +1293,10 @@ export const useVideoActivitySessionStudent =
           // listener path keeps tracking the doc that actually has their
           // answers. New writes always go to `effectiveResponseRef`.
           setResponseDocId(effectiveResponseRef.id);
+          setPeriodKeys(keys);
+          setContent(null);
+          // The first content read can race the seat write; retry once seated.
+          if (periodKey) setContentRetry((n) => n + 1);
           setSession(sessionData);
           setJoinStatus('joined');
         } catch (err) {
@@ -1277,7 +1539,7 @@ export const useVideoActivitySessionStudent =
     );
 
     return {
-      session,
+      session: mergedSession,
       myResponse,
       joinStatus,
       error,
@@ -1288,5 +1550,8 @@ export const useVideoActivitySessionStudent =
       completeActivity,
       reportTabSwitch,
       saveTabExits,
+      periodKeys,
+      contentPending: inContent && !content,
+      retakePending,
     };
   };

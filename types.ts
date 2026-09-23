@@ -6204,7 +6204,8 @@ export interface VideoActivityGlobalConfig {
  * A Firestore session document giving students access to an activity.
  * Stored at /video_activity_sessions/{sessionId}
  */
-export interface VideoActivitySession extends SubLaunchedSessionFields {
+export interface VideoActivitySession
+  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
   id: string;
   activityId: string;
   activityTitle: string;
@@ -6218,6 +6219,8 @@ export interface VideoActivitySession extends SubLaunchedSessionFields {
   questions: VideoActivityQuestion[];
   /** Student-facing projection with no answer key. Absent on legacy docs. */
   publicQuestions?: VideoActivityPublicQuestion[];
+  /** Per-period sessions keep publicQuestions in `content/questions`; the session copy stays empty. */
+  questionsInContent?: boolean;
   /** Session-level player-behavior controls configured at assignment time. */
   settings?: VideoActivitySessionSettings;
   /**
@@ -6387,6 +6390,8 @@ export interface VideoActivityResponse {
   score: number | null;
   /** Which class period the student selected when joining (multi-class support). */
   classPeriod?: string;
+  /** The `periodAccess` key this student joined under; set once at join on per-period sessions. */
+  classId?: string;
   /** Count of tab/focus losses while the activity is in progress. Append-only at the rules layer. */
   tabSwitchWarnings?: number;
   /** One entry per exit (capped at `TAB_EXITS_MAX`); `tabSwitchWarnings` stays the count. */
@@ -9557,7 +9562,10 @@ export interface VideoActivityAssignmentSettings {
  * document (1:1 pairing, matches the Quiz pattern).
  */
 export interface VideoActivityAssignment
-  extends VideoActivityAssignmentSettings, SubLaunchedSessionFields {
+  extends
+    VideoActivityAssignmentSettings,
+    SubLaunchedSessionFields,
+    PeriodAccessSessionFields {
   /** Assignment UUID — also the sessionId. */
   id: string;
   activityId: string;

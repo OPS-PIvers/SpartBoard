@@ -35,6 +35,8 @@ export interface PeriodAccessCollections {
   sessionCollection: string;
   /** e.g. `quiz_assignments` under `users/{teacherUid}`, mirrored for the hub. */
   assignmentCollection: string;
+  /** False for kinds with no idle finalizer, whose responses carry no `lastWriteAt`. */
+  refreshIdle?: boolean;
 }
 
 type PeriodSession = PeriodAccessSessionFields & {
@@ -101,7 +103,11 @@ export function startCloseAt(
 /** Teacher writes for the per-period chips and Let in now, generic over the session collection. */
 export function usePeriodAccess(
   session: PeriodSession | null,
-  { sessionCollection, assignmentCollection }: PeriodAccessCollections,
+  {
+    sessionCollection,
+    assignmentCollection,
+    refreshIdle = true,
+  }: PeriodAccessCollections,
   rosters: readonly BellRoster[] | undefined
 ) {
   const { user, featurePermissions } = useAuth();
@@ -138,7 +144,7 @@ export function usePeriodAccess(
   // Mirrors resumeAssignment: a period that sat frozen must not finalize the moment it opens.
   const refreshStaleResponses = useCallback(
     async (keys: readonly string[]) => {
-      if (!sessionId) return;
+      if (!sessionId || !refreshIdle) return;
       const snap = await getDocs(
         query(
           collection(db, sessionCollection, sessionId, 'responses'),
@@ -161,7 +167,7 @@ export function usePeriodAccess(
         await batch.commit();
       }
     },
-    [sessionId, sessionCollection]
+    [sessionId, sessionCollection, refreshIdle]
   );
 
   /** Resolves to the assessment periods that opened with no end bell to close them. */

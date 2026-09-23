@@ -5,6 +5,7 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
+import { isPeriodFrozen } from './quizSessionContent';
 import {
   dedupeById,
   gradeVaAnswer,
@@ -141,6 +142,11 @@ export async function handleCheckVideoActivityAnswer(
   });
   const responseDoc = responseSnap.docs[0];
   if (isTeacher || isViewOnly || !responseDoc) return result(input.answer);
+  if (isPeriodFrozen(session, responseDoc.data(), nowMs))
+    throw new HttpsError(
+      'failed-precondition',
+      "Your class period isn't open right now."
+    );
   if (
     settings.allowSkipping !== true &&
     !allEarlierAnswered(questions, question, responseDoc.data().answers)
@@ -214,7 +220,15 @@ export async function scrubVideoActivitySessionKey(
   before: Record<string, unknown> | null = null
 ): Promise<'deleted' | 'scrubbed' | 'clean' | 'deferred'> {
   if (!after) {
-    await keyRef(db, sessionId).delete();
+    await Promise.all([
+      keyRef(db, sessionId).delete(),
+      db
+        .collection(SESSIONS)
+        .doc(sessionId)
+        .collection('content')
+        .doc('questions')
+        .delete(),
+    ]);
     return 'deleted';
   }
   if (!hasEmbeddedKey(after.questions)) return 'clean';

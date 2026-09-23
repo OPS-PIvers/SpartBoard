@@ -111,6 +111,38 @@ const input = (answer: string) => ({
 });
 
 describe('handleCheckVideoActivityAnswer', () => {
+  it('refuses a student whose period is frozen, unless let in', async () => {
+    const docs = (studentAccess?: Record<string, number>) =>
+      makeDb({
+        [SESSION]: {
+          teacherUid: 't1',
+          questions: [],
+          periodAccess: {
+            A: { state: 'closed', openAt: null, closeAt: null },
+            B: { state: 'open', openAt: null, closeAt: null },
+          },
+          ...(studentAccess ? { studentAccess } : {}),
+        },
+        [KEY]: { questions: KEYED },
+        [`${SESSION}/responses/stu`]: { studentUid: 'stu', classId: 'A' },
+        [`${SESSION}/responses/stu2`]: { studentUid: 'stu2', classId: 'B' },
+      });
+    await expect(
+      handleCheckVideoActivityAnswer(docs(), 'stu', input('Paris'), 1_000)
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    await expect(
+      handleCheckVideoActivityAnswer(docs(), 'stu2', input('Paris'), 1_000)
+    ).resolves.toMatchObject({ isCorrect: true });
+    await expect(
+      handleCheckVideoActivityAnswer(
+        docs({ stu: 2_000 }),
+        'stu',
+        input('Paris'),
+        1_000
+      )
+    ).resolves.toMatchObject({ isCorrect: true });
+  });
+
   it('grades a joined student against the key doc', async () => {
     const db = makeDb({
       [SESSION]: { teacherUid: 't1', questions: [] },
@@ -354,11 +386,16 @@ describe('scrubVideoActivitySessionKey', () => {
     expect(docs[KEY]).toBeUndefined();
   });
 
-  it('deletes the key doc with its session', async () => {
-    const docs: Record<string, Doc> = { [KEY]: { questions: KEYED } };
+  it('deletes the key and content docs with their session', async () => {
+    const CONTENT = `${SESSION}/content/questions`;
+    const docs: Record<string, Doc> = {
+      [KEY]: { questions: KEYED },
+      [CONTENT]: { publicQuestions: [] },
+    };
     await expect(
       scrubVideoActivitySessionKey(makeDb(docs), 's1', null)
     ).resolves.toBe('deleted');
     expect(docs[KEY]).toBeUndefined();
+    expect(docs[CONTENT]).toBeUndefined();
   });
 });

@@ -45,6 +45,31 @@ import {
   hasReachedTabWarningThreshold,
 } from '@/utils/tabWarningThreshold';
 import { TabAwayClock } from '@/components/common/TabAwayClock';
+import { useServerNow } from '@/hooks/useServerNow';
+import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
+import {
+  VideoActivityPeriodLockedScreen,
+  VideoActivityPeriodPausedOverlay,
+} from './VideoActivityPeriodLockedScreen';
+
+function errorCode(err: unknown): unknown {
+  return err && typeof err === 'object' && 'code' in err
+    ? (err as { code?: unknown }).code
+    : undefined;
+}
+
+/** The answer check refused because the student's class period is shut. */
+function isFrozenCheckError(err: unknown): boolean {
+  const code = errorCode(err);
+  return (
+    code === 'failed-precondition' || code === 'functions/failed-precondition'
+  );
+}
+
+/** A write the rules refused; on a per-period session that means the period is shut. */
+function isFrozenWriteError(err: unknown): boolean {
+  return errorCode(err) === 'permission-denied';
+}
 
 /**
  * Resolve the SSO student's class period from the session's
@@ -240,6 +265,9 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     completeActivity,
     reportTabSwitch,
     saveTabExits,
+    periodKeys,
+    contentPending,
+    retakePending,
   } = useVideoActivitySessionStudent();
 
   const isViewOnly = session?.mode === 'view-only';
@@ -252,6 +280,52 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   useEffect(() => {
     return onAuthStateChanged(auth, (user) => setAuthedUid(user?.uid ?? null));
   }, []);
+
+  // Per-period gate, re-checked as the clock passes a window edge.
+  const perPeriod = hasPeriodAccess(session) && session.status !== 'ended';
+  const periodNow = useServerNow(perPeriod ? 5000 : null);
+  const canEnter = studentCanEnter(session, periodKeys, authedUid, periodNow);
+  const gateKey = perPeriod
+    ? JSON.stringify([
+        periodKeys.map((k) => session?.periodAccess?.[k] ?? null),
+        authedUid ? (session?.studentAccess?.[authedUid] ?? null) : null,
+      ])
+    : '';
+  // A write the server refused as frozen holds the pause until the gate fields change.
+  const [frozenGate, setFrozenGate] = useState<string | null>(null);
+  if (frozenGate !== null && frozenGate !== gateKey) setFrozenGate(null);
+  const periodPaused = perPeriod && (!canEnter || frozenGate === gateKey);
+  // Once the player has shown, a later close pauses it in place rather than swapping screens.
+  const [entered, setEntered] = useState(false);
+  if (
+    !entered &&
+    perPeriod &&
+    canEnter &&
+    !contentPending &&
+    !retakePending &&
+    joinStatus === 'joined'
+  ) {
+    setEntered(true);
+  }
+  const periodHold = perPeriod && (periodPaused || !entered);
+  const [overlayNonce, setOverlayNonce] = useState(0);
+  const [finishPending, setFinishPending] = useState(false);
+  const checkFrozenRef = useRef(false);
+  const freezeForPeriod = useCallback(() => {
+    setFrozenGate(gateKey);
+    setOverlayNonce((n) => n + 1);
+  }, [gateKey]);
+  const guardedCheckAnswer = useCallback(
+    async (questionId: string, answer: string) => {
+      try {
+        return await checkAnswer(questionId, answer);
+      } catch (err) {
+        if (perPeriod && isFrozenCheckError(err)) checkFrozenRef.current = true;
+        throw err;
+      }
+    },
+    [checkAnswer, perPeriod]
+  );
 
   // M17 C3-va: read the student's own pointer override (`timeMultiplier`
   // accommodation). VA has no timed elements in its player today (no
@@ -416,6 +490,12 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const handleAnswer = useCallback(
     async (answer: string, isCorrect: boolean, graded: boolean) => {
       if (!activeQuestion) return;
+      // The check was refused as frozen: keep the question for when the period reopens.
+      if (checkFrozenRef.current) {
+        checkFrozenRef.current = false;
+        freezeForPeriod();
+        return;
+      }
       const requireCorrect = session?.settings?.requireCorrectAnswer ?? true;
       if (requireCorrect && !isCorrect) {
         const activeIdx = sortedQuestions.findIndex(
@@ -432,11 +512,17 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       // rejects the write defense-in-depth, but skip it client-side too so
       // the console stays clean.
       if (!isViewOnly) {
-        await submitAnswer(
-          activeQuestion.id,
-          answer,
-          graded ? isCorrect : undefined
-        );
+        try {
+          await submitAnswer(
+            activeQuestion.id,
+            answer,
+            graded ? isCorrect : undefined
+          );
+        } catch (err) {
+          if (!perPeriod || !isFrozenWriteError(err)) throw err;
+          freezeForPeriod();
+          return;
+        }
       }
       setActiveQuestion(null);
     },
@@ -446,14 +532,24 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       sortedQuestions,
       submitAnswer,
       isViewOnly,
+      perPeriod,
+      freezeForPeriod,
     ]
   );
 
   const handleVideoEnd = useCallback(async () => {
     setVideoEnded(true);
     if (isViewOnly) return;
-    await completeActivity();
-  }, [completeActivity, isViewOnly]);
+    try {
+      await completeActivity();
+    } catch (err) {
+      if (!perPeriod || !isFrozenWriteError(err)) throw err;
+      // Not submitted: offer Finish once the class reopens.
+      setVideoEnded(false);
+      setFinishPending(true);
+      freezeForPeriod();
+    }
+  }, [completeActivity, isViewOnly, perPeriod, freezeForPeriod]);
 
   // ── Tab-switch warning system (mirrors QuizStudentApp) ──────────────────
   const { showAlert } = useDialog();
@@ -500,9 +596,14 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         title: 'Activity Auto-Submitted',
         variant: 'warning',
       });
-      await completeActivity();
+      try {
+        await completeActivity();
+      } catch (err) {
+        if (!perPeriod || !isFrozenWriteError(err)) throw err;
+        freezeForPeriod();
+      }
     },
-    [showAlert, completeActivity]
+    [showAlert, completeActivity, perPeriod, freezeForPeriod]
   );
 
   const tabWarningsEnabled =
@@ -521,6 +622,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       joinStatus === 'joined' &&
       session?.status === 'active' &&
       !isViewOnly &&
+      !periodHold &&
       myResponse?.completedAt == null,
     sessionActive: session?.status === 'active',
     ready: myResponse != null,
@@ -769,7 +871,9 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const attemptLimit = session?.sessionOptions?.attemptLimit ?? null;
   const completedCount = myResponse?.completedAttempts ?? 0;
   const atCap = attemptLimit !== null && completedCount >= attemptLimit;
-  if (videoEnded || myResponse?.completedAt || atCap) {
+  // A retake waiting on a shut period shows the locked card; otherwise finished work always shows here.
+  const retakeWaiting = retakePending && perPeriod && !canEnter;
+  if ((videoEnded || myResponse?.completedAt || atCap) && !retakeWaiting) {
     const answeredCount = myResponse?.answers.length ?? 0;
     const totalQuestions = sortedQuestions.length;
     // Score visibility gates whether the student sees their percentage. The
@@ -844,6 +948,22 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         </div>
       </div>
     );
+  }
+
+  // ── Per-period session not open for this student ─────────────────────────
+
+  if (perPeriod && session && !entered) {
+    if (!canEnter) {
+      return (
+        <VideoActivityPeriodLockedScreen
+          session={session}
+          periodKeys={periodKeys}
+          now={periodNow}
+          started={!retakePending && (myResponse?.answers.length ?? 0) > 0}
+        />
+      );
+    }
+    return <FullPageLoader message="Loading activity…" />;
   }
 
   // ── Active video + question overlay ───────────────────────────────────────
@@ -972,15 +1092,32 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 autoPlay={session?.settings?.autoPlay ?? false}
                 seekRequest={seekRequest}
                 playheadRef={playheadRef}
+                paused={periodPaused}
               />
 
-              {activeQuestion && (
+              {periodPaused && <VideoActivityPeriodPausedOverlay />}
+
+              {finishPending && !periodPaused && (
+                <div className="absolute inset-0 z-30 bg-slate-900/80 flex items-center justify-center p-6">
+                  <button
+                    onClick={() => {
+                      setFinishPending(false);
+                      void handleVideoEnd();
+                    }}
+                    className="px-8 py-4 bg-white text-slate-900 font-bold rounded-xl active:scale-95 transition-transform"
+                  >
+                    Finish activity
+                  </button>
+                </div>
+              )}
+
+              {activeQuestion && !periodPaused && (
                 <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-[1px] flex items-center justify-center overflow-y-auto p-2 sm:p-4">
                   <QuestionOverlay
-                    key={activeQuestion.id}
+                    key={`${activeQuestion.id}-${overlayNonce}`}
                     question={activeQuestion}
                     checkAnswer={(answer) =>
-                      checkAnswer(activeQuestion.id, answer)
+                      guardedCheckAnswer(activeQuestion.id, answer)
                     }
                     onAnswer={handleAnswer}
                     questionIndex={
