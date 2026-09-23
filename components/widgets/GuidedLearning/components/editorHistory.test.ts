@@ -146,7 +146,9 @@ describe('useGuidedLearningEditorState history', () => {
 
   it('records a whole move gesture as one entry', () => {
     const { result } = renderEditor();
+    act(() => result.current.addStepAt(10, 10));
     act(() => result.current.beginGesture());
+    expect(result.current.canUndo).toBe(false);
     for (let i = 1; i <= 30; i++) {
       act(() => {
         vi.advanceTimersByTime(COALESCE_MS + 1);
@@ -154,10 +156,11 @@ describe('useGuidedLearningEditorState history', () => {
       });
     }
     act(() => result.current.endGesture());
+    expect(result.current.canUndo).toBe(true);
     expect(result.current.steps[0].xPct).toBe(30);
     act(() => result.current.undo());
     expect(result.current.steps[0].xPct).toBe(50);
-    expect(result.current.canUndo).toBe(false);
+    expect(result.current.steps).toHaveLength(4);
   });
 
   it('undoes deleting a step', () => {
