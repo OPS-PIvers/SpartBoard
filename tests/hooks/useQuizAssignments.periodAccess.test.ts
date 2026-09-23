@@ -138,8 +138,13 @@ describe('useQuizAssignments — per-period sessions', () => {
         QUIZ,
         { sessionMode: 'student', sessionOptions: {} },
         withPeriods
-          ? { accessMode: 'assessment', periodAccess: PERIODS }
-          : undefined
+          ? {
+              accessMode: 'assessment',
+              periodAccess: PERIODS,
+              openAt: 1_000,
+              closeAt: 2_000,
+            }
+          : { openAt: 1_000, closeAt: 2_000 }
       ));
     });
     return id;
@@ -157,6 +162,8 @@ describe('useQuizAssignments — per-period sessions', () => {
       totalQuestions: 1,
     });
     expect(session).not.toHaveProperty('stimuli');
+    expect(session).not.toHaveProperty('openAt');
+    expect(session).not.toHaveProperty('closeAt');
     expect(session).not.toHaveProperty('readAloudTextByStimulusId');
     expect(content?.publicQuestions).toEqual([
       expect.objectContaining({ id: 'q1', text: 'What is a cell?' }),
@@ -173,6 +180,7 @@ describe('useQuizAssignments — per-period sessions', () => {
     const session = setAt(`quiz_sessions/${id}`);
     expect(session?.publicQuestions).toHaveLength(1);
     expect(session).not.toHaveProperty('questionsInContent');
+    expect(session).toMatchObject({ openAt: 1_000, closeAt: 2_000 });
     expect(setAt(`quiz_sessions/${id}/content/questions`)).toBeUndefined();
   });
 

@@ -1247,8 +1247,9 @@ export const useQuizAssignments = (
         ...(overridesBySourcedId && Object.keys(overridesBySourcedId).length > 0
           ? { overridesBySourcedId }
           : {}),
-        ...(openAt != null ? { openAt } : {}),
-        ...(closeAt != null ? { closeAt } : {}),
+        // Per-period sessions carry each period's window instead of a shared one.
+        ...(openAt != null && !perPeriod ? { openAt } : {}),
+        ...(closeAt != null && !perPeriod ? { closeAt } : {}),
         ...(settings.resolvedDriveFileId
           ? { resolvedDriveFileId: settings.resolvedDriveFileId }
           : {}),
@@ -1389,8 +1390,8 @@ export const useQuizAssignments = (
         mode: assignmentMode,
         // M17 window (spec §5 A1/B3). `individualTargeting` is written only
         // by `setAssignmentTargetsV1` (§2a ordering guarantee), never here.
-        ...(openAt != null ? { openAt } : {}),
-        ...(closeAt != null ? { closeAt } : {}),
+        ...(openAt != null && !perPeriod ? { openAt } : {}),
+        ...(closeAt != null && !perPeriod ? { closeAt } : {}),
         // /my-assignments reads the due date off the SESSION doc for class-wide
         // students, so mirror it here alongside the window (the archive doc
         // above already carries it).
