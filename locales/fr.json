@@ -1964,6 +1964,8 @@
     "copy": "Copier",
     "timeMultiplier": "Temps supplémentaire",
     "tabWarningThreshold": "Seuil d'avertissement d'onglet",
+    "tabAwayLimit": "Temps d'absence autorisé (secondes)",
+    "noAutoSubmit": "Pas d'envoi automatique",
     "default": "Par défaut",
     "off": "Désactivé",
     "windowShift": "Décalage de fenêtre",
@@ -1986,6 +1988,8 @@
       "rubricSwaps_other": "{{count}} changements de grille",
       "tabWarningsOff": "Avertissements d'onglet désactivés",
       "tabWarning": "Avertissement d'onglet : {{threshold}}",
+      "tabAwayOff": "Pas d'envoi auto. en cas d'absence",
+      "tabAway": "Limite d'absence : {{seconds}} s",
       "windowShifted": "Fenêtre décalée",
       "readAloud": "Lecture à voix haute",
       "language": "{{language}}"

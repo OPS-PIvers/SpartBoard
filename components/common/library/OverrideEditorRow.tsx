@@ -20,6 +20,11 @@ import { summarizeOverride } from '@/utils/studentOverrideSummary';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { AuthContext } from '@/context/AuthContextValue';
 import { isAppLocale } from '@/utils/isAppLocale';
+import {
+  TAB_AWAY_LIMIT_MAX_SECONDS,
+  TAB_AWAY_LIMIT_MIN_SECONDS,
+  clampTabAwaySeconds,
+} from '@/utils/tabAwayLimit';
 import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
 import { useQuizTranslationSettings } from '@/hooks/useQuizTranslationSettings';
 
@@ -122,8 +127,11 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
 }) => {
   const { t } = useTranslation();
   // Read via context so a provider-less host denies instead of throwing.
+  const authContext = useContext(AuthContext);
   const translationAvailable =
-    useContext(AuthContext)?.canAccessFeature?.('quiz-translation') === true;
+    authContext?.canAccessFeature?.('quiz-translation') === true;
+  const tabAwayTimerOn =
+    authContext?.canAccessFeature?.('tab-away-timer') === true;
   const { languages: enabledLanguages } =
     useQuizTranslationSettings(translationAvailable);
   // A student already on a now-disabled code must still render their choice.
@@ -135,6 +143,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [copySourceId, setCopySourceId] = useState('');
   const tabWarningInputId = useId();
+  const tabAwayInputId = useId();
   // Per-question ids, so each rubric select is named by its own question.
   const rubricSelectIdBase = useId();
 
@@ -390,6 +399,64 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                     }
                   />
                   {t('studentOverride.off', 'Off')}
+                </label>
+              </div>
+            </div>
+          )}
+
+          {quizMode && tabAwayTimerOn && (
+            <div>
+              <label
+                htmlFor={tabAwayInputId}
+                className="text-xs font-bold uppercase tracking-wider text-slate-500"
+              >
+                {t(
+                  'studentOverride.tabAwayLimit',
+                  'Time allowed away (seconds)'
+                )}
+              </label>
+              <div className="mt-1 flex items-center gap-2">
+                <input
+                  id={tabAwayInputId}
+                  type="number"
+                  min={TAB_AWAY_LIMIT_MIN_SECONDS}
+                  max={TAB_AWAY_LIMIT_MAX_SECONDS}
+                  disabled={override.tabAwayLimit === 'off'}
+                  value={
+                    typeof override.tabAwayLimit === 'number'
+                      ? override.tabAwayLimit
+                      : ''
+                  }
+                  onChange={(e) => {
+                    const n = Number.parseInt(e.target.value, 10);
+                    patch({
+                      tabAwayLimit: Number.isFinite(n)
+                        ? Math.min(TAB_AWAY_LIMIT_MAX_SECONDS, Math.max(1, n))
+                        : undefined,
+                    });
+                  }}
+                  onBlur={() => {
+                    if (typeof override.tabAwayLimit === 'number')
+                      patch({
+                        tabAwayLimit: clampTabAwaySeconds(
+                          override.tabAwayLimit
+                        ),
+                      });
+                  }}
+                  placeholder={t('studentOverride.default', 'Default')}
+                  className="w-20 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-40"
+                />
+                <label className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={override.tabAwayLimit === 'off'}
+                    onChange={(e) =>
+                      patch({
+                        tabAwayLimit: e.target.checked ? 'off' : undefined,
+                      })
+                    }
+                  />
+                  {t('studentOverride.noAutoSubmit', 'No auto-submit')}
                 </label>
               </div>
             </div>

@@ -1708,6 +1708,20 @@ describe('sanitizeOverride', () => {
     });
   });
 
+  it('keeps a tab-away limit, clamped to 5-300 seconds, or off', () => {
+    expect(sanitizeOverride({ tabAwayLimit: 90 })).toEqual({
+      tabAwayLimit: 90,
+    });
+    expect(sanitizeOverride({ tabAwayLimit: 1 })).toEqual({ tabAwayLimit: 5 });
+    expect(sanitizeOverride({ tabAwayLimit: 9000 })).toEqual({
+      tabAwayLimit: 300,
+    });
+    expect(sanitizeOverride({ tabAwayLimit: 'off' })).toEqual({
+      tabAwayLimit: 'off',
+    });
+    expect(sanitizeOverride({ tabAwayLimit: 'forever' })).toBeNull();
+  });
+
   it('drops a non-true readAloud value', () => {
     expect(sanitizeOverride({ readAloud: 'yes', timeMultiplier: 2 })).toEqual({
       timeMultiplier: 2,

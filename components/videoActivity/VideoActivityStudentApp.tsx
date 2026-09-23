@@ -39,6 +39,12 @@ import { QuestionOverlay } from './QuestionOverlay';
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
 import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
+import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
+import {
+  getEffectiveTabWarningThreshold,
+  hasReachedTabWarningThreshold,
+} from '@/utils/tabWarningThreshold';
+import { TabAwayClock } from '@/components/common/TabAwayClock';
 
 /**
  * Resolve the SSO student's class period from the session's
@@ -489,7 +495,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       const message =
         reason === 'post-unlock'
           ? 'Your unlocked attempt is being submitted now.'
-          : 'You have left the activity 3 times. Your activity is being auto-submitted.';
+          : 'You have left the activity too many times. Your activity is being auto-submitted.';
       await showAlert(message, {
         title: 'Activity Auto-Submitted',
         variant: 'warning',
@@ -501,6 +507,11 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
   const tabWarningsEnabled =
     session?.sessionOptions?.tabWarningsEnabled !== false;
+  const tabWarningThreshold = getEffectiveTabWarningThreshold(
+    session?.sessionOptions?.tabWarningThreshold
+  );
+  // Null unless the teacher assigned with the tab-away-timer flag.
+  const tabAwayRule = getEffectiveTabAwayRule(session?.sessionOptions ?? {});
 
   // The tab-away tracker counts each exit, logs it to `tabExits`, and closes
   // it when the student comes back.
@@ -537,16 +548,32 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         return true;
       }
       setShowCheatWarning(true);
-      if (newTotal >= 3) {
+      if (hasReachedTabWarningThreshold(newTotal, tabWarningThreshold)) {
         setTimeout(() => void handleAutoSubmit(), 100);
         return true;
       }
       return false;
     },
     saveExits: saveTabExits,
-    limitMs: null,
-    autoSubmit: false,
-    onAwayTooLong: () => undefined,
+    limitMs: tabAwayRule?.limitMs ?? null,
+    autoSubmit: tabAwayRule?.autoSubmit ?? false,
+    onAwayTooLong: () => {
+      // Submit first: the tab may be hidden, where a blocking alert would wait.
+      setShowCheatWarning(true);
+      void completeActivity()
+        .then(() =>
+          showAlert(
+            'You were away from the activity too long, so it was submitted.',
+            { title: 'Activity Auto-Submitted', variant: 'warning' }
+          )
+        )
+        .catch((err: unknown) =>
+          logError('VideoActivityStudentApp.awayAutoSubmit', err, {
+            sessionId,
+          })
+        )
+        .finally(tabTracker.release);
+    },
   });
 
   // ── Invalid / missing session ID ──────────────────────────────────────────
@@ -794,9 +821,16 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                   </p>
                 )}
 
-                {(myResponse?.tabSwitchWarnings ?? 0) >= 3 && (
+                {hasReachedTabWarningThreshold(
+                  myResponse?.tabSwitchWarnings ?? 0,
+                  tabWarningThreshold
+                ) && (
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-sm">
-                    Auto-submitted because you left the activity tab 3 times.
+                    Auto-submitted because you left the activity tab{' '}
+                    {tabWarningThreshold === 1
+                      ? 'once'
+                      : `${tabWarningThreshold} times`}
+                    .
                   </div>
                 )}
 
@@ -855,12 +889,28 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
           <h2 className="text-4xl font-black text-white mb-4">
             TAB SWITCH DETECTED
           </h2>
+          {tabAwayRule && tabTracker.away && (
+            <TabAwayClock
+              away={tabTracker.away}
+              limitMs={tabAwayRule.limitMs}
+              autoSubmit={tabAwayRule.autoSubmit}
+            />
+          )}
           <p className="text-red-200 text-lg max-w-md mb-8">
             You navigated away from the activity. This incident has been logged.
             <br />
             <br />
-            <strong>Warning {warningCount} of 3.</strong> If you reach 3
-            warnings, your activity will automatically submit.
+            {tabWarningThreshold === 'off' ? (
+              <strong>Warning {warningCount}.</strong>
+            ) : (
+              <>
+                <strong>
+                  Warning {warningCount} of {tabWarningThreshold}.
+                </strong>{' '}
+                If you reach {tabWarningThreshold} warnings, your activity will
+                automatically submit.
+              </>
+            )}
           </p>
           <button
             onClick={() => {

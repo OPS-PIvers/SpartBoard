@@ -47,6 +47,10 @@ import {
 } from '@/components/common/sessionViews';
 import { logError } from '@/utils/logError';
 import { useVideoActivityKeyQuestions } from '@/hooks/useVideoActivityKeyQuestions';
+import {
+  getEffectiveTabWarningThreshold,
+  hasReachedTabWarningThreshold,
+} from '@/utils/tabWarningThreshold';
 
 interface VideoActivityLiveMonitorProps {
   session: VideoActivitySession;
@@ -73,6 +77,8 @@ interface VideoActivityLiveMonitorProps {
 
 interface StudentRowProps {
   response: VideoActivityResponse;
+  /** Session's exits-before-auto-submit, or 'off'. */
+  tabWarningThreshold: number | 'off';
   questions: VideoActivityQuestion[];
   /**
    * Roster name lookup keyed by `response.studentUid`. Used to label SSO
@@ -115,6 +121,7 @@ function pickDisplayLabel(
 
 const StudentRow: React.FC<StudentRowProps> = ({
   response,
+  tabWarningThreshold,
   questions,
   byStudentUid,
   showTabWarnings,
@@ -171,7 +178,9 @@ const StudentRow: React.FC<StudentRowProps> = ({
   let lockBadge: React.ReactNode = null;
   if (onUnlock) {
     const isAutoSubmittedByWarnings =
-      completed && warnings >= 3 && !response.unlocked;
+      completed &&
+      hasReachedTabWarningThreshold(warnings, tabWarningThreshold) &&
+      !response.unlocked;
     const completedCount = response.completedAttempts ?? 0;
     const hitAttemptCap =
       typeof attemptLimit === 'number' &&
@@ -621,6 +630,9 @@ export const VideoActivityLiveMonitor: React.FC<
                     <StudentRow
                       key={rowKey}
                       response={r}
+                      tabWarningThreshold={getEffectiveTabWarningThreshold(
+                        session.sessionOptions?.tabWarningThreshold
+                      )}
                       questions={questions}
                       byStudentUid={byStudentUid}
                       showTabWarnings={

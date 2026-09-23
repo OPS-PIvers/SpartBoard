@@ -15,7 +15,7 @@
  * this UI). Mirrors `QuizBehaviorSettingsPanel` in structure.
  */
 
-import React from 'react';
+import React, { useContext } from 'react';
 import { User, Zap, Clock } from 'lucide-react';
 import type {
   VideoActivityBehaviorSettings,
@@ -25,6 +25,8 @@ import type {
 import { AssignmentSettingsToggleGroup } from './AssignmentSettingsToggleGroup';
 import { CollapsibleSection } from './CollapsibleSection';
 import type { AssignModeOption } from './types';
+import { TabAwayLimitRow, TabWarningThresholdRow } from './TabWarningRows';
+import { AuthContext } from '@/context/AuthContextValue';
 
 export interface VideoActivityBehaviorSettingsPanelProps {
   value: VideoActivityBehaviorSettings;
@@ -87,6 +89,9 @@ const SCORE_VISIBILITY_OPTIONS: {
 export const VideoActivityBehaviorSettingsPanel: React.FC<
   VideoActivityBehaviorSettingsPanelProps
 > = ({ value, onChange, modeLocked = false }) => {
+  // Read via context so a provider-less host hides the rows instead of throwing.
+  const tabAwayTimerOn =
+    useContext(AuthContext)?.canAccessFeature?.('tab-away-timer') === true;
   const modes: AssignModeOption[] = MODES_BASE.map((m) => ({
     ...m,
     disabled: modeLocked,
@@ -170,6 +175,35 @@ export const VideoActivityBehaviorSettingsPanel: React.FC<
         attemptLimit={value.attemptLimit}
         onAttemptLimitChange={(v) => onChange({ ...value, attemptLimit: v })}
         shuffleQuestionsAvailable={value.sessionMode === 'student'}
+        afterTabWarningsSlot={
+          tabAwayTimerOn &&
+          (value.sessionOptions.tabWarningsEnabled ?? true) && (
+            <>
+              <TabWarningThresholdRow
+                value={value.sessionOptions.tabWarningThreshold}
+                onChange={(next) =>
+                  onChange({
+                    ...value,
+                    sessionOptions: {
+                      ...value.sessionOptions,
+                      tabWarningThreshold: next,
+                    },
+                  })
+                }
+              />
+              <TabAwayLimitRow
+                autoSubmit={value.sessionOptions.tabAwayAutoSubmit}
+                seconds={value.sessionOptions.tabAwayLimitSeconds}
+                onChange={(next) =>
+                  onChange({
+                    ...value,
+                    sessionOptions: { ...value.sessionOptions, ...next },
+                  })
+                }
+              />
+            </>
+          )
+        }
         trailingSlot={
           <CollapsibleSection label="Scoring">
             <div className="space-y-3">
