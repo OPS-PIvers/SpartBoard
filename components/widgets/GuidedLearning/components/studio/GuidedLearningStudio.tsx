@@ -45,6 +45,8 @@ export interface GuidedLearningStudioProps {
   folders?: LibraryFolder[];
   folderId?: string | null;
   onFolderChange?: (folderId: string | null) => void;
+  /** Opens with this step selected (the admin tour health panel's links). */
+  initialStepId?: string;
 }
 
 /** Full-screen Guided Learning editor whose canvas is the real player stage. */
@@ -58,6 +60,7 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
   folders,
   folderId,
   onFolderChange,
+  initialStepId,
 }) => {
   const { t } = useTranslation();
   const { isAdmin, canAccessFeature } = useAuth();
@@ -139,6 +142,16 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
     },
     [steps, setSelectedStepId, setCurrentImageIndex]
   );
+
+  const [pendingStepId, setPendingStepId] = useState(initialStepId);
+  if (pendingStepId) {
+    const opening = steps.find((s) => s.id === pendingStepId);
+    setPendingStepId(undefined);
+    if (opening) {
+      setSelectedStepId(opening.id);
+      setCurrentImageIndex(opening.imageIndex);
+    }
+  }
 
   const deleteSelected = useCallback(() => {
     if (!selectedStepId) return;
