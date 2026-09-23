@@ -70,6 +70,8 @@ import {
 import { normalizeQuizSession } from '@/utils/quizQuestionNormalize';
 import {
   mergeQuizSessionContent,
+  QUIZ_CONTENT_COLLECTION,
+  QUIZ_CONTENT_DOC,
   type QuizSessionContent,
 } from '@/utils/quizSessionContent';
 import {
@@ -1047,7 +1049,8 @@ export interface UseQuizSessionTeacherResult {
 export const useQuizSessionTeacher = (
   sessionId: string | undefined | null
 ): UseQuizSessionTeacherResult => {
-  const [session, setSession] = useState<QuizSession | null>(null);
+  const [rawSession, setSession] = useState<QuizSession | null>(null);
+  const [content, setContent] = useState<QuizSessionContent | null>(null);
   const [responses, setResponses] = useState<QuizResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(!!sessionId);
   const advancingRef = useRef(false);
@@ -1058,9 +1061,32 @@ export const useQuizSessionTeacher = (
   if (sessionId !== prevSessionId) {
     setPrevSessionId(sessionId);
     setSession(null);
+    setContent(null);
     setResponses([]);
     setLoading(!!sessionId);
   }
+
+  const inContent = rawSession?.questionsInContent === true;
+  useEffect(() => {
+    if (!sessionId || !inContent) return;
+    return onSnapshot(
+      doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        QUIZ_CONTENT_COLLECTION,
+        QUIZ_CONTENT_DOC
+      ),
+      (snap) =>
+        setContent(snap.exists() ? (snap.data() as QuizSessionContent) : null),
+      (err) =>
+        console.error('[useQuizSessionTeacher] content listener error:', err)
+    );
+  }, [sessionId, inContent]);
+  const session = useMemo(
+    () => mergeQuizSessionContent(rawSession, content),
+    [rawSession, content]
+  );
 
   useEffect(() => {
     if (!sessionId) return;
@@ -1996,7 +2022,13 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   useEffect(() => {
     if (!inContent || !sessionIdState || !responseKeyState) return;
     return onSnapshot(
-      doc(db, QUIZ_SESSIONS_COLLECTION, sessionIdState, 'content', 'questions'),
+      doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionIdState,
+        QUIZ_CONTENT_COLLECTION,
+        QUIZ_CONTENT_DOC
+      ),
       (snap) => {
         if (snap.exists()) setContent(snap.data() as QuizSessionContent);
       },

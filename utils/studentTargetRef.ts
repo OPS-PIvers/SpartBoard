@@ -1,5 +1,6 @@
 /** Shared `StudentTargetRef` derivation + key formatting (M17 spec §2a/§5 B1). */
 
+import type { PeriodPlan } from '@/utils/periodPlan';
 import type {
   ClassRoster,
   Student,
@@ -20,6 +21,8 @@ export interface AssignTargetingValue {
   openAt?: number;
   closeAt?: number;
   dueAt?: number;
+  /** Per-period start and windows; absent keeps one gate for every class. */
+  periodPlan?: PeriodPlan;
 }
 
 export const EMPTY_ASSIGN_TARGETING_VALUE: AssignTargetingValue = {

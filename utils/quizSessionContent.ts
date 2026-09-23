@@ -1,6 +1,9 @@
 import type { QuizSession } from '@/types';
 import { normalizeQuizSession } from '@/utils/quizQuestionNormalize';
 
+export const QUIZ_CONTENT_COLLECTION = 'content';
+export const QUIZ_CONTENT_DOC = 'questions';
+
 /** `quiz_sessions/{id}/content/questions`: what a per-period session hides until the period opens. */
 export type QuizSessionContent = Pick<
   QuizSession,
