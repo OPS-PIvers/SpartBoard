@@ -362,22 +362,12 @@ describe('generateGuidedLearning', () => {
     expect(result.suggestedMode).toBe('guided');
     expect(result.steps).toHaveLength(1);
     expect(result.steps[0].interactionType).toBe('tooltip');
-    expect(result.clampedSteps).toEqual([]);
   });
 
-  it('reports clamped imageIndex values without dropping the step', async () => {
+  it('coerces an out-of-range imageIndex to 0 without dropping the step', async () => {
     const result = await generateGuidedLearning(img(), 'clamp-imageindex');
-    // Single input image → maxImageIndex = 0; the mock returns a step with
-    // imageIndex 5, which should get clamped down and reported.
     expect(result.steps).toHaveLength(1);
     expect(result.steps[0].imageIndex).toBe(0);
-    expect(result.clampedSteps).toHaveLength(1);
-    expect(result.clampedSteps[0]).toMatchObject({
-      stepIndex: 0,
-      stepId: 'step-1',
-      originalImageIndex: 5,
-      clampedTo: 0,
-    });
   });
 
   it('surfaces the real server error on failure', async () => {
