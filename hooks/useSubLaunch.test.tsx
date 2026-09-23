@@ -47,16 +47,55 @@ describe('useSubLaunch', () => {
 
     await act(() => result.current.launch(['roster-1']));
 
-    expect(callable).toHaveBeenCalledWith({
-      shareId: 'share-1',
-      boardId: 'board-1',
-      widgetId: 'w1',
-      kind: 'quiz',
-      itemId: 'q-1',
-      rosterIds: ['roster-1'],
-    });
+    expect(callable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        shareId: 'share-1',
+        boardId: 'board-1',
+        widgetId: 'w1',
+        kind: 'quiz',
+        itemId: 'q-1',
+        rosterIds: ['roster-1'],
+      })
+    );
     expect(result.current.status).toBe('launched');
     expect(result.current.result).toEqual({ sessionId: 's1', code: 'AB12CD' });
+  });
+
+  // The callable refuses a request with neither, so leaving them out is the
+  // whole feature failing. See utils/subLaunchRunSettings.ts.
+  it('sends how the run should behave', async () => {
+    callable.mockResolvedValue({ data: { sessionId: 's1', code: 'AB12CD' } });
+    const { result } = launched();
+
+    await act(() => result.current.launch(['roster-1']));
+
+    const sent = callable.mock.calls[0][0] as {
+      session: Record<string, unknown>;
+      assignment: Record<string, unknown>;
+    };
+    expect(sent.session.status).toBe('active');
+    expect(sent.session.sessionMode).toBe('student');
+    expect(sent.assignment.status).toBe('active');
+    expect(sent.assignment.sessionOptions).toBeTruthy();
+  });
+
+  it("names the class with the teacher's own label for it", async () => {
+    callable.mockResolvedValue({ data: { sessionId: 's1', code: 'AB12CD' } });
+    const { result } = renderHook(() => useSubLaunch('quiz', 'w1', 'q-1'), {
+      wrapper: inShare({
+        rosters: [
+          { id: 'roster-1', name: 'Period 3', driveFileId: 'd1' },
+          { id: 'roster-2', name: 'Period 5', driveFileId: 'd2' },
+        ],
+      }),
+    });
+
+    await act(() => result.current.launch(['roster-2']));
+
+    const sent = callable.mock.calls[0][0] as {
+      assignment: { className: string };
+    };
+    expect(sent.assignment.className).toBe('Period 5');
   });
 
   it('does not call out outside a share', async () => {

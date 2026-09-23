@@ -2,11 +2,11 @@
  * Starts an activity in the teacher's account on a substitute's behalf, by
  * calling `launchSubAssignmentV1` (plan §3.6, D7).
  *
- * The substitute sends only which shared item, on which shared board, for
- * which of the share's rosters. Everything students see, the class ids and the
- * join code are built server-side from the bundled answer key and the
- * teacher's own records, so there is nothing here to assemble and nothing a
- * caller could get wrong in a way that reaches a student.
+ * The substitute sends which shared item, on which shared board, for which of
+ * the share's rosters, plus how the run should behave. Everything students
+ * see, the class ids and the join code are built server-side from the bundled
+ * answer key and the teacher's own records, so nothing a caller gets wrong
+ * here can reach a student.
  */
 
 import { useCallback, useContext, useState } from 'react';
@@ -14,6 +14,7 @@ import { httpsCallable, type FunctionsError } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import { logError } from '@/utils/logError';
+import { subLaunchRunSettings } from '@/utils/subLaunchRunSettings';
 import type { SubShareContentKind } from '@/types';
 
 export interface SubLaunchRequest {
@@ -23,6 +24,9 @@ export interface SubLaunchRequest {
   kind: SubShareContentKind;
   itemId: string;
   rosterIds: string[];
+  /** How the run behaves; the callable refuses anything outside its allowlist. */
+  session: Record<string, unknown>;
+  assignment: Record<string, unknown>;
 }
 
 export interface SubLaunchResult {
@@ -70,6 +74,7 @@ export function useSubLaunch(
 
   const boardId = share?.boardId ?? null;
   const shareId = share?.shareId ?? null;
+  const rosters = share?.rosters;
 
   const launch = useCallback(
     async (rosterIds: string[]) => {
@@ -77,6 +82,16 @@ export function useSubLaunch(
       setStatus('launching');
       setError(null);
       try {
+        // The teacher's own label for the class, so their Results name it the
+        // way the rest of their assignments do.
+        const className = rosterIds
+          .map((id) => rosters?.find((r) => r.id === id)?.name)
+          .filter((name): name is string => !!name)
+          .join(', ');
+        const { session, assignment } = subLaunchRunSettings(
+          className,
+          Date.now()
+        );
         const callable = httpsCallable<SubLaunchRequest, SubLaunchResult>(
           functions,
           'launchSubAssignmentV1'
@@ -88,6 +103,8 @@ export function useSubLaunch(
           kind,
           itemId,
           rosterIds,
+          session,
+          assignment,
         });
         setResult(res.data);
         setStatus('launched');
@@ -104,7 +121,7 @@ export function useSubLaunch(
         setStatus('error');
       }
     },
-    [shareId, boardId, widgetId, kind, itemId]
+    [shareId, boardId, widgetId, kind, itemId, rosters]
   );
 
   const reset = useCallback(() => {
