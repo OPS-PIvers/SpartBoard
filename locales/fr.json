@@ -2608,7 +2608,21 @@
     "wordCount_other": "{{count}} mots. Visez {{limit}} au maximum.",
     "linkTitle": "Ajouter un lien",
     "linkPrompt": "Collez une adresse web qui commence par https://",
-    "linkRejected": "Seules les adresses web qui commencent par https:// peuvent être liées."
+    "linkRejected": "Seules les adresses web qui commencent par https:// peuvent être liées.",
+    "tool_blur": "Flouter une partie de cette diapositive (B)",
+    "blurNoVideo": "Le flou ne fonctionne que sur les diapositives image",
+    "blurTitle": "Flouter",
+    "blurHint": "Faites glisser sur tout ce que les élèves ne doivent pas voir.",
+    "blurCount_one": "{{count}} zone à masquer",
+    "blurCount_other": "{{count}} zones à masquer",
+    "blurMode_blur": "Flou",
+    "blurMode_solid": "Cache",
+    "blurApply": "Appliquer le flou",
+    "blurApplying": "Application…",
+    "blurRemove": "Retirer la zone {{n}}",
+    "blurConfirmTitle": "Appliquer le flou à cette diapositive ?",
+    "blurConfirm": "L’original non flouté est supprimé à la fermeture de l’éditeur. D’ici là, Annuler le rétablit. Si vous avez copié cet ensemble auparavant, la copie utilise encore l’original et perdra cette diapositive.",
+    "blurFailed": "Impossible de flouter cette diapositive. Vérifiez votre connexion et votre connexion à Google Drive, puis réessayez."
   },
   "helpCenter": {
     "title": "Aide",

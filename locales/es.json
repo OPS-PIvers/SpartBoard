@@ -2608,7 +2608,21 @@
     "wordCount_other": "{{count}} palabras. Intenta no pasar de {{limit}}.",
     "linkTitle": "Añadir un enlace",
     "linkPrompt": "Pega una dirección web que empiece por https://",
-    "linkRejected": "Solo se pueden enlazar direcciones web que empiecen por https://."
+    "linkRejected": "Solo se pueden enlazar direcciones web que empiecen por https://.",
+    "tool_blur": "Difuminar parte de esta diapositiva (B)",
+    "blurNoVideo": "El difuminado solo funciona en diapositivas de imagen",
+    "blurTitle": "Difuminar",
+    "blurHint": "Arrastra sobre todo lo que los estudiantes no deban ver.",
+    "blurCount_one": "{{count}} zona para ocultar",
+    "blurCount_other": "{{count}} zonas para ocultar",
+    "blurMode_blur": "Difuminar",
+    "blurMode_solid": "Tapar",
+    "blurApply": "Aplicar difuminado",
+    "blurApplying": "Aplicando…",
+    "blurRemove": "Quitar zona {{n}}",
+    "blurConfirmTitle": "¿Aplicar difuminado a esta diapositiva?",
+    "blurConfirm": "El original sin difuminar se elimina al cerrar el editor. Hasta entonces, Deshacer lo recupera. Si copiaste este conjunto antes, la copia sigue usando el original y perderá esta diapositiva.",
+    "blurFailed": "No se pudo difuminar esta diapositiva. Revisa tu conexión y el inicio de sesión en Google Drive e inténtalo de nuevo."
   },
   "helpCenter": {
     "title": "Ayuda",

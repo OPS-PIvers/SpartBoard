@@ -3739,7 +3739,21 @@
     "wordCount_other": "{{count}} words. Aim for {{limit}} or fewer.",
     "linkTitle": "Add a link",
     "linkPrompt": "Paste a web address that starts with https://",
-    "linkRejected": "Only web addresses that start with https:// can be linked."
+    "linkRejected": "Only web addresses that start with https:// can be linked.",
+    "tool_blur": "Blur part of this slide (B)",
+    "blurNoVideo": "Blur works on image slides only",
+    "blurTitle": "Blur",
+    "blurHint": "Drag over anything students shouldn't see.",
+    "blurCount_one": "{{count}} area to hide",
+    "blurCount_other": "{{count}} areas to hide",
+    "blurMode_blur": "Blur",
+    "blurMode_solid": "Solid",
+    "blurApply": "Apply blur",
+    "blurApplying": "Applying…",
+    "blurRemove": "Remove area {{n}}",
+    "blurConfirmTitle": "Apply blur to this slide?",
+    "blurConfirm": "The unblurred original is deleted when you close the editor. Until then, Undo brings it back. If you copied this set earlier, the copy still uses the original and will lose this slide.",
+    "blurFailed": "This slide couldn't be blurred. Check your connection and Google Drive sign-in, then try again."
   },
   "helpCenter": {
     "title": "Help",

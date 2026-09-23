@@ -13,6 +13,7 @@ import type { EditorHistoryApi } from '../types/stage';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
 import { isGuidedLearningSetV2 } from '../utils/setMigration';
+import { slideMediaRef } from '../utils/slideMedia';
 import {
   getMediaKind,
   prepareImageForUpload,
@@ -93,6 +94,8 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
     baseName: string
   ) => Promise<void>;
   deleteImage: (index: number) => void;
+  /** Uploads a redacted copy over a slide and queues the old image for deletion on close. */
+  replaceSlideImage: (index: number, blob: Blob) => Promise<boolean>;
   moveImage: (fromIndex: number, direction: -1 | 1) => void;
   /** Reorder slides; `order[i]` is the old index of the slide now at `i`. */
   reorderImages: (order: number[]) => void;
@@ -147,8 +150,12 @@ export function useGuidedLearningEditorState({
   onFolderChange,
 }: UseGuidedLearningEditorStateProps): GuidedLearningEditorController {
   const { user } = useAuth();
-  const { uploading, uploadHotspotImage, uploadGuidedLearningMedia } =
-    useStorage();
+  const {
+    uploading,
+    uploadHotspotImage,
+    uploadGuidedLearningMedia,
+    uploadGuidedLearningImage,
+  } = useStorage();
 
   const [history, dispatch] = useReducer(
     editorHistoryReducer,
@@ -426,6 +433,28 @@ export function useGuidedLearningEditorState({
     [imageUrls.length, applyDoc]
   );
 
+  const replaceSlideImage = useCallback(
+    async (index: number, blob: Blob): Promise<boolean> => {
+      const oldUrl = historyRef.current.present.imageUrls[index];
+      if (!user || !oldUrl) return false;
+      const { url } = await uploadGuidedLearningImage(
+        user.uid,
+        blob,
+        'redacted.png'
+      );
+      // Slides may have moved during the upload, so find the old image again.
+      if (!historyRef.current.present.imageUrls.includes(oldUrl)) return false;
+      applyDoc((doc) => ({
+        ...doc,
+        imageUrls: doc.imageUrls.map((u) => (u === oldUrl ? url : u)),
+      }));
+      const ref = slideMediaRef(oldUrl);
+      if (ref) dispatch({ type: 'queueMedia', ref });
+      return true;
+    },
+    [user, uploadGuidedLearningImage, applyDoc]
+  );
+
   const moveImage = useCallback(
     (fromIndex: number, direction: -1 | 1) => {
       const toIndex = fromIndex + direction;
@@ -610,6 +639,7 @@ export function useGuidedLearningEditorState({
     uploadFromClipboard,
     addCapturedMedia,
     deleteImage,
+    replaceSlideImage,
     moveImage,
     reorderImages,
     imageError,
