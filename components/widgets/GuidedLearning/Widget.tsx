@@ -77,6 +77,11 @@ const GuidedLearningEditorModal = lazy(() =>
     default: m.GuidedLearningEditorModal,
   }))
 );
+const GuidedLearningStudio = lazy(() =>
+  import('./components/studio/GuidedLearningStudio').then((m) => ({
+    default: m.GuidedLearningStudio,
+  }))
+);
 const GuidedLearningPlayer = lazy(() =>
   import('./components/GuidedLearningPlayer').then((m) => ({
     default: m.GuidedLearningPlayer,
@@ -213,6 +218,8 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const [editingSet, setEditingSet] = useState<GuidedLearningSet | null>(null);
   const [editingMeta, setEditingMeta] =
     useState<GuidedLearningSetMetadata | null>(null);
+  // The Studio is admin-only until P1-10 retires the classic editor.
+  const [classicEditor, setClassicEditor] = useState(false);
 
   const { folders: glFolders, moveItem: moveGlItem } = useFolders(
     user?.uid,
@@ -445,6 +452,31 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       setEditingMeta(meta);
     }
   };
+
+  const closeEditor = () => {
+    setEditingSet(null);
+    setEditingMeta(null);
+    setClassicEditor(false);
+  };
+
+  const handleEditorAiGenerated = (generated: GuidedLearningSet) => {
+    setEditingSet({ ...generated, isBuilding: true });
+    setEditingMeta(null);
+  };
+
+  const handleEditorFolderChange = editingMeta
+    ? async (folderId: string | null) => {
+        try {
+          await moveGlItem(editingMeta.id, folderId);
+          addToast('Folder updated.', 'success');
+        } catch (err) {
+          addToast(
+            err instanceof Error ? err.message : 'Failed to update folder',
+            'error'
+          );
+        }
+      }
+    : undefined;
 
   const handleDelete = async (setId: string, driveFileId: string) => {
     prefetchCacheRef.current.invalidate(setId);
@@ -1325,39 +1357,35 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       />
       {editingSet && (
         <Suspense fallback={<ModalChunkFallback />}>
-          <GuidedLearningEditorModal
-            isOpen
-            set={editingSet}
-            meta={editingMeta}
-            folders={editingMeta ? glFolders : undefined}
-            folderId={editingMeta?.folderId ?? null}
-            onFolderChange={
-              editingMeta
-                ? async (folderId) => {
-                    try {
-                      await moveGlItem(editingMeta.id, folderId);
-                      addToast('Folder updated.', 'success');
-                    } catch (err) {
-                      addToast(
-                        err instanceof Error
-                          ? err.message
-                          : 'Failed to update folder',
-                        'error'
-                      );
-                    }
-                  }
-                : undefined
-            }
-            onClose={() => {
-              setEditingSet(null);
-              setEditingMeta(null);
-            }}
-            onSave={handleSave}
-            onAiGenerated={(generated) => {
-              setEditingSet({ ...generated, isBuilding: true });
-              setEditingMeta(null);
-            }}
-          />
+          {isAdmin === true && !classicEditor ? (
+            <GuidedLearningStudio
+              key={editingSet.id}
+              set={editingSet}
+              meta={editingMeta}
+              folders={editingMeta ? glFolders : undefined}
+              folderId={editingMeta?.folderId ?? null}
+              onFolderChange={handleEditorFolderChange}
+              onClose={closeEditor}
+              onSave={handleSave}
+              onAiGenerated={handleEditorAiGenerated}
+              onOpenClassic={(latest) => {
+                setEditingSet(latest);
+                setClassicEditor(true);
+              }}
+            />
+          ) : (
+            <GuidedLearningEditorModal
+              isOpen
+              set={editingSet}
+              meta={editingMeta}
+              folders={editingMeta ? glFolders : undefined}
+              folderId={editingMeta?.folderId ?? null}
+              onFolderChange={handleEditorFolderChange}
+              onClose={closeEditor}
+              onSave={handleSave}
+              onAiGenerated={handleEditorAiGenerated}
+            />
+          )}
         </Suspense>
       )}
 

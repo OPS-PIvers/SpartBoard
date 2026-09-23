@@ -2518,7 +2518,38 @@
     "done": "Terminé"
   },
   "glStudio": {
-    "classicEditorNotice": "Cette activité utilise des fonctions du Studio. Modifiez les zones et les bulles dans le Studio."
+    "classicEditorNotice": "Cette activité utilise des fonctions du Studio. Modifiez les zones et les bulles dans le Studio.",
+    "close": "Fermer l’éditeur",
+    "closeAnyway": "Fermer quand même",
+    "keepEditing": "Continuer la modification",
+    "dialogLabel": "Studio d’apprentissage guidé",
+    "draftWithAi": "Rédiger avec l’IA",
+    "folderMissing": "Dossier introuvable",
+    "height": "Hauteur de l’aperçu en pixels",
+    "width": "Largeur de l’aperçu en pixels",
+    "inFolder": "Dans le dossier {{name}}",
+    "noFolder": "Dans aucun dossier",
+    "openClassicEditor": "Ouvrir l’éditeur classique",
+    "previewSize": "Taille de l’aperçu",
+    "selectFolder": "Déplacer vers un dossier",
+    "slideN": "Diapositive {{n}}",
+    "slides": "Diapositives",
+    "stepCount_one": "{{count}} étape",
+    "stepCount_other": "{{count}} étapes",
+    "stepDeleted": "Étape supprimée.",
+    "titleLabel": "Titre de l’activité",
+    "titlePlaceholder": "Activité sans titre",
+    "undo": "Annuler",
+    "unsavedBody": "Vos dernières modifications n’ont pas pu être enregistrées. Si vous fermez maintenant, elles seront perdues.",
+    "unsavedTitle": "Modifications non enregistrées",
+    "emptyCanvas": "Ajoutez une diapositive pour commencer à placer des étapes.",
+    "devices": {
+      "board": "Widget du tableau",
+      "help": "Centre d’aide",
+      "chromebook": "Chromebook de l’élève",
+      "projector": "Projecteur (1080p)",
+      "custom": "Taille personnalisée"
+    }
   },
   "helpCenter": {
     "title": "Aide",

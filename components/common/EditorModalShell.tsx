@@ -28,7 +28,7 @@ export interface EditorAutosaveConfig {
   delayMs?: number;
 }
 
-const AutosaveIndicator: React.FC<{
+export const AutosaveIndicator: React.FC<{
   status: AutosaveStatus;
   onRetry: () => void;
 }> = ({ status, onRetry }) => {

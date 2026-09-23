@@ -162,6 +162,8 @@ export interface SetDraftPersistence {
   incompleteNotice: string | null;
   /** Persist only; the shell owns closing. */
   persistDraft: () => Promise<void>;
+  /** The set a save would write right now; null with no set loaded. */
+  buildSavedSet: () => GuidedLearningSet | null;
   /** Close, deleting queued media when the latest draft is saved. */
   closeEditor: () => void;
 }
@@ -394,64 +396,70 @@ export function useSetDraftPersistence({
   // Token of the last draft that saved; queued deletions run only if nothing changed since.
   const savedTokenRef = useRef<unknown[] | null>(null);
 
+  // The payload a save writes now; the Studio also hands it to the classic editor.
+  const buildSavedSet = (): GuidedLearningSet | null => {
+    if (!set) return null;
+    // Radii were already converted (if possible) at editor load, so saving
+    // only stamps v2 when in-editor semantics are v2 (or no step reads a
+    // radius); otherwise the set stays legacy — matching the preview.
+    const steps = editorState.steps;
+    const schemaVersion =
+      editorState.spotlightRadiiV2 || !steps.some(stepUsesSpotlight)
+        ? GL_SET_SCHEMA_VERSION
+        : set.schemaVersion;
+    const now = Date.now();
+    return {
+      id: set.id,
+      ...(schemaVersion !== undefined ? { schemaVersion } : {}),
+      title: editorState.title.trim(),
+      description: editorState.description.trim() || undefined,
+      imageUrls: editorState.imageUrls,
+      // Only persist kinds when at least one slide is a video — keeps
+      // image-only (and legacy) sets free of the new field.
+      ...(editorState.imageKinds.some((k) => k === 'video')
+        ? { imageKinds: editorState.imageKinds }
+        : {}),
+      // Only persist trims when at least one slide actually has one —
+      // keeps untrimmed (and legacy) sets free of the new field.
+      ...(editorState.videoTrims.some(Boolean)
+        ? { videoTrims: editorState.videoTrims }
+        : {}),
+      steps,
+      mode: editorState.mode,
+      createdAt: set.createdAt,
+      updatedAt: now,
+      isBuilding: set.isBuilding,
+      authorUid: set.authorUid,
+      // Only persist a hotspotPulse value when it differs from the default
+      // ('consistent') — keeps untouched legacy sets clean of new fields.
+      ...(editorState.hotspotPulse !== 'consistent'
+        ? { hotspotPulse: editorState.hotspotPulse }
+        : {}),
+      ...(editorState.imageTransition !== 'none'
+        ? { imageTransition: editorState.imageTransition }
+        : {}),
+      // Welcome screen — only persist when actually enabled WITH content.
+      // Toggle-on-but-empty falls back to default behavior at render time
+      // anyway, so don't write the field; this also avoids cluttering
+      // legacy sets that have never touched welcome settings.
+      ...(editorState.welcomeEnabled && editorState.welcomeMessage.trim()
+        ? {
+            welcomeEnabled: true,
+            welcomeMessage: editorState.welcomeMessage,
+          }
+        : {}),
+      ...(editorState.watchPace ? { watchPace: editorState.watchPace } : {}),
+      // The classic editor has no tour controls, so tour setup rides through.
+      ...(set.tourSetup ? { tourSetup: set.tourSetup } : {}),
+    };
+  };
+
   const persistDraft = async () => {
-    if (!set) return;
+    const builtSet = buildSavedSet();
+    if (!builtSet) return;
     const token = draftTokenRef.current;
     setSaving(true);
     try {
-      // Radii were already converted (if possible) at editor load, so saving
-      // only stamps v2 when in-editor semantics are v2 (or no step reads a
-      // radius); otherwise the set stays legacy — matching the preview.
-      const steps = editorState.steps;
-      const schemaVersion =
-        editorState.spotlightRadiiV2 || !steps.some(stepUsesSpotlight)
-          ? GL_SET_SCHEMA_VERSION
-          : set.schemaVersion;
-      const now = Date.now();
-      const builtSet: GuidedLearningSet = {
-        id: set.id,
-        ...(schemaVersion !== undefined ? { schemaVersion } : {}),
-        title: editorState.title.trim(),
-        description: editorState.description.trim() || undefined,
-        imageUrls: editorState.imageUrls,
-        // Only persist kinds when at least one slide is a video — keeps
-        // image-only (and legacy) sets free of the new field.
-        ...(editorState.imageKinds.some((k) => k === 'video')
-          ? { imageKinds: editorState.imageKinds }
-          : {}),
-        // Only persist trims when at least one slide actually has one —
-        // keeps untrimmed (and legacy) sets free of the new field.
-        ...(editorState.videoTrims.some(Boolean)
-          ? { videoTrims: editorState.videoTrims }
-          : {}),
-        steps,
-        mode: editorState.mode,
-        createdAt: set.createdAt,
-        updatedAt: now,
-        isBuilding: set.isBuilding,
-        authorUid: set.authorUid,
-        // Only persist a hotspotPulse value when it differs from the default
-        // ('consistent') — keeps untouched legacy sets clean of new fields.
-        ...(editorState.hotspotPulse !== 'consistent'
-          ? { hotspotPulse: editorState.hotspotPulse }
-          : {}),
-        ...(editorState.imageTransition !== 'none'
-          ? { imageTransition: editorState.imageTransition }
-          : {}),
-        // Welcome screen — only persist when actually enabled WITH content.
-        // Toggle-on-but-empty falls back to default behavior at render time
-        // anyway, so don't write the field; this also avoids cluttering
-        // legacy sets that have never touched welcome settings.
-        ...(editorState.welcomeEnabled && editorState.welcomeMessage.trim()
-          ? {
-              welcomeEnabled: true,
-              welcomeMessage: editorState.welcomeMessage,
-            }
-          : {}),
-        ...(editorState.watchPace ? { watchPace: editorState.watchPace } : {}),
-        // The classic editor has no tour controls, so tour setup rides through.
-        ...(set.tourSetup ? { tourSetup: set.tourSetup } : {}),
-      };
       await onSave(builtSet, driveFileId);
       savedTokenRef.current = token;
     } finally {
@@ -473,6 +481,7 @@ export function useSetDraftPersistence({
     draftToken,
     incompleteNotice,
     persistDraft,
+    buildSavedSet,
     closeEditor,
   };
 }
