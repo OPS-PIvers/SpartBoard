@@ -1,49 +1,49 @@
 {
-  "generatedAt": "2026-09-23T03:33:27.604Z",
+  "generatedAt": "2026-09-23T03:50:36.257Z",
   "runCommand": "WRITE_PERF_BASELINE=1 pnpm exec vitest run --config vitest.perf.config.ts tests/perf/studioPerf.test.tsx",
   "classic": {
     "mount": {
-      "commits": 5,
-      "ms": 92.2
+      "commits": 3,
+      "ms": 68.5
     },
     "type25": {
-      "commits": 25,
-      "ms": 144.8
+      "commits": 26,
+      "ms": 155.7
     },
     "switchSlide10": {
       "commits": 10,
-      "ms": 63.4
+      "ms": 68.5
     },
     "addStep": {
       "commits": 3,
-      "ms": 16
+      "ms": 18.8
     }
   },
   "scenarios": [
     {
       "scenario": "studio.mount",
-      "commits": 5,
-      "actualDurationMs": 161.359
+      "commits": 3,
+      "actualDurationMs": 146.419
     },
     {
       "scenario": "studio.type25",
-      "commits": 25,
-      "actualDurationMs": 160.666
+      "commits": 26,
+      "actualDurationMs": 168.8
     },
     {
       "scenario": "studio.switchSlide10",
       "commits": 22,
-      "actualDurationMs": 111.994
+      "actualDurationMs": 121.129
     },
     {
       "scenario": "studio.addStep",
       "commits": 3,
-      "actualDurationMs": 32.137
+      "actualDurationMs": 24.951
     },
     {
       "scenario": "studio.dragRegion60",
       "commits": 62,
-      "actualDurationMs": 222.505
+      "actualDurationMs": 236.819
     }
   ]
 }

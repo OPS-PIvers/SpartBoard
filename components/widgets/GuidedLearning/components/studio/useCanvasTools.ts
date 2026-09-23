@@ -64,6 +64,9 @@ export function useCanvasTools(
     updateStep,
     imageUrls,
     imageKinds,
+    spotlightRadiiV2,
+    canvasMeasurementsRef,
+    notifyCanvasMeasured,
   } = state;
   const viewport = useCanvasViewport(preset.id);
   const [shape, setShape] = useState<DrawShape>('rect');
@@ -78,9 +81,6 @@ export function useCanvasTools(
     rects: RedactRect[];
   }>({ url: '', rects: [] });
   const geometryRef = useRef<StageGeometry | null>(null);
-  const onGeometry = useCallback((g: StageGeometry) => {
-    geometryRef.current = g;
-  }, []);
 
   const polygonDraft = addingStep && shape === 'polygon' ? draft : null;
   const editingStepId = editing === selectedStepId ? editing : null;
@@ -91,6 +91,29 @@ export function useCanvasTools(
   const selected = slideSteps.find((s) => s.id === selectedStepId) ?? null;
   const slideUrl = imageUrls[currentImageIndex] ?? '';
   const canBlur = slideUrl !== '' && imageKinds[currentImageIndex] !== 'video';
+  const onGeometry = useCallback(
+    (g: StageGeometry) => {
+      geometryRef.current = g;
+      if (spotlightRadiiV2 || !slideUrl) return;
+      // Feeds the load-time legacy radius conversion, as the classic canvas did.
+      const { w, h } = g.containerSize;
+      const drawnW = w * g.imgOffset.scaleX;
+      const drawnH = h * g.imgOffset.scaleY;
+      const naturalDims =
+        canvasMeasurementsRef.current?.naturalDims ??
+        new Map<string, { width: number; height: number }>();
+      if (drawnW > 0 && drawnH > 0) {
+        naturalDims.set(slideUrl, { width: drawnW, height: drawnH });
+      }
+      canvasMeasurementsRef.current = {
+        containerWidth: w,
+        containerHeight: h,
+        naturalDims,
+      };
+      notifyCanvasMeasured();
+    },
+    [spotlightRadiiV2, slideUrl, canvasMeasurementsRef, notifyCanvasMeasured]
+  );
   const blurActive = blurring && canBlur;
   const blurRects = blurDraft.url === slideUrl ? blurDraft.rects : [];
   const setBlurRects = useCallback(

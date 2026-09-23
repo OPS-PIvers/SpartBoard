@@ -2518,6 +2518,8 @@
     "done": "Fertig"
   },
   "glStudio": {
+    "needSlide": "Noch nicht einsatzbereit: Füge mindestens eine Folie hinzu.",
+    "needTitle": "Noch nicht einsatzbereit: Gib dieser Aktivität einen Titel.",
     "classicEditorNotice": "Diese Aktivität nutzt Studio-Funktionen. Bearbeite Bereiche und Hinweise im Studio.",
     "close": "Editor schließen",
     "closeAnyway": "Trotzdem schließen",

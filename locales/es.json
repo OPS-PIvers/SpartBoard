@@ -2518,6 +2518,8 @@
     "done": "Listo"
   },
   "glStudio": {
+    "needSlide": "Aún no está lista: añade al menos una diapositiva.",
+    "needTitle": "Aún no está lista: ponle un título a esta actividad.",
     "classicEditorNotice": "Esta actividad usa funciones de Studio. Edita las regiones y las llamadas en Studio.",
     "close": "Cerrar editor",
     "closeAnyway": "Cerrar de todos modos",

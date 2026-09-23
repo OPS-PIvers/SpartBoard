@@ -198,6 +198,61 @@ describe('GuidedLearningStudio', () => {
     });
   });
 
+  it('converts a legacy set’s spotlight radii once at load', async () => {
+    restore?.();
+    // A 2:1 image in a square stage draws 520×260, so a legacy radius of 25 becomes 50.
+    const handle = mockStageLayout({
+      container: { w: 520, h: 520 },
+      image: { w: 1040, h: 520 },
+    });
+    restore = handle.restore;
+    const set = buildSet();
+    delete set.schemaVersion;
+    set.steps = [
+      {
+        id: 'step-1',
+        xPct: 10,
+        yPct: 20,
+        imageIndex: 0,
+        interactionType: 'spotlight',
+        showOverlay: 'none',
+        spotlightRadius: 25,
+      },
+    ];
+    const { onSave, onClose } = renderStudio({ set });
+    // The conversion is async, so let it land before closing.
+    await act(async () => {
+      handle.fireResize();
+      await Promise.resolve();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Close editor' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    const saved = onSave.mock.calls[0][0] as GuidedLearningSet;
+    expect(saved.schemaVersion).toBe(3);
+    expect(saved.steps[0].spotlightRadius).toBe(50);
+
+    cleanup();
+    const again = renderStudio({ set: saved });
+    act(() => handle.fireResize());
+    fireEvent.change(screen.getByLabelText('Activity title'), {
+      target: { value: 'Reopened' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Close editor' }));
+    await waitFor(() => expect(again.onClose).toHaveBeenCalled());
+    const resaved = again.onSave.mock.calls[0][0] as GuidedLearningSet;
+    expect(resaved.steps[0].spotlightRadius).toBe(50);
+  });
+
+  it('says what is missing before the set can be used', () => {
+    renderStudio();
+    const notice = 'Not ready to use yet: give this activity a title.';
+    expect(screen.queryByText(notice)).toBeNull();
+    fireEvent.change(screen.getByLabelText('Activity title'), {
+      target: { value: ' ' },
+    });
+    expect(screen.getByText(notice)).toBeInTheDocument();
+  });
+
   it('hands the latest draft to the classic editor', async () => {
     const onOpenClassic = vi.fn();
     const { onSave } = renderStudio({ onOpenClassic });

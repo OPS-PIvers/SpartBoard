@@ -17,10 +17,10 @@ import { GuidedLearningStudio } from '@/components/widgets/GuidedLearning/compon
 
 // The classic editor on editorPerf.test.tsx's gl.* scenarios with these stable mocks: commits, median ms of 3 runs.
 const CLASSIC = {
-  mount: { commits: 5, ms: 92.2 },
-  type25: { commits: 25, ms: 144.8 },
-  switchSlide10: { commits: 10, ms: 63.4 },
-  addStep: { commits: 3, ms: 16.0 },
+  mount: { commits: 3, ms: 68.5 },
+  type25: { commits: 26, ms: 155.7 },
+  switchSlide10: { commits: 10, ms: 68.5 },
+  addStep: { commits: 3, ms: 18.8 },
 } as const;
 
 const stageRenders = vi.hoisted(() => ({ count: 0 }));
@@ -249,6 +249,7 @@ describe('Guided Learning Studio performance', () => {
     };
     const set: GuidedLearningSet = {
       ...buildSet(),
+      schemaVersion: 3,
       imageUrls: ['https://example.com/slide-1.png'],
       steps: [region],
     };
@@ -261,7 +262,7 @@ describe('Guided Learning Studio performance', () => {
     fireEvent.pointerDown(layer, { button: 0, pointerId: 1, ...at(30, 30) });
 
     rec.start();
-    let worstMove = 0;
+    const perMove: number[] = [];
     for (let i = 1; i <= 60; i++) {
       stageRenders.count = 0;
       fireEvent.pointerMove(layer, {
@@ -269,13 +270,15 @@ describe('Guided Learning Studio performance', () => {
         ctrlKey: true,
         ...at(30 + i * 0.5, 30 + i * 0.25),
       });
-      worstMove = Math.max(worstMove, stageRenders.count);
+      perMove.push(stageRenders.count);
     }
     fireEvent.pointerUp(layer, { pointerId: 1, ctrlKey: true, ...at(60, 45) });
     await settle();
     const drag = rec.record('studio.dragRegion60');
 
-    expect(worstMove).toBeLessThanOrEqual(1);
+    // The first move also flips the autosave status to unsaved, once.
+    expect(perMove[0]).toBeLessThanOrEqual(2);
+    expect(Math.max(...perMove.slice(1))).toBeLessThanOrEqual(1);
     expect(drag.commits).toBeLessThanOrEqual(62);
 
     const left = () => screen.getByTestId('gl-studio-selection').style.left;
