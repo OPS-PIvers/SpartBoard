@@ -4,16 +4,25 @@ import { ShareCollectionLinkCreatorModal } from '@/components/share/ShareCollect
 import type { Collection, Dashboard } from '@/types';
 import type { useDashboard as UseDashboardFn } from '@/context/useDashboard';
 
-// Substitute mode left this modal for ShareWithSubModal
-// (docs/plans/SUB_SHARE_COLLECTIONS.md §3.2); what stays here is the copy a
-// colleague imports into their own account. The sub-email and building
-// coverage this file used to carry lives in
-// components/share/ShareWithSubModal.test.tsx.
+// Teachers with sub-share-collections hand subs a collection through
+// ShareWithSubModal; everyone else keeps the Substitute choice here.
 
 const useDashboardMock = vi.fn();
+const hasSubShareFlag = { value: true };
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => useDashboardMock() as ReturnType<typeof UseDashboardFn>,
+}));
+
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({
+    canAccessFeature: (id: string) =>
+      id === 'sub-share-collections' ? hasSubShareFlag.value : true,
+  }),
+}));
+
+vi.mock('@/hooks/usePresetSubEmails', () => ({
+  usePresetSubEmails: () => ({ emails: [], loading: false }),
 }));
 
 const collection = (): Collection => ({
@@ -36,13 +45,19 @@ const board = (id: string): Dashboard => ({
 
 const baseMockReturn = {
   shareCollection: vi.fn(),
+  shareSubstituteCollection: vi.fn(),
   addToast: vi.fn(),
+  rosters: [],
+  activeRosterId: null,
+  collectionsApi: { collections: [collection()] },
+  dashboards: [board('b1'), board('b2')],
 };
 
 const writeText = vi.fn<(text: string) => Promise<void>>();
 
 beforeEach(() => {
   vi.clearAllMocks();
+  hasSubShareFlag.value = true;
   useDashboardMock.mockReturnValue(baseMockReturn);
   // Stub clipboard for the auto-copy path
   writeText.mockResolvedValue(undefined);
@@ -150,5 +165,56 @@ describe('ShareCollectionLinkCreatorModal', () => {
     expect(
       screen.getByRole('button', { name: /create link/i })
     ).not.toBeDisabled();
+  });
+
+  it('offers no Substitute choice to a teacher with the new sub dialog', () => {
+    render(
+      <ShareCollectionLinkCreatorModal
+        isOpen
+        collection={collection()}
+        boards={[board('b1')]}
+        onClose={vi.fn()}
+      />
+    );
+    expect(screen.queryByText('Substitute (view-only)')).toBeNull();
+  });
+
+  it('hands the collection to a sub for a teacher without the new sub dialog', async () => {
+    hasSubShareFlag.value = false;
+    const shareSubstituteCollection = vi.fn().mockResolvedValue('sub-id');
+    useDashboardMock.mockReturnValue({
+      ...baseMockReturn,
+      shareSubstituteCollection,
+    });
+    render(
+      <ShareCollectionLinkCreatorModal
+        isOpen
+        collection={collection()}
+        boards={[board('b1'), board('b2')]}
+        onClose={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Substitute (view-only)'));
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'high' },
+    });
+    await clickCreate();
+
+    expect(shareSubstituteCollection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'collection',
+        sourceId: 'c1',
+        buildingId: 'high',
+        boards: [
+          expect.objectContaining({ id: 'b1' }),
+          expect.objectContaining({ id: 'b2' }),
+        ],
+        boardEntries: expect.any(Array) as unknown[],
+        sections: expect.any(Array) as unknown[],
+      })
+    );
+    const url = screen.getByLabelText<HTMLInputElement>('Share collection URL');
+    expect(url.value).toContain('/subs/s/sub-id');
   });
 });
