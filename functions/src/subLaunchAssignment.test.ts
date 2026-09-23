@@ -159,6 +159,36 @@ const glInput = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+const FC_SET = 'fc-set-1';
+
+const FC_CARDS = [
+  { id: 'c1', term: 'Mitochondria', definition: 'Makes ATP' },
+  { id: 'c1', term: 'A duplicate id, which must not inflate the deck' },
+  { id: 'c2', term: 'Ribosome', definition: 'Builds proteins', starred: true },
+];
+
+const FC_SET_DOC = {
+  id: FC_SET,
+  title: 'Cell biology',
+  termLanguage: 'en',
+  definitionLanguage: 'es',
+  cards: FC_CARDS,
+  publicShareId: 'public-link-1',
+};
+
+/** What `subLaunchRunSettings` sends for a flashcard set. */
+const fcInput = (over: Record<string, unknown> = {}) => ({
+  shareId: SHARE,
+  boardId: BOARD,
+  widgetId: WIDGET,
+  kind: 'flashcards',
+  itemId: FC_SET,
+  rosterIds: [ROSTER],
+  session: { status: 'active' },
+  assignment: { status: 'active' },
+  ...over,
+});
+
 const SUB: SubLaunchCaller = {
   uid: 'sub-uid-1',
   email: 'Sub@orono.k12.mn.us',
@@ -224,6 +254,8 @@ interface StubState {
   va?: Record<string, unknown> | null;
   glKey?: Record<string, unknown> | null;
   gl?: Record<string, unknown> | null;
+  fcContent?: Record<string, unknown> | null;
+  fc?: Record<string, unknown> | null;
 }
 
 interface Written {
@@ -267,6 +299,8 @@ function stubDb(state: StubState = {}) {
     va = { driveFileId: VA_DRIVE_FILE },
     glKey = { payload: { set: GL_SET_DOC } },
     gl = { title: 'The heart', driveFileId: 'drive-file-3' },
+    fcContent = { payload: { set: FC_SET_DOC } },
+    fc = { title: 'Cell biology' },
   } = state;
 
   const written: Written[] = [];
@@ -281,6 +315,9 @@ function stubDb(state: StubState = {}) {
     [`users/${HOST}/video_activities/${ACTIVITY}`]: va,
     [`shared_collections/${SHARE}/keys/guidedLearning_${GL_SET}`]: glKey,
     [`users/${HOST}/guided_learning/${GL_SET}`]: gl,
+    // Flashcards bundle into `content/`, not `keys/`.
+    [`shared_collections/${SHARE}/content/flashcards_${FC_SET}`]: fcContent,
+    [`users/${HOST}/flashcard_sets/${FC_SET}`]: fc,
   };
 
   const db = {
@@ -1369,5 +1406,162 @@ describe('launching a guided activity', () => {
     await expect(
       launchGl({}, { session: { publicSteps: [] } }).run()
     ).rejects.toThrow('publicSteps is not yours to set on the session');
+  });
+});
+
+describe('launching a flashcard set', () => {
+  const launchFc = (
+    state: StubState = {},
+    over: Record<string, unknown> = {}
+  ) => launch(state, SUB, fcInput(over));
+
+  it('writes the session and the teacher’s assignment', async () => {
+    const { run, written } = launchFc();
+
+    const result = await run();
+
+    expect(result).toEqual({ sessionId: 'new-session-id' });
+    expect(written.map((w) => w.path)).toEqual([
+      'flashcard_sessions/new-session-id',
+      `users/${HOST}/flashcard_assignments/new-session-id`,
+    ]);
+    for (const w of written) expect(w.data.teacherUid).toBe(HOST);
+  });
+
+  // The deck is the lesson, not a key, so it bundles where the board content
+  // does; reading `keys/` here would find nothing at all.
+  it('reads the deck from the share’s content, not its keys', async () => {
+    await expect(launchFc({ fcContent: null }).run()).rejects.toThrow(
+      'did not leave this activity'
+    );
+
+    const { run, written } = launchFc({ key: null, vaKey: null, glKey: null });
+    await run();
+    expect((written[0].data.cards as { id: string }[]).length).toBe(2);
+  });
+
+  it('mints no join code', async () => {
+    const { run, written } = launchFc();
+
+    const result = await run();
+
+    expect(result.code).toBeUndefined();
+    expect(written.some((w) => w.path.startsWith('quiz_join_codes/'))).toBe(
+      false
+    );
+  });
+
+  // `content/` is readable by anyone holding the share, so whatever a bundled
+  // card picked up must not ride onto a session doc students read.
+  it('copies a card field by field', async () => {
+    const { run, written } = launchFc();
+
+    await run();
+
+    expect(written[0].data.cards).toEqual([
+      { id: 'c1', term: 'Mitochondria', definition: 'Makes ATP' },
+      { id: 'c2', term: 'Ribosome', definition: 'Builds proteins' },
+    ]);
+    expect(JSON.stringify(written)).not.toContain('publicShareId');
+    expect(JSON.stringify(written)).not.toContain('starred');
+  });
+
+  it('counts a repeated card id once, and drops a card with no back', async () => {
+    const { run, written } = launchFc();
+
+    await run();
+
+    expect(
+      (written[0].data.cards as { id: string }[]).map((c) => c.id)
+    ).toEqual(['c1', 'c2']);
+  });
+
+  // A graded Check brings a mastery threshold and a score visibility that can
+  // reveal answers; Study is the teacher's own default.
+  it('starts a study run, never a graded check', async () => {
+    const { run, written } = launchFc();
+
+    await run();
+
+    expect(written[0].data.kind).toBe('study');
+    expect(written[1].data.kind).toBe('study');
+    expect(written[0].data.scoreVisibility).toBeUndefined();
+    expect(written[0].data.lockedSettings).toBeUndefined();
+    expect(written[0].data.masteryThreshold).toBeUndefined();
+  });
+
+  it('refuses a kind or a grading setting from the caller', async () => {
+    await expect(
+      launchFc({}, { session: { kind: 'check' } }).run()
+    ).rejects.toThrow('kind is not yours to set on the session');
+    await expect(
+      launchFc(
+        {},
+        { assignment: { scoreVisibility: 'score-and-answers' } }
+      ).run()
+    ).rejects.toThrow('scoreVisibility is not yours to set on the assignment');
+    await expect(
+      launchFc({}, { session: { cards: [] } }).run()
+    ).rejects.toThrow('cards is not yours to set on the session');
+  });
+
+  it('keeps the set’s own languages, which the player reads', async () => {
+    const { run, written } = launchFc();
+
+    await run();
+
+    expect(written[0].data.termLanguage).toBe('en');
+    expect(written[0].data.definitionLanguage).toBe('es');
+    expect(written[0].data.title).toBe('Cell biology');
+    expect(written[0].data.createdAt).toBe(NOW);
+  });
+
+  it('targets the classes the picked rosters resolve to', async () => {
+    const { run, written } = launchFc();
+
+    await run();
+
+    expect(written[0].data.classIds).toEqual(['class-A']);
+    expect(written[0].data.classId).toBe('class-A');
+    expect(written[0].data.periodNames).toEqual(['Period 3']);
+    expect(written[1].data.rosterIds).toEqual([ROSTER]);
+  });
+
+  it('lets the sub watch the run until the share expires', async () => {
+    const { run, written } = launchFc();
+
+    await run();
+
+    expect(written[0].data.subMonitorUids).toEqual([SUB.uid]);
+    expect(written[0].data.subMonitorUntil).toBe(NOW + 86_400_000);
+  });
+
+  it('refuses a bundle for a different set', async () => {
+    await expect(
+      launchFc({
+        fcContent: { payload: { set: { ...FC_SET_DOC, id: 'other-set' } } },
+      }).run()
+    ).rejects.toThrow('does not match the share');
+  });
+
+  it('refuses a set with no cards to study', async () => {
+    await expect(
+      launchFc({
+        fcContent: { payload: { set: { ...FC_SET_DOC, cards: [] } } },
+      }).run()
+    ).rejects.toThrow('has no cards');
+    await expect(
+      launchFc({
+        fcContent: {
+          payload: { set: { ...FC_SET_DOC, cards: [{ term: 'x' }] } },
+        },
+      }).run()
+    ).rejects.toThrow('no usable cards');
+  });
+
+  it('refuses a set that has left the teacher’s library', async () => {
+    await expect(launchFc({ fc: null }).run()).rejects.toThrow(
+      'no longer in the teacher'
+    );
   });
 });

@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { subLaunchRunSettings } from './subLaunchRunSettings';
 import { DEFAULT_QUIZ_BEHAVIOR } from './quizBehavior';
+import {
+  DEFAULT_FLASHCARD_ASSIGN_FORM,
+  buildFlashcardAssignKindFields,
+} from '@/components/widgets/Flashcards/utils/flashcardAssign';
 
 const NOW = 1_700_000_000_000;
 
@@ -85,6 +89,15 @@ const GL_SESSION_FIELDS = new Set([
 const GL_ASSIGNMENT_FIELDS = new Set([
   'status',
   'assignmentMode',
+  'openAt',
+  'closeAt',
+  'dueAt',
+  'updatedAt',
+]);
+
+const FC_SESSION_FIELDS = new Set(['status', 'openAt', 'closeAt', 'dueAt']);
+const FC_ASSIGNMENT_FIELDS = new Set([
+  'status',
   'openAt',
   'closeAt',
   'dueAt',
@@ -214,5 +227,32 @@ describe('subLaunchRunSettings for a guided activity', () => {
   it('sends nothing the callable would refuse', () => {
     expect(outside(session, GL_SESSION_FIELDS)).toEqual([]);
     expect(outside(assignment, GL_ASSIGNMENT_FIELDS)).toEqual([]);
+  });
+});
+
+describe('subLaunchRunSettings for a flashcard set', () => {
+  const { session, assignment } = subLaunchRunSettings(
+    'flashcards',
+    'Period 5',
+    NOW
+  );
+
+  it('starts the run and leaves the rest to the server', () => {
+    expect(session).toEqual({ status: 'active' });
+    expect(assignment).toEqual({ status: 'active' });
+  });
+
+  // The server writes `kind: 'study'`. This is the pin on that literal: it is
+  // the teacher's own default, and a graded Check brings a mastery threshold
+  // and a score visibility that can reveal answers.
+  it('matches the kind the teacher\u2019s own assign form defaults to', () => {
+    expect(
+      buildFlashcardAssignKindFields(DEFAULT_FLASHCARD_ASSIGN_FORM, 10)
+    ).toEqual({ kind: 'study' });
+  });
+
+  it('sends nothing the callable would refuse', () => {
+    expect(outside(session, FC_SESSION_FIELDS)).toEqual([]);
+    expect(outside(assignment, FC_ASSIGNMENT_FIELDS)).toEqual([]);
   });
 });

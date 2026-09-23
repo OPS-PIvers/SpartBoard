@@ -23,7 +23,12 @@ import {
 } from './guidedLearningPublicStep';
 
 /** Only the kinds D8 puts in v1; Poll and Activity Wall stay unlaunchable. */
-const LAUNCHABLE_KINDS = ['quiz', 'videoActivity', 'guidedLearning'] as const;
+const LAUNCHABLE_KINDS = [
+  'quiz',
+  'videoActivity',
+  'guidedLearning',
+  'flashcards',
+] as const;
 type LaunchKind = (typeof LAUNCHABLE_KINDS)[number];
 
 const MAX_ID_LENGTH = 128;
@@ -138,6 +143,26 @@ const ALLOWED_GL_SESSION_FIELDS = new Set([
 const ALLOWED_GL_ASSIGNMENT_FIELDS = new Set([
   'status',
   'assignmentMode',
+  'openAt',
+  'closeAt',
+  'dueAt',
+  'updatedAt',
+]);
+
+/**
+ * The same for a flashcard set. `kind` is not offered: a sub starts a Study
+ * run, which is the teacher's own default, and the Check kind brings grading,
+ * a mastery threshold and a score-visibility setting that reveals answers.
+ */
+const ALLOWED_FC_SESSION_FIELDS = new Set([
+  'status',
+  'openAt',
+  'closeAt',
+  'dueAt',
+]);
+
+const ALLOWED_FC_ASSIGNMENT_FIELDS = new Set([
+  'status',
   'openAt',
   'closeAt',
   'dueAt',
@@ -440,6 +465,39 @@ export function glSessionPresentation(set: GlKeySet): Record<string, unknown> {
     ...welcome,
     ...(set.watchPace === 'calm' ? { watchPace: set.watchPace } : {}),
   };
+}
+
+interface FcCard {
+  id: string;
+  term: string;
+  definition: string;
+}
+
+/**
+ * The deck a sub-launched run studies. Field by field rather than a spread:
+ * `content/` is broadly readable, so whatever else a bundled card picked up
+ * does not travel onto a session doc the world can read. Deduped by id for
+ * the same reason every other kind is — a repeated id miscounts the deck.
+ */
+export function fcCardsFromBundle(cards: unknown): FcCard[] {
+  if (!Array.isArray(cards) || cards.length === 0) {
+    denied('The shared flashcard set has no cards.');
+  }
+  const seen = new Set<string>();
+  const out: FcCard[] = [];
+  for (const raw of cards) {
+    if (!raw || typeof raw !== 'object') continue;
+    const card = raw as Partial<FcCard>;
+    if (typeof card.id !== 'string' || !card.id || seen.has(card.id)) continue;
+    if (typeof card.term !== 'string') continue;
+    if (typeof card.definition !== 'string') continue;
+    seen.add(card.id);
+    out.push({ id: card.id, term: card.term, definition: card.definition });
+  }
+  if (out.length === 0) {
+    denied('The shared flashcard set has no usable cards.');
+  }
+  return out;
 }
 
 export interface SubLaunchTargeting {
@@ -762,6 +820,128 @@ async function launchGuidedLearning(
   return { sessionId };
 }
 
+interface FcLaunchArgs {
+  db: admin.firestore.Firestore;
+  hostUid: string;
+  itemId: string;
+  bundle: admin.firestore.DocumentData | undefined;
+  rawSession: unknown;
+  rawAssignment: unknown;
+  targeting: SubLaunchTargeting;
+  pickedRosters: string[];
+  sessionId: string;
+  now: number;
+  stamp: Record<string, unknown>;
+}
+
+/**
+ * A flashcard set has no answer to withhold — the back of a card is what the
+ * student is learning — so it bundles into `content/` rather than `keys/`, and
+ * this is the one kind whose deck is read from there. The run is a Study one:
+ * see `ALLOWED_FC_SESSION_FIELDS`.
+ */
+async function launchFlashcards(
+  args: FcLaunchArgs
+): Promise<LaunchSubAssignmentResult> {
+  const { hostUid, itemId, bundle, targeting, sessionId, now, stamp } = args;
+  const set = (
+    bundle?.payload as
+      | {
+          set?: {
+            id?: unknown;
+            title?: unknown;
+            termLanguage?: unknown;
+            definitionLanguage?: unknown;
+            cards?: unknown;
+          };
+        }
+      | undefined
+  )?.set;
+  if (!bundle || !set) {
+    denied('The teacher did not leave this activity for a substitute.');
+  }
+  if (set.id !== itemId) denied('That activity does not match the share.');
+
+  const session = pickAllowed(
+    args.rawSession as Record<string, unknown>,
+    ALLOWED_FC_SESSION_FIELDS,
+    'session'
+  );
+  const assignment = pickAllowed(
+    args.rawAssignment as Record<string, unknown>,
+    ALLOWED_FC_ASSIGNMENT_FIELDS,
+    'assignment'
+  );
+  const answerField = findAnswerField(session) ?? findAnswerField(assignment);
+  if (answerField) bad(`${answerField} must not reach a student session.`);
+
+  const setSnap = await args.db
+    .doc(`users/${hostUid}/flashcard_sets/${itemId}`)
+    .get();
+  if (!setSnap.exists) {
+    denied('That set is no longer in the teacher’s library.');
+  }
+
+  const setTitle =
+    typeof set.title === 'string' && set.title ? set.title : 'Flashcards';
+  const cards = fcCardsFromBundle(set.cards);
+  const periodNames = Array.from(
+    new Set(Object.values(targeting.classPeriodByClassId))
+  );
+  // The teacher's own assign form defaults to collecting no submission, which
+  // is this kind; a graded Check stays theirs to set up.
+  const kind = 'study';
+
+  const sessionDoc = {
+    ...session,
+    ...stamp,
+    id: sessionId,
+    setId: itemId,
+    title: setTitle,
+    kind,
+    termLanguage:
+      typeof set.termLanguage === 'string' ? set.termLanguage : 'en',
+    definitionLanguage:
+      typeof set.definitionLanguage === 'string'
+        ? set.definitionLanguage
+        : 'en',
+    cards,
+    classIds: targeting.classIds,
+    classId: targeting.classIds[0],
+    ...(periodNames.length > 0 ? { periodNames } : {}),
+    rosterIds: args.pickedRosters,
+    createdAt: now,
+  };
+  if (approxBytes(sessionDoc) > MAX_PAYLOAD_BYTES) {
+    denied('That set is too large to start from a share.');
+  }
+
+  const batch = args.db.batch();
+  batch.set(args.db.doc(`flashcard_sessions/${sessionId}`), sessionDoc);
+  batch.set(
+    args.db.doc(`users/${hostUid}/flashcard_assignments/${sessionId}`),
+    {
+      ...assignment,
+      ...stamp,
+      id: sessionId,
+      sessionId,
+      setId: itemId,
+      setTitle,
+      kind,
+      rosterIds: args.pickedRosters,
+      classIds: targeting.classIds,
+      periodNames,
+      targetMode: 'class',
+      archivedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    }
+  );
+  await batch.commit();
+
+  return { sessionId };
+}
+
 export async function handleLaunchSubAssignment(
   db: admin.firestore.Firestore,
   caller: SubLaunchCaller | null,
@@ -853,9 +1033,13 @@ export async function handleLaunchSubAssignment(
     pickedRosters
   );
 
-  const keySnap = await db
-    .doc(`shared_collections/${shareId}/keys/${kind}_${itemId}`)
-    .get();
+  // Flashcards are the one kind bundled into `content/` rather than `keys/`:
+  // a card's back is the thing being learned, so there is no key to withhold.
+  const bundlePath =
+    kind === 'flashcards'
+      ? `shared_collections/${shareId}/content/flashcards_${itemId}`
+      : `shared_collections/${shareId}/keys/${kind}_${itemId}`;
+  const keySnap = await db.doc(bundlePath).get();
   const sessionId = deps.newId();
   const now = deps.now();
   // Ownership, the ids and the monitor window are written here or not at all.
@@ -865,6 +1049,22 @@ export async function handleLaunchSubAssignment(
     subMonitorUids: [caller.uid],
     subMonitorUntil: expiresAt,
   };
+
+  if (kind === 'flashcards') {
+    return launchFlashcards({
+      db,
+      hostUid,
+      itemId,
+      bundle: keySnap.exists ? keySnap.data() : undefined,
+      rawSession,
+      rawAssignment,
+      targeting,
+      pickedRosters,
+      sessionId,
+      now,
+      stamp,
+    });
+  }
 
   if (kind === 'guidedLearning') {
     return launchGuidedLearning({
