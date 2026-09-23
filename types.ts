@@ -9851,14 +9851,14 @@ export interface SharedCollectionBoardDoc {
 
 /**
  * What a widget's data is, when that data does not live on the board itself.
- * A Drawing's strokes, a notebook, a Next Up queue: all read from the
- * teacher's own `users/` tree or Drive, none of it reachable by a substitute.
+ * A Drawing's strokes, a notebook, a project: all read from the teacher's own
+ * `users/` tree, none of it reachable by a substitute. A Next Up queue is a
+ * list of student names, so it rides the per-share names file instead (§3.4).
  */
 export type SubShareContentKind =
   | 'drawing'
   | 'notebook'
   | 'flashcards'
-  | 'nextup'
   | 'project'
   | 'calendar'
   | 'customWidget'

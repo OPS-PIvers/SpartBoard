@@ -78,34 +78,38 @@ export async function withSubShareQueues(
   boards: Dashboard[],
   readQueue: ((fileId: string) => Promise<unknown>) | undefined
 ): Promise<{ names: SubShareNamesFile; unreadable: string[] }> {
-  const unreadable: string[] = [];
+  const unreadable = new Set<string>();
   const withQueues: SubShareNamesFile = {
     version: 1,
     boards: { ...names.boards },
   };
-  for (const board of boards) {
-    for (const widget of liveNextUpWidgets(board)) {
+  const reads = boards.flatMap((board) =>
+    liveNextUpWidgets(board).map(async (widget) => {
       const config = widget.config as NextUpConfig;
       const label = config.sessionName ?? board.name;
-      if (!readQueue) {
-        unreadable.push(label);
-        continue;
-      }
+      if (!readQueue) return { board, widget, label, queue: null };
       try {
         const queue = parseNextUpQueue(
           await readQueue(config.activeDriveFileId as string)
         );
-        withQueues.boards[board.id] = {
-          ...withQueues.boards[board.id],
-          [widget.id]: { [QUEUE_OVERLAY_KEY]: queue },
-        };
+        return { board, widget, label, queue };
       } catch (err) {
         logError('withSubShareQueues', err, { widgetId: widget.id });
-        unreadable.push(label);
+        return { board, widget, label, queue: null };
       }
+    })
+  );
+  for (const read of await Promise.all(reads)) {
+    if (!read.queue) {
+      unreadable.add(read.label);
+      continue;
     }
+    withQueues.boards[read.board.id] = {
+      ...withQueues.boards[read.board.id],
+      [read.widget.id]: { [QUEUE_OVERLAY_KEY]: read.queue },
+    };
   }
-  return { names: withQueues, unreadable };
+  return { names: withQueues, unreadable: [...unreadable] };
 }
 
 /** The queue file is the teacher's own; read it defensively all the same. */

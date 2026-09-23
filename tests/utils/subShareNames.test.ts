@@ -282,6 +282,43 @@ describe('withSubShareQueues', () => {
     expect(unreadable).toEqual(['Help Queue']);
   });
 
+  // Two sessions can carry the same name, and the teacher's warning should not
+  // say it twice.
+  it('names an unreadable queue once however many share its label', async () => {
+    const boards = [
+      queueBoard('b1', live('queue-a')),
+      queueBoard('b2', live('queue-b')),
+    ];
+
+    const { unreadable } = await withSubShareQueues(
+      extractSubShareNames(boards),
+      boards,
+      () => Promise.reject(new Error('404'))
+    );
+
+    expect(unreadable).toEqual(['Help Queue']);
+  });
+
+  it('reads every board’s queue at once', async () => {
+    const boards = [
+      queueBoard('b1', live('queue-a')),
+      queueBoard('b2', live('queue-b')),
+    ];
+    let inFlight = 0;
+    let peak = 0;
+    const readQueue = vi.fn().mockImplementation(async () => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await Promise.resolve();
+      inFlight -= 1;
+      return items;
+    });
+
+    await withSubShareQueues(extractSubShareNames(boards), boards, readQueue);
+
+    expect(peak).toBe(2);
+  });
+
   it('reports a queue file that is not a list', async () => {
     const board = queueBoard('b1', live('queue-file'));
 

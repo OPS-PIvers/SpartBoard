@@ -207,7 +207,7 @@ teacher's path is untouched. Per widget:
 | Projects                 | Project + current run (read-only)                  | Board view renders                                                                                |
 | Activity Wall            | Activity + current submissions view                | Read-only wall; launch disabled (D8)                                                              |
 | Smart Notebook           | Notebook doc (page image URLs already tokenized)   | Opens the teacher's notebook                                                                      |
-| Next Up                  | Queue JSON read from Drive at share time           | Queue shows; student link disabled                                                                |
+| Next Up                  | Queue rides the names file (§3.4), not `content/`  | Queue shows; student link disabled                                                                |
 | Poll                     | — (questions are in config)                        | Questions; launch disabled (D8)                                                                   |
 | Calendar                 | Personal events, next 14 days                      | Bundled + local + building events                                                                 |
 | Custom Widget            | Definition doc                                     | Renders for beta-only widgets too                                                                 |
