@@ -101,10 +101,12 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
     if (await flushOrConfirm()) closeEditor();
   }, [flushOrConfirm, closeEditor]);
 
+  // The draft travels to the classic editor, which keeps saving it, so nothing to confirm.
   const openClassic = useCallback(async () => {
-    if (!onOpenClassic || !(await flushOrConfirm())) return;
+    if (!onOpenClassic) return;
+    await autosave.flush();
     onOpenClassic(buildSavedSet() ?? set);
-  }, [onOpenClassic, flushOrConfirm, buildSavedSet, set]);
+  }, [onOpenClassic, autosave, buildSavedSet, set]);
 
   const choosePreset = useCallback((next: DevicePreset) => {
     setPreset(next);

@@ -2544,7 +2544,7 @@
     "unsavedTitle": "Änderungen nicht gespeichert",
     "emptyCanvas": "Füge eine Folie hinzu, um Schritte zu platzieren.",
     "devices": {
-      "board": "Board-Widget",
+      "board": "Tafel-Widget",
       "help": "Hilfecenter",
       "chromebook": "Chromebook der Schüler",
       "projector": "Beamer (1080p)",
