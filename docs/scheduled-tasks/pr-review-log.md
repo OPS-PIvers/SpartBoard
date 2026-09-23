@@ -4299,3 +4299,15 @@ rather than "no data") is also still open.
   - **`gh pr diff` would have failed on at least one PR again.** The MCP `get_diff` on #3252 exceeded the tool's output ceiling (66,463 characters) and had to be spilled to a file. Local `git diff <merge-base>...<head>` was used for all eight instead and had no such limit. The prompt should drop `gh pr diff` in favour of `git diff` outright rather than as a fallback — third run making this recommendation.
   - **Node version mismatch present and benign again:** container runs Node v22.22.2 against `engines: >=24.0.0`, printing an unsupported-engine warning on every `pnpm` invocation.
   - **The append-contention recommendation still stands, unactioned.** One file per run under `docs/scheduled-tasks/pr-review-log/` has been proposed since 08-26; two entries have already been lost to the single-file mechanism and the file has now passed **808 KB**. This run again read only the heading list and the final entry rather than the file.
+
+## 2026-09-23
+- PRs reviewed (10): #3330 Let a named substitute start a quiz in the teacher's account; #3329 SECURITY: fix help_resources write-scope missing super-admin fallback; #3328 Add missing aria-label to 9 admin panels' Toggle switches; #3327 Fix last-wins duplicate-question grading in Quiz/Video Activity score publishing; #3326 Fix missing Escape handling in the library toolbar's Sort dropdown; #3325 Fix out-of-bounds Guided Learning Studio hotspot coordinates on square-lock drag; #3322 refactor(admin): extract shared WidgetPermissionCardBody; #3318 Scheduled audit (2026-09-23) journals; #3311 D5 Toast Architecture; #3255 dev-paul → main (delta since `b632300` only)
+- Comments processed: 1 total — 0 fixed, 1 explained (#3255 CodeQL "DOM text reinterpreted as HTML" in `cartridgeReader.ts:62`: false positive, since `DOMParser` `text/html` output is inert and only `textContent`/`src` strings are read; dismissing the alert needs a human). The other 7 threads on #3255 were already resolved, and #3311 and #3322 carried only clean bot summaries.
+- Fixes pushed: none
+- Reviews posted: 10
+- Merge readiness: Needs changes: #3330 (the payload check is a denylist, so `revealedAnswers`, `readAloud*` and `ltiNrps` are accepted onto a teacher-owned session, and `assignment.quizId`/`quizDriveFileId`/`code` aren't tied to the share). Ready with minor notes: #3329, #3327, #3322, #3311, #3255. Ready: #3328, #3326, #3325, #3318.
+- Notes:
+  - Six PRs (#3325–#3330) were opened minutes before this run and had no review threads yet.
+  - `gh` is absent and `/mnt/skills/user/` does not exist again. GitHub access went through MCP, and the standards came from `.claude/skills/`.
+  - Per CLAUDE.md, no full lint, type-check or test runs were made; none were needed since nothing was pushed.
+  - `scheduled-tasks` still heads open PR #3322, so this log commit lands on it. It is Markdown-only, which `pr-validation.yml` ignores.

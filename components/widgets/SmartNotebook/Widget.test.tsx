@@ -9,6 +9,7 @@ import { describe, it, vi, expect, beforeEach, Mock } from 'vitest';
 import React from 'react';
 import { SmartNotebookWidget } from './Widget';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useStorage } from '@/hooks/useStorage';
@@ -16,6 +17,7 @@ import * as firestore from 'firebase/firestore';
 import * as parser from '@/utils/notebookParser';
 import * as olf from '@/utils/olfConverter';
 import { WidgetData } from '@/types';
+import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
 // Mock Modules
 vi.mock('@/context/useAuth');
@@ -483,7 +485,12 @@ describe('SmartNotebookWidget', () => {
       function InShare({ children }: { children: React.ReactNode }) {
         return (
           <SubShareContentContext.Provider
-            value={{ shareId: 'share-1', version: 0, load: load as never }}
+            value={subShareContextValue({
+              shareId: 'share-1',
+              version: 0,
+              load: load as never,
+              loadKey: noSubShareKey,
+            })}
           >
             {children}
           </SubShareContentContext.Provider>

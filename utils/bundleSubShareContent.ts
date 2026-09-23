@@ -13,6 +13,7 @@ import { logError } from '@/utils/logError';
 import { subShareContentId } from '@/utils/subShareContent';
 import { RUNS_COLLECTION, runIdFor } from '@/utils/projectRunWrites';
 import { normalizeActivityWallLibraryEntry } from '@/utils/activityWallNormalize';
+import { normalizeGuidedLearningSet } from '@/components/widgets/GuidedLearning/utils/setMigration';
 import type {
   ActivityWallConfig,
   ActivityWallLibraryEntry,
@@ -25,10 +26,16 @@ import type {
   DrawingPage,
   FlashcardSet,
   FlashcardsConfig,
+  GuidedLearningConfig,
+  GuidedLearningSet,
+  GuidedLearningSetMetadata,
+  GuidedLearningStep,
   NotebookItem,
   ProjectGroup,
   ProjectRun,
   ProjectsConfig,
+  QuizConfig,
+  QuizData,
   SmartNotebookConfig,
   SubShareActivityWallPayload,
   SubShareActivityWallView,
@@ -39,9 +46,19 @@ import type {
   SubShareDrawingPayload,
   SubShareFlashcardPayload,
   SubShareFlashcardSetView,
+  SubShareGuidedLearningPayload,
+  SubShareGuidedLearningStep,
+  SubShareGuidedLearningView,
   SubShareNotebookPayload,
   SubShareProjectGroupView,
   SubShareProjectPayload,
+  SubShareQuizPayload,
+  SubShareQuizView,
+  SubShareVideoActivityPayload,
+  SubShareVideoActivityView,
+  VideoActivityConfig,
+  VideoActivityData,
+  VideoActivityMetadata,
   WidgetData,
 } from '@/types';
 
@@ -59,6 +76,8 @@ export interface SubShareBundleFailure {
 
 export interface SubShareBundle {
   items: SubShareBundleItem[];
+  /** Answer keys and full activity copies, for `keys/` rather than `content/`. */
+  keys: SubShareBundleItem[];
   failures: SubShareBundleFailure[];
 }
 
@@ -76,6 +95,10 @@ export interface SubShareBundleServices {
     timeMin: string,
     timeMax: string
   ) => Promise<CalendarEvent[]>;
+  /** Reads a video activity's JSON out of the teacher's own Drive. */
+  loadVideoActivity?: (driveFileId: string) => Promise<VideoActivityData>;
+  /** Reads a guided learning set's JSON out of the teacher's own Drive. */
+  loadGuidedLearningSet?: (driveFileId: string) => Promise<GuidedLearningSet>;
 }
 
 interface DrawingConfig {
@@ -340,11 +363,20 @@ async function bundleFlashcardSet(
 }
 
 /**
- * Whether anything on these boards needs a Google read, so a share with no
- * such widget does not pay for a token round-trip it will never use.
+ * Whether any board carries a personal-calendar widget, so a share with none
+ * does not pay for a token round-trip it will never use.
  */
-export function subShareNeedsGoogleServices(boards: Dashboard[]): boolean {
+export function subShareNeedsCalendar(boards: Dashboard[]): boolean {
   return boards.some((board) => personalCalendarWidgets(board).length > 0);
+}
+
+/** Whether any board carries a video activity whose JSON needs a Drive read. */
+export function subShareNeedsDrive(boards: Dashboard[]): boolean {
+  return boards.some(
+    (board) =>
+      openVideoActivityIds(board).length > 0 ||
+      openGuidedLearningSetIds(board).length > 0
+  );
 }
 
 /** How far ahead a share reaches, per the plan's §3.3 Calendar row. */
@@ -368,6 +400,160 @@ async function bundleCalendar(
   return { events: perCalendar.flat() };
 }
 
+/** The quiz each Quiz widget on the board has open. */
+function openQuizIds(board: Dashboard): string[] {
+  const ids: string[] = [];
+  for (const widget of board.widgets ?? []) {
+    if (widget.type !== 'quiz') continue;
+    const id = (widget.config as QuizConfig | undefined)?.selectedQuizId;
+    if (id) ids.push(id);
+  }
+  return ids;
+}
+
+/**
+ * The teacher's quiz, field by field. The raw doc carries the PLC linkage,
+ * sync state and bank slots pointing at banks the sub cannot read, and this
+ * one lands in `keys/`, so only what a sub reads off the screen travels.
+ */
+async function bundleQuiz(
+  hostUid: string,
+  quizId: string
+): Promise<SubShareQuizPayload> {
+  const snap = await getDoc(doc(db, 'users', hostUid, 'quizzes', quizId));
+  if (!snap.exists()) throw new Error('quiz not found');
+  const data = snap.data() as Partial<QuizData>;
+  const quiz: SubShareQuizView = {
+    id: snap.id,
+    title: data.title ?? 'Quiz',
+    questions: data.questions ?? [],
+    createdAt: data.createdAt ?? 0,
+    updatedAt: data.updatedAt ?? 0,
+    ...(data.stimuli ? { stimuli: data.stimuli } : {}),
+    ...(data.language ? { language: data.language } : {}),
+  };
+  return { quiz };
+}
+
+/** The video activity each Video Activity widget on the board has open. */
+function openVideoActivityIds(board: Dashboard): string[] {
+  const ids: string[] = [];
+  for (const widget of board.widgets ?? []) {
+    if (widget.type !== 'video-activity') continue;
+    const id = (widget.config as VideoActivityConfig | undefined)
+      ?.selectedActivityId;
+    if (id) ids.push(id);
+  }
+  return ids;
+}
+
+/**
+ * The teacher's video activity. Firestore holds only metadata, so the
+ * questions come from the JSON file in the teacher's own Drive, which is why
+ * this one needs a reader passed in. Copied field by field: the raw metadata
+ * carries the PLC sync linkage and the folder it sits in, and the raw Drive
+ * blob is whatever an older client wrote.
+ */
+async function bundleVideoActivity(
+  hostUid: string,
+  activityId: string,
+  loadVideoActivity: NonNullable<SubShareBundleServices['loadVideoActivity']>
+): Promise<SubShareVideoActivityPayload> {
+  const snap = await getDoc(
+    doc(db, 'users', hostUid, 'video_activities', activityId)
+  );
+  if (!snap.exists()) throw new Error('video activity not found');
+  const meta = snap.data() as Partial<VideoActivityMetadata>;
+  if (!meta.driveFileId) throw new Error('video activity has no Drive file');
+  const data = await loadVideoActivity(meta.driveFileId);
+  const activity: SubShareVideoActivityView = {
+    id: snap.id,
+    title: data.title ?? meta.title ?? 'Video activity',
+    youtubeUrl: data.youtubeUrl ?? meta.youtubeUrl ?? '',
+    questions: data.questions ?? [],
+    createdAt: data.createdAt ?? meta.createdAt ?? 0,
+    updatedAt: data.updatedAt ?? meta.updatedAt ?? 0,
+    ...(data.videoDuration ? { videoDuration: data.videoDuration } : {}),
+  };
+  return { activity };
+}
+
+/** The guided learning set each Guided Learning widget has open in its player. */
+function openGuidedLearningSetIds(board: Dashboard): string[] {
+  const ids: string[] = [];
+  for (const widget of board.widgets ?? []) {
+    if (widget.type !== 'guided-learning') continue;
+    const id = (widget.config as GuidedLearningConfig | undefined)?.playerSetId;
+    if (id) ids.push(id);
+  }
+  return ids;
+}
+
+/** A step without the teacher-only tour binding or any raw Storage path. */
+function stepForSub(step: GuidedLearningStep): SubShareGuidedLearningStep {
+  const {
+    tour: _tour,
+    audioStoragePath: _audioStoragePath,
+    videoStoragePath: _videoStoragePath,
+    narration,
+    ...rest
+  } = step;
+  if (!narration) return rest;
+  return {
+    ...rest,
+    narration: {
+      url: narration.url,
+      voice: narration.voice,
+      durationMs: narration.durationMs,
+    },
+  };
+}
+
+/**
+ * The teacher's guided learning set, answers included: it lands in `keys/`,
+ * which only the subs this share names may read, and a sub covering the lesson
+ * needs to know what is right — the same call the Quiz and Video Activity
+ * slices make. Firestore holds only metadata, so the set itself comes from the
+ * teacher's Drive. A building set is not bundled at all: it lives in a
+ * top-level collection any signed-in user can read, so the sub reads it
+ * directly as they do today.
+ */
+async function bundleGuidedLearning(
+  hostUid: string,
+  setId: string,
+  loadSet: SubShareBundleServices['loadGuidedLearningSet']
+): Promise<SubShareGuidedLearningPayload | null> {
+  const snap = await getDoc(
+    doc(db, 'users', hostUid, 'guided_learning', setId)
+  );
+  if (!snap.exists()) {
+    const building = await getDoc(doc(db, 'building_guided_learning', setId));
+    if (building.exists()) return null;
+    throw new Error('guided learning set not found');
+  }
+  const meta = snap.data() as Partial<GuidedLearningSetMetadata>;
+  if (!meta.driveFileId)
+    throw new Error('guided learning set has no Drive file');
+  // Only a personal set needs Drive, so this is where a missing reader is a
+  // failure: a building set has already returned above.
+  if (!loadSet) throw new Error('no Drive reader for guided learning');
+  const data = normalizeGuidedLearningSet(await loadSet(meta.driveFileId));
+  const {
+    authorUid: _authorUid,
+    imagePaths: _imagePaths,
+    tourSetup: _tourSetup,
+    steps,
+    ...rest
+  } = data;
+  const set: SubShareGuidedLearningView = {
+    ...rest,
+    id: snap.id,
+    title: data.title ?? meta.title ?? 'Guided activity',
+    steps: (steps ?? []).map(stepForSub),
+  };
+  return { set };
+}
+
 export async function bundleSubShareContent({
   hostUid,
   boards,
@@ -378,6 +564,7 @@ export async function bundleSubShareContent({
   services?: SubShareBundleServices;
 }): Promise<SubShareBundle> {
   const items: SubShareBundleItem[] = [];
+  const keys: SubShareBundleItem[] = [];
   const failures: SubShareBundleFailure[] = [];
   const bundledAt = Date.now();
 
@@ -546,7 +733,89 @@ export async function bundleSubShareContent({
         });
       }
     }
+
+    for (const id of openQuizIds(board)) {
+      const contentId = subShareContentId('quiz', id);
+      if (done.has(contentId)) continue;
+      done.add(contentId);
+      try {
+        const payload = await bundleQuiz(hostUid, id);
+        keys.push({
+          id: contentId,
+          doc: { kind: 'quiz', itemId: id, bundledAt, payload },
+        });
+      } catch (err) {
+        logError('bundleSubShareContent.quiz', err, {
+          boardId: board.id,
+          quizId: id,
+        });
+        failures.push({
+          kind: 'quiz',
+          itemId: id,
+          label: `Quiz on ${board.name}`,
+        });
+      }
+    }
+
+    for (const id of openVideoActivityIds(board)) {
+      const contentId = subShareContentId('videoActivity', id);
+      if (done.has(contentId)) continue;
+      done.add(contentId);
+      try {
+        if (!services?.loadVideoActivity) {
+          throw new Error('no Drive reader for video activities');
+        }
+        const payload = await bundleVideoActivity(
+          hostUid,
+          id,
+          services.loadVideoActivity
+        );
+        keys.push({
+          id: contentId,
+          doc: { kind: 'videoActivity', itemId: id, bundledAt, payload },
+        });
+      } catch (err) {
+        logError('bundleSubShareContent.videoActivity', err, {
+          boardId: board.id,
+          activityId: id,
+        });
+        failures.push({
+          kind: 'videoActivity',
+          itemId: id,
+          label: `Video activity on ${board.name}`,
+        });
+      }
+    }
+
+    for (const id of openGuidedLearningSetIds(board)) {
+      const contentId = subShareContentId('guidedLearning', id);
+      if (done.has(contentId)) continue;
+      done.add(contentId);
+      try {
+        const payload = await bundleGuidedLearning(
+          hostUid,
+          id,
+          services?.loadGuidedLearningSet
+        );
+        // A building set bundles to nothing on purpose; the sub reads it.
+        if (!payload) continue;
+        keys.push({
+          id: contentId,
+          doc: { kind: 'guidedLearning', itemId: id, bundledAt, payload },
+        });
+      } catch (err) {
+        logError('bundleSubShareContent.guidedLearning', err, {
+          boardId: board.id,
+          setId: id,
+        });
+        failures.push({
+          kind: 'guidedLearning',
+          itemId: id,
+          label: `Guided activity on ${board.name}`,
+        });
+      }
+    }
   }
 
-  return { items, failures };
+  return { items, keys, failures };
 }

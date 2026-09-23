@@ -118,7 +118,25 @@ vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 // by a teacher who never granted the scope still has to work.
 const ensureGoogleScopeMock = vi.fn().mockResolvedValue(null);
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ ensureGoogleScope: ensureGoogleScopeMock }),
+  useAuth: () => ({
+    ensureGoogleScope: ensureGoogleScopeMock,
+    googleAccessToken: 'drive-token',
+    user: { uid: 'host-uid' },
+  }),
+}));
+// A video activity's questions are a JSON file in the teacher's own Drive,
+// which is why the share writer builds a reader for it at all.
+const loadQuizMock = vi.fn();
+vi.mock('@/utils/quizDriveService', () => ({
+  QuizDriveService: class {
+    loadQuiz = loadQuizMock;
+  },
+}));
+const loadSetMock = vi.fn();
+vi.mock('@/utils/guidedLearningDriveService', () => ({
+  GuidedLearningDriveService: class {
+    loadSet = loadSetMock;
+  },
 }));
 const getEventsMock = vi.fn().mockResolvedValue([]);
 vi.mock('@/utils/googleCalendarService', () => ({
@@ -675,6 +693,156 @@ describe('useSharedCollection', () => {
       expect(content.payload.pages).toEqual([
         { pageId: 'p1', objects: [{ id: 'o1', z: 1, kind: 'pen' }] },
       ]);
+    });
+
+    // A quiz is an answer key, so it must land in keys/, which the rules keep
+    // to the subs the share names, and never in the broadly readable content/.
+    it('writes a quiz into the share’s keys, not its content', async () => {
+      const helpers = await getHelpers();
+      helpers.docs.set('users/host-uid/quizzes/q-1', {
+        id: 'q-1',
+        title: 'Cells',
+        questions: [{ id: 'q1', text: 'Nucleus?', correctAnswer: 'yes' }],
+        createdAt: 1,
+        updatedAt: 2,
+      });
+      const quizBoard = {
+        ...dashboard('b1'),
+        widgets: [
+          {
+            id: 'w1',
+            type: 'quiz',
+            position: { x: 0, y: 0 },
+            config: { selectedQuizId: 'q-1' },
+          },
+        ] as unknown as Dashboard['widgets'],
+      };
+
+      const { shareId } = await shareWithDrawing([quizBoard]);
+
+      const key = helpers.docs.get(
+        `shared_collections/${shareId}/keys/quiz_q-1`
+      ) as { kind: string; payload: { quiz: { title: string } } };
+      expect(key.kind).toBe('quiz');
+      expect(key.payload.quiz.title).toBe('Cells');
+      expect(
+        helpers.docs.has(`shared_collections/${shareId}/content/quiz_q-1`)
+      ).toBe(false);
+    });
+
+    // Same rule for a video activity, whose questions carry their keys too.
+    it('writes a video activity into the share’s keys, not its content', async () => {
+      const helpers = await getHelpers();
+      helpers.docs.set('users/host-uid/video_activities/va-1', {
+        id: 'va-1',
+        title: 'Mitosis',
+        youtubeUrl: 'https://youtu.be/abc',
+        driveFileId: 'file-1',
+      });
+      loadQuizMock.mockResolvedValueOnce({
+        id: 'va-1',
+        title: 'Mitosis',
+        youtubeUrl: 'https://youtu.be/abc',
+        questions: [
+          { id: 'q1', text: 'Which phase?', type: 'MC', timestamp: 30 },
+        ],
+        createdAt: 1,
+        updatedAt: 2,
+      });
+      const vaBoard = {
+        ...dashboard('b1'),
+        widgets: [
+          {
+            id: 'w1',
+            type: 'video-activity',
+            position: { x: 0, y: 0 },
+            config: { selectedActivityId: 'va-1' },
+          },
+        ] as unknown as Dashboard['widgets'],
+      };
+
+      const { shareId } = await shareWithDrawing([vaBoard]);
+
+      expect(loadQuizMock).toHaveBeenCalledWith('file-1');
+      const key = helpers.docs.get(
+        `shared_collections/${shareId}/keys/videoActivity_va-1`
+      ) as {
+        kind: string;
+        payload: { activity: { title: string; questions: unknown[] } };
+      };
+      expect(key.kind).toBe('videoActivity');
+      expect(key.payload.activity.title).toBe('Mitosis');
+      expect(key.payload.activity.questions).toHaveLength(1);
+      expect(
+        helpers.docs.has(
+          `shared_collections/${shareId}/content/videoActivity_va-1`
+        )
+      ).toBe(false);
+    });
+
+    // And the same for a guided learning set, which travels with its answers.
+    it('writes a guided learning set into the share’s keys, not its content', async () => {
+      const helpers = await getHelpers();
+      helpers.docs.set('users/host-uid/guided_learning/set-1', {
+        id: 'set-1',
+        title: 'Plant cell',
+        driveFileId: 'file-gl',
+      });
+      loadSetMock.mockResolvedValueOnce({
+        id: 'set-1',
+        title: 'Plant cell',
+        imageUrls: ['https://storage/one?token=abc'],
+        mode: 'guided',
+        createdAt: 1,
+        updatedAt: 2,
+        authorUid: 'host-uid',
+        steps: [
+          {
+            id: 's1',
+            xPct: 1,
+            yPct: 2,
+            imageIndex: 0,
+            interactionType: 'question',
+            question: { type: 'multiple-choice', correctAnswer: 'Nucleus' },
+            tour: { anchorId: 'a1' },
+          },
+        ],
+      });
+      const glBoard = {
+        ...dashboard('b1'),
+        widgets: [
+          {
+            id: 'w1',
+            type: 'guided-learning',
+            position: { x: 0, y: 0 },
+            config: { view: 'player', playerSetId: 'set-1' },
+          },
+        ] as unknown as Dashboard['widgets'],
+      };
+
+      const { shareId } = await shareWithDrawing([glBoard]);
+
+      expect(loadSetMock).toHaveBeenCalledWith('file-gl');
+      const key = helpers.docs.get(
+        `shared_collections/${shareId}/keys/guidedLearning_set-1`
+      ) as {
+        kind: string;
+        payload: {
+          set: Record<string, unknown> & { steps: Record<string, unknown>[] };
+        };
+      };
+      expect(key.kind).toBe('guidedLearning');
+      expect(key.payload.set.steps[0].question).toEqual({
+        type: 'multiple-choice',
+        correctAnswer: 'Nucleus',
+      });
+      expect('authorUid' in key.payload.set).toBe(false);
+      expect('tour' in key.payload.set.steps[0]).toBe(false);
+      expect(
+        helpers.docs.has(
+          `shared_collections/${shareId}/content/guidedLearning_set-1`
+        )
+      ).toBe(false);
     });
 
     it('tells the caller what could not be bundled', async () => {

@@ -274,6 +274,21 @@ describe('VideoActivityWidget onAssign — class-wide flow (§3a-G)', () => {
     expect('targetMode' in assignmentDoc).toBe(false);
     expect('targetStudents' in assignmentDoc).toBe(false);
   });
+
+  // The widget's config has to remember which activity it assigned, the way
+  // the Quiz widget's does: it is the only record of what this widget is
+  // showing once the modal closes, and a substitute share reads it.
+  it('remembers the activity it assigned on the widget', async () => {
+    const dialog = await openAssignModal();
+    confirmAssign(dialog);
+
+    await waitFor(() => expect(updateWidget).toHaveBeenCalled());
+    const written = updateWidget.mock.calls.at(-1)?.[1] as {
+      config: VideoActivityConfig;
+    };
+    expect(written.config.selectedActivityId).toBe('va-1');
+    expect(written.config.selectedActivityTitle).toBe('Cell Division');
+  });
 });
 
 describe('VideoActivityWidget onAssign — individual targeting (§2a division of labor)', () => {

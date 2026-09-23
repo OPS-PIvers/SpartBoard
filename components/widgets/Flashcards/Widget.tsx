@@ -22,6 +22,7 @@ import {
 } from '@/hooks/useFlashcardSets';
 import { useFlashcardAssignments } from '@/hooks/useFlashcardAssignments';
 import { useSubShareFlashcards } from './useSubShareFlashcards';
+import { SubLaunchPanel } from '@/components/subs/SubLaunchPanel';
 import {
   buildSetAssignmentTargetsPayload,
   payloadRequiresCall,
@@ -490,6 +491,38 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     );
   }
 
+  // Hoisted so the substitute's column can put the Launch panel under it
+  // without the player's props being written out twice.
+  const presentPlayer = presentSet ? (
+    <FlashcardPlayer
+      key={presentSet.id}
+      cards={presentSet.cards}
+      termLanguage={presentSet.termLanguage}
+      definitionLanguage={presentSet.definitionLanguage}
+      adapter={presentAdapter}
+      allowedModes={['flashcards']}
+      theme="present"
+      seed={`${widget.id}:${presentSet.id}`}
+      initialSettings={{
+        showFirst: config.presentShowFirst ?? 'term',
+        shuffle: config.presentShuffle ?? false,
+      }}
+      onSettingsChange={
+        inShare
+          ? undefined
+          : (settings) =>
+              updateWidget(widget.id, {
+                config: {
+                  ...config,
+                  presentShowFirst: settings.showFirst,
+                  presentShuffle: settings.shuffle,
+                },
+              })
+      }
+      onBack={inShare ? undefined : showLibrary}
+    />
+  ) : null;
+
   return (
     <>
       <WidgetLayout
@@ -509,33 +542,19 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onUnpublishScores={unpublishScores}
               />
             ) : view === 'present' && presentSet ? (
-              <FlashcardPlayer
-                key={presentSet.id}
-                cards={presentSet.cards}
-                termLanguage={presentSet.termLanguage}
-                definitionLanguage={presentSet.definitionLanguage}
-                adapter={presentAdapter}
-                allowedModes={['flashcards']}
-                theme="present"
-                seed={`${widget.id}:${presentSet.id}`}
-                initialSettings={{
-                  showFirst: config.presentShowFirst ?? 'term',
-                  shuffle: config.presentShuffle ?? false,
-                }}
-                onSettingsChange={
-                  inShare
-                    ? undefined
-                    : (settings) =>
-                        updateWidget(widget.id, {
-                          config: {
-                            ...config,
-                            presentShowFirst: settings.showFirst,
-                            presentShuffle: settings.shuffle,
-                          },
-                        })
-                }
-                onBack={inShare ? undefined : showLibrary}
-              />
+              inShare ? (
+                <div className="flex h-full min-h-0 flex-col">
+                  <div className="min-h-0 flex-1">{presentPlayer}</div>
+                  <SubLaunchPanel
+                    kind="flashcards"
+                    widgetId={widget.id}
+                    itemId={presentSet.id}
+                    label="flashcard set"
+                  />
+                </div>
+              ) : (
+                presentPlayer
+              )
             ) : editingSet ? (
               <FlashcardEditor
                 key={editingSet.id}

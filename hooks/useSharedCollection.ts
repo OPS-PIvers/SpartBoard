@@ -33,7 +33,8 @@ import {
   type SubShareBundle,
   type SubShareBundleItem,
   type SubShareBundleServices,
-  subShareNeedsGoogleServices,
+  subShareNeedsCalendar,
+  subShareNeedsDrive,
 } from '@/utils/bundleSubShareContent';
 import {
   extractSubShareNames,
@@ -43,10 +44,18 @@ import {
   type SubShareNamesServices,
 } from '@/utils/subShareNames';
 import { GoogleCalendarService } from '@/utils/googleCalendarService';
+import { QuizDriveService } from '@/utils/quizDriveService';
+import { MockQuizDriveService } from '@/utils/mockQuizDriveService';
+import { GuidedLearningDriveService } from '@/utils/guidedLearningDriveService';
+import { MockGuidedLearningDriveService } from '@/utils/mockGuidedLearningDriveService';
+import { normalizeVideoActivityQuestions } from '@/utils/videoActivityNormalize';
 import { useAuth } from '@/context/useAuth';
 import { subShareContentId } from '@/utils/subShareContent';
 import type {
+  CalendarEvent,
   Dashboard,
+  GuidedLearningSet,
+  VideoActivityData,
   SharedCollection,
   SharedCollectionBoardDoc,
   SharedCollectionBoardEntry,
@@ -199,31 +208,47 @@ type SubstituteShareInput = ShareCollectionInput &
 async function commitContentBatches({
   shareId,
   items,
+  keys,
   previousIds,
+  previousKeyIds,
   failedIds,
 }: {
   shareId: string;
   items: SubShareBundleItem[];
+  /** Answer keys, which go to `keys/` and are read-gated to the named subs. */
+  keys?: SubShareBundleItem[];
   previousIds?: string[];
+  previousKeyIds?: string[];
   failedIds?: string[];
 }): Promise<void> {
   const BATCH_LIMIT = 400;
   // An item this push could not read keeps its last good copy: deleting it
   // would turn a network blip into an empty widget on the sub's screen.
-  const keep = new Set([...items.map((i) => i.id), ...(failedIds ?? [])]);
+  const failed = failedIds ?? [];
+  const keep = new Set([...items.map((i) => i.id), ...failed]);
+  const keepKeys = new Set([...(keys ?? []).map((i) => i.id), ...failed]);
   const stale = (previousIds ?? []).filter((id) => !keep.has(id));
+  const staleKeys = (previousKeyIds ?? []).filter((id) => !keepKeys.has(id));
   const writes: (() => void)[] = [];
   let batch = writeBatch(db);
   let inBatch = 0;
 
   const contentRef = (id: string) =>
     doc(db, SHARED_COLLECTIONS_SUBPATH, shareId, 'content', id);
+  const keyRef = (id: string) =>
+    doc(db, SHARED_COLLECTIONS_SUBPATH, shareId, 'keys', id);
 
   for (const item of items) {
     writes.push(() => batch.set(contentRef(item.id), item.doc));
   }
+  for (const item of keys ?? []) {
+    writes.push(() => batch.set(keyRef(item.id), item.doc));
+  }
   for (const id of stale) {
     writes.push(() => batch.delete(contentRef(id)));
+  }
+  for (const id of staleKeys) {
+    writes.push(() => batch.delete(keyRef(id)));
   }
 
   for (const write of writes) {
@@ -363,7 +388,8 @@ function mergeDriveGrants(
 }
 
 export const useSharedCollection = () => {
-  const { ensureGoogleScope } = useAuth();
+  const { ensureGoogleScope, googleAccessToken, user } = useAuth();
+  const hostUid = user?.uid;
 
   /**
    * The Google reads only the teacher's session can make. Non-interactive:
@@ -373,18 +399,71 @@ export const useSharedCollection = () => {
    */
   const bundleServices = useCallback(
     async (boards: Dashboard[]): Promise<SubShareBundleServices> => {
-      // Most shares carry no widget that needs one, and sharing is a hot
-      // action: don't pay for a GIS round-trip nothing will read.
-      if (!subShareNeedsGoogleServices(boards)) return {};
-      const token = await ensureGoogleScope('calendar.readonly');
-      if (!token) return {};
-      const calendar = new GoogleCalendarService(token);
+      // Each reader is fetched only when a board wants it: sharing is a hot
+      // action, and a GIS round-trip nothing will read is pure latency. They
+      // are independent, so a teacher who never granted Calendar still gets
+      // their video activities bundled.
+      const calendarToken = subShareNeedsCalendar(boards)
+        ? await ensureGoogleScope('calendar.readonly')
+        : null;
+      // `drive.file` is granted at login, so Drive needs no on-demand scope.
+      // Each widget family keeps its own Drive service, so the share builds
+      // both rather than inventing a third.
+      const needsDrive = subShareNeedsDrive(boards);
+      const driveArg = isAuthBypass ? hostUid : googleAccessToken;
+      const drive = !needsDrive || !driveArg ? null : driveArg;
+      const quizDrive = !drive
+        ? null
+        : isAuthBypass
+          ? new MockQuizDriveService(drive)
+          : new QuizDriveService(drive);
+      const glDrive = !drive
+        ? null
+        : isAuthBypass
+          ? new MockGuidedLearningDriveService(drive)
+          : new GuidedLearningDriveService(drive);
       return {
-        readCalendar: (id, timeMin, timeMax) =>
-          calendar.getEvents(id, timeMin, timeMax),
+        ...(calendarToken
+          ? {
+              readCalendar: (
+                id: string,
+                timeMin: string,
+                timeMax: string
+              ): Promise<CalendarEvent[]> =>
+                new GoogleCalendarService(calendarToken).getEvents(
+                  id,
+                  timeMin,
+                  timeMax
+                ),
+            }
+          : {}),
+        ...(quizDrive
+          ? {
+              loadVideoActivity: async (
+                fileId: string
+              ): Promise<VideoActivityData> => {
+                const raw = (await quizDrive.loadQuiz(fileId)) as unknown as
+                  | VideoActivityData
+                  | undefined;
+                if (!raw) throw new Error('video activity file was empty');
+                // An older client may have written questions with no `type`.
+                return {
+                  ...raw,
+                  questions: normalizeVideoActivityQuestions(raw.questions),
+                };
+              },
+            }
+          : {}),
+        ...(glDrive
+          ? {
+              loadGuidedLearningSet: (
+                fileId: string
+              ): Promise<GuidedLearningSet> => glDrive.loadSet(fileId),
+            }
+          : {}),
       };
     },
-    [ensureGoogleScope]
+    [ensureGoogleScope, googleAccessToken, hostUid]
   );
 
   /**
@@ -547,7 +626,11 @@ export const useSharedCollection = () => {
         boards: input.boards,
         services: await bundleServices(input.boards),
       });
-      await commitContentBatches({ shareId, items: bundle.items });
+      await commitContentBatches({
+        shareId,
+        items: bundle.items,
+        keys: bundle.keys,
+      });
       input.onBundle?.(bundle);
 
       return shareId;
@@ -664,13 +747,16 @@ export const useSharedCollection = () => {
       // What the last push bundled, read back rather than tracked on the
       // parent doc: the host can list it, and a list that drifts from the docs
       // themselves would leave a stale drawing on the sub's screen.
-      const existing = await getDocs(
-        collection(db, SHARED_COLLECTIONS_SUBPATH, shareId, 'content')
-      );
+      const [existing, existingKeys] = await Promise.all([
+        getDocs(collection(db, SHARED_COLLECTIONS_SUBPATH, shareId, 'content')),
+        getDocs(collection(db, SHARED_COLLECTIONS_SUBPATH, shareId, 'keys')),
+      ]);
       await commitContentBatches({
         shareId,
         items: bundle.items,
+        keys: bundle.keys,
         previousIds: existing.docs.map((d) => d.id),
+        previousKeyIds: existingKeys.docs.map((d) => d.id),
         failedIds: bundle.failures.map((f) =>
           subShareContentId(f.kind, f.itemId)
         ),

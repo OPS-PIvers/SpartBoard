@@ -21,6 +21,8 @@ import {
 } from '@/types';
 import { db, functions } from '@/config/firebase';
 import { useDashboard } from '@/context/useDashboard';
+import { useInSubShare } from '@/hooks/useShareContent';
+import { SubShareGuidedLearningWidget } from './SubShareWidget';
 import { useDialog } from '@/context/useDialog';
 import { useAuth } from '@/context/useAuth';
 import { useGuidedLearning } from '@/hooks/useGuidedLearning';
@@ -165,13 +167,14 @@ interface AssignDialogTarget {
   originSetId: string;
 }
 
-export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
+const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, addToast, rosters } = useDashboard();
   const { showConfirm } = useDialog();
   const { user, isAdmin, getAssignmentMode, canAccessFeature } = useAuth();
   const playerV2 = canAccessFeature('gl-player-v2');
+  const studioEditor = canAccessFeature('gl-studio');
   const assignmentMode: AssignmentMode = getAssignmentMode('guidedLearning');
   const isViewOnly = assignmentMode === 'view-only';
   const rawConfig = widget.config as GuidedLearningConfig;
@@ -1359,7 +1362,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       />
       {editingSet && (
         <Suspense fallback={<ModalChunkFallback />}>
-          {isAdmin === true && !classicEditor ? (
+          {studioEditor && !classicEditor ? (
             <GuidedLearningStudio
               key={editingSet.id}
               set={editingSet}
@@ -1505,3 +1508,18 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     </>
   );
 };
+
+/**
+ * A substitute gets a read-only copy from the share, never the teacher's
+ * library: splitting here rather than branching inside keeps the Drive
+ * service, the folder and assignment listeners and the live-session
+ * machinery from mounting for them at all.
+ */
+export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) =>
+  useInSubShare() ? (
+    <SubShareGuidedLearningWidget widget={widget} />
+  ) : (
+    <TeacherGuidedLearningWidget widget={widget} />
+  );

@@ -230,6 +230,7 @@ export const SubCollectionBoardScreen: React.FC<
       boardKey={`${shown.boardId}::${view.version}`}
       contentShareId={shareId}
       contentVersion={view.version}
+      contentBoardId={shown.boardId}
       rosterState={rosterState}
       names={rosterState.names?.boards[shown.boardId]}
     >

@@ -186,6 +186,8 @@ export { migratePlcs } from './migratePlcs';
 export { syncMyMaterialsFromProdV1 } from './devSyncFromProd';
 export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 export { expireSubShares } from './expireSubShares';
+export { launchSubAssignmentV1 } from './subLaunchAssignment';
+export { controlSubAssignmentV1 } from './subControlAssignment';
 export { expireActivityWallShares } from './expireActivityWallShares';
 export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';
 export {

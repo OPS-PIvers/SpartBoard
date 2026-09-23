@@ -984,4 +984,517 @@ describe('bundleSubShareContent', () => {
       ]);
     });
   });
+  // A quiz is an answer key, so it goes to `keys/` rather than `content/`.
+  describe('quiz', () => {
+    const quizWidget = (id: string, quizId: string | null) =>
+      ({
+        id,
+        type: 'quiz' satisfies WidgetType,
+        config: { selectedQuizId: quizId },
+      }) as unknown as WidgetData;
+
+    it('bundles the open quiz as a key, field by field', async () => {
+      mockGetDoc.mockResolvedValue({
+        id: 'q-1',
+        exists: () => true,
+        data: () => ({
+          id: 'q-1',
+          title: 'Cells',
+          questions: [{ id: 'q1', text: 'Nucleus?', correctAnswer: 'yes' }],
+          createdAt: 1,
+          updatedAt: 2,
+          language: 'es-MX',
+          bankSlots: [{ bankId: 'bank-1', count: 3 }],
+          syncLinkage: { groupId: 'g-1', lastSyncedVersion: 4 },
+          plcSheetUrl: 'https://docs.google.com/spreadsheets/d/x',
+        }),
+      });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [quizWidget('w1', 'q-1')])],
+      });
+
+      expect(bundle.items).toEqual([]);
+      expect(bundle.keys).toHaveLength(1);
+      expect(bundle.keys[0].id).toBe('quiz_q-1');
+      expect(bundle.keys[0].doc.payload).toEqual({
+        quiz: {
+          id: 'q-1',
+          title: 'Cells',
+          questions: [{ id: 'q1', text: 'Nucleus?', correctAnswer: 'yes' }],
+          createdAt: 1,
+          updatedAt: 2,
+          language: 'es-MX',
+        },
+      });
+    });
+
+    it('reads nothing for a widget with no quiz open', async () => {
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [quizWidget('w1', null)])],
+      });
+
+      expect(mockGetDoc).not.toHaveBeenCalled();
+      expect(bundle.keys).toEqual([]);
+    });
+
+    it('reads the quiz from the teacher’s own account', async () => {
+      mockGetDoc.mockResolvedValue({
+        id: 'q-1',
+        exists: () => true,
+        data: () => ({ title: 'Cells', questions: [] }),
+      });
+
+      await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [quizWidget('w1', 'q-1')])],
+      });
+
+      expect((doc as Mock).mock.results.at(-1)?.value).toEqual({
+        __path: 'users/teacher-1/quizzes/q-1',
+      });
+    });
+
+    it('reports a quiz it could not read', async () => {
+      mockGetDoc.mockResolvedValue({ exists: () => false });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [quizWidget('w1', 'q-1')])],
+      });
+
+      expect(bundle.keys).toEqual([]);
+      expect(bundle.failures).toEqual([
+        { kind: 'quiz', itemId: 'q-1', label: 'Quiz on Period 2' },
+      ]);
+    });
+  });
+
+  // A video activity is an answer key too, and unlike a quiz its questions
+  // live in the teacher's Drive rather than Firestore.
+  describe('video activity', () => {
+    const vaWidget = (id: string, activityId: string | null) =>
+      ({
+        id,
+        type: 'video-activity' satisfies WidgetType,
+        config: { selectedActivityId: activityId },
+      }) as unknown as WidgetData;
+
+    const metaDoc = (fields: Record<string, unknown>) => ({
+      id: 'va-1',
+      exists: () => true,
+      data: () => fields,
+    });
+
+    it('bundles the open activity as a key, field by field', async () => {
+      mockGetDoc.mockResolvedValue(
+        metaDoc({
+          id: 'va-1',
+          title: 'Mitosis',
+          youtubeUrl: 'https://youtu.be/abc',
+          driveFileId: 'file-1',
+          questionCount: 1,
+          createdAt: 1,
+          updatedAt: 2,
+          folderId: 'folder-9',
+          sync: { groupId: 'g-1', lastSyncedVersion: 4 },
+        })
+      );
+      const loadVideoActivity = vi.fn().mockResolvedValue({
+        id: 'va-1',
+        title: 'Mitosis',
+        youtubeUrl: 'https://youtu.be/abc',
+        videoDuration: 610,
+        questions: [
+          { id: 'q1', text: 'Which phase?', type: 'MC', timestamp: 30 },
+        ],
+        createdAt: 1,
+        updatedAt: 2,
+      });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [vaWidget('w1', 'va-1')])],
+        services: { loadVideoActivity },
+      });
+
+      expect(loadVideoActivity).toHaveBeenCalledWith('file-1');
+      expect(bundle.items).toEqual([]);
+      expect(bundle.keys).toHaveLength(1);
+      expect(bundle.keys[0].id).toBe('videoActivity_va-1');
+      // The PLC sync linkage and the folder are the teacher's own filing.
+      expect(bundle.keys[0].doc.payload).toEqual({
+        activity: {
+          id: 'va-1',
+          title: 'Mitosis',
+          youtubeUrl: 'https://youtu.be/abc',
+          videoDuration: 610,
+          questions: [
+            { id: 'q1', text: 'Which phase?', type: 'MC', timestamp: 30 },
+          ],
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      });
+    });
+
+    it('reads the metadata from the teacher’s own account', async () => {
+      mockGetDoc.mockResolvedValue(
+        metaDoc({ title: 'Mitosis', driveFileId: 'file-1' })
+      );
+
+      await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [vaWidget('w1', 'va-1')])],
+        services: {
+          loadVideoActivity: vi.fn().mockResolvedValue({ questions: [] }),
+        },
+      });
+
+      expect((doc as Mock).mock.results.at(-1)?.value).toEqual({
+        __path: 'users/teacher-1/video_activities/va-1',
+      });
+    });
+
+    it('reads nothing for a widget with no activity open', async () => {
+      const loadVideoActivity = vi.fn();
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [vaWidget('w1', null)])],
+        services: { loadVideoActivity },
+      });
+
+      expect(mockGetDoc).not.toHaveBeenCalled();
+      expect(loadVideoActivity).not.toHaveBeenCalled();
+      expect(bundle.keys).toEqual([]);
+    });
+
+    // A teacher who never connected Drive gets a line on the share screen,
+    // not a widget that silently shows the sub nothing.
+    it('reports the activity when no Drive reader was passed', async () => {
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [vaWidget('w1', 'va-1')])],
+      });
+
+      expect(bundle.keys).toEqual([]);
+      expect(bundle.failures).toEqual([
+        {
+          kind: 'videoActivity',
+          itemId: 'va-1',
+          label: 'Video activity on Period 2',
+        },
+      ]);
+    });
+
+    it('reports an activity whose Drive file could not be read', async () => {
+      mockGetDoc.mockResolvedValue(
+        metaDoc({ title: 'Mitosis', driveFileId: 'file-1' })
+      );
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [vaWidget('w1', 'va-1')])],
+        services: {
+          loadVideoActivity: vi.fn().mockRejectedValue(new Error('403')),
+        },
+      });
+
+      expect(bundle.keys).toEqual([]);
+      expect(bundle.failures).toEqual([
+        {
+          kind: 'videoActivity',
+          itemId: 'va-1',
+          label: 'Video activity on Period 2',
+        },
+      ]);
+    });
+
+    it('reports an activity whose metadata names no Drive file', async () => {
+      mockGetDoc.mockResolvedValue(metaDoc({ title: 'Mitosis' }));
+      const loadVideoActivity = vi.fn();
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [vaWidget('w1', 'va-1')])],
+        services: { loadVideoActivity },
+      });
+
+      expect(loadVideoActivity).not.toHaveBeenCalled();
+      expect(bundle.failures).toHaveLength(1);
+    });
+  });
+
+  // A guided learning set carries its answers into `keys/` like the other two,
+  // but a building set is a reference the sub can read for themselves.
+  describe('guided learning', () => {
+    const glWidget = (id: string, setId: string | null) =>
+      ({
+        id,
+        type: 'guided-learning' satisfies WidgetType,
+        config: { view: 'player', playerSetId: setId },
+      }) as unknown as WidgetData;
+
+    const personalMeta = (fields: Record<string, unknown>) => ({
+      id: 'set-1',
+      exists: () => true,
+      data: () => fields,
+    });
+
+    const fullSet = (extra: Record<string, unknown> = {}) => ({
+      id: 'set-1',
+      schemaVersion: 3,
+      title: 'Plant cell',
+      imageUrls: ['https://storage/one?token=abc'],
+      mode: 'guided',
+      createdAt: 1,
+      updatedAt: 2,
+      steps: [
+        {
+          id: 's1',
+          xPct: 10,
+          yPct: 20,
+          imageIndex: 0,
+          interactionType: 'question',
+          question: {
+            type: 'multiple-choice',
+            text: 'Which part?',
+            choices: ['Nucleus', 'Wall'],
+            correctAnswer: 'Nucleus',
+          },
+          audioUrl: 'https://storage/audio?token=abc',
+          audioStoragePath: 'users/teacher-1/hotspot_images/audio.mp3',
+          videoStoragePath: 'users/teacher-1/hotspot_images/clip.mp4',
+          narration: {
+            source: 'generated',
+            url: 'https://storage/narration?token=abc',
+            storagePath: 'users/teacher-1/hotspot_images/narration.mp3',
+            durationMs: 4200,
+            voice: 'en-US-1',
+            textHash: 'abc123',
+          },
+          tour: { anchorId: 'a1' },
+        },
+      ],
+      ...extra,
+    });
+
+    it('bundles the open set as a key, answers and all', async () => {
+      mockGetDoc.mockResolvedValue(
+        personalMeta({ title: 'Plant cell', driveFileId: 'file-1' })
+      );
+      const loadGuidedLearningSet = vi.fn().mockResolvedValue(fullSet());
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [glWidget('w1', 'set-1')])],
+        services: { loadGuidedLearningSet },
+      });
+
+      expect(loadGuidedLearningSet).toHaveBeenCalledWith('file-1');
+      expect(bundle.items).toEqual([]);
+      expect(bundle.keys).toHaveLength(1);
+      expect(bundle.keys[0].id).toBe('guidedLearning_set-1');
+      const payload = bundle.keys[0].doc.payload as {
+        set: { steps: { question?: { correctAnswer?: string } }[] };
+      };
+      // The whole point of `keys/`: the sub covering the lesson sees the key.
+      expect(payload.set.steps[0].question?.correctAnswer).toBe('Nucleus');
+    });
+
+    // `types.ts` calls the live-tour binding teacher-only, and the author's uid
+    // and raw Storage paths are no use to a sub who cannot read them.
+    it('leaves the teacher-only parts behind', async () => {
+      mockGetDoc.mockResolvedValue(
+        personalMeta({ title: 'Plant cell', driveFileId: 'file-1' })
+      );
+      const loadGuidedLearningSet = vi.fn().mockResolvedValue(
+        fullSet({
+          authorUid: 'teacher-1',
+          imagePaths: ['gl/teacher-1/one'],
+          tourSetup: { widgets: ['timer'] },
+        })
+      );
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [glWidget('w1', 'set-1')])],
+        services: { loadGuidedLearningSet },
+      });
+
+      const set = (
+        bundle.keys[0].doc.payload as {
+          set: Record<string, unknown> & {
+            steps: Record<string, unknown>[];
+          };
+        }
+      ).set;
+      expect('authorUid' in set).toBe(false);
+      expect('imagePaths' in set).toBe(false);
+      expect('tourSetup' in set).toBe(false);
+      expect('tour' in set.steps[0]).toBe(false);
+      expect('audioStoragePath' in set.steps[0]).toBe(false);
+      expect('videoStoragePath' in set.steps[0]).toBe(false);
+      expect(set.steps[0].narration).toEqual({
+        url: 'https://storage/narration?token=abc',
+        voice: 'en-US-1',
+        durationMs: 4200,
+      });
+      // The tokenized urls are what a sub can actually read, so they stay.
+      expect(set.imageUrls).toEqual(['https://storage/one?token=abc']);
+      expect(set.steps[0].audioUrl).toBe('https://storage/audio?token=abc');
+    });
+
+    // A building set is world-readable, so bundling it would duplicate a doc
+    // the sub reads anyway — and reporting it would be a lie.
+    it('bundles nothing for a building set and reports no failure', async () => {
+      mockGetDoc
+        .mockResolvedValueOnce({ exists: () => false })
+        .mockResolvedValueOnce({ exists: () => true, data: () => ({}) });
+      const loadGuidedLearningSet = vi.fn();
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [glWidget('w1', 'set-1')])],
+        services: { loadGuidedLearningSet },
+      });
+
+      expect(loadGuidedLearningSet).not.toHaveBeenCalled();
+      expect(bundle.keys).toEqual([]);
+      expect(bundle.failures).toEqual([]);
+    });
+
+    // Drive is only needed for a personal set, so a board whose only guided
+    // widget points at a building set must not report a failure when the
+    // share was made without a Drive token.
+    it('reports no failure for a building set when there is no Drive reader', async () => {
+      mockGetDoc
+        .mockResolvedValueOnce({ exists: () => false })
+        .mockResolvedValueOnce({ exists: () => true, data: () => ({}) });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [glWidget('w1', 'set-1')])],
+        services: {},
+      });
+
+      expect(bundle.keys).toEqual([]);
+      expect(bundle.failures).toEqual([]);
+    });
+
+    it('reports a personal set when there is no Drive reader', async () => {
+      mockGetDoc.mockResolvedValue(
+        personalMeta({ title: 'Plant cell', driveFileId: 'file-1' })
+      );
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [glWidget('w1', 'set-1')])],
+        services: {},
+      });
+
+      expect(bundle.failures).toEqual([
+        {
+          kind: 'guidedLearning',
+          itemId: 'set-1',
+          label: 'Guided activity on Period 2',
+        },
+      ]);
+    });
+
+    // Every other Drive load path migrates the raw JSON, so a set authored
+    // before the current schema has to reach the sub the same way it reaches
+    // the teacher: with its legacy single image read and its step indexes in
+    // bounds.
+    it('migrates a legacy set the way the teacher’s own load does', async () => {
+      mockGetDoc.mockResolvedValue(
+        personalMeta({ title: 'Plant cell', driveFileId: 'file-1' })
+      );
+      const loadGuidedLearningSet = vi.fn().mockResolvedValue({
+        id: 'set-1',
+        title: 'Plant cell',
+        imageUrl: 'https://storage/legacy?token=abc',
+        mode: 'guided',
+        createdAt: 1,
+        updatedAt: 2,
+        steps: [
+          {
+            id: 's1',
+            xPct: 10,
+            yPct: 20,
+            imageIndex: 4,
+            interactionType: 'text-popover',
+          },
+        ],
+      });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [glWidget('w1', 'set-1')])],
+        services: { loadGuidedLearningSet },
+      });
+
+      const set = (
+        bundle.keys[0].doc.payload as {
+          set: {
+            imageUrls: string[];
+            steps: { imageIndex: number; showOverlay?: string }[];
+          };
+        }
+      ).set;
+      expect(set.imageUrls).toEqual(['https://storage/legacy?token=abc']);
+      expect(set.steps[0].imageIndex).toBe(0);
+      expect(set.steps[0].showOverlay).toBe('none');
+    });
+
+    it('reports a set that is neither the teacher’s nor a building set', async () => {
+      mockGetDoc.mockResolvedValue({ exists: () => false });
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [glWidget('w1', 'set-1')])],
+        services: { loadGuidedLearningSet: vi.fn() },
+      });
+
+      expect(bundle.failures).toEqual([
+        {
+          kind: 'guidedLearning',
+          itemId: 'set-1',
+          label: 'Guided activity on Period 2',
+        },
+      ]);
+    });
+
+    it('reads nothing for a widget with no set open', async () => {
+      const loadGuidedLearningSet = vi.fn();
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [glWidget('w1', null)])],
+        services: { loadGuidedLearningSet },
+      });
+
+      expect(mockGetDoc).not.toHaveBeenCalled();
+      expect(loadGuidedLearningSet).not.toHaveBeenCalled();
+      expect(bundle.keys).toEqual([]);
+    });
+
+    it('reports a set whose Drive file could not be read', async () => {
+      mockGetDoc.mockResolvedValue(
+        personalMeta({ title: 'Plant cell', driveFileId: 'file-1' })
+      );
+
+      const bundle = await bundleSubShareContent({
+        hostUid: 'teacher-1',
+        boards: [board('b1', 'Period 2', [glWidget('w1', 'set-1')])],
+        services: {
+          loadGuidedLearningSet: vi.fn().mockRejectedValue(new Error('403')),
+        },
+      });
+
+      expect(bundle.keys).toEqual([]);
+      expect(bundle.failures).toHaveLength(1);
+    });
+  });
 });

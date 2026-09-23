@@ -11,6 +11,7 @@ import {
 import { useFlashcardResults } from '@/hooks/useFlashcardResults';
 import { useMinuteClock } from '@/hooks/useMinuteClock';
 import { SessionViewHeader } from '@/components/common/sessionViews/SessionViewHeader';
+import { LaunchedBySubTag } from '@/components/common/sessionViews/LaunchedBySubTag';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { filterResultsByClass } from '@/utils/flashcardResults';
 import { FlashcardStudyResults } from './FlashcardStudyResults';
@@ -205,6 +206,18 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
         }
         actions={actions}
       />
+
+      {assignment.launchedBy && (
+        <div
+          className="flex shrink-0 items-center border-b border-slate-200/70 bg-white/60"
+          style={{ padding: 'min(6px, 1.6cqmin) min(16px, 3.5cqmin)' }}
+        >
+          <LaunchedBySubTag
+            launchedBy={assignment.launchedBy}
+            at={assignment.createdAt}
+          />
+        </div>
+      )}
 
       {presentClassIds.length > 1 && (
         <div

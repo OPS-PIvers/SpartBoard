@@ -79,6 +79,7 @@ import {
   SessionBadge,
   ScorePill,
   OverflowMenu,
+  LaunchedBySubTag,
 } from '@/components/common/sessionViews';
 import type { OverflowMenuItem } from '@/components/common/sessionViews';
 import { scoreColorClasses } from '@/utils/scoreColor';
@@ -1656,6 +1657,21 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           Results
         </span>
       </div>
+
+      {session?.launchedBy && (
+        <div
+          className="flex shrink-0 items-center border-b border-slate-200"
+          style={{
+            paddingInline: 'min(12px, 3cqmin)',
+            paddingBlock: 'min(6px, 1.6cqmin)',
+          }}
+        >
+          <LaunchedBySubTag
+            launchedBy={session.launchedBy}
+            at={session.startedAt}
+          />
+        </div>
+      )}
 
       {exportError &&
         !(exportError.kind === 'schemaMismatch' && exportError.recoveryUrl) && (

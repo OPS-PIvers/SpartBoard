@@ -8,6 +8,7 @@
  * comes with the questions rather than having to be found in the prose.
  */
 
+import DOMPurify from 'dompurify';
 import JSZip from 'jszip';
 import type {
   ExtractedImage,
@@ -59,7 +60,10 @@ function materialText(root: Element | null): {
     const raw = mattext.textContent ?? '';
     if (!raw.trim()) continue;
     if ((mattext.getAttribute('texttype') ?? '').includes('html')) {
-      const html = new DOMParser().parseFromString(raw, 'text/html');
+      const html = new DOMParser().parseFromString(
+        DOMPurify.sanitize(raw),
+        'text/html'
+      );
       for (const img of Array.from(html.getElementsByTagName('img'))) {
         const src = img.getAttribute('src');
         if (src) imageSrcs.push(src);

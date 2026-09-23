@@ -116,3 +116,33 @@ describe('GuidedLearningResults engagement gating', () => {
     expect(screen.queryByText(/No responses yet/)).not.toBeInTheDocument();
   });
 });
+
+describe('GuidedLearningResults — who started the run', () => {
+  it('names the substitute who launched it', async () => {
+    session({
+      createdAt: Date.UTC(2026, 8, 23, 14, 0, 0),
+      launchedBy: {
+        uid: 'sub-1',
+        email: 'sub@orono.k12.mn.us',
+        shareId: 'share-1',
+      },
+    });
+    render(
+      <GuidedLearningResults set={set} sessionId="s1" onClose={vi.fn()} />
+    );
+
+    expect(await screen.findByTestId('launched-by-sub')).toHaveTextContent(
+      /Launched by sub@orono\.k12\.mn\.us/
+    );
+  });
+
+  it('says nothing on a run the teacher started', async () => {
+    session({ classIds: [] });
+    render(
+      <GuidedLearningResults set={set} sessionId="s1" onClose={vi.fn()} />
+    );
+
+    expect(await screen.findByText(/No responses yet/)).toBeInTheDocument();
+    expect(screen.queryByTestId('launched-by-sub')).not.toBeInTheDocument();
+  });
+});

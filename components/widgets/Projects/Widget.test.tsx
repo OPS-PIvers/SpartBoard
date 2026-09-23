@@ -8,11 +8,13 @@ import type {
   WidgetData,
 } from '@/types';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useProjectRun } from '@/hooks/useProjectRun';
 import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
 import { ProjectsWidget } from './Widget';
+import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
 vi.mock('@/context/useDashboard');
 vi.mock('@/context/useAuth');
@@ -351,7 +353,12 @@ describe('ProjectsWidget', () => {
       function InShare({ children }: { children: React.ReactNode }) {
         return (
           <SubShareContentContext.Provider
-            value={{ shareId: 'share-1', version: 0, load: load as never }}
+            value={subShareContextValue({
+              shareId: 'share-1',
+              version: 0,
+              load: load as never,
+              loadKey: noSubShareKey,
+            })}
           >
             {children}
           </SubShareContentContext.Provider>
