@@ -21,6 +21,8 @@ import {
 } from '@/types';
 import { db, functions } from '@/config/firebase';
 import { useDashboard } from '@/context/useDashboard';
+import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
+import { buildPeriodAccess } from '@/utils/periodPlan';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareGuidedLearningWidget } from './SubShareWidget';
 import { useDialog } from '@/context/useDialog';
@@ -170,7 +172,8 @@ interface AssignDialogTarget {
 const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, addToast, rosters } = useDashboard();
+  const { updateWidget, addToast, rosters, updateRoster } = useDashboard();
+  const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { showConfirm } = useDialog();
   const { user, isAdmin, getAssignmentMode, canAccessFeature } = useAuth();
   const playerV2 = canAccessFeature('gl-player-v2');
@@ -531,18 +534,39 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       try {
         const selectedRosters = rosters.filter((r) => rosterIds.includes(r.id));
         const derived = deriveSessionTargetsFromRosters(selectedRosters);
+        const periodPlan = targeting.periodPlan ?? { mode: 'assignment' };
+        const builtPeriodAccess =
+          assignPeriodCtx && selectedRosters.length > 1
+            ? buildPeriodAccess({
+                plan: periodPlan,
+                rosters: selectedRosters,
+                sharedWindow: targeting,
+                bellWindow: (roster) =>
+                  assignPeriodCtx.bellWindow(
+                    roster,
+                    new Date(targeting.openAt ?? Date.now())
+                  ),
+              })
+            : null;
+        // Two rosters on one class id share a gate, so they are one period.
+        const periodGate =
+          builtPeriodAccess && Object.keys(builtPeriodAccess).length > 1
+            ? { accessMode: periodPlan.mode, periodAccess: builtPeriodAccess }
+            : undefined;
         const url = await createSession(
           data,
           derived.classIds,
           derived.periodNames,
           derived.rosterIds,
           assignmentMode,
+          // Per-period sessions carry each period's window instead of a shared one.
           {
-            openAt: targeting.openAt,
-            closeAt: targeting.closeAt,
+            openAt: periodGate ? undefined : targeting.openAt,
+            closeAt: periodGate ? undefined : targeting.closeAt,
             dueAt: targeting.dueAt,
           },
-          { playerV2 }
+          { playerV2 },
+          periodGate
         );
         const sessionId = url.split('/').pop() ?? '';
         setRecentSessionIds((prev) => ({
@@ -560,9 +584,10 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               assignmentMode,
               targetGroupIds: expandedTargeting.targetGroupIds,
               overridesBySourcedId: expandedTargeting.overridesByKey,
-              openAt: expandedTargeting.openAt,
-              closeAt: expandedTargeting.closeAt,
+              openAt: periodGate ? undefined : expandedTargeting.openAt,
+              closeAt: periodGate ? undefined : expandedTargeting.closeAt,
               dueAt: expandedTargeting.dueAt,
+              ...(periodGate ? { periodGate } : {}),
             });
           } catch (err) {
             console.warn('[GuidedLearning] Failed to record assignment:', err);
@@ -659,6 +684,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     },
     [
       rosters,
+      assignPeriodCtx,
       createSession,
       playerV2,
       createAssignment,
@@ -1411,6 +1437,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               <AssignTargetingSection
                 rosters={rosters}
                 selectedRosterIds={pickerValue.rosterIds}
+                periodAccess={assignPeriodCtx}
                 value={targetingValue}
                 onChange={setTargetingValue}
                 kind="guided-learning"

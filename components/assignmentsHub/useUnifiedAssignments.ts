@@ -174,6 +174,7 @@ export const useUnifiedAssignments = (
       excludedTargets: a.excludedTargets,
       overridesBySourcedId: a.overridesBySourcedId,
       removedStudentRefs: a.removedStudentRefs,
+      ...(a.periodAccess ? { periodAccess: a.periodAccess } : {}),
     }));
 
     const miniAppRows: UnifiedAssignmentRow[] = miniApp.assignments.map(

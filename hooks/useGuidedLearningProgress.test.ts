@@ -158,3 +158,29 @@ describe('useGuidedLearningProgress', () => {
     expect(setDocMock).not.toHaveBeenCalled();
   });
 });
+
+describe('useGuidedLearningProgress — paused period', () => {
+  it('holds writes while paused, even on page hide, and sends them on resume', async () => {
+    const { result, rerender } = renderHook(
+      ({ paused }: { paused: boolean }) =>
+        useGuidedLearningProgress({
+          sessionId: 'sess',
+          uid: 'u1',
+          enabled: true,
+          stepIds: STEP_IDS,
+          paused,
+        }),
+      { initialProps: { paused: true } }
+    );
+    await settle();
+    void act(() => result.current.onStepEvent(ev({ type: 'enter' })));
+    void act(() => vi.advanceTimersByTime(PROGRESS_WRITE_INTERVAL_MS * 2));
+    window.dispatchEvent(new Event('pagehide'));
+    expect(setDocMock).not.toHaveBeenCalled();
+
+    rerender({ paused: false });
+    void act(() => vi.advanceTimersByTime(0));
+    expect(setDocMock).toHaveBeenCalledTimes(1);
+    expect(payload(0)).toMatchObject({ furthestStepIdx: 0 });
+  });
+});
