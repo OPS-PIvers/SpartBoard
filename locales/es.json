@@ -2993,7 +2993,12 @@
       "missedTitle": "Repasa las tarjetas falladas",
       "yourAnswer": "Tu respuesta:",
       "correctAnswer": "Respuesta correcta:",
-      "allCorrect": "Todas las respuestas fueron correctas."
+      "allCorrect": "Todas las respuestas fueron correctas.",
+      "periodClosedBody": "Mantén esta pestaña abierta. El conjunto aparecerá aquí en cuanto tu docente dé acceso a tu clase.",
+      "periodPausedTitle": "En pausa para tu clase",
+      "periodPausedBody": "Tu docente pausó esto para tu clase. Tu progreso se conserva en esta página. Mantén esta pestaña abierta para continuar donde lo dejaste.",
+      "notInPeriod": "No estás en ninguna clase a la que se haya asignado este conjunto. Pregúntale a tu docente.",
+      "seatError": "No se pudo entrar a tu clase. Recarga la página para intentarlo de nuevo."
     }
   },
   "studentAssignment": {

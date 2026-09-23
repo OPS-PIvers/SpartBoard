@@ -10,6 +10,7 @@ import type {
 } from '@/types';
 import { AssignModal } from '@/components/common/library/AssignModal';
 import { AssignTargetingSection } from '@/components/common/library/AssignTargetingSection';
+import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import type { AssignClassPickerValue } from '@/components/common/AssignClassPicker.helpers';
 import { Toggle } from '@/components/common/Toggle';
@@ -35,6 +36,8 @@ export interface FlashcardAssignModalProps {
   initialRosterIds?: string[];
   onClose: () => void;
   onAssign: (submission: FlashcardAssignSubmission) => Promise<void>;
+  /** Per-period mode and windows; undefined while the flag is off. */
+  periodAccess?: AssignPeriodAccessContext;
 }
 
 const MODE_OPTIONS: Array<{ value: FlashcardMode; label: string }> = [
@@ -127,6 +130,7 @@ export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = ({
   initialRosterIds = [],
   onClose,
   onAssign,
+  periodAccess,
 }) => {
   const [form, setForm] = useState<FlashcardAssignForm>(
     DEFAULT_FLASHCARD_ASSIGN_FORM
@@ -357,6 +361,7 @@ export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = ({
       <AssignTargetingSection
         rosters={rosters}
         selectedRosterIds={pickerValue.rosterIds}
+        periodAccess={periodAccess}
         value={targetingValue}
         onChange={setTargetingValue}
         kind="flashcards"
@@ -386,6 +391,7 @@ export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = ({
             rosters,
             rosterIds: pickerValue.rosterIds,
             targeting: targetingValue,
+            bellWindow: periodAccess?.bellWindow,
           })
         )
       }

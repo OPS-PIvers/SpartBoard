@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -7,6 +7,7 @@ import {
   Layers3,
   Loader2,
   Lock,
+  PauseCircle,
 } from 'lucide-react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -25,6 +26,19 @@ import {
 } from '@/utils/assignmentWindow';
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
+import { useSeatedPeriodContent } from '@/hooks/useSeatedPeriodContent';
+import { useServerNow } from '@/hooks/useServerNow';
+import {
+  hasPeriodAccess,
+  nextScheduledOpen,
+  studentCanEnter,
+  studentPeriodKeys,
+} from '@/utils/periodAccess';
+import {
+  FC_CONTENT_DOC,
+  mergeFlashcardSessionContent,
+  type FlashcardSessionContent,
+} from '@/utils/flashcardSessionContent';
 import {
   LocalFlashcardAdapter,
   TrackedFlashcardAdapter,
@@ -82,7 +96,9 @@ const TrackedPlayer: React.FC<{
   progress: FlashcardProgress | null;
   studentUid: string;
   classId: string;
-}> = ({ session, progress, studentUid, classId }) => {
+  /** The student's period is shut: cover the player and hold progress writes. */
+  paused?: boolean;
+}> = ({ session, progress, studentUid, classId, paused = false }) => {
   const { t } = useTranslation();
   const [adapter] = useState(
     () =>
@@ -106,8 +122,12 @@ const TrackedPlayer: React.FC<{
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isCheck = session.kind === 'check' && Boolean(session.checkMode);
+  useEffect(() => {
+    adapter.setPaused(paused);
+  }, [adapter, paused]);
 
   const submit = async (submission: FlashcardCheckSubmission) => {
+    if (paused) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -127,7 +147,7 @@ const TrackedPlayer: React.FC<{
     }
   };
 
-  return (
+  const player = (
     <FlashcardPlayer
       cards={session.cards}
       termLanguage={session.termLanguage}
@@ -150,6 +170,28 @@ const TrackedPlayer: React.FC<{
           : undefined
       }
     />
+  );
+  return (
+    <div className="relative h-full">
+      {player}
+      {paused && (
+        <div
+          role="status"
+          className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/85 p-6 text-center backdrop-blur-sm"
+        >
+          <PauseCircle
+            aria-hidden="true"
+            className="mb-4 h-12 w-12 text-white/80"
+          />
+          <h2 className="mb-2 text-2xl font-black text-white">
+            {t('flashcards.assignment.periodPausedTitle')}
+          </h2>
+          <p className="max-w-sm text-sm text-slate-200">
+            {t('flashcards.assignment.periodPausedBody')}
+          </p>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -197,6 +239,46 @@ export const FlashcardAssignmentPage: React.FC = () => {
     Loadable<FlashcardProgress | null>
   >({ kind: 'loading' });
   const pointer = useStudentAssignmentPointer(pseudonymUid, assignmentId);
+  const rawSession = sessionState.kind === 'ready' ? sessionState.value : null;
+  const perPeriod = hasPeriodAccess(rawSession);
+  const { periodKeys, content, contentPending, takeSeat } =
+    useSeatedPeriodContent<FlashcardSessionContent>({
+      sessionCollection: 'flashcard_sessions',
+      sessionId: assignmentId,
+      session: rawSession,
+      inContent: rawSession?.cardsInContent === true,
+      contentDoc: FC_CONTENT_DOC,
+      uid: pseudonymUid,
+    });
+  const periodNow = useServerNow(perPeriod ? 5000 : null);
+  const canEnter = studentCanEnter(
+    rawSession,
+    periodKeys,
+    pseudonymUid,
+    periodNow
+  );
+  const [seat, setSeat] = useState<'idle' | 'seated' | 'none' | 'error'>(
+    'idle'
+  );
+  // Seat the student in their period once the session and pointer are known.
+  const seatStarted = useRef(false);
+  const readyToSeat =
+    perPeriod && !!pseudonymUid && pointer !== undefined && !pointer?.excluded;
+  useEffect(() => {
+    if (!readyToSeat || !rawSession || seatStarted.current) return;
+    seatStarted.current = true;
+    takeSeat(studentPeriodKeys(rawSession, classIds))
+      .then((seated) => setSeat(seated ? 'seated' : 'none'))
+      .catch((error: unknown) => {
+        console.error('[FlashcardAssignmentPage] Seat failed:', error);
+        setSeat('error');
+      });
+  }, [readyToSeat, rawSession, classIds, takeSeat]);
+  // Once the player has shown, a later close pauses it in place rather than swapping screens.
+  const [entered, setEntered] = useState(false);
+  if (!entered && seat === 'seated' && canEnter && !contentPending) {
+    setEntered(true);
+  }
 
   useEffect(() => {
     syncServerTime(pseudonymUid);
@@ -285,7 +367,7 @@ export const FlashcardAssignmentPage: React.FC = () => {
 
   if (pointer?.excluded) return <AssignmentExcludedNotice />;
 
-  const session = sessionState.value;
+  const session = mergeFlashcardSessionContent(sessionState.value, content);
   const progress = progressState.value;
   const effectiveWindow = resolveEffectiveWindow(session, pointer);
   const windowState =
@@ -330,6 +412,42 @@ export const FlashcardAssignmentPage: React.FC = () => {
         studentUid={pseudonymUid}
       />
     );
+  } else if (perPeriod && !entered) {
+    const opensAt = nextScheduledOpen(session, periodKeys, periodNow);
+    body =
+      seat === 'none' || seat === 'error' ? (
+        <PageMessage
+          icon={AlertTriangle}
+          title={t('flashcards.assignment.unavailableTitle')}
+          body={t(
+            seat === 'none'
+              ? 'flashcards.assignment.notInPeriod'
+              : 'flashcards.assignment.seatError'
+          )}
+        />
+      ) : seat === 'seated' && !canEnter ? (
+        <PageMessage
+          icon={Lock}
+          title={t('flashcards.assignment.opensTitle')}
+          body={
+            opensAt != null
+              ? t('flashcards.assignment.opensBody', {
+                  date: new Date(opensAt).toLocaleString(),
+                })
+              : t('flashcards.assignment.periodClosedBody')
+          }
+        />
+      ) : (
+        <div className="flex h-full items-center justify-center text-slate-700">
+          <Loader2
+            aria-hidden="true"
+            className="mr-2 h-5 w-5 animate-spin text-rose-600"
+          />
+          <span className="font-bold">
+            {t('flashcards.assignment.loading')}
+          </span>
+        </div>
+      );
   } else {
     body = (
       <TrackedPlayer
@@ -337,7 +455,8 @@ export const FlashcardAssignmentPage: React.FC = () => {
         session={session}
         progress={progress}
         studentUid={pseudonymUid}
-        classId={resolveClassId(session, pointer, classIds)}
+        classId={periodKeys[0] ?? resolveClassId(session, pointer, classIds)}
+        paused={perPeriod && !canEnter}
       />
     );
   }

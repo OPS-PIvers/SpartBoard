@@ -5390,8 +5390,10 @@ service cloud.firestore {
       }
       // Per-period sessions keep their cards here until the period opens.
       match /content/{docId} {
+        // A student who submitted a Check keeps the cards for their published review.
         allow read: if request.auth != null &&
-          (fcIsSessionTeacher() || isSubMonitor(fcSession()) || fcOpen());
+          (fcIsSessionTeacher() || isSubMonitor(fcSession()) || fcOpen() ||
+           get(/databases/$(database)/documents/flashcard_sessions/$(sessionId)/progress/$(request.auth.uid)).data.get('submittedAt', null) != null);
         allow write: if contentWriteOk('flashcard_sessions', sessionId);
       }
       match /seats/{uid} {

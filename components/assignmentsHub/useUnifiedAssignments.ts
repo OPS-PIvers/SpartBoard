@@ -228,6 +228,7 @@ export const useUnifiedAssignments = (
         overridesBySourcedId: a.overridesBySourcedId,
         removedStudentRefs: a.removedStudentRefs,
         flashcardKind: a.kind,
+        ...(a.periodAccess ? { periodAccess: a.periodAccess } : {}),
       })
     );
 

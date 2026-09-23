@@ -18,6 +18,8 @@ interface FlashcardCheckReviewProps {
   results: FlashcardResultRecord[];
   nameFor: (studentUid: string) => string;
   onResetStudent: (studentUid: string) => void;
+  /** Let in now for a student waiting in a shut period; undefined when it doesn't apply. */
+  letInFor?: (studentUid: string) => (() => void) | undefined;
   onResolveFlag: (
     studentUid: string,
     cardId: string,
@@ -31,6 +33,7 @@ export const FlashcardCheckReview: React.FC<FlashcardCheckReviewProps> = ({
   nameFor,
   onResetStudent,
   onResolveFlag,
+  letInFor,
 }) => {
   const [busyFlag, setBusyFlag] = useState<string | null>(null);
   const rows = useMemo(
@@ -125,6 +128,15 @@ export const FlashcardCheckReview: React.FC<FlashcardCheckReviewProps> = ({
                   <OverflowMenu
                     ariaLabel={`Actions for ${nameFor(row.studentUid)}`}
                     items={[
+                      ...(letInFor?.(row.studentUid)
+                        ? [
+                            {
+                              id: 'let-in',
+                              label: 'Let in now',
+                              onClick: () => letInFor(row.studentUid)?.(),
+                            },
+                          ]
+                        : []),
                       {
                         id: 'reset',
                         label: 'Reset this student',

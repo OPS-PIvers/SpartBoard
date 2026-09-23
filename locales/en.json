@@ -4132,7 +4132,12 @@
       "missedTitle": "Review missed cards",
       "yourAnswer": "Your answer:",
       "correctAnswer": "Correct answer:",
-      "allCorrect": "Every answer was correct."
+      "allCorrect": "Every answer was correct.",
+      "periodClosedBody": "Keep this tab open. The set appears here as soon as your teacher lets your class in.",
+      "periodPausedTitle": "Paused for your class",
+      "periodPausedBody": "Your teacher paused this for your class. Your progress is kept on this page. Keep this tab open to pick up where you left off.",
+      "notInPeriod": "You're not in a class this set was assigned to. Ask your teacher.",
+      "seatError": "Couldn't join your class. Refresh the page to try again."
     }
   },
   "studentAssignment": {

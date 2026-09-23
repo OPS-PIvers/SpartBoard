@@ -15,6 +15,7 @@ import type {
 import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
+import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { useDialog } from '@/context/useDialog';
 import {
   FlashcardStudySyncError,
@@ -102,7 +103,8 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const config = widget.config as FlashcardsConfig;
   const { user, ensureGoogleScope } = useAuth();
-  const { addToast, updateWidget, rosters } = useDashboard();
+  const { addToast, updateWidget, rosters, updateRoster } = useDashboard();
+  const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { showConfirm } = useDialog();
   const { openPicker } = useGooglePicker();
   // A substitute can read neither the teacher's sets nor their assignments, so
@@ -652,6 +654,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
           initialRosterIds={config.lastRosterIdsBySetId?.[assigningSet.id]}
           onClose={() => setAssigningSet(null)}
           onAssign={performAssign}
+          periodAccess={assignPeriodCtx}
         />
       )}
     </>

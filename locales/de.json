@@ -2993,7 +2993,12 @@
       "missedTitle": "Falsche Karten wiederholen",
       "yourAnswer": "Deine Antwort:",
       "correctAnswer": "Richtige Antwort:",
-      "allCorrect": "Alle Antworten waren richtig."
+      "allCorrect": "Alle Antworten waren richtig.",
+      "periodClosedBody": "Lass diesen Tab geöffnet. Das Set erscheint hier, sobald deine Lehrkraft deine Klasse freigibt.",
+      "periodPausedTitle": "Für deine Klasse pausiert",
+      "periodPausedBody": "Deine Lehrkraft hat dies für deine Klasse pausiert. Dein Fortschritt bleibt auf dieser Seite erhalten. Lass diesen Tab geöffnet, um dort weiterzumachen, wo du aufgehört hast.",
+      "notInPeriod": "Du bist in keiner Klasse, der dieses Set zugewiesen wurde. Frage deine Lehrkraft.",
+      "seatError": "Du konntest deiner Klasse nicht beitreten. Lade die Seite neu, um es noch einmal zu versuchen."
     }
   },
   "studentAssignment": {

@@ -12,6 +12,10 @@ import {
 import { db } from '@/config/firebase';
 import type { FlashcardSet, PublicFlashcardSet } from '@/types';
 import { logError } from '@/utils/logError';
+import {
+  FC_CONTENT_COLLECTION,
+  FC_CONTENT_DOC,
+} from '@/utils/flashcardSessionContent';
 
 /** Thrown when the set saved but its open Study assignments could not be rewritten. */
 export class FlashcardStudySyncError extends Error {
@@ -49,14 +53,28 @@ const rewriteOpenStudySessions = async (
   const snapshot = await getDocs(openStudy);
   if (snapshot.empty) return 0;
   const batch = writeBatch(db);
-  snapshot.docs.forEach((sessionDoc) =>
+  snapshot.docs.forEach((sessionDoc) => {
+    // A per-period session's cards live in its content doc, hidden until the period opens.
+    const inContent = sessionDoc.get('cardsInContent') === true;
     batch.update(sessionDoc.ref, {
       title: set.title,
       termLanguage: set.termLanguage,
       definitionLanguage: set.definitionLanguage,
-      cards: set.cards,
-    })
-  );
+      ...(inContent ? {} : { cards: set.cards }),
+    });
+    if (inContent) {
+      batch.set(
+        doc(
+          db,
+          'flashcard_sessions',
+          sessionDoc.id,
+          FC_CONTENT_COLLECTION,
+          FC_CONTENT_DOC
+        ),
+        { cards: set.cards }
+      );
+    }
+  });
   await batch.commit();
   return snapshot.size;
 };

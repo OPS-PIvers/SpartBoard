@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   collection,
+  deleteDoc,
   deleteField,
   doc,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
@@ -10,6 +12,11 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
+import {
+  FC_CONTENT_COLLECTION,
+  FC_CONTENT_DOC,
+  type FlashcardSessionContent,
+} from '@/utils/flashcardSessionContent';
 import type {
   FlashcardAssignment,
   FlashcardAssignmentKind,
@@ -41,6 +48,8 @@ export interface CreateFlashcardAssignmentInput {
   openAt?: number | null;
   closeAt?: number | null;
   dueAt?: number | null;
+  /** Per-period gate; the cards then move to `content/cards` and no shared window is kept. */
+  periodGate?: Pick<FlashcardSession, 'accessMode' | 'periodAccess'>;
 }
 
 export interface UseFlashcardAssignmentsResult {
@@ -125,9 +134,20 @@ export const useFlashcardAssignments = (
       const classIds = nonEmptyStrings(input.classIds);
       const periodNames = nonEmptyStrings(input.periodNames);
       const rosterIds = nonEmptyStrings(input.rosterIds);
+      const periodGate = input.periodGate?.periodAccess
+        ? {
+            accessMode: input.periodGate.accessMode,
+            periodAccess: input.periodGate.periodAccess,
+          }
+        : null;
+      // Per-period sessions carry each period's window instead of a shared one.
       const windows = {
-        ...(input.openAt != null ? { openAt: input.openAt } : {}),
-        ...(input.closeAt != null ? { closeAt: input.closeAt } : {}),
+        ...(input.openAt != null && !periodGate
+          ? { openAt: input.openAt }
+          : {}),
+        ...(input.closeAt != null && !periodGate
+          ? { closeAt: input.closeAt }
+          : {}),
         ...(input.dueAt != null ? { dueAt: input.dueAt } : {}),
       };
       const checkMode =
@@ -151,7 +171,8 @@ export const useFlashcardAssignments = (
         ...(scoreVisibility ? { scoreVisibility } : {}),
         termLanguage: input.set.termLanguage,
         definitionLanguage: input.set.definitionLanguage,
-        cards: input.set.cards,
+        cards: periodGate ? [] : input.set.cards,
+        ...(periodGate ? { cardsInContent: true, ...periodGate } : {}),
         classIds,
         classId: classIds[0] ?? '',
         ...(periodNames.length > 0 ? { periodNames } : {}),
@@ -184,10 +205,25 @@ export const useFlashcardAssignments = (
           ? { overridesBySourcedId: input.overridesBySourcedId }
           : {}),
         ...windows,
+        ...(periodGate ?? {}),
       };
 
       const batch = writeBatch(db);
       batch.set(doc(db, FLASHCARD_SESSIONS_COLLECTION, id), session);
+      if (periodGate) {
+        // Same batch: the content rule checks the session's teacher via getAfter.
+        const content: FlashcardSessionContent = { cards: input.set.cards };
+        batch.set(
+          doc(
+            db,
+            FLASHCARD_SESSIONS_COLLECTION,
+            id,
+            FC_CONTENT_COLLECTION,
+            FC_CONTENT_DOC
+          ),
+          content
+        );
+      }
       batch.set(
         doc(db, 'users', userId, FLASHCARD_ASSIGNMENTS_COLLECTION, id),
         assignment
@@ -270,6 +306,21 @@ export const useFlashcardAssignments = (
           .slice(i, i + BATCH_LIMIT)
           .forEach((d) => batch.delete(d.ref));
         await batch.commit();
+      }
+      // Its own write, and it must land first: once the session goes, no rule can reach it.
+      const sessionSnap = await getDoc(
+        doc(db, FLASHCARD_SESSIONS_COLLECTION, assignmentId)
+      );
+      if (sessionSnap.data()?.cardsInContent === true) {
+        await deleteDoc(
+          doc(
+            db,
+            FLASHCARD_SESSIONS_COLLECTION,
+            assignmentId,
+            FC_CONTENT_COLLECTION,
+            FC_CONTENT_DOC
+          )
+        );
       }
       const finalBatch = writeBatch(db);
       finalBatch.delete(doc(db, FLASHCARD_SESSIONS_COLLECTION, assignmentId));

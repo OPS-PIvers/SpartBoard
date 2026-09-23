@@ -7615,7 +7615,8 @@ export interface FlashcardCheckWriteEntry {
 }
 
 /** `flashcard_sessions/{assignmentId}`: what assigned students load. */
-export interface FlashcardSession extends SubLaunchedSessionFields {
+export interface FlashcardSession
+  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
   id: string;
   teacherUid: string;
   setId: string;
@@ -7627,6 +7628,8 @@ export interface FlashcardSession extends SubLaunchedSessionFields {
   termLanguage: string;
   definitionLanguage: string;
   cards: FlashcardCard[];
+  /** Per-period sessions keep their cards in `content/cards`; `cards` here stays empty. */
+  cardsInContent?: boolean;
   classIds: string[];
   classId?: string;
   periodNames?: string[];
@@ -7643,7 +7646,8 @@ export interface FlashcardSession extends SubLaunchedSessionFields {
 }
 
 /** `users/{uid}/flashcard_assignments/{assignmentId}`: the teacher's record (id == session id). */
-export interface FlashcardAssignment extends SubLaunchedSessionFields {
+export interface FlashcardAssignment
+  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
   id: string;
   sessionId: string;
   setId: string;
