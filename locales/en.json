@@ -3649,7 +3649,38 @@
     "done": "Done"
   },
   "glStudio": {
-    "classicEditorNotice": "This activity uses Studio features. Edit regions and callouts in the Studio."
+    "classicEditorNotice": "This activity uses Studio features. Edit regions and callouts in the Studio.",
+    "close": "Close editor",
+    "closeAnyway": "Close anyway",
+    "keepEditing": "Keep editing",
+    "dialogLabel": "Guided Learning Studio",
+    "draftWithAi": "Draft with AI",
+    "folderMissing": "Folder not found",
+    "height": "Preview height in pixels",
+    "width": "Preview width in pixels",
+    "inFolder": "In folder {{name}}",
+    "noFolder": "Not in a folder",
+    "openClassicEditor": "Open classic editor",
+    "previewSize": "Preview size",
+    "selectFolder": "Move to folder",
+    "slideN": "Slide {{n}}",
+    "slides": "Slides",
+    "stepCount_one": "{{count}} step",
+    "stepCount_other": "{{count}} steps",
+    "stepDeleted": "Step deleted.",
+    "titleLabel": "Activity title",
+    "titlePlaceholder": "Untitled activity",
+    "undo": "Undo",
+    "unsavedBody": "Your latest changes could not be saved. If you close now, they will be lost.",
+    "unsavedTitle": "Changes not saved",
+    "emptyCanvas": "Add a slide to start placing steps.",
+    "devices": {
+      "board": "Board widget",
+      "help": "Help Center",
+      "chromebook": "Student Chromebook",
+      "projector": "Projector (1080p)",
+      "custom": "Custom size"
+    }
   },
   "helpCenter": {
     "title": "Help",
