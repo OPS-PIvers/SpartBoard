@@ -58,6 +58,9 @@ import { useMonitorData } from './useMonitorData';
 import { CurrentQuestionCard } from './CurrentQuestionCard';
 import { StatusBuckets, BucketKey } from './StatusBuckets';
 import { RosterList } from './RosterList';
+import { PeriodAccessStrip } from './PeriodAccessStrip';
+import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
+import { hasPeriodAccess } from '@/utils/periodAccess';
 import { QuestionResults, QuestionDetail } from './QuestionResults';
 import { JoinCodeScreen } from './JoinCodeScreen';
 import { QuizSettingsScreen } from './QuizSettingsScreen';
@@ -176,6 +179,43 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const [soundMuted, setSoundMuted] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   useClickOutside(menuRef, () => setMenuOpen(false));
+
+  // Per-period sessions swap the single Pause button for one chip per period.
+  const perPeriod = hasPeriodAccess(session);
+  const periodActions = usePeriodAccess(
+    perPeriod ? session : null,
+    {
+      sessionCollection: 'quiz_sessions',
+      assignmentCollection: 'quiz_assignments',
+    },
+    rosters
+  );
+  const periodFailed = (err: unknown) => {
+    logError('QuizLiveMonitor.periodAccess', err);
+    addToast('Could not update the period. Try again.', 'error');
+  };
+  const startPeriods = async (start: () => Promise<string[]>) => {
+    try {
+      const untimed = await start();
+      const labels = untimed
+        .map((key) => session.periodAccess?.[key]?.label)
+        .filter(Boolean);
+      if (labels.length > 0)
+        addToast(
+          `${labels.join(', ')} stays open until you pause it. Tag the class with its bell period in My Classes so it closes at the bell.`,
+          'info'
+        );
+    } catch (err) {
+      periodFailed(err);
+    }
+  };
+  const runPeriod = async (fn: () => Promise<void>) => {
+    try {
+      await fn();
+    } catch (err) {
+      periodFailed(err);
+    }
+  };
 
   // Reset local navigation when the monitored session changes.
   const [prevSessionId, setPrevSessionId] = useState(session.id);
@@ -477,6 +517,21 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           },
         ]
       : []),
+    ...(perPeriod && session.status !== 'ended'
+      ? [
+          {
+            label: 'Start all periods',
+            icon: Play,
+            onClick: () => void startPeriods(periodActions.startAll),
+            divider: true,
+          },
+          {
+            label: 'Pause all periods',
+            icon: Pause,
+            onClick: () => void runPeriod(periodActions.pauseAll),
+          },
+        ]
+      : []),
     {
       label: 'Quiz settings',
       icon: Settings,
@@ -583,6 +638,21 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       >
         {screen.name === 'home' && (
           <div className="flex flex-col" style={{ gap: 'min(10px, 2.5cqmin)' }}>
+            {perPeriod && session.status !== 'ended' && (
+              <PeriodAccessStrip
+                periodAccess={session.periodAccess}
+                extendMs={EXTEND_MS}
+                onStart={(key) =>
+                  startPeriods(() => periodActions.startPeriod(key))
+                }
+                onPause={(key) =>
+                  runPeriod(() => periodActions.pausePeriod(key))
+                }
+                onExtend={(key, by) =>
+                  runPeriod(() => periodActions.extendPeriod(key, by))
+                }
+              />
+            )}
             {data.periodNames.length > 1 && (
               <div
                 className="flex flex-wrap"
@@ -650,6 +720,11 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                   onUnlockResultsForStudent ? handleUnlockResults : undefined
                 }
                 onClearHand={onClearHand ? handleClearHand : undefined}
+                onLetIn={
+                  perPeriod && session.status !== 'ended'
+                    ? (uid) => void runPeriod(() => periodActions.letIn(uid))
+                    : undefined
+                }
                 overridesBySourcedId={overridesBySourcedId}
                 targetRefKeyByStudentUid={data.targetRefKeyByStudentUid}
               />
@@ -719,43 +794,45 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
             padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
           }}
         >
-          {(onPause ?? onResume) && session.status !== 'ended' && (
-            <button
-              onClick={handleTogglePause}
-              disabled={toggling}
-              className="inline-flex items-center bg-brand-blue-primary hover:bg-brand-blue-light text-white font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
-              style={{
-                gap: 'min(6px, 1.5cqmin)',
-                padding: 'min(8px, 2cqmin) min(14px, 3cqmin)',
-                fontSize: 'min(13px, 4.5cqmin)',
-              }}
-            >
-              {toggling ? (
-                <Loader2
-                  className="animate-spin"
-                  style={{
-                    width: 'min(14px, 4.5cqmin)',
-                    height: 'min(14px, 4.5cqmin)',
-                  }}
-                />
-              ) : session.status === 'paused' ? (
-                <Play
-                  style={{
-                    width: 'min(14px, 4.5cqmin)',
-                    height: 'min(14px, 4.5cqmin)',
-                  }}
-                />
-              ) : (
-                <Pause
-                  style={{
-                    width: 'min(14px, 4.5cqmin)',
-                    height: 'min(14px, 4.5cqmin)',
-                  }}
-                />
-              )}
-              {session.status === 'paused' ? 'Resume' : 'Pause'}
-            </button>
-          )}
+          {(onPause ?? onResume) &&
+            !perPeriod &&
+            session.status !== 'ended' && (
+              <button
+                onClick={handleTogglePause}
+                disabled={toggling}
+                className="inline-flex items-center bg-brand-blue-primary hover:bg-brand-blue-light text-white font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
+                style={{
+                  gap: 'min(6px, 1.5cqmin)',
+                  padding: 'min(8px, 2cqmin) min(14px, 3cqmin)',
+                  fontSize: 'min(13px, 4.5cqmin)',
+                }}
+              >
+                {toggling ? (
+                  <Loader2
+                    className="animate-spin"
+                    style={{
+                      width: 'min(14px, 4.5cqmin)',
+                      height: 'min(14px, 4.5cqmin)',
+                    }}
+                  />
+                ) : session.status === 'paused' ? (
+                  <Play
+                    style={{
+                      width: 'min(14px, 4.5cqmin)',
+                      height: 'min(14px, 4.5cqmin)',
+                    }}
+                  />
+                ) : (
+                  <Pause
+                    style={{
+                      width: 'min(14px, 4.5cqmin)',
+                      height: 'min(14px, 4.5cqmin)',
+                    }}
+                  />
+                )}
+                {session.status === 'paused' ? 'Resume' : 'Pause'}
+              </button>
+            )}
           <button
             onClick={handleEnd}
             disabled={ending}

@@ -2092,6 +2092,7 @@
     "emptyAction": "En créer un",
     "noFilterMatches": "Aucun devoir ne correspond à ces filtres.",
     "selectPrompt": "Sélectionnez un devoir pour voir les détails.",
+    "periodsLive": "{{live}} sur {{total}} périodes en direct",
     "status": {
       "notStarted": "Pas commencé",
       "inProgress": "En cours",

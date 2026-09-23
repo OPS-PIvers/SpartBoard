@@ -2092,6 +2092,7 @@
     "emptyAction": "Crear una",
     "noFilterMatches": "Ninguna tarea coincide con estos filtros.",
     "selectPrompt": "Selecciona una tarea para ver los detalles.",
+    "periodsLive": "{{live}} de {{total}} períodos en vivo",
     "status": {
       "notStarted": "Sin comenzar",
       "inProgress": "En progreso",

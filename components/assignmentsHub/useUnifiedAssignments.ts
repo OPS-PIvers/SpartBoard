@@ -9,7 +9,12 @@ import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useMiniAppAssignments } from '@/hooks/useMiniAppAssignments';
 import { useFlashcardAssignments } from '@/hooks/useFlashcardAssignments';
-import type { ClassRoster, StudentOverride, StudentTargetRef } from '@/types';
+import type {
+  ClassRoster,
+  PeriodAccess,
+  StudentOverride,
+  StudentTargetRef,
+} from '@/types';
 
 export type AssignmentKind =
   | 'quiz'
@@ -57,6 +62,8 @@ export interface UnifiedAssignmentRow {
   syncGroupId?: string;
   /** Flashcards rows only: Check (collects a submission) or Study. */
   flashcardKind?: 'check' | 'study';
+  /** Per-period gate mirrored from the assignment, for "2 of 4 periods live". */
+  periodAccess?: Record<string, PeriodAccess>;
 }
 
 /** Retroactive PLC results actions, forwarded from `useQuizAssignments`. */
@@ -122,6 +129,7 @@ export const useUnifiedAssignments = (
       overridesBySourcedId: a.overridesBySourcedId,
       removedStudentRefs: a.removedStudentRefs,
       ...(a.plc ? { plc: { id: a.plc.id, name: a.plc.name } } : {}),
+      ...(a.periodAccess ? { periodAccess: a.periodAccess } : {}),
       quizId: a.quizId,
       syncGroupId: a.sync?.groupId,
     }));

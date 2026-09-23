@@ -414,6 +414,105 @@ describe('QuizLiveMonitor (rebuilt)', () => {
     }
   });
 
+  it('swaps the Pause button for one chip per period on a per-period session', () => {
+    const session = makeSession({
+      sessionMode: 'student',
+      accessMode: 'assessment',
+      periodAccess: {
+        'cl-1': {
+          state: 'open',
+          openAt: null,
+          closeAt: null,
+          bellPeriodId: null,
+          verified: true,
+          label: 'Period 1',
+        },
+        'cl-3': {
+          state: 'closed',
+          openAt: null,
+          closeAt: null,
+          bellPeriodId: null,
+          verified: true,
+          label: 'Period 3',
+        },
+      },
+    });
+    const props = {
+      session,
+      responses: [],
+      quizData: makeQuizData(),
+      onAdvance: noopAsync,
+      onEnd: noopAsync,
+      onPause: noopAsync,
+      onResume: noopAsync,
+      config: makeConfig(),
+      rosters: [makeRoster('Period 1')],
+      onUpdateConfig: vi.fn(),
+    };
+    const { rerender } = render(<QuizLiveMonitor {...props} />);
+    expect(
+      screen.getByRole('button', { name: /Pause Period 1, now Live/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Start Period 3, now Closed/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /^Pause$/ })
+    ).not.toBeInTheDocument();
+    rerender(
+      <QuizLiveMonitor
+        {...props}
+        session={makeSession({ sessionMode: 'student' })}
+      />
+    );
+    expect(screen.getByRole('button', { name: /^Pause$/ })).toBeInTheDocument();
+  });
+
+  it('offers Let in now only for a student whose period is not open', () => {
+    const closed = {
+      state: 'closed' as const,
+      openAt: null,
+      closeAt: null,
+      bellPeriodId: null,
+      verified: true,
+    };
+    renderMonitor({
+      session: {
+        sessionMode: 'student',
+        accessMode: 'assessment',
+        periodAccess: {
+          'cl-1': { ...closed, state: 'open', label: 'Period 1' },
+          'cl-3': { ...closed, label: 'Period 3' },
+        },
+      },
+      responses: [
+        makeResponse({
+          pin: '1111',
+          classPeriod: 'Period 1',
+          classId: 'cl-3',
+          status: 'joined',
+          answers: [],
+        }),
+        makeResponse({
+          pin: '2222',
+          classPeriod: 'Period 1',
+          classId: 'cl-1',
+          status: 'joined',
+          answers: [],
+        }),
+      ],
+      config: { monitorBoardView: false },
+    });
+    openBucket(/Not started/);
+    // The open-period student has no actions at all here, so gets no menu.
+    const menus = screen.getAllByRole('button', { name: /^Actions for/ });
+    expect(menus).toHaveLength(1);
+    fireEvent.click(menus[0]);
+    expect(
+      screen.getByRole('button', { name: 'Let in now' })
+    ).toBeInTheDocument();
+  });
+
   it('does not call onEnd when the Make Inactive confirm is declined', async () => {
     const onEnd = vi.fn().mockResolvedValue(undefined);
     renderMonitor({ onEnd });
