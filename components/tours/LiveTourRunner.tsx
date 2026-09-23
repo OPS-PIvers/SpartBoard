@@ -1,14 +1,43 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, X } from 'lucide-react';
-import type { GuidedLearningSet, WidgetType } from '@/types';
+import {
+  ChevronLeft,
+  MousePointerClick,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react';
+import type {
+  GuidedLearningPublicStep,
+  GuidedLearningSet,
+  WidgetType,
+} from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { loadBuildingSet } from '@/hooks/useGuidedLearning';
 import { Z_INDEX } from '@/config/zIndex';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { placeCallout } from '@/components/widgets/GuidedLearning/utils/calloutPlacement';
+import {
+  CALLOUT_IN_MS,
+  cursorMs,
+} from '@/components/widgets/GuidedLearning/utils/motion';
+import { renderStepText } from '@/components/widgets/GuidedLearning/utils/richText';
+import { AnimatedCursor } from '@/components/widgets/GuidedLearning/components/player/AnimatedCursor';
+import { TRY_HINT_MS } from '@/components/widgets/GuidedLearning/components/player/playback';
+import {
+  speechAvailable,
+  useReadAloud,
+} from '@/components/widgets/GuidedLearning/components/player/useReadAloud';
 import {
   isTourRunning,
   setTourRunning,
@@ -17,12 +46,16 @@ import {
 } from './tourState';
 import {
   addedWidgetIds,
+  hasStepSlide,
   missingSetupWidgets,
   tourStepsOf,
   type TourStep,
 } from './tourSession';
 import { useAnchorElement } from './useAnchorElement';
 import { TourSpotlight } from './TourSpotlight';
+import { usePrefersReducedMotion } from './usePrefersReducedMotion';
+
+const TourMiniPlayer = lazy(() => import('./TourMiniPlayer'));
 
 type Phase = 'practice-offer' | 'running' | 'teardown';
 
@@ -35,8 +68,24 @@ interface ActiveTour {
   addedTypes: WidgetType[];
 }
 
+interface Point {
+  x: number;
+  y: number;
+}
+
+interface CursorCue {
+  key: number;
+  index: number;
+  attempt: number;
+  from: Point;
+  to: Point;
+}
+
 const BOARD_WAIT_MS = 2000;
 const CALLOUT_WIDTH = 320;
+/** The 480px mini-player plus the callout's padding. */
+const PREVIEW_WIDTH = 512;
+const VIEWPORT_GUTTER = 16;
 
 const nextFrame = () =>
   new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -50,7 +99,12 @@ export const LiveTourRunner: React.FC = () => {
   const [tour, setTour] = useState<ActiveTour | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [box, setBox] = useState({ w: CALLOUT_WIDTH, h: 140 });
+  const [watch, setWatch] = useState(false);
+  const [readAloud, setReadAloud] = useState(false);
+  const [cue, setCue] = useState<CursorCue | null>(null);
+  const cueSeq = useRef(0);
   const startingRef = useRef(false);
+  const reducedMotion = usePrefersReducedMotion();
 
   // Async setup reads the newest dashboard actions, not the ones captured when it started.
   const latest = useRef({ dashboard, canAccessFeature, t });
@@ -75,6 +129,8 @@ export const LiveTourRunner: React.FC = () => {
     const beforeIds = new Set(current.map((w) => w.id));
     missing.forEach((type) => d.addWidget(type));
     setAttempt(0);
+    setWatch(false);
+    setCue(null);
     setTour({
       set,
       steps,
@@ -235,6 +291,66 @@ export const LiveTourRunner: React.FC = () => {
     });
   }, [missingStepId, setId, missingAnchor]);
 
+  const viewport =
+    typeof window === 'undefined'
+      ? { w: 0, h: 0 }
+      : { w: window.innerWidth, h: window.innerHeight };
+  const rect = anchor.status === 'found' ? anchor.rect : null;
+  const placement = rect
+    ? placeCallout({
+        box,
+        target: { x: rect.x, y: rect.y, w: rect.width, h: rect.height },
+        container: viewport,
+      })
+    : null;
+  const center = rect
+    ? { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+    : null;
+  const cursorAllowed =
+    running &&
+    center !== null &&
+    step?.tour.action === 'click' &&
+    !step.cursor?.hide;
+
+  // The demo cursor glides from the callout to the anchor.
+  const playCursor = () => {
+    if (!tour || !center || !cursorAllowed) return;
+    const from = placement
+      ? { x: placement.left + box.w / 2, y: placement.top + box.h / 2 }
+      : { x: viewport.w / 2, y: viewport.h / 2 };
+    cueSeq.current += 1;
+    setCue({
+      key: cueSeq.current,
+      index: tour.index,
+      attempt,
+      from,
+      to: center,
+    });
+  };
+  const cursorCue = useEffectEvent(playCursor);
+  // Watch shows the move at once; Try waits 5s before hinting.
+  useEffect(() => {
+    if (!cursorAllowed) return;
+    if (watch) {
+      cursorCue();
+      return;
+    }
+    const id = setTimeout(() => cursorCue(), TRY_HINT_MS);
+    return () => clearTimeout(id);
+  }, [cursorAllowed, watch, stepIndex, attempt]);
+
+  const showMe = () => {
+    if (watch) playCursor();
+    else setWatch(true);
+  };
+
+  const canRead = !!step && (!!step.narration?.url || speechAvailable());
+  useReadAloud({
+    enabled: readAloud && canRead,
+    step: step as unknown as GuidedLearningPublicStep | null,
+    stepKey: step && tour ? `${tour.set.id}:${tour.index}:${attempt}` : null,
+  });
+
   const boxObserver = useRef<ResizeObserver | null>(null);
   const measureBox = useCallback((el: HTMLDivElement | null) => {
     boxObserver.current?.disconnect();
@@ -255,7 +371,6 @@ export const LiveTourRunner: React.FC = () => {
 
   if (!tour || typeof document === 'undefined') return null;
 
-  const viewport = { w: window.innerWidth, h: window.innerHeight };
   const total = tour.steps.length;
 
   const dialog = (
@@ -281,6 +396,8 @@ export const LiveTourRunner: React.FC = () => {
 
   const secondaryBtn =
     'rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-200 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
+  const iconBtn =
+    'rounded-md p-0.5 text-slate-300 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
   const primaryBtn =
     'rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
 
@@ -332,20 +449,26 @@ export const LiveTourRunner: React.FC = () => {
       </>
     );
   } else if (step) {
-    const rect = anchor.status === 'found' ? anchor.rect : null;
-    const placement = rect
-      ? placeCallout({
-          box,
-          target: { x: rect.x, y: rect.y, w: rect.width, h: rect.height },
-          container: viewport,
-        })
-      : null;
     const isMissing = anchor.status === 'missing';
     const isObserve = step.tour.action === 'observe';
+    const preview = isMissing && hasStepSlide(tour.set, step);
+    const width = Math.min(
+      preview ? PREVIEW_WIDTH : CALLOUT_WIDTH,
+      viewport.w - VIEWPORT_GUTTER * 2
+    );
+    const cueShown =
+      cue &&
+      center &&
+      cue.index === tour.index &&
+      cue.attempt === attempt &&
+      Math.hypot(cue.to.x - center.x, cue.to.y - center.y) < 8
+        ? cue
+        : null;
     content = (
       <>
         {anchor.status === 'found' && <TourSpotlight rect={rect} />}
         <div
+          key={tour.index}
           ref={measureBox}
           role="dialog"
           aria-modal="false"
@@ -353,20 +476,22 @@ export const LiveTourRunner: React.FC = () => {
           data-tour-ignore=""
           data-testid="tour-callout"
           className="fixed flex flex-col gap-2 rounded-2xl bg-slate-900/90 px-4 py-3 text-white shadow-2xl ring-1 ring-black/40 border border-white/20 backdrop-blur-xl leading-relaxed"
-          style={
-            placement
+          style={{
+            ...(placement
               ? {
                   left: placement.left,
                   top: placement.top,
                   width: placement.width,
                 }
               : {
-                  left: '50%',
-                  top: '50%',
-                  width: CALLOUT_WIDTH,
-                  transform: 'translate(-50%, -50%)',
-                }
-          }
+                  left: Math.max(VIEWPORT_GUTTER, (viewport.w - width) / 2),
+                  top: Math.max(VIEWPORT_GUTTER, (viewport.h - box.h) / 2),
+                  width,
+                }),
+            animation: reducedMotion
+              ? undefined
+              : `gl-callout-in ${CALLOUT_IN_MS}ms ease-out both`,
+          }}
         >
           <div className="flex items-start justify-between gap-3">
             <div
@@ -375,20 +500,53 @@ export const LiveTourRunner: React.FC = () => {
             >
               {step.label?.trim() ? step.label : t('tours.stepFallbackTitle')}
             </div>
-            <button
-              type="button"
-              onClick={finish}
-              aria-label={t('tours.exit')}
-              title={t('tours.exit')}
-              className="-mr-1 rounded-md p-0.5 text-slate-300 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-            >
-              <X className="h-4 w-4" aria-hidden="true" />
-            </button>
+            <div className="-mr-1 flex shrink-0 items-center gap-0.5">
+              {canRead && (
+                <button
+                  type="button"
+                  aria-pressed={readAloud}
+                  onClick={() => setReadAloud((on) => !on)}
+                  aria-label={t('glPlayer.readAloud')}
+                  title={t('glPlayer.readAloud')}
+                  className={iconBtn}
+                >
+                  {readAloud ? (
+                    <Volume2 className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <VolumeX className="h-4 w-4" aria-hidden="true" />
+                  )}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={finish}
+                aria-label={t('tours.exit')}
+                title={t('tours.exit')}
+                className={iconBtn}
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
           </div>
           {isMissing ? (
-            <p className="text-sm text-slate-200">{t('tours.anchorMissing')}</p>
+            <>
+              {preview && (
+                <Suspense fallback={null}>
+                  <TourMiniPlayer set={tour.set} step={step} />
+                </Suspense>
+              )}
+              <p className="text-sm text-slate-200">
+                {t(
+                  preview ? 'tours.anchorMissingPreview' : 'tours.anchorMissing'
+                )}
+              </p>
+            </>
           ) : (
-            step.text && <p className="text-sm text-slate-100">{step.text}</p>
+            step.text && (
+              <p className="text-sm text-slate-100">
+                {renderStepText(step.text)}
+              </p>
+            )
           )}
           {anchor.status === 'searching' && (
             <p role="status" className="text-xs text-slate-300">
@@ -408,6 +566,19 @@ export const LiveTourRunner: React.FC = () => {
                 >
                   <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
                   {t('tours.back')}
+                </button>
+              )}
+              {cursorAllowed && (
+                <button
+                  type="button"
+                  onClick={showMe}
+                  className={`${secondaryBtn} flex items-center gap-1`}
+                >
+                  <MousePointerClick
+                    className="h-3.5 w-3.5"
+                    aria-hidden="true"
+                  />
+                  {t('tours.showMe')}
                 </button>
               )}
               {isMissing && (
@@ -439,6 +610,23 @@ export const LiveTourRunner: React.FC = () => {
             </div>
           </div>
         </div>
+        {cueShown && (
+          <div className="fixed inset-0" style={{ pointerEvents: 'none' }}>
+            <AnimatedCursor
+              key={cueShown.key}
+              from={cueShown.from}
+              to={cueShown.to}
+              durationMs={cursorMs(
+                Math.hypot(
+                  cueShown.to.x - cueShown.from.x,
+                  cueShown.to.y - cueShown.from.y
+                ),
+                { speed: 1, reducedMotion }
+              )}
+              ripple
+            />
+          </div>
+        )}
       </>
     );
   }

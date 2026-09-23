@@ -4146,6 +4146,7 @@
     "stepFallbackTitle": "Next step",
     "exit": "Exit tour",
     "anchorMissing": "Couldn't find this on your screen. Try again, or skip this step.",
+    "anchorMissingPreview": "Couldn't find this on your screen. Here's what it looks like.",
     "looking": "Finding it on your screen…",
     "progress": "{{current}} / {{total}}",
     "back": "Back",
