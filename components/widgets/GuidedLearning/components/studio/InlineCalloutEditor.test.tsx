@@ -236,6 +236,15 @@ describe('inline callout editing', () => {
     );
   });
 
+  it('keeps editing open when Escape cancels the link prompt', () => {
+    mount();
+    openEditor();
+    dialog.showPrompt.mockReturnValueOnce(new Promise(() => undefined));
+    fireEvent.keyDown(textField(), { key: 'k', ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.getByTestId('gl-inline-editor')).toBeInTheDocument();
+  });
+
   it('edits a banner in place and counts words past 25', () => {
     mount('banner');
     openEditor();

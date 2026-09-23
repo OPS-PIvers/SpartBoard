@@ -259,7 +259,8 @@ export function useCanvasTools(
         id: 'cancel-tool',
         key: 'Escape',
         whileEditing: true,
-        when: () => addingStep || editingStepId !== null,
+        // The link prompt handles its own Escape; editing stays open behind it.
+        when: () => !linkPending && (addingStep || editingStepId !== null),
         run: () => {
           if (editingStepId) setEditing(null);
           else chooseTool(null);
@@ -336,6 +337,7 @@ export function useCanvasTools(
     polygonDraft,
     closePolygon,
     editingStepId,
+    linkPending,
     bold,
     link,
     slideSteps.length,
