@@ -197,6 +197,13 @@ export interface ClassRosterMeta {
    * from the post-launch / SidebarClasses linking flow, not at assign time.
    */
   ltiContextId?: string;
+  /** The building bell period this class meets in, for per-period assignment windows; null once cleared. */
+  bellPeriod?: RosterBellPeriod | null;
+}
+
+export interface RosterBellPeriod {
+  buildingId: string;
+  periodId: string;
 }
 
 /**
@@ -1372,6 +1379,10 @@ export interface ScheduleItem {
   linkedWidgets?: WidgetType[];
   spawnedWidgetIds?: string[];
   oneOffDate?: string; // YYYY-MM-DD: if set, item only shows on this specific date
+  /** Admin-assigned bell period id (e.g. "P3"), shared across a building's schedules and never regenerated. */
+  periodId?: string;
+  /** Marks the item as a class period that rosters and per-period windows can use. */
+  isClassPeriod?: boolean;
 }
 
 export interface DailySchedule {
@@ -1490,6 +1501,12 @@ export interface RandomConfig {
   lastNames: string;
   mode: string;
   groupSize?: number;
+  /** Groups mode: whether the sizing control means members per group ('size',
+   *  the historical default) or a target number of groups ('count'). */
+  groupingMode?: 'size' | 'count';
+  /** Groups mode: target number of groups when `groupingMode` is 'count'.
+   *  The remainder spreads across groups, so sizes differ by at most one. */
+  numGroups?: number;
   lastResult?: string | string[] | RandomGroup[] | null;
   soundEnabled?: boolean;
   remainingStudents?: string[];
@@ -1973,6 +1990,8 @@ export interface ActivityWallGlobalConfig {
 }
 
 export interface ActivityWallConfig {
+  /** Set only inside a substitute share, from the share's names file. */
+  subSharePosts?: ActivityWallSubmission[];
   /**
    * @deprecated Activities now live in the per-user library collection
    * `/users/{userId}/activity_wall_activities/{activityId}` (see
@@ -2425,6 +2444,8 @@ export interface BuildingScheduleDefaults {
   autoProgress?: boolean;
   /** Behaviour defaults — keep the active item centred as the day progresses. */
   autoScroll?: boolean;
+  /** Special days: `YYYY-MM-DD` → the schedule id that runs that date, ahead of the weekday pick. */
+  dateOverrides?: Record<string, string>;
 }
 
 export interface ScheduleGlobalConfig {
@@ -2909,11 +2930,13 @@ export interface MiniAppConfig {
  * Lives in the `/mini_app_sessions/{sessionId}` Firestore collection.
  * Created by teachers; read by students via the `/miniapp/{sessionId}` route.
  */
-export interface MiniAppSession {
+export interface MiniAppSession extends PeriodAccessSessionFields {
   id: string;
   appId: string;
   appTitle: string;
   appHtml: string;
+  /** Per-period sessions keep the app in `content/app`; `appHtml` here stays empty. */
+  appInContent?: boolean;
   teacherUid: string;
   assignmentName: string;
   status: 'active' | 'ended';
@@ -3932,6 +3955,10 @@ export type QuizSessionMode = 'teacher' | 'auto' | 'student';
  */
 export interface BaseSessionOptions {
   tabWarningsEnabled?: boolean;
+  /** Tab-away limit in seconds (5-300); stamped only with the tab-away-timer flag. */
+  tabAwayLimitSeconds?: number;
+  /** Submit when a student stays away past the limit; off = count up and log it. */
+  tabAwayAutoSubmit?: boolean;
   /**
    * Block copy / cut / paste in the student answer UI. Adds a layer of test
    * integrity alongside tab-switch detection — a student can't switch to
@@ -4125,8 +4152,56 @@ export interface QuizLeaderboardEntry {
   rank: number;
 }
 
+/**
+ * Stamped on both docs a substitute's launch writes — the session and the
+ * teacher's own assignment record (docs/plans/SUB_SHARE_COLLECTIONS.md §3.6,
+ * D7). Written only by `launchSubAssignmentV1`; the run itself belongs to the
+ * teacher, and the session rules pin all three fields against a client write.
+ */
+export interface SubLaunchedSessionFields {
+  /** Who started it, for the "Launched by" tag in the teacher's Results. */
+  launchedBy?: { uid: string; email: string; shareId: string };
+  /** Uids that may monitor this one run — read by the `isSubMonitor` rule. */
+  subMonitorUids?: string[];
+  /** ms when monitoring ends: the share's own expiry. */
+  subMonitorUntil?: number;
+}
+
+/** Per-period gate state (docs/plans/PER_PERIOD_ASSIGNMENT_ACCESS.md). */
+export type PeriodAccessState = 'closed' | 'open' | 'paused';
+
+/** One targeted class's gate, keyed by the class id its roster contributes. */
+export interface PeriodAccess {
+  state: PeriodAccessState;
+  /** Epoch ms; null = no scheduled open. */
+  openAt: number | null;
+  /** Epoch ms; the bell end in assessment mode, the window end in assignment mode. */
+  closeAt: number | null;
+  bellPeriodId: string | null;
+  /** The roster supports SSO or the PIN bridge, so its students carry a class claim. */
+  verified: boolean;
+  /** Roster name, shown on the chip and matched by anonymous PIN joiners. */
+  label: string;
+  rosterId?: string;
+  /** Epoch ms of the last pause or close, so a draft flush landing just after it is kept. */
+  pausedAt?: number;
+}
+
+export type AccessMode = 'assessment' | 'assignment';
+
+/** Session fields read by the `periodOpen` / `studentLetIn` rules. Absent = legacy global gate. */
+export interface PeriodAccessSessionFields {
+  accessMode?: AccessMode;
+  periodAccess?: Record<string, PeriodAccess>;
+  /** "Let in now": auth uid → epoch ms the pass lasts until. */
+  studentAccess?: Record<string, number>;
+  /** Epoch ms of the last whole-session pause; see `PeriodAccess.pausedAt`. */
+  pausedAt?: number;
+}
+
 /** Live quiz session document in Firestore (/quiz_sessions/{sessionId}) */
-export interface QuizSession {
+export interface QuizSession
+  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
   id: string; // session UUID (same as QuizAssignment.id)
   /** FK back to /users/{teacherUid}/quiz_assignments/{assignmentId}. 1:1 with session. */
   assignmentId: string;
@@ -4156,6 +4231,8 @@ export interface QuizSession {
    * full QuizData loaded from Drive, not from this field.
    */
   publicQuestions: QuizPublicQuestion[];
+  /** Per-period sessions keep publicQuestions, stimuli and stimulus text in `content/questions`; the session copies stay empty. */
+  questionsInContent?: boolean;
   /** D27's translated titles by BCP-47 code. Frozen with publicQuestions. */
   quizTitleLocalized?: Record<string, string>;
   /** Deploy-safety opt-in: `1` means this session understands `unresponded` entries. */
@@ -4211,6 +4288,9 @@ export interface QuizSession {
    * creation. Absent = default of 3.
    */
   tabWarningThreshold?: number | 'off';
+  /** Mirrors `BaseSessionOptions.tabAwayLimitSeconds`; absent = no tab-away clock. */
+  tabAwayLimitSeconds?: number;
+  tabAwayAutoSubmit?: boolean;
   /**
    * Block copy / cut / paste in the student quiz UI (default false). Mirrored
    * from the assignment's `sessionOptions.blockCopyPaste` so the student
@@ -4576,6 +4656,32 @@ export interface QuizResponseBackTranslation {
   at: number;
 }
 
+/** How an exit from a quiz or video activity ended; unset while the student is still away. */
+export type TabExitOutcome =
+  | 'returned'
+  | 'over-limit'
+  | 'auto-submitted'
+  | 'session-ended';
+
+/** One time a student left a quiz or video activity (docs/plans/TAB_AWAY_TIMER.md §3.1). */
+export interface TabExit {
+  /** Epoch ms on the student's clock. */
+  leftAt: number;
+  returnedAt?: number;
+  /** From performance.now(), so a clock change can't shorten it. */
+  durationMs?: number;
+  /** Quiz: the question on screen. */
+  questionIndex?: number;
+  /** Video Activity: playback position in seconds. */
+  videoTime?: number;
+  /** Completed attempts at the time, since the warning count never resets. */
+  attempt: number;
+  outcome?: TabExitOutcome;
+}
+
+/** Rules refuse a log past this length; the warning count keeps going. */
+export const TAB_EXITS_MAX = 50;
+
 export interface QuizResponse {
   /**
    * The Firestore doc key under /responses. Populated at read time by the
@@ -4660,6 +4766,8 @@ export interface QuizResponse {
    * Used for maintaining quiz integrity.
    */
   tabSwitchWarnings?: number;
+  /** One entry per exit (capped at `TAB_EXITS_MAX`); `tabSwitchWarnings` stays the count. */
+  tabExits?: TabExit[];
   /**
    * Number of tab-switch / focus-loss events the student has accumulated while
    * viewing **published results**. Distinct from `tabSwitchWarnings`, which
@@ -4882,6 +4990,23 @@ export interface PaperBatch {
   printedByUid?: string;
   printedByName?: string;
   printedAt?: number;
+  /**
+   * Set when a teammate printed this stack before the owner had the quiz in
+   * their library and their Drive was unreachable, so the copy is materialized
+   * on the owner's next sign-in instead (PLC_DELEGATED_PAPER_PRINTING.md D20).
+   */
+  pendingQuizCopy?: PaperBatchPendingQuizCopy;
+}
+
+/** What the owner's client needs to build the deferred library copy itself. */
+export interface PaperBatchPendingQuizCopy {
+  /** Canonical content lives at `/synced_quizzes/{groupId}`. */
+  groupId: string;
+  plcId: string;
+  plcQuizId: string;
+  title: string;
+  requestedByName: string;
+  requestedAt: number;
 }
 
 /** One read row, compact enough for 150 sheets to sit inside the batch doc. */
@@ -5365,6 +5490,7 @@ export interface StudentOverride {
   // quiz only; 'points' means grade this question by raw points, ignoring any rubric
   rubricOverrideByQuestion?: Record<string, RubricSnapshot | 'points'>;
   tabWarningThreshold?: number | 'off'; // quiz only (during-taking system)
+  tabAwayLimit?: number | 'off'; // quiz only; seconds to auto-submit at, or 'off' for no auto-submit
   readAloud?: boolean; // quiz only; signed-in students, needs 'quiz-read-aloud'
   openAt?: number;
   closeAt?: number; // per-student window shift (epoch ms)
@@ -5462,7 +5588,11 @@ export interface QuizAssignmentSettings {
  * `/users/{teacherUid}/quiz_assignments/{assignmentId}`. The assignment id is
  * also the id of the matching `/quiz_sessions/{sessionId}` document (1:1).
  */
-export interface QuizAssignment extends QuizAssignmentSettings {
+export interface QuizAssignment
+  extends
+    QuizAssignmentSettings,
+    SubLaunchedSessionFields,
+    PeriodAccessSessionFields {
   /** Assignment UUID — also the sessionId. */
   id: string;
   /**
@@ -5892,6 +6022,23 @@ export type VideoActivityQuestion = Omit<
   acceptableVariants?: string[];
 };
 
+/** Student-safe VA question on the session doc; the key lives in `key/answers`. */
+export interface VideoActivityPublicQuestion {
+  id: string;
+  timestamp: number;
+  text: string;
+  type: VideoActivityQuestionType;
+  /** MC/MA choices, correct and incorrect mixed in random order. */
+  options?: string[];
+}
+
+/** Server grading of one VA answer (`checkVideoActivityAnswerV1`). */
+export interface VideoActivityCheckResult {
+  isCorrect: boolean;
+  /** Canonical key for feedback; MA selections are `|`-joined. */
+  correctAnswer: string;
+}
+
 /** Full video activity data stored in Google Drive as JSON. */
 export interface VideoActivityData {
   id: string;
@@ -6017,6 +6164,8 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
    * single counter — not per-question.
    */
   attemptLimit?: number | null;
+  /** Exits before auto-submit (1-10) or 'off'; absent = 3. */
+  tabWarningThreshold?: number | 'off';
   /**
    * Seconds to rewind on a wrong submission. 0 / undefined = no rewind. When
    * set and > 0, supersedes the legacy `requireCorrectAnswer` rewind-to-
@@ -6057,15 +6206,23 @@ export interface VideoActivityGlobalConfig {
  * A Firestore session document giving students access to an activity.
  * Stored at /video_activity_sessions/{sessionId}
  */
-export interface VideoActivitySession {
+export interface VideoActivitySession
+  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
   id: string;
   activityId: string;
   activityTitle: string;
   assignmentName: string;
   teacherUid: string;
   youtubeUrl: string;
-  /** Full questions including correctAnswer — used server-side for grading. */
+  /**
+   * Keyed questions. Empty on stored docs that carry `publicQuestions`; teacher
+   * code reads the key via `useVideoActivityKeyQuestions`.
+   */
   questions: VideoActivityQuestion[];
+  /** Student-facing projection with no answer key. Absent on legacy docs. */
+  publicQuestions?: VideoActivityPublicQuestion[];
+  /** Per-period sessions keep publicQuestions in `content/questions`; the session copy stays empty. */
+  questionsInContent?: boolean;
   /** Session-level player-behavior controls configured at assignment time. */
   settings?: VideoActivitySessionSettings;
   /**
@@ -6191,8 +6348,7 @@ export interface VideoActivitySessionSyncLinkage {
 export interface VideoActivityAnswer {
   questionId: string;
   answer: string;
-  /** Whether the answer was correct. Not written by the student client; derived from
-   *  authoritative question data (correctAnswer) when displaying teacher results. */
+  /** Server-check verdict for the student's own summary; teacher views and Publish re-grade from the key. */
   isCorrect?: boolean;
   answeredAt: number;
 }
@@ -6236,8 +6392,12 @@ export interface VideoActivityResponse {
   score: number | null;
   /** Which class period the student selected when joining (multi-class support). */
   classPeriod?: string;
+  /** The `periodAccess` key this student joined under; set once at join on per-period sessions. */
+  classId?: string;
   /** Count of tab/focus losses while the activity is in progress. Append-only at the rules layer. */
   tabSwitchWarnings?: number;
+  /** One entry per exit (capped at `TAB_EXITS_MAX`); `tabSwitchWarnings` stays the count. */
+  tabExits?: TabExit[];
   /**
    * Number of completed activity attempts. Used to enforce
    * `VideoActivitySessionOptions.attemptLimit`. Initialized to 0 at create
@@ -6324,6 +6484,8 @@ export interface NextUpConfig {
     themeColor: string;
     animation: 'slide' | 'fade' | 'none';
   };
+  /** Set only inside a substitute share, from the share's names file. */
+  subShareQueue?: NextUpQueueItem[];
 }
 
 export interface NextUpGlobalConfig {
@@ -6872,7 +7034,7 @@ export interface GuidedLearningStep {
   showOverlay?: GuidedLearningOverlayType;
   /** Tooltip anchor relative to hotspot (default 'auto') */
   tooltipPosition?: 'above' | 'below' | 'left' | 'right' | 'auto';
-  /** Distance in px from hotspot to tooltip edge (default 12) */
+  /** Distance in px from hotspot to tooltip edge (default 16) */
   tooltipOffset?: number;
   /** Content for text-popover and tooltip */
   text?: string;
@@ -6891,7 +7053,63 @@ export interface GuidedLearningStep {
   question?: GuidedLearningQuestion;
   /** Seconds before auto-advance in guided mode */
   autoAdvanceDuration?: number;
+  /** Click zone / spotlight / zoom focus. Absent = default circle centred on xPct/yPct. */
+  region?: GuidedLearningRegion;
+  /** Absent = auto placement. Present = callout box centre pinned in image-%. */
+  calloutPin?: GuidedLearningCalloutPin;
+  /** Watch-mode demonstration override; absent = cursor goes to region centre. */
+  cursor?: GuidedLearningStepCursor;
+  /** Narration track: generated TTS or the author's recorded voice. */
+  narration?: GuidedLearningNarration;
+  /** Live-tour binding. Teacher-only: never mirrored to public steps. */
+  tour?: GuidedLearningTourBinding;
 }
+
+export interface GuidedLearningRegion {
+  shape: 'rect' | 'ellipse' | 'polygon';
+  /** Bounding-box size as % of image width / height, centred on xPct/yPct. */
+  wPct: number;
+  hPct: number;
+  /** rect only: corner radius as % of the shorter side (0–50). */
+  cornerPct?: number;
+  /** polygon only: 3–24 vertices in image-%. The bbox fields and xPct/yPct are derived from them. */
+  points?: { x: number; y: number }[];
+}
+
+export interface GuidedLearningCalloutPin {
+  xPct: number;
+  yPct: number;
+}
+
+export interface GuidedLearningStepCursor {
+  hide?: boolean;
+}
+
+export interface GuidedLearningNarration {
+  source: 'generated' | 'recorded';
+  url: string;
+  storagePath: string;
+  durationMs: number;
+  voice?: string;
+  textHash?: string;
+}
+
+/** Student-safe narration: playback fields only. */
+export type GuidedLearningPublicNarration = Pick<
+  GuidedLearningNarration,
+  'url' | 'voice' | 'durationMs'
+>;
+
+export interface GuidedLearningTourBinding {
+  /** TOUR_ANCHORS key */
+  anchor: string;
+  fallback?: { role: string; name: string };
+  /** observe = learner presses Next */
+  action: 'click' | 'observe';
+}
+
+/** Watch-mode pacing. 'calm' multiplies step durations by 1.3; absent = 'standard'. */
+export type GuidedLearningWatchPace = 'calm' | 'standard';
 
 /**
  * Playback-range trim for a video slide, in seconds from the start of the
@@ -6906,7 +7124,7 @@ export interface GuidedLearningVideoTrim {
 /** Full set data stored in Google Drive as JSON */
 export interface GuidedLearningSet {
   id: string;
-  /** Absent/1 = legacy semantics (per-step zoom reset, container-relative spotlight); 2+ = zoom persistence + image-relative spotlight. */
+  /** Absent/1 = legacy semantics (per-step zoom reset, container-relative spotlight); 2+ = zoom persistence + image-relative spotlight; 3 adds regions, pinned callouts and narration. */
   schemaVersion?: number;
   title: string;
   description?: string;
@@ -6936,6 +7154,8 @@ export interface GuidedLearningSet {
   updatedAt: number;
   /** Admin-created building-level sets stored in Firestore, not Drive */
   isBuilding?: boolean;
+  /** Building set owned by the Help Center: edited in Admin Settings, hidden from the library. */
+  helpCenter?: boolean;
   authorUid?: string;
   /**
    * Hotspot pulse animation for the player. Default `'consistent'` (matches
@@ -6966,6 +7186,11 @@ export interface GuidedLearningSet {
    * on, so an enabled-but-empty welcome doesn't render an empty card.
    */
   welcomeMessage?: string;
+  watchPace?: GuidedLearningWatchPace;
+  /** Live tour prerequisites. Teacher-only: never mirrored to sessions. */
+  tourSetup?: { widgets: WidgetType[] };
+  /** Stamped on every building-set save: true when any step has a live-tour binding. */
+  hasLiveTour?: boolean;
 }
 
 /** Lightweight metadata stored in Firestore (avoids Drive API on every list) */
@@ -7031,10 +7256,15 @@ export interface GuidedLearningPublicStep {
     sortingItems?: string[];
   };
   autoAdvanceDuration?: number;
+  region?: GuidedLearningRegion;
+  calloutPin?: GuidedLearningCalloutPin;
+  cursor?: GuidedLearningStepCursor;
+  narration?: GuidedLearningPublicNarration;
 }
 
 /** Firestore session document granting student access to an experience */
-export interface GuidedLearningSession {
+export interface GuidedLearningSession
+  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
   id: string;
   title: string;
   mode: GuidedLearningMode;
@@ -7051,6 +7281,8 @@ export interface GuidedLearningSession {
   videoTrims?: (GuidedLearningVideoTrim | null)[];
   /** Student-safe steps (no answer keys) */
   publicSteps: GuidedLearningPublicStep[];
+  /** Per-period sessions keep steps and slides in `content/steps`; the session copies stay empty. */
+  stepsInContent?: boolean;
   teacherUid: string;
   createdAt: number;
   expiresAt?: number;
@@ -7103,6 +7335,10 @@ export interface GuidedLearningSession {
   welcomeEnabled?: boolean;
   /** Mirrors `GuidedLearningSet.welcomeMessage`. */
   welcomeMessage?: string;
+  /** Mirrors `GuidedLearningSet.watchPace`. */
+  watchPace?: GuidedLearningWatchPace;
+  /** Stamped when the creator could use `gl-player-v2`; students can't evaluate the flag. */
+  playerV2?: boolean;
   /**
    * Mirror of {@link GuidedLearningAssignment.scoreVisibility} for the
    * student-facing `/my-assignments` Completed review screen. Absent /
@@ -7143,6 +7379,8 @@ export interface GuidedLearningResponse {
   score: number | null;
   /** Which class period the student selected when joining (multi-class support). */
   classPeriod?: string;
+  /** The `periodAccess` key the student's seat named; set on per-period sessions. */
+  classId?: string;
 }
 
 export interface GuidedLearningGlobalConfig {
@@ -7379,7 +7617,8 @@ export interface FlashcardCheckWriteEntry {
 }
 
 /** `flashcard_sessions/{assignmentId}`: what assigned students load. */
-export interface FlashcardSession {
+export interface FlashcardSession
+  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
   id: string;
   teacherUid: string;
   setId: string;
@@ -7391,6 +7630,8 @@ export interface FlashcardSession {
   termLanguage: string;
   definitionLanguage: string;
   cards: FlashcardCard[];
+  /** Per-period sessions keep their cards in `content/cards`; `cards` here stays empty. */
+  cardsInContent?: boolean;
   classIds: string[];
   classId?: string;
   periodNames?: string[];
@@ -7407,7 +7648,8 @@ export interface FlashcardSession {
 }
 
 /** `users/{uid}/flashcard_assignments/{assignmentId}`: the teacher's record (id == session id). */
-export interface FlashcardAssignment {
+export interface FlashcardAssignment
+  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
   id: string;
   sessionId: string;
   setId: string;
@@ -8284,6 +8526,8 @@ export interface SubstituteShareFields {
   driveGrants?: SubstituteShareDriveGrant[];
   /** Rosters the sub may load from Drive; the first is the active one. */
   sharedRosters?: SubstituteShareRoster[];
+  /** Drive file holding the shared boards' student names (plan §3.4). */
+  namesFileId?: string;
 }
 
 /** Per-participant entry on a /shared_boards/{shareId} doc. */
@@ -8374,7 +8618,21 @@ export type GlobalFeature =
   /** Saved class groups inside board widgets; AND-ed with the Rollouts switch. */
   | 'roster-groups'
   /** Importing a quiz from a test document; AND-ed with the Rollouts switch. */
-  | 'quiz-document-import';
+  | 'quiz-document-import'
+  /** Handing a board or a collection to a substitute, and managing live shares. */
+  | 'sub-share-collections'
+  /** Guided Learning player v2: calm motion, learner speed, Watch/Try; stamped on sessions. */
+  | 'gl-player-v2'
+  /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
+  | 'tab-away-timer'
+  /** Guided Learning live tours in the teacher app and their launch points. */
+  | 'gl-live-tours'
+  /** Guided Learning Studio editor in place of the classic editor. */
+  | 'gl-studio'
+  /** Per-period start/pause and windows on assignments shared by several classes. */
+  | 'per-period-access'
+  /** Printing quiz results to hand back: presets, bulk print, bubble-sheet reprints. */
+  | 'quiz-results-print';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
@@ -9318,7 +9576,11 @@ export interface VideoActivityAssignmentSettings {
  * assignment id is the same id as the matching `/video_activity_sessions/{sessionId}`
  * document (1:1 pairing, matches the Quiz pattern).
  */
-export interface VideoActivityAssignment extends VideoActivityAssignmentSettings {
+export interface VideoActivityAssignment
+  extends
+    VideoActivityAssignmentSettings,
+    SubLaunchedSessionFields,
+    PeriodAccessSessionFields {
   /** Assignment UUID — also the sessionId. */
   id: string;
   activityId: string;
@@ -9397,7 +9659,7 @@ export interface VideoActivityAssignment extends VideoActivityAssignmentSettings
  *   - `active`: session is live.
  *   - `inactive`: session has been ended.
  */
-export interface MiniAppAssignment {
+export interface MiniAppAssignment extends PeriodAccessSessionFields {
   id: string;
   sessionId: string;
   appId: string;
@@ -9464,7 +9726,8 @@ export interface MiniAppAssignment {
 // entry (under /users/{userId}/guided_learning_assignments/{id}).
 export type GuidedLearningAssignmentStatus = 'active' | 'archived';
 
-export interface GuidedLearningAssignment {
+export interface GuidedLearningAssignment
+  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
   /** Document id — matches the session id. */
   id: string;
   /** ID of the set that was assigned. */
@@ -9633,6 +9896,29 @@ export type SharedCollectionImportMode = 'copy' | 'substitute';
  * 1MB-per-doc limit. The parent doc stores Collection metadata + an
  * ordered `boardIds` list for the recipient flow.
  */
+/**
+ * Whether a share carries one Board or a whole Collection. New sub shares of a
+ * single Board are written as a one-board Collection share so bundling, names,
+ * update and end-now are built once (docs/plans/SUB_SHARE_COLLECTIONS.md A1).
+ * Absent on shares written before that change: read as 'collection'.
+ */
+export type SharedCollectionKind = 'board' | 'collection';
+
+/** One group in a sub share's board list — the root, then each sub-collection. */
+export interface SharedCollectionSection {
+  id: string;
+  name: string;
+  color?: string;
+}
+
+/** A shared Board's name, section and place in the walk order. */
+export interface SharedCollectionBoardEntry {
+  id: string;
+  name: string;
+  sectionId: string;
+  order: number;
+}
+
 export interface SharedCollection {
   shareId: string;
   hostUid: string;
@@ -9664,6 +9950,33 @@ export interface SharedCollection {
   driveGrants?: SubstituteShareDriveGrant[];
   /** Substitute-only: mirrors `SubstituteShareFields.sharedRosters`. */
   sharedRosters?: SubstituteShareRoster[];
+  /**
+   * Substitute-only: the Drive file holding the student names scrubbed out of
+   * the board snapshots, readable only by the named subs (plan §3.4). Trashed
+   * with the grants by the expiry sweep.
+   */
+  namesFileId?: string;
+  /** Absent on pre-v2 shares; read as 'collection'. */
+  kind?: SharedCollectionKind;
+  /**
+   * The Board or Collection this share was made from, so the share dialog can
+   * offer "update the existing share" instead of making a second one, and the
+   * Boards modal can badge what is currently shared. Pinned after create.
+   */
+  sourceId?: string;
+  /** Root section first, then sub-collections in tree order. Absent pre-v2. */
+  sections?: SharedCollectionSection[];
+  /**
+   * Board names, sections and walk order. Absent on pre-v2 shares, where /subs
+   * falls back to `boardIds` and a "Board …" label.
+   */
+  boards?: SharedCollectionBoardEntry[];
+  /** Board the sub lands on; falls back to the first board in walk order. */
+  defaultBoardId?: string;
+  /** Bumped by "Update sub share" so an open /subs session knows to reload. */
+  contentVersion?: number;
+  /** ms epoch of the last host update to this share. */
+  updatedAt?: number;
 }
 
 /**
@@ -9676,6 +9989,220 @@ export interface SharedCollectionBoardDoc {
   boardId: string;
   /** Frozen `Dashboard` at share time. */
   dashboard: Dashboard;
+}
+
+/**
+ * What a widget's data is, when that data does not live on the board itself.
+ * A Drawing's strokes, a notebook, a project: all read from the teacher's own
+ * `users/` tree, none of it reachable by a substitute. A Next Up queue is a
+ * list of student names, so it rides the per-share names file instead (§3.4).
+ */
+export type SubShareContentKind =
+  | 'drawing'
+  | 'quiz'
+  | 'videoActivity'
+  | 'guidedLearning'
+  | 'notebook'
+  | 'flashcards'
+  | 'project'
+  | 'calendar'
+  | 'customWidget'
+  | 'activityWall';
+
+/**
+ * A quiz as a substitute sees it: the teacher's own questions and their keys.
+ * Bundled into `keys/`, not `content/`, because it is an answer key (A2).
+ * Bank slots do not travel — the banks they draw from are the teacher's.
+ */
+export type SubShareQuizView = Pick<
+  QuizData,
+  | 'id'
+  | 'title'
+  | 'questions'
+  | 'stimuli'
+  | 'language'
+  | 'createdAt'
+  | 'updatedAt'
+>;
+
+export interface SubShareQuizPayload {
+  quiz: SubShareQuizView;
+}
+
+/**
+ * A video activity as a substitute sees it: the video plus the teacher's own
+ * questions and their keys. Bundled into `keys/`, not `content/`, for the same
+ * reason a quiz is (A2). The PLC sync linkage and folder do not travel.
+ */
+export type SubShareVideoActivityView = Pick<
+  VideoActivityData,
+  | 'id'
+  | 'title'
+  | 'youtubeUrl'
+  | 'videoDuration'
+  | 'questions'
+  | 'createdAt'
+  | 'updatedAt'
+>;
+
+export interface SubShareVideoActivityPayload {
+  activity: SubShareVideoActivityView;
+}
+
+/** A step as a substitute sees it: no live-tour binding, no Storage paths. */
+export type SubShareGuidedLearningStep = Omit<
+  GuidedLearningStep,
+  'tour' | 'audioStoragePath' | 'videoStoragePath' | 'narration'
+> & { narration?: GuidedLearningPublicNarration };
+
+/**
+ * A guided learning set as a substitute sees it: the whole activity, answers
+ * included, which is what `keys/` exists to carry. The teacher's live-tour
+ * bindings and prerequisites, the author's uid and every raw Storage path do
+ * not travel — the tokenized URLs are what a sub can actually read.
+ */
+export type SubShareGuidedLearningView = Omit<
+  GuidedLearningSet,
+  'steps' | 'authorUid' | 'imagePaths' | 'tourSetup'
+> & {
+  steps: SubShareGuidedLearningStep[];
+};
+
+export interface SubShareGuidedLearningPayload {
+  set: SubShareGuidedLearningView;
+}
+
+/** A `content/{kind}_{itemId}` doc: what the sub sees in place of their own. */
+export interface SubShareContentDoc<T = unknown> {
+  kind: SubShareContentKind;
+  /** Widget id, or the id of the library item the widget points at. */
+  itemId: string;
+  bundledAt: number;
+  payload: T;
+}
+
+/** Strokes for one Drawing widget, page by page, as they were at share time. */
+export interface SubShareDrawingPayload {
+  pages: { pageId: string; objects: DrawableObject[] }[];
+}
+
+/** The teacher's notebook, as it was at share time. */
+export interface SubShareNotebookPayload {
+  notebook: NotebookItem;
+}
+
+/**
+ * Only what the widget renders. `content/` is readable by any verified
+ * district account holding the share, so the rest of the definition doc —
+ * `betaUsers` above all, which is other teachers' emails — stays out.
+ */
+export type SubShareCustomWidgetView = Pick<
+  CustomWidgetDoc,
+  'id' | 'title' | 'mode' | 'updatedAt' | 'gridDefinition' | 'codeContent'
+>;
+
+/** A custom widget's definition, so a sub sees a beta-gated one too. */
+export interface SubShareCustomWidgetPayload {
+  doc: SubShareCustomWidgetView;
+}
+
+/** Only what the read-only tracker draws: no rubric, due date or class list. */
+export type SubShareProjectRunView = Pick<
+  ProjectRun,
+  'id' | 'projectId' | 'title' | 'steps'
+>;
+
+/**
+ * Only the row the tracker draws. `memberUids` and `workLinks` stay out —
+ * `content/` is readable by any verified district account holding the share,
+ * and neither appears on that face.
+ */
+export type SubShareProjectGroupView = Pick<
+  ProjectGroup,
+  'id' | 'name' | 'classId' | 'order' | 'stepStates' | 'needsSupport'
+>;
+
+/** A project's tracker as it stood at share time. */
+export interface SubShareProjectPayload {
+  run: SubShareProjectRunView;
+  groups: SubShareProjectGroupView[];
+}
+
+/**
+ * Only what the read-only wall draws. Named field by field rather than
+ * omitted: `content/` is readable by any verified district account holding
+ * the share, so a new field on the entry must be let in deliberately. Class
+ * and roster targeting are not on this list — a substitute launches nothing.
+ */
+export type SubShareActivityWallView = Pick<
+  ActivityWallLibraryEntry,
+  | 'id'
+  | 'title'
+  | 'prompt'
+  | 'mode'
+  | 'moderationEnabled'
+  | 'identificationMode'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'layout'
+  | 'sections'
+  | 'tableRows'
+  | 'tableCols'
+  | 'mapCenter'
+  | 'allowedTypes'
+  | 'appearance'
+  | 'allowGuests'
+  | 'showNames'
+  | 'maxPostsPerStudent'
+  | 'allowStudentEdit'
+  | 'allowStudentDelete'
+  | 'acceptingResponses'
+  | 'studentsCanSeePosts'
+  | 'allowLikes'
+  | 'allowComments'
+  | 'allowCommentResponses'
+>;
+
+/**
+ * An Activity Wall's definition, with no student posts: a submission carries
+ * the student's own words, their name and their uid, so the wall's contents
+ * do not belong in `content/`.
+ */
+export interface SubShareActivityWallPayload {
+  entry: SubShareActivityWallView;
+  /** The wall's owner, so the derived session names the right teacher. */
+  hostUid: string;
+}
+
+/**
+ * A Calendar widget's personal events as they stood at share time. A
+ * `CalendarEvent` is a title, a date and an optional time — the teacher's own
+ * words, with no attendees, no guest list and no description, which is why it
+ * can live in the broadly readable `content/`.
+ */
+export interface SubShareCalendarPayload {
+  events: CalendarEvent[];
+}
+
+/**
+ * Only what the player draws. Named field by field rather than omitted:
+ * `content/` is readable by any verified district account holding the share,
+ * so a new field on the set has to be let in deliberately. `publicShareId` is
+ * deliberately out — it is a link anyone could then open.
+ */
+export type SubShareFlashcardSetView = Pick<
+  FlashcardSet,
+  | 'id'
+  | 'title'
+  | 'description'
+  | 'termLanguage'
+  | 'definitionLanguage'
+  | 'cards'
+>;
+
+/** The set a Flashcards widget was presenting when the share was made. */
+export interface SubShareFlashcardPayload {
+  set: SubShareFlashcardSetView;
 }
 
 /**

@@ -1,0 +1,87 @@
+[
+  {
+    "name": "MC mixes the key with non-empty distractors",
+    "question": {
+      "id": "q",
+      "type": "MC",
+      "text": "T",
+      "timestamp": 4,
+      "correctAnswer": "Paris",
+      "incorrectAnswers": ["Rome", "", "Oslo"]
+    },
+    "expected": {
+      "id": "q",
+      "type": "MC",
+      "text": "T",
+      "timestamp": 4,
+      "options": ["Oslo", "Paris", "Rome"]
+    }
+  },
+  {
+    "name": "MC with a blank key keeps only distractors",
+    "question": {
+      "id": "q",
+      "type": "MC",
+      "text": "T",
+      "timestamp": 1,
+      "correctAnswer": "",
+      "incorrectAnswers": ["A"]
+    },
+    "expected": {
+      "id": "q",
+      "type": "MC",
+      "text": "T",
+      "timestamp": 1,
+      "options": ["A"]
+    }
+  },
+  {
+    "name": "missing type is MC",
+    "question": {
+      "id": "q",
+      "text": "T",
+      "timestamp": 2,
+      "correctAnswer": "A",
+      "incorrectAnswers": ["B"]
+    },
+    "expected": {
+      "id": "q",
+      "type": "MC",
+      "text": "T",
+      "timestamp": 2,
+      "options": ["A", "B"]
+    }
+  },
+  {
+    "name": "MA trims, merges and dedupes selections",
+    "question": {
+      "id": "q",
+      "type": "MA",
+      "text": "T",
+      "timestamp": 3,
+      "correctAnswer": "a| b|",
+      "incorrectAnswers": ["b", "c", ""]
+    },
+    "expected": {
+      "id": "q",
+      "type": "MA",
+      "text": "T",
+      "timestamp": 3,
+      "options": ["a", "b", "c"]
+    }
+  },
+  {
+    "name": "FIB has no options and no key",
+    "question": {
+      "id": "q",
+      "type": "FIB",
+      "text": "T",
+      "timestamp": 9,
+      "correctAnswer": "blue",
+      "incorrectAnswers": [],
+      "acceptableVariants": ["azure"],
+      "points": 3
+    },
+    "expected": { "id": "q", "type": "FIB", "text": "T", "timestamp": 9 }
+  }
+]

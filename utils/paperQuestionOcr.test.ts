@@ -26,6 +26,21 @@ b) 5
 `;
 
 describe('parseNumberedQuestions', () => {
+  it('reads questions the teacher labelled rather than numbered', () => {
+    const parsed = parseNumberedQuestions(
+      `Question 1: What is the value of 3 + 4?
+A. 6
+B. 7
+Question 2: Which planet is closest
+to the Sun?
+`,
+      2
+    );
+    expect(parsed.byNumber[1]).toBe('What is the value of 3 + 4?');
+    expect(parsed.byNumber[2]).toBe('Which planet is closest to the Sun?');
+    expect(parsed.missing).toEqual([]);
+  });
+
   it('reads numbered questions, joins wrapped lines and drops option lines', () => {
     const parsed = parseNumberedQuestions(PAPER, 5);
     expect(parsed.byNumber).toEqual({

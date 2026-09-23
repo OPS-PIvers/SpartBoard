@@ -50,6 +50,10 @@ import {
   PageListState,
 } from '@/utils/notebookPages';
 
+import { Book } from 'lucide-react';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { useSubShareNotebook } from './useSubShareNotebook';
+
 import { Library } from './components/Library';
 import { Viewer } from './components/Viewer';
 import { PageEditorOverlay } from './components/PageEditorOverlay';
@@ -67,6 +71,7 @@ export const SmartNotebookWidget: React.FC<{
   const config = widget.config as SmartNotebookConfig;
   const { activeNotebookId } = config;
   const displayMode = config.libraryDisplayMode ?? 'cards';
+  const shared = useSubShareNotebook(activeNotebookId);
 
   const [notebooks, setNotebooks] = useState<NotebookItem[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
@@ -104,7 +109,7 @@ export const SmartNotebookWidget: React.FC<{
   // Board becomes active again — an acceptable trade-off vs. keeping an open
   // Firestore connection for every mounted-but-hidden Board.
   useEffect(() => {
-    if (!user || !isActive) return;
+    if (!user || !isActive || shared.active) return;
     const q = query(
       collection(db, 'users', user.uid, 'notebooks'),
       orderBy('createdAt', 'desc')
@@ -127,16 +132,18 @@ export const SmartNotebookWidget: React.FC<{
       setNotebooks(items);
     });
     return () => unsubscribe();
-  }, [user, isActive]);
+  }, [user, isActive, shared.active]);
 
   // Derive active notebook directly — no redundant state
-  const activeNotebook = React.useMemo(
+  const ownNotebook = React.useMemo(
     () => notebooks.find((n) => n.id === activeNotebookId) ?? null,
     [notebooks, activeNotebookId]
   );
+  const activeNotebook = shared.active ? shared.notebook : ownNotebook;
 
   // Side effect: clear stale activeNotebookId from config when its notebook is deleted
   useEffect(() => {
+    if (shared.active) return;
     if (activeNotebookId && notebooks.length > 0 && !activeNotebook) {
       updateWidget(widget.id, {
         config: { ...config, activeNotebookId: null },
@@ -149,6 +156,7 @@ export const SmartNotebookWidget: React.FC<{
     widget.id,
     updateWidget,
     config,
+    shared.active,
   ]);
 
   // Clamp currentPage when the active notebook changes or page count shrinks.
@@ -891,6 +899,42 @@ export const SmartNotebookWidget: React.FC<{
   const handleRemovePlacedAsset = (id: string) => {
     persistPlacedAssets(removePlacedAssetIn(placedAssets, id));
   };
+
+  // In a sub share the notebook is the teacher's, bundled and read-only: no
+  // editor, no library, and nothing here writes to the substitute's account.
+  if (shared.active) {
+    if (shared.loading) {
+      return <ScaledEmptyState icon={Book} title="Loading notebook…" />;
+    }
+    if (!activeNotebook) {
+      return (
+        <ScaledEmptyState
+          icon={Book}
+          title="No notebook"
+          subtitle="This notebook did not come along with the share."
+        />
+      );
+    }
+    return (
+      <Viewer
+        activeNotebook={activeNotebook}
+        hasAssets={
+          activeNotebook.assetUrls && activeNotebook.assetUrls.length > 0
+        }
+        showAssets={showAssets}
+        setShowAssets={setShowAssets}
+        currentPage={currentPage}
+        setCurrentPage={setCurrentPage}
+        handleDragStart={handleDragStart}
+        placedAssets={placedAssets.filter(
+          (a) => a.notebookId === activeNotebook.id && a.page === currentPage
+        )}
+        onPlaceAsset={handlePlaceAsset}
+        onUpdatePlacedAsset={handleUpdatePlacedAsset}
+        onRemovePlacedAsset={handleRemovePlacedAsset}
+      />
+    );
+  }
 
   // Edit mode (default) — page nav + autosave live inside the editor overlay.
   if (activeNotebook && !presentMode && activeNotebook.pageUrls[currentPage]) {

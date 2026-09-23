@@ -1,24 +1,12 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Shuffle, RotateCcw } from 'lucide-react';
 import { WidgetData, RandomConfig } from '@/types';
+import { combineRosterNames } from '@/utils/rosterNameLists';
 
 interface RemoteRandomControlProps {
   widget: WidgetData;
   updateWidget: (id: string, updates: Partial<WidgetData>) => void;
 }
-
-const parseNames = (firstNames: string, lastNames: string): string[] => {
-  const firsts = firstNames
-    .split('\n')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const lasts = lastNames
-    .split('\n')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (firsts.length === 0) return [];
-  return firsts.map((f, i) => (lasts[i] ? `${f} ${lasts[i]}` : f));
-};
 
 export const RemoteRandomControl: React.FC<RemoteRandomControlProps> = ({
   widget,
@@ -41,7 +29,10 @@ export const RemoteRandomControl: React.FC<RemoteRandomControlProps> = ({
     };
   }, []);
 
-  const names = parseNames(config.firstNames ?? '', config.lastNames ?? '');
+  const names = combineRosterNames(
+    config.firstNames ?? '',
+    config.lastNames ?? ''
+  );
   const remaining = config.remainingStudents ?? names;
   const picked = config.lastResult;
 

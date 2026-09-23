@@ -85,6 +85,7 @@ export const ExpectationsConfigurationPanel: React.FC<
               Enable Category
             </span>
             <Toggle
+              label={`Enable ${title} category`}
               checked={categoryEnabled}
               onChange={onToggleCategory}
               size="sm"
@@ -112,6 +113,7 @@ export const ExpectationsConfigurationPanel: React.FC<
                 }`}
               >
                 <Toggle
+                  label={`Enable ${opt.label}`}
                   checked={override.enabled}
                   onChange={(checked) =>
                     onUpdateMap({

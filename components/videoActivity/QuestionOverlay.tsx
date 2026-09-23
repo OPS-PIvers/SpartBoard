@@ -6,21 +6,25 @@
  *   - FIB : free-text input; accepts canonical answer + optional variants
  *   - MA  : multi-select checkbox list; submits `selected.sort().join('|')`
  *
- * All correctness checks route through `gradeVideoActivityAnswer` so the
- * three call-sites (this overlay, the post-completion summary, and the
- * teacher Results view) stay in lock-step. Bypassing the shared grader
- * silently breaks gradebook ↔ student-display agreement.
+ * The question carries no answer key: `checkAnswer` grades server-side with
+ * the same rules as `gradeVideoActivityAnswer`, which the teacher Results
+ * view uses, so student feedback and the gradebook stay in lock-step.
  */
 
 import React, { useMemo, useState } from 'react';
 import { CheckCircle2, XCircle, Clock } from 'lucide-react';
-import type { VideoActivityQuestion } from '@/types';
-import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
+import { logError } from '@/utils/logError';
+import type {
+  VideoActivityCheckResult,
+  VideoActivityPublicQuestion,
+} from '@/types';
 
 interface QuestionOverlayProps {
-  question: VideoActivityQuestion;
-  /** Called with submitted answer + correctness once feedback is shown. */
-  onAnswer: (answer: string, isCorrect: boolean) => void;
+  question: VideoActivityPublicQuestion;
+  /** Server grading; rejects when the check can't reach the server. */
+  checkAnswer: (answer: string) => Promise<VideoActivityCheckResult>;
+  /** Called once feedback is shown; `graded` is false when the check couldn't reach the server. */
+  onAnswer: (answer: string, isCorrect: boolean, graded: boolean) => void;
   /** 1-based index for display */
   questionIndex: number;
   totalQuestions: number;
@@ -50,6 +54,7 @@ function shuffleByQuestionId<T>(arr: T[], questionId: string): T[] {
 
 export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
   question,
+  checkAnswer,
   onAnswer,
   questionIndex,
   totalQuestions,
@@ -65,45 +70,35 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
   const [maSelected, setMaSelected] = useState<Set<string>>(new Set());
 
   // Submission lifecycle is shared across types.
+  const [checking, setChecking] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submittedIsCorrect, setSubmittedIsCorrect] = useState(false);
+  // Null when the check failed: the answer is kept without feedback.
+  const [correctAnswer, setCorrectAnswer] = useState<string | null>(null);
+  const graded = submitted && correctAnswer !== null;
 
-  // Correct selections for MA, parsed from the |-encoded correctAnswer.
+  // Correct selections for MA, parsed from the |-encoded key the server returns.
   const maCorrectSet = useMemo(() => {
-    if (type !== 'MA') return new Set<string>();
+    if (type !== 'MA' || correctAnswer === null) return new Set<string>();
     return new Set(
-      (question.correctAnswer ?? '')
+      correctAnswer
         .split('|')
         .map((s) => s.trim())
         .filter((s) => s.length > 0)
     );
-  }, [type, question.correctAnswer]);
+  }, [type, correctAnswer]);
 
   // Shuffled option list for MC + MA (FIB has no options).
-  const options = useMemo(() => {
-    if (type === 'MC') {
-      const all = [
-        question.correctAnswer,
-        ...(question.incorrectAnswers ?? []),
-      ];
-      return shuffleByQuestionId(all, question.id);
-    }
-    if (type === 'MA') {
-      const all = [...maCorrectSet, ...(question.incorrectAnswers ?? [])];
-      // Dedupe in case a malformed save has overlap between the two arrays.
-      return shuffleByQuestionId(Array.from(new Set(all)), question.id);
-    }
-    return [];
-  }, [
-    type,
-    question.id,
-    question.correctAnswer,
-    question.incorrectAnswers,
-    maCorrectSet,
-  ]);
+  const options = useMemo(
+    () =>
+      type === 'FIB'
+        ? []
+        : shuffleByQuestionId(question.options ?? [], question.id),
+    [type, question.id, question.options]
+  );
 
   const canSubmit = (() => {
-    if (submitted) return false;
+    if (submitted || checking) return false;
     if (type === 'MC') return mcSelected !== null;
     if (type === 'FIB') return fibAnswer.trim().length > 0;
     if (type === 'MA') return maSelected.size > 0;
@@ -117,13 +112,31 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
     else if (type === 'FIB') answer = fibAnswer.trim();
     else if (type === 'MA') answer = Array.from(maSelected).sort().join('|');
 
-    const result = gradeVideoActivityAnswer(question, answer);
-    setSubmittedIsCorrect(result.isCorrect);
-    setSubmitted(true);
-    setTimeout(
-      () => onAnswer(answer, result.isCorrect),
-      result.isCorrect ? 800 : 1200
-    );
+    setChecking(true);
+    void checkAnswer(answer)
+      .then(
+        (result) => ({
+          isCorrect: result.isCorrect,
+          key: result.correctAnswer as string | null,
+        }),
+        // Any failed check (network or server refusal) must not strand the class: keep the answer, skip feedback.
+        (err: unknown) => {
+          logError('QuestionOverlay.checkAnswer', err, {
+            questionId: question.id,
+          });
+          return { isCorrect: true, key: null };
+        }
+      )
+      .then(({ isCorrect, key }) => {
+        setChecking(false);
+        setCorrectAnswer(key);
+        setSubmittedIsCorrect(isCorrect);
+        setSubmitted(true);
+        setTimeout(
+          () => onAnswer(answer, isCorrect, key !== null),
+          isCorrect ? 800 : 1200
+        );
+      });
   };
 
   const toggleMaOption = (option: string) => {
@@ -134,6 +147,8 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
       return next;
     });
   };
+
+  const locked = submitted || checking;
 
   return (
     <div className="w-full max-w-3xl mx-auto rounded-2xl border border-slate-200 shadow-2xl overflow-hidden bg-white max-h-full overflow-y-auto">
@@ -166,14 +181,11 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
           {options.map((option, i) => {
             let style =
               'border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700';
-            if (submitted) {
-              if (option === question.correctAnswer) {
+            if (graded) {
+              if (option === correctAnswer) {
                 style =
                   'border-2 border-emerald-200 bg-emerald-50 text-emerald-700 font-bold';
-              } else if (
-                option === mcSelected &&
-                option !== question.correctAnswer
-              ) {
+              } else if (option === mcSelected) {
                 style = 'border-2 border-red-200 bg-red-50 text-red-700';
               } else {
                 style = 'border-2 border-slate-100 bg-slate-50 text-slate-400';
@@ -185,7 +197,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
             return (
               <button
                 key={`${i}-${option}`}
-                disabled={submitted}
+                disabled={locked}
                 onClick={() => setMcSelected(option)}
                 className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all ${style} flex items-center gap-3`}
               >
@@ -193,12 +205,12 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
                   {String.fromCharCode(65 + i)}
                 </span>
                 <span className="flex-1">{option}</span>
-                {submitted && option === question.correctAnswer && (
+                {graded && option === correctAnswer && (
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 )}
-                {submitted &&
+                {graded &&
                   option === mcSelected &&
-                  option !== question.correctAnswer && (
+                  option !== correctAnswer && (
                     <XCircle className="w-4 h-4 text-red-500 shrink-0" />
                   )}
               </button>
@@ -212,7 +224,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
           <input
             type="text"
             autoFocus
-            disabled={submitted}
+            disabled={locked}
             value={fibAnswer}
             onChange={(e) => setFibAnswer(e.target.value)}
             onKeyDown={(e) => {
@@ -220,18 +232,18 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
             }}
             placeholder="Type your answer…"
             className={`w-full px-4 py-3 text-sm rounded-xl border-2 transition-all focus:outline-none ${
-              submitted
+              graded
                 ? submittedIsCorrect
                   ? 'border-emerald-200 bg-emerald-50 text-emerald-700 font-bold'
                   : 'border-red-200 bg-red-50 text-red-700'
                 : 'border-slate-300 focus:border-brand-blue-light focus:ring-2 focus:ring-brand-blue-light text-slate-900 placeholder-slate-400'
             }`}
           />
-          {submitted && !submittedIsCorrect && (
+          {graded && !submittedIsCorrect && (
             <p className="text-xs text-slate-500 mt-2">
               Correct answer:{' '}
               <span className="font-bold text-emerald-700">
-                {question.correctAnswer}
+                {correctAnswer}
               </span>
             </p>
           )}
@@ -245,7 +257,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
             const isCorrectOption = maCorrectSet.has(option);
             let style =
               'border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700';
-            if (submitted) {
+            if (graded) {
               if (isCorrectOption && isChecked) {
                 style =
                   'border-2 border-emerald-200 bg-emerald-50 text-emerald-700 font-bold';
@@ -266,7 +278,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
               <button
                 key={`${i}-${option}`}
                 type="button"
-                disabled={submitted}
+                disabled={locked}
                 onClick={() => toggleMaOption(option)}
                 className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all ${style} flex items-center gap-3`}
               >
@@ -292,9 +304,10 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
+            aria-busy={checking}
             className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-sm transition-all active:scale-95 shadow-sm"
           >
-            Submit Answer
+            {checking ? 'Checking…' : 'Submit Answer'}
           </button>
         </div>
       )}
@@ -303,16 +316,20 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
         <div className="px-5 pb-5">
           <div
             className={`text-center text-sm font-bold py-2 rounded-xl border ${
-              submittedIsCorrect
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                : 'bg-red-50 border-red-200 text-red-700'
+              !graded
+                ? 'bg-slate-50 border-slate-200 text-slate-600'
+                : submittedIsCorrect
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                  : 'bg-red-50 border-red-200 text-red-700'
             }`}
           >
-            {submittedIsCorrect
-              ? '✓ Correct! Resuming video…'
-              : requireCorrectAnswer
-                ? '✗ Incorrect. Rewinding section…'
-                : '✗ Incorrect. Resuming video…'}
+            {!graded
+              ? 'Answer saved. Resuming video…'
+              : submittedIsCorrect
+                ? '✓ Correct! Resuming video…'
+                : requireCorrectAnswer
+                  ? '✗ Incorrect. Rewinding section…'
+                  : '✗ Incorrect. Resuming video…'}
           </div>
         </div>
       )}

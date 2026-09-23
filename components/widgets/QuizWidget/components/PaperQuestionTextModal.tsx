@@ -10,6 +10,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { CloudDownload, FileUp, Loader2, ScanText, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { useFileDrop } from '@/hooks/useFileDrop';
 import type { QuizData } from '@/types';
 import {
   applyQuestionFill,
@@ -185,6 +186,8 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
     }
   };
 
+  const { dragging, dropProps } = useFileDrop((file) => void readFile(file));
+
   const applyCount = Object.entries(apply).filter(
     ([row, on]) => on && drafts[Number(row)]?.trim()
   ).length;
@@ -263,10 +266,17 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
       <button
         type="button"
         onClick={() => fileRef.current?.click()}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 px-4 py-6 text-sm font-semibold text-slate-600 transition-colors hover:border-brand-blue-primary hover:text-brand-blue-primary"
+        {...dropProps}
+        className={`flex w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-6 text-sm font-semibold transition-colors ${
+          dragging
+            ? 'border-brand-blue-primary bg-brand-blue-lighter/30 text-brand-blue-primary'
+            : 'border-slate-300 text-slate-600 hover:border-brand-blue-primary hover:text-brand-blue-primary'
+        }`}
       >
         <FileUp className="h-5 w-5" />
-        Choose the test paper PDF or image
+        {dragging
+          ? 'Drop the test paper here'
+          : 'Drop the test paper here, or choose a PDF or image'}
       </button>
       {onPickFromDrive && (
         <button
@@ -284,8 +294,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
         </button>
       )}
       <p className="text-xs text-slate-500">
-        Questions are matched by the number printed before them. The file is
-        read on this computer and never uploaded.
+        Questions are matched by the number printed before them.
       </p>
     </div>
   );

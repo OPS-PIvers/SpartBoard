@@ -19,7 +19,14 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useClassLinkEnabled } from '@/hooks/useClassLinkEnabled';
-import { ClassRoster, RosterGroup, Student, StudentOverride } from '@/types';
+import {
+  ClassRoster,
+  RosterBellPeriod,
+  RosterGroup,
+  Student,
+  StudentOverride,
+} from '@/types';
+import { useTeacherBellPeriodOptions } from '@/hooks/useTeacherBellPeriods';
 import { auth, functions } from '@/config/firebase';
 import { RosterEditorModal } from '@/components/classes/RosterEditorModal';
 import { Modal } from '@/components/common/Modal';
@@ -126,6 +133,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     addToast,
   } = useDashboard();
   const { user, selectedBuildings, canAccessFeature } = useAuth();
+  const bellPeriodOptions = useTeacherBellPeriodOptions();
   const classLinkEnabled = useClassLinkEnabled(selectedBuildings[0]);
 
   const [editingRosterId, setEditingRosterId] = useState<string | null>(null);
@@ -392,10 +400,11 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     name: string,
     students: Student[],
     groups?: RosterGroup[],
-    defaultOverridesByStudentId?: Record<string, StudentOverride>
+    defaultOverridesByStudentId?: Record<string, StudentOverride>,
+    bellPeriod?: RosterBellPeriod | null
   ) => {
     if (editingRosterId === 'new') {
-      await addRoster(name, students);
+      await addRoster(name, students, bellPeriod ? { bellPeriod } : undefined);
     } else if (editingRosterId) {
       await updateRoster(editingRosterId, {
         name,
@@ -404,6 +413,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
         ...(defaultOverridesByStudentId !== undefined
           ? { defaultOverridesByStudentId }
           : {}),
+        ...(bellPeriod !== undefined ? { bellPeriod } : {}),
       });
     }
   };
@@ -726,6 +736,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
           onClose={() => setEditingRosterId(null)}
           onSave={handleSaveRoster}
           readAloudAvailable={canAccessFeature('quiz-read-aloud')}
+          bellPeriodOptions={bellPeriodOptions}
         />
       )}
 

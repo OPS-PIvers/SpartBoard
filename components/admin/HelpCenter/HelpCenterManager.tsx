@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
   collection,
   deleteDoc,
@@ -38,6 +38,8 @@ import { logError } from '@/utils/logError';
 import { isSuperAdminActor } from '@/utils/superAdmin';
 import { HelpCategoryEditor } from './HelpCategoryEditor';
 import { HelpItemForm } from './HelpItemForm';
+import { LinkedLibrarySets } from './LinkedLibrarySets';
+import { helpCenterSetIdsOf } from '@/components/widgets/GuidedLearning/utils/helpCenterSets';
 import {
   buildHelpItemCreatePayload,
   buildHelpItemUpdatePayload,
@@ -50,6 +52,8 @@ import {
   sortCategories,
   type HelpItemDraft,
 } from './helpCenterAdmin';
+
+const TourHealthPanel = lazy(() => import('./TourHealthPanel'));
 
 const UNCATEGORIZED: HelpCategory = {
   id: '',
@@ -84,6 +88,7 @@ export const HelpCenterManager: React.FC = () => {
   const [editing, setEditing] = useState<HelpResourceItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sortByOpens, setSortByOpens] = useState(false);
+  const [tourHealthOpen, setTourHealthOpen] = useState(false);
 
   // Seed the shared category list once, so the first super admin to open the tab creates the config doc.
   useEffect(() => {
@@ -121,6 +126,7 @@ export const HelpCenterManager: React.FC = () => {
       category.id !== '' || items.some((item) => item.categoryId === '')
   );
   const flatByOpens = [...items].sort((a, b) => b.openCount - a.openCount);
+  const helpCenterSetIds = helpCenterSetIdsOf(items);
 
   const scopeLabel = (item: HelpResourceItem): string =>
     item.orgId === null ? 'Everyone' : (orgNames.get(item.orgId) ?? item.orgId);
@@ -454,6 +460,38 @@ export const HelpCenterManager: React.FC = () => {
           })}
         </div>
       )}
+
+      {!loading && (
+        <LinkedLibrarySets linkedSetIds={helpCenterSetIds} onError={setError} />
+      )}
+
+      <section className="border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-3">
+        <button
+          type="button"
+          aria-expanded={tourHealthOpen}
+          onClick={() => setTourHealthOpen((open) => !open)}
+          className="flex items-center gap-1 text-sm font-semibold text-slate-900"
+        >
+          {tourHealthOpen ? (
+            <ChevronDown className="w-4 h-4" aria-hidden="true" />
+          ) : (
+            <ChevronRight className="w-4 h-4" aria-hidden="true" />
+          )}
+          Live tour health
+        </button>
+        {tourHealthOpen && (
+          <Suspense
+            fallback={
+              <Loader2
+                className="w-4 h-4 animate-spin text-slate-500"
+                aria-hidden="true"
+              />
+            }
+          >
+            <TourHealthPanel />
+          </Suspense>
+        )}
+      </section>
 
       {formOpen && (
         <HelpItemForm

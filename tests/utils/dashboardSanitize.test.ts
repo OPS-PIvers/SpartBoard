@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeBoardSnapshot } from '@/utils/dashboardSanitize';
+import {
+  sanitizeBoardForRecipient,
+  sanitizeBoardSnapshot,
+} from '@/utils/dashboardSanitize';
 import type { Dashboard } from '@/types';
 
 const baseBoard = (): Dashboard => ({
@@ -123,5 +126,78 @@ describe('sanitizeBoardSnapshot', () => {
     expect(out.settings).toEqual({ hideDock: false });
     expect(out.libraryOrder).toEqual(['clock']);
     expect(out.order).toBe(7);
+  });
+});
+
+describe('sanitizeBoardForRecipient', () => {
+  // A Randomizer with a typed-in class list and a Seating Chart custom roster.
+  const boardWithNames = (): Dashboard => ({
+    ...baseBoard(),
+    annotationOverlay: {
+      pages: [],
+    } as unknown as Dashboard['annotationOverlay'],
+    widgets: [
+      {
+        id: 'w1',
+        type: 'random',
+        position: { x: 0, y: 0 },
+        config: {
+          firstNames: 'Alice\nBob',
+          lastNames: 'Smith\nJones',
+          lastResult: { picked: 'Alice Smith' },
+          rosterMode: 'custom',
+          assignments: { 'Alice Smith': 'front-left' },
+          mode: 'pick',
+        },
+      },
+      {
+        id: 'w2',
+        type: 'seating-chart',
+        position: { x: 0, y: 0 },
+        config: { names: ['Charlie', 'Dave'], layout: 'grid' },
+      },
+    ] as unknown as Dashboard['widgets'],
+  });
+
+  it('strips widget-config student names', () => {
+    const out = sanitizeBoardForRecipient(boardWithNames());
+    const random = out.widgets[0].config as Record<string, unknown>;
+    expect(random.firstNames).toBeUndefined();
+    expect(random.lastNames).toBeUndefined();
+    expect(random.lastResult).toBeUndefined();
+    expect(random.assignments).toBeUndefined();
+    expect(
+      (out.widgets[1].config as Record<string, unknown>).names
+    ).toBeUndefined();
+  });
+
+  it('keeps non-PII widget config and widget identity', () => {
+    const out = sanitizeBoardForRecipient(boardWithNames());
+    expect(out.widgets.map((w) => w.id)).toEqual(['w1', 'w2']);
+    expect((out.widgets[0].config as Record<string, unknown>).mode).toBe(
+      'pick'
+    );
+    expect((out.widgets[1].config as Record<string, unknown>).layout).toBe(
+      'grid'
+    );
+  });
+
+  it('still applies the board-level snapshot sanitize', () => {
+    const out = sanitizeBoardForRecipient({
+      ...boardWithNames(),
+      driveFileId: 'drive-1',
+      isDefault: true,
+    });
+    expect(out.driveFileId).toBeUndefined();
+    expect(out.isDefault).toBeUndefined();
+    expect(out.annotationOverlay).toBeUndefined();
+  });
+
+  it("does not mutate the caller's board", () => {
+    const board = boardWithNames();
+    sanitizeBoardForRecipient(board);
+    expect(
+      (board.widgets[0].config as Record<string, unknown>).firstNames
+    ).toBe('Alice\nBob');
   });
 });

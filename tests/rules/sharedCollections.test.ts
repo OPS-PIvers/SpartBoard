@@ -7,10 +7,16 @@
 //   - boardIds list validation (non-empty, max 500)
 //   - collection.name must be a non-empty string
 //   - intendedMode must be 'copy' or 'substitute'
-//   - Substitute shares are immutable post-creation (no update)
+//   - Substitute shares take only the sub-shares manager's keys on update
+//     (re-push, extend, retarget, end now, stamp the names file), and who may
+//     read them is unchanged by an update
 //   - Copy shares are host-or-admin updatable
 //   - Delete: host or admin only
-//   - /boards/{boardId} subcollection: read mirrors parent, write = host only
+//   - /boards/{boardId} and /content/{contentId} subcollections: read mirrors
+//     parent, write = host only
+//   - /keys/{keyId} subcollection: host, admin or a sub the share names by
+//     email, and never past expiry — a district teacher the share does not name
+//     is denied, which is what separates keys/ from content/
 //
 // Requires a running Firestore emulator. Invoke via:
 //   pnpm run test:rules
@@ -159,6 +165,39 @@ const boardSnapshotDoc = (boardId: string = BOARD_ID) => ({
 
 const sharePath = `shared_collections/${SHARE_ID}`;
 const boardPath = `shared_collections/${SHARE_ID}/boards/${BOARD_ID}`;
+const contentPath = `shared_collections/${SHARE_ID}/content/drawing_w1`;
+const keyPath = `shared_collections/${SHARE_ID}/keys/quiz_q1`;
+
+/** Bundled display content for a widget whose data lives outside the board. */
+const contentDoc = () => ({
+  kind: 'drawing',
+  itemId: 'w1',
+  bundledAt: NOW_MS,
+  payload: { pages: [] },
+});
+
+/** A full copy of an activity, answers included. */
+const keyDoc = () => ({
+  kind: 'quiz',
+  itemId: 'q1',
+  bundledAt: NOW_MS,
+  payload: { questions: [] },
+});
+
+/** A substitute share that names one sub by email. */
+const namedSubShareDoc = (overrides: Record<string, unknown> = {}) =>
+  subShareDoc({ subEmails: [ORONO_EMAIL], ...overrides });
+
+const UNNAMED_SUB_UID = 'unnamed-orono-sub-uid';
+const UNNAMED_SUB_EMAIL = 'someone.else@orono.k12.mn.us';
+
+const asUnnamedOronoSub = () =>
+  testEnv
+    .authenticatedContext(UNNAMED_SUB_UID, {
+      email: UNNAMED_SUB_EMAIL,
+      email_verified: true,
+    })
+    .firestore();
 
 // ---------------------------------------------------------------------------
 // Setup / teardown
@@ -437,21 +476,26 @@ describe('shared_collections — create, substitute Drive-grant fields', () => {
     );
   });
 
-  it('driveGrants are pinned post-create (host cannot rewrite them)', async () => {
+  it('only the host rewrites driveGrants, which is how a sub is added later', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         doc(ctx.firestore(), sharePath),
         subShareDoc({ subEmails: ['sub@orono.k12.mn.us'], driveGrants })
       );
     });
-    // Substitute shares are fully immutable — any update (incl. driveGrants)
-    // is rejected even for the host.
-    await assertFails(
+    const added = [
+      ...driveGrants,
+      { email: 'ohssub@orono.k12.mn.us', fileId: 'f', permissionId: 'p2' },
+    ];
+    await assertSucceeds(
       updateDoc(doc(asHost(), sharePath), {
-        driveGrants: [
-          { email: 'evil@orono.k12.mn.us', fileId: 'f', permissionId: 'p' },
-        ],
+        subEmails: ['sub@orono.k12.mn.us', 'ohssub@orono.k12.mn.us'],
+        driveGrants: added,
+        updatedAt: NOW_MS,
       })
+    );
+    await assertFails(
+      updateDoc(doc(asOronoTeacher(), sharePath), { driveGrants: added })
     );
   });
 });
@@ -476,23 +520,288 @@ describe('shared_collections — create, hostUid impersonation', () => {
 // 14. UPDATE — substitute shares are immutable
 // ---------------------------------------------------------------------------
 
-describe('shared_collections — update, substitute immutability', () => {
+describe('shared_collections — update, substitute manager writes', () => {
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), sharePath), subShareDoc());
     });
   });
 
-  it('update rejected for substitute share even by host', async () => {
+  it('host can re-push the boards, sections and contentVersion', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        boardIds: ['board-1', 'board-2'],
+        boards: [
+          { id: 'board-1', name: 'Monday', sectionId: 'col-xyz', order: 0 },
+          { id: 'board-2', name: 'Tuesday', sectionId: 'col-xyz', order: 1 },
+        ],
+        sections: [{ id: 'col-xyz', name: 'Sub Collection' }],
+        kind: 'collection',
+        defaultBoardId: 'board-1',
+        contentVersion: 2,
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  it('host can extend the expiry inside the 14-day cap', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        expiresAt: NOW_MS + FOURTEEN_DAYS_MS - 60_000,
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  it('extend past 14 days is rejected', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        expiresAt: NOW_MS + FOURTEEN_DAYS_MS + 60_000,
+      })
+    );
+  });
+
+  it('host can stamp the expiry in the past to end the share now', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        expiresAt: NOW_MS - 1,
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  // The names file id first appears on a re-push, when the teacher has typed
+  // names into a widget since the share was made (plan §3.4).
+  it('host can stamp the names file on a re-push', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        namesFileId: 'names-file-1',
+        contentVersion: 2,
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  it('host can retarget the named subs', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        subEmails: ['ohssub@orono.k12.mn.us'],
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  it('more than 20 named subs is rejected', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        subEmails: Array.from(
+          { length: 21 },
+          (_, i) => `sub${i.toString()}@orono.k12.mn.us`
+        ),
+      })
+    );
+  });
+
+  it('buildingId stays pinned', async () => {
     await assertFails(
       updateDoc(doc(asHost(), sharePath), { buildingId: 'oms' })
     );
   });
 
-  it('update rejected for substitute share even by admin', async () => {
+  it('intendedMode stays pinned', async () => {
     await assertFails(
-      updateDoc(doc(asAdmin(), sharePath), { buildingId: 'oms' })
+      updateDoc(doc(asHost(), sharePath), { intendedMode: 'copy' })
     );
+  });
+
+  it('hostUid stays pinned', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), { hostUid: ORONO_UID })
+    );
+  });
+
+  it('a key outside the allowlist is rejected even alongside allowed ones', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        contentVersion: 2,
+        initialState: { widgets: [] },
+      })
+    );
+  });
+
+  // The /subs directory and the host's manager render boardIds and
+  // collection.name unguarded, so the shape create demands has to hold after
+  // an update too — a direct REST write is the boundary, not the client.
+  it('emptying the board list is rejected', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), { boardIds: [], updatedAt: NOW_MS })
+    );
+  });
+
+  it('a board list that is not a list is rejected', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        boardIds: 'board-1',
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  it('a board list past the 500 cap is rejected', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        boardIds: Array.from(
+          { length: 501 },
+          (_, i) => `board-${i.toString()}`
+        ),
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  it('blanking the collection name is rejected', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        collection: { name: '' },
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  it('a board tree past the 500 cap is rejected', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        boards: Array.from({ length: 501 }, (_, i) => ({
+          id: `board-${i.toString()}`,
+          name: 'Board',
+          sectionId: 'col-xyz',
+          order: i,
+        })),
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  it('the share cannot be turned back into a copy share', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        intendedMode: 'copy',
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  it('a named sub cannot update the share', async () => {
+    await assertFails(
+      updateDoc(doc(asOronoTeacher(), sharePath), { contentVersion: 99 })
+    );
+  });
+
+  it('a non-host teacher cannot end the share', async () => {
+    await assertFails(
+      updateDoc(doc(asExternalTeacher(), sharePath), { expiresAt: NOW_MS - 1 })
+    );
+  });
+});
+
+describe('shared_collections — update, a copy share cannot become a sub share', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), copyShareDoc());
+    });
+  });
+
+  // The copy branch of the update rule is unrestricted, so without the pin a
+  // host could promote their own copy share into a substitute one — readable by
+  // every verified district account, in any building, for as long as they liked.
+  it('flipping intendedMode to substitute is rejected', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        intendedMode: 'substitute',
+        buildingId: 'ohs',
+        expiresAt: NOW_MS + FOURTEEN_DAYS_MS * 100,
+      })
+    );
+  });
+
+  it('a copy share still takes an ordinary edit', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        collection: { name: 'Renamed' },
+      })
+    );
+  });
+
+  // The host/admin check reads the pre-update doc, so without the top-level pin
+  // a host could hand their own copy share to an arbitrary uid — and lose the
+  // ability to update or delete it afterwards.
+  it('a copy share cannot be reassigned to another host', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), { hostUid: ORONO_UID })
+    );
+  });
+
+  it('a copy share cannot take more than 20 named subs', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), sharePath), {
+        subEmails: Array.from(
+          { length: 21 },
+          (_, i) => `sub${i.toString()}@orono.k12.mn.us`
+        ),
+      })
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 14b. READ after a manager write — an update must not change who can read,
+// and ending a share must cut the sub off on the parent AND the boards.
+// ---------------------------------------------------------------------------
+
+describe('shared_collections — read after substitute manager writes', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), subShareDoc());
+      await setDoc(doc(ctx.firestore(), boardPath), boardSnapshotDoc());
+    });
+  });
+
+  it('an Orono sub still reads the share and its boards after an update', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        contentVersion: 2,
+        updatedAt: NOW_MS,
+      })
+    );
+    await assertSucceeds(getDoc(doc(asOronoTeacher(), sharePath)));
+    await assertSucceeds(getDoc(doc(asOronoTeacher(), boardPath)));
+  });
+
+  it('ending the share denies the sub the share doc and its boards', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        expiresAt: NOW_MS - 1,
+        updatedAt: NOW_MS,
+      })
+    );
+    await assertFails(getDoc(doc(asOronoTeacher(), sharePath)));
+    await assertFails(getDoc(doc(asOronoTeacher(), boardPath)));
+  });
+
+  it('the host still reads an ended share, so the sweep can clean it up', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), { expiresAt: NOW_MS - 1 })
+    );
+    await assertSucceeds(getDoc(doc(asHost(), sharePath)));
+    await assertSucceeds(getDoc(doc(asHost(), boardPath)));
+  });
+
+  it('an external teacher is still denied after an update', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), { contentVersion: 3 })
+    );
+    await assertFails(getDoc(doc(asExternalTeacher(), sharePath)));
+    await assertFails(getDoc(doc(asExternalTeacher(), boardPath)));
   });
 });
 
@@ -751,5 +1060,201 @@ describe('shared_collections — substitute directory list query', () => {
     await assertFails(
       getDocs(query(collection(asOronoTeacher(), 'shared_collections')))
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 20. Subcollection /content/{contentId} — read mirrors parent, write = host
+// ---------------------------------------------------------------------------
+
+describe('shared_collections/content — read', () => {
+  it('positive: Orono sub reads bundled content on a live substitute share', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), subShareDoc());
+      await setDoc(doc(ctx.firestore(), contentPath), contentDoc());
+    });
+    await assertSucceeds(getDoc(doc(asOronoTeacher(), contentPath)));
+  });
+
+  it('positive: non-host authed teacher reads content on a copy share', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), copyShareDoc());
+      await setDoc(doc(ctx.firestore(), contentPath), contentDoc());
+    });
+    await assertSucceeds(getDoc(doc(asExternalTeacher(), contentPath)));
+  });
+
+  it('negative: non-Orono teacher denied content on a substitute share', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), subShareDoc());
+      await setDoc(doc(ctx.firestore(), contentPath), contentDoc());
+    });
+    await assertFails(getDoc(doc(asExternalTeacher(), contentPath)));
+  });
+
+  it('negative: Orono sub denied content once the share has expired', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), sharePath),
+        subShareDoc({ expiresAt: NOW_MS - 60_000 })
+      );
+      await setDoc(doc(ctx.firestore(), contentPath), contentDoc());
+    });
+    await assertFails(getDoc(doc(asOronoTeacher(), contentPath)));
+  });
+
+  it('negative: an unverified account self-reporting an @orono email is denied content', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), subShareDoc());
+      await setDoc(doc(ctx.firestore(), contentPath), contentDoc());
+    });
+    await assertFails(
+      getDoc(doc(asUnverifiedOronoImpersonator(), contentPath))
+    );
+  });
+
+  it('negative: unauthenticated read of content fails', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), copyShareDoc());
+      await setDoc(doc(ctx.firestore(), contentPath), contentDoc());
+    });
+    await assertFails(getDoc(doc(asUnauth(), contentPath)));
+  });
+
+  it('positive: host reads content on an expired share, for cleanup', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), sharePath),
+        subShareDoc({ expiresAt: NOW_MS - 60_000 })
+      );
+      await setDoc(doc(ctx.firestore(), contentPath), contentDoc());
+    });
+    await assertSucceeds(getDoc(doc(asHost(), contentPath)));
+  });
+});
+
+describe('shared_collections/content — write authorization', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), subShareDoc());
+    });
+  });
+
+  it('host can write and delete bundled content', async () => {
+    await assertSucceeds(setDoc(doc(asHost(), contentPath), contentDoc()));
+    await assertSucceeds(deleteDoc(doc(asHost(), contentPath)));
+  });
+
+  it('a sub cannot write content', async () => {
+    await assertFails(setDoc(doc(asOronoTeacher(), contentPath), contentDoc()));
+  });
+
+  it('a sub cannot delete content', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), contentPath), contentDoc());
+    });
+    await assertFails(deleteDoc(doc(asOronoTeacher(), contentPath)));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 21. Subcollection /keys/{keyId} — named subs only
+// ---------------------------------------------------------------------------
+
+describe('shared_collections/keys — read', () => {
+  it('positive: a sub the share names by email can read a key', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), namedSubShareDoc());
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertSucceeds(getDoc(doc(asOronoTeacher(), keyPath)));
+  });
+
+  // The whole point of keys/ being separate from content/: any verified
+  // district account can read the boards of any live substitute share, and
+  // answer keys must not travel that far.
+  it('negative: a district teacher the share does not name is denied', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), namedSubShareDoc());
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertFails(getDoc(doc(asUnnamedOronoSub(), keyPath)));
+  });
+
+  it('negative: a named sub is denied once the share has expired', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), sharePath),
+        namedSubShareDoc({ expiresAt: NOW_MS - 60_000 })
+      );
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertFails(getDoc(doc(asOronoTeacher(), keyPath)));
+  });
+
+  it('negative: an unverified account self-reporting a named @orono email is denied', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), namedSubShareDoc());
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertFails(getDoc(doc(asUnverifiedOronoImpersonator(), keyPath)));
+  });
+
+  it('negative: a share naming nobody exposes its keys to nobody but the host', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), subShareDoc());
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertFails(getDoc(doc(asOronoTeacher(), keyPath)));
+    await assertSucceeds(getDoc(doc(asHost(), keyPath)));
+  });
+
+  it('negative: a copy share does not open its keys to every authed user', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), copyShareDoc());
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertFails(getDoc(doc(asExternalTeacher(), keyPath)));
+  });
+
+  it('positive: host and admin can read a key', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), namedSubShareDoc());
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertSucceeds(getDoc(doc(asHost(), keyPath)));
+    await assertSucceeds(getDoc(doc(asAdmin(), keyPath)));
+  });
+
+  it('negative: unauthenticated read of a key fails', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), namedSubShareDoc());
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertFails(getDoc(doc(asUnauth(), keyPath)));
+  });
+});
+
+describe('shared_collections/keys — write authorization', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), sharePath), namedSubShareDoc());
+    });
+  });
+
+  it('host can write and delete a key', async () => {
+    await assertSucceeds(setDoc(doc(asHost(), keyPath), keyDoc()));
+    await assertSucceeds(deleteDoc(doc(asHost(), keyPath)));
+  });
+
+  it('a named sub cannot write a key', async () => {
+    await assertFails(setDoc(doc(asOronoTeacher(), keyPath), keyDoc()));
+  });
+
+  it('a named sub cannot delete a key', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), keyPath), keyDoc());
+    });
+    await assertFails(deleteDoc(doc(asOronoTeacher(), keyPath)));
   });
 });

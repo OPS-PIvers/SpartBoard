@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildChildrenByParent,
   filterCollectionsBySearch,
-} from '@/components/boardsModal/collectionTree';
+} from '@/components/boardsModal/collectionTreeUtils';
 import type { Collection } from '@/types';
 
 const collection = (over: Partial<Collection>): Collection => ({

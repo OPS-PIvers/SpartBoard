@@ -57,7 +57,6 @@ export interface TeammatePrintContext {
   quiz: TeammatePrintQuiz;
   rosters: TeammatePrintRoster[];
   existingBatches: TeammatePrintBatchSummary[];
-  blocked: 'no-copy-no-drive' | null;
 }
 
 export interface TeammatePrintContextRequest {
@@ -94,6 +93,8 @@ export interface CreateTeammatePaperBatchResult {
   testPaper: PaperTestQuestion[];
   /** The server had to create their copy of the quiz to bind the batch to (D9). */
   createdCopy: boolean;
+  /** Their copy is deferred to their own next sign-in instead (D20). */
+  pendingCopy: boolean;
 }
 
 export interface WithdrawTeammatePaperBatchRequest {

@@ -1,7 +1,10 @@
 // glTransfer — pure .gl.json export/import helpers with injected network/storage effects.
 
 import type { GuidedLearningSet } from '@/types';
-import { normalizeGuidedLearningSet } from './setMigration';
+import {
+  GL_SET_SCHEMA_VERSION,
+  normalizeGuidedLearningSet,
+} from './setMigration';
 
 export const GL_EXPORT_EXTENSION = '.gl.json';
 
@@ -196,6 +199,7 @@ export function prepareImportedSet(
     authorUid,
   };
   delete prepared.isBuilding;
+  delete prepared.helpCenter;
   return prepared;
 }
 
@@ -230,8 +234,30 @@ export function parseGuidedLearningJson(text: string): GlTransferResult {
   if (candidate.steps.some((s) => s === null || typeof s !== 'object')) {
     throw new Error('Every step must be an object — check the steps array.');
   }
-  const set = normalizeGuidedLearningSet(candidate as GuidedLearningSet);
+  if (
+    typeof candidate.schemaVersion === 'number' &&
+    candidate.schemaVersion > GL_SET_SCHEMA_VERSION
+  ) {
+    throw new Error(
+      'This activity was made by a newer version of SpartBoard. Reload the page and try again.'
+    );
+  }
+  const normalized = normalizeGuidedLearningSet(candidate as GuidedLearningSet);
   const warnings: string[] = [];
+  // A recorded take's file belongs to the exporting set; sharing it would let either copy delete it.
+  let droppedTakes = 0;
+  const steps = normalized.steps.map((step) => {
+    if (step.narration?.source !== 'recorded') return step;
+    droppedTakes += 1;
+    const { narration: _dropped, ...rest } = step;
+    return rest;
+  });
+  const set = droppedTakes > 0 ? { ...normalized, steps } : normalized;
+  if (droppedTakes > 0) {
+    warnings.push(
+      `${droppedTakes} recorded voice narration${droppedTakes === 1 ? ' was' : 's were'} left out. Record ${droppedTakes === 1 ? 'it' : 'them'} again in the Studio.`
+    );
+  }
   const remoteCount = set.imageUrls.filter(
     (u) => !u.startsWith('data:')
   ).length;

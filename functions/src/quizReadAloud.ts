@@ -21,6 +21,8 @@ import { isGlobalFeatureGranted } from './quizMediaArchive';
 import './functionsInit';
 import { LANGUAGE_TAG_RE } from './languageTag';
 import { ttsLanguageForTranslationLocale } from './quizReadAloudVoices';
+import { mp3DurationMs, storedDurationMs } from './mp3Duration';
+import { isPeriodFrozen, withQuizSessionContent } from './quizSessionContent';
 
 export { ttsLanguageForTranslationLocale };
 
@@ -108,6 +110,8 @@ export interface SynthesizedPart {
   chars: number;
   cached: boolean;
   timings?: ReadAloudTiming[];
+  /** Absent when neither the object metadata nor the MP3 frames give a length. */
+  durationMs?: number;
 }
 
 export interface EnumeratedPart {
@@ -118,7 +122,9 @@ export interface EnumeratedPart {
 export interface ReadAloudDeps {
   db: Firestore;
   /** Object metadata when the cached MP3 exists, else null. */
-  statFile: (path: string) => Promise<{ timings?: ReadAloudTiming[] } | null>;
+  statFile: (
+    path: string
+  ) => Promise<{ timings?: ReadAloudTiming[]; durationMs?: number } | null>;
   saveFile: (
     path: string,
     bytes: Buffer,
@@ -758,6 +764,8 @@ export async function synthesizePart(
     teacherUid: string;
     settings: QuizReadAloudSettings;
     voiceOverride?: string;
+    /** Replaces the Neural2 voice but keeps the cap and Standard fallback, unlike `voiceOverride`. */
+    neural2Voice?: string;
   }
 ): Promise<SynthesizedPart> {
   const { subParts, language, teacherUid, settings } = input;
@@ -767,11 +775,19 @@ export async function synthesizePart(
   if (input.voiceOverride) {
     voices.neural2 = input.voiceOverride;
     voices.standard = input.voiceOverride;
+  } else if (input.neural2Voice) {
+    voices.neural2 = input.neural2Voice;
   }
   const neuralPath = cachePath(voices.neural2, cacheHash(voices.neural2, ssml));
   const hit = await deps.statFile(neuralPath);
   if (hit)
-    return { path: neuralPath, chars, cached: true, timings: hit.timings };
+    return {
+      path: neuralPath,
+      chars,
+      cached: true,
+      timings: hit.timings,
+      durationMs: hit.durationMs,
+    };
   const standardPath = cachePath(
     voices.standard,
     cacheHash(voices.standard, ssml)
@@ -784,6 +800,7 @@ export async function synthesizePart(
         chars,
         cached: true,
         timings: stdHit.timings,
+        durationMs: stdHit.durationMs,
       };
   }
 
@@ -818,13 +835,15 @@ export async function synthesizePart(
     useStandard ? 'standard' : 'neural2',
     nowMs
   );
+  const durationMs = mp3DurationMs(audio) ?? undefined;
   await deps.saveFile(path, audio, {
     chars: String(chars),
     voice,
     createdAt: new Date(nowMs).toISOString(),
     ...(timings ? { timings: JSON.stringify(timings) } : {}),
+    ...(durationMs !== undefined ? { durationMs: String(durationMs) } : {}),
   });
-  return { path, chars, cached: false, timings };
+  return { path, chars, cached: false, timings, durationMs };
 }
 
 async function runPool<T>(
@@ -877,7 +896,7 @@ export async function prepareQuizReadAloud(
   const snap = await sessionRef.get();
   if (!snap.exists)
     throw new HttpsError('not-found', 'Quiz session not found.');
-  const session = snap.data() ?? {};
+  const session = await withQuizSessionContent(sessionRef, snap.data() ?? {});
   if (session.teacherUid !== input.callerUid)
     throw new HttpsError('permission-denied', 'Not the owner of this session.');
   if (!(await deps.isFeatureGranted(input.callerUid)))
@@ -1184,7 +1203,10 @@ export async function synthesizeQuizAudio(
   const sessionSnap = await sessionRef.get();
   if (!sessionSnap.exists)
     throw new HttpsError('not-found', 'Quiz session not found.');
-  const session = sessionSnap.data() ?? {};
+  const session = await withQuizSessionContent(
+    sessionRef,
+    sessionSnap.data() ?? {}
+  );
   // Class-wide assignments write no pointer docs; the token's classIds claim
   // is the same membership proof the student app uses to list them.
   if (!pointerSnap.exists && !inSessionClass(session, caller.classIds))
@@ -1194,6 +1216,18 @@ export async function synthesizeQuizAudio(
     );
   if (session.status === 'ended')
     throw new HttpsError('failed-precondition', 'This quiz has ended.');
+  if (session.periodAccess) {
+    const responseSnap = await sessionRef
+      .collection('responses')
+      .doc(caller.uid)
+      .get();
+    const response = { ...responseSnap.data(), studentUid: caller.uid };
+    if (isPeriodFrozen(session, response, deps.now()))
+      throw new HttpsError(
+        'failed-precondition',
+        'This quiz is not open for your class right now.'
+      );
+  }
   const override = (pointer.override ?? {}) as Record<string, unknown>;
   if (override.readAloud !== true && session.readAloudAll !== true)
     throw new HttpsError(
@@ -1370,13 +1404,15 @@ export function buildDefaultDeps(): ReadAloudDeps {
       const [exists] = await file.exists();
       if (!exists) return null;
       const [meta] = await file.getMetadata();
-      const raw = (meta.metadata as Record<string, unknown> | undefined)
-        ?.timings;
-      if (typeof raw !== 'string') return {};
+      const custom = meta.metadata as Record<string, unknown> | undefined;
+      const durationMs = storedDurationMs(custom?.durationMs, meta.size);
+      const base = durationMs !== undefined ? { durationMs } : {};
+      const raw = custom?.timings;
+      if (typeof raw !== 'string') return base;
       try {
-        return { timings: JSON.parse(raw) as ReadAloudTiming[] };
+        return { ...base, timings: JSON.parse(raw) as ReadAloudTiming[] };
       } catch {
-        return {};
+        return base;
       }
     },
     saveFile: async (path, bytes, metadata) => {

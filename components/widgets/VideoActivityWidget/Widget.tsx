@@ -37,6 +37,7 @@ import {
   CLASSROOM_ASSIGN_ADMIN_ONLY,
 } from '@/config/constants';
 import { hasValidMaxPoints } from '@/utils/runClassroomGradePush';
+import { videoActivityAssignBlocker } from '@/utils/activityCompleteness';
 import {
   videoActivityMaxPoints,
   buildVideoActivityGradeEntries,
@@ -44,6 +45,10 @@ import {
 import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import { runPublishGradePush } from '@/utils/publishGradePush';
 import { useDashboard } from '@/context/useDashboard';
+import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
+import { buildPeriodAccess } from '@/utils/periodPlan';
+import { useInSubShare } from '@/hooks/useShareContent';
+import { SubShareVideoActivityWidget } from './SubShareWidget';
 import { useAuth } from '@/context/useAuth';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivitySessionTeacher } from '@/hooks/useVideoActivitySession';
@@ -99,10 +104,11 @@ async function copyUrlToClipboard(
   }
 }
 
-export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
+const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, addToast, rosters } = useDashboard();
+  const { updateWidget, addToast, rosters, updateRoster } = useDashboard();
+  const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const {
     user,
     googleAccessToken,
@@ -563,6 +569,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         }}
         defaultSessionSettings={defaultSessionSettings}
         rosters={rosters}
+        periodAccess={assignPeriodCtx}
         onAssign={async (
           meta,
           rosterIds,
@@ -573,6 +580,11 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           // which would cause the Manager component to unmount and destroy the modal
           const data = await loadActivityData(meta.driveFileId);
           if (!data) throw new Error('Failed to load activity data');
+          // Autosave persists unfinished work, so assign checks; the modal
+          // catches the throw and shows it inline.
+          const blocker = videoActivityAssignBlocker(data);
+          if (blocker)
+            throw new Error(`This activity can't be assigned yet: ${blocker}.`);
           // Source behavior (sessionOptions, attemptLimit) from the activity
           // itself now that it lives on the activity (VA Task 9 parity).
           const behavior = getVideoActivityBehavior(meta);
@@ -602,6 +614,25 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             rosters,
             selectedRosterIds: rosterIds,
           });
+          const periodPlan = targeting.periodPlan ?? { mode: 'assignment' };
+          const builtPeriodAccess =
+            assignPeriodCtx && selectedRosters.length > 1
+              ? buildPeriodAccess({
+                  plan: periodPlan,
+                  rosters: selectedRosters,
+                  sharedWindow: targeting,
+                  bellWindow: (roster) =>
+                    assignPeriodCtx.bellWindow(
+                      roster,
+                      new Date(targeting.openAt ?? Date.now())
+                    ),
+                })
+              : null;
+          // Two rosters on one class id share a gate, so they are one period.
+          const periodGate =
+            builtPeriodAccess && Object.keys(builtPeriodAccess).length > 1
+              ? { accessMode: periodPlan.mode, periodAccess: builtPeriodAccess }
+              : undefined;
           const sessionId = await createSession(
             data,
             user.uid,
@@ -613,7 +644,8 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             derived.rosterIds,
             vaAssignmentMode,
             derived.classPeriodByClassId,
-            sessionOptions
+            sessionOptions,
+            periodGate
           );
 
           // M17 §5 B3 — write the new window fields onto the session doc
@@ -627,16 +659,17 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           // session doc, where VA previously only carried it under
           // `sessionOptions`.
           const sessionDueAt = dueAt ?? targeting.dueAt ?? null;
+          // Per-period sessions carry each period's window instead of a shared one.
+          const sessionOpenAt = periodGate ? null : targeting.openAt;
+          const sessionCloseAt = periodGate ? null : targeting.closeAt;
           if (
-            targeting.openAt != null ||
-            targeting.closeAt != null ||
+            sessionOpenAt != null ||
+            sessionCloseAt != null ||
             sessionDueAt != null
           ) {
             await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
-              ...(targeting.openAt != null ? { openAt: targeting.openAt } : {}),
-              ...(targeting.closeAt != null
-                ? { closeAt: targeting.closeAt }
-                : {}),
+              ...(sessionOpenAt != null ? { openAt: sessionOpenAt } : {}),
+              ...(sessionCloseAt != null ? { closeAt: sessionCloseAt } : {}),
               ...(sessionDueAt != null ? { dueAt: sessionDueAt } : {}),
             });
           }
@@ -673,12 +706,13 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             ...(expandedTargeting.dueAt != null
               ? { dueAt: expandedTargeting.dueAt }
               : {}),
-            ...(expandedTargeting.openAt != null
+            ...(expandedTargeting.openAt != null && !periodGate
               ? { openAt: expandedTargeting.openAt }
               : {}),
-            ...(expandedTargeting.closeAt != null
+            ...(expandedTargeting.closeAt != null && !periodGate
               ? { closeAt: expandedTargeting.closeAt }
               : {}),
+            ...(periodGate ?? {}),
           };
           await setDoc(
             doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
@@ -766,6 +800,8 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           updateWidget(widget.id, {
             config: {
               ...config,
+              selectedActivityId: meta.id,
+              selectedActivityTitle: meta.title,
               resultsSessionId: sessionId,
               lastRosterIdsByActivityId: nextMap,
             } as VideoActivityConfig,
@@ -907,11 +943,8 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           // Subscribe to the responses subcollection up-front so the listener
           // is live by the time Results mounts.
           subscribeToSession(assignment.id);
-          // Hydrate the full session document — Results.tsx relies on
-          // `session.questions` to compute scores/accuracy and to export.
-          // Using a synthetic session with `questions: []` would render
-          // empty or incorrect results even though the real session doc has
-          // the full question set.
+          // Hydrate the real session doc: Results loads the key from it (legacy
+          // `questions` or `publicQuestions` + `key/answers`); a synthetic one has neither.
           try {
             const snap = await getDoc(
               doc(db, 'video_activity_sessions', assignment.id)
@@ -1158,6 +1191,9 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         activity={editingActivity}
         aiEnabled={aiEnabled}
         isAdmin={isAdmin === true}
+        // A synced activity publishes a new version to its PLC on every save,
+        // so that path keeps an explicit Save.
+        autosave={!editingMeta?.sync}
         folders={editingMeta ? videoActivityFolders : undefined}
         folderId={editingMeta?.folderId ?? null}
         behavior={
@@ -1186,11 +1222,18 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         }}
         onSave={async (updated, behavior) => {
           const isNew = !editingMeta;
-          await saveActivity(updated, editingMeta?.driveFileId, behavior);
-          addToast(
-            isNew ? 'Activity created!' : 'Activity updated!',
-            'success'
+          const saved = await saveActivity(
+            updated,
+            editingMeta?.driveFileId,
+            behavior
           );
+          // Adopt what was written. Without this a new activity keeps saving
+          // with no drive file id, so every retitled autosave orphans a file.
+          setEditingMeta(saved);
+          // Autosaved writes are not news; a synced Save publishes, so it is.
+          if (isNew) addToast('Activity created!', 'success');
+          else if (editingMeta?.sync)
+            addToast('Update published to your PLC.', 'success');
         }}
       />
       {shareWithPlcTarget && (
@@ -1220,3 +1263,17 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     </>
   );
 };
+
+/**
+ * A substitute gets a read-only copy from the share, never the teacher's
+ * library: splitting here rather than branching inside keeps the Drive,
+ * assignment and live-session listeners from mounting for them at all.
+ */
+export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) =>
+  useInSubShare() ? (
+    <SubShareVideoActivityWidget widget={widget} />
+  ) : (
+    <TeacherVideoActivityWidget widget={widget} />
+  );

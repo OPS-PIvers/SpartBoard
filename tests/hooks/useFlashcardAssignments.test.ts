@@ -13,7 +13,9 @@ import type { FlashcardSet } from '@/types';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
+  deleteDoc: vi.fn(),
   doc: vi.fn(),
+  getDoc: vi.fn(() => Promise.resolve({ data: () => ({}) })),
   onSnapshot: vi.fn(),
   orderBy: vi.fn(),
   query: vi.fn((ref: unknown, ...constraints: unknown[]) => ({

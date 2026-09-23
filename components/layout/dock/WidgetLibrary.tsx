@@ -59,6 +59,7 @@ import { useDialog } from '@/context/useDialog';
 import { useLongPress } from '@/hooks/useLongPress';
 import { useToolVisibility } from '@/context/useToolVisibility';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
+import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 // O(1) Lookup Map for TOOLS optimization.
 // Extracted outside the component to prevent recreating the map on every mount.
@@ -166,6 +167,7 @@ const SortableLibraryTool = React.memo(
             if (e.defaultPrevented) return;
             onToggle(tool.type);
           }}
+          {...tourTypeAttr('library.item', tool.type)}
           className={`w-full flex flex-col items-center gap-2 p-4 rounded-2xl transition-all group active:scale-95 border-2 ${
             isActive
               ? 'bg-white/80 border-brand-blue-primary shadow-md'
@@ -463,6 +465,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
           ref={ref}
           globalStyle={globalStyle}
           transparency={0.98}
+          {...tourAttr('library.root')}
           className="w-full max-w-2xl h-[560px] max-h-[75vh] overflow-hidden flex flex-col p-0 shadow-2xl animate-in zoom-in-95 duration-300 select-none pointer-events-auto"
         >
           <div className="bg-white/50 px-6 py-4 border-b border-white/30 flex justify-between items-center shrink-0 backdrop-blur-xl">
@@ -476,6 +479,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
               {!isEditMode && onEnterEditMode && (
                 <button
                   onClick={onEnterEditMode}
+                  {...tourAttr('library.edit')}
                   className="px-3 py-1.5 bg-brand-blue-primary/10 hover:bg-brand-blue-primary/20 text-brand-blue-primary text-xxs font-black uppercase tracking-widest rounded-full transition-all flex items-center gap-1.5"
                 >
                   <Pencil className="w-3.5 h-3.5" />
@@ -505,6 +509,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
               onClick={onClose}
               icon={<X className="w-5 h-5" />}
               label="Close Library"
+              {...tourAttr('library.close')}
               variant="ghost"
               size="md"
             />
@@ -518,6 +523,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search widgets…"
+                {...tourAttr('library.search')}
                 aria-label="Search widgets"
                 className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/80 border border-white/60 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary"
               />

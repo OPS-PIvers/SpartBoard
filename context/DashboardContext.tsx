@@ -25,7 +25,7 @@ import {
   DrawingConfig,
   DrawingPage,
   UserProfile,
-  SubstituteShareDriveGrant,
+  SharedCollection,
   SubstituteShareRoster,
   ROOT_COLLECTION_KEY,
   Collection,
@@ -75,7 +75,16 @@ import {
   REFERENCE_VIEWPORT,
   pixelToProp,
   computeWidgetPixelRect,
+  getSafeViewport,
+  type StretchBehavior,
 } from '@/utils/proportionalLayout';
+import {
+  findWidgetPlacement,
+  getVisibleBoardBounds,
+  isRectInBounds,
+  type BoardCamera,
+} from '@/utils/widgetPlacement';
+import { getPan } from '@/components/settings/panSetterRegistry';
 import {
   migrateDashboardWidgets,
   hydrateWidgetPixels,
@@ -91,13 +100,27 @@ import {
 import { migrateBoardForCollections } from '@/utils/collectionsMigration';
 import { pickInitialBoard } from '@/utils/pickInitialBoard';
 import { sanitizeBoardSnapshot } from '@/utils/dashboardSanitize';
+import {
+  grantedRosters,
+  resolveSubShareDriveGrants,
+} from '@/utils/subShareDriveGrants';
+import { wallPostsReader } from '@/utils/subShareWallPosts';
+import {
+  driveQueueReader,
+  writeSubShareNamesFile,
+} from '@/utils/subShareNames';
+import { reconcileExpiredSubShares } from '@/hooks/useReconcileExpiredSubShares';
 import { logError } from '@/utils/logError';
 import { mergeSubsetOrder } from '@/utils/reorderIds';
 import { useRosters } from '@/hooks/useRosters';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDriveReconnected } from '@/hooks/useDriveReconnected';
 import { useCollections } from '@/hooks/useCollections';
-import { useSharedCollection } from '@/hooks/useSharedCollection';
+import {
+  useSharedCollection,
+  type SubShareTree,
+} from '@/hooks/useSharedCollection';
+import type { SubShareBundle } from '@/utils/bundleSubShareContent';
 import { authError, setDriveAuthErrorHandler } from '@/utils/driveAuthErrors';
 import { setGlobalPermissionsErrorHandler } from '@/utils/globalPermissionsErrors';
 import {
@@ -159,6 +182,70 @@ const getCurrentViewport = (): { vpW: number; vpH: number } => {
     vpW: window.innerWidth || REFERENCE_VIEWPORT.w,
     vpH: window.innerHeight || REFERENCE_VIEWPORT.h,
   };
+};
+
+// Moves a new widget to open space in the visible board, keeping its size.
+const placeNewWidget = (
+  widget: WidgetData,
+  others: WidgetData[],
+  stretch: StretchBehavior,
+  camera: BoardCamera,
+  preferred?: { x: number; y: number }
+): WidgetData => {
+  const { xProp, yProp, wProp, hProp } = widget;
+  if (
+    xProp === undefined ||
+    yProp === undefined ||
+    wProp === undefined ||
+    hProp === undefined
+  ) {
+    return widget;
+  }
+  const { vpW, vpH } = getCurrentViewport();
+  const rendered = computeWidgetPixelRect(
+    { xProp, yProp, wProp, hProp, aspectRatio: widget.aspectRatio },
+    vpW,
+    vpH,
+    stretch
+  );
+  const occupied = others
+    .filter((o) => !o.minimized && !o.maximized)
+    .map((o) => ({ x: o.x, y: o.y, w: o.w, h: o.h }));
+  const target = findWidgetPlacement(
+    rendered,
+    occupied,
+    getVisibleBoardBounds(vpW, vpH, camera),
+    preferred
+  );
+  const { safeW, safeH } = getSafeViewport(vpW, vpH);
+  return {
+    ...widget,
+    x: target.x,
+    y: target.y,
+    w: rendered.w,
+    h: rendered.h,
+    xProp: xProp + (target.x - rendered.x) / safeW,
+    yProp: yProp + (target.y - rendered.y) / safeH,
+  };
+};
+
+// Leaves an explicitly positioned widget alone unless it would open off screen, then pulls it into open space nearby.
+const keepNewWidgetOnScreen = (
+  widget: WidgetData,
+  others: WidgetData[],
+  stretch: StretchBehavior,
+  camera: BoardCamera
+): WidgetData => {
+  const { vpW, vpH } = getCurrentViewport();
+  const screen = getVisibleBoardBounds(vpW, vpH, camera, {
+    padding: 0,
+    dock: 0,
+  });
+  if (isRectInBounds(widget, screen)) return widget;
+  return placeNewWidget(widget, others, stretch, camera, {
+    x: widget.x,
+    y: widget.y,
+  });
 };
 
 /**
@@ -351,6 +438,36 @@ const stampPiiVersions = (
   return { supplement, versions };
 };
 
+/** Ids of widgets whose config still differs from the save baseline (unsaved local edits). */
+const unsavedConfigWidgetIds = (
+  local: Dashboard | undefined,
+  baselineWidgets: string
+): Set<string> => {
+  const ids = new Set<string>();
+  if (!local || !baselineWidgets) return ids;
+  let saved: WidgetData[];
+  try {
+    saved = JSON.parse(baselineWidgets) as WidgetData[];
+  } catch {
+    return ids;
+  }
+  const savedById = new Map(saved.map((w) => [w.id, w]));
+  for (const w of local.widgets) {
+    const s = savedById.get(w.id);
+    const changed = !s
+      ? true
+      : w.version !== undefined && s.version !== undefined
+        ? w.version !== s.version
+        : stableStringify(w.config) !== stableStringify(s.config);
+    if (changed) ids.add(w.id);
+  }
+  return ids;
+};
+
+/** Delay before retrying a failed autosave: 2s, 4s, 8s … capped at 60s. */
+const saveRetryDelayMs = (failures: number): number =>
+  Math.min(60_000, 2000 * 2 ** Math.max(0, failures - 1));
+
 /** Capture the serialized state used to populate lastSaved* refs. */
 const getDashboardSaveState = (d: Dashboard) => ({
   serializedData: serializeDashboard(d),
@@ -368,18 +485,6 @@ const getDashboardSaveState = (d: Dashboard) => ({
     ) as Record<MergedDashboardField, string>,
   },
 });
-
-// Only rosters with a landed Drive grant are loadable by the sub; share docs are immutable.
-function grantedRosters(
-  rosters: SubstituteShareRoster[] | undefined,
-  grants: SubstituteShareDriveGrant[]
-): SubstituteShareRoster[] | undefined {
-  const grantedFileIds = new Set(grants.map((g) => g.fileId));
-  const granted = (rosters ?? []).filter((r) =>
-    grantedFileIds.has(r.driveFileId)
-  );
-  return granted.length > 0 ? granted : undefined;
-}
 
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -622,6 +727,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [zoom, setZoom] = useState<number>(1);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
 
   // --- Annotation (full-screen draw-over overlay; NOT a widget) ---
   // The `objects` array is stored on the active dashboard's
@@ -780,6 +887,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  // True while the active board's autosave keeps failing and is being retried.
+  const [saveRetrying, setSaveRetrying] = useState(false);
   const [migrated, setMigrated] = useState(false);
   // Guards against re-kicking off the localStorage→Firestore migration when
   // this effect re-runs before `migrated` flips true (the role-flag deps
@@ -1511,13 +1620,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       const pii = extractDashboardPII(dashboard);
-      // Record before the upload: the snapshot overlay needs this even if Drive
-      // is momentarily unreachable, or the failed save's next snapshot strips
-      // the roster from local state too.
-      dashboardPiiRef.current.set(
-        dashboard.id,
-        stampPiiVersions(dashboard, pii)
-      );
       const blob = new Blob([JSON.stringify(pii)], {
         type: 'application/json',
       });
@@ -1533,6 +1635,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           );
           piiDriveFileIdRef.current.set(dashboard.id, file.id);
         }
+        // Only once Drive holds it: a cache stamped with unsaved versions reads as another device's edit and triggers a Drive restore over the local text.
+        dashboardPiiRef.current.set(
+          dashboard.id,
+          stampPiiVersions(dashboard, pii)
+        );
       } catch (e) {
         console.error('[PII] Failed to save PII supplement to Drive:', e);
         // Rejecting stops callers' success toasts/ref updates/localStorage removal from firing.
@@ -1804,64 +1911,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // permissionId when present so the refcounting logic in the reconcile
       // sweep (`useReconcileExpiredSubShares`) sees the conflict and skips
       // the revoke if other active shares still reference it.
-      const driveGrants: SubstituteShareDriveGrant[] = [];
       const subEmails = input.subEmails ?? [];
       const fileIds = (input.sharedRosters ?? []).map((r) => r.driveFileId);
-      const driveSharingRequested = subEmails.length > 0 && fileIds.length > 0;
-      // Track failed pairs so the caller can warn the host — without this,
-      // a partial network failure would silently produce a share doc with
-      // missing driveGrants and the host would never know.
-      const failedPairs: Array<{ email: string; fileId: string }> = [];
-      if (driveSharingRequested && driveService) {
-        for (const fileId of fileIds) {
-          let existingPerms: Awaited<
-            ReturnType<typeof driveService.listFilePermissions>
-          > = [];
-          try {
-            existingPerms = await driveService.listFilePermissions(fileId);
-          } catch (err) {
-            console.error(
-              `[shareSubstituteDashboard] listFilePermissions(${fileId}) failed; will fall back to grant calls:`,
-              err
-            );
-          }
-
-          for (const email of subEmails) {
-            const lower = email.toLowerCase();
-            const existing = existingPerms.find(
-              (p) =>
-                p.type === 'user' &&
-                p.emailAddress?.toLowerCase() === lower &&
-                typeof p.id === 'string'
-            );
-            if (existing) {
-              driveGrants.push({ email, fileId, permissionId: existing.id });
-              continue;
-            }
-            try {
-              const permissionId = await driveService.grantUserReaderPermission(
-                fileId,
-                email
-              );
-              driveGrants.push({ email, fileId, permissionId });
-            } catch (err) {
-              console.error(
-                `[shareSubstituteDashboard] Drive grant failed for ${email} on ${fileId}:`,
-                err
-              );
-              failedPairs.push({ email, fileId });
-            }
-          }
-        }
-      } else if (driveSharingRequested && !driveService) {
-        // Drive sharing was asked for but the teacher has no live Drive
-        // service (no token / disconnected). Every requested pair fails.
-        for (const fileId of fileIds) {
-          for (const email of subEmails) {
-            failedPairs.push({ email, fileId });
-          }
-        }
-      }
+      // Failed pairs are surfaced to the host below — without that, a partial
+      // network failure would leave a share with missing grants and no signal.
+      const { driveGrants, failedPairs } = await resolveSubShareDriveGrants({
+        driveService,
+        fileIds,
+        emails: subEmails,
+        scope: 'shareSubstituteDashboard',
+      });
 
       const shareId = await shareSubstituteDashboardFirestore({
         dashboard: scrubbedSeed,
@@ -1876,18 +1935,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // Deliberately DO NOT tag the host's local dashboard with a
       // linkedShareId — substitute shares are frozen snapshots and the host
       // continues editing their live board independently.
-      const attempted = driveSharingRequested
-        ? subEmails.length * fileIds.length
-        : 0;
+      const attempted = subEmails.length * fileIds.length;
       return {
         shareId,
-        driveGrants: driveSharingRequested
-          ? {
-              attempted,
-              succeeded: driveGrants.length,
-              failed: failedPairs,
-            }
-          : null,
+        driveGrants:
+          attempted > 0
+            ? {
+                attempted,
+                succeeded: driveGrants.length,
+                failed: failedPairs,
+              }
+            : null,
       };
     },
     [shareSubstituteDashboardFirestore, driveService, user]
@@ -1932,6 +1990,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const { vpW, vpH } = getCurrentViewport();
         const staleSupplementBoardIds = new Set<string>();
+        // A version gap on these is this device's own unsaved edit, not another device's.
+        const activeUnsavedWidgetIds =
+          lastSavedDashboardIdRef.current === activeIdRef.current
+            ? unsavedConfigWidgetIds(
+                dashboardsRef.current.find((d) => d.id === activeIdRef.current),
+                lastSavedFieldsRef.current.widgets
+              )
+            : new Set<string>();
         const migratedDashboards = sortedDashboards.map((db) => {
           const collectionsMigrated = migrateBoardForCollections(db);
           const widgetMigrated: Dashboard = {
@@ -1957,6 +2023,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             if (!cached.supplement[widget.id]) continue;
             if (cached.versions[widget.id] === widget.version) {
               applicable[widget.id] = cached.supplement[widget.id];
+            } else if (
+              hydrated.id === activeIdRef.current &&
+              activeUnsavedWidgetIds.has(widget.id)
+            ) {
+              // The merge below keeps the local config; re-reading Drive would overwrite it.
+              continue;
             } else {
               // Drop it so the staleness is detected once, not on every snapshot.
               delete cached.supplement[widget.id];
@@ -2665,6 +2737,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // When the oldest still-unsaved edit landed, or null when everything is saved.
   const oldestUnsavedEditAtRef = useRef<number | null>(null);
+  // Consecutive autosave failures, and the earliest time the next attempt may run.
+  const saveFailureCountRef = useRef(0);
+  const saveRetryAtRef = useRef(0);
+  // Bumped after a failed autosave so the effect re-runs and schedules the retry.
+  const [saveRetryNonce, setSaveRetryNonce] = useState(0);
+  // The "couldn't save yet" toast stays up until the retry lands, so it is removed by id.
+  const saveRetryToastIdRef = useRef<string | null>(null);
+  const clearSaveRetry = useCallback(() => {
+    saveFailureCountRef.current = 0;
+    saveRetryAtRef.current = 0;
+    setSaveRetrying(false);
+    const toastId = saveRetryToastIdRef.current;
+    if (toastId) {
+      saveRetryToastIdRef.current = null;
+      setToasts((prev) => prev.filter((t) => t.id !== toastId));
+    }
+  }, []);
   // Track auxiliary timeouts spawned by save handlers so they can be
   // cleaned up when the effect re-runs or the component unmounts.
   const auxTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
@@ -2748,6 +2837,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // reverted to match the last-saved data, so pendingSaveCountRef doesn't
       // get stuck positive.
       oldestUnsavedEditAtRef.current = null;
+      clearSaveRetry();
       if (pendingSaveCountRef.current === 0) {
         setIsSaving(false);
       }
@@ -2805,6 +2895,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // The refs now describe a different board, so any pending window from
       // the previous one is meaningless here.
       oldestUnsavedEditAtRef.current = null;
+      clearSaveRetry();
       if (pendingSaveCountRef.current === 0) {
         setIsSaving(false);
       }
@@ -2844,7 +2935,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       Math.min(
         baseDebounceMs,
         maxUnsavedAgeMs - (Date.now() - oldestUnsavedEditAtRef.current)
-      )
+      ),
+      // After a failure, edits wait out the backoff instead of re-hitting a failing Drive/Firestore.
+      saveRetryAtRef.current - Date.now()
     );
     // The immediate-write flag has now been consumed for this scheduling pass.
     // Reset it immediately so that a normal write whose state update lands
@@ -2888,6 +2981,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             lastSavedDataRef.current = savedData;
             lastSavedFieldsRef.current = savedFields;
           }
+          clearSaveRetry();
           pendingSaveCountRef.current = Math.max(
             0,
             pendingSaveCountRef.current - 1
@@ -2913,14 +3007,25 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           if (pendingSaveCountRef.current === 0) {
             setIsSaving(false);
           }
-          setToasts((prev) => [
-            ...prev,
-            {
-              id: crypto.randomUUID(),
-              message: 'Failed to sync changes',
-              type: 'error' as const,
-            },
-          ]);
+          // Local state is untouched; retry with backoff and tell the teacher once per failure streak.
+          saveFailureCountRef.current++;
+          saveRetryAtRef.current =
+            Date.now() + saveRetryDelayMs(saveFailureCountRef.current);
+          if (!saveRetryToastIdRef.current) {
+            const toastId = crypto.randomUUID();
+            saveRetryToastIdRef.current = toastId;
+            setToasts((prev) => [
+              ...prev,
+              {
+                id: toastId,
+                message:
+                  "Couldn't save yet. Your changes are kept on this device and will keep retrying.",
+                type: 'warning' as const,
+              },
+            ]);
+          }
+          setSaveRetrying(true);
+          setSaveRetryNonce((n) => n + 1);
         });
     }, debounceMs);
 
@@ -2930,7 +3035,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       for (const t of auxTimers) clearTimeout(t);
       auxTimers.clear();
     };
-  }, [dashboards, activeId, user, loading, saveDashboard, buildSaveBaseline]);
+  }, [
+    dashboards,
+    activeId,
+    user,
+    loading,
+    saveDashboard,
+    buildSaveBaseline,
+    clearSaveRetry,
+    saveRetryNonce,
+  ]);
 
   // --- GOOGLE DRIVE SYNC EFFECT ---
   // Decoupled from Firestore auto-save to ensure performance.
@@ -3057,14 +3171,28 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // Stamp it against the versions currently in state — that is the server
         // copy this supplement is known to belong to.
         const current = dashboardsRef.current.find((d) => d.id === currentId);
+        // Drive holds the last saved roster; never overlay it on an edit that hasn't saved yet.
+        const unsaved =
+          lastSavedDashboardIdRef.current === currentId
+            ? unsavedConfigWidgetIds(
+                current,
+                lastSavedFieldsRef.current.widgets
+              )
+            : new Set<string>();
+        const restorable: DashboardPiiSupplement = Object.fromEntries(
+          Object.entries(pii).filter(([widgetId]) => !unsaved.has(widgetId))
+        );
+        if (Object.keys(restorable).length === 0) return;
         if (current) {
           dashboardPiiRef.current.set(
             currentId,
-            stampPiiVersions(current, pii)
+            stampPiiVersions(current, restorable)
           );
         }
         setDashboards((prev) =>
-          prev.map((d) => (d.id === currentId ? mergeDashboardPII(d, pii) : d))
+          prev.map((d) =>
+            d.id === currentId ? mergeDashboardPII(d, restorable) : d
+          )
         );
       })
       .catch((err: unknown) => {
@@ -4136,10 +4264,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const shareSubstituteCollection = useCallback(
     async (
-      input: CollectionSubstituteShareInput & {
-        collection: Collection;
-        boards: Dashboard[];
-      }
+      input: CollectionSubstituteShareInput &
+        SubShareTree & {
+          collection: Collection;
+          boards: Dashboard[];
+          sourceId: string;
+          onBundle?: (bundle: SubShareBundle) => void;
+        }
     ): Promise<string> => {
       if (!user) throw new Error('Not authenticated');
 
@@ -4149,73 +4280,67 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // the SAME permissionId), so we pre-list each file's permissions and
       // reuse an existing grant when present. This lets the reconcile sweep's
       // refcounting skip a revoke that another active share still depends on.
-      const driveGrants: SubstituteShareDriveGrant[] = [];
       const subEmails = input.subEmails ?? [];
       const fileIds = (input.sharedRosters ?? []).map((r) => r.driveFileId);
-      const driveSharingRequested = subEmails.length > 0 && fileIds.length > 0;
-      const failedPairs: Array<{ email: string; fileId: string }> = [];
+      const { driveGrants, failedPairs } = await resolveSubShareDriveGrants({
+        driveService,
+        fileIds,
+        emails: subEmails,
+        scope: 'shareSubstituteCollection',
+      });
 
-      if (driveSharingRequested && driveService) {
-        for (const fileId of fileIds) {
-          let existingPerms: Awaited<
-            ReturnType<typeof driveService.listFilePermissions>
-          > = [];
-          try {
-            existingPerms = await driveService.listFilePermissions(fileId);
-          } catch (err) {
-            console.error(
-              `[shareSubstituteCollection] listFilePermissions(${fileId}) failed; will fall back to grant calls:`,
-              err
-            );
-          }
-          for (const email of subEmails) {
-            const lower = email.toLowerCase();
-            const existing = existingPerms.find(
-              (p) =>
-                p.type === 'user' &&
-                p.emailAddress?.toLowerCase() === lower &&
-                typeof p.id === 'string'
-            );
-            if (existing) {
-              driveGrants.push({ email, fileId, permissionId: existing.id });
-              continue;
-            }
-            try {
-              const permissionId = await driveService.grantUserReaderPermission(
-                fileId,
-                email
-              );
-              driveGrants.push({ email, fileId, permissionId });
-            } catch (err) {
-              console.error(
-                `[shareSubstituteCollection] Drive grant failed for ${email} on ${fileId}:`,
-                err
-              );
-              failedPairs.push({ email, fileId });
-            }
-          }
-        }
-      } else if (driveSharingRequested && !driveService) {
-        for (const fileId of fileIds) {
-          for (const email of subEmails) {
-            failedPairs.push({ email, fileId });
-          }
-        }
-      }
-
+      const namesOutcome = {
+        attempted: false,
+        missed: [] as string[],
+        unread: [] as string[],
+      };
       const shareId = await sharedCollectionApi.shareSubstituteCollection({
         ...input,
         hostUid: user.uid,
         hostDisplayName: user.displayName,
         driveGrants: driveGrants.length > 0 ? driveGrants : undefined,
         sharedRosters: grantedRosters(input.sharedRosters, driveGrants),
+        names: {
+          write: async (id, names) => {
+            namesOutcome.attempted = true;
+            const write = await writeSubShareNamesFile({
+              drive: driveService,
+              shareId: id,
+              names,
+              emails: subEmails,
+            });
+            namesOutcome.missed = write ? write.failedEmails : subEmails;
+            return write;
+          },
+          readQueue: driveQueueReader(driveService),
+          readWallPosts: wallPostsReader(user?.uid),
+          onIncomplete: (labels) => {
+            namesOutcome.unread = labels;
+          },
+        },
       });
+
+      if (namesOutcome.unread.length > 0) {
+        addToast(
+          `Share created, but this could not be read, so the sub starts without it: ${namesOutcome.unread.join(', ')}.`,
+          'warning'
+        );
+      }
+
+      // Names live in Drive because the board snapshot is scrubbed of them, so
+      // a sub without that file sees a widget with an empty roster.
+      if (namesOutcome.attempted && namesOutcome.missed.length > 0) {
+        addToast(
+          'Share created, but the student names on these boards could not be shared with every sub. Reconnect Google Drive and update the share.',
+          'warning'
+        );
+      }
 
       // Surface partial Drive-grant failures so the host can retry / hand-share
       // rather than a sub silently lacking roster access (mirrors the
-      // single-board substitute-share toast). The share doc is already written
-      // and substitute shares are immutable post-create, so the remedy is to
-      // create a NEW share or hand-share — not "retry" against this one.
+      // single-board substitute-share toast). The share doc is already
+      // written, so the remedy is "Add sub email" in the sub-shares manager,
+      // which retries the grant, or hand-sharing the file.
       if (failedPairs.length > 0) {
         const missedEmails = Array.from(
           new Set(failedPairs.map((p) => p.email))
@@ -4241,6 +4366,148 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [user, sharedCollectionApi, driveService, addToast]
   );
+
+  /**
+   * Host action: re-push the collection's current boards into an existing sub
+   * share, optionally with new named subs. Drive grants for any newly named sub
+   * are resolved first, the same way create does, so the share doc lands with
+   * them.
+   */
+  const updateSubstituteCollectionShare = useCallback(
+    async (
+      input: SubShareTree & {
+        shareId: string;
+        collection: Collection;
+        boards: Dashboard[];
+        expiresAt?: number;
+        subEmails?: string[];
+        sharedRosters?: SubstituteShareRoster[];
+        onBundle?: (bundle: SubShareBundle) => void;
+      }
+    ): Promise<void> => {
+      if (!user) throw new Error('Not authenticated');
+      const subEmails = input.subEmails ?? [];
+      const fileIds = (input.sharedRosters ?? []).map((r) => r.driveFileId);
+      const { driveGrants, failedPairs } = await resolveSubShareDriveGrants({
+        driveService,
+        fileIds,
+        emails: subEmails,
+        scope: 'updateSubstituteCollectionShare',
+      });
+
+      // An empty list is a real edit — the teacher took every named sub off —
+      // so it goes through as [] rather than reading as "left alone". The
+      // grants those subs hold are revoked by the sweep, not dropped here.
+      const clearedEverySub =
+        input.subEmails !== undefined && subEmails.length === 0;
+      // Narrows the caller's list to the rosters a grant actually landed for.
+      // Undefined when none did, which leaves the caller's list to stand via
+      // the spread below — a Drive outage should not rewrite the share.
+      const rostersGranted = grantedRosters(input.sharedRosters, driveGrants);
+
+      const namesOutcome = {
+        attempted: false,
+        missed: [] as string[],
+        unread: [] as string[],
+      };
+      await sharedCollectionApi.updateSubstituteShare({
+        ...input,
+        ...(input.subEmails !== undefined ? { subEmails } : {}),
+        ...(driveGrants.length > 0 ? { driveGrants } : {}),
+        ...(clearedEverySub
+          ? { sharedRosters: [] }
+          : rostersGranted
+            ? { sharedRosters: rostersGranted }
+            : {}),
+        names: {
+          write: async (id, names, existingFileId) => {
+            namesOutcome.attempted = true;
+            const write = await writeSubShareNamesFile({
+              drive: driveService,
+              shareId: id,
+              names,
+              emails: subEmails,
+              existingFileId,
+            });
+            namesOutcome.missed = write ? write.failedEmails : subEmails;
+            return write;
+          },
+          readQueue: driveQueueReader(driveService),
+          readWallPosts: wallPostsReader(user?.uid),
+          onIncomplete: (labels) => {
+            namesOutcome.unread = labels;
+          },
+        },
+      });
+
+      if (namesOutcome.unread.length > 0) {
+        addToast(
+          `Boards updated, but this could not be read, so the sub starts without it: ${namesOutcome.unread.join(', ')}.`,
+          'warning'
+        );
+      }
+
+      if (namesOutcome.attempted && namesOutcome.missed.length > 0) {
+        addToast(
+          'Boards updated, but the student names on them could not be shared with every sub. Reconnect Google Drive and try again.',
+          'warning'
+        );
+      }
+
+      if (failedPairs.length > 0) {
+        const missedEmails = Array.from(
+          new Set(failedPairs.map((g) => g.email))
+        );
+        addToast(
+          `Boards updated, but roster access could not be granted to: ${missedEmails.join(
+            ', '
+          )}. Reconnect Google Drive and try again.`,
+          'error'
+        );
+      }
+    },
+    [user, sharedCollectionApi, driveService, addToast]
+  );
+
+  const extendSubstituteCollectionShare = useCallback(
+    async (shareId: string, expiresAt: number): Promise<void> => {
+      await sharedCollectionApi.extendSubstituteShare(shareId, expiresAt);
+    },
+    [sharedCollectionApi]
+  );
+
+  /**
+   * Host action: end a share now. The expiry stamp is what cuts the sub off;
+   * the sweep that follows revokes the Drive grants no other active share still
+   * references and deletes the docs. A failed revoke leaves the docs for the
+   * next sweep, so the share is gone for the sub either way.
+   */
+  const endSubstituteCollectionShare = useCallback(
+    async (shareId: string): Promise<void> => {
+      if (!user) throw new Error('Not authenticated');
+      await sharedCollectionApi.expireSubstituteShare(shareId);
+      if (!driveService) return;
+      try {
+        await reconcileExpiredSubShares(user.uid, driveService);
+      } catch (err) {
+        logError('DashboardContext.endSubstituteCollectionShare', err, {
+          shareId,
+        });
+        addToast(
+          'Share ended. Some roster access could not be withdrawn yet — reconnect Google Drive and it will be retried.',
+          'warning'
+        );
+      }
+    },
+    [user, sharedCollectionApi, driveService, addToast]
+  );
+
+  const listSubstituteCollectionShares = useCallback(async (): Promise<
+    SharedCollection[]
+  > => {
+    if (!user) return [];
+    return sharedCollectionApi.listHostSubShares(user.uid);
+  }, [user, sharedCollectionApi]);
 
   const importSharedCollection = useCallback(
     async (
@@ -5390,7 +5657,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               'yProp' in overrides ||
               'wProp' in overrides ||
               'hProp' in overrides);
-          const newWidget =
+          const sizedWidget =
             overrodePixels && !overrodeProps
               ? syncWidgetProportionsFromPixels(
                   baseWidget,
@@ -5399,6 +5666,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   true
                 )
               : baseWidget;
+          const overrodePosition =
+            !!overrides &&
+            ('x' in overrides ||
+              'y' in overrides ||
+              'xProp' in overrides ||
+              'yProp' in overrides);
+          const camera = {
+            zoom: zoomRef.current,
+            pan: getPan() ?? { x: 0, y: 0 },
+          };
+          const newWidget = overrodePosition
+            ? keepNewWidgetOnScreen(sizedWidget, d.widgets, stretch, camera)
+            : placeNewWidget(sizedWidget, d.widgets, stretch, camera);
           return { ...d, widgets: [...d.widgets, newWidget] };
         })
       );
@@ -5463,7 +5743,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           const COL_W = usableBoardW / 12;
           const ROW_H = usableBoardH / 12;
 
-          const newWidgets = widgetsToAdd.map((item, index) => {
+          const added: WidgetData[] = [];
+          const camera = {
+            zoom: zoomRef.current,
+            pan: getPan() ?? { x: 0, y: 0 },
+          };
+          const newWidgets = widgetsToAdd.map((item) => {
             const defaults = WIDGET_DEFAULTS[item.type] ?? {};
             const adminConfig = getAdminBuildingConfig(item.type);
             maxZ++;
@@ -5528,28 +5813,30 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             // 1. SMART LAYOUT: If AI provided spatial data
             if (validatedGrid) {
               const { col, row, colSpan, rowSpan } = validatedGrid;
-              return buildWidget({
+              const gridWidget = buildWidget({
                 x: col * COL_W + OFFSET_X,
                 y: row * ROW_H + OFFSET_Y,
                 w: Math.max(1, colSpan * COL_W - GRID_GAP),
                 h: Math.max(1, rowSpan * ROW_H - GRID_GAP),
               });
+              added.push(gridWidget);
+              return gridWidget;
             }
 
-            // 2. FALLBACK LAYOUT: Legacy 3-column placement for missing gridConfigs
-            const col = index % 3;
-            const row = Math.floor(index / 3);
-            const START_X = 50;
-            const START_Y = 80;
-            const COL_WIDTH = 350;
-            const ROW_HEIGHT = 280;
-
-            return buildWidget({
-              x: START_X + col * COL_WIDTH,
-              y: START_Y + row * ROW_HEIGHT,
-              w: defaults.w ?? 250,
-              h: defaults.h ?? 250,
-            });
+            // 2. FALLBACK LAYOUT: open space in view, counting widgets added earlier in this batch
+            const placed = placeNewWidget(
+              buildWidget({
+                x: OFFSET_X,
+                y: OFFSET_Y,
+                w: defaults.w ?? 250,
+                h: defaults.h ?? 250,
+              }),
+              [...d.widgets, ...added],
+              stretch,
+              camera
+            );
+            added.push(placed);
+            return placed;
           });
 
           return { ...d, widgets: [...d.widgets, ...newWidgets] };
@@ -6800,6 +7087,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       toasts,
       loading,
       isSaving,
+      saveRetrying,
       gradeFilter,
       setGradeFilter: handleSetGradeFilter,
       addToast,
@@ -6888,6 +7176,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       clearPendingAssignmentEdit,
       shareCollection,
       shareSubstituteCollection,
+      updateSubstituteCollectionShare,
+      extendSubstituteCollectionShare,
+      endSubstituteCollectionShare,
+      listSubstituteCollectionShares,
       loadSharedCollection: sharedCollectionApi.loadSharedCollection,
       loadSharedCollectionBoards:
         sharedCollectionApi.loadSharedCollectionBoards,
@@ -6920,6 +7212,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       toasts,
       loading,
       isSaving,
+      saveRetrying,
       gradeFilter,
       handleSetGradeFilter,
       addToast,
@@ -7011,6 +7304,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       sharedCollectionApi.loadSharedCollection,
       sharedCollectionApi.loadSharedCollectionBoards,
       importSharedCollection,
+      updateSubstituteCollectionShare,
+      extendSubstituteCollectionShare,
+      endSubstituteCollectionShare,
+      listSubstituteCollectionShares,
       pendingSharedCollectionId,
       setPendingSharedCollectionId,
       clearPendingSharedCollection,

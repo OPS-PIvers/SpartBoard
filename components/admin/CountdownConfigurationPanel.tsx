@@ -201,6 +201,7 @@ export const CountdownConfigurationPanel: React.FC<
               Include weekends
             </button>
             <Toggle
+              label="Include weekends"
               checked={currentBuildingConfig.includeWeekends ?? true}
               onChange={(checked) =>
                 handleUpdateBuilding({ includeWeekends: checked })
@@ -220,6 +221,7 @@ export const CountdownConfigurationPanel: React.FC<
               Count today
             </button>
             <Toggle
+              label="Count today"
               checked={currentBuildingConfig.countToday ?? false}
               onChange={(checked) =>
                 handleUpdateBuilding({ countToday: checked })

@@ -8,6 +8,7 @@ import {
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
 import { GL_MAX_VIDEO_BYTES } from '@/utils/guidedLearningMedia';
+import { INTERACTION_TYPES } from './editorShared/setOptions';
 
 interface Props {
   step: GuidedLearningStep;
@@ -17,20 +18,6 @@ interface Props {
   onChange: (updated: GuidedLearningStep) => void;
   onDelete: () => void;
 }
-
-const INTERACTION_TYPES: {
-  value: GuidedLearningInteractionType;
-  label: string;
-}[] = [
-  { value: 'text-popover', label: 'Text Popover' },
-  { value: 'tooltip', label: 'Tooltip' },
-  { value: 'audio', label: 'Audio' },
-  { value: 'video', label: 'Video' },
-  { value: 'pan-zoom', label: 'Pan & Zoom' },
-  { value: 'pan-zoom-spotlight', label: 'Pan & Zoom + Spotlight' },
-  { value: 'spotlight', label: 'Spotlight' },
-  { value: 'question', label: 'Question' },
-];
 
 const QUESTION_TYPES: { value: GuidedLearningQuestionType; label: string }[] = [
   { value: 'multiple-choice', label: 'Multiple Choice' },

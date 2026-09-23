@@ -48,6 +48,9 @@ describe('consolidated field-level widget settings migration', () => {
         'lastSync',
         'lockedRosterGroupIds',
         'numExpertGroups',
+        // Group count is derived from the class size, which the schema ctx
+        // does not carry — same reason as the two jigsaw counts above.
+        'numGroups',
         'numHomeGroups',
         'remainingStudents',
         // Pool picker: Checklist has no class chip to hang the group submenu

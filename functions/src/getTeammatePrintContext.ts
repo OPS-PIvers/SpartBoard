@@ -113,11 +113,8 @@ export interface TeammatePrintContext {
   quiz: TeammatePrintQuiz;
   rosters: TeammatePrintRoster[];
   existingBatches: TeammatePrintBatchSummary[];
-  /**
-   * Non-null when nothing can be printed for this teammate at all (D20): with
-   * no Drive grant there is nowhere to put the copy they do not have.
-   */
-  blocked: 'no-copy-no-drive' | null;
+  // Always null now (D20 defers instead); kept so a pre-release open tab still enables Print.
+  blocked: null;
 }
 
 /** Drive/OAuth seam so the authorization ladder is testable without either. */
@@ -392,8 +389,8 @@ export async function handleGetTeammatePrintContext(
       : null;
 
   // One token for the whole call. No grant is not an error — it downgrades the
-  // run to a spares-only stack (D19), and only blocks when there is also no
-  // copy to print from (D20).
+  // run to a spares-only stack (D19), and defers their library copy to their
+  // own next sign-in when they have none (D20).
   let accessToken: string | null = null;
   try {
     accessToken = await deps.getAccessToken(input.targetUid);
@@ -464,30 +461,35 @@ export async function handleGetTeammatePrintContext(
 
   // Batches already printed for this teacher + quiz (D18). A bare equality
   // needs no composite index; `listPaperBatchesForQuiz` sorts the same way.
-  let existingBatches: TeammatePrintBatchSummary[] = [];
-  if (quizId) {
-    const batchSnaps = await targetRef
-      .collection('paper_batches')
-      .where('quizId', '==', quizId)
-      .limit(BATCH_SCAN_LIMIT)
-      .get();
-    existingBatches = batchSnaps.docs
-      .map((snap) => {
-        const data = snap.data() ?? {};
-        const seats = isRecord(data.seats) ? Object.keys(data.seats).length : 0;
-        const spares = Array.isArray(data.spareSeats)
-          ? data.spareSeats.length
-          : 0;
-        return {
-          id: snap.id,
-          createdAt: typeof data.createdAt === 'number' ? data.createdAt : 0,
-          sheetCount: seats + spares,
-          printedByName:
-            typeof data.printedByName === 'string' ? data.printedByName : null,
-        };
-      })
-      .sort((a, b) => b.createdAt - a.createdAt);
-  }
+  // With no copy yet, a deferred run (D20) is only findable by the group it is
+  // waiting on — without this a second helper would print a duplicate stack.
+  const batchSnaps = quizId
+    ? await targetRef
+        .collection('paper_batches')
+        .where('quizId', '==', quizId)
+        .limit(BATCH_SCAN_LIMIT)
+        .get()
+    : await targetRef
+        .collection('paper_batches')
+        .where('pendingQuizCopy.groupId', '==', groupId)
+        .limit(BATCH_SCAN_LIMIT)
+        .get();
+  const existingBatches: TeammatePrintBatchSummary[] = batchSnaps.docs
+    .map((snap) => {
+      const data = snap.data() ?? {};
+      const seats = isRecord(data.seats) ? Object.keys(data.seats).length : 0;
+      const spares = Array.isArray(data.spareSeats)
+        ? data.spareSeats.length
+        : 0;
+      return {
+        id: snap.id,
+        createdAt: typeof data.createdAt === 'number' ? data.createdAt : 0,
+        sheetCount: seats + spares,
+        printedByName:
+          typeof data.printedByName === 'string' ? data.printedByName : null,
+      };
+    })
+    .sort((a, b) => b.createdAt - a.createdAt);
 
   return {
     targetUid: input.targetUid,
@@ -499,7 +501,7 @@ export async function handleGetTeammatePrintContext(
     quiz,
     rosters,
     existingBatches,
-    blocked: !hasCopy && !driveReachable ? 'no-copy-no-drive' : null,
+    blocked: null,
   };
 }
 

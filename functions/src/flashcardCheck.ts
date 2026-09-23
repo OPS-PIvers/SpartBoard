@@ -4,6 +4,7 @@ import * as admin from 'firebase-admin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { matchFlashcardAnswer } from './flashcardMatch';
+import { isPeriodFrozen } from './quizSessionContent';
 
 // Local mirrors of the root types.ts shapes; functions cannot import root code.
 type FlashcardMode = 'flashcards' | 'write' | 'test';
@@ -242,6 +243,24 @@ export async function handleSubmitFlashcardCheck(
     throw new HttpsError('failed-precondition', 'This assignment is closed.');
   if (openAt !== null && nowMs < openAt - WINDOW_GRACE_MS)
     throw new HttpsError('failed-precondition', 'This assignment is not open.');
+  // Per-period sessions: the student's seat names their period, which must be open.
+  if (session.periodAccess && typeof session.periodAccess === 'object') {
+    const seatSnap = await sessionRef.collection('seats').doc(caller.uid).get();
+    const seat: Record<string, unknown> = seatSnap.exists
+      ? (seatSnap.data() ?? {})
+      : {};
+    if (
+      isPeriodFrozen(
+        session,
+        { classId: seat.classId, studentUid: caller.uid },
+        nowMs
+      )
+    )
+      throw new HttpsError(
+        'failed-precondition',
+        "Your class period isn't open right now."
+      );
+  }
 
   const checkMode = session.checkMode as FlashcardMode | undefined;
   if (
@@ -250,7 +269,13 @@ export async function handleSubmitFlashcardCheck(
     checkMode !== 'test'
   )
     throw new HttpsError('failed-precondition', 'Unknown Check mode.');
-  const cards = sessionCards(session.cards);
+  // Per-period sessions keep their cards in content/cards.
+  const cards = sessionCards(
+    session.cardsInContent === true
+      ? (await sessionRef.collection('content').doc('cards').get()).data()
+          ?.cards
+      : session.cards
+  );
   if (cards.length === 0)
     throw new HttpsError(
       'failed-precondition',

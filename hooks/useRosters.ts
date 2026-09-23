@@ -238,6 +238,9 @@ function parseStudentOverride(raw: unknown): StudentOverride | null {
   ) {
     override.tabWarningThreshold = o.tabWarningThreshold;
   }
+  if (typeof o.tabAwayLimit === 'number' || o.tabAwayLimit === 'off') {
+    override.tabAwayLimit = o.tabAwayLimit;
+  }
   if (o.readAloud === true) override.readAloud = true;
   if (typeof o.openAt === 'number') override.openAt = o.openAt;
   if (typeof o.closeAt === 'number') override.closeAt = o.closeAt;
@@ -554,6 +557,12 @@ const validateRosterMeta = (
   if (typeof d.ltiContextId === 'string') {
     meta.ltiContextId = d.ltiContextId;
   }
+  if (d.bellPeriod && typeof d.bellPeriod === 'object') {
+    const b = d.bellPeriod as Record<string, unknown>;
+    if (typeof b.buildingId === 'string' && typeof b.periodId === 'string') {
+      meta.bellPeriod = { buildingId: b.buildingId, periodId: b.periodId };
+    }
+  }
   return meta;
 };
 
@@ -573,6 +582,7 @@ export type RosterCreateMeta = Pick<
   | 'classlinkOrgId'
   | 'classlinkSyncedAt'
   | 'testClassId'
+  | 'bellPeriod'
 >;
 
 // ─── Hook ──────────────────────────────────────────────────────────────────────

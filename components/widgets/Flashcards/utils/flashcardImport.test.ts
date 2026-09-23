@@ -53,4 +53,14 @@ describe('flashcard import', () => {
     expect(result.warnings.join(' ')).toContain('500 characters');
     expect(result.warnings.join(' ')).toContain('1,000 characters');
   });
+
+  it('keeps a lone header-like row as a card instead of dropping it silently', () => {
+    const result = parseFlashcardText('Question\tAnswer');
+
+    expect(result.cards).toHaveLength(1);
+    expect(result.cards[0]).toMatchObject({
+      term: 'Question',
+      definition: 'Answer',
+    });
+  });
 });

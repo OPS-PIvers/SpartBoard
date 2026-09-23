@@ -14,6 +14,7 @@ import {
   useSubstituteShares,
   useSubstituteShare,
   useSubstituteCollectionBoard,
+  useSubShareContentVersion,
 } from '@/hooks/useSubstituteShares';
 
 vi.mock('firebase/firestore', () => ({
@@ -646,6 +647,52 @@ describe('useSubstituteCollectionBoard — cross-building gate', () => {
     );
   });
 
+  // The screen retries a failed board by bumping `attempt`; nothing else
+  // about the request changes, so the key has to carry it or no read fires.
+  it('re-reads the same board when attempt changes', async () => {
+    mockGetDoc.mockRejectedValueOnce(
+      Object.assign(new Error('offline'), { code: 'unavailable' })
+    );
+    const { result, rerender } = renderHook(
+      ({ attempt }: { attempt: number }) =>
+        useSubstituteCollectionBoard('share1', 'b1', 'high', attempt),
+      { initialProps: { attempt: 0 } }
+    );
+
+    await waitFor(() =>
+      expect(result.current.error).toBe(
+        'Could not reach the server. Check your internet connection.'
+      )
+    );
+
+    mockGetDoc
+      .mockResolvedValueOnce(
+        fakeDocSnap('share1', {
+          shareId: 'share1',
+          intendedMode: 'substitute',
+          buildingId: 'high',
+          expiresAt: Date.now() + 60_000,
+          boardIds: ['b1'],
+          collection: { name: 'Monday' },
+          hostUid: 'host-1',
+        })
+      )
+      .mockResolvedValueOnce(
+        fakeDocSnap('b1', {
+          dashboard: { id: 'b1', name: 'Warm up', widgets: [] },
+        })
+      );
+
+    rerender({ attempt: 1 });
+
+    // Waiting on `error` alone would pass in the transient loading state,
+    // where it is already null.
+    await waitFor(() => expect(result.current.share).not.toBeNull());
+    expect(result.current.error).toBeNull();
+    expect(result.current.share?.name).toBe('Warm up');
+    expect(result.current.navSource?.boardIds).toEqual(['b1']);
+  });
+
   it('rejects a parent doc with no buildingId (fail closed)', async () => {
     mockGetDoc.mockResolvedValueOnce(
       fakeDocSnap('share1', {
@@ -663,5 +710,82 @@ describe('useSubstituteCollectionBoard — cross-building gate', () => {
     expect(result.current.error).toBe(
       'This share is not available in your building.'
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// useSubShareContentVersion(shareId)
+// ---------------------------------------------------------------------------
+
+describe('useSubShareContentVersion', () => {
+  it('reports nothing until the first snapshot lands', () => {
+    const { result } = renderHook(() => useSubShareContentVersion('share1'));
+    expect(result.current).toBeNull();
+  });
+
+  it('reports the version the teacher has pushed', () => {
+    const { result } = renderHook(() => useSubShareContentVersion('share1'));
+    act(() => {
+      lastListener().next(fakeDocSnap('share1', { contentVersion: 4 }));
+    });
+    expect(result.current).toBe(4);
+  });
+
+  // Shares written before contentVersion existed are still live in outboxes.
+  it('treats a share with no version as the first one', () => {
+    const { result } = renderHook(() => useSubShareContentVersion('share1'));
+    act(() => {
+      lastListener().next(fakeDocSnap('share1', { boardIds: ['b1'] }));
+    });
+    expect(result.current).toBe(1);
+  });
+
+  it('follows a later push', () => {
+    const { result } = renderHook(() => useSubShareContentVersion('share1'));
+    act(() => {
+      lastListener().next(fakeDocSnap('share1', { contentVersion: 1 }));
+    });
+    act(() => {
+      lastListener().next(fakeDocSnap('share1', { contentVersion: 2 }));
+    });
+    expect(result.current).toBe(2);
+  });
+
+  it('ignores a share that is not there', () => {
+    const { result } = renderHook(() => useSubShareContentVersion('share1'));
+    act(() => {
+      lastListener().next(fakeDocSnap('share1', null));
+    });
+    expect(result.current).toBeNull();
+  });
+
+  // An unreadable share is the ended-share path, which the expiry check owns;
+  // reporting a version here would be a lie.
+  it('stays quiet on a denied read, and logs it', () => {
+    const { result } = renderHook(() => useSubShareContentVersion('share1'));
+    act(() => {
+      lastListener().error({ code: 'permission-denied' });
+    });
+    expect(result.current).toBeNull();
+    expect(mockLogError).toHaveBeenCalled();
+  });
+
+  it('does not carry one share’s version onto another', () => {
+    const { result, rerender } = renderHook(
+      ({ id }: { id: string }) => useSubShareContentVersion(id),
+      { initialProps: { id: 'share1' } }
+    );
+    act(() => {
+      lastListener().next(fakeDocSnap('share1', { contentVersion: 7 }));
+    });
+    rerender({ id: 'share2' });
+    expect(result.current).toBeNull();
+  });
+
+  it('unsubscribes on unmount', () => {
+    const { unmount } = renderHook(() => useSubShareContentVersion('share1'));
+    const { unsub } = lastListener();
+    unmount();
+    expect(unsub).toHaveBeenCalledTimes(1);
   });
 });

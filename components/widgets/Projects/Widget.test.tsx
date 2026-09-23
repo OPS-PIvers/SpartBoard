@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type {
   ProjectGroup,
@@ -6,11 +7,14 @@ import type {
   ProjectsConfig,
   WidgetData,
 } from '@/types';
+import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useProjectRun } from '@/hooks/useProjectRun';
 import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
 import { ProjectsWidget } from './Widget';
+import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
 vi.mock('@/context/useDashboard');
 vi.mock('@/context/useAuth');
@@ -342,5 +346,122 @@ describe('ProjectsWidget', () => {
     });
     render(<ProjectsWidget widget={widget()} />);
     expect(screen.getByText('Pick a class')).toBeInTheDocument();
+  });
+
+  describe('inside a sub share', () => {
+    const inShare = (load: () => Promise<unknown>) =>
+      function InShare({ children }: { children: React.ReactNode }) {
+        return (
+          <SubShareContentContext.Provider
+            value={subShareContextValue({
+              shareId: 'share-1',
+              version: 0,
+              load: load as never,
+              loadKey: noSubShareKey,
+            })}
+          >
+            {children}
+          </SubShareContentContext.Provider>
+        );
+      };
+
+    const bundled = {
+      run: {
+        id: 'teacher-1_project-1',
+        projectId: 'project-1',
+        title: 'Ecosystem poster',
+        steps: [
+          { id: 'step-1', title: 'Research' },
+          { id: 'step-2', title: 'Draft', requiresApproval: true },
+        ],
+      },
+      groups: [
+        {
+          id: 'g1',
+          name: 'Group 1',
+          classId: 'class-a',
+          order: 0,
+          stepStates: { 'step-1': 'done', 'step-2': 'notStarted' },
+          needsSupport: true,
+        },
+      ],
+    };
+
+    const renderShared = (config: Partial<ProjectsConfig> = {}) => {
+      // Empty: a substitute can read neither the project nor its run, so
+      // anything on screen has to have come from the bundle.
+      mockRun({ run: null, groups: [] });
+      return render(<ProjectsWidget widget={widget(config)} />, {
+        wrapper: inShare(() => Promise.resolve(bundled)),
+      });
+    };
+
+    it('shows the teacher’s bundled tracker, not the substitute’s own', async () => {
+      renderShared();
+      expect(await screen.findByText('Ecosystem poster')).toBeInTheDocument();
+      expect(screen.getByText('Group 1')).toBeInTheDocument();
+      expect(screen.queryByTestId('projects-manager')).not.toBeInTheDocument();
+      // No listener against a run whose rule wants its own teacher.
+      expect(useProjectRun).toHaveBeenCalledWith(
+        'teacher-1',
+        undefined,
+        'teacher-1'
+      );
+    });
+
+    it('draws the tracker read-only, so no cell can be moved', async () => {
+      renderShared();
+      expect(
+        await screen.findByLabelText('Group 1, Research, Done')
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Group 1, Research, Done' })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /Clear the help flag/ })
+      ).not.toBeInTheDocument();
+      expect(screen.getByText('Help')).toBeInTheDocument();
+    });
+
+    // Each of these writes the teacher's board or their run, which a
+    // substitute cannot do, and the library behind it is not theirs to see.
+    it('hides the library, the status toggle and the project actions', async () => {
+      renderShared();
+      await screen.findByText('Ecosystem poster');
+      expect(
+        screen.queryByRole('button', { name: 'Back to the project library' })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Hide status' })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Project actions' })
+      ).not.toBeInTheDocument();
+    });
+
+    // The teacher may have left the widget on its library face; in a share
+    // that face is the substitute's own account, and empty.
+    it('opens on the tracker even when the teacher left it on the library', async () => {
+      renderShared({ view: 'manager' });
+      expect(await screen.findByText('Ecosystem poster')).toBeInTheDocument();
+      expect(screen.queryByTestId('projects-manager')).not.toBeInTheDocument();
+    });
+
+    it('says so rather than opening the substitute’s library when no project came along', async () => {
+      renderShared({ projectId: undefined });
+      expect(await screen.findByText('No project')).toBeInTheDocument();
+      expect(screen.queryByTestId('projects-manager')).not.toBeInTheDocument();
+    });
+
+    it('says so when the project had not started at share time', async () => {
+      mockRun({ run: null, groups: [] });
+      render(<ProjectsWidget widget={widget()} />, {
+        wrapper: inShare(() => Promise.resolve(null)),
+      });
+      expect(await screen.findByText('Not started yet')).toBeInTheDocument();
+      expect(
+        screen.getByText('This project had no groups yet when it was shared.')
+      ).toBeInTheDocument();
+    });
   });
 });

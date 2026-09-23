@@ -593,12 +593,35 @@ describe('createTeammatePaperBatchV1 — no personal copy yet (D9)', () => {
     expect(batchWrite(writes)).toBeUndefined();
   });
 
-  it('blocks when there is no copy and no way to make one (D20)', async () => {
+  it('defers the copy to their own sign-in when Drive is unreachable (D20)', async () => {
     const state = baseState();
     state.collections[`users/${TARGET_UID}/quizzes`] = [];
     const { run, writes } = create(state, deps(NO_GRANT));
-    await expect(run()).rejects.toMatchObject({ code: 'failed-precondition' });
-    expect(writes.sets).toHaveLength(0);
+    const result = await run();
+    expect(result.pendingCopy).toBe(true);
+    expect(result.createdCopy).toBe(false);
+    // Nothing is written into their library or their Drive without them.
+    expect(writes.sets.filter((w) => w.path.includes('/quizzes/'))).toEqual([]);
+    expect(joinSyncGroup).not.toHaveBeenCalled();
+    const batch = batchWrite(writes);
+    expect(batch?.data).toMatchObject({
+      quizId: result.batch.quizId,
+      pendingQuizCopy: {
+        groupId: GROUP_ID,
+        plcId: PLC_ID,
+        plcQuizId: PLC_QUIZ_ID,
+      },
+    });
+    // The id the batch reserved is what their client will build the copy under.
+    expect(typeof result.batch.quizId).toBe('string');
+    expect(result.batch.quizId).not.toHaveLength(0);
+  });
+
+  it('leaves no pending marker when their copy already exists', async () => {
+    const { run, writes } = create(baseState(), deps(NO_GRANT));
+    const result = await run();
+    expect(result.pendingCopy).toBe(false);
+    expect(batchWrite(writes)?.data).not.toHaveProperty('pendingQuizCopy');
   });
 });
 

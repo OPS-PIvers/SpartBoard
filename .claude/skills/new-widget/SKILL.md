@@ -7,7 +7,7 @@ description: Use this skill whenever building a new widget for the SPART Board o
 
 ## The Complete Checklist (do these in order)
 
-Every new widget touches **8 locations**. Missing any one causes TypeScript
+Every new widget touches **9 locations**. Missing any one causes TypeScript
 errors, broken dock entries, invisible gear buttons, or scaling failures.
 
 Before shipping the widget, also verify the front-face component follows the
@@ -31,6 +31,8 @@ transparency ownership rule:
 | 6   | `config/widgetGradeLevels.ts`                    | Entry in `WIDGET_GRADE_LEVELS`                                                                                                                                                      |
 | 7   | `components/admin/`                              | Admin config panel or modal (see spart-widget-admin-config skill)                                                                                                                   |
 | 8   | `components/admin/FeaturePermissionsManager.tsx` | Wire admin config modal if using dedicated modal path                                                                                                                               |
+| 9   | `config/tourAnchors.ts`                          | Tag the widget's primary actions with `tourAttr` (add item, start, reset, main settings toggles) and register them as `<widgetType>.<action>`                                       |
+| 10  | `components/widgets/YourWidget/`                 | Tag elements that show student faces, photos or free-form student content with `data-pii`, so tour recordings blur them                                                             |
 
 ---
 
@@ -604,14 +606,11 @@ gold standard for each pattern:
 
 > **SpecialistSchedule file layout (reference note):** SpecialistSchedule is
 > the canonical building-defaults example, but it does **not** follow the
-> standard two-file layout and has **no** separate `Appearance.tsx`. Its files
-> are `SpecialistScheduleWidget.tsx` (front face — non-standard filename, don't
-> imitate), `Settings.tsx`, `index.ts`, and `utils.ts`. Both the settings panel
-> (`SpecialistScheduleSettings`) and the appearance panel
-> (`SpecialistScheduleAppearanceSettings`) are named exports **co-located in
-> `Settings.tsx`** — co-locating the appearance panel in `Settings.tsx` is a
-> valid alternative to a dedicated `Appearance.tsx`. The barrel `index.ts`
-> (`export * from './SpecialistScheduleWidget'; export * from './Settings';`)
-> re-exports both, so the WidgetRegistry `lazyNamed(() =>
-import('./SpecialistSchedule'), 'SpecialistScheduleAppearanceSettings')` call
-> resolves correctly.
+> standard two-file layout and has **no** separate `Appearance.tsx`. It is
+> schema-driven settings, not a hand-written `Settings.tsx`: its files are
+> `SpecialistScheduleWidget.tsx` (front face — non-standard filename, don't
+> imitate), `index.ts`, `utils.ts`, `settings.schema.ts`, and
+> `settingsFields.tsx`. The barrel `index.ts`
+> (`export * from './SpecialistScheduleWidget';`) re-exports only the front
+> face; settings are registered in `WIDGET_SETTINGS_SCHEMAS` in
+> `WidgetRegistry.ts` via `settings.schema.ts`, not `lazyNamed()`.

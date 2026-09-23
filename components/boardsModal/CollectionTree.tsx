@@ -6,7 +6,7 @@ import type { Collection, Dashboard } from '@/types';
 import { CollectionTreeNode } from './CollectionTreeNode';
 import { PinnedSection } from './PinnedSection';
 import { useDropMode } from './dropIndicator';
-import { buildChildrenByParent } from './collectionTree';
+import { buildChildrenByParent } from './collectionTreeUtils';
 
 interface CollectionTreeProps {
   collections: Collection[];

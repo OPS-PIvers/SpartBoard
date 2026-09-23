@@ -107,12 +107,15 @@ vi.mock('@/hooks/useCollections', () => ({
   }),
 }));
 
+const mockUpdateSubstituteShare = vi.fn((_input: unknown) => Promise.resolve());
+
 vi.mock('@/hooks/useSharedCollection', () => ({
   useSharedCollection: () => ({
     shareCollection: vi.fn().mockResolvedValue('mock-collection-share-id'),
     shareSubstituteCollection: vi
       .fn()
       .mockResolvedValue('mock-collection-sub-share-id'),
+    updateSubstituteShare: mockUpdateSubstituteShare,
     loadSharedCollection: vi
       .fn()
       .mockResolvedValue({ ok: false, reason: 'not-found' }),
@@ -1380,6 +1383,81 @@ describe('DashboardContext Sharing Logic', () => {
       });
 
       expect(canUndo).toBe(true);
+    });
+  });
+  // A re-push re-derives the roster list from the boards as they stand now, so
+  // an empty list means "no board needs a roster any more" and has to reach
+  // Firestore as a clear, or the sub keeps a class list the teacher removed.
+  describe('sub share roster clearing', () => {
+    const boardFor = (id: string): Dashboard => ({
+      id,
+      name: `Board ${id}`,
+      background: 'bg-slate-900',
+      widgets: [],
+      createdAt: 1,
+    });
+
+    type Update = ReturnType<
+      typeof useDashboard
+    >['updateSubstituteCollectionShare'];
+
+    const callUpdate = async (
+      sharedRosters: { id: string; name: string; driveFileId: string }[]
+    ) => {
+      initialDashboardsSeed = [boardFor('b1')];
+      let update: Update | null = null;
+      const Probe: React.FC = () => {
+        const { updateSubstituteCollectionShare } = useDashboard();
+        useEffect(() => {
+          update = updateSubstituteCollectionShare;
+        }, [updateSubstituteCollectionShare]);
+        return <div>Test App</div>;
+      };
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+      await waitFor(() => expect(update).not.toBeNull());
+      mockUpdateSubstituteShare.mockClear();
+      await act(async () => {
+        if (update)
+          await update({
+            shareId: 'share-1',
+            collection: {
+              id: 'coll-1',
+              name: 'Week of Oct 6',
+              parentCollectionId: null,
+              order: 0,
+              createdAt: 1,
+            },
+            boards: [boardFor('b1')],
+            kind: 'collection',
+            sections: [],
+            boardEntries: [],
+            sharedRosters,
+          });
+      });
+      return mockUpdateSubstituteShare.mock.calls[0]?.[0] as {
+        sharedRosters?: unknown;
+      };
+    };
+
+    it('an empty roster list reaches Firestore as a clear', async () => {
+      const input = await callUpdate([]);
+      expect(input.sharedRosters).toEqual([]);
+    });
+
+    // No grant resolved here (no named subs), so the caller's list stands
+    // rather than being narrowed away — a Drive outage must not rewrite the
+    // share's rosters.
+    it('a roster that resolved no grant still stands', async () => {
+      const input = await callUpdate([
+        { id: 'r1', name: 'Period 1', driveFileId: 'file-1' },
+      ]);
+      expect(input.sharedRosters).toEqual([
+        { id: 'r1', name: 'Period 1', driveFileId: 'file-1' },
+      ]);
     });
   });
 });

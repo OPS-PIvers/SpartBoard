@@ -7,6 +7,11 @@
  *   2. TeacherDirectoryScreen — pick a teacher whose board to open
  *   3. SubBoardScreen — read-only-but-interactive frozen board
  *
+ * A `/subs/s/{shareId}[/{boardId}]` link skips the first two steps: the
+ * resolver reads the share, takes the building from the doc and lands the sub
+ * on the board the teacher pointed them at. Backing out of that board goes to
+ * the share's own building directory.
+ *
  * Data comes from Firestore via useSubstituteShares. SubBoardScreen mounts
  * a SubsDashboardProvider that synthesises a DashboardContextValue from the
  * share's `initialState` snapshot, then renders the teacher's real widgets
@@ -26,6 +31,8 @@ import { BuildingPickerScreen } from './BuildingPickerScreen';
 import { TeacherDirectoryScreen } from './TeacherDirectoryScreen';
 import { SubBoardScreen } from './SubBoardScreen';
 import { SubCollectionBoardScreen } from './SubCollectionBoardScreen';
+import { SubShareLinkScreen } from './SubShareLinkScreen';
+import { parseSubsDeepLink } from './subsDeepLink';
 import { useAuth } from '@/context/useAuth';
 
 type SubsView =
@@ -40,7 +47,10 @@ type SubsView =
       buildingId: string;
       shareId: string;
       boardId: string;
-    };
+    }
+  // Entered from a /subs/s/... link, before the share has been read and the
+  // building is known.
+  | { kind: 'share-link'; shareId: string; boardId?: string };
 
 // Per-user storage key. SubsAuthGate guarantees `uid` is set before this
 // runs (it doesn't render children until auth is settled + allowed), so
@@ -48,6 +58,14 @@ type SubsView =
 // returns no user at this layer — defensive only.
 function storageKeyFor(uid: string | null | undefined): string {
   return `spart_subs_view_${uid ?? 'anon'}`;
+}
+
+/** Back to the bare portal, so a refresh reflects where the sub actually is. */
+function clearDeepLinkFromUrl(): void {
+  if (typeof window === 'undefined') return;
+  if (parseSubsDeepLink(window.location.pathname)) {
+    window.history.replaceState({}, '', '/subs');
+  }
 }
 
 export const SubsApp: React.FC = () => (
@@ -66,6 +84,15 @@ const SubsContent: React.FC = () => {
     // doesn't lose their place if they refresh. Per-UID key prevents
     // cross-user leakage on shared classroom hardware.
     if (typeof window === 'undefined') return { kind: 'building-picker' };
+    // A link the teacher sent wins over wherever this sub was last.
+    const link = parseSubsDeepLink(window.location.pathname);
+    if (link) {
+      return {
+        kind: 'share-link',
+        shareId: link.shareId,
+        ...(link.boardId !== undefined && { boardId: link.boardId }),
+      };
+    }
     try {
       const raw = window.localStorage.getItem(storageKey);
       if (!raw) return { kind: 'building-picker' };
@@ -127,6 +154,23 @@ const SubsContent: React.FC = () => {
             setView({ kind: 'directory', buildingId: view.buildingId })
           }
           onChangeBuilding={() => setView({ kind: 'building-picker' })}
+        />
+      )}
+
+      {view.kind === 'share-link' && (
+        <SubShareLinkScreen
+          shareId={view.shareId}
+          {...(view.boardId !== undefined && { boardId: view.boardId })}
+          onExitToDirectory={(buildingId) => {
+            // Drop the link from the address bar on the way out, so a refresh
+            // from the directory doesn't re-open the board they just left.
+            clearDeepLinkFromUrl();
+            setView({ kind: 'directory', buildingId });
+          }}
+          onChangeBuilding={() => {
+            clearDeepLinkFromUrl();
+            setView({ kind: 'building-picker' });
+          }}
         />
       )}
 

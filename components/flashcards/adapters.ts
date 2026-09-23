@@ -217,6 +217,7 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
   private dirty = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private pending: Promise<void> = Promise.resolve();
+  private paused = false;
 
   constructor(options: {
     classId: string;
@@ -302,6 +303,13 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
     this.schedule();
   }
 
+  /** Holds writes (the rules would refuse them) while the student's period is shut; resuming sends them. */
+  setPaused(paused: boolean): void {
+    if (this.paused === paused) return;
+    this.paused = paused;
+    if (!paused) void this.writeNow();
+  }
+
   /** Cancels a pending debounce without writing. */
   dispose(): void {
     if (this.timer) clearTimeout(this.timer);
@@ -324,7 +332,7 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
   }
 
   private schedule(): void {
-    if (this.timer) return;
+    if (this.timer || this.paused) return;
     this.timer = setTimeout(() => {
       this.timer = null;
       void this.writeNow();
@@ -337,9 +345,10 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
       this.timer = null;
     }
     if (
-      !this.dirty &&
-      this.dirtyCards.size === 0 &&
-      this.dirtyCheckLog.size === 0
+      this.paused ||
+      (!this.dirty &&
+        this.dirtyCards.size === 0 &&
+        this.dirtyCheckLog.size === 0)
     ) {
       return this.pending;
     }

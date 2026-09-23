@@ -21,6 +21,10 @@ import {
 } from '@/types';
 import { db, functions } from '@/config/firebase';
 import { useDashboard } from '@/context/useDashboard';
+import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
+import { buildPeriodAccess } from '@/utils/periodPlan';
+import { useInSubShare } from '@/hooks/useShareContent';
+import { SubShareGuidedLearningWidget } from './SubShareWidget';
 import { useDialog } from '@/context/useDialog';
 import { useAuth } from '@/context/useAuth';
 import { useGuidedLearning } from '@/hooks/useGuidedLearning';
@@ -75,6 +79,11 @@ const GuidedLearningManager = lazy(() =>
 const GuidedLearningEditorModal = lazy(() =>
   import('./components/GuidedLearningEditorModal').then((m) => ({
     default: m.GuidedLearningEditorModal,
+  }))
+);
+const GuidedLearningStudio = lazy(() =>
+  import('./components/studio/GuidedLearningStudio').then((m) => ({
+    default: m.GuidedLearningStudio,
   }))
 );
 const GuidedLearningPlayer = lazy(() =>
@@ -160,12 +169,15 @@ interface AssignDialogTarget {
   originSetId: string;
 }
 
-export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
+const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, addToast, rosters } = useDashboard();
+  const { updateWidget, addToast, rosters, updateRoster } = useDashboard();
+  const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { showConfirm } = useDialog();
-  const { user, isAdmin, getAssignmentMode } = useAuth();
+  const { user, isAdmin, getAssignmentMode, canAccessFeature } = useAuth();
+  const playerV2 = canAccessFeature('gl-player-v2');
+  const studioEditor = canAccessFeature('gl-studio');
   const assignmentMode: AssignmentMode = getAssignmentMode('guidedLearning');
   const isViewOnly = assignmentMode === 'view-only';
   const rawConfig = widget.config as GuidedLearningConfig;
@@ -212,6 +224,8 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const [editingSet, setEditingSet] = useState<GuidedLearningSet | null>(null);
   const [editingMeta, setEditingMeta] =
     useState<GuidedLearningSetMetadata | null>(null);
+  // The Studio is admin-only until P1-10 retires the classic editor.
+  const [classicEditor, setClassicEditor] = useState(false);
 
   const { folders: glFolders, moveItem: moveGlItem } = useFolders(
     user?.uid,
@@ -435,14 +449,40 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const handleSave = async (set: GuidedLearningSet, driveFileId?: string) => {
     // Saved content invalidates any prefetched copy.
     prefetchCacheRef.current.invalidate(set.id);
-    if (set.isBuilding) {
-      await saveBuildingSet(set);
-      addToast('Building set saved.', 'success');
-    } else {
-      await saveSet(set, driveFileId);
-      addToast('Set saved to Drive.', 'success');
+    // The editor autosaves and shows its own save state, so no toast per write.
+    if (set.isBuilding) await saveBuildingSet(set);
+    else {
+      // Adopt what was written. Without this a new set keeps autosaving with no
+      // drive file id, so every retitled write orphans another .gl.json file.
+      const meta = await saveSet(set, driveFileId);
+      setEditingMeta(meta);
     }
   };
+
+  const closeEditor = () => {
+    setEditingSet(null);
+    setEditingMeta(null);
+    setClassicEditor(false);
+  };
+
+  const handleEditorAiGenerated = (generated: GuidedLearningSet) => {
+    setEditingSet({ ...generated, isBuilding: true });
+    setEditingMeta(null);
+  };
+
+  const handleEditorFolderChange = editingMeta
+    ? async (folderId: string | null) => {
+        try {
+          await moveGlItem(editingMeta.id, folderId);
+          addToast('Folder updated.', 'success');
+        } catch (err) {
+          addToast(
+            err instanceof Error ? err.message : 'Failed to update folder',
+            'error'
+          );
+        }
+      }
+    : undefined;
 
   const handleDelete = async (setId: string, driveFileId: string) => {
     prefetchCacheRef.current.invalidate(setId);
@@ -494,17 +534,39 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       try {
         const selectedRosters = rosters.filter((r) => rosterIds.includes(r.id));
         const derived = deriveSessionTargetsFromRosters(selectedRosters);
+        const periodPlan = targeting.periodPlan ?? { mode: 'assignment' };
+        const builtPeriodAccess =
+          assignPeriodCtx && selectedRosters.length > 1
+            ? buildPeriodAccess({
+                plan: periodPlan,
+                rosters: selectedRosters,
+                sharedWindow: targeting,
+                bellWindow: (roster) =>
+                  assignPeriodCtx.bellWindow(
+                    roster,
+                    new Date(targeting.openAt ?? Date.now())
+                  ),
+              })
+            : null;
+        // Two rosters on one class id share a gate, so they are one period.
+        const periodGate =
+          builtPeriodAccess && Object.keys(builtPeriodAccess).length > 1
+            ? { accessMode: periodPlan.mode, periodAccess: builtPeriodAccess }
+            : undefined;
         const url = await createSession(
           data,
           derived.classIds,
           derived.periodNames,
           derived.rosterIds,
           assignmentMode,
+          // Per-period sessions carry each period's window instead of a shared one.
           {
-            openAt: targeting.openAt,
-            closeAt: targeting.closeAt,
+            openAt: periodGate ? undefined : targeting.openAt,
+            closeAt: periodGate ? undefined : targeting.closeAt,
             dueAt: targeting.dueAt,
-          }
+          },
+          { playerV2 },
+          periodGate
         );
         const sessionId = url.split('/').pop() ?? '';
         setRecentSessionIds((prev) => ({
@@ -522,9 +584,10 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               assignmentMode,
               targetGroupIds: expandedTargeting.targetGroupIds,
               overridesBySourcedId: expandedTargeting.overridesByKey,
-              openAt: expandedTargeting.openAt,
-              closeAt: expandedTargeting.closeAt,
+              openAt: periodGate ? undefined : expandedTargeting.openAt,
+              closeAt: periodGate ? undefined : expandedTargeting.closeAt,
               dueAt: expandedTargeting.dueAt,
+              ...(periodGate ? { periodGate } : {}),
             });
           } catch (err) {
             console.warn('[GuidedLearning] Failed to record assignment:', err);
@@ -621,7 +684,9 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     },
     [
       rosters,
+      assignPeriodCtx,
       createSession,
+      playerV2,
       createAssignment,
       addToast,
       config,
@@ -1233,6 +1298,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                     })
                   }
                   teacherMode
+                  playerV2={playerV2}
                 />
               </Suspense>
             )}
@@ -1252,52 +1318,54 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                       resultsSessionId: null,
                     } as GuidedLearningConfig,
                   });
-                if (resultsAssignment?.assignmentMode === 'view-only') {
-                  return (
-                    <div
-                      className="flex flex-col items-center justify-center h-full text-center"
+                const isViewOnlyResults =
+                  resultsAssignment?.assignmentMode === 'view-only';
+                const viewOnlyNotice = isViewOnlyResults ? (
+                  <div
+                    className="flex flex-col items-center justify-center h-full text-center"
+                    style={{
+                      gap: 'min(12px, 3cqmin)',
+                      padding: 'min(32px, 7cqmin)',
+                    }}
+                  >
+                    <p
+                      className="font-bold text-slate-700"
+                      style={{ fontSize: 'min(14px, 5cqmin)' }}
+                    >
+                      View-only share — no responses collected
+                    </p>
+                    <p
+                      className="text-slate-500 max-w-md"
+                      style={{ fontSize: 'min(12px, 4cqmin)' }}
+                    >
+                      Students opened this share as a view-only link, so there
+                      are no submissions to display. URL open counts appear in
+                      the Shared archive.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={closeResults}
+                      className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors"
                       style={{
-                        gap: 'min(12px, 3cqmin)',
-                        padding: 'min(32px, 7cqmin)',
+                        marginTop: 'min(8px, 2cqmin)',
+                        gap: 'min(6px, 1.5cqmin)',
+                        paddingInline: 'min(12px, 3cqmin)',
+                        paddingBlock: 'min(8px, 2cqmin)',
+                        fontSize: 'min(12px, 4cqmin)',
                       }}
                     >
-                      <p
-                        className="font-bold text-slate-700"
-                        style={{ fontSize: 'min(14px, 5cqmin)' }}
-                      >
-                        View-only share — no responses collected
-                      </p>
-                      <p
-                        className="text-slate-500 max-w-md"
-                        style={{ fontSize: 'min(12px, 4cqmin)' }}
-                      >
-                        Students opened this share as a view-only link, so there
-                        are no submissions to display. URL open counts appear in
-                        the Shared archive.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={closeResults}
-                        className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors"
-                        style={{
-                          marginTop: 'min(8px, 2cqmin)',
-                          gap: 'min(6px, 1.5cqmin)',
-                          paddingInline: 'min(12px, 3cqmin)',
-                          paddingBlock: 'min(8px, 2cqmin)',
-                          fontSize: 'min(12px, 4cqmin)',
-                        }}
-                      >
-                        Back to library
-                      </button>
-                    </div>
-                  );
-                }
+                      Back to library
+                    </button>
+                  </div>
+                ) : null;
                 return (
                   <Suspense fallback={<LazySpinner />}>
                     <GuidedLearningResults
                       set={activeSet}
                       sessionId={config.resultsSessionId}
                       onClose={closeResults}
+                      viewOnly={isViewOnlyResults}
+                      viewOnlyFallback={viewOnlyNotice}
                     />
                   </Suspense>
                 );
@@ -1320,39 +1388,35 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       />
       {editingSet && (
         <Suspense fallback={<ModalChunkFallback />}>
-          <GuidedLearningEditorModal
-            isOpen
-            set={editingSet}
-            meta={editingMeta}
-            folders={editingMeta ? glFolders : undefined}
-            folderId={editingMeta?.folderId ?? null}
-            onFolderChange={
-              editingMeta
-                ? async (folderId) => {
-                    try {
-                      await moveGlItem(editingMeta.id, folderId);
-                      addToast('Folder updated.', 'success');
-                    } catch (err) {
-                      addToast(
-                        err instanceof Error
-                          ? err.message
-                          : 'Failed to update folder',
-                        'error'
-                      );
-                    }
-                  }
-                : undefined
-            }
-            onClose={() => {
-              setEditingSet(null);
-              setEditingMeta(null);
-            }}
-            onSave={handleSave}
-            onAiGenerated={(generated) => {
-              setEditingSet({ ...generated, isBuilding: true });
-              setEditingMeta(null);
-            }}
-          />
+          {studioEditor && !classicEditor ? (
+            <GuidedLearningStudio
+              key={editingSet.id}
+              set={editingSet}
+              meta={editingMeta}
+              folders={editingMeta ? glFolders : undefined}
+              folderId={editingMeta?.folderId ?? null}
+              onFolderChange={handleEditorFolderChange}
+              onClose={closeEditor}
+              onSave={handleSave}
+              onAiGenerated={handleEditorAiGenerated}
+              onOpenClassic={(latest) => {
+                setEditingSet(latest);
+                setClassicEditor(true);
+              }}
+            />
+          ) : (
+            <GuidedLearningEditorModal
+              isOpen
+              set={editingSet}
+              meta={editingMeta}
+              folders={editingMeta ? glFolders : undefined}
+              folderId={editingMeta?.folderId ?? null}
+              onFolderChange={handleEditorFolderChange}
+              onClose={closeEditor}
+              onSave={handleSave}
+              onAiGenerated={handleEditorAiGenerated}
+            />
+          )}
         </Suspense>
       )}
 
@@ -1373,6 +1437,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               <AssignTargetingSection
                 rosters={rosters}
                 selectedRosterIds={pickerValue.rosterIds}
+                periodAccess={assignPeriodCtx}
                 value={targetingValue}
                 onChange={setTargetingValue}
                 kind="guided-learning"
@@ -1470,3 +1535,18 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     </>
   );
 };
+
+/**
+ * A substitute gets a read-only copy from the share, never the teacher's
+ * library: splitting here rather than branching inside keeps the Drive
+ * service, the folder and assignment listeners and the live-session
+ * machinery from mounting for them at all.
+ */
+export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) =>
+  useInSubShare() ? (
+    <SubShareGuidedLearningWidget widget={widget} />
+  ) : (
+    <TeacherGuidedLearningWidget widget={widget} />
+  );

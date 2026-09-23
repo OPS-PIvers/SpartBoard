@@ -8,6 +8,7 @@
 import { readQuizDocument } from './index';
 import { readQuizDocumentWithAi, type AiExtractFn } from './aiReader';
 import type { ExtractedQuiz } from './types';
+import { documentKind } from './fileKind';
 import { browserPdfDeps } from './pdfBrowserDeps';
 import { browserPdfCropper } from './pdfCropBrowser';
 
@@ -26,17 +27,19 @@ export async function readTestDocument(
 ): Promise<ExtractedQuiz> {
   // pdf.js and tesseract are only loaded when the file is a PDF, so a Word
   // import never pays for them.
-  const inBrowser = async (): Promise<ExtractedQuiz> => {
-    const isPdf =
-      file.type === 'application/pdf' ||
-      fileName.toLowerCase().endsWith('.pdf');
-    return readQuizDocument(file, {
+  const kind = documentKind(file, fileName);
+  const inBrowser = async (): Promise<ExtractedQuiz> =>
+    readQuizDocument(file, {
       fileName,
-      ...(isPdf ? { pdf: await browserPdfDeps(file) } : {}),
+      ...(kind === 'pdf' ? { pdf: await browserPdfDeps(file) } : {}),
     });
-  };
 
-  if (!options.aiExtract) return inBrowser();
+  // Rich text and LMS exports go straight to the plain reader: the callable
+  // takes a PDF or a Word file, and both of those already state their own
+  // structure — an export even states its own answers.
+  if (!options.aiExtract || kind === 'rtf' || kind === 'cartridge') {
+    return inBrowser();
+  }
 
   try {
     return await readQuizDocumentWithAi(file, {

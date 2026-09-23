@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { CircleHelp, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
 import { WidgetBuildingToggle } from '@/components/common/WidgetBuildingToggle';
 import { WidgetData, GlobalStyle } from '@/types';
@@ -19,8 +19,9 @@ import {
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { useDashboard } from '@/context/useDashboard';
 import { useHelpItemsForWidget } from '@/hooks/useHelpResources';
-import { requestOpenHelp } from '@/components/help/helpCenterState';
+import { WidgetHelpButton } from '@/components/help/WidgetHelpButton';
 import { WidgetHostContext } from './WidgetHostContext';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface SettingsPanelProps {
   widget: WidgetData;
@@ -229,6 +230,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       ref={panelRef}
       data-widget-portal=""
       data-widget-id={widget.id}
+      {...tourAttr('settings.root', widget.id)}
       className={`font-${globalStyle.fontFamily}`}
       style={{
         position: 'fixed',
@@ -259,24 +261,17 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <div className="flex items-center gap-2 shrink-0">
             <WidgetBuildingToggle widget={widget} updateWidget={updateWidget} />
             {helpItems.length > 0 && (
-              <IconButton
-                onClick={() => {
-                  requestOpenHelp({ tab: 'guides', widgetType: widget.type });
-                  onClose();
-                }}
-                icon={<CircleHelp className="w-4 h-4" />}
-                label={t('helpCenter.widgetHelp')}
-                title={t('helpCenter.widgetHelp')}
-                variant="ghost"
-                size="sm"
-                shape="square"
-                className="shrink-0"
+              <WidgetHelpButton
+                widget={widget}
+                helpItems={helpItems}
+                onClose={onClose}
               />
             )}
             <IconButton
               onClick={onClose}
               icon={<X className="w-4 h-4" />}
               label="Close settings"
+              {...tourAttr('settings.close', widget.id)}
               title="Close settings (Esc)"
               variant="ghost"
               size="sm"
@@ -291,6 +286,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('settings')}
+            {...tourAttr('settings.tab-settings', widget.id)}
             className={`flex-1 py-1.5 text-xxs font-black uppercase tracking-widest rounded-lg transition-[color,background-color,box-shadow] ${
               activeTab === 'settings'
                 ? 'bg-white shadow-sm text-slate-800'
@@ -302,6 +298,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('style')}
+            {...tourAttr('settings.tab-style', widget.id)}
             className={`flex-1 py-1.5 text-xxs font-black uppercase tracking-widest rounded-lg transition-[color,background-color,box-shadow] ${
               activeTab === 'style'
                 ? 'bg-white shadow-sm text-slate-800'

@@ -8,7 +8,7 @@ import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { CollectionTree } from './CollectionTree';
-import { filterCollectionsBySearch } from './collectionTree';
+import { filterCollectionsBySearch } from './collectionTreeUtils';
 import { BoardGrid } from './BoardGrid';
 import { BoardsModalHeader } from './BoardsModalHeader';
 import { useMultiSelect } from './useMultiSelect';
@@ -19,6 +19,12 @@ import { BoardCardDragPreview } from './BoardCard';
 import { CollectionCardDragPreview } from './CollectionCard';
 import { ShareLinkCreatorModal } from '@/components/share/ShareLinkCreatorModal';
 import { ShareCollectionLinkCreatorModal } from '@/components/share/ShareCollectionLinkCreatorModal';
+import {
+  ShareWithSubModal,
+  type SubShareTarget,
+} from '@/components/share/ShareWithSubModal';
+import { SubSharesPanel } from './SubSharesPanel';
+import { useSubShares } from './useSubShares';
 import { SaveAsTemplateModal } from '@/components/admin/SaveAsTemplateModal';
 import { CreateFromTemplateModal } from './CreateFromTemplateModal';
 import { CollectionColorPicker } from './CollectionColorPicker';
@@ -46,6 +52,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   const { showPrompt, showConfirm } = useDialog();
   const { isAdmin, canAccessFeature } = useAuth();
   const canShare = canAccessFeature('dashboard-sharing');
+  const canShareWithSub = canShare && canAccessFeature('sub-share-collections');
   const {
     dashboards,
     activeDashboard,
@@ -81,6 +88,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   // disabled-state re-render on each card.
   const boardDuplicateBusy = useBusyIdSet();
   const collectionDuplicateBusy = useBusyIdSet();
+  const subShares = useSubShares(canShareWithSub);
 
   // Filter by search (substring on Board + Collection names)
   const searchTerm = search.trim().toLowerCase();
@@ -148,6 +156,9 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   const [shareTarget, setShareTarget] = useState<Dashboard | null>(null);
   const [shareCollectionTarget, setShareCollectionTarget] =
     useState<Collection | null>(null);
+  const [subShareTarget, setSubShareTarget] = useState<SubShareTarget | null>(
+    null
+  );
   const [saveAsTemplateTarget, setSaveAsTemplateTarget] =
     useState<Dashboard | null>(null);
   const [saveAsCollectionTemplateTarget, setSaveAsCollectionTemplateTarget] =
@@ -560,6 +571,17 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
           onBulkUnpin={handleBulkUnpin}
         />
 
+        {canShareWithSub && (
+          <SubSharesPanel
+            shares={subShares.shares}
+            busyShareId={subShares.busyShareId}
+            onCopyLink={subShares.copyLink}
+            onUpdateNow={subShares.updateNow}
+            onExtend={subShares.extend}
+            onEnd={subShares.end}
+          />
+        )}
+
         <DndContext
           sensors={sensors}
           collisionDetection={collisionDetection}
@@ -623,6 +645,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               board={board}
               position={contextMenu.position}
               canShare={canShare}
+              canShareWithSub={canShareWithSub}
               isAdmin={Boolean(isAdmin)}
               onClose={() => setContextMenu(null)}
               onOpen={() => handleOpenBoard(board.id)}
@@ -655,6 +678,10 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               }}
               onMove={() => handleSingleMove(board.id)}
               onShare={() => setShareTarget(board)}
+              onShareWithSub={() =>
+                setSubShareTarget({ kind: 'board', dashboard: board })
+              }
+              subShareEndsAt={subShares.endsAtFor(board.id)}
               onSaveAsTemplate={() => setSaveAsTemplateTarget(board)}
               onDelete={async () => {
                 const ok = await showConfirm(
@@ -679,7 +706,12 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               onClose={() => setContextMenu(null)}
               onOpen={() => setSelectedCollectionId(c.id)}
               canShare={canShare}
+              canShareWithSub={canShareWithSub}
               onShare={() => setShareCollectionTarget(c)}
+              onShareWithSub={() =>
+                setSubShareTarget({ kind: 'collection', collection: c })
+              }
+              subShareEndsAt={subShares.endsAtFor(c.id)}
               canSaveAsTemplate={Boolean(isAdmin)}
               onSaveAsTemplate={() => setSaveAsCollectionTemplateTarget(c)}
               onRename={async () => {
@@ -737,6 +769,16 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
             (d) => (d.collectionId ?? null) === shareCollectionTarget.id
           )}
           onClose={() => setShareCollectionTarget(null)}
+        />
+      )}
+      {/* Mounted only while open, so a second trip through the dialog starts clean. */}
+      {subShareTarget && (
+        <ShareWithSubModal
+          isOpen
+          target={subShareTarget}
+          existingShares={subShares.shares}
+          onClose={() => setSubShareTarget(null)}
+          onSaved={subShares.refresh}
         />
       )}
       <SaveAsTemplateModal

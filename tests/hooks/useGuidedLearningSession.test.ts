@@ -45,6 +45,78 @@ describe('toPublicStep', () => {
     expect(publicStep.question?.text).toBe('What is 2 + 2?');
     expect(publicStep.question).not.toHaveProperty('correctAnswer');
   });
+
+  it('mirrors v3 region, callout, cursor and narration playback fields but never tour', () => {
+    const step: GuidedLearningStep = {
+      id: 'step-v3',
+      xPct: 30,
+      yPct: 40,
+      imageIndex: 0,
+      interactionType: 'tooltip',
+      region: {
+        shape: 'polygon',
+        wPct: 10,
+        hPct: 8,
+        points: [
+          { x: 25, y: 36 },
+          { x: 35, y: 36 },
+          { x: 30, y: 44 },
+        ],
+      },
+      calloutPin: { xPct: 60, yPct: 20 },
+      cursor: { hide: true },
+      narration: {
+        source: 'recorded',
+        url: 'https://example.com/n.mp3',
+        storagePath: 'users/t/gl/n.mp3',
+        durationMs: 4200,
+        voice: 'en-US-Neural2-F',
+        textHash: 'abc',
+      },
+      tour: { anchor: 'dock.open-tools', action: 'click' },
+    };
+
+    const publicStep = toPublicStep(step);
+
+    expect(publicStep.region).toEqual(step.region);
+    expect(publicStep.calloutPin).toEqual({ xPct: 60, yPct: 20 });
+    expect(publicStep.cursor).toEqual({ hide: true });
+    expect(publicStep.narration).toEqual({
+      url: 'https://example.com/n.mp3',
+      durationMs: 4200,
+      voice: 'en-US-Neural2-F',
+    });
+    expect(publicStep).not.toHaveProperty('tour');
+  });
+
+  it('strips answer keys and never passes matching pairs or sorting order through', () => {
+    const sorting = toPublicStep({
+      id: 's',
+      xPct: 0,
+      yPct: 0,
+      imageIndex: 0,
+      interactionType: 'question',
+      question: { type: 'sorting', text: 'Order', sortingItems: ['a', 'b'] },
+    });
+    const matching = toPublicStep({
+      id: 'm',
+      xPct: 0,
+      yPct: 0,
+      imageIndex: 0,
+      interactionType: 'question',
+      question: {
+        type: 'matching',
+        text: 'Match',
+        matchingPairs: [{ left: 'x', right: 'y' }],
+      },
+    });
+    expect(sorting.question).not.toHaveProperty('correctAnswer');
+    expect([...(sorting.question?.sortingItems ?? [])].sort()).toEqual([
+      'a',
+      'b',
+    ]);
+    expect(matching.question).not.toHaveProperty('matchingPairs');
+  });
 });
 
 // ─── Helper to build a minimal matching step ──────────────────────────────────

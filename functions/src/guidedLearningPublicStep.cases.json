@@ -1,0 +1,199 @@
+[
+  {
+    "name": "a plain text step keeps only what the player draws",
+    "step": {
+      "id": "s1",
+      "xPct": 20,
+      "yPct": 40,
+      "imageIndex": 0,
+      "label": "Start here",
+      "interactionType": "text-popover",
+      "text": "Read the label on the left.",
+      "tour": { "anchorId": "board-canvas" },
+      "audioStoragePath": "users/abc/audio/s1.mp3"
+    },
+    "expected": {
+      "id": "s1",
+      "xPct": 20,
+      "yPct": 40,
+      "imageIndex": 0,
+      "label": "Start here",
+      "interactionType": "text-popover",
+      "text": "Read the label on the left."
+    }
+  },
+  {
+    "name": "a multiple-choice step ships its choices and no key",
+    "step": {
+      "id": "s2",
+      "xPct": 50,
+      "yPct": 50,
+      "imageIndex": 1,
+      "interactionType": "question",
+      "question": {
+        "type": "multiple-choice",
+        "text": "Which is a mammal?",
+        "choices": ["Whale", "Trout", "Newt"],
+        "correctAnswer": "Whale"
+      }
+    },
+    "expected": {
+      "id": "s2",
+      "xPct": 50,
+      "yPct": 50,
+      "imageIndex": 1,
+      "interactionType": "question",
+      "question": {
+        "type": "multiple-choice",
+        "text": "Which is a mammal?",
+        "choices": ["Newt", "Trout", "Whale"]
+      }
+    }
+  },
+  {
+    "name": "a matching step splits into two shuffled sides",
+    "step": {
+      "id": "s3",
+      "xPct": 10,
+      "yPct": 10,
+      "imageIndex": 0,
+      "interactionType": "question",
+      "question": {
+        "type": "matching",
+        "text": "Pair the capitals.",
+        "matchingPairs": [
+          { "left": "France", "right": "Paris" },
+          { "left": "Norway", "right": "Oslo" }
+        ]
+      }
+    },
+    "expected": {
+      "id": "s3",
+      "xPct": 10,
+      "yPct": 10,
+      "imageIndex": 0,
+      "interactionType": "question",
+      "question": {
+        "type": "matching",
+        "text": "Pair the capitals.",
+        "matchingLeft": ["France", "Norway"],
+        "matchingRight": ["Oslo", "Paris"]
+      }
+    }
+  },
+  {
+    "name": "a sorting step ships its items out of order",
+    "step": {
+      "id": "s4",
+      "xPct": 0,
+      "yPct": 0,
+      "imageIndex": 2,
+      "interactionType": "question",
+      "question": {
+        "type": "sorting",
+        "text": "Put these in order.",
+        "sortingItems": ["First", "Second", "Third"]
+      }
+    },
+    "expected": {
+      "id": "s4",
+      "xPct": 0,
+      "yPct": 0,
+      "imageIndex": 2,
+      "interactionType": "question",
+      "question": {
+        "type": "sorting",
+        "text": "Put these in order.",
+        "sortingItems": ["First", "Second", "Third"]
+      }
+    }
+  },
+  {
+    "name": "a multiple-choice step with no choices ships no question at all",
+    "step": {
+      "id": "s5",
+      "xPct": 1,
+      "yPct": 2,
+      "imageIndex": 0,
+      "interactionType": "question",
+      "question": {
+        "type": "multiple-choice",
+        "text": "Unfinished",
+        "correctAnswer": "Whale"
+      }
+    },
+    "expected": {
+      "id": "s5",
+      "xPct": 1,
+      "yPct": 2,
+      "imageIndex": 0,
+      "interactionType": "question"
+    }
+  },
+  {
+    "name": "narration keeps its playback fields only",
+    "step": {
+      "id": "s6",
+      "xPct": 5,
+      "yPct": 5,
+      "imageIndex": 0,
+      "interactionType": "tooltip",
+      "narration": {
+        "url": "https://example.test/n.mp3",
+        "durationMs": 4200,
+        "voice": "Aoede",
+        "storagePath": "users/abc/narration/s6.mp3",
+        "text": "the script the teacher typed"
+      }
+    },
+    "expected": {
+      "id": "s6",
+      "xPct": 5,
+      "yPct": 5,
+      "imageIndex": 0,
+      "interactionType": "tooltip",
+      "narration": {
+        "url": "https://example.test/n.mp3",
+        "durationMs": 4200,
+        "voice": "Aoede"
+      }
+    }
+  },
+  {
+    "name": "presentation settings travel whole",
+    "step": {
+      "id": "s7",
+      "xPct": 33,
+      "yPct": 66,
+      "imageIndex": 3,
+      "interactionType": "spotlight",
+      "showOverlay": "dim",
+      "tooltipPosition": "left",
+      "tooltipOffset": 12,
+      "panZoomScale": 1.8,
+      "spotlightRadius": 90,
+      "bannerTone": "blue",
+      "autoAdvanceDuration": 5,
+      "hotspotAlwaysHidden": true,
+      "region": { "xPct": 10, "yPct": 10, "wPct": 30, "hPct": 20 },
+      "cursor": { "kind": "pointer" }
+    },
+    "expected": {
+      "id": "s7",
+      "xPct": 33,
+      "yPct": 66,
+      "imageIndex": 3,
+      "interactionType": "spotlight",
+      "showOverlay": "dim",
+      "tooltipPosition": "left",
+      "tooltipOffset": 12,
+      "panZoomScale": 1.8,
+      "spotlightRadius": 90,
+      "bannerTone": "blue",
+      "autoAdvanceDuration": 5,
+      "hotspotAlwaysHidden": true,
+      "region": { "xPct": 10, "yPct": 10, "wPct": 30, "hPct": 20 },
+      "cursor": { "kind": "pointer" }
+    }
+  }
+]

@@ -4259,3 +4259,161 @@ describe('useQuizSessionStudent — subscribeForReview', () => {
     expect(recentProbeCall).toBeUndefined();
   });
 });
+
+describe('useQuizSessionStudent — per-period joins', () => {
+  const period = (state: 'open' | 'closed', label: string) => ({
+    state,
+    openAt: null,
+    closeAt: null,
+    bellPeriodId: null,
+    verified: true,
+    label,
+  });
+  const batchSet = vi.fn();
+  const batchCommit = vi.fn();
+
+  function signInAs(uid: string, isAnonymous: boolean, classIds: string[]) {
+    (auth as unknown as { currentUser: unknown }).currentUser = {
+      uid,
+      isAnonymous,
+      getIdTokenResult: () => Promise.resolve({ claims: { classIds } }),
+    };
+  }
+
+  function sessionWith(extra: Partial<QuizSession>) {
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [
+        buildSessionDoc('s1', {
+          status: 'active',
+          classIds: ['A', 'B'],
+          questionsInContent: true,
+          periodAccess: { A: period('closed', 'P1'), B: period('open', 'P3') },
+          ...extra,
+        }),
+      ],
+    });
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (firestore.getDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      { exists: () => false }
+    );
+    (
+      firestore.onSnapshot as unknown as ReturnType<typeof vi.fn>
+    ).mockImplementation(() => vi.fn());
+    (firestore.doc as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      (...segments: unknown[]) => ({ path: segments.slice(1).join('/') })
+    );
+    (
+      firestore.collection as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({});
+    const batch = { set: batchSet, commit: batchCommit };
+    batchSet.mockReturnValue(batch);
+    batchCommit.mockResolvedValue(undefined);
+    (
+      firestore.writeBatch as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue(batch);
+  });
+
+  it('joins the open one of two periods and seats the student in the same batch', async () => {
+    signInAs('sso-1', false, ['A', 'B']);
+    sessionWith({});
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await result.current.joinQuizSession('ABC123');
+    });
+
+    expect(firestore.setDoc).not.toHaveBeenCalled();
+    const [[responseRef, response], [seat, seatData]] = batchSet.mock.calls as [
+      { path: string },
+      Record<string, unknown>,
+    ][];
+    expect(responseRef.path).toBe('quiz_sessions/s1/responses/sso-1');
+    expect(response).toMatchObject({ classId: 'B', classPeriod: 'P3' });
+    expect(seat.path).toBe('quiz_sessions/s1/seats/sso-1');
+    expect(seatData).toEqual({ responseKey: 'sso-1' });
+    expect(result.current.periodKeys).toEqual(['A', 'B']);
+  });
+
+  it('matches an anonymous PIN joiner to the period they picked in assignment mode', async () => {
+    signInAs('anon-1', true, []);
+    sessionWith({ accessMode: 'assignment' });
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await result.current.joinQuizSession('ABC123', '1234', 'P1');
+    });
+
+    const [, response] = batchSet.mock.calls[0] as [
+      unknown,
+      Record<string, unknown>,
+    ];
+    expect(response).toMatchObject({ classId: 'A', classPeriod: 'P1' });
+  });
+
+  it('refuses an anonymous PIN joiner in assessment mode', async () => {
+    signInAs('anon-1', true, []);
+    sessionWith({ accessMode: 'assessment' });
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await expect(
+        result.current.joinQuizSession('ABC123', '1234', 'P1')
+      ).rejects.toThrow('This quiz needs your school sign-in');
+    });
+    expect(batchCommit).not.toHaveBeenCalled();
+  });
+
+  it('refuses a student in none of the targeted periods', async () => {
+    signInAs('sso-2', false, ['Z']);
+    sessionWith({});
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await expect(result.current.joinQuizSession('ABC123')).rejects.toThrow(
+        "You're not in a class this quiz was assigned to"
+      );
+    });
+  });
+});
+
+describe('useQuizSessionTeacher — per-period content', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupTeacherMocks();
+  });
+
+  it('stays loading until the content doc arrives, then merges its questions', () => {
+    const byPath = new Map<string, SnapshotCallback>();
+    (
+      firestore.onSnapshot as unknown as ReturnType<typeof vi.fn>
+    ).mockImplementation(
+      (target: { path: string[] }, onNext: SnapshotCallback) => {
+        byPath.set(target.path.join('/'), onNext);
+        return vi.fn();
+      }
+    );
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+    act(() =>
+      byPath.get('quiz_sessions/sess-1')?.({
+        exists: () => true,
+        data: () =>
+          buildSession({
+            status: 'active',
+            questionsInContent: true,
+            publicQuestions: [],
+          }),
+      })
+    );
+    expect(result.current.loading).toBe(true);
+    act(() =>
+      byPath.get('quiz_sessions/sess-1/content/questions')?.({
+        exists: () => true,
+        data: () => ({ publicQuestions: [{ id: 'q1' }] }),
+      })
+    );
+    expect(result.current.loading).toBe(false);
+    expect(result.current.session?.publicQuestions).toHaveLength(1);
+  });
+});

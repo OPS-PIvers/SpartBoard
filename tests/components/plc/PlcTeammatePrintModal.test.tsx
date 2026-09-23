@@ -120,7 +120,6 @@ function makeContext(
       { id: 'r2', name: 'Period 4', studentCount: 3, students: [] },
     ],
     existingBatches: [],
-    blocked: null,
     ...overrides,
   };
 }
@@ -241,7 +240,7 @@ describe('PlcTeammatePrintModal', () => {
     expect(screen.getByText('4 sheets')).toBeInTheDocument();
   });
 
-  it('cannot print when nothing is selected or the teammate is blocked', () => {
+  it('cannot print when nothing is selected', () => {
     open();
     pick('Bob Teacher');
     fireEvent.change(screen.getByLabelText(/Blank spare sheets/), {
@@ -273,23 +272,24 @@ describe('PlcTeammatePrintModal', () => {
     expect(screen.getByText('2 unnamed sheets')).toBeInTheDocument();
   });
 
-  it('names what is missing when nothing can be printed at all', () => {
+  it('says the copy lands on their next sign-in when they have none (D20)', () => {
     open(
       makeContext({
         hasCopy: false,
         quizId: null,
         driveReachable: false,
         contentSource: 'synced-group',
-        blocked: 'no-copy-no-drive',
         rosters: [],
       })
     );
     pick('Bob Teacher');
     expect(
-      screen.getByText(/has not added this quiz to their library/)
+      screen.getByText(/not in Bob Teacher’s library yet/)
     ).toBeInTheDocument();
-    // The blocked banner replaces the spares-only one rather than stacking.
-    expect(screen.queryByText(/students write their own names/)).toBeNull();
+    // It is an explanation, not a refusal: the unnamed-stack banner still shows.
+    expect(
+      screen.getByText(/students write their own names/)
+    ).toBeInTheDocument();
   });
 
   it('flags content that came from the PLC copy rather than theirs', () => {
@@ -475,19 +475,19 @@ describe('PlcTeammatePrintModal — printing', () => {
     ).toBeInTheDocument();
   });
 
-  it('refuses to print for a teammate nothing can be printed for', () => {
+  it('still prints for a teammate with no copy and no Drive (D20)', () => {
     open(
       makeContext({
         hasCopy: false,
         quizId: null,
         driveReachable: false,
         contentSource: 'synced-group',
-        blocked: 'no-copy-no-drive',
         rosters: [],
       })
     );
     pick('Bob Teacher');
-    expect(screen.getByRole('button', { name: /^Print$/ })).toBeDisabled();
+    // Spares alone are a printable stack, so the button is live.
+    expect(screen.getByRole('button', { name: /^Print$/ })).toBeEnabled();
   });
 
   describe('sheet stimuli the owner may not have shared', () => {

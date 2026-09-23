@@ -70,10 +70,17 @@ import {
   SessionRow,
   ActionButton,
   OverflowMenu,
+  LaunchedBySubTag,
 } from '@/components/common/sessionViews';
 import type { OverflowMenuItem } from '@/components/common/sessionViews';
 import { scoreColorClasses } from '@/utils/scoreColor';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { useVideoActivityKeyQuestions } from '@/hooks/useVideoActivityKeyQuestions';
+
+const KEY_LOADING_TOAST =
+  'Still loading the answer key — try again in a moment.';
+const KEY_FAILED_TOAST =
+  "Couldn't load this activity's answer key, so grades can't be pushed. Reload and try again.";
 
 interface ResultsProps {
   session: VideoActivitySession;
@@ -140,7 +147,11 @@ export const Results: React.FC<ResultsProps> = ({
   // Per-instance prefix for the ARIA tab↔panel linkage.
   const tabPanelId = useId();
 
-  const questions = session.questions;
+  const {
+    questions,
+    loading: keyLoading,
+    failed: keyFailed,
+  } = useVideoActivityKeyQuestions(session);
   const totalStudents = responses.length;
 
   /**
@@ -248,6 +259,7 @@ export const Results: React.FC<ResultsProps> = ({
         score: r.score,
         submittedAt: r.completedAt,
         tabSwitchWarnings: r.tabSwitchWarnings ?? 0,
+        tabExits: r.tabExits,
       }));
 
       // Pass `byStudentUid` so SSO `studentRole` rows (no PIN) export with
@@ -276,6 +288,7 @@ export const Results: React.FC<ResultsProps> = ({
           byStudentUid,
           gradeFn:
             gradeVideoActivityAnswer as unknown as NonNullable<ExporterOptions>['gradeFn'],
+          timeAway: canAccessFeature('tab-away-timer'),
         }
       );
       setExportUrl(url);
@@ -300,6 +313,10 @@ export const Results: React.FC<ResultsProps> = ({
   // payload fans out to each (Item D multi-course).
   const classroomAttachments = getClassroomAttachments(session);
   const handlePushGrades = async () => {
+    if (keyLoading || keyFailed) {
+      addToast(keyFailed ? KEY_FAILED_TOAST : KEY_LOADING_TOAST, 'info');
+      return;
+    }
     // Guard the grade scale FIRST (a malformed/stale attachment could carry
     // NaN/0 maxPoints, scaling every grade to 0/NaN), then the eligible list —
     // completed responses with a resolvable pseudonym — so we never pop a
@@ -379,6 +396,10 @@ export const Results: React.FC<ResultsProps> = ({
   const ltiAttachment = session?.ltiAttachment ?? null;
   const handlePushSchoologyGrades = async () => {
     if (!ltiAttachment) return;
+    if (keyLoading || keyFailed) {
+      addToast(keyFailed ? KEY_FAILED_TOAST : KEY_LOADING_TOAST, 'info');
+      return;
+    }
 
     // The gradebook denominator = the activity's summed question points (= the
     // line item `scoreMaximum` the picker set at deep-link time). Shared with
@@ -505,6 +526,18 @@ export const Results: React.FC<ResultsProps> = ({
         }
       />
 
+      {session.launchedBy && (
+        <div
+          className="flex shrink-0 items-center border-b border-slate-200"
+          style={{ padding: 'min(6px, 1.6cqmin) min(16px, 4cqmin)' }}
+        >
+          <LaunchedBySubTag
+            launchedBy={session.launchedBy}
+            at={session.createdAt}
+          />
+        </div>
+      )}
+
       {exportError && (
         <div
           className="flex items-center bg-amber-50 border-b border-amber-200 text-amber-700"
@@ -617,8 +650,20 @@ export const Results: React.FC<ResultsProps> = ({
           (questions.length === 0 ? (
             <ScaledEmptyState
               icon={Clock}
-              title="No questions"
-              subtitle="This activity has no questions."
+              title={
+                keyLoading
+                  ? 'Loading questions…'
+                  : keyFailed
+                    ? "Couldn't load the answer key"
+                    : 'No questions'
+              }
+              subtitle={
+                keyLoading
+                  ? undefined
+                  : keyFailed
+                    ? 'Reload to try again. Scores stay hidden until it loads.'
+                    : 'This activity has no questions.'
+              }
             />
           ) : (
             <div className="bg-white/70 border border-slate-200/60 rounded-2xl backdrop-blur-sm shadow-sm overflow-hidden">

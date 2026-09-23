@@ -96,6 +96,9 @@ export const PlcAuthorQuizModal: React.FC<PlcAuthorQuizModalProps> = ({
       isOpen={isOpen}
       quiz={newQuiz}
       onClose={onClose}
+      // Saving here creates the quiz and moves on to assignment config, so it
+      // is a submit, not a persist.
+      autosave={false}
       onSave={handleSave}
     />
   );

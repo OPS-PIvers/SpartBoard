@@ -2,11 +2,11 @@
 
 ## Development Branch Setup
 
-Each developer has their own persistent test environment on Firebase Hosting.
+Dev branches deploy to a separate Firebase project, `spartboard-dev`, with its own Firestore, Storage, Auth and Cloud Functions. Production (`spartboard`) changes only when `main` moves.
 
 ### Branch Names
 
-- Any branch starting with `dev-` (e.g., `dev-paul`, `dev-jane`) will automatically trigger a preview deployment.
+- Any branch starting with `dev-` (e.g., `dev-paul`) deploys the whole app — hosting, rules, indexes, Storage rules and functions — to `spartboard-dev`. The project has one site, so concurrent `dev-*` branches overwrite each other.
 
 ### How It Works
 
@@ -31,32 +31,31 @@ Each developer has their own persistent test environment on Firebase Hosting.
 
 4. **Automatic deployment**: GitHub Actions will automatically:
    - Build your code
-   - Deploy to a Firebase preview channel
-     - Give you a unique URL like: `https://spartboard--dev-lead-XXXXXXXX.web.app`
+   - Deploy everything to `spartboard-dev`, served at `https://spartboard-dev.web.app`
 5. **Find your URL**:
    - Go to your repo's "Actions" tab on GitHub
    - Click on the latest workflow run
    - Look for the "Comment deployment URL" step or check the workflow summary
 
-### Preview URL Characteristics
+### Dev Project Characteristics
 
-- **Persistent**: Same URL for each branch (doesn't change with each push)
-- **Auto-updating**: Each push to your branch updates the preview
-- **Duration**: Previews expire after 30 days of inactivity (automatically renewed on push)
-- **Independent**: Each branch has its own isolated environment
+- **Isolated data**: dev has its own database. It holds config copied from prod (admins, feature permissions, admin settings, standards, buildings, the mock test class) and no student data. Refresh it with `node scripts/dev-seed/copy-config-from-prod.mjs` (`--dry-run` first).
+- **Same Drive app**: dev reuses prod's Google OAuth client, so Drive files created in prod open in dev — and a dev bug can still edit your real Drive files.
+- **Placeholders**: ClassLink and Spotify secrets are dummy values in dev; ClassLink nightly sync is off. Use the mock test class for student sign-in.
+- **Release compatibility**: rules and function changes still have to tolerate a teacher's already-open tab running the previous client when `main` deploys.
 
 ### Creating Pull Requests
 
 Once you're happy with your changes on your dev branch:
 
-1. Test thoroughly on your preview URL
+1. Test thoroughly on https://spartboard-dev.web.app
 2. Create a PR from your dev branch → `main`
 3. Request code review
 4. After approval and merge, changes will deploy to production (main site)
 
 ### Tips
 
-- **Share your preview URL** with team members for early feedback
+- **Share the dev URL** with team members for early feedback (they sign in with their district account)
 - **Test Firebase features** on your preview before merging
 - **Keep branches updated**: Regularly merge `main` into your dev branch to stay current
   ```bash
@@ -121,7 +120,7 @@ Run `/deslop --writing public/changelog.json` as a final pass before committing.
 ## Workflow Files
 
 - **Production**: [`.github/workflows/firebase-deploy.yml`](.github/workflows/firebase-deploy.yml) - Deploys `main` to live site
-- **Dev Branches**: [`.github/workflows/firebase-dev-deploy.yml`](.github/workflows/firebase-dev-deploy.yml) - Deploys dev branches to preview channels
+- **Dev Branches**: [`.github/workflows/firebase-dev-deploy.yml`](.github/workflows/firebase-dev-deploy.yml) - Deploys dev branches to the `spartboard-dev` project
 
 ## Troubleshooting
 

@@ -49,6 +49,7 @@ import {
   AssignTargetingSection,
   type AssignTargetingValue,
 } from '@/components/common/library/AssignTargetingSection';
+import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 import { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
 import { ViewOnlyShareModal } from '@/components/common/library/ViewOnlyShareModal';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
@@ -163,6 +164,8 @@ export interface VideoActivityManagerProps {
   ) => Promise<string>;
   /** Rosters to populate the picker. */
   rosters: ClassRoster[];
+  /** Per-period access choices in the assign modal; undefined while the flag is off. */
+  periodAccess?: AssignPeriodAccessContext;
   /**
    * Per-activity memory of the last roster selection. Pre-selects the picker
    * on re-launch.
@@ -467,6 +470,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchivePublishScores,
   onArchiveUnpublishScores,
   rosters,
+  periodAccess,
   lastRosterIdsByActivityId,
   lastClassIdsByActivityId,
   lastClassIdByActivityId,
@@ -1465,6 +1469,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
               onPickerChange={setPickerValue}
               targeting={assignTargeting}
               onTargetingChange={setAssignTargeting}
+              periodAccess={periodAccess}
               assignError={assignError}
               onEditInActivity={() => {
                 setAssignTarget(null);
@@ -1524,6 +1529,7 @@ const AssignBehaviorSummaryVA: React.FC<{
   /** M17 B3 — individual targeting/overrides/window (spec §5 B3). */
   targeting: AssignTargetingValue;
   onTargetingChange: (next: AssignTargetingValue) => void;
+  periodAccess?: AssignPeriodAccessContext;
   assignError: string | null;
   onEditInActivity?: () => void;
 }> = ({
@@ -1535,6 +1541,7 @@ const AssignBehaviorSummaryVA: React.FC<{
   onPickerChange,
   targeting,
   onTargetingChange,
+  periodAccess,
   assignError,
   onEditInActivity,
 }) => {
@@ -1564,6 +1571,7 @@ const AssignBehaviorSummaryVA: React.FC<{
       <AssignTargetingSection
         rosters={rosters}
         selectedRosterIds={pickerValue.rosterIds}
+        periodAccess={periodAccess}
         value={targeting}
         onChange={onTargetingChange}
         kind="video-activity"

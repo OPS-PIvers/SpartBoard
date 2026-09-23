@@ -1,15 +1,24 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useReducer, useRef, useState } from 'react';
 import {
   GuidedLearningSet,
   GuidedLearningMode,
+  GuidedLearningNarration,
+  GuidedLearningRegion,
   GuidedLearningStep,
   GuidedLearningSetMetadata,
   GuidedLearningVideoTrim,
+  GuidedLearningWatchPace,
   LibraryFolder,
 } from '@/types';
+import type { EditorHistoryApi } from '../types/stage';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
-import { isGuidedLearningSetV2 } from '../utils/setMigration';
+import {
+  isGuidedLearningSetV2,
+  stepUsesSpotlight,
+} from '../utils/setMigration';
+import { slideMediaRef } from '../utils/slideMedia';
+import { narrationDeletionRef } from '../utils/narration';
 import {
   getMediaKind,
   prepareImageForUpload,
@@ -17,6 +26,14 @@ import {
   videoExtensionForMime,
   type GuidedLearningMediaKind,
 } from '@/utils/guidedLearningMedia';
+import {
+  documentFromSet,
+  editorHistoryReducer,
+  initialHistory,
+  pendingMediaDeletions,
+  type EditorDocument,
+  type MediaDeletionRef,
+} from './editorHistory';
 
 /** Live progress for the slide-upload pipeline (null when idle). */
 export interface SlideUploadProgress {
@@ -43,7 +60,7 @@ interface UseGuidedLearningEditorStateProps {
   onFolderChange?: (folderId: string | null) => void;
 }
 
-export interface GuidedLearningEditorController {
+export interface GuidedLearningEditorController extends EditorHistoryApi {
   // Form fields
   title: string;
   setTitle: (next: string) => void;
@@ -60,6 +77,9 @@ export interface GuidedLearningEditorController {
   setWelcomeEnabled: (next: boolean) => void;
   welcomeMessage: string;
   setWelcomeMessage: (next: string) => void;
+  /** Watch-mode pacing; undefined = standard. */
+  watchPace: GuidedLearningWatchPace | undefined;
+  setWatchPace: (next: GuidedLearningWatchPace | undefined) => void;
   // Slides (images, GIFs, and uploaded/recorded videos)
   imageUrls: string[];
   imageKinds: GuidedLearningMediaKind[];
@@ -79,7 +99,11 @@ export interface GuidedLearningEditorController {
     baseName: string
   ) => Promise<void>;
   deleteImage: (index: number) => void;
+  /** Uploads a redacted copy over a slide and queues the old image for deletion on close. */
+  replaceSlideImage: (index: number, blob: Blob) => Promise<boolean>;
   moveImage: (fromIndex: number, direction: -1 | 1) => void;
+  /** Reorder slides; `order[i]` is the old index of the slide now at `i`. */
+  reorderImages: (order: number[]) => void;
   imageError: string;
   // Steps
   steps: GuidedLearningStep[];
@@ -88,11 +112,26 @@ export interface GuidedLearningEditorController {
   setSelectedStepId: (id: string | null) => void;
   addingStep: boolean;
   setAddingStep: (next: boolean) => void;
-  addStepAt: (xPct: number, yPct: number) => void;
+  /** Adds a step at a point, or with a drawn region centred there, and selects it. */
+  addStepAt: (
+    xPct: number,
+    yPct: number,
+    region?: GuidedLearningRegion
+  ) => void;
   updateStep: (updated: GuidedLearningStep) => void;
   deleteStep: (id: string) => void;
   /** Apply a new ordering of the entire steps array (e.g. from drag-reorder). */
   reorderSteps: (next: GuidedLearningStep[]) => void;
+  /** Uploads a recorded narration take for this editing session. */
+  uploadNarrationTake: (
+    blob: Blob,
+    mimeType: string
+  ) => Promise<{ url: string; storagePath: string }>;
+  /** Sets or clears a step's narration; a take recorded this session is queued for deletion when replaced. */
+  setStepNarration: (
+    stepId: string,
+    next: GuidedLearningNarration | undefined
+  ) => void;
   // Folder picker
   folders?: LibraryFolder[];
   folderId?: string | null;
@@ -108,21 +147,16 @@ export interface GuidedLearningEditorController {
   /** True once in-editor spotlight radii use v2 image-relative semantics. */
   spotlightRadiiV2: boolean;
   markSpotlightRadiiV2: () => void;
+  /** Deletes every queued file whose edit is still in effect; call after a closing save. */
+  flushMediaDeletions: (
+    deleteFile: (storagePath: string) => Promise<void>,
+    deleteDriveFile: (fileId: string) => Promise<void>
+  ) => Promise<void>;
 }
 
-/** Normalize a set's persisted kinds array to align with its imageUrls. */
-function kindsForSet(set: GuidedLearningSet | null): GuidedLearningMediaKind[] {
-  if (!set) return [];
-  return set.imageUrls.map((_, i) => set.imageKinds?.[i] ?? 'image');
-}
-
-/** Normalize a set's persisted trims array to align with its imageUrls. */
-function trimsForSet(
-  set: GuidedLearningSet | null
-): (GuidedLearningVideoTrim | null)[] {
-  if (!set) return [];
-  return set.imageUrls.map((_, i) => set.videoTrims?.[i] ?? null);
-}
+// A set with no spotlight has no radius to convert, so it needs no load-time measuring.
+const startsOnV2Radii = (set: GuidedLearningSet | null) =>
+  !set || isGuidedLearningSetV2(set) || !set.steps.some(stepUsesSpotlight);
 
 /**
  * Owns all state for the Guided Learning editor. Returned as a controller
@@ -135,77 +169,127 @@ export function useGuidedLearningEditorState({
   onFolderChange,
 }: UseGuidedLearningEditorStateProps): GuidedLearningEditorController {
   const { user } = useAuth();
-  const { uploading, uploadHotspotImage, uploadGuidedLearningMedia } =
-    useStorage();
+  const {
+    uploading,
+    uploadHotspotImage,
+    uploadGuidedLearningMedia,
+    uploadGuidedLearningImage,
+  } = useStorage();
 
-  const [title, setTitle] = useState(existingSet?.title ?? '');
-  const [description, setDescription] = useState(
-    existingSet?.description ?? ''
+  const [history, dispatch] = useReducer(
+    editorHistoryReducer,
+    existingSet,
+    (set) => initialHistory(documentFromSet(set))
   );
-  const [mode, setMode] = useState<GuidedLearningMode>(
-    existingSet?.mode ?? 'structured'
+  const historyRef = useRef(history);
+  historyRef.current = history;
+  const {
+    title,
+    description,
+    mode,
+    imageUrls,
+    imageKinds,
+    videoTrims,
+    steps,
+    hotspotPulse,
+    imageTransition,
+    welcomeEnabled,
+    welcomeMessage,
+    watchPace,
+  } = history.present;
+
+  const applyDoc = useCallback(
+    (update: (doc: EditorDocument) => EditorDocument, coalesceKey?: string) =>
+      dispatch({ type: 'apply', update, coalesceKey, at: Date.now() }),
+    []
   );
-  const [imageUrls, setImageUrls] = useState<string[]>(
-    existingSet?.imageUrls ?? []
+  const setField = useCallback(
+    <K extends keyof EditorDocument>(
+      key: K,
+      value: EditorDocument[K],
+      coalesceKey?: string
+    ) =>
+      applyDoc(
+        (doc) => (doc[key] === value ? doc : { ...doc, [key]: value }),
+        coalesceKey
+      ),
+    [applyDoc]
   );
-  const [imageKinds, setImageKinds] = useState<GuidedLearningMediaKind[]>(() =>
-    kindsForSet(existingSet)
+  const setTitle = useCallback(
+    (next: string) => setField('title', next, 'title'),
+    [setField]
   );
-  const [videoTrims, setVideoTrims] = useState<
-    (GuidedLearningVideoTrim | null)[]
-  >(() => trimsForSet(existingSet));
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [steps, setSteps] = useState<GuidedLearningStep[]>(
-    existingSet?.steps ?? []
+  const setDescription = useCallback(
+    (next: string) => setField('description', next, 'description'),
+    [setField]
+  );
+  const setMode = useCallback(
+    (next: GuidedLearningMode) => setField('mode', next),
+    [setField]
+  );
+  const setHotspotPulse = useCallback(
+    (next: 'consistent' | 'reminder' | 'off') => setField('hotspotPulse', next),
+    [setField]
+  );
+  const setImageTransition = useCallback(
+    (next: 'none' | 'slide' | 'fade') => setField('imageTransition', next),
+    [setField]
+  );
+  const setWelcomeEnabled = useCallback(
+    (next: boolean) => setField('welcomeEnabled', next),
+    [setField]
+  );
+  const setWelcomeMessage = useCallback(
+    (next: string) => setField('welcomeMessage', next, 'welcomeMessage'),
+    [setField]
+  );
+  const setWatchPace = useCallback(
+    (next: GuidedLearningWatchPace | undefined) => setField('watchPace', next),
+    [setField]
+  );
+  const setSteps = useCallback<
+    React.Dispatch<React.SetStateAction<GuidedLearningStep[]>>
+  >(
+    (action) =>
+      applyDoc((doc) => {
+        const next = typeof action === 'function' ? action(doc.steps) : action;
+        return next === doc.steps ? doc : { ...doc, steps: next };
+      }),
+    [applyDoc]
+  );
+
+  const [rawImageIndex, setCurrentImageIndex] = useState(0);
+  // Undo can remove the slide being shown, so clamp on read.
+  const currentImageIndex = Math.max(
+    0,
+    Math.min(rawImageIndex, imageUrls.length - 1)
   );
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [imageError, setImageError] = useState('');
   const [addingStep, setAddingStep] = useState(false);
   const [uploadProgress, setUploadProgress] =
     useState<SlideUploadProgress | null>(null);
-  const [hotspotPulse, setHotspotPulse] = useState<
-    'consistent' | 'reminder' | 'off'
-  >(existingSet?.hotspotPulse ?? 'consistent');
-  const [imageTransition, setImageTransition] = useState<
-    'none' | 'slide' | 'fade'
-  >(existingSet?.imageTransition ?? 'none');
-  const [welcomeEnabled, setWelcomeEnabled] = useState<boolean>(
-    Boolean(existingSet?.welcomeEnabled)
-  );
-  const [welcomeMessage, setWelcomeMessage] = useState<string>(
-    existingSet?.welcomeMessage ?? ''
-  );
   const [canvasMeasuredTick, setCanvasMeasuredTick] = useState(0);
   const [spotlightRadiiV2, setSpotlightRadiiV2] = useState<boolean>(() =>
-    existingSet ? isGuidedLearningSetV2(existingSet) : true
+    startsOnV2Radii(existingSet)
   );
 
   // Reset all draft state when the underlying set identity changes (parent
   // swapped to a different set). Uses the "adjust state while rendering"
   // pattern so the next render uses fresh values without an extra effect.
+  const flushedMediaRef = useRef<Set<MediaDeletionRef>>(new Set());
   const currentSetId = existingSet?.id ?? null;
   const [prevSetId, setPrevSetId] = useState<string | null>(currentSetId);
   if (currentSetId !== prevSetId) {
     setPrevSetId(currentSetId);
-    setTitle(existingSet?.title ?? '');
-    setDescription(existingSet?.description ?? '');
-    setMode(existingSet?.mode ?? 'structured');
-    setImageUrls(existingSet?.imageUrls ?? []);
-    setImageKinds(kindsForSet(existingSet));
-    setVideoTrims(trimsForSet(existingSet));
+    dispatch({ type: 'reset', doc: documentFromSet(existingSet) });
+    flushedMediaRef.current = new Set();
     setCurrentImageIndex(0);
-    setSteps(existingSet?.steps ?? []);
     setSelectedStepId(null);
     setImageError('');
     setAddingStep(false);
     setUploadProgress(null);
-    setHotspotPulse(existingSet?.hotspotPulse ?? 'consistent');
-    setImageTransition(existingSet?.imageTransition ?? 'none');
-    setWelcomeEnabled(Boolean(existingSet?.welcomeEnabled));
-    setWelcomeMessage(existingSet?.welcomeMessage ?? '');
-    setSpotlightRadiiV2(
-      existingSet ? isGuidedLearningSetV2(existingSet) : true
-    );
+    setSpotlightRadiiV2(startsOnV2Radii(existingSet));
   }
 
   // Render-synced mirror of imageUrls.length so the sequential upload loop
@@ -217,14 +301,17 @@ export function useGuidedLearningEditorState({
   const appendSlides = useCallback(
     (urls: string[], kinds: GuidedLearningMediaKind[]) => {
       if (urls.length === 0) return;
-      setImageUrls((prev) => [...prev, ...urls]);
-      setImageKinds((prev) => [...prev, ...kinds]);
-      setVideoTrims((prev) => [...prev, ...urls.map(() => null)]);
+      applyDoc((doc) => ({
+        ...doc,
+        imageUrls: [...doc.imageUrls, ...urls],
+        imageKinds: [...doc.imageKinds, ...kinds],
+        videoTrims: [...doc.videoTrims, ...urls.map(() => null)],
+      }));
       // Jump the canvas to the last newly added slide so the teacher can
       // immediately start placing hotspots on it.
       setCurrentImageIndex(slideCountRef.current + urls.length - 1);
     },
-    []
+    [applyDoc]
   );
 
   /**
@@ -327,41 +414,62 @@ export function useGuidedLearningEditorState({
 
   const setVideoTrim = useCallback(
     (index: number, trim: GuidedLearningVideoTrim | null) => {
-      setVideoTrims((prev) =>
-        prev.map((existing, i) => (i === index ? trim : existing))
-      );
+      applyDoc((doc) => ({
+        ...doc,
+        videoTrims: doc.videoTrims.map((existing, i) =>
+          i === index ? trim : existing
+        ),
+      }));
     },
-    []
+    [applyDoc]
   );
 
   const deleteImage = useCallback(
     (deleteIndex: number) => {
-      const updatedImageUrls = imageUrls.filter(
-        (_, index) => index !== deleteIndex
-      );
-      setImageUrls(updatedImageUrls);
-      setImageKinds((prev) => prev.filter((_, index) => index !== deleteIndex));
-      setVideoTrims((prev) => prev.filter((_, index) => index !== deleteIndex));
+      const remaining = imageUrls.length - 1;
+      applyDoc((doc) => ({
+        ...doc,
+        imageUrls: doc.imageUrls.filter((_, index) => index !== deleteIndex),
+        imageKinds: doc.imageKinds.filter((_, index) => index !== deleteIndex),
+        videoTrims: doc.videoTrims.filter((_, index) => index !== deleteIndex),
+        steps: doc.steps
+          .filter((step) => step.imageIndex !== deleteIndex)
+          .map((step) =>
+            step.imageIndex > deleteIndex
+              ? { ...step, imageIndex: step.imageIndex - 1 }
+              : step
+          ),
+      }));
       setCurrentImageIndex((curr) => {
-        if (updatedImageUrls.length === 0) return 0;
-        if (curr === deleteIndex)
-          return Math.min(deleteIndex, updatedImageUrls.length - 1);
+        if (remaining <= 0) return 0;
+        if (curr === deleteIndex) return Math.min(deleteIndex, remaining - 1);
         if (curr > deleteIndex) return curr - 1;
         return curr;
       });
-      setSteps((prev) =>
-        prev
-          .filter((step) => step.imageIndex !== deleteIndex)
-          .map((step) => ({
-            ...step,
-            imageIndex:
-              step.imageIndex > deleteIndex
-                ? step.imageIndex - 1
-                : step.imageIndex,
-          }))
-      );
     },
-    [imageUrls]
+    [imageUrls.length, applyDoc]
+  );
+
+  const replaceSlideImage = useCallback(
+    async (index: number, blob: Blob): Promise<boolean> => {
+      const oldUrl = historyRef.current.present.imageUrls[index];
+      if (!user || !oldUrl) return false;
+      const { url } = await uploadGuidedLearningImage(
+        user.uid,
+        blob,
+        'redacted.png'
+      );
+      // Slides may have moved during the upload, so find the old image again.
+      if (!historyRef.current.present.imageUrls.includes(oldUrl)) return false;
+      applyDoc((doc) => ({
+        ...doc,
+        imageUrls: doc.imageUrls.map((u) => (u === oldUrl ? url : u)),
+      }));
+      const ref = slideMediaRef(oldUrl);
+      if (ref) dispatch({ type: 'queueMedia', ref });
+      return true;
+    },
+    [user, uploadGuidedLearningImage, applyDoc]
   );
 
   const moveImage = useCallback(
@@ -376,29 +484,51 @@ export function useGuidedLearningEditorState({
         ];
         return updated;
       };
-      setImageUrls(swap);
-      setImageKinds(swap);
-      setVideoTrims(swap);
-      setSteps((prev) =>
-        prev.map((step) => {
+      applyDoc((doc) => ({
+        ...doc,
+        imageUrls: swap(doc.imageUrls),
+        imageKinds: swap(doc.imageKinds),
+        videoTrims: swap(doc.videoTrims),
+        steps: doc.steps.map((step) => {
           if (step.imageIndex === fromIndex)
             return { ...step, imageIndex: toIndex };
           if (step.imageIndex === toIndex)
             return { ...step, imageIndex: fromIndex };
           return step;
-        })
-      );
+        }),
+      }));
       setCurrentImageIndex((prev) => {
         if (prev === fromIndex) return toIndex;
         if (prev === toIndex) return fromIndex;
         return prev;
       });
     },
-    [imageUrls.length]
+    [imageUrls.length, applyDoc]
+  );
+
+  const reorderImages = useCallback(
+    (order: number[]) => {
+      if (order.length !== imageUrls.length) return;
+      const newIndexOf = new Map(order.map((oldIndex, i) => [oldIndex, i]));
+      applyDoc((doc) => ({
+        ...doc,
+        imageUrls: order.map((i) => doc.imageUrls[i]),
+        imageKinds: order.map((i) => doc.imageKinds[i]),
+        videoTrims: order.map((i) => doc.videoTrims[i] ?? null),
+        steps: doc.steps.map((step) => {
+          const next = newIndexOf.get(step.imageIndex);
+          return next === undefined || next === step.imageIndex
+            ? step
+            : { ...step, imageIndex: next };
+        }),
+      }));
+      setCurrentImageIndex((prev) => newIndexOf.get(prev) ?? prev);
+    },
+    [imageUrls.length, applyDoc]
   );
 
   const addStepAt = useCallback(
-    (xPct: number, yPct: number) => {
+    (xPct: number, yPct: number, region?: GuidedLearningRegion) => {
       const newStep: GuidedLearningStep = {
         id: crypto.randomUUID(),
         xPct,
@@ -407,29 +537,85 @@ export function useGuidedLearningEditorState({
         interactionType: 'text-popover',
         showOverlay: 'none',
         text: '',
+        ...(region ? { region } : {}),
       };
       setSteps((prev) => [...prev, newStep]);
       setSelectedStepId(newStep.id);
       setAddingStep(false);
     },
-    [currentImageIndex]
+    [currentImageIndex, setSteps]
   );
 
-  const updateStep = useCallback((updated: GuidedLearningStep) => {
-    setSteps((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
-  }, []);
+  const updateStep = useCallback(
+    (updated: GuidedLearningStep) =>
+      applyDoc(
+        (doc) => ({
+          ...doc,
+          steps: doc.steps.map((s) => (s.id === updated.id ? updated : s)),
+        }),
+        `step:${updated.id}`
+      ),
+    [applyDoc]
+  );
 
   const deleteStep = useCallback(
     (id: string) => {
       setSteps((prev) => prev.filter((s) => s.id !== id));
       if (selectedStepId === id) setSelectedStepId(null);
     },
-    [selectedStepId]
+    [selectedStepId, setSteps]
   );
 
-  const reorderSteps = useCallback((next: GuidedLearningStep[]) => {
-    setSteps(next);
-  }, []);
+  const reorderSteps = useCallback(
+    (next: GuidedLearningStep[]) => setSteps(next),
+    [setSteps]
+  );
+
+  // Takes from earlier sessions may be shared by copies or live assignments, so only this session's are ever deleted.
+  const sessionTakesRef = useRef<Set<string>>(new Set());
+  const uploadNarrationTake = useCallback(
+    async (blob: Blob, mimeType: string) => {
+      if (!user) throw new Error('Not signed in');
+      const ext = mimeType.includes('mp4')
+        ? 'm4a'
+        : mimeType.includes('ogg')
+          ? 'ogg'
+          : 'webm';
+      const { url, storagePath } = await uploadGuidedLearningMedia(
+        user.uid,
+        blob,
+        `narration.${ext}`
+      );
+      sessionTakesRef.current.add(storagePath);
+      return { url, storagePath };
+    },
+    [user, uploadGuidedLearningMedia]
+  );
+
+  const setStepNarration = useCallback(
+    (stepId: string, next: GuidedLearningNarration | undefined) => {
+      const prev = historyRef.current.present.steps.find(
+        (s) => s.id === stepId
+      )?.narration;
+      applyDoc((doc) => ({
+        ...doc,
+        steps: doc.steps.map((s) => {
+          if (s.id !== stepId) return s;
+          if (next) return { ...s, narration: next };
+          const { narration: _removed, ...rest } = s;
+          return rest;
+        }),
+      }));
+      const ref = narrationDeletionRef(prev);
+      if (
+        ref &&
+        ref.storagePath !== next?.storagePath &&
+        sessionTakesRef.current.has(ref.storagePath)
+      )
+        dispatch({ type: 'queueMedia', ref });
+    },
+    [applyDoc]
+  );
 
   const canvasMeasurementsRef = useRef<GuidedLearningCanvasMeasurements | null>(
     null
@@ -440,7 +626,42 @@ export function useGuidedLearningEditorState({
     []
   );
 
-  const markSpotlightRadiiV2 = useCallback(() => setSpotlightRadiiV2(true), []);
+  // The load-time radius conversion is not an edit: undoing past it would
+  // restore legacy radii under v2 semantics.
+  const markSpotlightRadiiV2 = useCallback(() => {
+    setSpotlightRadiiV2(true);
+    dispatch({ type: 'clearHistory' });
+  }, []);
+
+  const undo = useCallback(() => dispatch({ type: 'undo' }), []);
+  const redo = useCallback(() => dispatch({ type: 'redo' }), []);
+  const beginGesture = useCallback(
+    () => dispatch({ type: 'beginGesture' }),
+    []
+  );
+  const endGesture = useCallback(() => dispatch({ type: 'endGesture' }), []);
+  const queueMediaDeletion = useCallback(
+    (ref: MediaDeletionRef) => dispatch({ type: 'queueMedia', ref }),
+    []
+  );
+  const flushMediaDeletions = useCallback(
+    async (
+      deleteFile: (storagePath: string) => Promise<void>,
+      deleteDriveFile: (fileId: string) => Promise<void>
+    ) => {
+      const pending = pendingMediaDeletions(historyRef.current).filter(
+        (ref) => !flushedMediaRef.current.has(ref)
+      );
+      for (const ref of pending) flushedMediaRef.current.add(ref);
+      await Promise.allSettled(
+        pending.flatMap((ref) => [
+          ...(ref.storagePath ? [deleteFile(ref.storagePath)] : []),
+          ...(ref.driveFileId ? [deleteDriveFile(ref.driveFileId)] : []),
+        ])
+      );
+    },
+    []
+  );
 
   const selectedStep = useMemo(
     () => steps.find((s) => s.id === selectedStepId) ?? null,
@@ -467,6 +688,8 @@ export function useGuidedLearningEditorState({
     setWelcomeEnabled,
     welcomeMessage,
     setWelcomeMessage,
+    watchPace,
+    setWatchPace,
     imageUrls,
     imageKinds,
     videoTrims,
@@ -479,7 +702,9 @@ export function useGuidedLearningEditorState({
     uploadFromClipboard,
     addCapturedMedia,
     deleteImage,
+    replaceSlideImage,
     moveImage,
+    reorderImages,
     imageError,
     steps,
     setSteps,
@@ -491,6 +716,8 @@ export function useGuidedLearningEditorState({
     updateStep,
     deleteStep,
     reorderSteps,
+    uploadNarrationTake,
+    setStepNarration,
     folders,
     folderId,
     onFolderChange,
@@ -501,5 +728,13 @@ export function useGuidedLearningEditorState({
     notifyCanvasMeasured,
     spotlightRadiiV2,
     markSpotlightRadiiV2,
+    undo,
+    redo,
+    canUndo: !history.gestureBase && history.past.length > 0,
+    canRedo: !history.gestureBase && history.future.length > 0,
+    beginGesture,
+    endGesture,
+    queueMediaDeletion,
+    flushMediaDeletions,
   };
 }

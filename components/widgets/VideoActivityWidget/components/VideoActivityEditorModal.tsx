@@ -7,7 +7,7 @@
  * prompt / answers).
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import {
   LibraryFolder,
@@ -16,6 +16,7 @@ import {
   VideoActivityQuestion,
 } from '@/types';
 import { EditorWorkspace } from '@/components/common/EditorWorkspace';
+import { videoActivityIncompleteReason } from '@/utils/activityCompleteness';
 import { useAuth } from '@/context/useAuth';
 import { VideoActivityBehaviorSettingsPanel } from '@/components/common/library/VideoActivityBehaviorSettingsPanel';
 import {
@@ -48,6 +49,11 @@ interface VideoActivityEditorModalProps {
    * `DEFAULT_VA_BEHAVIOR`).
    */
   behavior?: VideoActivityBehaviorSettings;
+  /**
+   * Off for flows whose save publishes rather than persists — PLC authoring
+   * moves on to assignment config, and a PLC edit syncs to teammates.
+   */
+  autosave?: boolean;
 }
 
 const arrEq = (a?: string[], b?: string[]): boolean => {
@@ -124,6 +130,7 @@ export const VideoActivityEditorModal: React.FC<
   activity,
   onClose,
   onSave,
+  autosave = true,
   aiEnabled = true,
   isAdmin = false,
   folders,
@@ -198,42 +205,28 @@ export const VideoActivityEditorModal: React.FC<
     ]
   );
 
-  const handleSave = async () => {
-    if (!activity) return;
-    const errors: string[] = [];
-    if (!title.trim()) errors.push('Activity title is required');
-    if (!youtubeUrl.trim()) errors.push('YouTube URL is required');
-    if (questions.length === 0) errors.push('Add at least one question');
-    questions.forEach((q, i) => {
-      if (!q.text.trim()) errors.push(`Question ${i + 1}: text is required`);
-      const type = q.type ?? 'MC';
-      if (type === 'MA') {
-        const correctCount = q.correctAnswer
-          .split('|')
-          .map((s) => s.trim())
-          .filter((s) => s.length > 0).length;
-        const incorrectCount = (q.incorrectAnswers ?? []).filter(
-          (s) => s.trim().length > 0
-        ).length;
-        if (correctCount + incorrectCount === 0) {
-          errors.push(`Question ${i + 1}: add at least one option`);
-        } else if (correctCount === 0) {
-          errors.push(`Question ${i + 1}: select at least one correct option`);
-        }
-        const hasPipe = [
-          ...q.correctAnswer.split('|'),
-          ...(q.incorrectAnswers ?? []),
-        ].some((s) => s.includes('|'));
-        if (hasPipe) {
-          errors.push(
-            `Question ${i + 1}: option text cannot contain the | character`
-          );
-        }
-      } else if (!q.correctAnswer.trim()) {
-        errors.push(`Question ${i + 1}: correct answer is required`);
-      }
-    });
+  // What still has to be filled in before the activity can be assigned. It no
+  // longer gates the save: autosave persists whatever is on screen.
+  const incompleteNotice = useMemo(
+    () => videoActivityIncompleteReason({ title, youtubeUrl, questions }),
+    [title, youtubeUrl, questions]
+  );
 
+  // New identity on every draft edit — the autosave quiet period restarts on it.
+  const draftToken = useMemo(
+    () => [title, youtubeUrl, questions, behavior],
+    [title, youtubeUrl, questions, behavior]
+  );
+
+  // Persist only — the shell owns closing.
+  const persistDraft = useCallback(async () => {
+    if (!activity) return;
+    // Without autosave, Save is a submit: it still refuses an incomplete
+    // activity and closes on success, because no later write will fix either.
+    if (!autosave && incompleteNotice) {
+      setError(incompleteNotice);
+      return;
+    }
     // No strict-monotonic check — questions are auto-sorted by timestamp on
     // every edit, so they're always in a valid order at save time. The only
     // remaining risk is duplicate timestamps, which we resolve by nudging.
@@ -244,11 +237,6 @@ export const VideoActivityEditorModal: React.FC<
       seen.add(ts);
       return ts === q.timestamp ? q : { ...q, timestamp: ts };
     });
-
-    if (errors.length > 0) {
-      setError(errors[0]);
-      return;
-    }
     setSaving(true);
     setError(null);
     try {
@@ -262,13 +250,23 @@ export const VideoActivityEditorModal: React.FC<
         },
         behavior
       );
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed');
+      if (!autosave) onClose();
     } finally {
       setSaving(false);
     }
-  };
+  }, [
+    activity,
+    autosave,
+    incompleteNotice,
+    onClose,
+    questions,
+    title,
+    youtubeUrl,
+    behavior,
+    onSave,
+    setSaving,
+    setError,
+  ]);
 
   // Stable chrome elements so the shell's memoized header/footer don't
   // re-render on question-content keystrokes.
@@ -313,7 +311,9 @@ export const VideoActivityEditorModal: React.FC<
       subtitle={subtitle}
       isDirty={isDirty}
       isSaving={saving}
-      onSave={handleSave}
+      onSave={persistDraft}
+      autosave={autosave ? { draftToken, resetKey: activity?.id } : undefined}
+      incompleteNotice={incompleteNotice}
       onClose={onClose}
       saveLabel="Save Activity"
       footerExtras={footerExtras}

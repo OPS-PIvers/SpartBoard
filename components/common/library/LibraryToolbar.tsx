@@ -26,7 +26,16 @@ const SortDropdown: React.FC<{
   };
 
   return (
-    <div ref={ref} className="relative">
+    <div
+      ref={ref}
+      className="relative"
+      onKeyDown={(e) => {
+        // Not portalled, so a synthetic stopPropagation here also halts the native event — matches FontSelect's listbox-Escape idiom.
+        if (!open || e.key !== 'Escape') return;
+        e.stopPropagation();
+        setOpen(false);
+      }}
+    >
       <div className="inline-flex items-stretch rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <button
           type="button"

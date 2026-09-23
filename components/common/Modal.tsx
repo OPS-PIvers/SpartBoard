@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { decrementOpenModalCount, incrementOpenModalCount } from './modalStore';
 import { acquireBodyScrollLock, releaseBodyScrollLock } from './bodyScrollLock';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
 
 interface ModalProps {
   variant?: 'default' | 'bare';
@@ -13,6 +14,12 @@ interface ModalProps {
   customHeader?: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  /**
+   * Covers the whole panel — header, body and footer — e.g. a busy state. The
+   * panel only becomes a positioning context when one is supplied, so no
+   * existing modal's absolutely-placed children move.
+   */
+  overlay?: React.ReactNode;
   zIndex?: string; // e.g. "z-modal", "z-modal-deep"
   maxWidth?: string; // e.g. "max-w-md", "max-w-2xl"
   className?: string; // For additional styling on the content container
@@ -30,6 +37,7 @@ export const Modal: React.FC<ModalProps> = ({
   customHeader,
   children,
   footer,
+  overlay,
   zIndex = 'z-modal',
   maxWidth = 'max-w-md',
   className = '',
@@ -40,6 +48,10 @@ export const Modal: React.FC<ModalProps> = ({
   ariaLabel,
   ariaLabelledby,
 }) => {
+  // Dismiss only when the press and the release both land on the backdrop, so
+  // a select-drag out of the panel doesn't read as a backdrop click.
+  const backdropProps = useBackdropDismiss(onClose);
+
   // Store onClose in a ref so the effect never needs to list it as a dep.
   // Callers almost always pass an inline arrow function (e.g.
   // `onClose={() => setOpen(false)}`), which creates a new reference on every
@@ -99,14 +111,14 @@ export const Modal: React.FC<ModalProps> = ({
   return createPortal(
     <div
       className={`fixed inset-0 ${zIndex} flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200`}
-      onClick={onClose}
+      {...backdropProps}
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel ?? (!ariaLabelledby ? title : undefined)}
       aria-labelledby={ariaLabelledby}
     >
       <div
-        className={`w-full ${maxWidth} flex flex-col max-h-[90vh] ${variant === 'default' ? 'bg-white rounded-2xl shadow-2xl' : ''} ${className} animate-in zoom-in-95 duration-200`}
+        className={`${overlay ? 'relative' : ''} w-full ${maxWidth} flex flex-col max-h-[90vh] ${variant === 'default' ? 'bg-white rounded-2xl shadow-2xl' : ''} ${className} animate-in zoom-in-95 duration-200`}
         onClick={(e) => e.stopPropagation()}
       >
         {variant === 'default' &&
@@ -132,6 +144,8 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
 
         {footer && <div className={footerClassName}>{footer}</div>}
+
+        {overlay}
       </div>
     </div>,
     document.body

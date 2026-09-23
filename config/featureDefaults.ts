@@ -254,6 +254,49 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Share a board or a collection with a substitute, and the manager for live
+  // shares. Admin-only until Paul has run a day's cover on it in prod.
+  'sub-share-collections': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Guided Learning player v2. Admin-only until Paul has played a set end to end on dev.
+  'gl-player-v2': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Tab-away clock and exit log. Admin-only until Paul has tested it in prod.
+  'tab-away-timer': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Guided Learning live tours that walk a teacher through the real app. Admin-only until opened up.
+  'gl-live-tours': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Guided Learning Studio editor. Admin-only until Paul has built sets with it in prod.
+  'gl-studio': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Per-period start/pause on shared assignments. Admin-only until Paul has run a class on it.
+  'per-period-access': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Printable quiz results for handing back. Admin-only until Paul has printed a class set.
+  'quiz-results-print': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /**

@@ -11,16 +11,43 @@ const CODE_CLASS =
 
 export const TextareaField: React.FC<
   FieldProps<TextareaFieldSchema<string>>
-> = ({ field, value, onChange, id, describedBy, disabled, ctx }) => {
+> = ({
+  field,
+  value,
+  onChange,
+  id,
+  describedBy,
+  disabled,
+  ctx,
+  updateConfig,
+}) => {
   const placeholder = field.placeholder
     ? resolveLabel(ctx.t, ctx.widget.type, field.placeholder)
     : undefined;
+
+  const handlePaste = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (!field.pasteToPatch || !updateConfig) return;
+    const pasted = event.clipboardData.getData('text/plain');
+    if (!pasted) return;
+    const target = event.currentTarget;
+    const patch = field.pasteToPatch({
+      pasted,
+      value: typeof value === 'string' ? value : '',
+      selectionStart: target.selectionStart ?? 0,
+      selectionEnd: target.selectionEnd ?? 0,
+      ctx,
+    });
+    if (!patch) return;
+    event.preventDefault();
+    updateConfig(patch);
+  };
 
   return (
     <textarea
       id={id}
       value={typeof value === 'string' ? value : ''}
       onChange={(e) => onChange(e.target.value)}
+      onPaste={handlePaste}
       placeholder={placeholder}
       maxLength={field.maxLength}
       rows={field.rows ?? 3}

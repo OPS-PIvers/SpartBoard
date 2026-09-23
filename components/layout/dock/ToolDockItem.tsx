@@ -12,6 +12,7 @@ import { DockLabel } from './DockLabel';
 import { getTitle } from '@/utils/widgetHelpers';
 import { Z_INDEX } from '@/config/zIndex';
 import { ToolMetadata, WidgetData, GlobalStyle, DockPosition } from '@/types';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface ToolDockItemProps {
   tool: ToolMetadata;
@@ -264,6 +265,7 @@ export const ToolDockItem = React.memo(
             onPointerCancel={longPress.onPointerCancel}
             onClick={handleClick}
             data-tool-id={tool.type}
+            {...tourTypeAttr('dock.item', tool.type)}
             className={`group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 relative ${
               isEditMode
                 ? 'cursor-grab active:cursor-grabbing touch-none'

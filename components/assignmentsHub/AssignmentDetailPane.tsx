@@ -8,7 +8,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { languageNativeLabel } from '@/utils/languageNativeLabel';
 import { newlyRequestedLocales } from '@/utils/quizTranslationAdvisory';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { QuizReadAloudManifest } from '@/types';
 import { useTranslation } from 'react-i18next';
@@ -31,6 +31,10 @@ import {
 import { AssignTargetingSection } from '@/components/common/library/AssignTargetingSection';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 import { AssignmentStatusChip } from './AssignmentStatusChip';
+import {
+  QUIZ_CONTENT_COLLECTION,
+  QUIZ_CONTENT_DOC,
+} from '@/utils/quizSessionContent';
 import type {
   QuizPlcActions,
   UnifiedAssignmentRow,
@@ -336,25 +340,52 @@ export const AssignmentDetailPane: React.FC<{
   const sessionWatchNeeded = readAloudAvailable || translationAvailable;
   useEffect(() => {
     if (!sessionWatchNeeded) return;
-    return onSnapshot(
+    let active = true;
+    const localesOf = (questions: unknown): string[] => {
+      const codes = new Set<string>();
+      for (const q of (questions ?? []) as {
+        localized?: Record<string, unknown>;
+      }[])
+        for (const code of Object.keys(q.localized ?? {})) codes.add(code);
+      return [...codes];
+    };
+    const unsubscribe = onSnapshot(
       doc(db, 'quiz_sessions', row.sessionId),
       (snap) => {
         const data = snap.data();
         const manifest = data?.readAloud as QuizReadAloudManifest | undefined;
         setReadAloudStatus(manifest?.status ?? null);
-        const questions = (data?.publicQuestions ?? []) as {
-          localized?: Record<string, unknown>;
-        }[];
-        const codes = new Set<string>();
-        for (const q of questions)
-          for (const code of Object.keys(q.localized ?? {})) codes.add(code);
-        setServedLocales([...codes]);
+        if (data?.questionsInContent !== true) {
+          setServedLocales(localesOf(data?.publicQuestions));
+          return;
+        }
+        // A per-period session keeps its questions in the content doc.
+        getDoc(
+          doc(
+            db,
+            'quiz_sessions',
+            row.sessionId,
+            QUIZ_CONTENT_COLLECTION,
+            QUIZ_CONTENT_DOC
+          )
+        )
+          .then((content) => {
+            if (active)
+              setServedLocales(localesOf(content.data()?.publicQuestions));
+          })
+          .catch(() => {
+            if (active) setServedLocales(null);
+          });
       },
       () => {
         setReadAloudStatus(null);
         setServedLocales(null);
       }
     );
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, [sessionWatchNeeded, row.sessionId]);
   // A language this edit introduces that the live session does not serve (§10).
   const postPublishLocales = useMemo(

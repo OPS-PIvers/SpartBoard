@@ -66,11 +66,27 @@ const ROSTER: ClassRoster = {
   ],
 } as unknown as ClassRoster;
 
+const PERIOD_ROSTER = {
+  id: 'roster-2',
+  name: 'Period 3',
+  driveFileId: null,
+  studentCount: 0,
+  createdAt: 1000,
+  classlinkClassId: 'cl-3',
+  students: [],
+} as unknown as ClassRoster;
+const extraRosters: ClassRoster[] = [];
+const periodCtx: { current: unknown } = { current: undefined };
+vi.mock('@/hooks/useTeacherBellPeriods', () => ({
+  useAssignPeriodAccess: () => periodCtx.current,
+}));
+
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
     updateWidget,
     addToast,
-    rosters: [ROSTER],
+    updateRoster: vi.fn(),
+    rosters: [ROSTER, ...extraRosters],
   }),
 }));
 
@@ -79,6 +95,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1', displayName: 'Test Teacher' },
     isAdmin: false,
     getAssignmentMode: () => 'graded',
+    canAccessFeature: () => false,
   }),
 }));
 
@@ -157,7 +174,7 @@ vi.mock(
   })
 );
 
-function makeWidget(): WidgetData {
+function makeWidget(config: Partial<GuidedLearningConfig> = {}): WidgetData {
   return {
     id: 'widget-1',
     type: 'guidedLearning',
@@ -166,12 +183,12 @@ function makeWidget(): WidgetData {
     w: 400,
     h: 300,
     z: 1,
-    config: { view: 'library' } as GuidedLearningConfig,
+    config: { view: 'library', ...config } as GuidedLearningConfig,
   } as unknown as WidgetData;
 }
 
-async function openAssignModal() {
-  render(<GuidedLearningWidget widget={makeWidget()} />);
+async function openAssignModal(config: Partial<GuidedLearningConfig> = {}) {
+  render(<GuidedLearningWidget widget={makeWidget(config)} />);
   const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
   fireEvent.click(assignBtn);
   return screen.findByRole('dialog', { name: /fractions warmup/i });
@@ -195,6 +212,8 @@ function setScheduleWindow(dialog: HTMLElement) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  extraRosters.length = 0;
+  periodCtx.current = undefined;
   createSession.mockResolvedValue(
     'https://spartboard.app/guided-learning/session-1'
   );
@@ -243,5 +262,79 @@ describe('GuidedLearningWidget onAssign — individual targeting', () => {
         kind: 'guided-learning',
       })
     );
+  });
+});
+
+describe('GuidedLearningWidget onAssign — per-period access', () => {
+  const ctx = () => ({
+    bellOptions: [],
+    bellWindow: () => null,
+    onTagRoster: vi.fn(),
+  });
+
+  it('gives each checked class its own period and no shared window', async () => {
+    extraRosters.push(PERIOD_ROSTER);
+    periodCtx.current = ctx();
+    const dialog = await openAssignModal({
+      lastRosterIdsBySetId: { 'gl-1': ['roster-1', 'roster-2'] },
+    });
+    setScheduleWindow(dialog);
+    confirmAssign(dialog);
+
+    await waitFor(() => expect(createSession).toHaveBeenCalledOnce());
+    const [, , , , , window, , periodGate] = createSession.mock.calls[0] as [
+      unknown,
+      unknown,
+      unknown,
+      unknown,
+      unknown,
+      { openAt?: number; closeAt?: number },
+      unknown,
+      {
+        accessMode: string;
+        periodAccess: Record<string, { state: string; label: string }>;
+      },
+    ];
+    expect(periodGate.accessMode).toBe('assignment');
+    expect(Object.keys(periodGate.periodAccess).sort()).toEqual([
+      'cl-3',
+      'roster:roster-1',
+    ]);
+    expect(periodGate.periodAccess['cl-3']).toMatchObject({
+      state: 'open',
+      label: 'Period 3',
+    });
+    expect(window.openAt).toBeUndefined();
+    await waitFor(() => expect(createAssignment).toHaveBeenCalledOnce());
+    const input = createAssignment.mock.calls[0][0] as Record<string, unknown>;
+    expect(input.periodGate).toEqual(periodGate);
+    expect(input.openAt).toBeUndefined();
+  });
+
+  it('keeps a single class on the legacy session', async () => {
+    periodCtx.current = ctx();
+    const dialog = await openAssignModal({
+      lastRosterIdsBySetId: { 'gl-1': ['roster-1'] },
+    });
+    confirmAssign(dialog);
+
+    await waitFor(() => expect(createSession).toHaveBeenCalledOnce());
+    expect(createSession.mock.calls[0][7]).toBeUndefined();
+    expect(createAssignment.mock.calls[0][0]).not.toHaveProperty('periodGate');
+  });
+
+  it('keeps several classes on the legacy session while the flag is off', async () => {
+    extraRosters.push(PERIOD_ROSTER);
+    const dialog = await openAssignModal({
+      lastRosterIdsBySetId: { 'gl-1': ['roster-1', 'roster-2'] },
+    });
+    setScheduleWindow(dialog);
+    confirmAssign(dialog);
+
+    await waitFor(() => expect(createSession).toHaveBeenCalledOnce());
+    expect(createSession.mock.calls[0][7]).toBeUndefined();
+    expect(
+      (createSession.mock.calls[0][5] as { openAt?: number }).openAt
+    ).toEqual(expect.any(Number));
   });
 });

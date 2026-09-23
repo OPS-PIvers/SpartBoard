@@ -28,8 +28,10 @@ import type {
   QuizResultsOverride,
   StudentAssignmentPointer,
   StudentOverride,
+  PeriodAccessSessionFields,
 } from '@/types';
 import { activeResultsOverride } from '@/utils/quizResultsVisibility';
+import { hasPeriodAccess, studentPeriodKeys } from '@/utils/periodAccess';
 
 /**
  * useStudentAssignments
@@ -109,6 +111,8 @@ export interface AssignmentSummary {
   latestShareCode?: string;
   /** Flashcards only: whether the assignment collects a submission. */
   flashcardKind?: 'check' | 'study';
+  /** Per-period sessions: the gate fields plus this student's periods, for the card's lock. */
+  periodGate?: PeriodAccessSessionFields & { periodKeys: string[] };
 }
 
 export type LoadState = 'loading' | 'ready';
@@ -436,6 +440,15 @@ function buildAssignmentSummary(
       (record.kind === 'check' || record.kind === 'study')
         ? record.kind
         : undefined,
+    periodGate: hasPeriodAccess(record as PeriodAccessSessionFields)
+      ? {
+          periodAccess: (record as PeriodAccessSessionFields).periodAccess,
+          studentAccess: (record as PeriodAccessSessionFields).studentAccess,
+          periodKeys: studentPeriodKeys(record as PeriodAccessSessionFields, [
+            ...studentClassIds,
+          ]),
+        }
+      : undefined,
   };
 }
 

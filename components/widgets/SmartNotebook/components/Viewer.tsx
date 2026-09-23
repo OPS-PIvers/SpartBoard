@@ -32,7 +32,8 @@ interface ViewerProps {
   hasAssets: boolean | undefined;
   showAssets: boolean;
   setShowAssets: (show: boolean) => void;
-  handleClose: () => void;
+  /** Omitted in a sub share, where the notebook is all there is to show. */
+  handleClose?: () => void;
   onShare?: (e: React.MouseEvent) => void;
   currentPage: number;
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
@@ -288,18 +289,21 @@ export const Viewer: React.FC<ViewerProps> = ({
                 <Share2 style={iconStyle} />
               </button>
             )}
-            <button
-              onClick={handleClose}
-              className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-lg transition-all border border-slate-700 active:scale-95"
-              style={{ padding: 'min(8px, 2cqmin)' }}
-            >
-              <X
-                style={{
-                  width: 'min(16px, 4cqmin)',
-                  height: 'min(16px, 4cqmin)',
-                }}
-              />
-            </button>
+            {handleClose && (
+              <button
+                onClick={handleClose}
+                aria-label="Close notebook"
+                className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-lg transition-all border border-slate-700 active:scale-95"
+                style={{ padding: 'min(8px, 2cqmin)' }}
+              >
+                <X
+                  style={{
+                    width: 'min(16px, 4cqmin)',
+                    height: 'min(16px, 4cqmin)',
+                  }}
+                />
+              </button>
+            )}
           </div>
         </div>
       }

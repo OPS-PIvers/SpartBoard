@@ -126,10 +126,99 @@ export const renderAnnotatedSnapshot = ({
   }
   if (!actualRoot) return null;
 
-  const sorted = [...annotations].sort((a, b) => a.from - b.from);
-  const ctx = { offset: 0, atBlockStart: true, keyCounter: 0 };
+  return segmentsToReact(annotatedSnapshotSegments(actualRoot, annotations), {
+    keyCounter: 0,
+  });
+};
 
-  return renderChildren(actualRoot, sorted, ctx);
+// Tags the print copy keeps; anything else prints its text without the wrapper.
+const PRINT_TAGS = new Set([
+  'p',
+  'li',
+  'ul',
+  'ol',
+  'div',
+  'b',
+  'strong',
+  'i',
+  'em',
+  'u',
+  's',
+  'sub',
+  'sup',
+  'blockquote',
+]);
+
+const PRINT_COLORS = new Set(['yellow', 'green', 'pink', 'blue']);
+
+const escapePrintText = (value: string): string =>
+  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+export interface AnnotatedHtml {
+  html: string;
+  /** Commented annotations in reading order; `number` matches the superscript. */
+  notes: { number: number; annotation: WrittenAnswerAnnotation }[];
+}
+
+/**
+ * The print twin of `renderAnnotatedSnapshot`: highlighted spans as `<mark>`,
+ * each commented annotation numbered with a superscript where it ends.
+ */
+export const annotatedSnapshotToHtml = (
+  html: string,
+  annotations: WrittenAnswerAnnotation[]
+): AnnotatedHtml => {
+  const root = parseSnapshotRoot(html);
+  if (!root) return { html: '', notes: [] };
+  const segments = annotatedSnapshotSegments(root, annotations);
+
+  const numbers = new Map<string, number>();
+  const notes: AnnotatedHtml['notes'] = [];
+  for (const a of [...annotations].sort((x, y) => x.from - y.from)) {
+    if (!a.comment?.trim()) continue;
+    numbers.set(a.id, notes.length + 1);
+    notes.push({ number: notes.length + 1, annotation: a });
+  }
+
+  // The superscript goes after the last piece of text each annotation covers.
+  const lastPiece = new Map<string, number>();
+  let seq = 0;
+  const index = (segs: AnnotatedSegment[]) => {
+    for (const seg of segs) {
+      if (seg.kind === 'element') index(seg.children);
+      else if (seg.kind === 'text') {
+        seq += 1;
+        for (const a of seg.annotations) lastPiece.set(a.id, seq);
+      }
+    }
+  };
+  index(segments);
+
+  seq = 0;
+  const render = (segs: AnnotatedSegment[]): string =>
+    segs
+      .map((seg) => {
+        if (seg.kind === 'br') return '<br>';
+        if (seg.kind === 'element') {
+          const inner = render(seg.children);
+          return PRINT_TAGS.has(seg.tag)
+            ? `<${seg.tag}>${inner}</${seg.tag}>`
+            : inner;
+        }
+        seq += 1;
+        const text = escapePrintText(seg.text);
+        if (seg.annotations.length === 0) return text;
+        const raw = seg.annotations[0].highlightColor;
+        const color = raw && PRINT_COLORS.has(raw) ? raw : 'yellow';
+        const sups = seg.annotations
+          .filter((a) => lastPiece.get(a.id) === seq && numbers.has(a.id))
+          .map((a) => `<sup class="fn">${numbers.get(a.id)}</sup>`)
+          .join('');
+        return `<mark class="hl hl-${color}">${text}</mark>${sups}`;
+      })
+      .join('');
+
+  return { html: render(segments), notes };
 };
 
 /**
@@ -149,18 +238,45 @@ export const parseSnapshotRoot = (html: string): Element | null => {
   return (doc.body.firstChild as Element | null) ?? null;
 };
 
-interface RenderCtx {
+/** One piece of an annotated snapshot; screen and print both render from these. */
+export type AnnotatedSegment =
+  | {
+      kind: 'text';
+      text: string;
+      /** Annotations covering this text, earliest `from` first; empty when none. */
+      annotations: WrittenAnswerAnnotation[];
+    }
+  | { kind: 'br' }
+  | {
+      kind: 'element';
+      tag: string;
+      block: boolean;
+      children: AnnotatedSegment[];
+    };
+
+/**
+ * Split a snapshot into segments at every annotation boundary, walking the DOM
+ * in the same order and with the same offset rules as `htmlToPlainText`.
+ */
+export const annotatedSnapshotSegments = (
+  root: Element,
+  annotations: WrittenAnswerAnnotation[]
+): AnnotatedSegment[] => {
+  const sorted = [...annotations].sort((a, b) => a.from - b.from);
+  return segmentChildren(root, sorted, { offset: 0, atBlockStart: true });
+};
+
+interface SegmentCtx {
   offset: number;
   atBlockStart: boolean;
-  keyCounter: number;
 }
 
-const renderChildren = (
+const segmentChildren = (
   node: Node,
   annotations: WrittenAnswerAnnotation[],
-  ctx: RenderCtx
-): React.ReactNode[] => {
-  const out: React.ReactNode[] = [];
+  ctx: SegmentCtx
+): AnnotatedSegment[] => {
+  const out: AnnotatedSegment[] = [];
   for (const child of Array.from(node.childNodes)) {
     if (child.nodeType === Node.TEXT_NODE) {
       const text = child.nodeValue ?? '';
@@ -169,7 +285,7 @@ const renderChildren = (
       const end = start + text.length;
       ctx.offset = end;
       ctx.atBlockStart = false;
-      out.push(...sliceTextWithAnnotations(text, start, end, annotations, ctx));
+      out.push(...sliceTextWithAnnotations(text, start, end, annotations));
       continue;
     }
     if (child.nodeType !== Node.ELEMENT_NODE) continue;
@@ -178,56 +294,47 @@ const renderChildren = (
     if (tag === 'BR') {
       ctx.offset += 1;
       ctx.atBlockStart = true;
-      out.push(React.createElement('br', { key: `n${ctx.keyCounter++}` }));
+      out.push({ kind: 'br' });
       continue;
     }
-    if (BLOCK_TAGS.has(tag)) {
+    const block = BLOCK_TAGS.has(tag);
+    if (block) {
       if (!ctx.atBlockStart) {
         ctx.offset += 1;
       }
       ctx.atBlockStart = true;
-      const innerKey = `n${ctx.keyCounter++}`;
-      const inner = renderChildren(el, annotations, ctx);
-      out.push(
-        React.createElement(tag.toLowerCase(), { key: innerKey }, ...inner)
-      );
-      continue;
     }
-    // Inline element (b, i, em, strong, u). Recurse, then wrap in the
-    // same tag — this preserves bold/italic styling around annotations.
-    const innerKey = `n${ctx.keyCounter++}`;
-    const inner = renderChildren(el, annotations, ctx);
-    out.push(
-      React.createElement(tag.toLowerCase(), { key: innerKey }, ...inner)
-    );
+    // Inline elements (b, i, em, strong, u) keep their tag so bold/italic
+    // styling survives around annotations.
+    out.push({
+      kind: 'element',
+      tag: tag.toLowerCase(),
+      block,
+      children: segmentChildren(el, annotations, ctx),
+    });
   }
   return out;
 };
 
 /**
  * Split a text node's [start, end) range at every annotation boundary
- * inside it. Each resulting sub-segment becomes either a bare string or
- * a `<mark>` wrapping a string, depending on which annotations cover it.
+ * inside it. Each resulting sub-segment carries the annotations covering it.
  *
  * For overlapping annotations (a fairly uncommon teacher action), the
- * earliest-by-`from` annotation in `active` (the input is sorted by
- * `from` in the caller) ends up on `data-annotation-id`, and all
- * overlapping ids are stored on `data-overlap-ids` so the editor
- * surface can still resolve clicks against any of them. Multi-color
- * overlap UX (e.g. split-into-N-marks) is a follow-up.
+ * earliest-by-`from` annotation comes first (the input is sorted by `from`
+ * in the caller); the React renderer puts it on `data-annotation-id` and all
+ * overlapping ids on `data-overlap-ids` so the editor surface can still
+ * resolve clicks against any of them.
  */
 const sliceTextWithAnnotations = (
   text: string,
   start: number,
   end: number,
-  annotations: WrittenAnswerAnnotation[],
-  ctx: RenderCtx
-): React.ReactNode[] => {
+  annotations: WrittenAnswerAnnotation[]
+): AnnotatedSegment[] => {
   // Pre-filter annotations that actually overlap this text node, then
-  // do all subsequent work against the smaller set. The previous
-  // implementation re-scanned the full `annotations` array once per
-  // segment, making rendering scale as O(segments × annotations) even
-  // when only one annotation touched the current text node.
+  // do all subsequent work against the smaller set, so rendering does not
+  // scale as O(segments × annotations).
   const local: WrittenAnswerAnnotation[] = [];
   for (const a of annotations) {
     if (a.to <= start || a.from >= end) continue;
@@ -241,40 +348,55 @@ const sliceTextWithAnnotations = (
   }
   const sorted = Array.from(boundaries).sort((a, b) => a - b);
 
-  const out: React.ReactNode[] = [];
+  const out: AnnotatedSegment[] = [];
   for (let i = 0; i < sorted.length - 1; i++) {
     const segFrom = sorted[i];
     const segTo = sorted[i + 1];
     if (segFrom === segTo) continue;
-    const chunk = text.slice(segFrom - start, segTo - start);
-    const active = local.filter((a) => a.from < segTo && a.to > segFrom);
-    if (active.length === 0) {
-      out.push(chunk);
-      continue;
-    }
-    const primary = active[0];
-    const overlapIds = active.map((a) => a.id).join(',');
-    const isPreview = primary.id === PREVIEW_ANNOTATION_ID;
-    out.push(
-      React.createElement(
-        'mark',
-        {
-          key: `m${ctx.keyCounter++}`,
-          'data-annotation-id': primary.id,
-          'data-overlap-ids': overlapIds,
-          'data-color': isPreview
-            ? 'preview'
-            : (primary.highlightColor ?? 'yellow'),
-          className: isPreview
-            ? PREVIEW_HIGHLIGHT_CLASS
-            : highlightClass(primary.highlightColor),
-        },
-        chunk
-      )
-    );
+    out.push({
+      kind: 'text',
+      text: text.slice(segFrom - start, segTo - start),
+      annotations: local.filter((a) => a.from < segTo && a.to > segFrom),
+    });
   }
   return out;
 };
+
+const segmentsToReact = (
+  segments: AnnotatedSegment[],
+  ctx: { keyCounter: number }
+): React.ReactNode[] =>
+  segments.map((seg) => {
+    if (seg.kind === 'br') {
+      return React.createElement('br', { key: `n${ctx.keyCounter++}` });
+    }
+    if (seg.kind === 'element') {
+      const key = `n${ctx.keyCounter++}`;
+      return React.createElement(
+        seg.tag,
+        { key },
+        ...segmentsToReact(seg.children, ctx)
+      );
+    }
+    if (seg.annotations.length === 0) return seg.text;
+    const primary = seg.annotations[0];
+    const isPreview = primary.id === PREVIEW_ANNOTATION_ID;
+    return React.createElement(
+      'mark',
+      {
+        key: `m${ctx.keyCounter++}`,
+        'data-annotation-id': primary.id,
+        'data-overlap-ids': seg.annotations.map((a) => a.id).join(','),
+        'data-color': isPreview
+          ? 'preview'
+          : (primary.highlightColor ?? 'yellow'),
+        className: isPreview
+          ? PREVIEW_HIGHLIGHT_CLASS
+          : highlightClass(primary.highlightColor),
+      },
+      seg.text
+    );
+  });
 
 /**
  * Reserved annotation id for the "pending selection" preview mark

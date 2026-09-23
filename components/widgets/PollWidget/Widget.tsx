@@ -28,6 +28,7 @@ import { useDialog } from '@/context/useDialog';
 import { buildPollJoinUrl } from '@/utils/pollCode';
 import { withPollQuestions, withQuestionAt } from '@/utils/pollQuestions';
 import { usePollSession } from '@/hooks/usePollSession';
+import { useInSubShare } from '@/hooks/useShareContent';
 
 export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget } = useDashboardActions();
@@ -38,6 +39,9 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const isAnnouncement = !!_announcementId;
 
   const { user, canAccessFeature } = useAuth();
+  // A live session belongs to the teacher's account, so a substitute can
+  // neither read its votes nor run it: the widget shows the questions only.
+  const inShare = useInSubShare();
 
   const applyConfig = useCallback(
     (next: PollConfig) => updateWidget(widget.id, { config: next }),
@@ -48,7 +52,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     questions,
     currentQuestionIndex,
     currentQuestion,
-    isLive,
+    isLive: sessionLive,
     displayOptions: liveOptions,
     canGoPrev,
     canGoNext,
@@ -57,9 +61,10 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     config,
     // Announcement embeds have no teacher session — tallies come from the
     // announcement subcollection instead.
-    teacherUid: isAnnouncement ? undefined : user?.uid,
+    teacherUid: isAnnouncement || inShare ? undefined : user?.uid,
     onConfigChange: applyConfig,
   });
+  const isLive = sessionLive && !inShare;
 
   // Announcements render the first question only — there is no cursor to share.
   const activeQuestion = isAnnouncement ? questions[0] : currentQuestion;
@@ -383,7 +388,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               </span>
             )}
           </div>
-        ) : !isAnnouncement ? (
+        ) : !isAnnouncement && !inShare ? (
           <div
             style={{
               paddingLeft: 'min(16px, 3cqmin)',

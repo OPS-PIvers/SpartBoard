@@ -19,6 +19,14 @@ vi.mock('@/hooks/useAdminBuildings', () => ({
   useAdminBuildings: () => mockUseAdminBuildings(),
 }));
 
+const flags = vi.hoisted(() => ({ perPeriod: false }));
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({
+    canAccessFeature: (f: string) =>
+      f === 'per-period-access' && flags.perPeriod,
+  }),
+}));
+
 describe('ScheduleConfigurationPanel', () => {
   const mockConfig: ScheduleGlobalConfig = {
     buildingDefaults: {
@@ -222,5 +230,60 @@ describe('ScheduleConfigurationPanel', () => {
     const updated = mockOnChange.mock.calls[0][0] as ScheduleGlobalConfig;
     expect(updated.buildingDefaults.high?.schedules).toHaveLength(1);
     expect(updated.buildingDefaults['orono-high-school']).toBeUndefined();
+  });
+
+  describe('per-period access fields', () => {
+    beforeEach(() => {
+      flags.perPeriod = true;
+    });
+    afterEach(() => {
+      flags.perPeriod = false;
+    });
+
+    it('hides the period fields while the flag is off', () => {
+      flags.perPeriod = false;
+      render(
+        <ScheduleConfigurationPanel
+          config={mockConfig}
+          onChange={mockOnChange}
+        />
+      );
+      expect(screen.queryByText('Special days')).toBeNull();
+    });
+
+    it('marks an item as a class period by giving it an id', () => {
+      render(
+        <ScheduleConfigurationPanel
+          config={mockConfig}
+          onChange={mockOnChange}
+        />
+      );
+      fireEvent.click(screen.getByTitle('Edit items'));
+      fireEvent.change(screen.getByLabelText('Class period id for Task 1'), {
+        target: { value: ' P3 ' },
+      });
+      const next = mockOnChange.mock.calls.at(-1)?.[0] as ScheduleGlobalConfig;
+      expect(next.buildingDefaults.b1.schedules?.[0].items[0]).toMatchObject({
+        periodId: 'P3',
+        isClassPeriod: true,
+      });
+    });
+
+    it('adds a special day pointing at a schedule', () => {
+      render(
+        <ScheduleConfigurationPanel
+          config={mockConfig}
+          onChange={mockOnChange}
+        />
+      );
+      fireEvent.change(screen.getByLabelText('Special day date'), {
+        target: { value: '2026-10-02' },
+      });
+      fireEvent.click(screen.getByText('Add special day'));
+      const next = mockOnChange.mock.calls.at(-1)?.[0] as ScheduleGlobalConfig;
+      expect(next.buildingDefaults.b1.dateOverrides).toEqual({
+        '2026-10-02': 's1',
+      });
+    });
   });
 });

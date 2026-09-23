@@ -10,6 +10,12 @@ import {
 } from '@google/genai';
 import { sanitizePrompt } from './sanitize';
 import { parseGeminiJson } from './parseGeminiJson';
+import {
+  buildStepTextParts,
+  clampStepTextResponse,
+  parseStepTextRequest,
+  STEP_TEXT_SYSTEM_INSTRUCTION,
+} from './guidedLearningStepText';
 import { BoundedLruMap } from './utils/boundedLruMap';
 import { ALLOWED_ORIGINS, resolveOrgIdForDomain } from './classlinkShared';
 import { resolveDomainCandidates } from './resolveOrgForUser';
@@ -2357,6 +2363,57 @@ Guidelines:
       const detail = error instanceof Error ? error.message : 'unknown error';
       const msg = `AI generation failed (model: ${guidedLearningModel}): ${detail}`;
       throw new HttpsError('internal', msg);
+    }
+  }
+);
+
+// Recorder step text (plan P3-3): admin-only like generateGuidedLearning, so no ai_usage limit.
+export const draftGuidedLearningStepTextV1 = onCall(
+  {
+    memory: '512MiB',
+    timeoutSeconds: 120,
+    cors: ALLOWED_ORIGINS,
+  },
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError(
+        'unauthenticated',
+        'Must be authenticated to use this feature.'
+      );
+    }
+    const db = admin.firestore();
+    if (!(await resolveCallerIsAdmin(db, request.auth.token))) {
+      throw new HttpsError(
+        'permission-denied',
+        'Admin access required to use AI generation.'
+      );
+    }
+    const parsedRequest = parseStepTextRequest(request.data);
+    const { advancedModel } = await getGeminiModelConfig(db);
+    try {
+      const ai = new GoogleGenAI(vertexClientOptions());
+      const response = await ai.models.generateContent({
+        model: advancedModel,
+        contents: [{ role: 'user', parts: buildStepTextParts(parsedRequest) }],
+        config: {
+          systemInstruction: STEP_TEXT_SYSTEM_INSTRUCTION,
+          responseMimeType: 'application/json',
+        },
+      });
+      return {
+        steps: clampStepTextResponse(
+          parseGeminiJson<unknown>(response.text ?? ''),
+          parsedRequest.steps.length
+        ),
+      };
+    } catch (error: unknown) {
+      if (error instanceof HttpsError) throw error;
+      console.error('[draftGuidedLearningStepTextV1] Gemini error:', error);
+      const detail = error instanceof Error ? error.message : 'unknown error';
+      throw new HttpsError(
+        'internal',
+        `AI drafting failed (model: ${advancedModel}): ${detail}`
+      );
     }
   }
 );

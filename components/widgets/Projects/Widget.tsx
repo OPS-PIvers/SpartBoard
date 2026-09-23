@@ -10,6 +10,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useProjectLibrary } from '@/hooks/useProjectLibrary';
 import { useProjectRun } from '@/hooks/useProjectRun';
 import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
+import { useInSubShare } from '@/hooks/useShareContent';
 import { useProjectsBuildingDefaults } from '@/hooks/useProjectsBuildingDefaults';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
@@ -32,6 +33,7 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
   const config = widget.config as ProjectsConfig;
   const { updateWidget } = useDashboard();
   const { enabled } = useProjectsWidgetSettings();
+  const inShare = useInSubShare();
 
   const [setupProjectId, setSetupProjectId] = useState<string | null>(null);
   const [gradingProjectId, setGradingProjectId] = useState<string | null>(null);
@@ -49,7 +51,19 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
     );
   }
 
-  const view = resolveView(config);
+  // In a sub share the library is the substitute's own, and there is nothing in
+  // it: the widget shows the teacher's project or says it did not come along.
+  if (inShare && !config.projectId) {
+    return (
+      <ScaledEmptyState
+        icon={ClipboardList}
+        title="No project"
+        subtitle="This widget had no project open when it was shared."
+      />
+    );
+  }
+
+  const view = inShare ? 'board' : resolveView(config);
   const openBoard = (projectId: string): void =>
     update({ view: 'board', projectId });
 

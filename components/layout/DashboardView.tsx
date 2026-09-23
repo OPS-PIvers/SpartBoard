@@ -33,6 +33,10 @@ import { BoardNavFab } from './BoardNavFab';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
 import { MountedBoardsLayer } from './MountedBoardsLayer';
 import { HelpCenterModal } from '@/components/help/HelpCenterModal';
+import { LiveTourRunner } from '@/components/tours/LiveTourRunner';
+import { TourRecordingHost } from '@/components/widgets/GuidedLearning/components/recorder/TourRecordingHost';
+import { TOUR_START_EVENT } from '@/components/tours/tourState';
+import { TourOfferWatcher } from '@/components/tours/useTourOffers';
 import {
   getLastHelpTab,
   HELP_OPEN_EVENT,
@@ -463,8 +467,15 @@ export const DashboardView: React.FC = () => {
         widgetType: detail.widgetType,
       });
     };
+    // A live tour started from Help needs the board uncovered.
+    const handleStartTour = () =>
+      setHelpState((prev) => (prev.open ? { ...prev, open: false } : prev));
     window.addEventListener(HELP_OPEN_EVENT, handleOpenHelp);
-    return () => window.removeEventListener(HELP_OPEN_EVENT, handleOpenHelp);
+    window.addEventListener(TOUR_START_EVENT, handleStartTour);
+    return () => {
+      window.removeEventListener(HELP_OPEN_EVENT, handleOpenHelp);
+      window.removeEventListener(TOUR_START_EVENT, handleStartTour);
+    };
   }, []);
   const onboardingShownRef = React.useRef(false);
 
@@ -554,7 +565,7 @@ export const DashboardView: React.FC = () => {
     };
   }, [rescueWidgets]); // rescueWidgets is stable ([] deps), so listener is registered once
 
-  const { canAccessFeature } = useAuth();
+  const { canAccessFeature, isAdmin } = useAuth();
 
   const {
     session,
@@ -1862,6 +1873,14 @@ export const DashboardView: React.FC = () => {
 
       {/* Settings drawer surface (flag-gated inside the host). */}
       <SettingsDrawerHost />
+
+      {canAccessFeature('gl-live-tours') && (
+        <>
+          <LiveTourRunner />
+          <TourOfferWatcher />
+          {isAdmin && <TourRecordingHost />}
+        </>
+      )}
 
       {/* Only mount Help when open — its body builds the whole shortcut tree. */}
       {helpState.open && (

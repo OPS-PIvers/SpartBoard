@@ -80,8 +80,8 @@ test('Nexus: Text Widget to QR Widget Sync', async ({ page }) => {
     name: 'Settings (Alt+S)',
     exact: true,
   });
-  // Force click to ensure it works even if animation/position is tricky
-  await settingsButton.click({ force: true });
+  // Click the element, not its screen point: a toast can sit over the toolbar
+  await settingsButton.dispatchEvent('click');
 
   // 5. Enable Sync
   // The settings panel is open.

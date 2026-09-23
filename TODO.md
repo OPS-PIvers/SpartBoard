@@ -81,7 +81,6 @@ Legend: effort S/M/L, risk LOW/MED/HIGH. Sections ordered: human-gated first.
 - [ ] **D2**: fix `README.md:80` — `pnpm install` → `pnpm run install:all` (confirmed still wrong). (S/LOW)
 - [ ] **useEffect cleanups** (last two from the May audit): move `prevIndexRef` assignment out of useEffect into render body in `components/layout/DashboardView.tsx`; extract the ~175-line live-scoreboard-sync effect in `components/widgets/QuizWidget/Widget.tsx` (~line 525) into a `useLiveScoreboardSync` hook. (S + M)
 - [ ] **LO8**: make the `internal` tier's domain (`orono.k12.mn.us`, hardcoded in `utils/userTier.ts`) and /subs operator scoping admin-configurable. (S–M/LOW)
-- [ ] **M5**: finish `/subs` Collections stub + Drive grants for Collection shares. (M/LOW)
 - [ ] **M6**: Quiz edit modal AssignClassPicker + `rosterIds` migration (data-model change). (M/MED)
 
 ## 6. Admin / no-code roadmap stragglers (from the archived non-code roadmap — verify before building)

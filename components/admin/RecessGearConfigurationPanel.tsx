@@ -228,6 +228,7 @@ export const RecessGearConfigurationPanel: React.FC<
           </span>
         </div>
         <Toggle
+          label="Use Feels Like"
           checked={config.useFeelsLike ?? false}
           onChange={(checked) => onChange({ ...config, useFeelsLike: checked })}
           size="xs"

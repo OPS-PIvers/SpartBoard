@@ -33,10 +33,17 @@ import {
 import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { useGuidedLearningSessionStudent } from '@/hooks/useGuidedLearningSession';
+import { useGuidedLearningProgress } from '@/hooks/useGuidedLearningProgress';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
 import { GuidedLearningResponse, GuidedLearningSession } from '@/types';
 import { GuidedLearningPlayer } from '@/components/widgets/GuidedLearning/components/GuidedLearningPlayer';
+import { useServerNow } from '@/hooks/useServerNow';
+import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
+import {
+  GuidedLearningPeriodLockedScreen,
+  GuidedLearningPeriodPausedOverlay,
+} from './GuidedLearningPeriodLockedScreen';
 
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
 // Clearance above the Player's bottom nav footer (max 61px tall).
@@ -72,6 +79,8 @@ export const GuidedLearningStudentApp: React.FC = () => {
   // traffic) stay `false` — they never hold this claim, so the pointer-doc
   // read must be gated on it (see M17 C3-gl fix note below).
   const [isStudentRole, setIsStudentRole] = useState(false);
+  // The signed-in student's class claims, which pick their period on a per-period session.
+  const [claimClassIds, setClaimClassIds] = useState<string[]>([]);
 
   useEffect(() => {
     const init = async () => {
@@ -93,6 +102,12 @@ export const GuidedLearningStudentApp: React.FC = () => {
             const tokenResult = await user.getIdTokenResult();
             if (tokenResult.claims?.studentRole === true) {
               setIsStudentRole(true);
+            }
+            const rawClaims: unknown = tokenResult.claims?.classIds;
+            if (Array.isArray(rawClaims)) {
+              setClaimClassIds(
+                rawClaims.filter((c): c is string => typeof c === 'string')
+              );
             }
           }
         }
@@ -117,6 +132,7 @@ export const GuidedLearningStudentApp: React.FC = () => {
     <StudentExperience
       anonymousUid={anonymousUid}
       isStudentRole={isStudentRole}
+      claimClassIds={claimClassIds}
     />
   );
 };
@@ -126,11 +142,19 @@ export const GuidedLearningStudentApp: React.FC = () => {
 const StudentExperience: React.FC<{
   anonymousUid: string;
   isStudentRole: boolean;
-}> = ({ anonymousUid, isStudentRole }) => {
+  claimClassIds?: string[];
+}> = ({ anonymousUid, isStudentRole, claimClassIds = [] }) => {
   const sessionId =
     window.location.pathname.split('/guided-learning/')[1] ?? '';
-  const { session, loading, error, submitResponse } =
-    useGuidedLearningSessionStudent(sessionId);
+  const {
+    session,
+    loading,
+    error,
+    submitResponse,
+    periodKeys = [],
+    contentPending = false,
+    takeSeat,
+  } = useGuidedLearningSessionStudent(sessionId, anonymousUid);
   const isViewOnly = session?.assignmentMode === 'view-only';
 
   // View tracking — log each pageview of a view-only Share link as an
@@ -248,6 +272,34 @@ const StudentExperience: React.FC<{
     }
   }, []);
 
+  // Per-period gate, re-checked as the clock passes a window edge.
+  const perPeriod = hasPeriodAccess(session) && !isViewOnly;
+  const periodNow = useServerNow(perPeriod ? 5000 : null);
+  const canEnter = studentCanEnter(
+    session,
+    periodKeys,
+    anonymousUid,
+    periodNow
+  );
+  const gateKey = perPeriod
+    ? JSON.stringify([
+        periodKeys.map((k) => session?.periodAccess?.[k] ?? null),
+        session?.studentAccess?.[anonymousUid] ?? null,
+      ])
+    : '';
+  // A write the server refused as frozen holds the pause until the gate fields change.
+  const [frozenGate, setFrozenGate] = useState<string | null>(null);
+  if (frozenGate !== null && frozenGate !== gateKey) setFrozenGate(null);
+  const periodPaused = perPeriod && (!canEnter || frozenGate === gateKey);
+  // Once the player has shown, a later close pauses it in place rather than swapping screens.
+  const [entered, setEntered] = useState(false);
+  if (!entered && perPeriod && started && canEnter && !contentPending) {
+    setEntered(true);
+  }
+  const periodHold = perPeriod && (periodPaused || !entered);
+  const [seatError, setSeatError] = useState<string | null>(null);
+  const [seating, setSeating] = useState(false);
+
   const handleAnswer = useCallback(
     (stepId: string, answer: string | string[], isCorrect: boolean | null) => {
       setAnswers((prev) => {
@@ -267,6 +319,33 @@ const StudentExperience: React.FC<{
     // In the student app the answer key is not available client-side.
     // Score is computed on the teacher/results side from raw answers + answer key.
     const computedScore: number | null = null;
+
+    // Per-period: the rules refuse the write while the period is shut, so finish only once it lands.
+    if (perPeriod) {
+      if (periodPaused) return;
+      try {
+        await submitResponse({
+          sessionId,
+          studentAnonymousId: anonymousUid,
+          pin: pin.trim() || undefined,
+          answers,
+          startedAt: startedAt.current,
+          completedAt: Date.now(),
+          score: computedScore,
+          ...(classPeriod ? { classPeriod } : {}),
+          ...(periodKeys[0] ? { classId: periodKeys[0] } : {}),
+        });
+      } catch (err) {
+        if ((err as { code?: string }).code === 'permission-denied') {
+          setFrozenGate(gateKey);
+          return;
+        }
+        console.error('[GuidedLearningStudentApp] Submit error:', err);
+      }
+      setScore(computedScore);
+      setCompleted(true);
+      return;
+    }
 
     setScore(computedScore);
     setCompleted(true);
@@ -299,7 +378,52 @@ const StudentExperience: React.FC<{
     submitResponse,
     classPeriod,
     isViewOnly,
+    perPeriod,
+    periodPaused,
+    periodKeys,
+    gateKey,
   ]);
+
+  const { onStepEvent } = useGuidedLearningProgress({
+    sessionId,
+    uid: anonymousUid,
+    enabled: session?.playerV2 === true && !pointer?.excluded,
+    stepIds: session?.publicSteps.map((s) => s.id) ?? [],
+    ...(perPeriod ? { paused: periodHold } : {}),
+  });
+
+  const handleStart = async () => {
+    // Auto-select the single period if there's exactly one so the
+    // response still gets tagged consistently. Skipped on view-only
+    // since responses aren't tracked anyway.
+    const periods = session?.periodNames ?? [];
+    const pickedPeriod =
+      classPeriod ?? (periods.length === 1 ? periods[0] : null);
+    if (!isViewOnly && periods.length === 1 && !classPeriod) {
+      setClassPeriod(periods[0]);
+    }
+    if (perPeriod) {
+      if (seating) return;
+      setSeating(true);
+      setSeatError(null);
+      try {
+        const seated = await takeSeat(pickedPeriod, claimClassIds);
+        if (!seated) {
+          setSeatError(
+            "You're not in a class this activity was assigned to. Ask your teacher."
+          );
+          return;
+        }
+      } catch (err) {
+        logError('GuidedLearningStudentApp.seat', err, { sessionId });
+        setSeatError("Couldn't join your class. Please try again.");
+        return;
+      } finally {
+        setSeating(false);
+      }
+    }
+    setStarted(true);
+  };
 
   if (loading) return <FullPageLoader />;
   if (error) return <ErrorScreen message={error} />;
@@ -368,6 +492,13 @@ const StudentExperience: React.FC<{
     );
   }
 
+  // Assessment mode refuses a join without a school sign-in, whose self-picked period no rule can check.
+  if (perPeriod && session.accessMode === 'assessment' && !isStudentRole) {
+    return (
+      <ErrorScreen message="This activity needs your school sign-in. Sign in with your school account to join." />
+    );
+  }
+
   if (!started) {
     return (
       <StartScreen
@@ -381,20 +512,25 @@ const StudentExperience: React.FC<{
         // PIN entry and the class-period picker entirely. The user lands
         // on the welcome / mode screen and clicks straight through.
         isViewOnly={isViewOnly}
-        onStart={() => {
-          // Auto-select the single period if there's exactly one so the
-          // response still gets tagged consistently. Skipped on view-only
-          // since responses aren't tracked anyway.
-          if (!isViewOnly) {
-            const periods = session.periodNames ?? [];
-            if (periods.length === 1 && !classPeriod) {
-              setClassPeriod(periods[0]);
-            }
-          }
-          setStarted(true);
-        }}
+        onStart={() => void handleStart()}
+        error={seatError}
+        busy={seating}
       />
     );
+  }
+
+  // Per-period session not open for this student yet.
+  if (perPeriod && !entered) {
+    if (!canEnter) {
+      return (
+        <GuidedLearningPeriodLockedScreen
+          session={session}
+          periodKeys={periodKeys}
+          now={periodNow}
+        />
+      );
+    }
+    return <FullPageLoader message="Loading activity…" />;
   }
 
   // Convert session to a GuidedLearningSet-like object for GuidedLearningPlayer
@@ -411,11 +547,14 @@ const StudentExperience: React.FC<{
     updatedAt: session.createdAt,
     hotspotPulse: session.hotspotPulse,
     imageTransition: session.imageTransition,
+    welcomeEnabled: session.welcomeEnabled,
+    welcomeMessage: session.welcomeMessage,
+    watchPace: session.watchPace,
   };
 
   return (
     <div className="h-screen h-dvh overflow-hidden bg-slate-950">
-      <div className="h-full relative">
+      <div className="h-full relative" style={{ containerType: 'size' }}>
         <GuidedLearningPlayer
           key={`gl-player-${replayKey}`}
           set={
@@ -424,9 +563,13 @@ const StudentExperience: React.FC<{
           onAnswer={handleAnswer}
           teacherMode={false}
           timeMultiplier={timeMultiplier}
+          playerV2={session.playerV2 === true}
+          onStepEvent={onStepEvent}
         />
+        {periodPaused && <GuidedLearningPeriodPausedOverlay />}
         <button
           onClick={handleComplete}
+          hidden={periodPaused}
           className="absolute right-3 z-40 px-4 py-2 bg-emerald-600/95 hover:bg-emerald-500 text-white text-sm rounded-xl transition-colors font-medium shadow-xl border border-emerald-400/30 backdrop-blur-sm"
           style={{
             // Explore mode renders no nav footer, so only safe-area clearance is needed.
@@ -458,6 +601,9 @@ const StartScreen: React.FC<{
    */
   isViewOnly: boolean;
   onStart: () => void;
+  /** Why the last Start didn't join (per-period sessions). */
+  error?: string | null;
+  busy?: boolean;
 }> = ({
   session,
   pin,
@@ -466,6 +612,8 @@ const StartScreen: React.FC<{
   onPeriodChange,
   isViewOnly,
   onStart,
+  error = null,
+  busy = false,
 }) => {
   const periods = session.periodNames ?? [];
   const needsPeriodPicker =
@@ -526,7 +674,11 @@ const StartScreen: React.FC<{
             </div>
           ) : (
             <p className="text-slate-400 text-sm mb-6 capitalize">
-              {session.mode} mode · {session.publicSteps.length} steps
+              {session.mode} mode
+              {/* A per-period session's steps stay hidden until the period opens. */}
+              {session.stepsInContent && session.publicSteps.length === 0
+                ? null
+                : ` · ${session.publicSteps.length} steps`}
             </p>
           )}
 
@@ -563,8 +715,15 @@ const StartScreen: React.FC<{
             </div>
           )}
 
+          {error && (
+            <p role="alert" className="mb-4 text-sm text-red-300">
+              {error}
+            </p>
+          )}
+
           <button
             onClick={onStart}
+            disabled={busy}
             className={`w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 ${
               // When PIN entry is suppressed (view-only) and no welcome
               // card preceded it, the start button would butt up against

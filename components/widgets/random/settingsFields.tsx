@@ -16,6 +16,7 @@ import {
 } from '@/components/widgets/Stations/nexus';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { countRosterGroupMembers } from '@/utils/rosterGroups';
+import { combineRosterNames } from '@/utils/rosterNameLists';
 import { useRosterGroupsIntegrationSettings } from '@/hooks/useRosterGroupsIntegrationSettings';
 
 function useStudentCount(config: RandomConfig): number {
@@ -28,29 +29,33 @@ function useStudentCount(config: RandomConfig): number {
         : 0;
     return Math.max(0, activeRoster.students.length - absent);
   }
-  const firstNames = (config.firstNames ?? '')
-    .split('\n')
-    .filter((name) => name.trim()).length;
-  const lastNames = (config.lastNames ?? '')
-    .split('\n')
-    .filter((name) => name.trim()).length;
-  return Math.max(firstNames, lastNames);
+  return combineRosterNames(config.firstNames ?? '', config.lastNames ?? '')
+    .length;
 }
 
 export const RandomGroupCountField: React.FC<{
   ctx: CustomRenderCtx;
-  kind: 'home' | 'expert';
+  kind: 'home' | 'expert' | 'groups';
 }> = ({ ctx, kind }) => {
   const config = ctx.config as unknown as RandomConfig;
   const count = useStudentCount(config);
-  const groupSize = config.groupSize ?? 4;
+  // Groups mode defaults to 3 per group, jigsaw to 4 — mirror RandomWidget so
+  // the panel and the on-widget stepper never disagree.
+  const groupSize = config.groupSize ?? (kind === 'groups' ? 3 : 4);
   const estimatedHome = Math.max(2, Math.ceil(count / Math.max(1, groupSize)));
   const home = Math.max(2, config.numHomeGroups ?? estimatedHome);
   const value =
     kind === 'home'
       ? home
-      : (config.numExpertGroups ?? Math.max(2, Math.ceil(home / 2)));
-  const key = kind === 'home' ? 'numHomeGroups' : 'numExpertGroups';
+      : kind === 'groups'
+        ? Math.max(2, config.numGroups ?? estimatedHome)
+        : (config.numExpertGroups ?? Math.max(2, Math.ceil(home / 2)));
+  const key =
+    kind === 'home'
+      ? 'numHomeGroups'
+      : kind === 'groups'
+        ? 'numGroups'
+        : 'numExpertGroups';
 
   return (
     <div
@@ -88,11 +93,11 @@ export const RandomRosterActionsField: React.FC<{
     if (!activeRoster) return;
     ctx.updateConfig({
       firstNames: activeRoster.students
-        .map((student) =>
-          [student.firstName, student.lastName].filter(Boolean).join(' ')
-        )
+        .map((student) => student.firstName)
         .join('\n'),
-      lastNames: '',
+      lastNames: activeRoster.students
+        .map((student) => student.lastName)
+        .join('\n'),
       lastResult: null,
       remainingStudents: [],
     });

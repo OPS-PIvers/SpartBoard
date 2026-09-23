@@ -165,12 +165,14 @@ export function useVideoActivityEditorState({
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  // Reset all draft state when the activity prop identity changes.
-  const [prevActivity, setPrevActivity] = useState<VideoActivityData | null>(
-    activity
+  // Reset draft state when the editor is pointed at a different activity. Keyed
+  // on id, not object identity: a save that came back as a fresh object would
+  // otherwise wipe keystrokes mid-edit.
+  const [prevActivityId, setPrevActivityId] = useState<string | null>(
+    activity?.id ?? null
   );
-  if (activity !== prevActivity) {
-    setPrevActivity(activity);
+  if ((activity?.id ?? null) !== prevActivityId) {
+    setPrevActivityId(activity?.id ?? null);
     setTitle(originalTitle);
     setYoutubeUrl(originalYoutubeUrl);
     setQuestions(originalQuestions);

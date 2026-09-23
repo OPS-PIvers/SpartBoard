@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import {
+  annotatedSnapshotSegments,
+  annotatedSnapshotToHtml,
   htmlToPlainText,
+  parseSnapshotRoot,
   renderAnnotatedSnapshot,
   getPlainTextOffsetFromRange,
 } from '@/utils/writtenAnnotations';
@@ -160,6 +163,75 @@ describe('renderAnnotatedSnapshot', () => {
     // text content). What matters is that the visible characters of the
     // marked range are present.
     expect(marked.replace(/\s+/g, '')).toBe('bravenewworld');
+  });
+});
+
+describe('annotated snapshot segments, screen and print', () => {
+  const html = '<p>The <b>quick</b> fox</p><p>jumps high</p>';
+  // Plaintext "The quick fox\njumps high": 4-9 is "quick", 14-19 "jumps".
+  const annotations: WrittenAnswerAnnotation[] = [
+    { ...ann(14, 19, 'a2', 'green'), comment: 'Strong verb' },
+    { ...ann(4, 9, 'a1'), comment: 'Nice' },
+    ann(10, 13, 'a3', 'pink'),
+  ];
+
+  const markedText = (
+    segs: ReturnType<typeof annotatedSnapshotSegments>
+  ): string[] =>
+    segs.flatMap((seg) =>
+      seg.kind === 'element'
+        ? markedText(seg.children)
+        : seg.kind === 'text' && seg.annotations.length > 0
+          ? [`${seg.annotations[0].id}:${seg.text}`]
+          : []
+    );
+
+  it('splits at the same offsets the plaintext projection uses', () => {
+    const root = parseSnapshotRoot(html);
+    expect(root).not.toBeNull();
+    const segs = annotatedSnapshotSegments(root as Element, annotations);
+    expect(markedText(segs)).toEqual(['a1:quick', 'a3:fox', 'a2:jumps']);
+  });
+
+  it('marks the same spans on screen and in print', () => {
+    const { container } = render(
+      <div>{renderAnnotatedSnapshot({ html, annotations })}</div>
+    );
+    const screenMarks = Array.from(container.querySelectorAll('mark')).map(
+      (m) => `${m.getAttribute('data-annotation-id')}:${m.textContent}`
+    );
+    const printed = document.createElement('div');
+    printed.innerHTML = annotatedSnapshotToHtml(html, annotations).html;
+    const printMarks = Array.from(printed.querySelectorAll('mark')).map(
+      (m) => m.textContent
+    );
+    expect(screenMarks).toEqual(['a1:quick', 'a3:fox', 'a2:jumps']);
+    expect(printMarks).toEqual(['quick', 'fox', 'jumps']);
+    expect(printed.querySelector('b > mark')?.textContent).toBe('quick');
+  });
+
+  it('numbers commented highlights in reading order after their last word', () => {
+    const out = annotatedSnapshotToHtml(html, annotations);
+    expect(out.notes.map((n) => [n.number, n.annotation.comment])).toEqual([
+      [1, 'Nice'],
+      [2, 'Strong verb'],
+    ]);
+    expect(out.html).toContain(
+      '<mark class="hl hl-yellow">quick</mark><sup class="fn">1</sup>'
+    );
+    expect(out.html).toContain(
+      '<mark class="hl hl-green">jumps</mark><sup class="fn">2</sup>'
+    );
+    // Uncommented highlights get no number.
+    expect(out.html).toContain('<mark class="hl hl-pink">fox</mark></p>');
+  });
+
+  it('escapes text and drops tags print does not keep', () => {
+    const out = annotatedSnapshotToHtml(
+      '<p>a &lt;b&gt; <span>c</span><a href="x">d</a></p>',
+      []
+    );
+    expect(out.html).toBe('<p>a &lt;b&gt; cd</p>');
   });
 });
 

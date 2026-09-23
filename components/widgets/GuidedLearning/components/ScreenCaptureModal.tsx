@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import type { GuidedLearningMediaKind } from '@/utils/guidedLearningMedia';
+import { canCaptureDisplay, grabFrame } from '../utils/displayCapture';
 
 export type CaptureMode = 'snap' | 'record' | 'video-file';
 
@@ -60,20 +61,6 @@ function formatDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = Math.floor(totalSeconds % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-/** Draw the current frame of a <video> element to a PNG blob. */
-async function grabFrame(video: HTMLVideoElement): Promise<Blob | null> {
-  const w = video.videoWidth;
-  const h = video.videoHeight;
-  if (w === 0 || h === 0) return null;
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-  ctx.drawImage(video, 0, 0, w, h);
-  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
 }
 
 export const ScreenCaptureModal: React.FC<Props> = ({
@@ -176,7 +163,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
     setError('');
     // getDisplayMedia is absent in insecure contexts (plain HTTP) and some
     // embedded/mobile browsers — fail with a message instead of a TypeError.
-    if (!navigator.mediaDevices?.getDisplayMedia) {
+    if (!canCaptureDisplay()) {
       setError('Screen sharing is not supported in this browser or context.');
       return;
     }

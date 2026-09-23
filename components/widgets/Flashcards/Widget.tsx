@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { LogIn } from 'lucide-react';
+import { Layers, LogIn } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import type {
@@ -8,18 +8,22 @@ import type {
   FlashcardSet,
   FlashcardsConfig,
   StudentOverride,
+  SubShareFlashcardSetView,
   StudentTargetRef,
   WidgetData,
 } from '@/types';
 import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
+import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { useDialog } from '@/context/useDialog';
 import {
   FlashcardStudySyncError,
   useFlashcardSets,
 } from '@/hooks/useFlashcardSets';
 import { useFlashcardAssignments } from '@/hooks/useFlashcardAssignments';
+import { useSubShareFlashcards } from './useSubShareFlashcards';
+import { SubLaunchPanel } from '@/components/subs/SubLaunchPanel';
 import {
   buildSetAssignmentTargetsPayload,
   payloadRequiresCall,
@@ -99,10 +103,15 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
 }) => {
   const config = widget.config as FlashcardsConfig;
   const { user, ensureGoogleScope } = useAuth();
-  const { addToast, updateWidget, rosters } = useDashboard();
+  const { addToast, updateWidget, rosters, updateRoster } = useDashboard();
+  const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { showConfirm } = useDialog();
   const { openPicker } = useGooglePicker();
-  const flashcardSets = useFlashcardSets(user?.uid);
+  // A substitute can read neither the teacher's sets nor their assignments, so
+  // in a share the presented set comes from the bundle and no listener opens.
+  const shared = useSubShareFlashcards(config.presentSetId);
+  const inShare = shared.active;
+  const flashcardSets = useFlashcardSets(inShare ? undefined : user?.uid);
   const {
     assignments,
     loading: assignmentsLoading,
@@ -112,8 +121,8 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     deleteAssignment,
     publishScores,
     unpublishScores,
-  } = useFlashcardAssignments(user?.uid);
-  const folders = useFolders(user?.uid, 'flashcards');
+  } = useFlashcardAssignments(inShare ? undefined : user?.uid);
+  const folders = useFolders(inShare ? undefined : user?.uid, 'flashcards');
   const [editingSet, setEditingSet] = useState<FlashcardSet | null>(null);
   const [saving, setSaving] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -128,7 +137,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         : null,
     [assignments, config.activeAssignmentId, config.view]
   );
-  const presentSet = useMemo(
+  const ownPresentSet = useMemo(
     () =>
       config.presentSetId
         ? (flashcardSets.sets.find((set) => set.id === config.presentSetId) ??
@@ -136,6 +145,12 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         : null,
     [config.presentSetId, flashcardSets.sets]
   );
+  const presentSet: SubShareFlashcardSetView | null = inShare
+    ? shared.set
+    : ownPresentSet;
+  // A share opens on the set the teacher was presenting, whatever view they
+  // happened to leave the widget on: the library and the results are theirs.
+  const view = inShare ? 'present' : (config.view ?? 'library');
   const presentAdapter = useMemo(() => new MemoryFlashcardAdapter(), []);
 
   const pickSheet = useCallback(async (): Promise<{ url: string } | null> => {
@@ -463,6 +478,53 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     );
   }
 
+  // In a share the fall-through below would be the substitute's own library.
+  if (inShare && !presentSet) {
+    return (
+      <ScaledEmptyState
+        icon={Layers}
+        title={shared.loading ? 'Opening…' : 'No flashcards'}
+        subtitle={
+          shared.loading
+            ? undefined
+            : 'This widget had no set open when it was shared.'
+        }
+      />
+    );
+  }
+
+  // Hoisted so the substitute's column can put the Launch panel under it
+  // without the player's props being written out twice.
+  const presentPlayer = presentSet ? (
+    <FlashcardPlayer
+      key={presentSet.id}
+      cards={presentSet.cards}
+      termLanguage={presentSet.termLanguage}
+      definitionLanguage={presentSet.definitionLanguage}
+      adapter={presentAdapter}
+      allowedModes={['flashcards']}
+      theme="present"
+      seed={`${widget.id}:${presentSet.id}`}
+      initialSettings={{
+        showFirst: config.presentShowFirst ?? 'term',
+        shuffle: config.presentShuffle ?? false,
+      }}
+      onSettingsChange={
+        inShare
+          ? undefined
+          : (settings) =>
+              updateWidget(widget.id, {
+                config: {
+                  ...config,
+                  presentShowFirst: settings.showFirst,
+                  presentShuffle: settings.shuffle,
+                },
+              })
+      }
+      onBack={inShare ? undefined : showLibrary}
+    />
+  ) : null;
+
   return (
     <>
       <WidgetLayout
@@ -471,9 +533,9 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         content={
           <div
             className="h-full w-full bg-transparent"
-            data-flashcards-view={config.view ?? 'library'}
+            data-flashcards-view={view}
           >
-            {config.view === 'results' && openResults ? (
+            {view === 'results' && openResults ? (
               <FlashcardResultsView
                 key={openResults.id}
                 assignment={openResults}
@@ -481,31 +543,20 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onPublishScores={publishScores}
                 onUnpublishScores={unpublishScores}
               />
-            ) : config.view === 'present' && presentSet ? (
-              <FlashcardPlayer
-                key={presentSet.id}
-                cards={presentSet.cards}
-                termLanguage={presentSet.termLanguage}
-                definitionLanguage={presentSet.definitionLanguage}
-                adapter={presentAdapter}
-                allowedModes={['flashcards']}
-                theme="present"
-                seed={`${widget.id}:${presentSet.id}`}
-                initialSettings={{
-                  showFirst: config.presentShowFirst ?? 'term',
-                  shuffle: config.presentShuffle ?? false,
-                }}
-                onSettingsChange={(settings) =>
-                  updateWidget(widget.id, {
-                    config: {
-                      ...config,
-                      presentShowFirst: settings.showFirst,
-                      presentShuffle: settings.shuffle,
-                    },
-                  })
-                }
-                onBack={showLibrary}
-              />
+            ) : view === 'present' && presentSet ? (
+              inShare ? (
+                <div className="flex h-full min-h-0 flex-col">
+                  <div className="min-h-0 flex-1">{presentPlayer}</div>
+                  <SubLaunchPanel
+                    kind="flashcards"
+                    widgetId={widget.id}
+                    itemId={presentSet.id}
+                    label="flashcard set"
+                  />
+                </div>
+              ) : (
+                presentPlayer
+              )
             ) : editingSet ? (
               <FlashcardEditor
                 key={editingSet.id}
@@ -603,6 +654,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
           initialRosterIds={config.lastRosterIdsBySetId?.[assigningSet.id]}
           onClose={() => setAssigningSet(null)}
           onAssign={performAssign}
+          periodAccess={assignPeriodCtx}
         />
       )}
     </>

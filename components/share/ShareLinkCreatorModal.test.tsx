@@ -59,9 +59,11 @@ vi.mock('@/context/useDashboard', () => ({
   }),
 }));
 
+let hasSubShareCollections = false;
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
-    canAccessFeature: () => true,
+    canAccessFeature: (feature: string) =>
+      feature !== 'sub-share-collections' || hasSubShareCollections,
     selectedBuildings: ['high'],
     hasOrg: true,
   }),
@@ -208,5 +210,31 @@ describe('ShareLinkCreatorModal — substitute sub-email case handling', () => {
 
     const items = screen.getAllByRole('listitem').map((li) => li.textContent);
     expect(items).toEqual(['sub@orono.k12.mn.us']);
+  });
+});
+
+describe('ShareLinkCreatorModal — substitute option and the new sub-share flow', () => {
+  afterEach(() => {
+    hasSubShareCollections = false;
+    cleanup();
+  });
+
+  it('offers Substitute to a teacher without the new sub-share flow', () => {
+    render(
+      <ShareLinkCreatorModal dashboard={dashboard} isOpen onClose={vi.fn()} />
+    );
+    expect(
+      screen.getByRole('button', { name: /Substitute \(View-Only\)/ })
+    ).toBeTruthy();
+  });
+
+  it('hides Substitute from a teacher who has the new sub-share flow', () => {
+    hasSubShareCollections = true;
+    render(
+      <ShareLinkCreatorModal dashboard={dashboard} isOpen onClose={vi.fn()} />
+    );
+    expect(
+      screen.queryByRole('button', { name: /Substitute \(View-Only\)/ })
+    ).toBeNull();
   });
 });

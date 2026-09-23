@@ -15,8 +15,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   collection,
+  deleteDoc,
   deleteField,
   doc,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
@@ -28,6 +30,10 @@ import { db } from '@/config/firebase';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import { isAnswerCorrect } from './useGuidedLearningSession';
+import {
+  GL_CONTENT_COLLECTION,
+  GL_CONTENT_DOC,
+} from '@/utils/guidedLearningSessionContent';
 import type {
   AssignmentMode,
   GuidedLearningAssignment,
@@ -37,6 +43,7 @@ import type {
   GuidedLearningSet,
   GuidedLearningStep,
   StudentOverride,
+  GuidedLearningSession,
 } from '@/types';
 
 const GL_ASSIGNMENTS_COLLECTION = 'guided_learning_assignments';
@@ -100,6 +107,8 @@ export interface CreateAssignmentInput {
   openAt?: number;
   closeAt?: number;
   dueAt?: number;
+  /** Per-period gate mirrored from the session for the hub. */
+  periodGate?: Pick<GuidedLearningSession, 'accessMode' | 'periodAccess'>;
 }
 
 export interface UseGuidedLearningAssignmentsResult {
@@ -228,6 +237,12 @@ export const useGuidedLearningAssignments = (
         ...(input.openAt !== undefined ? { openAt: input.openAt } : {}),
         ...(input.closeAt !== undefined ? { closeAt: input.closeAt } : {}),
         ...(input.dueAt !== undefined ? { dueAt: input.dueAt } : {}),
+        ...(input.periodGate?.periodAccess
+          ? {
+              accessMode: input.periodGate.accessMode,
+              periodAccess: input.periodGate.periodAccess,
+            }
+          : {}),
       };
       await setDoc(
         doc(db, 'users', userId, GL_ASSIGNMENTS_COLLECTION, input.sessionId),
@@ -298,6 +313,22 @@ export const useGuidedLearningAssignments = (
           .slice(i, i + BATCH_LIMIT)
           .forEach((d) => batch.delete(d.ref));
         await batch.commit();
+      }
+
+      // Its own write, and it must land first: once the session goes, no rule can reach it.
+      const sessionSnap = await getDoc(
+        doc(db, GL_SESSIONS_COLLECTION, assignmentId)
+      );
+      if (sessionSnap.data()?.stepsInContent === true) {
+        await deleteDoc(
+          doc(
+            db,
+            GL_SESSIONS_COLLECTION,
+            assignmentId,
+            GL_CONTENT_COLLECTION,
+            GL_CONTENT_DOC
+          )
+        );
       }
 
       // Delete session doc and the per-teacher assignment doc together.

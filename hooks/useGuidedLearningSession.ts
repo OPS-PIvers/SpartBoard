@@ -9,7 +9,7 @@
  *   /guided_learning_sessions/{sessionId}/responses/{studentUid}
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   collection,
   doc,
@@ -17,6 +17,7 @@ import {
   onSnapshot,
   query,
   orderBy,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import {
@@ -28,6 +29,19 @@ import {
   GuidedLearningStep,
   GuidedLearningQuestionType,
 } from '@/types';
+import {
+  GL_CONTENT_COLLECTION,
+  GL_CONTENT_DOC,
+  mergeGuidedLearningSessionContent,
+  type GuidedLearningSessionContent,
+} from '@/utils/guidedLearningSessionContent';
+import {
+  hasPeriodAccess,
+  nextScheduledOpen,
+  pickPeriodKey,
+  studentPeriodKeys,
+} from '@/utils/periodAccess';
+import { getServerNow } from '@/utils/serverTime';
 
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
 
@@ -194,6 +208,17 @@ export function toPublicStep(
     spotlightRadius: step.spotlightRadius,
     bannerTone: step.bannerTone,
     autoAdvanceDuration: step.autoAdvanceDuration,
+    region: step.region,
+    calloutPin: step.calloutPin,
+    cursor: step.cursor,
+    // Playback fields only; `tour` is teacher-only and never mirrored.
+    narration: step.narration
+      ? {
+          url: step.narration.url,
+          durationMs: step.narration.durationMs,
+          voice: step.narration.voice,
+        }
+      : undefined,
   };
 
   if (step.question) {
@@ -284,7 +309,11 @@ export interface UseGuidedLearningSessionTeacherResult {
     assignmentMode?: AssignmentMode,
     /** Open/close/due window (epoch ms), spec §5 B3. Applies regardless of
      *  targeting mode — every field is optional and independently mirrored. */
-    assignmentWindow?: { openAt?: number; closeAt?: number; dueAt?: number }
+    assignmentWindow?: { openAt?: number; closeAt?: number; dueAt?: number },
+    /** `playerV2`: the creator can use `gl-player-v2`, so students get it too. */
+    options?: { playerV2?: boolean },
+    /** Per-period gate; the steps and slides then move to `content/steps`. */
+    periodGate?: Pick<GuidedLearningSession, 'accessMode' | 'periodAccess'>
   ) => Promise<string>;
   /** Load responses for a given session ID */
   subscribeToResponses: (sessionId: string) => () => void;
@@ -308,30 +337,43 @@ export const useGuidedLearningSessionTeacher = (
       periodNames: string[] = [],
       rosterIds: string[] = [],
       assignmentMode: AssignmentMode = 'submissions',
-      assignmentWindow?: { openAt?: number; closeAt?: number; dueAt?: number }
+      assignmentWindow?: { openAt?: number; closeAt?: number; dueAt?: number },
+      options?: { playerV2?: boolean },
+      periodGate?: Pick<GuidedLearningSession, 'accessMode' | 'periodAccess'>
     ): Promise<string> => {
       if (!teacherUid) throw new Error('Not authenticated');
 
       const sessionId = crypto.randomUUID();
       // Dedupe so a duplicated step id can't inflate the session's step count.
       const publicSteps = dedupeStepsById(set.steps).map(toPublicStep);
+      // Mirror per-slide kinds and trims only when some slide needs them.
+      const imageKinds = set.imageKinds?.some((k) => k === 'video')
+        ? set.imageKinds.slice(0, set.imageUrls.length)
+        : undefined;
+      const videoTrims = set.videoTrims?.some(Boolean)
+        ? set.videoTrims.slice(0, set.imageUrls.length)
+        : undefined;
+      const inContent = !!periodGate?.periodAccess;
 
       const session: GuidedLearningSession = {
         id: sessionId,
         title: set.title,
         mode: set.mode,
-        imageUrls: set.imageUrls,
+        imageUrls: inContent ? [] : set.imageUrls,
         // Mirror per-slide kinds so the student player renders video slides
         // in a <video> element. Omitted for image-only sets.
-        ...(set.imageKinds?.some((k) => k === 'video')
-          ? { imageKinds: set.imageKinds.slice(0, set.imageUrls.length) }
-          : {}),
+        ...(imageKinds && !inContent ? { imageKinds } : {}),
         // Mirror per-slide playback trims so video slides honor them in
         // the student player. Omitted when no slide is trimmed.
-        ...(set.videoTrims?.some(Boolean)
-          ? { videoTrims: set.videoTrims.slice(0, set.imageUrls.length) }
+        ...(videoTrims && !inContent ? { videoTrims } : {}),
+        publicSteps: inContent ? [] : publicSteps,
+        ...(inContent
+          ? {
+              stepsInContent: true,
+              accessMode: periodGate?.accessMode,
+              periodAccess: periodGate?.periodAccess,
+            }
           : {}),
-        publicSteps,
         teacherUid,
         createdAt: Date.now(),
         // Phase 5A: multi-class ClassLink targeting + post-PIN period
@@ -372,9 +414,35 @@ export const useGuidedLearningSessionTeacher = (
               welcomeMessage: set.welcomeMessage,
             }
           : {}),
+        ...(set.watchPace === 'calm' ? { watchPace: set.watchPace } : {}),
+        ...(options?.playerV2 ? { playerV2: true } : {}),
       };
 
-      await setDoc(doc(db, GL_SESSIONS_COLLECTION, sessionId), session);
+      const sessionRef = doc(db, GL_SESSIONS_COLLECTION, sessionId);
+      if (inContent) {
+        const content: GuidedLearningSessionContent = {
+          publicSteps,
+          imageUrls: set.imageUrls,
+          ...(imageKinds ? { imageKinds } : {}),
+          ...(videoTrims ? { videoTrims } : {}),
+        };
+        // One batch: the content rule checks the session's teacher via getAfter.
+        await writeBatch(db)
+          .set(sessionRef, session)
+          .set(
+            doc(
+              db,
+              GL_SESSIONS_COLLECTION,
+              sessionId,
+              GL_CONTENT_COLLECTION,
+              GL_CONTENT_DOC
+            ),
+            content
+          )
+          .commit();
+      } else {
+        await setDoc(sessionRef, session);
+      }
 
       return `${window.location.origin}/guided-learning/${sessionId}`;
     },
@@ -423,14 +491,51 @@ export interface UseGuidedLearningSessionStudentResult {
   loading: boolean;
   error: string | null;
   submitResponse: (response: GuidedLearningResponse) => Promise<void>;
+  /** The period the student's seat names on a per-period session (empty otherwise). */
+  periodKeys: string[];
+  /** True while a per-period session's steps are hidden or still loading. */
+  contentPending: boolean;
+  /** Seats the student in one of their periods; false when none is targeted. */
+  takeSeat: (
+    classPeriod: string | null,
+    claimClassIds: readonly string[]
+  ) => Promise<boolean>;
+}
+
+type RawStudentSession = GuidedLearningSession & { imageUrl?: string };
+
+/** Legacy single-image fallback and step index clamping for the player. */
+function normalizeStudentSession(
+  raw: RawStudentSession
+): GuidedLearningSession {
+  const imageUrls =
+    raw.imageUrls && raw.imageUrls.length > 0
+      ? raw.imageUrls
+      : raw.imageUrl
+        ? [raw.imageUrl]
+        : [];
+  return {
+    ...raw,
+    imageUrls,
+    publicSteps: raw.publicSteps.map((step) => ({
+      ...step,
+      imageIndex:
+        imageUrls.length === 0
+          ? 0
+          : Math.min(Math.max(step.imageIndex ?? 0, 0), imageUrls.length - 1),
+      showOverlay: step.showOverlay ?? 'none',
+    })),
+  };
 }
 
 export const useGuidedLearningSessionStudent = (
-  sessionId: string
+  sessionId: string,
+  uid?: string | null
 ): UseGuidedLearningSessionStudentResult => {
-  const [session, setSession] = useState<GuidedLearningSession | null>(null);
+  const [rawSession, setRawSession] = useState<RawStudentSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [periodKeys, setPeriodKeys] = useState<string[]>([]);
 
   useEffect(() => {
     // Realtime listener so a teacher publish/unpublish flips the
@@ -442,33 +547,10 @@ export const useGuidedLearningSessionStudent = (
       doc(db, GL_SESSIONS_COLLECTION, sessionId),
       (snap) => {
         if (!snap.exists()) {
-          setSession(null);
+          setRawSession(null);
           setError('This guided learning session was not found.');
         } else {
-          const raw = snap.data() as GuidedLearningSession & {
-            imageUrl?: string;
-          };
-          const imageUrls =
-            raw.imageUrls && raw.imageUrls.length > 0
-              ? raw.imageUrls
-              : raw.imageUrl
-                ? [raw.imageUrl]
-                : [];
-          setSession({
-            ...raw,
-            imageUrls,
-            publicSteps: raw.publicSteps.map((step) => ({
-              ...step,
-              imageIndex:
-                imageUrls.length === 0
-                  ? 0
-                  : Math.min(
-                      Math.max(step.imageIndex ?? 0, 0),
-                      imageUrls.length - 1
-                    ),
-              showOverlay: step.showOverlay ?? 'none',
-            })),
-          });
+          setRawSession(snap.data() as RawStudentSession);
           setError(null);
         }
         setLoading(false);
@@ -481,7 +563,7 @@ export const useGuidedLearningSessionStudent = (
         // Only surface a hard error before the first successful
         // snapshot; after that, swallow and let the listener self-heal.
         console.error('[useGuidedLearningSession] Snapshot error:', err);
-        setSession((prev) => {
+        setRawSession((prev) => {
           if (prev === null) {
             setError('Failed to load the session. Please try again.');
           }
@@ -492,6 +574,83 @@ export const useGuidedLearningSessionStudent = (
     );
     return unsub;
   }, [sessionId]);
+
+  // Per-period sessions keep their steps in content/steps, readable once the
+  // student's period is open. A denied read retries whenever the gate fields
+  // change, the student is seated, or a scheduled open arrives.
+  const [content, setContent] = useState<GuidedLearningSessionContent | null>(
+    null
+  );
+  const [contentRetry, setContentRetry] = useState(0);
+  const inContent = rawSession?.stepsInContent === true;
+  const gateSignature = inContent
+    ? JSON.stringify([
+        rawSession?.periodAccess ?? null,
+        uid ? (rawSession?.studentAccess?.[uid] ?? null) : null,
+      ])
+    : '';
+  useEffect(() => {
+    if (!rawSession || !hasPeriodAccess(rawSession)) return;
+    const nextOpen = nextScheduledOpen(rawSession, periodKeys, getServerNow());
+    if (nextOpen == null) return;
+    const id = setTimeout(
+      () => setContentRetry((n) => n + 1),
+      Math.max(0, nextOpen - getServerNow()) + 1000
+    );
+    return () => clearTimeout(id);
+  }, [rawSession, periodKeys]);
+  useEffect(() => {
+    if (!inContent || !sessionId) return;
+    return onSnapshot(
+      doc(
+        db,
+        GL_SESSIONS_COLLECTION,
+        sessionId,
+        GL_CONTENT_COLLECTION,
+        GL_CONTENT_DOC
+      ),
+      (snap) => {
+        if (snap.exists())
+          setContent(snap.data() as GuidedLearningSessionContent);
+      },
+      (err) => {
+        if ((err as { code?: string }).code !== 'permission-denied') {
+          console.error('[useGuidedLearningSession] Content error:', err);
+        }
+      }
+    );
+    // gateSignature and contentRetry re-run a denied read.
+  }, [inContent, sessionId, gateSignature, contentRetry]);
+
+  const session = useMemo(
+    () =>
+      rawSession
+        ? normalizeStudentSession(
+            mergeGuidedLearningSessionContent(rawSession, content)
+          )
+        : null,
+    [rawSession, content]
+  );
+
+  const takeSeat = useCallback(
+    async (
+      classPeriod: string | null,
+      claimClassIds: readonly string[]
+    ): Promise<boolean> => {
+      if (!rawSession || !hasPeriodAccess(rawSession) || !uid) return true;
+      const keys = studentPeriodKeys(rawSession, claimClassIds, classPeriod);
+      const key = pickPeriodKey(rawSession, keys, getServerNow());
+      if (!key) return false;
+      await setDoc(doc(db, GL_SESSIONS_COLLECTION, sessionId, 'seats', uid), {
+        classId: key,
+      });
+      // The rules gate on the seat's one period, so the client does too.
+      setPeriodKeys([key]);
+      setContentRetry((n) => n + 1);
+      return true;
+    },
+    [rawSession, sessionId, uid]
+  );
 
   const submitResponse = useCallback(
     async (response: GuidedLearningResponse): Promise<void> => {
@@ -509,5 +668,13 @@ export const useGuidedLearningSessionStudent = (
     [sessionId]
   );
 
-  return { session, loading, error, submitResponse };
+  return {
+    session,
+    loading,
+    error,
+    submitResponse,
+    periodKeys,
+    contentPending: inContent && !content,
+    takeSeat,
+  };
 };

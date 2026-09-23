@@ -47,11 +47,17 @@ import {
   Mic,
   Library,
   PanelRight,
+  UserCheck,
+  MousePointerClick,
   Printer,
   Volume2,
   Languages,
+  Timer,
   UsersRound,
   FileText,
+  Footprints,
+  Clapperboard,
+  CalendarClock,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -215,7 +221,56 @@ const GLOBAL_FEATURES: {
     label: 'Build a quiz from a test document',
     icon: FileText,
     description:
-      'Lets teachers make a new quiz by uploading a PDF, Word file or Google Doc of a test: questions, answer choices and the answer key when the document has one. Questions with no answer found are marked \u201CNeeds answer\u201D and block assigning until a teacher fills them in. Fail-closed: admin-only until this is saved and opened up, and the whole feature stays off until it is also switched on under Access \u2192 Rollouts.',
+      'Lets teachers make a new quiz by uploading a PDF, Word file, rich text file, Google Doc or LMS export of a test: questions, answer choices and the answer key when the file has one. Questions with no answer found are marked \u201CNeeds answer\u201D and block assigning until a teacher fills them in. Fail-closed: admin-only until this is saved and opened up, and the whole feature stays off until it is also switched on under Access \u2192 Rollouts.',
+  },
+  {
+    id: 'sub-share-collections',
+    label: 'Share a board or a collection with a sub',
+    icon: UserCheck,
+    description:
+      'Lets teachers hand a substitute a board or a whole collection for a set number of days, and manage what is out: push the boards as they stand now, add a week, or end it early, which takes back the class lists the sub was given. The sub sees the boards without student names unless the teacher names them as covering. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'gl-player-v2',
+    label: 'Guided Learning: calmer player',
+    icon: MousePointerClick,
+    description:
+      'Slower, smoother zooms with the text appearing once the picture settles, a playback speed choice for learners, and step timing based on how much there is to read. Walkthroughs assigned while someone has this keep it for their students. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'tab-away-timer',
+    label: 'Tab-away timer',
+    icon: Timer,
+    description:
+      'When a student leaves a quiz or video activity, the warning screen shows how long they have been away. Teachers can have the quiz submit itself when a student stays away too long, give one student more time, and click a warning count to see every time a student left and for how long. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'gl-live-tours',
+    label: 'Guided Learning live tours',
+    icon: Footprints,
+    description:
+      'Lets teachers start a Guided Learning walkthrough on their own board: the tour highlights each button in the real app and waits while they click it, adding any widgets it needs first. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'gl-studio',
+    label: 'Guided Learning Studio editor',
+    icon: Clapperboard,
+    description:
+      'Opens Guided Learning sets in the new full-screen Studio: slides down the side, a step timeline under the picture, drawing tools right on the slide, and narration per step. Everyone else keeps the classic editor, and the Studio has a link back to it. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'per-period-access',
+    label: 'Start and pause each class period',
+    icon: CalendarClock,
+    description:
+      'When a quiz goes to more than one class period, teachers choose between an in-class assessment, where each period stays closed until they start it, and an assignment that opens on a schedule. The monitor gets one start/pause chip per period, bell times can fill the window from the building schedule, and a teacher can let one student in early. Students in a closed period see the quiz locked, with no questions. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'quiz-results-print',
+    label: 'Quiz results printing',
+    icon: Printer,
+    description:
+      'A Print button on quiz results prints a copy for every student in one go, each starting on its own page, to hand back. Teachers pick what each copy shows: the questions, right and wrong marks, the correct answers, the score, learning targets, written-answer feedback, and passages and pictures. Admin-only until this is saved and opened up.',
   },
   {
     id: 'settings-drawer',

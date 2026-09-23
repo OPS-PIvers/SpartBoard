@@ -11,6 +11,7 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
+import { TabExitsPopover } from '@/components/common/TabExitsPopover';
 import {
   ArrowLeft,
   Download,
@@ -69,6 +70,7 @@ import {
   getEarnedPoints,
   isGamificationActive,
   isResponseAwaitingGrade,
+  resolvePinName,
   selectPushableResponses,
 } from '../utils/quizScoreboard';
 import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
@@ -79,6 +81,7 @@ import {
   SessionBadge,
   ScorePill,
   OverflowMenu,
+  LaunchedBySubTag,
 } from '@/components/common/sessionViews';
 import type { OverflowMenuItem } from '@/components/common/sessionViews';
 import { scoreColorClasses } from '@/utils/scoreColor';
@@ -102,9 +105,16 @@ import {
 } from '@/utils/quizQuestionStats';
 import {
   computeStudentDrilldown,
+  showsMissedKey,
   type StudentQuestionLine,
 } from '@/utils/quizStudentDrilldown';
-import { MARK_LABEL, printStudentReport } from '@/utils/quizStudentReportPrint';
+import {
+  MARK_LABEL,
+  printStudentReport,
+  type StudentReportTarget,
+} from '@/utils/quizStudentReportPrint';
+import { resolveRubricForResponse } from '@/utils/rubricOverrideResolution';
+import { ResultsPrintModal } from './ResultsPrintModal';
 import {
   computeQuestionDrilldowns,
   type DrilldownStudent,
@@ -284,6 +294,8 @@ interface QuizResultsProps {
   servedLanguageByStudentUid?: Record<string, string> | null;
   /** PLC page mount: question results show counts only, never student names (D24). */
   plcView?: boolean;
+  /** Paper answer sheets are on for this teacher; the results print offers sheet reprints. */
+  paperSheetsEnabled?: boolean;
   /** Per-student publishing handlers; the controls render only when provided. */
   studentResultsActions?: StudentResultsActions;
 }
@@ -339,6 +351,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   overridesByStudentUid = null,
   servedLanguageByStudentUid = null,
   plcView = false,
+  paperSheetsEnabled = false,
   studentResultsActions,
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
@@ -757,6 +770,55 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     [selection, studentResultsActions, plcView]
   );
 
+  // Printing to hand back (docs/plans/QUIZ_RESULTS_PRINT.md); never for PLC teammates (D7).
+  const canPrintResults = canAccessFeature('quiz-results-print') && !plcView;
+  const [printSelection, setPrintSelection] = useState<
+    readonly string[] | null | undefined
+  >(undefined);
+  const openPrint = useCallback((keys: string[] | null) => {
+    setPrintSelection(keys);
+  }, []);
+  const printGradeFn = useMemo(
+    () => makeQuestionGradeFn(fibGrading),
+    [fibGrading]
+  );
+  const printSortName = useCallback(
+    (response: QuizResponse) => {
+      const sso = byStudentUid.get(response.studentUid);
+      if (sso && (sso.familyName || sso.givenName)) {
+        return `${sso.familyName} ${sso.givenName}`.trim();
+      }
+      const rosterName = response.pin
+        ? resolvePinName(exportPinToName, response.classPeriod, response.pin)
+        : null;
+      if (rosterName) return rosterName;
+      return resolveTargetStudentName(response);
+    },
+    [byStudentUid, exportPinToName, resolveTargetStudentName]
+  );
+  const printTargets = useCallback(
+    (response: QuizResponse) =>
+      studentReportTargets(targetStats, getResponseDocKey(response) as string),
+    [targetStats]
+  );
+  const printRubric = useCallback(
+    (response: QuizResponse, question: QuizQuestion) =>
+      resolveRubricForResponse(
+        question,
+        response.studentUid,
+        overridesBySourcedId,
+        targetRefKeyByStudentUid
+      ).rubric,
+    [overridesBySourcedId, targetRefKeyByStudentUid]
+  );
+  const printPeriodOrder = useMemo(
+    () => [
+      ...resolvedPeriods,
+      ...availablePeriods.filter((p) => !resolvedPeriods.includes(p)),
+    ],
+    [resolvedPeriods, availablePeriods]
+  );
+
   const canOpenGrader = !!session?.id && !!user?.uid;
   const canGradeQuestion = useCallback(
     (question: QuizQuestion) =>
@@ -992,6 +1054,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         // widget config.
         plcSheetUrl: assignmentPlcSheetUrl ?? config.plcSheetUrl,
         fibGrading,
+        timeAway: canAccessFeature('tab-away-timer'),
       };
       let url: string;
       try {
@@ -1130,6 +1193,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           plcMode: false,
           plcSheetUrl: undefined,
           fibGrading,
+          timeAway: canAccessFeature('tab-away-timer'),
         }
       );
       setExportError((prev) =>
@@ -1619,6 +1683,24 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         >
           {headerTitle}
         </p>
+        {canPrintResults && filteredResponses.length > 0 && (
+          <button
+            type="button"
+            onClick={() => openPrint(null)}
+            aria-label="Print results"
+            title="Print results"
+            className="shrink-0 rounded-md hover:bg-white/15 transition-colors"
+            style={{ padding: 'min(4px, 1cqmin)' }}
+          >
+            <Printer
+              aria-hidden
+              style={{
+                width: 'min(16px, 5cqmin)',
+                height: 'min(16px, 5cqmin)',
+              }}
+            />
+          </button>
+        )}
         <button
           type="button"
           onClick={toggleHideNames}
@@ -1656,6 +1738,21 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           Results
         </span>
       </div>
+
+      {session?.launchedBy && (
+        <div
+          className="flex shrink-0 items-center border-b border-slate-200"
+          style={{
+            paddingInline: 'min(12px, 3cqmin)',
+            paddingBlock: 'min(6px, 1.6cqmin)',
+          }}
+        >
+          <LaunchedBySubTag
+            launchedBy={session.launchedBy}
+            at={session.startedAt}
+          />
+        </div>
+      )}
 
       {exportError &&
         !(exportError.kind === 'schemaMismatch' && exportError.recoveryUrl) && (
@@ -1872,6 +1969,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               addToast={addToast}
               fibGrading={fibGrading}
               studentResultsActions={studentResultsActions}
+              onPrintStudents={canPrintResults ? openPrint : undefined}
             />
           )}
         </div>
@@ -2037,6 +2135,26 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {canPrintResults && printSelection !== undefined && (
+        <ResultsPrintModal
+          quiz={quiz}
+          responses={filteredResponses}
+          initialSelection={printSelection}
+          resolveName={resolveTargetStudentName}
+          resolveShownName={resolveShownName}
+          sortNameFor={printSortName}
+          targetsFor={printTargets}
+          gradeFn={printGradeFn}
+          rubricFor={printRubric}
+          periodOrder={printPeriodOrder}
+          sessionLive={!!session && session.status !== 'ended'}
+          sheetsAvailable={paperSheetsEnabled}
+          teacherUid={user?.uid ?? null}
+          onClose={() => setPrintSelection(undefined)}
+          onError={(message) => addToast(message, 'error')}
+        />
       )}
 
       {showGrader && session?.id && user?.uid && (
@@ -2941,7 +3059,7 @@ const StudentQuestionLineView: React.FC<{
       >
         {line.answerText || 'No answer'}
       </span>
-      {line.correctAnswerText && (
+      {showsMissedKey(line) && (
         <span
           className="block font-sans text-brand-gray-primary whitespace-pre-wrap break-words"
           style={SMALL_TEXT}
@@ -2972,6 +3090,27 @@ const StudentQuestionLineView: React.FC<{
   );
 };
 
+/** One student's served learning targets, as the printed report lists them. */
+function studentReportTargets(
+  targetStats: QuizTargetStats,
+  responseKey: string
+): StudentReportTarget[] {
+  const studentTargets = targetStats.byStudent.get(responseKey);
+  return targetStats.targets.flatMap((row) => {
+    const stat = studentTargets?.get(row.target.id);
+    if (!stat || stat.servedCount === 0) return [];
+    return [
+      {
+        label: row.target.code
+          ? `${row.target.code} — ${row.target.label}`
+          : row.target.label,
+        percent: stat.correctPercent,
+        band: stat.band,
+      },
+    ];
+  });
+}
+
 /** The expanded student row: publish control, per-question lines, print (D11-D13, D23). */
 const StudentDrilldownPanel: React.FC<{
   id: string;
@@ -2985,6 +3124,8 @@ const StudentDrilldownPanel: React.FC<{
   onOpenGrader: (target: GraderTarget) => void;
   resultsControl: React.ReactNode;
   addToast: (message: string, type?: import('@/types').Toast['type']) => void;
+  /** Opens the print modal; absent keeps the one-checkbox report. */
+  onPrintStudents?: (responseKeys: string[]) => void;
 }> = ({
   id,
   quizTitle,
@@ -2997,6 +3138,7 @@ const StudentDrilldownPanel: React.FC<{
   onOpenGrader,
   resultsControl,
   addToast,
+  onPrintStudents,
 }) => {
   const [includeAnswers, setIncludeAnswers] = useState(true);
   const drilldown = useMemo(
@@ -3015,20 +3157,11 @@ const StudentDrilldownPanel: React.FC<{
   const responseKey = getResponseDocKey(response) as string;
 
   const handlePrint = () => {
-    const studentTargets = targetStats.byStudent.get(responseKey);
-    const targets = targetStats.targets.flatMap((row) => {
-      const stat = studentTargets?.get(row.target.id);
-      if (!stat || stat.servedCount === 0) return [];
-      return [
-        {
-          label: row.target.code
-            ? `${row.target.code} — ${row.target.label}`
-            : row.target.label,
-          percent: stat.correctPercent,
-          band: stat.band,
-        },
-      ];
-    });
+    if (onPrintStudents) {
+      onPrintStudents([responseKey]);
+      return;
+    }
+    const targets = studentReportTargets(targetStats, responseKey);
     try {
       printStudentReport({
         quizTitle,
@@ -3091,19 +3224,21 @@ const StudentDrilldownPanel: React.FC<{
         className="flex flex-wrap items-center justify-end border-t border-brand-gray-lightest"
         style={{ gap: 'min(8px, 2cqmin)', paddingTop: 'min(6px, 1.5cqmin)' }}
       >
-        <label
-          className="flex items-center font-sans text-brand-gray-dark cursor-pointer"
-          style={{ ...SMALL_TEXT, gap: 'min(4px, 1cqmin)' }}
-        >
-          <input
-            type="checkbox"
-            checked={includeAnswers}
-            onChange={(e) => setIncludeAnswers(e.target.checked)}
-            className="accent-brand-blue-primary"
-            style={SMALL_ICON}
-          />
-          Include correct answers
-        </label>
+        {!onPrintStudents && (
+          <label
+            className="flex items-center font-sans text-brand-gray-dark cursor-pointer"
+            style={{ ...SMALL_TEXT, gap: 'min(4px, 1cqmin)' }}
+          >
+            <input
+              type="checkbox"
+              checked={includeAnswers}
+              onChange={(e) => setIncludeAnswers(e.target.checked)}
+              className="accent-brand-blue-primary"
+              style={SMALL_ICON}
+            />
+            Include correct answers
+          </label>
+        )}
         <button
           type="button"
           onClick={handlePrint}
@@ -3141,6 +3276,7 @@ const StudentsScreen: React.FC<{
   addToast: (message: string, type?: import('@/types').Toast['type']) => void;
   fibGrading?: FibGradingContext | null;
   studentResultsActions?: StudentResultsActions;
+  onPrintStudents?: (responseKeys: string[]) => void;
 }> = ({
   quizTitle,
   responses,
@@ -3158,6 +3294,7 @@ const StudentsScreen: React.FC<{
   addToast,
   fibGrading = null,
   studentResultsActions,
+  onPrintStudents,
 }) => {
   const selection = useStudentResultsSelection();
   const resultsActions = selection ? studentResultsActions : undefined;
@@ -3228,6 +3365,7 @@ const StudentsScreen: React.FC<{
             classVisibility={classVisibility}
             resolveName={resolveCopyName}
             addToast={addToast}
+            onPrint={onPrintStudents}
           />
           <label
             className="flex items-center font-sans text-brand-gray-primary cursor-pointer self-start"
@@ -3425,16 +3563,24 @@ const StudentsScreen: React.FC<{
                     <ResultsOverrideBadge override={r.resultsOverride} />
                   )}
                   {tabWarningsEnabled && warnings > 0 && (
-                    <span
-                      title={`${warnings} Tab Switch Warning(s)`}
-                      className="shrink-0"
+                    <TabExitsPopover
+                      exits={r.tabExits}
+                      warnings={warnings}
+                      studentName={displayName}
+                      completed={r.status === 'completed'}
+                      sessionEnded={session?.status === 'ended'}
                     >
-                      <SessionBadge
-                        tone="danger"
-                        icon={AlertTriangle}
-                        label={`${warnings}`}
-                      />
-                    </span>
+                      <span
+                        title={`${warnings} Tab Switch Warning(s)`}
+                        className="shrink-0"
+                      >
+                        <SessionBadge
+                          tone="danger"
+                          icon={AlertTriangle}
+                          label={`${warnings}`}
+                        />
+                      </span>
+                    </TabExitsPopover>
                   )}
                   {/* Results-view lockout indicator. Student crossed the
                   `protection.tabWarningThreshold` while viewing
@@ -3622,6 +3768,7 @@ const StudentsScreen: React.FC<{
                   canGradeQuestion={canGradeQuestion}
                   onOpenGrader={onOpenGrader}
                   addToast={addToast}
+                  onPrintStudents={onPrintStudents}
                   resultsControl={
                     resultsActions ? (
                       <StudentResultsControl

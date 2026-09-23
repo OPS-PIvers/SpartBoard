@@ -5,10 +5,72 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
-import { Loader2, X } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Check, Loader2, X } from 'lucide-react';
 import { Modal } from './Modal';
 import { useDialog } from '@/context/useDialog';
 import { DashboardContext } from '@/context/DashboardContextValue';
+import { useAutosave, type AutosaveStatus } from '@/hooks/useAutosave';
+
+export interface EditorAutosaveConfig {
+  /**
+   * Any value whose identity changes on every draft edit. Restarts the quiet
+   * period, so continuous typing produces one write rather than one a second.
+   */
+  draftToken: unknown;
+  /**
+   * Identifies the record being edited, so pointing the editor at a different
+   * one re-baselines instead of writing it straight back.
+   */
+  resetKey?: unknown;
+  /** Off while the editor can't persist yet (no record, an upload in flight). */
+  enabled?: boolean;
+  /** Quiet period after the last edit. */
+  delayMs?: number;
+}
+
+export const AutosaveIndicator: React.FC<{
+  status: AutosaveStatus;
+  onRetry: () => void;
+}> = ({ status, onRetry }) => {
+  if (status === 'error') {
+    return (
+      <div className="flex items-center gap-2 text-sm font-bold text-red-600">
+        <AlertTriangle className="w-4 h-4" aria-hidden="true" />
+        <span role="status">Couldn&rsquo;t save</span>
+        <button
+          onClick={onRetry}
+          className="px-3 py-1 rounded-lg text-xs font-bold text-white bg-red-600 hover:bg-red-500 transition-colors"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+  if (status === 'saving') {
+    return (
+      <div className="flex items-center gap-1.5 text-sm font-bold text-slate-500">
+        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+        <span role="status">Saving…</span>
+      </div>
+    );
+  }
+  if (status === 'pending') {
+    return (
+      <div className="flex items-center gap-1.5 text-sm font-bold text-slate-400">
+        <span role="status">Unsaved changes</span>
+      </div>
+    );
+  }
+  if (status === 'saved') {
+    return (
+      <div className="flex items-center gap-1.5 text-sm font-bold text-slate-500">
+        <Check className="w-4 h-4" aria-hidden="true" />
+        <span role="status">Saved</span>
+      </div>
+    );
+  }
+  return null;
+};
 
 interface EditorModalShellProps {
   isOpen: boolean;
@@ -40,6 +102,17 @@ interface EditorModalShellProps {
   /** Drops the header X so the footer Close is the only way out. */
   hideHeaderClose?: boolean;
   onSave: () => void | Promise<void>;
+  /**
+   * Turns the Save button into a save-state line and persists on a quiet
+   * period after each edit. `onSave` then means "persist" only — the shell
+   * owns closing, and must not be closed by the caller's handler.
+   */
+  autosave?: EditorAutosaveConfig;
+  /**
+   * What still has to be filled in before the item can be used. Shown in the
+   * footer under autosave, where validation no longer gates the save.
+   */
+  incompleteNotice?: string | null;
   onClose: () => void;
   confirmDiscardMessage?: string;
   confirmDiscardTitle?: string;
@@ -62,6 +135,10 @@ interface EditorModalShellProps {
  * body, sticky footer with Cancel + Save, and a dirty-state guard that
  * prompts before discarding unsaved changes.
  *
+ * Pass `autosave` and the Save button becomes a save-state line: the shell
+ * persists after each quiet period, flushes on close, and drops the discard
+ * prompt, since there is no longer an unsaved draft to discard.
+ *
  * Parent owns draft state and `isDirty` computation; the shell just handles
  * presentation, the close-confirm flow, and the saving spinner.
  */
@@ -81,6 +158,8 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   hideHeaderClose = false,
   hideSaveButton = false,
   onSave,
+  autosave,
+  incompleteNotice,
   onClose,
   confirmDiscardMessage = 'You have unsaved changes. Discard them?',
   confirmDiscardTitle = 'Discard changes?',
@@ -107,7 +186,48 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
     onCloseRef.current = onClose;
   });
 
+  const autosaveOn = autosave !== undefined && (autosave.enabled ?? true);
+  const persist = useCallback(() => onSaveRef.current(), []);
+  const autosaveCtl = useAutosave({
+    draftToken: autosave?.draftToken,
+    resetKey: autosave?.resetKey,
+    enabled: autosaveOn,
+    delayMs: autosave?.delayMs,
+    onSave: persist,
+  });
+
+  // Destructured so the memoized footer below depends on a primitive and a
+  // stable callback, not on the controller object, which is new every render.
+  const autosaveStatus = autosaveCtl.status;
+  const autosaveFlush = autosaveCtl.flush;
+
+  // Read inside the stable `requestClose` below without re-creating it (and
+  // the memoized footer) every time the save state ticks.
+  const autosaveRef = useRef(autosaveCtl);
+  const autosaveOnRef = useRef(autosaveOn);
+  useLayoutEffect(() => {
+    autosaveRef.current = autosaveCtl;
+    autosaveOnRef.current = autosaveOn;
+  });
+
   const requestClose = useCallback(async () => {
+    if (autosaveOnRef.current) {
+      const saved = await autosaveRef.current.flush();
+      if (!saved) {
+        const leave = await showConfirm(
+          'Your latest changes could not be saved. Closing now will lose them.',
+          {
+            title: 'Close without saving?',
+            variant: 'warning',
+            confirmLabel: 'Close anyway',
+            cancelLabel: 'Keep editing',
+          }
+        );
+        if (!leave) return;
+      }
+      onCloseRef.current();
+      return;
+    }
     if (isSaving) return;
     if (!isDirty) {
       onCloseRef.current();
@@ -214,18 +334,35 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
         onClick={() => void requestClose()}
         className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
       >
-        {hideSaveButton ? 'Close' : 'Cancel'}
+        {hideSaveButton || autosaveOn ? 'Close' : 'Cancel'}
       </button>
     );
     return (
       <div className="flex items-center justify-between gap-3 px-6 py-3 bg-white">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           {footerEnd && closeButton}
           {footerExtras}
+          {incompleteNotice && (
+            <div
+              role="status"
+              className="flex items-center gap-1.5 min-w-0 text-xs font-bold text-amber-700"
+            >
+              <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">
+                Not ready to use yet: {incompleteNotice}
+              </span>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {autosaveOn && (
+            <AutosaveIndicator
+              status={autosaveStatus}
+              onRetry={() => void autosaveFlush()}
+            />
+          )}
           {footerEnd ?? closeButton}
-          {!hideSaveButton && (
+          {!hideSaveButton && !autosaveOn && (
             <button
               onClick={() => void handleSave()}
               disabled={saveDisabled || isSaving}
@@ -247,6 +384,10 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
     saveDisabled,
     isSaving,
     saveLabel,
+    autosaveOn,
+    autosaveStatus,
+    autosaveFlush,
+    incompleteNotice,
   ]);
 
   return (

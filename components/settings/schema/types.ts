@@ -66,6 +66,16 @@ export type TextField<K extends string> = FieldBase<K> & {
   normalizeOnBlur?: (value: string) => string;
 };
 
+export type TextareaPaste = {
+  /** Plain text from the clipboard, before the browser inserts it. */
+  pasted: string;
+  /** Current field value. */
+  value: string;
+  selectionStart: number;
+  selectionEnd: number;
+  ctx: FieldCtx;
+};
+
 export type TextareaField<K extends string> = FieldBase<K> & {
   type: 'textarea';
   placeholder?: string;
@@ -73,6 +83,8 @@ export type TextareaField<K extends string> = FieldBase<K> & {
   maxLength?: number;
   /** Code surface: monospace font, spellcheck off, dark editor colors. */
   monospace?: boolean;
+  /** Turn a paste into a multi-key patch; null lets the paste land as typed. */
+  pasteToPatch?: (paste: TextareaPaste) => Record<string, unknown> | null;
 };
 
 export type NumberField<K extends string> = FieldBase<K> & {

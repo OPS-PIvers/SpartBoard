@@ -267,9 +267,8 @@ const startSharedOrgListener = (orgId: string | null) => {
   );
 };
 
-export const useHelpItemsForWidget = (
-  widgetType: WidgetType
-): HelpResourceItem[] => {
+/** Every visible help item, from the listener shared with the widget help buttons. */
+export const useSharedHelpItems = (): HelpResourceItem[] => {
   // Read the context directly so the settings panel still renders outside an AuthProvider (tests, standalone surfaces).
   const orgId = useContext(AuthContext)?.orgId ?? null;
   const [state, setState] = useState<SharedHelpState>(sharedState);
@@ -311,8 +310,13 @@ export const useHelpItemsForWidget = (
     }
   }, [orgId]);
 
-  return state.items.filter((item) => item.widgetTypes.includes(widgetType));
+  return state.items;
 };
+
+export const useHelpItemsForWidget = (
+  widgetType: WidgetType
+): HelpResourceItem[] =>
+  useSharedHelpItems().filter((item) => item.widgetTypes.includes(widgetType));
 
 // Deduped per item per page load so reopening the same guide counts once.
 const countedHelpItemIds = new Set<string>();

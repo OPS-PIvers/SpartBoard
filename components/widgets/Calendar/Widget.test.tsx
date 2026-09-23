@@ -4,12 +4,15 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CalendarWidget } from './Widget';
 import { DEFAULT_GLOBAL_STYLE } from '@/types';
-import type { CalendarConfig, WidgetData } from '@/types';
+import type { CalendarConfig, CalendarEvent, WidgetData } from '@/types';
+import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import {
   useGlobalStyle,
   useDashboardActions,
   type DashboardActions,
 } from '@/context/dashboardCanvasStore';
+import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
 vi.mock('../WidgetLayout', () => ({
   WidgetLayout: ({ content }: { content: React.ReactNode }) => (
@@ -213,5 +216,129 @@ describe('CalendarWidget', () => {
       // Fetch ran with the personal calendar id.
       expect(getEventsMock).toHaveBeenCalled();
     });
+  });
+});
+
+// `/subs` renders the teacher's board: a substitute holds no token for the
+// teacher's Google account, so the bundled events stand in and nothing is
+// fetched or connected.
+describe('CalendarWidget — inside a sub share', () => {
+  beforeEach(() => {
+    vi.mocked(useGlobalStyle).mockReturnValue({
+      ...DEFAULT_GLOBAL_STYLE,
+      fontFamily: 'sans',
+    });
+    vi.mocked(useDashboardActions).mockReturnValue({
+      addWidget: vi.fn(),
+      updateWidget: vi.fn(),
+    } as unknown as DashboardActions);
+    ensureGoogleScopeMock.mockReset();
+    ensureGoogleScopeMock.mockResolvedValue(null);
+    getEventsMock.mockReset();
+    getEventsMock.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const today = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  function InShare({
+    events,
+    children,
+  }: {
+    events: CalendarEvent[];
+    children: React.ReactNode;
+  }) {
+    return (
+      <SubShareContentContext.Provider
+        value={subShareContextValue({
+          shareId: 'share-1',
+          version: 0,
+          loadKey: noSubShareKey,
+          load: () => Promise.resolve({ events }),
+        })}
+      >
+        {children}
+      </SubShareContentContext.Provider>
+    );
+  }
+
+  it('shows the events bundled at share time', async () => {
+    const widget = buildWidget({
+      events: [],
+      personalCalendarIds: ['teacher@example.com'],
+    });
+
+    render(
+      <InShare events={[{ date: today(), title: 'Bundled Staff Meeting' }]}>
+        <CalendarWidget widget={widget} />
+      </InShare>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Bundled Staff Meeting')).toBeInTheDocument();
+    });
+  });
+
+  it('asks for no Google scope and fetches no calendar', async () => {
+    const widget = buildWidget({
+      events: [],
+      personalCalendarIds: ['teacher@example.com'],
+    });
+
+    render(
+      <InShare events={[{ date: today(), title: 'Bundled Staff Meeting' }]}>
+        <CalendarWidget widget={widget} />
+      </InShare>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Bundled Staff Meeting')).toBeInTheDocument();
+    });
+    expect(ensureGoogleScopeMock).not.toHaveBeenCalled();
+    expect(getEventsMock).not.toHaveBeenCalled();
+  });
+
+  it('offers no Connect Google Calendar button', async () => {
+    const widget = buildWidget({
+      events: [{ date: today(), title: 'Local Event' }],
+      personalCalendarIds: ['teacher@example.com'],
+    });
+
+    render(
+      <InShare events={[]}>
+        <CalendarWidget widget={widget} />
+      </InShare>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Local Event')).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText('Connect Google Calendar')
+    ).not.toBeInTheDocument();
+  });
+
+  it('still shows the events the teacher typed into the widget', async () => {
+    const widget = buildWidget({
+      events: [{ date: today(), title: 'Local Event' }],
+      personalCalendarIds: ['teacher@example.com'],
+    });
+
+    render(
+      <InShare events={[{ date: today(), title: 'Bundled Staff Meeting' }]}>
+        <CalendarWidget widget={widget} />
+      </InShare>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Local Event')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Bundled Staff Meeting')).toBeInTheDocument();
   });
 });

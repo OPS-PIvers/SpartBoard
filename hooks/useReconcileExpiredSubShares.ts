@@ -48,6 +48,7 @@ import {
 import { db } from '@/config/firebase';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import type { GoogleDriveService } from '@/utils/googleDriveService';
+import { SHARE_SUBCOLLECTIONS } from '@/utils/subShareContent';
 
 const SESSION_KEY_PREFIX = 'spart_sub_reconcile_';
 
@@ -129,7 +130,13 @@ export function useReconcileExpiredSubShares({
   }, [uid, driveService]);
 }
 
-async function reconcileExpiredSubShares(
+/**
+ * One sweep pass. Exported so "End now" in the sub-shares manager can run it
+ * the moment a share is stamped expired, instead of waiting for the next
+ * session's throttled run. Throws when a Drive revoke failed, leaving the doc
+ * for the next attempt.
+ */
+export async function reconcileExpiredSubShares(
   uid: string,
   driveService: GoogleDriveService
 ): Promise<void> {
@@ -169,18 +176,24 @@ async function reconcileExpiredSubShares(
   const expiredDocs: Array<{
     ref: import('firebase/firestore').DocumentReference;
     grants: PersistedGrant[];
+    namesFileId?: string;
   }> = [];
 
   for (const docSnap of allDocs) {
     const data = docSnap.data() as {
       expiresAt?: number;
       driveGrants?: PersistedGrant[];
+      namesFileId?: string;
     };
     const grants = Array.isArray(data.driveGrants) ? data.driveGrants : [];
     const isExpired = (data.expiresAt ?? 0) <= now;
 
     if (isExpired) {
-      expiredDocs.push({ ref: docSnap.ref, grants });
+      expiredDocs.push({
+        ref: docSnap.ref,
+        grants,
+        ...(data.namesFileId ? { namesFileId: data.namesFileId } : {}),
+      });
     } else {
       // Active share — every permissionId it holds is off-limits to revoke.
       for (const g of grants) {
@@ -195,7 +208,7 @@ async function reconcileExpiredSubShares(
   let failed = 0;
   let deleteFailed = 0;
 
-  for (const { ref, grants } of expiredDocs) {
+  for (const { ref, grants, namesFileId } of expiredDocs) {
     let allRevokesOk = true;
 
     for (const g of grants) {
@@ -218,31 +231,48 @@ async function reconcileExpiredSubShares(
       }
     }
 
+    if (allRevokesOk && namesFileId) {
+      // The names file belongs to this share alone, so it goes with it rather
+      // than sitting in the teacher's Drive holding a class list.
+      try {
+        await driveService.trashFile(namesFileId);
+      } catch (err) {
+        allRevokesOk = false;
+        failed += 1;
+        console.error(
+          `[reconcileExpiredSubShares] trashing names file ${namesFileId} failed:`,
+          err
+        );
+      }
+    }
+
     if (allRevokesOk) {
       // Safe to clean up the share doc — every grant is either revoked
       // already or owned by another active share.
       try {
-        // Collection shares carry a `boards/` subcollection of frozen Board
-        // snapshots. Deleting only the parent would orphan those sub-docs
+        // Collection shares carry sub-collections of frozen snapshots and
+        // bundled content. Deleting only the parent would orphan those sub-docs
         // (they're read-gated by the parent's expiresAt, but never reaped).
         // Delete them first so the parent delete leaves nothing behind. The
         // parent collection id distinguishes a Collection doc (path
         // `shared_collections/{id}`) from a single-board share.
         let parentDeletable = true;
         if (ref.parent?.id === 'shared_collections') {
-          const boardsSnap = await getDocs(collection(ref, 'boards'));
-          // Wrap each subdoc delete independently so one failure doesn't skip
-          // the remaining boards (a single throw here used to abort the whole
-          // block, leaving the parent behind too).
-          for (const boardDoc of boardsSnap.docs) {
-            try {
-              await deleteDoc(boardDoc.ref);
-            } catch (subErr) {
-              console.error(
-                '[reconcileExpiredSubShares] board subdoc delete failed:',
-                subErr
-              );
-              parentDeletable = false;
+          for (const name of SHARE_SUBCOLLECTIONS) {
+            const subSnap = await getDocs(collection(ref, name));
+            // Wrap each subdoc delete independently so one failure doesn't skip
+            // the remaining boards (a single throw here used to abort the whole
+            // block, leaving the parent behind too).
+            for (const subDoc of subSnap.docs) {
+              try {
+                await deleteDoc(subDoc.ref);
+              } catch (subErr) {
+                console.error(
+                  `[reconcileExpiredSubShares] ${name} subdoc delete failed:`,
+                  subErr
+                );
+                parentDeletable = false;
+              }
             }
           }
         }

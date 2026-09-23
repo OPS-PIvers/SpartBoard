@@ -13,8 +13,10 @@ import {
 
 const STORAGE_KEY = 'spartboard_miniapps_library';
 
+/** `enabled: false` opens no listener — a substitute has no library to show. */
 export const useMiniAppSync = (
-  addToast: (msg: string, type: 'success' | 'error' | 'info') => void
+  addToast: (msg: string, type: 'success' | 'error' | 'info') => void,
+  enabled = true
 ) => {
   const { user, selectedBuildings } = useAuth();
   const [library, setLibrary] = useState<MiniAppItem[]>([]);
@@ -22,7 +24,7 @@ export const useMiniAppSync = (
 
   // Firestore Sync & Migration for Personal Apps
   useEffect(() => {
-    if (!user) return;
+    if (!enabled || !user) return;
 
     const appsRef = collection(db, 'users', user.uid, 'miniapps');
     const q = query(
@@ -74,10 +76,11 @@ export const useMiniAppSync = (
     });
 
     return () => unsubscribe();
-  }, [user, addToast]);
+  }, [enabled, user, addToast]);
 
   // Global library listener
   useEffect(() => {
+    if (!enabled) return;
     const q = query(
       collection(db, 'global_mini_apps'),
       orderBy('order', 'asc')
@@ -99,7 +102,7 @@ export const useMiniAppSync = (
     });
 
     return () => unsubscribe();
-  }, [selectedBuildings]);
+  }, [enabled, selectedBuildings]);
 
   return {
     library,

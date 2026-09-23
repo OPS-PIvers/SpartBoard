@@ -17,7 +17,10 @@ import {
   QuizBehaviorSettings,
 } from '@/types';
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
+import { quizAssignBlocker } from '@/utils/activityCompleteness';
 import { useDashboard } from '@/context/useDashboard';
+import { useInSubShare } from '@/hooks/useShareContent';
+import { SubShareQuizWidget } from './SubShareWidget';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useQuiz, SyncedQuizVersionConflictError } from '@/hooks/useQuiz';
@@ -146,6 +149,9 @@ import {
 } from '@/utils/studentTargetRef';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import type { StudentTargetRef } from '@/types';
+import { buildPeriodAccess } from '@/utils/periodPlan';
+import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
+import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
 
 /**
  * Session-options shape used when minting a view-only Quiz share. Typed as
@@ -160,6 +166,9 @@ import type { StudentTargetRef } from '@/types';
 const VIEW_ONLY_SESSION_OPTIONS: Required<QuizSessionOptions> = {
   tabWarningsEnabled: false,
   tabWarningThreshold: 'off',
+  // Tab warnings are off, so the away clock never runs.
+  tabAwayLimitSeconds: DEFAULT_TAB_AWAY_LIMIT_SECONDS,
+  tabAwayAutoSubmit: false,
   readAloudAll: false,
   blockCopyPaste: false,
   showResultToStudent: false,
@@ -180,12 +189,13 @@ const VIEW_ONLY_SESSION_OPTIONS: Required<QuizSessionOptions> = {
 
 const QUIZZES_COLLECTION = 'quizzes';
 
-export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
+const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const {
     updateWidget,
     addWidget,
     addToast,
     rosters,
+    updateRoster,
     activeDashboard,
     pendingAssignmentSetupId,
     clearPendingAssignmentSetup,
@@ -203,6 +213,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     appSettings,
     updateAppSettings,
   } = useAuth();
+  const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const quizAssignmentMode = getAssignmentMode('quiz');
   const { showConfirm } = useDialog();
   const { openPicker } = useGooglePicker();
@@ -1444,6 +1455,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       <QuizResults
         key={`${config.activeAssignmentId ?? 'none'}-${resultsEnterToken}`}
         quiz={loadedQuizData}
+        paperSheetsEnabled={paperSheets.enabled}
         responses={responses}
         config={config}
         onBack={() => {
@@ -1683,6 +1695,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     <>
       <QuizManager
         userId={user?.uid}
+        periodAccess={assignPeriodCtx}
         defaultTeacherName={user?.displayName ?? undefined}
         assignmentMode={quizAssignmentMode}
         quizzes={quizzes}
@@ -1781,6 +1794,13 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           // exactly once, here.
           const data = preloadedQuizData ?? (await loadQuiz(meta));
           if (!data) return;
+          // Autosave persists unfinished work, so assign can no longer assume
+          // a saved quiz is a finished one.
+          const blocker = quizAssignBlocker(data);
+          if (blocker) {
+            addToast(`This quiz can't be assigned yet: ${blocker}.`, 'error');
+            return;
+          }
           // Behavior comes from the assign modal — the quiz's saved settings
           // plus any per-assignment overrides the teacher made there.
           const { sessionMode: mode, sessionOptions, attemptLimit } = behavior;
@@ -1875,6 +1895,25 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             rosterIds.includes(r.id)
           );
           const derived = deriveSessionTargetsFromRosters(selectedRosters);
+          const periodPlan = targeting.periodPlan ?? { mode: 'assignment' };
+          const builtPeriodAccess =
+            assignPeriodCtx && mode === 'student' && selectedRosters.length > 1
+              ? buildPeriodAccess({
+                  plan: periodPlan,
+                  rosters: selectedRosters,
+                  sharedWindow: resolvedTargeting,
+                  bellWindow: (roster) =>
+                    assignPeriodCtx.bellWindow(
+                      roster,
+                      new Date(resolvedTargeting.openAt ?? Date.now())
+                    ),
+                })
+              : null;
+          // Two rosters on one class id share a gate, so they are one period.
+          const sessionPeriodAccess =
+            builtPeriodAccess && Object.keys(builtPeriodAccess).length > 1
+              ? builtPeriodAccess
+              : null;
 
           // PLC link only (D2): results pool server-side, no sheet is
           // created here. Sheet export stays opt-in on the Results screen.
@@ -2003,7 +2042,14 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 ...(resolvedDriveFileId ? { resolvedDriveFileId } : {}),
               },
               {
-                initialStatus: 'paused',
+                // A per-period session is gated by its periods, not a global pause.
+                initialStatus: sessionPeriodAccess ? 'active' : 'paused',
+                ...(sessionPeriodAccess
+                  ? {
+                      accessMode: periodPlan.mode,
+                      periodAccess: sessionPeriodAccess,
+                    }
+                  : {}),
                 ...(sessionBankSlots ? { bankSlots: sessionBankSlots } : {}),
                 classIds: derived.classIds,
                 rosterIds: derived.rosterIds,
@@ -2803,6 +2849,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             : null
         }
         bankApi={bankApi}
+        // A synced quiz publishes a new version to its PLC on every save, so
+        // that path keeps an explicit Save.
+        autosave={!editingMeta?.sync}
         behavior={editingMeta ? getQuizBehavior(editingMeta) : undefined}
         folders={editingMeta ? quizFolders : undefined}
         folderId={
@@ -2840,6 +2889,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               editingMeta?.driveFileId,
               behavior
             );
+            // Adopt what was written. Without this a new quiz keeps saving
+            // with no drive file id, so every retitled autosave orphans a file.
+            setEditingMeta(saved);
             // Keep every PLC library row for this quiz in step with what was published.
             if (saved.sync && plcs.length > 0) {
               const published = getQuizBehavior(saved);
@@ -2891,7 +2943,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             setSavingQuizId(null);
           }
           setLoadedQuizData(updated);
-          addToast(isNew ? 'Quiz created!' : 'Quiz saved!', 'success');
+          // Autosaved writes are not news; a synced Save publishes, so it is.
+          if (isNew) addToast('Quiz created!', 'success');
+          else if (editingMeta?.sync)
+            addToast('Update published to your PLC.', 'success');
         }}
       />
       {syncConflicts[0] && (
@@ -3359,6 +3414,19 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 }
               : undefined
           }
+          {...(canImportDocuments
+            ? {
+                // The same readers the import wizard uses, so a new paper
+                // test can start from the teacher's own test paper (D17).
+                readDocument: (file: Blob, fileName: string) =>
+                  readTestDocument(file, fileName, {
+                    ...(canUseAiReader
+                      ? { aiExtract: extractQuizFromDocument }
+                      : {}),
+                  }),
+                pickDocument,
+              }
+            : {})}
           inPlcGroup={!!paperPrintMeta?.sync}
           onSaveSheetStimuli={
             paperPrintMeta
@@ -3484,3 +3552,15 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     </>
   );
 };
+
+/**
+ * A substitute gets the bundled quiz instead of the teacher's library, so the
+ * two paths are separate components: the teacher's mounts Drive, assignment
+ * and live-session listeners a sub has no access to.
+ */
+export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) =>
+  useInSubShare() ? (
+    <SubShareQuizWidget widget={widget} />
+  ) : (
+    <TeacherQuizWidget widget={widget} />
+  );

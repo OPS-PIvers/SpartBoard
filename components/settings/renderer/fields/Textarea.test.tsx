@@ -108,6 +108,41 @@ describe('TextareaField', () => {
     expect(textarea.className).toContain('text-emerald-200');
   });
 
+  it('rewrites a paste into a multi-key patch when pasteToPatch returns one', () => {
+    const updateConfig = vi.fn() as UpdateConfig;
+    render(
+      <FieldRenderer
+        field={{
+          ...field,
+          pasteToPatch: (p) => ({ notes: p.pasted.toUpperCase(), other: 1 }),
+        }}
+        widget={widget}
+        ctx={makeCtx({ notes: '' })}
+        updateConfig={updateConfig}
+      />
+    );
+    fireEvent.paste(screen.getByRole('textbox'), {
+      clipboardData: { getData: () => 'hi' },
+    });
+    expect(updateConfig).toHaveBeenCalledWith({ notes: 'HI', other: 1 });
+  });
+
+  it('lets the paste land as typed when pasteToPatch returns null', () => {
+    const updateConfig = vi.fn() as UpdateConfig;
+    render(
+      <FieldRenderer
+        field={{ ...field, pasteToPatch: () => null }}
+        widget={widget}
+        ctx={makeCtx({ notes: '' })}
+        updateConfig={updateConfig}
+      />
+    );
+    fireEvent.paste(screen.getByRole('textbox'), {
+      clipboardData: { getData: () => 'hi' },
+    });
+    expect(updateConfig).not.toHaveBeenCalled();
+  });
+
   it('keeps the prose surface and browser spellcheck by default', () => {
     render(
       <FieldRenderer

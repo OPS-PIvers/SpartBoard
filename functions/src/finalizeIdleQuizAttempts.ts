@@ -48,6 +48,7 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { isPeriodFrozen, withQuizSessionContent } from './quizSessionContent';
 
 /**
  * Wall-clock minutes a response may sit idle in `joined`/`in-progress`
@@ -141,6 +142,8 @@ interface QuizSessionDoc {
   publicQuestions?: { id?: unknown }[];
   /** Opt-in marker; only sessions created by a client that understands `unresponded` carry it. */
   completenessModel?: number;
+  periodAccess?: unknown;
+  studentAccess?: unknown;
 }
 
 type Firestore = admin.firestore.Firestore;
@@ -347,13 +350,18 @@ export async function runFinalizeIdleQuizAttempts(
     questionIds: string[];
     /** 0 for legacy sessions; >= 1 opts into the unresponded completeness model. */
     completenessModel: number;
+    /** Per-period gate fields, read by `isPeriodFrozen`. */
+    periodGate: Record<string, unknown>;
   }
   const sessionMetaBySid = new Map<string, CachedSession>();
   if (sessionRefs.length > 0) {
     const sessionDocs = await readSessionDocsWithRetry(db, sessionRefs);
     for (const sessionDoc of sessionDocs) {
       if (!sessionDoc.exists) continue;
-      const data = (sessionDoc.data() ?? {}) as QuizSessionDoc;
+      const data = (await withQuizSessionContent(
+        sessionDoc.ref,
+        sessionDoc.data() ?? {}
+      )) as QuizSessionDoc;
       const status = typeof data.status === 'string' ? data.status : undefined;
       let createdAtMs: number | null = null;
       if (
@@ -377,6 +385,10 @@ export async function runFinalizeIdleQuizAttempts(
         createdAtMs,
         questionIds,
         completenessModel,
+        periodGate: {
+          periodAccess: data.periodAccess,
+          studentAccess: data.studentAccess,
+        },
       });
     }
   }
@@ -438,7 +450,11 @@ export async function runFinalizeIdleQuizAttempts(
       skippedOrphan++;
       continue;
     }
-    if (meta.status === 'paused') {
+    // A closed or paused period freezes the attempt until the teacher starts it again.
+    if (
+      meta.status === 'paused' ||
+      isPeriodFrozen(meta.periodGate, docSnap.data() ?? {}, finalizedAt)
+    ) {
       skippedPaused++;
       continue;
     }

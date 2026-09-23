@@ -28,6 +28,7 @@ export {
   generateVideoActivity,
   transcribeVideoWithGemini,
   generateGuidedLearning,
+  draftGuidedLearningStepTextV1,
   validateAndBucketVideoQuestions,
   validateAndBucketQuizQuestions,
   __resetGenerateWithAICaches,
@@ -58,6 +59,7 @@ export { getQuizArtifactPlaybackUrl } from './getQuizArtifactPlaybackUrl';
 
 // ── Quiz read-aloud (Cloud Text-to-Speech; docs/plans/QUIZ_READ_ALOUD.md) ──
 export { prepareQuizReadAloudV1, synthesizeQuizAudioV1 } from './quizReadAloud';
+export { synthesizeGuidedLearningNarrationV1 } from './guidedLearningNarration';
 export { translateQuizV1, translateResponseV1 } from './quizTranslation';
 export { extractStimulusReadAloudTextV1 } from './quizStimulusText';
 export { extractQuizFromDocumentV1 } from './quizDocumentExtract';
@@ -119,6 +121,12 @@ export {
 export { submitFlashcardCheckV1 } from './flashcardCheck';
 export { resolveFlashcardFlagV1 } from './flashcardFlags';
 
+// ── Video Activity answer key (server-graded; key kept off session docs) ────
+export {
+  checkVideoActivityAnswerV1,
+  scrubVideoActivitySessionKeyV1,
+} from './videoActivityKey';
+
 // ── Organization invitations + membership write-through (Phase 4) ──────────
 export {
   createOrganizationInvites,
@@ -173,8 +181,13 @@ export { mirrorPlcIndex } from './mirrorPlcIndex';
 // ── One-shot PLC migration (arrays→members map, orgId inference, aggregates
 // skeleton). Admin-only callable; see functions/src/migratePlcs.ts. ─────────
 export { migratePlcs } from './migratePlcs';
+
+// Dev-only: copy the caller's own prod materials into spartboard-dev.
+export { syncMyMaterialsFromProdV1 } from './devSyncFromProd';
 export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 export { expireSubShares } from './expireSubShares';
+export { launchSubAssignmentV1 } from './subLaunchAssignment';
+export { controlSubAssignmentV1 } from './subControlAssignment';
 export { expireActivityWallShares } from './expireActivityWallShares';
 export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';
 export {

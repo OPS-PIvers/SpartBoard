@@ -15,6 +15,7 @@ import {
   setDoc,
   onSnapshot,
   updateDoc,
+  writeBatch,
   Unsubscribe,
   query,
   where,
@@ -23,6 +24,11 @@ import {
 import { db } from '@/config/firebase';
 import { AssignmentMode, MiniAppItem, MiniAppSession } from '@/types';
 import { normalizeMiniAppSession } from '@/utils/miniAppNormalize';
+import {
+  MA_CONTENT_COLLECTION,
+  MA_CONTENT_DOC,
+  type MiniAppSessionContent,
+} from '@/utils/miniAppSessionContent';
 
 const SESSIONS_COLLECTION = 'mini_app_sessions';
 
@@ -56,6 +62,8 @@ export interface CreateMiniAppSessionOptions {
    *  session id for mini-app). Written onto the session doc so the student
    *  app can resolve its own pointer doc, which the CF keys by this id. */
   assignmentId?: string;
+  /** Per-period gate; the app then moves to `content/app`. */
+  periodGate?: Pick<MiniAppSession, 'accessMode' | 'periodAccess'>;
 }
 
 export interface UseMiniAppSessionTeacherResult {
@@ -105,12 +113,20 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
       // its Submit button, and the Firestore rule uses it as a secondary
       // gate alongside the `mode` check.
       const submissionsEnabled = mode === 'submissions';
+      const inContent = !!options?.periodGate?.periodAccess;
 
       const session: MiniAppSession = {
         id: sessionId,
         appId: app.id,
         appTitle: app.title,
-        appHtml: app.html,
+        appHtml: inContent ? '' : app.html,
+        ...(inContent
+          ? {
+              appInContent: true,
+              accessMode: options?.periodGate?.accessMode,
+              periodAccess: options?.periodGate?.periodAccess,
+            }
+          : {}),
         teacherUid,
         assignmentName:
           trimmedName.length > 0
@@ -132,7 +148,26 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
           : {}),
       };
 
-      await setDoc(doc(db, SESSIONS_COLLECTION, sessionId), session);
+      const sessionRef = doc(db, SESSIONS_COLLECTION, sessionId);
+      if (inContent) {
+        const content: MiniAppSessionContent = { appHtml: app.html };
+        // One batch: the content rule checks the session's teacher via getAfter.
+        await writeBatch(db)
+          .set(sessionRef, session)
+          .set(
+            doc(
+              db,
+              SESSIONS_COLLECTION,
+              sessionId,
+              MA_CONTENT_COLLECTION,
+              MA_CONTENT_DOC
+            ),
+            content
+          )
+          .commit();
+      } else {
+        await setDoc(sessionRef, session);
+      }
       return sessionId;
     },
     []

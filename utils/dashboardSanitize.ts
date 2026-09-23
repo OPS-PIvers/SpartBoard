@@ -1,4 +1,5 @@
 import type { Dashboard } from '@/types';
+import { scrubDashboardPII } from '@/utils/dashboardPII';
 
 /**
  * Strip host-specific fields from a Dashboard before snapshotting into
@@ -55,4 +56,34 @@ export const sanitizeBoardSnapshot = (board: Dashboard): Dashboard => {
     ...rest
   } = board;
   return rest;
+};
+
+/**
+ * `sanitizeBoardSnapshot` plus the widget-config PII scrub, for snapshots
+ * that leave the host's account (Collection shares, Board and Collection
+ * templates). `sanitizeBoardSnapshot` only touches Board-level fields, so on
+ * its own it let custom-list student names reach `/shared_collections`.
+ * Host-owned copies (duplicate Board / duplicate Collection) keep their names
+ * and must not use this.
+ */
+export const sanitizeBoardForRecipient = (board: Dashboard): Dashboard =>
+  scrubDashboardPII(sanitizeBoardSnapshot(board));
+
+/**
+ * Snapshot for a substitute share. Same scrub as `sanitizeBoardForRecipient`,
+ * but keeps the host's pen annotations and share groups: a sub is looking at
+ * the teacher's own board for the day, not starting from its design
+ * (docs/plans/SUB_SHARE_COLLECTIONS.md D4).
+ */
+export const sanitizeBoardForSubShare = (board: Dashboard): Dashboard => {
+  const cleaned = sanitizeBoardForRecipient(board);
+  return {
+    ...cleaned,
+    ...(board.annotationOverlay !== undefined && {
+      annotationOverlay: board.annotationOverlay,
+    }),
+    ...(board.sharedGroups !== undefined && {
+      sharedGroups: board.sharedGroups,
+    }),
+  };
 };

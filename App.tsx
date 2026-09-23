@@ -4,6 +4,7 @@ import { SPA_NAVIGATE_EVENT, parsePlcPath } from './utils/plcPath';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
 import { useReconcileExpiredSubShares } from './hooks/useReconcileExpiredSubShares';
+import { usePendingTeammateQuizCopies } from './hooks/usePendingTeammateQuizCopies';
 import { CustomWidgetsProvider } from './context/CustomWidgetsContext';
 import { SavedWidgetsProvider } from './context/SavedWidgetsContext';
 import { DashboardProvider } from './context/DashboardContext';
@@ -373,6 +374,7 @@ const AppContent: React.FC = () => {
     roleId,
     isStudentRole,
     roleResolved,
+    googleAccessToken,
     signOut,
   } = useAuth();
   const {
@@ -395,6 +397,20 @@ const AppContent: React.FC = () => {
       addToast(
         'Some expired substitute-share Drive permissions could not be revoked. Reconnect Google Drive to retry — they will otherwise be cleaned up automatically within 7 days.',
         'error'
+      );
+    },
+  });
+
+  // Build the library copies a teammate's delegated print run deferred to this
+  // teacher's own sign-in (PLC_DELEGATED_PAPER_PRINTING.md D20) — their Drive
+  // is live here, which is the whole reason the server could not do it.
+  usePendingTeammateQuizCopies({
+    uid: user?.uid ?? null,
+    googleAccessToken,
+    onCopyAdded: ({ title, requestedByName }) => {
+      addToast(
+        `${requestedByName} printed response sheets for "${title}", so it has been added to your quiz library.`,
+        'info'
       );
     },
   });

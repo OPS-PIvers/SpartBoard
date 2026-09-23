@@ -57,9 +57,14 @@ import type {
   VideoActivitySession,
 } from '@/types';
 import {
-  dedupeQuestionsById,
   gradeVideoActivityAnswer,
+  dedupeQuestionsById,
 } from '@/utils/videoActivityGrading';
+import {
+  splitVideoActivitySessionQuestions,
+  VA_KEY_DOC_ID,
+  VA_KEY_SUBCOLLECTION,
+} from '@/utils/videoActivityPublicQuestions';
 
 /**
  * Map VA assignment status onto the PLC index's shared `QuizAssignmentStatus`
@@ -312,8 +317,8 @@ export const useVideoActivityAssignments = (
       const targetRosterIds = rosterIds ?? [];
       const assignmentId = crypto.randomUUID();
       const now = Date.now();
-      // Dedupe so a duplicated question id can't inflate "Question X of N".
-      const sessionQuestions = dedupeQuestionsById(activity.questions);
+      // Dedupes, so a duplicated question id can't inflate "Question X of N".
+      const split = splitVideoActivitySessionQuestions(activity.questions);
 
       const assignment: VideoActivityAssignment = {
         id: assignmentId,
@@ -358,7 +363,7 @@ export const useVideoActivityAssignments = (
         assignmentName: settings.className ?? activity.title,
         teacherUid: userId,
         youtubeUrl: activity.youtubeUrl,
-        questions: sessionQuestions,
+        ...split.sessionFields,
         settings: settings.sessionSettings,
         ...(settings.sessionOptions
           ? { sessionOptions: settings.sessionOptions }
@@ -395,6 +400,16 @@ export const useVideoActivityAssignments = (
       batch.set(
         doc(db, VIDEO_ACTIVITY_SESSIONS_COLLECTION, assignmentId),
         session
+      );
+      batch.set(
+        doc(
+          db,
+          VIDEO_ACTIVITY_SESSIONS_COLLECTION,
+          assignmentId,
+          VA_KEY_SUBCOLLECTION,
+          VA_KEY_DOC_ID
+        ),
+        split.key
       );
       await batch.commit();
 
@@ -553,8 +568,17 @@ export const useVideoActivityAssignments = (
         await batch.commit();
       }
 
-      // Delete the session doc and the assignment doc in one batch
+      // Delete the key, session and assignment docs in one batch
       const batch = writeBatch(db);
+      batch.delete(
+        doc(
+          db,
+          VIDEO_ACTIVITY_SESSIONS_COLLECTION,
+          assignmentId,
+          VA_KEY_SUBCOLLECTION,
+          VA_KEY_DOC_ID
+        )
+      );
       batch.delete(doc(db, VIDEO_ACTIVITY_SESSIONS_COLLECTION, assignmentId));
       batch.delete(
         doc(
@@ -971,8 +995,9 @@ export const useVideoActivityAssignments = (
         assignmentId
       );
 
+      // Dedupe first-wins before indexing — mirrors useQuizAssignments; last-wins can grade against a duplicate's differing correctAnswer.
       const questionsById = new Map(
-        activityData.questions.map((q) => [q.id, q])
+        dedupeQuestionsById(activityData.questions).map((q) => [q.id, q])
       );
 
       // Read responses in bounded pages (limit + documentId cursor) rather
@@ -1063,7 +1088,8 @@ export const useVideoActivityAssignments = (
       };
       if (visibility === 'score-responses-and-answers') {
         const revealedAnswers: Record<string, string> = {};
-        for (const q of activityData.questions) {
+        // First-wins, matching the grading map above — the revealed answer must match what the student was graded against.
+        for (const q of dedupeQuestionsById(activityData.questions)) {
           revealedAnswers[q.id] = q.correctAnswer;
         }
         sessionPatch.revealedAnswers = revealedAnswers;

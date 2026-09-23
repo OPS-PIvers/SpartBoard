@@ -6,7 +6,10 @@ import {
   act,
 } from '@testing-library/react';
 import { describe, it, vi, expect, beforeEach, Mock } from 'vitest';
+import React from 'react';
 import { SmartNotebookWidget } from './Widget';
+import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useStorage } from '@/hooks/useStorage';
@@ -14,6 +17,7 @@ import * as firestore from 'firebase/firestore';
 import * as parser from '@/utils/notebookParser';
 import * as olf from '@/utils/olfConverter';
 import { WidgetData } from '@/types';
+import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
 // Mock Modules
 vi.mock('@/context/useAuth');
@@ -474,5 +478,114 @@ describe('SmartNotebookWidget', () => {
       );
     });
     expect(mockUpdateWidget).toHaveBeenCalled();
+  });
+
+  describe('inside a sub share', () => {
+    const inShare = (load: () => Promise<unknown>) =>
+      function InShare({ children }: { children: React.ReactNode }) {
+        return (
+          <SubShareContentContext.Provider
+            value={subShareContextValue({
+              shareId: 'share-1',
+              version: 0,
+              load: load as never,
+              loadKey: noSubShareKey,
+            })}
+          >
+            {children}
+          </SubShareContentContext.Provider>
+        );
+      };
+
+    const shared = {
+      ...mockWidget,
+      config: { activeNotebookId: 'nb-1', storageLimitMb: 50 },
+    } as WidgetData;
+
+    const bundled = {
+      notebook: {
+        id: 'nb-1',
+        title: 'Fractions',
+        pageUrls: ['https://storage/page1?token=a'],
+        pagePaths: [],
+        assetUrls: [],
+        createdAt: 1,
+      },
+    };
+
+    // The substitute is a different signed-in user: reading their own library
+    // would show them an empty widget where the teacher's notebook belongs.
+    it('shows the teacher’s bundled notebook, not the viewer’s library', async () => {
+      const load = vi.fn().mockResolvedValue(bundled);
+
+      render(<SmartNotebookWidget widget={shared} />, {
+        wrapper: inShare(load),
+      });
+
+      expect(await screen.findByText('Fractions')).toBeInTheDocument();
+      expect(screen.queryByText('Notebooks')).not.toBeInTheDocument();
+      expect(firestore.onSnapshot).not.toHaveBeenCalled();
+      expect(load).toHaveBeenCalledWith('notebook', 'nb-1');
+    });
+
+    // The editor autosaves page edits to the signed-in user's own notebook
+    // doc, which for a substitute is a write to their account of the
+    // teacher's pages. A share opens in the read-only view instead.
+    it('opens read-only, with no editor and no page edits', async () => {
+      render(<SmartNotebookWidget widget={shared} />, {
+        wrapper: inShare(vi.fn().mockResolvedValue(bundled)),
+      });
+
+      expect(await screen.findByText('Fractions')).toBeInTheDocument();
+      expect(
+        screen.queryByTitle('Switch to present mode')
+      ).not.toBeInTheDocument();
+      expect(screen.queryByTitle('Add blank page')).not.toBeInTheDocument();
+      expect(screen.queryByTitle('Delete page')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Drawing tool')).not.toBeInTheDocument();
+    });
+
+    // Closing flushes a pending page save to the signed-in user's notebook doc
+    // and blanks the widget's notebook id, with no library to reopen from.
+    it('has no close button, which would dead-end the widget', async () => {
+      render(<SmartNotebookWidget widget={shared} />, {
+        wrapper: inShare(vi.fn().mockResolvedValue(bundled)),
+      });
+
+      expect(await screen.findByText('Fractions')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Close notebook')).not.toBeInTheDocument();
+    });
+
+    // With no notebook chosen there is nothing to load, so the bundled-content
+    // hook reads 'off' — the library must still stay away.
+    it('shows nothing rather than the viewer’s library when no notebook is set', async () => {
+      render(<SmartNotebookWidget widget={mockWidget} />, {
+        wrapper: inShare(vi.fn()),
+      });
+
+      expect(await screen.findByText('No notebook')).toBeInTheDocument();
+      expect(screen.queryByText('Library is empty')).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /Import/i })
+      ).not.toBeInTheDocument();
+    });
+
+    // The teacher's board says which notebook to open. Treating it as stale
+    // because the substitute does not own it would blank the widget.
+    it('does not clear the teacher’s notebook id from the board', async () => {
+      (firestore.onSnapshot as unknown as Mock).mockImplementation(
+        (_q: unknown, cb: (s: { docs: unknown[] }) => void) => {
+          cb({ docs: [{ id: 'other', data: () => ({ title: 'Theirs' }) }] });
+          return vi.fn();
+        }
+      );
+
+      render(<SmartNotebookWidget widget={shared} />, {
+        wrapper: inShare(vi.fn().mockResolvedValue(bundled)),
+      });
+
+      expect(await screen.findByText('Fractions')).toBeInTheDocument();
+      expect(mockUpdateWidget).not.toHaveBeenCalled();
+    });
   });
 });

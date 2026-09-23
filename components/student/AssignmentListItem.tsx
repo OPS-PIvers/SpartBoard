@@ -13,6 +13,8 @@ import type { ClassDirectoryEntry } from '@/hooks/useStudentClassDirectory';
 import { useDialog } from '@/context/useDialog';
 import { logError } from '@/utils/logError';
 import { formatOpensLabel } from '@/utils/assignmentWindow';
+import { useServerNow } from '@/hooks/useServerNow';
+import { nextScheduledOpen, studentCanEnter } from '@/utils/periodAccess';
 
 /**
  * Lazy completion check — same pattern as the previous AssignmentCard but
@@ -358,6 +360,23 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   };
 
   const isBlocked = lockedOut || showWindowLock;
+  // A closed period still opens (the quiz shows its own locked screen, where
+  // the teacher can see the student waiting), so it is a label, not a block.
+  const periodNow = useServerNow(assignment.periodGate ? 30000 : null);
+  const periodGate = assignment.periodGate;
+  const periodLocked =
+    !!periodGate &&
+    !isCompleted &&
+    !showWindowLock &&
+    !studentCanEnter(
+      periodGate,
+      periodGate.periodKeys,
+      pseudonymUid,
+      periodNow
+    );
+  const periodOpensAt = periodLocked
+    ? nextScheduledOpen(periodGate, periodGate.periodKeys, periodNow)
+    : null;
 
   // Activity Wall has no completion/grading concept — its status chip is
   // instead the wall's open/closed state, driven by the session doc's
@@ -448,6 +467,15 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
           </span>
         )}
 
+        {periodLocked && (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">
+            <Lock className="h-3 w-3" aria-hidden="true" />
+            {periodOpensAt != null
+              ? formatOpensLabel(periodOpensAt)
+              : 'Not started yet'}
+          </span>
+        )}
+
         {lockedOut && !showWindowLock && (
           <span
             aria-label="Results locked by your teacher"
@@ -461,7 +489,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
         {/* Suppress the right-side status chip when locked so the "Locked" pill
           is the single, dominant signal on a locked row — otherwise the chip
           (e.g. "View results") contradicts the badge. */}
-        {!isBlocked && (
+        {!isBlocked && !periodLocked && (
           <span
             className={`hidden shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:inline-flex ${getChipClass(
               { isPending, isCompleted, isGraded, isWallClosed }

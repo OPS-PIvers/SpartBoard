@@ -8,7 +8,7 @@
 
 import { readDocx } from './docxReader';
 import { parseQuestionLines } from './parseQuestions';
-import { documentKind, titleFromFileName } from './fileKind';
+import { UNREADABLE_FILE, documentKind, titleFromFileName } from './fileKind';
 import { assertWithinByteLimit } from './limits';
 import type {
   ExtractedImage,
@@ -213,10 +213,10 @@ export async function readQuizDocumentWithAi(
 ): Promise<ExtractedQuiz> {
   const fileName = options.fileName ?? (file as File).name ?? '';
   const kind = documentKind(file, fileName);
-  if (!kind) {
-    throw new Error(
-      'That file type can’t be read. Upload a PDF, a Word file (.docx) or a Google Doc.'
-    );
+  if (!kind) throw new Error(UNREADABLE_FILE);
+  // Rich text never reaches the callable, which takes a PDF or a Word file.
+  if (kind !== 'pdf' && kind !== 'docx') {
+    throw new Error('The smarter reader only takes a PDF or a Word file.');
   }
   assertWithinByteLimit(file);
 

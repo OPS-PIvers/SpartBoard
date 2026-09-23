@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   BarChart2,
   Download,
@@ -6,10 +6,17 @@ import {
   Users,
   CheckCircle2,
   Loader2,
+  Eye,
+  Play,
+  Pause,
 } from 'lucide-react';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { GuidedLearningSet } from '@/types';
+import {
+  GuidedLearningSet,
+  type PeriodAccessSessionFields,
+  type SubLaunchedSessionFields,
+} from '@/types';
 import {
   useGuidedLearningSessionTeacher,
   isAnswerCorrect,
@@ -20,18 +27,49 @@ import {
 } from '@/hooks/useAssignmentPseudonyms';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
+import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { logError } from '@/utils/logError';
+import { GuidedLearningEngagement } from './results/GuidedLearningEngagement';
+import { LaunchedBySubTag } from '@/components/common/sessionViews/LaunchedBySubTag';
+import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
+import { hasPeriodAccess } from '@/utils/periodAccess';
+import { PeriodAccessStrip } from '@/components/widgets/QuizWidget/components/monitor/PeriodAccessStrip';
 
+type PeriodSession = PeriodAccessSessionFields & {
+  id: string;
+  teacherUid: string;
+};
+
+/** The per-period fields the chips read, or null on a session without them. */
+function toPeriodSession(
+  sessionId: string,
+  data: (PeriodAccessSessionFields & { teacherUid?: string }) | undefined
+): PeriodSession | null {
+  const teacherUid = data?.teacherUid ?? '';
+  if (!hasPeriodAccess(data)) return null;
+  return {
+    id: sessionId,
+    teacherUid,
+    accessMode: data.accessMode,
+    periodAccess: data.periodAccess,
+    studentAccess: data.studentAccess,
+  };
+}
 interface Props {
   set: GuidedLearningSet;
   sessionId: string;
   onClose: () => void;
+  /** Share-link session: no responses; shows views and Engagement, else `viewOnlyFallback`. */
+  viewOnly?: boolean;
+  viewOnlyFallback?: ReactNode;
 }
 
 export const GuidedLearningResults: React.FC<Props> = ({
   set,
   sessionId,
   onClose,
+  viewOnly = false,
+  viewOnlyFallback = null,
 }) => {
   const {
     responses,
@@ -41,17 +79,26 @@ export const GuidedLearningResults: React.FC<Props> = ({
   } = useGuidedLearningSessionTeacher(undefined);
 
   useEffect(() => {
+    if (viewOnly) return;
     const unsub = subscribeToResponses(sessionId);
     return unsub;
-  }, [sessionId, subscribeToResponses]);
+  }, [sessionId, subscribeToResponses, viewOnly]);
 
   // Fetch the session doc once to learn the targeted ClassLink class ids.
   // Prefer `classIds` (multi-class sessions) so an assignment targeted at
   // multiple periods resolves names for students from every targeted class,
   // not just `classIds[0]`. Falls back to the legacy single `classId` for
   // older sessions written before multi-class support.
-  const { addToast } = useDashboard();
+  const { addToast, rosters } = useDashboard();
   const [sessionClassIds, setSessionClassIds] = useState<string[]>([]);
+  const [periodSession, setPeriodSession] = useState<PeriodSession | null>(
+    null
+  );
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+  const [playerV2, setPlayerV2] = useState(false);
+  const [launchedBy, setLaunchedBy] =
+    useState<SubLaunchedSessionFields['launchedBy']>(undefined);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -61,8 +108,22 @@ export const GuidedLearningResults: React.FC<Props> = ({
         );
         if (cancelled) return;
         const data = snap.data() as
-          | { classId?: string; classIds?: string[] }
+          | (PeriodAccessSessionFields & {
+              classId?: string;
+              classIds?: string[];
+              playerV2?: boolean;
+              createdAt?: number;
+              teacherUid?: string;
+              launchedBy?: SubLaunchedSessionFields['launchedBy'];
+            })
           | undefined;
+        setPeriodSession(toPeriodSession(sessionId, data));
+        setPlayerV2(data?.playerV2 === true);
+        setLaunchedBy(data?.launchedBy);
+        setStartedAt(
+          typeof data?.createdAt === 'number' ? data.createdAt : null
+        );
+        setSessionLoaded(true);
         if (data?.classIds && data.classIds.length > 0) {
           setSessionClassIds(data.classIds);
         } else if (data?.classId) {
@@ -80,6 +141,8 @@ export const GuidedLearningResults: React.FC<Props> = ({
         logError('GuidedLearningResults.fetchSessionClassIds', err, {
           sessionId,
         });
+        setSessionLoaded(true);
+        if (viewOnly) return;
         addToast(
           "Couldn't load student names for this session — they'll show as anonymous. Refresh to retry.",
           'error'
@@ -90,7 +153,54 @@ export const GuidedLearningResults: React.FC<Props> = ({
     return () => {
       cancelled = true;
     };
-  }, [sessionId, addToast]);
+  }, [sessionId, addToast, viewOnly]);
+  // Per-period sessions keep the chips live; others read the session once above.
+  const perPeriod = !viewOnly && periodSession !== null;
+  useEffect(() => {
+    if (!perPeriod) return;
+    return onSnapshot(
+      doc(db, 'guided_learning_sessions', sessionId),
+      (snap) => {
+        const next = toPeriodSession(
+          sessionId,
+          snap.data() as PeriodAccessSessionFields & { teacherUid?: string }
+        );
+        if (next) setPeriodSession(next);
+      },
+      (err) => logError('GuidedLearningResults.periodListener', err)
+    );
+  }, [perPeriod, sessionId]);
+  const periodActions = usePeriodAccess(
+    perPeriod ? periodSession : null,
+    {
+      sessionCollection: 'guided_learning_sessions',
+      assignmentCollection: 'guided_learning_assignments',
+      refreshIdle: false,
+    },
+    rosters
+  );
+  const runPeriod = async (fn: () => Promise<unknown>) => {
+    try {
+      const untimed = await fn();
+      const labels = (Array.isArray(untimed) ? (untimed as string[]) : [])
+        .map((key) => periodSession?.periodAccess?.[key]?.label)
+        .filter(Boolean);
+      if (labels.length > 0)
+        addToast(
+          `${labels.join(', ')} stays open until you pause it. Tag the class with its bell period in My Classes so it closes at the bell.`,
+          'info'
+        );
+    } catch (err) {
+      logError('GuidedLearningResults.periodAccess', err);
+      addToast('Could not update the period. Try again.', 'error');
+    }
+  };
+
+  const { count: viewCount } = useSessionViewCount(
+    'guided_learning_sessions',
+    sessionId,
+    viewOnly && playerV2
+  );
 
   const { orgId } = useAuth();
   const { byStudentUid } = useAssignmentPseudonymsMulti(
@@ -192,6 +302,9 @@ export const GuidedLearningResults: React.FC<Props> = ({
     URL.revokeObjectURL(url);
   };
 
+  if (viewOnly && sessionLoaded && !playerV2) return <>{viewOnlyFallback}</>;
+  const loading = viewOnly ? !sessionLoaded : responsesLoading;
+
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
@@ -221,24 +334,85 @@ export const GuidedLearningResults: React.FC<Props> = ({
         >
           Results: {set.title}
         </span>
-        <button
-          onClick={handleExport}
-          disabled={responses.length === 0}
-          className="flex items-center bg-slate-700 hover:bg-slate-600 disabled:opacity-40 text-white rounded-lg transition-colors"
-          style={{
-            gap: 'min(6px, 1.5cqmin)',
-            padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-            fontSize: 'min(12px, 4.5cqmin)',
-          }}
-        >
-          <Download
-            style={{ width: 'min(12px, 3cqmin)', height: 'min(12px, 3cqmin)' }}
-          />
-          CSV
-        </button>
+        {!viewOnly && (
+          <button
+            onClick={handleExport}
+            disabled={responses.length === 0}
+            className="flex items-center bg-slate-700 hover:bg-slate-600 disabled:opacity-40 text-white rounded-lg transition-colors"
+            style={{
+              gap: 'min(6px, 1.5cqmin)',
+              padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+              fontSize: 'min(12px, 4.5cqmin)',
+            }}
+          >
+            <Download
+              style={{
+                width: 'min(12px, 3cqmin)',
+                height: 'min(12px, 3cqmin)',
+              }}
+            />
+            CSV
+          </button>
+        )}
       </div>
 
-      {responsesLoading ? (
+      {perPeriod && periodSession?.periodAccess && (
+        <div
+          className="flex shrink-0 flex-wrap items-center border-b border-white/10"
+          style={{
+            gap: 'min(6px, 1.5cqmin)',
+            padding: 'min(6px, 1.4cqmin) min(12px, 2.5cqmin)',
+          }}
+        >
+          <div className="flex-1 min-w-0">
+            <PeriodAccessStrip
+              periodAccess={periodSession.periodAccess}
+              extendMs={EXTEND_MS}
+              onStart={(key) => runPeriod(() => periodActions.startPeriod(key))}
+              onPause={(key) => runPeriod(() => periodActions.pausePeriod(key))}
+              onExtend={(key, by) =>
+                runPeriod(() => periodActions.extendPeriod(key, by))
+              }
+            />
+          </div>
+          {[
+            { label: 'Start all', Icon: Play, fn: periodActions.startAll },
+            { label: 'Pause all', Icon: Pause, fn: periodActions.pauseAll },
+          ].map(({ label, Icon, fn }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => void runPeriod(fn)}
+              className="flex items-center bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+              style={{
+                gap: 'min(4px, 1cqmin)',
+                padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                fontSize: 'min(11px, 3.8cqmin)',
+              }}
+            >
+              <Icon
+                aria-hidden
+                style={{
+                  width: 'min(11px, 3.8cqmin)',
+                  height: 'min(11px, 3.8cqmin)',
+                }}
+              />
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {launchedBy && (
+        <div
+          className="flex shrink-0 items-center border-b border-white/10"
+          style={{ padding: 'min(6px, 1.4cqmin) min(12px, 2.5cqmin)' }}
+        >
+          <LaunchedBySubTag launchedBy={launchedBy} at={startedAt} onDark />
+        </div>
+      )}
+
+      {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2
             className="text-slate-300 animate-spin"
@@ -253,8 +427,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
             gap: 'min(16px, 3.5cqmin)',
           }}
         >
-          {/* Summary cards */}
-          <div className="grid grid-cols-3" style={{ gap: 'min(8px, 2cqmin)' }}>
+          {viewOnly && (
             <div
               className="bg-white/5 rounded-xl text-center"
               style={{ padding: 'min(12px, 2.5cqmin)' }}
@@ -263,7 +436,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
                 className="font-bold text-white"
                 style={{ fontSize: 'min(24px, 12cqmin)' }}
               >
-                {responses.length}
+                {viewCount ?? '—'}
               </div>
               <div
                 className="text-slate-300 flex items-center justify-center"
@@ -273,210 +446,258 @@ export const GuidedLearningResults: React.FC<Props> = ({
                   gap: 'min(4px, 1cqmin)',
                 }}
               >
-                <Users
+                <Eye
+                  aria-hidden="true"
                   style={{
                     width: 'min(12px, 3cqmin)',
                     height: 'min(12px, 3cqmin)',
                   }}
                 />{' '}
-                Total
-              </div>
-            </div>
-            <div
-              className="bg-white/5 rounded-xl text-center"
-              style={{ padding: 'min(12px, 2.5cqmin)' }}
-            >
-              <div
-                className="font-bold text-emerald-400"
-                style={{ fontSize: 'min(24px, 12cqmin)' }}
-              >
-                {completedResponsesCount}
-              </div>
-              <div
-                className="text-slate-300 flex items-center justify-center"
-                style={{
-                  fontSize: 'min(12px, 4.5cqmin)',
-                  marginTop: 'min(2px, 0.5cqmin)',
-                  gap: 'min(4px, 1cqmin)',
-                }}
-              >
-                <CheckCircle2
-                  style={{
-                    width: 'min(12px, 3cqmin)',
-                    height: 'min(12px, 3cqmin)',
-                  }}
-                />{' '}
-                Done
-              </div>
-            </div>
-            <div
-              className="bg-white/5 rounded-xl text-center"
-              style={{ padding: 'min(12px, 2.5cqmin)' }}
-            >
-              <div
-                className="font-bold text-indigo-400"
-                style={{ fontSize: 'min(24px, 12cqmin)' }}
-              >
-                {avgScore !== null ? `${avgScore}%` : '—'}
-              </div>
-              <div
-                className="text-slate-300"
-                style={{
-                  fontSize: 'min(12px, 4.5cqmin)',
-                  marginTop: 'min(2px, 0.5cqmin)',
-                }}
-              >
-                Avg Score
-              </div>
-            </div>
-          </div>
-
-          {/* Per-question breakdown */}
-          {questionSteps.length > 0 && (
-            <div>
-              <h3
-                className="text-slate-300 font-semibold uppercase tracking-wider"
-                style={{
-                  fontSize: 'min(12px, 4.5cqmin)',
-                  marginBottom: 'min(8px, 2cqmin)',
-                }}
-              >
-                Question Results
-              </h3>
-              <div
-                className="flex flex-col"
-                style={{ gap: 'min(8px, 2cqmin)' }}
-              >
-                {questionStats.map(({ step, correct, total, pct }, idx) => (
-                  <div
-                    key={step.id}
-                    className="bg-white/5 rounded-xl"
-                    style={{ padding: 'min(12px, 2.5cqmin)' }}
-                  >
-                    <div
-                      className="flex items-start justify-between"
-                      style={{
-                        gap: 'min(8px, 2cqmin)',
-                        marginBottom: 'min(8px, 2cqmin)',
-                      }}
-                    >
-                      <p
-                        className="text-white font-medium flex-1"
-                        style={{ fontSize: 'min(12px, 4.5cqmin)' }}
-                      >
-                        Q{idx + 1}: {step.question?.text}
-                      </p>
-                      <span
-                        className={`shrink-0 font-bold ${
-                          pct === null
-                            ? 'text-slate-300'
-                            : pct >= 70
-                              ? 'text-emerald-400'
-                              : 'text-amber-400'
-                        }`}
-                        style={{ fontSize: 'min(12px, 4.5cqmin)' }}
-                      >
-                        {pct !== null ? `${pct}%` : '—'}
-                      </span>
-                    </div>
-                    {pct !== null && (
-                      <div
-                        className="bg-slate-700 rounded-full overflow-hidden"
-                        style={{ height: 'min(6px, 1.5cqmin)' }}
-                      >
-                        <div
-                          className={`h-full rounded-full ${pct >= 70 ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    )}
-                    <p
-                      className="text-slate-300"
-                      style={{
-                        fontSize: 'min(12px, 4.5cqmin)',
-                        marginTop: 'min(4px, 1cqmin)',
-                      }}
-                    >
-                      {correct} / {total} correct
-                    </p>
-                  </div>
-                ))}
+                Views
               </div>
             </div>
           )}
-
-          {/* Student list */}
-          {responses.length > 0 && (
-            <div>
-              <h3
-                className="text-slate-300 font-semibold uppercase tracking-wider"
-                style={{
-                  fontSize: 'min(12px, 4.5cqmin)',
-                  marginBottom: 'min(8px, 2cqmin)',
-                }}
-              >
-                Responses
-              </h3>
+          {viewOnly && (
+            <GuidedLearningEngagement set={set} sessionId={sessionId} />
+          )}
+          {!viewOnly && (
+            <>
+              {/* Summary cards */}
               <div
-                className="flex flex-col"
-                style={{ gap: 'min(6px, 1.5cqmin)' }}
+                className="grid grid-cols-3"
+                style={{ gap: 'min(8px, 2cqmin)' }}
               >
-                {responseStats.map(({ response: r, qCorrect, qAnswered }) => {
-                  const classLinkName = formatStudentName(
-                    byStudentUid.get(r.studentAnonymousId)
-                  );
-                  const label =
-                    classLinkName || (r.pin ? `PIN: ${r.pin}` : 'Anonymous');
-                  return (
-                    <div
-                      key={r.studentAnonymousId}
-                      className="flex items-center justify-between bg-white/5 rounded-lg"
+                <div
+                  className="bg-white/5 rounded-xl text-center"
+                  style={{ padding: 'min(12px, 2.5cqmin)' }}
+                >
+                  <div
+                    className="font-bold text-white"
+                    style={{ fontSize: 'min(24px, 12cqmin)' }}
+                  >
+                    {responses.length}
+                  </div>
+                  <div
+                    className="text-slate-300 flex items-center justify-center"
+                    style={{
+                      fontSize: 'min(12px, 4.5cqmin)',
+                      marginTop: 'min(2px, 0.5cqmin)',
+                      gap: 'min(4px, 1cqmin)',
+                    }}
+                  >
+                    <Users
                       style={{
-                        padding: 'min(8px, 2cqmin) min(12px, 2.5cqmin)',
+                        width: 'min(12px, 3cqmin)',
+                        height: 'min(12px, 3cqmin)',
                       }}
-                    >
-                      <div>
-                        <span
-                          className="text-white font-medium"
-                          style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                    />{' '}
+                    Total
+                  </div>
+                </div>
+                <div
+                  className="bg-white/5 rounded-xl text-center"
+                  style={{ padding: 'min(12px, 2.5cqmin)' }}
+                >
+                  <div
+                    className="font-bold text-emerald-400"
+                    style={{ fontSize: 'min(24px, 12cqmin)' }}
+                  >
+                    {completedResponsesCount}
+                  </div>
+                  <div
+                    className="text-slate-300 flex items-center justify-center"
+                    style={{
+                      fontSize: 'min(12px, 4.5cqmin)',
+                      marginTop: 'min(2px, 0.5cqmin)',
+                      gap: 'min(4px, 1cqmin)',
+                    }}
+                  >
+                    <CheckCircle2
+                      style={{
+                        width: 'min(12px, 3cqmin)',
+                        height: 'min(12px, 3cqmin)',
+                      }}
+                    />{' '}
+                    Done
+                  </div>
+                </div>
+                <div
+                  className="bg-white/5 rounded-xl text-center"
+                  style={{ padding: 'min(12px, 2.5cqmin)' }}
+                >
+                  <div
+                    className="font-bold text-indigo-400"
+                    style={{ fontSize: 'min(24px, 12cqmin)' }}
+                  >
+                    {avgScore !== null ? `${avgScore}%` : '—'}
+                  </div>
+                  <div
+                    className="text-slate-300"
+                    style={{
+                      fontSize: 'min(12px, 4.5cqmin)',
+                      marginTop: 'min(2px, 0.5cqmin)',
+                    }}
+                  >
+                    Avg Score
+                  </div>
+                </div>
+              </div>
+
+              {/* Per-question breakdown */}
+              {questionSteps.length > 0 && (
+                <div>
+                  <h3
+                    className="text-slate-300 font-semibold uppercase tracking-wider"
+                    style={{
+                      fontSize: 'min(12px, 4.5cqmin)',
+                      marginBottom: 'min(8px, 2cqmin)',
+                    }}
+                  >
+                    Question Results
+                  </h3>
+                  <div
+                    className="flex flex-col"
+                    style={{ gap: 'min(8px, 2cqmin)' }}
+                  >
+                    {questionStats.map(({ step, correct, total, pct }, idx) => (
+                      <div
+                        key={step.id}
+                        className="bg-white/5 rounded-xl"
+                        style={{ padding: 'min(12px, 2.5cqmin)' }}
+                      >
+                        <div
+                          className="flex items-start justify-between"
+                          style={{
+                            gap: 'min(8px, 2cqmin)',
+                            marginBottom: 'min(8px, 2cqmin)',
+                          }}
                         >
-                          {label}
-                        </span>
-                        <span
+                          <p
+                            className="text-white font-medium flex-1"
+                            style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                          >
+                            Q{idx + 1}: {step.question?.text}
+                          </p>
+                          <span
+                            className={`shrink-0 font-bold ${
+                              pct === null
+                                ? 'text-slate-300'
+                                : pct >= 70
+                                  ? 'text-emerald-400'
+                                  : 'text-amber-400'
+                            }`}
+                            style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                          >
+                            {pct !== null ? `${pct}%` : '—'}
+                          </span>
+                        </div>
+                        {pct !== null && (
+                          <div
+                            className="bg-slate-700 rounded-full overflow-hidden"
+                            style={{ height: 'min(6px, 1.5cqmin)' }}
+                          >
+                            <div
+                              className={`h-full rounded-full ${pct >= 70 ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        )}
+                        <p
                           className="text-slate-300"
                           style={{
                             fontSize: 'min(12px, 4.5cqmin)',
-                            marginLeft: 'min(8px, 2cqmin)',
+                            marginTop: 'min(4px, 1cqmin)',
                           }}
                         >
-                          {r.completedAt ? 'Completed' : 'In progress'}
-                        </span>
+                          {correct} / {total} correct
+                        </p>
                       </div>
-                      {questionSteps.length > 0 && (
-                        <span
-                          className="text-slate-300"
-                          style={{ fontSize: 'min(12px, 4.5cqmin)' }}
-                        >
-                          {qCorrect}/{qAnswered} correct
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          {responses.length === 0 && (
-            <div
-              className="text-center text-slate-300"
-              style={{
-                fontSize: 'min(14px, 5.5cqmin)',
-                padding: 'min(32px, 7cqmin) 0',
-              }}
-            >
-              No responses yet. Share the assignment link with students.
-            </div>
+              {playerV2 && (
+                <GuidedLearningEngagement set={set} sessionId={sessionId} />
+              )}
+
+              {/* Student list */}
+              {responses.length > 0 && (
+                <div>
+                  <h3
+                    className="text-slate-300 font-semibold uppercase tracking-wider"
+                    style={{
+                      fontSize: 'min(12px, 4.5cqmin)',
+                      marginBottom: 'min(8px, 2cqmin)',
+                    }}
+                  >
+                    Responses
+                  </h3>
+                  <div
+                    className="flex flex-col"
+                    style={{ gap: 'min(6px, 1.5cqmin)' }}
+                  >
+                    {responseStats.map(
+                      ({ response: r, qCorrect, qAnswered }) => {
+                        const classLinkName = formatStudentName(
+                          byStudentUid.get(r.studentAnonymousId)
+                        );
+                        const label =
+                          classLinkName ||
+                          (r.pin ? `PIN: ${r.pin}` : 'Anonymous');
+                        return (
+                          <div
+                            key={r.studentAnonymousId}
+                            className="flex items-center justify-between bg-white/5 rounded-lg"
+                            style={{
+                              padding: 'min(8px, 2cqmin) min(12px, 2.5cqmin)',
+                            }}
+                          >
+                            <div>
+                              <span
+                                className="text-white font-medium"
+                                style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                              >
+                                {label}
+                              </span>
+                              <span
+                                className="text-slate-300"
+                                style={{
+                                  fontSize: 'min(12px, 4.5cqmin)',
+                                  marginLeft: 'min(8px, 2cqmin)',
+                                }}
+                              >
+                                {r.completedAt ? 'Completed' : 'In progress'}
+                              </span>
+                            </div>
+                            {questionSteps.length > 0 && (
+                              <span
+                                className="text-slate-300"
+                                style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                              >
+                                {qCorrect}/{qAnswered} correct
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {responses.length === 0 && (
+                <div
+                  className="text-center text-slate-300"
+                  style={{
+                    fontSize: 'min(14px, 5.5cqmin)',
+                    padding: 'min(32px, 7cqmin) 0',
+                  }}
+                >
+                  No responses yet. Share the assignment link with students.
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

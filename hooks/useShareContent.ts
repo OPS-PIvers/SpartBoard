@@ -1,0 +1,134 @@
+import { useContext, useEffect, useState } from 'react';
+import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import type { SubShareContentKind, SubstituteShareRoster } from '@/types';
+
+export type ShareContentStatus = 'off' | 'loading' | 'ready' | 'missing';
+
+export interface ShareContentState<T> {
+  /** 'off' means this is not a sub share — read your own data as usual. */
+  status: ShareContentStatus;
+  payload: T | null;
+}
+
+const OFF = { status: 'off', payload: null } as const;
+
+/**
+ * Whether this board is being viewed inside a sub share at all, which the
+ * bundled-content hook cannot answer for a widget that points at nothing yet:
+ * without it an empty widget falls back to the substitute's own library.
+ */
+export function useInSubShare(): boolean {
+  return useContext(SubShareContentContext) !== null;
+}
+
+const NO_ROSTERS: SubstituteShareRoster[] = [];
+
+/**
+ * The classes the teacher attached to this share — the only ones a substitute
+ * may start an activity for. Empty outside a share, and empty inside one the
+ * teacher made without rosters, which is what hides Launch.
+ */
+export function useSubShareRosters(): SubstituteShareRoster[] {
+  return useContext(SubShareContentContext)?.rosters ?? NO_ROSTERS;
+}
+
+/**
+ * The teacher's copy of whatever this widget would otherwise load from its
+ * owner's account, bundled when the share was made.
+ *
+ * Returns 'off' outside the `/subs` portal, so a widget can branch on it
+ * without knowing anything about sub shares. 'missing' means the share was
+ * made without this item — the teacher was told at share time, and the widget
+ * should render empty rather than fall back to the viewer's own library.
+ */
+export function useShareContent<T>(
+  kind: SubShareContentKind,
+  itemId: string | null | undefined
+): ShareContentState<T> {
+  const share = useContext(SubShareContentContext);
+  const [snapshot, setSnapshot] = useState<{
+    key: string;
+    payload: T | null;
+  } | null>(null);
+
+  const key =
+    share && itemId
+      ? `${share.shareId}::${share.version}::${kind}::${itemId}`
+      : '';
+
+  useEffect(() => {
+    if (!share || !itemId) return;
+    let cancelled = false;
+    void share.load(kind, itemId).then((payload) => {
+      if (!cancelled) setSnapshot({ key, payload: (payload as T) ?? null });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [share, kind, itemId, key]);
+
+  if (!share || !itemId) return OFF;
+  if (!snapshot || snapshot.key !== key) {
+    return { status: 'loading', payload: null };
+  }
+  return snapshot.payload === null
+    ? { status: 'missing', payload: null }
+    : { status: 'ready', payload: snapshot.payload };
+}
+
+export type ShareKeyStatus = ShareContentStatus | 'denied';
+
+export interface ShareKeyState<T> {
+  /** 'off' means this is not a sub share — read your own data as usual. */
+  status: ShareKeyStatus;
+  payload: T | null;
+}
+
+/**
+ * The teacher's answer key for this widget's item, bundled when the share was
+ * made and readable only by the substitutes the share names.
+ *
+ * 'denied' means the viewer holds the link but is not one of those subs, which
+ * the widget should say rather than calling the item missing.
+ */
+export function useShareKey<T>(
+  kind: SubShareContentKind,
+  itemId: string | null | undefined
+): ShareKeyState<T> {
+  const share = useContext(SubShareContentContext);
+  const [snapshot, setSnapshot] = useState<{
+    key: string;
+    payload: T | null;
+    denied: boolean;
+  } | null>(null);
+
+  const key =
+    share && itemId
+      ? `${share.shareId}::${share.version}::${kind}::${itemId}`
+      : '';
+
+  useEffect(() => {
+    if (!share || !itemId) return;
+    let cancelled = false;
+    void share.loadKey(kind, itemId).then((result) => {
+      if (cancelled) return;
+      setSnapshot({
+        key,
+        payload: (result.payload as T) ?? null,
+        denied: result.denied,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [share, kind, itemId, key]);
+
+  if (!share || !itemId) return OFF;
+  if (!snapshot || snapshot.key !== key) {
+    return { status: 'loading', payload: null };
+  }
+  if (snapshot.denied) return { status: 'denied', payload: null };
+  return snapshot.payload === null
+    ? { status: 'missing', payload: null }
+    : { status: 'ready', payload: snapshot.payload };
+}

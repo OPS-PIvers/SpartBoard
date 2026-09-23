@@ -3,12 +3,18 @@
  * (docs/plans/FLASHCARDS.md §6 "Teacher results"). Subscribes to the session
  * doc and its `progress` subcollection while a results view is open.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { collection, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import type { FlashcardProgress, FlashcardSession } from '@/types';
+import {
+  FC_CONTENT_COLLECTION,
+  FC_CONTENT_DOC,
+  mergeFlashcardSessionContent,
+  type FlashcardSessionContent,
+} from '@/utils/flashcardSessionContent';
 import {
   FLASHCARD_PROGRESS_SUBCOLLECTION,
   FLASHCARD_SESSIONS_COLLECTION,
@@ -45,10 +51,14 @@ const EMPTY: FlashcardStudentResult[] = [];
 export const useFlashcardResults = (
   assignmentId: string | null | undefined
 ): UseFlashcardResultsResult => {
-  const [session, setSession] = useState<FlashcardSession | null>(null);
+  const [rawSession, setSession] = useState<FlashcardSession | null>(null);
   const [results, setResults] = useState<FlashcardStudentResult[]>(EMPTY);
-  const [loading, setLoading] = useState(Boolean(assignmentId));
+  const [sessionLoading, setLoading] = useState(Boolean(assignmentId));
   const [error, setError] = useState<string | null>(null);
+  // undefined until the content listener has fired once or errored.
+  const [content, setContent] = useState<
+    FlashcardSessionContent | null | undefined
+  >(undefined);
 
   // Reset during render when the selected assignment changes.
   const [prevId, setPrevId] = useState(assignmentId);
@@ -58,7 +68,43 @@ export const useFlashcardResults = (
     setResults(EMPTY);
     setLoading(Boolean(assignmentId));
     setError(null);
+    setContent(undefined);
   }
+
+  // Per-period sessions keep their cards in content/cards.
+  const inContent = rawSession?.cardsInContent === true;
+  useEffect(() => {
+    if (!assignmentId || !inContent) return undefined;
+    return onSnapshot(
+      doc(
+        db,
+        FLASHCARD_SESSIONS_COLLECTION,
+        assignmentId,
+        FC_CONTENT_COLLECTION,
+        FC_CONTENT_DOC
+      ),
+      (snapshot) =>
+        setContent(
+          snapshot.exists()
+            ? (snapshot.data() as FlashcardSessionContent)
+            : null
+        ),
+      (snapshotError) => {
+        logError('useFlashcardResults.content', snapshotError, {
+          assignmentId,
+        });
+        setContent(null);
+      }
+    );
+  }, [assignmentId, inContent]);
+  const session = useMemo(
+    () =>
+      rawSession
+        ? mergeFlashcardSessionContent(rawSession, content ?? null)
+        : null,
+    [rawSession, content]
+  );
+  const loading = sessionLoading || (inContent && content === undefined);
 
   useEffect(() => {
     if (!assignmentId) return undefined;

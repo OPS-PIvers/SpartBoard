@@ -1,12 +1,17 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import { GuidedLearningPublicStep } from '@/types';
+import { renderStepText } from '../../utils/richText';
 
 export const BannerInteraction: React.FC<{
   step: GuidedLearningPublicStep;
   onClose?: () => void;
-}> = ({ step, onClose }) => {
-  if (!step.text) return null;
+  /** Edge the banner sits on; the stage flips it to keep the target clear. */
+  position?: 'top' | 'bottom';
+  /** Studio inline editor shown in place of the label and text. */
+  editor?: React.ReactNode;
+}> = ({ step, onClose, position = 'top', editor }) => {
+  if (!step.text && !editor) return null;
   const tone = step.bannerTone ?? 'blue';
   const toneStyles: Record<typeof tone, string> = {
     blue: 'linear-gradient(135deg, #1d2a5d 0%, #2d3f89 50%, #4356a0 100%)',
@@ -17,7 +22,13 @@ export const BannerInteraction: React.FC<{
 
   return (
     <div
-      className="absolute top-0 left-0 right-0 z-30 pointer-events-none animate-in slide-in-from-top-4 duration-500 motion-reduce:animate-none"
+      data-gl-callout={step.id}
+      data-position={position}
+      className={`absolute left-0 right-0 z-30 pointer-events-none animate-in duration-500 motion-reduce:animate-none ${
+        position === 'bottom'
+          ? 'bottom-0 slide-in-from-bottom-4'
+          : 'top-0 slide-in-from-top-4'
+      }`}
       style={{ padding: 'min(8px, 2.2cqmin)' }}
     >
       <div
@@ -47,23 +58,27 @@ export const BannerInteraction: React.FC<{
             />
           </button>
         )}
-        {step.label && (
-          <div
-            className="font-black uppercase tracking-tight pr-8"
-            style={{
-              fontSize: 'clamp(20px, 6cqmin, 40px)',
-              marginBottom: 'min(4px, 1cqmin)',
-            }}
-          >
-            {step.label}
-          </div>
+        {editor ?? (
+          <>
+            {step.label && (
+              <div
+                className="font-black uppercase tracking-tight pr-8"
+                style={{
+                  fontSize: 'clamp(20px, 6cqmin, 40px)',
+                  marginBottom: 'min(4px, 1cqmin)',
+                }}
+              >
+                {renderStepText(step.label)}
+              </div>
+            )}
+            <div
+              className="whitespace-pre-wrap font-medium leading-snug"
+              style={{ fontSize: 'clamp(16px, 5cqmin, 32px)' }}
+            >
+              {renderStepText(step.text)}
+            </div>
+          </>
         )}
-        <div
-          className="whitespace-pre-wrap font-medium leading-snug"
-          style={{ fontSize: 'clamp(16px, 5cqmin, 32px)' }}
-        >
-          {step.text}
-        </div>
       </div>
     </div>
   );

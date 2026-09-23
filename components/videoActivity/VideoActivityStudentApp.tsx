@@ -32,13 +32,44 @@ import { logError } from '@/utils/logError';
 import { useVideoActivitySessionStudent } from '@/hooks/useVideoActivitySession';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
-import { VideoActivityQuestion, VideoActivitySession } from '@/types';
-import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
+import { VideoActivityPublicQuestion, VideoActivitySession } from '@/types';
+import { studentQuestionsFromSession } from '@/utils/videoActivityPublicQuestions';
 import { VideoPlayer } from './VideoPlayer';
 import { QuestionOverlay } from './QuestionOverlay';
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
-import { useFocusLossPoll } from '@/hooks/useFocusLossPoll';
+import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
+import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
+import {
+  getEffectiveTabWarningThreshold,
+  hasReachedTabWarningThreshold,
+} from '@/utils/tabWarningThreshold';
+import { TabAwayClock } from '@/components/common/TabAwayClock';
+import { useServerNow } from '@/hooks/useServerNow';
+import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
+import {
+  VideoActivityPeriodLockedScreen,
+  VideoActivityPeriodPausedOverlay,
+} from './VideoActivityPeriodLockedScreen';
+
+function errorCode(err: unknown): unknown {
+  return err && typeof err === 'object' && 'code' in err
+    ? (err as { code?: unknown }).code
+    : undefined;
+}
+
+/** The answer check refused because the student's class period is shut. */
+function isFrozenCheckError(err: unknown): boolean {
+  const code = errorCode(err);
+  return (
+    code === 'failed-precondition' || code === 'functions/failed-precondition'
+  );
+}
+
+/** A write the rules refused; on a per-period session that means the period is shut. */
+function isFrozenWriteError(err: unknown): boolean {
+  return errorCode(err) === 'permission-denied';
+}
 
 /**
  * Resolve the SSO student's class period from the session's
@@ -215,7 +246,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
   const [pin, setPin] = useState('');
   const [activeQuestion, setActiveQuestion] =
-    useState<VideoActivityQuestion | null>(null);
+    useState<VideoActivityPublicQuestion | null>(null);
   const [videoEnded, setVideoEnded] = useState(false);
   const [seekRequest, setSeekRequest] = useState<{
     time: number;
@@ -230,8 +261,13 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     lookupSession,
     joinSession,
     submitAnswer,
+    checkAnswer,
     completeActivity,
     reportTabSwitch,
+    saveTabExits,
+    periodKeys,
+    contentPending,
+    retakePending,
   } = useVideoActivitySessionStudent();
 
   const isViewOnly = session?.mode === 'view-only';
@@ -244,6 +280,52 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   useEffect(() => {
     return onAuthStateChanged(auth, (user) => setAuthedUid(user?.uid ?? null));
   }, []);
+
+  // Per-period gate, re-checked as the clock passes a window edge.
+  const perPeriod = hasPeriodAccess(session) && session.status !== 'ended';
+  const periodNow = useServerNow(perPeriod ? 5000 : null);
+  const canEnter = studentCanEnter(session, periodKeys, authedUid, periodNow);
+  const gateKey = perPeriod
+    ? JSON.stringify([
+        periodKeys.map((k) => session?.periodAccess?.[k] ?? null),
+        authedUid ? (session?.studentAccess?.[authedUid] ?? null) : null,
+      ])
+    : '';
+  // A write the server refused as frozen holds the pause until the gate fields change.
+  const [frozenGate, setFrozenGate] = useState<string | null>(null);
+  if (frozenGate !== null && frozenGate !== gateKey) setFrozenGate(null);
+  const periodPaused = perPeriod && (!canEnter || frozenGate === gateKey);
+  // Once the player has shown, a later close pauses it in place rather than swapping screens.
+  const [entered, setEntered] = useState(false);
+  if (
+    !entered &&
+    perPeriod &&
+    canEnter &&
+    !contentPending &&
+    !retakePending &&
+    joinStatus === 'joined'
+  ) {
+    setEntered(true);
+  }
+  const periodHold = perPeriod && (periodPaused || !entered);
+  const [overlayNonce, setOverlayNonce] = useState(0);
+  const [finishPending, setFinishPending] = useState(false);
+  const checkFrozenRef = useRef(false);
+  const freezeForPeriod = useCallback(() => {
+    setFrozenGate(gateKey);
+    setOverlayNonce((n) => n + 1);
+  }, [gateKey]);
+  const guardedCheckAnswer = useCallback(
+    async (questionId: string, answer: string) => {
+      try {
+        return await checkAnswer(questionId, answer);
+      } catch (err) {
+        if (perPeriod && isFrozenCheckError(err)) checkFrozenRef.current = true;
+        throw err;
+      }
+    },
+    [checkAnswer, perPeriod]
+  );
 
   // M17 C3-va: read the student's own pointer override (`timeMultiplier`
   // accommodation). VA has no timed elements in its player today (no
@@ -386,21 +468,34 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   }, [joinSession, sessionId, pin, selectedPeriod]);
 
   const handleQuestionTrigger = useCallback(
-    (question: VideoActivityQuestion) => {
+    (question: VideoActivityPublicQuestion) => {
       setActiveQuestion(question);
     },
     []
   );
 
+  const sessionQuestions = session?.questions;
+  const sessionPublicQuestions = session?.publicQuestions;
   const sortedQuestions = React.useMemo(
     () =>
-      [...(session?.questions ?? [])].sort((a, b) => a.timestamp - b.timestamp),
-    [session?.questions]
+      [
+        ...studentQuestionsFromSession({
+          questions: sessionQuestions ?? [],
+          publicQuestions: sessionPublicQuestions,
+        }),
+      ].sort((a, b) => a.timestamp - b.timestamp),
+    [sessionQuestions, sessionPublicQuestions]
   );
 
   const handleAnswer = useCallback(
-    async (answer: string, isCorrect: boolean) => {
+    async (answer: string, isCorrect: boolean, graded: boolean) => {
       if (!activeQuestion) return;
+      // The check was refused as frozen: keep the question for when the period reopens.
+      if (checkFrozenRef.current) {
+        checkFrozenRef.current = false;
+        freezeForPeriod();
+        return;
+      }
       const requireCorrect = session?.settings?.requireCorrectAnswer ?? true;
       if (requireCorrect && !isCorrect) {
         const activeIdx = sortedQuestions.findIndex(
@@ -417,7 +512,17 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       // rejects the write defense-in-depth, but skip it client-side too so
       // the console stays clean.
       if (!isViewOnly) {
-        await submitAnswer(activeQuestion.id, answer);
+        try {
+          await submitAnswer(
+            activeQuestion.id,
+            answer,
+            graded ? isCorrect : undefined
+          );
+        } catch (err) {
+          if (!perPeriod || !isFrozenWriteError(err)) throw err;
+          freezeForPeriod();
+          return;
+        }
       }
       setActiveQuestion(null);
     },
@@ -427,14 +532,24 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       sortedQuestions,
       submitAnswer,
       isViewOnly,
+      perPeriod,
+      freezeForPeriod,
     ]
   );
 
   const handleVideoEnd = useCallback(async () => {
     setVideoEnded(true);
     if (isViewOnly) return;
-    await completeActivity();
-  }, [completeActivity, isViewOnly]);
+    try {
+      await completeActivity();
+    } catch (err) {
+      if (!perPeriod || !isFrozenWriteError(err)) throw err;
+      // Not submitted: offer Finish once the class reopens.
+      setVideoEnded(false);
+      setFinishPending(true);
+      freezeForPeriod();
+    }
+  }, [completeActivity, isViewOnly, perPeriod, freezeForPeriod]);
 
   // ── Tab-switch warning system (mirrors QuizStudentApp) ──────────────────
   const { showAlert } = useDialog();
@@ -445,9 +560,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const [showResumeModal, setShowResumeModal] = useState(
     () => !!myResponse?.unlocked
   );
-  const isWarningShowingRef = useRef<boolean>(false);
-  const lastReportTimeRef = useRef<number>(0);
-  const didInitialCheckRef = useRef(false);
+  const playheadRef = useRef(0);
 
   // Track the previous `tabSwitchWarnings` value via state-during-render
   // so we can sync the local counter without an extra effect pass.
@@ -478,117 +591,91 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       const message =
         reason === 'post-unlock'
           ? 'Your unlocked attempt is being submitted now.'
-          : 'You have left the activity 3 times. Your activity is being auto-submitted.';
+          : 'You have left the activity too many times. Your activity is being auto-submitted.';
       await showAlert(message, {
         title: 'Activity Auto-Submitted',
         variant: 'warning',
       });
-      await completeActivity();
+      try {
+        await completeActivity();
+      } catch (err) {
+        if (!perPeriod || !isFrozenWriteError(err)) throw err;
+        freezeForPeriod();
+      }
     },
-    [showAlert, completeActivity]
+    [showAlert, completeActivity, perPeriod, freezeForPeriod]
   );
 
   const tabWarningsEnabled =
     session?.sessionOptions?.tabWarningsEnabled !== false;
+  const tabWarningThreshold = getEffectiveTabWarningThreshold(
+    session?.sessionOptions?.tabWarningThreshold
+  );
+  // Null unless the teacher assigned with the tab-away-timer flag.
+  const tabAwayRule = getEffectiveTabAwayRule(session?.sessionOptions ?? {});
 
-  useEffect(() => {
-    if (!tabWarningsEnabled) return;
-    if (joinStatus !== 'joined') return;
-    if (session?.status !== 'active') return;
-    if (isViewOnly) return;
-
-    const handleVisibilityChange = async () => {
-      // Skip while a warning is already showing, while a question overlay
-      // is active (the player blurs to render it), and once the student
-      // has finished.
-      if (isWarningShowingRef.current || myResponse?.completedAt != null) {
-        return;
+  // The tab-away tracker counts each exit, logs it to `tabExits`, and closes
+  // it when the student comes back.
+  const tabTracker = useTabAwayTracker({
+    enabled:
+      tabWarningsEnabled &&
+      joinStatus === 'joined' &&
+      session?.status === 'active' &&
+      !isViewOnly &&
+      !periodHold &&
+      myResponse?.completedAt == null,
+    sessionActive: session?.status === 'active',
+    ready: myResponse != null,
+    serverExits: myResponse?.tabExits,
+    attempt: myResponse?.completedAttempts ?? 0,
+    getPosition: () => ({ videoTime: Math.round(playheadRef.current) }),
+    onLeave: async () => {
+      let newTotal: number;
+      try {
+        newTotal = await reportTabSwitch();
+      } catch (err) {
+        logError('VideoActivityStudentApp.reportTabSwitch', err, {
+          sessionId,
+        });
+        setShowCheatWarning(true);
+        return false;
       }
-
-      const now = Date.now();
-      if (now - lastReportTimeRef.current < 1000) return;
-
-      const isPageHidden = document.visibilityState === 'hidden';
-      const isWindowBlurred = !document.hasFocus();
-
-      if (isPageHidden || isWindowBlurred) {
-        lastReportTimeRef.current = now;
-        isWarningShowingRef.current = true;
-
-        try {
-          const newTotal = await reportTabSwitch();
-          setWarningCount(newTotal);
-
-          // Teacher-unlocked attempts skip the warning modal — any
-          // further strike finalizes the attempt instantly.
-          const wasUnlocked = !!myResponse?.unlocked;
-          if (wasUnlocked) {
-            setShowCheatWarning(false);
-            // Always release the visibility lock — a failed submit
-            // (Firestore offline) must not leave the handler
-            // permanently armed-off.
-            void handleAutoSubmit('post-unlock').finally(() => {
-              isWarningShowingRef.current = false;
-            });
-            return;
-          }
-
-          setShowCheatWarning(true);
-          if (newTotal >= 3) {
-            setTimeout(() => void handleAutoSubmit(), 100);
-          }
-        } catch (err) {
-          logError('VideoActivityStudentApp.reportTabSwitch', err, {
+      setWarningCount(newTotal);
+      // Teacher-unlocked attempts skip the warning modal — any further
+      // strike finalizes the attempt instantly.
+      if (myResponse?.unlocked) {
+        setShowCheatWarning(false);
+        // A failed submit (Firestore offline) must not leave detection armed-off.
+        void handleAutoSubmit('post-unlock').finally(tabTracker.release);
+        return true;
+      }
+      setShowCheatWarning(true);
+      if (hasReachedTabWarningThreshold(newTotal, tabWarningThreshold)) {
+        setTimeout(() => void handleAutoSubmit(), 100);
+        return true;
+      }
+      return false;
+    },
+    saveExits: saveTabExits,
+    limitMs: tabAwayRule?.limitMs ?? null,
+    autoSubmit: tabAwayRule?.autoSubmit ?? false,
+    onAwayTooLong: () => {
+      // Submit first: the tab may be hidden, where a blocking alert would wait.
+      setShowCheatWarning(true);
+      void completeActivity()
+        .then(() =>
+          showAlert(
+            'You were away from the activity too long, so it was submitted.',
+            { title: 'Activity Auto-Submitted', variant: 'warning' }
+          )
+        )
+        .catch((err: unknown) =>
+          logError('VideoActivityStudentApp.awayAutoSubmit', err, {
             sessionId,
-          });
-          setShowCheatWarning(true);
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleVisibilityChange);
-
-    if (!didInitialCheckRef.current) {
-      didInitialCheckRef.current = true;
-      if (document.visibilityState === 'hidden') {
-        void handleVisibilityChange();
-      }
-    }
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleVisibilityChange);
-    };
-  }, [
-    tabWarningsEnabled,
-    joinStatus,
-    session?.status,
-    isViewOnly,
-    reportTabSwitch,
-    handleAutoSubmit,
-    myResponse?.completedAt,
-    myResponse?.unlocked,
-    sessionId,
-  ]);
-
-  // Modern Chrome/Firefox don't fire `window.blur` when focus shifts to
-  // the URL bar, bookmark dropdowns, or other browser-chrome targets, so
-  // the listeners above miss those interactions. `document.hasFocus()`
-  // still flips false in all those cases — `useFocusLossPoll` watches the
-  // `true → false` edge on a 250 ms timer and dispatches a synthetic
-  // `blur` so the existing `handleVisibilityChange` listener owns the
-  // full response logic in one place. The poll is gated by the same
-  // conditions as the listener effect; without them, a focus loss
-  // outside an active session would still fire.
-  const focusPollEnabled =
-    tabWarningsEnabled &&
-    joinStatus === 'joined' &&
-    session?.status === 'active' &&
-    !isViewOnly;
-  useFocusLossPoll({
-    enabled: focusPollEnabled,
-    onFocusLoss: () => window.dispatchEvent(new Event('blur')),
+          })
+        )
+        .finally(tabTracker.release);
+    },
   });
 
   // ── Invalid / missing session ID ──────────────────────────────────────────
@@ -784,9 +871,11 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const attemptLimit = session?.sessionOptions?.attemptLimit ?? null;
   const completedCount = myResponse?.completedAttempts ?? 0;
   const atCap = attemptLimit !== null && completedCount >= attemptLimit;
-  if (videoEnded || myResponse?.completedAt || atCap) {
+  // A retake waiting on a shut period shows the locked card; otherwise finished work always shows here.
+  const retakeWaiting = retakePending && perPeriod && !canEnter;
+  if ((videoEnded || myResponse?.completedAt || atCap) && !retakeWaiting) {
     const answeredCount = myResponse?.answers.length ?? 0;
-    const totalQuestions = session?.questions.length ?? 0;
+    const totalQuestions = sortedQuestions.length;
     // Score visibility gates whether the student sees their percentage. The
     // teacher's Publish Scores flow flips `session.scoreVisibility` from
     // `'none'` (or absent) to one of the reveal modes. Until then, the
@@ -795,15 +884,13 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     // teacher set visibility to `'none'`.
     const visibility = session?.scoreVisibility ?? 'none';
     const showScore = visibility !== 'none';
-    // Derive correctness via the shared grader so MA / FIB-variants /
-    // partial-credit semantics line up with the teacher Results view and
-    // the in-flight QuestionOverlay submit path. Only computed when the
-    // visibility gate would actually display the result.
+    // `isCorrect` comes from the server check at submit time, and Publish re-grades it.
     const correct = showScore
-      ? (session?.questions.filter((q) => {
-          const a = myResponse?.answers.find((x) => x.questionId === q.id);
-          return a ? gradeVideoActivityAnswer(q, a.answer).isCorrect : false;
-        }).length ?? 0)
+      ? sortedQuestions.filter(
+          (q) =>
+            myResponse?.answers.find((x) => x.questionId === q.id)
+              ?.isCorrect === true
+        ).length
       : 0;
 
     return (
@@ -838,9 +925,16 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                   </p>
                 )}
 
-                {(myResponse?.tabSwitchWarnings ?? 0) >= 3 && (
+                {hasReachedTabWarningThreshold(
+                  myResponse?.tabSwitchWarnings ?? 0,
+                  tabWarningThreshold
+                ) && (
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-sm">
-                    Auto-submitted because you left the activity tab 3 times.
+                    Auto-submitted because you left the activity tab{' '}
+                    {tabWarningThreshold === 1
+                      ? 'once'
+                      : `${tabWarningThreshold} times`}
+                    .
                   </div>
                 )}
 
@@ -854,6 +948,22 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         </div>
       </div>
     );
+  }
+
+  // ── Per-period session not open for this student ─────────────────────────
+
+  if (perPeriod && session && !entered) {
+    if (!canEnter) {
+      return (
+        <VideoActivityPeriodLockedScreen
+          session={session}
+          periodKeys={periodKeys}
+          now={periodNow}
+          started={!retakePending && (myResponse?.answers.length ?? 0) > 0}
+        />
+      );
+    }
+    return <FullPageLoader message="Loading activity…" />;
   }
 
   // ── Active video + question overlay ───────────────────────────────────────
@@ -899,17 +1009,33 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
           <h2 className="text-4xl font-black text-white mb-4">
             TAB SWITCH DETECTED
           </h2>
+          {tabAwayRule && tabTracker.away && (
+            <TabAwayClock
+              away={tabTracker.away}
+              limitMs={tabAwayRule.limitMs}
+              autoSubmit={tabAwayRule.autoSubmit}
+            />
+          )}
           <p className="text-red-200 text-lg max-w-md mb-8">
             You navigated away from the activity. This incident has been logged.
             <br />
             <br />
-            <strong>Warning {warningCount} of 3.</strong> If you reach 3
-            warnings, your activity will automatically submit.
+            {tabWarningThreshold === 'off' ? (
+              <strong>Warning {warningCount}.</strong>
+            ) : (
+              <>
+                <strong>
+                  Warning {warningCount} of {tabWarningThreshold}.
+                </strong>{' '}
+                If you reach {tabWarningThreshold} warnings, your activity will
+                automatically submit.
+              </>
+            )}
           </p>
           <button
             onClick={() => {
               setShowCheatWarning(false);
-              isWarningShowingRef.current = false;
+              tabTracker.release();
             }}
             className="px-8 py-4 bg-white text-red-900 font-bold rounded-xl active:scale-95 transition-transform"
           >
@@ -965,13 +1091,34 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 allowSkipping={session?.settings?.allowSkipping ?? false}
                 autoPlay={session?.settings?.autoPlay ?? false}
                 seekRequest={seekRequest}
+                playheadRef={playheadRef}
+                paused={periodPaused}
               />
 
-              {activeQuestion && (
+              {periodPaused && <VideoActivityPeriodPausedOverlay />}
+
+              {finishPending && !periodPaused && (
+                <div className="absolute inset-0 z-30 bg-slate-900/80 flex items-center justify-center p-6">
+                  <button
+                    onClick={() => {
+                      setFinishPending(false);
+                      void handleVideoEnd();
+                    }}
+                    className="px-8 py-4 bg-white text-slate-900 font-bold rounded-xl active:scale-95 transition-transform"
+                  >
+                    Finish activity
+                  </button>
+                </div>
+              )}
+
+              {activeQuestion && !periodPaused && (
                 <div className="absolute inset-0 z-20 bg-black/60 backdrop-blur-[1px] flex items-center justify-center overflow-y-auto p-2 sm:p-4">
                   <QuestionOverlay
-                    key={activeQuestion.id}
+                    key={`${activeQuestion.id}-${overlayNonce}`}
                     question={activeQuestion}
+                    checkAnswer={(answer) =>
+                      guardedCheckAnswer(activeQuestion.id, answer)
+                    }
                     onAnswer={handleAnswer}
                     questionIndex={
                       sortedQuestions.findIndex(

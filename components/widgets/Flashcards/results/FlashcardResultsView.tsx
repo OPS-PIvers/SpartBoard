@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { BarChart3, EyeOff, Loader2, Send } from 'lucide-react';
+import { BarChart3, EyeOff, Loader2, Pause, Play, Send } from 'lucide-react';
 import type { FlashcardAssignment, FlashcardScoreVisibility } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
@@ -11,8 +11,15 @@ import {
 import { useFlashcardResults } from '@/hooks/useFlashcardResults';
 import { useMinuteClock } from '@/hooks/useMinuteClock';
 import { SessionViewHeader } from '@/components/common/sessionViews/SessionViewHeader';
+import { LaunchedBySubTag } from '@/components/common/sessionViews/LaunchedBySubTag';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { filterResultsByClass } from '@/utils/flashcardResults';
+import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
+import { useServerNow } from '@/hooks/useServerNow';
+import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
+import { ActionButton } from '@/components/common/sessionViews/ActionButton';
+import { usePeriodRunner } from '@/hooks/usePeriodRunner';
+import { PeriodAccessStrip } from '@/components/widgets/QuizWidget/components/monitor/PeriodAccessStrip';
 import { FlashcardStudyResults } from './FlashcardStudyResults';
 import { FlashcardCheckReview } from './FlashcardCheckReview';
 import {
@@ -48,6 +55,39 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
   const [classFilter, setClassFilter] = useState<string | null>(null);
   const [publishOpen, setPublishOpen] = useState(false);
   const now = useMinuteClock();
+  // Per-period sessions get one chip per period, Start/Pause all and Let in now.
+  const perPeriod =
+    !!session && hasPeriodAccess(session) && session.status !== 'ended';
+  const periodActions = usePeriodAccess(
+    perPeriod ? session : null,
+    {
+      sessionCollection: 'flashcard_sessions',
+      assignmentCollection: 'flashcard_assignments',
+      refreshIdle: false,
+    },
+    rosters
+  );
+  const runPeriod = usePeriodRunner(
+    session?.periodAccess,
+    'FlashcardResultsView.periodAccess'
+  );
+  const periodNow = useServerNow(perPeriod ? 30_000 : null);
+  // Only students with progress are listed, so one who never got in can't be let in from here.
+  const letInFor = (studentUid: string): (() => void) | undefined => {
+    const result = results.find((r) => r.studentUid === studentUid);
+    if (!perPeriod || !result || typeof result.submittedAt === 'number')
+      return undefined;
+    if (
+      studentCanEnter(
+        session,
+        result.classId ? [result.classId] : [],
+        studentUid,
+        periodNow
+      )
+    )
+      return undefined;
+    return () => void runPeriod(() => periodActions.letIn(studentUid));
+  };
 
   const classIds = useMemo(
     () => session?.classIds ?? assignment.classIds ?? [],
@@ -157,7 +197,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
     session?.scoreVisibility ?? assignment.scoreVisibility
   );
 
-  const actions =
+  const publishAction =
     assignment.kind !== 'check' ? null : (
       <button
         type="button"
@@ -191,6 +231,25 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
         {published ? 'Hide scores' : 'Publish scores'}
       </button>
     );
+  const actions = perPeriod ? (
+    <>
+      <ActionButton
+        variant="secondary"
+        label="Start all"
+        icon={Play}
+        onClick={() => void runPeriod(periodActions.startAll)}
+      />
+      <ActionButton
+        variant="secondary"
+        label="Pause all"
+        icon={Pause}
+        onClick={() => void runPeriod(periodActions.pauseAll)}
+      />
+      {publishAction}
+    </>
+  ) : (
+    publishAction
+  );
 
   return (
     <div className="flex h-full flex-col bg-slate-50">
@@ -205,6 +264,35 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
         }
         actions={actions}
       />
+
+      {perPeriod && session?.periodAccess && (
+        <div
+          className="flex shrink-0 border-b border-slate-200/70 bg-white/60"
+          style={{ padding: 'min(6px, 1.6cqmin) min(16px, 3.5cqmin)' }}
+        >
+          <PeriodAccessStrip
+            periodAccess={session.periodAccess}
+            extendMs={EXTEND_MS}
+            onStart={(key) => runPeriod(() => periodActions.startPeriod(key))}
+            onPause={(key) => runPeriod(() => periodActions.pausePeriod(key))}
+            onExtend={(key, by) =>
+              runPeriod(() => periodActions.extendPeriod(key, by))
+            }
+          />
+        </div>
+      )}
+
+      {assignment.launchedBy && (
+        <div
+          className="flex shrink-0 items-center border-b border-slate-200/70 bg-white/60"
+          style={{ padding: 'min(6px, 1.6cqmin) min(16px, 3.5cqmin)' }}
+        >
+          <LaunchedBySubTag
+            launchedBy={assignment.launchedBy}
+            at={assignment.createdAt}
+          />
+        </div>
+      )}
 
       {presentClassIds.length > 1 && (
         <div
@@ -263,6 +351,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
             nameFor={nameFor}
             onResetStudent={(uid) => void handleReset(uid)}
             onResolveFlag={handleResolveFlag}
+            letInFor={letInFor}
           />
         ) : (
           <FlashcardStudyResults
@@ -272,6 +361,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
             nameFor={nameFor}
             onResetStudent={(uid) => void handleReset(uid)}
             now={now}
+            letInFor={letInFor}
           />
         )}
       </div>

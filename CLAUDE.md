@@ -12,6 +12,7 @@ in `components/widgets/CLAUDE.md`; UI design context in `components/CLAUDE.md`.
 - **No `src/` directory.** All code lives in root-level directories (`components/`, `context/`, `hooks/`, `config/`, `utils/`, `functions/`). The `@/` alias maps to the repo root, not `src/`.
 - **No react-router.** `App.tsx` switches on `window.location.pathname` and mounts only the providers each route needs, so anonymous/student routes don't boot teacher Firestore listeners.
 - A widget type is registered in several places: `types.ts` `WidgetType`, `config/tools.ts`, `config/widgetDefaults.ts`, `config/widgetGradeLevels.ts`, and `components/widgets/WidgetRegistry.ts`. Use the `new-widget` skill.
+- Live-tour anchors are `data-tour` ids from the typed registry in `config/tourAnchors.ts`; tag with `tourAttr`, and `tests/tourAnchors.test.ts` fails on a registered id that is no longer rendered or an unregistered one.
 
 ## Commands
 
@@ -37,8 +38,40 @@ Do not duplicate that locally.
 
 ## Environment
 
-- Firebase config goes in `.env.local` (see `.env.example`). Never commit `.env.local`.
+- Firebase config goes in `.env.local` (see `.env.example`). Never commit `.env.local`. It points local dev servers at prod (`spartboard`) unless swapped for the `spartboard-dev` web config.
 - `VITE_AUTH_BYPASS='true'` signs in a mock admin (`mock-user-id`) and skips Auth/permission listeners. It is disabled in production builds and is client-side only — it does **not** bypass Firestore security rules.
+
+## Firebase projects: `spartboard` (prod) and `spartboard-dev`
+
+| Branch  | Firebase project | Gets                                                        | URL                            |
+| ------- | ---------------- | ----------------------------------------------------------- | ------------------------------ |
+| `dev-*` | `spartboard-dev` | hosting, Firestore rules, indexes, Storage rules, functions | https://spartboard-dev.web.app |
+| `main`  | `spartboard`     | the same, and nothing else writes to prod                   | https://spartboard.web.app     |
+
+Since 2026-09-21 a push to `dev-paul` never touches production. Plan and decisions: `docs/plans/DEV_FIREBASE_PROJECT.md`.
+
+- **Compatibility is a release-time rule now, not a per-merge rule.** Merges into `dev-paul` no longer need gating on a marker only the new client writes. At a `main` release, rules and function changes still have to tolerate a teacher's already-open tab running the previous client, and read-rule tightening still needs that marker.
+- **CLI and MCP default to prod.** `.firebaserc` `default` (and the Firebase MCP's active project) is `spartboard`. Pass `--project dev` for any ad-hoc deploy, rules release, log read or data change, and never deploy to prod by hand unless Paul asks.
+- **Verify on dev.** Browser checks of unreleased work go to https://spartboard-dev.web.app, not prod or a `spartboard--*` preview channel (preview channels are retired).
+- **Dev data is config only.** Admins, admin settings, feature/global permissions, standards, buildings, help content and the mock test class, copied by `node scripts/dev-seed/copy-config-from-prod.mjs` (`--dry-run` first; read-only on prod, top-level docs only). Never copy student-bearing collections (sessions, responses, rosters, `users`) into dev. Student sign-in on dev uses the mock class (`organizations/orono/testClasses`).
+- **Credentials.** Prod scripts use `scripts/service-account-key.json`; dev uses `gcloud auth application-default login`. CI deploys dev with keyless Workload Identity Federation (`github-deploy@spartboard-dev`, only `dev-*` refs); prod CI still uses the `FIREBASE_SERVICE_ACCOUNT` key.
+- **New function secrets go in both projects.** A `defineSecret` missing from `spartboard-dev` fails the dev deploy. Paul sets real values; ClassLink and Spotify are placeholders in dev (ClassLink nightly sync is off there).
+- **Shared Drive app.** Dev reuses prod's Google OAuth client (`drive.file` is per client), so a dev bug can still edit Paul's real Drive files. AI runs on Vertex billed to the dev project.
+- **Rules have two size caps**: 256 KiB of source (comments are stripped at deploy) and 250 KB compiled. Crossing the compiled cap makes every release fail with a bare 400. Test a rules change with `node scripts/releaseFirestoreRules.mjs spartboard-dev` before it reaches `main`.
+- A new `admin_settings` kill switch ships off in both projects; toggle it on dev through the admin panel to test.
+- **"Sync from prod" button** (sidebar footer, dev site only, admins only): replaces the signed-in admin's dev boards (including Drawing widget canvases), folders, quizzes, guided learning, notebooks, rubrics and other authored materials with a fresh copy of their prod ones via `syncMyMaterialsFromProdV1` (`functions/src/devSyncFromProd.ts`). One-way and read-only on prod; it borrows the `prod-reader@spartboard-dev` identity, which has read-only Firestore access to prod. Rosters, OAuth tokens, assignments and PLC state are never copied. Nothing flows dev → prod, by design: never build a two-way sync.
+
+## Releasing a feature: behind a flag, on for Paul first
+
+Every new user-facing feature or behaviour change reaches `main` switched **off for teachers** and switched on only for Paul, who uses it in prod on his real account before it opens to everyone. Paul tests on `spartboard-dev` while building; the flag is how he tests in prod after release.
+
+- **Non-widget features:** add an id to `GlobalFeature` (`types.ts`) and a `FEATURE_DEFAULTS` entry in `config/featureDefaults.ts` with `defaultAccessLevel: 'admin'`, `defaultEnabled: true`, `missingDocPublic: false`, so nobody outside admins gets it before a doc exists. Gate every entry point with `canAccessFeature('<id>')`.
+- **New widgets / internal tools:** the same idea through `feature_permissions` (`canAccessWidget`): ship at access level `admin` (or `beta` with Paul's email).
+- **Org-wide rollout switches** (`admin_settings/*`, the Rollouts panel) have no per-user targeting; when one is needed, AND it with a `global_permissions` gate, as the Quiz widget does with `paperSheetsRollout.enabled && canAccessFeature('paper-answer-sheets')`.
+- **Admins always pass admin/beta gates**, so "on for Paul" really means Paul plus the other `/admins`. Say so in the PR if that matters for the feature.
+- **The PR description must say** which flag gates the feature, its starting access level, and the admin path to open it: Admin Settings > Access > Global Settings (or Feature Permissions for widgets) > set to Public. Paul flips it after testing in prod; agents never open a flag to Public on prod themselves.
+- **Exempt:** bug fixes that restore intended behaviour, copy and styling tweaks, internal/admin-only tools, and dev-only tooling. When in doubt, flag it.
+- **Changelog:** a flagged feature gets its `public/changelog.json` entry when the flag opens to everyone, not when the code merges.
 
 ## Architecture gotchas
 
@@ -87,7 +120,7 @@ allowlist fails toward a cosmetic annoyance.
 
 ## CI and conventions
 
-- Pushes to `dev-*` branches deploy a preview and ship rules, indexes and Cloud Functions to the shared prod project. Pushes to `main` deploy production (https://spartboard.web.app).
+- Pushes to `dev-*` deploy to `spartboard-dev`; pushes to `main` deploy production. See "Firebase projects" above.
 - `pr-validation.yml` has a `preflight` job: if `firebase-dev-deploy.yml` already passed on the PR's head SHA, everything except E2E is skipped.
 - **Release notes**: `public/changelog.json` is read by teachers, not developers. Never name a feature flag, a Firestore path or an internal mechanism in it, and check every claim against what admin settings actually enable rather than what the code defines. See [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md#how-to-write-a-release-note).
 - **Comments**: One short line max — never multi-paragraph docstrings or multi-line comment blocks. Root-cause narrative and verification rationale belong in the PR description, not the diff. Exception: match the surrounding file's convention where one already differs consistently (e.g. `firestore.rules`). Enforced in review; see [docs/routines/debugger.md](docs/routines/debugger.md).

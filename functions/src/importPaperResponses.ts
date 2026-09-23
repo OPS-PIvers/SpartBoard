@@ -26,6 +26,7 @@ import {
   encodeResponseKeySegment,
   pinIndexKey,
 } from './classlinkShared';
+import { withQuizSessionContent } from './quizSessionContent';
 
 /** Admin kill switch; mirrors `config/paperAnswerSheets.ts`. Absent == off. */
 export const PAPER_SETTINGS_PATH = 'admin_settings/paper_answer_sheets';
@@ -221,7 +222,10 @@ export async function handleImportPaperResponses(
     throw new HttpsError('not-found', 'Assignment not found.');
   if (!batchSnap.exists)
     throw new HttpsError('not-found', 'Paper batch not found.');
-  const session = sessionSnap.data() ?? {};
+  const session = await withQuizSessionContent(
+    sessionSnap.ref,
+    sessionSnap.data() ?? {}
+  );
   if (session.teacherUid !== caller.uid)
     throw new HttpsError('permission-denied', 'Not the owner of this session.');
   const batch = (batchSnap.data() ?? {}) as BatchDoc;

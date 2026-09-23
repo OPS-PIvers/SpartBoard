@@ -9,7 +9,8 @@
  *      that subs find by browsing `/subs`. Writes a `/shared_boards/{shareId}`
  *      doc with `intendedMode: 'substitute'` plus extra fields (expiresAt,
  *      buildingId, initialState, subEmails). Distinct write path because
- *      substitute shares never live-mirror the host's edits.
+ *      substitute shares never live-mirror the host's edits. Offered only
+ *      to teachers without `sub-share-collections`; they get `ShareWithSubModal`.
  */
 
 import React, { useMemo, useRef, useState } from 'react';
@@ -234,6 +235,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
   if (!isOpen || !dashboard) return null;
 
   const canShare = canAccessFeature('dashboard-sharing');
+  const offerSubstitute = !canAccessFeature('sub-share-collections');
 
   const handleAddSubEmail = () => {
     const trimmed = subEmailDraft.trim();
@@ -602,19 +604,21 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
             Icon={Copy}
             onPick={setMode}
           />
-          <ModeOption
-            mode="substitute"
-            selected={mode === 'substitute'}
-            title={t('shareLinkCreatorModal.modes.substitute.title', {
-              defaultValue: 'Substitute (View-Only)',
-            })}
-            body={t('shareLinkCreatorModal.modes.substitute.body', {
-              defaultValue:
-                "Hand off a frozen snapshot to a sub. They can start timers, shuffle the randomizer, and use widgets — but can't move or change them. Expires automatically.",
-            })}
-            Icon={GraduationCap}
-            onPick={setMode}
-          />
+          {offerSubstitute && (
+            <ModeOption
+              mode="substitute"
+              selected={mode === 'substitute'}
+              title={t('shareLinkCreatorModal.modes.substitute.title', {
+                defaultValue: 'Substitute (View-Only)',
+              })}
+              body={t('shareLinkCreatorModal.modes.substitute.body', {
+                defaultValue:
+                  "Hand off a frozen snapshot to a sub. They can start timers, shuffle the randomizer, and use widgets — but can't move or change them. Expires automatically.",
+              })}
+              Icon={GraduationCap}
+              onPick={setMode}
+            />
+          )}
           {mode === 'substitute' && (
             <div className="rounded-xl border border-brand-blue-lighter bg-brand-blue-lighter/10 px-4 py-3 space-y-3">
               <div className="flex items-start gap-2 text-[11px] text-slate-600 leading-relaxed">

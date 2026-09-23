@@ -20,6 +20,8 @@ interface FlashcardStudyResultsProps {
   tests: Record<string, { at: number; count: number; score: number }[]>;
   nameFor: (studentUid: string) => string;
   onResetStudent: (studentUid: string) => void;
+  /** Let in now for a student waiting in a shut period; undefined when it doesn't apply. */
+  letInFor?: (studentUid: string) => (() => void) | undefined;
   /** Clock tick owned by the parent so render stays pure. */
   now: number;
 }
@@ -70,6 +72,7 @@ export const FlashcardStudyResults: React.FC<FlashcardStudyResultsProps> = ({
   nameFor,
   onResetStudent,
   now,
+  letInFor,
 }) => {
   const [openStudent, setOpenStudent] = useState<string | null>(null);
   const rows = useMemo(
@@ -91,6 +94,7 @@ export const FlashcardStudyResults: React.FC<FlashcardStudyResultsProps> = ({
     [results, session]
   );
   const openRow = sortedRows.find((row) => row.studentUid === openStudent);
+  const letInOpen = openRow ? letInFor?.(openRow.studentUid) : undefined;
 
   return (
     <div
@@ -232,6 +236,19 @@ export const FlashcardStudyResults: React.FC<FlashcardStudyResultsProps> = ({
                 </ul>
               )}
             </div>
+            {letInOpen && (
+              <button
+                type="button"
+                onClick={letInOpen}
+                className="self-start rounded-xl border border-brand-blue-primary/30 font-bold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
+                style={{
+                  fontSize: 'min(12px, 3.4cqmin)',
+                  padding: 'min(6px, 1.4cqmin) min(12px, 2.6cqmin)',
+                }}
+              >
+                Let in now
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onResetStudent(openRow.studentUid)}

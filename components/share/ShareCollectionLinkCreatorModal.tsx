@@ -1,4 +1,10 @@
-import { type FC, useState, useId, useCallback } from 'react';
+/**
+ * ShareCollectionLinkCreatorModal — hand a colleague a copy of a Collection,
+ * or, for teachers without `sub-share-collections`, hand it to a sub. Those
+ * with the flag get `ShareWithSubModal` for subs instead.
+ */
+
+import { type FC, useState, useId, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Folder,
@@ -11,9 +17,15 @@ import {
 } from 'lucide-react';
 import type { Collection, Dashboard, SubstituteShareRoster } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { usePresetSubEmails } from '@/hooks/usePresetSubEmails';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
 import { logError } from '@/utils/logError';
+import {
+  collectShareRosterIds,
+  flattenSharedCollection,
+} from '@/utils/subShareSnapshot';
 
 interface ShareCollectionLinkCreatorModalProps {
   isOpen: boolean;
@@ -26,7 +38,6 @@ interface ShareCollectionLinkCreatorModalProps {
 type ModeChoice = 'copy' | 'substitute';
 type CopyState = 'unknown' | 'copied' | 'failed';
 
-const BUILDING_IDS = new Set(BUILDINGS.map((b) => b.id));
 const ORONO_EMAIL_DOMAIN = '@orono.k12.mn.us';
 
 function isValidOronoEmail(email: string): boolean {
@@ -50,7 +61,35 @@ export const ShareCollectionLinkCreatorModal: FC<
     addToast,
     rosters,
     activeRosterId,
+    collectionsApi,
+    dashboards,
   } = useDashboard();
+  const { canAccessFeature, hasOrg } = useAuth();
+  const adminBuildings = useAdminBuildings();
+  // Same list as ShareWithSubModal: the seed only while an org's list loads.
+  const teacherBuildings = useMemo(
+    () =>
+      (adminBuildings.length > 0
+        ? adminBuildings
+        : hasOrg
+          ? BUILDINGS
+          : []
+      ).map((b) => ({ id: canonicalBuildingId(b.id), name: b.name })),
+    [adminBuildings, hasOrg]
+  );
+  const offerSubstitute = !canAccessFeature('sub-share-collections');
+  // A sub share carries nested sub-collections too, so its count can exceed `boards`.
+  const subTree = useMemo(
+    () =>
+      offerSubstitute && collection
+        ? flattenSharedCollection(
+            collection,
+            collectionsApi.collections,
+            dashboards
+          )
+        : null,
+    [offerSubstitute, collection, collectionsApi.collections, dashboards]
+  );
   const [mode, setMode] = useState<ModeChoice>('copy');
   const [ttlMs, setTtlMs] = useState<number>(SUB_TTL_PRESETS[1].ms);
   const [buildingId, setBuildingId] = useState<string>('');
@@ -60,7 +99,10 @@ export const ShareCollectionLinkCreatorModal: FC<
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<CopyState>('unknown');
   const [busy, setBusy] = useState(false);
+  // Widgets whose content could not be collected for the sub.
+  const [missed, setMissed] = useState<{ id: string; label: string }[]>([]);
   const headingId = useId();
+  const buildingSelectId = useId();
 
   const { emails: presetEmails } = usePresetSubEmails(buildingId);
 
@@ -86,10 +128,11 @@ export const ShareCollectionLinkCreatorModal: FC<
 
   const handleCreate = useCallback(async () => {
     if (!collection) return;
+    const asSub = offerSubstitute && mode === 'substitute';
     // Validate substitute prerequisites BEFORE flipping busy so an early
     // return doesn't paint the modal as "creating share".
-    if (mode === 'substitute') {
-      if (!buildingId || !BUILDING_IDS.has(buildingId)) {
+    if (asSub) {
+      if (!teacherBuildings.some((b) => b.id === buildingId)) {
         addToast(
           t('shareCollection.buildingRequired', {
             defaultValue: 'Select a building before sharing with a sub.',
@@ -117,37 +160,55 @@ export const ShareCollectionLinkCreatorModal: FC<
     try {
       let shareId: string;
       try {
-        if (mode === 'copy') {
+        if (!asSub || !subTree) {
           shareId = await shareCollection({ collection, boards });
         } else {
-          // Mirror the single-board substitute share: active roster only.
-          const activeRoster = rosters.find((r) => r.id === activeRosterId);
-          const sharedRosters: SubstituteShareRoster[] | undefined =
-            subEmails.length > 0 && activeRoster?.driveFileId
-              ? [
-                  {
-                    id: activeRoster.id,
-                    name: activeRoster.name,
-                    driveFileId: activeRoster.driveFileId,
-                  },
-                ]
-              : undefined;
+          // Same tree, rosters and name scrubbing as ShareWithSubModal.
+          const tree = subTree;
+          const rosterIds = collectShareRosterIds(
+            tree.orderedBoards,
+            activeRosterId
+          );
+          const sharedRosters: SubstituteShareRoster[] =
+            subEmails.length > 0
+              ? rosters
+                  .filter((r) => rosterIds.includes(r.id) && r.driveFileId)
+                  .map((r) => ({
+                    id: r.id,
+                    name: r.name,
+                    driveFileId: r.driveFileId as string,
+                  }))
+              : [];
+          const defaultBoardId =
+            collection.defaultBoardId ?? tree.boards[0]?.id;
           shareId = await shareSubstituteCollection({
             collection,
-            boards,
+            onBundle: (bundle) =>
+              setMissed(
+                bundle.failures.map((f) => ({
+                  id: `${f.kind}-${f.itemId}`,
+                  label: f.label,
+                }))
+              ),
+            boards: tree.orderedBoards,
             collectionId: collection.id,
+            sourceId: collection.id,
+            kind: 'collection',
+            sections: tree.sections,
+            boardEntries: tree.boards,
+            ...(defaultBoardId !== undefined && { defaultBoardId }),
             expiresAt: Date.now() + ttlMs,
             buildingId,
             ...(subEmails.length > 0 ? { subEmails } : {}),
-            ...(sharedRosters ? { sharedRosters } : {}),
+            ...(sharedRosters.length > 0 ? { sharedRosters } : {}),
           });
         }
       } catch (err) {
         logError('ShareCollectionLinkCreatorModal.create', err, {
-          mode,
+          mode: asSub ? 'substitute' : 'copy',
           collectionId: collection.id,
           boardCount: boards.length,
-          ...(mode === 'substitute' ? { ttlMs, buildingId } : {}),
+          ...(asSub ? { ttlMs, buildingId } : {}),
         });
         // `commitBoardBatches` re-throws partial-failure errors with a
         // descriptive cause that's safe to show — surface verbatim so the
@@ -161,7 +222,9 @@ export const ShareCollectionLinkCreatorModal: FC<
         addToast(message, 'error');
         return;
       }
-      const url = `${window.location.origin}/share-collection/${shareId}`;
+      const url = asSub
+        ? `${window.location.origin}/subs/s/${shareId}`
+        : `${window.location.origin}/share-collection/${shareId}`;
       setShareUrl(url);
       try {
         await navigator.clipboard.writeText(url);
@@ -174,12 +237,15 @@ export const ShareCollectionLinkCreatorModal: FC<
       setBusy(false);
     }
   }, [
+    offerSubstitute,
     mode,
     ttlMs,
     buildingId,
+    teacherBuildings,
     subEmails,
     rosters,
     activeRosterId,
+    subTree,
     collection,
     boards,
     shareCollection,
@@ -215,62 +281,75 @@ export const ShareCollectionLinkCreatorModal: FC<
           <div className="p-5 space-y-4">
             <p className="text-sm text-slate-600">
               {t('shareCollection.subtitle', {
-                count: boards.length,
+                count:
+                  subTree && mode === 'substitute'
+                    ? subTree.orderedBoards.length
+                    : boards.length,
                 defaultValue:
                   'Sharing {{count}} board(s) from this Collection.',
               })}
             </p>
-            <fieldset className="space-y-2">
-              <legend className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                {t('shareCollection.mode', { defaultValue: 'Share Mode' })}
-              </legend>
-              <label className="flex items-start gap-2 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="radio"
-                  name="mode"
-                  checked={mode === 'copy'}
-                  onChange={() => setMode('copy')}
-                  className="mt-1"
-                />
-                <span className="flex-1">
-                  <span className="flex items-center gap-1 text-sm font-bold text-slate-800">
-                    <Copy className="w-3.5 h-3.5" />
-                    {t('shareCollection.copyMode', { defaultValue: 'Copy' })}
+            {!offerSubstitute && (
+              <p className="text-xs text-slate-500">
+                {t('shareCollection.copyModeHint', {
+                  defaultValue:
+                    'Recipient imports a full copy into their account.',
+                })}
+              </p>
+            )}
+            {offerSubstitute && (
+              <fieldset className="space-y-2">
+                <legend className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  {t('shareCollection.mode', { defaultValue: 'Share Mode' })}
+                </legend>
+                <label className="flex items-start gap-2 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                  <input
+                    type="radio"
+                    name="mode"
+                    checked={mode === 'copy'}
+                    onChange={() => setMode('copy')}
+                    className="mt-1"
+                  />
+                  <span className="flex-1">
+                    <span className="flex items-center gap-1 text-sm font-bold text-slate-800">
+                      <Copy className="w-3.5 h-3.5" />
+                      {t('shareCollection.copyMode', { defaultValue: 'Copy' })}
+                    </span>
+                    <span className="block text-xs text-slate-500 mt-0.5">
+                      {t('shareCollection.copyModeHint', {
+                        defaultValue:
+                          'Recipient imports a full copy into their account.',
+                      })}
+                    </span>
                   </span>
-                  <span className="block text-xs text-slate-500 mt-0.5">
-                    {t('shareCollection.copyModeHint', {
-                      defaultValue:
-                        'Recipient imports a full copy into their account.',
-                    })}
+                </label>
+                <label className="flex items-start gap-2 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                  <input
+                    type="radio"
+                    name="mode"
+                    checked={mode === 'substitute'}
+                    onChange={() => setMode('substitute')}
+                    className="mt-1"
+                  />
+                  <span className="flex-1">
+                    <span className="flex items-center gap-1 text-sm font-bold text-slate-800">
+                      <UserCheck className="w-3.5 h-3.5" />
+                      {t('shareCollection.substituteMode', {
+                        defaultValue: 'Substitute (view-only)',
+                      })}
+                    </span>
+                    <span className="block text-xs text-slate-500 mt-0.5">
+                      {t('shareCollection.substituteModeHint', {
+                        defaultValue:
+                          'A sub teacher sees the Collection in /subs for the window you choose.',
+                      })}
+                    </span>
                   </span>
-                </span>
-              </label>
-              <label className="flex items-start gap-2 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="radio"
-                  name="mode"
-                  checked={mode === 'substitute'}
-                  onChange={() => setMode('substitute')}
-                  className="mt-1"
-                />
-                <span className="flex-1">
-                  <span className="flex items-center gap-1 text-sm font-bold text-slate-800">
-                    <UserCheck className="w-3.5 h-3.5" />
-                    {t('shareCollection.substituteMode', {
-                      defaultValue: 'Substitute (view-only)',
-                    })}
-                  </span>
-                  <span className="block text-xs text-slate-500 mt-0.5">
-                    {t('shareCollection.substituteModeHint', {
-                      defaultValue:
-                        'A sub teacher sees the Collection in /subs for the window you choose.',
-                    })}
-                  </span>
-                </span>
-              </label>
-            </fieldset>
+                </label>
+              </fieldset>
+            )}
 
-            {mode === 'substitute' && (
+            {offerSubstitute && mode === 'substitute' && (
               <div className="space-y-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
                   {t('shareCollection.expiresIn', {
@@ -293,10 +372,14 @@ export const ShareCollectionLinkCreatorModal: FC<
                     </button>
                   ))}
                 </div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <label
+                  htmlFor={buildingSelectId}
+                  className="block text-xs font-bold text-slate-500 uppercase tracking-wider"
+                >
                   {t('shareCollection.building', { defaultValue: 'Building' })}
                 </label>
                 <select
+                  id={buildingSelectId}
                   value={buildingId}
                   onChange={(e) => setBuildingId(e.target.value)}
                   className="w-full px-2 py-1 text-sm border border-slate-300 rounded bg-white"
@@ -306,7 +389,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                       defaultValue: '— Select building —',
                     })}
                   </option>
-                  {BUILDINGS.map((b) => (
+                  {teacherBuildings.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.name}
                     </option>
@@ -413,6 +496,9 @@ export const ShareCollectionLinkCreatorModal: FC<
                 <div className="flex gap-1">
                   <input
                     type="email"
+                    aria-label={t('shareCollection.subEmail', {
+                      defaultValue: 'Sub email',
+                    })}
                     value={subEmailDraft}
                     onChange={(e) => {
                       setSubEmailDraft(e.target.value);
@@ -472,6 +558,26 @@ export const ShareCollectionLinkCreatorModal: FC<
 
         {shareUrl && (
           <div className="p-5 space-y-3">
+            {missed.length > 0 && (
+              <div className="p-2 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded">
+                <p className="font-bold">
+                  {t('shareWithSub.missedTitle', {
+                    defaultValue: 'Some widget content did not come along',
+                  })}
+                </p>
+                <ul className="mt-1 ml-4 list-disc">
+                  {missed.map((f) => (
+                    <li key={f.id}>{f.label}</li>
+                  ))}
+                </ul>
+                <p className="mt-1">
+                  {t('shareCollection.missedHelp', {
+                    defaultValue:
+                      'Your sub will see these empty. Open the board, check the widget loads, then share the collection again.',
+                  })}
+                </p>
+              </div>
+            )}
             {copyState === 'copied' && (
               <p className="text-sm text-slate-600">
                 {t('shareCollection.linkCopied', {

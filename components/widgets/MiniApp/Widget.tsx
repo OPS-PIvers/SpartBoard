@@ -58,6 +58,9 @@ import {
   mapLegacyClassIdsToRosterIds,
 } from '@/utils/resolveAssignmentTargets';
 import { AssignTargetingSection } from '@/components/common/library/AssignTargetingSection';
+import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
+import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
+import { buildPeriodGate } from '@/utils/periodPlan';
 import {
   buildSetAssignmentTargetsPayload,
   expandClassTargeting,
@@ -79,6 +82,8 @@ import {
   type MiniAppImportData,
 } from './adapters/miniAppImportAdapter';
 import type { LibraryTab } from '@/components/common/library/types';
+import { useInSubShare } from '@/hooks/useShareContent';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 
 // --- M17 B3: setAssignmentTargetsV1 client caller ---
 // Mirrors `functions/src/studentAssignmentTargets.ts` — kept local (not the
@@ -130,6 +135,8 @@ interface MiniAppAssignModalProps {
   /** M17 B3 — names of students `setAssignmentTargetsV1` could not target,
    *  surfaced after creation so a skip is never silent (spec §5 B3(4)). */
   skippedStudentNames: string[];
+  /** Per-period mode and windows; undefined while the flag is off. */
+  periodAccess?: AssignPeriodAccessContext;
 }
 
 const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
@@ -148,6 +155,7 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
   targetingValue,
   onTargetingChange,
   skippedStudentNames,
+  periodAccess,
 }) => {
   const isViewOnly = mode === 'view-only';
   const link = createdSessionId
@@ -415,6 +423,7 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                   <AssignTargetingSection
                     rosters={rosters}
                     selectedRosterIds={pickerValue.rosterIds}
+                    periodAccess={periodAccess}
                     value={targetingValue}
                     onChange={onTargetingChange}
                     kind="mini-app"
@@ -487,7 +496,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     addWidget,
     selectedWidgetId,
     isActiveBoardReadOnly,
+    updateRoster,
   } = useDashboard();
+  const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { user, getAssignmentMode } = useAuth();
   const assignmentMode: AssignmentMode = getAssignmentMode('miniApp');
   const { showConfirm } = useDialog();
@@ -505,7 +516,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     endSession,
   } = useMiniAppSessionTeacher();
 
-  const { library, globalLibrary } = useMiniAppSync(addToast);
+  // A substitute's own library and assignment archive have no place on the
+  // teacher's board, so neither listener opens in a share.
+  const inShare = useInSubShare();
+  const { library, globalLibrary } = useMiniAppSync(addToast, !inShare);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const [managerTab, setManagerTab] = useState<LibraryTab>('library');
@@ -524,7 +538,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     reactivateAssignment,
     deleteAssignment,
     setTargetSkippedCount,
-  } = useMiniAppAssignments(user?.uid);
+  } = useMiniAppAssignments(inShare ? undefined : user?.uid);
 
   // Assign flow state
   const [assigningApp, setAssigningApp] = useState<MiniAppItem | null>(null);
@@ -637,6 +651,15 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // reads its pointer doc at this id, which `setAssignmentTargetsV1` also
       // uses as the pointer key.
       const generatedAssignmentId = crypto.randomUUID();
+      const periodGate =
+        assignmentMode === 'submissions'
+          ? buildPeriodGate({
+              plan: assignTargetingValue.periodPlan,
+              rosters: selectedRosters,
+              sharedWindow: assignTargetingValue,
+              bellWindow: assignPeriodCtx?.bellWindow,
+            })
+          : undefined;
       const sessionId = await createSession(
         assigningApp,
         user.uid,
@@ -645,10 +668,12 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           classIds: derived.classIds,
           rosterIds: derived.rosterIds,
           mode: assignmentMode,
-          openAt: assignTargetingValue.openAt ?? null,
-          closeAt: assignTargetingValue.closeAt ?? null,
+          // Per-period sessions carry each period's window instead of a shared one.
+          openAt: periodGate ? null : (assignTargetingValue.openAt ?? null),
+          closeAt: periodGate ? null : (assignTargetingValue.closeAt ?? null),
           dueAt: assignTargetingValue.dueAt ?? null,
           assignmentId: generatedAssignmentId,
+          ...(periodGate ? { periodGate } : {}),
         }
       );
       // Mirror the new session into the per-teacher archive so it shows up
@@ -669,8 +694,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           targetGroupIds: expandedTargeting.targetGroupIds,
           overridesBySourcedId: expandedTargeting.overridesByKey,
           dueAt: expandedTargeting.dueAt ?? null,
-          openAt: expandedTargeting.openAt ?? null,
-          closeAt: expandedTargeting.closeAt ?? null,
+          openAt: periodGate ? null : (expandedTargeting.openAt ?? null),
+          closeAt: periodGate ? null : (expandedTargeting.closeAt ?? null),
+          ...(periodGate ? { periodGate } : {}),
         });
       } catch (archiveErr) {
         console.warn(
@@ -683,9 +709,12 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // actually used individual targeting — `targetMode:'class'` never
       // touches the Cloud Function, keeping the class-wide flow's click
       // count and latency unchanged from today (spec §3a-G).
+      // A per-period session's pointers carry no shared window either.
       const payload = buildSetAssignmentTargetsPayload(
         undefined,
-        expandedTargeting
+        periodGate
+          ? { ...expandedTargeting, openAt: undefined, closeAt: undefined }
+          : expandedTargeting
       );
       if (payloadRequiresCall(payload) && assignmentId) {
         try {
@@ -1115,7 +1144,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     };
     const docRef = doc(db, 'users', user.uid, 'miniapps', appData.id);
     await setDoc(docRef, appData);
-    addToast('App saved to cloud', 'success');
+    // The editor autosaves, so only the first write is news.
+    if (!existing) addToast('App created!', 'success');
   };
 
   const handleReorder = useCallback(
@@ -1465,38 +1495,41 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                       >
                         {/* Left group: Assign / Assignments — hidden in
                             view-only mode (these are submission-tracking
-                            flows that don't apply). */}
-                        {assignmentMode !== 'view-only' && (
-                          <>
-                            <button
-                              onClick={() => handleOpenAssign(activeApp)}
-                              className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm"
-                              style={buttonBaseStyle}
-                              title="Assign (copy student link)"
-                            >
-                              <Link2 style={iconStyle} />
-                              <span style={labelStyle}>Assign</span>
-                            </button>
-                            <button
-                              onClick={() => handleOpenAssignments(activeApp)}
-                              className="bg-white hover:bg-slate-50 text-slate-700 flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm border border-slate-200/60"
-                              style={buttonBaseStyle}
-                              title="View assignments"
-                            >
-                              <BarChart3 style={iconStyle} />
-                              <span style={labelStyle}>Assignments</span>
-                            </button>
-                            <div
-                              className="bg-slate-200/80"
-                              style={{
-                                width: 1,
-                                height: sz.dividerHeight,
-                                marginLeft: sz.dividerMarginX,
-                                marginRight: sz.dividerMarginX,
-                              }}
-                            />
-                          </>
-                        )}
+                            flows that don't apply), and on a read-only board,
+                            where a substitute or viewer pressing Assign would
+                            open a session under their own account (D8). */}
+                        {assignmentMode !== 'view-only' &&
+                          !isActiveBoardReadOnly && (
+                            <>
+                              <button
+                                onClick={() => handleOpenAssign(activeApp)}
+                                className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm"
+                                style={buttonBaseStyle}
+                                title="Assign (copy student link)"
+                              >
+                                <Link2 style={iconStyle} />
+                                <span style={labelStyle}>Assign</span>
+                              </button>
+                              <button
+                                onClick={() => handleOpenAssignments(activeApp)}
+                                className="bg-white hover:bg-slate-50 text-slate-700 flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm border border-slate-200/60"
+                                style={buttonBaseStyle}
+                                title="View assignments"
+                              >
+                                <BarChart3 style={iconStyle} />
+                                <span style={labelStyle}>Assignments</span>
+                              </button>
+                              <div
+                                className="bg-slate-200/80"
+                                style={{
+                                  width: 1,
+                                  height: sz.dividerHeight,
+                                  marginLeft: sz.dividerMarginX,
+                                  marginRight: sz.dividerMarginX,
+                                }}
+                              />
+                            </>
+                          )}
 
                         {/* Right group: QR Share + Save-as-Widget + Library
                             (or Unsaved + Save when activeAppUnsaved). */}
@@ -1569,15 +1602,19 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                               <span style={labelStyle}>Save as Widget</span>
                             </button>
                           )}
-                        <button
-                          onClick={handleCloseActive}
-                          className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors"
-                          style={buttonBaseStyle}
-                          title="Back to library"
-                        >
-                          <LayoutGrid style={iconStyle} />
-                          <span style={labelStyle}>Library</span>
-                        </button>
+                        {/* Back to library would land the substitute in their
+                            own mini-app library, on the teacher's board. */}
+                        {!inShare && (
+                          <button
+                            onClick={handleCloseActive}
+                            className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors"
+                            style={buttonBaseStyle}
+                            title="Back to library"
+                          >
+                            <LayoutGrid style={iconStyle} />
+                            <span style={labelStyle}>Library</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
@@ -1692,6 +1729,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 targetingValue={assignTargetingValue}
                 onTargetingChange={setAssignTargetingValue}
                 skippedStudentNames={skippedStudentNames}
+                periodAccess={assignPeriodCtx}
                 onConfirm={() => void handleConfirmAssign()}
                 onClose={() => {
                   setAssigningApp(null);
@@ -1726,6 +1764,18 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
             )}
           </div>
         }
+      />
+    );
+  }
+
+  // --- RENDER: LIBRARY MODE ---
+  // In a share this would be the substitute's own library, not the teacher's.
+  if (inShare) {
+    return (
+      <ScaledEmptyState
+        icon={LayoutGrid}
+        title="No mini app"
+        subtitle="This widget had no app open when it was shared."
       />
     );
   }
@@ -1815,6 +1865,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 targetingValue={assignTargetingValue}
                 onTargetingChange={setAssignTargetingValue}
                 skippedStudentNames={skippedStudentNames}
+                periodAccess={assignPeriodCtx}
                 onConfirm={() => void handleConfirmAssign()}
                 onClose={() => {
                   setAssigningApp(null);
