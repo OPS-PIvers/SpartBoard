@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useId, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useId } from 'react';
 import {
   collection,
   onSnapshot,
@@ -24,9 +24,9 @@ import {
 import { db, isAuthBypass } from '@/config/firebase';
 import { GlobalMiniAppItem } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
-import { Toast } from '@/components/common/Toast';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useDialog } from '@/context/useDialog';
+import { useDashboard } from '@/context/useDashboard';
 
 interface MiniAppLibraryModalProps {
   onClose: () => void;
@@ -40,6 +40,7 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
   onClose,
 }) => {
   const { showConfirm } = useDialog();
+  const { addToast } = useDashboard();
   const titleInputId = useId();
   const htmlCodeId = useId();
   const BUILDINGS = useAdminBuildings();
@@ -56,24 +57,12 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
   const [editBuildings, setEditBuildings] = useState<string[]>([]); // empty = all
   const [saving, setSaving] = useState(false);
 
-  const [message, setMessage] = useState<{
-    type: 'success' | 'error';
-    text: string;
-  } | null>(null);
-
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const showMessage = useCallback((type: 'success' | 'error', text: string) => {
-    setMessage({ type, text });
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => setMessage(null), 3000);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
+  const showMessage = useCallback(
+    (type: 'success' | 'error', text: string) => {
+      addToast(text, type);
+    },
+    [addToast]
+  );
 
   // Real-time listener for global apps
   useEffect(() => {
@@ -469,14 +458,6 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
           </div>
         )}
       </div>
-
-      {message && (
-        <Toast
-          message={message.text}
-          type={message.type}
-          onClose={() => setMessage(null)}
-        />
-      )}
     </div>
   );
 };

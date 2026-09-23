@@ -28,9 +28,9 @@ import {
 import { db, isAuthBypass } from '@/config/firebase';
 import { GlobalPdfItem, PdfGlobalConfig, FeaturePermission } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
-import { Toast } from '@/components/common/Toast';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useDialog } from '@/context/useDialog';
+import { useDashboard } from '@/context/useDashboard';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 
@@ -46,6 +46,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
   onClose,
 }) => {
   const { showConfirm } = useDialog();
+  const { addToast } = useDashboard();
   const pdfNameId = useId();
   const { uploadAdminPdf, deleteFile } = useStorage();
   const BUILDINGS = useAdminBuildings();
@@ -71,24 +72,12 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [message, setMessage] = useState<{
-    type: 'success' | 'error';
-    text: string;
-  } | null>(null);
-
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const showMessage = useCallback((type: 'success' | 'error', text: string) => {
-    setMessage({ type, text });
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => setMessage(null), 3000);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
+  const showMessage = useCallback(
+    (type: 'success' | 'error', text: string) => {
+      addToast(text, type);
+    },
+    [addToast]
+  );
 
   // Real-time listener for global PDFs
   useEffect(() => {
@@ -669,14 +658,6 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
           </div>
         )}
       </div>
-
-      {message && (
-        <Toast
-          message={message.text}
-          type={message.type}
-          onClose={() => setMessage(null)}
-        />
-      )}
     </div>
   );
 };

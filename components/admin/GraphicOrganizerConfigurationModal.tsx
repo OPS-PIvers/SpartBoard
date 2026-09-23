@@ -25,7 +25,7 @@ import {
   FeaturePermission,
 } from '@/types';
 import { FONTS } from '@/config/fonts';
-import { Toast } from '@/components/common/Toast';
+import { useDashboard } from '@/context/useDashboard';
 import { Button } from '@/components/common/Button';
 import { ConfirmDialog } from '@/components/widgets/InstructionalRoutines/ConfirmDialog';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
@@ -91,6 +91,7 @@ const normalizeConfig = (raw: unknown): GraphicOrganizerGlobalConfig => {
 export const GraphicOrganizerConfigurationModal: React.FC<
   GraphicOrganizerConfigurationModalProps
 > = ({ isOpen, onClose, permission, onSave }) => {
+  const { addToast } = useDashboard();
   const BUILDINGS = useAdminBuildings();
   const [selectedBuilding, setSelectedBuilding] =
     useBuildingSelection(BUILDINGS);
@@ -105,7 +106,6 @@ export const GraphicOrganizerConfigurationModal: React.FC<
     );
 
   const [isSaving, setIsSaving] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Selected Template State
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(
@@ -124,8 +124,9 @@ export const GraphicOrganizerConfigurationModal: React.FC<
 
   const handleSave = () => {
     if (editingTemplateId) {
-      setToastMessage(
-        'Please save or cancel your active template draft before applying.'
+      addToast(
+        'Please save or cancel your active template draft before applying.',
+        'info'
       );
       return;
     }
@@ -135,11 +136,11 @@ export const GraphicOrganizerConfigurationModal: React.FC<
       onSave({
         config: globalConfig as unknown as Record<string, unknown>,
       });
-      setToastMessage('Configuration applied locally');
+      addToast('Configuration applied locally', 'info');
       onClose();
     } catch (error) {
       console.error('Error applying config:', error);
-      setToastMessage('Error applying configuration');
+      addToast('Error applying configuration', 'info');
     } finally {
       setIsSaving(false);
     }
@@ -307,10 +308,6 @@ export const GraphicOrganizerConfigurationModal: React.FC<
 
   return (
     <div className="fixed inset-0 z-modal-nested flex items-center justify-center bg-slate-900/50 p-4 font-sans backdrop-blur-sm">
-      {toastMessage && (
-        <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
-      )}
-
       <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
