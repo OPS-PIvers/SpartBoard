@@ -60,6 +60,13 @@ import { QUIZ_SSO_REDIRECT_ENABLED } from '@/config/constants';
 import { shouldGateToSso } from '@/utils/studentJoinRouting';
 import { logError } from '@/utils/logError';
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
+import { useServerNow } from '@/hooks/useServerNow';
+import {
+  hasPeriodAccess,
+  nextScheduledOpen,
+  studentCanEnter,
+} from '@/utils/periodAccess';
+import { QuizPeriodLockedScreen } from './QuizPeriodLockedScreen';
 import {
   useQuizSessionStudent,
   normalizeAnswer,
@@ -415,6 +422,8 @@ const QuizJoinFlow: React.FC<{
     setServedQuestionIds,
     persistServedDraw,
     warningCount,
+    periodKeys,
+    contentPending,
   } = useQuizSessionStudent();
 
   const handleJoin = useCallback(
@@ -719,6 +728,13 @@ const QuizJoinFlow: React.FC<{
   useEffect(() => {
     return onAuthStateChanged(auth, (user) => setAuthedUid(user?.uid ?? null));
   }, []);
+
+  // Per-period gate, re-checked as the clock passes a window edge.
+  const periodNow = useServerNow(hasPeriodAccess(session) ? 5000 : null);
+  const periodLocked =
+    hasPeriodAccess(session) &&
+    session.status !== 'ended' &&
+    !studentCanEnter(session, periodKeys, authedUid, periodNow);
 
   // M17 C2 (§3a-D) — clock-skew guard for the mid-attempt window-close
   // auto-submit below: window comparisons use server-offset time, not raw
@@ -1159,6 +1175,37 @@ const QuizJoinFlow: React.FC<{
             </button>
           </form>
         </div>
+      </div>
+    );
+  }
+
+  // Per-period session whose period isn't open for this student: a locked
+  // card before they start, the paused screen once they have (answers kept).
+  if (periodLocked && myResponse?.status !== 'completed') {
+    const started =
+      myResponse?.status === 'in-progress' ||
+      (myResponse?.answers?.length ?? 0) > 0;
+    return started ? (
+      <QuizPausedPlaceholder session={session} pin={pin} periodClosed />
+    ) : (
+      <QuizPeriodLockedScreen
+        session={session}
+        opensAt={nextScheduledOpen(session, periodKeys, periodNow)}
+        pin={pin}
+      />
+    );
+  }
+  if (
+    contentPending &&
+    session.status !== 'ended' &&
+    myResponse?.status !== 'completed'
+  ) {
+    return (
+      <div className="min-h-screen bg-brand-blue-dark flex items-center justify-center">
+        <Loader2
+          className="w-8 h-8 text-white/70 animate-spin"
+          aria-label="Loading questions"
+        />
       </div>
     );
   }
