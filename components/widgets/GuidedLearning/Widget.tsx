@@ -174,6 +174,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const { showConfirm } = useDialog();
   const { user, isAdmin, getAssignmentMode, canAccessFeature } = useAuth();
   const playerV2 = canAccessFeature('gl-player-v2');
+  const studioEditor = canAccessFeature('gl-studio');
   const assignmentMode: AssignmentMode = getAssignmentMode('guidedLearning');
   const isViewOnly = assignmentMode === 'view-only';
   const rawConfig = widget.config as GuidedLearningConfig;
@@ -1361,7 +1362,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       />
       {editingSet && (
         <Suspense fallback={<ModalChunkFallback />}>
-          {isAdmin === true && !classicEditor ? (
+          {studioEditor && !classicEditor ? (
             <GuidedLearningStudio
               key={editingSet.id}
               set={editingSet}

@@ -55,6 +55,7 @@ import {
   UsersRound,
   FileText,
   Footprints,
+  Clapperboard,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -240,6 +241,13 @@ const GLOBAL_FEATURES: {
     icon: Footprints,
     description:
       'Lets teachers start a Guided Learning walkthrough on their own board: the tour highlights each button in the real app and waits while they click it, adding any widgets it needs first. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'gl-studio',
+    label: 'Guided Learning Studio editor',
+    icon: Clapperboard,
+    description:
+      'Opens Guided Learning sets in the new full-screen Studio: slides down the side, a step timeline under the picture, drawing tools right on the slide, and narration per step. Everyone else keeps the classic editor, and the Studio has a link back to it. Admin-only until this is saved and opened up.',
   },
   {
     id: 'settings-drawer',
