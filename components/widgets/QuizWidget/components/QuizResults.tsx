@@ -294,6 +294,8 @@ interface QuizResultsProps {
   servedLanguageByStudentUid?: Record<string, string> | null;
   /** PLC page mount: question results show counts only, never student names (D24). */
   plcView?: boolean;
+  /** Paper answer sheets are on for this teacher; the results print offers sheet reprints. */
+  paperSheetsEnabled?: boolean;
   /** Per-student publishing handlers; the controls render only when provided. */
   studentResultsActions?: StudentResultsActions;
 }
@@ -349,6 +351,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   overridesByStudentUid = null,
   servedLanguageByStudentUid = null,
   plcView = false,
+  paperSheetsEnabled = false,
   studentResultsActions,
 }) => {
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
@@ -2147,6 +2150,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           rubricFor={printRubric}
           periodOrder={printPeriodOrder}
           sessionLive={!!session && session.status !== 'ended'}
+          sheetsAvailable={paperSheetsEnabled}
           teacherUid={user?.uid ?? null}
           onClose={() => setPrintSelection(undefined)}
           onError={(message) => addToast(message, 'error')}

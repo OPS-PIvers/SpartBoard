@@ -297,4 +297,42 @@ describe('QuizResults — results print', () => {
       within(dialog()).getByRole('radio', { name: 'Graded copy' })
     ).toHaveAttribute('aria-checked', 'true');
   });
+
+  it('offers the sheet layouts only with paper sheets on, and counts who falls back', async () => {
+    const list = [
+      response('1111', 'Rome', { paperBatchId: 'batch-1', paperSeat: 1 }),
+      response('2222', 'Paris'),
+    ];
+    const { unmount } = renderResults({}, list);
+    fireEvent.click(screen.getByRole('button', { name: 'Print results' }));
+    expect(
+      within(dialog()).queryByRole('radiogroup', { name: 'Layout' })
+    ).toBeNull();
+    expect(
+      within(dialog()).queryByRole('radio', { name: 'Bubble sheet' })
+    ).toBeNull();
+    unmount();
+
+    renderResults({ paperSheetsEnabled: true }, list);
+    fireEvent.click(screen.getByRole('button', { name: 'Print results' }));
+    const d = within(dialog());
+    fireEvent.click(
+      within(d.getByRole('radiogroup', { name: 'Preset' })).getByRole('radio', {
+        name: 'Bubble sheet',
+      })
+    );
+    expect(
+      d.getByText('1 student took this online and will get the report.')
+    ).toBeInTheDocument();
+    const print = d.getByRole('button', { name: /Print|Loading/ });
+    await waitFor(() => expect(print).toHaveTextContent('Print'));
+    fireEvent.click(print);
+    const [job, options] = printQuizResults.mock.calls[0];
+    expect(options.layout).toBe('sheet');
+    expect(job.students.find((s) => s.pin === '1111')?.sheet).toMatchObject({
+      seat: 1,
+      filled: [1],
+    });
+    expect(job.students.find((s) => s.pin === '2222')?.sheet).toBeUndefined();
+  });
 });

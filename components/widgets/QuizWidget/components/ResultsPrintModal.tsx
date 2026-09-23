@@ -12,6 +12,7 @@ import { Toggle } from '@/components/common/Toggle';
 import { getResponseDocKey } from '@/hooks/useQuizSession';
 import { getPaperBatch } from '@/utils/paperBatchStore';
 import { logError } from '@/utils/logError';
+import { planSheetReprint } from '@/utils/paperSheetReprint';
 import type { QuestionGradeFn } from '@/utils/quizQuestionStats';
 import {
   applyPreset,
@@ -29,6 +30,7 @@ import {
   sortResultsPrintStudents,
   type QuizResultsPrintOptions,
   type ResultsKeyMode,
+  type ResultsPrintLayout,
   type ResultsPrintJob,
   type ResultsPrintStudent,
   type StudentReportTarget,
@@ -55,6 +57,8 @@ export interface ResultsPrintModalProps {
   periodOrder: readonly string[];
   /** The assignment is still taking answers. */
   sessionLive: boolean;
+  /** Paper answer sheets are on for this teacher, so reprints are offered (D26). */
+  sheetsAvailable?: boolean;
   teacherUid: string | null;
   onClose: () => void;
   onError: (message: string) => void;
@@ -86,6 +90,12 @@ const TOGGLES: { key: BooleanOption; label: string }[] = [
   { key: 'duplexPadding', label: 'Keep double-sided copies aligned' },
 ];
 
+const LAYOUTS: { id: ResultsPrintLayout; label: string }[] = [
+  { id: 'report', label: 'Report' },
+  { id: 'sheet', label: 'Bubble sheet' },
+  { id: 'both', label: 'Both' },
+];
+
 const KEY_MODES: { id: ResultsKeyMode; label: string }[] = [
   { id: 'off', label: 'Off' },
   { id: 'missed', label: 'Missed only' },
@@ -105,18 +115,21 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   rubricFor,
   periodOrder,
   sessionLive,
+  sheetsAvailable = false,
   teacherUid,
   onClose,
   onError,
 }) => {
   const [choice, setChoice] = useState<SavedResultsPrintChoice>(() => {
     const saved = loadResultsPrintChoice();
-    // The sheet layouts arrive with the reprint; until then every copy is a report.
-    return saved.preset === 'bubble-sheet' || saved.options.layout !== 'report'
+    // Without paper sheets the picker offers Report only (D26).
+    return !sheetsAvailable && saved.options.layout !== 'report'
       ? { preset: 'student-copy', options: applyPreset('student-copy') }
       : saved;
   });
-  const options = choice.options;
+  const options: QuizResultsPrintOptions = sheetsAvailable
+    ? choice.options
+    : { ...choice.options, layout: 'report' };
   const update = (next: SavedResultsPrintChoice) => {
     setChoice(next);
     saveResultsPrintChoice(next);
@@ -195,6 +208,8 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
         targets: targetsFor(r),
         lettered: !!batch?.choiceOrder,
       };
+      const reprint = batch ? planSheetReprint(r, batch, quiz) : null;
+      if (reprint) student.sheet = reprint;
       return { student, response: r };
     });
     const order = sortResultsPrintStudents(
@@ -211,7 +226,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     batches,
     resolveName,
     sortNameFor,
-    quiz.questions,
+    quiz,
     gradeFn,
     rubricFor,
     targetsFor,
@@ -225,6 +240,13 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   ).length;
   const noName = chosen.filter((s) => s.student.name === null).length;
   const warnKey = options.keyMode !== 'off' && (sessionLive || unfinished > 0);
+  const wantsSheets = sheetsAvailable && options.layout !== 'report';
+  const online = wantsSheets
+    ? chosen.filter((s) => !s.response.paperBatchId).length
+    : 0;
+  const lostSheets = wantsSheets
+    ? chosen.filter((s) => s.response.paperBatchId && !s.student.sheet).length
+    : 0;
 
   const job = (rows: typeof chosen): ResultsPrintJob => ({
     quizTitle: quiz.title,
@@ -274,7 +296,9 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     }
   };
 
-  const presets = RESULTS_PRINT_PRESETS.filter((p) => p.id !== 'bubble-sheet');
+  const presets = RESULTS_PRINT_PRESETS.filter(
+    (p) => sheetsAvailable || p.id !== 'bubble-sheet'
+  );
 
   return (
     <Modal
@@ -406,10 +430,51 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
                 ))}
               </div>
             </div>
+            {sheetsAvailable && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-slate-700">Layout</span>
+                <div
+                  className="flex overflow-hidden rounded-lg border border-slate-200"
+                  role="radiogroup"
+                  aria-label="Layout"
+                >
+                  {LAYOUTS.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={options.layout === m.id}
+                      onClick={() => setOption('layout', m.id)}
+                      className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
+                        options.layout === m.id
+                          ? 'bg-brand-blue-primary text-white'
+                          : 'bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          {(ungraded > 0 || warnKey || noName > 0) && (
+          {(ungraded > 0 ||
+            warnKey ||
+            noName > 0 ||
+            online > 0 ||
+            lostSheets > 0) && (
             <div className="space-y-2">
+              {online > 0 && (
+                <Banner>
+                  {`${plural(online)} took this online and will get the report.`}
+                </Banner>
+              )}
+              {lostSheets > 0 && (
+                <Banner>
+                  {`${plural(lostSheets)} took this on paper, but the sheet record is gone, so ${lostSheets === 1 ? 'that student gets' : 'they get'} the report.`}
+                </Banner>
+              )}
               {warnKey && (
                 <Banner>
                   {unfinished > 0

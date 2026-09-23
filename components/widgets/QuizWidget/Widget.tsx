@@ -1455,6 +1455,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       <QuizResults
         key={`${config.activeAssignmentId ?? 'none'}-${resultsEnterToken}`}
         quiz={loadedQuizData}
+        paperSheetsEnabled={paperSheets.enabled}
         responses={responses}
         config={config}
         onBack={() => {

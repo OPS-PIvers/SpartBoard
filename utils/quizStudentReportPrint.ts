@@ -11,6 +11,8 @@ import {
   type StudentQuestionLine,
 } from './quizStudentDrilldown';
 import { formatExportPoints } from './assignmentExportShared';
+import { buildFilledSheetHtml, SHEET_REPRINT_STYLES } from './paperSheetPrint';
+import { sheetFillFor, type SheetReprint } from './paperSheetReprint';
 import { stimulusMediaUrl } from './quizStimuli';
 import { annotatedSnapshotToHtml } from './writtenAnnotations';
 
@@ -54,7 +56,7 @@ const STYLES = `
   h2 { font-size: 11pt; margin: 5mm 0 2mm; }
   ol.q { list-style: none; padding: 0; margin: 0; }
   ol.q > li { break-inside: avoid; border-top: 1px solid #ccc; padding: 2mm 0; display: grid; grid-template-columns: 10mm 1fr auto; gap: 2mm; }
-  .num { font-weight: bold; }
+  .qn { font-weight: bold; }
   .text { white-space: pre-wrap; }
   .answer { margin-top: 1mm; white-space: pre-wrap; }
   .key { margin-top: 0.5mm; color: #555; white-space: pre-wrap; }
@@ -154,6 +156,8 @@ export interface ResultsPrintStudent {
   targets: readonly StudentReportTarget[];
   /** Paper work: options print lettered, in the batch's order. */
   lettered: boolean;
+  /** Paper work whose batch still exists: the sheet can be redrawn (D21). */
+  sheet?: SheetReprint;
 }
 
 export interface ResultsPrintJob {
@@ -396,14 +400,14 @@ function stimulusRow(stimulus: QuizStimulus): string {
   if (stimulus.type === 'image') {
     const src = stimulusMediaUrl(stimulus);
     return src
-      ? `<li class="stim" data-unit><img src="${escapeHtml(src)}" alt="${escapeHtml(stimulus.label || 'Question picture')}"></li>`
+      ? `<li class="q-stim" data-unit><img src="${escapeHtml(src)}" alt="${escapeHtml(stimulus.label || 'Question picture')}"></li>`
       : '';
   }
   if (stimulus.type === 'text') {
-    return `<li class="stim" data-unit><div class="passage">${escapeHtml(stimulus.text ?? '')}</div></li>`;
+    return `<li class="q-stim" data-unit><div class="passage">${escapeHtml(stimulus.text ?? '')}</div></li>`;
   }
   const label = stimulus.label?.trim();
-  return `<li class="stim" data-unit><div class="stim-label">${STIMULUS_KIND[stimulus.type]}${label ? `: ${escapeHtml(label)}` : ''} (open it in the quiz)</div></li>`;
+  return `<li class="q-stim" data-unit><div class="stim-label">${STIMULUS_KIND[stimulus.type]}${label ? `: ${escapeHtml(label)}` : ''} (open it in the quiz)</div></li>`;
 }
 
 function studentHeader(
@@ -455,7 +459,7 @@ function studentReport(
       const text = options.includeQuestions
         ? `<div class="text">${escapeHtml(line.text)}</div>`
         : '';
-      return `${stim}<li data-unit><span class="num">${line.number}.</span><div>${text}${answerBlock(line, student, options)}</div>${markCell(line, options)}</li>`;
+      return `${stim}<li data-unit><span class="qn">${line.number}.</span><div>${text}${answerBlock(line, student, options)}</div>${markCell(line, options)}</li>`;
     })
     .join('');
   const questions =
@@ -489,6 +493,36 @@ function separatorPage(
   return `<section class="block sep" data-print-block="separator"><p class="sep-period">${escapeHtml(period ?? NO_PERIOD_LABEL)}</p><p class="sep-title">${escapeHtml(job.quizTitle)}</p><p class="sep-count">${count} student${count === 1 ? '' : 's'}</p></section><div class="pad" aria-hidden="true"></div>`;
 }
 
+function sheetReprintHtml(
+  job: ResultsPrintJob,
+  student: ResultsPrintStudent,
+  reprint: SheetReprint,
+  options: QuizResultsPrintOptions
+): string {
+  return buildFilledSheetHtml(
+    {
+      seat: reprint.seat,
+      student: null,
+      displayName: student.name ?? 'Name ______________________',
+      className: student.period ?? '',
+      isKeySheet: false,
+    },
+    {
+      batchId: reprint.batchId,
+      quizTitle: job.quizTitle,
+      questionCount: reprint.questionCount,
+      choiceCount: reprint.choiceCount,
+      columnsPerPage: reprint.columnsPerPage,
+    },
+    reprint.pageCount,
+    sheetFillFor(reprint, {
+      markAnswers: options.markAnswers,
+      keyMode: options.keyMode,
+      ...(options.showScore ? { score: formatScore(student) } : {}),
+    })
+  );
+}
+
 /** The body of the print: a separator before each period when there are several, then one section per student. */
 export function buildResultsPrintHtml(
   job: ResultsPrintJob,
@@ -513,7 +547,16 @@ export function buildResultsPrintHtml(
         );
       }
       lastPeriod = student.period;
-      return `${sep}<section class="block stu" data-print-block="student">${studentReport(job, student, options)}</section>`;
+      const key = escapeHtml(student.key);
+      const sheet =
+        options.layout !== 'report' && student.sheet
+          ? `<section class="block sheet-set" data-print-block="sheet" data-pages="${student.sheet.pageCount}" data-student="${key}">${sheetReprintHtml(job, student, student.sheet, options)}</section>`
+          : '';
+      const report =
+        !sheet || options.layout === 'both'
+          ? `<section class="block stu" data-print-block="student" data-student="${key}">${studentReport(job, student, options)}</section>`
+          : '';
+      return `${sep}${sheet}${report}`;
     })
     .join('');
 }
@@ -537,7 +580,7 @@ export const RESULTS_PRINT_STYLES = `
   h2 { font-size: 11pt; margin: 5mm 0 2mm; }
   ol.q { list-style: none; padding: 0; margin: 0; }
   ol.q > li { break-inside: avoid; border-top: 1px solid #bbb; padding: 2mm 0; display: grid; grid-template-columns: 8mm 1fr auto; gap: 2mm; }
-  ol.q > li.stim { display: block; }
+  ol.q > li.q-stim { display: block; }
   .num { font-weight: bold; }
   .text { white-space: pre-wrap; margin-bottom: 1mm; }
   .answer { white-space: pre-wrap; }
@@ -566,7 +609,7 @@ export const RESULTS_PRINT_STYLES = `
   td { border-top: 1px solid #ccc; padding: 1.2mm 0; vertical-align: top; }
   td.pct { text-align: right; white-space: nowrap; padding-left: 3mm; }
   table.rubric { margin-top: 1mm; }
-  .stim img { display: block; max-width: 100%; max-height: 110mm; margin: 0 auto; }
+  .q-stim img { display: block; max-width: 100%; max-height: 110mm; margin: 0 auto; }
   .passage { white-space: pre-wrap; border: 1px solid #999; padding: 2mm; }
   .stim-label { font-style: italic; }
   .targets, .comment-box { break-inside: avoid; }
@@ -577,7 +620,7 @@ export const RESULTS_PRINT_STYLES = `
   .sep-period { font-size: 24pt; font-weight: bold; margin: 0 0 4mm; }
   .sep-title { font-size: 14pt; margin: 0 0 2mm; }
   .sep-count { margin: 0; }
-`;
+${SHEET_REPRINT_STYLES}`;
 
 /**
  * Pages one block takes, found by laying its units out a page at a time so a
@@ -614,14 +657,22 @@ export function padBlocksForDuplex(doc: Document): void {
   body.style.width = `${PRINT_WIDTH_MM}mm`;
   const blocks = Array.from(doc.querySelectorAll('[data-print-block]'));
   const pageHeight = PRINT_HEIGHT_MM * PX_PER_MM;
-  const counts = blocks.map((b) =>
-    b.getAttribute('data-print-block') === 'student'
-      ? countPrintedPages(b, pageHeight)
-      : 0
-  );
+  const counts = blocks.map((b) => {
+    const kind = b.getAttribute('data-print-block');
+    if (kind === 'sheet') return Number(b.getAttribute('data-pages')) || 1;
+    return kind === 'student' ? countPrintedPages(b, pageHeight) : 0;
+  });
   body.style.width = previousWidth;
+  // A student's sheet and report are one hand-back: pad after the pair.
+  let total = 0;
   blocks.forEach((block, i) => {
-    if (i === blocks.length - 1 || counts[i] % 2 === 0) return;
+    const student = block.getAttribute('data-student');
+    total += counts[i];
+    const next = blocks[i + 1];
+    if (student && next?.getAttribute('data-student') === student) return;
+    const odd = total % 2 === 1;
+    total = 0;
+    if (!next || !student || !odd) return;
     const pad = doc.createElement('div');
     pad.className = 'pad';
     pad.setAttribute('aria-hidden', 'true');
