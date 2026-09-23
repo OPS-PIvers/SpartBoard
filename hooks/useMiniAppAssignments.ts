@@ -71,6 +71,8 @@ export interface CreateMiniAppAssignmentInput {
   /** M17 B3 — open/close window (epoch ms). Absent = always open (legacy behavior). */
   openAt?: number | null;
   closeAt?: number | null;
+  /** Per-period gate mirrored from the session for the hub. */
+  periodGate?: Pick<MiniAppAssignment, 'accessMode' | 'periodAccess'>;
 }
 
 export interface UseMiniAppAssignmentsResult {
@@ -202,6 +204,12 @@ export const useMiniAppAssignments = (
         ...(input.dueAt != null ? { dueAt: input.dueAt } : {}),
         ...(input.openAt != null ? { openAt: input.openAt } : {}),
         ...(input.closeAt != null ? { closeAt: input.closeAt } : {}),
+        ...(input.periodGate?.periodAccess
+          ? {
+              accessMode: input.periodGate.accessMode,
+              periodAccess: input.periodGate.periodAccess,
+            }
+          : {}),
       };
 
       await setDoc(

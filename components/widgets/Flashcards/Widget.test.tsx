@@ -38,6 +38,9 @@ vi.mock('@/hooks/useFlashcardAssignments', () => ({
   useFlashcardAssignments: vi.fn(),
 }));
 vi.mock('@/hooks/useFolders', () => ({ useFolders: vi.fn() }));
+vi.mock('@/hooks/useTeacherBellPeriods', () => ({
+  useAssignPeriodAccess: () => undefined,
+}));
 vi.mock('@/config/firebase', () => ({ db: {}, functions: {} }));
 vi.mock('firebase/functions', () => ({ httpsCallable: () => vi.fn() }));
 vi.mock('@/components/widgets/WidgetLayout', () => ({

@@ -199,6 +199,7 @@ export const useUnifiedAssignments = (
         excludedTargets: a.excludedTargets,
         overridesBySourcedId: a.overridesBySourcedId,
         removedStudentRefs: a.removedStudentRefs,
+        ...(a.periodAccess ? { periodAccess: a.periodAccess } : {}),
       })
     );
 
@@ -227,6 +228,7 @@ export const useUnifiedAssignments = (
         overridesBySourcedId: a.overridesBySourcedId,
         removedStudentRefs: a.removedStudentRefs,
         flashcardKind: a.kind,
+        ...(a.periodAccess ? { periodAccess: a.periodAccess } : {}),
       })
     );
 

@@ -134,6 +134,25 @@ describe('TrackedFlashcardAdapter', () => {
     expect(writes).toHaveLength(1);
   });
 
+  it('holds writes while paused and sends them on resume', async () => {
+    vi.useFakeTimers();
+    const { adapter, writes } = setup();
+    adapter.record('card-a', true, 1);
+    adapter.setPaused(true);
+    await vi.advanceTimersByTimeAsync(10_000);
+    adapter.record('card-b', false, 1);
+    await adapter.flush();
+    expect(writes).toHaveLength(0);
+
+    adapter.setPaused(false);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(writes).toHaveLength(1);
+    expect(Object.keys(writes[0]?.cards ?? {}).sort()).toEqual([
+      'card-a',
+      'card-b',
+    ]);
+  });
+
   it('retries cards whose save failed on the next flush', async () => {
     const payloads: FlashcardProgressWrite[] = [];
     let fail = true;

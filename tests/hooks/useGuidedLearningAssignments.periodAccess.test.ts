@@ -129,6 +129,21 @@ describe('useGuidedLearningAssignments — per-period sessions', () => {
     );
   });
 
+  it('keeps the session when it cannot read whether steps are in content', async () => {
+    (getDoc as Mock).mockRejectedValueOnce(new Error('offline'));
+    const { result } = renderHook(() =>
+      useGuidedLearningAssignments(TEACHER_UID)
+    );
+    await act(async () => {
+      await expect(result.current.deleteAssignment('a-1')).rejects.toThrow(
+        'offline'
+      );
+    });
+    expect(batchDelete).not.toHaveBeenCalledWith(
+      'guided_learning_sessions/a-1'
+    );
+  });
+
   it('skips the content delete on a legacy session', async () => {
     (getDoc as Mock).mockResolvedValue({ data: () => ({}) });
     const { result } = renderHook(() =>

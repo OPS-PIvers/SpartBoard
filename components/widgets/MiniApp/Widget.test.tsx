@@ -23,6 +23,9 @@ vi.mock('@/hooks/useMiniAppAssignments', () => ({
   useMiniAppAssignments: vi.fn(),
 }));
 vi.mock('@/hooks/useFolders', () => ({ useFolders: vi.fn() }));
+vi.mock('@/hooks/useTeacherBellPeriods', () => ({
+  useAssignPeriodAccess: () => undefined,
+}));
 vi.mock('./hooks/useMiniAppSync', () => ({ useMiniAppSync: vi.fn() }));
 
 const activeApp: MiniAppItem = {

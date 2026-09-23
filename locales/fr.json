@@ -2993,7 +2993,12 @@
       "missedTitle": "Revoir les cartes manquées",
       "yourAnswer": "Ta réponse :",
       "correctAnswer": "Bonne réponse :",
-      "allCorrect": "Toutes les réponses étaient justes."
+      "allCorrect": "Toutes les réponses étaient justes.",
+      "periodClosedBody": "Garde cet onglet ouvert. La série apparaîtra ici dès que ton enseignant ouvrira l’accès à ta classe.",
+      "periodPausedTitle": "En pause pour ta classe",
+      "periodPausedBody": "Ton enseignant a mis ceci en pause pour ta classe. Ta progression est conservée sur cette page. Garde cet onglet ouvert pour reprendre là où tu t’étais arrêté.",
+      "notInPeriod": "Tu n’es dans aucune classe à laquelle cette série a été attribuée. Demande à ton enseignant.",
+      "seatError": "Impossible de rejoindre ta classe. Recharge la page pour réessayer."
     }
   },
   "studentAssignment": {

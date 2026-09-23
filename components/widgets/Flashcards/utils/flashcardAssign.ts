@@ -14,6 +14,11 @@ import {
   expandClassTargeting,
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
+import {
+  buildPeriodGate,
+  type EpochWindow,
+  type PeriodRoster,
+} from '@/utils/periodPlan';
 
 export const FLASHCARD_MC_MIN_CARDS = 4;
 
@@ -149,15 +154,28 @@ export const buildFlashcardAssignSubmission = (args: {
   rosters: ClassRoster[];
   rosterIds: string[];
   targeting: AssignTargetingValue;
+  /** The per-period context's bell lookup; undefined while the flag is off. */
+  bellWindow?: (roster: PeriodRoster, date: Date) => EpochWindow | null;
 }): FlashcardAssignSubmission => {
   const rosterIds = visibleRosterIds(args.rosterIds, args.rosters);
-  const expandedTargeting = expandClassTargeting(args.targeting, {
+  const selectedRosters = args.rosters.filter((roster) =>
+    rosterIds.includes(roster.id)
+  );
+  const periodGate = buildPeriodGate({
+    plan: args.targeting.periodPlan,
+    rosters: selectedRosters,
+    sharedWindow: args.targeting,
+    bellWindow: args.bellWindow,
+  });
+  const expanded = expandClassTargeting(args.targeting, {
     rosters: args.rosters,
     selectedRosterIds: rosterIds,
   });
-  const derived = deriveSessionTargetsFromRosters(
-    args.rosters.filter((roster) => rosterIds.includes(roster.id))
-  );
+  // A per-period session and its pointers carry no shared window.
+  const expandedTargeting = periodGate
+    ? { ...expanded, openAt: undefined, closeAt: undefined }
+    : expanded;
+  const derived = deriveSessionTargetsFromRosters(selectedRosters);
   return {
     rosterIds,
     expandedTargeting,
@@ -172,6 +190,7 @@ export const buildFlashcardAssignSubmission = (args: {
       openAt: expandedTargeting.openAt ?? null,
       closeAt: expandedTargeting.closeAt ?? null,
       dueAt: expandedTargeting.dueAt ?? null,
+      ...(periodGate ? { periodGate } : {}),
     },
   };
 };

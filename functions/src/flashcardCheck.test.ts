@@ -551,3 +551,100 @@ describe('handleSubmitFlashcardCheck test mode', () => {
     ]);
   });
 });
+
+describe('handleSubmitFlashcardCheck per-period access', () => {
+  const SEAT_PATH = `${SESSION_PATH}/seats/${UID}`;
+  const CONTENT_PATH = `${SESSION_PATH}/content/cards`;
+  const input = { assignmentId: 'a1', answerLog: writeLog({}) };
+  const periodSession = (over: Doc = {}) =>
+    session({
+      cards: [],
+      cardsInContent: true,
+      classIds: ['class-1', 'class-2'],
+      periodAccess: {
+        'class-1': { state: 'closed' },
+        'class-2': { state: 'open' },
+      },
+      ...over,
+    });
+
+  it("refuses a student whose seat's period is closed", async () => {
+    const db = makeDb({
+      [SESSION_PATH]: periodSession(),
+      [SEAT_PATH]: { classId: 'class-1' },
+      [CONTENT_PATH]: { cards: CARDS },
+    });
+    await expect(
+      handleSubmitFlashcardCheck(db, student, input, NOW)
+    ).rejects.toMatchObject({
+      code: 'failed-precondition',
+      message: "Your class period isn't open right now.",
+    });
+  });
+
+  it('refuses a student with no seat', async () => {
+    const db = makeDb({
+      [SESSION_PATH]: periodSession(),
+      [CONTENT_PATH]: { cards: CARDS },
+    });
+    await expectCode(
+      handleSubmitFlashcardCheck(db, student, input, NOW),
+      'failed-precondition'
+    );
+  });
+
+  it('grades from the content doc when the period is open', async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION_PATH]: periodSession(),
+      [SEAT_PATH]: { classId: 'class-2' },
+      [CONTENT_PATH]: { cards: CARDS },
+    };
+    await expect(
+      handleSubmitFlashcardCheck(
+        makeDb(docs),
+        { ...student, classIds: ['class-2'] },
+        input,
+        NOW
+      )
+    ).resolves.toEqual({ score: 4, total: 4, submittedAt: NOW });
+  });
+
+  it('lets a Let in now pass through a closed period', async () => {
+    const db = makeDb({
+      [SESSION_PATH]: periodSession({ studentAccess: { [UID]: NOW + 60_000 } }),
+      [SEAT_PATH]: { classId: 'class-1' },
+      [CONTENT_PATH]: { cards: CARDS },
+    });
+    await expect(
+      handleSubmitFlashcardCheck(db, student, input, NOW)
+    ).resolves.toMatchObject({ score: 4 });
+  });
+
+  it('ignores an expired Let in now', async () => {
+    const db = makeDb({
+      [SESSION_PATH]: periodSession({ studentAccess: { [UID]: NOW - 1 } }),
+      [SEAT_PATH]: { classId: 'class-1' },
+      [CONTENT_PATH]: { cards: CARDS },
+    });
+    await expectCode(
+      handleSubmitFlashcardCheck(db, student, input, NOW),
+      'failed-precondition'
+    );
+  });
+
+  it('refuses when the content doc has no cards', async () => {
+    const db = makeDb({
+      [SESSION_PATH]: periodSession(),
+      [SEAT_PATH]: { classId: 'class-2' },
+    });
+    await expectCode(
+      handleSubmitFlashcardCheck(
+        db,
+        { ...student, classIds: ['class-2'] },
+        input,
+        NOW
+      ),
+      'failed-precondition'
+    );
+  });
+});
