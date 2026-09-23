@@ -432,6 +432,51 @@ describe('synthesizeQuizAudio — student fallback', () => {
     ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 
+  it('follows the student period on a per-period session', async () => {
+    const period = (state: string) => ({
+      state,
+      openAt: null,
+      closeAt: null,
+      bellPeriodId: null,
+      verified: true,
+      label: 'P1',
+    });
+    const withResponse = (state: string, response: Doc | null) => {
+      const docs = makeDocs({
+        session: { classIds: ['c1'], periodAccess: { c1: period(state) } },
+        pointer: null,
+      });
+      if (response) docs[`quiz_sessions/s1/responses/${STUDENT}`] = response;
+      return makeDeps(docs);
+    };
+    const open = withResponse('open', { classId: 'c1' });
+    await synthesizeQuizAudio(req, classStudent, open.deps);
+    expect(open.synthesize).toHaveBeenCalledTimes(1);
+    await expect(
+      synthesizeQuizAudio(
+        req,
+        classStudent,
+        withResponse('closed', { classId: 'c1' }).deps
+      )
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    // No response yet means the student never joined, so no period is theirs.
+    await expect(
+      synthesizeQuizAudio(req, classStudent, withResponse('open', null).deps)
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    const letIn = makeDocs({
+      session: {
+        classIds: ['c1'],
+        periodAccess: { c1: period('closed') },
+        studentAccess: { [STUDENT]: NOW + 60_000 },
+      },
+      pointer: null,
+    });
+    letIn[`quiz_sessions/s1/responses/${STUDENT}`] = { classId: 'c1' };
+    const passed = makeDeps(letIn);
+    await synthesizeQuizAudio(req, classStudent, passed.deps);
+    expect(passed.synthesize).toHaveBeenCalledTimes(1);
+  });
+
   it('denies when neither readAloudAll nor the override is set', async () => {
     const { deps } = makeDeps(makeDocs({ session: { readAloudAll: false } }));
     await expect(synthesizeQuizAudio(req, student, deps)).rejects.toMatchObject(

@@ -4212,6 +4212,8 @@ export interface QuizSession
    * full QuizData loaded from Drive, not from this field.
    */
   publicQuestions: QuizPublicQuestion[];
+  /** Per-period sessions keep publicQuestions, stimuli and stimulus text in `content/questions`; the session copies stay empty. */
+  questionsInContent?: boolean;
   /** D27's translated titles by BCP-47 code. Frozen with publicQuestions. */
   quizTitleLocalized?: Record<string, string>;
   /** Deploy-safety opt-in: `1` means this session understands `unresponded` entries. */

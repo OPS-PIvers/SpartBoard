@@ -149,7 +149,11 @@ function makeStubDb(seed: {
     get: () => Promise<{
       size: number;
       empty: boolean;
-      docs: { id: string; ref: ReturnType<typeof responseRef> }[];
+      docs: {
+        id: string;
+        ref: ReturnType<typeof responseRef>;
+        data: () => Record<string, unknown>;
+      }[];
     }>;
   } {
     return {
@@ -198,7 +202,11 @@ function makeStubDb(seed: {
         return Promise.resolve({
           size: sliced.length,
           empty: sliced.length === 0,
-          docs: sliced.map((r) => ({ id: r.id, ref: responseRef(r) })),
+          docs: sliced.map((r) => ({
+            id: r.id,
+            ref: responseRef(r),
+            data: () => ({ ...r.data }),
+          })),
         });
       },
     };
@@ -295,6 +303,52 @@ describe('runFinalizeIdleQuizAttempts', () => {
     expect(result.finalized).toBe(0);
     expect(result.skippedPaused).toBe(1);
     expect(responses[0].data.status).toBe('joined');
+  });
+
+  it('skips a response whose period is closed, and finalizes one whose period is open', async () => {
+    const period = (state: string) => ({
+      state,
+      openAt: null,
+      closeAt: null,
+      bellPeriodId: null,
+      verified: true,
+      label: state,
+    });
+    const stale = (classId: string) => ({
+      status: 'in-progress',
+      classId,
+      lastWriteAt: tsVal(NOW - IDLE_MS - MIN),
+      answers: [{ questionId: 'q1', status: 'draft' }],
+    });
+    const { db, responses } = makeStubDb({
+      responses: [
+        { id: 'closed', sid: 'sess1', data: stale('A') },
+        { id: 'open', sid: 'sess1', data: stale('B') },
+        { id: 'ended', sid: 'sess1', data: stale('C') },
+      ],
+      sessions: {
+        sess1: {
+          status: 'active',
+          createdAt: NOW - 2 * IDLE_MS,
+          periodAccess: {
+            A: period('closed'),
+            B: period('open'),
+            C: { ...period('open'), closeAt: NOW - 5 * MIN },
+          },
+        },
+      },
+    });
+
+    const result = await runFinalizeIdleQuizAttempts(db, NOW);
+
+    expect(result.finalized).toBe(1);
+    expect(result.skippedPaused).toBe(2);
+    expect(responses.find((r) => r.id === 'open')?.data.status).toBe(
+      'completed'
+    );
+    expect(responses.find((r) => r.id === 'closed')?.data.status).toBe(
+      'in-progress'
+    );
   });
 
   it('leaves a fresh (not-yet-idle) response untouched', async () => {

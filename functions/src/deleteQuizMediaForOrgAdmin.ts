@@ -37,6 +37,7 @@ import {
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { isSuperAdminRoleId } from './authz';
 import './functionsInit';
+import { withQuizSessionContent } from './quizSessionContent';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -436,7 +437,10 @@ export async function listOrgQuizMedia(
         truncated = true;
         break scan;
       }
-      const session = sessionDoc.data() ?? {};
+      const session = await withQuizSessionContent(
+        sessionDoc.ref,
+        sessionDoc.data() ?? {}
+      );
       const teacherUid = asString(session.teacherUid);
       const quizTitle = asString(session.quizTitle) || 'Untitled quiz';
       const questionTextById = buildQuestionTextMap(session.publicQuestions);
