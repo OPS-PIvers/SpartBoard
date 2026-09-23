@@ -3171,6 +3171,7 @@ describe('index barrel — deployed export set', () => {
     'archiveQuizMediaArtifact',
     'sweepStuckQuizArchives',
     'synthesizeQuizAudioV1',
+    'synthesizeGuidedLearningNarrationV1',
     'extractQuizFromDocumentV1',
     'extractStimulusReadAloudTextV1',
     'getQuizArtifactPlaybackUrl',
