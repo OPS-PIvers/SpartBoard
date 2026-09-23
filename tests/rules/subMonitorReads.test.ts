@@ -133,6 +133,9 @@ beforeAll(async () => {
         doc(db, `video_activity_sessions/${id}/responses/${STUDENT_UID}`),
         { studentUid: STUDENT_UID, score: 3 }
       );
+      await setDoc(doc(db, `video_activity_sessions/${id}/key/answers`), {
+        questions: [{ id: 'v1', correctAnswer: 'Light' }],
+      });
 
       await setDoc(doc(db, `guided_learning_sessions/${id}`), {
         ...base,
@@ -179,6 +182,13 @@ const READS: {
     kind: 'video activity responses',
     read: (db, id) =>
       getDoc(doc(db, `video_activity_sessions/${id}/responses/${STUDENT_UID}`)),
+  },
+  {
+    // The monitor grades from this doc, so without it a sub-launched run
+    // shows every answer as ungraded.
+    kind: 'video activity answer key',
+    read: (db, id) =>
+      getDoc(doc(db, `video_activity_sessions/${id}/key/answers`)),
   },
   {
     kind: 'guided learning responses',

@@ -4316,8 +4316,10 @@ service cloud.firestore {
 
       // Answer key, kept off the student-readable session doc. getAfter lets the
       // create batch write it alongside the session.
+      // A sub monitoring the run they launched grades with it; the share
+      // already bundled them the same key, so this grants nothing new.
       match /key/{keyId} {
-        allow read: if vaOwner(vaS());
+        allow read: if vaOwner(vaS()) || isSubMonitor(vaS());
         allow write: if vaOwner(vaS()) ||
           vaOwner(getAfter(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data);
       }

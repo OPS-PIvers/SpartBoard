@@ -6,6 +6,8 @@
  */
 
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
+import { DEFAULT_VA_BEHAVIOR } from '@/utils/videoActivityBehavior';
+import type { SubShareContentKind } from '@/types';
 
 /**
  * Self-paced, unlike the teacher's own default. A substitute cannot pace a
@@ -23,7 +25,7 @@ export interface SubLaunchRunSettings {
  * The teacher's own authored behaviour does not travel in a share, so a
  * sub-launched run takes the shared defaults every quiz starts from.
  */
-export function subLaunchRunSettings(
+function quizRunSettings(
   className: string,
   startedAt: number
 ): SubLaunchRunSettings {
@@ -61,4 +63,45 @@ export function subLaunchRunSettings(
       attemptLimit: DEFAULT_QUIZ_BEHAVIOR.attemptLimit,
     },
   };
+}
+
+/**
+ * A video activity is always self-paced — a student works through the video on
+ * their own device — so there is no pacing choice to make here. The player's
+ * own defaults stand: no autoplay, skipping allowed, and the shared behaviour
+ * bag for everything else.
+ */
+function videoActivityRunSettings(className: string): SubLaunchRunSettings {
+  const settings = {
+    autoPlay: false,
+    requireCorrectAnswer: false,
+    allowSkipping: true,
+  };
+  return {
+    session: {
+      status: 'active',
+      mode: 'submissions',
+      settings,
+      assignmentName: className,
+    },
+    assignment: {
+      status: 'active',
+      mode: 'submissions',
+      className,
+      sessionSettings: settings,
+      sessionOptions: { ...DEFAULT_VA_BEHAVIOR.sessionOptions },
+      scoreVisibility: 'score-only',
+    },
+  };
+}
+
+/** The run settings for whichever kind the substitute is starting. */
+export function subLaunchRunSettings(
+  kind: SubShareContentKind,
+  className: string,
+  startedAt: number
+): SubLaunchRunSettings {
+  return kind === 'videoActivity'
+    ? videoActivityRunSettings(className)
+    : quizRunSettings(className, startedAt);
 }

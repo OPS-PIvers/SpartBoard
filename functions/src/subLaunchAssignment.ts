@@ -11,9 +11,14 @@ import * as admin from 'firebase-admin';
 import { randomUUID } from 'crypto';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
+import {
+  dedupeById,
+  toVaPublicQuestion,
+  type VaKeyQuestion,
+} from './videoActivityGrade';
 
 /** Only the kinds D8 puts in v1; Poll and Activity Wall stay unlaunchable. */
-const LAUNCHABLE_KINDS = ['quiz'] as const;
+const LAUNCHABLE_KINDS = ['quiz', 'videoActivity'] as const;
 type LaunchKind = (typeof LAUNCHABLE_KINDS)[number];
 
 const MAX_ID_LENGTH = 128;
@@ -83,6 +88,35 @@ const ALLOWED_ASSIGNMENT_FIELDS = new Set([
 ]);
 
 /** Any of these anywhere in a payload means the answer key is riding along. */
+/**
+ * The same boundary for a video activity. `settings` and `sessionOptions` are
+ * nested behaviour bags (skipping, require-correct, score visibility); neither
+ * carries a question or an answer.
+ */
+const ALLOWED_VA_SESSION_FIELDS = new Set([
+  'status',
+  'mode',
+  'settings',
+  'sessionOptions',
+  'assignmentName',
+  'periodNames',
+  'openAt',
+  'closeAt',
+  'dueAt',
+]);
+
+const ALLOWED_VA_ASSIGNMENT_FIELDS = new Set([
+  'className',
+  'status',
+  'mode',
+  'sessionSettings',
+  'sessionOptions',
+  'scoreVisibility',
+  'periodNames',
+  'dueAt',
+  'updatedAt',
+]);
+
 const ANSWER_FIELDS = [
   'correctAnswer',
   'incorrectAnswers',
@@ -110,7 +144,8 @@ export interface LaunchSubAssignmentInput {
 
 export interface LaunchSubAssignmentResult {
   sessionId: string;
-  code: string;
+  /** Quiz only. A video activity is reached by class, not by a code. */
+  code?: string;
 }
 
 export interface SubLaunchCaller {
@@ -266,6 +301,38 @@ export function publicQuestionsFromKey(
   return out;
 }
 
+/**
+ * The question set a sub-launched video activity runs on: the teacher's own
+ * key, deduped so "Question X of N" can't be inflated by a repeated id, and
+ * the student-safe projection of it. `toVaPublicQuestion` is the same mirror
+ * the scrub trigger uses, so a sub-launched run grades like any other.
+ */
+export function vaQuestionsFromKey(keyQuestions: unknown): {
+  key: VaKeyQuestion[];
+  publicQuestions: Record<string, unknown>[];
+} {
+  if (!Array.isArray(keyQuestions) || keyQuestions.length === 0) {
+    denied('The shared video activity has no questions.');
+  }
+  const usable = keyQuestions.filter(
+    (q): q is VaKeyQuestion =>
+      !!q &&
+      typeof q === 'object' &&
+      typeof (q as VaKeyQuestion).id === 'string' &&
+      !!(q as VaKeyQuestion).id
+  );
+  const key = dedupeById(usable);
+  if (key.length === 0) {
+    denied('The shared video activity has no usable questions.');
+  }
+  return {
+    key,
+    publicQuestions: key.map(
+      (q) => toVaPublicQuestion(q) as unknown as Record<string, unknown>
+    ),
+  };
+}
+
 export interface SubLaunchTargeting {
   classIds: string[];
   classPeriodByClassId: Record<string, string>;
@@ -372,6 +439,116 @@ export const liveSubLaunchDeps: SubLaunchDeps = {
   newCode: randomJoinCode,
 };
 
+interface VaLaunchArgs {
+  db: admin.firestore.Firestore;
+  hostUid: string;
+  itemId: string;
+  keyData: admin.firestore.DocumentData | undefined;
+  rawSession: unknown;
+  rawAssignment: unknown;
+  targeting: SubLaunchTargeting;
+  pickedRosters: string[];
+  sessionId: string;
+  now: number;
+  stamp: Record<string, unknown>;
+}
+
+/**
+ * A video activity has no join code: students reach it by class, the same way
+ * the teacher's own assign does. The key rides in the session's own
+ * `key/answers` doc, which is where the grading callable already looks.
+ */
+async function launchVideoActivity(
+  args: VaLaunchArgs
+): Promise<LaunchSubAssignmentResult> {
+  const { db, hostUid, itemId, keyData, targeting, sessionId, now, stamp } =
+    args;
+  const payload = keyData?.payload as
+    | {
+        activity?: {
+          id?: string;
+          title?: string;
+          youtubeUrl?: string;
+          questions?: unknown;
+        };
+      }
+    | undefined;
+  const activity = payload?.activity;
+  if (!keyData || !activity) {
+    denied('The teacher did not leave this activity for a substitute.');
+  }
+  if (activity.id !== itemId) denied('That activity does not match the share.');
+
+  const session = pickAllowed(
+    args.rawSession as Record<string, unknown>,
+    ALLOWED_VA_SESSION_FIELDS,
+    'session'
+  );
+  const assignment = pickAllowed(
+    args.rawAssignment as Record<string, unknown>,
+    ALLOWED_VA_ASSIGNMENT_FIELDS,
+    'assignment'
+  );
+  const answerField = findAnswerField(session) ?? findAnswerField(assignment);
+  if (answerField) bad(`${answerField} must not reach a student session.`);
+
+  const activitySnap = await db
+    .doc(`users/${hostUid}/video_activities/${itemId}`)
+    .get();
+  const activityDriveFileId: unknown = activitySnap.data()?.driveFileId;
+  if (typeof activityDriveFileId !== 'string' || !activityDriveFileId) {
+    denied('That activity is no longer in the teacher’s library.');
+  }
+
+  const youtubeUrl =
+    typeof activity.youtubeUrl === 'string' ? activity.youtubeUrl : '';
+  if (!youtubeUrl) denied('The shared video activity has no video.');
+  const activityTitle =
+    typeof activity.title === 'string' && activity.title
+      ? activity.title
+      : 'Video activity';
+  const { key, publicQuestions } = vaQuestionsFromKey(activity.questions);
+
+  const batch = db.batch();
+  batch.set(db.doc(`video_activity_sessions/${sessionId}`), {
+    ...session,
+    ...stamp,
+    ...targeting,
+    classId: targeting.classIds[0],
+    id: sessionId,
+    activityId: itemId,
+    activityTitle,
+    youtubeUrl,
+    // The key never rides the session doc; it goes in `key/answers` below.
+    questions: [],
+    publicQuestions,
+    allowedPins: [],
+    createdAt: now,
+  });
+  batch.set(db.doc(`video_activity_sessions/${sessionId}/key/answers`), {
+    questions: key,
+  });
+  batch.set(
+    db.doc(`users/${hostUid}/video_activity_assignments/${sessionId}`),
+    {
+      ...assignment,
+      ...stamp,
+      ...targeting,
+      classId: targeting.classIds[0],
+      rosterIds: args.pickedRosters,
+      id: sessionId,
+      activityId: itemId,
+      activityTitle,
+      activityDriveFileId,
+      createdAt: now,
+      updatedAt: now,
+    }
+  );
+  await batch.commit();
+
+  return { sessionId };
+}
+
 export async function handleLaunchSubAssignment(
   db: admin.firestore.Firestore,
   caller: SubLaunchCaller | null,
@@ -466,6 +643,32 @@ export async function handleLaunchSubAssignment(
   const keySnap = await db
     .doc(`shared_collections/${shareId}/keys/${kind}_${itemId}`)
     .get();
+  const sessionId = deps.newId();
+  const now = deps.now();
+  // Ownership, the ids and the monitor window are written here or not at all.
+  const stamp = {
+    teacherUid: hostUid,
+    launchedBy: { uid: caller.uid, email, shareId },
+    subMonitorUids: [caller.uid],
+    subMonitorUntil: expiresAt,
+  };
+
+  if (kind === 'videoActivity') {
+    return launchVideoActivity({
+      db,
+      hostUid,
+      itemId,
+      keyData: keySnap.exists ? keySnap.data() : undefined,
+      rawSession,
+      rawAssignment,
+      targeting,
+      pickedRosters,
+      sessionId,
+      now,
+      stamp,
+    });
+  }
+
   const keyPayload = keySnap.data()?.payload as
     | {
         quiz?: {
@@ -508,14 +711,6 @@ export async function handleLaunchSubAssignment(
   const publicQuestions = publicQuestionsFromKey(keyQuiz.questions);
   const quizTitle =
     typeof keyQuiz.title === 'string' && keyQuiz.title ? keyQuiz.title : 'Quiz';
-  const sessionId = deps.newId();
-  const now = deps.now();
-  const stamp = {
-    teacherUid: hostUid,
-    launchedBy: { uid: caller.uid, email, shareId },
-    subMonitorUids: [caller.uid],
-    subMonitorUntil: expiresAt,
-  };
   // Derived from the key, so a sub cannot change what students see. Media
   // response and learning targets stay off: neither gate travels in a share.
   const content = {

@@ -31,7 +31,8 @@ export interface SubLaunchRequest {
 
 export interface SubLaunchResult {
   sessionId: string;
-  code: string;
+  /** Quiz only. A video activity is reached by class, not by a code. */
+  code?: string;
 }
 
 export type SubLaunchStatus = 'idle' | 'launching' | 'launched' | 'error';
@@ -94,6 +95,7 @@ export function useSubLaunch(
           .filter((name): name is string => !!name)
           .join(', ');
         const { session, assignment } = subLaunchRunSettings(
+          kind,
           className,
           Date.now()
         );

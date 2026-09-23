@@ -5,13 +5,15 @@
  * their Drive, and the widget's assignments and live monitor are all theirs,
  * so a sub reads none of it. What they get is the activity the widget last
  * launched or reviewed, bundled at share time into the share's `keys/`
- * collection, which only the subs the share names may read (plan §3.1 A2).
- * Launching is PR 4 (D8).
+ * collection, which only the subs the share names may read (plan §3.1 A2). A
+ * named sub can also start it in the teacher's account, when the org switch
+ * for that is on (plan §3.6, D8).
  */
 
 import React from 'react';
 import { Film, Lock } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { SubLaunchPanel } from '@/components/subs/SubLaunchPanel';
 import { useShareKey } from '@/hooks/useShareContent';
 import { VideoActivityPreview } from './components/VideoActivityPreview';
 import type {
@@ -30,7 +32,19 @@ export const SubShareVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   if (status === 'ready' && payload) {
-    return <VideoActivityPreview activity={payload.activity} />;
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="min-h-0 flex-1">
+          <VideoActivityPreview activity={payload.activity} />
+        </div>
+        <SubLaunchPanel
+          kind="videoActivity"
+          widgetId={widget.id}
+          itemId={config.selectedActivityId}
+          label="video activity"
+        />
+      </div>
+    );
   }
   // The board snapshot carries the title, so name the activity even when its
   // questions did not travel.
