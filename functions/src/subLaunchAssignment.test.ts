@@ -32,6 +32,7 @@ import {
   handleLaunchSubAssignment,
   publicQuestionFromKey,
   publicQuestionsFromKey,
+  allocateJoinCode,
   resolveTargeting,
   type SubLaunchCaller,
 } from './subLaunchAssignment';
@@ -75,7 +76,6 @@ const KEY_QUESTIONS = [
 /** Run settings only — the caller has nothing to say about content now. */
 const session = (over: Record<string, unknown> = {}) => ({
   status: 'waiting',
-  code: 'AB12CD',
   sessionMode: 'live',
   currentQuestionIndex: -1,
   ...over,
@@ -83,7 +83,6 @@ const session = (over: Record<string, unknown> = {}) => ({
 
 const assignment = (over: Record<string, unknown> = {}) => ({
   status: 'active',
-  code: 'AB12CD',
   sessionMode: 'live',
   sessionOptions: { readAloudAll: false },
   ...over,
@@ -153,6 +152,20 @@ function stubDb(state: StubState = {}) {
           exists: docs[path] != null,
           data: () => docs[path] ?? undefined,
         }),
+      collection: () => ({
+        limit: () => ({
+          get: () => Promise.resolve({ empty: true, docs: [] }),
+        }),
+      }),
+    }),
+    collection: () => ({
+      doc: () => ({
+        collection: () => ({
+          limit: () => ({
+            get: () => Promise.resolve({ empty: true, docs: [] }),
+          }),
+        }),
+      }),
     }),
     batch: () => ({
       set: (ref: { path: string }, data: Record<string, unknown>) => {
@@ -164,7 +177,11 @@ function stubDb(state: StubState = {}) {
   return { db: db as never, written };
 }
 
-const deps = { now: () => NOW, newId: () => 'new-session-id' };
+const deps = {
+  now: () => NOW,
+  newId: () => 'new-session-id',
+  newCode: () => 'AB12CD',
+};
 
 const launch = (
   state: StubState = {},
@@ -347,20 +364,25 @@ describe('handleLaunchSubAssignment', () => {
     );
   });
 
-  it('refuses a session with no usable join code', async () => {
+  // A code is global across every teacher, so a caller's own could eclipse
+  // another teacher's live session for students typing it in.
+  it('mints the join code itself rather than taking the caller’s', async () => {
     await expect(
-      launch({}, SUB, input({ session: session({ code: 'nope!' }) })).run()
-    ).rejects.toThrow('no join code');
-  });
-
-  it('refuses an archive row whose join code disagrees with the session', async () => {
+      launch({}, SUB, input({ session: session({ code: 'ZZ99ZZ' }) })).run()
+    ).rejects.toThrow('code is not yours to set on the session');
     await expect(
       launch(
         {},
         SUB,
         input({ assignment: assignment({ code: 'ZZ99ZZ' }) })
       ).run()
-    ).rejects.toThrow('disagree on the join code');
+    ).rejects.toThrow('code is not yours to set on the assignment');
+
+    const { run, written } = launch();
+    const result = await run();
+    expect(result.code).toBe('AB12CD');
+    expect(written[0].data.code).toBe('AB12CD');
+    expect(written[1].data.code).toBe('AB12CD');
   });
 
   it('refuses no class, too many classes, and a path as an id', async () => {
@@ -693,5 +715,84 @@ describe('resolveTargeting', () => {
     await expect(
       resolveTargeting(stub(DOCS), 'h', SHARED, ['r3'])
     ).rejects.toThrow('no class a student can sign in to');
+  });
+});
+
+describe('allocateJoinCode', () => {
+  const stub = (
+    pointersByCode: Record<string, string[]>,
+    statusById: Record<string, string>
+  ) =>
+    ({
+      collection: () => ({
+        doc: (code: string) => ({
+          collection: () => ({
+            limit: () => ({
+              get: () => {
+                const ids = pointersByCode[code] ?? [];
+                return Promise.resolve({
+                  empty: ids.length === 0,
+                  docs: ids.map((id) => ({ id })),
+                });
+              },
+            }),
+          }),
+        }),
+      }),
+      doc: (path: string) => ({
+        get: () =>
+          Promise.resolve({
+            data: () => {
+              const id = path.split('/')[1];
+              return statusById[id] ? { status: statusById[id] } : undefined;
+            },
+          }),
+      }),
+    }) as never;
+
+  it('takes an unused code straight away', async () => {
+    const out = await allocateJoinCode(stub({}, {}), () => 'FREE01');
+
+    expect(out).toBe('FREE01');
+  });
+
+  // A code is recycled once its sessions are over, so a pointer alone is not a
+  // collision — only a session a student could still join.
+  it('reuses a code whose sessions have all ended', async () => {
+    const out = await allocateJoinCode(
+      stub({ OLD001: ['s1', 's2'] }, { s1: 'ended', s2: 'ended' }),
+      () => 'OLD001'
+    );
+
+    expect(out).toBe('OLD001');
+  });
+
+  it('skips a code another live session still holds', async () => {
+    const codes = ['TAKEN1', 'TAKEN1', 'SPARE1'];
+    let i = 0;
+
+    const out = await allocateJoinCode(
+      stub({ TAKEN1: ['live'] }, { live: 'active' }),
+      () => codes[i++]
+    );
+
+    expect(out).toBe('SPARE1');
+  });
+
+  // Never block a substitute from starting a lesson over a code clash; the
+  // teacher's own path makes the same trade.
+  it('gives up after five tries rather than refusing the launch', async () => {
+    let tries = 0;
+
+    const out = await allocateJoinCode(
+      stub({ BUSY01: ['live'] }, { live: 'waiting' }),
+      () => {
+        tries += 1;
+        return 'BUSY01';
+      }
+    );
+
+    expect(out).toBe('BUSY01');
+    expect(tries).toBe(6);
   });
 });

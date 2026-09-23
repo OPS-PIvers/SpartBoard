@@ -22,8 +22,11 @@ const MAX_ROSTERS = 20;
 const MAX_PAYLOAD_BYTES = 700_000;
 
 const DISTRICT_EMAIL = /^[^@]+@orono\.k12\.mn\.us$/;
-/** `allocateJoinCode`'s shape, since the code becomes a document id. */
-const JOIN_CODE = /^[A-Z0-9]{4,8}$/;
+/** A code a student can still join, so a live one is a collision. */
+const JOINABLE_STATUSES = new Set(['waiting', 'active', 'paused']);
+const CODE_ATTEMPTS = 5;
+/** Pointers read per candidate code; matches the client's own lookup cap. */
+const MAX_POINTERS_PER_CODE = 20;
 
 /**
  * Session fields a substitute may choose: how the run behaves, never what it
@@ -37,7 +40,6 @@ const ALLOWED_SESSION_FIELDS = new Set([
   'startedAt',
   'endedAt',
   'autoProgressAt',
-  'code',
   'completenessModel',
   'handRaiseEnabled',
   'questionPhase',
@@ -74,7 +76,6 @@ const ALLOWED_ASSIGNMENT_FIELDS = new Set([
   'dueAt',
   'dueAtHasTime',
   'status',
-  'code',
   'mode',
   'openAt',
   'closeAt',
@@ -315,6 +316,37 @@ export async function resolveTargeting(
   return { classIds, classPeriodByClassId };
 }
 
+/**
+ * Server mirror of `allocateJoinCode` (`hooks/useQuizAssignments.ts`): a code
+ * is global across every teacher, so a candidate is rejected while any session
+ * still carrying it is joinable. Falls back to an unchecked code rather than
+ * refusing the launch, as the teacher's own path does.
+ */
+export async function allocateJoinCode(
+  db: admin.firestore.Firestore,
+  newCode: () => string
+): Promise<string> {
+  for (let attempt = 0; attempt < CODE_ATTEMPTS; attempt += 1) {
+    const candidate = newCode();
+    const pointers = await db
+      .collection('quiz_join_codes')
+      .doc(candidate)
+      .collection('sessions')
+      .limit(MAX_POINTERS_PER_CODE)
+      .get();
+    if (pointers.empty) return candidate;
+    const sessions = await Promise.all(
+      pointers.docs.map((d) => db.doc(`quiz_sessions/${d.id}`).get())
+    );
+    const live = sessions.some((snap) => {
+      const status: unknown = snap.data()?.status;
+      return typeof status === 'string' && JOINABLE_STATUSES.has(status);
+    });
+    if (!live) return candidate;
+  }
+  return newCode();
+}
+
 function approxBytes(value: unknown): number {
   return JSON.stringify(value ?? null).length;
 }
@@ -322,11 +354,22 @@ function approxBytes(value: unknown): number {
 export interface SubLaunchDeps {
   now: () => number;
   newId: () => string;
+  newCode: () => string;
+}
+
+/** The teacher client's own shape: six uppercase alphanumerics. */
+function randomJoinCode(): string {
+  return Math.random()
+    .toString(36)
+    .substring(2, 8)
+    .toUpperCase()
+    .padEnd(6, '0');
 }
 
 export const liveSubLaunchDeps: SubLaunchDeps = {
   now: () => Date.now(),
   newId: () => randomUUID(),
+  newCode: randomJoinCode,
 };
 
 export async function handleLaunchSubAssignment(
@@ -447,12 +490,6 @@ export async function handleLaunchSubAssignment(
   const answerField = findAnswerField(session) ?? findAnswerField(assignment);
   if (answerField) bad(`${answerField} must not reach a student session.`);
 
-  const code = typeof session.code === 'string' ? session.code : '';
-  if (!JOIN_CODE.test(code)) bad('The session carried no join code.');
-  if (assignment.code !== undefined && assignment.code !== code) {
-    bad('The session and the archive row disagree on the join code.');
-  }
-
   // The teacher's own record is the authority for the Drive file the monitor
   // hydrates from; the caller never names it.
   const quizSnap = await db.doc(`users/${hostUid}/quizzes/${itemId}`).get();
@@ -461,6 +498,9 @@ export async function handleLaunchSubAssignment(
     denied('That quiz is no longer in the teacher’s library.');
   }
 
+  // Minted here, not accepted: a code is global across every teacher, so a
+  // caller's own code could eclipse another teacher's live session.
+  const code = await allocateJoinCode(db, deps.newCode);
   const publicQuestions = publicQuestionsFromKey(keyQuiz.questions);
   const quizTitle =
     typeof keyQuiz.title === 'string' && keyQuiz.title ? keyQuiz.title : 'Quiz';
@@ -475,6 +515,7 @@ export async function handleLaunchSubAssignment(
   // Derived from the key, so a sub cannot change what students see. Media
   // response and learning targets stay off: neither gate travels in a share.
   const content = {
+    code,
     quizId: itemId,
     quizTitle,
     publicQuestions,
