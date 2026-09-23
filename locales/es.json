@@ -206,6 +206,8 @@
       "splitNameLabel": "Nombre del grupo",
       "splitConfirm": "Crear grupos",
       "splitNamePrefix": "Equipos",
+      "bellPeriod": "Período de clase",
+      "bellPeriodNone": "Sin asignar",
       "accommodationsTab": "Adaptaciones ({{count}})",
       "accommodationsHelp": "Se aplican automáticamente cada vez que asignes trabajo a este estudiante. Aún puedes cambiarlas para cada tarea.",
       "emptyAccommodationsTitle": "Todavía no hay estudiantes",

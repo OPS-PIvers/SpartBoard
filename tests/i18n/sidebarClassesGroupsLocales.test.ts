@@ -55,6 +55,8 @@ const REQUIRED_GROUPS_KEYS = [
   'splitNameLabel',
   'splitConfirm',
   'splitNamePrefix',
+  'bellPeriod',
+  'bellPeriodNone',
 ] as const;
 
 type LocaleFile = typeof en;
