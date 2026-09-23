@@ -1,0 +1,49 @@
+{
+  "generatedAt": "2026-09-23T03:33:27.604Z",
+  "runCommand": "WRITE_PERF_BASELINE=1 pnpm exec vitest run --config vitest.perf.config.ts tests/perf/studioPerf.test.tsx",
+  "classic": {
+    "mount": {
+      "commits": 5,
+      "ms": 92.2
+    },
+    "type25": {
+      "commits": 25,
+      "ms": 144.8
+    },
+    "switchSlide10": {
+      "commits": 10,
+      "ms": 63.4
+    },
+    "addStep": {
+      "commits": 3,
+      "ms": 16
+    }
+  },
+  "scenarios": [
+    {
+      "scenario": "studio.mount",
+      "commits": 5,
+      "actualDurationMs": 161.359
+    },
+    {
+      "scenario": "studio.type25",
+      "commits": 25,
+      "actualDurationMs": 160.666
+    },
+    {
+      "scenario": "studio.switchSlide10",
+      "commits": 22,
+      "actualDurationMs": 111.994
+    },
+    {
+      "scenario": "studio.addStep",
+      "commits": 3,
+      "actualDurationMs": 32.137
+    },
+    {
+      "scenario": "studio.dragRegion60",
+      "commits": 62,
+      "actualDurationMs": 222.505
+    }
+  ]
+}

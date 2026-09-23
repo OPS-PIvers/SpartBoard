@@ -106,7 +106,7 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
         )}
         <StudioRegionControls step={selectedStep} onChange={updateStep} />
         <StudioNarration
-          key={selectedStep.id}
+          key={`narration-${selectedStep.id}`}
           state={state}
           step={selectedStep}
         />

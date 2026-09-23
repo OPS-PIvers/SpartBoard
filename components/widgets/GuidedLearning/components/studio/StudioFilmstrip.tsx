@@ -1,7 +1,17 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { Clipboard, Film, Loader2, Trash2, Upload } from 'lucide-react';
-import { SortableList } from '@/components/common/SortableList';
+import {
+  SortableList,
+  type SortableListDragHandleProps,
+} from '@/components/common/SortableList';
 import {
   GL_MEDIA_ACCEPT,
   type GuidedLearningMediaKind,
@@ -19,28 +29,167 @@ interface SlideItem {
 
 const getSlideId = (s: SlideItem) => s.id;
 
-interface StudioFilmstripProps {
-  state: GuidedLearningEditorController;
+const CurrentSlideContext = React.createContext<{
+  index: number;
+  counts: number[];
+}>({ index: 0, counts: [] });
+
+interface SlideThumbProps {
+  slide: SlideItem;
+  handle: SortableListDragHandleProps;
+  onSelect: (index: number) => void;
+  onDelete: (index: number) => void;
 }
 
-/** Left column: slide thumbnails to pick, reorder, add and delete. */
-export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({ state }) => {
+const SlideThumbBody = React.memo(function SlideThumbBody({
+  slide,
+  handle,
+  onSelect,
+  onDelete,
+  current,
+  count,
+}: SlideThumbProps & { current: boolean; count: number }) {
   const { t } = useTranslation();
-  const {
-    imageUrls,
-    imageKinds,
-    steps,
-    currentImageIndex,
-    setCurrentImageIndex,
-    reorderImages,
-    deleteImage,
-    uploading,
-    uploadProgress,
-    uploadFromFiles,
-    uploadFromClipboard,
-    addCapturedMedia,
-    imageError,
-  } = state;
+  const n = slide.index + 1;
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        {...handle.attributes}
+        onPointerDown={
+          handle.listeners?.onPointerDown as
+            | React.PointerEventHandler<HTMLButtonElement>
+            | undefined
+        }
+        onClick={() => onSelect(slide.index)}
+        aria-current={current}
+        aria-label={t('glStudio.slideSummary', {
+          n,
+          count: count,
+        })}
+        className={`relative block aspect-video w-full cursor-grab touch-none overflow-hidden rounded-lg border-2 bg-slate-900 active:cursor-grabbing ${
+          current
+            ? 'border-brand-blue-primary'
+            : 'border-transparent hover:border-slate-300'
+        } ${handle.isDragging ? 'opacity-60' : ''}`}
+      >
+        {slide.kind === 'video' ? (
+          <video
+            src={slide.url}
+            muted
+            preload="metadata"
+            className="pointer-events-none h-full w-full object-contain"
+          />
+        ) : (
+          <img
+            src={slide.url}
+            alt=""
+            draggable={false}
+            className="pointer-events-none h-full w-full object-contain"
+          />
+        )}
+        <span className="absolute left-1 top-1 flex items-center gap-1 rounded bg-slate-900/80 px-1.5 text-xxs font-bold text-white">
+          {slide.kind === 'video' && (
+            <Film className="h-3 w-3" aria-hidden="true" />
+          )}
+          {n}
+        </span>
+        <span className="absolute bottom-1 left-1 rounded bg-white/90 px-1.5 text-xxs font-bold text-slate-700">
+          {t('glStudio.stepCount', {
+            count: count,
+          })}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={() => onDelete(slide.index)}
+        aria-label={t('glStudio.deleteSlideN', { n })}
+        title={t('glStudio.deleteSlideN', { n })}
+        className="absolute right-1 top-1 rounded-md bg-white/90 p-1 text-slate-600 opacity-0 shadow-sm transition-opacity hover:text-red-700 focus:opacity-100 group-hover:opacity-100"
+      >
+        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
+    </div>
+  );
+});
+
+// Only the thumbnails whose state changed re-render when the current slide moves.
+const SlideThumb: React.FC<SlideThumbProps> = (props) => {
+  const { index, counts } = useContext(CurrentSlideContext);
+  const i = props.slide.index;
+  return (
+    <SlideThumbBody {...props} current={i === index} count={counts[i] ?? 0} />
+  );
+};
+
+const SlideList = React.memo(function SlideList({
+  slides,
+  onReorder,
+  renderItem,
+}: {
+  slides: SlideItem[];
+  onReorder: (next: SlideItem[]) => void;
+  renderItem: (
+    slide: SlideItem,
+    handle: SortableListDragHandleProps
+  ) => React.ReactNode;
+}) {
+  return (
+    <SortableList
+      items={slides}
+      getId={getSlideId}
+      onReorder={onReorder}
+      className="flex flex-col gap-2"
+      renderItem={renderItem}
+    />
+  );
+});
+
+type FilmstripState = Pick<
+  GuidedLearningEditorController,
+  | 'imageUrls'
+  | 'imageKinds'
+  | 'currentImageIndex'
+  | 'setCurrentImageIndex'
+  | 'reorderImages'
+  | 'deleteImage'
+  | 'uploading'
+  | 'uploadProgress'
+  | 'uploadFromFiles'
+  | 'uploadFromClipboard'
+  | 'addCapturedMedia'
+  | 'imageError'
+>;
+
+interface FilmstripBodyProps extends FilmstripState {
+  stepCounts: number[];
+}
+
+const sameProps = (a: FilmstripBodyProps, b: FilmstripBodyProps) =>
+  (Object.keys(a) as (keyof FilmstripBodyProps)[]).every((k) =>
+    k === 'stepCounts'
+      ? a.stepCounts.length === b.stepCounts.length &&
+        a.stepCounts.every((c, i) => c === b.stepCounts[i])
+      : Object.is(a[k], b[k])
+  );
+
+// Step edits leave the slides as they were, so typing skips the whole strip.
+const FilmstripBody = React.memo(function FilmstripBody({
+  imageUrls,
+  imageKinds,
+  currentImageIndex,
+  setCurrentImageIndex,
+  reorderImages,
+  deleteImage,
+  uploading,
+  uploadProgress,
+  uploadFromFiles,
+  uploadFromClipboard,
+  addCapturedMedia,
+  imageError,
+  stepCounts,
+}: FilmstripBodyProps) {
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [captureMode, setCaptureMode] = useState<CaptureMode | null>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -57,14 +206,25 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({ state }) => {
       })),
     [imageUrls, imageKinds]
   );
-  const stepCounts = useMemo(() => {
-    const counts = new Array<number>(imageUrls.length).fill(0);
-    for (const s of steps) {
-      if (s.imageIndex >= 0 && s.imageIndex < counts.length)
-        counts[s.imageIndex]++;
-    }
-    return counts;
-  }, [steps, imageUrls.length]);
+  const currentSlide = useMemo(
+    () => ({ index: currentImageIndex, counts: stepCounts }),
+    [currentImageIndex, stepCounts]
+  );
+  const onReorder = useCallback(
+    (next: SlideItem[]) => reorderImages(next.map((s) => s.index)),
+    [reorderImages]
+  );
+  const renderSlide = useCallback(
+    (slide: SlideItem, handle: SortableListDragHandleProps) => (
+      <SlideThumb
+        slide={slide}
+        handle={handle}
+        onSelect={setCurrentImageIndex}
+        onDelete={deleteImage}
+      />
+    ),
+    [setCurrentImageIndex, deleteImage]
+  );
 
   // Ctrl/⌘+V anywhere outside a text field adds the clipboard image as a slide.
   useEffect(() => {
@@ -138,76 +298,13 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({ state }) => {
             {t('glStudio.filmstripEmpty')}
           </p>
         )}
-        <SortableList
-          items={slides}
-          getId={getSlideId}
-          onReorder={(next) => reorderImages(next.map((s) => s.index))}
-          className="flex flex-col gap-2"
-          renderItem={(slide, handle) => {
-            const current = slide.index === currentImageIndex;
-            const n = slide.index + 1;
-            return (
-              <div className="group relative">
-                <button
-                  type="button"
-                  {...handle.attributes}
-                  onPointerDown={
-                    handle.listeners?.onPointerDown as
-                      | React.PointerEventHandler<HTMLButtonElement>
-                      | undefined
-                  }
-                  onClick={() => setCurrentImageIndex(slide.index)}
-                  aria-current={current}
-                  aria-label={t('glStudio.slideSummary', {
-                    n,
-                    count: stepCounts[slide.index] ?? 0,
-                  })}
-                  className={`relative block aspect-video w-full cursor-grab touch-none overflow-hidden rounded-lg border-2 bg-slate-900 active:cursor-grabbing ${
-                    current
-                      ? 'border-brand-blue-primary'
-                      : 'border-transparent hover:border-slate-300'
-                  } ${handle.isDragging ? 'opacity-60' : ''}`}
-                >
-                  {slide.kind === 'video' ? (
-                    <video
-                      src={slide.url}
-                      muted
-                      preload="metadata"
-                      className="pointer-events-none h-full w-full object-contain"
-                    />
-                  ) : (
-                    <img
-                      src={slide.url}
-                      alt=""
-                      draggable={false}
-                      className="pointer-events-none h-full w-full object-contain"
-                    />
-                  )}
-                  <span className="absolute left-1 top-1 flex items-center gap-1 rounded bg-slate-900/80 px-1.5 text-xxs font-bold text-white">
-                    {slide.kind === 'video' && (
-                      <Film className="h-3 w-3" aria-hidden="true" />
-                    )}
-                    {n}
-                  </span>
-                  <span className="absolute bottom-1 left-1 rounded bg-white/90 px-1.5 text-xxs font-bold text-slate-700">
-                    {t('glStudio.stepCount', {
-                      count: stepCounts[slide.index] ?? 0,
-                    })}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => deleteImage(slide.index)}
-                  aria-label={t('glStudio.deleteSlideN', { n })}
-                  title={t('glStudio.deleteSlideN', { n })}
-                  className="absolute right-1 top-1 rounded-md bg-white/90 p-1 text-slate-600 opacity-0 shadow-sm transition-opacity hover:text-red-700 focus:opacity-100 group-hover:opacity-100"
-                >
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
-              </div>
-            );
-          }}
-        />
+        <CurrentSlideContext.Provider value={currentSlide}>
+          <SlideList
+            slides={slides}
+            onReorder={onReorder}
+            renderItem={renderSlide}
+          />
+        </CurrentSlideContext.Provider>
         {uploadProgress && (
           <p className="mt-2 flex items-center gap-1.5 text-xxs font-bold text-brand-blue-primary">
             <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
@@ -267,5 +364,39 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({ state }) => {
         />
       )}
     </nav>
+  );
+}, sameProps);
+
+interface StudioFilmstripProps {
+  state: GuidedLearningEditorController;
+}
+
+/** Left column: slide thumbnails to pick, reorder, add and delete. */
+export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({ state }) => {
+  const { steps, imageUrls } = state;
+  const stepCounts = useMemo(() => {
+    const counts = new Array<number>(imageUrls.length).fill(0);
+    for (const s of steps) {
+      if (s.imageIndex >= 0 && s.imageIndex < counts.length)
+        counts[s.imageIndex]++;
+    }
+    return counts;
+  }, [steps, imageUrls.length]);
+  return (
+    <FilmstripBody
+      imageUrls={imageUrls}
+      imageKinds={state.imageKinds}
+      currentImageIndex={state.currentImageIndex}
+      setCurrentImageIndex={state.setCurrentImageIndex}
+      reorderImages={state.reorderImages}
+      deleteImage={state.deleteImage}
+      uploading={state.uploading}
+      uploadProgress={state.uploadProgress}
+      uploadFromFiles={state.uploadFromFiles}
+      uploadFromClipboard={state.uploadFromClipboard}
+      addCapturedMedia={state.addCapturedMedia}
+      imageError={state.imageError}
+      stepCounts={stepCounts}
+    />
   );
 };
