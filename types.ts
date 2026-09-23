@@ -6916,7 +6916,7 @@ export interface GuidedLearningStep {
   showOverlay?: GuidedLearningOverlayType;
   /** Tooltip anchor relative to hotspot (default 'auto') */
   tooltipPosition?: 'above' | 'below' | 'left' | 'right' | 'auto';
-  /** Distance in px from hotspot to tooltip edge (default 12) */
+  /** Distance in px from hotspot to tooltip edge (default 16) */
   tooltipOffset?: number;
   /** Content for text-popover and tooltip */
   text?: string;
@@ -6935,7 +6935,63 @@ export interface GuidedLearningStep {
   question?: GuidedLearningQuestion;
   /** Seconds before auto-advance in guided mode */
   autoAdvanceDuration?: number;
+  /** Click zone / spotlight / zoom focus. Absent = default circle centred on xPct/yPct. */
+  region?: GuidedLearningRegion;
+  /** Absent = auto placement. Present = callout box centre pinned in image-%. */
+  calloutPin?: GuidedLearningCalloutPin;
+  /** Watch-mode demonstration override; absent = cursor goes to region centre. */
+  cursor?: GuidedLearningStepCursor;
+  /** Narration track: generated TTS or the author's recorded voice. */
+  narration?: GuidedLearningNarration;
+  /** Live-tour binding. Teacher-only: never mirrored to public steps. */
+  tour?: GuidedLearningTourBinding;
 }
+
+export interface GuidedLearningRegion {
+  shape: 'rect' | 'ellipse' | 'polygon';
+  /** Bounding-box size as % of image width / height, centred on xPct/yPct. */
+  wPct: number;
+  hPct: number;
+  /** rect only: corner radius as % of the shorter side (0–50). */
+  cornerPct?: number;
+  /** polygon only: 3–24 vertices in image-%. The bbox fields and xPct/yPct are derived from them. */
+  points?: { x: number; y: number }[];
+}
+
+export interface GuidedLearningCalloutPin {
+  xPct: number;
+  yPct: number;
+}
+
+export interface GuidedLearningStepCursor {
+  hide?: boolean;
+}
+
+export interface GuidedLearningNarration {
+  source: 'generated' | 'recorded';
+  url: string;
+  storagePath: string;
+  durationMs: number;
+  voice?: string;
+  textHash?: string;
+}
+
+/** Student-safe narration: playback fields only. */
+export type GuidedLearningPublicNarration = Pick<
+  GuidedLearningNarration,
+  'url' | 'voice' | 'durationMs'
+>;
+
+export interface GuidedLearningTourBinding {
+  /** TOUR_ANCHORS key */
+  anchor: string;
+  fallback?: { role: string; name: string };
+  /** observe = learner presses Next */
+  action: 'click' | 'observe';
+}
+
+/** Watch-mode pacing. 'calm' multiplies step durations by 1.3; absent = 'standard'. */
+export type GuidedLearningWatchPace = 'calm' | 'standard';
 
 /**
  * Playback-range trim for a video slide, in seconds from the start of the
@@ -6950,7 +7006,7 @@ export interface GuidedLearningVideoTrim {
 /** Full set data stored in Google Drive as JSON */
 export interface GuidedLearningSet {
   id: string;
-  /** Absent/1 = legacy semantics (per-step zoom reset, container-relative spotlight); 2+ = zoom persistence + image-relative spotlight. */
+  /** Absent/1 = legacy semantics (per-step zoom reset, container-relative spotlight); 2+ = zoom persistence + image-relative spotlight; 3 adds regions, pinned callouts and narration. */
   schemaVersion?: number;
   title: string;
   description?: string;
@@ -7010,6 +7066,9 @@ export interface GuidedLearningSet {
    * on, so an enabled-but-empty welcome doesn't render an empty card.
    */
   welcomeMessage?: string;
+  watchPace?: GuidedLearningWatchPace;
+  /** Live tour prerequisites. Teacher-only: never mirrored to sessions. */
+  tourSetup?: { widgets: WidgetType[] };
 }
 
 /** Lightweight metadata stored in Firestore (avoids Drive API on every list) */
@@ -7075,6 +7134,10 @@ export interface GuidedLearningPublicStep {
     sortingItems?: string[];
   };
   autoAdvanceDuration?: number;
+  region?: GuidedLearningRegion;
+  calloutPin?: GuidedLearningCalloutPin;
+  cursor?: GuidedLearningStepCursor;
+  narration?: GuidedLearningPublicNarration;
 }
 
 /** Firestore session document granting student access to an experience */
@@ -7147,6 +7210,8 @@ export interface GuidedLearningSession {
   welcomeEnabled?: boolean;
   /** Mirrors `GuidedLearningSet.welcomeMessage`. */
   welcomeMessage?: string;
+  /** Mirrors `GuidedLearningSet.watchPace`. */
+  watchPace?: GuidedLearningWatchPace;
   /**
    * Mirror of {@link GuidedLearningAssignment.scoreVisibility} for the
    * student-facing `/my-assignments` Completed review screen. Absent /

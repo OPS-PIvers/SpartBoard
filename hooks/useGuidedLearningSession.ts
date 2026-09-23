@@ -194,6 +194,17 @@ export function toPublicStep(
     spotlightRadius: step.spotlightRadius,
     bannerTone: step.bannerTone,
     autoAdvanceDuration: step.autoAdvanceDuration,
+    region: step.region,
+    calloutPin: step.calloutPin,
+    cursor: step.cursor,
+    // Playback fields only; `tour` is teacher-only and never mirrored.
+    narration: step.narration
+      ? {
+          url: step.narration.url,
+          durationMs: step.narration.durationMs,
+          voice: step.narration.voice,
+        }
+      : undefined,
   };
 
   if (step.question) {
@@ -372,6 +383,7 @@ export const useGuidedLearningSessionTeacher = (
               welcomeMessage: set.welcomeMessage,
             }
           : {}),
+        ...(set.watchPace === 'calm' ? { watchPace: set.watchPace } : {}),
       };
 
       await setDoc(doc(db, GL_SESSIONS_COLLECTION, sessionId), session);

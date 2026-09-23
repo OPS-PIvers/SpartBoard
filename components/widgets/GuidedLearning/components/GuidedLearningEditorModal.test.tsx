@@ -266,7 +266,7 @@ describe('GuidedLearningEditorModal save payload', () => {
       steps: set.steps,
       mode: 'structured',
       createdAt: 1000,
-      schemaVersion: 2,
+      schemaVersion: 3,
     });
     expect(typeof saved.updatedAt).toBe('number');
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -302,7 +302,7 @@ describe('GuidedLearningEditorModal save payload', () => {
     editTitleAndClose();
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     const [saved] = onSave.mock.calls[0] as [GuidedLearningSet];
-    expect(saved.schemaVersion).toBe(2);
+    expect(saved.schemaVersion).toBe(3);
     expect(saved.steps[0].spotlightRadius).toBe(50);
 
     // Double-save idempotency: re-opening the converted set and saving again
@@ -315,7 +315,7 @@ describe('GuidedLearningEditorModal save payload', () => {
     editTitleAndClose('Edited Again');
     await waitFor(() => expect(onSaveAgain).toHaveBeenCalledTimes(1));
     const [resaved] = onSaveAgain.mock.calls[0] as [GuidedLearningSet];
-    expect(resaved.schemaVersion).toBe(2);
+    expect(resaved.schemaVersion).toBe(3);
     expect(resaved.steps[0].spotlightRadius).toBe(50);
   });
 
@@ -349,7 +349,7 @@ describe('GuidedLearningEditorModal save payload', () => {
     closeEditor();
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     const [saved] = onSave.mock.calls[0] as [GuidedLearningSet];
-    expect(saved.schemaVersion).toBe(2);
+    expect(saved.schemaVersion).toBe(3);
     expect(saved.steps[0].spotlightRadius).toBe(40);
   });
 
@@ -397,7 +397,7 @@ describe('GuidedLearningEditorModal save payload', () => {
     editTitleAndClose();
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     const [saved] = onSave.mock.calls[0] as [GuidedLearningSet];
-    expect(saved.schemaVersion).toBe(2);
+    expect(saved.schemaVersion).toBe(3);
     expect(saved.steps[0].spotlightRadius).toBe(40);
   });
 
