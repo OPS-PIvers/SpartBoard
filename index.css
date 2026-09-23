@@ -163,6 +163,31 @@ body.is-dragging-widget video {
 }
 
 /* Guided Learning player v2: callout fades in with a 6px rise once the camera settles. */
+/* Guided Learning Watch/Try: cursor click ripple, success pulse and misclick shake. */
+@keyframes gl-ripple {
+  from {
+    opacity: 0.9;
+    transform: scale(0.3);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+@keyframes gl-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
 @keyframes gl-callout-in {
   from {
     opacity: 0;
