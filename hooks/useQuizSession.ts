@@ -79,6 +79,7 @@ import {
   studentPeriodKeys,
 } from '@/utils/periodAccess';
 import { isInvalidWordRange } from '@/utils/wordLimit';
+import { getServerNow } from '@/utils/serverTime';
 export type { QuizSessionOptions } from '@/types';
 
 export const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
@@ -1983,11 +1984,12 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     : '';
   useEffect(() => {
     if (!inContent || !session) return;
-    const nextOpen = nextScheduledOpen(session, periodKeys, Date.now());
+    const now = getServerNow();
+    const nextOpen = nextScheduledOpen(session, periodKeys, now);
     if (nextOpen == null) return;
     const id = setTimeout(
       () => setContentRetry((n) => n + 1),
-      Math.max(0, nextOpen - Date.now()) + 1000
+      Math.max(0, nextOpen - now) + 1000
     );
     return () => clearTimeout(id);
   }, [inContent, session, periodKeys]);
