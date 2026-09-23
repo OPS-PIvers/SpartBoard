@@ -749,18 +749,21 @@ export const GuidedLearningStage: React.FC<
           (Math.min(containerSize.w, containerSize.h) *
             (spotlightStep.spotlightRadius ?? 25)) /
           100;
+        const hasCallout =
+          !!activeStep.showOverlay && activeStep.showOverlay !== 'none';
         return (
           <>
             <SpotlightInteraction
-              step={spotlightStep}
+              // The callout already titles itself with the label, and would cover this copy.
+              step={
+                hasCallout
+                  ? { ...spotlightStep, label: undefined }
+                  : spotlightStep
+              }
               containerWidth={containerSize.w}
               containerHeight={containerSize.h}
               region={activeRegion ?? undefined}
-              editor={
-                activeStep.showOverlay && activeStep.showOverlay !== 'none'
-                  ? undefined
-                  : calloutEditor
-              }
+              editor={hasCallout ? undefined : calloutEditor}
             />
             {renderOverlay(spotlightPx)}
           </>
