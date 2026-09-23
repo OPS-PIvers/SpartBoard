@@ -70,6 +70,31 @@ const CAPTURE_OPTIONS = {
 const nextFrame = () =>
   new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
+/** Longest wait for the shared tab to deliver a frame painted after the pill hid. */
+export const FRESH_FRAME_TIMEOUT_MS = 300;
+
+// The capture stream trails the page, so the video's current frame can still show the pill.
+const freshFrame = (video: HTMLVideoElement, since: number) =>
+  new Promise<void>((resolve) => {
+    if (typeof video.requestVideoFrameCallback !== 'function') {
+      resolve();
+      return;
+    }
+    const timer = setTimeout(resolve, FRESH_FRAME_TIMEOUT_MS);
+    let seen = 0;
+    // Without a capture time, the second new frame is the first sure to post-date the hide.
+    const check: VideoFrameRequestCallback = (_now, meta) => {
+      seen++;
+      if (
+        meta.captureTime === undefined ? seen >= 2 : meta.captureTime > since
+      ) {
+        clearTimeout(timer);
+        resolve();
+      } else video.requestVideoFrameCallback(check);
+    };
+    video.requestVideoFrameCallback(check);
+  });
+
 const newId = () =>
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
@@ -197,6 +222,7 @@ export function useTourCapture({ chromeRef, matcher }: Options) {
     try {
       await nextFrame();
       rects.push(...collectRedactionRects(document.body, matcher, viewport));
+      await freshFrame(video, performance.now());
       raw = await grabFrame(video);
     } finally {
       showChrome();
@@ -246,8 +272,10 @@ export function useTourCapture({ chromeRef, matcher }: Options) {
     if (e.button !== 0 || !(e.target instanceof Element)) return;
     capture(e.target, 'click');
   });
+  // The pill is skipped, so pressing Mark step marks what was hovered before it.
   const onPointerMove = useEffectEvent((e: PointerEvent) => {
-    if (e.target instanceof Element) hovered.current = e.target;
+    if (e.target instanceof Element && !e.target.closest('[data-tour-ignore]'))
+      hovered.current = e.target;
   });
   const markStep = () => {
     if (status !== 'recording' || !hovered.current) return;
