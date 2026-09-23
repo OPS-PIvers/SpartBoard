@@ -5,6 +5,7 @@ import {
   SlideMeasurement,
   convertLegacySpotlightRadii,
   isGuidedLearningSetV2,
+  isGuidedLearningSetV3,
   stepUsesSpotlight,
 } from './setMigration';
 import {
@@ -23,7 +24,15 @@ describe('isGuidedLearningSetV2', () => {
   it('treats v2 and above as v2', () => {
     expect(isGuidedLearningSetV2({ schemaVersion: 2 })).toBe(true);
     expect(isGuidedLearningSetV2({ schemaVersion: 3 })).toBe(true);
-    expect(GL_SET_SCHEMA_VERSION).toBe(2);
+    expect(GL_SET_SCHEMA_VERSION).toBe(3);
+  });
+});
+
+describe('isGuidedLearningSetV3', () => {
+  it('is true only from schemaVersion 3', () => {
+    expect(isGuidedLearningSetV3({})).toBe(false);
+    expect(isGuidedLearningSetV3({ schemaVersion: 2 })).toBe(false);
+    expect(isGuidedLearningSetV3({ schemaVersion: 3 })).toBe(true);
   });
 });
 

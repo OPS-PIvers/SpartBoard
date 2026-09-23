@@ -6,14 +6,21 @@ type LegacyGuidedLearningSet = GuidedLearningSet & {
   imagePath?: string;
 };
 
-/** Schema version stamped on new/re-saved sets (zoom persistence + image-relative spotlight). */
-export const GL_SET_SCHEMA_VERSION = 2;
+/** Schema version stamped on new/re-saved sets; v3 only adds fields, so v2 semantics apply from 2 up. */
+export const GL_SET_SCHEMA_VERSION = 3;
 
 /** Absent/1 = legacy semantics; existing sets are never rewritten. */
 export function isGuidedLearningSetV2(
   set: Pick<GuidedLearningSet, 'schemaVersion'>
 ): boolean {
-  return (set.schemaVersion ?? 1) >= GL_SET_SCHEMA_VERSION;
+  return (set.schemaVersion ?? 1) >= 2;
+}
+
+/** True once a set may carry regions, pinned callouts and narration. */
+export function isGuidedLearningSetV3(
+  set: Pick<GuidedLearningSet, 'schemaVersion'>
+): boolean {
+  return (set.schemaVersion ?? 1) >= 3;
 }
 
 /** True when the step renders a spotlight (and thus reads spotlightRadius). */

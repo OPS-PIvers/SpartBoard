@@ -411,11 +411,14 @@ const StudentExperience: React.FC<{
     updatedAt: session.createdAt,
     hotspotPulse: session.hotspotPulse,
     imageTransition: session.imageTransition,
+    welcomeEnabled: session.welcomeEnabled,
+    welcomeMessage: session.welcomeMessage,
+    watchPace: session.watchPace,
   };
 
   return (
     <div className="h-screen h-dvh overflow-hidden bg-slate-950">
-      <div className="h-full relative">
+      <div className="h-full relative" style={{ containerType: 'size' }}>
         <GuidedLearningPlayer
           key={`gl-player-${replayKey}`}
           set={
