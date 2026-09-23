@@ -245,6 +245,21 @@ describe('GuidedLearningPlayer read-aloud', () => {
     expect(counter()).toHaveTextContent('2 / 3');
   });
 
+  it('releases a held Watch step when read-aloud is turned off', () => {
+    vi.useFakeTimers();
+    mockSpeech();
+    renderPlayer(makeSet('guided', THREE));
+    const toggle = screen.getByRole('button', { name: 'Read aloud' });
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
+    act(() => {
+      vi.advanceTimersByTime(3500);
+    });
+    expect(counter()).toHaveTextContent('1 / 3');
+    fireEvent.click(toggle);
+    expect(counter()).toHaveTextContent('2 / 3');
+  });
+
   it('hides the toggle when there is no speech and no narration', () => {
     vi.stubGlobal('speechSynthesis', undefined);
     renderPlayer(makeSet('structured', THREE));

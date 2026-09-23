@@ -568,7 +568,11 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       aria-pressed={readAloud}
       aria-label={t('glPlayer.readAloud')}
       title={t('glPlayer.readAloud')}
-      onClick={() => setReadAloud((v) => !v)}
+      onClick={() => {
+        // Turning it off mid-hold releases the Watch step the voice was holding.
+        if (readAloud) handleVoiceDone();
+        setReadAloud(!readAloud);
+      }}
       className={`flex items-center justify-center rounded-full border transition-colors flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 ${
         readAloud
           ? 'bg-white text-slate-900 border-white'
