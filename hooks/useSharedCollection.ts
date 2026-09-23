@@ -321,8 +321,9 @@ async function commitBoardBatches({
 }
 
 /**
- * The names the boards carry plus each live Next Up queue, which is a list of
- * student names and so belongs in the named-subs file too.
+ * The names the boards carry, plus each live Next Up queue and each open
+ * wall's approved posts, all of them student names and so bound for the
+ * named-subs file too.
  */
 async function collectSubShareNames(
   boards: Dashboard[],

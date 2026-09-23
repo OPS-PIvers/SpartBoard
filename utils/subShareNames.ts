@@ -83,7 +83,9 @@ export async function withSubShareQueues(
   const reads = boards.flatMap((board) =>
     liveNextUpWidgets(board).map(async (widget) => {
       const config = widget.config as NextUpConfig;
-      const label = config.sessionName ?? board.name;
+      const label = config.sessionName
+        ? `Next Up "${config.sessionName}" on ${board.name}`
+        : `Next Up on ${board.name}`;
       if (!readQueue) return { board, widget, label, queue: null };
       try {
         const queue = parseNextUpQueue(

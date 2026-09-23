@@ -265,7 +265,7 @@ describe('withSubShareQueues', () => {
       () => Promise.reject(new Error('404'))
     );
 
-    expect(unreadable).toEqual(['Help Queue']);
+    expect(unreadable).toEqual(['Next Up "Help Queue" on b1']);
     expect(names.boards).toEqual({});
   });
 
@@ -278,15 +278,20 @@ describe('withSubShareQueues', () => {
       undefined
     );
 
-    expect(unreadable).toEqual(['Help Queue']);
+    expect(unreadable).toEqual(['Next Up "Help Queue" on b1']);
   });
 
   // Two sessions can carry the same name, and the teacher's warning should not
   // say it twice.
   it('names an unreadable queue once however many share its label', async () => {
     const boards = [
-      queueBoard('b1', live('queue-a')),
-      queueBoard('b2', live('queue-b')),
+      {
+        ...queueBoard('b1', live('queue-a')),
+        widgets: [
+          { id: 'b1-q', type: 'nextUp', config: live('queue-a') },
+          { id: 'b1-q2', type: 'nextUp', config: live('queue-b') },
+        ],
+      } as unknown as Dashboard,
     ];
 
     const { unreadable } = await withSubShareQueues(
@@ -295,7 +300,7 @@ describe('withSubShareQueues', () => {
       () => Promise.reject(new Error('404'))
     );
 
-    expect(unreadable).toEqual(['Help Queue']);
+    expect(unreadable).toEqual(['Next Up "Help Queue" on b1']);
   });
 
   it('reads every board’s queue at once', async () => {
@@ -327,7 +332,7 @@ describe('withSubShareQueues', () => {
       () => Promise.resolve({ nope: true })
     );
 
-    expect(unreadable).toEqual(['Help Queue']);
+    expect(unreadable).toEqual(['Next Up "Help Queue" on b1']);
   });
 });
 
