@@ -177,3 +177,17 @@ If the session leaves `active` while an exit is open, close the exit with
 - **Hidden-tab throttling.** Deadlines are capped at 5 minutes so they stay
   under Chrome's heavier throttling, which could otherwise delay a submit by up
   to about a minute.
+
+## 5. Release
+
+- Put the feature behind a new `GlobalFeature` id, for example `tab-away-timer`.
+  Its `FEATURE_DEFAULTS` entry uses `defaultAccessLevel: 'admin'`,
+  `defaultEnabled: true` and `missingDocPublic: false`.
+- Gate the new settings row, the per-student override, the overlay clock and
+  the teacher popover with `canAccessFeature('tab-away-timer')`. With the flag
+  off, keep today's behavior: the plain overlay and count only.
+- Record `tabExits` whether or not the flag is on, so that durations already
+  exist once the popover opens to everyone.
+- The PR names the flag and the path to open it: Admin Settings > Access >
+  Global Settings > set to Public. Paul opens it after testing in prod. The
+  changelog entry is added when the flag goes public.
