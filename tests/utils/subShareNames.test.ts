@@ -4,7 +4,6 @@ import {
   extractSubShareNames,
   parseSubShareNames,
   subShareNamesIsEmpty,
-  subShareNeedsQueueReads,
   withSubShareQueues,
   writeSubShareNamesFile,
   type NamesFileDrive,
@@ -253,7 +252,6 @@ describe('withSubShareQueues', () => {
 
     expect(readQueue).not.toHaveBeenCalled();
     expect(names.boards).toEqual({});
-    expect(subShareNeedsQueueReads([board])).toBe(false);
   });
 
   // The sub gets the board with an empty queue, and the teacher is told which.

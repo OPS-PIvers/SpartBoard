@@ -60,11 +60,6 @@ function liveNextUpWidgets(board: Dashboard): WidgetData[] {
   });
 }
 
-/** Whether any board holds a queue, so a share with none needs no Drive read. */
-export function subShareNeedsQueueReads(boards: Dashboard[]): boolean {
-  return boards.some((board) => liveNextUpWidgets(board).length > 0);
-}
-
 /**
  * Adds each live Next Up queue to the names file. The queue is a list of
  * student names, so it goes here rather than into the share's `content/`,
