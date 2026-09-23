@@ -8395,6 +8395,8 @@ export interface SubstituteShareFields {
   driveGrants?: SubstituteShareDriveGrant[];
   /** Rosters the sub may load from Drive; the first is the active one. */
   sharedRosters?: SubstituteShareRoster[];
+  /** Drive file holding the shared boards' student names (plan §3.4). */
+  namesFileId?: string;
 }
 
 /** Per-participant entry on a /shared_boards/{shareId} doc. */
@@ -9802,6 +9804,12 @@ export interface SharedCollection {
   driveGrants?: SubstituteShareDriveGrant[];
   /** Substitute-only: mirrors `SubstituteShareFields.sharedRosters`. */
   sharedRosters?: SubstituteShareRoster[];
+  /**
+   * Substitute-only: the Drive file holding the student names scrubbed out of
+   * the board snapshots, readable only by the named subs (plan §3.4). Trashed
+   * with the grants by the expiry sweep.
+   */
+  namesFileId?: string;
   /** Absent on pre-v2 shares; read as 'collection'. */
   kind?: SharedCollectionKind;
   /**

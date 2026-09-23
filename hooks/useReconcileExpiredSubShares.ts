@@ -176,18 +176,24 @@ export async function reconcileExpiredSubShares(
   const expiredDocs: Array<{
     ref: import('firebase/firestore').DocumentReference;
     grants: PersistedGrant[];
+    namesFileId?: string;
   }> = [];
 
   for (const docSnap of allDocs) {
     const data = docSnap.data() as {
       expiresAt?: number;
       driveGrants?: PersistedGrant[];
+      namesFileId?: string;
     };
     const grants = Array.isArray(data.driveGrants) ? data.driveGrants : [];
     const isExpired = (data.expiresAt ?? 0) <= now;
 
     if (isExpired) {
-      expiredDocs.push({ ref: docSnap.ref, grants });
+      expiredDocs.push({
+        ref: docSnap.ref,
+        grants,
+        ...(data.namesFileId ? { namesFileId: data.namesFileId } : {}),
+      });
     } else {
       // Active share — every permissionId it holds is off-limits to revoke.
       for (const g of grants) {
@@ -202,7 +208,7 @@ export async function reconcileExpiredSubShares(
   let failed = 0;
   let deleteFailed = 0;
 
-  for (const { ref, grants } of expiredDocs) {
+  for (const { ref, grants, namesFileId } of expiredDocs) {
     let allRevokesOk = true;
 
     for (const g of grants) {
@@ -220,6 +226,21 @@ export async function reconcileExpiredSubShares(
         failed += 1;
         console.error(
           `[reconcileExpiredSubShares] revoke failed for ${g.email} on ${g.fileId}:`,
+          err
+        );
+      }
+    }
+
+    if (allRevokesOk && namesFileId) {
+      // The names file belongs to this share alone, so it goes with it rather
+      // than sitting in the teacher's Drive holding a class list.
+      try {
+        await driveService.trashFile(namesFileId);
+      } catch (err) {
+        allRevokesOk = false;
+        failed += 1;
+        console.error(
+          `[reconcileExpiredSubShares] trashing names file ${namesFileId} failed:`,
           err
         );
       }

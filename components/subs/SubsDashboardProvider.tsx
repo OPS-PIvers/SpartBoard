@@ -55,6 +55,10 @@ import {
 } from './SubsControlContext';
 import type { SubstituteShareDoc } from '@/hooks/useSubstituteShares';
 import type { SubstituteRosterState } from '@/hooks/useSubstituteRosters';
+import {
+  mergeWidgetsPII,
+  type DashboardPiiSupplement,
+} from '@/utils/dashboardPII';
 
 interface SubsDashboardProviderProps {
   share: SubstituteShareDoc;
@@ -77,6 +81,13 @@ interface SubsDashboardProviderProps {
    * the portal stays mounted, so the loader is keyed by this, not the share.
    */
   contentVersion?: number;
+  /**
+   * This board's student names, from the share's Drive names file. The board
+   * snapshot reaches Firestore scrubbed of them (plan §3.4), and the sub
+   * unlocks the file after the board is already on screen, so they are folded
+   * in here rather than baked into the snapshot.
+   */
+  names?: DashboardPiiSupplement;
   children: React.ReactNode;
 }
 
@@ -90,6 +101,7 @@ const NO_ROSTERS: SubstituteRosterState = {
   rosters: EMPTY_ARRAY,
   status: 'none',
   loadRosters: NOOP_ASYNC,
+  names: null,
 };
 const DEFAULT_ANNOTATION_STATE: AnnotationState = {
   objects: [],
@@ -114,6 +126,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   boardKey: boardKeyProp,
   contentShareId,
   contentVersion = 0,
+  names,
   children,
 }) => {
   const { rosters, status: rosterStatus, loadRosters } = rosterState;
@@ -123,7 +136,8 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
     : (rosters[0]?.id ?? null);
 
   const boardKey = boardKeyProp ?? share.shareId;
-  const seed = share.initialState ?? share.widgets ?? [];
+  const scrubbedSeed = share.initialState ?? share.widgets ?? [];
+  const seed = names ? mergeWidgetsPII(scrubbedSeed, names) : scrubbedSeed;
 
   // Freeze the reset target at mount time. Firestore onSnapshot may fire
   // new array references for the same logical data; useMemo would chase
@@ -163,6 +177,23 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       setWidgetsByBoard((m) =>
         new Map(m).set(boardKey, cloneInitialWidgets(seed))
       );
+    }
+  }
+
+  // The names land when the sub unlocks the file, which is after this board
+  // was seeded without them. Fold them into the board on screen, keeping the
+  // timer they started and the checklist they ticked.
+  const [prevNames, setPrevNames] = useState(names);
+  if (prevNames !== names) {
+    setPrevNames(names);
+    if (names) {
+      const fold = (m: ReadonlyMap<string, WidgetData[]>) => {
+        const current = m.get(boardKey);
+        if (!current) return m;
+        return new Map(m).set(boardKey, mergeWidgetsPII(current, names));
+      };
+      setInitialByBoard(fold);
+      setWidgetsByBoard(fold);
     }
   }
 

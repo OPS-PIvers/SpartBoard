@@ -128,6 +128,7 @@ vi.mock('@/utils/googleCalendarService', () => ({
 }));
 
 import { useSharedCollection } from '@/hooks/useSharedCollection';
+import type { SubShareNamesFile } from '@/utils/subShareNames';
 import type { Collection, Dashboard } from '@/types';
 
 type FirestoreMockHelpers = {
@@ -350,6 +351,132 @@ describe('useSharedCollection', () => {
     });
     return { shareId, api: result.current };
   };
+
+  // Board snapshots reach Firestore scrubbed of student names, so the names a
+  // sub needs travel in a Drive file only the named subs can read (plan §3.4).
+  describe('the names file', () => {
+    const subShareInput = (boards: Dashboard[]) => ({
+      collection: sourceCollection(),
+      boards,
+      hostUid: 'host-uid',
+      hostDisplayName: 'Mr. Teacher',
+      collectionId: 'src-collection',
+      sourceId: 'src-collection',
+      expiresAt: 9999999999999,
+      buildingId: 'middle-school',
+      ...tree(),
+    });
+
+    it('stamps the file and its grants on the share it writes', async () => {
+      const { result } = renderHook(() => useSharedCollection());
+      const writeNames = vi.fn().mockResolvedValue({
+        driveFileId: 'names-file',
+        driveGrants: [
+          {
+            email: 'sub@orono.k12.mn.us',
+            fileId: 'names-file',
+            permissionId: 'p1',
+          },
+        ],
+        failedEmails: [],
+      });
+
+      const shareId = await result.current.shareSubstituteCollection({
+        ...subShareInput([dashboardWithNames('b1')]),
+        writeNames,
+      });
+
+      const helpers = await getHelpers();
+      const parent = helpers.docs.get(`shared_collections/${shareId}`) as {
+        namesFileId: string;
+        driveGrants: Array<{ fileId: string }>;
+      };
+      expect(parent.namesFileId).toBe('names-file');
+      expect(parent.driveGrants).toEqual([
+        {
+          email: 'sub@orono.k12.mn.us',
+          fileId: 'names-file',
+          permissionId: 'p1',
+        },
+      ]);
+      const [, names] = writeNames.mock.calls[0] as [string, SubShareNamesFile];
+      expect(names.boards.b1.w1).toEqual({
+        firstNames: 'Alice\nBob',
+        lastNames: 'Smith\nJones',
+        lastResult: { picked: 'Alice Smith' },
+      });
+    });
+
+    it('writes no file for boards that hold no names', async () => {
+      const { result } = renderHook(() => useSharedCollection());
+      const writeNames = vi.fn();
+
+      const shareId = await result.current.shareSubstituteCollection({
+        ...subShareInput([dashboard('b1')]),
+        writeNames,
+      });
+
+      expect(writeNames).not.toHaveBeenCalled();
+      const helpers = await getHelpers();
+      const parent = helpers.docs.get(`shared_collections/${shareId}`) as {
+        namesFileId?: string;
+      };
+      expect(parent.namesFileId).toBeUndefined();
+    });
+
+    // Otherwise a roster the teacher has since deleted keeps reaching the sub.
+    it('rewrites an existing file even when the names are now gone', async () => {
+      const { result } = renderHook(() => useSharedCollection());
+      const shareId = await result.current.shareSubstituteCollection({
+        ...subShareInput([dashboardWithNames('b1')]),
+        writeNames: () =>
+          Promise.resolve({
+            driveFileId: 'names-file',
+            driveGrants: [],
+            failedEmails: [],
+          }),
+      });
+      const writeNames = vi.fn().mockResolvedValue({
+        driveFileId: 'names-file',
+        driveGrants: [],
+        failedEmails: [],
+      });
+
+      await result.current.updateSubstituteShare({
+        shareId,
+        collection: sourceCollection(),
+        boards: [dashboard('b1')],
+        ...tree(),
+        writeNames,
+      });
+
+      const [id, names, existingFileId] = writeNames.mock.calls[0] as [
+        string,
+        SubShareNamesFile,
+        string,
+      ];
+      expect(id).toBe(shareId);
+      expect(names.boards).toEqual({});
+      expect(existingFileId).toBe('names-file');
+    });
+
+    // The share doc is what the sweep reads to revoke, so a write that failed
+    // must leave no file id behind.
+    it('leaves the share without a file when the write fails', async () => {
+      const { result } = renderHook(() => useSharedCollection());
+
+      const shareId = await result.current.shareSubstituteCollection({
+        ...subShareInput([dashboardWithNames('b1')]),
+        writeNames: () => Promise.resolve(null),
+      });
+
+      const helpers = await getHelpers();
+      const parent = helpers.docs.get(`shared_collections/${shareId}`) as {
+        namesFileId?: string;
+      };
+      expect(parent.namesFileId).toBeUndefined();
+    });
+  });
 
   // A Drawing's strokes live in the teacher's own account, so a sub signed in
   // as themselves sees an empty canvas unless the strokes travel with the share.

@@ -43,7 +43,10 @@ export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
 }) => {
   const { share, loading, error, permissionDeniedLikelyExpired } =
     useSubstituteShare(shareId, buildingId);
-  const rosterState = useSubstituteRosters(share?.sharedRosters);
+  const rosterState = useSubstituteRosters(
+    share?.sharedRosters,
+    share?.namesFileId
+  );
   const [expired, setExpired] = useState(false);
   // permission-denied on a substitute share means expiry — same path as locally-detected expiry.
   const isExpired = expired || permissionDeniedLikelyExpired;

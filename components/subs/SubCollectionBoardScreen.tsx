@@ -148,7 +148,8 @@ export const SubCollectionBoardScreen: React.FC<
   const shown = view.current ? (view.boards.get(view.current) ?? null) : null;
 
   const rosterState = useSubstituteRosters(
-    shown?.share.sharedRosters ?? share?.sharedRosters
+    shown?.share.sharedRosters ?? share?.sharedRosters,
+    shown?.share.namesFileId ?? share?.namesFileId
   );
   const [expired, setExpired] = useState(false);
 
@@ -230,6 +231,7 @@ export const SubCollectionBoardScreen: React.FC<
       contentShareId={shareId}
       contentVersion={view.version}
       rosterState={rosterState}
+      names={rosterState.names?.boards[shown.boardId]}
     >
       <SubBoardScreenContent
         share={shown.share}
