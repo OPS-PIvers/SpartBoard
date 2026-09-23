@@ -19,6 +19,7 @@ import {
   sliderToZoom,
   zoomToSlider,
 } from '@/utils/zoomMapping';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface BoardActionsFabProps {
   onOpenHelp: () => void;
@@ -205,6 +206,7 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({ onOpenHelp }) => {
           <button
             type="button"
             onClick={handleReset}
+            {...tourAttr('board-actions.zoom-reset')}
             aria-label={t('boardZoom.reset', { defaultValue: 'Reset to 100%' })}
             title={t('boardZoom.reset', { defaultValue: 'Reset to 100%' })}
             className={`${FAB_BASE} animate-in fade-in slide-in-from-right-2 duration-200`}
@@ -213,6 +215,7 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({ onOpenHelp }) => {
           </button>
         )}
         <button
+          {...tourAttr('board-actions.zoom')}
           ref={zoomTriggerRef}
           type="button"
           onClick={() => setIsSliderOpen((v) => !v)}
@@ -225,6 +228,7 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({ onOpenHelp }) => {
           <ZoomIcon className="w-4 h-4" />
         </button>
         <button
+          {...tourAttr('board-actions.help')}
           type="button"
           onClick={onOpenHelp}
           aria-label={t('helpCenter.title')}

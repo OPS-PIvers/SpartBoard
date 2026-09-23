@@ -91,6 +91,7 @@ import {
   dockItemId,
   isDockItemVisible as isDockItemVisibleHelper,
 } from './dock/folderPermissions';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const Dock: React.FC = () => {
   const { t } = useTranslation();
@@ -1558,6 +1559,7 @@ export const Dock: React.FC = () => {
             <button
               ref={moreButtonRef}
               onClick={() => setShowMoreMenu(!showMoreMenu)}
+              {...tourAttr('dock.more-widgets')}
               className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x flex-shrink-0"
               title={t('sidebar.header.moreWidgets')}
             >
@@ -1616,6 +1618,7 @@ export const Dock: React.FC = () => {
             )}
             <button
               onClick={() => setIsExpanded(true)}
+              {...tourAttr('dock.open-tools')}
               className={`w-14 h-14 flex items-center justify-center bg-brand-blue-primary text-white active:scale-90 transition shadow-xl shadow-brand-blue-primary/40 ${
                 globalStyle.dockBorderRadius === 'none'
                   ? 'rounded-none'

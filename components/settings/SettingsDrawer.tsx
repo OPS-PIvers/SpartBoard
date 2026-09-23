@@ -44,6 +44,7 @@ import {
   drawerSizeBounds,
   type DrawerPlacement,
 } from './drawerConstants';
+import { tourAttr } from '@/config/tourAnchors';
 
 export type SettingsDrawerProps = {
   widget: WidgetData;
@@ -478,6 +479,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
       aria-labelledby={titleId}
       data-widget-portal=""
       data-widget-id={widget.id}
+      {...tourAttr('settings.root', widget.id)}
       data-placement={placement}
       data-click-outside-ignore="true"
       onKeyDown={handleKeyDown}
@@ -511,6 +513,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
               }}
               icon={<CircleHelp className="w-4 h-4" />}
               label={t('helpCenter.widgetHelp')}
+              {...tourAttr('settings.help', widget.id)}
               title={t('helpCenter.widgetHelp')}
               variant="ghost"
               size="sm"
@@ -526,6 +529,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
             size="sm"
             shape="square"
             data-testid="settings-drawer-close"
+            {...tourAttr('settings.close', widget.id)}
           />
         </div>
       </div>
@@ -542,6 +546,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
             value={query}
             onChange={(e) => setQueryAndTab(e.target.value)}
             aria-label={t('widgetSettings.common.findSetting')}
+            {...tourAttr('settings.search', widget.id)}
             placeholder={t('widgetSettings.common.findSetting')}
             className="w-full pl-8 pr-8 py-1.5 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
           />
@@ -583,6 +588,9 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
               tabIndex={activeTab === tab ? 0 : -1}
               aria-selected={activeTab === tab}
               onClick={() => setActiveTab(tab)}
+              {...(tab === 'settings'
+                ? tourAttr('settings.tab-settings', widget.id)
+                : tourAttr('settings.tab-style', widget.id))}
               className={`flex-1 py-1.5 text-xxs font-black uppercase tracking-widest rounded-lg transition-[color,background-color,box-shadow] ${
                 activeTab === tab
                   ? 'bg-white shadow-sm text-slate-800'
