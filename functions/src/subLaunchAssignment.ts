@@ -17,7 +17,7 @@ const LAUNCHABLE_KINDS = ['quiz'] as const;
 type LaunchKind = (typeof LAUNCHABLE_KINDS)[number];
 
 const MAX_ID_LENGTH = 128;
-const MAX_CLASS_IDS = 20;
+const MAX_ROSTERS = 20;
 /** A session doc is capped at ~1 MiB by Firestore; stay well inside it. */
 const MAX_PAYLOAD_BYTES = 700_000;
 
@@ -43,7 +43,6 @@ const ALLOWED_SESSION_FIELDS = new Set([
   'questionPhase',
   'pauseMessage',
   'periodNames',
-  'classPeriodByClassId',
   'attemptLimit',
   'mode',
   'openAt',
@@ -71,7 +70,6 @@ const ALLOWED_ASSIGNMENT_FIELDS = new Set([
   'teacherName',
   'periodName',
   'periodNames',
-  'classPeriodByClassId',
   'attemptLimit',
   'dueAt',
   'dueAtHasTime',
@@ -105,8 +103,8 @@ export interface LaunchSubAssignmentInput {
   session: Record<string, unknown>;
   /** Run settings for the teacher's archive row. */
   assignment: Record<string, unknown>;
-  /** ClassLink class ids to target. Class-wide only in v1. */
-  classIds: string[];
+  /** Rosters from the share to target. Class-wide only in v1. */
+  rosterIds: string[];
 }
 
 export interface LaunchSubAssignmentResult {
@@ -267,35 +265,54 @@ export function publicQuestionsFromKey(
   return out;
 }
 
+export interface SubLaunchTargeting {
+  classIds: string[];
+  classPeriodByClassId: Record<string, string>;
+}
+
 /**
- * The ClassLink and test-class ids behind the rosters this share names. Read
- * from the host's own roster docs, so a roster the sub renames or invents
- * resolves to nothing.
+ * Resolves the rosters the sub picked into the class ids a session targets.
+ * A sub can only name rosters the share itself lists — the only ids they can
+ * see — and the class ids come from the host's own roster docs, so there is no
+ * class id for a caller to guess or supply.
  */
-export async function shareClassIds(
+export async function resolveTargeting(
   db: admin.firestore.Firestore,
   hostUid: string,
-  sharedRosters: unknown
-): Promise<Set<string>> {
-  const rosterIds = (Array.isArray(sharedRosters) ? sharedRosters : [])
-    .map((r) =>
-      r && typeof r === 'object' ? (r as { id?: unknown }).id : undefined
-    )
-    .filter((id): id is string => typeof id === 'string' && !id.includes('/'))
-    .slice(0, MAX_CLASS_IDS);
-  const out = new Set<string>();
-  const snaps = await Promise.all(
-    rosterIds.map((id) => db.doc(`users/${hostUid}/rosters/${id}`).get())
+  sharedRosters: unknown,
+  picked: string[]
+): Promise<SubLaunchTargeting> {
+  const shared = new Set(
+    (Array.isArray(sharedRosters) ? sharedRosters : [])
+      .map((r) =>
+        r && typeof r === 'object' ? (r as { id?: unknown }).id : undefined
+      )
+      .filter((id): id is string => typeof id === 'string' && !id.includes('/'))
   );
+  for (const id of picked) {
+    if (!shared.has(id)) denied('That class is not one the share covers.');
+  }
+  const snaps = await Promise.all(
+    picked.map((id) => db.doc(`users/${hostUid}/rosters/${id}`).get())
+  );
+  const classIds: string[] = [];
+  const classPeriodByClassId: Record<string, string> = {};
   for (const snap of snaps) {
     const data = snap.data();
     if (!data) continue;
-    for (const field of ['classlinkClassId', 'testClassId'] as const) {
-      const value: unknown = data[field];
-      if (typeof value === 'string' && value) out.add(value);
+    const classId: unknown = data.classlinkClassId ?? data.testClassId;
+    if (typeof classId !== 'string' || !classId) continue;
+    if (classIds.includes(classId)) continue;
+    classIds.push(classId);
+    // SSO students read this at join time to stamp their own class period.
+    if (typeof data.name === 'string' && data.name) {
+      classPeriodByClassId[classId] = data.name;
     }
   }
-  return out;
+  if (classIds.length === 0) {
+    denied('Those rosters have no class a student can sign in to.');
+  }
+  return { classIds, classPeriodByClassId };
 }
 
 function approxBytes(value: unknown): number {
@@ -336,10 +353,10 @@ export async function handleLaunchSubAssignment(
   if (!LAUNCHABLE_KINDS.includes(kind)) {
     bad('That activity cannot be started from a share yet.');
   }
-  const classIds = Array.isArray(input.classIds) ? input.classIds : [];
-  if (classIds.length === 0) bad('Pick at least one class.');
-  if (classIds.length > MAX_CLASS_IDS) bad('Too many classes.');
-  for (const id of classIds) shortId(id, 'classIds');
+  const pickedRosters = Array.isArray(input.rosterIds) ? input.rosterIds : [];
+  if (pickedRosters.length === 0) bad('Pick at least one class.');
+  if (pickedRosters.length > MAX_ROSTERS) bad('Too many classes.');
+  for (const id of pickedRosters) shortId(id, 'rosterIds');
   const rawSession = input.session;
   const rawAssignment = input.assignment;
   if (!rawSession || typeof rawSession !== 'object')
@@ -389,19 +406,15 @@ export async function handleLaunchSubAssignment(
   );
   if (!onBoard) denied('That widget is not on the shared board.');
 
-  // A session is visible to students purely by `classIds`, so an unchecked id
-  // would put the teacher's name on a quiz in a class the share never covered.
-  // The share's own rosters are the only classes a sub may target (plan §3.6
-  // step 4), resolved from the teacher's roster docs rather than the caller.
-  const allowedClassIds = await shareClassIds(db, hostUid, share.sharedRosters);
-  if (allowedClassIds.size === 0) {
-    denied('That share carries no class to start an activity for.');
-  }
-  for (const id of classIds) {
-    if (!allowedClassIds.has(id)) {
-      denied('That class is not one the share covers.');
-    }
-  }
+  // A session is visible to students purely by `classIds`, so the caller names
+  // rosters the share lists and the class ids are resolved here (plan §3.6
+  // step 4). A sub never supplies a class id at all.
+  const targeting = await resolveTargeting(
+    db,
+    hostUid,
+    share.sharedRosters,
+    pickedRosters
+  );
 
   const keySnap = await db
     .doc(`shared_collections/${shareId}/keys/${kind}_${itemId}`)
@@ -473,14 +486,13 @@ export async function handleLaunchSubAssignment(
       ? { language: keyQuiz.language }
       : {}),
   };
-  const targeting = { classIds, classId: classIds[0] };
-
   const batch = db.batch();
   batch.set(db.doc(`quiz_sessions/${sessionId}`), {
     ...session,
     ...content,
     ...stamp,
     ...targeting,
+    classId: targeting.classIds[0],
     id: sessionId,
     assignmentId: sessionId,
   });
@@ -488,6 +500,8 @@ export async function handleLaunchSubAssignment(
     ...assignment,
     ...stamp,
     ...targeting,
+    classId: targeting.classIds[0],
+    rosterIds: pickedRosters,
     id: sessionId,
     quizId: itemId,
     quizTitle,

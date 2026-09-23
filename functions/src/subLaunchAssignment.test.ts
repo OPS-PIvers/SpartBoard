@@ -32,7 +32,7 @@ import {
   handleLaunchSubAssignment,
   publicQuestionFromKey,
   publicQuestionsFromKey,
-  shareClassIds,
+  resolveTargeting,
   type SubLaunchCaller,
 } from './subLaunchAssignment';
 
@@ -95,7 +95,7 @@ const input = (over: Record<string, unknown> = {}) => ({
   widgetId: WIDGET,
   kind: 'quiz',
   itemId: QUIZ,
-  classIds: ['class-A'],
+  rosterIds: [ROSTER],
   session: session(),
   assignment: assignment(),
   ...over,
@@ -132,7 +132,7 @@ function stubDb(state: StubState = {}) {
       },
     },
     quiz = { driveFileId: DRIVE_FILE },
-    roster = { classlinkClassId: 'class-A' },
+    roster = { name: 'Period 3', classlinkClassId: 'class-A' },
   } = state;
 
   const written: Written[] = [];
@@ -212,48 +212,38 @@ describe('handleLaunchSubAssignment', () => {
     expect(written[0].data.subMonitorUntil).toBe(NOW + 86_400_000);
   });
 
-  it('targets the shared classes the caller picked', async () => {
-    const { run, written } = launch(
-      { roster: { classlinkClassId: 'class-A', testClassId: 'class-B' } },
-      SUB,
-      input({ classIds: ['class-B', 'class-A'] })
-    );
+  it('resolves the picked roster to its class and period name', async () => {
+    const { run, written } = launch();
 
     await run();
 
-    expect(written[0].data.classIds).toEqual(['class-B', 'class-A']);
-    expect(written[0].data.classId).toBe('class-B');
+    expect(written[0].data.classIds).toEqual(['class-A']);
+    expect(written[0].data.classId).toBe('class-A');
+    expect(written[0].data.classPeriodByClassId).toEqual({
+      'class-A': 'Period 3',
+    });
     expect(written[1].data.targetMode).toBe('class');
+    expect(written[1].data.rosterIds).toEqual([ROSTER]);
   });
 
-  // A session reaches students by `classIds` alone, so an unchecked id would
-  // put the teacher's name on a quiz in a class the share never covered.
-  it('refuses a class the share does not cover', async () => {
+  // A session reaches students by class id alone, so the caller names rosters
+  // the share lists and never a class id — there is nothing to enumerate.
+  it('refuses a roster the share does not list', async () => {
     await expect(
-      launch({}, SUB, input({ classIds: ['class-Z'] })).run()
+      launch({}, SUB, input({ rosterIds: ['roster-9'] })).run()
     ).rejects.toThrow('not one the share covers');
     await expect(
-      launch({}, SUB, input({ classIds: ['class-A', 'class-Z'] })).run()
+      launch({}, SUB, input({ rosterIds: [ROSTER, 'roster-9'] })).run()
     ).rejects.toThrow('not one the share covers');
   });
 
-  it('refuses a share with no rosters, or a roster with no class', async () => {
-    await expect(
-      launch({
-        share: {
-          hostUid: HOST,
-          intendedMode: 'substitute',
-          expiresAt: NOW + 86_400_000,
-          subEmails: ['sub@orono.k12.mn.us'],
-        },
-      }).run()
-    ).rejects.toThrow('carries no class');
+  it('refuses a missing roster doc or one with no class', async () => {
     await expect(launch({ roster: null }).run()).rejects.toThrow(
-      'carries no class'
+      'no class a student can sign in to'
     );
     await expect(
       launch({ roster: { name: 'Local only' } }).run()
-    ).rejects.toThrow('carries no class');
+    ).rejects.toThrow('no class a student can sign in to');
   });
 
   it('refuses a caller who is not signed in', async () => {
@@ -375,10 +365,10 @@ describe('handleLaunchSubAssignment', () => {
 
   it('refuses no class, too many classes, and a path as an id', async () => {
     await expect(
-      launch({}, SUB, input({ classIds: [] })).run()
+      launch({}, SUB, input({ rosterIds: [] })).run()
     ).rejects.toThrow('at least one class');
     await expect(
-      launch({}, SUB, input({ classIds: Array(21).fill('class-A') })).run()
+      launch({}, SUB, input({ rosterIds: Array(21).fill(ROSTER) })).run()
     ).rejects.toThrow('Too many classes');
     await expect(
       launch({}, SUB, input({ boardId: '../other' })).run()
@@ -432,6 +422,7 @@ describe('the payload allowlist', () => {
     'mediaResponseEnabled',
     'showLearningTargets',
     'liveLeaderboard',
+    'classPeriodByClassId',
   ];
 
   for (const field of REFUSED_SESSION_FIELDS) {
@@ -462,6 +453,7 @@ describe('the payload allowlist', () => {
     'protection',
     'classroomAttachment',
     'exportedResponseIds',
+    'classPeriodByClassId',
   ];
 
   for (const field of REFUSED_ASSIGNMENT_FIELDS) {
@@ -643,7 +635,7 @@ describe('publicQuestionsFromKey', () => {
   });
 });
 
-describe('shareClassIds', () => {
+describe('resolveTargeting', () => {
   const stub = (docs: Record<string, Record<string, unknown> | null>) =>
     ({
       doc: (path: string) => ({
@@ -655,29 +647,51 @@ describe('shareClassIds', () => {
       }),
     }) as never;
 
-  it('resolves the host’s rosters to their class ids', async () => {
-    const out = await shareClassIds(
-      stub({
-        'users/h/rosters/r1': { classlinkClassId: 'cl-1' },
-        'users/h/rosters/r2': { testClassId: 'test-2' },
-      }),
-      'h',
-      [{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }]
-    );
+  const DOCS = {
+    'users/h/rosters/r1': { name: 'Period 1', classlinkClassId: 'cl-1' },
+    'users/h/rosters/r2': { name: 'Period 2', testClassId: 'test-2' },
+    'users/h/rosters/r3': { name: 'Local only' },
+  };
+  const SHARED = [{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }];
 
-    expect([...out].sort()).toEqual(['cl-1', 'test-2']);
+  it('resolves each picked roster to its class and period name', async () => {
+    const out = await resolveTargeting(stub(DOCS), 'h', SHARED, ['r1', 'r2']);
+
+    expect(out.classIds).toEqual(['cl-1', 'test-2']);
+    expect(out.classPeriodByClassId).toEqual({
+      'cl-1': 'Period 1',
+      'test-2': 'Period 2',
+    });
   });
 
-  // A roster id is a document id, and an invented one must resolve to nothing
-  // rather than reach outside the teacher's own rosters.
-  it('ignores a path, a non-string id and a missing roster', async () => {
-    const out = await shareClassIds(
-      stub({ 'users/h/rosters/r1': { classlinkClassId: 'cl-1' } }),
-      'h',
-      [{ id: '../../other' }, { id: 7 }, 'r1', { id: 'gone' }]
-    );
+  it('refuses a roster the share does not list', async () => {
+    await expect(
+      resolveTargeting(stub(DOCS), 'h', SHARED, ['r1', 'r9'])
+    ).rejects.toThrow('not one the share covers');
+    await expect(
+      resolveTargeting(stub(DOCS), 'h', undefined, ['r1'])
+    ).rejects.toThrow('not one the share covers');
+  });
 
-    expect([...out]).toEqual([]);
-    expect([...(await shareClassIds(stub({}), 'h', undefined))]).toEqual([]);
+  // A roster id is a document id, so a path on the share doc is dropped before
+  // it can be picked rather than read.
+  it('never treats a path or a non-string as a listed roster', async () => {
+    await expect(
+      resolveTargeting(
+        stub(DOCS),
+        'h',
+        [{ id: '../../other' }],
+        ['../../other']
+      )
+    ).rejects.toThrow('not one the share covers');
+    await expect(
+      resolveTargeting(stub(DOCS), 'h', [{ id: 7 }, 'r1'], ['r1'])
+    ).rejects.toThrow('not one the share covers');
+  });
+
+  it('refuses when no picked roster carries a class', async () => {
+    await expect(
+      resolveTargeting(stub(DOCS), 'h', SHARED, ['r3'])
+    ).rejects.toThrow('no class a student can sign in to');
   });
 });
