@@ -39,6 +39,8 @@ import {
   Send,
   Download,
   Upload,
+  Circle,
+  Footprints,
 } from 'lucide-react';
 import type {
   AssignmentMode,
@@ -79,6 +81,14 @@ import type {
   LibraryTab,
 } from '@/components/common/library/types';
 import { buildDuplicateAction } from '@/components/common/library/libraryDuplicate';
+import {
+  requestRecordTour,
+  requestStartTour,
+} from '@/components/tours/tourState';
+import {
+  setHasLiveTour,
+  useLiveToursEnabled,
+} from '@/components/tours/useTourOffers';
 
 // Lazy so the preview player chunk loads only when a teacher hits Play preview.
 const LazyGuidedLearningPlayer = lazy(() =>
@@ -415,6 +425,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 }) => {
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
+  const liveTours = useLiveToursEnabled();
   const [tab, setTab] = React.useState<LibraryTab>('library');
 
   // ─── Bulk selection (Step 8) ────────────────────────────────────────────
@@ -682,6 +693,9 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       };
 
   const headerSecondary = [
+    ...(isAdmin && liveTours
+      ? [{ label: 'Record a tour', icon: Circle, onClick: requestRecordTour }]
+      : []),
     ...(isAdmin && isBuildingFiltered
       ? [{ label: 'AI', icon: Sparkles, onClick: onOpenAIAuthoring }]
       : []),
@@ -746,6 +760,15 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       entry.source === 'personal'
         ? entry.id.slice('personal:'.length)
         : entry.id.slice('building:'.length);
+
+    if (liveTours && entry.buildingSet && setHasLiveTour(entry.buildingSet)) {
+      secondary.push({
+        id: 'run-live',
+        label: 'Run live on my board',
+        icon: Footprints,
+        onClick: () => requestStartTour({ setId: rawId }),
+      });
+    }
 
     const recentSessionId = recentSessionIds[rawId];
     if (recentSessionId) {

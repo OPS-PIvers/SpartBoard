@@ -60,7 +60,10 @@ import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
 import { BoardsModal } from '@/components/boardsModal/BoardsModal';
 import { tourAttr } from '@/config/tourAnchors';
-import { TOUR_RECORD_EVENT } from '@/components/tours/tourState';
+import {
+  TOUR_RECORD_EVENT,
+  TOUR_START_EVENT,
+} from '@/components/tours/tourState';
 
 declare const __APP_VERSION__: string;
 
@@ -193,15 +196,18 @@ export const Sidebar: React.FC = () => {
 
   const [showAdminSettings, setShowAdminSettings] = useState(false);
 
-  // Recording starts from Admin Settings; get out of the way of the board.
+  // Recording and live tours can start from Admin Settings; get out of the way of the board.
   useEffect(() => {
-    const handleRecordTour = () => {
+    const clearBoard = () => {
       setShowAdminSettings(false);
       setIsOpen(false);
     };
-    window.addEventListener(TOUR_RECORD_EVENT, handleRecordTour);
-    return () =>
-      window.removeEventListener(TOUR_RECORD_EVENT, handleRecordTour);
+    window.addEventListener(TOUR_RECORD_EVENT, clearBoard);
+    window.addEventListener(TOUR_START_EVENT, clearBoard);
+    return () => {
+      window.removeEventListener(TOUR_RECORD_EVENT, clearBoard);
+      window.removeEventListener(TOUR_START_EVENT, clearBoard);
+    };
   }, []);
   const [settingsModalSection, setSettingsModalSection] =
     useState<SettingsSectionId | null>(null);

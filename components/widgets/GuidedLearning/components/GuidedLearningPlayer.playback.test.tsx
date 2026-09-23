@@ -90,7 +90,7 @@ describe('GuidedLearningPlayer Watch / Try', () => {
     cleanup();
     restore?.();
     renderPlayer(makeSet('structured'));
-    expect(pressed(/^try it$/i)).toBe('true');
+    expect(pressed(/^click along$/i)).toBe('true');
   });
 
   it('shows no toggle in explore mode', () => {
