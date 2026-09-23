@@ -95,6 +95,7 @@ import {
   grantedRosters,
   resolveSubShareDriveGrants,
 } from '@/utils/subShareDriveGrants';
+import { writeSubShareNamesFile } from '@/utils/subShareNames';
 import { reconcileExpiredSubShares } from '@/hooks/useReconcileExpiredSubShares';
 import { logError } from '@/utils/logError';
 import { mergeSubsetOrder } from '@/utils/reorderIds';
@@ -4209,13 +4210,34 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         scope: 'shareSubstituteCollection',
       });
 
+      const namesOutcome = { attempted: false, missed: [] as string[] };
       const shareId = await sharedCollectionApi.shareSubstituteCollection({
         ...input,
         hostUid: user.uid,
         hostDisplayName: user.displayName,
         driveGrants: driveGrants.length > 0 ? driveGrants : undefined,
         sharedRosters: grantedRosters(input.sharedRosters, driveGrants),
+        writeNames: async (id, names) => {
+          namesOutcome.attempted = true;
+          const write = await writeSubShareNamesFile({
+            drive: driveService,
+            shareId: id,
+            names,
+            emails: subEmails,
+          });
+          namesOutcome.missed = write ? write.failedEmails : subEmails;
+          return write;
+        },
       });
+
+      // Names live in Drive because the board snapshot is scrubbed of them, so
+      // a sub without that file sees a widget with an empty roster.
+      if (namesOutcome.attempted && namesOutcome.missed.length > 0) {
+        addToast(
+          'Share created, but the student names on these boards could not be shared with every sub. Reconnect Google Drive and update the share.',
+          'warning'
+        );
+      }
 
       // Surface partial Drive-grant failures so the host can retry / hand-share
       // rather than a sub silently lacking roster access (mirrors the
@@ -4286,6 +4308,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // the spread below — a Drive outage should not rewrite the share.
       const rostersGranted = grantedRosters(input.sharedRosters, driveGrants);
 
+      const namesOutcome = { attempted: false, missed: [] as string[] };
       await sharedCollectionApi.updateSubstituteShare({
         ...input,
         ...(input.subEmails !== undefined ? { subEmails } : {}),
@@ -4295,7 +4318,26 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           : rostersGranted
             ? { sharedRosters: rostersGranted }
             : {}),
+        writeNames: async (id, names, existingFileId) => {
+          namesOutcome.attempted = true;
+          const write = await writeSubShareNamesFile({
+            drive: driveService,
+            shareId: id,
+            names,
+            emails: subEmails,
+            existingFileId,
+          });
+          namesOutcome.missed = write ? write.failedEmails : subEmails;
+          return write;
+        },
       });
+
+      if (namesOutcome.attempted && namesOutcome.missed.length > 0) {
+        addToast(
+          'Boards updated, but the student names on them could not be shared with every sub. Reconnect Google Drive and try again.',
+          'warning'
+        );
+      }
 
       if (failedPairs.length > 0) {
         const missedEmails = Array.from(

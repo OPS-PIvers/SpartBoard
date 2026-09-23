@@ -12,6 +12,7 @@ vi.mock('@/utils/firestorePaging');
 interface FakeShare {
   id: string;
   expiresAt?: number;
+  namesFileId?: string;
   driveGrants?: Array<{
     email?: string;
     fileId?: string;
@@ -32,8 +33,10 @@ function makeShareSnap(share: FakeShare) {
 function makeDriveService() {
   return {
     deletePermission: vi.fn().mockResolvedValue(undefined),
+    trashFile: vi.fn().mockResolvedValue(undefined),
   } as unknown as GoogleDriveService & {
     deletePermission: ReturnType<typeof vi.fn>;
+    trashFile: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -112,6 +115,59 @@ describe('useReconcileExpiredSubShares', () => {
     // Only the expired share doc is deleted.
     expect(firestore.deleteDoc).toHaveBeenCalledTimes(1);
     expect(firestore.deleteDoc).toHaveBeenCalledWith(expired.ref);
+  });
+
+  // The names file holds a class list and belongs to this share alone, so it
+  // goes with the share rather than sitting in the teacher's Drive.
+  it('trashes an expired share’s names file and keeps an active one', async () => {
+    const now = Date.now();
+    const expired = makeShareSnap({
+      id: 'expired-1',
+      expiresAt: now - 1000,
+      namesFileId: 'names-expired',
+    });
+    const active = makeShareSnap({
+      id: 'active-1',
+      expiresAt: now + 60_000,
+      namesFileId: 'names-active',
+    });
+    (paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([expired, active])
+      .mockResolvedValueOnce([]);
+    const driveService = makeDriveService();
+
+    renderHook(() =>
+      useReconcileExpiredSubShares({ uid: 'teacher-1', driveService })
+    );
+
+    await waitFor(() =>
+      expect(driveService.trashFile).toHaveBeenCalledWith('names-expired')
+    );
+    expect(driveService.trashFile).not.toHaveBeenCalledWith('names-active');
+    expect(firestore.deleteDoc).toHaveBeenCalledWith(expired.ref);
+  });
+
+  // Otherwise the share doc goes and nothing is left to say the file exists.
+  it('keeps the share doc when its names file cannot be trashed', async () => {
+    const now = Date.now();
+    const expired = makeShareSnap({
+      id: 'expired-1',
+      expiresAt: now - 1000,
+      namesFileId: 'names-expired',
+    });
+    (paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([expired])
+      .mockResolvedValueOnce([]);
+    const driveService = makeDriveService();
+    driveService.trashFile.mockRejectedValue(new Error('drive down'));
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    renderHook(() =>
+      useReconcileExpiredSubShares({ uid: 'teacher-1', driveService })
+    );
+
+    await waitFor(() => expect(driveService.trashFile).toHaveBeenCalled());
+    expect(firestore.deleteDoc).not.toHaveBeenCalled();
   });
 
   it('does NOT revoke a permissionId still referenced by an active share', async () => {

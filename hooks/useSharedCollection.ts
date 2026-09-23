@@ -35,6 +35,11 @@ import {
   type SubShareBundleServices,
   subShareNeedsGoogleServices,
 } from '@/utils/bundleSubShareContent';
+import {
+  extractSubShareNames,
+  subShareNamesIsEmpty,
+  type SubShareNamesWriter,
+} from '@/utils/subShareNames';
 import { GoogleCalendarService } from '@/utils/googleCalendarService';
 import { useAuth } from '@/context/useAuth';
 import { subShareContentId } from '@/utils/subShareContent';
@@ -169,6 +174,8 @@ type SubstituteShareInput = ShareCollectionInput &
     driveGrants?: SubstituteShareDriveGrant[];
     /** Called with what was and was not bundled, for the teacher to see. */
     onBundle?: (bundle: SubShareBundle) => void;
+    /** Writes the share's names file to Drive; omitted when Drive is absent. */
+    writeNames?: SubShareNamesWriter;
   };
 
 /**
@@ -438,6 +445,18 @@ export const useSharedCollection = () => {
       const shareId = crypto.randomUUID();
       const now = Date.now();
 
+      // Student names the board snapshots are scrubbed of, before the parent
+      // doc: the doc has to land with the file id and its grants together, or
+      // the sweep would have nothing to revoke.
+      const names = extractSubShareNames(input.boards);
+      const namesWrite = subShareNamesIsEmpty(names)
+        ? null
+        : ((await input.writeNames?.(shareId, names)) ?? null);
+      const allGrants = [
+        ...(input.driveGrants ?? []),
+        ...(namesWrite?.driveGrants ?? []),
+      ];
+
       const parentPayload: SharedCollection = {
         shareId,
         hostUid: input.hostUid,
@@ -459,12 +478,11 @@ export const useSharedCollection = () => {
         ...(input.subEmails && input.subEmails.length > 0
           ? { subEmails: input.subEmails }
           : {}),
-        ...(input.driveGrants && input.driveGrants.length > 0
-          ? { driveGrants: input.driveGrants }
-          : {}),
+        ...(allGrants.length > 0 ? { driveGrants: allGrants } : {}),
         ...(input.sharedRosters && input.sharedRosters.length > 0
           ? { sharedRosters: input.sharedRosters }
           : {}),
+        ...(namesWrite ? { namesFileId: namesWrite.driveFileId } : {}),
         kind: input.kind,
         sourceId: input.sourceId,
         sections: input.sections,
@@ -528,6 +546,7 @@ export const useSharedCollection = () => {
         driveGrants?: SubstituteShareDriveGrant[];
         sharedRosters?: SubstituteShareRoster[];
         onBundle?: (bundle: SubShareBundle) => void;
+        writeNames?: SubShareNamesWriter;
       }
     ): Promise<void> => {
       const { shareId } = input;
@@ -561,9 +580,22 @@ export const useSharedCollection = () => {
       // The grant ledger only ever grows while a share lives: it is what the
       // expiry sweep revokes, and a pair dropped from it is a Drive permission
       // nothing would ever take back.
-      const mergedGrants = input.driveGrants
-        ? mergeDriveGrants(current.driveGrants, input.driveGrants)
-        : undefined;
+      // An existing file is rewritten even when the boards now hold no names,
+      // so a roster the teacher removed stops reaching the sub.
+      const names = extractSubShareNames(input.boards);
+      const namesWrite =
+        current.namesFileId || !subShareNamesIsEmpty(names)
+          ? ((await input.writeNames?.(shareId, names, current.namesFileId)) ??
+            null)
+          : null;
+      const incomingGrants = [
+        ...(input.driveGrants ?? []),
+        ...(namesWrite?.driveGrants ?? []),
+      ];
+      const mergedGrants =
+        incomingGrants.length > 0
+          ? mergeDriveGrants(current.driveGrants, incomingGrants)
+          : undefined;
 
       const parentBatch = writeBatch(db);
       parentBatch.update(parentRef, {
@@ -588,6 +620,7 @@ export const useSharedCollection = () => {
         ...(input.subEmails ? { subEmails: input.subEmails } : {}),
         ...(mergedGrants ? { driveGrants: mergedGrants } : {}),
         ...(input.sharedRosters ? { sharedRosters: input.sharedRosters } : {}),
+        ...(namesWrite ? { namesFileId: namesWrite.driveFileId } : {}),
       });
       await parentBatch.commit();
 

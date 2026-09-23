@@ -122,18 +122,26 @@ export function mergeDashboardPII(
 ): Dashboard {
   return {
     ...dashboard,
-    widgets: dashboard.widgets.map((widget) => {
-      const piiFields = supplement[widget.id];
-      if (!piiFields || Object.keys(piiFields).length === 0) return widget;
-      return {
-        ...widget,
-        config: {
-          ...(widget.config as Record<string, unknown>),
-          ...piiFields,
-        } as WidgetConfig,
-      };
-    }),
+    widgets: mergeWidgetsPII(dashboard.widgets, supplement),
   };
+}
+
+/** Widget-level merge, for callers holding widgets without a whole dashboard. */
+export function mergeWidgetsPII(
+  widgets: WidgetData[],
+  supplement: DashboardPiiSupplement
+): WidgetData[] {
+  return widgets.map((widget) => {
+    const piiFields = supplement[widget.id];
+    if (!piiFields || Object.keys(piiFields).length === 0) return widget;
+    return {
+      ...widget,
+      config: {
+        ...(widget.config as Record<string, unknown>),
+        ...piiFields,
+      } as WidgetConfig,
+    };
+  });
 }
 
 /**
