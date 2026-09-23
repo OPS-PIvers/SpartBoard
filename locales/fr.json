@@ -2517,6 +2517,9 @@
     "reset": "Réinitialiser les couleurs du stylo",
     "done": "Terminé"
   },
+  "glStudio": {
+    "classicEditorNotice": "Cette activité utilise des fonctions du Studio. Modifiez les zones et les bulles dans le Studio."
+  },
   "helpCenter": {
     "title": "Aide",
     "widgetHelp": "Guides pour ce widget",
