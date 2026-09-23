@@ -4133,11 +4133,11 @@ export interface QuizLeaderboardEntry {
   rank: number;
 }
 
-/** Live quiz session document in Firestore (/quiz_sessions/{sessionId}) */
 /**
  * Stamped on a session a substitute started from a sub share
  * (docs/plans/SUB_SHARE_COLLECTIONS.md §3.6, D7). Written only by
- * `launchSubAssignmentV1`; the run itself belongs to the teacher.
+ * `launchSubAssignmentV1`; the run itself belongs to the teacher, and the
+ * session rules pin all three fields against a client write.
  */
 export interface SubLaunchedSessionFields {
   /** Who started it, for the "Launched by" tag in the teacher's Results. */
@@ -4148,6 +4148,7 @@ export interface SubLaunchedSessionFields {
   subMonitorUntil?: number;
 }
 
+/** Live quiz session document in Firestore (/quiz_sessions/{sessionId}) */
 export interface QuizSession extends SubLaunchedSessionFields {
   id: string; // session UUID (same as QuizAssignment.id)
   /** FK back to /users/{teacherUid}/quiz_assignments/{assignmentId}. 1:1 with session. */

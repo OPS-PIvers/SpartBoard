@@ -118,6 +118,21 @@ service cloud.firestore {
              request.time.toMillis() < s.get('subMonitorUntil', 0);
     }
 
+    // The monitor stamp is launchSubAssignmentV1's to write (it runs through the
+    // Admin SDK, which skips these rules). A client create must not carry it and
+    // a client update must leave it exactly as it found it — otherwise a session
+    // owner could hand any uid a standing read of their students' work.
+    function subMonitorStampAbsent() {
+      return !('subMonitorUids' in request.resource.data) &&
+             !('subMonitorUntil' in request.resource.data) &&
+             !('launchedBy' in request.resource.data);
+    }
+    function subMonitorStampUnchanged() {
+      return request.resource.data.get('subMonitorUids', []) == resource.data.get('subMonitorUids', []) &&
+             request.resource.data.get('subMonitorUntil', 0) == resource.data.get('subMonitorUntil', 0) &&
+             request.resource.data.get('launchedBy', {}) == resource.data.get('launchedBy', {});
+    }
+
     // Phase 5A compat: post-5A sessions write a `classIds` list, pre-5A sessions
     // write a single `classId`. Picks the list gate when `classIds` is non-empty,
     // else the legacy single-class gate. Callers pass get(...) defaults so an
@@ -3617,11 +3632,13 @@ service cloud.firestore {
       }
       allow create: if request.auth != null &&
         request.resource.data.teacherUid == request.auth.uid &&
+        subMonitorStampAbsent() &&
         (!('plcId' in request.resource.data) || plcLinkOk(request.resource.data));
       // Update: an unchanged or cleared plcId needs no PLC read; a new/changed
       // non-null plcId re-runs the membership gate.
       allow update: if request.auth != null &&
         resource.data.teacherUid == request.auth.uid &&
+        subMonitorStampUnchanged() &&
         (request.resource.data.get('plcId', null) == resource.data.get('plcId', null) ||
          request.resource.data.get('plcId', null) == null ||
          plcLinkOk(request.resource.data));
@@ -4279,6 +4296,7 @@ service cloud.firestore {
       // Non-anonymous teachers create only sessions they own.
       allow create: if request.auth != null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+        subMonitorStampAbsent() &&
         request.resource.data.teacherUid == request.auth.uid;
       // Teacher owners update their own session (renames, status, sync-pull, PLC
       // attach, score-publish, sharing fields); identity immutable. Looser
@@ -4287,6 +4305,7 @@ service cloud.firestore {
       allow update: if request.auth != null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
         resource.data.teacherUid == request.auth.uid &&
+        subMonitorStampUnchanged() &&
         request.resource.data.id == resource.data.id &&
         request.resource.data.activityId == resource.data.activityId &&
         request.resource.data.teacherUid == resource.data.teacherUid &&
@@ -4539,12 +4558,16 @@ service cloud.firestore {
       // Only authenticated (non-anonymous) teachers can create sessions; they must own it
       allow create: if request.auth != null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+        subMonitorStampAbsent() &&
         request.resource.data.teacherUid == request.auth.uid;
       // Owning teacher (or admin) may update (publishAssignmentScores mirrors
       // scoreVisibility + revealedAnswers onto the session so the student listener
       // can gate review without teacher-owned docs; mirrors Quiz sessions) and
       // delete (GL "Delete permanently" cleanup).
-      allow update, delete: if request.auth != null &&
+      allow update: if request.auth != null &&
+        (resource.data.teacherUid == request.auth.uid || isAdmin()) &&
+        subMonitorStampUnchanged();
+      allow delete: if request.auth != null &&
         (resource.data.teacherUid == request.auth.uid || isAdmin());
 
       // The session doc, named once: the full path repeated a dozen times in
@@ -5216,6 +5239,7 @@ service cloud.firestore {
                       || fcInSessionClass(resource.data.get('classIds', [])));
       allow create: if fcTeacherSignedIn()
                     && request.resource.data.teacherUid == request.auth.uid
+                    && subMonitorStampAbsent()
                     && request.resource.data.kind in ['check', 'study']
                     && request.resource.data.status == 'active'
                     && request.resource.data.classIds is list
@@ -5224,6 +5248,7 @@ service cloud.firestore {
                     && request.resource.data.cards.size() <= 500;
       allow update: if fcTeacherSignedIn()
                     && resource.data.teacherUid == request.auth.uid
+                    && subMonitorStampUnchanged()
                     && request.resource.data.teacherUid == resource.data.teacherUid
                     && request.resource.data.kind == resource.data.kind
                     && request.resource.data.status in ['active', 'ended'];

@@ -19,7 +19,14 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-sub-monitor-test';
 const TEACHER_UID = 'teacher-uid-1';
@@ -106,6 +113,9 @@ beforeAll(async () => {
         teacherUid: TEACHER_UID,
         status: 'active',
         classIds: [],
+        // The video activity update rule pins these, so they belong on every
+        // fixture the ordinary-edit case writes to.
+        createdAt: PAST,
         ...monitorFields(id),
       };
 
@@ -212,6 +222,71 @@ describe('admin_settings/sub_launch_as_teacher', () => {
     await assertSucceeds(getDoc(ref(asSub())));
     await assertFails(setDoc(ref(asSub()), { enabled: true }));
   });
+});
+
+// The read branch is only as good as the stamp being unforgeable. The callable
+// writes it through the Admin SDK, which skips these rules, so a client write
+// that sets or moves it has to be refused — otherwise a session owner could
+// hand any uid a standing read of their students' work.
+describe('the monitor stamp is not a client’s to write', () => {
+  const OWNED = [
+    'quiz_sessions',
+    'video_activity_sessions',
+    'guided_learning_sessions',
+    'flashcard_sessions',
+  ];
+
+  for (const collectionName of OWNED) {
+    describe(collectionName, () => {
+      it('refuses a teacher granting a third party a read of their session', async () => {
+        const db = asTeacher();
+        await assertFails(
+          updateDoc(doc(db, `${collectionName}/${TEACHERS_OWN}`), {
+            subMonitorUids: ['someone-else'],
+            subMonitorUntil: FUTURE,
+          })
+        );
+      });
+
+      it('refuses a teacher extending a stamp the callable wrote', async () => {
+        const db = asTeacher();
+        await assertFails(
+          updateDoc(doc(db, `${collectionName}/${LAUNCHED}`), {
+            subMonitorUntil: FUTURE + 86_400_000,
+          })
+        );
+      });
+
+      it('refuses a create that carries the stamp', async () => {
+        const db = asTeacher();
+        await assertFails(
+          setDoc(doc(db, `${collectionName}/forged-${collectionName}`), {
+            id: `forged-${collectionName}`,
+            teacherUid: TEACHER_UID,
+            status: 'active',
+            kind: 'check',
+            cards: [{ term: 'a', definition: 'b' }],
+            classIds: [],
+            subMonitorUids: [SUB_UID],
+            subMonitorUntil: FUTURE,
+          })
+        );
+      });
+
+      // The pin must not cost the teacher their ordinary edits. Flashcards
+      // only accept 'active' or 'ended' as a status, so each collection gets
+      // an edit its own update rule already allows.
+      it('still lets the teacher change the rest of the session', async () => {
+        const db = asTeacher();
+        await assertSucceeds(
+          updateDoc(doc(db, `${collectionName}/${LAUNCHED}`), {
+            status:
+              collectionName === 'flashcard_sessions' ? 'ended' : 'paused',
+          })
+        );
+      });
+    });
+  }
 });
 
 describe('isSubMonitor read branch', () => {
