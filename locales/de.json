@@ -2518,7 +2518,38 @@
     "done": "Fertig"
   },
   "glStudio": {
-    "classicEditorNotice": "Diese Aktivität nutzt Studio-Funktionen. Bearbeite Bereiche und Hinweise im Studio."
+    "classicEditorNotice": "Diese Aktivität nutzt Studio-Funktionen. Bearbeite Bereiche und Hinweise im Studio.",
+    "close": "Editor schließen",
+    "closeAnyway": "Trotzdem schließen",
+    "keepEditing": "Weiter bearbeiten",
+    "dialogLabel": "Guided-Learning-Studio",
+    "draftWithAi": "Mit KI entwerfen",
+    "folderMissing": "Ordner nicht gefunden",
+    "height": "Vorschauhöhe in Pixeln",
+    "width": "Vorschaubreite in Pixeln",
+    "inFolder": "Im Ordner {{name}}",
+    "noFolder": "In keinem Ordner",
+    "openClassicEditor": "Klassischen Editor öffnen",
+    "previewSize": "Vorschaugröße",
+    "selectFolder": "In Ordner verschieben",
+    "slideN": "Folie {{n}}",
+    "slides": "Folien",
+    "stepCount_one": "{{count}} Schritt",
+    "stepCount_other": "{{count}} Schritte",
+    "stepDeleted": "Schritt gelöscht.",
+    "titleLabel": "Titel der Aktivität",
+    "titlePlaceholder": "Aktivität ohne Titel",
+    "undo": "Rückgängig",
+    "unsavedBody": "Deine letzten Änderungen konnten nicht gespeichert werden. Wenn du jetzt schließt, gehen sie verloren.",
+    "unsavedTitle": "Änderungen nicht gespeichert",
+    "emptyCanvas": "Füge eine Folie hinzu, um Schritte zu platzieren.",
+    "devices": {
+      "board": "Board-Widget",
+      "help": "Hilfecenter",
+      "chromebook": "Chromebook der Schüler",
+      "projector": "Beamer (1080p)",
+      "custom": "Eigene Größe"
+    }
   },
   "helpCenter": {
     "title": "Hilfe",
