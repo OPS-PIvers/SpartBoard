@@ -6,6 +6,7 @@ import {
   isTourAnchorId,
   parseTourAnchorRef,
   tourAnchorRef,
+  type TourAnchorDef,
   type TourAnchorId,
 } from '@/config/tourAnchors';
 import { TOOLS } from '@/config/tools';
@@ -27,6 +28,10 @@ const GROUPS = [
 
 const ANCHOR_IDS = Object.keys(TOUR_ANCHORS) as TourAnchorId[];
 const UNTAGGED = '__untagged';
+const isPerWidgetType = (id: TourAnchorId): boolean => {
+  const def: TourAnchorDef = TOUR_ANCHORS[id];
+  return !!def.perWidgetType;
+};
 
 const selectClass =
   'rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-normal text-slate-800 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
@@ -40,7 +45,7 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
   const tour = step.tour;
   const { id, widgetType } = parseTourAnchorRef(tour?.anchor ?? '');
   const anchorId = isTourAnchorId(id) ? id : null;
-  const perType = anchorId ? !!TOUR_ANCHORS[anchorId].perWidgetType : false;
+  const perType = anchorId ? isPerWidgetType(anchorId) : false;
   const selected = !tour ? '' : (anchorId ?? UNTAGGED);
 
   const withoutTour = (): GuidedLearningStep => {
@@ -61,7 +66,7 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
     bind({
       anchor: tourAnchorRef(
         value,
-        TOUR_ANCHORS[value].perWidgetType ? widgetType : undefined
+        isPerWidgetType(value) ? widgetType : undefined
       ),
       action: tour?.action ?? 'click',
     });
