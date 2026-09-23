@@ -113,6 +113,20 @@ vi.mock('firebase/firestore', () => {
 vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 
+// The hook mints the teacher's calendar.readonly token at share time so the
+// bundler can read their own calendars. Silent by default here: a share made
+// by a teacher who never granted the scope still has to work.
+const ensureGoogleScopeMock = vi.fn().mockResolvedValue(null);
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ ensureGoogleScope: ensureGoogleScopeMock }),
+}));
+const getEventsMock = vi.fn().mockResolvedValue([]);
+vi.mock('@/utils/googleCalendarService', () => ({
+  GoogleCalendarService: class {
+    getEvents = getEventsMock;
+  },
+}));
+
 import { useSharedCollection } from '@/hooks/useSharedCollection';
 import type { Collection, Dashboard } from '@/types';
 
@@ -382,6 +396,56 @@ describe('useSharedCollection', () => {
       });
       return { shareId, api: result.current };
     };
+
+    const calendarBoard = (id: string): Dashboard => ({
+      ...dashboard(id),
+      widgets: [
+        {
+          id: 'w1',
+          type: 'calendar',
+          position: { x: 0, y: 0 },
+          config: { events: [], personalCalendarIds: ['teacher@school.org'] },
+        },
+      ] as unknown as Dashboard['widgets'],
+    });
+
+    // The bundler cannot mint a Google token; this hook is where the teacher's
+    // own one is passed in, so the wiring is only provable from here.
+    it('reads the teacher’s calendar with their own granted token', async () => {
+      ensureGoogleScopeMock.mockResolvedValueOnce('token-abc');
+      getEventsMock.mockResolvedValueOnce([
+        { date: '2026-09-24', title: 'Staff meeting' },
+      ]);
+
+      const { shareId } = await shareWithDrawing([calendarBoard('b1')]);
+
+      expect(ensureGoogleScopeMock).toHaveBeenCalledWith('calendar.readonly');
+      expect(getEventsMock).toHaveBeenCalled();
+      const helpers = await getHelpers();
+      const content = helpers.docs.get(
+        `shared_collections/${shareId}/content/calendar_w1`
+      ) as { kind: string; payload: { events: { title: string }[] } };
+      expect(content.kind).toBe('calendar');
+      expect(content.payload.events).toEqual([
+        { date: '2026-09-24', title: 'Staff meeting' },
+      ]);
+    });
+
+    it('tells the teacher when the calendar scope was never granted', async () => {
+      ensureGoogleScopeMock.mockResolvedValueOnce(null);
+      getEventsMock.mockClear();
+      const onBundle = vi.fn();
+
+      await shareWithDrawing([calendarBoard('b1')], onBundle);
+
+      const bundle = onBundle.mock.calls[0][0] as {
+        failures: { label: string }[];
+      };
+      expect(bundle.failures.map((f) => f.label)).toEqual([
+        'Calendar on Board b1',
+      ]);
+      expect(getEventsMock).not.toHaveBeenCalled();
+    });
 
     it('writes the teacher’s strokes into the share', async () => {
       await seedStrokes('b1');

@@ -32,7 +32,10 @@ import {
   bundleSubShareContent,
   type SubShareBundle,
   type SubShareBundleItem,
+  type SubShareBundleServices,
 } from '@/utils/bundleSubShareContent';
+import { GoogleCalendarService } from '@/utils/googleCalendarService';
+import { useAuth } from '@/context/useAuth';
 import { subShareContentId } from '@/utils/subShareContent';
 import type {
   Dashboard,
@@ -326,6 +329,25 @@ function mergeDriveGrants(
 }
 
 export const useSharedCollection = () => {
+  const { ensureGoogleScope } = useAuth();
+
+  /**
+   * The Google reads only the teacher's session can make. Non-interactive:
+   * a consent popup on top of the share dialog would interrupt the share, so
+   * a teacher who never granted Calendar gets a "couldn't be read" line on the
+   * share screen instead, and their own widget still offers the connect CTA.
+   */
+  const bundleServices =
+    useCallback(async (): Promise<SubShareBundleServices> => {
+      const token = await ensureGoogleScope('calendar.readonly');
+      if (!token) return {};
+      const calendar = new GoogleCalendarService(token);
+      return {
+        readCalendar: (id, timeMin, timeMax) =>
+          calendar.getEvents(id, timeMin, timeMax),
+      };
+    }, [ensureGoogleScope]);
+
   /**
    * Host action: write the share metadata + every Board snapshot in a
    * chunked writeBatch. Returns the new shareId.
@@ -473,13 +495,14 @@ export const useSharedCollection = () => {
       const bundle = await bundleSubShareContent({
         hostUid: input.hostUid,
         boards: input.boards,
+        services: await bundleServices(),
       });
       await commitContentBatches({ shareId, items: bundle.items });
       input.onBundle?.(bundle);
 
       return shareId;
     },
-    []
+    [bundleServices]
   );
 
   /**
@@ -571,6 +594,7 @@ export const useSharedCollection = () => {
       const bundle = await bundleSubShareContent({
         hostUid: current.hostUid,
         boards: input.boards,
+        services: await bundleServices(),
       });
       // What the last push bundled, read back rather than tracked on the
       // parent doc: the host can list it, and a list that drifts from the docs
@@ -617,7 +641,7 @@ export const useSharedCollection = () => {
       });
       await versionBatch.commit();
     },
-    []
+    [bundleServices]
   );
 
   /** Host action: push the expiry out, capped at 14 days from now (D11). */

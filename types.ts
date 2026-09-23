@@ -9886,6 +9886,16 @@ export interface SubShareActivityWallPayload {
 }
 
 /**
+ * A Calendar widget's personal events as they stood at share time. A
+ * `CalendarEvent` is a title, a date and an optional time — the teacher's own
+ * words, with no attendees, no guest list and no description, which is why it
+ * can live in the broadly readable `content/`.
+ */
+export interface SubShareCalendarPayload {
+  events: CalendarEvent[];
+}
+
+/**
  * Input to `shareSubstituteCollection()`. Mirrors `SubstituteShareInput`
  * for single Boards but operates on a whole Collection.
  */
