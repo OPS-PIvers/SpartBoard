@@ -89,6 +89,16 @@ const makeState = (): GuidedLearningEditorController => ({
   notifyCanvasMeasured: vi.fn(),
   spotlightRadiiV2: true,
   markSpotlightRadiiV2: vi.fn(),
+  watchPace: undefined,
+  setWatchPace: vi.fn(),
+  undo: vi.fn(),
+  redo: vi.fn(),
+  canUndo: false,
+  canRedo: false,
+  beginGesture: vi.fn(),
+  endGesture: vi.fn(),
+  queueMediaDeletion: vi.fn(),
+  flushMediaDeletions: vi.fn(),
 });
 
 describe('GuidedLearningEditorContextPane — SettingChip Escape closes popover', () => {

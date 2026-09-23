@@ -1,0 +1,221 @@
+import type {
+  GuidedLearningMode,
+  GuidedLearningSet,
+  GuidedLearningStep,
+  GuidedLearningVideoTrim,
+  GuidedLearningWatchPace,
+} from '@/types';
+import type { GuidedLearningMediaKind } from '@/utils/guidedLearningMedia';
+
+/** The undoable part of the editor: everything that is saved with the set. */
+export interface EditorDocument {
+  title: string;
+  description: string;
+  mode: GuidedLearningMode;
+  imageUrls: string[];
+  imageKinds: GuidedLearningMediaKind[];
+  videoTrims: (GuidedLearningVideoTrim | null)[];
+  steps: GuidedLearningStep[];
+  hotspotPulse: 'consistent' | 'reminder' | 'off';
+  imageTransition: 'none' | 'slide' | 'fade';
+  welcomeEnabled: boolean;
+  welcomeMessage: string;
+  watchPace: GuidedLearningWatchPace | undefined;
+}
+
+/** A file to delete once the set is saved and the editor closes. */
+export interface MediaDeletionRef {
+  storagePath?: string;
+  driveFileId?: string;
+}
+
+/** The document before an edit, plus the deletions that edit queued. */
+export interface HistoryEntry {
+  doc: EditorDocument;
+  media: MediaDeletionRef[];
+}
+
+export interface EditorHistoryState {
+  past: HistoryEntry[];
+  present: EditorDocument;
+  future: HistoryEntry[];
+  /** Deletions whose edits can no longer be undone (trimmed or cleared). */
+  retiredMedia: MediaDeletionRef[];
+  /** Document at beginGesture; null when no gesture is open. */
+  gestureBase: EditorDocument | null;
+  /** Key and time of the last coalescable edit. */
+  lastCoalesce: { key: string; at: number } | null;
+}
+
+export const HISTORY_LIMIT = 100;
+export const COALESCE_MS = 800;
+
+export type EditorHistoryAction =
+  | {
+      type: 'apply';
+      update: (doc: EditorDocument) => EditorDocument;
+      /** Edits sharing a key within COALESCE_MS of each other form one entry. */
+      coalesceKey?: string;
+      at?: number;
+    }
+  | { type: 'undo' }
+  | { type: 'redo' }
+  | { type: 'beginGesture' }
+  | { type: 'endGesture' }
+  | { type: 'queueMedia'; ref: MediaDeletionRef }
+  | { type: 'clearHistory' }
+  | { type: 'reset'; doc: EditorDocument };
+
+function kindsForSet(set: GuidedLearningSet | null): GuidedLearningMediaKind[] {
+  if (!set) return [];
+  return set.imageUrls.map((_, i) => set.imageKinds?.[i] ?? 'image');
+}
+
+function trimsForSet(
+  set: GuidedLearningSet | null
+): (GuidedLearningVideoTrim | null)[] {
+  if (!set) return [];
+  return set.imageUrls.map((_, i) => set.videoTrims?.[i] ?? null);
+}
+
+export function documentFromSet(set: GuidedLearningSet | null): EditorDocument {
+  return {
+    title: set?.title ?? '',
+    description: set?.description ?? '',
+    mode: set?.mode ?? 'structured',
+    imageUrls: set?.imageUrls ?? [],
+    imageKinds: kindsForSet(set),
+    videoTrims: trimsForSet(set),
+    steps: set?.steps ?? [],
+    hotspotPulse: set?.hotspotPulse ?? 'consistent',
+    imageTransition: set?.imageTransition ?? 'none',
+    welcomeEnabled: Boolean(set?.welcomeEnabled),
+    welcomeMessage: set?.welcomeMessage ?? '',
+    watchPace: set?.watchPace,
+  };
+}
+
+export function initialHistory(doc: EditorDocument): EditorHistoryState {
+  return {
+    past: [],
+    present: doc,
+    future: [],
+    retiredMedia: [],
+    gestureBase: null,
+    lastCoalesce: null,
+  };
+}
+
+function pushPast(
+  state: EditorHistoryState,
+  entry: HistoryEntry
+): Pick<EditorHistoryState, 'past' | 'retiredMedia'> {
+  const past = [...state.past, entry];
+  if (past.length <= HISTORY_LIMIT) {
+    return { past, retiredMedia: state.retiredMedia };
+  }
+  const trimmed = past.splice(0, past.length - HISTORY_LIMIT);
+  return {
+    past,
+    retiredMedia: [...state.retiredMedia, ...trimmed.flatMap((e) => e.media)],
+  };
+}
+
+export function editorHistoryReducer(
+  state: EditorHistoryState,
+  action: EditorHistoryAction
+): EditorHistoryState {
+  switch (action.type) {
+    case 'apply': {
+      const next = action.update(state.present);
+      if (next === state.present) return state;
+      if (state.gestureBase) return { ...state, present: next };
+      const at = action.at ?? Date.now();
+      const key = action.coalesceKey;
+      const coalesce =
+        key !== undefined &&
+        state.lastCoalesce?.key === key &&
+        at - state.lastCoalesce.at < COALESCE_MS &&
+        state.past.length > 0 &&
+        state.future.length === 0;
+      const lastCoalesce = key !== undefined ? { key, at } : null;
+      if (coalesce) return { ...state, present: next, lastCoalesce };
+      return {
+        ...state,
+        ...pushPast(state, { doc: state.present, media: [] }),
+        present: next,
+        future: [],
+        lastCoalesce,
+      };
+    }
+    case 'undo': {
+      if (state.gestureBase || state.past.length === 0) return state;
+      const entry = state.past[state.past.length - 1];
+      return {
+        ...state,
+        past: state.past.slice(0, -1),
+        present: entry.doc,
+        future: [{ doc: state.present, media: entry.media }, ...state.future],
+        lastCoalesce: null,
+      };
+    }
+    case 'redo': {
+      if (state.gestureBase || state.future.length === 0) return state;
+      const [entry, ...future] = state.future;
+      return {
+        ...state,
+        ...pushPast(state, { doc: state.present, media: entry.media }),
+        present: entry.doc,
+        future,
+        lastCoalesce: null,
+      };
+    }
+    case 'beginGesture':
+      if (state.gestureBase) return state;
+      return { ...state, gestureBase: state.present, lastCoalesce: null };
+    case 'endGesture': {
+      const base = state.gestureBase;
+      if (!base) return state;
+      if (base === state.present) return { ...state, gestureBase: null };
+      return {
+        ...state,
+        ...pushPast(state, { doc: base, media: [] }),
+        future: [],
+        gestureBase: null,
+      };
+    }
+    case 'queueMedia': {
+      if (state.past.length === 0) {
+        return { ...state, retiredMedia: [...state.retiredMedia, action.ref] };
+      }
+      const last = state.past[state.past.length - 1];
+      return {
+        ...state,
+        past: [
+          ...state.past.slice(0, -1),
+          { ...last, media: [...last.media, action.ref] },
+        ],
+      };
+    }
+    case 'clearHistory':
+      return {
+        ...state,
+        past: [],
+        future: [],
+        retiredMedia: [
+          ...state.retiredMedia,
+          ...state.past.flatMap((e) => e.media),
+        ],
+        lastCoalesce: null,
+      };
+    case 'reset':
+      return initialHistory(action.doc);
+  }
+}
+
+/** Deletions still owed: every one whose edit is live or no longer undoable. */
+export function pendingMediaDeletions(
+  state: EditorHistoryState
+): MediaDeletionRef[] {
+  return [...state.retiredMedia, ...state.past.flatMap((e) => e.media)];
+}
