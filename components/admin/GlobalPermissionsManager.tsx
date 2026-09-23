@@ -48,12 +48,13 @@ import {
   Library,
   PanelRight,
   UserCheck,
+  MousePointerClick,
   Printer,
   Volume2,
   Languages,
   UsersRound,
   FileText,
-  MousePointerClick,
+  Footprints,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -232,6 +233,13 @@ const GLOBAL_FEATURES: {
     icon: MousePointerClick,
     description:
       'Slower, smoother zooms with the text appearing once the picture settles, a playback speed choice for learners, and step timing based on how much there is to read. Walkthroughs assigned while someone has this keep it for their students. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'gl-live-tours',
+    label: 'Guided Learning live tours',
+    icon: Footprints,
+    description:
+      'Lets teachers start a Guided Learning walkthrough on their own board: the tour highlights each button in the real app and waits while they click it, adding any widgets it needs first. Admin-only until this is saved and opened up.',
   },
   {
     id: 'settings-drawer',

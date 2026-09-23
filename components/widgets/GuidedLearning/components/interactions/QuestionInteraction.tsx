@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CheckCircle2, XCircle, ArrowRight, BookOpen } from 'lucide-react';
 import { GuidedLearningPublicStep } from '@/types';
+import { playableQuestion } from '../../utils/playableQuestion';
 
 interface Props {
   step: GuidedLearningPublicStep;
@@ -24,12 +25,16 @@ export const QuestionInteraction: React.FC<Props> = ({
   studentMode = false,
 }) => {
   const q = step.question;
+  // The teacher's Play passes the author's copy, so build the columns from either shape once.
+  const [shown] = useState(() =>
+    q ? playableQuestion(q, correctSortingItems) : undefined
+  );
   const [selectedMC, setSelectedMC] = useState<string | null>(null);
   const [matchingAnswers, setMatchingAnswers] = useState<
     Record<string, string>
   >({});
   const [sortingOrder, setSortingOrder] = useState<string[]>(
-    q?.sortingItems ?? []
+    shown?.sortingItems ?? []
   );
   const [submitted, setSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
@@ -71,7 +76,7 @@ export const QuestionInteraction: React.FC<Props> = ({
   const canSubmit = (() => {
     if (q.type === 'multiple-choice') return selectedMC !== null;
     if (q.type === 'matching')
-      return (q.matchingLeft ?? []).every((l) => matchingAnswers[l]);
+      return (shown?.matchingLeft ?? []).every((l) => matchingAnswers[l]);
     if (q.type === 'sorting') {
       const expected = q.sortingItems ?? [];
       return expected.length > 0 && sortingOrder.length === expected.length;
@@ -132,7 +137,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                 >
                   Match each item on the left to its pair:
                 </p>
-                {(q.matchingLeft ?? []).map((left) => (
+                {(shown?.matchingLeft ?? []).map((left) => (
                   <div
                     key={left}
                     className="flex items-center"
@@ -168,7 +173,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                       }}
                     >
                       <option value="">-- select --</option>
-                      {(q.matchingRight ?? []).map((r) => (
+                      {(shown?.matchingRight ?? []).map((r) => (
                         <option key={r} value={r}>
                           {r}
                         </option>

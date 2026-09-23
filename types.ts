@@ -1979,6 +1979,8 @@ export interface ActivityWallGlobalConfig {
 }
 
 export interface ActivityWallConfig {
+  /** Set only inside a substitute share, from the share's names file. */
+  subSharePosts?: ActivityWallSubmission[];
   /**
    * @deprecated Activities now live in the per-user library collection
    * `/users/{userId}/activity_wall_activities/{activityId}` (see
@@ -4131,8 +4133,23 @@ export interface QuizLeaderboardEntry {
   rank: number;
 }
 
+/**
+ * Stamped on a session a substitute started from a sub share
+ * (docs/plans/SUB_SHARE_COLLECTIONS.md §3.6, D7). Written only by
+ * `launchSubAssignmentV1`; the run itself belongs to the teacher, and the
+ * session rules pin all three fields against a client write.
+ */
+export interface SubLaunchedSessionFields {
+  /** Who started it, for the "Launched by" tag in the teacher's Results. */
+  launchedBy?: { uid: string; email: string; shareId: string };
+  /** Uids that may monitor this one run — read by the `isSubMonitor` rule. */
+  subMonitorUids?: string[];
+  /** ms when monitoring ends: the share's own expiry. */
+  subMonitorUntil?: number;
+}
+
 /** Live quiz session document in Firestore (/quiz_sessions/{sessionId}) */
-export interface QuizSession {
+export interface QuizSession extends SubLaunchedSessionFields {
   id: string; // session UUID (same as QuizAssignment.id)
   /** FK back to /users/{teacherUid}/quiz_assignments/{assignmentId}. 1:1 with session. */
   assignmentId: string;
@@ -6097,7 +6114,7 @@ export interface VideoActivityGlobalConfig {
  * A Firestore session document giving students access to an activity.
  * Stored at /video_activity_sessions/{sessionId}
  */
-export interface VideoActivitySession {
+export interface VideoActivitySession extends SubLaunchedSessionFields {
   id: string;
   activityId: string;
   activityTitle: string;
@@ -6368,6 +6385,8 @@ export interface NextUpConfig {
     themeColor: string;
     animation: 'slide' | 'fade' | 'none';
   };
+  /** Set only inside a substitute share, from the share's names file. */
+  subShareQueue?: NextUpQueueItem[];
 }
 
 export interface NextUpGlobalConfig {
@@ -7069,6 +7088,8 @@ export interface GuidedLearningSet {
   watchPace?: GuidedLearningWatchPace;
   /** Live tour prerequisites. Teacher-only: never mirrored to sessions. */
   tourSetup?: { widgets: WidgetType[] };
+  /** Stamped on every building-set save: true when any step has a live-tour binding. */
+  hasLiveTour?: boolean;
 }
 
 /** Lightweight metadata stored in Firestore (avoids Drive API on every list) */
@@ -7141,7 +7162,7 @@ export interface GuidedLearningPublicStep {
 }
 
 /** Firestore session document granting student access to an experience */
-export interface GuidedLearningSession {
+export interface GuidedLearningSession extends SubLaunchedSessionFields {
   id: string;
   title: string;
   mode: GuidedLearningMode;
@@ -7490,7 +7511,7 @@ export interface FlashcardCheckWriteEntry {
 }
 
 /** `flashcard_sessions/{assignmentId}`: what assigned students load. */
-export interface FlashcardSession {
+export interface FlashcardSession extends SubLaunchedSessionFields {
   id: string;
   teacherUid: string;
   setId: string;
@@ -8395,6 +8416,8 @@ export interface SubstituteShareFields {
   driveGrants?: SubstituteShareDriveGrant[];
   /** Rosters the sub may load from Drive; the first is the active one. */
   sharedRosters?: SubstituteShareRoster[];
+  /** Drive file holding the shared boards' student names (plan §3.4). */
+  namesFileId?: string;
 }
 
 /** Per-participant entry on a /shared_boards/{shareId} doc. */
@@ -8489,7 +8512,9 @@ export type GlobalFeature =
   /** Handing a board or a collection to a substitute, and managing live shares. */
   | 'sub-share-collections'
   /** Guided Learning player v2: calm motion, learner speed, Watch/Try; stamped on sessions. */
-  | 'gl-player-v2';
+  | 'gl-player-v2'
+  /** Guided Learning live tours in the teacher app and their launch points. */
+  | 'gl-live-tours';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
@@ -9802,6 +9827,12 @@ export interface SharedCollection {
   driveGrants?: SubstituteShareDriveGrant[];
   /** Substitute-only: mirrors `SubstituteShareFields.sharedRosters`. */
   sharedRosters?: SubstituteShareRoster[];
+  /**
+   * Substitute-only: the Drive file holding the student names scrubbed out of
+   * the board snapshots, readable only by the named subs (plan §3.4). Trashed
+   * with the grants by the expiry sweep.
+   */
+  namesFileId?: string;
   /** Absent on pre-v2 shares; read as 'collection'. */
   kind?: SharedCollectionKind;
   /**
@@ -9839,18 +9870,84 @@ export interface SharedCollectionBoardDoc {
 
 /**
  * What a widget's data is, when that data does not live on the board itself.
- * A Drawing's strokes, a notebook, a Next Up queue: all read from the
- * teacher's own `users/` tree or Drive, none of it reachable by a substitute.
+ * A Drawing's strokes, a notebook, a project: all read from the teacher's own
+ * `users/` tree, none of it reachable by a substitute. A Next Up queue is a
+ * list of student names, so it rides the per-share names file instead (§3.4).
  */
 export type SubShareContentKind =
   | 'drawing'
+  | 'quiz'
+  | 'videoActivity'
+  | 'guidedLearning'
   | 'notebook'
   | 'flashcards'
-  | 'nextup'
   | 'project'
   | 'calendar'
   | 'customWidget'
   | 'activityWall';
+
+/**
+ * A quiz as a substitute sees it: the teacher's own questions and their keys.
+ * Bundled into `keys/`, not `content/`, because it is an answer key (A2).
+ * Bank slots do not travel — the banks they draw from are the teacher's.
+ */
+export type SubShareQuizView = Pick<
+  QuizData,
+  | 'id'
+  | 'title'
+  | 'questions'
+  | 'stimuli'
+  | 'language'
+  | 'createdAt'
+  | 'updatedAt'
+>;
+
+export interface SubShareQuizPayload {
+  quiz: SubShareQuizView;
+}
+
+/**
+ * A video activity as a substitute sees it: the video plus the teacher's own
+ * questions and their keys. Bundled into `keys/`, not `content/`, for the same
+ * reason a quiz is (A2). The PLC sync linkage and folder do not travel.
+ */
+export type SubShareVideoActivityView = Pick<
+  VideoActivityData,
+  | 'id'
+  | 'title'
+  | 'youtubeUrl'
+  | 'videoDuration'
+  | 'questions'
+  | 'createdAt'
+  | 'updatedAt'
+>;
+
+export interface SubShareVideoActivityPayload {
+  activity: SubShareVideoActivityView;
+}
+
+/** A step as a substitute sees it: no live-tour binding, no Storage paths. */
+export type SubShareGuidedLearningStep = Omit<
+  GuidedLearningStep,
+  'tour' | 'audioStoragePath' | 'videoStoragePath' | 'narration'
+> & { narration?: GuidedLearningPublicNarration };
+
+/**
+ * A guided learning set as a substitute sees it: the whole activity, answers
+ * included, which is what `keys/` exists to carry. The teacher's live-tour
+ * bindings and prerequisites, the author's uid and every raw Storage path do
+ * not travel — the tokenized URLs are what a sub can actually read.
+ */
+export type SubShareGuidedLearningView = Omit<
+  GuidedLearningSet,
+  'steps' | 'authorUid' | 'imagePaths' | 'tourSetup'
+> & {
+  steps: SubShareGuidedLearningStep[];
+};
+
+export interface SubShareGuidedLearningPayload {
+  set: SubShareGuidedLearningView;
+}
 
 /** A `content/{kind}_{itemId}` doc: what the sub sees in place of their own. */
 export interface SubShareContentDoc<T = unknown> {

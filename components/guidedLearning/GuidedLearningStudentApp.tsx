@@ -33,6 +33,7 @@ import {
 import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { useGuidedLearningSessionStudent } from '@/hooks/useGuidedLearningSession';
+import { useGuidedLearningProgress } from '@/hooks/useGuidedLearningProgress';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
 import { GuidedLearningResponse, GuidedLearningSession } from '@/types';
@@ -301,6 +302,13 @@ const StudentExperience: React.FC<{
     isViewOnly,
   ]);
 
+  const { onStepEvent } = useGuidedLearningProgress({
+    sessionId,
+    uid: anonymousUid,
+    enabled: session?.playerV2 === true && !pointer?.excluded,
+    stepIds: session?.publicSteps.map((s) => s.id) ?? [],
+  });
+
   if (loading) return <FullPageLoader />;
   if (error) return <ErrorScreen message={error} />;
   if (!session) return <ErrorScreen message="Session not found." />;
@@ -428,6 +436,7 @@ const StudentExperience: React.FC<{
           teacherMode={false}
           timeMultiplier={timeMultiplier}
           playerV2={session.playerV2 === true}
+          onStepEvent={onStepEvent}
         />
         <button
           onClick={handleComplete}

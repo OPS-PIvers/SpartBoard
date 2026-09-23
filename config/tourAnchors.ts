@@ -1,4 +1,5 @@
 // Stable live-tour anchors; tests/tourAnchors.test.ts fails if a key stops being rendered.
+// Separately, `data-pii` marks student faces, photos and free-form work, which tour recordings always blur.
 export interface TourAnchorDef {
   label: string;
   /** One element per widget instance, scoped by `data-tour-widget`. */
@@ -88,3 +89,16 @@ export const tourTypeAttr = (id: TourAnchorId, widgetType: string) => ({
   'data-tour': id,
   'data-tour-widget-type': widgetType,
 });
+
+// A tour step's anchor ref: the registry id, plus `:<widgetType>` for per-type anchors.
+export const tourAnchorRef = (id: TourAnchorId, widgetType?: string) =>
+  widgetType ? `${id}:${widgetType}` : id;
+
+export const parseTourAnchorRef = (
+  ref: string
+): { id: string; widgetType?: string } => {
+  const sep = ref.indexOf(':');
+  return sep === -1
+    ? { id: ref }
+    : { id: ref.slice(0, sep), widgetType: ref.slice(sep + 1) };
+};

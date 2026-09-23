@@ -118,7 +118,25 @@ vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 // by a teacher who never granted the scope still has to work.
 const ensureGoogleScopeMock = vi.fn().mockResolvedValue(null);
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ ensureGoogleScope: ensureGoogleScopeMock }),
+  useAuth: () => ({
+    ensureGoogleScope: ensureGoogleScopeMock,
+    googleAccessToken: 'drive-token',
+    user: { uid: 'host-uid' },
+  }),
+}));
+// A video activity's questions are a JSON file in the teacher's own Drive,
+// which is why the share writer builds a reader for it at all.
+const loadQuizMock = vi.fn();
+vi.mock('@/utils/quizDriveService', () => ({
+  QuizDriveService: class {
+    loadQuiz = loadQuizMock;
+  },
+}));
+const loadSetMock = vi.fn();
+vi.mock('@/utils/guidedLearningDriveService', () => ({
+  GuidedLearningDriveService: class {
+    loadSet = loadSetMock;
+  },
 }));
 const getEventsMock = vi.fn().mockResolvedValue([]);
 vi.mock('@/utils/googleCalendarService', () => ({
@@ -128,6 +146,7 @@ vi.mock('@/utils/googleCalendarService', () => ({
 }));
 
 import { useSharedCollection } from '@/hooks/useSharedCollection';
+import type { SubShareNamesFile } from '@/utils/subShareNames';
 import type { Collection, Dashboard } from '@/types';
 
 type FirestoreMockHelpers = {
@@ -351,6 +370,211 @@ describe('useSharedCollection', () => {
     return { shareId, api: result.current };
   };
 
+  // Board snapshots reach Firestore scrubbed of student names, so the names a
+  // sub needs travel in a Drive file only the named subs can read (plan §3.4).
+  describe('the names file', () => {
+    const subShareInput = (boards: Dashboard[]) => ({
+      collection: sourceCollection(),
+      boards,
+      hostUid: 'host-uid',
+      hostDisplayName: 'Mr. Teacher',
+      collectionId: 'src-collection',
+      sourceId: 'src-collection',
+      expiresAt: 9999999999999,
+      buildingId: 'middle-school',
+      ...tree(),
+    });
+
+    it('stamps the file and its grants on the share it writes', async () => {
+      const { result } = renderHook(() => useSharedCollection());
+      const writeNames = vi.fn().mockResolvedValue({
+        driveFileId: 'names-file',
+        driveGrants: [
+          {
+            email: 'sub@orono.k12.mn.us',
+            fileId: 'names-file',
+            permissionId: 'p1',
+          },
+        ],
+        failedEmails: [],
+      });
+
+      const shareId = await result.current.shareSubstituteCollection({
+        ...subShareInput([dashboardWithNames('b1')]),
+        names: { write: writeNames },
+      });
+
+      const helpers = await getHelpers();
+      const parent = helpers.docs.get(`shared_collections/${shareId}`) as {
+        namesFileId: string;
+        driveGrants: Array<{ fileId: string }>;
+      };
+      expect(parent.namesFileId).toBe('names-file');
+      expect(parent.driveGrants).toEqual([
+        {
+          email: 'sub@orono.k12.mn.us',
+          fileId: 'names-file',
+          permissionId: 'p1',
+        },
+      ]);
+      const [, names] = writeNames.mock.calls[0] as [string, SubShareNamesFile];
+      expect(names.boards.b1.w1).toEqual({
+        firstNames: 'Alice\nBob',
+        lastNames: 'Smith\nJones',
+        lastResult: { picked: 'Alice Smith' },
+      });
+    });
+
+    // A wall's posts are the students' own words, so they ride the same file.
+    it('puts an open wall’s posts in the file', async () => {
+      const { result } = renderHook(() => useSharedCollection());
+      const writeNames = vi.fn().mockResolvedValue({
+        driveFileId: 'names-file',
+        driveGrants: [],
+        failedEmails: [],
+      });
+      const board = {
+        ...dashboard('b1'),
+        widgets: [
+          {
+            id: 'w-wall',
+            type: 'activity-wall',
+            position: { x: 0, y: 0 },
+            config: { activeActivityId: 'wall-1' },
+          },
+        ] as unknown as Dashboard['widgets'],
+      };
+
+      await result.current.shareSubstituteCollection({
+        ...subShareInput([board]),
+        names: {
+          write: writeNames,
+          readWallPosts: () =>
+            Promise.resolve([
+              {
+                id: 'p1',
+                content: 'Ada was here',
+                submittedAt: 7,
+                status: 'approved',
+              },
+            ]),
+        },
+      });
+
+      const [, names] = writeNames.mock.calls[0] as [string, SubShareNamesFile];
+      expect(names.boards.b1['w-wall']).toEqual({
+        subSharePosts: [
+          {
+            id: 'p1',
+            content: 'Ada was here',
+            submittedAt: 7,
+            status: 'approved',
+          },
+        ],
+      });
+    });
+
+    it('names a wall whose posts it could not read', async () => {
+      const { result } = renderHook(() => useSharedCollection());
+      const onIncomplete = vi.fn();
+      const board = {
+        ...dashboard('b1'),
+        name: 'Period 2',
+        widgets: [
+          {
+            id: 'w-wall',
+            type: 'activity-wall',
+            position: { x: 0, y: 0 },
+            config: { activeActivityId: 'wall-1' },
+          },
+        ] as unknown as Dashboard['widgets'],
+      };
+
+      await result.current.shareSubstituteCollection({
+        ...subShareInput([board]),
+        names: {
+          write: vi.fn().mockResolvedValue(null),
+          readWallPosts: () => Promise.reject(new Error('404')),
+          onIncomplete,
+        },
+      });
+
+      expect(onIncomplete).toHaveBeenCalledWith(['Activity Wall on Period 2']);
+    });
+
+    it('writes no file for boards that hold no names', async () => {
+      const { result } = renderHook(() => useSharedCollection());
+      const writeNames = vi.fn();
+
+      const shareId = await result.current.shareSubstituteCollection({
+        ...subShareInput([dashboard('b1')]),
+        names: { write: writeNames },
+      });
+
+      expect(writeNames).not.toHaveBeenCalled();
+      const helpers = await getHelpers();
+      const parent = helpers.docs.get(`shared_collections/${shareId}`) as {
+        namesFileId?: string;
+      };
+      expect(parent.namesFileId).toBeUndefined();
+    });
+
+    // Otherwise a roster the teacher has since deleted keeps reaching the sub.
+    it('rewrites an existing file even when the names are now gone', async () => {
+      const { result } = renderHook(() => useSharedCollection());
+      const shareId = await result.current.shareSubstituteCollection({
+        ...subShareInput([dashboardWithNames('b1')]),
+        names: {
+          write: () =>
+            Promise.resolve({
+              driveFileId: 'names-file',
+              driveGrants: [],
+              failedEmails: [],
+            }),
+        },
+      });
+      const writeNames = vi.fn().mockResolvedValue({
+        driveFileId: 'names-file',
+        driveGrants: [],
+        failedEmails: [],
+      });
+
+      await result.current.updateSubstituteShare({
+        shareId,
+        collection: sourceCollection(),
+        boards: [dashboard('b1')],
+        ...tree(),
+        names: { write: writeNames },
+      });
+
+      const [id, names, existingFileId] = writeNames.mock.calls[0] as [
+        string,
+        SubShareNamesFile,
+        string,
+      ];
+      expect(id).toBe(shareId);
+      expect(names.boards).toEqual({});
+      expect(existingFileId).toBe('names-file');
+    });
+
+    // The share doc is what the sweep reads to revoke, so a write that failed
+    // must leave no file id behind.
+    it('leaves the share without a file when the write fails', async () => {
+      const { result } = renderHook(() => useSharedCollection());
+
+      const shareId = await result.current.shareSubstituteCollection({
+        ...subShareInput([dashboardWithNames('b1')]),
+        names: { write: () => Promise.resolve(null) },
+      });
+
+      const helpers = await getHelpers();
+      const parent = helpers.docs.get(`shared_collections/${shareId}`) as {
+        namesFileId?: string;
+      };
+      expect(parent.namesFileId).toBeUndefined();
+    });
+  });
+
   // A Drawing's strokes live in the teacher's own account, so a sub signed in
   // as themselves sees an empty canvas unless the strokes travel with the share.
   describe('bundled widget content', () => {
@@ -469,6 +693,156 @@ describe('useSharedCollection', () => {
       expect(content.payload.pages).toEqual([
         { pageId: 'p1', objects: [{ id: 'o1', z: 1, kind: 'pen' }] },
       ]);
+    });
+
+    // A quiz is an answer key, so it must land in keys/, which the rules keep
+    // to the subs the share names, and never in the broadly readable content/.
+    it('writes a quiz into the share’s keys, not its content', async () => {
+      const helpers = await getHelpers();
+      helpers.docs.set('users/host-uid/quizzes/q-1', {
+        id: 'q-1',
+        title: 'Cells',
+        questions: [{ id: 'q1', text: 'Nucleus?', correctAnswer: 'yes' }],
+        createdAt: 1,
+        updatedAt: 2,
+      });
+      const quizBoard = {
+        ...dashboard('b1'),
+        widgets: [
+          {
+            id: 'w1',
+            type: 'quiz',
+            position: { x: 0, y: 0 },
+            config: { selectedQuizId: 'q-1' },
+          },
+        ] as unknown as Dashboard['widgets'],
+      };
+
+      const { shareId } = await shareWithDrawing([quizBoard]);
+
+      const key = helpers.docs.get(
+        `shared_collections/${shareId}/keys/quiz_q-1`
+      ) as { kind: string; payload: { quiz: { title: string } } };
+      expect(key.kind).toBe('quiz');
+      expect(key.payload.quiz.title).toBe('Cells');
+      expect(
+        helpers.docs.has(`shared_collections/${shareId}/content/quiz_q-1`)
+      ).toBe(false);
+    });
+
+    // Same rule for a video activity, whose questions carry their keys too.
+    it('writes a video activity into the share’s keys, not its content', async () => {
+      const helpers = await getHelpers();
+      helpers.docs.set('users/host-uid/video_activities/va-1', {
+        id: 'va-1',
+        title: 'Mitosis',
+        youtubeUrl: 'https://youtu.be/abc',
+        driveFileId: 'file-1',
+      });
+      loadQuizMock.mockResolvedValueOnce({
+        id: 'va-1',
+        title: 'Mitosis',
+        youtubeUrl: 'https://youtu.be/abc',
+        questions: [
+          { id: 'q1', text: 'Which phase?', type: 'MC', timestamp: 30 },
+        ],
+        createdAt: 1,
+        updatedAt: 2,
+      });
+      const vaBoard = {
+        ...dashboard('b1'),
+        widgets: [
+          {
+            id: 'w1',
+            type: 'video-activity',
+            position: { x: 0, y: 0 },
+            config: { selectedActivityId: 'va-1' },
+          },
+        ] as unknown as Dashboard['widgets'],
+      };
+
+      const { shareId } = await shareWithDrawing([vaBoard]);
+
+      expect(loadQuizMock).toHaveBeenCalledWith('file-1');
+      const key = helpers.docs.get(
+        `shared_collections/${shareId}/keys/videoActivity_va-1`
+      ) as {
+        kind: string;
+        payload: { activity: { title: string; questions: unknown[] } };
+      };
+      expect(key.kind).toBe('videoActivity');
+      expect(key.payload.activity.title).toBe('Mitosis');
+      expect(key.payload.activity.questions).toHaveLength(1);
+      expect(
+        helpers.docs.has(
+          `shared_collections/${shareId}/content/videoActivity_va-1`
+        )
+      ).toBe(false);
+    });
+
+    // And the same for a guided learning set, which travels with its answers.
+    it('writes a guided learning set into the share’s keys, not its content', async () => {
+      const helpers = await getHelpers();
+      helpers.docs.set('users/host-uid/guided_learning/set-1', {
+        id: 'set-1',
+        title: 'Plant cell',
+        driveFileId: 'file-gl',
+      });
+      loadSetMock.mockResolvedValueOnce({
+        id: 'set-1',
+        title: 'Plant cell',
+        imageUrls: ['https://storage/one?token=abc'],
+        mode: 'guided',
+        createdAt: 1,
+        updatedAt: 2,
+        authorUid: 'host-uid',
+        steps: [
+          {
+            id: 's1',
+            xPct: 1,
+            yPct: 2,
+            imageIndex: 0,
+            interactionType: 'question',
+            question: { type: 'multiple-choice', correctAnswer: 'Nucleus' },
+            tour: { anchorId: 'a1' },
+          },
+        ],
+      });
+      const glBoard = {
+        ...dashboard('b1'),
+        widgets: [
+          {
+            id: 'w1',
+            type: 'guided-learning',
+            position: { x: 0, y: 0 },
+            config: { view: 'player', playerSetId: 'set-1' },
+          },
+        ] as unknown as Dashboard['widgets'],
+      };
+
+      const { shareId } = await shareWithDrawing([glBoard]);
+
+      expect(loadSetMock).toHaveBeenCalledWith('file-gl');
+      const key = helpers.docs.get(
+        `shared_collections/${shareId}/keys/guidedLearning_set-1`
+      ) as {
+        kind: string;
+        payload: {
+          set: Record<string, unknown> & { steps: Record<string, unknown>[] };
+        };
+      };
+      expect(key.kind).toBe('guidedLearning');
+      expect(key.payload.set.steps[0].question).toEqual({
+        type: 'multiple-choice',
+        correctAnswer: 'Nucleus',
+      });
+      expect('authorUid' in key.payload.set).toBe(false);
+      expect('tour' in key.payload.set.steps[0]).toBe(false);
+      expect(
+        helpers.docs.has(
+          `shared_collections/${shareId}/content/guidedLearning_set-1`
+        )
+      ).toBe(false);
     });
 
     it('tells the caller what could not be bundled', async () => {

@@ -16,6 +16,8 @@ interface Props {
   pinned?: Point;
   /** Draw the anchor dot on the pin (steps without a drawn region). */
   showAnchor?: boolean;
+  /** Studio inline editor shown in place of the label and text. */
+  editor?: React.ReactNode;
 }
 
 const PREFER: Record<string, Side | undefined> = {
@@ -33,6 +35,7 @@ export const TooltipInteraction: React.FC<Props> = ({
   target,
   pinned,
   showAnchor = true,
+  editor,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [measured, setMeasured] = useState({ w: 0, h: 0 });
@@ -97,6 +100,7 @@ export const TooltipInteraction: React.FC<Props> = ({
       )}
       <div
         ref={cardRef}
+        role="note"
         data-testid="gl-tooltip-card"
         data-gl-callout={step.id}
         data-side={placement.side}
@@ -114,15 +118,19 @@ export const TooltipInteraction: React.FC<Props> = ({
           fontSize: 'min(16px, 4cqmin)',
         }}
       >
-        {step.label && (
-          <div
-            className="font-bold text-white mb-1 tracking-tight"
-            style={{ fontSize: 'min(18px, 4.2cqmin)' }}
-          >
-            {renderStepText(step.label)}
-          </div>
+        {editor ?? (
+          <>
+            {step.label && (
+              <div
+                className="font-bold text-white mb-1 tracking-tight"
+                style={{ fontSize: 'min(18px, 4.2cqmin)' }}
+              >
+                {renderStepText(step.label)}
+              </div>
+            )}
+            <div className="text-slate-100">{renderStepText(step.text)}</div>
+          </>
         )}
-        <div className="text-slate-100">{renderStepText(step.text)}</div>
       </div>
     </div>
   );

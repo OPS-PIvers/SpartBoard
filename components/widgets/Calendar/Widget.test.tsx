@@ -6,6 +6,7 @@ import { CalendarWidget } from './Widget';
 import { DEFAULT_GLOBAL_STYLE } from '@/types';
 import type { CalendarConfig, CalendarEvent, WidgetData } from '@/types';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import {
   useGlobalStyle,
   useDashboardActions,
@@ -257,6 +258,7 @@ describe('CalendarWidget — inside a sub share', () => {
         value={{
           shareId: 'share-1',
           version: 0,
+          loadKey: noSubShareKey,
           load: () => Promise.resolve({ events }),
         }}
       >

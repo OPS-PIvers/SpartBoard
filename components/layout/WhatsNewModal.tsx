@@ -1,6 +1,19 @@
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, {
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronUp, RefreshCw, Sparkles } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Footprints,
+  RefreshCw,
+  Sparkles,
+} from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import {
   ChangelogBullet,
@@ -12,6 +25,9 @@ import {
   useChangelog,
   writeLastSeenVersion,
 } from '@/hooks/useChangelog';
+import { AuthContext } from '@/context/AuthContextValue';
+import { requestStartTour } from '@/components/tours/tourState';
+import { useHasLiveTour } from '@/components/tours/useTourOffers';
 
 interface WhatsNewModalProps {
   isOpen: boolean;
@@ -110,8 +126,12 @@ const formatEntryDate = (iso: string, language: string): string => {
   }).format(date);
 };
 
-const Entry: React.FC<{ entry: ChangelogEntry }> = ({ entry }) => {
+const Entry: React.FC<{
+  entry: ChangelogEntry;
+  onShowTour?: (setId: string) => void;
+}> = ({ entry, onShowTour }) => {
   const { t, i18n } = useTranslation();
+  const hasTour = useHasLiveTour(onShowTour ? entry.tourSetId : undefined);
   const groups = useMemo(() => groupHighlights(entry.details), [entry]);
   const overviewByType = useMemo(
     () => (entry.overview ? groupOverviewByType(entry.overview) : null),
@@ -168,6 +188,16 @@ const Entry: React.FC<{ entry: ChangelogEntry }> = ({ entry }) => {
         <p className="mt-0.5 text-xxs text-slate-400">
           {formatEntryDate(entry.date, i18n.language)}
         </p>
+        {hasTour && entry.tourSetId && onShowTour && (
+          <button
+            type="button"
+            onClick={() => entry.tourSetId && onShowTour(entry.tourSetId)}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-blue-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+          >
+            <Footprints className="w-3.5 h-3.5" aria-hidden="true" />
+            {t('tours.showMe')}
+          </button>
+        )}
       </header>
 
       {hasOverview && overviewByType ? (
@@ -239,6 +269,13 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
   const { t } = useTranslation();
   const { entries, loading, error, latestVersion, entriesSinceCurrent } =
     useChangelog();
+  // Read directly: the update banner can mount this outside AuthProvider.
+  const liveTours =
+    useContext(AuthContext)?.canAccessFeature('gl-live-tours') ?? false;
+  const showTour = (setId: string) => {
+    onClose();
+    requestStartTour({ setId });
+  };
   const contentRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -346,7 +383,11 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
         {!loading &&
           !error &&
           visibleEntries.map((entry) => (
-            <Entry key={entry.version} entry={entry} />
+            <Entry
+              key={entry.version}
+              entry={entry}
+              onShowTour={liveTours ? showTour : undefined}
+            />
           ))}
       </div>
     </Modal>

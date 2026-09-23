@@ -32,7 +32,8 @@ function fisherYatesShuffle<T>(arr: T[]): T[] {
 
 interface QuizPreviewProps {
   quiz: QuizData;
-  onBack: () => void;
+  /** Absent inside a substitute share, where the preview is the whole widget. */
+  onBack?: () => void;
 }
 
 export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
@@ -94,17 +95,19 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
         title="No questions found"
         subtitle="This quiz has no questions to preview."
         action={
-          <button
-            onClick={onBack}
-            className="bg-brand-blue-primary text-white font-bold rounded-xl"
-            style={{
-              padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
-              fontSize: 'min(12px, 3.5cqmin)',
-              marginTop: 'min(12px, 3cqmin)',
-            }}
-          >
-            Go Back
-          </button>
+          onBack ? (
+            <button
+              onClick={onBack}
+              className="bg-brand-blue-primary text-white font-bold rounded-xl"
+              style={{
+                padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
+                fontSize: 'min(12px, 3.5cqmin)',
+                marginTop: 'min(12px, 3cqmin)',
+              }}
+            >
+              Go Back
+            </button>
+          ) : undefined
         }
       />
     );
@@ -117,12 +120,14 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
         className="flex items-center gap-3 border-b border-brand-blue-primary/10"
         style={{ padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)' }}
       >
-        <button
-          onClick={onBack}
-          className="p-1.5 hover:bg-brand-blue-primary/10 rounded-lg transition-colors text-brand-blue-primary"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="p-1.5 hover:bg-brand-blue-primary/10 rounded-lg transition-colors text-brand-blue-primary"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <Eye className="w-3.5 h-3.5 text-brand-blue-primary" />

@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface Props {
   count: number;
@@ -15,6 +16,7 @@ export const WatchScrubber: React.FC<Props> = ({
   progress,
   onSeek,
 }) => {
+  const { t } = useTranslation();
   const dragging = useRef(false);
 
   const seekAt = (el: HTMLElement, clientX: number) => {
@@ -29,11 +31,14 @@ export const WatchScrubber: React.FC<Props> = ({
     <div
       role="slider"
       tabIndex={0}
-      aria-label="Walkthrough position"
+      aria-label={t('glPlayer.position')}
       aria-valuemin={1}
       aria-valuemax={count}
       aria-valuenow={index + 1}
-      aria-valuetext={`Step ${index + 1} of ${count}`}
+      aria-valuetext={t('glPlayer.positionValue', {
+        current: index + 1,
+        total: count,
+      })}
       className="flex-1 flex items-center cursor-pointer touch-none rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
       style={{
         gap: count > 20 ? 1 : 'min(3px, 0.8cqmin)',

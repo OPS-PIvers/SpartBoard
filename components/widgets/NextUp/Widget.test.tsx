@@ -23,6 +23,8 @@ import React from 'react';
 import { act, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextUpWidget } from './Widget';
+import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import { NextUpConfig, WidgetData } from '@/types';
 
 const mockUpdateWidget = vi.fn();
@@ -38,8 +40,21 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'teacher-1' } }),
 }));
 
+const downloadFile = vi.fn();
 vi.mock('@/hooks/useGoogleDrive', () => ({
-  useGoogleDrive: () => ({ driveService: null }),
+  useGoogleDrive: () => ({ driveService: { downloadFile } }),
+}));
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({ showConfirm: vi.fn() }),
+}));
+vi.mock('@/config/firebase', () => ({ db: {} }));
+vi.mock('firebase/firestore', () => ({
+  collection: () => ({}),
+  query: () => ({}),
+  orderBy: () => ({}),
+  limit: () => ({}),
+  deleteDoc: vi.fn(),
+  onSnapshot: () => () => undefined,
 }));
 
 const buildWidget = (config: Partial<NextUpConfig>): WidgetData =>
@@ -117,5 +132,99 @@ describe('NextUpWidget auto-expiry', () => {
     expect(mockUpdateWidget).toHaveBeenCalledWith('nextup-widget', {
       config: expect.objectContaining({ isActive: false }),
     });
+  });
+});
+
+// A sub cannot read the teacher's Drive, so the queue they see is the one the
+// share carried (plan §3.4).
+describe('NextUpWidget inside a sub share', () => {
+  beforeEach(() => {
+    mockUpdateWidget.mockClear();
+    downloadFile.mockClear();
+  });
+
+  function InShare({ children }: { children: React.ReactNode }) {
+    return (
+      <SubShareContentContext.Provider
+        value={{
+          shareId: 'share-1',
+          version: 0,
+          loadKey: noSubShareKey,
+          load: () => Promise.resolve(null),
+        }}
+      >
+        {children}
+      </SubShareContentContext.Provider>
+    );
+  }
+
+  const shared = buildWidget({
+    isActive: true,
+    activeDriveFileId: 'queue-file',
+    createdAt: Date.now(),
+    subShareQueue: [
+      { id: 'q1', name: 'Ada', status: 'active', joinedAt: 1 },
+      { id: 'q2', name: 'Bo', status: 'waiting', joinedAt: 2 },
+    ],
+  });
+
+  it('shows the queue the share carried', () => {
+    const { getByText } = render(
+      <InShare>
+        <NextUpWidget widget={shared} />
+      </InShare>
+    );
+
+    expect(getByText('Ada')).toBeInTheDocument();
+    expect(getByText('Bo')).toBeInTheDocument();
+  });
+
+  it('reads nothing from the teacher’s Drive and writes no config', () => {
+    render(
+      <InShare>
+        <NextUpWidget widget={shared} />
+      </InShare>
+    );
+
+    expect(downloadFile).not.toHaveBeenCalled();
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
+  // Both write to the teacher's Drive queue file, which a sub cannot touch.
+  it('offers neither Next nor Reset', () => {
+    const { queryByText, queryByTitle } = render(
+      <InShare>
+        <NextUpWidget widget={shared} />
+      </InShare>
+    );
+
+    expect(queryByText('NEXT')).not.toBeInTheDocument();
+    expect(queryByTitle('Reset Queue')).not.toBeInTheDocument();
+  });
+
+  it('says so when nobody was in the queue', () => {
+    const { getByText } = render(
+      <InShare>
+        <NextUpWidget widget={buildWidget({ isActive: true })} />
+      </InShare>
+    );
+
+    expect(getByText('No queue')).toBeInTheDocument();
+  });
+
+  it('still runs the teacher’s own session off the share', () => {
+    downloadFile.mockResolvedValue({ text: () => Promise.resolve('[]') });
+    const { getByText } = render(
+      <NextUpWidget
+        widget={buildWidget({
+          isActive: true,
+          activeDriveFileId: 'queue-file',
+          createdAt: Date.now(),
+        })}
+      />
+    );
+
+    expect(getByText('NEXT')).toBeInTheDocument();
+    expect(downloadFile).toHaveBeenCalledWith('queue-file');
   });
 });

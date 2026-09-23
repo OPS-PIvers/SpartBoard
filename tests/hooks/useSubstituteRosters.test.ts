@@ -147,4 +147,82 @@ describe('useSubstituteRosters', () => {
     expect(result.current.status).toBe('error');
     expect(result.current.rosters).toEqual([]);
   });
+
+  // The student names scrubbed out of the board snapshots ride the same
+  // unlock as the class lists (plan §3.4).
+  describe('the names file', () => {
+    function namesBlob(): Pick<Blob, 'text'> {
+      const body = JSON.stringify({
+        version: 1,
+        boards: { b1: { w1: { firstNames: 'Ada' } } },
+      });
+      return { text: () => Promise.resolve(body) };
+    }
+
+    const serve = (names: () => Promise<unknown>) =>
+      downloadFile.mockImplementation((fileId: string) =>
+        fileId === 'names-file' ? names() : Promise.resolve(rosterBlob())
+      );
+
+    it('loads with the class lists when both are already readable', async () => {
+      serve(() => Promise.resolve(namesBlob()));
+      const { result } = renderHook(() =>
+        useSubstituteRosters(SHARED, 'names-file')
+      );
+
+      await waitFor(() => expect(result.current.status).toBe('ready'));
+      expect(result.current.names?.boards.b1.w1).toEqual({
+        firstNames: 'Ada',
+      });
+    });
+
+    it('locks the share until the sub picks both files', async () => {
+      serve(() => Promise.reject(new Error('404')));
+      const { result } = renderHook(() =>
+        useSubstituteRosters(SHARED, 'names-file')
+      );
+      await waitFor(() => expect(result.current.status).toBe('locked'));
+
+      openPicker.mockResolvedValue({ id: 'file-1', name: 'r', mimeType: '' });
+      serve(() => Promise.resolve(namesBlob()));
+      await act(() => result.current.loadRosters());
+
+      expect(openPicker).toHaveBeenCalledWith(
+        expect.objectContaining({ fileIds: ['file-1', 'names-file'] })
+      );
+      expect(result.current.names?.boards.b1.w1).toEqual({
+        firstNames: 'Ada',
+      });
+    });
+
+    // The expiry sweep trashes the file, so a stale id must not cost the sub
+    // the class lists they can still read.
+    it('hands over the class lists when only the names file is gone', async () => {
+      serve(() => Promise.reject(new Error('404')));
+      const { result } = renderHook(() =>
+        useSubstituteRosters(SHARED, 'names-file')
+      );
+      await waitFor(() => expect(result.current.status).toBe('locked'));
+
+      openPicker.mockResolvedValue({ id: 'file-1', name: 'r', mimeType: '' });
+      await act(() => result.current.loadRosters());
+
+      expect(result.current.status).toBe('ready');
+      expect(result.current.rosters).toHaveLength(1);
+      expect(result.current.names).toBeNull();
+    });
+
+    it('unlocks a share that has a names file and no class list', async () => {
+      serve(() => Promise.resolve(namesBlob()));
+      const { result } = renderHook(() =>
+        useSubstituteRosters(undefined, 'names-file')
+      );
+
+      await waitFor(() => expect(result.current.status).toBe('ready'));
+      expect(result.current.rosters).toEqual([]);
+      expect(result.current.names?.boards.b1.w1).toEqual({
+        firstNames: 'Ada',
+      });
+    });
+  });
 });

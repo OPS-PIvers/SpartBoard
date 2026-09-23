@@ -6,6 +6,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useStorage } from '@/hooks/useStorage';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
+import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import * as firestore from 'firebase/firestore';
 import { WidgetData } from '@/types';
 
@@ -357,7 +358,12 @@ describe('PdfWidget', () => {
     function InShare({ children }: { children: React.ReactNode }) {
       return (
         <SubShareContentContext.Provider
-          value={{ shareId: 'share-1', version: 0, load: vi.fn() as never }}
+          value={{
+            shareId: 'share-1',
+            version: 0,
+            load: vi.fn() as never,
+            loadKey: noSubShareKey,
+          }}
         >
           {children}
         </SubShareContentContext.Provider>

@@ -90,7 +90,9 @@ export const useAutosave = ({
   const lastWriteOkRef = useRef(true);
   // What the footer should fall back to when a scheduled write is called off.
   const settledStatusRef = useRef<AutosaveStatus>('idle');
+  const statusRef = useRef(status);
   useLayoutEffect(() => {
+    statusRef.current = status;
     onSaveRef.current = onSave;
     enabledRef.current = enabled;
     draftTokenRef.current = draftToken;
@@ -146,7 +148,10 @@ export const useAutosave = ({
       );
       return undefined;
     }
-    setStatus((current) => (current === 'saving' ? current : 'pending'));
+    // Skipping the no-op update saves a commit per keystroke.
+    if (statusRef.current !== 'pending' && statusRef.current !== 'saving') {
+      setStatus((current) => (current === 'saving' ? current : 'pending'));
+    }
     const timer = window.setTimeout(() => void runSave(), delayMs);
     return () => window.clearTimeout(timer);
     // `draftToken` restarts the quiet period on every edit; `cycle` re-checks

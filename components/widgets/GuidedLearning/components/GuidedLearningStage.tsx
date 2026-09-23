@@ -2,6 +2,7 @@ import React, {
   useState,
   useEffect,
   useEffectEvent,
+  useId,
   useRef,
   useCallback,
 } from 'react';
@@ -104,6 +105,8 @@ export interface GuidedLearningStageRuntimeProps {
   onTargetClick?: (hit: boolean, at: PctPoint) => void;
   /** Each increase shakes the callout once (a Try misclick). */
   misclickCount?: number;
+  /** Player v2: dialogs take focus and hand it back, and the image alt names the step. */
+  accessibleOverlays?: boolean;
 }
 
 export const GuidedLearningStage: React.FC<
@@ -116,6 +119,8 @@ export const GuidedLearningStage: React.FC<
   authorMode: mode,
   teacherMode,
   zoomScale,
+  editingStepId,
+  renderCalloutEditor,
   renderEditLayer,
   onGeometry,
   onPinClick,
@@ -128,6 +133,7 @@ export const GuidedLearningStage: React.FC<
   cursor,
   onTargetClick,
   misclickCount = 0,
+  accessibleOverlays = false,
 }) => {
   // Hotspot pulse style — 'consistent' (default) preserves the legacy ping
   // ring; 'reminder' adds a periodic wiggle on the marker itself; 'off'
@@ -516,17 +522,76 @@ export const GuidedLearningStage: React.FC<
     onTargetClick(hit, at);
   };
 
+  // Popover, question, audio and video overlays are dialogs named by the step.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const dialogTitleId = useId();
+  const dialogTitle = (
+    <span id={dialogTitleId} hidden>
+      {activeStep?.label ?? set.title}
+    </span>
+  );
+  const focusVisibleDialog = useEffectEvent(() => {
+    const el = dialogRef.current;
+    if (!el) return;
+    const first = el.querySelector<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select, textarea, video[controls], [tabindex]:not([tabindex="-1"])'
+    );
+    first?.focus({ preventScroll: true });
+  });
+  useEffect(() => {
+    if (!accessibleOverlays || !activeStepId || cameraMoving) return;
+    focusVisibleDialog();
+  }, [accessibleOverlays, activeStepId, cameraMoving]);
+  // Closing or finishing an overlay hands focus back to the stage, if it was inside.
+  const returnFocus = () => {
+    const root = containerRef.current;
+    const focused = document.activeElement;
+    if (
+      accessibleOverlays &&
+      root &&
+      focused &&
+      focused !== root &&
+      root.contains(focused)
+    ) {
+      root.focus({ preventScroll: true });
+    }
+  };
+  const dismiss = () => {
+    returnFocus();
+    onDismiss();
+  };
+  const advance = () => {
+    returnFocus();
+    onAdvance();
+  };
+
+  // Studio inline editing replaces the active callout's label and text.
+  const calloutEditor =
+    activeStep &&
+    editingStepId === activeStep.id &&
+    renderCalloutEditor &&
+    geometry
+      ? renderCalloutEditor(activeStep, geometry)
+      : undefined;
+
   const renderPopover = (spotlightPx?: number) =>
     activeStep ? (
-      <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-labelledby={dialogTitleId}
+        className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center"
+      >
+        {dialogTitle}
         <div className="pointer-events-auto w-full h-full">
           <TextPopoverInteraction
             step={activeStep}
-            onClose={onDismiss}
+            onClose={dismiss}
             target={calloutTarget(spotlightPx)}
             pinned={pinnedCallout}
             containerWidth={containerSize.w}
             containerHeight={containerSize.h}
+            editor={calloutEditor}
           />
         </div>
       </div>
@@ -542,9 +607,15 @@ export const GuidedLearningStage: React.FC<
 
     if (type === 'audio') {
       return (
-        <div className="absolute inset-0 z-30 pointer-events-none flex items-end justify-center pb-4">
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-labelledby={dialogTitleId}
+          className="absolute inset-0 z-30 pointer-events-none flex items-end justify-center pb-4"
+        >
+          {dialogTitle}
           <div className="pointer-events-auto">
-            <AudioInteraction step={activeStep} autoPlay onEnded={onAdvance} />
+            <AudioInteraction step={activeStep} autoPlay onEnded={advance} />
           </div>
         </div>
       );
@@ -552,11 +623,17 @@ export const GuidedLearningStage: React.FC<
 
     if (type === 'video') {
       return (
-        <div className="absolute inset-0 z-30 pointer-events-auto">
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-labelledby={dialogTitleId}
+          className="absolute inset-0 z-30 pointer-events-auto"
+        >
+          {dialogTitle}
           <VideoInteraction
             step={activeStep}
-            onClose={onDismiss}
-            onEnded={onAdvance}
+            onClose={dismiss}
+            onEnded={advance}
           />
         </div>
       );
@@ -568,13 +645,19 @@ export const GuidedLearningStage: React.FC<
         ? set.steps.find((s) => s.id === activeStep.id)
         : null;
       return (
-        <div className="absolute inset-0 z-30 pointer-events-auto overflow-hidden">
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-labelledby={dialogTitleId}
+          className="absolute inset-0 z-30 pointer-events-auto overflow-hidden"
+        >
+          {dialogTitle}
           <QuestionInteraction
             step={activeStep}
             onAnswer={(answer, isCorrect) =>
               onAnswer?.(activeStep.id, answer, isCorrect)
             }
-            onContinue={onAdvance}
+            onContinue={advance}
             correctAnswer={origStep?.question?.correctAnswer}
             correctMatchingPairs={origStep?.question?.matchingPairs}
             correctSortingItems={origStep?.question?.sortingItems}
@@ -594,6 +677,7 @@ export const GuidedLearningStage: React.FC<
           target={calloutTarget()}
           pinned={pinnedCallout}
           showAnchor={!activeRegion}
+          editor={calloutEditor}
         />
       ) : null;
     }
@@ -615,6 +699,7 @@ export const GuidedLearningStage: React.FC<
               target={target}
               pinned={pinnedCallout}
               showAnchor={!activeRegion}
+              editor={calloutEditor}
             />
           );
         }
@@ -625,7 +710,7 @@ export const GuidedLearningStage: React.FC<
           return (
             <BannerInteraction
               step={activeStep}
-              onClose={onDismiss}
+              onClose={dismiss}
               position={
                 target
                   ? placeBanner(target, {
@@ -634,6 +719,7 @@ export const GuidedLearningStage: React.FC<
                     })
                   : 'top'
               }
+              editor={calloutEditor}
             />
           );
         }
@@ -670,6 +756,11 @@ export const GuidedLearningStage: React.FC<
               containerWidth={containerSize.w}
               containerHeight={containerSize.h}
               region={activeRegion ?? undefined}
+              editor={
+                activeStep.showOverlay && activeStep.showOverlay !== 'none'
+                  ? undefined
+                  : calloutEditor
+              }
             />
             {renderOverlay(spotlightPx)}
           </>
@@ -747,7 +838,11 @@ export const GuidedLearningStage: React.FC<
           <img
             ref={attachImg}
             src={currentImageUrl}
-            alt={set.title}
+            alt={
+              accessibleOverlays && currentStep?.label
+                ? currentStep.label
+                : set.title
+            }
             className="absolute inset-0 w-full h-full object-contain pointer-events-none"
             draggable={false}
             onLoad={measureImg}

@@ -322,12 +322,14 @@ export const WebcamWidget: React.FC<{
               {widgetConfig.isRemoteMode &&
               widgetConfig.remoteCaptureDataUrl ? (
                 <img
+                  data-pii=""
                   src={widgetConfig.remoteCaptureDataUrl}
                   alt="Remote Capture"
                   className="w-full h-full object-cover transition-transform duration-500"
                 />
               ) : (
                 <video
+                  data-pii=""
                   ref={videoRef}
                   autoPlay
                   playsInline
@@ -683,6 +685,7 @@ export const WebcamWidget: React.FC<{
                         className="group/photo relative aspect-video bg-white/10 rounded-xl overflow-hidden border border-white/20"
                       >
                         <img
+                          data-pii=""
                           src={item.dataUrl}
                           alt="Captured"
                           className="w-full h-full object-cover"

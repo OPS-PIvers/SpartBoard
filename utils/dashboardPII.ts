@@ -122,18 +122,29 @@ export function mergeDashboardPII(
 ): Dashboard {
   return {
     ...dashboard,
-    widgets: dashboard.widgets.map((widget) => {
-      const piiFields = supplement[widget.id];
-      if (!piiFields || Object.keys(piiFields).length === 0) return widget;
-      return {
-        ...widget,
-        config: {
-          ...(widget.config as Record<string, unknown>),
-          ...piiFields,
-        } as WidgetConfig,
-      };
-    }),
+    widgets: mergeWidgetsPII(dashboard.widgets, supplement),
   };
+}
+
+/** A per-widget set of config fields to lay back over a board. */
+export type WidgetConfigOverlay = Record<string, Record<string, unknown>>;
+
+/** Widget-level merge, for callers holding widgets without a whole dashboard. */
+export function mergeWidgetsPII(
+  widgets: WidgetData[],
+  supplement: DashboardPiiSupplement | WidgetConfigOverlay
+): WidgetData[] {
+  return widgets.map((widget) => {
+    const piiFields = supplement[widget.id];
+    if (!piiFields || Object.keys(piiFields).length === 0) return widget;
+    return {
+      ...widget,
+      config: {
+        ...(widget.config as Record<string, unknown>),
+        ...piiFields,
+      } as WidgetConfig,
+    };
+  });
 }
 
 /**

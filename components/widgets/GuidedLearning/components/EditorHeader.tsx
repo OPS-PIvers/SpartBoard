@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Sparkles, X } from 'lucide-react';
+import { AlertCircle, Sparkles, X } from 'lucide-react';
 import { AutosaveIndicator } from '@/components/common/EditorModalShell';
 import type { AutosaveStatus } from '@/hooks/useAutosave';
 
@@ -9,6 +9,8 @@ interface EditorHeaderProps {
   onTitleChange: (next: string) => void;
   titlePlaceholder: string;
   subtitle?: React.ReactNode;
+  /** What still has to be filled in; replaces the subtitle while set. */
+  notice?: string | null;
   autosaveStatus: AutosaveStatus;
   onRetrySave: () => void;
   /** Shown only when AI drafting is available (admin + gemini-functions). */
@@ -25,6 +27,7 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
   onTitleChange,
   titlePlaceholder,
   subtitle,
+  notice,
   autosaveStatus,
   onRetrySave,
   onDraftWithAi,
@@ -44,10 +47,20 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
           aria-label={t('glStudio.titleLabel')}
           className="w-full truncate border-0 bg-transparent p-0 text-lg font-black text-slate-800 placeholder:font-bold placeholder:text-slate-400 focus:outline-none focus:ring-0"
         />
-        {subtitle && (
-          <div className="truncate text-xs font-medium text-slate-500">
-            {subtitle}
+        {notice ? (
+          <div
+            role="status"
+            className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-amber-800"
+          >
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">{notice}</span>
           </div>
+        ) : (
+          subtitle && (
+            <div className="truncate text-xs font-medium text-slate-500">
+              {subtitle}
+            </div>
+          )
         )}
       </div>
       <AutosaveIndicator status={autosaveStatus} onRetry={onRetrySave} />

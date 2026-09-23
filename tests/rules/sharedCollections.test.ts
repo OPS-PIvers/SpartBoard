@@ -8,8 +8,8 @@
 //   - collection.name must be a non-empty string
 //   - intendedMode must be 'copy' or 'substitute'
 //   - Substitute shares take only the sub-shares manager's keys on update
-//     (re-push, extend, retarget, end now), and who may read them is
-//     unchanged by an update
+//     (re-push, extend, retarget, end now, stamp the names file), and who may
+//     read them is unchanged by an update
 //   - Copy shares are host-or-admin updatable
 //   - Delete: host or admin only
 //   - /boards/{boardId} and /content/{contentId} subcollections: read mirrors
@@ -565,6 +565,18 @@ describe('shared_collections — update, substitute manager writes', () => {
     await assertSucceeds(
       updateDoc(doc(asHost(), sharePath), {
         expiresAt: NOW_MS - 1,
+        updatedAt: NOW_MS,
+      })
+    );
+  });
+
+  // The names file id first appears on a re-push, when the teacher has typed
+  // names into a widget since the share was made (plan §3.4).
+  it('host can stamp the names file on a re-push', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), sharePath), {
+        namesFileId: 'names-file-1',
+        contentVersion: 2,
         updatedAt: NOW_MS,
       })
     );

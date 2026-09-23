@@ -45,6 +45,8 @@ import {
 import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import { runPublishGradePush } from '@/utils/publishGradePush';
 import { useDashboard } from '@/context/useDashboard';
+import { useInSubShare } from '@/hooks/useShareContent';
+import { SubShareVideoActivityWidget } from './SubShareWidget';
 import { useAuth } from '@/context/useAuth';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivitySessionTeacher } from '@/hooks/useVideoActivitySession';
@@ -100,7 +102,7 @@ async function copyUrlToClipboard(
   }
 }
 
-export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
+const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, addToast, rosters } = useDashboard();
@@ -772,6 +774,8 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           updateWidget(widget.id, {
             config: {
               ...config,
+              selectedActivityId: meta.id,
+              selectedActivityTitle: meta.title,
               resultsSessionId: sessionId,
               lastRosterIdsByActivityId: nextMap,
             } as VideoActivityConfig,
@@ -1233,3 +1237,17 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     </>
   );
 };
+
+/**
+ * A substitute gets a read-only copy from the share, never the teacher's
+ * library: splitting here rather than branching inside keeps the Drive,
+ * assignment and live-session listeners from mounting for them at all.
+ */
+export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) =>
+  useInSubShare() ? (
+    <SubShareVideoActivityWidget widget={widget} />
+  ) : (
+    <TeacherVideoActivityWidget widget={widget} />
+  );

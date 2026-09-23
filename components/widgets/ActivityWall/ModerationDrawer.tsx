@@ -251,7 +251,7 @@ export const ModerationDrawer: React.FC<ModerationDrawerProps> = ({
         {pending.length === 0 ? (
           <p className="text-sm text-slate-500">Nothing waiting for review.</p>
         ) : (
-          <ul className="space-y-2">
+          <ul data-pii="" className="space-y-2">
             {pending.map((submission) => (
               <SubmissionRow
                 key={submission.id}
@@ -290,7 +290,7 @@ export const ModerationDrawer: React.FC<ModerationDrawerProps> = ({
         {approved.length === 0 ? (
           <p className="text-sm text-slate-500">No approved posts yet.</p>
         ) : (
-          <ul className="space-y-2">
+          <ul data-pii="" className="space-y-2">
             {approved.map((submission) => (
               <SubmissionRow
                 key={submission.id}

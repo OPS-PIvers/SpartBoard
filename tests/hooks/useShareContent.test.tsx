@@ -2,7 +2,12 @@ import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
-import { useInSubShare, useShareContent } from '@/hooks/useShareContent';
+import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
+import {
+  useInSubShare,
+  useShareContent,
+  useShareKey,
+} from '@/hooks/useShareContent';
 
 const wrapWith = (
   load: (kind: string, itemId: string) => Promise<unknown>,
@@ -11,7 +16,12 @@ const wrapWith = (
   function InShare({ children }: { children: React.ReactNode }) {
     return (
       <SubShareContentContext.Provider
-        value={{ shareId: 'share-1', version, load: load as never }}
+        value={{
+          shareId: 'share-1',
+          version,
+          load: load as never,
+          loadKey: noSubShareKey,
+        }}
       >
         {children}
       </SubShareContentContext.Provider>
@@ -81,7 +91,12 @@ describe('useShareContent', () => {
     function InShare({ children }: { children: React.ReactNode }) {
       return (
         <SubShareContentContext.Provider
-          value={{ shareId: 'share-1', version, load: load as never }}
+          value={{
+            shareId: 'share-1',
+            version,
+            load: load as never,
+            loadKey: noSubShareKey,
+          }}
         >
           {children}
         </SubShareContentContext.Provider>
@@ -128,5 +143,93 @@ describe('useInSubShare', () => {
       wrapper: wrapWith(vi.fn()),
     });
     expect(result.current).toBe(true);
+  });
+});
+
+describe('useShareKey', () => {
+  const wrapWithKey = (
+    loadKey: (kind: string, itemId: string) => Promise<unknown>
+  ) => {
+    function InShare({ children }: { children: React.ReactNode }) {
+      return (
+        <SubShareContentContext.Provider
+          value={{
+            shareId: 'share-1',
+            version: 0,
+            load: (() => Promise.resolve(null)) as never,
+            loadKey: loadKey as never,
+          }}
+        >
+          {children}
+        </SubShareContentContext.Provider>
+      );
+    }
+    return InShare;
+  };
+
+  it('is off outside a share', () => {
+    const { result } = renderHook(() => useShareKey('quiz', 'q-1'));
+    expect(result.current).toEqual({ status: 'off', payload: null });
+  });
+
+  it('loads the bundled key for the item asked for', async () => {
+    const loadKey = vi
+      .fn()
+      .mockResolvedValue({ payload: { quiz: { id: 'q-1' } }, denied: false });
+    const { result } = renderHook(() => useShareKey('quiz', 'q-1'), {
+      wrapper: wrapWithKey(loadKey),
+    });
+
+    expect(result.current.status).toBe('loading');
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(result.current.payload).toEqual({ quiz: { id: 'q-1' } });
+    expect(loadKey).toHaveBeenCalledWith('quiz', 'q-1');
+  });
+
+  // A viewer holding the link who is not a named sub reads content/ but not
+  // keys/, and saying "missing" would blame the teacher for their own rules.
+  it('reports denied when the share does not name this reader', async () => {
+    const { result } = renderHook(() => useShareKey('quiz', 'q-1'), {
+      wrapper: wrapWithKey(
+        vi.fn().mockResolvedValue({ payload: null, denied: true })
+      ),
+    });
+
+    await waitFor(() => expect(result.current.status).toBe('denied'));
+    expect(result.current.payload).toBeNull();
+  });
+
+  it('reports missing when no key was bundled for the item', async () => {
+    const { result } = renderHook(() => useShareKey('quiz', 'q-1'), {
+      wrapper: wrapWithKey(
+        vi.fn().mockResolvedValue({ payload: null, denied: false })
+      ),
+    });
+
+    await waitFor(() => expect(result.current.status).toBe('missing'));
+  });
+
+  it('goes back to loading when the item changes', async () => {
+    const loadKey = vi
+      .fn()
+      .mockResolvedValueOnce({
+        payload: { quiz: { id: 'one' } },
+        denied: false,
+      })
+      .mockResolvedValueOnce({
+        payload: { quiz: { id: 'two' } },
+        denied: false,
+      });
+    const { result, rerender } = renderHook(
+      ({ id }: { id: string }) => useShareKey('quiz', id),
+      { wrapper: wrapWithKey(loadKey), initialProps: { id: 'q-1' } }
+    );
+
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    rerender({ id: 'q-2' });
+    expect(result.current.status).toBe('loading');
+    await waitFor(() =>
+      expect(result.current.payload).toEqual({ quiz: { id: 'two' } })
+    );
   });
 });
