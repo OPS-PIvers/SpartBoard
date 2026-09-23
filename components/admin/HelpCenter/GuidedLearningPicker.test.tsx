@@ -99,7 +99,6 @@ const renderPicker = (
   render(
     <GuidedLearningPicker
       selectedSetId={null}
-      helpCenterSetIds={new Set()}
       newTitle=""
       onSelect={onSelect}
       onError={vi.fn()}
@@ -116,14 +115,14 @@ describe('GuidedLearningPicker', () => {
     glState.loadSetData.mockReset();
   });
 
-  it('separates Help Center activities from the building library', () => {
-    renderPicker({ helpCenterSetIds: new Set(['b-1']) });
+  it('separates flagged Help Center activities from the building library', () => {
+    renderPicker({ selectedSetId: 'b-1' });
     const help = screen.getByText('Help Center').closest('section');
+    const library = screen.getByText('Building library').closest('section');
     expect(within(help as HTMLElement).getByText('Help Guide')).toBeTruthy();
     expect(
-      within(help as HTMLElement).getByText('Building Lesson')
+      within(library as HTMLElement).getByText('Building Lesson')
     ).toBeTruthy();
-    expect(screen.getByText('No building activities.')).toBeTruthy();
   });
 
   it('gives the Help Center its own flagged copy of a personal activity', async () => {
@@ -165,6 +164,17 @@ describe('GuidedLearningPicker', () => {
     fireEvent.click(screen.getByText('studio close'));
     expect(screen.queryByTestId('studio')).toBeNull();
     expect(onEditingChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('edits a linked building library activity without moving it to Help', async () => {
+    renderPicker({ selectedSetId: 'b-1' });
+
+    fireEvent.click(screen.getByText('Edit activity'));
+    await screen.findByTestId('studio');
+    fireEvent.click(screen.getByText('studio save'));
+
+    await waitFor(() => expect(glState.saveBuildingSet).toHaveBeenCalled());
+    expect(glState.saveBuildingSet.mock.calls[0][0].helpCenter).toBeUndefined();
   });
 
   it('opens the selected activity for editing', async () => {

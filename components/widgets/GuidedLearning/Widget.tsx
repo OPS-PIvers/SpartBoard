@@ -28,8 +28,6 @@ import { SubShareGuidedLearningWidget } from './SubShareWidget';
 import { useDialog } from '@/context/useDialog';
 import { useAuth } from '@/context/useAuth';
 import { useGuidedLearning } from '@/hooks/useGuidedLearning';
-import { useSharedHelpItems } from '@/hooks/useHelpResources';
-import { helpCenterSetIdsOf } from './utils/helpCenterSets';
 import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useFolders } from '@/hooks/useFolders';
@@ -206,11 +204,6 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     deleteBuildingSet,
     duplicateBuildingSet,
   } = useGuidedLearning(user?.uid);
-  const helpItems = useSharedHelpItems();
-  const helpCenterSetIds = useMemo(
-    () => helpCenterSetIdsOf(helpItems),
-    [helpItems]
-  );
 
   const { createSession } = useGuidedLearningSessionTeacher(user?.uid);
 
@@ -1172,7 +1165,6 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   userId={user?.uid}
                   sets={sets}
                   buildingSets={buildingSets}
-                  helpCenterSetIds={helpCenterSetIds}
                   assignments={assignments}
                   loading={loading}
                   buildingLoading={buildingLoading}

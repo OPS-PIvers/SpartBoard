@@ -6,6 +6,7 @@ import {
   fireEvent,
   cleanup,
   waitFor,
+  within,
 } from '@testing-library/react';
 import type { HelpResourceItem } from '@/types/helpCenter';
 
@@ -86,13 +87,21 @@ vi.mock('@/hooks/useOrganization', () => ({
   useOrganization: () => ({ organization: null }),
 }));
 
+const glState = vi.hoisted(() => ({
+  buildingSets: [] as { id: string; title: string; helpCenter?: boolean }[],
+  markHelpCenterSets: vi.fn<(ids: readonly string[]) => Promise<void>>(() =>
+    Promise.resolve()
+  ),
+}));
+
 vi.mock('@/hooks/useGuidedLearning', () => ({
   useGuidedLearning: () => ({
     sets: [],
-    buildingSets: [],
+    buildingSets: glState.buildingSets,
     loadSetData: vi.fn(),
     saveBuildingSet: vi.fn(),
   }),
+  markHelpCenterSets: glState.markHelpCenterSets,
 }));
 
 vi.mock('@/components/common/SortableList', () => ({
@@ -213,6 +222,7 @@ describe('HelpCenterManager', () => {
       { id: 'getting-started', name: 'Getting started', order: 0 },
     ];
     helpState.error = null;
+    glState.buildingSets = [];
     asSuperAdmin();
   });
 
@@ -442,5 +452,71 @@ describe('HelpCenterManager', () => {
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByText('Getting started')).toBeInTheDocument();
+  });
+
+  it('lists linked activities still in the library and moves one to Help only', async () => {
+    helpState.items = [
+      makeItem({
+        id: 'gl1',
+        kind: 'guided-learning',
+        title: 'Rosters guide',
+        url: null,
+        embedType: null,
+        setId: 'set-linked',
+      }),
+      makeItem({
+        id: 'gl2',
+        kind: 'guided-learning',
+        title: 'Paste guide',
+        url: null,
+        embedType: null,
+        setId: 'set-flagged',
+      }),
+    ];
+    glState.buildingSets = [
+      { id: 'set-linked', title: 'Class Rosters' },
+      { id: 'set-flagged', title: 'Smart Paste', helpCenter: true },
+      { id: 'set-unlinked', title: 'Fractions Lesson' },
+    ];
+    render(<HelpCenterManager />);
+
+    const notice = screen.getByRole('region', {
+      name: 'Linked activities in the Guided Learning library',
+    });
+    expect(within(notice).getByText('Class Rosters')).toBeInTheDocument();
+    expect(within(notice).queryByText('Smart Paste')).not.toBeInTheDocument();
+    expect(
+      within(notice).queryByText('Fractions Lesson')
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      within(notice).getByRole('button', {
+        name: 'Move Class Rosters to Help only',
+      })
+    );
+    await waitFor(() =>
+      expect(glState.markHelpCenterSets).toHaveBeenCalledWith(['set-linked'])
+    );
+  });
+
+  it('shows no library notice when every linked activity is Help only', () => {
+    helpState.items = [
+      makeItem({
+        id: 'gl2',
+        kind: 'guided-learning',
+        url: null,
+        embedType: null,
+        setId: 'set-flagged',
+      }),
+    ];
+    glState.buildingSets = [
+      { id: 'set-flagged', title: 'Smart Paste', helpCenter: true },
+    ];
+    render(<HelpCenterManager />);
+    expect(
+      screen.queryByRole('region', {
+        name: 'Linked activities in the Guided Learning library',
+      })
+    ).not.toBeInTheDocument();
   });
 });

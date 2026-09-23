@@ -38,6 +38,7 @@ import { logError } from '@/utils/logError';
 import { isSuperAdminActor } from '@/utils/superAdmin';
 import { HelpCategoryEditor } from './HelpCategoryEditor';
 import { HelpItemForm } from './HelpItemForm';
+import { LinkedLibrarySets } from './LinkedLibrarySets';
 import { helpCenterSetIdsOf } from '@/components/widgets/GuidedLearning/utils/helpCenterSets';
 import {
   buildHelpItemCreatePayload,
@@ -460,6 +461,10 @@ export const HelpCenterManager: React.FC = () => {
         </div>
       )}
 
+      {!loading && (
+        <LinkedLibrarySets linkedSetIds={helpCenterSetIds} onError={setError} />
+      )}
+
       <section className="border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-3">
         <button
           type="button"
@@ -494,7 +499,6 @@ export const HelpCenterManager: React.FC = () => {
           isOpen={formOpen}
           editing={editing}
           categories={orderedCategories}
-          helpCenterSetIds={helpCenterSetIds}
           onClose={() => {
             setFormOpen(false);
             setEditing(null);

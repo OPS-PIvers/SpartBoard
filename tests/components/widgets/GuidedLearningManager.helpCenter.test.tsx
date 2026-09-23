@@ -54,7 +54,7 @@ const building = (
 const buildingSets = [
   building('b-1', 'Building Lesson'),
   building('h-1', 'Flagged Help Guide', { helpCenter: true }),
-  building('h-2', 'Linked Help Guide'),
+  building('h-2', 'Second Help Guide', { helpCenter: true }),
 ];
 
 const renderManager = (isAdmin: boolean) =>
@@ -63,7 +63,6 @@ const renderManager = (isAdmin: boolean) =>
       userId="teacher-1"
       sets={[personalSet]}
       buildingSets={buildingSets}
-      helpCenterSetIds={new Set(['h-2'])}
       assignments={[]}
       loading={false}
       buildingLoading={false}
@@ -90,13 +89,13 @@ const renderManager = (isAdmin: boolean) =>
   );
 
 describe('GuidedLearningManager — Help Center activities', () => {
-  it('hides flagged and linked Help Center sets from the library and its counts', async () => {
+  it('hides Help Center sets from the library and its counts', async () => {
     renderManager(false);
 
     await screen.findByText('Personal Set');
     expect(screen.getByText('Building Lesson')).toBeInTheDocument();
     expect(screen.queryByText('Flagged Help Guide')).not.toBeInTheDocument();
-    expect(screen.queryByText('Linked Help Guide')).not.toBeInTheDocument();
+    expect(screen.queryByText('Second Help Guide')).not.toBeInTheDocument();
 
     const allItemsRow = screen.getByText('All items').closest('button');
     expect(
@@ -114,7 +113,7 @@ describe('GuidedLearningManager — Help Center activities', () => {
     });
 
     expect(await screen.findByText('Flagged Help Guide')).toBeInTheDocument();
-    expect(screen.getByText('Linked Help Guide')).toBeInTheDocument();
+    expect(screen.getByText('Second Help Guide')).toBeInTheDocument();
     expect(screen.queryByText('Building Lesson')).not.toBeInTheDocument();
     expect(screen.queryByText('Personal Set')).not.toBeInTheDocument();
     expect(screen.getAllByText('Help Center').length).toBeGreaterThan(0);

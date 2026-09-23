@@ -135,8 +135,6 @@ export interface GuidedLearningManagerProps {
   sets: GuidedLearningSetMetadata[];
   /** Admin-authored building sets (Firestore-backed). */
   buildingSets: GuidedLearningSet[];
-  /** Building sets the Help Center references; see `isHelpCenterSet`. */
-  helpCenterSetIds?: ReadonlySet<string>;
   /** Teacher's per-assignment archive. */
   assignments: GuidedLearningAssignment[];
 
@@ -321,8 +319,6 @@ const LIBRARY_FILTER_PREDICATES = {
 
 const LIBRARY_GET_ID = (e: LibraryEntry): string => e.id;
 
-const NO_HELP_CENTER_SETS: ReadonlySet<string> = new Set();
-
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 
 // Non-admins still see building sets (they're shared with the whole
@@ -330,8 +326,7 @@ const NO_HELP_CENTER_SETS: ReadonlySet<string> = new Set();
 // affordance is admin-gated (handled at the component level).
 const buildLibraryEntries = (
   sets: GuidedLearningSetMetadata[],
-  buildingSets: GuidedLearningSet[],
-  helpCenterSetIds: ReadonlySet<string>
+  buildingSets: GuidedLearningSet[]
 ): LibraryEntry[] => {
   const personal: LibraryEntry[] = sets.map((meta) => ({
     id: `personal:${meta.id}`,
@@ -359,7 +354,7 @@ const buildLibraryEntries = (
     updatedAt: set.updatedAt,
     createdAt: set.createdAt,
     buildingSet: set,
-    helpCenter: isHelpCenterSet(set, helpCenterSetIds),
+    helpCenter: isHelpCenterSet(set),
   }));
 
   return [...personal, ...building];
@@ -400,7 +395,6 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   userId,
   sets,
   buildingSets,
-  helpCenterSetIds = NO_HELP_CENTER_SETS,
   assignments,
   loading,
   buildingLoading,
@@ -495,7 +489,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   // Building sets have no folderId; fold them into the root bucket so "All items" counts them.
   const libraryBuildingCount = buildingSets.filter(
-    (set) => !isHelpCenterSet(set, helpCenterSetIds)
+    (set) => !isHelpCenterSet(set)
   ).length;
   const folderItemCounts = useMemo(() => {
     const counts = countItemsByFolder(sets);
@@ -509,10 +503,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const allEntries = useMemo(
     () =>
       filterSourcedEntriesByFolder(
-        buildLibraryEntries(sets, buildingSets, helpCenterSetIds),
+        buildLibraryEntries(sets, buildingSets),
         selectedFolderId
       ),
-    [sets, buildingSets, helpCenterSetIds, selectedFolderId]
+    [sets, buildingSets, selectedFolderId]
   );
 
   // ─── Toolbar state (search/sort/filter) via useLibraryView ────────────────

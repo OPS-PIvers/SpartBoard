@@ -24,7 +24,6 @@ interface HelpItemFormProps {
   isOpen: boolean;
   editing: HelpResourceItem | null;
   categories: HelpCategory[];
-  helpCenterSetIds: ReadonlySet<string>;
   onClose: () => void;
   onSave: (draft: HelpItemDraft) => Promise<void>;
 }
@@ -57,7 +56,6 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
   isOpen,
   editing,
   categories,
-  helpCenterSetIds,
   onClose,
   onSave,
 }) => {
@@ -224,7 +222,6 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
         ) : (
           <GuidedLearningPicker
             selectedSetId={draft.setId}
-            helpCenterSetIds={helpCenterSetIds}
             newTitle={draft.title}
             onSelect={(setId, title) =>
               setDraft((prev) => ({

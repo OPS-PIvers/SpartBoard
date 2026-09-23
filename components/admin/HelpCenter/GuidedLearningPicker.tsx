@@ -19,8 +19,6 @@ const GuidedLearningEditorModal = lazy(() =>
 
 interface GuidedLearningPickerProps {
   selectedSetId: string | null;
-  /** Building sets the Help Center already references. */
-  helpCenterSetIds: ReadonlySet<string>;
   /** Title for a new activity, taken from the help item. */
   newTitle: string;
   onSelect: (setId: string, title: string) => void;
@@ -51,7 +49,6 @@ const SetList: React.FC<{
 
 export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
   selectedSetId,
-  helpCenterSetIds,
   newTitle,
   onSelect,
   onError,
@@ -68,12 +65,8 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
 
   const selected = buildingSets.find((set) => set.id === selectedSetId);
   const visible = buildingSets.filter((set) => matches(set.title, search));
-  const helpCenter = visible.filter((set) =>
-    isHelpCenterSet(set, helpCenterSetIds)
-  );
-  const building = visible.filter(
-    (set) => !isHelpCenterSet(set, helpCenterSetIds)
-  );
+  const helpCenter = visible.filter(isHelpCenterSet);
+  const building = visible.filter((set) => !isHelpCenterSet(set));
   const personal = sets.filter((set) => matches(set.title, search));
 
   const openEditor = (set: GuidedLearningSet) => {
@@ -170,9 +163,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
           {selected && (
             <button
               type="button"
-              onClick={() =>
-                openEditor({ ...selected, isBuilding: true, helpCenter: true })
-              }
+              onClick={() => openEditor({ ...selected, isBuilding: true })}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 hover:bg-slate-100"
             >
               <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
@@ -242,7 +233,8 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
       <p className="text-xs text-slate-500">
         Help Center activities don&apos;t appear in teachers&apos; Guided
         Learning libraries. Picking one from your library gives the Help Center
-        its own copy, so later edits happen here, not in your library.
+        its own copy, so later edits happen here, not in your library. A
+        building library activity stays in the building library.
       </p>
 
       {editing && (
