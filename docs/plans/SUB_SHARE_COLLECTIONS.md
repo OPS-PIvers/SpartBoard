@@ -258,6 +258,25 @@ modeled on `createTeammatePaperBatchV1` (`functions/src/createTeammatePaperBatch
    factored out of `setAssignmentTargetsV1` into an internal function the new callable calls
    with the host's uid.
 
+**Amended 2026-09-23 while implementing:** step 3's "moved to a module both client and
+functions import" is not available — `functions/tsconfig.json` sets `rootDir: src`, so nothing
+under `functions/` can import a root module, and this repo's convention for shared logic is a
+documented server mirror (`functions/src/paperBatchPlan.ts` and a dozen others). Mirroring the
+quiz session builder means mirroring ~400 lines of client logic across translations, read-aloud,
+stimuli, bank slots and the session size budget, which would drift silently and lose features for
+a sub-launched run. So the callable takes the session and assignment its caller's client built
+and **checks them against the bundled `keys/` copy** instead: same quiz, same question ids and
+wording, no answer-bearing field at any depth, none of the fields the server owns
+(`teacherUid`, the ids, the monitor stamp, `plcId`/`syncGroupId`, `rosterIds`,
+`individualTargeting`), and a size cap. Ownership, the ids and the monitor stamp are written
+server-side and cannot be supplied. The trust boundary is the payload check rather than
+re-derivation, and every feature a teacher's own assign gets, a sub's launch gets too.
+
+**Also reduced for v1:** targeting is class-wide (`classIds`), so step 4's per-student pointer
+fan-out is not factored out of `setAssignmentTargetsV1` yet. A sub picks the class in front of
+them, which is the case the plan describes; roster- and group-targeted launches wait for a later
+slice.
+
 Monitoring: one rules helper, `isSubMonitor(session)` =
 `request.auth.uid in session.subMonitorUids && request.time.toMillis() < session.subMonitorUntil`,
 added to the four session/response read rules. Pause/end go through
