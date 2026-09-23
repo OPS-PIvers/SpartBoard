@@ -11,13 +11,15 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet } from '@/types';
 import { mockStageLayout } from '@/tests/utils/mockStageLayout';
+import { TOUR_START_EVENT } from '@/components/tours/tourState';
 import { GuidedLearningStudio } from './GuidedLearningStudio';
 
+const features = vi.hoisted(() => new Set<string>());
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'test-user' },
     isAdmin: true,
-    canAccessFeature: () => false,
+    canAccessFeature: (id: string) => features.has(id),
   }),
 }));
 
@@ -98,6 +100,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  features.clear();
   restore?.();
   restore = null;
   vi.useRealTimers();
@@ -357,5 +360,50 @@ describe('GuidedLearningStudio', () => {
     expect(
       within(timeline).getByRole('button', { name: 'Step 1' })
     ).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  describe('Run live on my board', () => {
+    const tourSet = (isBuilding = true): GuidedLearningSet => {
+      const base = buildSet();
+      return {
+        ...base,
+        isBuilding,
+        steps: base.steps.map((step) => ({
+          ...step,
+          tour: { anchor: 'sidebar.boards', action: 'click' as const },
+        })),
+      };
+    };
+
+    it('is offered only for a building set with live steps, behind the live tours flag', () => {
+      renderStudio({ set: tourSet() });
+      expect(screen.queryByRole('button', { name: /Run live/ })).toBeNull();
+      cleanup();
+      features.add('gl-live-tours');
+      renderStudio({ set: tourSet(false) });
+      expect(screen.queryByRole('button', { name: /Run live/ })).toBeNull();
+      cleanup();
+      renderStudio({ set: buildSet() });
+      expect(screen.queryByRole('button', { name: /Run live/ })).toBeNull();
+    });
+
+    it('closes the Studio and starts the saved tour on the board', async () => {
+      features.add('gl-live-tours');
+      const started = vi.fn();
+      const onStart = (e: Event) => {
+        started((e as CustomEvent<unknown>).detail);
+      };
+      window.addEventListener(TOUR_START_EVENT, onStart);
+      try {
+        const { onClose } = renderStudio({ set: tourSet() });
+        fireEvent.click(
+          screen.getByRole('button', { name: 'Run live on my board' })
+        );
+        await waitFor(() => expect(onClose).toHaveBeenCalled());
+        expect(started).toHaveBeenCalledWith({ setId: 'set-1' });
+      } finally {
+        window.removeEventListener(TOUR_START_EVENT, onStart);
+      }
+    });
   });
 });

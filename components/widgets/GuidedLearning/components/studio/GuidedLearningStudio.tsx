@@ -7,7 +7,13 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Folder as FolderIcon, Inbox, PanelRight, Play } from 'lucide-react';
+import {
+  Folder as FolderIcon,
+  Footprints,
+  Inbox,
+  PanelRight,
+  Play,
+} from 'lucide-react';
 import type {
   GuidedLearningSet,
   GuidedLearningSetMetadata,
@@ -18,6 +24,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { useAutosave } from '@/hooks/useAutosave';
+import { requestStartTour } from '@/components/tours/tourState';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { EditorHeader } from '../EditorHeader';
 import { GuidedLearningAIGenerator } from '../GuidedLearningAIGenerator';
@@ -114,6 +121,16 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
     if (await flushOrConfirm()) closeEditor();
   }, [flushOrConfirm, closeEditor]);
 
+  // The runner loads the saved set, so an unsaved draft never starts.
+  const runLive = useCallback(async () => {
+    if (!(await autosave.flush())) {
+      addToast?.(t('glStudio.runLiveFailed'), 'error');
+      return;
+    }
+    closeEditor();
+    requestStartTour({ setId: set.id });
+  }, [autosave, addToast, t, closeEditor, set.id]);
+
   // The draft travels to the classic editor, which keeps saving it, so nothing to confirm.
   const openClassic = useCallback(async () => {
     if (!onOpenClassic) return;
@@ -135,6 +152,10 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
     undo,
     redo,
   } = editorState;
+  const canRunLive =
+    !!set.isBuilding &&
+    canAccessFeature('gl-live-tours') &&
+    steps.some((step) => step.tour);
 
   const selectStepAt = useCallback(
     (index: number) => {
@@ -311,6 +332,17 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
               >
                 <Play className="h-4 w-4" aria-hidden="true" />
                 {t('glStudio.playFromHere')}
+              </button>
+            )}
+            {canRunLive && !playing && (
+              <button
+                type="button"
+                onClick={() => void runLive()}
+                title={t('glStudio.runLiveHint')}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:border-slate-400"
+              >
+                <Footprints className="h-4 w-4" aria-hidden="true" />
+                {t('glStudio.runLive')}
               </button>
             )}
             <DevicePresetPicker preset={preset} onChange={choosePreset} />
