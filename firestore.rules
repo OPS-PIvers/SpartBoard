@@ -4550,17 +4550,31 @@ service cloud.firestore {
       allow update: if request.auth != null &&
         notAnon() &&
         resource.data.teacherUid == request.auth.uid &&
-        changedOnly(['assignmentName', 'status', 'endedAt']) &&
+        changedOnly(['assignmentName', 'status', 'endedAt', 'periodAccess', 'studentAccess']) &&
         request.resource.data.status in ['active', 'ended'];
       allow delete: if false;
 
       // MiniApp student submissions (replaces the legacy Sheets pipeline). Doc id
       // is an opaque per-assignment pseudonym (studentRole) or the anonymous auth
       // uid (legacy shared-link). Payload is deliberately opaque — no PII.
+      function maSessionData() {
+        return get(/databases/$(database)/documents/mini_app_sessions/$(sessionId)).data;
+      }
+      function maOpen() {
+        return seatOpen('mini_app_sessions', sessionId, maSessionData());
+      }
+      // Per-period sessions keep their app here until the period opens.
+      match /content/{docId} {
+        allow read: if request.auth != null && (isAdmin() ||
+          maSessionData().teacherUid == request.auth.uid || maOpen());
+        allow write: if contentWriteOk('mini_app_sessions', sessionId);
+      }
+      match /seats/{uid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if seatPeriodOk(maSessionData(), uid);
+      }
+
       match /submissions/{submissionId} {
-        function maSessionData() {
-          return get(/databases/$(database)/documents/mini_app_sessions/$(sessionId)).data;
-        }
         function maSessionClassIds() {
           return maSessionData().get('classIds', []);
         }
@@ -4586,7 +4600,7 @@ service cloud.firestore {
         // (submissionsEnabled, payload <=50 keys) and completion marker (exactly
         // {completed: true}) for the /my-assignments badge.
         allow create, update: if request.auth != null &&
-          maSessionData().status == 'active' &&
+          maSessionData().status == 'active' && maOpen() &&
           passesStudentClassGateList(maSessionClassIds()) &&
           (isStudentRoleUser() || submissionId == request.auth.uid) &&
           request.resource.data.studentUid == request.auth.uid &&
@@ -5355,7 +5369,7 @@ service cloud.firestore {
                     && request.resource.data.status == 'active'
                     && request.resource.data.classIds is list
                     && request.resource.data.cards is list
-                    && request.resource.data.cards.size() > 0
+                    && (request.resource.data.cards.size() > 0 || request.resource.data.get('cardsInContent', false) == true)
                     && request.resource.data.cards.size() <= 500;
       allow update: if fcTeacherSignedIn()
                     && resource.data.teacherUid == request.auth.uid
@@ -5365,13 +5379,27 @@ service cloud.firestore {
                     && request.resource.data.status in ['active', 'ended'];
       allow delete: if fcTeacherSignedIn() && resource.data.teacherUid == request.auth.uid;
 
+      function fcSession() {
+        return get(/databases/$(database)/documents/flashcard_sessions/$(sessionId)).data;
+      }
+      function fcIsSessionTeacher() {
+        return request.auth != null && fcSession().teacherUid == request.auth.uid;
+      }
+      function fcOpen() {
+        return seatOpen('flashcard_sessions', sessionId, fcSession());
+      }
+      // Per-period sessions keep their cards here until the period opens.
+      match /content/{docId} {
+        allow read: if request.auth != null &&
+          (fcIsSessionTeacher() || isSubMonitor(fcSession()) || fcOpen());
+        allow write: if contentWriteOk('flashcard_sessions', sessionId);
+      }
+      match /seats/{uid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if seatPeriodOk(fcSession(), uid);
+      }
+
       match /progress/{studentUid} {
-        function fcSession() {
-          return get(/databases/$(database)/documents/flashcard_sessions/$(sessionId)).data;
-        }
-        function fcIsSessionTeacher() {
-          return request.auth != null && fcSession().teacherUid == request.auth.uid;
-        }
         function fcWithinWindow() {
           return beforeClose(fcSession()) && afterOpen(fcSession());
         }
@@ -5405,7 +5433,7 @@ service cloud.firestore {
                               && fcSession().status == 'active'
                               && (fcInSessionClass(fcSession().get('classIds', [])) ||
                                   exists(/databases/$(database)/documents/student_assignments/$(request.auth.uid)/items/$(sessionId)))
-                              && fcWithinWindow()
+                              && fcWithinWindow() && fcOpen()
                               && (resource == null || !('submittedAt' in resource.data))
                               && fcValidProgress();
         allow delete: if fcIsSessionTeacher() && notDeactivated();
