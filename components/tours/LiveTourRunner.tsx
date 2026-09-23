@@ -135,7 +135,10 @@ export const LiveTourRunner: React.FC = () => {
     const id = await latest.current.dashboard.createNewDashboard(
       latest.current.t('tours.practiceBoardName')
     );
-    if (!id) return;
+    if (!id) {
+      setTour(null);
+      return;
+    }
     const deadline = performance.now() + BOARD_WAIT_MS;
     while (
       latest.current.dashboard.activeDashboard?.id !== id &&
