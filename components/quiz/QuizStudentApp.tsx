@@ -94,6 +94,7 @@ import {
   WrittenAnswerGrade,
   Rubric,
   StudentOverride,
+  TabExit,
   QuizStimulus,
   isFreeResponseType,
   isAnswerSubmitted,
@@ -138,7 +139,9 @@ import { usePreviewMode } from '@/hooks/usePreviewMode';
 import { ResultsWatermark } from './ResultsWatermark';
 import { ResultsTabWarningModal } from './ResultsTabWarningModal';
 import { useResultsTabWarnings } from '@/hooks/useResultsTabWarnings';
-import { useFocusLossPoll } from '@/hooks/useFocusLossPoll';
+import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
+import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
+import { TabAwayClock } from '@/components/common/TabAwayClock';
 import {
   getEffectiveTabWarningThreshold,
   hasReachedTabWarningThreshold,
@@ -416,6 +419,7 @@ const QuizJoinFlow: React.FC<{
     acknowledgeRecordingNotice,
     completeQuiz,
     reportTabSwitch,
+    saveTabExits,
     setHandRaised,
     recordStimulusPlay,
     reportStimulusError,
@@ -1362,6 +1366,7 @@ const QuizJoinFlow: React.FC<{
         onAcknowledgeNotice={handleAcknowledgeNotice}
         onComplete={handleComplete}
         reportTabSwitch={reportTabSwitch}
+        saveTabExits={saveTabExits}
         onSetHandRaised={setHandRaised}
         handRaised={!!myResponse?.handRaisedAt}
         warningCount={warningCount}
@@ -1497,6 +1502,7 @@ const ActiveQuiz: React.FC<{
   onAcknowledgeNotice: () => void;
   onComplete: () => Promise<void>;
   reportTabSwitch: () => Promise<number>;
+  saveTabExits?: (exits: TabExit[]) => Promise<void>;
   onSetHandRaised: (raised: boolean) => Promise<void>;
   handRaised: boolean;
   warningCount: number;
@@ -1526,6 +1532,7 @@ const ActiveQuiz: React.FC<{
   onAcknowledgeNotice,
   onComplete,
   reportTabSwitch,
+  saveTabExits,
   onSetHandRaised,
   handRaised,
   warningCount,
@@ -1574,10 +1581,6 @@ const ActiveQuiz: React.FC<{
       setShowResumeModal(true);
     }
   }
-
-  const isWarningShowingRef = useRef<boolean>(false);
-  const lastReportTimeRef = useRef<number>(0);
-  const didInitialCheckRef = useRef(false);
 
   const handleAutoSubmit = useCallback(
     async (reason: 'three-strikes' | 'post-unlock' = 'three-strikes') => {
@@ -1686,115 +1689,6 @@ const ActiveQuiz: React.FC<{
       }
     : undefined;
 
-  useEffect(() => {
-    if (!tabWarningsEnabled) return; // Skip entirely when disabled
-
-    const handleVisibilityChange = async () => {
-      // Don't track if the quiz isn't active, if we're already showing a warning,
-      // or if the student has already completed the quiz.
-      if (
-        session.status !== 'active' ||
-        isWarningShowingRef.current ||
-        myResponse?.status === 'completed'
-      )
-        return;
-
-      const now = Date.now();
-      // Debounce to prevent dual blur/visibility events
-      if (now - lastReportTimeRef.current < 1000) return;
-
-      const isPageHidden = document.visibilityState === 'hidden';
-      const isWindowBlurred = !document.hasFocus();
-
-      if (isPageHidden || isWindowBlurred) {
-        lastReportTimeRef.current = now;
-        isWarningShowingRef.current = true;
-
-        try {
-          const newTotal = await reportTabSwitch();
-
-          // Teacher-unlocked attempts skip the "Warning N of 3" modal —
-          // the student has already been told the next strike finalizes
-          // their work, so any further tab-switch auto-submits
-          // immediately (no warning, no delay).
-          const wasUnlocked = !!myResponse?.unlocked;
-          if (wasUnlocked) {
-            setShowCheatWarning(false);
-            // Fire-and-forget — but use a finally so a failed submit
-            // (e.g. Firestore offline) doesn't leave the listener
-            // permanently armed-off via `isWarningShowingRef`.
-            void handleAutoSubmit('post-unlock').finally(() => {
-              isWarningShowingRef.current = false;
-            });
-            return;
-          }
-
-          setShowCheatWarning(true);
-          if (
-            hasReachedTabWarningThreshold(
-              newTotal,
-              effectiveTabWarningThreshold
-            )
-          ) {
-            // Use a slight delay so the UI can update before the dialog
-            setTimeout(() => void handleAutoSubmit(), 100);
-          }
-        } catch (err) {
-          console.error('Failed to report tab switch:', err);
-          // Still show the UI warning even if Firestore update fails
-          setShowCheatWarning(true);
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleVisibilityChange);
-
-    if (!didInitialCheckRef.current) {
-      didInitialCheckRef.current = true;
-      // Only count on a strong background signal to avoid false positives.
-      if (document.visibilityState === 'hidden') {
-        void handleVisibilityChange();
-      }
-    }
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleVisibilityChange);
-    };
-  }, [
-    tabWarningsEnabled,
-    effectiveTabWarningThreshold,
-    session.status,
-    reportTabSwitch,
-    handleAutoSubmit,
-    myResponse?.status,
-    myResponse?.unlocked,
-  ]);
-
-  // Modern Chrome/Firefox don't fire `window.blur` when focus shifts to
-  // the URL bar, bookmark dropdowns, or other browser-chrome targets, so
-  // the listeners above miss those interactions. `document.hasFocus()`
-  // still flips false in all those cases — `useFocusLossPoll` watches the
-  // `true → false` edge on a 250 ms timer and dispatches a synthetic
-  // `blur` so the existing `handleVisibilityChange` listener owns the
-  // full response logic in one place (guard checks, debounce, increment,
-  // modal). See `hooks/useFocusLossPoll.ts` for the snapshot-race the
-  // first-mount-only seed protects against.
-  // Gate the poll with the same stable conditions `handleVisibilityChange`
-  // guards on (active session + not-yet-completed), mirroring
-  // VideoActivityStudentApp's focusPollEnabled. Outside an active attempt the
-  // poll shouldn't run a 250ms timer or dispatch synthetic blur events. The
-  // `isWarningShowingRef` guard stays inside the handler (it's a ref).
-  const focusPollEnabled =
-    tabWarningsEnabled &&
-    session.status === 'active' &&
-    myResponse?.status !== 'completed';
-  useFocusLossPoll({
-    enabled: focusPollEnabled,
-    onFocusLoss: () => window.dispatchEvent(new Event('blur')),
-  });
-
   // For student-paced mode, the student maintains their own local index
   const [localIndex, setLocalIndex] = useState(0);
 
@@ -1802,6 +1696,69 @@ const ActiveQuiz: React.FC<{
   const currentIndex = isStudentPaced
     ? localIndex
     : session.currentQuestionIndex;
+
+  // Null unless the teacher assigned with the tab-away-timer flag.
+  const tabAwayRule = getEffectiveTabAwayRule(session, override?.tabAwayLimit);
+  // The tab-away tracker counts each exit, logs it to `tabExits`, and closes
+  // it when the student comes back.
+  const tabTracker = useTabAwayTracker({
+    enabled:
+      tabWarningsEnabled &&
+      session.status === 'active' &&
+      myResponse?.status !== 'completed',
+    sessionActive: session.status === 'active',
+    ready: myResponse != null,
+    serverExits: myResponse?.tabExits,
+    attempt: myResponse?.completedAttempts ?? 0,
+    getPosition: () => ({ questionIndex: currentIndex }),
+    onLeave: async () => {
+      let newTotal: number;
+      try {
+        newTotal = await reportTabSwitch();
+      } catch (err) {
+        console.error('Failed to report tab switch:', err);
+        // Still show the UI warning even if Firestore update fails
+        setShowCheatWarning(true);
+        return false;
+      }
+      // Teacher-unlocked attempts skip the warning: the student was told the
+      // next exit submits their work.
+      if (myResponse?.unlocked) {
+        setShowCheatWarning(false);
+        // A failed submit (e.g. offline) must not leave detection armed-off.
+        void handleAutoSubmit('post-unlock').finally(tabTracker.release);
+        return true;
+      }
+      setShowCheatWarning(true);
+      if (
+        hasReachedTabWarningThreshold(newTotal, effectiveTabWarningThreshold)
+      ) {
+        // Use a slight delay so the UI can update before the dialog
+        setTimeout(() => void handleAutoSubmit(), 100);
+        return true;
+      }
+      return false;
+    },
+    saveExits: saveTabExits,
+    limitMs: tabAwayRule?.limitMs ?? null,
+    autoSubmit: tabAwayRule?.autoSubmit ?? false,
+    onAwayTooLong: () => {
+      // Submit first: the tab may be hidden, where a blocking alert would wait.
+      setShowCheatWarning(true);
+      document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
+      void onComplete()
+        .then(() =>
+          showAlert(
+            'You were away from the quiz too long, so it was submitted.',
+            { title: 'Quiz Auto-Submitted', variant: 'warning' }
+          )
+        )
+        .catch((err: unknown) =>
+          console.error('[QuizStudentApp] away auto-submit failed:', err)
+        )
+        .finally(tabTracker.release);
+    },
+  });
 
   // Per-student answer shuffle. The session-level `publicQuestions` was
   // shuffled once teacher-side; we re-shuffle on the client deterministically
@@ -3107,6 +3064,13 @@ const ActiveQuiz: React.FC<{
           <h2 className="text-4xl font-black text-white mb-4">
             TAB SWITCH DETECTED
           </h2>
+          {tabAwayRule && tabTracker.away && (
+            <TabAwayClock
+              away={tabTracker.away}
+              limitMs={tabAwayRule.limitMs}
+              autoSubmit={tabAwayRule.autoSubmit}
+            />
+          )}
           <p className="text-red-200 text-lg max-w-md mb-8">
             You navigated away from the quiz. This incident has been logged.
             <br />
@@ -3118,7 +3082,7 @@ const ActiveQuiz: React.FC<{
           <button
             onClick={() => {
               setShowCheatWarning(false);
-              isWarningShowingRef.current = false;
+              tabTracker.release();
             }}
             className="px-8 py-4 bg-white text-red-900 font-bold rounded-xl active:scale-95 transition-transform"
           >

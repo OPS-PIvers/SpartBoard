@@ -151,6 +151,7 @@ import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import type { StudentTargetRef } from '@/types';
 import { buildPeriodAccess } from '@/utils/periodPlan';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
+import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
 
 /**
  * Session-options shape used when minting a view-only Quiz share. Typed as
@@ -165,6 +166,9 @@ import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 const VIEW_ONLY_SESSION_OPTIONS: Required<QuizSessionOptions> = {
   tabWarningsEnabled: false,
   tabWarningThreshold: 'off',
+  // Tab warnings are off, so the away clock never runs.
+  tabAwayLimitSeconds: DEFAULT_TAB_AWAY_LIMIT_SECONDS,
+  tabAwayAutoSubmit: false,
   readAloudAll: false,
   blockCopyPaste: false,
   showResultToStudent: false,

@@ -47,6 +47,7 @@ import {
   fibAcceptedAnswers,
 } from '@/utils/quizFibAnswers';
 import { fibTranslationIssue } from '@/utils/quizFibTranslation';
+import { tabAwaySessionFields } from '@/utils/tabAwayLimit';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import {
   addJoinCodePointerToBatch,
@@ -599,6 +600,10 @@ function sessionOptionsToSessionPatch(
     patch.tabWarningsEnabled = o.tabWarningsEnabled;
   if (o.tabWarningThreshold !== undefined)
     patch.tabWarningThreshold = o.tabWarningThreshold;
+  if (o.tabAwayLimitSeconds !== undefined)
+    patch.tabAwayLimitSeconds = o.tabAwayLimitSeconds;
+  if (o.tabAwayAutoSubmit !== undefined)
+    patch.tabAwayAutoSubmit = o.tabAwayAutoSubmit;
   if (o.blockCopyPaste !== undefined) patch.blockCopyPaste = o.blockCopyPaste;
   if (o.showResultToStudent !== undefined)
     patch.showResultToStudent = o.showResultToStudent;
@@ -1014,6 +1019,8 @@ export const useQuizAssignments = (
   }, [googleAccessToken, userId]);
   const mediaResponseGranted =
     authContext?.canAccessQuizMediaResponse?.() === true;
+  const tabAwayTimerOn =
+    authContext?.canAccessFeature?.('tab-away-timer') === true;
   // Admin raise-hand gate for this teacher's buildings; resolved onto the
   // session doc at assign time. Read through a ref so createAssignment can wait
   // for the profile + permission snapshots instead of failing open to
@@ -1352,6 +1359,7 @@ export const useQuizAssignments = (
         ...(opts.tabWarningThreshold !== undefined
           ? { tabWarningThreshold: opts.tabWarningThreshold }
           : {}),
+        ...tabAwaySessionFields(tabAwayTimerOn, opts),
         blockCopyPaste: opts.blockCopyPaste ?? false,
         showResultToStudent: opts.showResultToStudent ?? false,
         showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
@@ -1545,6 +1553,7 @@ export const useQuizAssignments = (
       projectPublicQuestionForMode,
       translationLoader,
       resolveHandRaiseMode,
+      tabAwayTimerOn,
     ]
   );
 

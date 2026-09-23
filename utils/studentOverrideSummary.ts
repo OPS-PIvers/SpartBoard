@@ -68,6 +68,19 @@ export const summarizeOverride = (
         defaultValue: 'Tab warning: {{threshold}}',
       })
     );
+  if (override.tabAwayLimit === 'off')
+    chips.push(
+      t('studentOverride.chip.tabAwayOff', {
+        defaultValue: 'No away auto-submit',
+      })
+    );
+  else if (typeof override.tabAwayLimit === 'number')
+    chips.push(
+      t('studentOverride.chip.tabAway', {
+        seconds: override.tabAwayLimit,
+        defaultValue: 'Away limit: {{seconds}}s',
+      })
+    );
   if (override.readAloud)
     chips.push(
       t('studentOverride.chip.readAloud', { defaultValue: 'Read aloud' })

@@ -3095,6 +3095,8 @@
     "copy": "Copy",
     "timeMultiplier": "Extended time",
     "tabWarningThreshold": "Tab-warning threshold",
+    "tabAwayLimit": "Time allowed away (seconds)",
+    "noAutoSubmit": "No auto-submit",
     "default": "Default",
     "off": "Off",
     "windowShift": "Window shift",
@@ -3117,6 +3119,8 @@
       "rubricSwaps_other": "{{count}} rubric swaps",
       "tabWarningsOff": "Tab warnings off",
       "tabWarning": "Tab warning: {{threshold}}",
+      "tabAwayOff": "No away auto-submit",
+      "tabAway": "Away limit: {{seconds}}s",
       "windowShifted": "Window shifted",
       "readAloud": "Read aloud",
       "language": "{{language}}"

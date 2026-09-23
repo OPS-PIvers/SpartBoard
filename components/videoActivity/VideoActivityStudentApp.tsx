@@ -38,7 +38,13 @@ import { VideoPlayer } from './VideoPlayer';
 import { QuestionOverlay } from './QuestionOverlay';
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
-import { useFocusLossPoll } from '@/hooks/useFocusLossPoll';
+import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
+import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
+import {
+  getEffectiveTabWarningThreshold,
+  hasReachedTabWarningThreshold,
+} from '@/utils/tabWarningThreshold';
+import { TabAwayClock } from '@/components/common/TabAwayClock';
 
 /**
  * Resolve the SSO student's class period from the session's
@@ -233,6 +239,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     checkAnswer,
     completeActivity,
     reportTabSwitch,
+    saveTabExits,
   } = useVideoActivitySessionStudent();
 
   const isViewOnly = session?.mode === 'view-only';
@@ -457,9 +464,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const [showResumeModal, setShowResumeModal] = useState(
     () => !!myResponse?.unlocked
   );
-  const isWarningShowingRef = useRef<boolean>(false);
-  const lastReportTimeRef = useRef<number>(0);
-  const didInitialCheckRef = useRef(false);
+  const playheadRef = useRef(0);
 
   // Track the previous `tabSwitchWarnings` value via state-during-render
   // so we can sync the local counter without an extra effect pass.
@@ -490,7 +495,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       const message =
         reason === 'post-unlock'
           ? 'Your unlocked attempt is being submitted now.'
-          : 'You have left the activity 3 times. Your activity is being auto-submitted.';
+          : 'You have left the activity too many times. Your activity is being auto-submitted.';
       await showAlert(message, {
         title: 'Activity Auto-Submitted',
         variant: 'warning',
@@ -502,105 +507,73 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
   const tabWarningsEnabled =
     session?.sessionOptions?.tabWarningsEnabled !== false;
+  const tabWarningThreshold = getEffectiveTabWarningThreshold(
+    session?.sessionOptions?.tabWarningThreshold
+  );
+  // Null unless the teacher assigned with the tab-away-timer flag.
+  const tabAwayRule = getEffectiveTabAwayRule(session?.sessionOptions ?? {});
 
-  useEffect(() => {
-    if (!tabWarningsEnabled) return;
-    if (joinStatus !== 'joined') return;
-    if (session?.status !== 'active') return;
-    if (isViewOnly) return;
-
-    const handleVisibilityChange = async () => {
-      // Skip while a warning is already showing, while a question overlay
-      // is active (the player blurs to render it), and once the student
-      // has finished.
-      if (isWarningShowingRef.current || myResponse?.completedAt != null) {
-        return;
+  // The tab-away tracker counts each exit, logs it to `tabExits`, and closes
+  // it when the student comes back.
+  const tabTracker = useTabAwayTracker({
+    enabled:
+      tabWarningsEnabled &&
+      joinStatus === 'joined' &&
+      session?.status === 'active' &&
+      !isViewOnly &&
+      myResponse?.completedAt == null,
+    sessionActive: session?.status === 'active',
+    ready: myResponse != null,
+    serverExits: myResponse?.tabExits,
+    attempt: myResponse?.completedAttempts ?? 0,
+    getPosition: () => ({ videoTime: Math.round(playheadRef.current) }),
+    onLeave: async () => {
+      let newTotal: number;
+      try {
+        newTotal = await reportTabSwitch();
+      } catch (err) {
+        logError('VideoActivityStudentApp.reportTabSwitch', err, {
+          sessionId,
+        });
+        setShowCheatWarning(true);
+        return false;
       }
-
-      const now = Date.now();
-      if (now - lastReportTimeRef.current < 1000) return;
-
-      const isPageHidden = document.visibilityState === 'hidden';
-      const isWindowBlurred = !document.hasFocus();
-
-      if (isPageHidden || isWindowBlurred) {
-        lastReportTimeRef.current = now;
-        isWarningShowingRef.current = true;
-
-        try {
-          const newTotal = await reportTabSwitch();
-          setWarningCount(newTotal);
-
-          // Teacher-unlocked attempts skip the warning modal — any
-          // further strike finalizes the attempt instantly.
-          const wasUnlocked = !!myResponse?.unlocked;
-          if (wasUnlocked) {
-            setShowCheatWarning(false);
-            // Always release the visibility lock — a failed submit
-            // (Firestore offline) must not leave the handler
-            // permanently armed-off.
-            void handleAutoSubmit('post-unlock').finally(() => {
-              isWarningShowingRef.current = false;
-            });
-            return;
-          }
-
-          setShowCheatWarning(true);
-          if (newTotal >= 3) {
-            setTimeout(() => void handleAutoSubmit(), 100);
-          }
-        } catch (err) {
-          logError('VideoActivityStudentApp.reportTabSwitch', err, {
+      setWarningCount(newTotal);
+      // Teacher-unlocked attempts skip the warning modal — any further
+      // strike finalizes the attempt instantly.
+      if (myResponse?.unlocked) {
+        setShowCheatWarning(false);
+        // A failed submit (Firestore offline) must not leave detection armed-off.
+        void handleAutoSubmit('post-unlock').finally(tabTracker.release);
+        return true;
+      }
+      setShowCheatWarning(true);
+      if (hasReachedTabWarningThreshold(newTotal, tabWarningThreshold)) {
+        setTimeout(() => void handleAutoSubmit(), 100);
+        return true;
+      }
+      return false;
+    },
+    saveExits: saveTabExits,
+    limitMs: tabAwayRule?.limitMs ?? null,
+    autoSubmit: tabAwayRule?.autoSubmit ?? false,
+    onAwayTooLong: () => {
+      // Submit first: the tab may be hidden, where a blocking alert would wait.
+      setShowCheatWarning(true);
+      void completeActivity()
+        .then(() =>
+          showAlert(
+            'You were away from the activity too long, so it was submitted.',
+            { title: 'Activity Auto-Submitted', variant: 'warning' }
+          )
+        )
+        .catch((err: unknown) =>
+          logError('VideoActivityStudentApp.awayAutoSubmit', err, {
             sessionId,
-          });
-          setShowCheatWarning(true);
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleVisibilityChange);
-
-    if (!didInitialCheckRef.current) {
-      didInitialCheckRef.current = true;
-      if (document.visibilityState === 'hidden') {
-        void handleVisibilityChange();
-      }
-    }
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleVisibilityChange);
-    };
-  }, [
-    tabWarningsEnabled,
-    joinStatus,
-    session?.status,
-    isViewOnly,
-    reportTabSwitch,
-    handleAutoSubmit,
-    myResponse?.completedAt,
-    myResponse?.unlocked,
-    sessionId,
-  ]);
-
-  // Modern Chrome/Firefox don't fire `window.blur` when focus shifts to
-  // the URL bar, bookmark dropdowns, or other browser-chrome targets, so
-  // the listeners above miss those interactions. `document.hasFocus()`
-  // still flips false in all those cases — `useFocusLossPoll` watches the
-  // `true → false` edge on a 250 ms timer and dispatches a synthetic
-  // `blur` so the existing `handleVisibilityChange` listener owns the
-  // full response logic in one place. The poll is gated by the same
-  // conditions as the listener effect; without them, a focus loss
-  // outside an active session would still fire.
-  const focusPollEnabled =
-    tabWarningsEnabled &&
-    joinStatus === 'joined' &&
-    session?.status === 'active' &&
-    !isViewOnly;
-  useFocusLossPoll({
-    enabled: focusPollEnabled,
-    onFocusLoss: () => window.dispatchEvent(new Event('blur')),
+          })
+        )
+        .finally(tabTracker.release);
+    },
   });
 
   // ── Invalid / missing session ID ──────────────────────────────────────────
@@ -848,9 +821,16 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                   </p>
                 )}
 
-                {(myResponse?.tabSwitchWarnings ?? 0) >= 3 && (
+                {hasReachedTabWarningThreshold(
+                  myResponse?.tabSwitchWarnings ?? 0,
+                  tabWarningThreshold
+                ) && (
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-sm">
-                    Auto-submitted because you left the activity tab 3 times.
+                    Auto-submitted because you left the activity tab{' '}
+                    {tabWarningThreshold === 1
+                      ? 'once'
+                      : `${tabWarningThreshold} times`}
+                    .
                   </div>
                 )}
 
@@ -909,17 +889,33 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
           <h2 className="text-4xl font-black text-white mb-4">
             TAB SWITCH DETECTED
           </h2>
+          {tabAwayRule && tabTracker.away && (
+            <TabAwayClock
+              away={tabTracker.away}
+              limitMs={tabAwayRule.limitMs}
+              autoSubmit={tabAwayRule.autoSubmit}
+            />
+          )}
           <p className="text-red-200 text-lg max-w-md mb-8">
             You navigated away from the activity. This incident has been logged.
             <br />
             <br />
-            <strong>Warning {warningCount} of 3.</strong> If you reach 3
-            warnings, your activity will automatically submit.
+            {tabWarningThreshold === 'off' ? (
+              <strong>Warning {warningCount}.</strong>
+            ) : (
+              <>
+                <strong>
+                  Warning {warningCount} of {tabWarningThreshold}.
+                </strong>{' '}
+                If you reach {tabWarningThreshold} warnings, your activity will
+                automatically submit.
+              </>
+            )}
           </p>
           <button
             onClick={() => {
               setShowCheatWarning(false);
-              isWarningShowingRef.current = false;
+              tabTracker.release();
             }}
             className="px-8 py-4 bg-white text-red-900 font-bold rounded-xl active:scale-95 transition-transform"
           >
@@ -975,6 +971,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 allowSkipping={session?.settings?.allowSkipping ?? false}
                 autoPlay={session?.settings?.autoPlay ?? false}
                 seekRequest={seekRequest}
+                playheadRef={playheadRef}
               />
 
               {activeQuestion && (

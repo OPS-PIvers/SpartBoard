@@ -74,6 +74,8 @@ const ALLOWED_SESSION_FIELDS = new Set([
   'dueAt',
   'tabWarningsEnabled',
   'tabWarningThreshold',
+  'tabAwayLimitSeconds',
+  'tabAwayAutoSubmit',
   'blockCopyPaste',
   'showResultToStudent',
   'showCorrectAnswerToStudent',

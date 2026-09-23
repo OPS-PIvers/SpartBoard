@@ -3953,6 +3953,10 @@ export type QuizSessionMode = 'teacher' | 'auto' | 'student';
  */
 export interface BaseSessionOptions {
   tabWarningsEnabled?: boolean;
+  /** Tab-away limit in seconds (5-300); stamped only with the tab-away-timer flag. */
+  tabAwayLimitSeconds?: number;
+  /** Submit when a student stays away past the limit; off = count up and log it. */
+  tabAwayAutoSubmit?: boolean;
   /**
    * Block copy / cut / paste in the student answer UI. Adds a layer of test
    * integrity alongside tab-switch detection — a student can't switch to
@@ -4282,6 +4286,9 @@ export interface QuizSession
    * creation. Absent = default of 3.
    */
   tabWarningThreshold?: number | 'off';
+  /** Mirrors `BaseSessionOptions.tabAwayLimitSeconds`; absent = no tab-away clock. */
+  tabAwayLimitSeconds?: number;
+  tabAwayAutoSubmit?: boolean;
   /**
    * Block copy / cut / paste in the student quiz UI (default false). Mirrored
    * from the assignment's `sessionOptions.blockCopyPaste` so the student
@@ -5481,6 +5488,7 @@ export interface StudentOverride {
   // quiz only; 'points' means grade this question by raw points, ignoring any rubric
   rubricOverrideByQuestion?: Record<string, RubricSnapshot | 'points'>;
   tabWarningThreshold?: number | 'off'; // quiz only (during-taking system)
+  tabAwayLimit?: number | 'off'; // quiz only; seconds to auto-submit at, or 'off' for no auto-submit
   readAloud?: boolean; // quiz only; signed-in students, needs 'quiz-read-aloud'
   openAt?: number;
   closeAt?: number; // per-student window shift (epoch ms)
@@ -6154,6 +6162,8 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
    * single counter — not per-question.
    */
   attemptLimit?: number | null;
+  /** Exits before auto-submit (1-10) or 'off'; absent = 3. */
+  tabWarningThreshold?: number | 'off';
   /**
    * Seconds to rewind on a wrong submission. 0 / undefined = no rewind. When
    * set and > 0, supersedes the legacy `requireCorrectAnswer` rewind-to-

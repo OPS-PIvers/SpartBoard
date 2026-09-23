@@ -1964,6 +1964,8 @@
     "copy": "Kopieren",
     "timeMultiplier": "Zusätzliche Zeit",
     "tabWarningThreshold": "Tab-Warnschwelle",
+    "tabAwayLimit": "Erlaubte Abwesenheit (Sekunden)",
+    "noAutoSubmit": "Keine automatische Abgabe",
     "default": "Standard",
     "off": "Aus",
     "windowShift": "Zeitfensterverschiebung",
@@ -1986,6 +1988,8 @@
       "rubricSwaps_other": "{{count}} Rasterwechsel",
       "tabWarningsOff": "Tab-Warnungen aus",
       "tabWarning": "Tab-Warnung: {{threshold}}",
+      "tabAwayOff": "Keine Abgabe bei Abwesenheit",
+      "tabAway": "Abwesenheitslimit: {{seconds}} s",
       "windowShifted": "Zeitfenster verschoben",
       "readAloud": "Vorlesen",
       "language": "{{language}}"
