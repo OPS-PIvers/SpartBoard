@@ -350,6 +350,14 @@ describe('the content doc', () => {
     await assertFails(getDoc(doc(asStudent(OTHER_UID), contentPath(S))));
   });
 
+  it('stays readable to a student who finished, after their period closes', async () => {
+    await seedSeat(S, STUDENT_UID, CLASS_A);
+    await assertFails(getDoc(doc(asStudent(), contentPath(S))));
+    await seedResponse(S, STUDENT_UID);
+    await assertSucceeds(getDoc(doc(asStudent(), contentPath(S))));
+    await assertFails(getDoc(doc(asStudent(OTHER_UID), contentPath(S))));
+  });
+
   it('is always readable by the teacher and an admin', async () => {
     await assertSucceeds(getDoc(doc(asTeacher(), contentPath(S))));
     await assertSucceeds(getDoc(doc(asAdmin(), contentPath(S))));

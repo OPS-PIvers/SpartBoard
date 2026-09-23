@@ -4762,8 +4762,10 @@ service cloud.firestore {
 
       // Per-period sessions keep their steps and slides here until the period opens.
       match /content/{docId} {
+        // A student who finished has seen the steps, so their review can show them.
         allow read: if request.auth != null &&
-          (glIsTeacher() || isSubMonitor(glSession()) || glOpen());
+          (glIsTeacher() || isSubMonitor(glSession()) || glOpen() ||
+           exists(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)/responses/$(request.auth.uid)));
         allow write: if contentWriteOk('guided_learning_sessions', sessionId);
       }
       match /seats/{uid} {
