@@ -113,6 +113,8 @@ export interface TeammatePrintContext {
   quiz: TeammatePrintQuiz;
   rosters: TeammatePrintRoster[];
   existingBatches: TeammatePrintBatchSummary[];
+  // Always null now (D20 defers instead); kept so a pre-release open tab still enables Print.
+  blocked: null;
 }
 
 /** Drive/OAuth seam so the authorization ladder is testable without either. */
@@ -499,6 +501,7 @@ export async function handleGetTeammatePrintContext(
     quiz,
     rosters,
     existingBatches,
+    blocked: null,
   };
 }
 

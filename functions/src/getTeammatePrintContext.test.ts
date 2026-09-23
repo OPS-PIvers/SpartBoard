@@ -403,7 +403,8 @@ describe('print context', () => {
     // Their copy is deferred to their own sign-in, so the run still has
     // canonical questions to print from.
     expect(result.contentSource).toBe('synced-group');
-    expect(result.quiz.questions.length).toBeGreaterThan(0);
+    expect(result.quiz.questions.length).toBeGreaterThan(0); // A pre-release client only enables Print when `blocked` is null.
+    expect(result.blocked).toBeNull();
   });
 
   it('reports no copy while Drive is reachable', async () => {
