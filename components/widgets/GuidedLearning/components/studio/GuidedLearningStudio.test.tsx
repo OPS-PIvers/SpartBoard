@@ -6,6 +6,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet } from '@/types';
@@ -36,11 +37,6 @@ vi.mock('@/context/useDialog', () => ({
     showConfirm: vi.fn().mockResolvedValue(false),
     showPrompt: vi.fn().mockResolvedValue(null),
   }),
-}));
-
-// P1-4b replaces the right column; the classic detail pane is not under test here.
-vi.mock('../GuidedLearningEditor', () => ({
-  GuidedLearningEditorDetailPane: () => <div data-testid="detail-pane" />,
 }));
 
 function buildSet(): GuidedLearningSet {
@@ -149,11 +145,15 @@ describe('GuidedLearningStudio', () => {
     act(() => {
       pressKey('Delete');
     });
-    expect(screen.getByText('0 steps')).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Activity title').nextSibling
+    ).toHaveTextContent('0 steps');
     act(() => {
       pressKey('z', { ctrlKey: true });
     });
-    expect(screen.getByText('1 step')).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Activity title').nextSibling
+    ).toHaveTextContent('1 step');
   });
 
   it('ignores shortcuts typed inside a text field', () => {
@@ -163,7 +163,7 @@ describe('GuidedLearningStudio', () => {
     });
     const title = screen.getByLabelText('Activity title');
     fireEvent.keyDown(title, { key: 'Delete' });
-    expect(screen.getByText('1 step')).toBeInTheDocument();
+    expect(title.nextSibling).toHaveTextContent('1 step');
   });
 
   it('autosaves after an edit', async () => {
@@ -197,5 +197,77 @@ describe('GuidedLearningStudio', () => {
       id: 'set-1',
       title: 'Edited in Studio',
     });
+  });
+
+  it('shows the activity settings when no step is selected', () => {
+    renderStudio();
+    const settings = screen.getByTestId('gl-studio-set-settings');
+    expect(settings).toBeInTheDocument();
+    expect(screen.getByLabelText('Description')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Guided' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  });
+
+  it('opens a step from the timeline in the properties panel', () => {
+    renderStudio();
+    const timeline = screen.getByRole('region', { name: 'Steps on slide 1' });
+    fireEvent.click(within(timeline).getByRole('button', { name: 'Step 1' }));
+    expect(screen.queryByTestId('gl-studio-set-settings')).toBeNull();
+    expect(screen.getByDisplayValue('Click **Start**')).toBeInTheDocument();
+    expect(
+      within(timeline).getByRole('button', { name: 'Step 1' })
+    ).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('lists slides with their step counts', () => {
+    renderStudio();
+    expect(
+      screen.getByRole('button', { name: 'Slide 1, 1 step' })
+    ).toHaveAttribute('aria-current', 'true');
+  });
+
+  it('plays from the selected step and returns to the step that was showing', () => {
+    const set = buildSet();
+    set.mode = 'structured';
+    set.steps = [
+      ...set.steps,
+      {
+        id: 'step-2',
+        xPct: 70,
+        yPct: 60,
+        imageIndex: 0,
+        interactionType: 'tooltip',
+        showOverlay: 'tooltip',
+        text: 'Then press Stop',
+      },
+    ];
+    renderStudio({ set });
+    act(() => {
+      pressKey(']');
+    });
+    act(() => {
+      pressKey(']');
+    });
+    act(() => {
+      pressKey(' ', { shiftKey: true });
+    });
+    const play = screen.getByTestId('gl-studio-play');
+    expect(screen.queryByTestId('gl-studio-selection')).toBeNull();
+    expect(within(play).getByText('Then press Stop')).toBeInTheDocument();
+    expect(within(play).queryByText('Start')).toBeNull();
+    fireEvent.click(
+      within(play).getAllByRole('button', { name: 'Previous step' })[0]
+    );
+    expect(within(play).getByText('Start')).toBeInTheDocument();
+    act(() => {
+      pressKey('Escape');
+    });
+    expect(screen.queryByTestId('gl-studio-play')).toBeNull();
+    const timeline = screen.getByRole('region', { name: 'Steps on slide 1' });
+    expect(
+      within(timeline).getByRole('button', { name: 'Step 1' })
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 });

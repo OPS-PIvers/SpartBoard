@@ -93,6 +93,8 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   ) => Promise<void>;
   deleteImage: (index: number) => void;
   moveImage: (fromIndex: number, direction: -1 | 1) => void;
+  /** Reorder slides; `order[i]` is the old index of the slide now at `i`. */
+  reorderImages: (order: number[]) => void;
   imageError: string;
   // Steps
   steps: GuidedLearningStep[];
@@ -452,6 +454,27 @@ export function useGuidedLearningEditorState({
     [imageUrls.length, applyDoc]
   );
 
+  const reorderImages = useCallback(
+    (order: number[]) => {
+      if (order.length !== imageUrls.length) return;
+      const newIndexOf = new Map(order.map((oldIndex, i) => [oldIndex, i]));
+      applyDoc((doc) => ({
+        ...doc,
+        imageUrls: order.map((i) => doc.imageUrls[i]),
+        imageKinds: order.map((i) => doc.imageKinds[i]),
+        videoTrims: order.map((i) => doc.videoTrims[i] ?? null),
+        steps: doc.steps.map((step) => {
+          const next = newIndexOf.get(step.imageIndex);
+          return next === undefined || next === step.imageIndex
+            ? step
+            : { ...step, imageIndex: next };
+        }),
+      }));
+      setCurrentImageIndex((prev) => newIndexOf.get(prev) ?? prev);
+    },
+    [imageUrls.length, applyDoc]
+  );
+
   const addStepAt = useCallback(
     (xPct: number, yPct: number) => {
       const newStep: GuidedLearningStep = {
@@ -581,6 +604,7 @@ export function useGuidedLearningEditorState({
     addCapturedMedia,
     deleteImage,
     moveImage,
+    reorderImages,
     imageError,
     steps,
     setSteps,

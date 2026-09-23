@@ -331,3 +331,29 @@ describe('useGuidedLearningEditorState history', () => {
     expect(result.current.steps[0].spotlightRadius).toBe(5);
   });
 });
+
+describe('slide and step reordering', () => {
+  it('reorders slides in one undoable entry and keeps steps on their slides', () => {
+    const { result } = renderEditor();
+    act(() => result.current.setCurrentImageIndex(0));
+    act(() => result.current.reorderImages([2, 0, 1]));
+    expect(result.current.imageUrls).toEqual(['c.png', 'a.png', 'b.png']);
+    expect(result.current.steps.map((s) => [s.id, s.imageIndex])).toEqual([
+      ['s0', 1],
+      ['s1', 2],
+      ['s2', 0],
+    ]);
+    expect(result.current.currentImageIndex).toBe(1);
+    act(() => result.current.undo());
+    expect(result.current.imageUrls).toEqual(['a.png', 'b.png', 'c.png']);
+    expect(result.current.steps.map((s) => s.imageIndex)).toEqual([0, 1, 2]);
+    expect(result.current.canUndo).toBe(false);
+  });
+
+  it('ignores a slide order of the wrong length', () => {
+    const { result } = renderEditor();
+    act(() => result.current.reorderImages([1, 0]));
+    expect(result.current.imageUrls).toEqual(['a.png', 'b.png', 'c.png']);
+    expect(result.current.canUndo).toBe(false);
+  });
+});

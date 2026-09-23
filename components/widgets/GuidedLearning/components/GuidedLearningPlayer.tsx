@@ -53,6 +53,8 @@ interface Props {
   playerV2?: boolean;
   /** Step enter/leave/misclick/hint/complete, for progress and analytics. */
   onStepEvent?: (e: StepEvent) => void;
+  /** Open at this step instead of the first (the Studio's Play from here). */
+  startStepId?: string;
 }
 
 export const GuidedLearningPlayer: React.FC<Props> = ({
@@ -63,6 +65,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   timeMultiplier,
   playerV2 = false,
   onStepEvent,
+  startStepId,
 }) => {
   const mode: GuidedLearningMode = set.mode;
   // In teacher mode set.steps is GuidedLearningStep[]; in student mode it is
@@ -71,11 +74,17 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   // accidentally read answer-key fields from steps. Answer keys are accessed
   // through set.steps.find() only when teacherMode is true (see GuidedLearningStage).
   const steps = set.steps as unknown as GuidedLearningPublicStep[];
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [activeStepId, setActiveStepId] = useState<string | null>(
-    mode !== 'explore' ? (steps[0]?.id ?? null) : null
+  const startIdx = Math.max(
+    0,
+    steps.findIndex((s) => s.id === startStepId)
   );
-  const [exploreImageIndex, setExploreImageIndex] = useState(0);
+  const [currentIdx, setCurrentIdx] = useState(startIdx);
+  const [activeStepId, setActiveStepId] = useState<string | null>(
+    mode !== 'explore' || startStepId ? (steps[startIdx]?.id ?? null) : null
+  );
+  const [exploreImageIndex, setExploreImageIndex] = useState(
+    steps[startIdx]?.imageIndex ?? 0
+  );
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0); // 0-1 for guided auto-advance
   const [answeredSteps, setAnsweredSteps] = useState<Set<string>>(new Set());
