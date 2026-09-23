@@ -44,6 +44,14 @@ vi.mock('./components/GuidedLearningPlayer', () => ({
   ),
 }));
 
+// The panel has its own suite; here it only matters whether it is mounted,
+// and its real settings hook would reach for Firestore.
+vi.mock('@/components/subs/SubLaunchPanel', () => ({
+  SubLaunchPanel: ({ kind, widgetId }: { kind: string; widgetId: string }) => (
+    <div data-testid="sub-launch" data-kind={kind} data-widget={widgetId} />
+  ),
+}));
+
 const widget = (config: Record<string, unknown>) =>
   ({
     id: 'w1',
@@ -200,5 +208,39 @@ describe('SubShareGuidedLearningWidget', () => {
     expect(loadKey).not.toHaveBeenCalled();
     expect(getDoc).not.toHaveBeenCalled();
     expect(screen.getByText('No guided activity')).toBeInTheDocument();
+  });
+});
+
+describe('SubShareGuidedLearningWidget launching', () => {
+  it('offers to start the set the share bundled', async () => {
+    render(
+      <SubShareGuidedLearningWidget
+        widget={widget({ playerSetId: 'set-1' })}
+      />,
+      { wrapper: inShare(bundled('Plant cell')) }
+    );
+
+    const panel = await screen.findByTestId('sub-launch');
+    expect(panel).toHaveAttribute('data-kind', 'guidedLearning');
+    expect(panel).toHaveAttribute('data-widget', 'w1');
+  });
+
+  // A building set was never bundled, so there is no key for the callable to
+  // derive a run from and nothing to offer.
+  it('offers nothing for a building set', async () => {
+    getDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ id: 'set-1', title: 'Fire drill', steps: [] }),
+    });
+
+    render(
+      <SubShareGuidedLearningWidget
+        widget={widget({ playerSetId: 'set-1' })}
+      />,
+      { wrapper: inShare(nothingBundled) }
+    );
+
+    await screen.findByTestId('gl-player');
+    expect(screen.queryByTestId('sub-launch')).not.toBeInTheDocument();
   });
 });

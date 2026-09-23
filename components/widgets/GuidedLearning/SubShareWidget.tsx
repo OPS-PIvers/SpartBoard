@@ -8,7 +8,8 @@
  * `keys/` collection, which only the subs the share names may read (plan §3.1
  * A2). It renders in the same player the teacher previews with, so the sub can
  * step through the activity and see the answers; nothing is recorded, because
- * no `onAnswer` or `onStepEvent` is passed. Launching is PR 4 (D8).
+ * no `onAnswer` or `onStepEvent` is passed. A sub can also start it for one of
+ * the shared classes, which runs in the teacher's own account (plan §3.6, D8).
  *
  * A building set is the exception the plan calls a reference: it lives in a
  * top-level collection any signed-in user can read, so it is never bundled and
@@ -21,6 +22,7 @@ import { Compass, Loader2, Lock } from 'lucide-react';
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { SubLaunchPanel } from '@/components/subs/SubLaunchPanel';
 import { useShareKey } from '@/hooks/useShareContent';
 import { useAuth } from '@/context/useAuth';
 import { normalizeGuidedLearningSet } from './utils/setMigration';
@@ -111,13 +113,27 @@ export const SubShareGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const set = payload?.set ?? building.set;
   if (set) {
     return (
-      <Suspense fallback={<LazySpinner />}>
-        <GuidedLearningPlayer
-          set={set as GuidedLearningSet}
-          teacherMode
-          playerV2={canAccessFeature('gl-player-v2')}
-        />
-      </Suspense>
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="min-h-0 flex-1">
+          <Suspense fallback={<LazySpinner />}>
+            <GuidedLearningPlayer
+              set={set as GuidedLearningSet}
+              teacherMode
+              playerV2={canAccessFeature('gl-player-v2')}
+            />
+          </Suspense>
+        </div>
+        {/* A building set is never bundled, so there is no key to start it
+            from and no Launch to offer. */}
+        {payload?.set && (
+          <SubLaunchPanel
+            kind="guidedLearning"
+            widgetId={widget.id}
+            itemId={config.playerSetId ?? null}
+            label="guided activity"
+          />
+        )}
+      </div>
     );
   }
   if (building.loading) {
