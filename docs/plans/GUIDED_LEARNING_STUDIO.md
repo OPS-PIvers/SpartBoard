@@ -344,6 +344,8 @@ Don't touch: any source file. This item writes only the report.
 
 Done when: the report is posted as a comment on the plan PR thread (or a GitHub issue linked from it) and ends with one of two recommendations — **"Proceed with P3-2"** (swap is confined to the two hooks plus a context) or **"Drop demo mode"**. Paul makes the call. If demo mode is dropped: P3-2 is removed, P3-7 (real-board recording with redaction) becomes the only recording path, and P3-3 depends on P3-7 instead of P3-2.
 
+**Outcome (2026-09-23): demo mode dropped.** The report ([comment on #3280](https://github.com/OPS-PIvers/SpartBoard/pull/3280#issuecomment-5787172708)) recommended "Drop demo mode": `DashboardContext` writes boards directly in 9 places outside the store, the Drive PII backup runs on every save, and a demo board would still show real student names (assignment results, the ClassLink import). Paul chose to drop it. P3-2 is removed; see P3-3 and P3-7 for the resulting order.
+
 #### P1-1 v3 types, shared interfaces, publicStep mirroring, geometry utils — `opus` _(logic)_
 
 Depends on: nothing.
@@ -773,6 +775,8 @@ Notes: widget-internal tagging beyond the shell happens per widget as tours are 
 
 #### P3-2 Demo mode: ephemeral board with fixture classes — `opus` _(visual)_
 
+**Removed (2026-09-23):** P1-0 recommended dropping demo mode and Paul agreed. Kept below for the record only; do not build it.
+
 Depends on: P1-0 recommending **Proceed**. If P1-0 recommended dropping demo mode and Paul agreed, this item is removed (see P1-0).
 
 Key files: new `context/DemoModeContext.tsx`, new `fixtures/demoRosters.ts`, `hooks/useFirestore.ts` (`MockDashboardStore` at :50 and its uses at :326/344/402), `hooks/useRosters.ts` (`MockRosterStore` at :385 and its uses at :825-831), `components/layout/DashboardView.tsx` (the banner), `App.tsx` (the provider).
@@ -796,13 +800,13 @@ Notes: this is the highest-risk item, which is why P1-0 scopes it first.
 
 #### P3-3 Recorder and AI step-text drafting — `opus` _(visual)_
 
-Depends on: P3-1, P3-2 (or P3-7 if demo mode was dropped), P1-4b.
+Depends on: P3-1, P1-4b. (Demo mode was dropped at P1-0, so there is no P3-2. P3-3 builds the recorder with no way to start a recording; P3-7 adds real-board recording with redaction and review, and recording is usable only once P3-7 merges. The manual 5-click run below moves to P3-7.)
 
 Key files: new `GL/components/recorder/TourRecorder.tsx`, `recorder/useTourCapture.ts`, `recorder/resolveAnchor.ts` and test, `GL/components/ScreenCaptureModal.tsx` (extract the `getDisplayMedia` and `grabFrame` helpers at :66-77 and :175-207 into `GL/utils/displayCapture.ts` and reuse them), `functions/src/aiGeneration.ts` (new callable), `functions/src/index.ts`, `utils/ai.ts`.
 
 Do:
 
-1. **Start:** available in demo mode only. (P3-7 later adds the real-board option; until it lands the recorder refuses to start outside demo mode.) Chrome only: `preferCurrentTab` is Chromium-specific, so other browsers see "Recording needs Chrome." A floating recorder pill (Record / Pause / Mark step / Finish / Discard) is excluded from anchor resolution via `data-tour-ignore`.
+1. **Start:** refuses to start until P3-7 lands, because demo mode was dropped and real-board recording needs redaction first. Chrome only: `preferCurrentTab` is Chromium-specific, so other browsers see "Recording needs Chrome." A floating recorder pill (Record / Pause / Mark step / Finish / Discard) is excluded from anchor resolution via `data-tour-ignore`.
    - Calls `getDisplayMedia({ video: { cursor: 'never' }, preferCurrentTab: true, selfBrowserSurface: 'include' })` so the real mouse pointer is not baked into frames (the animated cursor replaces it).
    - Rejects the recording if the shared surface is not this tab (track settings `displaySurface !== 'browser'`), with a clear message.
 2. **On each capture-phase `pointerdown`** (before the app handles it):
@@ -888,7 +892,7 @@ Done when: tests cover a set with an unknown anchor flagged by the static check 
 
 #### P3-7 Real-board recording with auto-redaction — `opus` _(visual)_
 
-Depends on: P3-3, P1-9 (`redactImage`). If demo mode was dropped at P1-0, this item lands **before** P3-3's recorder can be used and P3-3 depends on it instead.
+Depends on: P3-3, P1-9 (`redactImage`). Demo mode was dropped at P1-0, so this is the only recording path: P3-3's recorder cannot start until this item merges.
 
 Key files: new `GL/components/recorder/redaction.ts` and test, `GL/components/recorder/TourRecorder.tsx`, new `GL/components/recorder/FrameReview.tsx`, `hooks/useRosters.ts` (read only), `components/widgets/Webcam/Widget.tsx` and other widgets that show student media (add `data-pii`), `config/tourAnchors.ts` (document `data-pii` next to `data-tour`), `.claude/skills/new-widget/SKILL.md`.
 
@@ -903,7 +907,7 @@ Do:
      The raw frame is discarded immediately.
 3. **Mandatory review:** on Finish, `FrameReview` shows every frame with its blur boxes highlighted. The author can draw extra boxes before anything uploads; these run `redactImage` on the already-redacted frame, because the raw frame is gone. Upload stays disabled until every frame has been viewed.
 4. **Tagging `data-pii`:** add it to Webcam and to any widget that shows student photos or free-form student content, and list the tagged widgets in the PR. Add one line to the new-widget skill: "Tag elements that show student faces, photos or free-form student content with `data-pii`."
-5. **Choice at start:** this item lifts P3-3's demo-only restriction. The recorder's start dialog offers "Demo board (recommended)" or "My board, with names blurred", and the second option states the review requirement up front. Remember the choice in localStorage (try/catch).
+5. **Start:** this item lets P3-3's recorder start. There is no demo board, so the start dialog records "My board, with names blurred" and states the review requirement up front. It recommends a board whose classes come from the admin Test Classes (`hooks/useTestClasses.ts`), so few real names are on screen to begin with.
 
 Done when: unit tests cover name matching (full name, first name only, boundary cases such as "Al" inside "Alice", nicknames) and rect collection from a fixture DOM (text match, `data-pii` element, input value). An RTL test shows upload stays disabled until every frame is reviewed. A manual run on spartboard-dev with the mock test class shows every visible name blurred; put before/after screenshots of the review screen in the PR, never raw frames.
 
@@ -911,7 +915,7 @@ Notes: names drawn onto a canvas (for example inside a drawing) can't be found f
 
 #### P3-8 Proof: three live tours, published — orchestrator + Paul _(proof)_
 
-Depends on: P3-4, P3-5, P3-6 (and P3-7 if demo mode was dropped).
+Depends on: P3-4, P3-5, P3-6, P3-7 (demo mode was dropped).
 
 Do: record, edit in the Studio and publish three tours as building sets with Help items: **create a board**, **add a widget**, **open a widget's settings**. Tag any untagged anchor the recorder lists (in a small P3-1-style PR). Attach each to its launch points: Help Center "Show me live", the widget `?` for the added widget, and one What's New entry.
 
@@ -919,23 +923,23 @@ Done when: with `gl-live-tours` on for admins on spartboard-dev, Paul starts eac
 
 ## Verification matrix (orchestrator, before each phase merge)
 
-| Check                            | How                                                                                                                                                                                                                                                                                                               |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| v2 sets unchanged                | P1-2a: existing player tests pass with no edits at all; P1-2b: edits limited to interaction mocks. Manually open three existing building sets on spartboard-dev in the player before and after: pins, spotlight and zoom are identical, and tooltips no longer cover their targets.                               |
-| Studio matches the real surfaces | P1-4a: at each device preset, screenshot the Studio frame and the matching surface (widget at 720×520, Help viewer, student app at 1366×657, 1920×1080); callouts land in the same place.                                                                                                                         |
-| Students receive new fields      | P1-1 test on `toPublicStep`; the student app renders a region spotlight and a pinned callout from a v3 session on dev.                                                                                                                                                                                            |
-| No answer leakage                | P1-1 test: public steps still contain no `correctAnswer`/`matchingPairs`/`sortingItems` in their original order.                                                                                                                                                                                                  |
-| Undo is one step per gesture     | P1-3/P1-5 tests; P1-10 drag perf scenario (exactly one history entry).                                                                                                                                                                                                                                            |
-| Classic editor keeps v3 fields   | P1-4a round-trip test; P1-10 parity checklist before deletion.                                                                                                                                                                                                                                                    |
-| Studio is not slower             | P1-10: ported perf scenario no slower than the modal's recorded numbers; drag scenario within one render per frame.                                                                                                                                                                                               |
-| Blurred originals don't linger   | P1-9: old image queued, deleted exactly once on save-and-close; undo un-queues it. Generated narration is never deleted (P2-4).                                                                                                                                                                                   |
-| Strings translated               | Every PR: new keys present in en, de, es and fr.                                                                                                                                                                                                                                                                  |
-| Proof items                      | Phase 1: P1-11. Phase 2: P2-6. Phase 3: P3-8.                                                                                                                                                                                                                                                                     |
-| Motion is calm and reducible     | P2-1 tests; manual check with OS reduced motion on.                                                                                                                                                                                                                                                               |
-| Analytics cannot be abused       | P2-5 rules tests: another uid denied, class gate enforced in submissions mode, share-link writes allowed, oversized maps denied, writes outside the open/close window denied; `releaseFirestoreRules.mjs spartboard-dev` within size caps.                                                                        |
-| No student data in recordings    | P3-2 test: no Firestore writes in demo mode. P3-3: the recorder refuses to start outside demo mode until P3-7, and hides its own UI and the pointer in frames. P3-7: name and `data-pii` redaction tests; upload blocked until review; the upload spy only ever receives `redactImage` output, never a raw frame. |
-| Tour anchors do not rot          | P3-1 guard test in CI; P3-6 panel lists zero broken anchors for published tours before release.                                                                                                                                                                                                                   |
-| Validation gate                  | Each PR: `vitest related` on the touched files; `type-check` once for shared types; CI is the full gate. Pre-existing failures surfaced in the touched area are fixed or raised to Paul, never waved off.                                                                                                         |
+| Check                            | How                                                                                                                                                                                                                                                                                 |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v2 sets unchanged                | P1-2a: existing player tests pass with no edits at all; P1-2b: edits limited to interaction mocks. Manually open three existing building sets on spartboard-dev in the player before and after: pins, spotlight and zoom are identical, and tooltips no longer cover their targets. |
+| Studio matches the real surfaces | P1-4a: at each device preset, screenshot the Studio frame and the matching surface (widget at 720×520, Help viewer, student app at 1366×657, 1920×1080); callouts land in the same place.                                                                                           |
+| Students receive new fields      | P1-1 test on `toPublicStep`; the student app renders a region spotlight and a pinned callout from a v3 session on dev.                                                                                                                                                              |
+| No answer leakage                | P1-1 test: public steps still contain no `correctAnswer`/`matchingPairs`/`sortingItems` in their original order.                                                                                                                                                                    |
+| Undo is one step per gesture     | P1-3/P1-5 tests; P1-10 drag perf scenario (exactly one history entry).                                                                                                                                                                                                              |
+| Classic editor keeps v3 fields   | P1-4a round-trip test; P1-10 parity checklist before deletion.                                                                                                                                                                                                                      |
+| Studio is not slower             | P1-10: ported perf scenario no slower than the modal's recorded numbers; drag scenario within one render per frame.                                                                                                                                                                 |
+| Blurred originals don't linger   | P1-9: old image queued, deleted exactly once on save-and-close; undo un-queues it. Generated narration is never deleted (P2-4).                                                                                                                                                     |
+| Strings translated               | Every PR: new keys present in en, de, es and fr.                                                                                                                                                                                                                                    |
+| Proof items                      | Phase 1: P1-11. Phase 2: P2-6. Phase 3: P3-8.                                                                                                                                                                                                                                       |
+| Motion is calm and reducible     | P2-1 tests; manual check with OS reduced motion on.                                                                                                                                                                                                                                 |
+| Analytics cannot be abused       | P2-5 rules tests: another uid denied, class gate enforced in submissions mode, share-link writes allowed, oversized maps denied, writes outside the open/close window denied; `releaseFirestoreRules.mjs spartboard-dev` within size caps.                                          |
+| No student data in recordings    | P3-3: the recorder refuses to start until P3-7, and hides its own UI and the pointer in frames. P3-7: name and `data-pii` redaction tests; upload blocked until review; the upload spy only ever receives `redactImage` output, never a raw frame.                                  |
+| Tour anchors do not rot          | P3-1 guard test in CI; P3-6 panel lists zero broken anchors for published tours before release.                                                                                                                                                                                     |
+| Validation gate                  | Each PR: `vitest related` on the touched files; `type-check` once for shared types; CI is the full gate. Pre-existing failures surfaced in the touched area are fixed or raised to Paul, never waved off.                                                                           |
 
 ## Open assumptions (flag to Paul if any is wrong)
 
@@ -946,5 +950,5 @@ Done when: with `gl-live-tours` on for admins on spartboard-dev, Paul starts eac
 5. **The anchor CI guard** checks registry against source, not against published tours in Firestore. Published-tour breakage is caught by the P3-6 health panel, not CI. If Paul wants CI to read `building_guided_learning`, that needs a read-only credential in CI (a separate decision).
 6. **The `spart-new-widget` plugin skill** lives in Paul's `pauls-skills` repo, so P3-1 and P3-7 only update the in-repo `new-widget` skill. Mirroring the `data-tour` and `data-pii` checklist steps into the plugin is a separate follow-up Claude session.
 7. **Narration** reuses the quiz read-aloud voices and admin cap settings. GL may need its own cap if usage grows. Authors can record their own voice instead (P2-4), and a recorded take wins.
-8. **Demo mode** is conditional on the P1-0 spike. If it proceeds, it swaps only the board and roster stores, so widgets backed by other personal data show empty states there. For anything the demo board can't show, record on the real board with auto-redaction (P3-7). Redaction covers roster names in DOM text and inputs plus `data-pii` elements, and the mandatory review step catches the rest.
+8. **Demo mode** was dropped at P1-0 (2026-09-23); recording is real-board only, with redaction (P3-7). The original assumption follows. It was conditional on the P1-0 spike. If it proceeds, it swaps only the board and roster stores, so widgets backed by other personal data show empty states there. For anything the demo board can't show, record on the real board with auto-redaction (P3-7). Redaction covers roster names in DOM text and inputs plus `data-pii` elements, and the mandatory review step catches the rest.
 9. **Studio perf budget** is "no slower than the classic editor" on the existing scenario, measured on the same machine in the P1-10 PR, rather than absolute millisecond targets.
