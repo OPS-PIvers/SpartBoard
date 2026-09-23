@@ -134,7 +134,9 @@ describe('handleControlSubAssignment — ending a quiz', () => {
       endedAt: NOW,
       autoProgressAt: null,
     });
-    expect(written[1].data.status).toBe('ended');
+    // The teacher's own deactivate files the row as `inactive`; there is no
+    // `ended` in `QuizAssignmentStatus`.
+    expect(written[1].data.status).toBe('inactive');
   });
 
   // A student still answering when the sub ends the run would otherwise never
@@ -203,14 +205,11 @@ describe('handleControlSubAssignment — the other three kinds', () => {
     await run();
 
     expect(written[0].path).toBe(`video_activity_sessions/${SESSION}`);
-    expect(written[0].data).toEqual({
-      status: 'ended',
-      endedAt: NOW,
-      expiresAt: NOW,
-    });
+    expect(written[0].data).toEqual({ status: 'ended', endedAt: NOW });
     expect(written[1].path).toBe(
       `users/${HOST}/video_activity_assignments/${SESSION}`
     );
+    expect(written[1].data.status).toBe('inactive');
   });
 
   it('ends a flashcard run', async () => {
@@ -394,5 +393,24 @@ describe('controlPatches', () => {
       expect(session.endedAt).toBe(NOW);
       expect(state).toBe('ended');
     }
+  });
+
+  // `ended` is a session status. A quiz or video activity assignment only has
+  // active, paused and inactive, and the teacher's archived list filters on
+  // `inactive`, so writing `ended` there loses the row in the active bucket.
+  it('files the assignment under a status its own type has', () => {
+    const terminal: Record<string, string> = {
+      quiz: 'inactive',
+      videoActivity: 'inactive',
+      flashcards: 'ended',
+    };
+    for (const [kind, status] of Object.entries(terminal)) {
+      expect(controlPatches(kind as 'quiz', 'end', NOW).assignment.status).toBe(
+        status
+      );
+    }
+    expect(controlPatches('guidedLearning', 'end', NOW).assignment.status).toBe(
+      undefined
+    );
   });
 });

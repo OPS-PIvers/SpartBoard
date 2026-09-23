@@ -140,8 +140,8 @@ export function controlPatches(
   }
   if (kind === 'videoActivity') {
     return {
-      session: { status: 'ended', endedAt: now, expiresAt: now },
-      assignment: { status: 'ended', updatedAt: now },
+      session: { status: 'ended', endedAt: now },
+      assignment: { status: 'inactive', updatedAt: now },
       state: 'ended',
     };
   }
@@ -152,9 +152,11 @@ export function controlPatches(
       state: 'ended',
     };
   }
+  // A quiz and a video activity file their assignment as `inactive`, which is
+  // the archived bucket the teacher's manager filters on; only the session ends.
   return {
     session: { status: 'ended', endedAt: now, autoProgressAt: null },
-    assignment: { status: 'ended', updatedAt: now },
+    assignment: { status: 'inactive', updatedAt: now },
     state: 'ended',
   };
 }
