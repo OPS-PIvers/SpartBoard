@@ -14,6 +14,24 @@ vi.mock('./components/VideoActivityPreview', () => ({
   ),
 }));
 
+// Launching has its own suite; here it only matters that the widget hands the
+// panel the activity and widget it is looking at.
+vi.mock('@/components/subs/SubLaunchPanel', () => ({
+  SubLaunchPanel: ({
+    kind,
+    widgetId,
+    itemId,
+  }: {
+    kind: string;
+    widgetId: string;
+    itemId?: string | null;
+  }) => (
+    <div data-testid="sub-launch" data-kind={kind} data-widget={widgetId}>
+      {itemId}
+    </div>
+  ),
+}));
+
 const widget = (config: Record<string, unknown>) =>
   ({ id: 'w1', type: 'video-activity', config }) as unknown as WidgetData;
 
@@ -54,6 +72,32 @@ describe('SubShareVideoActivityWidget', () => {
     expect(await screen.findByTestId('va-preview')).toHaveTextContent(
       'Mitosis'
     );
+  });
+
+  it('offers to launch the activity it is showing', async () => {
+    render(<SubShareVideoActivityWidget widget={widget(open)} />, {
+      wrapper: inShare(() =>
+        Promise.resolve({
+          payload: { activity: { id: 'va-1', title: 'Mitosis' } },
+          denied: false,
+        })
+      ),
+    });
+
+    const panel = await screen.findByTestId('sub-launch');
+    expect(panel).toHaveAttribute('data-kind', 'videoActivity');
+    expect(panel).toHaveAttribute('data-widget', 'w1');
+    expect(panel).toHaveTextContent('va-1');
+  });
+
+  // Nothing on screen to start, so nothing to start it with.
+  it('offers no launch when the activity did not come along', async () => {
+    render(<SubShareVideoActivityWidget widget={widget(open)} />, {
+      wrapper: inShare(() => Promise.resolve({ payload: null, denied: false })),
+    });
+
+    expect(await screen.findByText('No video activity')).toBeInTheDocument();
+    expect(screen.queryByTestId('sub-launch')).not.toBeInTheDocument();
   });
 
   // The share's keys are readable only by the subs it names; anyone else with

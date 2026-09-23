@@ -132,6 +132,24 @@ describe('SubLaunchPanel', () => {
     ).toBeInTheDocument();
   });
 
+  // A video activity is reached by class, so a code panel would be a blank.
+  it('says where students find a run that has no code', () => {
+    state = {
+      status: 'launched',
+      result: { sessionId: 's1' } as { sessionId: string; code: string },
+      error: null,
+    };
+    show([roster('r1', 'Period 3')]);
+
+    expect(screen.getByText('Started')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Students will find it in their assignments/)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Students join with this code/)
+    ).not.toBeInTheDocument();
+  });
+
   it('shows the refusal and a way back to the button', async () => {
     state = { status: 'error', result: null, error: 'This share has expired.' };
     show([roster('r1', 'Period 3')]);

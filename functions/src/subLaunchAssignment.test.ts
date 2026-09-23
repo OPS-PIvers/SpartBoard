@@ -45,6 +45,62 @@ const WIDGET = 'widget-1';
 const QUIZ = 'quiz-1';
 const DRIVE_FILE = 'drive-file-1';
 const ROSTER = 'roster-1';
+const ACTIVITY = 'activity-1';
+const VA_DRIVE_FILE = 'drive-file-2';
+
+const VA_KEY_QUESTIONS = [
+  {
+    id: 'v1',
+    type: 'MC',
+    text: 'What does a leaf absorb?',
+    timestamp: 12,
+    correctAnswer: 'Light',
+    incorrectAnswers: ['Sound'],
+  },
+  {
+    id: 'v1',
+    type: 'MC',
+    text: 'A duplicate id, which must not inflate the count',
+    timestamp: 20,
+    correctAnswer: 'Light',
+  },
+  {
+    id: 'v2',
+    type: 'FR',
+    text: 'Name the pigment',
+    timestamp: 40,
+    correctAnswer: 'Chlorophyll',
+  },
+];
+
+/** What `subLaunchRunSettings` sends for a video activity. */
+const vaSession = (over: Record<string, unknown> = {}) => ({
+  status: 'active',
+  mode: 'submissions',
+  settings: { allowSkipping: false, requireCorrectAnswer: true },
+  assignmentName: 'Period 3',
+  ...over,
+});
+
+const vaAssignment = (over: Record<string, unknown> = {}) => ({
+  status: 'active',
+  mode: 'submissions',
+  className: 'Period 3',
+  sessionSettings: { allowSkipping: false, requireCorrectAnswer: true },
+  ...over,
+});
+
+const vaInput = (over: Record<string, unknown> = {}) => ({
+  shareId: SHARE,
+  boardId: BOARD,
+  widgetId: WIDGET,
+  kind: 'videoActivity',
+  itemId: ACTIVITY,
+  rosterIds: [ROSTER],
+  session: vaSession(),
+  assignment: vaAssignment(),
+  ...over,
+});
 
 const SUB: SubLaunchCaller = {
   uid: 'sub-uid-1',
@@ -107,6 +163,8 @@ interface StubState {
   key?: Record<string, unknown> | null;
   quiz?: Record<string, unknown> | null;
   roster?: Record<string, unknown> | null;
+  vaKey?: Record<string, unknown> | null;
+  va?: Record<string, unknown> | null;
 }
 
 interface Written {
@@ -137,6 +195,17 @@ function stubDb(state: StubState = {}) {
     },
     quiz = { driveFileId: DRIVE_FILE },
     roster = { name: 'Period 3', classlinkClassId: 'class-A' },
+    vaKey = {
+      payload: {
+        activity: {
+          id: ACTIVITY,
+          title: 'Photosynthesis',
+          youtubeUrl: 'https://youtu.be/abc',
+          questions: VA_KEY_QUESTIONS,
+        },
+      },
+    },
+    va = { driveFileId: VA_DRIVE_FILE },
   } = state;
 
   const written: Written[] = [];
@@ -147,6 +216,8 @@ function stubDb(state: StubState = {}) {
     [`shared_collections/${SHARE}/keys/quiz_${QUIZ}`]: key,
     [`users/${HOST}/quizzes/${QUIZ}`]: quiz,
     [`users/${HOST}/rosters/${ROSTER}`]: roster,
+    [`shared_collections/${SHARE}/keys/videoActivity_${ACTIVITY}`]: vaKey,
+    [`users/${HOST}/video_activities/${ACTIVITY}`]: va,
   };
 
   const db = {
@@ -572,6 +643,186 @@ describe('the run settings the app actually sends', () => {
     expect(written[0].data.questionPhase).toBe('answering');
     expect(written[1].data.className).toBe('Period 3');
     expect(written[1].data.status).toBe('active');
+  });
+});
+
+describe('launching a video activity', () => {
+  const launchVa = (
+    state: StubState = {},
+    over: Record<string, unknown> = {}
+  ) => launch(state, SUB, vaInput(over));
+
+  it('writes the session, its key and the teacher\u2019s assignment', async () => {
+    const { run, written } = launchVa();
+
+    const result = await run();
+
+    expect(result).toEqual({ sessionId: 'new-session-id' });
+    expect(written.map((w) => w.path)).toEqual([
+      'video_activity_sessions/new-session-id',
+      'video_activity_sessions/new-session-id/key/answers',
+      `users/${HOST}/video_activity_assignments/new-session-id`,
+    ]);
+    for (const w of written.slice(0, 1).concat(written.slice(2))) {
+      expect(w.data.teacherUid).toBe(HOST);
+    }
+  });
+
+  // A video activity is reached by class, so there is no code to mint and
+  // none to collide with another teacher's live session.
+  it('mints no join code', async () => {
+    const { run, written } = launchVa();
+
+    const result = await run();
+
+    expect(result.code).toBeUndefined();
+    expect(written.some((w) => w.path.startsWith('quiz_join_codes/'))).toBe(
+      false
+    );
+  });
+
+  it('keeps the answer key off the session doc', async () => {
+    const { run, written } = launchVa();
+
+    await run();
+
+    expect(written[0].data.questions).toEqual([]);
+    expect(findAnswerField(written[0].data)).toBeNull();
+    expect(findAnswerField(written[2].data)).toBeNull();
+  });
+
+  it('puts the key where the grading callable looks for it', async () => {
+    const { run, written } = launchVa();
+
+    await run();
+
+    const key = written[1].data as { questions: { id: string }[] };
+    expect(key.questions.map((q) => q.id)).toEqual(['v1', 'v2']);
+    expect(key.questions[0]).toMatchObject({ correctAnswer: 'Light' });
+  });
+
+  // A repeated id would otherwise inflate "Question X of N" for the class.
+  it('dedupes the questions by id', async () => {
+    const { run, written } = launchVa();
+
+    await run();
+
+    const publicQuestions = written[0].data.publicQuestions as { id: string }[];
+    expect(publicQuestions.map((q) => q.id)).toEqual(['v1', 'v2']);
+  });
+
+  it('takes the Drive file from the teacher\u2019s own record', async () => {
+    const { run, written } = launchVa();
+
+    await run();
+
+    expect(written[2].data.activityDriveFileId).toBe(VA_DRIVE_FILE);
+  });
+
+  it('refuses an activity the teacher has since deleted', async () => {
+    await expect(launchVa({ va: null }).run()).rejects.toThrow(
+      'no longer in the teacher'
+    );
+  });
+
+  it('refuses a key the share never bundled', async () => {
+    await expect(launchVa({ vaKey: null }).run()).rejects.toThrow(
+      'did not leave this activity'
+    );
+  });
+
+  it('refuses a key whose activity is not the one asked for', async () => {
+    await expect(
+      launchVa({
+        vaKey: { payload: { activity: { id: 'other', questions: [] } } },
+      }).run()
+    ).rejects.toThrow('does not match the share');
+  });
+
+  it('refuses an activity with no video', async () => {
+    await expect(
+      launchVa({
+        vaKey: {
+          payload: {
+            activity: { id: ACTIVITY, questions: VA_KEY_QUESTIONS },
+          },
+        },
+      }).run()
+    ).rejects.toThrow('has no video');
+  });
+
+  it('refuses an activity with no questions', async () => {
+    await expect(
+      launchVa({
+        vaKey: {
+          payload: {
+            activity: {
+              id: ACTIVITY,
+              youtubeUrl: 'https://youtu.be/abc',
+              questions: [],
+            },
+          },
+        },
+      }).run()
+    ).rejects.toThrow('has no questions');
+  });
+
+  it('resolves the class the same way a quiz does', async () => {
+    const { run, written } = launchVa();
+
+    await run();
+
+    expect(written[0].data.classIds).toEqual(['class-A']);
+    expect(written[0].data.classId).toBe('class-A');
+    expect(written[2].data.rosterIds).toEqual([ROSTER]);
+  });
+
+  it('stamps the sub as its monitor until the share expires', async () => {
+    const { run, written } = launchVa();
+
+    await run();
+
+    expect(written[0].data.subMonitorUids).toEqual([SUB.uid]);
+    expect(written[0].data.subMonitorUntil).toBe(NOW + 86_400_000);
+  });
+
+  // The quiz allowlist is not this one: `revealedAnswers` and the rest have no
+  // meaning here, and `publicQuestions` is derived, never supplied.
+  it('refuses a session field that is not a run setting', async () => {
+    for (const field of [
+      'publicQuestions',
+      'questions',
+      'teacherUid',
+      'activityId',
+      'subMonitorUids',
+      'allowedPins',
+    ]) {
+      await expect(
+        launchVa({}, { session: vaSession({ [field]: 'x' }) }).run()
+      ).rejects.toThrow(`${field} is not yours to set on the session.`);
+    }
+  });
+
+  it('refuses an assignment field that is not a run setting', async () => {
+    for (const field of ['activityDriveFileId', 'teacherUid', 'plc', 'id']) {
+      await expect(
+        launchVa({}, { assignment: vaAssignment({ [field]: 'x' }) }).run()
+      ).rejects.toThrow(`${field} is not yours to set on the assignment.`);
+    }
+  });
+
+  it('keeps the run settings it was sent', async () => {
+    const { run, written } = launchVa();
+
+    await run();
+
+    expect(written[0].data.status).toBe('active');
+    expect(written[0].data.mode).toBe('submissions');
+    expect(written[0].data.settings).toEqual({
+      allowSkipping: false,
+      requireCorrectAnswer: true,
+    });
+    expect(written[2].data.className).toBe('Period 3');
   });
 });
 

@@ -51,6 +51,26 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
   // panel could legitimately start, so it stays absent rather than disabled.
   if (!enabled || !itemId || rosters.length === 0) return null;
 
+  // A video activity has no code: students find it in their assignments, the
+  // same way they would if the teacher had started it.
+  if (status === 'launched' && result && !result.code) {
+    return (
+      <div className="text-center" style={{ padding: PAD }}>
+        <p className="font-semibold text-white" style={{ fontSize: BODY }}>
+          Started
+        </p>
+        <p
+          className="text-slate-300"
+          style={{ fontSize: NOTE, marginTop: 'min(4px, 1cqmin)' }}
+        >
+          Students will find it in their assignments. Running in the
+          teacher&apos;s account, and their results will show it was started by
+          you.
+        </p>
+      </div>
+    );
+  }
+
   if (status === 'launched' && result) {
     return (
       <div className="text-center" style={{ padding: PAD }}>
