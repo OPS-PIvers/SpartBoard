@@ -129,6 +129,27 @@ describe('useSubLaunch', () => {
     expect(callable).not.toHaveBeenCalled();
   });
 
+  // Two calls would mint two live sessions, each with its own join code, in
+  // the teacher's account.
+  it('starts one run however fast the button is pressed twice', async () => {
+    let settle: (value: unknown) => void = () => undefined;
+    callable.mockReturnValue(
+      new Promise((resolve) => {
+        settle = resolve;
+      })
+    );
+    const { result } = launched();
+
+    void act(() => {
+      void result.current.launch(['roster-1']);
+      void result.current.launch(['roster-1']);
+    });
+
+    expect(callable).toHaveBeenCalledTimes(1);
+    act(() => settle({ data: { sessionId: 's1', code: 'AB12CD' } }));
+    await waitFor(() => expect(result.current.status).toBe('launched'));
+  });
+
   it('is launching while the call is in flight', async () => {
     let settle: (value: unknown) => void = () => undefined;
     callable.mockReturnValue(

@@ -9,7 +9,7 @@
  * here can reach a student.
  */
 
-import { useCallback, useContext, useState } from 'react';
+import { useCallback, useContext, useRef, useState } from 'react';
 import { httpsCallable, type FunctionsError } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
@@ -71,6 +71,9 @@ export function useSubLaunch(
   const [status, setStatus] = useState<SubLaunchStatus>('idle');
   const [result, setResult] = useState<SubLaunchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // `status` is a render behind a second press, and two calls would mint two
+  // live sessions with two codes in the teacher's account.
+  const inFlight = useRef(false);
 
   const boardId = share?.boardId ?? null;
   const shareId = share?.shareId ?? null;
@@ -79,6 +82,8 @@ export function useSubLaunch(
   const launch = useCallback(
     async (rosterIds: string[]) => {
       if (!shareId || !boardId || !itemId || rosterIds.length === 0) return;
+      if (inFlight.current) return;
+      inFlight.current = true;
       setStatus('launching');
       setError(null);
       try {
@@ -119,12 +124,15 @@ export function useSubLaunch(
         }
         setError(messageFor(err));
         setStatus('error');
+      } finally {
+        inFlight.current = false;
       }
     },
     [shareId, boardId, widgetId, kind, itemId, rosters]
   );
 
   const reset = useCallback(() => {
+    inFlight.current = false;
     setStatus('idle');
     setResult(null);
     setError(null);
