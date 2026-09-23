@@ -230,6 +230,23 @@ describe('GuidedLearningStage regions and callouts', () => {
     expect(rim.getAttribute('d')).toBe('M160,255 H240 V345 H160 Z');
   });
 
+  it('labels a spotlight under its region only when no callout carries the label', () => {
+    const handle = layout();
+    const lit = step({
+      interactionType: 'spotlight',
+      region: { shape: 'rect', wPct: 10, hPct: 20 },
+    });
+    const { unmount } = renderV3([{ ...lit, showOverlay: 'tooltip' }]);
+    act(() => handle.fireResize());
+    expect(screen.getByTestId('gl-tooltip-card')).toHaveTextContent('Target');
+    expect(screen.getAllByText('Target')).toHaveLength(1);
+    unmount();
+
+    renderV3([{ ...lit, showOverlay: 'none' }]);
+    act(() => handle.fireResize());
+    expect(screen.getByText('Target')).toHaveAttribute('data-gl-callout', 'r');
+  });
+
   it('keeps the radius circle for a spotlight without a region', () => {
     const handle = layout();
     renderV3([step({ interactionType: 'spotlight', spotlightRadius: 10 })]);
