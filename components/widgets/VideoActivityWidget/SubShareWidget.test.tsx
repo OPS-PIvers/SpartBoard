@@ -5,6 +5,7 @@ import React from 'react';
 import { SubShareVideoActivityWidget } from './SubShareWidget';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import type { WidgetData } from '@/types';
+import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
 // This suite is about which view a substitute gets; the preview has its own.
 vi.mock('./components/VideoActivityPreview', () => ({
@@ -22,12 +23,12 @@ const inShare = (
   function InShare({ children }: { children: React.ReactNode }) {
     return (
       <SubShareContentContext.Provider
-        value={{
+        value={subShareContextValue({
           shareId: 'share-1',
           version: 0,
           load: (() => Promise.resolve(null)) as never,
           loadKey,
-        }}
+        })}
       >
         {children}
       </SubShareContentContext.Provider>

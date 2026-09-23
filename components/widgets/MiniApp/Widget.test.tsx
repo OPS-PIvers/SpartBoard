@@ -11,6 +11,7 @@ import { useMiniAppSync } from './hooks/useMiniAppSync';
 import { WidgetData, MiniAppItem } from '@/types';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
+import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
 vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
@@ -120,12 +121,12 @@ describe('MiniAppWidget — inside a sub share', () => {
   function InShare({ children }: { children: React.ReactNode }) {
     return (
       <SubShareContentContext.Provider
-        value={{
+        value={subShareContextValue({
           shareId: 'share-1',
           version: 0,
           loadKey: noSubShareKey,
           load: (() => Promise.resolve(null)) as never,
-        }}
+        })}
       >
         {/* The toolbar only renders once it finds its widget's chrome. */}
         <div data-widget-id="widget-1">{children}</div>

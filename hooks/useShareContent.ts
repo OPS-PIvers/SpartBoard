@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
-import type { SubShareContentKind } from '@/types';
+import type { SubShareContentKind, SubstituteShareRoster } from '@/types';
 
 export type ShareContentStatus = 'off' | 'loading' | 'ready' | 'missing';
 
@@ -19,6 +19,17 @@ const OFF = { status: 'off', payload: null } as const;
  */
 export function useInSubShare(): boolean {
   return useContext(SubShareContentContext) !== null;
+}
+
+const NO_ROSTERS: SubstituteShareRoster[] = [];
+
+/**
+ * The classes the teacher attached to this share — the only ones a substitute
+ * may start an activity for. Empty outside a share, and empty inside one the
+ * teacher made without rosters, which is what hides Launch.
+ */
+export function useSubShareRosters(): SubstituteShareRoster[] {
+  return useContext(SubShareContentContext)?.rosters ?? NO_ROSTERS;
 }
 
 /**

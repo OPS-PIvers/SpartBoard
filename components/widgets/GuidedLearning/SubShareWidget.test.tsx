@@ -5,6 +5,7 @@ import React from 'react';
 import { SubShareGuidedLearningWidget } from './SubShareWidget';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import type { WidgetData } from '@/types';
+import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
 const getDoc = vi.fn<(ref: { __path: string }) => Promise<unknown>>();
 vi.mock('firebase/firestore', () => ({
@@ -56,12 +57,12 @@ const inShare = (
   function InShare({ children }: { children: React.ReactNode }) {
     return (
       <SubShareContentContext.Provider
-        value={{
+        value={subShareContextValue({
           shareId: 'share-1',
           version: 0,
           load: (() => Promise.resolve(null)) as never,
           loadKey,
-        }}
+        })}
       >
         {children}
       </SubShareContentContext.Provider>

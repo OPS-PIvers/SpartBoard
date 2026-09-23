@@ -54,6 +54,7 @@ import {
   type SubsControlContextValue,
 } from './SubsControlContext';
 import type { SubstituteShareDoc } from '@/hooks/useSubstituteShares';
+import type { SubstituteShareRoster } from '@/types';
 import type { SubstituteRosterState } from '@/hooks/useSubstituteRosters';
 import {
   mergeWidgetsPII,
@@ -82,6 +83,12 @@ interface SubsDashboardProviderProps {
    */
   contentVersion?: number;
   /**
+   * Which board of the collection this is, unversioned. `boardKey` carries the
+   * content version too, so it cannot stand in: `launchSubAssignmentV1` checks
+   * a widget against this board's own snapshot document.
+   */
+  contentBoardId?: string;
+  /**
    * This board's student names, from the share's Drive names file. The board
    * snapshot reaches Firestore scrubbed of them (plan §3.4), and the sub
    * unlocks the file after the board is already on screen, so they are folded
@@ -90,6 +97,8 @@ interface SubsDashboardProviderProps {
   names?: DashboardPiiSupplement;
   children: React.ReactNode;
 }
+
+const NO_SHARED_ROSTERS: SubstituteShareRoster[] = [];
 
 const NOOP = () => {
   /* noop */
@@ -126,6 +135,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   boardKey: boardKeyProp,
   contentShareId,
   contentVersion = 0,
+  contentBoardId,
   names,
   children,
 }) => {
@@ -508,7 +518,9 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   const buildingOverride = share.buildingId ?? null;
   const shareContent = useSubShareContentLoader(
     contentShareId ?? null,
-    contentVersion
+    contentVersion,
+    contentBoardId ?? null,
+    share.sharedRosters ?? NO_SHARED_ROSTERS
   );
 
   const controlValue = useMemo<SubsControlContextValue>(

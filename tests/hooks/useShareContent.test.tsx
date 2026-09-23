@@ -8,6 +8,7 @@ import {
   useShareContent,
   useShareKey,
 } from '@/hooks/useShareContent';
+import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
 const wrapWith = (
   load: (kind: string, itemId: string) => Promise<unknown>,
@@ -16,12 +17,12 @@ const wrapWith = (
   function InShare({ children }: { children: React.ReactNode }) {
     return (
       <SubShareContentContext.Provider
-        value={{
+        value={subShareContextValue({
           shareId: 'share-1',
           version,
           load: load as never,
           loadKey: noSubShareKey,
-        }}
+        })}
       >
         {children}
       </SubShareContentContext.Provider>
@@ -91,12 +92,12 @@ describe('useShareContent', () => {
     function InShare({ children }: { children: React.ReactNode }) {
       return (
         <SubShareContentContext.Provider
-          value={{
+          value={subShareContextValue({
             shareId: 'share-1',
             version,
             load: load as never,
             loadKey: noSubShareKey,
-          }}
+          })}
         >
           {children}
         </SubShareContentContext.Provider>
@@ -153,12 +154,12 @@ describe('useShareKey', () => {
     function InShare({ children }: { children: React.ReactNode }) {
       return (
         <SubShareContentContext.Provider
-          value={{
+          value={subShareContextValue({
             shareId: 'share-1',
             version: 0,
             load: (() => Promise.resolve(null)) as never,
             loadKey: loadKey as never,
-          }}
+          })}
         >
           {children}
         </SubShareContentContext.Provider>

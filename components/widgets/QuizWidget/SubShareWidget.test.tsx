@@ -5,6 +5,7 @@ import React from 'react';
 import { SubShareQuizWidget } from './SubShareWidget';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import type { WidgetData } from '@/types';
+import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
 // The preview is the teacher's own component; this suite is about which of it
 // a substitute gets, not how it draws a question.
@@ -22,6 +23,24 @@ vi.mock('./components/QuizPreview', () => ({
   ),
 }));
 
+// Launching has its own suite; here it only matters that the widget hands the
+// panel the quiz and widget it is looking at.
+vi.mock('@/components/subs/SubLaunchPanel', () => ({
+  SubLaunchPanel: ({
+    kind,
+    widgetId,
+    itemId,
+  }: {
+    kind: string;
+    widgetId: string;
+    itemId?: string | null;
+  }) => (
+    <div data-testid="sub-launch" data-kind={kind} data-widget={widgetId}>
+      {itemId}
+    </div>
+  ),
+}));
+
 const widget = (config: Record<string, unknown>) =>
   ({ id: 'w1', type: 'quiz', config }) as unknown as WidgetData;
 
@@ -31,12 +50,12 @@ const inShare = (
   function InShare({ children }: { children: React.ReactNode }) {
     return (
       <SubShareContentContext.Provider
-        value={{
+        value={subShareContextValue({
           shareId: 'share-1',
           version: 0,
           load: (() => Promise.resolve(null)) as never,
           loadKey,
-        }}
+        })}
       >
         {children}
       </SubShareContentContext.Provider>
@@ -61,6 +80,37 @@ describe('SubShareQuizWidget', () => {
     const preview = await screen.findByTestId('quiz-preview');
     expect(preview).toHaveTextContent('Cells');
     expect(preview).toHaveAttribute('data-back', 'no');
+  });
+
+  it('offers to launch the quiz it is showing', async () => {
+    render(
+      <SubShareQuizWidget
+        widget={widget({ selectedQuizId: 'q-1', selectedQuizTitle: 'Cells' })}
+      />,
+      { wrapper: inShare(bundled('Cells')) }
+    );
+
+    const panel = await screen.findByTestId('sub-launch');
+    expect(panel).toHaveAttribute('data-kind', 'quiz');
+    expect(panel).toHaveAttribute('data-widget', 'w1');
+    expect(panel).toHaveTextContent('q-1');
+  });
+
+  // Nothing on screen to start, so nothing to start it with.
+  it('offers no launch when the quiz did not come along', async () => {
+    render(
+      <SubShareQuizWidget
+        widget={widget({ selectedQuizId: 'q-1', selectedQuizTitle: 'Cells' })}
+      />,
+      {
+        wrapper: inShare(() =>
+          Promise.resolve({ payload: null, denied: false })
+        ),
+      }
+    );
+
+    expect(await screen.findByText('No quiz')).toBeInTheDocument();
+    expect(screen.queryByTestId('sub-launch')).not.toBeInTheDocument();
   });
 
   // The share's keys are readable only by the subs it names; anyone else with

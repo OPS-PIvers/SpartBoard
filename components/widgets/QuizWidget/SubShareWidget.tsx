@@ -5,12 +5,14 @@
  * assignments and live sessions are all the teacher's, so a sub reads none of
  * them. What they get is the quiz the widget had open, bundled at share time
  * into the share's `keys/` collection, which only the subs the share names may
- * read (plan §3.1 A2). Launching is PR 4 (D8).
+ * read (plan §3.1 A2). A named sub can also start it in the teacher's account,
+ * when the org switch for that is on (plan §3.6, D8).
  */
 
 import React from 'react';
 import { BookOpen, Lock } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { SubLaunchPanel } from '@/components/subs/SubLaunchPanel';
 import { useShareKey } from '@/hooks/useShareContent';
 import { QuizPreview } from './components/QuizPreview';
 import type { QuizConfig, SubShareQuizPayload, WidgetData } from '@/types';
@@ -25,7 +27,19 @@ export const SubShareQuizWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   if (status === 'ready' && payload) {
-    return <QuizPreview quiz={payload.quiz} />;
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="min-h-0 flex-1">
+          <QuizPreview quiz={payload.quiz} />
+        </div>
+        <SubLaunchPanel
+          kind="quiz"
+          widgetId={widget.id}
+          itemId={config.selectedQuizId}
+          label="quiz"
+        />
+      </div>
+    );
   }
   // The board snapshot carries the title, so name the quiz even when its
   // questions did not travel.

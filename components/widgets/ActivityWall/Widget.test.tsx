@@ -6,6 +6,7 @@ import { ActivityWallWidget } from './Widget';
 import type { ActivityWallLibraryEntry, WidgetData } from '@/types';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
+import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
 const {
   mockAddWidget,
@@ -460,7 +461,7 @@ describe('ActivityWallWidget inside a sub share', () => {
   function InShare({ children }: { children: React.ReactNode }) {
     return (
       <SubShareContentContext.Provider
-        value={{
+        value={subShareContextValue({
           shareId: 'share-1',
           version: 0,
           loadKey: noSubShareKey,
@@ -469,7 +470,7 @@ describe('ActivityWallWidget inside a sub share', () => {
               entry: makeEntry({ title: 'Exit tickets' }),
               hostUid: 'teacher-1',
             })) as never,
-        }}
+        })}
       >
         {children}
       </SubShareContentContext.Provider>

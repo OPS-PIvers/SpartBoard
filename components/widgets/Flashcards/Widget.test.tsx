@@ -9,6 +9,7 @@ import { useFolders } from '@/hooks/useFolders';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import type { FlashcardSet, WidgetData } from '@/types';
+import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
@@ -120,12 +121,12 @@ describe('FlashcardsWidget — inside a sub share', () => {
   }) {
     return (
       <SubShareContentContext.Provider
-        value={{
+        value={subShareContextValue({
           shareId: 'share-1',
           version: 0,
           loadKey: noSubShareKey,
           load: () => Promise.resolve(payload),
-        }}
+        })}
       >
         {children}
       </SubShareContentContext.Provider>

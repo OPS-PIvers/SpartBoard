@@ -5,6 +5,7 @@ import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import { useSubShareDrawingObjects } from '@/components/widgets/DrawingWidget/useSubShareDrawingObjects';
 import type { DrawableObject } from '@/types';
+import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
 const stroke = (id: string, z = 1): DrawableObject =>
   ({ id, z, kind: 'pen' }) as unknown as DrawableObject;
@@ -20,12 +21,12 @@ const wrapWith = (load: () => Promise<unknown>) => {
   function InShare({ children }: { children: React.ReactNode }) {
     return (
       <SubShareContentContext.Provider
-        value={{
+        value={subShareContextValue({
           shareId: 'share-1',
           version: 0,
           load: load as never,
           loadKey: noSubShareKey,
-        }}
+        })}
       >
         {children}
       </SubShareContentContext.Provider>
