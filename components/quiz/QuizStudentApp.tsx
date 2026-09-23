@@ -140,6 +140,8 @@ import { ResultsWatermark } from './ResultsWatermark';
 import { ResultsTabWarningModal } from './ResultsTabWarningModal';
 import { useResultsTabWarnings } from '@/hooks/useResultsTabWarnings';
 import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
+import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
+import { TabAwayClock } from '@/components/common/TabAwayClock';
 import {
   getEffectiveTabWarningThreshold,
   hasReachedTabWarningThreshold,
@@ -1695,6 +1697,8 @@ const ActiveQuiz: React.FC<{
     ? localIndex
     : session.currentQuestionIndex;
 
+  // Null unless the teacher assigned with the tab-away-timer flag.
+  const tabAwayRule = getEffectiveTabAwayRule(session, override?.tabAwayLimit);
   // The tab-away tracker counts each exit, logs it to `tabExits`, and closes
   // it when the student comes back.
   const tabTracker = useTabAwayTracker({
@@ -1736,9 +1740,24 @@ const ActiveQuiz: React.FC<{
       return false;
     },
     saveExits: saveTabExits,
-    limitMs: null,
-    autoSubmit: false,
-    onAwayTooLong: () => undefined,
+    limitMs: tabAwayRule?.limitMs ?? null,
+    autoSubmit: tabAwayRule?.autoSubmit ?? false,
+    onAwayTooLong: () => {
+      // Submit first: the tab may be hidden, where a blocking alert would wait.
+      setShowCheatWarning(true);
+      document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
+      void onComplete()
+        .then(() =>
+          showAlert(
+            'You were away from the quiz too long, so it was submitted.',
+            { title: 'Quiz Auto-Submitted', variant: 'warning' }
+          )
+        )
+        .catch((err: unknown) =>
+          console.error('[QuizStudentApp] away auto-submit failed:', err)
+        )
+        .finally(tabTracker.release);
+    },
   });
 
   // Per-student answer shuffle. The session-level `publicQuestions` was
@@ -3045,6 +3064,13 @@ const ActiveQuiz: React.FC<{
           <h2 className="text-4xl font-black text-white mb-4">
             TAB SWITCH DETECTED
           </h2>
+          {tabAwayRule && tabTracker.away && (
+            <TabAwayClock
+              away={tabTracker.away}
+              limitMs={tabAwayRule.limitMs}
+              autoSubmit={tabAwayRule.autoSubmit}
+            />
+          )}
           <p className="text-red-200 text-lg max-w-md mb-8">
             You navigated away from the quiz. This incident has been logged.
             <br />

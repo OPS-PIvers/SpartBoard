@@ -9,7 +9,7 @@
  *   /video_activity_sessions/{sessionId}/responses/{studentUid} — VideoActivityResponse
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useContext } from 'react';
 import {
   doc,
   collection,
@@ -30,6 +30,8 @@ import { signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import { db, auth, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import { tabAwaySessionFields } from '@/utils/tabAwayLimit';
+import { AuthContext } from '@/context/AuthContextValue';
 import {
   computeResponseKey,
   encodeResponseKeySegment,
@@ -187,6 +189,9 @@ export const useVideoActivitySessionTeacher =
     const unsubRef = useRef<Unsubscribe | null>(null);
     const sessionDocUnsubRef = useRef<Unsubscribe | null>(null);
     const sessionsUnsubRef = useRef<Unsubscribe | null>(null);
+    // Read via context so a provider-less caller denies instead of throwing.
+    const tabAwayTimerOn =
+      useContext(AuthContext)?.canAccessFeature?.('tab-away-timer') === true;
 
     const createSession = useCallback(
       async (
@@ -238,7 +243,14 @@ export const useVideoActivitySessionTeacher =
           Object.keys(classPeriodByClassId).length > 0
             ? { classPeriodByClassId }
             : {}),
-          ...(sessionOptions ? { sessionOptions } : {}),
+          ...(sessionOptions || tabAwayTimerOn
+            ? {
+                sessionOptions: {
+                  ...sessionOptions,
+                  ...tabAwaySessionFields(tabAwayTimerOn, sessionOptions ?? {}),
+                },
+              }
+            : {}),
           mode,
         };
 
@@ -258,7 +270,7 @@ export const useVideoActivitySessionTeacher =
 
         return sessionId;
       },
-      []
+      [tabAwayTimerOn]
     );
 
     const subscribeToActivitySessions = useCallback(

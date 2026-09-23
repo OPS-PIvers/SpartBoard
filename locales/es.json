@@ -1964,6 +1964,8 @@
     "copy": "Copiar",
     "timeMultiplier": "Tiempo extendido",
     "tabWarningThreshold": "Umbral de aviso de pestaña",
+    "tabAwayLimit": "Tiempo permitido fuera (segundos)",
+    "noAutoSubmit": "Sin envío automático",
     "default": "Predeterminado",
     "off": "Desactivado",
     "windowShift": "Ajuste de horario",
@@ -1986,6 +1988,8 @@
       "rubricSwaps_other": "{{count}} cambios de rúbrica",
       "tabWarningsOff": "Avisos de pestaña desactivados",
       "tabWarning": "Aviso de pestaña: {{threshold}}",
+      "tabAwayOff": "Sin envío automático por ausencia",
+      "tabAway": "Límite fuera: {{seconds}} s",
       "windowShifted": "Horario ajustado",
       "readAloud": "Lectura en voz alta",
       "language": "{{language}}"
