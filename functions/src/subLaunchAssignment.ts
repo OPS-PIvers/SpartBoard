@@ -442,7 +442,11 @@ export async function handleLaunchSubAssignment(
     .get();
   const board = boardSnap.data();
   if (!boardSnap.exists || !board) denied('That board is not in the share.');
-  const widgets: unknown[] = Array.isArray(board.widgets) ? board.widgets : [];
+  // The share stores the frozen board under `dashboard`, not flat.
+  const dashboard = (board as { dashboard?: { widgets?: unknown } }).dashboard;
+  const widgets: unknown[] = Array.isArray(dashboard?.widgets)
+    ? dashboard.widgets
+    : [];
   const onBoard = widgets.some(
     (w) =>
       !!w && typeof w === 'object' && (w as { id?: unknown }).id === widgetId

@@ -124,7 +124,12 @@ function stubDb(state: StubState = {}) {
       subEmails: ['sub@orono.k12.mn.us'],
       sharedRosters: [{ id: ROSTER, name: 'Period 3', driveFileId: 'd1' }],
     },
-    board = { widgets: [{ id: WIDGET, type: 'quiz' }] },
+    // Matches `SharedCollectionBoardDoc`: the frozen board sits under
+    // `dashboard`, which is what `useSharedCollection` writes.
+    board = {
+      boardId: BOARD,
+      dashboard: { widgets: [{ id: WIDGET, type: 'quiz' }] },
+    },
     key = {
       payload: {
         quiz: { id: QUIZ, title: 'Cells', questions: KEY_QUESTIONS },
@@ -339,7 +344,14 @@ describe('handleLaunchSubAssignment', () => {
       'not in the share'
     );
     await expect(
-      launch({ board: { widgets: [{ id: 'other-widget' }] } }).run()
+      launch({
+        board: { boardId: BOARD, dashboard: { widgets: [{ id: 'other' }] } },
+      }).run()
+    ).rejects.toThrow('not on the shared board');
+    // A flat board doc is the shape this handler first assumed; it must not
+    // read as a board carrying the widget.
+    await expect(
+      launch({ board: { widgets: [{ id: WIDGET }] } }).run()
     ).rejects.toThrow('not on the shared board');
   });
 
