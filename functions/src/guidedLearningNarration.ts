@@ -1,7 +1,6 @@
 // Guided Learning step narration (docs/plans/GUIDED_LEARNING_STUDIO.md P2-4): admin-only Cloud TTS into the shared quiz cache.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import {
   buildDefaultDeps,
@@ -22,8 +21,8 @@ export interface NarrationRequest {
   voice?: string;
 }
 
+/** No URL: the client resolves `storagePath` through the auth-gated Storage SDK, as quiz read-aloud does. */
 export interface NarrationResult {
-  url: string;
   storagePath: string;
   voice: string;
   textHash: string;
@@ -35,8 +34,6 @@ export interface NarrationDeps extends ReadAloudDeps {
     email?: string;
     email_verified?: boolean;
   }) => Promise<boolean>;
-  /** Persistent token download URL for a cache object. */
-  downloadUrl: (path: string) => Promise<string>;
 }
 
 /** Same digest the client computes over the raw step text, for the stale badge. */
@@ -92,7 +89,6 @@ export async function synthesizeGuidedLearningNarration(
   });
   if (result.cached) await recordCacheHits(deps.db, 1, deps.now());
   return {
-    url: await deps.downloadUrl(result.path),
     storagePath: result.path,
     voice: result.path.split('/')[1] ?? voice,
     textHash: narrationTextHash(request.text),
@@ -111,22 +107,6 @@ export function buildNarrationDeps(): NarrationDeps {
         .doc(token.email.toLowerCase())
         .get();
       return snap.exists;
-    },
-    downloadUrl: async (path) => {
-      const file = admin.storage().bucket().file(path);
-      const [meta] = await file.getMetadata();
-      const custom = (meta.metadata ?? {}) as Record<string, unknown>;
-      let token =
-        typeof custom.firebaseStorageDownloadTokens === 'string'
-          ? custom.firebaseStorageDownloadTokens.split(',')[0]
-          : '';
-      if (!token) {
-        token = randomUUID();
-        await file.setMetadata({
-          metadata: { firebaseStorageDownloadTokens: token },
-        });
-      }
-      return `https://firebasestorage.googleapis.com/v0/b/${file.bucket.name}/o/${encodeURIComponent(path)}?alt=media&token=${token}`;
     },
   };
 }

@@ -1,6 +1,7 @@
 // Step narration helpers (docs/plans/GUIDED_LEARNING_STUDIO.md P2-4); the server side is functions/src/guidedLearningNarration.ts.
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/config/firebase';
+import { getDownloadURL, ref as storageRef } from 'firebase/storage';
+import { functions, storage } from '@/config/firebase';
 
 /** Mirrors GL_NARRATION_MAX_CHARS in functions/src/guidedLearningNarration.ts. */
 export const GL_NARRATION_MAX_CHARS = 1500;
@@ -69,8 +70,10 @@ export async function generateNarration(
 ): Promise<GeneratedNarration> {
   const callable = httpsCallable<
     { text: string; voice?: string },
-    Omit<GeneratedNarration, 'source'>
+    Omit<GeneratedNarration, 'source' | 'url'>
   >(functions, 'synthesizeGuidedLearningNarrationV1');
   const { data } = await callable(voice ? { text, voice } : { text });
-  return { source: 'generated', ...data };
+  // The server mints no URL; the signed-in caller resolves it under storage.rules, as quiz read-aloud does.
+  const url = await getDownloadURL(storageRef(storage, data.storagePath));
+  return { source: 'generated', url, ...data };
 }

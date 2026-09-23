@@ -132,7 +132,6 @@ function makeDeps(
     isFeatureGranted: () => Promise.resolve(true),
     now: () => NOW,
     isCallerAdmin: (token) => Promise.resolve(token.email === 'admin@x.org'),
-    downloadUrl: (path) => Promise.resolve(`https://dl/${path}`),
     ...over,
   };
   return { deps, files, synthesize };
@@ -197,7 +196,6 @@ describe('synthesizeGuidedLearningNarration', () => {
       cacheHash('en-US-Neural2-F', ssml)
     );
     expect(res).toEqual({
-      url: `https://dl/${path}`,
       storagePath: path,
       voice: 'en-US-Neural2-F',
       textHash: narrationTextHash(text),

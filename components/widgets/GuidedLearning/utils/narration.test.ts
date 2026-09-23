@@ -4,7 +4,13 @@ const callable = vi.fn();
 vi.mock('firebase/functions', () => ({
   httpsCallable: vi.fn(() => callable),
 }));
-vi.mock('@/config/firebase', () => ({ functions: {} }));
+vi.mock('firebase/storage', () => ({
+  ref: vi.fn((_s: unknown, path: string) => ({ path })),
+  getDownloadURL: vi.fn(({ path }: { path: string }) =>
+    Promise.resolve(`https://dl/${path}`)
+  ),
+}));
+vi.mock('@/config/firebase', () => ({ functions: {}, storage: {} }));
 
 import { httpsCallable } from 'firebase/functions';
 import {
@@ -76,10 +82,9 @@ describe('narrationDeletionRef', () => {
 });
 
 describe('generateNarration', () => {
-  it('calls the narration callable and tags the result as generated', async () => {
+  it('calls the narration callable, resolves the URL client-side and tags the result', async () => {
     callable.mockResolvedValue({
       data: {
-        url: 'https://dl/x.mp3',
         storagePath: 'quiz_tts_cache/v/x.mp3',
         voice: 'en-US-Neural2-F',
         textHash: 'h',
@@ -92,6 +97,10 @@ describe('generateNarration', () => {
       'synthesizeGuidedLearningNarrationV1'
     );
     expect(callable).toHaveBeenCalledWith({ text: 'Hello' });
-    expect(res).toMatchObject({ source: 'generated', durationMs: 900 });
+    expect(res).toMatchObject({
+      source: 'generated',
+      url: 'https://dl/quiz_tts_cache/v/x.mp3',
+      durationMs: 900,
+    });
   });
 });
