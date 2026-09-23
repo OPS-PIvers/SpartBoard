@@ -356,15 +356,13 @@ describe('scrubVideoActivitySessionKey', () => {
     ).resolves.toBe('scrubbed');
   });
 
-  it('scrubs a legacy session on create and once it ends', async () => {
+  it('leaves a live session a pre-release tab creates until it ends, then scrubs it', async () => {
     const live = { teacherUid: 't1', status: 'active', questions: KEYED };
+    const docs: Record<string, Doc> = { [SESSION]: { ...live } };
     await expect(
-      scrubVideoActivitySessionKey(
-        makeDb({ [SESSION]: { ...live } }),
-        's1',
-        live
-      )
-    ).resolves.toBe('scrubbed');
+      scrubVideoActivitySessionKey(makeDb(docs), 's1', live)
+    ).resolves.toBe('deferred');
+    expect(docs[SESSION].questions).toEqual(KEYED);
     const ended = { ...live, status: 'ended' };
     await expect(
       scrubVideoActivitySessionKey(

@@ -232,12 +232,12 @@ export async function scrubVideoActivitySessionKey(
     return 'deleted';
   }
   if (!hasEmbeddedKey(after.questions)) return 'clean';
-  // A pre-release student tab reads `questions` directly, so a live session keeps it until it ends or the backfill asks.
+  // A pre-release tab reads `questions` directly, so a live session (even one it just created) keeps it until it ends or the backfill asks.
   const requested = stampMillis(after.keyScrubRequestedAt);
   const backfillAsked =
     requested !== null &&
     requested !== stampMillis(before?.keyScrubRequestedAt);
-  if (before && after.status === 'active' && !backfillAsked) return 'deferred';
+  if (after.status === 'active' && !backfillAsked) return 'deferred';
   const questions = dedupeById(keyQuestions(after.questions));
   const batch = db.batch();
   batch.set(keyRef(db, sessionId), { questions });
