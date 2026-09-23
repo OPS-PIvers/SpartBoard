@@ -8,7 +8,12 @@ import { useDashboard } from '@/context/useDashboard';
 import { loadBuildingSet } from '@/hooks/useGuidedLearning';
 import { Z_INDEX } from '@/config/zIndex';
 import { placeCallout } from '@/components/widgets/GuidedLearning/utils/calloutPlacement';
-import { TOUR_START_EVENT, type TourStartRequest } from './tourState';
+import {
+  isTourRunning,
+  setTourRunning,
+  TOUR_START_EVENT,
+  type TourStartRequest,
+} from './tourState';
 import {
   addedWidgetIds,
   missingSetupWidgets,
@@ -83,7 +88,13 @@ export const LiveTourRunner: React.FC = () => {
     const onStart = (e: Event) => {
       const req = (e as CustomEvent<TourStartRequest>).detail;
       const { canAccessFeature: can, dashboard: d, t: tr } = latest.current;
-      if (!req?.setId || !can('gl-live-tours') || startingRef.current) return;
+      if (
+        !req?.setId ||
+        !can('gl-live-tours') ||
+        startingRef.current ||
+        isTourRunning()
+      )
+        return;
       startingRef.current = true;
       void (async () => {
         try {
@@ -181,6 +192,11 @@ export const LiveTourRunner: React.FC = () => {
   }, [anchor.element, step?.tour.action, stepIndex]);
 
   const running = tour?.phase === 'running';
+  const active = tour !== null;
+  useEffect(() => {
+    setTourRunning(active);
+    return () => setTourRunning(false);
+  }, [active]);
   const finishRef = useRef(finish);
   finishRef.current = finish;
   useEffect(() => {

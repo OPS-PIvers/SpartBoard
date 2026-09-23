@@ -325,6 +325,26 @@ describe('LiveTourRunner', () => {
     expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
   });
 
+  it('ignores a second start while a tour is open', async () => {
+    await start(
+      makeSet([{ anchor: 'sidebar.boards', action: 'observe' }], ['dice'])
+    );
+    h.loadBuildingSet.mockResolvedValue(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'observe' },
+        { anchor: 'dock.item:dice', action: 'observe' },
+      ])
+    );
+    act(() => {
+      requestStartTour({ setId: 'set-2' });
+    });
+    await frames();
+    expect(h.loadBuildingSet).toHaveBeenCalledTimes(1);
+    expect(progress()).toBe('1 / 1');
+    fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
+    expect(screen.getByText("Keep the tour's widgets?")).toBeInTheDocument();
+  });
+
   it('ignores start requests without the flag', async () => {
     h.canAccess.mockReturnValue(false);
     await start(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));
