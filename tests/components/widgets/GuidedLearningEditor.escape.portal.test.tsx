@@ -84,6 +84,8 @@ const makeState = (): GuidedLearningEditorController => ({
   updateStep: vi.fn(),
   deleteStep: vi.fn(),
   reorderSteps: vi.fn(),
+  uploadNarrationTake: vi.fn(),
+  setStepNarration: vi.fn(),
   selectedStep: null,
   currentImageSteps: [],
   canvasMeasurementsRef: { current: null },

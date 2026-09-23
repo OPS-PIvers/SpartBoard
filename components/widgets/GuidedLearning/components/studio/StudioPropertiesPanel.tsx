@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Activity, ArrowLeftRight } from 'lucide-react';
 import { GuidedLearningStepEditor } from '../GuidedLearningStepEditor';
 import { StudioRegionControls } from './StudioRegionControls';
+import { StudioNarration, StudioNarrationBatch } from './StudioNarration';
 import { SettingChip } from '../editorShared/SettingChip';
 import { WelcomeChip } from '../editorShared/WelcomeChip';
 import { VideoTrimBar } from '../editorShared/VideoTrimBar';
@@ -90,6 +91,11 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
     return (
       <>
         <StudioRegionControls step={selectedStep} onChange={updateStep} />
+        <StudioNarration
+          key={selectedStep.id}
+          state={state}
+          step={selectedStep}
+        />
         <GuidedLearningStepEditor
           key={selectedStep.id}
           step={selectedStep}
@@ -170,6 +176,7 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
           />
         </div>
       </div>
+      {steps.length > 0 && <StudioNarrationBatch state={state} />}
       {isVideoSlide && (
         <div className="flex flex-col gap-1.5">
           <span className="text-xs font-bold text-slate-600">
