@@ -31,6 +31,10 @@ import {
 import { AssignTargetingSection } from '@/components/common/library/AssignTargetingSection';
 import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 import { AssignmentStatusChip } from './AssignmentStatusChip';
+import {
+  QUIZ_CONTENT_COLLECTION,
+  QUIZ_CONTENT_DOC,
+} from '@/utils/quizSessionContent';
 import type {
   QuizPlcActions,
   UnifiedAssignmentRow,
@@ -356,7 +360,15 @@ export const AssignmentDetailPane: React.FC<{
           return;
         }
         // A per-period session keeps its questions in the content doc.
-        getDoc(doc(db, 'quiz_sessions', row.sessionId, 'content', 'questions'))
+        getDoc(
+          doc(
+            db,
+            'quiz_sessions',
+            row.sessionId,
+            QUIZ_CONTENT_COLLECTION,
+            QUIZ_CONTENT_DOC
+          )
+        )
           .then((content) => {
             if (active)
               setServedLocales(localesOf(content.data()?.publicQuestions));
