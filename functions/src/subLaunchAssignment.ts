@@ -267,6 +267,37 @@ export function publicQuestionsFromKey(
   return out;
 }
 
+/**
+ * The ClassLink and test-class ids behind the rosters this share names. Read
+ * from the host's own roster docs, so a roster the sub renames or invents
+ * resolves to nothing.
+ */
+export async function shareClassIds(
+  db: admin.firestore.Firestore,
+  hostUid: string,
+  sharedRosters: unknown
+): Promise<Set<string>> {
+  const rosterIds = (Array.isArray(sharedRosters) ? sharedRosters : [])
+    .map((r) =>
+      r && typeof r === 'object' ? (r as { id?: unknown }).id : undefined
+    )
+    .filter((id): id is string => typeof id === 'string' && !id.includes('/'))
+    .slice(0, MAX_CLASS_IDS);
+  const out = new Set<string>();
+  const snaps = await Promise.all(
+    rosterIds.map((id) => db.doc(`users/${hostUid}/rosters/${id}`).get())
+  );
+  for (const snap of snaps) {
+    const data = snap.data();
+    if (!data) continue;
+    for (const field of ['classlinkClassId', 'testClassId'] as const) {
+      const value: unknown = data[field];
+      if (typeof value === 'string' && value) out.add(value);
+    }
+  }
+  return out;
+}
+
 function approxBytes(value: unknown): number {
   return JSON.stringify(value ?? null).length;
 }
@@ -357,6 +388,20 @@ export async function handleLaunchSubAssignment(
       !!w && typeof w === 'object' && (w as { id?: unknown }).id === widgetId
   );
   if (!onBoard) denied('That widget is not on the shared board.');
+
+  // A session is visible to students purely by `classIds`, so an unchecked id
+  // would put the teacher's name on a quiz in a class the share never covered.
+  // The share's own rosters are the only classes a sub may target (plan §3.6
+  // step 4), resolved from the teacher's roster docs rather than the caller.
+  const allowedClassIds = await shareClassIds(db, hostUid, share.sharedRosters);
+  if (allowedClassIds.size === 0) {
+    denied('That share carries no class to start an activity for.');
+  }
+  for (const id of classIds) {
+    if (!allowedClassIds.has(id)) {
+      denied('That class is not one the share covers.');
+    }
+  }
 
   const keySnap = await db
     .doc(`shared_collections/${shareId}/keys/${kind}_${itemId}`)

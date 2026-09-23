@@ -32,6 +32,7 @@ import {
   handleLaunchSubAssignment,
   publicQuestionFromKey,
   publicQuestionsFromKey,
+  shareClassIds,
   type SubLaunchCaller,
 } from './subLaunchAssignment';
 
@@ -42,6 +43,7 @@ const BOARD = 'board-1';
 const WIDGET = 'widget-1';
 const QUIZ = 'quiz-1';
 const DRIVE_FILE = 'drive-file-1';
+const ROSTER = 'roster-1';
 
 const SUB: SubLaunchCaller = {
   uid: 'sub-uid-1',
@@ -105,6 +107,7 @@ interface StubState {
   board?: Record<string, unknown> | null;
   key?: Record<string, unknown> | null;
   quiz?: Record<string, unknown> | null;
+  roster?: Record<string, unknown> | null;
 }
 
 interface Written {
@@ -120,6 +123,7 @@ function stubDb(state: StubState = {}) {
       intendedMode: 'substitute',
       expiresAt: NOW + 86_400_000,
       subEmails: ['sub@orono.k12.mn.us'],
+      sharedRosters: [{ id: ROSTER, name: 'Period 3', driveFileId: 'd1' }],
     },
     board = { widgets: [{ id: WIDGET, type: 'quiz' }] },
     key = {
@@ -128,6 +132,7 @@ function stubDb(state: StubState = {}) {
       },
     },
     quiz = { driveFileId: DRIVE_FILE },
+    roster = { classlinkClassId: 'class-A' },
   } = state;
 
   const written: Written[] = [];
@@ -137,6 +142,7 @@ function stubDb(state: StubState = {}) {
     [`shared_collections/${SHARE}/boards/${BOARD}`]: board,
     [`shared_collections/${SHARE}/keys/quiz_${QUIZ}`]: key,
     [`users/${HOST}/quizzes/${QUIZ}`]: quiz,
+    [`users/${HOST}/rosters/${ROSTER}`]: roster,
   };
 
   const db = {
@@ -206,14 +212,48 @@ describe('handleLaunchSubAssignment', () => {
     expect(written[0].data.subMonitorUntil).toBe(NOW + 86_400_000);
   });
 
-  it('targets the classes the caller picked', async () => {
-    const { run, written } = launch({}, SUB, input({ classIds: ['c1', 'c2'] }));
+  it('targets the shared classes the caller picked', async () => {
+    const { run, written } = launch(
+      { roster: { classlinkClassId: 'class-A', testClassId: 'class-B' } },
+      SUB,
+      input({ classIds: ['class-B', 'class-A'] })
+    );
 
     await run();
 
-    expect(written[0].data.classIds).toEqual(['c1', 'c2']);
-    expect(written[0].data.classId).toBe('c1');
+    expect(written[0].data.classIds).toEqual(['class-B', 'class-A']);
+    expect(written[0].data.classId).toBe('class-B');
     expect(written[1].data.targetMode).toBe('class');
+  });
+
+  // A session reaches students by `classIds` alone, so an unchecked id would
+  // put the teacher's name on a quiz in a class the share never covered.
+  it('refuses a class the share does not cover', async () => {
+    await expect(
+      launch({}, SUB, input({ classIds: ['class-Z'] })).run()
+    ).rejects.toThrow('not one the share covers');
+    await expect(
+      launch({}, SUB, input({ classIds: ['class-A', 'class-Z'] })).run()
+    ).rejects.toThrow('not one the share covers');
+  });
+
+  it('refuses a share with no rosters, or a roster with no class', async () => {
+    await expect(
+      launch({
+        share: {
+          hostUid: HOST,
+          intendedMode: 'substitute',
+          expiresAt: NOW + 86_400_000,
+          subEmails: ['sub@orono.k12.mn.us'],
+        },
+      }).run()
+    ).rejects.toThrow('carries no class');
+    await expect(launch({ roster: null }).run()).rejects.toThrow(
+      'carries no class'
+    );
+    await expect(
+      launch({ roster: { name: 'Local only' } }).run()
+    ).rejects.toThrow('carries no class');
   });
 
   it('refuses a caller who is not signed in', async () => {
@@ -338,7 +378,7 @@ describe('handleLaunchSubAssignment', () => {
       launch({}, SUB, input({ classIds: [] })).run()
     ).rejects.toThrow('at least one class');
     await expect(
-      launch({}, SUB, input({ classIds: Array(21).fill('c') })).run()
+      launch({}, SUB, input({ classIds: Array(21).fill('class-A') })).run()
     ).rejects.toThrow('Too many classes');
     await expect(
       launch({}, SUB, input({ boardId: '../other' })).run()
@@ -600,5 +640,44 @@ describe('publicQuestionsFromKey', () => {
     expect(() => publicQuestionsFromKey([{ nope: true }])).toThrow(
       'no usable questions'
     );
+  });
+});
+
+describe('shareClassIds', () => {
+  const stub = (docs: Record<string, Record<string, unknown> | null>) =>
+    ({
+      doc: (path: string) => ({
+        get: () =>
+          Promise.resolve({
+            exists: docs[path] != null,
+            data: () => docs[path] ?? undefined,
+          }),
+      }),
+    }) as never;
+
+  it('resolves the host’s rosters to their class ids', async () => {
+    const out = await shareClassIds(
+      stub({
+        'users/h/rosters/r1': { classlinkClassId: 'cl-1' },
+        'users/h/rosters/r2': { testClassId: 'test-2' },
+      }),
+      'h',
+      [{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }]
+    );
+
+    expect([...out].sort()).toEqual(['cl-1', 'test-2']);
+  });
+
+  // A roster id is a document id, and an invented one must resolve to nothing
+  // rather than reach outside the teacher's own rosters.
+  it('ignores a path, a non-string id and a missing roster', async () => {
+    const out = await shareClassIds(
+      stub({ 'users/h/rosters/r1': { classlinkClassId: 'cl-1' } }),
+      'h',
+      [{ id: '../../other' }, { id: 7 }, 'r1', { id: 'gone' }]
+    );
+
+    expect([...out]).toEqual([]);
+    expect([...(await shareClassIds(stub({}), 'h', undefined))]).toEqual([]);
   });
 });

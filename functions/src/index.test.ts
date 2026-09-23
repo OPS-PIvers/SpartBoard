@@ -3204,6 +3204,8 @@ describe('index barrel — deployed export set', () => {
     'cleanupGuidedLearningAssignmentPointers',
     'cleanupMiniAppAssignmentPointers',
     'cleanupFlashcardAssignmentPointers',
+    // Substitute shares
+    'launchSubAssignmentV1',
     // Flashcards Check submission
     'submitFlashcardCheckV1',
     'resolveFlashcardFlagV1',
