@@ -8,8 +8,10 @@ export const BannerInteraction: React.FC<{
   onClose?: () => void;
   /** Edge the banner sits on; the stage flips it to keep the target clear. */
   position?: 'top' | 'bottom';
-}> = ({ step, onClose, position = 'top' }) => {
-  if (!step.text) return null;
+  /** Studio inline editor shown in place of the label and text. */
+  editor?: React.ReactNode;
+}> = ({ step, onClose, position = 'top', editor }) => {
+  if (!step.text && !editor) return null;
   const tone = step.bannerTone ?? 'blue';
   const toneStyles: Record<typeof tone, string> = {
     blue: 'linear-gradient(135deg, #1d2a5d 0%, #2d3f89 50%, #4356a0 100%)',
@@ -56,23 +58,27 @@ export const BannerInteraction: React.FC<{
             />
           </button>
         )}
-        {step.label && (
-          <div
-            className="font-black uppercase tracking-tight pr-8"
-            style={{
-              fontSize: 'clamp(20px, 6cqmin, 40px)',
-              marginBottom: 'min(4px, 1cqmin)',
-            }}
-          >
-            {renderStepText(step.label)}
-          </div>
+        {editor ?? (
+          <>
+            {step.label && (
+              <div
+                className="font-black uppercase tracking-tight pr-8"
+                style={{
+                  fontSize: 'clamp(20px, 6cqmin, 40px)',
+                  marginBottom: 'min(4px, 1cqmin)',
+                }}
+              >
+                {renderStepText(step.label)}
+              </div>
+            )}
+            <div
+              className="whitespace-pre-wrap font-medium leading-snug"
+              style={{ fontSize: 'clamp(16px, 5cqmin, 32px)' }}
+            >
+              {renderStepText(step.text)}
+            </div>
+          </>
         )}
-        <div
-          className="whitespace-pre-wrap font-medium leading-snug"
-          style={{ fontSize: 'clamp(16px, 5cqmin, 32px)' }}
-        >
-          {renderStepText(step.text)}
-        </div>
       </div>
     </div>
   );

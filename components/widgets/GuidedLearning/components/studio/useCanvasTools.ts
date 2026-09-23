@@ -1,4 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { DialogContext } from '@/context/DialogContextValue';
 import type { GuidedLearningRegion } from '@/types';
 import type { DevicePreset, PctPoint, StageGeometry } from '../../types/stage';
 import { polygonBBox } from '../../utils/regionGeometry';
@@ -9,6 +11,7 @@ import { moveStep, removeVertex, setCalloutPin } from './regionEdits';
 import { useCanvasViewport } from './useCanvasViewport';
 import { fitScale } from './deviceFrameContext';
 import { findCallout } from './canvasScale';
+import { safeLinkUrl, wrapSelection } from './inlineText';
 
 /** Arrow nudge in image-%. */
 export const NUDGE_PCT = 0.25;
@@ -16,11 +19,29 @@ export const NUDGE_SHIFT_PCT = 2;
 
 const CANVAS_SELECTOR = '[data-gl-studio-canvas]';
 
-/** Canvas-scoped keys only fire when focus is on the page or inside the canvas. */
+const CONTROL_SELECTOR = 'button, a, input, textarea, select';
+
+/** Canvas-scoped keys only fire when focus is on the page or the canvas itself, not a control in it. */
 function onCanvas(event: KeyboardEvent): boolean {
   const target = event.target;
   if (!(target instanceof Element)) return true;
-  return target === document.body || target.closest(CANVAS_SELECTOR) !== null;
+  if (target === document.body) return true;
+  return (
+    target.closest(CANVAS_SELECTOR) !== null &&
+    target.closest(CONTROL_SELECTOR) === null
+  );
+}
+
+/** The inline callout field a key event came from. */
+function inlineField(
+  event: KeyboardEvent
+): HTMLInputElement | HTMLTextAreaElement | null {
+  const el = event.target;
+  return (el instanceof HTMLInputElement ||
+    el instanceof HTMLTextAreaElement) &&
+    el.dataset.glInline
+    ? el
+    : null;
 }
 
 /** Tool state, canvas viewport and shortcut rows for the Studio canvas. */
@@ -28,8 +49,11 @@ export function useCanvasTools(
   state: GuidedLearningEditorController,
   preset: DevicePreset
 ) {
+  const { t } = useTranslation();
+  const dialog = useContext(DialogContext);
   const {
     steps,
+    setSteps,
     selectedStepId,
     setSelectedStepId,
     currentImageIndex,
@@ -43,6 +67,7 @@ export function useCanvasTools(
   const [draft, setDraft] = useState<PctPoint[] | null>(null);
   const [calloutFocused, setCalloutFocused] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [linkPending, setLinkPending] = useState(false);
   const geometryRef = useRef<StageGeometry | null>(null);
   const onGeometry = useCallback((g: StageGeometry) => {
     geometryRef.current = g;
@@ -138,6 +163,66 @@ export function useCanvasTools(
     [selected, updateStep]
   );
 
+  const bold = useCallback(
+    (event: KeyboardEvent) => {
+      const el = inlineField(event);
+      if (!el || !selected) return;
+      const field = el.dataset.glInline === 'label' ? 'label' : 'text';
+      const r = wrapSelection(
+        el.value,
+        el.selectionStart ?? el.value.length,
+        el.selectionEnd ?? el.value.length,
+        '**',
+        '**'
+      );
+      updateStep({ ...selected, [field]: r.value });
+      requestAnimationFrame(() => el.setSelectionRange(r.start, r.end));
+    },
+    [selected, updateStep]
+  );
+
+  const link = useCallback(
+    async (event: KeyboardEvent) => {
+      const el = inlineField(event);
+      if (!el || !selected || !dialog) return;
+      const id = selected.id;
+      const field = el.dataset.glInline === 'label' ? 'label' : 'text';
+      const start = el.selectionStart ?? el.value.length;
+      const end = el.selectionEnd ?? el.value.length;
+      setLinkPending(true);
+      const raw = await dialog.showPrompt(t('glStudio.linkPrompt'), {
+        title: t('glStudio.linkTitle'),
+        placeholder: 'https://',
+      });
+      setLinkPending(false);
+      const url = safeLinkUrl(raw);
+      if (!url) {
+        if (raw?.trim()) await dialog.showAlert(t('glStudio.linkRejected'));
+        el.focus();
+        return;
+      }
+      setSteps((prev) =>
+        prev.map((s) =>
+          s.id === id
+            ? {
+                ...s,
+                [field]: wrapSelection(
+                  s[field] ?? '',
+                  start,
+                  end,
+                  '[',
+                  `](${url})`,
+                  url
+                ).value,
+              }
+            : s
+        )
+      );
+      el.focus();
+    },
+    [selected, dialog, t, setSteps]
+  );
+
   const { fit, actualSize, setSpaceHeld, rootEl } = viewport;
   const rows = useMemo<StudioShortcut[]>(() => {
     const nudgeRow = (
@@ -173,11 +258,34 @@ export function useCanvasTools(
       {
         id: 'cancel-tool',
         key: 'Escape',
+        whileEditing: true,
         when: () => addingStep || editingStepId !== null,
         run: () => {
           if (editingStepId) setEditing(null);
           else chooseTool(null);
         },
+      },
+      {
+        id: 'edit-callout',
+        key: 'Enter',
+        when: (e) => selected !== null && !addingStep && onCanvas(e),
+        run: () => selected && setEditing(selected.id),
+      },
+      {
+        id: 'bold',
+        key: 'b',
+        mod: true,
+        whileEditing: true,
+        when: (e) => inlineField(e) !== null,
+        run: bold,
+      },
+      {
+        id: 'link',
+        key: 'k',
+        mod: true,
+        whileEditing: true,
+        when: (e) => inlineField(e) !== null,
+        run: (e) => void link(e),
       },
       nudgeRow('ArrowLeft', -1, 0, false),
       nudgeRow('ArrowRight', 1, 0, false),
@@ -228,6 +336,8 @@ export function useCanvasTools(
     polygonDraft,
     closePolygon,
     editingStepId,
+    bold,
+    link,
     slideSteps.length,
     cycle,
     setSpaceHeld,
@@ -249,6 +359,7 @@ export function useCanvasTools(
     setCalloutFocused,
     editingStepId,
     setEditingStepId: setEditing,
+    linkPending,
     onGeometry,
   };
 }

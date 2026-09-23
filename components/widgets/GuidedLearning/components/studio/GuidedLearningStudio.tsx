@@ -236,6 +236,7 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
   );
   useStudioShortcuts(playing ? playKeymap : editKeymap, {
     enabled: !showAiGen,
+    editing: !playing && tools.editingStepId !== null,
   });
 
   const canUseAi =

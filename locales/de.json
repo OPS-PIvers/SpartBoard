@@ -2599,7 +2599,16 @@
     "cornerRadius": "Eckenradius",
     "calloutPosition": "Position des Hinweises",
     "calloutPinned": "Von dir platziert",
-    "calloutAuto": "Automatisch"
+    "calloutAuto": "Automatisch",
+    "inlineLabel": "Titel des Hinweises",
+    "inlineLabelPlaceholder": "Titel (optional)",
+    "inlineText": "Text des Hinweises",
+    "inlineTextPlaceholder": "Was sollen die Schüler hier tun?",
+    "wordCount_one": "{{count}} Wort. Ziel: höchstens {{limit}}.",
+    "wordCount_other": "{{count}} Wörter. Ziel: höchstens {{limit}}.",
+    "linkTitle": "Link hinzufügen",
+    "linkPrompt": "Füge eine Webadresse ein, die mit https:// beginnt",
+    "linkRejected": "Nur Webadressen, die mit https:// beginnen, können verlinkt werden."
   },
   "helpCenter": {
     "title": "Hilfe",

@@ -2599,7 +2599,16 @@
     "cornerRadius": "Radio de las esquinas",
     "calloutPosition": "Posición de la nota",
     "calloutPinned": "Colocada por ti",
-    "calloutAuto": "Automática"
+    "calloutAuto": "Automática",
+    "inlineLabel": "Título de la nota",
+    "inlineLabelPlaceholder": "Título (opcional)",
+    "inlineText": "Texto de la nota",
+    "inlineTextPlaceholder": "¿Qué deben hacer los estudiantes aquí?",
+    "wordCount_one": "{{count}} palabra. Intenta no pasar de {{limit}}.",
+    "wordCount_other": "{{count}} palabras. Intenta no pasar de {{limit}}.",
+    "linkTitle": "Añadir un enlace",
+    "linkPrompt": "Pega una dirección web que empiece por https://",
+    "linkRejected": "Solo se pueden enlazar direcciones web que empiecen por https://."
   },
   "helpCenter": {
     "title": "Ayuda",

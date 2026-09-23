@@ -2599,7 +2599,16 @@
     "cornerRadius": "Rayon des coins",
     "calloutPosition": "Position de la bulle",
     "calloutPinned": "Placée par vous",
-    "calloutAuto": "Automatique"
+    "calloutAuto": "Automatique",
+    "inlineLabel": "Titre de la bulle",
+    "inlineLabelPlaceholder": "Titre (facultatif)",
+    "inlineText": "Texte de la bulle",
+    "inlineTextPlaceholder": "Que doivent faire les élèves ici ?",
+    "wordCount_one": "{{count}} mot. Visez {{limit}} au maximum.",
+    "wordCount_other": "{{count}} mots. Visez {{limit}} au maximum.",
+    "linkTitle": "Ajouter un lien",
+    "linkPrompt": "Collez une adresse web qui commence par https://",
+    "linkRejected": "Seules les adresses web qui commencent par https:// peuvent être liées."
   },
   "helpCenter": {
     "title": "Aide",
