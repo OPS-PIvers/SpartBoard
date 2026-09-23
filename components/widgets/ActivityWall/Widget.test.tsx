@@ -34,6 +34,10 @@ const {
   mockLibraryEntries: { current: [] as ActivityWallLibraryEntry[] },
 }));
 
+const routerProps: { current: Record<string, unknown> | null } = {
+  current: null,
+};
+const lastRouterProps = () => routerProps.current;
 let snapshotDocs: Record<string, unknown>[] = [];
 let sessionDocData: Record<string, Record<string, unknown>> = {};
 
@@ -85,7 +89,10 @@ vi.mock('@/components/activityWall/render', async (importOriginal) => ({
   ...(await importOriginal<
     typeof import('@/components/activityWall/render')
   >()),
-  LayoutRouter: () => <div data-testid="layout-router" />,
+  LayoutRouter: (props: Record<string, unknown>) => {
+    routerProps.current = props;
+    return <div data-testid="layout-router" />;
+  },
 }));
 
 vi.mock('@/context/useDialog', () => ({
@@ -513,16 +520,64 @@ describe('ActivityWallWidget inside a sub share', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('says the posts stayed behind rather than drawing an empty wall', async () => {
+  it('says so when the wall came along with no posts on it', async () => {
     renderShared();
     await screen.findByText('Exit tickets');
 
     expect(
       screen.getByText(
-        'The posts on this wall are the students’ own and stay in your teacher’s account.'
+        'This wall had no approved posts when your teacher shared it.'
       )
     ).toBeInTheDocument();
     expect(screen.queryByTestId('layout-router')).not.toBeInTheDocument();
+  });
+
+  // The posts ride the share's names file, which only the named substitutes
+  // can read, and they land on the widget's own config.
+  const withPosts = {
+    ...baseWidget,
+    config: {
+      ...baseWidget.config,
+      subSharePosts: [
+        {
+          id: 'p1',
+          content: 'Ada was here',
+          submittedAt: 7,
+          status: 'approved',
+          participantLabel: 'Ada',
+          type: 'text',
+        },
+      ],
+    },
+  } as WidgetData;
+
+  it('draws the posts that came along with the share', async () => {
+    routerProps.current = null;
+    renderShared(withPosts);
+    await screen.findByText('Exit tickets');
+
+    expect(await screen.findByTestId('layout-router')).toBeInTheDocument();
+    expect(lastRouterProps()?.submissions).toEqual([
+      expect.objectContaining({ id: 'p1', participantLabel: 'Ada' }),
+    ]);
+  });
+
+  it('hands the wall no way to change a post', async () => {
+    routerProps.current = null;
+    renderShared(withPosts);
+    await screen.findByTestId('layout-router');
+
+    for (const handler of [
+      'onApprove',
+      'onReject',
+      'onDelete',
+      'onPin',
+      'onMove',
+      'onEdit',
+      'onAddAt',
+    ]) {
+      expect(lastRouterProps()?.[handler]).toBeUndefined();
+    }
   });
 
   it('says so when no wall came along with the share', async () => {

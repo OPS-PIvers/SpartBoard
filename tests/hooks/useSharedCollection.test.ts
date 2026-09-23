@@ -407,6 +407,83 @@ describe('useSharedCollection', () => {
       });
     });
 
+    // A wall's posts are the students' own words, so they ride the same file.
+    it('puts an open wall’s posts in the file', async () => {
+      const { result } = renderHook(() => useSharedCollection());
+      const writeNames = vi.fn().mockResolvedValue({
+        driveFileId: 'names-file',
+        driveGrants: [],
+        failedEmails: [],
+      });
+      const board = {
+        ...dashboard('b1'),
+        widgets: [
+          {
+            id: 'w-wall',
+            type: 'activity-wall',
+            position: { x: 0, y: 0 },
+            config: { activeActivityId: 'wall-1' },
+          },
+        ] as unknown as Dashboard['widgets'],
+      };
+
+      await result.current.shareSubstituteCollection({
+        ...subShareInput([board]),
+        names: {
+          write: writeNames,
+          readWallPosts: () =>
+            Promise.resolve([
+              {
+                id: 'p1',
+                content: 'Ada was here',
+                submittedAt: 7,
+                status: 'approved',
+              },
+            ]),
+        },
+      });
+
+      const [, names] = writeNames.mock.calls[0] as [string, SubShareNamesFile];
+      expect(names.boards.b1['w-wall']).toEqual({
+        subSharePosts: [
+          {
+            id: 'p1',
+            content: 'Ada was here',
+            submittedAt: 7,
+            status: 'approved',
+          },
+        ],
+      });
+    });
+
+    it('names a wall whose posts it could not read', async () => {
+      const { result } = renderHook(() => useSharedCollection());
+      const onIncomplete = vi.fn();
+      const board = {
+        ...dashboard('b1'),
+        name: 'Period 2',
+        widgets: [
+          {
+            id: 'w-wall',
+            type: 'activity-wall',
+            position: { x: 0, y: 0 },
+            config: { activeActivityId: 'wall-1' },
+          },
+        ] as unknown as Dashboard['widgets'],
+      };
+
+      await result.current.shareSubstituteCollection({
+        ...subShareInput([board]),
+        names: {
+          write: vi.fn().mockResolvedValue(null),
+          readWallPosts: () => Promise.reject(new Error('404')),
+          onIncomplete,
+        },
+      });
+
+      expect(onIncomplete).toHaveBeenCalledWith(['Activity Wall on Period 2']);
+    });
+
     it('writes no file for boards that hold no names', async () => {
       const { result } = renderHook(() => useSharedCollection());
       const writeNames = vi.fn();
