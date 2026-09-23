@@ -371,6 +371,32 @@ describe('help_resources — update', () => {
     );
   });
 
+  // Regression: helpScopeOk()'s org-scoped branch used to require
+  // isOrgMember(d.orgId) with no isSuperAdmin() fallback, so a real super
+  // admin (who can already READ any org's item via helpReaderOk() above)
+  // could not write/delete one outside their own org membership — the same
+  // read/write asymmetry already fixed in announcements (#3248). asSuper() is
+  // deliberately NOT a member of ORG_B (see top-level beforeEach), so this
+  // exercises the fallback rather than the isOrgMember() branch.
+  it("a super admin (not a member of that org) CAN edit another org's item", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), 'help_resources/org-b-1'),
+        validItem('org-b-1', {
+          orgId: ORG_B,
+          createdBy: TEACHER_B_UID,
+          createdByEmail: TEACHER_B_EMAIL,
+        })
+      );
+    });
+    await assertSucceeds(
+      updateDoc(doc(asSuper(), 'help_resources/org-b-1'), {
+        title: 'Super admin edit',
+        updatedAt: 2000,
+      })
+    );
+  });
+
   it('an admin cannot change orgId', async () => {
     await assertFails(
       updateDoc(doc(asOrgAdmin(), 'help_resources/org-a-1'), {
@@ -473,5 +499,16 @@ describe('help_resources — delete', () => {
 
   it('a teacher cannot delete items', async () => {
     await assertFails(deleteDoc(doc(asTeacher(), 'help_resources/org-a-1')));
+  });
+
+  // Same regression as the update describe block above, for delete.
+  it("a super admin (not a member of that org) CAN delete another org's item", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), 'help_resources/org-b-1'),
+        validItem('org-b-1', { orgId: ORG_B })
+      );
+    });
+    await assertSucceeds(deleteDoc(doc(asSuper(), 'help_resources/org-b-1')));
   });
 });
