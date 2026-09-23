@@ -295,7 +295,9 @@ export interface UseGuidedLearningSessionTeacherResult {
     assignmentMode?: AssignmentMode,
     /** Open/close/due window (epoch ms), spec §5 B3. Applies regardless of
      *  targeting mode — every field is optional and independently mirrored. */
-    assignmentWindow?: { openAt?: number; closeAt?: number; dueAt?: number }
+    assignmentWindow?: { openAt?: number; closeAt?: number; dueAt?: number },
+    /** `playerV2`: the creator can use `gl-player-v2`, so students get it too. */
+    options?: { playerV2?: boolean }
   ) => Promise<string>;
   /** Load responses for a given session ID */
   subscribeToResponses: (sessionId: string) => () => void;
@@ -319,7 +321,8 @@ export const useGuidedLearningSessionTeacher = (
       periodNames: string[] = [],
       rosterIds: string[] = [],
       assignmentMode: AssignmentMode = 'submissions',
-      assignmentWindow?: { openAt?: number; closeAt?: number; dueAt?: number }
+      assignmentWindow?: { openAt?: number; closeAt?: number; dueAt?: number },
+      options?: { playerV2?: boolean }
     ): Promise<string> => {
       if (!teacherUid) throw new Error('Not authenticated');
 
@@ -384,6 +387,7 @@ export const useGuidedLearningSessionTeacher = (
             }
           : {}),
         ...(set.watchPace === 'calm' ? { watchPace: set.watchPace } : {}),
+        ...(options?.playerV2 ? { playerV2: true } : {}),
       };
 
       await setDoc(doc(db, GL_SESSIONS_COLLECTION, sessionId), session);

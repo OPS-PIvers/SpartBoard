@@ -73,3 +73,37 @@ describe('useGuidedLearningSessionTeacher.createSession — window fields', () =
     expect(written.dueAt).toBe(2000);
   });
 });
+
+describe('useGuidedLearningSessionTeacher.createSession — player v2 stamp', () => {
+  it('stamps playerV2 only when the creator can use it', async () => {
+    const { result } = renderHook(() =>
+      useGuidedLearningSessionTeacher('teacher-1')
+    );
+    await act(async () => {
+      await result.current.createSession(baseSet());
+      await result.current.createSession(
+        baseSet(),
+        [],
+        [],
+        [],
+        'submissions',
+        undefined,
+        { playerV2: false }
+      );
+      await result.current.createSession(
+        baseSet(),
+        [],
+        [],
+        [],
+        'submissions',
+        undefined,
+        { playerV2: true }
+      );
+    });
+    expect(mockSetDoc.mock.calls[0][1]).not.toHaveProperty('playerV2');
+    expect(mockSetDoc.mock.calls[1][1]).not.toHaveProperty('playerV2');
+    expect(
+      (mockSetDoc.mock.calls[2][1] as Record<string, unknown>).playerV2
+    ).toBe(true);
+  });
+});

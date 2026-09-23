@@ -7212,6 +7212,8 @@ export interface GuidedLearningSession {
   welcomeMessage?: string;
   /** Mirrors `GuidedLearningSet.watchPace`. */
   watchPace?: GuidedLearningWatchPace;
+  /** Stamped when the creator could use `gl-player-v2`; students can't evaluate the flag. */
+  playerV2?: boolean;
   /**
    * Mirror of {@link GuidedLearningAssignment.scoreVisibility} for the
    * student-facing `/my-assignments` Completed review screen. Absent /
@@ -8486,6 +8488,8 @@ export type GlobalFeature =
   | 'quiz-document-import'
   /** Handing a board or a collection to a substitute, and managing live shares. */
   | 'sub-share-collections'
+  /** Guided Learning player v2: calm motion, learner speed, Watch/Try; stamped on sessions. */
+  | 'gl-player-v2'
   /** Guided Learning live tours in the teacher app and their launch points. */
   | 'gl-live-tours';
 

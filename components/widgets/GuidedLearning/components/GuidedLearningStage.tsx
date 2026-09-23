@@ -29,6 +29,13 @@ import { isGuidedLearningSetV2 } from '../utils/setMigration';
 import { buildStageGeometry } from '../utils/stageGeometry';
 import { regionRect } from '../utils/regionGeometry';
 import { placeBanner } from '../utils/calloutPlacement';
+import {
+  CALLOUT_IN_MS,
+  SLIDE_MS,
+  ZOOM_EASE,
+  ZOOM_MS,
+  motionMs,
+} from '../utils/motion';
 import type {
   GuidedLearningStageProps,
   PxRect,
@@ -75,6 +82,8 @@ export interface GuidedLearningStageRuntimeProps {
   currentStepId?: string | null;
   /** Renders the v2 "Reset view" button and handles it. */
   onResetZoom?: () => void;
+  /** Player v2 calm motion at this learner speed; absent keeps today's timings. */
+  motionSpeed?: number;
 }
 
 export const GuidedLearningStage: React.FC<
@@ -95,6 +104,7 @@ export const GuidedLearningStage: React.FC<
   onDismiss,
   currentStepId,
   onResetZoom,
+  motionSpeed,
 }) => {
   // Hotspot pulse style — 'consistent' (default) preserves the legacy ping
   // ring; 'reminder' adds a periodic wiggle on the marker itself; 'off'
@@ -116,6 +126,19 @@ export const GuidedLearningStage: React.FC<
       return false;
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   });
+
+  const calmMotion = motionSpeed !== undefined;
+  const motionOpts = {
+    speed: motionSpeed ?? 1,
+    reducedMotion: prefersReducedMotion,
+  };
+  const zoomMs = calmMotion
+    ? motionMs(ZOOM_MS, motionOpts)
+    : prefersReducedMotion
+      ? 0
+      : 600;
+  const slideMs = calmMotion ? motionMs(SLIDE_MS, motionOpts) : 500;
+  const calloutInMs = calmMotion ? motionMs(CALLOUT_IN_MS, motionOpts) : 0;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -198,8 +221,8 @@ export const GuidedLearningStage: React.FC<
   // transition is enabled, we briefly render the previous image as an
   // exiting layer alongside the current one. The "adjust state during
   // render" pattern detects the change without an effect; the
-  // 500ms-cleanup effect below drops the previous layer once its
-  // animation has finished.
+  // cleanup effect below drops the previous layer once its animation
+  // has finished.
   const transitionsActive = transitionMode !== 'none' && !prefersReducedMotion;
   const [prevImageIndex, setPrevImageIndex] = useState<number | null>(null);
   const [trackedImageIndex, setTrackedImageIndex] = useState(currentImageIndex);
@@ -211,9 +234,9 @@ export const GuidedLearningStage: React.FC<
   }
   useEffect(() => {
     if (prevImageIndex === null) return;
-    const id = setTimeout(() => setPrevImageIndex(null), 500);
+    const id = setTimeout(() => setPrevImageIndex(null), slideMs);
     return () => clearTimeout(id);
-  }, [prevImageIndex]);
+  }, [prevImageIndex, slideMs]);
   // Skip the exit layer when the previous slide was a video — an <img>
   // can't render a video URL, so the transition falls back to an instant
   // swap for that case.
@@ -305,6 +328,21 @@ export const GuidedLearningStage: React.FC<
     return { scale, tx, ty };
   })();
 
+  // Calm motion: callouts wait for the camera to settle on the new transform.
+  const transformKey = `${renderedTransform.scale}|${renderedTransform.tx}|${renderedTransform.ty}`;
+  const [settledKey, setSettledKey] = useState(transformKey);
+  const waitsForCamera = calmMotion && zoomMs > 0;
+  if (!waitsForCamera && settledKey !== transformKey) {
+    setSettledKey(transformKey);
+  }
+  const cameraMoving = waitsForCamera && settledKey !== transformKey;
+  useEffect(() => {
+    if (!cameraMoving) return;
+    // transitionend is the normal signal; this covers a transition that never fires.
+    const id = setTimeout(() => setSettledKey(transformKey), zoomMs + 80);
+    return () => clearTimeout(id);
+  }, [cameraMoving, transformKey, zoomMs]);
+
   // Map container-% coords through the rendered transform so overlays always
   // anchor where the hotspot is actually painted.
   const toRenderedCoords = (coords: { xPct: number; yPct: number }) => {
@@ -358,9 +396,12 @@ export const GuidedLearningStage: React.FC<
   // Calculate pan-zoom transform
   const getPanZoomStyle = (): React.CSSProperties => {
     if (containerSize.w === 0) return {};
-    const transition = prefersReducedMotion
-      ? 'none'
-      : 'transform 0.6s ease-in-out';
+    const transition =
+      zoomMs === 0
+        ? 'none'
+        : calmMotion
+          ? `transform ${zoomMs}ms ${ZOOM_EASE}`
+          : 'transform 0.6s ease-in-out';
     const { scale, tx, ty } = renderedTransform;
     // Identity keeps transition + transform so zoom-out animates instead of snapping.
     if (scale <= 1) {
@@ -579,6 +620,11 @@ export const GuidedLearningStage: React.FC<
         data-testid="gl-panzoom-layer"
         className="w-full h-full relative motion-reduce:transition-none"
         style={getPanZoomStyle()}
+        onTransitionEnd={(e) => {
+          if (e.target === e.currentTarget && e.propertyName === 'transform') {
+            setSettledKey(transformKey);
+          }
+        }}
       >
         {/* Current image is always mounted — kept stable across image
             changes so React doesn't re-create the <img> node, which
@@ -636,7 +682,7 @@ export const GuidedLearningStage: React.FC<
             flight. Rendered ABOVE the current layer (later in DOM
             order, so it paints on top) and animates OUT, revealing
             the current image underneath. The cleanup effect drops
-            this layer 500ms after mount. */}
+            this layer once the slide time has passed. */}
         {previousImageUrl && (
           <img
             src={previousImageUrl}
@@ -649,6 +695,9 @@ export const GuidedLearningStage: React.FC<
                   ? 'animate-fade-out'
                   : ''
             }`}
+            style={
+              calmMotion ? { animationDuration: `${slideMs}ms` } : undefined
+            }
             draggable={false}
           />
         )}
@@ -826,8 +875,28 @@ export const GuidedLearningStage: React.FC<
         </button>
       )}
 
-      {/* Interaction overlays */}
-      {renderInteraction()}
+      {/* Interaction overlays; calm motion holds them hidden until the camera settles. */}
+      {calmMotion ? (
+        <div
+          key={activeStepId ?? 'none'}
+          data-testid="gl-callout-layer"
+          data-camera={cameraMoving ? 'moving' : 'settled'}
+          className="absolute inset-0 pointer-events-none"
+          style={
+            cameraMoving
+              ? { visibility: 'hidden', opacity: 0 }
+              : calloutInMs > 0
+                ? {
+                    animation: `gl-callout-in ${calloutInMs}ms ${ZOOM_EASE} both`,
+                  }
+                : undefined
+          }
+        >
+          {renderInteraction()}
+        </div>
+      ) : (
+        renderInteraction()
+      )}
 
       {/* Studio edit layer: above every overlay; children opt into pointer events. */}
       {geometry && renderEditLayer && (

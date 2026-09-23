@@ -162,6 +162,18 @@ body.is-dragging-widget video {
   animation: fadeOut 0.5s ease-out forwards;
 }
 
+/* Guided Learning player v2: callout fades in with a 6px rise once the camera settles. */
+@keyframes gl-callout-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
