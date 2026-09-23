@@ -4,7 +4,7 @@
  * with the flag get `ShareWithSubModal` for subs instead.
  */
 
-import { type FC, useState, useId, useCallback } from 'react';
+import { type FC, useState, useId, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Folder,
@@ -19,7 +19,8 @@ import type { Collection, Dashboard, SubstituteShareRoster } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { usePresetSubEmails } from '@/hooks/usePresetSubEmails';
-import { BUILDINGS } from '@/config/buildings';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
 import { logError } from '@/utils/logError';
 import {
   collectShareRosterIds,
@@ -37,7 +38,6 @@ interface ShareCollectionLinkCreatorModalProps {
 type ModeChoice = 'copy' | 'substitute';
 type CopyState = 'unknown' | 'copied' | 'failed';
 
-const BUILDING_IDS = new Set(BUILDINGS.map((b) => b.id));
 const ORONO_EMAIL_DOMAIN = '@orono.k12.mn.us';
 
 function isValidOronoEmail(email: string): boolean {
@@ -64,7 +64,19 @@ export const ShareCollectionLinkCreatorModal: FC<
     collectionsApi,
     dashboards,
   } = useDashboard();
-  const { canAccessFeature } = useAuth();
+  const { canAccessFeature, hasOrg } = useAuth();
+  const adminBuildings = useAdminBuildings();
+  // Same list as ShareWithSubModal: the seed only while an org's list loads.
+  const teacherBuildings = useMemo(
+    () =>
+      (adminBuildings.length > 0
+        ? adminBuildings
+        : hasOrg
+          ? BUILDINGS
+          : []
+      ).map((b) => ({ id: canonicalBuildingId(b.id), name: b.name })),
+    [adminBuildings, hasOrg]
+  );
   const offerSubstitute = !canAccessFeature('sub-share-collections');
   const [mode, setMode] = useState<ModeChoice>('copy');
   const [ttlMs, setTtlMs] = useState<number>(SUB_TTL_PRESETS[1].ms);
@@ -105,7 +117,7 @@ export const ShareCollectionLinkCreatorModal: FC<
     // Validate substitute prerequisites BEFORE flipping busy so an early
     // return doesn't paint the modal as "creating share".
     if (asSub) {
-      if (!buildingId || !BUILDING_IDS.has(buildingId)) {
+      if (!teacherBuildings.some((b) => b.id === buildingId)) {
         addToast(
           t('shareCollection.buildingRequired', {
             defaultValue: 'Select a building before sharing with a sub.',
@@ -211,6 +223,7 @@ export const ShareCollectionLinkCreatorModal: FC<
     mode,
     ttlMs,
     buildingId,
+    teacherBuildings,
     subEmails,
     rosters,
     activeRosterId,
@@ -352,7 +365,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                       defaultValue: '— Select building —',
                     })}
                   </option>
-                  {BUILDINGS.map((b) => (
+                  {teacherBuildings.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.name}
                     </option>

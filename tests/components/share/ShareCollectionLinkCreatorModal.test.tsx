@@ -14,8 +14,13 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => useDashboardMock() as ReturnType<typeof UseDashboardFn>,
 }));
 
+vi.mock('@/hooks/useAdminBuildings', () => ({
+  useAdminBuildings: () => [{ id: 'high', name: 'Orono High School' }],
+}));
+
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
+    hasOrg: true,
     canAccessFeature: (id: string) =>
       id === 'sub-share-collections' ? hasSubShareFlag.value : true,
   }),
