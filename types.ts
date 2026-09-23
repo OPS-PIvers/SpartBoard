@@ -9911,17 +9911,23 @@ export interface SubShareVideoActivityPayload {
   activity: SubShareVideoActivityView;
 }
 
+/** A step as a substitute sees it: no live-tour binding, no Storage paths. */
+export type SubShareGuidedLearningStep = Omit<
+  GuidedLearningStep,
+  'tour' | 'audioStoragePath' | 'videoStoragePath' | 'narration'
+> & { narration?: GuidedLearningPublicNarration };
+
 /**
  * A guided learning set as a substitute sees it: the whole activity, answers
  * included, which is what `keys/` exists to carry. The teacher's live-tour
- * bindings (`step.tour`), the author's uid and the raw Storage paths do not
- * travel — the tokenized `imageUrls` are what a sub can actually read.
+ * bindings and prerequisites, the author's uid and every raw Storage path do
+ * not travel — the tokenized URLs are what a sub can actually read.
  */
 export type SubShareGuidedLearningView = Omit<
   GuidedLearningSet,
-  'steps' | 'authorUid' | 'imagePaths'
+  'steps' | 'authorUid' | 'imagePaths' | 'tourSetup'
 > & {
-  steps: Omit<GuidedLearningStep, 'tour'>[];
+  steps: SubShareGuidedLearningStep[];
 };
 
 export interface SubShareGuidedLearningPayload {

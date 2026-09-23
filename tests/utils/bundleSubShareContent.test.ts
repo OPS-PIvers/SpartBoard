@@ -1264,6 +1264,17 @@ describe('bundleSubShareContent', () => {
             choices: ['Nucleus', 'Wall'],
             correctAnswer: 'Nucleus',
           },
+          audioUrl: 'https://storage/audio?token=abc',
+          audioStoragePath: 'users/teacher-1/hotspot_images/audio.mp3',
+          videoStoragePath: 'users/teacher-1/hotspot_images/clip.mp4',
+          narration: {
+            source: 'generated',
+            url: 'https://storage/narration?token=abc',
+            storagePath: 'users/teacher-1/hotspot_images/narration.mp3',
+            durationMs: 4200,
+            voice: 'en-US-1',
+            textHash: 'abc123',
+          },
           tour: { anchorId: 'a1' },
         },
       ],
@@ -1299,11 +1310,13 @@ describe('bundleSubShareContent', () => {
       mockGetDoc.mockResolvedValue(
         personalMeta({ title: 'Plant cell', driveFileId: 'file-1' })
       );
-      const loadGuidedLearningSet = vi
-        .fn()
-        .mockResolvedValue(
-          fullSet({ authorUid: 'teacher-1', imagePaths: ['gl/teacher-1/one'] })
-        );
+      const loadGuidedLearningSet = vi.fn().mockResolvedValue(
+        fullSet({
+          authorUid: 'teacher-1',
+          imagePaths: ['gl/teacher-1/one'],
+          tourSetup: { widgets: ['timer'] },
+        })
+      );
 
       const bundle = await bundleSubShareContent({
         hostUid: 'teacher-1',
@@ -1320,9 +1333,18 @@ describe('bundleSubShareContent', () => {
       ).set;
       expect('authorUid' in set).toBe(false);
       expect('imagePaths' in set).toBe(false);
+      expect('tourSetup' in set).toBe(false);
       expect('tour' in set.steps[0]).toBe(false);
+      expect('audioStoragePath' in set.steps[0]).toBe(false);
+      expect('videoStoragePath' in set.steps[0]).toBe(false);
+      expect(set.steps[0].narration).toEqual({
+        url: 'https://storage/narration?token=abc',
+        voice: 'en-US-1',
+        durationMs: 4200,
+      });
       // The tokenized urls are what a sub can actually read, so they stay.
       expect(set.imageUrls).toEqual(['https://storage/one?token=abc']);
+      expect(set.steps[0].audioUrl).toBe('https://storage/audio?token=abc');
     });
 
     // A building set is world-readable, so bundling it would duplicate a doc

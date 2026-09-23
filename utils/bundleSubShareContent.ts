@@ -46,6 +46,7 @@ import type {
   SubShareFlashcardPayload,
   SubShareFlashcardSetView,
   SubShareGuidedLearningPayload,
+  SubShareGuidedLearningStep,
   SubShareGuidedLearningView,
   SubShareNotebookPayload,
   SubShareProjectGroupView,
@@ -487,12 +488,24 @@ function openGuidedLearningSetIds(board: Dashboard): string[] {
   return ids;
 }
 
-/** A step without the live-tour binding, which `types.ts` calls teacher-only. */
-function stepForSub(
-  step: GuidedLearningStep
-): Omit<GuidedLearningStep, 'tour'> {
-  const { tour: _tour, ...rest } = step;
-  return rest;
+/** A step without the teacher-only tour binding or any raw Storage path. */
+function stepForSub(step: GuidedLearningStep): SubShareGuidedLearningStep {
+  const {
+    tour: _tour,
+    audioStoragePath: _audioStoragePath,
+    videoStoragePath: _videoStoragePath,
+    narration,
+    ...rest
+  } = step;
+  if (!narration) return rest;
+  return {
+    ...rest,
+    narration: {
+      url: narration.url,
+      voice: narration.voice,
+      durationMs: narration.durationMs,
+    },
+  };
 }
 
 /**
@@ -524,6 +537,7 @@ async function bundleGuidedLearning(
   const {
     authorUid: _authorUid,
     imagePaths: _imagePaths,
+    tourSetup: _tourSetup,
     steps,
     ...rest
   } = data;
