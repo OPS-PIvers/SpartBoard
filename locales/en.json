@@ -3223,6 +3223,7 @@
     "emptyAction": "Go create one",
     "noFilterMatches": "No assignments match these filters.",
     "selectPrompt": "Select an assignment to view details.",
+    "periodsLive": "{{live}} of {{total}} periods live",
     "status": {
       "notStarted": "Not started",
       "inProgress": "In progress",

@@ -2092,6 +2092,7 @@
     "emptyAction": "Jetzt erstellen",
     "noFilterMatches": "Keine Aufgaben entsprechen diesen Filtern.",
     "selectPrompt": "Wähle eine Aufgabe aus, um Details zu sehen.",
+    "periodsLive": "{{live}} von {{total}} Stunden live",
     "status": {
       "notStarted": "Nicht begonnen",
       "inProgress": "In Bearbeitung",
