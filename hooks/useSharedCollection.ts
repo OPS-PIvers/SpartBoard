@@ -38,7 +38,8 @@ import {
 import {
   extractSubShareNames,
   subShareNamesIsEmpty,
-  type SubShareNamesWriter,
+  withSubShareQueues,
+  type SubShareNamesServices,
 } from '@/utils/subShareNames';
 import { GoogleCalendarService } from '@/utils/googleCalendarService';
 import { useAuth } from '@/context/useAuth';
@@ -174,8 +175,8 @@ type SubstituteShareInput = ShareCollectionInput &
     driveGrants?: SubstituteShareDriveGrant[];
     /** Called with what was and was not bundled, for the teacher to see. */
     onBundle?: (bundle: SubShareBundle) => void;
-    /** Writes the share's names file to Drive; omitted when Drive is absent. */
-    writeNames?: SubShareNamesWriter;
+    /** Reads and writes the share's names file; omitted when Drive is absent. */
+    names?: SubShareNamesServices;
   };
 
 /**
@@ -318,6 +319,23 @@ async function commitBoardBatches({
   }
 }
 
+/**
+ * The names the boards carry plus each live Next Up queue, which is a list of
+ * student names and so belongs in the named-subs file too.
+ */
+async function collectSubShareNames(
+  boards: Dashboard[],
+  services: SubShareNamesServices | undefined
+) {
+  const { names, unreadable } = await withSubShareQueues(
+    extractSubShareNames(boards),
+    boards,
+    services?.readQueue
+  );
+  if (unreadable.length > 0) services?.onIncomplete?.(unreadable);
+  return names;
+}
+
 /** Union of two grant lists, keyed on the (email, file, permission) triple. */
 function mergeDriveGrants(
   current: SubstituteShareDriveGrant[] | undefined,
@@ -448,10 +466,10 @@ export const useSharedCollection = () => {
       // Student names the board snapshots are scrubbed of, before the parent
       // doc: the doc has to land with the file id and its grants together, or
       // the sweep would have nothing to revoke.
-      const names = extractSubShareNames(input.boards);
+      const names = await collectSubShareNames(input.boards, input.names);
       const namesWrite = subShareNamesIsEmpty(names)
         ? null
-        : ((await input.writeNames?.(shareId, names)) ?? null);
+        : ((await input.names?.write(shareId, names)) ?? null);
       const allGrants = [
         ...(input.driveGrants ?? []),
         ...(namesWrite?.driveGrants ?? []),
@@ -546,7 +564,7 @@ export const useSharedCollection = () => {
         driveGrants?: SubstituteShareDriveGrant[];
         sharedRosters?: SubstituteShareRoster[];
         onBundle?: (bundle: SubShareBundle) => void;
-        writeNames?: SubShareNamesWriter;
+        names?: SubShareNamesServices;
       }
     ): Promise<void> => {
       const { shareId } = input;
@@ -582,10 +600,10 @@ export const useSharedCollection = () => {
       // nothing would ever take back.
       // An existing file is rewritten even when the boards now hold no names,
       // so a roster the teacher removed stops reaching the sub.
-      const names = extractSubShareNames(input.boards);
+      const names = await collectSubShareNames(input.boards, input.names);
       const namesWrite =
         current.namesFileId || !subShareNamesIsEmpty(names)
-          ? ((await input.writeNames?.(shareId, names, current.namesFileId)) ??
+          ? ((await input.names?.write(shareId, names, current.namesFileId)) ??
             null)
           : null;
       const incomingGrants = [

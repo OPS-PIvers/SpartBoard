@@ -11,13 +11,20 @@
 import {
   extractDashboardPII,
   type DashboardPiiSupplement,
+  type WidgetConfigOverlay,
 } from '@/utils/dashboardPII';
 import {
   resolveSubShareDriveGrants,
   type RosterGrantingDrive,
 } from '@/utils/subShareDriveGrants';
 import { logError } from '@/utils/logError';
-import type { Dashboard, SubstituteShareDriveGrant } from '@/types';
+import type {
+  Dashboard,
+  NextUpConfig,
+  NextUpQueueItem,
+  SubstituteShareDriveGrant,
+  WidgetData,
+} from '@/types';
 
 /** Where the file lives, beside the dashboard `-pii.json` sidecars. */
 export const SUB_SHARE_NAMES_FOLDER = 'Data/SubShares';
@@ -29,8 +36,11 @@ export function subShareNamesFileName(shareId: string): string {
 /** One share's names, keyed by board id. Boards with no names are omitted. */
 export interface SubShareNamesFile {
   version: 1;
-  boards: Record<string, DashboardPiiSupplement>;
+  boards: Record<string, DashboardPiiSupplement | WidgetConfigOverlay>;
 }
+
+/** Where a bundled Next Up queue lands in the widget's config. */
+const QUEUE_OVERLAY_KEY = 'subShareQueue';
 
 export function extractSubShareNames(boards: Dashboard[]): SubShareNamesFile {
   const byBoard: Record<string, DashboardPiiSupplement> = {};
@@ -39,6 +49,74 @@ export function extractSubShareNames(boards: Dashboard[]): SubShareNamesFile {
     if (Object.keys(supplement).length > 0) byBoard[board.id] = supplement;
   }
   return { version: 1, boards: byBoard };
+}
+
+/** Next Up widgets running a session, whose queue lives in the teacher's Drive. */
+function liveNextUpWidgets(board: Dashboard): WidgetData[] {
+  return (board.widgets ?? []).filter((widget) => {
+    if (widget.type !== 'nextUp') return false;
+    const config = widget.config as NextUpConfig | undefined;
+    return Boolean(config?.isActive && config.activeDriveFileId);
+  });
+}
+
+/** Whether any board holds a queue, so a share with none needs no Drive read. */
+export function subShareNeedsQueueReads(boards: Dashboard[]): boolean {
+  return boards.some((board) => liveNextUpWidgets(board).length > 0);
+}
+
+/**
+ * Adds each live Next Up queue to the names file. The queue is a list of
+ * student names, so it goes here rather than into the share's `content/`,
+ * which any verified district account holding the link can read.
+ *
+ * A queue that cannot be read is named back to the caller and left out: the
+ * sub gets the board with an empty queue, as they do today.
+ */
+export async function withSubShareQueues(
+  names: SubShareNamesFile,
+  boards: Dashboard[],
+  readQueue: ((fileId: string) => Promise<unknown>) | undefined
+): Promise<{ names: SubShareNamesFile; unreadable: string[] }> {
+  const unreadable: string[] = [];
+  const withQueues: SubShareNamesFile = {
+    version: 1,
+    boards: { ...names.boards },
+  };
+  for (const board of boards) {
+    for (const widget of liveNextUpWidgets(board)) {
+      const config = widget.config as NextUpConfig;
+      const label = config.sessionName ?? board.name;
+      if (!readQueue) {
+        unreadable.push(label);
+        continue;
+      }
+      try {
+        const queue = parseNextUpQueue(
+          await readQueue(config.activeDriveFileId as string)
+        );
+        withQueues.boards[board.id] = {
+          ...withQueues.boards[board.id],
+          [widget.id]: { [QUEUE_OVERLAY_KEY]: queue },
+        };
+      } catch (err) {
+        logError('withSubShareQueues', err, { widgetId: widget.id });
+        unreadable.push(label);
+      }
+    }
+  }
+  return { names: withQueues, unreadable };
+}
+
+/** The queue file is the teacher's own; read it defensively all the same. */
+function parseNextUpQueue(body: unknown): NextUpQueueItem[] {
+  if (!Array.isArray(body)) throw new Error('queue file is not a list');
+  return body.filter(
+    (item): item is NextUpQueueItem =>
+      typeof item === 'object' &&
+      item !== null &&
+      typeof (item as NextUpQueueItem).name === 'string'
+  );
 }
 
 export function subShareNamesIsEmpty(file: SubShareNamesFile): boolean {
@@ -146,3 +224,23 @@ export type SubShareNamesWriter = (
   names: SubShareNamesFile,
   existingFileId?: string
 ) => Promise<SubShareNamesWrite | null>;
+
+/** The queue reader, when the teacher's client has a live Drive service. */
+export function driveQueueReader(
+  drive: { downloadFile: (fileId: string) => Promise<Blob> } | null | undefined
+): ((fileId: string) => Promise<unknown>) | undefined {
+  if (!drive) return undefined;
+  return async (fileId) => {
+    const blob = await drive.downloadFile(fileId);
+    return JSON.parse(await blob.text()) as unknown;
+  };
+}
+
+/** Everything the share writer needs from the teacher's Drive session. */
+export interface SubShareNamesServices {
+  write: SubShareNamesWriter;
+  /** Reads a Next Up queue file from the teacher's Drive. */
+  readQueue?: (fileId: string) => Promise<unknown>;
+  /** Called with the labels of whatever could not be read. */
+  onIncomplete?: (labels: string[]) => void;
+}

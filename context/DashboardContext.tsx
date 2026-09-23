@@ -95,7 +95,10 @@ import {
   grantedRosters,
   resolveSubShareDriveGrants,
 } from '@/utils/subShareDriveGrants';
-import { writeSubShareNamesFile } from '@/utils/subShareNames';
+import {
+  driveQueueReader,
+  writeSubShareNamesFile,
+} from '@/utils/subShareNames';
 import { reconcileExpiredSubShares } from '@/hooks/useReconcileExpiredSubShares';
 import { logError } from '@/utils/logError';
 import { mergeSubsetOrder } from '@/utils/reorderIds';
@@ -4210,25 +4213,42 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         scope: 'shareSubstituteCollection',
       });
 
-      const namesOutcome = { attempted: false, missed: [] as string[] };
+      const namesOutcome = {
+        attempted: false,
+        missed: [] as string[],
+        unread: [] as string[],
+      };
       const shareId = await sharedCollectionApi.shareSubstituteCollection({
         ...input,
         hostUid: user.uid,
         hostDisplayName: user.displayName,
         driveGrants: driveGrants.length > 0 ? driveGrants : undefined,
         sharedRosters: grantedRosters(input.sharedRosters, driveGrants),
-        writeNames: async (id, names) => {
-          namesOutcome.attempted = true;
-          const write = await writeSubShareNamesFile({
-            drive: driveService,
-            shareId: id,
-            names,
-            emails: subEmails,
-          });
-          namesOutcome.missed = write ? write.failedEmails : subEmails;
-          return write;
+        names: {
+          write: async (id, names) => {
+            namesOutcome.attempted = true;
+            const write = await writeSubShareNamesFile({
+              drive: driveService,
+              shareId: id,
+              names,
+              emails: subEmails,
+            });
+            namesOutcome.missed = write ? write.failedEmails : subEmails;
+            return write;
+          },
+          readQueue: driveQueueReader(driveService),
+          onIncomplete: (labels) => {
+            namesOutcome.unread = labels;
+          },
         },
       });
+
+      if (namesOutcome.unread.length > 0) {
+        addToast(
+          `Share created, but the Next Up queue on ${namesOutcome.unread.join(', ')} could not be read, so the sub starts with an empty queue.`,
+          'warning'
+        );
+      }
 
       // Names live in Drive because the board snapshot is scrubbed of them, so
       // a sub without that file sees a widget with an empty roster.
@@ -4308,7 +4328,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // the spread below — a Drive outage should not rewrite the share.
       const rostersGranted = grantedRosters(input.sharedRosters, driveGrants);
 
-      const namesOutcome = { attempted: false, missed: [] as string[] };
+      const namesOutcome = {
+        attempted: false,
+        missed: [] as string[],
+        unread: [] as string[],
+      };
       await sharedCollectionApi.updateSubstituteShare({
         ...input,
         ...(input.subEmails !== undefined ? { subEmails } : {}),
@@ -4318,19 +4342,32 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           : rostersGranted
             ? { sharedRosters: rostersGranted }
             : {}),
-        writeNames: async (id, names, existingFileId) => {
-          namesOutcome.attempted = true;
-          const write = await writeSubShareNamesFile({
-            drive: driveService,
-            shareId: id,
-            names,
-            emails: subEmails,
-            existingFileId,
-          });
-          namesOutcome.missed = write ? write.failedEmails : subEmails;
-          return write;
+        names: {
+          write: async (id, names, existingFileId) => {
+            namesOutcome.attempted = true;
+            const write = await writeSubShareNamesFile({
+              drive: driveService,
+              shareId: id,
+              names,
+              emails: subEmails,
+              existingFileId,
+            });
+            namesOutcome.missed = write ? write.failedEmails : subEmails;
+            return write;
+          },
+          readQueue: driveQueueReader(driveService),
+          onIncomplete: (labels) => {
+            namesOutcome.unread = labels;
+          },
         },
       });
+
+      if (namesOutcome.unread.length > 0) {
+        addToast(
+          `Boards updated, but the Next Up queue on ${namesOutcome.unread.join(', ')} could not be read, so the sub starts with an empty queue.`,
+          'warning'
+        );
+      }
 
       if (namesOutcome.attempted && namesOutcome.missed.length > 0) {
         addToast(

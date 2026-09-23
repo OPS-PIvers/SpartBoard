@@ -6368,6 +6368,8 @@ export interface NextUpConfig {
     themeColor: string;
     animation: 'slide' | 'fade' | 'none';
   };
+  /** Set only inside a substitute share, from the share's names file. */
+  subShareQueue?: NextUpQueueItem[];
 }
 
 export interface NextUpGlobalConfig {

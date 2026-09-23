@@ -126,10 +126,13 @@ export function mergeDashboardPII(
   };
 }
 
+/** A per-widget set of config fields to lay back over a board. */
+export type WidgetConfigOverlay = Record<string, Record<string, unknown>>;
+
 /** Widget-level merge, for callers holding widgets without a whole dashboard. */
 export function mergeWidgetsPII(
   widgets: WidgetData[],
-  supplement: DashboardPiiSupplement
+  supplement: DashboardPiiSupplement | WidgetConfigOverlay
 ): WidgetData[] {
   return widgets.map((widget) => {
     const piiFields = supplement[widget.id];
