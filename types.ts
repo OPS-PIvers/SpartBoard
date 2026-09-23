@@ -8515,7 +8515,9 @@ export type GlobalFeature =
   /** Guided Learning player v2: calm motion, learner speed, Watch/Try; stamped on sessions. */
   | 'gl-player-v2'
   /** Guided Learning live tours in the teacher app and their launch points. */
-  | 'gl-live-tours';
+  | 'gl-live-tours'
+  /** Guided Learning Studio editor in place of the classic editor. */
+  | 'gl-studio';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
