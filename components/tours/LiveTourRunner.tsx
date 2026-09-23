@@ -131,6 +131,14 @@ export const LiveTourRunner: React.FC = () => {
     ) {
       await nextFrame();
     }
+    if (latest.current.dashboard.activeDashboard?.id !== id) {
+      latest.current.dashboard.addToast(
+        latest.current.t('tours.practiceFailed'),
+        'error'
+      );
+      setTour(null);
+      return;
+    }
     runSetup(set, steps, index);
   };
 

@@ -305,6 +305,26 @@ describe('LiveTourRunner', () => {
     expect(progress()).toBe('1 / 1');
   });
 
+  it('stops with a message if the practice board never opens', async () => {
+    h.board.readOnly = true;
+    h.actions.createNewDashboard.mockImplementationOnce(() =>
+      Promise.resolve('practice')
+    );
+    await start(
+      makeSet([{ anchor: 'sidebar.boards', action: 'click' }], ['dice'])
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Start on a practice board' })
+    );
+    await frames(2500);
+    expect(h.actions.addWidget).not.toHaveBeenCalled();
+    expect(h.actions.addToast).toHaveBeenCalledWith(
+      "Couldn't open the practice board. Try the tour again.",
+      'error'
+    );
+    expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
+  });
+
   it('ignores start requests without the flag', async () => {
     h.canAccess.mockReturnValue(false);
     await start(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));

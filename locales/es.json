@@ -2897,6 +2897,7 @@
     "readOnlyBody": "El recorrido necesita añadir widgets y hacer clic en botones. ¿Quieres empezarlo en un tablero de práctica nuevo?",
     "cancel": "Cancelar",
     "startPractice": "Empezar en un tablero de práctica",
+    "practiceFailed": "No se pudo abrir el tablero de práctica. Vuelve a iniciar el recorrido.",
     "keepWidgetsTitle": "¿Conservar los widgets del recorrido?",
     "keepWidgetsBody": "El recorrido añadió widgets a este tablero. ¿Quieres conservarlos o quitarlos ahora?",
     "removeWidgets": "Quitarlos",

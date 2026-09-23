@@ -2897,6 +2897,7 @@
     "readOnlyBody": "Die Tour muss Widgets hinzufügen und Schaltflächen anklicken. Stattdessen auf einer neuen Übungstafel starten?",
     "cancel": "Abbrechen",
     "startPractice": "Auf einer Übungstafel starten",
+    "practiceFailed": "Das Übungsboard ließ sich nicht öffnen. Starte die Tour noch einmal.",
     "keepWidgetsTitle": "Widgets der Tour behalten?",
     "keepWidgetsBody": "Die Tour hat dieser Tafel Widgets hinzugefügt. Behalten oder jetzt entfernen?",
     "removeWidgets": "Entfernen",
