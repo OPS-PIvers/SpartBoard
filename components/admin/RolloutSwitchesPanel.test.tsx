@@ -10,6 +10,8 @@ const snapshotData: Record<string, Record<string, unknown> | undefined> = {
   plc_delegated_printing: undefined,
   roster_groups_integration: undefined,
   projects_widget: undefined,
+  quiz_document_import: undefined,
+  sub_launch_as_teacher: undefined,
 };
 
 vi.mock('@/config/firebase', () => ({ db: {} }));
@@ -93,6 +95,24 @@ describe('RolloutSwitchesPanel', () => {
     await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
     expect(setDocMock.mock.calls[0][0].path).toBe(
       'admin_settings/paper_answer_sheets'
+    );
+    expect(setDocMock.mock.calls[0][1]).toEqual({ enabled: true });
+  });
+
+  // Launch-as-teacher is the one switch behind a Cloud Function that writes on
+  // another user's behalf, so it has to read as off until an admin turns it on.
+  it('offers substitute launching, off, and writes to its own doc', async () => {
+    render(<RolloutSwitchesPanel />);
+    const toggle = screen.getByRole('switch', {
+      name: 'Substitutes can start an activity',
+    });
+    expect(toggle).not.toBeChecked();
+
+    fireEvent.click(toggle);
+
+    await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
+    expect(setDocMock.mock.calls[0][0].path).toBe(
+      'admin_settings/sub_launch_as_teacher'
     );
     expect(setDocMock.mock.calls[0][1]).toEqual({ enabled: true });
   });

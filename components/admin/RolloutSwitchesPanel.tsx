@@ -28,6 +28,10 @@ import {
   QUIZ_DOCUMENT_IMPORT_SETTINGS_DOC,
   normalizeQuizDocumentImportSettings,
 } from '@/config/quizDocumentImport';
+import {
+  SUB_LAUNCH_AS_TEACHER_SETTINGS_DOC,
+  normalizeSubLaunchAsTeacherSettings,
+} from '@/config/subLaunchAsTeacher';
 
 interface RolloutSwitch {
   docId: string;
@@ -79,6 +83,13 @@ const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     description:
       'Lets teachers make a new quiz by uploading a PDF, Word file or Google Doc of a test, and fills a paper test\u2019s questions from the same document. Questions the reader can\u2019t find an answer for are marked \u201CNeeds answer\u201D and the quiz can\u2019t be assigned until a teacher fills them in.',
     normalize: normalizeQuizDocumentImportSettings,
+  },
+  {
+    docId: SUB_LAUNCH_AS_TEACHER_SETTINGS_DOC,
+    title: 'Substitutes can start an activity',
+    description:
+      'Lets a substitute your teachers named on a share start a quiz, video activity, guided activity or flashcard set from the boards they were left. The run belongs to the teacher, so the results wait in the teacher\u2019s account, tagged with who started it. Off means the substitute still sees the activity and its answers but cannot start it.',
+    normalize: normalizeSubLaunchAsTeacherSettings,
   },
 ];
 
