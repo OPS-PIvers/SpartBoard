@@ -4377,3 +4377,41 @@ describe('useQuizSessionStudent — per-period joins', () => {
     });
   });
 });
+
+describe('useQuizSessionTeacher — per-period content', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupTeacherMocks();
+  });
+
+  it('stays loading until the content doc arrives, then merges its questions', () => {
+    const byPath = new Map<string, SnapshotCallback>();
+    (
+      firestore.onSnapshot as unknown as ReturnType<typeof vi.fn>
+    ).mockImplementation((target: { path: string[] }, onNext: SnapshotCallback) => {
+      byPath.set(target.path.join('/'), onNext);
+      return vi.fn();
+    });
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+    act(() =>
+      byPath.get('quiz_sessions/sess-1')?.({
+        exists: () => true,
+        data: () =>
+          buildSession({
+            status: 'active',
+            questionsInContent: true,
+            publicQuestions: [],
+          }),
+      })
+    );
+    expect(result.current.loading).toBe(true);
+    act(() =>
+      byPath.get('quiz_sessions/sess-1/content/questions')?.({
+        exists: () => true,
+        data: () => ({ publicQuestions: [{ id: 'q1' }] }),
+      })
+    );
+    expect(result.current.loading).toBe(false);
+    expect(result.current.session?.publicQuestions).toHaveLength(1);
+  });
+});

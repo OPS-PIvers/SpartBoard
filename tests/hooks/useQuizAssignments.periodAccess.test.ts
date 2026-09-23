@@ -197,4 +197,18 @@ describe('useQuizAssignments — per-period sessions', () => {
     );
     expect(batchDelete).toHaveBeenCalledWith('quiz_sessions/a-1');
   });
+
+  it('keeps the session when its content doc fails to delete', async () => {
+    (getDoc as Mock).mockResolvedValue({
+      data: () => ({ code: 'ABC123', questionsInContent: true }),
+    });
+    (deleteDoc as Mock).mockRejectedValueOnce(new Error('offline'));
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await expect(result.current.deleteAssignment('a-1')).rejects.toThrow(
+        'offline'
+      );
+    });
+    expect(batchDelete).not.toHaveBeenCalledWith('quiz_sessions/a-1');
+  });
 });

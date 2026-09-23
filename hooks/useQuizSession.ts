@@ -1051,6 +1051,7 @@ export const useQuizSessionTeacher = (
 ): UseQuizSessionTeacherResult => {
   const [rawSession, setSession] = useState<QuizSession | null>(null);
   const [content, setContent] = useState<QuizSessionContent | null>(null);
+  const [contentLoaded, setContentLoaded] = useState(false);
   const [responses, setResponses] = useState<QuizResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(!!sessionId);
   const advancingRef = useRef(false);
@@ -1062,6 +1063,7 @@ export const useQuizSessionTeacher = (
     setPrevSessionId(sessionId);
     setSession(null);
     setContent(null);
+    setContentLoaded(false);
     setResponses([]);
     setLoading(!!sessionId);
   }
@@ -1077,10 +1079,14 @@ export const useQuizSessionTeacher = (
         QUIZ_CONTENT_COLLECTION,
         QUIZ_CONTENT_DOC
       ),
-      (snap) =>
-        setContent(snap.exists() ? (snap.data() as QuizSessionContent) : null),
-      (err) =>
-        console.error('[useQuizSessionTeacher] content listener error:', err)
+      (snap) => {
+        setContent(snap.exists() ? (snap.data() as QuizSessionContent) : null);
+        setContentLoaded(true);
+      },
+      (err) => {
+        console.error('[useQuizSessionTeacher] content listener error:', err);
+        setContentLoaded(true);
+      }
     );
   }, [sessionId, inContent]);
   const session = useMemo(
@@ -1689,7 +1695,8 @@ export const useQuizSessionTeacher = (
   return {
     session,
     responses,
-    loading,
+    // A per-period session's questions arrive on their own read.
+    loading: loading || (inContent && !contentLoaded),
     advanceQuestion,
     endQuizSession,
     removeStudent,

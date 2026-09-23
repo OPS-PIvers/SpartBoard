@@ -1795,7 +1795,7 @@ export const useQuizAssignments = (
       const sessionCodeField: unknown = sessionSnap?.data()?.code;
       const sessionCode =
         typeof sessionCodeField === 'string' ? sessionCodeField : '';
-      // Its own write: the content rule reads the session, which the batch below removes.
+      // Its own write, and it must land first: once the session goes, no rule can reach it.
       if (sessionSnap?.data()?.questionsInContent === true) {
         await deleteDoc(
           doc(
@@ -1805,8 +1805,6 @@ export const useQuizAssignments = (
             QUIZ_CONTENT_COLLECTION,
             QUIZ_CONTENT_DOC
           )
-        ).catch((err: unknown) =>
-          console.error('Failed to delete quiz session content:', err)
         );
       }
 
