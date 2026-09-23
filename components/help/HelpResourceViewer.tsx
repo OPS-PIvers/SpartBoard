@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
   ExternalLink,
+  Footprints,
   Loader2,
   Maximize2,
   Minimize2,
@@ -18,6 +19,8 @@ import { incrementHelpOpenCount } from '@/hooks/useHelpResources';
 import { loadBuildingSet } from '@/hooks/useGuidedLearning';
 import { logError } from '@/utils/logError';
 import { useAuth } from '@/context/useAuth';
+import { requestStartTour } from '@/components/tours/tourState';
+import { setHasLiveTour } from '@/components/tours/useTourOffers';
 
 // Lazy so the Help modal never pulls the Guided Learning player for teachers who only read embeds.
 const GuidedLearningPlayer = lazy(() =>
@@ -77,7 +80,10 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
     );
   }
 
-  return (
+  const showLive =
+    !fill && canAccessFeature('gl-live-tours') && setHasLiveTour(state.set);
+
+  const player = (
     <div
       className={`relative w-full overflow-hidden bg-slate-900 ${
         fill ? 'h-full' : 'aspect-video rounded-lg'
@@ -97,6 +103,24 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
           playerV2={canAccessFeature('gl-player-v2')}
         />
       </Suspense>
+    </div>
+  );
+
+  if (!showLive) return player;
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+        <p className="text-sm text-slate-600">{t('tours.liveHint')}</p>
+        <button
+          type="button"
+          onClick={() => requestStartTour({ setId })}
+          className="flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-blue-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+        >
+          <Footprints className="w-4 h-4" aria-hidden="true" />
+          {t('tours.showMeLive')}
+        </button>
+      </div>
+      {player}
     </div>
   );
 };

@@ -4130,7 +4130,13 @@
     "retry": "Try again",
     "next": "Next",
     "done": "Done",
-    "skip": "Skip"
+    "skip": "Skip",
+    "showMeLive": "Show me live",
+    "openGuides": "Open guides",
+    "liveHint": "Want to try it on your own board? The tour points at each button as you go.",
+    "offer": "Take a 1-minute tour of {{widget}}?",
+    "offerStart": "Start",
+    "showMe": "Show me"
   },
   "glPlayer": {
     "watch": "Watch",

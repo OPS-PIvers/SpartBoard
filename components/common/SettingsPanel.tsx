@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { CircleHelp, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
 import { WidgetBuildingToggle } from '@/components/common/WidgetBuildingToggle';
 import { WidgetData, GlobalStyle } from '@/types';
@@ -19,7 +19,7 @@ import {
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { useDashboard } from '@/context/useDashboard';
 import { useHelpItemsForWidget } from '@/hooks/useHelpResources';
-import { requestOpenHelp } from '@/components/help/helpCenterState';
+import { WidgetHelpButton } from '@/components/help/WidgetHelpButton';
 import { WidgetHostContext } from './WidgetHostContext';
 import { tourAttr } from '@/config/tourAnchors';
 
@@ -261,19 +261,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <div className="flex items-center gap-2 shrink-0">
             <WidgetBuildingToggle widget={widget} updateWidget={updateWidget} />
             {helpItems.length > 0 && (
-              <IconButton
-                onClick={() => {
-                  requestOpenHelp({ tab: 'guides', widgetType: widget.type });
-                  onClose();
-                }}
-                icon={<CircleHelp className="w-4 h-4" />}
-                label={t('helpCenter.widgetHelp')}
-                {...tourAttr('settings.help', widget.id)}
-                title={t('helpCenter.widgetHelp')}
-                variant="ghost"
-                size="sm"
-                shape="square"
-                className="shrink-0"
+              <WidgetHelpButton
+                widget={widget}
+                helpItems={helpItems}
+                onClose={onClose}
               />
             )}
             <IconButton

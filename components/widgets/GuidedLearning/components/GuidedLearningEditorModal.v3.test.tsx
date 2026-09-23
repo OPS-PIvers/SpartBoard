@@ -1,5 +1,11 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet } from '@/types';
 import { GuidedLearningEditorModal } from './GuidedLearningEditorModal';
@@ -57,6 +63,21 @@ vi.mock('./GuidedLearningEditor', () => ({
         Drop narration
       </button>
       <button onClick={() => state.undo()}>Undo</button>
+      <button
+        onClick={() => state.updateStep({ ...state.steps[0], tour: undefined })}
+      >
+        Drop tour
+      </button>
+      <button
+        onClick={() =>
+          state.updateStep({
+            ...state.steps[1],
+            tour: { anchor: 'sidebar.boards', action: 'observe' },
+          })
+        }
+      >
+        Add tour
+      </button>
       <button
         onClick={() =>
           state.updateStep({
@@ -166,6 +187,33 @@ describe('GuidedLearningEditorModal with a v3 set', () => {
     expect(saved.watchPace).toEqual(set.watchPace);
     expect(saved.tourSetup).toEqual(set.tourSetup);
     expect(saved.steps).toEqual(set.steps);
+  });
+
+  it('stamps hasLiveTour on building sets as tour steps come and go', async () => {
+    const building = { ...buildV3Set(), isBuilding: true };
+    const first = renderModal(building);
+    fireEvent.click(screen.getByRole('button', { name: 'Drop tour' }));
+    closeEditor();
+    await waitFor(() => expect(first.onSave).toHaveBeenCalledTimes(1));
+    const dropped = first.onSave.mock.calls[0][0] as GuidedLearningSet;
+    expect(dropped.hasLiveTour).toBe(false);
+    cleanup();
+
+    const second = renderModal({ ...dropped, hasLiveTour: false });
+    fireEvent.click(screen.getByRole('button', { name: 'Add tour' }));
+    closeEditor();
+    await waitFor(() => expect(second.onSave).toHaveBeenCalledTimes(1));
+    expect(
+      (second.onSave.mock.calls[0][0] as GuidedLearningSet).hasLiveTour
+    ).toBe(true);
+  });
+
+  it('leaves hasLiveTour off personal sets', async () => {
+    const { onSave } = renderModal(buildV3Set());
+    fireEvent.click(screen.getByRole('button', { name: 'Change region' }));
+    closeEditor();
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave.mock.calls[0][0]).not.toHaveProperty('hasLiveTour');
   });
 
   it('shows no Studio notice for a set without Studio fields', () => {

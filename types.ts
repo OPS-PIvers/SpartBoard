@@ -7069,6 +7069,8 @@ export interface GuidedLearningSet {
   watchPace?: GuidedLearningWatchPace;
   /** Live tour prerequisites. Teacher-only: never mirrored to sessions. */
   tourSetup?: { widgets: WidgetType[] };
+  /** Stamped on every building-set save: true when any step has a live-tour binding. */
+  hasLiveTour?: boolean;
 }
 
 /** Lightweight metadata stored in Firestore (avoids Drive API on every list) */
