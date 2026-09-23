@@ -49,6 +49,7 @@ import type {
   GuidedLearningSetMetadata,
 } from '@/types';
 import { pickThumbnailUrl } from '@/utils/guidedLearningMedia';
+import { HELP_CENTER_SOURCE, isHelpCenterSet } from '../utils/helpCenterSets';
 import { LibraryShell } from '@/components/common/library/LibraryShell';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
@@ -119,6 +120,8 @@ interface LibraryEntry {
   driveFileId?: string;
   /** Building-only: the hydrated building set so callers can pass it through. */
   buildingSet?: GuidedLearningSet;
+  /** Building-only: owned by the Help Center, so only the Help Center filter lists it. */
+  helpCenter?: boolean;
   /** Personal-only: current folder assignment (`null` = root). */
   folderId?: string | null;
 }
@@ -306,9 +309,12 @@ const LIBRARY_SORT_COMPARATORS = {
   },
 };
 
+// Help Center sets live in Admin Settings, so every view but their own hides them.
 const LIBRARY_FILTER_PREDICATES = {
   source: (item: LibraryEntry, value: string): boolean =>
-    value === '' ? true : item.source === value,
+    value === HELP_CENTER_SOURCE
+      ? !!item.helpCenter
+      : !item.helpCenter && (value === '' || item.source === value),
 };
 
 const LIBRARY_GET_ID = (e: LibraryEntry): string => e.id;
@@ -348,6 +354,7 @@ const buildLibraryEntries = (
     updatedAt: set.updatedAt,
     createdAt: set.createdAt,
     buildingSet: set,
+    helpCenter: isHelpCenterSet(set),
   }));
 
   return [...personal, ...building];
@@ -481,14 +488,17 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   }
 
   // Building sets have no folderId; fold them into the root bucket so "All items" counts them.
+  const libraryBuildingCount = buildingSets.filter(
+    (set) => !isHelpCenterSet(set)
+  ).length;
   const folderItemCounts = useMemo(() => {
     const counts = countItemsByFolder(sets);
-    if (buildingSets.length > 0) {
+    if (libraryBuildingCount > 0) {
       counts[ROOT_FOLDER_COUNT_KEY] =
-        (counts[ROOT_FOLDER_COUNT_KEY] ?? 0) + buildingSets.length;
+        (counts[ROOT_FOLDER_COUNT_KEY] ?? 0) + libraryBuildingCount;
     }
     return counts;
-  }, [sets, buildingSets]);
+  }, [sets, libraryBuildingCount]);
 
   const allEntries = useMemo(
     () =>
@@ -506,6 +516,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     options: [
       { value: 'personal', label: 'Personal' },
       { value: 'building', label: 'Building' },
+      { value: HELP_CENTER_SOURCE, label: 'Help Center' },
     ],
     // Building filter is admin-gated. Non-admins never see this control.
     visible: isAdmin,
@@ -523,12 +534,21 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   const activeSourceFilter = view.state.filterValues.source ?? '';
   const isBuildingFiltered = activeSourceFilter === 'building';
+  const isHelpCenterFiltered = activeSourceFilter === HELP_CENTER_SOURCE;
+  // The "All" view skips the source predicate, so Help Center sets are dropped here too.
+  const libraryItems = useMemo(
+    () =>
+      isHelpCenterFiltered
+        ? view.visibleItems
+        : view.visibleItems.filter((entry) => !entry.helpCenter),
+    [view.visibleItems, isHelpCenterFiltered]
+  );
 
   // Adjust-during-render: on import success, show the Personal view the set landed in.
   const [seenImportFocus, setSeenImportFocus] = useState(importFocusCounter);
   if (importFocusCounter !== seenImportFocus) {
     setSeenImportFocus(importFocusCounter);
-    if (isBuildingFiltered) {
+    if (isBuildingFiltered || isHelpCenterFiltered) {
       view.toolbarProps.onFilterChange?.('source', 'personal');
     }
   }
@@ -536,8 +556,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   // ─── Drag-reorder only when viewing personal manually (no search, manual
   // sort, source filter === 'personal' so every card is actually reorderable).
   const personalEntries = useMemo(
-    () => view.visibleItems.filter((e) => e.source === 'personal'),
-    [view.visibleItems]
+    () => libraryItems.filter((e) => e.source === 'personal'),
+    [libraryItems]
   );
 
   const onReorderCommit = useCallback(
@@ -553,7 +573,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   );
 
   const reorder = useSortableReorder<LibraryEntry>({
-    items: view.visibleItems,
+    items: libraryItems,
     getId: LIBRARY_GET_ID,
     onCommit: onReorderCommit,
   });
@@ -716,7 +736,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   // ─── Drive disconnected banner ────────────────────────────────────────────
   const showDriveBanner =
-    tab === 'library' && !isDriveConnected && activeSourceFilter !== 'building';
+    tab === 'library' &&
+    !isDriveConnected &&
+    !isBuildingFiltered &&
+    !isHelpCenterFiltered;
 
   /* ─── Rendering helpers ─────────────────────────────────────────────────── */
 
@@ -725,7 +748,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       { label: MODE_LABELS[entry.mode], tone: 'info' },
     ];
     if (entry.source === 'building') {
-      badges.push({ label: 'Building', tone: 'warn' });
+      badges.push({
+        label: entry.helpCenter ? 'Help Center' : 'Building',
+        tone: 'warn',
+      });
     }
 
     const isBuildingEntry = entry.source === 'building';
@@ -1186,11 +1212,13 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
                 icon={BookOpen}
                 title="No sets yet"
                 subtitle={
-                  isBuildingFiltered
-                    ? isAdmin
-                      ? 'Use "New Building Set" or "AI" to add a building-level experience.'
-                      : 'No building sets have been created yet.'
-                    : 'Click "New Set" to create your first guided experience.'
+                  isHelpCenterFiltered
+                    ? 'Help Center activities are created in Admin Settings > Help Center.'
+                    : isBuildingFiltered
+                      ? isAdmin
+                        ? 'Use "New Building Set" or "AI" to add a building-level experience.'
+                        : 'No building sets have been created yet.'
+                      : 'Click "New Set" to create your first guided experience.'
                 }
               />
             }
@@ -1338,7 +1366,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       tab={tab}
       onTabChange={setTab}
       counts={{
-        library: allEntries.length,
+        library: allEntries.filter((entry) => !entry.helpCenter).length,
         active: activeAssignments.length,
         archive: archivedAssignments.length,
       }}

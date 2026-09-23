@@ -199,6 +199,7 @@ export function prepareImportedSet(
     authorUid,
   };
   delete prepared.isBuilding;
+  delete prepared.helpCenter;
   return prepared;
 }
 
