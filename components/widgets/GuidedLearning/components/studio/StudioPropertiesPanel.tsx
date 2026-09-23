@@ -2,6 +2,7 @@ import React, { useCallback, useRef, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Activity, ArrowLeftRight } from 'lucide-react';
 import { GuidedLearningStepEditor } from '../GuidedLearningStepEditor';
+import { StudioRegionControls } from './StudioRegionControls';
 import { SettingChip } from '../editorShared/SettingChip';
 import { WelcomeChip } from '../editorShared/WelcomeChip';
 import { VideoTrimBar } from '../editorShared/VideoTrimBar';
@@ -87,14 +88,17 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
   if (selectedStep) {
     const stepNumber = steps.findIndex((s) => s.id === selectedStep.id) + 1;
     return (
-      <GuidedLearningStepEditor
-        key={selectedStep.id}
-        step={selectedStep}
-        stepNumber={stepNumber}
-        imageCount={imageUrls.length}
-        onChange={updateStep}
-        onDelete={() => deleteStep(selectedStep.id)}
-      />
+      <>
+        <StudioRegionControls step={selectedStep} onChange={updateStep} />
+        <GuidedLearningStepEditor
+          key={selectedStep.id}
+          step={selectedStep}
+          stepNumber={stepNumber}
+          imageCount={imageUrls.length}
+          onChange={updateStep}
+          onDelete={() => deleteStep(selectedStep.id)}
+        />
+      </>
     );
   }
 

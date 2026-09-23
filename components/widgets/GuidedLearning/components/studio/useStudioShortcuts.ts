@@ -9,6 +9,8 @@ export interface StudioShortcut {
   alt?: boolean;
   /** Also fire while inline text editing is active (P1-6 rows only). */
   whileEditing?: boolean;
+  /** Row applies only when this passes; otherwise the key keeps its normal meaning. */
+  when?: (event: KeyboardEvent) => boolean;
   run: (event: KeyboardEvent) => void;
 }
 
@@ -46,7 +48,9 @@ export function useStudioShortcuts(
   const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
     if (event.defaultPrevented || event.isComposing) return;
     const typing = isTypingTarget(event.target);
-    const row = keymap.find((r) => matchesShortcut(event, r));
+    const row = keymap.find(
+      (r) => matchesShortcut(event, r) && (!r.when || r.when(event))
+    );
     if (!row) return;
     if (editing ? !row.whileEditing : typing) return;
     event.preventDefault();

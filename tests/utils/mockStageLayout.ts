@@ -5,6 +5,8 @@ export interface StageLayoutOptions {
   image: { w: number; h: number };
   /** Page offset of the stage container, to prove client→image maths subtracts it. */
   origin?: { x: number; y: number };
+  /** Custom rect for other elements (e.g. callouts); null falls back to the container. */
+  rectFor?: (el: Element) => DOMRect | null;
 }
 
 export interface StageLayoutHandle {
@@ -17,7 +19,7 @@ export interface StageLayoutHandle {
 
 type Observed = { cb: ResizeObserverCallback; ro: ResizeObserver; el: Element };
 
-const rect = (x: number, y: number, w: number, h: number): DOMRect =>
+export const rect = (x: number, y: number, w: number, h: number): DOMRect =>
   ({
     x,
     y,
@@ -92,7 +94,10 @@ export function mockStageLayout(opts: StageLayoutOptions): StageLayoutHandle {
           container.h * s
         );
       }
-      return rect(origin.x, origin.y, container.w, container.h);
+      return (
+        opts.rectFor?.(this) ??
+        rect(origin.x, origin.y, container.w, container.h)
+      );
     });
   const widthSpy = vi
     .spyOn(Element.prototype, 'clientWidth', 'get')
