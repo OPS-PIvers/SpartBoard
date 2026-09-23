@@ -11,6 +11,7 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
+import { TabExitsPopover } from '@/components/common/TabExitsPopover';
 import {
   ArrowLeft,
   Download,
@@ -993,6 +994,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         // widget config.
         plcSheetUrl: assignmentPlcSheetUrl ?? config.plcSheetUrl,
         fibGrading,
+        timeAway: canAccessFeature('tab-away-timer'),
       };
       let url: string;
       try {
@@ -1131,6 +1133,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           plcMode: false,
           plcSheetUrl: undefined,
           fibGrading,
+          timeAway: canAccessFeature('tab-away-timer'),
         }
       );
       setExportError((prev) =>
@@ -3441,16 +3444,24 @@ const StudentsScreen: React.FC<{
                     <ResultsOverrideBadge override={r.resultsOverride} />
                   )}
                   {tabWarningsEnabled && warnings > 0 && (
-                    <span
-                      title={`${warnings} Tab Switch Warning(s)`}
-                      className="shrink-0"
+                    <TabExitsPopover
+                      exits={r.tabExits}
+                      warnings={warnings}
+                      studentName={displayName}
+                      completed={r.status === 'completed'}
+                      sessionEnded={session?.status === 'ended'}
                     >
-                      <SessionBadge
-                        tone="danger"
-                        icon={AlertTriangle}
-                        label={`${warnings}`}
-                      />
-                    </span>
+                      <span
+                        title={`${warnings} Tab Switch Warning(s)`}
+                        className="shrink-0"
+                      >
+                        <SessionBadge
+                          tone="danger"
+                          icon={AlertTriangle}
+                          label={`${warnings}`}
+                        />
+                      </span>
+                    </TabExitsPopover>
                   )}
                   {/* Results-view lockout indicator. Student crossed the
                   `protection.tabWarningThreshold` while viewing

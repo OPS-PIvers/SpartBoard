@@ -84,6 +84,35 @@ describe('buildResultsSheetData', () => {
     ]);
   });
 
+  it('adds Time Away after Warnings only when asked', () => {
+    const exits = [
+      {
+        leftAt: 1,
+        attempt: 0,
+        durationMs: 40_000,
+        outcome: 'returned' as const,
+      },
+      {
+        leftAt: 2,
+        attempt: 0,
+        durationMs: 33_000,
+        outcome: 'over-limit' as const,
+      },
+    ];
+    const { headers, dataRows } = buildResultsSheetData(
+      [r({ tabSwitchWarnings: 2, tabExits: exits })],
+      [q()],
+      ALWAYS_FULL,
+      { timeAway: true }
+    );
+    expect(headers.slice(9, 12)).toEqual([
+      'Warnings',
+      'Time Away',
+      'Submitted At',
+    ]);
+    expect(dataRows[0].slice(9, 11)).toEqual(['2', '1:13']);
+  });
+
   it('routes correctness through the injected grader (full credit)', () => {
     const { dataRows } = buildResultsSheetData(
       [r()],

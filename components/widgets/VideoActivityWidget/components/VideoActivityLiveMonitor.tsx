@@ -48,6 +48,10 @@ import {
 import { logError } from '@/utils/logError';
 import { useVideoActivityKeyQuestions } from '@/hooks/useVideoActivityKeyQuestions';
 import {
+  AwayNowChip,
+  TabExitsPopover,
+} from '@/components/common/TabExitsPopover';
+import {
   getEffectiveTabWarningThreshold,
   hasReachedTabWarningThreshold,
 } from '@/utils/tabWarningThreshold';
@@ -79,6 +83,7 @@ interface StudentRowProps {
   response: VideoActivityResponse;
   /** Session's exits-before-auto-submit, or 'off'. */
   tabWarningThreshold: number | 'off';
+  sessionActive: boolean;
   questions: VideoActivityQuestion[];
   /**
    * Roster name lookup keyed by `response.studentUid`. Used to label SSO
@@ -122,6 +127,7 @@ function pickDisplayLabel(
 const StudentRow: React.FC<StudentRowProps> = ({
   response,
   tabWarningThreshold,
+  sessionActive,
   questions,
   byStudentUid,
   showTabWarnings,
@@ -292,14 +298,30 @@ const StudentRow: React.FC<StudentRowProps> = ({
         ) : (
           <SessionBadge tone="warn" label="In progress" />
         )}
+        {showTabWarnings && (
+          <AwayNowChip
+            exits={response.tabExits}
+            completed={completed}
+            sessionActive={sessionActive}
+            style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+          />
+        )}
         {showTabWarnings && warnings > 0 && (
-          <span title={`${warnings} Tab Switch Warning(s)`}>
-            <SessionBadge
-              tone="danger"
-              label={String(warnings)}
-              icon={AlertTriangle}
-            />
-          </span>
+          <TabExitsPopover
+            exits={response.tabExits}
+            warnings={warnings}
+            studentName={displayName}
+            completed={completed}
+            sessionEnded={!sessionActive}
+          >
+            <span title={`${warnings} Tab Switch Warning(s)`}>
+              <SessionBadge
+                tone="danger"
+                label={String(warnings)}
+                icon={AlertTriangle}
+              />
+            </span>
+          </TabExitsPopover>
         )}
         {lockBadge}
       </div>
@@ -633,6 +655,7 @@ export const VideoActivityLiveMonitor: React.FC<
                       tabWarningThreshold={getEffectiveTabWarningThreshold(
                         session.sessionOptions?.tabWarningThreshold
                       )}
+                      sessionActive={session.status === 'active'}
                       questions={questions}
                       byStudentUid={byStudentUid}
                       showTabWarnings={

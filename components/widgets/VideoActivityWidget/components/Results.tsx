@@ -259,6 +259,7 @@ export const Results: React.FC<ResultsProps> = ({
         score: r.score,
         submittedAt: r.completedAt,
         tabSwitchWarnings: r.tabSwitchWarnings ?? 0,
+        tabExits: r.tabExits,
       }));
 
       // Pass `byStudentUid` so SSO `studentRole` rows (no PIN) export with
@@ -287,6 +288,7 @@ export const Results: React.FC<ResultsProps> = ({
           byStudentUid,
           gradeFn:
             gradeVideoActivityAnswer as unknown as NonNullable<ExporterOptions>['gradeFn'],
+          timeAway: canAccessFeature('tab-away-timer'),
         }
       );
       setExportUrl(url);
