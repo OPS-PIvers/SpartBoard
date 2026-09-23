@@ -1,67 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  Play,
-  Pause,
-  ChevronLeft,
-  ChevronRight,
-  X,
-  Minimize2,
-} from 'lucide-react';
+import { Play, Pause, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import {
   GuidedLearningSet,
   GuidedLearningPublicStep,
   GuidedLearningMode,
-  GuidedLearningVideoTrim,
   StudentOverride,
 } from '@/types';
 import { applyTimeMultiplier } from '@/utils/applyTimeMultiplier';
-import { TextPopoverInteraction } from './interactions/TextPopoverInteraction';
-import { TooltipInteraction } from './interactions/TooltipInteraction';
-import { AudioInteraction } from './interactions/AudioInteraction';
-import { VideoInteraction } from './interactions/VideoInteraction';
-import { SpotlightInteraction } from './interactions/SpotlightInteraction';
-import { QuestionInteraction } from './interactions/QuestionInteraction';
-import { BannerInteraction } from './interactions/BannerInteraction';
-import {
-  calculateImageFootprint,
-  computePanZoomTranslate,
-  toContainerCoords,
-  toContainerSpotlightRadiusPct,
-  toImageOffset,
-} from '../utils/imageUtils';
 import { isGuidedLearningSetV2 } from '../utils/setMigration';
-
-/**
- * Clamp a video trim against the player's loaded metadata. The editor already
- * enforces `0 <= start < end <= duration`, but a stale doc / manual edit could
- * carry out-of-range values; clamping keeps seeking sane. When the duration
- * isn't known yet (`NaN`/0 — e.g. before metadata loads, or in jsdom), the
- * raw trim values are trusted since there's nothing valid to clamp against.
- *
- * A corrupted doc could also carry a non-finite `start`/`end` (`NaN`/`undefined`
- * from a type mismatch). Assigning `NaN` to `video.currentTime` throws in most
- * browsers, so both ends are sanitized to a finite fallback first.
- */
-function clampTrimStart(
-  trim: GuidedLearningVideoTrim,
-  duration: number
-): number {
-  const rawStart = Number.isFinite(trim.start) ? trim.start : 0;
-  const start = Math.max(0, rawStart);
-  return Number.isFinite(duration) && duration > 0
-    ? Math.min(start, duration)
-    : start;
-}
-
-function clampTrimEnd(trim: GuidedLearningVideoTrim, duration: number): number {
-  const hasDuration = Number.isFinite(duration) && duration > 0;
-  const rawEnd = Number.isFinite(trim.end)
-    ? trim.end
-    : hasDuration
-      ? duration
-      : 0;
-  return hasDuration ? Math.min(rawEnd, duration) : rawEnd;
-}
+import { GuidedLearningStage } from './GuidedLearningStage';
 
 interface Props {
   set: GuidedLearningSet;
@@ -86,22 +33,11 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   timeMultiplier,
 }) => {
   const mode: GuidedLearningMode = set.mode;
-  // Hotspot pulse style — 'consistent' (default) preserves the legacy ping
-  // ring; 'reminder' adds a periodic wiggle on the marker itself; 'off'
-  // disables both. All variants degrade to no-animation under
-  // prefers-reduced-motion via the motion-reduce:* utilities.
-  const pulseMode: 'consistent' | 'reminder' | 'off' =
-    set.hotspotPulse ?? 'consistent';
-  // Image-to-image transition style. 'none' = instant swap (legacy);
-  // 'slide' = new image slides in from the right while previous exits left;
-  // 'fade' = cross-dissolve. Reduces to 'none' under prefers-reduced-motion.
-  const transitionMode: 'none' | 'slide' | 'fade' =
-    set.imageTransition ?? 'none';
   // In teacher mode set.steps is GuidedLearningStep[]; in student mode it is
   // GuidedLearningPublicStep[] (via the student-app cast). We intentionally
   // narrow to GuidedLearningPublicStep[] here so interaction components never
   // accidentally read answer-key fields from steps. Answer keys are accessed
-  // through set.steps.find() only when teacherMode is true (see renderInteraction).
+  // through set.steps.find() only when teacherMode is true (see GuidedLearningStage).
   const steps = set.steps as unknown as GuidedLearningPublicStep[];
   const [currentIdx, setCurrentIdx] = useState(0);
   const [activeStepId, setActiveStepId] = useState<string | null>(
@@ -110,7 +46,6 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   const [exploreImageIndex, setExploreImageIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0); // 0-1 for guided auto-advance
-  const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const [answeredSteps, setAnsweredSteps] = useState<Set<string>>(new Set());
   // Ref kept in sync with the latest `answeredSteps` value on every render.
   // The setInterval callback in startTimer closes over this ref rather than
@@ -129,14 +64,6 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   // latch below).
   // eslint-disable-next-line react-hooks/refs
   answeredStepsRef.current = answeredSteps;
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
-    if (
-      typeof window === 'undefined' ||
-      typeof window.matchMedia !== 'function'
-    )
-      return false;
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  });
 
   // Track previous mode to reset step index when mode changes (adjusting state while rendering)
   const [prevMode, setPrevMode] = useState(mode);
@@ -151,56 +78,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     }
   }
 
+  // Keyboard scope: the canvas wrapper around the stage.
   const containerRef = useRef<HTMLDivElement>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
-  const videoElRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const progressRef = useRef(0);
-
-  const [imgOffset, setImgOffset] = useState<{
-    left: number;
-    top: number;
-    scaleX: number;
-    scaleY: number;
-  } | null>(null);
-
-  const measureImg = useCallback(() => {
-    // Whichever media element is mounted for the current slide — <img> for
-    // image slides, <video> for video slides.
-    const media = imgRef.current ?? videoElRef.current;
-    if (!media || !containerRef.current) {
-      setImgOffset(null);
-      return;
-    }
-
-    const rect = containerRef.current.getBoundingClientRect();
-    const footprint = calculateImageFootprint(
-      media instanceof HTMLVideoElement ? media.videoWidth : media.naturalWidth,
-      media instanceof HTMLVideoElement
-        ? media.videoHeight
-        : media.naturalHeight,
-      rect.width,
-      rect.height
-    );
-
-    setImgOffset(toImageOffset(footprint, rect.width, rect.height));
-  }, []);
-
-  // Observe container size for overlay positioning
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const ro = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setContainerSize({
-          w: entry.contentRect.width,
-          h: entry.contentRect.height,
-        });
-      }
-      measureImg();
-    });
-    ro.observe(containerRef.current);
-    return () => ro.disconnect();
-  }, [measureImg]);
 
   const schemaV2 = isGuidedLearningSetV2(set);
 
@@ -215,63 +96,6 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           Math.max(rawCurrentImageIndex, 0),
           Math.max(set.imageUrls.length - 1, 0)
         );
-  const currentImageUrl = set.imageUrls[currentImageIndex] ?? set.imageUrls[0];
-  // Per-slide media kind — 'video' slides (uploaded MP4/WebM or screen
-  // recordings) render in a muted looping <video>; missing entries are
-  // images (legacy sets/sessions have no imageKinds field at all).
-  const slideKind: 'image' | 'video' =
-    set.imageKinds?.[currentImageIndex] ?? 'image';
-  // Optional playback-range trim for the current video slide — the <video>
-  // seeks to `start` on load and loops back when it reaches `end`. Missing
-  // entries (and legacy sets/sessions) play the full file.
-  const slideTrim = set.videoTrims?.[currentImageIndex] ?? null;
-
-  // Image-transition bookkeeping — when `currentImageIndex` changes and a
-  // transition is enabled, we briefly render the previous image as an
-  // exiting layer alongside the current one. The "adjust state during
-  // render" pattern detects the change without an effect; the
-  // 500ms-cleanup effect below drops the previous layer once its
-  // animation has finished.
-  const transitionsActive = transitionMode !== 'none' && !prefersReducedMotion;
-  const [prevImageIndex, setPrevImageIndex] = useState<number | null>(null);
-  const [trackedImageIndex, setTrackedImageIndex] = useState(currentImageIndex);
-  if (trackedImageIndex !== currentImageIndex) {
-    if (transitionsActive) {
-      setPrevImageIndex(trackedImageIndex);
-    }
-    setTrackedImageIndex(currentImageIndex);
-  }
-  useEffect(() => {
-    if (prevImageIndex === null) return;
-    const id = setTimeout(() => setPrevImageIndex(null), 500);
-    return () => clearTimeout(id);
-  }, [prevImageIndex]);
-  // Skip the exit layer when the previous slide was a video — an <img>
-  // can't render a video URL, so the transition falls back to an instant
-  // swap for that case.
-  const previousImageUrl =
-    prevImageIndex !== null &&
-    (set.imageKinds?.[prevImageIndex] ?? 'image') !== 'video'
-      ? (set.imageUrls[prevImageIndex] ?? null)
-      : null;
-
-  // Re-measure whenever the slide changes — the <img> src is mutated in
-  // place, so cached images can swap without firing onLoad.
-  useEffect(() => {
-    measureImg();
-  }, [measureImg, currentImageUrl, currentImageIndex]);
-
-  const toContainerStep = useCallback(
-    (step: GuidedLearningPublicStep | null) => {
-      if (!step) return null;
-      const coords = toContainerCoords(step.xPct, step.yPct, imgOffset);
-      if (!coords) return null;
-      return { ...step, ...coords };
-    },
-    [imgOffset]
-  );
-
-  const activeStepInContainer = toContainerStep(activeStep);
 
   // Derive pan-zoom active state from current step (no effect needed)
   const panZoomTargetStep = mode === 'explore' ? activeStep : currentStep;
@@ -294,19 +118,6 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       setZoomScale(1);
     }
   }
-
-  useEffect(() => {
-    // Warm the browser cache for image slides so step navigation doesn't
-    // flash. Video slides are intentionally skipped — preloading every MP4
-    // up front would burn bandwidth; the <video> element streams on demand.
-    set.imageUrls.forEach((url, i) => {
-      if ((set.imageKinds?.[i] ?? 'image') === 'video') return;
-      const image = new Image();
-      image.src = url;
-      // Decode ahead of time so a slide swap paints immediately.
-      void image.decode?.().catch(() => undefined);
-    });
-  }, [set.imageUrls, set.imageKinds]);
 
   const goNext = useCallback(() => {
     if (steps.length === 0) return;
@@ -383,20 +194,6 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   }, [mode, playing, currentIdx, startTimer]);
 
   useEffect(() => {
-    if (
-      typeof window === 'undefined' ||
-      typeof window.matchMedia !== 'function'
-    )
-      return;
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const onChange = (event: MediaQueryListEvent) => {
-      setPrefersReducedMotion(event.matches);
-    };
-    mediaQuery.addEventListener('change', onChange);
-    return () => mediaQuery.removeEventListener('change', onChange);
-  }, []);
-
-  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       const container = containerRef.current;
@@ -441,7 +238,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       if (
         mode === 'guided' &&
         event.code === 'Space' &&
-        target === containerRef.current
+        target?.hasAttribute('data-gl-stage')
       ) {
         event.preventDefault();
         setPlaying((prev) => !prev);
@@ -474,227 +271,17 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       ? Math.min((currentIdx + Math.min(progress, 1)) / steps.length, 1)
       : 0;
 
-  // Single source of truth for the transform the pan-zoom layer renders.
-  const renderedTransform = ((): { scale: number; tx: number; ty: number } => {
-    const identity = { scale: 1, tx: 0, ty: 0 };
-    if (containerSize.w === 0) return identity;
-    // Legacy sets (schemaVersion absent/1): per-step zoom reset, now animated.
-    const scale = schemaV2
-      ? zoomScale
-      : panZoomActive
-        ? (steps.find((s) => s.id === panZoomActive)?.panZoomScale ?? 2.5)
-        : 1;
-    if (scale <= 1) return identity;
-    const target = toContainerStep(
-      schemaV2
-        ? panZoomTargetStep
-        : (steps.find((s) => s.id === panZoomActive) ?? null)
-    );
-    if (!target) return identity;
-    const { tx, ty } = computePanZoomTranslate(
-      target.xPct,
-      target.yPct,
-      scale,
-      containerSize.w,
-      containerSize.h
-    );
-    return { scale, tx, ty };
-  })();
-
-  // Map container-% coords through the rendered transform so overlays always
-  // anchor where the hotspot is actually painted.
-  const toRenderedCoords = (coords: { xPct: number; yPct: number }) => {
-    const { scale, tx, ty } = renderedTransform;
-    if (scale <= 1) return coords;
-    return {
-      xPct:
-        coords.xPct * scale +
-        (containerSize.w ? (tx / containerSize.w) * 100 : 0),
-      yPct:
-        coords.yPct * scale +
-        (containerSize.h ? (ty / containerSize.h) * 100 : 0),
-    };
+  // Media end only advances while guided playback runs; a question's Continue always does.
+  const handleStageAdvance = () => {
+    const type = activeStep?.interactionType;
+    if (type === 'audio' || type === 'video') {
+      if (mode === 'guided' && playing) goNext();
+      return;
+    }
+    if (mode !== 'explore') goNext();
+    else setActiveStepId(null);
   };
 
-  const activeStepRendered = activeStepInContainer
-    ? { ...activeStepInContainer, ...toRenderedCoords(activeStepInContainer) }
-    : null;
-
-  // Calculate pan-zoom transform
-  const getPanZoomStyle = (): React.CSSProperties => {
-    if (containerSize.w === 0) return {};
-    const transition = prefersReducedMotion
-      ? 'none'
-      : 'transform 0.6s ease-in-out';
-    const { scale, tx, ty } = renderedTransform;
-    // Identity keeps transition + transform so zoom-out animates instead of snapping.
-    if (scale <= 1) {
-      return {
-        transform: 'scale(1) translate(0px, 0px)',
-        transition,
-        transformOrigin: '0 0',
-      };
-    }
-    return {
-      transform: `scale(${scale}) translate(${tx / scale}px, ${ty / scale}px)`,
-      transition,
-      transformOrigin: '0 0',
-    };
-  };
-
-  const renderInteraction = () => {
-    if (!activeStep) return null;
-    const type = activeStep.interactionType;
-
-    if (type === 'text-popover') {
-      return (
-        <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
-          <div className="pointer-events-auto w-full h-full">
-            <TextPopoverInteraction
-              step={activeStep}
-              onClose={() => setActiveStepId(null)}
-            />
-          </div>
-        </div>
-      );
-    }
-
-    if (type === 'audio') {
-      return (
-        <div className="absolute inset-0 z-30 pointer-events-none flex items-end justify-center pb-4">
-          <div className="pointer-events-auto">
-            <AudioInteraction
-              step={activeStep}
-              autoPlay
-              onEnded={() => {
-                if (mode === 'guided' && playing) goNext();
-              }}
-            />
-          </div>
-        </div>
-      );
-    }
-
-    if (type === 'video') {
-      return (
-        <div className="absolute inset-0 z-30 pointer-events-auto">
-          <VideoInteraction
-            step={activeStep}
-            onClose={() => setActiveStepId(null)}
-            onEnded={() => {
-              if (mode === 'guided' && playing) goNext();
-            }}
-          />
-        </div>
-      );
-    }
-
-    if (type === 'question') {
-      // Find original step for answer key (teacher mode only)
-      const origStep = teacherMode
-        ? set.steps.find((s) => s.id === activeStep.id)
-        : null;
-      return (
-        <div className="absolute inset-0 z-30 pointer-events-auto overflow-hidden">
-          <QuestionInteraction
-            step={activeStep}
-            onAnswer={(answer, isCorrect) =>
-              handleAnswer(activeStep.id, answer, isCorrect)
-            }
-            onContinue={() => {
-              if (mode !== 'explore') goNext();
-              else setActiveStepId(null);
-            }}
-            correctAnswer={origStep?.question?.correctAnswer}
-            correctMatchingPairs={origStep?.question?.matchingPairs}
-            correctSortingItems={origStep?.question?.sortingItems}
-            studentMode={!teacherMode}
-          />
-        </div>
-      );
-    }
-
-    if (type === 'tooltip') {
-      return activeStepRendered ? (
-        <TooltipInteraction
-          key={activeStepRendered.id}
-          step={activeStepRendered}
-          containerWidth={containerSize.w}
-          containerHeight={containerSize.h}
-        />
-      ) : null;
-    }
-
-    if (
-      type === 'pan-zoom' ||
-      type === 'spotlight' ||
-      type === 'pan-zoom-spotlight'
-    ) {
-      const renderOverlay = (keepOutRadius?: number) =>
-        activeStep.showOverlay === 'tooltip' && activeStepRendered ? (
-          <TooltipInteraction
-            key={activeStepRendered.id}
-            step={activeStepRendered}
-            containerWidth={containerSize.w}
-            containerHeight={containerSize.h}
-            keepOutRadius={keepOutRadius}
-          />
-        ) : activeStep.showOverlay === 'popover' ? (
-          <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
-            <div className="pointer-events-auto w-full h-full">
-              <TextPopoverInteraction
-                step={activeStep}
-                onClose={() => setActiveStepId(null)}
-              />
-            </div>
-          </div>
-        ) : activeStep.showOverlay === 'banner' ? (
-          <BannerInteraction
-            step={activeStep}
-            onClose={() => setActiveStepId(null)}
-          />
-        ) : null;
-
-      if (
-        (type === 'spotlight' || type === 'pan-zoom-spotlight') &&
-        activeStepRendered
-      ) {
-        // v2 sets: spotlightRadius is image-relative — convert to container-%
-        // and scale by the rendered zoom so the circle tracks what's visible.
-        const spotlightStep = schemaV2
-          ? {
-              ...activeStepRendered,
-              spotlightRadius:
-                toContainerSpotlightRadiusPct(
-                  activeStepRendered.spotlightRadius ?? 25,
-                  imgOffset,
-                  containerSize.w,
-                  containerSize.h
-                ) * renderedTransform.scale,
-            }
-          : activeStepRendered;
-        // Keep the tooltip card outside the lit circle so it never covers the target.
-        const spotlightPx =
-          (Math.min(containerSize.w, containerSize.h) *
-            (spotlightStep.spotlightRadius ?? 25)) /
-          100;
-        return (
-          <>
-            <SpotlightInteraction
-              step={spotlightStep}
-              containerWidth={containerSize.w}
-              containerHeight={containerSize.h}
-            />
-            {renderOverlay(spotlightPx)}
-          </>
-        );
-      }
-
-      return renderOverlay();
-    }
-
-    return null;
-  };
   return (
     <div className="h-full flex flex-col bg-slate-900">
       {/* Controls bar */}
@@ -770,212 +357,29 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       </div>
 
       {/* Main canvas */}
-      <div className="flex-1 relative overflow-hidden bg-slate-950">
-        <div
-          ref={containerRef}
-          className="w-full h-full relative flex items-center justify-center"
-          tabIndex={0}
-        >
-          {/* Image with optional pan-zoom transform */}
-          <div
-            data-testid="gl-panzoom-layer"
-            className="w-full h-full relative motion-reduce:transition-none"
-            style={getPanZoomStyle()}
-          >
-            {/* Current image is always mounted — kept stable across image
-                changes so React doesn't re-create the <img> node, which
-                would invalidate refs held by callers/tests and force a
-                fresh load even when the URL is unchanged. Video slides swap
-                in a muted looping <video> (keyed by URL so the element
-                reloads when the slide changes). */}
-            {currentImageUrl && slideKind === 'video' && (
-              <video
-                key={currentImageUrl}
-                ref={videoElRef}
-                src={currentImageUrl}
-                muted
-                loop
-                autoPlay
-                playsInline
-                className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-                onLoadedMetadata={(e) => {
-                  measureImg();
-                  if (slideTrim) {
-                    const el = e.currentTarget;
-                    el.currentTime = clampTrimStart(slideTrim, el.duration);
-                  }
-                }}
-                onTimeUpdate={(e) => {
-                  // Loop within the trimmed playback range. The native
-                  // `loop` attribute still covers the untrimmed case (and
-                  // acts as a fallback if `end` is at/after the file end).
-                  if (!slideTrim) return;
-                  const el = e.currentTarget;
-                  // Clamp the trim against the loaded metadata — a stale doc,
-                  // manual edit, or future UI bug could carry out-of-range
-                  // values that would otherwise wedge seeking. No-op on a
-                  // degenerate range so native `loop` takes over.
-                  const start = clampTrimStart(slideTrim, el.duration);
-                  const end = clampTrimEnd(slideTrim, el.duration);
-                  if (end <= start) return;
-                  if (el.currentTime >= end || el.currentTime < start - 0.25) {
-                    el.currentTime = start;
-                  }
-                }}
-              />
-            )}
-            {currentImageUrl && slideKind !== 'video' && (
-              <img
-                ref={imgRef}
-                src={currentImageUrl}
-                alt={set.title}
-                className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-                draggable={false}
-                onLoad={measureImg}
-              />
-            )}
-            {/* Previous image — only mounted while a transition is in
-                flight. Rendered ABOVE the current layer (later in DOM
-                order, so it paints on top) and animates OUT, revealing
-                the current image underneath. The cleanup effect drops
-                this layer 500ms after mount. */}
-            {previousImageUrl && (
-              <img
-                src={previousImageUrl}
-                alt=""
-                aria-hidden="true"
-                className={`absolute inset-0 w-full h-full object-contain pointer-events-none ${
-                  transitionMode === 'slide'
-                    ? 'animate-slide-left-out'
-                    : transitionMode === 'fade'
-                      ? 'animate-fade-out'
-                      : ''
-                }`}
-                draggable={false}
-              />
-            )}
-
-            {/* Hotspot pins */}
-            {steps.map((step, idx) => {
-              if (step.imageIndex !== currentImageIndex) return null;
-              const isActive = activeStepId === step.id;
-              // Per-step "Always hidden" — never render the marker. The
-              // legacy `hideStepNumber` flag is read as a fallback so old
-              // sets keep working without migration.
-              const alwaysHidden = Boolean(
-                step.hotspotAlwaysHidden ?? step.hideStepNumber
-              );
-              if (alwaysHidden) return null;
-              // Auto-hide-while-live: the active step's marker disappears
-              // in any mode so it doesn't sit on top of the
-              // popover/tooltip/spotlight content it just opened. Other
-              // pins on the same image stay visible so explore-mode users
-              // can still click them. The interaction overlay (tooltip
-              // arrow, spotlight focus, popover position) is still
-              // anchored to the pin's coordinates even with the marker
-              // hidden, so users keep their visual anchor.
-              if (isActive) return null;
-              // Structured/guided only render the *current* step's pin
-              // (other steps are sequenced through Prev/Next, not clickable
-              // out of order). Since the current step is also the active
-              // one in those modes, this branch effectively renders no
-              // pin during a live structured/guided step — the user sees
-              // only the interaction overlay. Explore mode renders every
-              // non-active pin on the image.
-              const isCurrentStructured =
-                mode !== 'explore' && step.id === currentStep?.id;
-              const showPin = mode === 'explore' || isCurrentStructured;
-              if (!showPin) return null;
-
-              const position = toContainerCoords(
-                step.xPct,
-                step.yPct,
-                imgOffset
-              );
-              // Don't place pins until the image footprint is measured.
-              if (!position) return null;
-
-              return (
-                <div
-                  key={step.id}
-                  className="absolute z-10"
-                  style={{
-                    left: `${position.xPct}%`,
-                    top: `${position.yPct}%`,
-                    transform: 'translate(-50%, -50%)',
-                  }}
-                >
-                  <button
-                    onClick={() => handlePinClick(step)}
-                    className={`group relative flex items-center justify-center rounded-full border-2 border-white transition-all shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 bg-white/25 hover:bg-white/35 ${
-                      // 'reminder' wiggle is applied to the button itself
-                      // (not a ring child) so it actually moves the marker.
-                      // 'consistent' uses the inline ping ring below.
-                      // 'off' adds nothing.
-                      pulseMode === 'reminder'
-                        ? 'animate-gl-pulse-reminder motion-reduce:animate-none'
-                        : ''
-                    }`}
-                    style={{
-                      width: 'min(32px, 8cqmin)',
-                      height: 'min(32px, 8cqmin)',
-                    }}
-                    aria-label={step.label ?? `Step ${idx + 1}`}
-                  >
-                    {pulseMode === 'consistent' && (
-                      <span className="pointer-events-none absolute inset-0 rounded-full border border-white/70 animate-ping opacity-70 motion-reduce:hidden [animation-duration:2s]" />
-                    )}
-                    <span
-                      className="pointer-events-none absolute rounded-full bg-white/95"
-                      style={{
-                        width: 'min(7px, 1.8cqmin)',
-                        height: 'min(7px, 1.8cqmin)',
-                      }}
-                    />
-                    <span
-                      className="relative text-white font-bold select-none"
-                      style={{ fontSize: 'min(12px, 3cqmin)' }}
-                    >
-                      {idx + 1}
-                    </span>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Reset view — v2 sets only, shown only while a non-identity zoom
-              is actually rendered. Gated on the rendered transform (not raw
-              zoomScale) because zoomScale can stay >1 after a mode switch
-              (e.g. structured -> explore) even though renderedTransform
-              resolves to identity once there's no target step to focus —
-              checking the raw value would leave a stray button over an
-              unzoomed view. z-40 keeps it above all interaction overlays
-              (Banner included), which top out at z-30. */}
-          {schemaV2 && renderedTransform.scale > 1 && (
-            <button
-              onClick={() => setZoomScale(1)}
-              aria-label="Reset view"
-              className="absolute left-1/2 -translate-x-1/2 z-40 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
-              style={{
-                top: 'clamp(8px, 2cqmin, 12px)',
-                width: 'clamp(36px, 7cqmin, 56px)',
-                height: 'clamp(36px, 7cqmin, 56px)',
-              }}
-            >
-              <Minimize2
-                className="mx-auto text-white"
-                style={{
-                  width: 'clamp(16px, 4cqmin, 28px)',
-                  height: 'clamp(16px, 4cqmin, 28px)',
-                }}
-              />
-            </button>
-          )}
-
-          {/* Interaction overlays */}
-          {renderInteraction()}
-        </div>
+      <div
+        ref={containerRef}
+        className="flex-1 relative overflow-hidden bg-slate-950"
+      >
+        <GuidedLearningStage
+          set={set}
+          steps={steps}
+          imageIndex={currentImageIndex}
+          activeStepId={activeStepId}
+          currentStepId={currentStep?.id ?? null}
+          authorMode={mode}
+          answeredStepIds={answeredSteps}
+          teacherMode={teacherMode}
+          zoomScale={zoomScale}
+          onPinClick={(stepId) => {
+            const step = steps.find((st) => st.id === stepId);
+            if (step) handlePinClick(step);
+          }}
+          onAnswer={handleAnswer}
+          onAdvance={handleStageAdvance}
+          onDismiss={() => setActiveStepId(null)}
+          onResetZoom={() => setZoomScale(1)}
+        />
       </div>
 
       {/* Bottom nav footer — structured and guided modes only */}

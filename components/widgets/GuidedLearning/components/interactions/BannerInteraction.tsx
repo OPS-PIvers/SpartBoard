@@ -1,11 +1,14 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import { GuidedLearningPublicStep } from '@/types';
+import { renderStepText } from '../../utils/richText';
 
 export const BannerInteraction: React.FC<{
   step: GuidedLearningPublicStep;
   onClose?: () => void;
-}> = ({ step, onClose }) => {
+  /** Edge the banner sits on; the stage flips it to keep the target clear. */
+  position?: 'top' | 'bottom';
+}> = ({ step, onClose, position = 'top' }) => {
   if (!step.text) return null;
   const tone = step.bannerTone ?? 'blue';
   const toneStyles: Record<typeof tone, string> = {
@@ -17,7 +20,13 @@ export const BannerInteraction: React.FC<{
 
   return (
     <div
-      className="absolute top-0 left-0 right-0 z-30 pointer-events-none animate-in slide-in-from-top-4 duration-500 motion-reduce:animate-none"
+      data-gl-callout={step.id}
+      data-position={position}
+      className={`absolute left-0 right-0 z-30 pointer-events-none animate-in duration-500 motion-reduce:animate-none ${
+        position === 'bottom'
+          ? 'bottom-0 slide-in-from-bottom-4'
+          : 'top-0 slide-in-from-top-4'
+      }`}
       style={{ padding: 'min(8px, 2.2cqmin)' }}
     >
       <div
@@ -55,14 +64,14 @@ export const BannerInteraction: React.FC<{
               marginBottom: 'min(4px, 1cqmin)',
             }}
           >
-            {step.label}
+            {renderStepText(step.label)}
           </div>
         )}
         <div
           className="whitespace-pre-wrap font-medium leading-snug"
           style={{ fontSize: 'clamp(16px, 5cqmin, 32px)' }}
         >
-          {step.text}
+          {renderStepText(step.text)}
         </div>
       </div>
     </div>
