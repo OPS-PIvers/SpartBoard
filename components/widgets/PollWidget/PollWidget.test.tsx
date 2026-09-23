@@ -1,3 +1,4 @@
+import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PollWidget, PollSettings } from '.';
 import { useDashboard } from '@/context/useDashboard';
@@ -7,6 +8,7 @@ import {
   type DashboardActions,
 } from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
+import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import { vi, describe, it, expect, Mock, beforeEach, afterEach } from 'vitest';
 import { WidgetData, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { GeneratedPoll } from '@/utils/ai';
@@ -483,6 +485,70 @@ describe('PollWidget', () => {
     expect(
       screen.queryByRole('button', { name: /next question/i })
     ).not.toBeInTheDocument();
+  });
+
+  describe('inside a sub share', () => {
+    function InShare({ children }: { children: React.ReactNode }) {
+      return (
+        <SubShareContentContext.Provider
+          value={{ shareId: 'share-1', version: 0, load: vi.fn() as never }}
+        >
+          {children}
+        </SubShareContentContext.Provider>
+      );
+    }
+
+    const live: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Pick one',
+        options: [{ id: 'opt-1', label: 'Red', votes: 4 }],
+        activePollSessionId: 'K3F9Q',
+        joinCode: 'K3F9Q',
+      },
+    };
+
+    // The session is keyed on the teacher's uid, so a substitute reads no
+    // votes from it and cannot run it: showing its code would point students
+    // at a poll nobody in the room controls.
+    it('shows the questions without the teacher’s live session', () => {
+      render(<PollWidget widget={live} />, { wrapper: InShare });
+
+      expect(screen.getByText('Pick one')).toBeInTheDocument();
+      expect(screen.queryByTestId('poll-join-url')).not.toBeInTheDocument();
+      expect(screen.queryByAltText(/join qr/i)).not.toBeInTheDocument();
+      expect(screen.queryByText('Voting open')).not.toBeInTheDocument();
+      expect(mockOnSnapshot).not.toHaveBeenCalled();
+    });
+
+    it('keeps the tallies the teacher shared rather than showing zero', () => {
+      render(<PollWidget widget={live} />, { wrapper: InShare });
+      expect(screen.getByText('4 (100%)')).toBeInTheDocument();
+    });
+
+    it('offers no Reset Poll, which is the teacher’s control', () => {
+      // Not the live fixture: a live poll hides Reset anyway, so the gate
+      // under test would pass without being there.
+      const idle: WidgetData = {
+        ...live,
+        config: {
+          question: 'Pick one',
+          options: [{ id: 'opt-1', label: 'Red', votes: 4 }],
+        },
+      };
+      render(<PollWidget widget={idle} />, { wrapper: InShare });
+      expect(screen.getByText('Pick one')).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /Reset Poll/i })
+      ).not.toBeInTheDocument();
+    });
   });
 });
 

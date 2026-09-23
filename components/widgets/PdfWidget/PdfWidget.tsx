@@ -28,6 +28,7 @@ import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
+import { useInSubShare } from '@/hooks/useShareContent';
 import { WidgetData, PdfItem, PdfConfig } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -41,6 +42,9 @@ export const PdfWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { user } = useAuth();
   const { uploadAndRegisterPdf, deleteFile, uploading } = useStorage();
   const config = widget.config as PdfConfig;
+  // The library behind this widget is the substitute's own account, which has
+  // none of the teacher's PDFs in it. The open document rides the board.
+  const inShare = useInSubShare();
 
   const [library, setLibrary] = useState<PdfItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -52,7 +56,7 @@ export const PdfWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Firestore real-time sync for PDF library
   useEffect(() => {
-    if (!user) return;
+    if (!user || inShare) return;
     const pdfsRef = collection(db, 'users', user.uid, 'pdfs');
     const q = query(
       pdfsRef,
@@ -66,7 +70,7 @@ export const PdfWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       setLibrary(pdfs);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [user, inShare]);
 
   const handleOpen = (pdf: PdfItem) => {
     updateWidget(widget.id, {
@@ -196,29 +200,36 @@ export const PdfWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
               }}
             >
-              <button
-                onClick={handleBackToLibrary}
-                className="text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0 flex items-center"
-                style={{ padding: 'min(4px, 1cqmin)', gap: 'min(4px, 1cqmin)' }}
-                title="Back to library"
-              >
-                <ArrowLeft
-                  style={{
-                    width: 'min(14px, 3.5cqmin)',
-                    height: 'min(14px, 3.5cqmin)',
-                  }}
-                />
-                <span
-                  className="font-black uppercase tracking-wider"
-                  style={{ fontSize: 'min(9px, 2.5cqmin)' }}
-                >
-                  Library
-                </span>
-              </button>
-              <div
-                className="bg-slate-300"
-                style={{ width: '1px', height: 'min(16px, 4cqmin)' }}
-              />
+              {!inShare && (
+                <>
+                  <button
+                    onClick={handleBackToLibrary}
+                    className="text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0 flex items-center"
+                    style={{
+                      padding: 'min(4px, 1cqmin)',
+                      gap: 'min(4px, 1cqmin)',
+                    }}
+                    title="Back to library"
+                  >
+                    <ArrowLeft
+                      style={{
+                        width: 'min(14px, 3.5cqmin)',
+                        height: 'min(14px, 3.5cqmin)',
+                      }}
+                    />
+                    <span
+                      className="font-black uppercase tracking-wider"
+                      style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+                    >
+                      Library
+                    </span>
+                  </button>
+                  <div
+                    className="bg-slate-300"
+                    style={{ width: '1px', height: 'min(16px, 4cqmin)' }}
+                  />
+                </>
+              )}
               <span
                 className="text-slate-600 font-bold truncate flex-1 min-w-0"
                 style={{ fontSize: 'min(11px, 3cqmin)' }}
@@ -236,6 +247,16 @@ export const PdfWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             />
           </div>
         }
+      />
+    );
+  }
+
+  if (inShare) {
+    return (
+      <ScaledEmptyState
+        icon={FileText}
+        title="No PDF"
+        subtitle="This widget had no document open when it was shared."
       />
     );
   }

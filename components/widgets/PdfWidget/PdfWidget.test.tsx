@@ -5,6 +5,7 @@ import { PdfWidget } from './PdfWidget';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useStorage } from '@/hooks/useStorage';
+import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import * as firestore from 'firebase/firestore';
 import { WidgetData } from '@/types';
 
@@ -350,5 +351,46 @@ describe('PdfWidget', () => {
       expect(firestore.deleteDoc).not.toHaveBeenCalled();
     });
     expect(mockDeleteFile).not.toHaveBeenCalled();
+  });
+
+  describe('inside a sub share', () => {
+    function InShare({ children }: { children: React.ReactNode }) {
+      return (
+        <SubShareContentContext.Provider
+          value={{ shareId: 'share-1', version: 0, load: vi.fn() as never }}
+        >
+          {children}
+        </SubShareContentContext.Provider>
+      );
+    }
+
+    const open: WidgetData = {
+      ...baseWidget,
+      config: {
+        activePdfId: 'pdf-1',
+        activePdfUrl: 'https://storage/lesson.pdf?token=a',
+        activePdfName: 'Lesson Plan.pdf',
+      },
+    };
+
+    // The URL rides the board snapshot and carries its own Storage token.
+    it('shows the teacher’s open document with no way back to a library', () => {
+      setupMocks({ pdfDocs: [makePdf()] });
+      render(<PdfWidget widget={open} />, { wrapper: InShare });
+
+      expect(screen.getByText('Lesson Plan.pdf')).toBeInTheDocument();
+      expect(screen.queryByTitle('Back to library')).not.toBeInTheDocument();
+      // No listener against the substitute's own pdfs collection.
+      expect(firestore.onSnapshot).not.toHaveBeenCalled();
+    });
+
+    it('says so rather than showing the substitute their own library', () => {
+      setupMocks({ pdfDocs: [makePdf()] });
+      render(<PdfWidget widget={baseWidget} />, { wrapper: InShare });
+
+      expect(screen.getByText('No PDF')).toBeInTheDocument();
+      expect(screen.queryByText('PDF Library')).not.toBeInTheDocument();
+      expect(screen.queryByTitle('Upload PDF')).not.toBeInTheDocument();
+    });
   });
 });
