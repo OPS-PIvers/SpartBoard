@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Activity, ArrowLeftRight } from 'lucide-react';
+import { Activity, ArrowLeftRight, Sparkles } from 'lucide-react';
 import { GuidedLearningStepEditor } from '../GuidedLearningStepEditor';
 import { StudioRegionControls } from './StudioRegionControls';
 import { StudioNarration, StudioNarrationBatch } from './StudioNarration';
@@ -18,6 +18,8 @@ interface StudioPropertiesPanelProps {
   state: GuidedLearningEditorController;
   /** The canvas element, used to find the stage's video for trimming. */
   canvasRef: React.RefObject<HTMLElement | null>;
+  /** Recorder-drafted step text, flagged until the author edits it. */
+  aiDrafts?: ReadonlyMap<string, { label: string; text: string }>;
 }
 
 const findStageVideo = (canvas: HTMLElement | null) =>
@@ -54,6 +56,7 @@ function useStageVideo(
 export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
   state,
   canvasRef,
+  aiDrafts,
 }) => {
   const { t } = useTranslation();
   const {
@@ -88,8 +91,19 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
 
   if (selectedStep) {
     const stepNumber = steps.findIndex((s) => s.id === selectedStep.id) + 1;
+    const draft = aiDrafts?.get(selectedStep.id);
+    const isDraft =
+      !!draft &&
+      (selectedStep.label ?? '') === draft.label &&
+      (selectedStep.text ?? '') === draft.text;
     return (
       <>
+        {isDraft && (
+          <p className="mx-4 mt-4 flex w-fit items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-800">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('glRecorder.aiDraft')}
+          </p>
+        )}
         <StudioRegionControls step={selectedStep} onChange={updateStep} />
         <StudioNarration
           key={selectedStep.id}

@@ -34,6 +34,7 @@ import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOver
 import { MountedBoardsLayer } from './MountedBoardsLayer';
 import { HelpCenterModal } from '@/components/help/HelpCenterModal';
 import { LiveTourRunner } from '@/components/tours/LiveTourRunner';
+import { TourRecordingHost } from '@/components/widgets/GuidedLearning/components/recorder/TourRecordingHost';
 import { TOUR_START_EVENT } from '@/components/tours/tourState';
 import { TourOfferWatcher } from '@/components/tours/useTourOffers';
 import {
@@ -564,7 +565,7 @@ export const DashboardView: React.FC = () => {
     };
   }, [rescueWidgets]); // rescueWidgets is stable ([] deps), so listener is registered once
 
-  const { canAccessFeature } = useAuth();
+  const { canAccessFeature, isAdmin } = useAuth();
 
   const {
     session,
@@ -1877,6 +1878,7 @@ export const DashboardView: React.FC = () => {
         <>
           <LiveTourRunner />
           <TourOfferWatcher />
+          {isAdmin && <TourRecordingHost />}
         </>
       )}
 

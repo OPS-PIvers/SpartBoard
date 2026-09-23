@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Circle, Flag, Pause, Play, Square, Trash2 } from 'lucide-react';
@@ -8,9 +8,7 @@ import {
   type CaptureError,
   type TourRecording,
 } from './useTourCapture';
-
-/** Off until real-board recording can redact slides (plan P3-7). */
-export const RECORDING_AVAILABLE = false;
+import type { NameMatcher } from './redaction';
 
 const ERROR_KEYS: Record<CaptureError, string> = {
   unsupported: 'glRecorder.unsupported',
@@ -20,9 +18,10 @@ const ERROR_KEYS: Record<CaptureError, string> = {
 };
 
 interface TourRecorderProps {
+  /** Roster names blurred into every frame. */
+  matcher: NameMatcher | null;
   onFinish: (recording: TourRecording) => void;
   onDiscard: () => void;
-  available?: boolean;
 }
 
 const btn =
@@ -30,21 +29,17 @@ const btn =
 
 /** Floating recorder pill; the capture never sees it and anchor resolution skips it. */
 export const TourRecorder: React.FC<TourRecorderProps> = ({
+  matcher,
   onFinish,
   onDiscard,
-  available = RECORDING_AVAILABLE,
 }) => {
   const { t } = useTranslation();
   const pillRef = useRef<HTMLDivElement>(null);
-  const capture = useTourCapture({ chromeRef: pillRef });
+  const capture = useTourCapture({ chromeRef: pillRef, matcher });
+  const [finishing, setFinishing] = useState(false);
   const { status, stepCount } = capture;
   const live = status === 'recording' || status === 'paused';
-
-  const message = !available
-    ? t('glRecorder.notYet')
-    : capture.error
-      ? t(ERROR_KEYS[capture.error])
-      : null;
+  const message = capture.error ? t(ERROR_KEYS[capture.error]) : null;
 
   return createPortal(
     <div
@@ -70,7 +65,7 @@ export const TourRecorder: React.FC<TourRecorderProps> = ({
           <button
             type="button"
             className={btn}
-            disabled={!available || status === 'starting'}
+            disabled={status === 'starting'}
             onClick={() => void capture.start()}
           >
             <Circle className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
@@ -104,8 +99,11 @@ export const TourRecorder: React.FC<TourRecorderProps> = ({
           <button
             type="button"
             className={btn}
-            disabled={stepCount === 0}
-            onClick={() => onFinish(capture.finish())}
+            disabled={stepCount === 0 || finishing}
+            onClick={() => {
+              setFinishing(true);
+              void capture.finish().then(onFinish);
+            }}
           >
             <Square className="h-3.5 w-3.5" aria-hidden="true" />
             {t('glRecorder.finish')}

@@ -47,6 +47,8 @@ export interface GuidedLearningStudioProps {
   onFolderChange?: (folderId: string | null) => void;
   /** Opens with this step selected. */
   initialStepId?: string;
+  /** Recorder-drafted step text, flagged in the properties panel until edited. */
+  aiDrafts?: ReadonlyMap<string, { label: string; text: string }>;
 }
 
 /** Full-screen Guided Learning editor whose canvas is the real player stage. */
@@ -61,6 +63,7 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
   folderId,
   onFolderChange,
   initialStepId,
+  aiDrafts,
 }) => {
   const { t } = useTranslation();
   const { isAdmin, canAccessFeature } = useAuth();
@@ -379,7 +382,11 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
               : 'invisible translate-x-full lg:visible'
           }`}
         >
-          <StudioPropertiesPanel state={editorState} canvasRef={canvasRef} />
+          <StudioPropertiesPanel
+            state={editorState}
+            canvasRef={canvasRef}
+            aiDrafts={aiDrafts}
+          />
         </aside>
       </div>
       {showAiGen && canUseAi && (
