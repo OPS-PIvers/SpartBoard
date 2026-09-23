@@ -15,6 +15,10 @@ vi.mock('@/hooks/useAdminBuildings', () => ({
   useAdminBuildings: () => mockUseAdminBuildings(),
 }));
 
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({ addToast: vi.fn() }),
+}));
+
 const basePermission = (config: Record<string, unknown>): FeaturePermission =>
   ({
     widgetType: 'graphic-organizer',
