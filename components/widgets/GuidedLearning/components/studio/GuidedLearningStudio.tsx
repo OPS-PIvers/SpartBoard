@@ -45,7 +45,7 @@ export interface GuidedLearningStudioProps {
   folders?: LibraryFolder[];
   folderId?: string | null;
   onFolderChange?: (folderId: string | null) => void;
-  /** Opens with this step selected (the admin tour health panel's links). */
+  /** Opens with this step selected. */
   initialStepId?: string;
 }
 
