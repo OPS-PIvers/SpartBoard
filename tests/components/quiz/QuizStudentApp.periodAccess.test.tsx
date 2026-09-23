@@ -224,6 +224,20 @@ describe('QuizStudentApp — per-period access', () => {
     await waitForQuestion();
   });
 
+  it('sends a completed student to their submitted screen after the period closes', async () => {
+    hookState.session = perPeriod({ state: 'closed' });
+    hookState.contentPending = true;
+    hookState.myResponse = {
+      ...buildResponse(),
+      status: 'completed',
+      submittedAt: Date.now(),
+      completedAttempts: 1,
+    } as unknown as QuizResponse;
+    render(<QuizStudentApp />);
+    expect(await screen.findByText('Quiz Submitted!')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Loading questions')).toBeNull();
+  });
+
   it('waits for the hidden questions to load', async () => {
     hookState.session = perPeriod({});
     hookState.contentPending = true;

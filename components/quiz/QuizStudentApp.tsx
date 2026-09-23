@@ -1195,7 +1195,11 @@ const QuizJoinFlow: React.FC<{
       />
     );
   }
-  if (contentPending && session.status !== 'ended') {
+  if (
+    contentPending &&
+    session.status !== 'ended' &&
+    myResponse?.status !== 'completed'
+  ) {
     return (
       <div className="min-h-screen bg-brand-blue-dark flex items-center justify-center">
         <Loader2
