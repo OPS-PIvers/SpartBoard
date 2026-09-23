@@ -49,6 +49,7 @@ import {
   ResponseArtifact,
   ArtifactUploadState,
   UnrespondedReason,
+  TabExit,
   isFreeResponseType,
 } from '@/types';
 import { normalizeRecordingConfig } from '@/config/quizRecordingDefaults';
@@ -1772,6 +1773,8 @@ export interface UseQuizSessionStudentResult {
    * Returns the updated count.
    */
   reportTabSwitch: () => Promise<number>;
+  /** Writes the whole tab-away exit log; rules allow one append or one close per write. */
+  saveTabExits: (exits: TabExit[]) => Promise<void>;
   /**
    * Raise (true) or lower (false) the student's hand on their response doc.
    * Server-stamps `handRaisedAt` when raising; writes null when lowering.
@@ -3485,6 +3488,22 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     return newCount;
   }, []);
 
+  const saveTabExits = useCallback(async (exits: TabExit[]): Promise<void> => {
+    const sessionId = sessionIdRef.current;
+    const responseKey = responseKeyRef.current;
+    if (!sessionId || !responseKey) return;
+    await updateDoc(
+      doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      ),
+      { tabExits: exits }
+    );
+  }, []);
+
   const subscribeForReview = useCallback(
     async (code: string): Promise<void> => {
       setLoading(true);
@@ -3583,6 +3602,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     acknowledgeRecordingNotice,
     completeQuiz,
     reportTabSwitch,
+    saveTabExits,
     setHandRaised,
     recordStimulusPlay,
     reportStimulusError,

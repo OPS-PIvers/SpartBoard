@@ -38,7 +38,7 @@ import { VideoPlayer } from './VideoPlayer';
 import { QuestionOverlay } from './QuestionOverlay';
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
-import { useFocusLossPoll } from '@/hooks/useFocusLossPoll';
+import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
 
 /**
  * Resolve the SSO student's class period from the session's
@@ -233,6 +233,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     checkAnswer,
     completeActivity,
     reportTabSwitch,
+    saveTabExits,
   } = useVideoActivitySessionStudent();
 
   const isViewOnly = session?.mode === 'view-only';
@@ -457,9 +458,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const [showResumeModal, setShowResumeModal] = useState(
     () => !!myResponse?.unlocked
   );
-  const isWarningShowingRef = useRef<boolean>(false);
-  const lastReportTimeRef = useRef<number>(0);
-  const didInitialCheckRef = useRef(false);
+  const playheadRef = useRef(0);
 
   // Track the previous `tabSwitchWarnings` value via state-during-render
   // so we can sync the local counter without an extra effect pass.
@@ -503,104 +502,51 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const tabWarningsEnabled =
     session?.sessionOptions?.tabWarningsEnabled !== false;
 
-  useEffect(() => {
-    if (!tabWarningsEnabled) return;
-    if (joinStatus !== 'joined') return;
-    if (session?.status !== 'active') return;
-    if (isViewOnly) return;
-
-    const handleVisibilityChange = async () => {
-      // Skip while a warning is already showing, while a question overlay
-      // is active (the player blurs to render it), and once the student
-      // has finished.
-      if (isWarningShowingRef.current || myResponse?.completedAt != null) {
-        return;
+  // The tab-away tracker counts each exit, logs it to `tabExits`, and closes
+  // it when the student comes back.
+  const tabTracker = useTabAwayTracker({
+    enabled:
+      tabWarningsEnabled &&
+      joinStatus === 'joined' &&
+      session?.status === 'active' &&
+      !isViewOnly &&
+      myResponse?.completedAt == null,
+    sessionActive: session?.status === 'active',
+    ready: myResponse != null,
+    serverExits: myResponse?.tabExits,
+    attempt: myResponse?.completedAttempts ?? 0,
+    getPosition: () => ({ videoTime: Math.round(playheadRef.current) }),
+    onLeave: async () => {
+      let newTotal: number;
+      try {
+        newTotal = await reportTabSwitch();
+      } catch (err) {
+        logError('VideoActivityStudentApp.reportTabSwitch', err, {
+          sessionId,
+        });
+        setShowCheatWarning(true);
+        return false;
       }
-
-      const now = Date.now();
-      if (now - lastReportTimeRef.current < 1000) return;
-
-      const isPageHidden = document.visibilityState === 'hidden';
-      const isWindowBlurred = !document.hasFocus();
-
-      if (isPageHidden || isWindowBlurred) {
-        lastReportTimeRef.current = now;
-        isWarningShowingRef.current = true;
-
-        try {
-          const newTotal = await reportTabSwitch();
-          setWarningCount(newTotal);
-
-          // Teacher-unlocked attempts skip the warning modal — any
-          // further strike finalizes the attempt instantly.
-          const wasUnlocked = !!myResponse?.unlocked;
-          if (wasUnlocked) {
-            setShowCheatWarning(false);
-            // Always release the visibility lock — a failed submit
-            // (Firestore offline) must not leave the handler
-            // permanently armed-off.
-            void handleAutoSubmit('post-unlock').finally(() => {
-              isWarningShowingRef.current = false;
-            });
-            return;
-          }
-
-          setShowCheatWarning(true);
-          if (newTotal >= 3) {
-            setTimeout(() => void handleAutoSubmit(), 100);
-          }
-        } catch (err) {
-          logError('VideoActivityStudentApp.reportTabSwitch', err, {
-            sessionId,
-          });
-          setShowCheatWarning(true);
-        }
+      setWarningCount(newTotal);
+      // Teacher-unlocked attempts skip the warning modal — any further
+      // strike finalizes the attempt instantly.
+      if (myResponse?.unlocked) {
+        setShowCheatWarning(false);
+        // A failed submit (Firestore offline) must not leave detection armed-off.
+        void handleAutoSubmit('post-unlock').finally(tabTracker.release);
+        return true;
       }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleVisibilityChange);
-
-    if (!didInitialCheckRef.current) {
-      didInitialCheckRef.current = true;
-      if (document.visibilityState === 'hidden') {
-        void handleVisibilityChange();
+      setShowCheatWarning(true);
+      if (newTotal >= 3) {
+        setTimeout(() => void handleAutoSubmit(), 100);
+        return true;
       }
-    }
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleVisibilityChange);
-    };
-  }, [
-    tabWarningsEnabled,
-    joinStatus,
-    session?.status,
-    isViewOnly,
-    reportTabSwitch,
-    handleAutoSubmit,
-    myResponse?.completedAt,
-    myResponse?.unlocked,
-    sessionId,
-  ]);
-
-  // Modern Chrome/Firefox don't fire `window.blur` when focus shifts to
-  // the URL bar, bookmark dropdowns, or other browser-chrome targets, so
-  // the listeners above miss those interactions. `document.hasFocus()`
-  // still flips false in all those cases — `useFocusLossPoll` watches the
-  // `true → false` edge on a 250 ms timer and dispatches a synthetic
-  // `blur` so the existing `handleVisibilityChange` listener owns the
-  // full response logic in one place. The poll is gated by the same
-  // conditions as the listener effect; without them, a focus loss
-  // outside an active session would still fire.
-  const focusPollEnabled =
-    tabWarningsEnabled &&
-    joinStatus === 'joined' &&
-    session?.status === 'active' &&
-    !isViewOnly;
-  useFocusLossPoll({
-    enabled: focusPollEnabled,
-    onFocusLoss: () => window.dispatchEvent(new Event('blur')),
+      return false;
+    },
+    saveExits: saveTabExits,
+    limitMs: null,
+    autoSubmit: false,
+    onAwayTooLong: () => undefined,
   });
 
   // ── Invalid / missing session ID ──────────────────────────────────────────
@@ -919,7 +865,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
           <button
             onClick={() => {
               setShowCheatWarning(false);
-              isWarningShowingRef.current = false;
+              tabTracker.release();
             }}
             className="px-8 py-4 bg-white text-red-900 font-bold rounded-xl active:scale-95 transition-transform"
           >
@@ -975,6 +921,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 allowSkipping={session?.settings?.allowSkipping ?? false}
                 autoPlay={session?.settings?.autoPlay ?? false}
                 seekRequest={seekRequest}
+                playheadRef={playheadRef}
               />
 
               {activeQuestion && (

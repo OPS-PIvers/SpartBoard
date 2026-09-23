@@ -37,6 +37,8 @@ interface VideoPlayerProps {
   autoPlay: boolean;
   /** Optional seek request issued by parent (e.g., rewind on incorrect answer). */
   seekRequest?: { time: number; nonce: number } | null;
+  /** Receives the playhead (seconds) on every poll, for the tab-away log. */
+  playheadRef?: React.MutableRefObject<number>;
 }
 
 const SEEK_TOLERANCE_SECONDS = 0.75;
@@ -53,6 +55,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   allowSkipping,
   autoPlay,
   seekRequest,
+  playheadRef,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
@@ -148,6 +151,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       const state = player.getPlayerState();
       const isPlaying = state === YT_PLAYER_STATE.PLAYING;
+      if (playheadRef) playheadRef.current = player.getCurrentTime();
 
       if (isPlaying && !questionVisibleRef.current) {
         const currentTime = player.getCurrentTime();
@@ -177,7 +181,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
 
     rafRef.current = requestAnimationFrame(tick);
-  }, []);
+  }, [playheadRef]);
 
   const stopPolling = useCallback(() => {
     // Bump the generation so any tick already queued for this loop bails out
