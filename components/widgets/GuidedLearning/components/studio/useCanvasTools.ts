@@ -194,13 +194,14 @@ export function useCanvasTools(
         title: t('glStudio.linkTitle'),
         placeholder: 'https://',
       });
-      setLinkPending(false);
       const url = safeLinkUrl(raw);
       if (!url) {
         if (raw?.trim()) await dialog.showAlert(t('glStudio.linkRejected'));
+        setLinkPending(false);
         el.focus();
         return;
       }
+      setLinkPending(false);
       setSteps((prev) =>
         prev.map((s) =>
           s.id === id

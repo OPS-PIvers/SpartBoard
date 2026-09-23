@@ -61,7 +61,7 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
 }) => {
   const { t } = useTranslation();
   const { isAdmin, canAccessFeature } = useAuth();
-  const { showConfirm } = useDialog();
+  const { showConfirm, currentDialog } = useDialog();
   const addToast = useContext(DashboardContext)?.addToast;
   const [showAiGen, setShowAiGen] = useState(false);
   const [preset, setPreset] = useState<DevicePreset>(loadDevicePreset);
@@ -235,7 +235,8 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
     [exitPlay]
   );
   useStudioShortcuts(playing ? playKeymap : editKeymap, {
-    enabled: !showAiGen,
+    // An open dialog owns the keyboard, Escape included.
+    enabled: !showAiGen && !currentDialog,
     editing: !playing && tools.editingStepId !== null,
   });
 

@@ -245,6 +245,17 @@ describe('inline callout editing', () => {
     expect(screen.getByTestId('gl-inline-editor')).toBeInTheDocument();
   });
 
+  it('keeps editing open when Escape dismisses the rejected-link alert', async () => {
+    mount();
+    openEditor();
+    dialog.showPrompt.mockResolvedValueOnce('javascript:alert(1)');
+    dialog.showAlert.mockReturnValueOnce(new Promise(() => undefined));
+    fireEvent.keyDown(textField(), { key: 'k', ctrlKey: true });
+    await waitFor(() => expect(dialog.showAlert).toHaveBeenCalled());
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.getByTestId('gl-inline-editor')).toBeInTheDocument();
+  });
+
   it('edits a banner in place and counts words past 25', () => {
     mount('banner');
     openEditor();
