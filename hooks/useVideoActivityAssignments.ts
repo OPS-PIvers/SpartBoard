@@ -995,11 +995,7 @@ export const useVideoActivityAssignments = (
         assignmentId
       );
 
-      // Dedupe first-wins before indexing — a raw `new Map(questions.map(...))`
-      // keeps the LAST duplicate, which can carry a different
-      // `correctAnswer`/`points` than the version the student was actually
-      // served, silently grading against the wrong question (mirrors the
-      // identical fix in useQuizAssignments.buildResponseGradingContext).
+      // Dedupe first-wins before indexing — mirrors useQuizAssignments; last-wins can grade against a duplicate's differing correctAnswer.
       const questionsById = new Map(
         dedupeQuestionsById(activityData.questions).map((q) => [q.id, q])
       );
