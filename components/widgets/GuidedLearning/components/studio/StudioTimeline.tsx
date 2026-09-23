@@ -1,45 +1,54 @@
 import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus } from 'lucide-react';
-import type { GuidedLearningStep } from '@/types';
 import { SortableList } from '@/components/common/SortableList';
 import type { GuidedLearningEditorController } from '../useGuidedLearningEditorState';
 import { reorderSlideSteps } from './timelineOrder';
 
-const getStepId = (s: GuidedLearningStep) => s.id;
-
-interface StudioTimelineProps {
-  state: GuidedLearningEditorController;
+interface StepChip {
+  id: string;
+  n: number;
+  label: string;
 }
 
-/** Bottom strip: the current slide's steps in play order. */
-export const StudioTimeline: React.FC<StudioTimelineProps> = ({ state }) => {
-  const { t } = useTranslation();
-  const {
-    steps,
-    currentImageSteps,
-    currentImageIndex,
-    selectedStepId,
-    setSelectedStepId,
-    reorderSteps,
-    addingStep,
-    setAddingStep,
-    imageUrls,
-  } = state;
+const getChipId = (c: StepChip) => c.id;
 
-  const numberById = useMemo(() => {
-    const map = new Map<string, number>();
-    steps.forEach((s, i) => map.set(s.id, i + 1));
-    return map;
-  }, [steps]);
-
-  const onReorder = useCallback(
-    (next: GuidedLearningStep[]) =>
-      reorderSteps(reorderSlideSteps(steps, next)),
-    [steps, reorderSteps]
+const sameChips = (a: StepChip[], b: StepChip[]) =>
+  a.length === b.length &&
+  a.every(
+    (c, i) => c.id === b[i].id && c.n === b[i].n && c.label === b[i].label
   );
 
-  if (imageUrls.length === 0) return null;
+interface TimelineBodyProps {
+  chips: StepChip[];
+  hasSlides: boolean;
+  currentImageIndex: number;
+  selectedStepId: string | null;
+  addingStep: boolean;
+  setSelectedStepId: GuidedLearningEditorController['setSelectedStepId'];
+  setAddingStep: GuidedLearningEditorController['setAddingStep'];
+  onReorder: (ids: string[]) => void;
+}
+
+const sameBodyProps = (a: TimelineBodyProps, b: TimelineBodyProps) =>
+  (Object.keys(a) as (keyof TimelineBodyProps)[]).every((k) =>
+    k === 'chips' ? sameChips(a.chips, b.chips) : Object.is(a[k], b[k])
+  );
+
+// Typing in a step changes no chip, so the strip skips those renders.
+const TimelineBody = React.memo(function TimelineBody({
+  chips,
+  hasSlides,
+  currentImageIndex,
+  selectedStepId,
+  addingStep,
+  setSelectedStepId,
+  setAddingStep,
+  onReorder,
+}: TimelineBodyProps) {
+  const { t } = useTranslation();
+
+  if (!hasSlides) return null;
 
   return (
     <section
@@ -50,21 +59,20 @@ export const StudioTimeline: React.FC<StudioTimelineProps> = ({ state }) => {
         {t('glStudio.slideN', { n: currentImageIndex + 1 })}
       </span>
       <div className="min-w-0 flex-1 overflow-x-auto custom-scrollbar">
-        {currentImageSteps.length === 0 ? (
+        {chips.length === 0 ? (
           <p className="text-xs text-slate-500">
             {t('glStudio.noStepsOnSlide')}
           </p>
         ) : (
           <SortableList
-            items={currentImageSteps}
-            getId={getStepId}
-            onReorder={onReorder}
+            items={chips}
+            getId={getChipId}
+            onReorder={(next) => onReorder(next.map((c) => c.id))}
             layout="grid"
             className="flex gap-1.5"
             renderItem={(s, handle) => {
-              const n = numberById.get(s.id) ?? 0;
+              const { n, label } = s;
               const selected = s.id === selectedStepId;
-              const label = s.label?.trim();
               return (
                 <button
                   type="button"
@@ -114,5 +122,50 @@ export const StudioTimeline: React.FC<StudioTimelineProps> = ({ state }) => {
         {addingStep ? t('glStudio.clickToPlace') : t('glStudio.addStep')}
       </button>
     </section>
+  );
+}, sameBodyProps);
+
+interface StudioTimelineProps {
+  state: GuidedLearningEditorController;
+}
+
+/** Bottom strip: the current slide's steps in play order. */
+export const StudioTimeline: React.FC<StudioTimelineProps> = ({ state }) => {
+  const { steps, currentImageSteps, setSteps } = state;
+
+  const chips = useMemo(() => {
+    const numberById = new Map<string, number>();
+    steps.forEach((s, i) => numberById.set(s.id, i + 1));
+    return currentImageSteps.map((s) => ({
+      id: s.id,
+      n: numberById.get(s.id) ?? 0,
+      label: s.label?.trim() ?? '',
+    }));
+  }, [steps, currentImageSteps]);
+
+  // Works on the latest steps, so the memoized body can hold an older callback.
+  const onReorder = useCallback(
+    (ids: string[]) =>
+      setSteps((prev) => {
+        const byId = new Map(prev.map((s) => [s.id, s]));
+        return reorderSlideSteps(
+          prev,
+          ids.flatMap((id) => byId.get(id) ?? [])
+        );
+      }),
+    [setSteps]
+  );
+
+  return (
+    <TimelineBody
+      chips={chips}
+      hasSlides={state.imageUrls.length > 0}
+      currentImageIndex={state.currentImageIndex}
+      selectedStepId={state.selectedStepId}
+      addingStep={state.addingStep}
+      setSelectedStepId={state.setSelectedStepId}
+      setAddingStep={state.setAddingStep}
+      onReorder={onReorder}
+    />
   );
 };
