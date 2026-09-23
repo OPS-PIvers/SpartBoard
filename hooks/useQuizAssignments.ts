@@ -1429,11 +1429,18 @@ export const useQuizAssignments = (
           (o) => o?.readAloud === true
         );
       if (Object.keys(translations.byLocale).length > 0) {
+        // A per-period session's questions land in their own doc, which is what must fit.
         enforceSessionSizeBudget(
-          session,
+          perPeriod
+            ? {
+                publicQuestions: session.publicQuestions,
+                stimuli: session.stimuli,
+                readAloudTextByStimulusId: session.readAloudTextByStimulusId,
+              }
+            : session,
           targetedLocaleCountByCode,
           SESSION_DOC_BYTE_BUDGET,
-          readAloudPlanned
+          readAloudPlanned && !perPeriod
             ? estimateReadAloudManifestBytes(
                 estimateReadAloudPartCount(session.publicQuestions),
                 readAloudLocales.length
