@@ -9,3 +9,4 @@ export { SessionRow } from './SessionRow';
 export { OverflowMenu } from './OverflowMenu';
 export type { OverflowMenuItem } from './OverflowMenu';
 export { ActionButton } from './ActionButton';
+export { LaunchedBySubTag } from './LaunchedBySubTag';

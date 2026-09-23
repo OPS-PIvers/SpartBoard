@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { GuidedLearningSet } from '@/types';
+import { GuidedLearningSet, type SubLaunchedSessionFields } from '@/types';
 import {
   useGuidedLearningSessionTeacher,
   isAnswerCorrect,
@@ -24,6 +24,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { logError } from '@/utils/logError';
 import { GuidedLearningEngagement } from './results/GuidedLearningEngagement';
+import { LaunchedBySubTag } from '@/components/common/sessionViews/LaunchedBySubTag';
 
 interface Props {
   set: GuidedLearningSet;
@@ -63,6 +64,9 @@ export const GuidedLearningResults: React.FC<Props> = ({
   const [sessionClassIds, setSessionClassIds] = useState<string[]>([]);
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [playerV2, setPlayerV2] = useState(false);
+  const [launchedBy, setLaunchedBy] =
+    useState<SubLaunchedSessionFields['launchedBy']>(undefined);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -72,9 +76,19 @@ export const GuidedLearningResults: React.FC<Props> = ({
         );
         if (cancelled) return;
         const data = snap.data() as
-          | { classId?: string; classIds?: string[]; playerV2?: boolean }
+          | {
+              classId?: string;
+              classIds?: string[];
+              playerV2?: boolean;
+              createdAt?: number;
+              launchedBy?: SubLaunchedSessionFields['launchedBy'];
+            }
           | undefined;
         setPlayerV2(data?.playerV2 === true);
+        setLaunchedBy(data?.launchedBy);
+        setStartedAt(
+          typeof data?.createdAt === 'number' ? data.createdAt : null
+        );
         setSessionLoaded(true);
         if (data?.classIds && data.classIds.length > 0) {
           setSessionClassIds(data.classIds);
@@ -265,6 +279,15 @@ export const GuidedLearningResults: React.FC<Props> = ({
           </button>
         )}
       </div>
+
+      {launchedBy && (
+        <div
+          className="flex shrink-0 items-center border-b border-white/10"
+          style={{ padding: 'min(6px, 1.4cqmin) min(12px, 2.5cqmin)' }}
+        >
+          <LaunchedBySubTag launchedBy={launchedBy} at={startedAt} onDark />
+        </div>
+      )}
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">

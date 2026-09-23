@@ -70,6 +70,7 @@ import {
   SessionRow,
   ActionButton,
   OverflowMenu,
+  LaunchedBySubTag,
 } from '@/components/common/sessionViews';
 import type { OverflowMenuItem } from '@/components/common/sessionViews';
 import { scoreColorClasses } from '@/utils/scoreColor';
@@ -522,6 +523,18 @@ export const Results: React.FC<ResultsProps> = ({
           </>
         }
       />
+
+      {session.launchedBy && (
+        <div
+          className="flex shrink-0 items-center border-b border-slate-200"
+          style={{ padding: 'min(6px, 1.6cqmin) min(16px, 4cqmin)' }}
+        >
+          <LaunchedBySubTag
+            launchedBy={session.launchedBy}
+            at={session.createdAt}
+          />
+        </div>
+      )}
 
       {exportError && (
         <div
