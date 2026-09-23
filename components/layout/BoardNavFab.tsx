@@ -48,6 +48,7 @@ import {
   refocusIfLost,
 } from './boardNavMenu';
 import { BoardsModal } from '@/components/boardsModal/BoardsModal';
+import { tourAttr } from '@/config/tourAnchors';
 
 const getBoardId = (d: Dashboard) => d.id;
 
@@ -593,6 +594,7 @@ export const BoardNavFab: FC = () => {
               />
             ) : (
               <button
+                {...tourAttr('board-nav.new-board')}
                 ref={(el) => {
                   itemRefs.current[newBoardSlot] = el;
                 }}
@@ -606,6 +608,7 @@ export const BoardNavFab: FC = () => {
               </button>
             )}
             <button
+              {...tourAttr('board-nav.manage-boards')}
               ref={(el) => {
                 itemRefs.current[manageSlot] = el;
               }}
@@ -632,6 +635,7 @@ export const BoardNavFab: FC = () => {
       <div className="flex items-center gap-1">
         {showPrevNext && (
           <button
+            {...tourAttr('board-nav.previous')}
             type="button"
             onClick={goPrev}
             aria-label={t('boardNav.previous', {
@@ -645,6 +649,7 @@ export const BoardNavFab: FC = () => {
         )}
         {showCollectionsButton && (
           <button
+            {...tourAttr('board-nav.select-collection')}
             ref={collectionsTriggerRef}
             type="button"
             onClick={() => {
@@ -666,6 +671,7 @@ export const BoardNavFab: FC = () => {
           </button>
         )}
         <button
+          {...tourAttr('board-nav.select-board')}
           ref={boardsTriggerRef}
           type="button"
           onClick={() => {
@@ -685,6 +691,7 @@ export const BoardNavFab: FC = () => {
         </button>
         {showPrevNext && (
           <button
+            {...tourAttr('board-nav.next')}
             type="button"
             onClick={goNext}
             aria-label={t('boardNav.next', { defaultValue: 'Next board' })}

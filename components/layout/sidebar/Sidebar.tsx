@@ -59,6 +59,7 @@ import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
 import { BoardsModal } from '@/components/boardsModal/BoardsModal';
+import { tourAttr } from '@/config/tourAnchors';
 
 declare const __APP_VERSION__: string;
 
@@ -250,6 +251,7 @@ export const Sidebar: React.FC = () => {
         }}
       >
         <IconButton
+          {...tourAttr('sidebar.open-menu')}
           onClick={() => setIsOpen(true)}
           icon={<Menu className="w-5 h-5" />}
           label={t('sidebar.header.openMenu')}
@@ -262,6 +264,7 @@ export const Sidebar: React.FC = () => {
 
         {isAdmin && (
           <IconButton
+            {...tourAttr('sidebar.admin-settings')}
             onClick={() => setShowAdminSettings(true)}
             icon={<Settings className="w-5 h-5" />}
             label={t('sidebar.header.adminSettings')}
@@ -281,6 +284,7 @@ export const Sidebar: React.FC = () => {
         )}
 
         <IconButton
+          {...tourAttr('sidebar.fullscreen')}
           onClick={toggleFullscreen}
           icon={
             isFullscreen ? (
@@ -304,6 +308,7 @@ export const Sidebar: React.FC = () => {
             so exposing the toggle would be a dead control. */}
         {!isActiveBoardReadOnly && (
           <IconButton
+            {...tourAttr('sidebar.annotate')}
             onClick={() =>
               annotationActive ? closeAnnotation() : openAnnotation()
             }
@@ -324,6 +329,7 @@ export const Sidebar: React.FC = () => {
         )}
 
         <IconButton
+          {...tourAttr('sidebar.clear-board')}
           onClick={async () => {
             const confirmed = await showConfirm(
               t('sidebar.confirmClearBoard'),
@@ -440,6 +446,7 @@ export const Sidebar: React.FC = () => {
                 </span>
               </div>
               <IconButton
+                {...tourAttr('sidebar.close-menu')}
                 onClick={() => {
                   setIsOpen(false);
                   setActiveSection('main');
@@ -469,6 +476,7 @@ export const Sidebar: React.FC = () => {
                 </div>
                 <div className="flex flex-col px-2.5 mb-1">
                   <button
+                    {...tourAttr('sidebar.boards')}
                     onClick={() => {
                       // Skip the intermediate sidebar "boards" panel — its
                       // board list duplicates what the FAB already exposes.
@@ -491,6 +499,7 @@ export const Sidebar: React.FC = () => {
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
                   <button
+                    {...tourAttr('sidebar.backgrounds')}
                     onClick={() => setIsBackgroundsModalOpen(true)}
                     className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                   >
@@ -503,6 +512,7 @@ export const Sidebar: React.FC = () => {
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
                   <button
+                    {...tourAttr('sidebar.assignments')}
                     onClick={() => {
                       setShowAssignmentsHub(true);
                       setIsOpen(false);
@@ -528,6 +538,7 @@ export const Sidebar: React.FC = () => {
                   {!isExternalUser && (
                     <>
                       <button
+                        {...tourAttr('sidebar.classes')}
                         onClick={() => setActiveSection('classes')}
                         className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                       >
@@ -567,6 +578,7 @@ export const Sidebar: React.FC = () => {
                 </div>
                 <div className="flex flex-col px-2.5 mb-1">
                   <button
+                    {...tourAttr('sidebar.profile-settings')}
                     onClick={() => {
                       // Settings is a focused modal with its own rail; close
                       // the drawer so we don't stack modal-over-drawer.
@@ -587,6 +599,7 @@ export const Sidebar: React.FC = () => {
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
                   <button
+                    {...tourAttr('sidebar.quick-access')}
                     onClick={() => setIsQuickAccessModalOpen(true)}
                     className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                   >
@@ -649,6 +662,7 @@ export const Sidebar: React.FC = () => {
                       flicker off. */}
                   {!isExternalUser && (
                     <button
+                      {...tourAttr('sidebar.whats-new')}
                       onClick={() => setShowWhatsNew(true)}
                       className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                     >
