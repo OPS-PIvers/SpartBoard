@@ -1174,9 +1174,7 @@ service cloud.firestore {
         )
         || (
           resource.data.get('plcId', null) != null
-          && request.auth.uid in get(
-            /databases/$(database)/documents/plcs/$(resource.data.plcId)
-          ).data.memberUids
+          && plcMember(resource.data.plcId)
         )
       );
 
@@ -1206,9 +1204,7 @@ service cloud.firestore {
         ) &&
         (
           request.resource.data.get('plcId', null) == null ||
-          request.auth.uid in get(
-            /databases/$(database)/documents/plcs/$(request.resource.data.plcId)
-          ).data.memberUids
+          plcMember(request.resource.data.plcId)
         );
 
       // Host or admin: full update, but intendedMode is locked to its create value and
@@ -1246,9 +1242,7 @@ service cloud.firestore {
           request.resource.data.get('plcId', null) == resource.data.get('plcId', null)
           || request.resource.data.get('plcId', null) == null
           || isAdmin()
-          || request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(request.resource.data.plcId)
-             ).data.memberUids
+          || plcMember(request.resource.data.plcId)
         ) &&
         // subEmails cap on EVERY owner update (copy/PLC shares too, not just
         // substitute which pins it above) — bounds doc size. Matches create cap.
@@ -1914,6 +1908,10 @@ service cloud.firestore {
     // whose role in `members` is not 'viewer'. Legacy (map-less) PLCs treat any uid in
     // memberUids as an editor, so un-migrated members aren't locked out during rollout.
     // Content subcollections thread this into write branches; reads stay open.
+    // The caller is in the PLC's denormalized member index.
+    function plcMember(id) {
+      return request.auth.uid in get(/databases/$(database)/documents/plcs/$(id)).data.memberUids;
+    }
     function plcCanEditContent(plcId) {
       let plcData = get(/databases/$(database)/documents/plcs/$(plcId)).data;
       let role = plcRoleOf(plcData, request.auth.uid);
@@ -2456,9 +2454,7 @@ service cloud.firestore {
         // Any current member can read the index — the dashboard renders
         // the same list for everyone in the PLC.
         allow read: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcMember(plcId);
 
         // Author-only writes; doc id pinned to the source assignment id for join-back.
         // Author must be a current PLC member. hasOnly([...]) locks the shape. sheetUrl is
@@ -2468,9 +2464,7 @@ service cloud.firestore {
         // check the *existing* ownerUid and pin id/ownerUid/createdAt.
         allow create: if request.auth != null
           && request.auth.uid == request.resource.data.ownerUid
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcMember(plcId)
           && assignmentId == request.resource.data.id
           && request.resource.data.keys().hasOnly([
                'id', 'kind', 'ownerUid', 'ownerName', 'ownerEmail',
@@ -2487,9 +2481,7 @@ service cloud.firestore {
           // Caller must be the *existing* owner — prevents takeover by a
           // different member rewriting `ownerUid` to themselves.
           && request.auth.uid == resource.data.ownerUid
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcMember(plcId)
           // Identity fields immutable; mutable: status (mirrored on pause/
           // deactivate/reopen) + legacy fields. Shape closed via hasOnly([...]).
           && request.resource.data.id == resource.data.id
@@ -2538,9 +2530,7 @@ service cloud.firestore {
       // hasOnly([...]); time fields dual-accept int||timestamp||null.
       match /assessments/{assessmentId} {
         allow read: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcMember(plcId);
 
         // Create: any non-viewer member (plcCanEditContent — viewers denied), doc
         // id pinned, createdBy == caller.
@@ -2642,9 +2632,7 @@ service cloud.firestore {
       // the client parser - blast radius is one membership-gated PLC's own record.
       match /meetings/{meetingId} {
         allow read: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcMember(plcId);
 
         // Create: any non-viewer member, doc id pinned, createdBy must equal the
         // caller. A viewer (Decision 3.2) is denied via plcCanEditContent.
@@ -2717,9 +2705,7 @@ service cloud.firestore {
       // (id/syncGroupId/sharedBy*/sharedAt) immutable post-create.
       match /quizzes/{plcQuizId} {
         allow read: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcMember(plcId);
 
         // Create: any non-viewer member (plcCanEditContent), doc id pinned,
         // sharedBy == caller. Questions live in the synced group. Optional
@@ -2798,9 +2784,7 @@ service cloud.firestore {
       // Interior target maps are validated by the client; blast radius is one PLC.
       match /meta/{metaId} {
         allow read: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcMember(plcId);
         allow create, update: if request.auth != null
           && metaId == 'learningTargets'
           && plcCanEditContent(plcId)
@@ -2833,9 +2817,7 @@ service cloud.firestore {
       // removes the row. Identity + attribution immutable post-create.
       match /question_banks/{entryId} {
         allow read: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcMember(plcId);
 
         allow create: if request.auth != null
           && plcCanEditContent(plcId)
@@ -2895,9 +2877,7 @@ service cloud.firestore {
 
       match /folders/{folderId} {
         allow read: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcMember(plcId);
         allow create, update: if request.auth != null
           && plcCanEditContent(plcId)
           && request.resource.data.keys().hasOnly([
@@ -2921,9 +2901,7 @@ service cloud.firestore {
       // vs quizzes: youtubeUrl (tile thumbnail); other invariants identical.
       match /video_activities/{plcVideoActivityId} {
         allow read: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcMember(plcId);
 
         // Create: non-viewer member (plcCanEditContent), doc id pinned, sharedBy ==
         // caller. Questions live in the synced group. Optional deletedAt tombstone;
@@ -2985,9 +2963,7 @@ service cloud.firestore {
       // shape locked via hasOnly([...]), interior validation is client-enforced.
       match /rubrics/{plcRubricId} {
         allow read: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcMember(plcId);
 
         allow create: if request.auth != null
           && plcCanEditContent(plcId)
@@ -3042,9 +3018,7 @@ service cloud.firestore {
       // assignments.
       match /assignments/{plcAssignmentId} {
         allow read: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcMember(plcId);
 
         // Create: non-viewer member (plcCanEditContent), doc id pinned, sharedBy ==
         // caller. sessionOptions is an opaque map (keys vary by mode); shape pinned
@@ -3107,9 +3081,7 @@ service cloud.firestore {
       // note; LWW via lastEditedBy/lastEditedAt. Shape locked via hasOnly([...]).
       match /notes/{noteId} {
         allow read: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcMember(plcId);
 
         // Create: non-viewer member (plcCanEditContent). Optional fields: kind
         // ('freeform'|'meeting'), meetingId, version (Decision 2.4), deletedAt
@@ -3220,9 +3192,7 @@ service cloud.firestore {
         // member can't forge a teammate's update.
         match /yUpdates/{updateId} {
           allow read: if request.auth != null
-            && request.auth.uid in get(
-                 /databases/$(database)/documents/plcs/$(plcId)
-               ).data.memberUids;
+            && plcMember(plcId);
 
           allow create: if request.auth != null
             && plcCanEditContent(plcId)
@@ -3243,9 +3213,7 @@ service cloud.firestore {
       // lives in Google, not here. Any current member can CRUD.
       match /docs/{docId} {
         allow read: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcMember(plcId);
 
         // Create: non-viewer member (plcCanEditContent). Optional deletedAt
         // tombstone; shape locked via hasOnly([...]).
@@ -3290,9 +3258,7 @@ service cloud.firestore {
       // don't serialize). Any member CRUDs any todo.
       match /todos/{todoId} {
         allow read: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcMember(plcId);
 
         // Legacy; imported into note action items (§7.4) — no new to-dos.
         allow create: if false;
@@ -3316,15 +3282,11 @@ service cloud.firestore {
       // dual-accepts int||timestamp. Stale-doc GC is gcPlcOrphans, not these rules.
       match /presence/{presenceUid} {
         allow read: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcMember(plcId);
 
         allow create, update: if request.auth != null
           && request.auth.uid == presenceUid
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcMember(plcId)
           && request.resource.data.keys().hasOnly([
                'uid', 'displayName', 'section', 'lastActiveAt'
              ])
@@ -3348,14 +3310,10 @@ service cloud.firestore {
       // type pinned to the PlcActivityType union; optional target* validated.
       match /activity/{eventId} {
         allow read: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcMember(plcId);
 
         allow create: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids
+          && plcMember(plcId)
           && request.resource.data.keys().hasOnly([
                'id', 'type', 'actorUid', 'actorName',
                'targetType', 'targetId', 'targetTitle', 'createdAt'
@@ -3395,9 +3353,7 @@ service cloud.firestore {
       // targeting/mentions immutable. Hard-delete is gcPlcOrphans.
       match /comments/{commentId} {
         allow read: if request.auth != null
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(plcId)
-             ).data.memberUids;
+          && plcMember(plcId);
 
         // A viewer (Decision 3.2) is denied content writes via plcCanEditContent
         // (reads stay open above).
@@ -3690,9 +3646,7 @@ service cloud.firestore {
       function plcLinkOk(d) {
         return d.get('plcId', '') is string && d.get('plcId', '').size() > 0
           && d.get('syncGroupId', '') is string && d.get('syncGroupId', '').size() > 0
-          && request.auth.uid in get(
-               /databases/$(database)/documents/plcs/$(d.plcId)
-             ).data.memberUids;
+          && plcMember(d.plcId);
       }
       function sessionData() {
         return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data;
