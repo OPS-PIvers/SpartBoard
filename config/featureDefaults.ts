@@ -278,7 +278,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
-  }, // Per-period start/pause on shared assignments. Admin-only until Paul has run a class on it.
+  },
+  // Per-period start/pause on shared assignments. Admin-only until Paul has run a class on it.
   'per-period-access': {
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
