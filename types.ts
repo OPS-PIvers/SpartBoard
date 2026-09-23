@@ -9863,6 +9863,7 @@ export type SubShareContentKind =
   | 'drawing'
   | 'quiz'
   | 'videoActivity'
+  | 'guidedLearning'
   | 'notebook'
   | 'flashcards'
   | 'project'
@@ -9908,6 +9909,23 @@ export type SubShareVideoActivityView = Pick<
 
 export interface SubShareVideoActivityPayload {
   activity: SubShareVideoActivityView;
+}
+
+/**
+ * A guided learning set as a substitute sees it: the whole activity, answers
+ * included, which is what `keys/` exists to carry. The teacher's live-tour
+ * bindings (`step.tour`), the author's uid and the raw Storage paths do not
+ * travel — the tokenized `imageUrls` are what a sub can actually read.
+ */
+export type SubShareGuidedLearningView = Omit<
+  GuidedLearningSet,
+  'steps' | 'authorUid' | 'imagePaths'
+> & {
+  steps: Omit<GuidedLearningStep, 'tour'>[];
+};
+
+export interface SubShareGuidedLearningPayload {
+  set: SubShareGuidedLearningView;
 }
 
 /** A `content/{kind}_{itemId}` doc: what the sub sees in place of their own. */

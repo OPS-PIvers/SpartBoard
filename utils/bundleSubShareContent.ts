@@ -25,6 +25,10 @@ import type {
   DrawingPage,
   FlashcardSet,
   FlashcardsConfig,
+  GuidedLearningConfig,
+  GuidedLearningSet,
+  GuidedLearningSetMetadata,
+  GuidedLearningStep,
   NotebookItem,
   ProjectGroup,
   ProjectRun,
@@ -41,6 +45,8 @@ import type {
   SubShareDrawingPayload,
   SubShareFlashcardPayload,
   SubShareFlashcardSetView,
+  SubShareGuidedLearningPayload,
+  SubShareGuidedLearningView,
   SubShareNotebookPayload,
   SubShareProjectGroupView,
   SubShareProjectPayload,
@@ -89,6 +95,8 @@ export interface SubShareBundleServices {
   ) => Promise<CalendarEvent[]>;
   /** Reads a video activity's JSON out of the teacher's own Drive. */
   loadVideoActivity?: (driveFileId: string) => Promise<VideoActivityData>;
+  /** Reads a guided learning set's JSON out of the teacher's own Drive. */
+  loadGuidedLearningSet?: (driveFileId: string) => Promise<GuidedLearningSet>;
 }
 
 interface DrawingConfig {
@@ -362,7 +370,11 @@ export function subShareNeedsCalendar(boards: Dashboard[]): boolean {
 
 /** Whether any board carries a video activity whose JSON needs a Drive read. */
 export function subShareNeedsDrive(boards: Dashboard[]): boolean {
-  return boards.some((board) => openVideoActivityIds(board).length > 0);
+  return boards.some(
+    (board) =>
+      openVideoActivityIds(board).length > 0 ||
+      openGuidedLearningSetIds(board).length > 0
+  );
 }
 
 /** How far ahead a share reaches, per the plan's §3.3 Calendar row. */
@@ -462,6 +474,66 @@ async function bundleVideoActivity(
     ...(data.videoDuration ? { videoDuration: data.videoDuration } : {}),
   };
   return { activity };
+}
+
+/** The guided learning set each Guided Learning widget has open in its player. */
+function openGuidedLearningSetIds(board: Dashboard): string[] {
+  const ids: string[] = [];
+  for (const widget of board.widgets ?? []) {
+    if (widget.type !== 'guided-learning') continue;
+    const id = (widget.config as GuidedLearningConfig | undefined)?.playerSetId;
+    if (id) ids.push(id);
+  }
+  return ids;
+}
+
+/** A step without the live-tour binding, which `types.ts` calls teacher-only. */
+function stepForSub(
+  step: GuidedLearningStep
+): Omit<GuidedLearningStep, 'tour'> {
+  const { tour: _tour, ...rest } = step;
+  return rest;
+}
+
+/**
+ * The teacher's guided learning set, answers included: it lands in `keys/`,
+ * which only the subs this share names may read, and a sub covering the lesson
+ * needs to know what is right — the same call the Quiz and Video Activity
+ * slices make. Firestore holds only metadata, so the set itself comes from the
+ * teacher's Drive. A building set is not bundled at all: it lives in a
+ * top-level collection any signed-in user can read, so the sub reads it
+ * directly as they do today.
+ */
+async function bundleGuidedLearning(
+  hostUid: string,
+  setId: string,
+  loadSet: NonNullable<SubShareBundleServices['loadGuidedLearningSet']>
+): Promise<SubShareGuidedLearningPayload | null> {
+  const snap = await getDoc(
+    doc(db, 'users', hostUid, 'guided_learning', setId)
+  );
+  if (!snap.exists()) {
+    const building = await getDoc(doc(db, 'building_guided_learning', setId));
+    if (building.exists()) return null;
+    throw new Error('guided learning set not found');
+  }
+  const meta = snap.data() as Partial<GuidedLearningSetMetadata>;
+  if (!meta.driveFileId)
+    throw new Error('guided learning set has no Drive file');
+  const data = await loadSet(meta.driveFileId);
+  const {
+    authorUid: _authorUid,
+    imagePaths: _imagePaths,
+    steps,
+    ...rest
+  } = data;
+  const set: SubShareGuidedLearningView = {
+    ...rest,
+    id: snap.id,
+    title: data.title ?? meta.title ?? 'Guided activity',
+    steps: (steps ?? []).map(stepForSub),
+  };
+  return { set };
 }
 
 export async function bundleSubShareContent({
@@ -693,6 +765,38 @@ export async function bundleSubShareContent({
           kind: 'videoActivity',
           itemId: id,
           label: `Video activity on ${board.name}`,
+        });
+      }
+    }
+
+    for (const id of openGuidedLearningSetIds(board)) {
+      const contentId = subShareContentId('guidedLearning', id);
+      if (done.has(contentId)) continue;
+      done.add(contentId);
+      try {
+        if (!services?.loadGuidedLearningSet) {
+          throw new Error('no Drive reader for guided learning');
+        }
+        const payload = await bundleGuidedLearning(
+          hostUid,
+          id,
+          services.loadGuidedLearningSet
+        );
+        // A building set bundles to nothing on purpose; the sub reads it.
+        if (!payload) continue;
+        keys.push({
+          id: contentId,
+          doc: { kind: 'guidedLearning', itemId: id, bundledAt, payload },
+        });
+      } catch (err) {
+        logError('bundleSubShareContent.guidedLearning', err, {
+          boardId: board.id,
+          setId: id,
+        });
+        failures.push({
+          kind: 'guidedLearning',
+          itemId: id,
+          label: `Guided activity on ${board.name}`,
         });
       }
     }
