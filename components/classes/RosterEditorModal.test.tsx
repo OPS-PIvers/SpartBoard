@@ -765,4 +765,98 @@ describe('RosterEditorModal', () => {
     expect(onClose).not.toHaveBeenCalled();
     consoleError.mockRestore();
   });
+
+  describe('Bell period', () => {
+    const existing: ClassRoster = {
+      id: 'r1',
+      name: 'Period 3 Bio',
+      students: [],
+      driveFileId: null,
+      studentCount: 0,
+      createdAt: 0,
+    };
+    const options = [
+      { buildingId: 'high', periodId: 'P1', label: 'Period 1' },
+      { buildingId: 'high', periodId: 'P3', label: 'Period 3' },
+    ];
+
+    it('is hidden when the host passes no options', () => {
+      render(
+        <RosterEditorModal
+          isOpen
+          roster={existing}
+          onClose={vi.fn()}
+          onSave={vi.fn()}
+        />
+      );
+      expect(screen.queryByLabelText(/bell period/i)).not.toBeInTheDocument();
+    });
+
+    it('saves a picked period, and leaves the call unchanged otherwise', async () => {
+      const user = userEvent.setup();
+      const onSave = vi.fn();
+      const { unmount } = render(
+        <RosterEditorModal
+          isOpen
+          roster={existing}
+          onClose={vi.fn()}
+          onSave={onSave}
+          bellPeriodOptions={options}
+        />
+      );
+      await user.click(screen.getByRole('button', { name: /save/i }));
+      expect(onSave).toHaveBeenLastCalledWith('Period 3 Bio', []);
+      unmount();
+
+      render(
+        <RosterEditorModal
+          isOpen
+          roster={existing}
+          onClose={vi.fn()}
+          onSave={onSave}
+          bellPeriodOptions={options}
+        />
+      );
+      await user.selectOptions(
+        screen.getByLabelText(/bell period/i),
+        'high|P3'
+      );
+      await user.click(screen.getByRole('button', { name: /save/i }));
+      expect(onSave).toHaveBeenLastCalledWith(
+        'Period 3 Bio',
+        [],
+        undefined,
+        undefined,
+        { buildingId: 'high', periodId: 'P3' }
+      );
+    });
+
+    it('clears a saved tag to null and keeps an orphaned one selectable', async () => {
+      const user = userEvent.setup();
+      const onSave = vi.fn();
+      render(
+        <RosterEditorModal
+          isOpen
+          roster={{
+            ...existing,
+            bellPeriod: { buildingId: 'middle', periodId: 'P7' },
+          }}
+          onClose={vi.fn()}
+          onSave={onSave}
+          bellPeriodOptions={options}
+        />
+      );
+      const select = screen.getByLabelText<HTMLSelectElement>(/bell period/i);
+      expect(select.value).toBe('middle|P7');
+      await user.selectOptions(select, '');
+      await user.click(screen.getByRole('button', { name: /save/i }));
+      expect(onSave).toHaveBeenLastCalledWith(
+        'Period 3 Bio',
+        [],
+        undefined,
+        undefined,
+        null
+      );
+    });
+  });
 });

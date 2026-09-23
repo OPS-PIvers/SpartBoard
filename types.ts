@@ -197,6 +197,13 @@ export interface ClassRosterMeta {
    * from the post-launch / SidebarClasses linking flow, not at assign time.
    */
   ltiContextId?: string;
+  /** The building bell period this class meets in, for per-period assignment windows; null once cleared. */
+  bellPeriod?: RosterBellPeriod | null;
+}
+
+export interface RosterBellPeriod {
+  buildingId: string;
+  periodId: string;
 }
 
 /**
@@ -1372,6 +1379,10 @@ export interface ScheduleItem {
   linkedWidgets?: WidgetType[];
   spawnedWidgetIds?: string[];
   oneOffDate?: string; // YYYY-MM-DD: if set, item only shows on this specific date
+  /** Admin-assigned bell period id (e.g. "P3"), shared across a building's schedules and never regenerated. */
+  periodId?: string;
+  /** Marks the item as a class period that rosters and per-period windows can use. */
+  isClassPeriod?: boolean;
 }
 
 export interface DailySchedule {
@@ -2433,6 +2444,8 @@ export interface BuildingScheduleDefaults {
   autoProgress?: boolean;
   /** Behaviour defaults — keep the active item centred as the day progresses. */
   autoScroll?: boolean;
+  /** Special days: `YYYY-MM-DD` → the schedule id that runs that date, ahead of the weekday pick. */
+  dateOverrides?: Record<string, string>;
 }
 
 export interface ScheduleGlobalConfig {

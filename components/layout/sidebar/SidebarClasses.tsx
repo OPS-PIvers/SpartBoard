@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Users,
@@ -19,7 +25,15 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useClassLinkEnabled } from '@/hooks/useClassLinkEnabled';
-import { ClassRoster, RosterGroup, Student, StudentOverride } from '@/types';
+import {
+  ClassRoster,
+  RosterBellPeriod,
+  RosterGroup,
+  Student,
+  StudentOverride,
+} from '@/types';
+import { listTeacherBellPeriods } from '@/utils/bellSchedule';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { auth, functions } from '@/config/firebase';
 import { RosterEditorModal } from '@/components/classes/RosterEditorModal';
 import { Modal } from '@/components/common/Modal';
@@ -125,7 +139,23 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     setActiveRoster,
     addToast,
   } = useDashboard();
-  const { user, selectedBuildings, canAccessFeature } = useAuth();
+  const { user, selectedBuildings, canAccessFeature, featurePermissions } =
+    useAuth();
+  const buildings = useAdminBuildings();
+  const perPeriodAccess = canAccessFeature('per-period-access');
+  const bellPeriodOptions = useMemo(() => {
+    if (!perPeriodAccess) return undefined;
+    const options = listTeacherBellPeriods(
+      featurePermissions,
+      selectedBuildings
+    );
+    const multiBuilding = new Set(options.map((o) => o.buildingId)).size > 1;
+    if (!multiBuilding) return options;
+    return options.map((o) => ({
+      ...o,
+      label: `${buildings.find((b) => b.id === o.buildingId)?.name ?? o.buildingId} · ${o.label}`,
+    }));
+  }, [perPeriodAccess, featurePermissions, selectedBuildings, buildings]);
   const classLinkEnabled = useClassLinkEnabled(selectedBuildings[0]);
 
   const [editingRosterId, setEditingRosterId] = useState<string | null>(null);
@@ -392,10 +422,11 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     name: string,
     students: Student[],
     groups?: RosterGroup[],
-    defaultOverridesByStudentId?: Record<string, StudentOverride>
+    defaultOverridesByStudentId?: Record<string, StudentOverride>,
+    bellPeriod?: RosterBellPeriod | null
   ) => {
     if (editingRosterId === 'new') {
-      await addRoster(name, students);
+      await addRoster(name, students, bellPeriod ? { bellPeriod } : undefined);
     } else if (editingRosterId) {
       await updateRoster(editingRosterId, {
         name,
@@ -404,6 +435,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
         ...(defaultOverridesByStudentId !== undefined
           ? { defaultOverridesByStudentId }
           : {}),
+        ...(bellPeriod !== undefined ? { bellPeriod } : {}),
       });
     }
   };
@@ -726,6 +758,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
           onClose={() => setEditingRosterId(null)}
           onSave={handleSaveRoster}
           readAloudAvailable={canAccessFeature('quiz-read-aloud')}
+          bellPeriodOptions={bellPeriodOptions}
         />
       )}
 
