@@ -4388,10 +4388,12 @@ describe('useQuizSessionTeacher — per-period content', () => {
     const byPath = new Map<string, SnapshotCallback>();
     (
       firestore.onSnapshot as unknown as ReturnType<typeof vi.fn>
-    ).mockImplementation((target: { path: string[] }, onNext: SnapshotCallback) => {
-      byPath.set(target.path.join('/'), onNext);
-      return vi.fn();
-    });
+    ).mockImplementation(
+      (target: { path: string[] }, onNext: SnapshotCallback) => {
+        byPath.set(target.path.join('/'), onNext);
+        return vi.fn();
+      }
+    );
     const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
     act(() =>
       byPath.get('quiz_sessions/sess-1')?.({
