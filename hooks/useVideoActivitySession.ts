@@ -780,6 +780,7 @@ export const useVideoActivitySessionStudent =
       ? JSON.stringify([
           periodKeys.map((k) => session?.periodAccess?.[k] ?? null),
           gateUid ? (session?.studentAccess?.[gateUid] ?? null) : null,
+          session?.status === 'ended',
         ])
       : '';
     useEffect(() => {

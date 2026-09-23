@@ -522,6 +522,12 @@ describe('content and seats', () => {
     await assertFails(getDoc(doc(asStudent(), contentPath)));
   });
 
+  it('shows it to a student once the teacher ends the activity, for their review', async () => {
+    await seedSeat(S, STUDENT_UID, STUDENT_UID);
+    await withPeriod({ state: 'closed' }, { status: 'ended' });
+    await assertSucceeds(getDoc(doc(asStudent(), contentPath)));
+  });
+
   it('hides it from a student with no seat', async () => {
     await assertFails(getDoc(doc(asStudent(), contentPath)));
   });

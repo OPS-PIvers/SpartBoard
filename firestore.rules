@@ -4439,6 +4439,7 @@ service cloud.firestore {
       match /content/{docId} {
         allow read: if request.auth != null && (
           vaOwner(vaS()) || isSubMonitor(vaS()) || studentLetIn(vaS()) ||
+          vaS().status == 'ended' ||
           periodOpen(vaS(), seatedClassId('video_activity_sessions', sessionId))
         );
         allow write: if contentWriteOk('video_activity_sessions', sessionId);
