@@ -15,7 +15,7 @@ import type {
   ImportSourcePayload,
   ImportValidationResult,
 } from '@/components/common/library/types';
-import type { GuidedLearningSet } from '@/types';
+import type { GuidedLearningSet, GuidedLearningStep } from '@/types';
 import { parseGuidedLearningJson } from '../utils/glTransfer';
 
 export interface GuidedLearningImportAdapterDeps {
@@ -54,6 +54,59 @@ const VALID_INTERACTION_TYPES = new Set([
   'spotlight',
   'question',
 ]);
+
+const inPct = (v: unknown): v is number =>
+  typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 100;
+// Rounding slack for regions measured from pixel bounds, in image-%.
+const EDGE_SLACK = 0.01;
+const BBOX_SLACK = 0.5;
+
+/** Same region and callout rules as the gl-author validator; true when the step's v3 geometry is usable. */
+export function isValidStepGeometry(step: GuidedLearningStep): boolean {
+  if (
+    step.calloutPin !== undefined &&
+    (!inPct(step.calloutPin?.xPct) || !inPct(step.calloutPin?.yPct))
+  ) {
+    return false;
+  }
+  const region = step.region;
+  if (region === undefined) return true;
+  if (!region || !['rect', 'ellipse', 'polygon'].includes(region.shape)) {
+    return false;
+  }
+  const { wPct, hPct } = region;
+  if (!inPct(wPct) || !inPct(hPct) || wPct === 0 || hPct === 0) return false;
+  if (
+    step.xPct - wPct / 2 < -EDGE_SLACK ||
+    step.xPct + wPct / 2 > 100 + EDGE_SLACK ||
+    step.yPct - hPct / 2 < -EDGE_SLACK ||
+    step.yPct + hPct / 2 > 100 + EDGE_SLACK
+  ) {
+    return false;
+  }
+  if (
+    region.cornerPct !== undefined &&
+    (!inPct(region.cornerPct) || region.cornerPct > 50)
+  ) {
+    return false;
+  }
+  if (region.shape !== 'polygon') return region.points === undefined;
+  const points = region.points;
+  if (!Array.isArray(points) || points.length < 3 || points.length > 24) {
+    return false;
+  }
+  if (points.some((p) => !inPct(p?.x) || !inPct(p?.y))) return false;
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const [minX, maxX] = [Math.min(...xs), Math.max(...xs)];
+  const [minY, maxY] = [Math.min(...ys), Math.max(...ys)];
+  return (
+    Math.abs((minX + maxX) / 2 - step.xPct) <= BBOX_SLACK &&
+    Math.abs((minY + maxY) / 2 - step.yPct) <= BBOX_SLACK &&
+    Math.abs(maxX - minX - wPct) <= BBOX_SLACK &&
+    Math.abs(maxY - minY - hPct) <= BBOX_SLACK
+  );
+}
 
 export function validateGuidedLearningImport(
   data: GuidedLearningSet
@@ -102,6 +155,11 @@ export function validateGuidedLearningImport(
   if (badCoords) {
     errors.push(
       'Every step needs numeric xPct/yPct hotspot coordinates between 0 and 100.'
+    );
+  }
+  if (!badCoords && data.steps.some((s) => !isValidStepGeometry(s))) {
+    errors.push(
+      'A step has a highlighted area or pinned callout outside the image. Fix it in the file and import again.'
     );
   }
   if (data.steps.some((s) => !VALID_INTERACTION_TYPES.has(s.interactionType))) {

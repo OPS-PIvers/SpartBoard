@@ -1103,6 +1103,8 @@ describe('GuidedLearningPlayer', () => {
           interactionType: 'tooltip',
           // 3 words: reading time 2.5s, floored to 3s.
           text: 'Click the button',
+          // Pacing only; the Watch cursor glide has its own tests.
+          cursor: { hide: true },
         },
         {
           id: 'step-2',
@@ -1111,6 +1113,7 @@ describe('GuidedLearningPlayer', () => {
           imageIndex: 0,
           interactionType: 'tooltip',
           text: 'Two',
+          cursor: { hide: true },
         },
       ],
       mode: 'guided',

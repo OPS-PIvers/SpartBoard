@@ -23,6 +23,8 @@ import type {
   Dashboard,
   DrawableObject,
   DrawingPage,
+  FlashcardSet,
+  FlashcardsConfig,
   NotebookItem,
   ProjectGroup,
   ProjectRun,
@@ -35,6 +37,8 @@ import type {
   SubShareContentKind,
   SubShareCustomWidgetPayload,
   SubShareDrawingPayload,
+  SubShareFlashcardPayload,
+  SubShareFlashcardSetView,
   SubShareNotebookPayload,
   SubShareProjectGroupView,
   SubShareProjectPayload,
@@ -303,6 +307,38 @@ function personalCalendarWidgets(board: Dashboard): WidgetData[] {
   });
 }
 
+/** The set each Flashcards widget on the board is presenting. */
+function presentedFlashcardSetIds(board: Dashboard): string[] {
+  const ids: string[] = [];
+  for (const widget of board.widgets ?? []) {
+    if (widget.type !== 'flashcards') continue;
+    const id = (widget.config as FlashcardsConfig | undefined)?.presentSetId;
+    if (id) ids.push(id);
+  }
+  return ids;
+}
+
+async function bundleFlashcardSet(
+  hostUid: string,
+  setId: string
+): Promise<SubShareFlashcardPayload> {
+  const snap = await getDoc(doc(db, 'users', hostUid, 'flashcard_sets', setId));
+  if (!snap.exists()) throw new Error('flashcard set not found');
+  const data = snap.data() as Partial<FlashcardSet>;
+  // Field by field, not a spread: the raw doc carries `publicShareId`, a link
+  // anyone holding the share could then open, and `content/` is broadly
+  // readable.
+  const set: SubShareFlashcardSetView = {
+    id: snap.id,
+    title: data.title ?? 'Untitled set',
+    termLanguage: data.termLanguage ?? 'en',
+    definitionLanguage: data.definitionLanguage ?? 'en',
+    cards: data.cards ?? [],
+    ...(data.description ? { description: data.description } : {}),
+  };
+  return { set };
+}
+
 /**
  * Whether anything on these boards needs a Google read, so a share with no
  * such widget does not pay for a token round-trip it will never use.
@@ -439,6 +475,29 @@ export async function bundleSubShareContent({
           kind: 'project',
           itemId: id,
           label: `Project on ${board.name}`,
+        });
+      }
+    }
+
+    for (const id of presentedFlashcardSetIds(board)) {
+      const contentId = subShareContentId('flashcards', id);
+      if (done.has(contentId)) continue;
+      done.add(contentId);
+      try {
+        const payload = await bundleFlashcardSet(hostUid, id);
+        items.push({
+          id: contentId,
+          doc: { kind: 'flashcards', itemId: id, bundledAt, payload },
+        });
+      } catch (err) {
+        logError('bundleSubShareContent.flashcards', err, {
+          boardId: board.id,
+          setId: id,
+        });
+        failures.push({
+          kind: 'flashcards',
+          itemId: id,
+          label: `Flashcards on ${board.name}`,
         });
       }
     }

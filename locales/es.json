@@ -2517,6 +2517,40 @@
     "reset": "Restablecer colores del lápiz",
     "done": "Listo"
   },
+  "glStudio": {
+    "classicEditorNotice": "Esta actividad usa funciones de Studio. Edita las regiones y las llamadas en Studio.",
+    "close": "Cerrar editor",
+    "closeAnyway": "Cerrar de todos modos",
+    "keepEditing": "Seguir editando",
+    "dialogLabel": "Estudio de aprendizaje guiado",
+    "draftWithAi": "Crear borrador con IA",
+    "folderMissing": "Carpeta no encontrada",
+    "height": "Alto de la vista previa en píxeles",
+    "width": "Ancho de la vista previa en píxeles",
+    "inFolder": "En la carpeta {{name}}",
+    "noFolder": "Sin carpeta",
+    "openClassicEditor": "Abrir editor clásico",
+    "previewSize": "Tamaño de vista previa",
+    "selectFolder": "Mover a carpeta",
+    "slideN": "Diapositiva {{n}}",
+    "slides": "Diapositivas",
+    "stepCount_one": "{{count}} paso",
+    "stepCount_other": "{{count}} pasos",
+    "stepDeleted": "Paso eliminado.",
+    "titleLabel": "Título de la actividad",
+    "titlePlaceholder": "Actividad sin título",
+    "undo": "Deshacer",
+    "unsavedBody": "No se pudieron guardar tus últimos cambios. Si cierras ahora, se perderán.",
+    "unsavedTitle": "Cambios sin guardar",
+    "emptyCanvas": "Añade una diapositiva para empezar a colocar pasos.",
+    "devices": {
+      "board": "Widget del tablero",
+      "help": "Centro de ayuda",
+      "chromebook": "Chromebook del estudiante",
+      "projector": "Proyector (1080p)",
+      "custom": "Tamaño personalizado"
+    }
+  },
   "helpCenter": {
     "title": "Ayuda",
     "widgetHelp": "Guías para este widget",
@@ -2912,5 +2946,31 @@
     "next": "Siguiente",
     "done": "Listo",
     "skip": "Omitir"
+  },
+  "glPlayer": {
+    "watch": "Ver",
+    "tryIt": "Probar",
+    "watchHint": "Ver cada paso reproducido para ti",
+    "tryHint": "Haz clic en cada paso tú mismo",
+    "playbackMode": "Modo de reproducción",
+    "playbackSpeed": "Velocidad de reproducción",
+    "speedOption": "velocidad {{speed}}",
+    "position": "Posición en el recorrido",
+    "positionValue": "Paso {{current}} de {{total}}",
+    "outline": {
+      "open": "Paso {{current}} de {{total}}, mostrar todos los pasos",
+      "title": "Pasos",
+      "slide": "Diapositiva {{n}}",
+      "step": "Paso {{n}}",
+      "done": "Hecho",
+      "current": "Paso actual"
+    },
+    "resume": {
+      "question": "¿Continuar en el paso {{n}}?",
+      "resume": "Continuar",
+      "startOver": "Empezar de nuevo"
+    },
+    "live": "Paso {{current}} de {{total}}: {{text}}",
+    "readAloud": "Leer en voz alta"
   }
 }

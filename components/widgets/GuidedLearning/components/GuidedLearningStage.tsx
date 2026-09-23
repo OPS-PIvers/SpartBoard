@@ -2,6 +2,7 @@ import React, {
   useState,
   useEffect,
   useEffectEvent,
+  useId,
   useRef,
   useCallback,
 } from 'react';
@@ -27,17 +28,20 @@ import {
 } from '../utils/imageUtils';
 import { isGuidedLearningSetV2 } from '../utils/setMigration';
 import { buildStageGeometry } from '../utils/stageGeometry';
-import { regionRect } from '../utils/regionGeometry';
+import { pointInRegion, regionRect } from '../utils/regionGeometry';
 import { placeBanner } from '../utils/calloutPlacement';
 import {
   CALLOUT_IN_MS,
   SLIDE_MS,
   ZOOM_EASE,
   ZOOM_MS,
+  cursorMs,
   motionMs,
 } from '../utils/motion';
+import { AnimatedCursor } from './player/AnimatedCursor';
 import type {
   GuidedLearningStageProps,
+  PctPoint,
   PxRect,
   StageGeometry,
 } from '../types/stage';
@@ -76,6 +80,18 @@ function clampTrimEnd(trim: GuidedLearningVideoTrim, duration: number): number {
 
 type RenderedTransform = StageGeometry['renderedTransform'];
 
+/** A Watch demo glide or Try hint; points are image-%, `from` null = frame centre. */
+export interface StageCursorCue {
+  key: string;
+  from: PctPoint | null;
+  to: PctPoint;
+  ripple: boolean;
+  onDone?: () => void;
+}
+
+/** Smallest Try hit target for a step with no drawn region, in px. */
+const MIN_PIN_HIT_PX = 44;
+
 /** Player-only additions; the Studio renders with the frozen props alone. */
 export interface GuidedLearningStageRuntimeProps {
   /** The sequenced step in structured/guided mode, kept while its overlay is dismissed. Defaults to activeStepId. */
@@ -84,6 +100,13 @@ export interface GuidedLearningStageRuntimeProps {
   onResetZoom?: () => void;
   /** Player v2 calm motion at this learner speed; absent keeps today's timings. */
   motionSpeed?: number;
+  cursor?: StageCursorCue | null;
+  /** Try mode: a stage click outside any callout, tested against the current step. */
+  onTargetClick?: (hit: boolean, at: PctPoint) => void;
+  /** Each increase shakes the callout once (a Try misclick). */
+  misclickCount?: number;
+  /** Player v2: dialogs take focus and hand it back, and the image alt names the step. */
+  accessibleOverlays?: boolean;
 }
 
 export const GuidedLearningStage: React.FC<
@@ -105,6 +128,10 @@ export const GuidedLearningStage: React.FC<
   currentStepId,
   onResetZoom,
   motionSpeed,
+  cursor,
+  onTargetClick,
+  misclickCount = 0,
+  accessibleOverlays = false,
 }) => {
   // Hotspot pulse style — 'consistent' (default) preserves the legacy ping
   // ring; 'reminder' adds a periodic wiggle on the marker itself; 'off'
@@ -442,13 +469,113 @@ export const GuidedLearningStage: React.FC<
     return regionRect(geometry.regionFor(activeStep));
   };
 
+  // Try misclick: a short shake on the callout, via the Web Animations API.
+  useEffect(() => {
+    if (misclickCount === 0 || prefersReducedMotion) return;
+    const root = containerRef.current;
+    root?.querySelectorAll('[data-gl-callout]').forEach((el) => {
+      el.animate?.(
+        [
+          { translate: '0 0' },
+          { translate: '-5px 0' },
+          { translate: '5px 0' },
+          { translate: '0 0' },
+        ],
+        { duration: 150, easing: 'ease-in-out' }
+      );
+    });
+  }, [misclickCount, prefersReducedMotion]);
+
+  // Try success pulse at the click point, in container px.
+  const [pulse, setPulse] = useState<{
+    x: number;
+    y: number;
+    n: number;
+  } | null>(null);
+  const handleStageClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!onTargetClick || !geometry || !currentStep) return;
+    const el = e.target as Element;
+    if (
+      el.closest(
+        '[data-gl-callout], button, a, input, textarea, select, video, audio'
+      )
+    ) {
+      return;
+    }
+    const at = geometry.clientToImagePct(e.clientX, e.clientY);
+    const px = geometry.imagePctToContainerPx(at);
+    const region = geometry.regionFor(currentStep);
+    const hitRegion =
+      region.shape === 'pin'
+        ? {
+            ...region,
+            w: Math.max(region.w, MIN_PIN_HIT_PX),
+            h: Math.max(region.h, MIN_PIN_HIT_PX),
+          }
+        : region;
+    const hit = pointInRegion(px, hitRegion);
+    if (hit && !prefersReducedMotion) {
+      setPulse((prev) => ({ x: px.x, y: px.y, n: (prev?.n ?? 0) + 1 }));
+    }
+    onTargetClick(hit, at);
+  };
+
+  // Popover, question, audio and video overlays are dialogs named by the step.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const dialogTitleId = useId();
+  const dialogTitle = (
+    <span id={dialogTitleId} hidden>
+      {activeStep?.label ?? set.title}
+    </span>
+  );
+  const focusVisibleDialog = useEffectEvent(() => {
+    const el = dialogRef.current;
+    if (!el) return;
+    const first = el.querySelector<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select, textarea, video[controls], [tabindex]:not([tabindex="-1"])'
+    );
+    first?.focus({ preventScroll: true });
+  });
+  useEffect(() => {
+    if (!accessibleOverlays || !activeStepId || cameraMoving) return;
+    focusVisibleDialog();
+  }, [accessibleOverlays, activeStepId, cameraMoving]);
+  // Closing or finishing an overlay hands focus back to the stage, if it was inside.
+  const returnFocus = () => {
+    const root = containerRef.current;
+    const focused = document.activeElement;
+    if (
+      accessibleOverlays &&
+      root &&
+      focused &&
+      focused !== root &&
+      root.contains(focused)
+    ) {
+      root.focus({ preventScroll: true });
+    }
+  };
+  const dismiss = () => {
+    returnFocus();
+    onDismiss();
+  };
+  const advance = () => {
+    returnFocus();
+    onAdvance();
+  };
+
   const renderPopover = (spotlightPx?: number) =>
     activeStep ? (
-      <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-labelledby={dialogTitleId}
+        className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center"
+      >
+        {dialogTitle}
         <div className="pointer-events-auto w-full h-full">
           <TextPopoverInteraction
             step={activeStep}
-            onClose={onDismiss}
+            onClose={dismiss}
             target={calloutTarget(spotlightPx)}
             pinned={pinnedCallout}
             containerWidth={containerSize.w}
@@ -468,9 +595,15 @@ export const GuidedLearningStage: React.FC<
 
     if (type === 'audio') {
       return (
-        <div className="absolute inset-0 z-30 pointer-events-none flex items-end justify-center pb-4">
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-labelledby={dialogTitleId}
+          className="absolute inset-0 z-30 pointer-events-none flex items-end justify-center pb-4"
+        >
+          {dialogTitle}
           <div className="pointer-events-auto">
-            <AudioInteraction step={activeStep} autoPlay onEnded={onAdvance} />
+            <AudioInteraction step={activeStep} autoPlay onEnded={advance} />
           </div>
         </div>
       );
@@ -478,11 +611,17 @@ export const GuidedLearningStage: React.FC<
 
     if (type === 'video') {
       return (
-        <div className="absolute inset-0 z-30 pointer-events-auto">
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-labelledby={dialogTitleId}
+          className="absolute inset-0 z-30 pointer-events-auto"
+        >
+          {dialogTitle}
           <VideoInteraction
             step={activeStep}
-            onClose={onDismiss}
-            onEnded={onAdvance}
+            onClose={dismiss}
+            onEnded={advance}
           />
         </div>
       );
@@ -494,13 +633,19 @@ export const GuidedLearningStage: React.FC<
         ? set.steps.find((s) => s.id === activeStep.id)
         : null;
       return (
-        <div className="absolute inset-0 z-30 pointer-events-auto overflow-hidden">
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-labelledby={dialogTitleId}
+          className="absolute inset-0 z-30 pointer-events-auto overflow-hidden"
+        >
+          {dialogTitle}
           <QuestionInteraction
             step={activeStep}
             onAnswer={(answer, isCorrect) =>
               onAnswer?.(activeStep.id, answer, isCorrect)
             }
-            onContinue={onAdvance}
+            onContinue={advance}
             correctAnswer={origStep?.question?.correctAnswer}
             correctMatchingPairs={origStep?.question?.matchingPairs}
             correctSortingItems={origStep?.question?.sortingItems}
@@ -551,7 +696,7 @@ export const GuidedLearningStage: React.FC<
           return (
             <BannerInteraction
               step={activeStep}
-              onClose={onDismiss}
+              onClose={dismiss}
               position={
                 target
                   ? placeBanner(target, {
@@ -614,6 +759,7 @@ export const GuidedLearningStage: React.FC<
       data-gl-stage=""
       className="w-full h-full relative flex items-center justify-center"
       tabIndex={0}
+      onClick={onTargetClick ? handleStageClick : undefined}
     >
       {/* Image with optional pan-zoom transform */}
       <div
@@ -672,7 +818,11 @@ export const GuidedLearningStage: React.FC<
           <img
             ref={attachImg}
             src={currentImageUrl}
-            alt={set.title}
+            alt={
+              accessibleOverlays && currentStep?.label
+                ? currentStep.label
+                : set.title
+            }
             className="absolute inset-0 w-full h-full object-contain pointer-events-none"
             draggable={false}
             onLoad={measureImg}
@@ -790,7 +940,9 @@ export const GuidedLearningStage: React.FC<
           // non-active pin on the image.
           const isCurrentStructured =
             mode !== 'explore' && step.id === currentStep?.id;
-          const showPin = mode === 'explore' || isCurrentStructured;
+          // A cursor glide stands in for the pin until the step is shown.
+          const showPin =
+            mode === 'explore' || (isCurrentStructured && !cursor);
           if (!showPin) return null;
 
           const position = toContainerCoords(step.xPct, step.yPct, imgOffset);
@@ -896,6 +1048,47 @@ export const GuidedLearningStage: React.FC<
         </div>
       ) : (
         renderInteraction()
+      )}
+
+      {cursor &&
+        geometry &&
+        (() => {
+          const to = geometry.imagePctToContainerPx(cursor.to);
+          const from = cursor.from
+            ? geometry.imagePctToContainerPx(cursor.from)
+            : { x: containerSize.w / 2, y: containerSize.h / 2 };
+          return (
+            <AnimatedCursor
+              key={cursor.key}
+              from={from}
+              to={to}
+              durationMs={cursorMs(
+                Math.hypot(to.x - from.x, to.y - from.y),
+                motionOpts
+              )}
+              ripple={cursor.ripple}
+              onDone={cursor.onDone}
+            />
+          );
+        })()}
+
+      {pulse && (
+        <span
+          key={pulse.n}
+          data-testid="gl-success-pulse"
+          aria-hidden="true"
+          className="absolute z-40 pointer-events-none rounded-full border-2 border-emerald-300"
+          style={{
+            left: pulse.x,
+            top: pulse.y,
+            width: 'min(48px, 10cqmin)',
+            height: 'min(48px, 10cqmin)',
+            marginLeft: 'calc(min(48px, 10cqmin) / -2)',
+            marginTop: 'calc(min(48px, 10cqmin) / -2)',
+            animation: 'gl-ripple 420ms ease-out both',
+          }}
+          onAnimationEnd={() => setPulse(null)}
+        />
       )}
 
       {/* Studio edit layer: above every overlay; children opt into pointer events. */}

@@ -1,5 +1,20 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import React, {
+  useState,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useCallback,
+} from 'react';
+import {
+  Play,
+  Pause,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   GuidedLearningSet,
   GuidedLearningPublicStep,
@@ -8,9 +23,34 @@ import {
 } from '@/types';
 import { isGuidedLearningSetV2 } from '../utils/setMigration';
 import { stepDurationMs } from '../utils/motion';
-import { GuidedLearningStage } from './GuidedLearningStage';
+import {
+  GuidedLearningStage,
+  type StageCursorCue,
+} from './GuidedLearningStage';
 import { SpeedControl } from './player/SpeedControl';
 import { useLearnerSpeed } from './player/useLearnerSpeed';
+import { PlaybackModeToggle } from './player/PlaybackModeToggle';
+import { WatchScrubber } from './player/WatchScrubber';
+import { TRY_HINT_MS, defaultPlayback, hasStepTarget } from './player/playback';
+import { StepOutline } from './player/StepOutline';
+import { ResumePrompt } from './player/ResumePrompt';
+import { useResumeOffer, writeResume } from './player/useResume';
+import { speechAvailable, useReadAloud } from './player/useReadAloud';
+import { spokenStepText } from '../utils/stepText';
+import type { PctPoint, PlaybackMode, StepEvent } from '../types/stage';
+
+const nowMs = (): number => performance.now();
+
+/** Per-visit state of the current step; replaced whenever the step changes. */
+interface StepRun {
+  idx: number;
+  seq: number;
+  prevIdx: number | null;
+  cursorDone: boolean;
+  misclicks: number;
+  hinted: boolean;
+  lastMiss: PctPoint | null;
+}
 
 interface Props {
   set: GuidedLearningSet;
@@ -27,6 +67,8 @@ interface Props {
   timeMultiplier?: StudentOverride['timeMultiplier'];
   /** Player v2 (`gl-player-v2`): calm motion, learner speed, reading-time pacing. */
   playerV2?: boolean;
+  /** Step enter/leave/misclick/hint/complete, for progress and analytics. */
+  onStepEvent?: (e: StepEvent) => void;
 }
 
 export const GuidedLearningPlayer: React.FC<Props> = ({
@@ -36,7 +78,9 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   teacherMode = false,
   timeMultiplier,
   playerV2 = false,
+  onStepEvent,
 }) => {
+  const { t } = useTranslation();
   const mode: GuidedLearningMode = set.mode;
   // In teacher mode set.steps is GuidedLearningStep[]; in student mode it is
   // GuidedLearningPublicStep[] (via the student-app cast). We intentionally
@@ -70,10 +114,16 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   // eslint-disable-next-line react-hooks/refs
   answeredStepsRef.current = answeredSteps;
 
+  // Learner's Watch/Try choice (v2); the author's mode picks the default.
+  const [playback, setPlayback] = useState<PlaybackMode>(() =>
+    defaultPlayback(mode)
+  );
+
   // Track previous mode to reset step index when mode changes (adjusting state while rendering)
   const [prevMode, setPrevMode] = useState(mode);
   if (prevMode !== mode) {
     setPrevMode(mode);
+    setPlayback(defaultPlayback(mode));
     if (mode !== 'explore' && steps.length > 0) {
       setCurrentIdx(0);
       setActiveStepId(steps[0].id);
@@ -105,6 +155,150 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   // eslint-disable-next-line react-hooks/refs
   stepDurationRef.current = stepDuration;
   const activeStep = steps.find((s) => s.id === activeStepId) ?? null;
+
+  const v2Playback = playerV2 && mode !== 'explore';
+  // Saved place from an earlier visit on this device (sets and sessions alike key on set.id).
+  const [resumeOffer, dismissResume] = useResumeOffer(
+    set.id,
+    steps.length,
+    v2Playback
+  );
+  const [readAloud, setReadAloud] = useState(false);
+  const readAloudAvailable =
+    v2Playback &&
+    (speechAvailable() || steps.some((s) => Boolean(s.narration?.url)));
+  const isWatch = v2Playback && playback === 'watch';
+  const isTry = v2Playback && playback === 'try';
+  const autoAdvance = v2Playback ? isWatch : mode === 'guided';
+
+  const [run, setRun] = useState<StepRun>({
+    idx: currentIdx,
+    seq: 0,
+    prevIdx: null,
+    cursorDone: false,
+    misclicks: 0,
+    hinted: false,
+    lastMiss: null,
+  });
+  let stepRun = run;
+  if (run.idx !== currentIdx) {
+    stepRun = {
+      idx: currentIdx,
+      seq: run.seq + 1,
+      prevIdx: run.idx,
+      cursorDone: false,
+      misclicks: 0,
+      hinted: false,
+      lastMiss: null,
+    };
+    setRun(stepRun);
+  }
+  const currentTargeted = hasStepTarget(currentStep);
+  const cursorAllowed = currentTargeted && !currentStep?.cursor?.hide;
+  const prevStep =
+    stepRun.prevIdx !== null ? (steps[stepRun.prevIdx] ?? null) : null;
+  const prevOnSameImage =
+    prevStep !== null &&
+    currentStep !== null &&
+    (prevStep.imageIndex ?? 0) === (currentStep.imageIndex ?? 0);
+  // Watch: the cursor glides to the target before the step's zoom and callout.
+  const watchGlide = isWatch && cursorAllowed && !stepRun.cursorDone;
+  const cameraStep = watchGlide && prevOnSameImage ? prevStep : currentStep;
+  const markCursorDone = (seq: number) =>
+    setRun((r) => (r.seq === seq ? { ...r, cursorDone: true } : r));
+  const cursorCue: StageCursorCue | null =
+    currentStep && watchGlide
+      ? {
+          key: `watch-${stepRun.seq}`,
+          from:
+            prevOnSameImage && prevStep && hasStepTarget(prevStep)
+              ? { xPct: prevStep.xPct, yPct: prevStep.yPct }
+              : null,
+          to: { xPct: currentStep.xPct, yPct: currentStep.yPct },
+          ripple: true,
+          onDone: () => markCursorDone(stepRun.seq),
+        }
+      : currentStep && isTry && cursorAllowed && stepRun.hinted
+        ? {
+            key: `hint-${stepRun.seq}`,
+            from: stepRun.lastMiss,
+            to: { xPct: currentStep.xPct, yPct: currentStep.yPct },
+            ripple: false,
+          }
+        : null;
+
+  // Read-aloud starts once the step is shown (after a Watch glide).
+  const voiceHeldRef = useRef(false);
+  const handleVoiceDone = () => {
+    if (!voiceHeldRef.current) return;
+    voiceHeldRef.current = false;
+    if (currentStep) emitRef.current('complete', currentStep.id);
+    goNextRef.current();
+  };
+  const { speaking } = useReadAloud({
+    enabled: readAloud && readAloudAvailable && !resumeOffer,
+    step: currentStep,
+    stepKey: currentStep && !watchGlide ? `${stepRun.seq}` : null,
+    onDone: handleVoiceDone,
+  });
+  const speakingRef = useRef(speaking);
+  // eslint-disable-next-line react-hooks/refs
+  speakingRef.current = speaking;
+
+  // Step events: ms counts from the step's enter.
+  const enteredAtRef = useRef(0);
+  const eventMode: PlaybackMode | null =
+    mode === 'explore'
+      ? null
+      : v2Playback
+        ? playback
+        : mode === 'guided'
+          ? 'watch'
+          : 'try';
+  const emitStepEvent = (
+    type: StepEvent['type'],
+    stepId: string,
+    at?: PctPoint
+  ) => {
+    onStepEvent?.({
+      stepId,
+      type,
+      mode: eventMode,
+      ms: Math.max(0, Math.round(nowMs() - enteredAtRef.current)),
+      ...(at ? { xPct: at.xPct, yPct: at.yPct } : {}),
+    });
+  };
+  // Read by timers and effect cleanups that outlive this render.
+  const emitRef = useRef(emitStepEvent);
+  // eslint-disable-next-line react-hooks/refs
+  emitRef.current = emitStepEvent;
+  const eventStepId =
+    mode === 'explore' ? activeStepId : (currentStep?.id ?? null);
+  useEffect(() => {
+    if (!eventStepId) return;
+    enteredAtRef.current = nowMs();
+    emitRef.current('enter', eventStepId);
+    return () => emitRef.current('leave', eventStepId);
+  }, [eventStepId]);
+
+  // Try: the hint cursor shows the target after a quiet 5s.
+  const hintArmed =
+    isTry &&
+    cursorAllowed &&
+    !stepRun.hinted &&
+    currentStep !== null &&
+    !resumeOffer;
+  const hintStepId = currentStep?.id;
+  const hintSeq = stepRun.seq;
+  useEffect(() => {
+    if (!hintArmed || !hintStepId) return;
+    const id = setTimeout(() => {
+      setRun((r) => (r.seq === hintSeq ? { ...r, hinted: true } : r));
+      emitRef.current('hint', hintStepId);
+    }, TRY_HINT_MS);
+    return () => clearTimeout(id);
+  }, [hintArmed, hintStepId, hintSeq]);
+
   const rawCurrentImageIndex =
     mode === 'explore' ? exploreImageIndex : (currentStep?.imageIndex ?? 0);
   const currentImageIndex =
@@ -115,8 +309,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           Math.max(set.imageUrls.length - 1, 0)
         );
 
-  // Derive pan-zoom active state from current step (no effect needed)
-  const panZoomTargetStep = mode === 'explore' ? activeStep : currentStep;
+  // Derive pan-zoom active state from the camera's step (no effect needed)
+  const panZoomTargetStep = mode === 'explore' ? activeStep : cameraStep;
   const panZoomActive =
     panZoomTargetStep?.interactionType === 'pan-zoom' ||
     panZoomTargetStep?.interactionType === 'pan-zoom-spotlight'
@@ -137,12 +331,20 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     }
   }
 
+  // Steps the learner has moved past or completed, for the outline's marks.
+  const [doneIds, setDoneIds] = useState<ReadonlySet<string>>(new Set());
+  const markDone = useCallback((id: string) => {
+    setDoneIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  }, []);
+
   const goNext = useCallback(() => {
     if (steps.length === 0) return;
     // Already on the final step — nothing to advance to. Bail out instead of
     // resetting progress to 0, so a completed session's bar holds at 100%
     // rather than dropping back down (auto-advance timer, Continue button,
     // and ArrowRight can all reach this once the last step is done).
+    const leaving = steps[currentIdx];
+    if (leaving) markDone(leaving.id);
     if (currentIdx >= steps.length - 1) return;
     // New step starts with a fresh in-step timer/progress (dot-jump semantics).
     progressRef.current = 0;
@@ -152,7 +354,11 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       setActiveStepId(steps[next]?.id ?? null);
       return next;
     });
-  }, [steps, currentIdx]);
+  }, [steps, currentIdx, markDone]);
+
+  const goNextRef = useRef(goNext);
+  // eslint-disable-next-line react-hooks/refs
+  goNextRef.current = goNext;
 
   const goPrev = useCallback(() => {
     if (steps.length === 0) return;
@@ -165,10 +371,43 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     });
   }, [steps]);
 
+  const completeTryStep = (at: PctPoint) => {
+    if (!currentStep) return;
+    emitStepEvent('complete', currentStep.id, at);
+    goNext();
+  };
+
+  const handleTargetClick = (hit: boolean, at: PctPoint) => {
+    if (!currentStep) return;
+    if (hit) {
+      completeTryStep(at);
+      return;
+    }
+    emitStepEvent('misclick', currentStep.id, at);
+    const misclicks = stepRun.misclicks + 1;
+    const hint = misclicks >= 2 && !stepRun.hinted && cursorAllowed;
+    setRun((r) =>
+      r.seq === stepRun.seq
+        ? { ...r, misclicks, lastMiss: at, hinted: r.hinted || hint }
+        : r
+    );
+    if (hint) emitStepEvent('hint', currentStep.id);
+  };
+
+  const choosePlayback = (next: PlaybackMode) => {
+    if (next === playback) return;
+    setPlayback(next);
+    // Switching keeps the step on screen; the choice only changes what comes next.
+    setRun((r) => ({ ...r, cursorDone: true, hinted: false, misclicks: 0 }));
+    setPlaying(next === 'watch');
+    if (currentStep) setActiveStepId(currentStep.id);
+  };
+
   // Guided mode: auto-advance timer (no setState calls — setProgress only from interval cb)
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     progressRef.current = 0;
+    voiceHeldRef.current = false;
     // Reset display progress at step start (also for zero/unlimited durations).
     setProgress(0);
 
@@ -192,13 +431,21 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         ) {
           return;
         }
+        // Read-aloud: the step lasts until the voice finishes too.
+        if (speakingRef.current) {
+          voiceHeldRef.current = true;
+          return;
+        }
+        if (currentStep) emitRef.current('complete', currentStep.id);
         goNext();
       }
     }, interval);
   }, [currentStep, answeredStepsRef, goNext]);
 
+  // Watch holds the step's clock until the cursor has landed.
+  const timerRuns = autoAdvance && playing && !watchGlide;
   useEffect(() => {
-    if (mode === 'guided' && playing) {
+    if (timerRuns) {
       startTimer();
     } else {
       // Pause freezes in-step progress; resume restarts the step's timer.
@@ -207,63 +454,91 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [mode, playing, currentIdx, startTimer]);
+  }, [timerRuns, currentIdx, startTimer]);
+
+  const handleKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (event.defaultPrevented) return;
+    const container = containerRef.current;
+    const activeElement = document.activeElement;
+    const hasKeyboardFocus = Boolean(
+      container && activeElement && container.contains(activeElement)
+    );
+    const isHovered = Boolean(container?.matches(':hover'));
+    if (!hasKeyboardFocus && !isHovered) return;
+
+    const target = event.target as HTMLElement | null;
+    if (
+      target &&
+      (target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'BUTTON' ||
+        target.tagName === 'SELECT' ||
+        target.tagName === 'A' ||
+        target.isContentEditable)
+    ) {
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      setActiveStepId(null);
+      return;
+    }
+
+    if (mode === 'structured' || mode === 'guided') {
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        goPrev();
+        return;
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        goNext();
+        return;
+      }
+    }
+
+    const onStage = Boolean(target?.hasAttribute('data-gl-stage'));
+    // Try: Enter or Space on the focused stage activates the target.
+    if (
+      isTry &&
+      onStage &&
+      currentStep &&
+      currentTargeted &&
+      (event.key === 'Enter' || event.code === 'Space')
+    ) {
+      event.preventDefault();
+      completeTryStep({ xPct: currentStep.xPct, yPct: currentStep.yPct });
+      return;
+    }
+
+    if (autoAdvance && event.code === 'Space' && onStage) {
+      event.preventDefault();
+      setPlaying((prev) => !prev);
+    }
+  });
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) return;
-      const container = containerRef.current;
-      const activeElement = document.activeElement;
-      const hasKeyboardFocus = Boolean(
-        container && activeElement && container.contains(activeElement)
-      );
-      const isHovered = Boolean(container?.matches(':hover'));
-      if (!hasKeyboardFocus && !isHovered) return;
+    const onKey = (event: KeyboardEvent) => handleKeyDown(event);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'BUTTON' ||
-          target.tagName === 'SELECT' ||
-          target.tagName === 'A' ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
+  // Remember the learner's place; skipped while the resume question is open.
+  useEffect(() => {
+    if (!v2Playback || resumeOffer) return;
+    writeResume({
+      id: set.id,
+      idx: currentIdx,
+      mode: playback,
+      updatedAt: Date.now(),
+    });
+  }, [v2Playback, resumeOffer, set.id, currentIdx, playback]);
 
-      if (event.key === 'Escape') {
-        setActiveStepId(null);
-        return;
-      }
-
-      if (mode === 'structured' || mode === 'guided') {
-        if (event.key === 'ArrowLeft') {
-          event.preventDefault();
-          goPrev();
-          return;
-        }
-        if (event.key === 'ArrowRight') {
-          event.preventDefault();
-          goNext();
-          return;
-        }
-      }
-
-      if (
-        mode === 'guided' &&
-        event.code === 'Space' &&
-        target?.hasAttribute('data-gl-stage')
-      ) {
-        event.preventDefault();
-        setPlaying((prev) => !prev);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [goNext, goPrev, mode]);
+  const resumeAt = (idx: number, next: PlaybackMode) => {
+    dismissResume();
+    setPlayback(next);
+    jumpTo(Math.min(Math.max(idx, 0), steps.length - 1));
+  };
 
   const handlePinClick = (step: GuidedLearningPublicStep) => {
     if (mode === 'explore') {
@@ -287,11 +562,70 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       ? Math.min((currentIdx + Math.min(progress, 1)) / steps.length, 1)
       : 0;
 
+  const readAloudToggle = (
+    <button
+      type="button"
+      aria-pressed={readAloud}
+      aria-label={t('glPlayer.readAloud')}
+      title={t('glPlayer.readAloud')}
+      onClick={() => {
+        // Turning it off mid-hold releases the Watch step the voice was holding.
+        if (readAloud) handleVoiceDone();
+        setReadAloud(!readAloud);
+      }}
+      className={`flex items-center justify-center rounded-full border transition-colors flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 ${
+        readAloud
+          ? 'bg-white text-slate-900 border-white'
+          : 'bg-white/10 text-slate-200 border-white/15 hover:bg-white/20'
+      }`}
+      style={{ width: 'min(36px, 5.5cqmin)', height: 'min(36px, 5.5cqmin)' }}
+    >
+      {readAloud ? (
+        <Volume2
+          aria-hidden="true"
+          style={{ width: 'min(18px, 3cqmin)', height: 'min(18px, 3cqmin)' }}
+        />
+      ) : (
+        <VolumeX
+          aria-hidden="true"
+          style={{ width: 'min(18px, 3cqmin)', height: 'min(18px, 3cqmin)' }}
+        />
+      )}
+    </button>
+  );
+
+  // Screen-reader announcement of the step now on screen.
+  const announcedStep = mode === 'explore' ? activeStep : currentStep;
+  const announcedIdx = announcedStep ? steps.indexOf(announcedStep) : -1;
+  const liveText =
+    playerV2 && announcedStep && !watchGlide
+      ? t('glPlayer.live', {
+          current: announcedIdx + 1,
+          total: steps.length,
+          text: spokenStepText(announcedStep),
+        })
+      : '';
+
+  const footerKind: 'structured' | 'guided' = v2Playback
+    ? isWatch
+      ? 'guided'
+      : 'structured'
+    : mode === 'guided'
+      ? 'guided'
+      : 'structured';
+
+  const jumpTo = (i: number) => {
+    progressRef.current = 0;
+    setProgress(0);
+    setCurrentIdx(i);
+    setActiveStepId(steps[i]?.id ?? null);
+  };
+
   // Media end only advances while guided playback runs; a question's Continue always does.
   const handleStageAdvance = () => {
     const type = activeStep?.interactionType;
     if (type === 'audio' || type === 'video') {
-      if (mode === 'guided' && playing) goNext();
+      if (autoAdvance && playing) goNext();
       return;
     }
     if (mode !== 'explore') goNext();
@@ -381,8 +715,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           set={set}
           steps={steps}
           imageIndex={currentImageIndex}
-          activeStepId={activeStepId}
-          currentStepId={currentStep?.id ?? null}
+          activeStepId={watchGlide ? null : activeStepId}
+          currentStepId={cameraStep?.id ?? null}
           authorMode={mode}
           answeredStepIds={answeredSteps}
           teacherMode={teacherMode}
@@ -396,10 +730,26 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           onDismiss={() => setActiveStepId(null)}
           onResetZoom={() => setZoomScale(1)}
           motionSpeed={playerV2 ? speed : undefined}
+          cursor={cursorCue}
+          onTargetClick={
+            isTry && currentTargeted ? handleTargetClick : undefined
+          }
+          misclickCount={stepRun.misclicks}
+          accessibleOverlays={playerV2}
         />
+        {resumeOffer && (
+          <ResumePrompt
+            stepNumber={resumeOffer.idx + 1}
+            onResume={() => resumeAt(resumeOffer.idx, resumeOffer.mode)}
+            onStartOver={dismissResume}
+          />
+        )}
+        <div aria-live="polite" className="sr-only" data-testid="gl-live">
+          {liveText}
+        </div>
       </div>
 
-      {/* Bottom nav footer — structured and guided modes only */}
+      {/* Bottom nav footer — structured and guided modes only; v2 follows Watch/Try */}
       {mode !== 'explore' && steps.length > 0 && (
         <div
           className="flex items-center flex-shrink-0 border-t border-white/10 bg-slate-900/80 backdrop-blur-md"
@@ -408,7 +758,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
             padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
           }}
         >
-          {mode === 'structured' ? (
+          {v2Playback && (
+            <PlaybackModeToggle mode={playback} onChange={choosePlayback} />
+          )}
+          {footerKind === 'structured' ? (
             <>
               <button
                 onClick={goPrev}
@@ -454,10 +807,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                   {steps.map((s, i) => (
                     <button
                       key={s.id}
-                      onClick={() => {
-                        setCurrentIdx(i);
-                        setActiveStepId(s.id);
-                      }}
+                      onClick={() => jumpTo(i)}
                       className={`rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 ${
                         i === currentIdx
                           ? 'bg-indigo-500'
@@ -476,13 +826,25 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                   ))}
                 </div>
               )}
+              {readAloudAvailable && readAloudToggle}
               {playerV2 && <SpeedControl speed={speed} onChange={setSpeed} />}
-              <span
-                className="text-slate-300 font-bold tabular-nums"
-                style={{ fontSize: 'min(12px, 3.2cqmin)' }}
-              >
-                {currentIdx + 1} / {steps.length}
-              </span>
+              {v2Playback ? (
+                <StepOutline
+                  steps={steps}
+                  currentIdx={currentIdx}
+                  doneIds={doneIds}
+                  showSlides={set.imageUrls.length > 1}
+                  canJump={(i) => !isTry || i <= currentIdx}
+                  onJump={jumpTo}
+                />
+              ) : (
+                <span
+                  className="text-slate-300 font-bold tabular-nums"
+                  style={{ fontSize: 'min(12px, 3.2cqmin)' }}
+                >
+                  {currentIdx + 1} / {steps.length}
+                </span>
+              )}
               <button
                 onClick={goNext}
                 disabled={currentIdx === steps.length - 1}
@@ -545,27 +907,48 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                   />
                 )}
               </button>
-              <div
-                role="progressbar"
-                aria-label="Session progress"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={Math.round(guidedProgress * 100)}
-                className="flex-1 rounded-full bg-white/10 overflow-hidden"
-                style={{ height: 'clamp(6px, 1.5cqmin, 10px)' }}
-              >
-                <div
-                  className="h-full rounded-full bg-indigo-500 transition-all duration-100"
-                  style={{ width: `${guidedProgress * 100}%` }}
+              {v2Playback ? (
+                <WatchScrubber
+                  count={steps.length}
+                  index={currentIdx}
+                  progress={progress}
+                  onSeek={jumpTo}
                 />
-              </div>
+              ) : (
+                <div
+                  role="progressbar"
+                  aria-label="Session progress"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(guidedProgress * 100)}
+                  className="flex-1 rounded-full bg-white/10 overflow-hidden"
+                  style={{ height: 'clamp(6px, 1.5cqmin, 10px)' }}
+                >
+                  <div
+                    className="h-full rounded-full bg-indigo-500 transition-all duration-100"
+                    style={{ width: `${guidedProgress * 100}%` }}
+                  />
+                </div>
+              )}
+              {readAloudAvailable && readAloudToggle}
               {playerV2 && <SpeedControl speed={speed} onChange={setSpeed} />}
-              <span
-                className="text-slate-300 font-bold tabular-nums"
-                style={{ fontSize: 'min(12px, 3.2cqmin)' }}
-              >
-                {currentIdx + 1} / {steps.length}
-              </span>
+              {v2Playback ? (
+                <StepOutline
+                  steps={steps}
+                  currentIdx={currentIdx}
+                  doneIds={doneIds}
+                  showSlides={set.imageUrls.length > 1}
+                  canJump={(i) => !isTry || i <= currentIdx}
+                  onJump={jumpTo}
+                />
+              ) : (
+                <span
+                  className="text-slate-300 font-bold tabular-nums"
+                  style={{ fontSize: 'min(12px, 3.2cqmin)' }}
+                >
+                  {currentIdx + 1} / {steps.length}
+                </span>
+              )}
               <button
                 onClick={goNext}
                 disabled={currentIdx === steps.length - 1}
