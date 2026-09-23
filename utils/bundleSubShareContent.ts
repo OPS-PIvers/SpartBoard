@@ -16,6 +16,8 @@ import { normalizeActivityWallLibraryEntry } from '@/utils/activityWallNormalize
 import type {
   ActivityWallConfig,
   ActivityWallLibraryEntry,
+  CalendarConfig,
+  CalendarEvent,
   CustomWidgetConfig,
   CustomWidgetDoc,
   Dashboard,
@@ -28,6 +30,7 @@ import type {
   SmartNotebookConfig,
   SubShareActivityWallPayload,
   SubShareActivityWallView,
+  SubShareCalendarPayload,
   SubShareContentDoc,
   SubShareContentKind,
   SubShareCustomWidgetPayload,
@@ -53,6 +56,22 @@ export interface SubShareBundleFailure {
 export interface SubShareBundle {
   items: SubShareBundleItem[];
   failures: SubShareBundleFailure[];
+}
+
+/**
+ * What the teacher's client can reach and this module cannot. Firestore reads
+ * go through `db` directly; a Google API read needs a token only the signed-in
+ * teacher's session can mint, so the caller passes the reader in. Omitting one
+ * is not an error — the widgets that need it report a bundling failure, which
+ * the teacher sees on the share screen.
+ */
+export interface SubShareBundleServices {
+  /** Reads one of the teacher's own Google Calendars. */
+  readCalendar?: (
+    calendarId: string,
+    timeMin: string,
+    timeMax: string
+  ) => Promise<CalendarEvent[]>;
 }
 
 interface DrawingConfig {
@@ -275,12 +294,52 @@ async function bundleActivityWall(
   return { entry, hostUid };
 }
 
+/** Calendar widgets with a personal Google Calendar the sub cannot read. */
+function personalCalendarWidgets(board: Dashboard): WidgetData[] {
+  return (board.widgets ?? []).filter((w) => {
+    if (w.type !== 'calendar') return false;
+    const ids = (w.config as CalendarConfig | undefined)?.personalCalendarIds;
+    return Array.isArray(ids) && ids.length > 0;
+  });
+}
+
+/**
+ * Whether anything on these boards needs a Google read, so a share with no
+ * such widget does not pay for a token round-trip it will never use.
+ */
+export function subShareNeedsGoogleServices(boards: Dashboard[]): boolean {
+  return boards.some((board) => personalCalendarWidgets(board).length > 0);
+}
+
+/** How far ahead a share reaches, per the plan's §3.3 Calendar row. */
+const CALENDAR_BUNDLE_DAYS = 14;
+
+async function bundleCalendar(
+  widget: WidgetData,
+  readCalendar: NonNullable<SubShareBundleServices['readCalendar']>
+): Promise<SubShareCalendarPayload> {
+  const ids =
+    (widget.config as CalendarConfig | undefined)?.personalCalendarIds ?? [];
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(start);
+  end.setDate(start.getDate() + CALENDAR_BUNDLE_DAYS);
+  const perCalendar = await Promise.all(
+    ids.map((id) => readCalendar(id, start.toISOString(), end.toISOString()))
+  );
+  // Which calendar an event came from is the teacher's own business, so the
+  // sub gets one flat list, as the widget already merges them for display.
+  return { events: perCalendar.flat() };
+}
+
 export async function bundleSubShareContent({
   hostUid,
   boards,
+  services,
 }: {
   hostUid: string;
   boards: Dashboard[];
+  services?: SubShareBundleServices;
 }): Promise<SubShareBundle> {
   const items: SubShareBundleItem[] = [];
   const failures: SubShareBundleFailure[] = [];
@@ -380,6 +439,28 @@ export async function bundleSubShareContent({
           kind: 'project',
           itemId: id,
           label: `Project on ${board.name}`,
+        });
+      }
+    }
+
+    for (const widget of personalCalendarWidgets(board)) {
+      const readCalendar = services?.readCalendar;
+      try {
+        if (!readCalendar) throw new Error('no calendar reader');
+        const payload = await bundleCalendar(widget, readCalendar);
+        items.push({
+          id: subShareContentId('calendar', widget.id),
+          doc: { kind: 'calendar', itemId: widget.id, bundledAt, payload },
+        });
+      } catch (err) {
+        logError('bundleSubShareContent.calendar', err, {
+          boardId: board.id,
+          widgetId: widget.id,
+        });
+        failures.push({
+          kind: 'calendar',
+          itemId: widget.id,
+          label: `Calendar on ${board.name}`,
         });
       }
     }
