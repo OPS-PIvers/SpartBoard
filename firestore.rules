@@ -42,6 +42,15 @@ service cloud.firestore {
       return !(k in d) || (d[k] is string && d[k].size() <= 200);
     }
 
+    // Keys an update adds, removes or changes (affectedKeys, not changedKeys,
+    // so a smuggled new field counts).
+    function changed(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(keys);
+    }
+    function changedOnly(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
     // ---- Student (GIS/ClassLink) auth helpers ----
     // GIS students sign in via studentLoginV1 custom tokens carrying
     // `studentRole: true` + a `classIds` list of their ClassLink sections.
@@ -106,6 +115,34 @@ service cloud.firestore {
     function afterOpen(s) {
       return s.get('openAt', null) == null ||
              request.time.toMillis() >= s.openAt - 120000;
+    }
+
+    // Per-period gate (docs/plans/PER_PERIOD_ASSIGNMENT_ACCESS.md), keyed by the
+    // class id each targeted roster contributes. A no-op on sessions without
+    // periodAccess. Each period's window reuses the M17 helpers and their grace.
+    function periodOpen(s, classId) {
+      let pa = s.get('periodAccess', null);
+      return pa == null ||
+             (classId is string && classId in pa && pa[classId].state == 'open' &&
+              afterOpen(pa[classId]) && beforeClose(pa[classId]));
+    }
+    // "Let in now": one student's pass past their period's state, until a time.
+    function studentLetIn(s) {
+      return s.get('studentAccess', {}).get(request.auth.uid, 0) > request.time.toMillis();
+    }
+    // A join on a per-period session names a period the session targets, backed
+    // by the caller's class claim when signed in; assessment mode refuses the
+    // anonymous PIN key, whose self-picked period no rule can check. Joining a
+    // closed period is allowed (it is how a student asks to be let in), so the
+    // join may carry no answers.
+    function periodJoinOk(s, d) {
+      let pa = s.get('periodAccess', null);
+      return pa == null ||
+             (d.get('classId', null) is string && d.classId in pa &&
+              d.get('answers', []).size() == 0 &&
+              (isStudentRoleUser()
+                ? d.classId in request.auth.token.classIds
+                : s.get('accessMode', '') != 'assessment'));
     }
 
     // A substitute who launched session `s` from a sub share may monitor that one
@@ -330,7 +367,7 @@ service cloud.firestore {
       allow create, delete: if isSuperAdmin();
       allow update: if isSuperAdmin() ||
         (isDomainAdmin(orgId) &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+         changedOnly([
            'name', 'shortName', 'shortCode', 'state', 'primaryAdminEmail',
            'seedColor', 'supportUrl'
          ]));
@@ -360,7 +397,7 @@ service cloud.firestore {
                manages(orgId, buildingId))) &&
              request.resource.data.id == resource.data.id &&
              request.resource.data.orgId == resource.data.orgId &&
-             request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             changedOnly([
                'name', 'address', 'grades', 'type', 'adminEmails'
              ]));
       }
@@ -389,7 +426,7 @@ service cloud.firestore {
           (isSuperAdmin() ||
            (request.resource.data.id == resource.data.id &&
             request.resource.data.orgId == resource.data.orgId &&
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            changedOnly([
               'domain', 'authMethod', 'role'
             ])));
       }
@@ -415,16 +452,16 @@ service cloud.firestore {
            request.resource.data.system == resource.data.system &&
            request.resource.data.id == resource.data.id &&
            ((resource.data.system == true &&
-             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['perms'])) ||
+             changedOnly(['perms'])) ||
             (resource.data.system != true &&
-             request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             changedOnly([
                'name', 'blurb', 'color', 'perms'
              ])))) ||
           (isDomainAdmin(orgId) &&
            resource.data.system != true &&
            request.resource.data.system == resource.data.system &&
            request.resource.data.id == resource.data.id &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+           changedOnly([
              'name', 'blurb', 'color', 'perms'
            ]));
         allow delete: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
@@ -464,7 +501,7 @@ service cloud.firestore {
           (isDomainAdmin(orgId) &&
            request.resource.data.email == resource.data.email &&
            request.resource.data.orgId == resource.data.orgId &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+           changedOnly([
              'roleId', 'buildingIds', 'status', 'name', 'invitedAt', 'lastActive'
            ]) &&
            // Anti-escalation: roleId=='super_admin' is a live isSuperAdmin() grant
@@ -481,7 +518,7 @@ service cloud.firestore {
           // config/buildings.ts.
           (isBuildingAdmin(orgId) &&
            buildingListsOverlap(resource.data.get('buildingIds', []), orgMember(orgId).get('buildingIds', [])) &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
+           changedOnly(['status'])) ||
           // Self-write: a user may stamp `lastActive` on their own member doc.
           // Strictly bound — email/orgId must match and only `lastActive` may
           // change, so it can't escalate role/buildingIds/status or touch another
@@ -492,7 +529,7 @@ service cloud.firestore {
            request.auth.token.email.lower() == emailLower &&
            request.resource.data.email == resource.data.email &&
            request.resource.data.orgId == resource.data.orgId &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastActive']));
+           changedOnly(['lastActive']));
       }
 
       match /studentPageConfig/{configId} {
@@ -884,8 +921,7 @@ service cloud.firestore {
          request.resource.data.destination is string &&
          request.resource.data.destination.matches('^https://(spartboard[.]web[.]app|spartboard[.]firebaseapp[.]com|spartboard--[a-z0-9-]+[.]web[.]app)/activity-wall/gallery/[A-Za-z0-9_-]+$'));
       allow update: if isAdmin()
-        || (request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['clicks', 'lastClickedAt'])
+        || (changedOnly(['clicks', 'lastClickedAt'])
             && request.resource.data.clicks == resource.data.get('clicks', 0) + 1
             && request.resource.data.lastClickedAt is int
             && request.resource.data.lastClickedAt <= request.time.toMillis() + 300000
@@ -1200,7 +1236,7 @@ service cloud.firestore {
         request.auth.uid in request.resource.data.get('participants', {}) &&
         request.resource.data.participants.diff(resource.data.get('participants', {}))
           .affectedKeys().hasOnly([request.auth.uid]) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participants']);
+        changedOnly(['participants']);
 
       // Self-leave: any participant may remove ONLY their own uid from
       // participants. No-op for substitute shares (they never accept participants).
@@ -1209,7 +1245,7 @@ service cloud.firestore {
         !(request.auth.uid in request.resource.data.get('participants', {})) &&
         resource.data.participants.diff(request.resource.data.get('participants', {}))
           .affectedKeys().hasOnly([request.auth.uid]) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participants']);
+        changedOnly(['participants']);
 
       allow delete: if request.auth != null &&
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
@@ -1320,7 +1356,7 @@ service cloud.firestore {
         && (
           resource.data.get('intendedMode', null) == 'copy'
           || (
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            changedOnly([
               'boards', 'boardIds', 'sections', 'collection', 'defaultBoardId',
               'kind', 'subEmails', 'sharedRosters', 'driveGrants',
               'namesFileId', 'contentVersion', 'updatedAt', 'expiresAt'
@@ -1931,8 +1967,7 @@ service cloud.firestore {
         // leadUid is immutable on the accept path — an invitee can never seize
         // leadership while self-adding.
         && request.resource.data.get('leadUid', '') == resource.data.get('leadUid', '')
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['memberUids', 'memberEmails', 'members', 'updatedAt'])
+        && changedOnly(['memberUids', 'memberEmails', 'members', 'updatedAt'])
         // Dual-accept the timestamp bump (serverTimestamp resolves to a
         // `timestamp`; legacy clients still write `int` during rollout).
         && plcUpdatedAtOk()
@@ -1999,10 +2034,8 @@ service cloud.firestore {
       return (request.auth.uid in resource.data.memberUids)
         // hasOnly + hasAny: diff is exactly sharedSheetUrl (+ updatedAt); hasAny
         // blocks an updatedAt-only ping that resets mtime without setting the URL.
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['sharedSheetUrl', 'updatedAt'])
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasAny(['sharedSheetUrl'])
+        && changedOnly(['sharedSheetUrl', 'updatedAt'])
+        && changed(['sharedSheetUrl'])
         && (
              request.resource.data.sharedSheetUrl is string
              || request.resource.data.sharedSheetUrl == null
@@ -2020,10 +2053,8 @@ service cloud.firestore {
     // updatedAt so it can't smuggle membership/leadership/sheet-URL changes.
     function isUpdatingPlcFeatures() {
       return (request.auth.uid in resource.data.memberUids)
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['features', 'updatedAt'])
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasAny(['features'])
+        && changedOnly(['features', 'updatedAt'])
+        && changed(['features'])
         && request.resource.data.features is map
         && plcUpdatedAtOk();
     }
@@ -2035,10 +2066,8 @@ service cloud.firestore {
     // plc-digest.enabled kill switch (default OFF).
     function isUpdatingPlcDigestOptIn() {
       return (request.auth.uid in resource.data.memberUids)
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['digestOptIn', 'updatedAt'])
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasAny(['digestOptIn'])
+        && changedOnly(['digestOptIn', 'updatedAt'])
+        && changed(['digestOptIn'])
         && request.resource.data.digestOptIn is bool
         && plcUpdatedAtOk();
     }
@@ -2070,8 +2099,7 @@ service cloud.firestore {
         && membersUntouchedOrSelfRemoved
         // Keep the field-set closed so this branch still can't smuggle a name /
         // sheet-url / org change.
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['memberUids', 'memberEmails', 'members', 'updatedAt'])
+        && changedOnly(['memberUids', 'memberEmails', 'members', 'updatedAt'])
         // leadUid is immutable on the leave path (a non-lead is leaving).
         && request.resource.data.get('leadUid', '') == resource.data.leadUid
         && plcUpdatedAtOk();
@@ -2113,11 +2141,9 @@ service cloud.firestore {
              .hasAll(resource.data.memberUids.toSet())
         && resource.data.memberUids.toSet()
              .hasAll(request.resource.data.memberUids.toSet())
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['leadUid', 'members', 'memberUids', 'memberEmails',
+        && changedOnly(['leadUid', 'members', 'memberUids', 'memberEmails',
                        'updatedAt'])
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasAny(['leadUid'])
+        && changed(['leadUid'])
         && plcUpdatedAtOk();
     }
 
@@ -2134,10 +2160,8 @@ service cloud.firestore {
       return isPlcMembershipManager(resource.data)
         // Field-set closed: only the members map, the target pointer, and the
         // customary updatedAt bump may change.
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['members', 'roleChangeUid', 'updatedAt'])
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasAny(['members'])
+        && changedOnly(['members', 'roleChangeUid', 'updatedAt'])
+        && changed(['members'])
         && target != ''
         // leadUid never moves on this branch (transferLead owns that).
         && request.resource.data.get('leadUid', '') == resource.data.get('leadUid', '')
@@ -2197,11 +2221,9 @@ service cloud.firestore {
              .hasAll(resource.data.memberUids.toSet())
         && resource.data.memberUids.toSet()
              .hasAll(request.resource.data.memberUids.toSet())
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['leadUid', 'members', 'memberUids', 'memberEmails',
+        && changedOnly(['leadUid', 'members', 'memberUids', 'memberEmails',
                        'updatedAt'])
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasAny(['leadUid'])
+        && changed(['leadUid'])
         && plcUpdatedAtOk();
     }
 
@@ -2241,8 +2263,7 @@ service cloud.firestore {
         && request.resource.data.memberEmails
              .diff(resource.data.get('memberEmails', {}))
              .affectedKeys().hasOnly(allowedKeys)
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['members', 'memberUids', 'memberEmails', 'adminMemberUid',
+        && changedOnly(['members', 'memberUids', 'memberEmails', 'adminMemberUid',
                        'updatedAt'])
         && plcUpdatedAtOk();
     }
@@ -3237,7 +3258,7 @@ service cloud.firestore {
         // used to archive a to-do once it's been imported into a note.
         allow update: if request.auth != null
           && plcCanEditContent(plcId)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedAt'])
+          && changedOnly(['deletedAt'])
           && plcSubDeletedAtOk();
 
         // A viewer (Decision 3.2) is denied via plcCanEditContent.
@@ -3447,7 +3468,7 @@ service cloud.firestore {
         && resource.data.inviteeEmailLower == request.auth.token.email.lower()
         && resource.data.status == 'pending'
         && request.resource.data.status in ['accepted', 'declined']
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'respondedAt']);
+        && changedOnly(['status', 'respondedAt']);
 
       // Lead/co-lead can revoke (delete) invites; the inviter can always delete
       // their own (also cleans up orphans if the parent PLC is gone).
@@ -3501,10 +3522,10 @@ service cloud.firestore {
         allow update: if request.auth != null &&
           (
             ((request.auth.uid == userId || isAdmin()) &&
-             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+             changedOnly(['status']) &&
              request.resource.data.status in ['active', 'frozen', 'disconnected']) ||
             (request.auth.uid == studentId &&
-             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+             changedOnly(['status']) &&
              request.resource.data.status == 'disconnected') ||
             (request.auth.uid == studentId &&
              resource.data.status != 'frozen' &&
@@ -3630,6 +3651,12 @@ service cloud.firestore {
                /databases/$(database)/documents/plcs/$(d.plcId)
              ).data.memberUids;
       }
+      function sessionData() {
+        return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data;
+      }
+      function sessionTeacherUid() {
+        return sessionData().teacherUid;
+      }
       allow create: if request.auth != null &&
         request.resource.data.teacherUid == request.auth.uid &&
         subMonitorStampAbsent() &&
@@ -3651,12 +3678,6 @@ service cloud.firestore {
         // (so the attempt cap survives storage resets), so ownership compares the
         // `studentUid` field, not the key. Teacher ownership is read from the parent session.
         // LO4: all session-field helpers below read off ONE sessionData() snapshot.
-        function sessionData() {
-          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data;
-        }
-        function sessionTeacherUid() {
-          return sessionData().teacherUid;
-        }
         function sessionClassId() {
           return sessionData().get('classId', '');
         }
@@ -3678,8 +3699,18 @@ service cloud.firestore {
         // a teacher-granted extension (`unlocked: true`, cleared by the student
         // on completion). Both are exempted from the close gate below.
         function isResultsProtectionOnlyWrite() {
-          return request.resource.data.diff(resource.data).affectedKeys()
-                   .hasOnly(['resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt']);
+          return changedOnly(['resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt']);
+        }
+
+        // While a student is frozen (session paused, or their period not open),
+        // writes that answer or finish are refused; hand, tab, results and
+        // rejoin writes still land. Answers already saved stay saved.
+        function frozenWriteOk() {
+          let d = request.resource.data;
+          let k = d.diff(resource.data).affectedKeys();
+          return !k.hasAny(['completedAttempts']) &&
+                 (!k.hasAny(['answers']) || d.answers.size() == 0) &&
+                 (!k.hasAny(['status']) || d.status != 'completed');
         }
 
         // Student branch allows resource == null so the join flow can probe via
@@ -3735,6 +3766,7 @@ service cloud.firestore {
           beforeClose(sessionData()) &&
           // Block joins before the assignment's open time (M17).
           afterOpen(sessionData()) &&
+          periodJoinOk(sessionData(), request.resource.data) &&
           (isStudentRoleUser()
             ? responseKey == request.auth.uid
             : responseKey.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$'));
@@ -3752,6 +3784,10 @@ service cloud.firestore {
            (beforeClose(sessionData()) ||
             isResultsProtectionOnlyWrite() ||
             resource.data.get('unlocked', false) == true) &&
+           // Pause is enforced here for every session, and per period where set.
+           (frozenWriteOk() ||
+            (sessionData().status != 'paused' &&
+             (periodOpen(sessionData(), resource.data.get('classId', null)) || studentLetIn(sessionData())))) &&
            request.resource.data.studentUid == resource.data.studentUid &&
            // SSO studentRole responses omit `pin` entirely, so direct dot-access on
            // `resource.data.pin` would throw a Null-value error and deny the write. Use
@@ -3763,13 +3799,13 @@ service cloud.firestore {
            // write a non-null score they didn't already have - blocks forgery while allowing
            // mid-quiz writes (null on both sides) and post-publish results-protection writes
            // (score unchanged from the graded value).
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['score']) ||
+           (!changed(['score']) ||
             request.resource.data.score == null) &&
            // Students may only ever write `0` to `preSyncVersion`. The rejoin path resets it to
            // 0 so a previously-tagged response re-enters the untagged pool that
            // syncAssignmentToLatest queries. Arbitrary values would let a student forge a tag
            // to dodge future sync tagging, mirroring the create-time constraint above.
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['preSyncVersion']) ||
+           (!changed(['preSyncVersion']) ||
             request.resource.data.preSyncVersion == 0) &&
            // NOTE: `grading` (and everything under it) is deliberately ABSENT from this
            // whitelist. The teacher branch above is unrestricted, so teachers write
@@ -3782,8 +3818,7 @@ service cloud.firestore {
            // Use `affectedKeys()` (added + removed + changed), not `changedKeys()` - the latter
            // only covers keys present on BOTH sides, so a smuggled NEW field would land in
            // addedKeys and bypass the whitelist entirely.
-           request.resource.data.diff(resource.data)
-             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt']) &&
+           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt']) &&
            // M17 served-subset snapshot: a student may only stamp
            // servedQuestionIds when it exactly equals the override subset the
            // setAssignmentTargetsV1 CF fanned out to their own pointer doc —
@@ -3794,7 +3829,7 @@ service cloud.firestore {
            // so the doc only pins the size to totalQuestions (fixed + every slot
            // count) - a client can pick which pool questions it sees but never
            // shrink the scoring denominator.
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['servedQuestionIds']) ||
+           (!changed(['servedQuestionIds']) ||
             request.resource.data.get('servedQuestionIds', null) == null ||
             (sessionData().get('bankSlots', null) != null &&
              request.resource.data.servedQuestionIds is list &&
@@ -3807,15 +3842,15 @@ service cloud.firestore {
            // is client-enforced diagnostics, not a security boundary - but size is: the teacher
            // monitor reads every response doc in the session, so cap the key count to stop a
            // student inflating their doc toward the 1 MB limit with junk keys.
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stimulusPlays']) ||
+           (!changed(['stimulusPlays']) ||
             (request.resource.data.stimulusPlays is map &&
              request.resource.data.stimulusPlays.keys().size() <= 200)) &&
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stimulusErrors']) ||
+           (!changed(['stimulusErrors']) ||
             (request.resource.data.stimulusErrors is map &&
              request.resource.data.stimulusErrors.keys().size() <= 100)) &&
            // `handRaisedAt` must be server-stamped when raising, or null when
            // the student lowers their own hand — never a client timestamp.
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['handRaisedAt']) ||
+           (!changed(['handRaisedAt']) ||
             request.resource.data.handRaisedAt == request.time ||
             request.resource.data.handRaisedAt == null) &&
            // `recordingNoticeAckedAt` (Tennessen notice ack, #2737) is a
@@ -3824,7 +3859,7 @@ service cloud.firestore {
            // still be a real positive timestamp, not an arbitrary
            // string/map/sentinel a student could smuggle into a doc the
            // teacher monitor reads for every response in the session.
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['recordingNoticeAckedAt']) ||
+           (!changed(['recordingNoticeAckedAt']) ||
             (request.resource.data.recordingNoticeAckedAt is int &&
              request.resource.data.recordingNoticeAckedAt > 0)) &&
            // `lastWriteAt` is the idle-auto-submit cutoff and must be server-stamped
@@ -3832,27 +3867,27 @@ service cloud.firestore {
            // Date.now(). Equality with request.time enforces that: a raw Timestamp or number is
            // rejected. Closes the clock-skew failure modes - past-clock devices can't be
            // force-finalized early, future-clock devices can't evade idle auto-submit.
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastWriteAt']) ||
+           (!changed(['lastWriteAt']) ||
             request.resource.data.lastWriteAt == request.time) &&
            // Students may only ever CLEAR the unlock flag (write `false`)
            // — never set it to true. The teacher's unlock action sets
            // `unlocked: true`; `completeQuiz` clears it back to false
            // when the resumed attempt is finalized.
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['unlocked']) ||
+           (!changed(['unlocked']) ||
             request.resource.data.get('unlocked', false) == false) &&
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['tabSwitchWarnings']) ||
+           (!changed(['tabSwitchWarnings']) ||
             request.resource.data.tabSwitchWarnings >= resource.data.get('tabSwitchWarnings', 0)) &&
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['completedAttempts']) ||
+           (!changed(['completedAttempts']) ||
             request.resource.data.get('completedAttempts', 0) >= resource.data.get('completedAttempts', 0)) &&
            // Results-view screenshot-protection guards. useResultsTabWarnings increments
            // `resultsTabWarnings` on each visibility/blur round-trip and flips
            // `resultsLockedOut` (+ `resultsLockedOutAt`) at the threshold. Both monotonic from
            // the student side; only the teacher can decrement warnings or clear the lockout.
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['resultsTabWarnings']) ||
+           (!changed(['resultsTabWarnings']) ||
             request.resource.data.get('resultsTabWarnings', 0) >= resource.data.get('resultsTabWarnings', 0)) &&
            // `resultsLockedOut` may only stay the same OR transition false→true.
            // A student-side write of `true→false` (self-unlock) is rejected.
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['resultsLockedOut']) ||
+           (!changed(['resultsLockedOut']) ||
             (resource.data.get('resultsLockedOut', false) == false ||
              request.resource.data.get('resultsLockedOut', false) == true)) &&
            // Attempt-cap: completedAttempts ≤ attemptLimit (null = unlimited),
@@ -3863,7 +3898,7 @@ service cloud.firestore {
            // via race/bug). Submitting goes joined/in-progress → completed; rejoin
            // goes completed → joined. Only fires when the update touches status, so
            // status-untouched writes pass even on an already-completed doc.
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['status']) ||
+           (!changed(['status']) ||
             resource.data.get('status', '') != 'completed' ||
             request.resource.data.get('status', '') != 'completed'))
         );
@@ -3901,6 +3936,26 @@ service cloud.firestore {
           allow delete: if request.auth != null &&
             (request.auth.uid == sessionTeacherUid() || isAdmin());
         }
+      }
+
+      // Question content for per-period sessions, readable by a student only
+      // once their period is open. `seats/{uid}` maps the caller to their
+      // response, whose classId is the period (anonymous keys aren't the uid).
+      match /content/{docId} {
+        allow read: if request.auth != null && (
+          request.auth.uid == sessionTeacherUid() || isAdmin() ||
+          isSubMonitor(sessionData()) || studentLetIn(sessionData()) ||
+          periodOpen(sessionData(), get(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(get(/databases/$(database)/documents/quiz_sessions/$(sessionId)/seats/$(request.auth.uid)).data.responseKey)).data.get('classId', null))
+        );
+        // getAfter so the session and its content can land in one batch.
+        allow write: if request.auth != null &&
+          getAfter(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.teacherUid == request.auth.uid;
+      }
+      match /seats/{uid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if request.auth != null && request.auth.uid == uid &&
+          request.resource.data.keys().hasOnly(['responseKey']) &&
+          getAfter(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(request.resource.data.responseKey)).data.studentUid == uid;
       }
 
       // Archived responses — copies of teacher-removed responses (was a hard
@@ -4219,7 +4274,7 @@ service cloud.firestore {
         && request.resource.data.createdBy == resource.data.createdBy
         && request.resource.data.openCount == resource.data.openCount)
         || (helpReaderOk()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['openCount'])
+        && changedOnly(['openCount'])
         && request.resource.data.openCount == resource.data.openCount + 1);
       allow delete: if isAdmin() && helpScopeOk(resource.data);
     }
@@ -4393,7 +4448,7 @@ service cloud.firestore {
             request.resource.data.score == resource.data.score &&
             // affectedKeys() (not changedKeys()) covers added/removed too, so a
             // smuggled new field can't slip past the whitelist.
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            changedOnly([
               'answers',
               'completedAt',
               'tabSwitchWarnings',
@@ -4403,7 +4458,7 @@ service cloud.firestore {
             ]) &&
             // Students may only ever CLEAR unlocked (teacher sets true;
             // completeActivity clears it on resumed-attempt submit).
-            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['unlocked']) ||
+            (!changed(['unlocked']) ||
              request.resource.data.get('unlocked', false) == false) &&
             request.resource.data.answers is list &&
             // Append-only on answers, except a rejoin-reset (prior completedAt
@@ -4413,9 +4468,9 @@ service cloud.firestore {
               request.resource.data.answers.size() == 0) ||
              (request.resource.data.answers.size() >= resource.data.answers.size() &&
               request.resource.data.answers.hasAll(resource.data.answers))) &&
-            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['tabSwitchWarnings']) ||
+            (!changed(['tabSwitchWarnings']) ||
              request.resource.data.tabSwitchWarnings >= resource.data.get('tabSwitchWarnings', 0)) &&
-            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['completedAttempts']) ||
+            (!changed(['completedAttempts']) ||
              request.resource.data.get('completedAttempts', 0) >= resource.data.get('completedAttempts', 0)) &&
             // Attempt-cap enforcement — last line of defense behind the
             // client-side join + completeActivity transactions.
@@ -4463,8 +4518,7 @@ service cloud.firestore {
       allow update: if request.auth != null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
         resource.data.teacherUid == request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['assignmentName', 'status', 'endedAt']) &&
+        changedOnly(['assignmentName', 'status', 'endedAt']) &&
         request.resource.data.status in ['active', 'ended'];
       allow delete: if false;
 
@@ -4637,7 +4691,7 @@ service cloud.firestore {
             request.resource.data.sessionId == resource.data.sessionId &&
             request.resource.data.startedAt == resource.data.startedAt &&
             request.resource.data.score == resource.data.score &&
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'completedAt', 'pin']) &&
+            changedOnly(['answers', 'completedAt', 'pin']) &&
             request.resource.data.answers.size() >= resource.data.answers.size()
           )
         );
@@ -4980,14 +5034,14 @@ service cloud.firestore {
                             resource.data.get('authorUid', '') == request.auth.uid &&
                             awSession().get('allowStudentEdit', false) == true &&
                             awAcceptingResponses() &&
-                            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                            changedOnly([
                               'content', 'title', 'label', 'sectionId', 'cellKey',
                               'lat', 'lng', 'editedAt', 'linkPreview', 'storagePath',
                               'archiveStatus', 'fileName', 'mimeType', 'sizeBytes',
                               'status'
                             ]) &&
                             (awSessionModerationEnabled() &&
-                             request.resource.data.diff(resource.data).affectedKeys().hasAny(['content'])
+                             changed(['content'])
                               ? request.resource.data.status == 'pending'
                               : request.resource.data.status == resource.data.status) &&
                             request.resource.data.content is string &&
@@ -4995,9 +5049,9 @@ service cloud.firestore {
                             request.resource.data.content.size() <= 5000 &&
                             awFieldTypesOk() &&
                             // A re-upload may only re-enter the pipeline at 'firebase', under its own object path.
-                            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['archiveStatus']) ||
+                            (!changed(['archiveStatus']) ||
                              request.resource.data.archiveStatus == 'firebase') &&
-                            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['storagePath']) ||
+                            (!changed(['storagePath']) ||
                              request.resource.data.storagePath.matches('^activity_wall_media/' + sessionId + '/' + submissionId + '/.+'));
       }
 

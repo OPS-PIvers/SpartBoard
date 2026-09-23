@@ -56,6 +56,7 @@ import {
   FileText,
   Footprints,
   Clapperboard,
+  CalendarClock,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -248,6 +249,13 @@ const GLOBAL_FEATURES: {
     icon: Clapperboard,
     description:
       'Opens Guided Learning sets in the new full-screen Studio: slides down the side, a step timeline under the picture, drawing tools right on the slide, and narration per step. Everyone else keeps the classic editor, and the Studio has a link back to it. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'per-period-access',
+    label: 'Start and pause each class period',
+    icon: CalendarClock,
+    description:
+      'When a quiz goes to more than one class period, teachers choose between an in-class assessment, where each period stays closed until they start it, and an assignment that opens on a schedule. The monitor gets one start/pause chip per period, bell times can fill the window from the building schedule, and a teacher can let one student in early. Students in a closed period see the quiz locked, with no questions. Admin-only until this is saved and opened up.',
   },
   {
     id: 'settings-drawer',
