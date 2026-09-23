@@ -221,6 +221,12 @@ describe('GuidedLearningStudio', () => {
     ).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('opens on the step it is given', () => {
+    renderStudio({ initialStepId: 'step-1' });
+    expect(screen.queryByTestId('gl-studio-set-settings')).toBeNull();
+    expect(screen.getByDisplayValue('Click **Start**')).toBeInTheDocument();
+  });
+
   it('lists slides with their step counts', () => {
     renderStudio();
     expect(
