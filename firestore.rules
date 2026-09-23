@@ -50,6 +50,34 @@ service cloud.firestore {
     function changedOnly(keys) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
     }
+    function notAnon() {
+      return request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+    // A counter a student may only raise.
+    function notDecreased(k) {
+      return request.resource.data.get(k, 0) >= resource.data.get(k, 0);
+    }
+    // Tab-away exit log: a student appends one exit or closes their open last
+    // one; earlier entries never change, and the log stops at 50.
+    function tabExitOk(e) {
+      return e is map &&
+        e.keys().hasOnly(['leftAt', 'returnedAt', 'durationMs', 'questionIndex', 'videoTime', 'attempt', 'outcome']) &&
+        e.leftAt is int && e.attempt is int &&
+        e.get('returnedAt', 0) is number && e.get('durationMs', 0) is number &&
+        e.get('questionIndex', 0) is int && e.get('videoTime', 0) is number &&
+        e.get('outcome', 'returned') in ['returned', 'over-limit', 'auto-submitted', 'session-ended'];
+    }
+    function tabExitsOk() {
+      let n = request.resource.data.get('tabExits', []);
+      let o = resource.data.get('tabExits', []);
+      let k = o.size();
+      return !changed(['tabExits']) ||
+        (n is list && n.size() <= 50 &&
+         ((n.size() == k + 1 && (k == 0 || n[0:k] == o) && tabExitOk(n[k])) ||
+          (n.size() == k && k > 0 && (k == 1 || n[0:k - 1] == o[0:k - 1]) &&
+           !('outcome' in o[k - 1]) && 'outcome' in n[k - 1] && tabExitOk(n[k - 1]) &&
+           n[k - 1].diff(o[k - 1]).affectedKeys().hasOnly(['returnedAt', 'durationMs', 'outcome']))));
+    }
 
     // ---- Student (GIS/ClassLink) auth helpers ----
     // GIS students sign in via studentLoginV1 custom tokens carrying
@@ -631,7 +659,7 @@ service cloud.firestore {
     match /users/{userId}/paper_batches/{batchId} {
       allow read, write: if request.auth != null && request.auth.uid == userId
                          && !isStudentRoleUser()
-                         && request.auth.token.firebase.sign_in_provider != 'anonymous'
+                         && notAnon()
                          && notDeactivated();
     }
 
@@ -915,7 +943,7 @@ service cloud.firestore {
       // explicit exclusion or they would qualify as minters too.
       allow create: if isAdmin() ||
         (request.auth != null &&
-         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+         notAnon() &&
          !isStudentRoleUser() &&
          request.resource.data.createdBy == request.auth.uid &&
          request.resource.data.destination is string &&
@@ -1507,7 +1535,7 @@ service cloud.firestore {
       // another teacher's submissions). hasOnly([...]) schema-locks the doc.
       // `revoked` is allowed (not required) at create for publish-then-revoke.
       allow create: if request.auth != null &&
-        request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+        notAnon() &&
         request.resource.data.originalAuthor == request.auth.uid &&
         request.resource.data.id == shareId &&
         request.resource.data.sessionId is string &&
@@ -3592,7 +3620,7 @@ service cloud.firestore {
         allow get, list: if request.auth != null;
         // Owner-only, doc id == session id, and no free-form storage.
         allow create: if request.auth != null &&
-          request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+          notAnon() &&
           code.matches('^[A-Z0-9]{1,16}$') &&
           request.resource.data.keys().hasOnly(['sessionId', 'teacherUid', 'createdAt']) &&
           request.resource.data.sessionId == sessionId &&
@@ -3763,6 +3791,7 @@ service cloud.firestore {
           // is validated against the student's own pointer doc. Blocking it
           // at create stops a forged subset riding in on the join write.
           request.resource.data.get('servedQuestionIds', null) == null &&
+          request.resource.data.get('tabExits', null) == null &&
           // Per-student publication and the answer key are teacher-written only.
           request.resource.data.get('resultsOverride', null) == null &&
           request.resource.data.get('revealedAnswers', null) == null &&
@@ -3826,7 +3855,8 @@ service cloud.firestore {
            // Use `affectedKeys()` (added + removed + changed), not `changedKeys()` - the latter
            // only covers keys present on BOTH sides, so a smuggled NEW field would land in
            // addedKeys and bypass the whitelist entirely.
-           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt']) &&
+           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits']) &&
+           tabExitsOk() &&
            // M17 served-subset snapshot: a student may only stamp
            // servedQuestionIds when it exactly equals the override subset the
            // setAssignmentTargetsV1 CF fanned out to their own pointer doc —
@@ -3883,16 +3913,13 @@ service cloud.firestore {
            // when the resumed attempt is finalized.
            (!changed(['unlocked']) ||
             request.resource.data.get('unlocked', false) == false) &&
-           (!changed(['tabSwitchWarnings']) ||
-            request.resource.data.tabSwitchWarnings >= resource.data.get('tabSwitchWarnings', 0)) &&
-           (!changed(['completedAttempts']) ||
-            request.resource.data.get('completedAttempts', 0) >= resource.data.get('completedAttempts', 0)) &&
+           notDecreased('tabSwitchWarnings') &&
+           notDecreased('completedAttempts') &&
            // Results-view screenshot-protection guards. useResultsTabWarnings increments
            // `resultsTabWarnings` on each visibility/blur round-trip and flips
            // `resultsLockedOut` (+ `resultsLockedOutAt`) at the threshold. Both monotonic from
            // the student side; only the teacher can decrement warnings or clear the lockout.
-           (!changed(['resultsTabWarnings']) ||
-            request.resource.data.get('resultsTabWarnings', 0) >= resource.data.get('resultsTabWarnings', 0)) &&
+           notDecreased('resultsTabWarnings') &&
            // `resultsLockedOut` may only stay the same OR transition false→true.
            // A student-side write of `true→false` (self-unlock) is rejected.
            (!changed(['resultsLockedOut']) ||
@@ -4366,7 +4393,7 @@ service cloud.firestore {
       allow list: if request.auth != null && sessionListScoped();
       // Non-anonymous teachers create only sessions they own.
       allow create: if request.auth != null &&
-        request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+        notAnon() &&
         subMonitorStampAbsent() &&
         request.resource.data.teacherUid == request.auth.uid;
       // Teacher owners update their own session (renames, status, sync-pull, PLC
@@ -4374,7 +4401,7 @@ service cloud.firestore {
       // allowlist like Quiz sessions (ownership + immutable identity, no per-field
       // hasOnly). The student response rule below stays tight.
       allow update: if request.auth != null &&
-        request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+        notAnon() &&
         resource.data.teacherUid == request.auth.uid &&
         subMonitorStampUnchanged() &&
         request.resource.data.id == resource.data.id &&
@@ -4423,6 +4450,7 @@ service cloud.firestore {
           // Students cannot forge prior completions — initialize to 0.
           request.resource.data.get('completedAttempts', 0) == 0 &&
           request.resource.data.get('tabSwitchWarnings', 0) == 0 &&
+          request.resource.data.get('tabExits', null) == null &&
           vaGate() &&
           // Block submissions on view-only sessions (mode is frozen at creation)
           vaS().get('mode', 'submissions') == 'submissions' &&
@@ -4463,8 +4491,10 @@ service cloud.firestore {
               'tabSwitchWarnings',
               'completedAttempts',
               'classPeriod',
-              'unlocked'
+              'unlocked',
+              'tabExits'
             ]) &&
+            tabExitsOk() &&
             // Students may only ever CLEAR unlocked (teacher sets true;
             // completeActivity clears it on resumed-attempt submit).
             (!changed(['unlocked']) ||
@@ -4477,10 +4507,8 @@ service cloud.firestore {
               request.resource.data.answers.size() == 0) ||
              (request.resource.data.answers.size() >= resource.data.answers.size() &&
               request.resource.data.answers.hasAll(resource.data.answers))) &&
-            (!changed(['tabSwitchWarnings']) ||
-             request.resource.data.tabSwitchWarnings >= resource.data.get('tabSwitchWarnings', 0)) &&
-            (!changed(['completedAttempts']) ||
-             request.resource.data.get('completedAttempts', 0) >= resource.data.get('completedAttempts', 0)) &&
+            notDecreased('tabSwitchWarnings') &&
+            notDecreased('completedAttempts') &&
             // Attempt-cap enforcement — last line of defense behind the
             // client-side join + completeActivity transactions.
             (vaS().get('sessionOptions', {}).get('attemptLimit', null) == null ||
@@ -4521,11 +4549,11 @@ service cloud.firestore {
       allow list: if request.auth != null && sessionListScoped();
       // Only authenticated (non-anonymous) teachers can create sessions they own
       allow create: if request.auth != null &&
-        request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+        notAnon() &&
         request.resource.data.teacherUid == request.auth.uid;
       // Teachers can rename or end their own sessions (assignmentName, status, endedAt only)
       allow update: if request.auth != null &&
-        request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+        notAnon() &&
         resource.data.teacherUid == request.auth.uid &&
         changedOnly(['assignmentName', 'status', 'endedAt']) &&
         request.resource.data.status in ['active', 'ended'];
@@ -4629,7 +4657,7 @@ service cloud.firestore {
       allow list: if request.auth != null && sessionListScoped();
       // Only authenticated (non-anonymous) teachers can create sessions; they must own it
       allow create: if request.auth != null &&
-        request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+        notAnon() &&
         subMonitorStampAbsent() &&
         request.resource.data.teacherUid == request.auth.uid;
       // Owning teacher (or admin) may update (publishAssignmentScores mirrors
@@ -4759,7 +4787,7 @@ service cloud.firestore {
       allow list: if request.auth != null && sessionListScoped();
       // Only authenticated non-anonymous teachers/admins can create or update the session document itself.
       allow create, update: if request.auth != null &&
-                            request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+                            notAnon() &&
                             (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
       allow delete: if false;
 
@@ -4951,7 +4979,7 @@ service cloud.firestore {
         // Teacher posts from the widget face: auto-approved even under
         // moderation, stamped authorRole 'teacher' so the card is labelled.
         allow create: if request.auth != null &&
-          request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+          notAnon() &&
           awIsOwner() &&
           awIsPadletSession() &&
           request.resource.data.keys().hasOnly([
@@ -5126,7 +5154,7 @@ service cloud.firestore {
       // Only a non-anonymous teacher whose uid prefixes the sessionId (or an
       // admin) may create/update the session doc itself.
       allow create, update: if request.auth != null &&
-                            request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+                            notAnon() &&
                             (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
       allow delete: if false;
 
@@ -5274,7 +5302,7 @@ service cloud.firestore {
     match /flashcard_sessions/{sessionId} {
       function fcTeacherSignedIn() {
         return request.auth != null
-               && request.auth.token.firebase.sign_in_provider != 'anonymous'
+               && notAnon()
                && !isStudentRoleUser()
                && notDeactivated();
       }
@@ -5306,7 +5334,7 @@ service cloud.firestore {
       // by id through allow get (useStudentAssignments direct getDoc), never
       // by listing this collection.
       allow list: if request.auth != null
-                  && request.auth.token.firebase.sign_in_provider != 'anonymous'
+                  && notAnon()
                   && (resource.data.teacherUid == request.auth.uid
                       || fcInSessionClass(resource.data.get('classIds', [])));
       allow create: if fcTeacherSignedIn()
@@ -5398,7 +5426,7 @@ service cloud.firestore {
     match /project_runs/{runId} {
       function pjTeacher() {
         return request.auth != null
-               && request.auth.token.firebase.sign_in_provider != 'anonymous'
+               && notAnon()
                && !isStudentRoleUser()
                && notDeactivated();
       }
@@ -5446,7 +5474,7 @@ service cloud.firestore {
                   .hasAny(request.auth.token.get('classIds', [])));
       }
       allow list: if request.auth != null
-                  && request.auth.token.firebase.sign_in_provider != 'anonymous'
+                  && notAnon()
                   && pjRunListScoped();
       allow create: if pjTeacher()
                     && request.resource.data.teacherUid == request.auth.uid
