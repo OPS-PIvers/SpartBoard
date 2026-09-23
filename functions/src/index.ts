@@ -28,6 +28,7 @@ export {
   generateVideoActivity,
   transcribeVideoWithGemini,
   generateGuidedLearning,
+  draftGuidedLearningStepTextV1,
   validateAndBucketVideoQuestions,
   validateAndBucketQuizQuestions,
   __resetGenerateWithAICaches,

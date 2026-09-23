@@ -4154,6 +4154,25 @@
       "reload": "Reload"
     }
   },
+  "glRecorder": {
+    "record": "Record",
+    "pause": "Pause",
+    "resume": "Resume",
+    "markStep": "Mark step",
+    "markStepHint": "Adds a Next step for what the pointer is over (Alt+M)",
+    "finish": "Finish",
+    "discard": "Discard",
+    "recording_one": "Recording · {{count}} step",
+    "recording_other": "Recording · {{count}} steps",
+    "paused_one": "Paused · {{count}} step",
+    "paused_other": "Paused · {{count}} steps",
+    "notYet": "Recording opens once slide redaction is ready.",
+    "unsupported": "This browser can't share its screen here.",
+    "notChrome": "Recording needs Chrome.",
+    "cancelled": "Screen sharing was cancelled. Choose this tab to record.",
+    "notThisTab": "Share this tab, not a window or screen, to record.",
+    "label": "Tour recorder"
+  },
   "tours": {
     "unavailable": "This tour isn't available right now.",
     "practiceBoardName": "Tour practice",

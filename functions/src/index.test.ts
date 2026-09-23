@@ -443,6 +443,7 @@ import {
   generateVideoActivity,
   transcribeVideoWithGemini,
   generateGuidedLearning,
+  draftGuidedLearningStepTextV1,
   __getCachedAdminStatus,
   __getGeminiModelConfig,
   __resetGenerateWithAICaches,
@@ -3151,6 +3152,7 @@ describe('index barrel — deployed export set', () => {
     'translateQuizV1',
     'translateResponseV1',
     'generateGuidedLearning',
+    'draftGuidedLearningStepTextV1',
     'validateAndBucketVideoQuestions',
     'validateAndBucketQuizQuestions',
     '__resetGenerateWithAICaches',
@@ -4006,6 +4008,86 @@ describe('generateGuidedLearning', () => {
         mimeType: VALID_IMAGE.mimeType,
         data: VALID_IMAGE.base64,
       },
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// draftGuidedLearningStepTextV1 — admin-only recorder drafting, same gate as generateGuidedLearning.
+// ---------------------------------------------------------------------------
+describe('draftGuidedLearningStepTextV1', () => {
+  const ADMIN_AUTH = {
+    uid: 'uid-admin-1',
+    token: { email: 'admin@school.org', email_verified: true },
+  };
+  const STEP = {
+    imageBase64: 'AAAA',
+    mimeType: 'image/png',
+    anchorLabel: 'Widget button in the dock',
+    accessibleName: 'Clock',
+    action: 'click',
+  };
+  const handler = draftGuidedLearningStepTextV1 as unknown as (
+    data: unknown,
+    context: unknown
+  ) => Promise<{ steps: { label: string; text: string }[] }>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFirestoreState.admins = new Set<string>();
+    __resetGenerateWithAICaches();
+    geminiConfigDocGet.mockResolvedValue({
+      exists: false,
+      data: () => undefined as Record<string, unknown> | undefined,
+    });
+  });
+
+  it('refuses callers who are not verified admins', async () => {
+    await expect(handler({ steps: [STEP] }, {})).rejects.toThrow(
+      'Must be authenticated to use this feature.'
+    );
+    mockFirestoreState.admins.add('admin@school.org');
+    await expect(
+      handler(
+        { steps: [STEP] },
+        {
+          auth: {
+            uid: 'uid-attacker',
+            token: { email: 'admin@school.org', email_verified: false },
+          },
+        }
+      )
+    ).rejects.toThrow('Admin access required to use AI generation.');
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('clamps what the model returns to the writing rules, one entry per step', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+    generateContentMock.mockResolvedValueOnce({
+      text: JSON.stringify({
+        steps: [
+          {
+            label: 'The big clock widget button.',
+            text: `Click Clock to add it${' now'.repeat(30)}!`,
+          },
+        ],
+      }),
+    } as never);
+    const result = await handler(
+      { steps: [STEP, { ...STEP, action: 'observe' }] },
+      { auth: ADMIN_AUTH }
+    );
+    expect(result.steps).toHaveLength(2);
+    expect(result.steps[0].label).toBe('The big clock widget');
+    expect(result.steps[0].text.split(' ')).toHaveLength(25);
+    expect(result.steps[0].text.endsWith('.')).toBe(true);
+    expect(result.steps[1]).toEqual({ label: '', text: '' });
+    const [call] = generateContentMock.mock.calls[0] as unknown as [
+      { model: string; contents: { parts: unknown[] }[] },
+    ];
+    expect(call.model).toBe('gemini-3.7-flash');
+    expect(call.contents[0].parts[2]).toEqual({
+      inlineData: { mimeType: 'image/png', data: 'AAAA' },
     });
   });
 });

@@ -2997,6 +2997,25 @@
       "importGroupEmpty": "In dieser Klassengruppe ist niemand auf der Liste."
     }
   },
+  "glRecorder": {
+    "record": "Aufnehmen",
+    "pause": "Pause",
+    "resume": "Fortsetzen",
+    "markStep": "Schritt markieren",
+    "markStepHint": "Fügt einen Weiter-Schritt für das Element unter dem Zeiger hinzu (Alt+M)",
+    "finish": "Fertig",
+    "discard": "Verwerfen",
+    "recording_one": "Aufnahme · {{count}} Schritt",
+    "recording_other": "Aufnahme · {{count}} Schritte",
+    "paused_one": "Pausiert · {{count}} Schritt",
+    "paused_other": "Pausiert · {{count}} Schritte",
+    "notYet": "Die Aufnahme öffnet, sobald das Schwärzen von Folien bereit ist.",
+    "unsupported": "Dieser Browser kann den Bildschirm hier nicht teilen.",
+    "notChrome": "Für die Aufnahme wird Chrome benötigt.",
+    "cancelled": "Die Bildschirmfreigabe wurde abgebrochen. Wähle diesen Tab zum Aufnehmen.",
+    "notThisTab": "Teile diesen Tab, kein Fenster und keinen Bildschirm, um aufzunehmen.",
+    "label": "Touren-Rekorder"
+  },
   "tours": {
     "unavailable": "Diese Tour ist gerade nicht verfügbar.",
     "practiceBoardName": "Tour-Übung",

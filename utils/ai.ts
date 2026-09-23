@@ -653,3 +653,24 @@ export async function generateBloomsContent(prompt: string): Promise<string> {
 
   return data.text ?? '';
 }
+
+export interface StepTextDraftInput {
+  imageBase64: string;
+  mimeType: string;
+  anchorLabel: string;
+  accessibleName: string;
+  action: 'click' | 'observe';
+}
+
+/** Admin-only: drafts label and text for recorded tour steps (at most 20 per call). */
+export async function draftGuidedLearningStepText(
+  steps: StepTextDraftInput[],
+  goal?: string
+): Promise<{ label: string; text: string }[]> {
+  const fn = httpsCallable<
+    { steps: StepTextDraftInput[]; goal?: string },
+    { steps: { label: string; text: string }[] }
+  >(functions, 'draftGuidedLearningStepTextV1');
+  const result = await fn(goal ? { steps, goal } : { steps });
+  return result.data.steps;
+}
