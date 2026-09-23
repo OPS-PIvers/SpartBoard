@@ -89,18 +89,23 @@ service cloud.firestore {
               sessionClassIds.hasAny(request.auth.token.classIds));
     }
 
-    // M17 close-window grace (ms). The client auto-submits answered work when
-    // closeAt passes mid-attempt (spec §3a-D); that write lands at/just after
-    // closeAt, so a zero-tolerance gate would discard in-flight student work.
-    function assignmentCloseGraceMs() {
-      return 120000;
+    // M17 session close window for session data `s`. closeAt/openAt are
+    // epoch-ms numbers (never Timestamps, whose comparison with a number would
+    // silently always pass) and absent on pre-M17 sessions, where both gates
+    // are no-ops. 120000 ms is the grace: the client auto-submits answered
+    // work when closeAt passes mid-attempt (spec §3a-D), so that write lands
+    // at or just after closeAt and a zero-tolerance gate would discard it.
+    function beforeClose(s) {
+      return s.get('closeAt', null) == null ||
+             request.time.toMillis() < s.closeAt + 120000;
     }
-
-    /* M17 open-window grace (ms). Mirrors the close grace so a student whose
-       clock (or the round trip) runs slightly ahead of openAt isn't bounced
-       at the moment the assignment opens. */
-    function assignmentOpenGraceMs() {
-      return 120000;
+    // M17 open window, the mirror of beforeClose with the same grace so a
+    // student whose clock runs slightly ahead of openAt isn't bounced. Callers
+    // gate CREATE only: an attempt that legitimately started must never be
+    // bricked by the teacher moving openAt later.
+    function afterOpen(s) {
+      return s.get('openAt', null) == null ||
+             request.time.toMillis() >= s.openAt - 120000;
     }
 
     // Phase 5A compat: post-5A sessions write a `classIds` list, pre-5A sessions
@@ -3633,21 +3638,6 @@ service cloud.firestore {
         function sessionAttemptLimit() {
           return sessionData().get('attemptLimit', null);
         }
-        // M17 session-level close window. Epoch-ms number (never a Timestamp —
-        // a Timestamp-vs-number comparison would silently always pass). Absent
-        // on every pre-M17 session, so the gate is a no-op there.
-        function withinSessionCloseWindow() {
-          return sessionData().get('closeAt', null) == null ||
-                 request.time.toMillis() < sessionData().closeAt + assignmentCloseGraceMs();
-        }
-        // M17 session-level open window, the mirror of the close gate above.
-        // Gates CREATE only: a student holding a direct code/link must not
-        // start before openAt, but an attempt that legitimately started must
-        // never be bricked by the teacher moving openAt later.
-        function withinSessionOpenWindow() {
-          return sessionData().get('openAt', null) == null ||
-                 request.time.toMillis() >= sessionData().openAt - assignmentOpenGraceMs();
-        }
         // Two pre-existing student flows legitimately write AFTER closeAt and
         // must not regress: the published-results anti-screenshot counters, and
         // a teacher-granted extension (`unlocked: true`, cleared by the student
@@ -3706,9 +3696,9 @@ service cloud.firestore {
           // Block submissions on view-only sessions (mode is frozen at creation)
           sessionMode() == 'submissions' &&
           // Block joins after the assignment's close time (M17).
-          withinSessionCloseWindow() &&
+          beforeClose(sessionData()) &&
           // Block joins before the assignment's open time (M17).
-          withinSessionOpenWindow() &&
+          afterOpen(sessionData()) &&
           (isStudentRoleUser()
             ? responseKey == request.auth.uid
             : responseKey.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$'));
@@ -3723,7 +3713,7 @@ service cloud.firestore {
            passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
            // Student writes stop at the session close time (M17). The teacher
            // branch above is unaffected — grading continues after close.
-           (withinSessionCloseWindow() ||
+           (beforeClose(sessionData()) ||
             isResultsProtectionOnlyWrite() ||
             resource.data.get('unlocked', false) == true) &&
            request.resource.data.studentUid == resource.data.studentUid &&
@@ -4300,16 +4290,6 @@ service cloud.firestore {
         function vaGate() {
           return passesStudentClassGateCompat(vaS().get('classIds', []), vaS().get('classId', ''));
         }
-        // M17 session-level close window (epoch-ms number; absent pre-M17).
-        function vaWithinSessionCloseWindow() {
-          return vaS().get('closeAt', null) == null ||
-                 request.time.toMillis() < vaS().closeAt + assignmentCloseGraceMs();
-        }
-        // M17 open window (create-only mirror of the close gate; absent = always open).
-        function vaWithinSessionOpenWindow() {
-          return vaS().get('openAt', null) == null ||
-                 request.time.toMillis() >= vaS().openAt - assignmentOpenGraceMs();
-        }
 
         // Student branch allows resource == null so the join flow can probe via
         // getDoc() before create (else a Null-value throw on studentUid). Mirrors
@@ -4335,9 +4315,9 @@ service cloud.firestore {
           // Block submissions on view-only sessions (mode is frozen at creation)
           vaS().get('mode', 'submissions') == 'submissions' &&
           // Block joins after the assignment's close time (M17).
-          vaWithinSessionCloseWindow() &&
+          beforeClose(vaS()) &&
           // Block joins before the assignment's open time (M17).
-          vaWithinSessionOpenWindow() &&
+          afterOpen(vaS()) &&
           (isStudentRoleUser()
             ? responseDocId == request.auth.uid
             : responseDocId.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$'));
@@ -4356,7 +4336,7 @@ service cloud.firestore {
             // Student writes stop at the session close time (M17); the teacher
             // branch above is unaffected. A teacher-granted extension
             // (`unlocked: true`) is exempt so the resumed attempt can finish.
-            (vaWithinSessionCloseWindow() ||
+            (beforeClose(vaS()) ||
              resource.data.get('unlocked', false) == true) &&
             request.resource.data.studentUid == resource.data.studentUid &&
             request.resource.data.get('pin', null) == resource.data.get('pin', null) &&
@@ -4450,19 +4430,10 @@ service cloud.firestore {
         function maSessionClassIds() {
           return maSessionData().get('classIds', []);
         }
-        // M17 session-level close window (epoch-ms number; absent pre-M17).
-        function maWithinSessionCloseWindow() {
-          return maSessionData().get('closeAt', null) == null ||
-                 request.time.toMillis() < maSessionData().closeAt + assignmentCloseGraceMs();
-        }
-        /* M17 session-level open window. Create and update share one rule here,
-           so this is scoped to the CREATE case (`resource == null`) — an
-           already-started submission must never be bricked by a teacher moving
-           openAt later. Absent openAt = always open. */
+        // Create and update share one rule here, so the open window is
+        // scoped to the CREATE case (`resource == null`).
         function maWithinSessionOpenWindow() {
-          return resource != null ||
-                 maSessionData().get('openAt', null) == null ||
-                 request.time.toMillis() >= maSessionData().openAt - assignmentOpenGraceMs();
+          return resource != null || afterOpen(maSessionData());
         }
 
         // Teacher + admins read all submissions; a student reads their own (the
@@ -4493,7 +4464,7 @@ service cloud.firestore {
           // Defense in depth alongside the existing `submissionsEnabled` gate.
           maSessionData().get('mode', 'submissions') == 'submissions' &&
           // Block submissions after the assignment's close time (M17).
-          maWithinSessionCloseWindow() &&
+          beforeClose(maSessionData()) &&
           // Block a first submission before the assignment's open time (M17).
           maWithinSessionOpenWindow() &&
           (
@@ -4561,40 +4532,24 @@ service cloud.firestore {
       function glSession() {
         return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data;
       }
+      // Shared by responses and progress.
+      function glClassGate() {
+        return passesStudentClassGateCompat(glSession().get('classIds', []), glSession().get('classId', ''));
+      }
+      function glIsTeacher() {
+        return isAdmin() || glSession().teacherUid == request.auth.uid;
+      }
+      // GL stores assignment mode under `assignmentMode` (its `mode` is
+      // play-mode: structured/guided/explore); other widgets use `mode`.
+      function glSessionMode() {
+        return glSession().get('assignmentMode', 'submissions');
+      }
 
       match /responses/{studentUid} {
-        function glSessionClassId() {
-          return glSession().get('classId', '');
-        }
-        function glSessionClassIds() {
-          return glSession().get('classIds', []);
-        }
-        function glSessionTeacherUid() {
-          return glSession().teacherUid;
-        }
-        // Block response writes on view-only sessions. GL stores assignment mode
-        // under `assignmentMode` (its `mode` is play-mode: structured/guided/
-        // explore); other widgets use `mode`.
-        function glSessionMode() {
-          return glSession().get('assignmentMode', 'submissions');
-        }
-        // M17 session-level close window (epoch-ms number; absent pre-M17).
-        function glWithinSessionCloseWindow() {
-          return glSession().get('closeAt', null) == null ||
-                 request.time.toMillis() < glSession().closeAt + assignmentCloseGraceMs();
-        }
-        /* M17 session-level open window (create-only mirror of the close gate;
-           absent openAt = always open). */
-        function glWithinSessionOpenWindow() {
-          return glSession().get('openAt', null) == null ||
-                 request.time.toMillis() >= glSession().openAt - assignmentOpenGraceMs();
-        }
-
         // Teacher can read all responses; students can only read their own
         allow read: if request.auth != null && (
-          isAdmin() ||
-          glSession().teacherUid == request.auth.uid ||
-          (studentUid == request.auth.uid && passesStudentClassGateCompat(glSessionClassIds(), glSessionClassId()))
+          glIsTeacher() ||
+          (studentUid == request.auth.uid && glClassGate())
         );
         // Students create their own response; doc ID, studentAnonymousId, and sessionId must match.
         // studentRole users must also be enrolled in the session's class.
@@ -4603,13 +4558,12 @@ service cloud.firestore {
           request.resource.data.studentAnonymousId == request.auth.uid &&
           request.resource.data.sessionId == sessionId &&
           request.resource.data.score == null &&
-          passesStudentClassGateCompat(glSessionClassIds(), glSessionClassId()) &&
+          glClassGate() &&
           // Block submissions on view-only sessions (mode is frozen at creation)
           glSessionMode() == 'submissions' &&
-          // Block joins after the assignment's close time (M17).
-          glWithinSessionCloseWindow() &&
-          // Block joins before the assignment's open time (M17).
-          glWithinSessionOpenWindow();
+          // Block joins outside the assignment's open/close window (M17).
+          beforeClose(glSession()) &&
+          afterOpen(glSession());
         // Two disjoint branches: TEACHER (owning teacher/admin writes score + per-answer
         // isCorrect on publish, clears on unpublish; teacherUid is the sole gate,
         // unconstrained payload) and STUDENT (append answers / set completedAt, score
@@ -4617,14 +4571,14 @@ service cloud.firestore {
         // falls through to the student invariants.
         allow update: if request.auth != null && (
           // Teacher branch.
-          (request.auth.uid == glSessionTeacherUid() || isAdmin()) ||
+          glIsTeacher() ||
           // Student branch — unchanged.
           (
             studentUid == request.auth.uid &&
-            passesStudentClassGateCompat(glSessionClassIds(), glSessionClassId()) &&
+            glClassGate() &&
             // Student writes stop at the session close time (M17); the teacher
             // branch above is unaffected.
-            glWithinSessionCloseWindow() &&
+            beforeClose(glSession()) &&
             request.resource.data.studentAnonymousId == resource.data.studentAnonymousId &&
             request.resource.data.sessionId == resource.data.sessionId &&
             request.resource.data.startedAt == resource.data.startedAt &&
@@ -4635,24 +4589,42 @@ service cloud.firestore {
         );
         // Owning teacher (or admin) may delete responses — used when the
         // teacher permanently deletes an assignment.
-        allow delete: if request.auth != null && (
-          glSession().teacherUid == request.auth.uid ||
-          isAdmin()
-        );
+        allow delete: if request.auth != null && glIsTeacher();
+      }
+
+      // Per-viewer step analytics (GL Studio plan P2-5). Doc id is the viewer's
+      // uid. Share-link viewers have no class, so the class gate and open
+      // window apply only to submissions sessions; the close window always does.
+      match /progress/{uid} {
+        function glValidProgress() {
+          let d = request.resource.data;
+          return d.keys().hasOnly(['mode', 'modeSwitches', 'furthestStepIdx', 'completed', 'steps', 'startedAt', 'updatedAt']) &&
+            d.furthestStepIdx is int && d.furthestStepIdx >= 0 && d.furthestStepIdx <= 500 &&
+            d.steps is map && d.steps.size() <= 200 &&
+            d.startedAt is timestamp &&
+            (!('mode' in d) || d.mode in ['watch', 'try']) &&
+            optInt(d, 'modeSwitches') && optBool(d, 'completed') &&
+            (!('updatedAt' in d) || d.updatedAt is timestamp);
+        }
+        allow get: if request.auth != null && (uid == request.auth.uid || glIsTeacher());
+        allow list: if request.auth != null && glIsTeacher();
+        allow create, update: if request.auth != null &&
+          uid == request.auth.uid &&
+          glValidProgress() &&
+          (resource == null || request.resource.data.startedAt == resource.data.startedAt) &&
+          beforeClose(glSession()) &&
+          (glSessionMode() == 'view-only' || (glClassGate() && afterOpen(glSession())));
       }
 
       // View tracking for view-only Share links (see quiz_sessions/views). GL
       // stores assignment mode under `assignmentMode` (its `mode` is play-mode).
       match /views/{viewId} {
-        allow read: if request.auth != null && (
-          isAdmin() ||
-          glSession().teacherUid == request.auth.uid
-        );
+        allow read: if request.auth != null && glIsTeacher();
         allow create: if request.auth != null &&
           request.resource.data.keys().hasOnly(['viewedAt']) &&
           request.resource.data.viewedAt is timestamp &&
           exists(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)) &&
-          glSession().get('assignmentMode', 'submissions') == 'view-only';
+          glSessionMode() == 'view-only';
         allow update, delete: if false;
       }
     }
@@ -5241,10 +5213,7 @@ service cloud.firestore {
           return request.auth != null && fcSession().teacherUid == request.auth.uid;
         }
         function fcWithinWindow() {
-          return (fcSession().get('closeAt', null) == null ||
-                  request.time.toMillis() < fcSession().closeAt + assignmentCloseGraceMs()) &&
-                 (fcSession().get('openAt', null) == null ||
-                  request.time.toMillis() >= fcSession().openAt - assignmentOpenGraceMs());
+          return beforeClose(fcSession()) && afterOpen(fcSession());
         }
         function fcValidProgress() {
           let data = request.resource.data;
