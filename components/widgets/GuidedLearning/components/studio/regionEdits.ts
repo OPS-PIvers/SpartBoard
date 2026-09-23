@@ -167,10 +167,10 @@ export function dragBox(
     dy = (Math.sign(dy) || 1) * (side / pxPerPct.y);
   }
   return {
-    l: Math.min(a.xPct, a.xPct + dx),
-    r: Math.max(a.xPct, a.xPct + dx),
-    t: Math.min(a.yPct, a.yPct + dy),
-    b: Math.max(a.yPct, a.yPct + dy),
+    l: clamp(Math.min(a.xPct, a.xPct + dx), 0, 100),
+    r: clamp(Math.max(a.xPct, a.xPct + dx), 0, 100),
+    t: clamp(Math.min(a.yPct, a.yPct + dy), 0, 100),
+    b: clamp(Math.max(a.yPct, a.yPct + dy), 0, 100),
   };
 }
 

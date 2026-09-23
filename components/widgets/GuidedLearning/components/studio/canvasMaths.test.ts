@@ -180,6 +180,18 @@ describe('region edits', () => {
     expect((b.r - b.l) * 4).toBeCloseTo((b.b - b.t) * 8);
   });
 
+  it('keeps a square-locked drag on the image when squaring the short axis would overshoot the edge', () => {
+    // Squaring the shorter axis to the longer axis's screen length can overshoot 0-100 when the axes scale very differently.
+    const b = dragBox({ xPct: 90, yPct: 50 }, { xPct: 100, yPct: 100 }, true, {
+      x: 2,
+      y: 20,
+    });
+    expect(b.l).toBeGreaterThanOrEqual(0);
+    expect(b.r).toBeLessThanOrEqual(100);
+    expect(b.t).toBeGreaterThanOrEqual(0);
+    expect(b.b).toBeLessThanOrEqual(100);
+  });
+
   it('seeds 4 vertices from a rect and 12 from an ellipse', () => {
     const rect = step({ region: { shape: 'rect', wPct: 10, hPct: 10 } });
     expect(convertShape(rect, 'polygon').region?.points).toHaveLength(4);
