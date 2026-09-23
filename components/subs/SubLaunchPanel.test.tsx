@@ -15,6 +15,16 @@ vi.mock('@/hooks/useSubLaunch', () => ({
   useSubLaunch: () => ({ ...state, launch, reset }),
 }));
 
+const control = vi.fn();
+let runState = {
+  state: 'active' as string,
+  busy: false,
+  error: null as string | null,
+};
+vi.mock('@/hooks/useSubControl', () => ({
+  useSubControl: () => ({ ...runState, control }),
+}));
+
 let enabled = true;
 vi.mock('@/hooks/useSubLaunchAsTeacherSettings', () => ({
   useSubLaunchAsTeacherSettings: () => ({ enabled }),
@@ -42,7 +52,16 @@ beforeEach(() => {
   vi.clearAllMocks();
   enabled = true;
   state = { status: 'idle', result: null, error: null };
+  runState = { state: 'active', busy: false, error: null };
 });
+
+const launched = (code?: string) => {
+  state = {
+    status: 'launched',
+    result: { sessionId: 's1', code } as { sessionId: string; code: string },
+    error: null,
+  };
+};
 
 describe('SubLaunchPanel', () => {
   // Absent rather than disabled: a board a sub cannot launch from should look
@@ -157,5 +176,101 @@ describe('SubLaunchPanel', () => {
     expect(screen.getByText('This share has expired.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(reset).toHaveBeenCalled();
+  });
+});
+
+describe('SubLaunchPanel — controlling the run', () => {
+  // A sub who started a quiz is the only person in the room who can stop it.
+  it('offers pause and end on a started quiz', async () => {
+    launched('AB12CD');
+    show([roster('r1', 'Period 3')]);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Pause' }));
+
+    expect(control).toHaveBeenCalledWith('pause');
+  });
+
+  it('says what paused means, not just that it is paused', () => {
+    launched('AB12CD');
+    runState = { state: 'paused', busy: false, error: null };
+    show([roster('r1', 'Period 3')]);
+
+    expect(
+      screen.getByText(/Students cannot answer until you start it again/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Start quiz again' })
+    ).toBeVisible();
+  });
+
+  // Ending loses whatever the class has open, so it is never one tap.
+  it('ends only on a second press', async () => {
+    launched('AB12CD');
+    show([roster('r1', 'Period 3')]);
+
+    await userEvent.click(screen.getByRole('button', { name: 'End quiz' }));
+    expect(control).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'End it now' }));
+    expect(control).toHaveBeenCalledWith('end');
+  });
+
+  it('lets the sub back out of ending it', async () => {
+    launched('AB12CD');
+    show([roster('r1', 'Period 3')]);
+
+    await userEvent.click(screen.getByRole('button', { name: 'End quiz' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Keep going' }));
+
+    expect(control).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'End quiz' })).toBeVisible();
+  });
+
+  it('says the run is over, and offers nothing more', () => {
+    launched('AB12CD');
+    runState = { state: 'ended', busy: false, error: null };
+    show([roster('r1', 'Period 3')]);
+
+    expect(
+      screen.getByText(/Your teacher has whatever the class finished/)
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('shows what the callable said when it refuses', () => {
+    launched('AB12CD');
+    runState = {
+      state: 'active',
+      busy: false,
+      error: 'That share has expired.',
+    };
+    show([roster('r1', 'Period 3')]);
+
+    expect(screen.getByText('That share has expired.')).toBeInTheDocument();
+  });
+
+  // Only a quiz has a paused state; a video activity is reached by class and
+  // each student works through it on their own, so there is nothing to pause.
+  it('offers end but not pause on a video activity', () => {
+    launched();
+    render(
+      <SubShareContentContext.Provider
+        value={subShareContextValue({ rosters: [roster('r1', 'Period 3')] })}
+      >
+        <SubLaunchPanel
+          kind="videoActivity"
+          widgetId="w1"
+          itemId="va-1"
+          label="video activity"
+        />
+      </SubShareContentContext.Provider>
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'End video activity' })
+    ).toBeVisible();
+    expect(
+      screen.queryByRole('button', { name: 'Pause' })
+    ).not.toBeInTheDocument();
   });
 });

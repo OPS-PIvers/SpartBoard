@@ -6,7 +6,7 @@
 // share bundled; the caller supplies only run settings, from a closed
 // allowlist. Rationale for not re-deriving the whole session: see the PR.
 
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onCall } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { randomUUID } from 'crypto';
 import './functionsInit';
@@ -16,6 +16,15 @@ import {
   toVaPublicQuestion,
   type VaKeyQuestion,
 } from './videoActivityGrade';
+import {
+  bad,
+  denied,
+  requireSubLaunchEnabled,
+  shortId,
+  verifySubCaller,
+  verifySubShare,
+  type SubShareCaller,
+} from './subShareAccess';
 import {
   dedupeGlStepsById,
   toGlPublicStep,
@@ -31,12 +40,10 @@ const LAUNCHABLE_KINDS = [
 ] as const;
 type LaunchKind = (typeof LAUNCHABLE_KINDS)[number];
 
-const MAX_ID_LENGTH = 128;
 const MAX_ROSTERS = 20;
 /** A session doc is capped at ~1 MiB by Firestore; stay well inside it. */
 const MAX_PAYLOAD_BYTES = 700_000;
 
-const DISTRICT_EMAIL = /^[^@]+@orono\.k12\.mn\.us$/;
 /** A code a student can still join, so a live one is a collision. */
 const JOINABLE_STATUSES = new Set(['waiting', 'active', 'paused']);
 const CODE_ATTEMPTS = 5;
@@ -200,29 +207,8 @@ export interface LaunchSubAssignmentResult {
   code?: string;
 }
 
-export interface SubLaunchCaller {
-  uid: string;
-  email: string | null;
-  emailVerified: boolean;
-  anonymous: boolean;
-  studentRole: boolean;
-}
-
-function bad(message: string): never {
-  throw new HttpsError('invalid-argument', message);
-}
-
-function denied(message: string): never {
-  throw new HttpsError('permission-denied', message);
-}
-
-function shortId(value: unknown, field: string): string {
-  if (typeof value !== 'string' || !value || value.length > MAX_ID_LENGTH) {
-    bad(`${field} must be a non-empty id`);
-  }
-  if (value.includes('/')) bad(`${field} must not be a path`);
-  return value;
-}
+/** Kept as the callable's own name for its caller; see `SubShareCaller`. */
+export type SubLaunchCaller = SubShareCaller;
 
 /** Walks a payload for an answer-bearing key at any depth. */
 export function findAnswerField(
@@ -948,14 +934,7 @@ export async function handleLaunchSubAssignment(
   data: unknown,
   deps: SubLaunchDeps = liveSubLaunchDeps
 ): Promise<LaunchSubAssignmentResult> {
-  if (!caller) throw new HttpsError('unauthenticated', 'Sign in first.');
-  if (caller.anonymous || caller.studentRole) {
-    denied('This is for staff accounts.');
-  }
-  const email = (caller.email ?? '').toLowerCase();
-  if (!caller.emailVerified || !DISTRICT_EMAIL.test(email)) {
-    denied('A verified district account is required.');
-  }
+  const { caller: sub, email } = verifySubCaller(caller ?? null);
 
   const input = (data ?? {}) as Partial<LaunchSubAssignmentInput>;
   const shareId = shortId(input.shareId, 'shareId');
@@ -984,28 +963,16 @@ export async function handleLaunchSubAssignment(
     bad('That activity is too large to start from a share.');
   }
 
-  const settings = await db.doc('admin_settings/sub_launch_as_teacher').get();
-  if (settings.data()?.enabled !== true) {
-    denied('Starting an activity from a share is turned off.');
-  }
-
-  const shareSnap = await db.doc(`shared_collections/${shareId}`).get();
-  const share = shareSnap.data();
-  if (!shareSnap.exists || !share) denied('That share no longer exists.');
-  if (share.intendedMode !== 'substitute') {
-    denied('That share is not a substitute share.');
-  }
-  const expiresAt =
-    typeof share.expiresAt === 'number' ? share.expiresAt : null;
-  if (expiresAt === null || expiresAt <= deps.now()) {
-    denied('That share has expired.');
-  }
-  const subEmails = Array.isArray(share.subEmails) ? share.subEmails : [];
-  if (!subEmails.some((e: unknown) => String(e).toLowerCase() === email)) {
-    denied('This share does not name you as a substitute.');
-  }
-  const hostUid = typeof share.hostUid === 'string' ? share.hostUid : '';
-  if (!hostUid) denied('That share has no teacher.');
+  await requireSubLaunchEnabled(
+    db,
+    'Starting an activity from a share is turned off.'
+  );
+  const { share, hostUid, expiresAt } = await verifySubShare(
+    db,
+    shareId,
+    email,
+    deps.now()
+  );
 
   const boardSnap = await db
     .doc(`shared_collections/${shareId}/boards/${boardId}`)
@@ -1045,8 +1012,8 @@ export async function handleLaunchSubAssignment(
   // Ownership, the ids and the monitor window are written here or not at all.
   const stamp = {
     teacherUid: hostUid,
-    launchedBy: { uid: caller.uid, email, shareId },
-    subMonitorUids: [caller.uid],
+    launchedBy: { uid: sub.uid, email, shareId },
+    subMonitorUids: [sub.uid],
     subMonitorUntil: expiresAt,
   };
 
