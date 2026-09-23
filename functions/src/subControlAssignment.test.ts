@@ -170,7 +170,9 @@ describe('handleControlSubAssignment — pausing', () => {
       status: 'paused',
       autoProgressAt: null,
       endedAt: null,
+      pausedAt: paused.written[0].data.pausedAt,
     });
+    expect(typeof paused.written[0].data.pausedAt).toBe('number');
     expect(paused.written[1].data.status).toBe('paused');
 
     const resumed = control(

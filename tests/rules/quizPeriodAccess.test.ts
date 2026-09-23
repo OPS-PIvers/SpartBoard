@@ -72,6 +72,7 @@ type Period = {
   closeAt: number | null;
   label: string;
   verified: boolean;
+  pausedAt: number;
 };
 
 const period = (over: Partial<Period> = {}) => ({
@@ -215,6 +216,19 @@ describe('global pause (every session)', () => {
   it('still takes a rejoin reset while paused', async () => {
     await assertSucceeds(
       updateDoc(resp(), { answers: [], status: 'joined', submittedAt: null })
+    );
+  });
+
+  it('keeps an answer flush landing just after the pause', async () => {
+    await seedSession(S, { status: 'paused', pausedAt: Date.now() - 2_000 });
+    await assertSucceeds(
+      updateDoc(resp(), { answers: [answer], status: 'in-progress' })
+    );
+    await seedSession(S, { status: 'paused', pausedAt: Date.now() - 60_000 });
+    await assertFails(
+      updateDoc(resp(), {
+        answers: [answer, { ...answer, questionId: 'q2' }],
+      })
     );
   });
 
@@ -385,6 +399,11 @@ describe('answer writes on a per-period session', () => {
 
   it('takes answers just after closeAt, inside the grace', async () => {
     await withPeriod({ closeAt: Date.now() - 5_000 });
+    await assertSucceeds(writeAnswer());
+  });
+
+  it('keeps an answer flush landing just after the period is paused', async () => {
+    await withPeriod({ state: 'paused', pausedAt: Date.now() - 2_000 });
     await assertSucceeds(writeAnswer());
   });
 

@@ -3705,6 +3705,14 @@ service cloud.firestore {
         // While a student is frozen (session paused, or their period not open),
         // writes that answer or finish are refused; hand, tab, results and
         // rejoin writes still land. Answers already saved stay saved.
+        // A write landing within 15 s of a pause or close (the student app
+        // flushes its unsaved draft when the question unmounts) is kept.
+        function justFrozen(s, classId) {
+          let t = request.time.toMillis() - 15000;
+          return s.get('pausedAt', 0) > t ||
+                 (classId is string &&
+                  s.get('periodAccess', {}).get(classId, {}).get('pausedAt', 0) > t);
+        }
         function frozenWriteOk() {
           let d = request.resource.data;
           let k = d.diff(resource.data).affectedKeys();
@@ -3786,6 +3794,7 @@ service cloud.firestore {
             resource.data.get('unlocked', false) == true) &&
            // Pause is enforced here for every session, and per period where set.
            (frozenWriteOk() ||
+            justFrozen(sessionData(), resource.data.get('classId', null)) ||
             (sessionData().status != 'paused' &&
              (periodOpen(sessionData(), resource.data.get('classId', null)) || studentLetIn(sessionData())))) &&
            request.resource.data.studentUid == resource.data.studentUid &&

@@ -4164,6 +4164,8 @@ export interface PeriodAccess {
   /** Roster name, shown on the chip and matched by anonymous PIN joiners. */
   label: string;
   rosterId?: string;
+  /** Epoch ms of the last pause or close, so a draft flush landing just after it is kept. */
+  pausedAt?: number;
 }
 
 export type AccessMode = 'assessment' | 'assignment';
@@ -4174,6 +4176,8 @@ export interface PeriodAccessSessionFields {
   periodAccess?: Record<string, PeriodAccess>;
   /** "Let in now": auth uid → epoch ms the pass lasts until. */
   studentAccess?: Record<string, number>;
+  /** Epoch ms of the last whole-session pause; see `PeriodAccess.pausedAt`. */
+  pausedAt?: number;
 }
 
 /** Live quiz session document in Firestore (/quiz_sessions/{sessionId}) */

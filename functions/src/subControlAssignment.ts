@@ -115,7 +115,12 @@ export function controlPatches(
   if (action === 'pause') {
     // Only a quiz has a paused state; the others are active or ended.
     return {
-      session: { status: 'paused', autoProgressAt: null, endedAt: null },
+      session: {
+        status: 'paused',
+        autoProgressAt: null,
+        endedAt: null,
+        pausedAt: now,
+      },
       assignment: { status: 'paused', updatedAt: now },
       state: 'paused',
     };
