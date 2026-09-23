@@ -2031,7 +2031,22 @@
     "clearModifications": "Effacer toutes les modifications",
     "noLinkedClass": "Ce devoir n'est lié à aucune classe que tu peux modifier ici.",
     "timingNotAppliedConfirm": "Les sessions guidées par l'enseignant n'ont pas de minuteur par élève : le temps supplémentaire pour {{names}} ne s'appliquera pas. Les autres aménagements restent actifs. Clique à nouveau sur Attribuer pour continuer.",
-    "pacingBlocked": "Les modifications individuelles nécessitent le mode Autonome. Passe les paramètres de session en Autonome, ou utilise « Effacer toutes les modifications » sous Modifier ou ajouter des modifications."
+    "pacingBlocked": "Les modifications individuelles nécessitent le mode Autonome. Passe les paramètres de session en Autonome, ou utilise « Effacer toutes les modifications » sous Modifier ou ajouter des modifications.",
+    "periodsLabel": "Périodes de cours",
+    "periodModeLabel": "Ouverture des périodes",
+    "periodModeAssessment": "Évaluation en classe",
+    "periodModeAssignment": "Devoir",
+    "periodAssessmentHint": "Chaque période reste fermée jusqu’à ce que tu la lances depuis le suivi. Elle se ferme à la sonnerie de fin.",
+    "periodUnverified": "PIN uniquement, non vérifié : les élèves sans connexion scolaire ne peuvent pas rejoindre une évaluation en classe.",
+    "periodCustomize": "Personnaliser par période",
+    "periodTagPrompt": "Quelle période est {{name}} ?",
+    "periodTagPick": "Choisis une période",
+    "periodWindowFor": "Créneau pour {{name}}",
+    "periodSame": "Comme ci-dessus",
+    "periodBell": "Horaires de la sonnerie",
+    "periodCustom": "Personnalisé",
+    "periodBellTimes": "{{open}} – {{close}}",
+    "periodNoBell": "Cette période n’a pas de sonnerie ce jour-là, elle utilise donc le créneau ci-dessus."
   },
   "assignmentsHub": {
     "title": "Devoirs",

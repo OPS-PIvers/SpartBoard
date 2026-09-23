@@ -3162,7 +3162,22 @@
     "clearModifications": "Clear all modifications",
     "noLinkedClass": "This assignment is not linked to a class you can modify here.",
     "timingNotAppliedConfirm": "Teacher-paced sessions have no per-student timer, so extended time for {{names}} will not apply. Other accommodations still apply. Click Assign again to continue.",
-    "pacingBlocked": "Individual student modifications require Self-paced mode. Switch Session Settings below to Self-paced, or use 'Clear all modifications' under Edit or add modifications."
+    "pacingBlocked": "Individual student modifications require Self-paced mode. Switch Session Settings below to Self-paced, or use 'Clear all modifications' under Edit or add modifications.",
+    "periodsLabel": "Class periods",
+    "periodModeLabel": "How periods open",
+    "periodModeAssessment": "In-class assessment",
+    "periodModeAssignment": "Assignment",
+    "periodAssessmentHint": "Every period stays closed until you start it from the monitor. It closes at the end bell.",
+    "periodUnverified": "PIN only, not verified: students without a school sign-in can’t join an in-class assessment.",
+    "periodCustomize": "Customize per period",
+    "periodTagPrompt": "Which period is {{name}}?",
+    "periodTagPick": "Pick a period",
+    "periodWindowFor": "Window for {{name}}",
+    "periodSame": "Same as above",
+    "periodBell": "Bell times",
+    "periodCustom": "Custom",
+    "periodBellTimes": "{{open}} – {{close}}",
+    "periodNoBell": "This period has no bell that day, so it uses the window above."
   },
   "assignmentsHub": {
     "title": "Assignments",
