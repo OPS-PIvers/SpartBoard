@@ -220,6 +220,16 @@ describe('help_resources — create', () => {
     );
   });
 
+  // Same helpScopeOk() fallback this PR added also widens create, not just update/delete — a super admin can now create an item in an org they don't belong to.
+  it('a super admin can create an item scoped to an org they are not a member of', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asSuper(), 'help_resources/org-b-create'),
+        validItem('org-b-create', { orgId: ORG_B })
+      )
+    );
+  });
+
   it('an org admin cannot create an item scoped to another org', async () => {
     await assertFails(
       setDoc(
@@ -371,13 +381,7 @@ describe('help_resources — update', () => {
     );
   });
 
-  // Regression: helpScopeOk()'s org-scoped branch used to require
-  // isOrgMember(d.orgId) with no isSuperAdmin() fallback, so a real super
-  // admin (who can already READ any org's item via helpReaderOk() above)
-  // could not write/delete one outside their own org membership — the same
-  // read/write asymmetry already fixed in announcements (#3248). asSuper() is
-  // deliberately NOT a member of ORG_B (see top-level beforeEach), so this
-  // exercises the fallback rather than the isOrgMember() branch.
+  // Regression: helpScopeOk()'s org-scoped branch had no isSuperAdmin() fallback, so a super admin could read but not write another org's item.
   it("a super admin (not a member of that org) CAN edit another org's item", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
