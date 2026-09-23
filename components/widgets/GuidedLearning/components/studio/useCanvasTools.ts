@@ -12,6 +12,7 @@ import { useCanvasViewport } from './useCanvasViewport';
 import { fitScale } from './deviceFrameContext';
 import { findCallout } from './canvasScale';
 import { safeLinkUrl, wrapSelection } from './inlineText';
+import type { RedactMode, RedactRect } from '../../utils/redactImage';
 
 /** Arrow nudge in image-%. */
 export const NUDGE_PCT = 0.25;
@@ -61,6 +62,8 @@ export function useCanvasTools(
     setAddingStep,
     addStepAt,
     updateStep,
+    imageUrls,
+    imageKinds,
   } = state;
   const viewport = useCanvasViewport(preset.id);
   const [shape, setShape] = useState<DrawShape>('rect');
@@ -68,6 +71,12 @@ export function useCanvasTools(
   const [calloutFocused, setCalloutFocused] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [linkPending, setLinkPending] = useState(false);
+  const [blurring, setBlurring] = useState(false);
+  const [blurMode, setBlurMode] = useState<RedactMode>('blur');
+  const [blurDraft, setBlurDraft] = useState<{
+    url: string;
+    rects: RedactRect[];
+  }>({ url: '', rects: [] });
   const geometryRef = useRef<StageGeometry | null>(null);
   const onGeometry = useCallback((g: StageGeometry) => {
     geometryRef.current = g;
@@ -80,10 +89,35 @@ export function useCanvasTools(
     [steps, currentImageIndex]
   );
   const selected = slideSteps.find((s) => s.id === selectedStepId) ?? null;
+  const slideUrl = imageUrls[currentImageIndex] ?? '';
+  const canBlur = slideUrl !== '' && imageKinds[currentImageIndex] !== 'video';
+  const blurActive = blurring && canBlur;
+  const blurRects = blurDraft.url === slideUrl ? blurDraft.rects : [];
+  const setBlurRects = useCallback(
+    (rects: RedactRect[]) => setBlurDraft({ url: slideUrl, rects }),
+    [slideUrl]
+  );
+  const exitBlur = useCallback(() => {
+    setBlurring(false);
+    setBlurDraft({ url: '', rects: [] });
+  }, []);
+  const toggleBlur = useCallback(() => {
+    if (blurActive) {
+      exitBlur();
+      return;
+    }
+    if (!canBlur) return;
+    setDraft(null);
+    setAddingStep(false);
+    setEditing(null);
+    setSelectedStepId(null);
+    setBlurring(true);
+  }, [blurActive, canBlur, exitBlur, setAddingStep, setSelectedStepId]);
 
   const chooseTool = useCallback(
     (next: DrawShape | null) => {
       setDraft(null);
+      setBlurring(false);
       if (next) setShape(next);
       setAddingStep(next !== null);
     },
@@ -250,6 +284,7 @@ export function useCanvasTools(
       { id: 'tool-rect', key: 'r', run: () => chooseTool('rect') },
       { id: 'tool-ellipse', key: 'e', run: () => chooseTool('ellipse') },
       { id: 'tool-polygon', key: 'p', run: () => chooseTool('polygon') },
+      { id: 'tool-blur', key: 'b', run: toggleBlur },
       {
         id: 'close-polygon',
         key: 'Enter',
@@ -261,16 +296,19 @@ export function useCanvasTools(
         key: 'Escape',
         whileEditing: true,
         // The link prompt handles its own Escape; editing stays open behind it.
-        when: () => !linkPending && (addingStep || editingStepId !== null),
+        when: () =>
+          !linkPending && (addingStep || blurActive || editingStepId !== null),
         run: () => {
           if (editingStepId) setEditing(null);
+          else if (blurActive) exitBlur();
           else chooseTool(null);
         },
       },
       {
         id: 'edit-callout',
         key: 'Enter',
-        when: (e) => selected !== null && !addingStep && onCanvas(e),
+        when: (e) =>
+          selected !== null && !addingStep && !blurActive && onCanvas(e),
         run: () => selected && setEditing(selected.id),
       },
       {
@@ -333,6 +371,9 @@ export function useCanvasTools(
     selected,
     nudge,
     chooseTool,
+    toggleBlur,
+    blurActive,
+    exitBlur,
     addingStep,
     shape,
     polygonDraft,
@@ -364,6 +405,14 @@ export function useCanvasTools(
     setEditingStepId: setEditing,
     linkPending,
     onGeometry,
+    canBlur,
+    blurActive,
+    toggleBlur,
+    exitBlur,
+    blurMode,
+    setBlurMode,
+    blurRects,
+    setBlurRects,
   };
 }
 

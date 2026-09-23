@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Circle,
+  EyeOff,
   Hexagon,
   Maximize,
   Minus,
@@ -15,6 +16,8 @@ import { DeviceFrame } from './DeviceFrame';
 import { draftSetForStage } from './draftSet';
 import { StudioEditLayer, type DrawShape } from './StudioEditLayer';
 import { InlineCalloutEditor } from './InlineCalloutEditor';
+import { BlurTool } from './BlurTool';
+import { useApplyRedaction } from './useApplyRedaction';
 import { viewTransform } from './useCanvasViewport';
 import type { CanvasTools } from './useCanvasTools';
 import type { DevicePreset, StageGeometry, StageStep } from '../../types/stage';
@@ -76,7 +79,16 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     setEditingStepId,
     linkPending,
     onGeometry,
+    canBlur,
+    blurActive,
+    toggleBlur,
+    exitBlur,
+    blurMode,
+    setBlurMode,
+    blurRects,
+    setBlurRects,
   } = tools;
+  const redaction = useApplyRedaction(state);
 
   const set = useMemo(
     () =>
@@ -112,7 +124,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
 
   const selectedStep = steps.find((s) => s.id === selectedStepId) ?? null;
   const shownStepId =
-    selectedStep && selectedStep.imageIndex === currentImageIndex
+    !blurActive && selectedStep && selectedStep.imageIndex === currentImageIndex
       ? selectedStep.id
       : null;
   const zoomScale =
@@ -123,29 +135,41 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       : 1;
 
   const renderEditLayer = useCallback(
-    (g: StageGeometry) => (
-      <StudioEditLayer
-        g={g}
-        zoom={viewport.view.zoom}
-        steps={steps}
-        imageIndex={currentImageIndex}
-        selectedStepId={shownStepId}
-        adding={addingStep}
-        shape={shape}
-        polygonDraft={polygonDraft}
-        onPolygonDraft={setPolygonDraft}
-        onClosePolygon={closePolygon}
-        onSelect={setSelectedStepId}
-        onChange={updateStep}
-        onAdd={(at, region) => addStepAt(at.xPct, at.yPct, region)}
-        onCalloutFocus={setCalloutFocused}
-        onEditCallout={setEditingStepId}
-        editing={editingStepId !== null}
-        beginGesture={beginGesture}
-        endGesture={endGesture}
-      />
-    ),
+    (g: StageGeometry) =>
+      blurActive ? (
+        <BlurTool
+          g={g}
+          rects={blurRects}
+          mode={blurMode}
+          onChange={setBlurRects}
+        />
+      ) : (
+        <StudioEditLayer
+          g={g}
+          zoom={viewport.view.zoom}
+          steps={steps}
+          imageIndex={currentImageIndex}
+          selectedStepId={shownStepId}
+          adding={addingStep}
+          shape={shape}
+          polygonDraft={polygonDraft}
+          onPolygonDraft={setPolygonDraft}
+          onClosePolygon={closePolygon}
+          onSelect={setSelectedStepId}
+          onChange={updateStep}
+          onAdd={(at, region) => addStepAt(at.xPct, at.yPct, region)}
+          onCalloutFocus={setCalloutFocused}
+          onEditCallout={setEditingStepId}
+          editing={editingStepId !== null}
+          beginGesture={beginGesture}
+          endGesture={endGesture}
+        />
+      ),
     [
+      blurActive,
+      blurRects,
+      blurMode,
+      setBlurRects,
       viewport.view.zoom,
       steps,
       currentImageIndex,
@@ -180,6 +204,11 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     },
     [steps, updateStep, setEditingStepId, linkPending]
   );
+
+  const applyBlur = async () => {
+    const done = await redaction.apply(currentImageIndex, blurRects, blurMode);
+    if (done) exitBlur();
+  };
 
   if (imageUrls.length === 0) {
     return (
@@ -244,11 +273,11 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       >
         <button
           type="button"
-          aria-pressed={!addingStep}
+          aria-pressed={!addingStep && !blurActive}
           aria-label={t('glStudio.toolSelect')}
           title={t('glStudio.toolSelect')}
           onClick={() => chooseTool(null)}
-          className={toolClass(!addingStep)}
+          className={toolClass(!addingStep && !blurActive)}
         >
           <MousePointer2 className="h-4 w-4" aria-hidden="true" />
         </button>
@@ -269,7 +298,69 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
             </button>
           );
         })}
+        <span className="mx-0.5 h-5 w-px bg-slate-200" aria-hidden="true" />
+        <button
+          type="button"
+          aria-pressed={blurActive}
+          aria-label={t('glStudio.tool_blur')}
+          title={canBlur ? t('glStudio.tool_blur') : t('glStudio.blurNoVideo')}
+          onClick={toggleBlur}
+          disabled={!canBlur}
+          className={`${toolClass(blurActive)} disabled:opacity-40`}
+        >
+          <EyeOff className="h-4 w-4" aria-hidden="true" />
+        </button>
       </div>
+
+      {blurActive && (
+        <div
+          role="group"
+          aria-label={t('glStudio.blurTitle')}
+          data-testid="gl-blur-bar"
+          className="absolute left-1/2 top-2 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-slate-200 bg-white/95 p-1 pl-3 text-xs shadow-md"
+        >
+          <span className="font-bold text-slate-700" aria-live="polite">
+            {blurRects.length > 0
+              ? t('glStudio.blurCount', { count: blurRects.length })
+              : t('glStudio.blurHint')}
+          </span>
+          <div className="flex rounded-md bg-slate-100 p-0.5">
+            {(['blur', 'solid'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                aria-pressed={blurMode === m}
+                onClick={() => setBlurMode(m)}
+                className={`rounded px-2 py-1 font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
+                  blurMode === m
+                    ? 'bg-white text-slate-800 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-800'
+                }`}
+              >
+                {t(`glStudio.blurMode_${m}`)}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => void applyBlur()}
+            disabled={blurRects.length === 0 || redaction.applying}
+            className="rounded-md bg-brand-blue-primary px-3 py-1.5 font-bold text-white hover:bg-brand-blue-dark disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1"
+          >
+            {redaction.applying
+              ? t('glStudio.blurApplying')
+              : t('glStudio.blurApply')}
+          </button>
+          <button
+            type="button"
+            onClick={exitBlur}
+            disabled={redaction.applying}
+            className="rounded-md px-2 py-1.5 font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+          >
+            {t('common.cancel')}
+          </button>
+        </div>
+      )}
 
       {addingStep && (
         <p className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-slate-900/90 px-3 py-1 text-xs font-bold text-white shadow">
