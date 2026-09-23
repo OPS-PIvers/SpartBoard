@@ -33,7 +33,8 @@ import {
   type SubShareBundle,
   type SubShareBundleItem,
   type SubShareBundleServices,
-  subShareNeedsGoogleServices,
+  subShareNeedsCalendar,
+  subShareNeedsDrive,
 } from '@/utils/bundleSubShareContent';
 import {
   extractSubShareNames,
@@ -43,10 +44,15 @@ import {
   type SubShareNamesServices,
 } from '@/utils/subShareNames';
 import { GoogleCalendarService } from '@/utils/googleCalendarService';
+import { QuizDriveService } from '@/utils/quizDriveService';
+import { MockQuizDriveService } from '@/utils/mockQuizDriveService';
+import { normalizeVideoActivityQuestions } from '@/utils/videoActivityNormalize';
 import { useAuth } from '@/context/useAuth';
 import { subShareContentId } from '@/utils/subShareContent';
 import type {
+  CalendarEvent,
   Dashboard,
+  VideoActivityData,
   SharedCollection,
   SharedCollectionBoardDoc,
   SharedCollectionBoardEntry,
@@ -379,7 +385,8 @@ function mergeDriveGrants(
 }
 
 export const useSharedCollection = () => {
-  const { ensureGoogleScope } = useAuth();
+  const { ensureGoogleScope, googleAccessToken, user } = useAuth();
+  const hostUid = user?.uid;
 
   /**
    * The Google reads only the teacher's session can make. Non-interactive:
@@ -389,18 +396,58 @@ export const useSharedCollection = () => {
    */
   const bundleServices = useCallback(
     async (boards: Dashboard[]): Promise<SubShareBundleServices> => {
-      // Most shares carry no widget that needs one, and sharing is a hot
-      // action: don't pay for a GIS round-trip nothing will read.
-      if (!subShareNeedsGoogleServices(boards)) return {};
-      const token = await ensureGoogleScope('calendar.readonly');
-      if (!token) return {};
-      const calendar = new GoogleCalendarService(token);
+      // Each reader is fetched only when a board wants it: sharing is a hot
+      // action, and a GIS round-trip nothing will read is pure latency. They
+      // are independent, so a teacher who never granted Calendar still gets
+      // their video activities bundled.
+      const calendarToken = subShareNeedsCalendar(boards)
+        ? await ensureGoogleScope('calendar.readonly')
+        : null;
+      // `drive.file` is granted at login, so Drive needs no on-demand scope.
+      const drive = !subShareNeedsDrive(boards)
+        ? null
+        : isAuthBypass
+          ? hostUid
+            ? new MockQuizDriveService(hostUid)
+            : null
+          : googleAccessToken
+            ? new QuizDriveService(googleAccessToken)
+            : null;
       return {
-        readCalendar: (id, timeMin, timeMax) =>
-          calendar.getEvents(id, timeMin, timeMax),
+        ...(calendarToken
+          ? {
+              readCalendar: (
+                id: string,
+                timeMin: string,
+                timeMax: string
+              ): Promise<CalendarEvent[]> =>
+                new GoogleCalendarService(calendarToken).getEvents(
+                  id,
+                  timeMin,
+                  timeMax
+                ),
+            }
+          : {}),
+        ...(drive
+          ? {
+              loadVideoActivity: async (
+                fileId: string
+              ): Promise<VideoActivityData> => {
+                const raw = (await drive.loadQuiz(fileId)) as unknown as
+                  | VideoActivityData
+                  | undefined;
+                if (!raw) throw new Error('video activity file was empty');
+                // An older client may have written questions with no `type`.
+                return {
+                  ...raw,
+                  questions: normalizeVideoActivityQuestions(raw.questions),
+                };
+              },
+            }
+          : {}),
       };
     },
-    [ensureGoogleScope]
+    [ensureGoogleScope, googleAccessToken, hostUid]
   );
 
   /**
