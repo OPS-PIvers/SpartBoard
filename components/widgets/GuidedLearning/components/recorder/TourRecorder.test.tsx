@@ -252,4 +252,57 @@ describe('TourRecorder', () => {
       ['sidebar.classes', 1],
     ]);
   });
+
+  it('waits for a frame the shared tab captured after the pill hid', async () => {
+    const pending: VideoFrameRequestCallback[] = [];
+    Object.defineProperty(
+      HTMLVideoElement.prototype,
+      'requestVideoFrameCallback',
+      {
+        configurable: true,
+        value: (cb: VideoFrameRequestCallback) => pending.push(cb),
+      }
+    );
+    const deliver = (captureTime: number) => {
+      const cb = pending.shift();
+      cb?.(performance.now(), { captureTime } as VideoFrameCallbackMetadata);
+    };
+    try {
+      const onFinish = renderRecorder();
+      await startRecording();
+      fireEvent.pointerDown(screen.getByText('Boards'), { button: 0 });
+      await settle();
+      expect(pending).toHaveLength(1);
+      // Still in the pipeline from before the pill hid.
+      deliver(0);
+      await settle();
+      expect(h.grabFrame).not.toHaveBeenCalled();
+      expect(screen.getByTestId('tour-recorder').style.visibility).toBe(
+        'hidden'
+      );
+      deliver(performance.now());
+      await settle();
+      expect(h.pillVisibility).toEqual(['hidden']);
+      expect(screen.getByTestId('tour-recorder').style.visibility).toBe('');
+      const recording = await finish(onFinish);
+      expect(recording.steps).toHaveLength(1);
+    } finally {
+      delete (HTMLVideoElement.prototype as Partial<HTMLVideoElement>)
+        .requestVideoFrameCallback;
+    }
+  });
+
+  it('marks the element hovered before the pointer reached Mark step', async () => {
+    const onFinish = renderRecorder();
+    await startRecording();
+    fireEvent.pointerMove(screen.getByText('Boards'));
+    const mark = screen.getByRole('button', { name: 'Mark step' });
+    fireEvent.pointerMove(mark);
+    fireEvent.click(mark);
+    await settle();
+    const recording = await finish(onFinish);
+    expect(recording.steps.map((s) => [s.tour.anchor, s.tour.action])).toEqual([
+      ['sidebar.boards', 'observe'],
+    ]);
+  });
 });
