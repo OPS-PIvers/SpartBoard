@@ -425,6 +425,7 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
             state={editorState}
             canvasRef={canvasRef}
             aiDrafts={aiDrafts}
+            liveTours={!!set.isBuilding && canAccessFeature('gl-live-tours')}
           />
         </aside>
       </div>

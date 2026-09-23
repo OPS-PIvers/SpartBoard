@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Activity, ArrowLeftRight, Sparkles } from 'lucide-react';
 import { GuidedLearningStepEditor } from '../GuidedLearningStepEditor';
 import { StudioRegionControls } from './StudioRegionControls';
+import { StudioTourControls } from './StudioTourControls';
 import { StudioNarration, StudioNarrationBatch } from './StudioNarration';
 import { SettingChip } from '../editorShared/SettingChip';
 import { WelcomeChip } from '../editorShared/WelcomeChip';
@@ -20,6 +21,8 @@ interface StudioPropertiesPanelProps {
   canvasRef: React.RefObject<HTMLElement | null>;
   /** Recorder-drafted step text, flagged until the author edits it. */
   aiDrafts?: ReadonlyMap<string, { label: string; text: string }>;
+  /** Shows each step's live-tour link; building sets with live tours only. */
+  liveTours?: boolean;
 }
 
 const findStageVideo = (canvas: HTMLElement | null) =>
@@ -57,6 +60,7 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
   state,
   canvasRef,
   aiDrafts,
+  liveTours = false,
 }) => {
   const { t } = useTranslation();
   const {
@@ -105,6 +109,9 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
           </p>
         )}
         <StudioRegionControls step={selectedStep} onChange={updateStep} />
+        {liveTours && (
+          <StudioTourControls step={selectedStep} onChange={updateStep} />
+        )}
         <StudioNarration
           key={`narration-${selectedStep.id}`}
           state={state}
