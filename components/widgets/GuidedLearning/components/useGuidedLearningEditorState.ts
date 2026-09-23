@@ -2,6 +2,7 @@ import { useCallback, useMemo, useReducer, useRef, useState } from 'react';
 import {
   GuidedLearningSet,
   GuidedLearningMode,
+  GuidedLearningNarration,
   GuidedLearningRegion,
   GuidedLearningStep,
   GuidedLearningSetMetadata,
@@ -14,6 +15,7 @@ import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
 import { isGuidedLearningSetV2 } from '../utils/setMigration';
 import { slideMediaRef } from '../utils/slideMedia';
+import { narrationDeletionRef } from '../utils/narration';
 import {
   getMediaKind,
   prepareImageForUpload,
@@ -117,6 +119,16 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   deleteStep: (id: string) => void;
   /** Apply a new ordering of the entire steps array (e.g. from drag-reorder). */
   reorderSteps: (next: GuidedLearningStep[]) => void;
+  /** Uploads a recorded narration take for this editing session. */
+  uploadNarrationTake: (
+    blob: Blob,
+    mimeType: string
+  ) => Promise<{ url: string; storagePath: string }>;
+  /** Sets or clears a step's narration; a take recorded this session is queued for deletion when replaced. */
+  setStepNarration: (
+    stepId: string,
+    next: GuidedLearningNarration | undefined
+  ) => void;
   // Folder picker
   folders?: LibraryFolder[];
   folderId?: string | null;
@@ -554,6 +566,52 @@ export function useGuidedLearningEditorState({
     [setSteps]
   );
 
+  // Takes from earlier sessions may be shared by copies or live assignments, so only this session's are ever deleted.
+  const sessionTakesRef = useRef<Set<string>>(new Set());
+  const uploadNarrationTake = useCallback(
+    async (blob: Blob, mimeType: string) => {
+      if (!user) throw new Error('Not signed in');
+      const ext = mimeType.includes('mp4')
+        ? 'm4a'
+        : mimeType.includes('ogg')
+          ? 'ogg'
+          : 'webm';
+      const { url, storagePath } = await uploadGuidedLearningMedia(
+        user.uid,
+        blob,
+        `narration.${ext}`
+      );
+      sessionTakesRef.current.add(storagePath);
+      return { url, storagePath };
+    },
+    [user, uploadGuidedLearningMedia]
+  );
+
+  const setStepNarration = useCallback(
+    (stepId: string, next: GuidedLearningNarration | undefined) => {
+      const prev = historyRef.current.present.steps.find(
+        (s) => s.id === stepId
+      )?.narration;
+      applyDoc((doc) => ({
+        ...doc,
+        steps: doc.steps.map((s) => {
+          if (s.id !== stepId) return s;
+          if (next) return { ...s, narration: next };
+          const { narration: _removed, ...rest } = s;
+          return rest;
+        }),
+      }));
+      const ref = narrationDeletionRef(prev);
+      if (
+        ref &&
+        ref.storagePath !== next?.storagePath &&
+        sessionTakesRef.current.has(ref.storagePath)
+      )
+        dispatch({ type: 'queueMedia', ref });
+    },
+    [applyDoc]
+  );
+
   const canvasMeasurementsRef = useRef<GuidedLearningCanvasMeasurements | null>(
     null
   );
@@ -653,6 +711,8 @@ export function useGuidedLearningEditorState({
     updateStep,
     deleteStep,
     reorderSteps,
+    uploadNarrationTake,
+    setStepNarration,
     folders,
     folderId,
     onFolderChange,
