@@ -13,7 +13,10 @@ import {
 import type { EditorHistoryApi } from '../types/stage';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
-import { isGuidedLearningSetV2 } from '../utils/setMigration';
+import {
+  isGuidedLearningSetV2,
+  stepUsesSpotlight,
+} from '../utils/setMigration';
 import { slideMediaRef } from '../utils/slideMedia';
 import { narrationDeletionRef } from '../utils/narration';
 import {
@@ -151,6 +154,10 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   ) => Promise<void>;
 }
 
+// A set with no spotlight has no radius to convert, so it needs no load-time measuring.
+const startsOnV2Radii = (set: GuidedLearningSet | null) =>
+  !set || isGuidedLearningSetV2(set) || !set.steps.some(stepUsesSpotlight);
+
 /**
  * Owns all state for the Guided Learning editor. Returned as a controller
  * object that the modal hands to the context + detail pane components.
@@ -264,7 +271,7 @@ export function useGuidedLearningEditorState({
     useState<SlideUploadProgress | null>(null);
   const [canvasMeasuredTick, setCanvasMeasuredTick] = useState(0);
   const [spotlightRadiiV2, setSpotlightRadiiV2] = useState<boolean>(() =>
-    existingSet ? isGuidedLearningSetV2(existingSet) : true
+    startsOnV2Radii(existingSet)
   );
 
   // Reset all draft state when the underlying set identity changes (parent
@@ -282,9 +289,7 @@ export function useGuidedLearningEditorState({
     setImageError('');
     setAddingStep(false);
     setUploadProgress(null);
-    setSpotlightRadiiV2(
-      existingSet ? isGuidedLearningSetV2(existingSet) : true
-    );
+    setSpotlightRadiiV2(startsOnV2Radii(existingSet));
   }
 
   // Render-synced mirror of imageUrls.length so the sequential upload loop

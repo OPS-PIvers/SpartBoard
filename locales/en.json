@@ -3649,6 +3649,8 @@
     "done": "Done"
   },
   "glStudio": {
+    "needSlide": "Not ready to use yet: add at least one slide.",
+    "needTitle": "Not ready to use yet: give this activity a title.",
     "classicEditorNotice": "This activity uses Studio features. Edit regions and callouts in the Studio.",
     "close": "Close editor",
     "closeAnyway": "Close anyway",

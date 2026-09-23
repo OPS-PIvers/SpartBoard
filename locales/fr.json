@@ -2518,6 +2518,8 @@
     "done": "Terminé"
   },
   "glStudio": {
+    "needSlide": "Pas encore prête : ajoutez au moins une diapositive.",
+    "needTitle": "Pas encore prête : donnez un titre à cette activité.",
     "classicEditorNotice": "Cette activité utilise des fonctions du Studio. Modifiez les zones et les bulles dans le Studio.",
     "close": "Fermer l’éditeur",
     "closeAnyway": "Fermer quand même",

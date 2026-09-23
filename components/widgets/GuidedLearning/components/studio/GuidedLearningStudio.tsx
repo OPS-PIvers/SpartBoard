@@ -287,6 +287,13 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
         onTitleChange={editorState.setTitle}
         titlePlaceholder={t('glStudio.titlePlaceholder')}
         subtitle={t('glStudio.stepCount', { count: stepCount })}
+        notice={
+          editorState.imageUrls.length === 0
+            ? t('glStudio.needSlide')
+            : !editorState.title.trim()
+              ? t('glStudio.needTitle')
+              : null
+        }
         autosaveStatus={autosave.status}
         onRetrySave={() => void autosave.flush()}
         onDraftWithAi={canUseAi ? () => setShowAiGen(true) : undefined}
