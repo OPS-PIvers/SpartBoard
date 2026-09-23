@@ -186,25 +186,38 @@ describe('assign gates', () => {
     ).toBeNull();
   });
 
+  const URL = 'https://youtu.be/abc';
+
   // A video with no questions is a watch-only assignment, which is a real
   // thing teachers hand out.
   it('lets a question-free video activity be assigned', () => {
-    expect(videoActivityAssignBlocker({ questions: [] })).toBeNull();
+    expect(
+      videoActivityAssignBlocker({ youtubeUrl: URL, questions: [] })
+    ).toBeNull();
+  });
+
+  it('blocks a video activity with no video', () => {
+    expect(videoActivityAssignBlocker({ youtubeUrl: ' ', questions: [] })).toBe(
+      'it has no video'
+    );
   });
 
   it('blocks a video activity question that cannot be graded', () => {
     expect(
       videoActivityAssignBlocker({
+        youtubeUrl: URL,
         questions: [vaQuestion({ correctAnswer: '' })],
       })
     ).toBe('question 1 has no correct answer');
     expect(
       videoActivityAssignBlocker({
+        youtubeUrl: URL,
         questions: [vaQuestion({ type: 'MA', correctAnswer: ' | ' })],
       })
     ).toBe('question 1 has no correct answer');
     expect(
       videoActivityAssignBlocker({
+        youtubeUrl: URL,
         questions: [vaQuestion({ type: 'MA', correctAnswer: 'A|B' })],
       })
     ).toBeNull();
@@ -213,6 +226,7 @@ describe('assign gates', () => {
   it('blocks an MA option containing the | separator', () => {
     expect(
       videoActivityAssignBlocker({
+        youtubeUrl: URL,
         questions: [
           vaQuestion({
             type: 'MA',

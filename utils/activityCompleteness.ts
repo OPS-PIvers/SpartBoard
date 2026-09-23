@@ -114,8 +114,12 @@ export const quizAssignBlocker = ({
  * legitimate watch-only assignment, so only broken questions block.
  */
 export const videoActivityAssignBlocker = ({
+  youtubeUrl,
   questions,
-}: Pick<VideoActivityCompletenessInput, 'questions'>): string | null => {
+}: Pick<VideoActivityCompletenessInput, 'youtubeUrl' | 'questions'>):
+  | string
+  | null => {
+  if (!youtubeUrl?.trim()) return 'it has no video';
   for (let i = 0; i < questions.length; i += 1) {
     const q = questions[i];
     if (!q.text.trim()) return `question ${i + 1} has no text`;
