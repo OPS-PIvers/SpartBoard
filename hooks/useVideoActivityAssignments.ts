@@ -56,7 +56,10 @@ import type {
   VideoActivityScoreVisibility,
   VideoActivitySession,
 } from '@/types';
-import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
+import {
+  gradeVideoActivityAnswer,
+  dedupeQuestionsById,
+} from '@/utils/videoActivityGrading';
 import {
   splitVideoActivitySessionQuestions,
   VA_KEY_DOC_ID,
@@ -992,8 +995,9 @@ export const useVideoActivityAssignments = (
         assignmentId
       );
 
+      // Dedupe first-wins before indexing — mirrors useQuizAssignments; last-wins can grade against a duplicate's differing correctAnswer.
       const questionsById = new Map(
-        activityData.questions.map((q) => [q.id, q])
+        dedupeQuestionsById(activityData.questions).map((q) => [q.id, q])
       );
 
       // Read responses in bounded pages (limit + documentId cursor) rather
@@ -1084,7 +1088,8 @@ export const useVideoActivityAssignments = (
       };
       if (visibility === 'score-responses-and-answers') {
         const revealedAnswers: Record<string, string> = {};
-        for (const q of activityData.questions) {
+        // First-wins, matching the grading map above — the revealed answer must match what the student was graded against.
+        for (const q of dedupeQuestionsById(activityData.questions)) {
           revealedAnswers[q.id] = q.correctAnswer;
         }
         sessionPatch.revealedAnswers = revealedAnswers;

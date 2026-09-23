@@ -796,9 +796,10 @@ export function buildResponseGradingContext(
   quizData: QuizData,
   assignmentData: Record<string, unknown> | undefined
 ): ResponseGradingContext {
-  // Canonical questions (from Drive) carry the full `correctAnswer`.
+  // Dedupe first-wins (matches session creation) — last-wins can grade against a duplicate's differing correctAnswer.
   const questionsById = new Map<string, QuizQuestion>();
-  for (const q of quizData.questions) questionsById.set(q.id, q);
+  for (const q of dedupeQuestionsById(quizData.questions))
+    questionsById.set(q.id, q);
   return {
     questionsById,
     overridesByStudentUid: (assignmentData?.overridesByStudentUid ??
@@ -817,7 +818,9 @@ export function buildRevealedAnswers(
   quizData: QuizData
 ): Record<string, string> {
   const revealed: Record<string, string> = {};
-  for (const q of quizData.questions) revealed[q.id] = q.correctAnswer;
+  // First-wins, matching buildResponseGradingContext — the revealed answer must match what the student was graded against.
+  for (const q of dedupeQuestionsById(quizData.questions))
+    revealed[q.id] = q.correctAnswer;
   return revealed;
 }
 
