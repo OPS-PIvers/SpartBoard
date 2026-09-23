@@ -409,6 +409,16 @@ describe('useSharedCollection', () => {
       ] as unknown as Dashboard['widgets'],
     });
 
+    // Sharing is a hot action and most shares have no Calendar widget: a GIS
+    // round-trip nothing will read is pure latency.
+    it('mints no token for a share with nothing that needs one', async () => {
+      ensureGoogleScopeMock.mockClear();
+
+      await shareWithDrawing([drawingBoard('b1')]);
+
+      expect(ensureGoogleScopeMock).not.toHaveBeenCalled();
+    });
+
     // The bundler cannot mint a Google token; this hook is where the teacher's
     // own one is passed in, so the wiring is only provable from here.
     it('reads the teacher’s calendar with their own granted token', async () => {

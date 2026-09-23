@@ -303,6 +303,14 @@ function personalCalendarWidgets(board: Dashboard): WidgetData[] {
   });
 }
 
+/**
+ * Whether anything on these boards needs a Google read, so a share with no
+ * such widget does not pay for a token round-trip it will never use.
+ */
+export function subShareNeedsGoogleServices(boards: Dashboard[]): boolean {
+  return boards.some((board) => personalCalendarWidgets(board).length > 0);
+}
+
 /** How far ahead a share reaches, per the plan's §3.3 Calendar row. */
 const CALENDAR_BUNDLE_DAYS = 14;
 

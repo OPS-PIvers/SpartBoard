@@ -33,6 +33,7 @@ import {
   type SubShareBundle,
   type SubShareBundleItem,
   type SubShareBundleServices,
+  subShareNeedsGoogleServices,
 } from '@/utils/bundleSubShareContent';
 import { GoogleCalendarService } from '@/utils/googleCalendarService';
 import { useAuth } from '@/context/useAuth';
@@ -337,8 +338,11 @@ export const useSharedCollection = () => {
    * a teacher who never granted Calendar gets a "couldn't be read" line on the
    * share screen instead, and their own widget still offers the connect CTA.
    */
-  const bundleServices =
-    useCallback(async (): Promise<SubShareBundleServices> => {
+  const bundleServices = useCallback(
+    async (boards: Dashboard[]): Promise<SubShareBundleServices> => {
+      // Most shares carry no widget that needs one, and sharing is a hot
+      // action: don't pay for a GIS round-trip nothing will read.
+      if (!subShareNeedsGoogleServices(boards)) return {};
       const token = await ensureGoogleScope('calendar.readonly');
       if (!token) return {};
       const calendar = new GoogleCalendarService(token);
@@ -346,7 +350,9 @@ export const useSharedCollection = () => {
         readCalendar: (id, timeMin, timeMax) =>
           calendar.getEvents(id, timeMin, timeMax),
       };
-    }, [ensureGoogleScope]);
+    },
+    [ensureGoogleScope]
+  );
 
   /**
    * Host action: write the share metadata + every Board snapshot in a
@@ -495,7 +501,7 @@ export const useSharedCollection = () => {
       const bundle = await bundleSubShareContent({
         hostUid: input.hostUid,
         boards: input.boards,
-        services: await bundleServices(),
+        services: await bundleServices(input.boards),
       });
       await commitContentBatches({ shareId, items: bundle.items });
       input.onBundle?.(bundle);
@@ -594,7 +600,7 @@ export const useSharedCollection = () => {
       const bundle = await bundleSubShareContent({
         hostUid: current.hostUid,
         boards: input.boards,
-        services: await bundleServices(),
+        services: await bundleServices(input.boards),
       });
       // What the last push bundled, read back rather than tracked on the
       // parent doc: the host can list it, and a list that drifts from the docs
