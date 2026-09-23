@@ -1,6 +1,9 @@
 import { useInSubShare, useShareContent } from '@/hooks/useShareContent';
 import type { CalendarEvent, SubShareCalendarPayload } from '@/types';
 
+/** A stable reference, so the widget's event memo is not defeated by `?? []`. */
+const EMPTY_EVENTS: CalendarEvent[] = [];
+
 export interface SubShareCalendar {
   /** False everywhere but `/subs`, where the caller must use this instead. */
   active: boolean;
@@ -24,7 +27,7 @@ export function useSubShareCalendar(widgetId: string): SubShareCalendar {
   );
   return {
     active: inShare,
-    events: bundled.payload?.events ?? [],
+    events: bundled.payload?.events ?? EMPTY_EVENTS,
     loading: bundled.status === 'loading',
   };
 }
