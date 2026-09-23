@@ -143,7 +143,8 @@ export interface UseVideoActivitySessionTeacherResult {
     /** Assignment-policy options (security, feedback, attempt limits,
      *  scoring). Optional — when omitted the session doc carries player-
      *  behavior settings only and grading falls back to legacy semantics. */
-    sessionOptions?: VideoActivitySessionOptions
+    sessionOptions?: VideoActivitySessionOptions,
+    periodGate?: Pick<VideoActivitySession, 'accessMode' | 'periodAccess'>
   ) => Promise<string>;
   /** Sessions created by the current teacher for the selected activity. */
   sessions: VideoActivitySession[];
