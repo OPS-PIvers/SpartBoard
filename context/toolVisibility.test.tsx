@@ -500,6 +500,74 @@ describe('addWidget — Materials seeds from the teacher preferences', () => {
   });
 });
 
+describe('addWidget — placement', () => {
+  const rectsOverlap = (a: WidgetData, b: WidgetData): boolean =>
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+  it('centers the first widget and puts the next one in open space', async () => {
+    setup();
+    await pushSnapshot([makeDashboard(TWO_WIDGETS())]);
+    await settleDock();
+
+    act(() => {
+      getDashboard().addWidget('clock');
+    });
+    act(() => {
+      getDashboard().addWidget('clock');
+    });
+
+    await waitFor(() => {
+      expect(getDashboard().activeDashboard?.widgets.length).toBe(4);
+    });
+    const [first, second] =
+      getDashboard().activeDashboard?.widgets.filter(
+        (w) => w.type === 'clock'
+      ) ?? [];
+    const centerX = first.x + first.w / 2;
+    expect(Math.abs(centerX - window.innerWidth / 2)).toBeLessThan(2);
+    expect(rectsOverlap(first, second)).toBe(false);
+  });
+
+  it('pulls an explicit position that would open off screen back into view', async () => {
+    setup();
+    await pushSnapshot([makeDashboard(TWO_WIDGETS())]);
+    await settleDock();
+
+    act(() => {
+      getDashboard().addWidget('clock', { x: window.innerWidth - 50, y: 200 });
+    });
+
+    await waitFor(() => {
+      expect(getDashboard().activeDashboard?.widgets.length).toBe(3);
+    });
+    const added = getDashboard().activeDashboard?.widgets.find(
+      (w) => w.type === 'clock'
+    );
+    expect((added?.x ?? -1) + (added?.w ?? 0)).toBeLessThanOrEqual(
+      window.innerWidth
+    );
+    expect(added?.x ?? -1).toBeGreaterThanOrEqual(0);
+  });
+
+  it('keeps an explicit position', async () => {
+    setup();
+    await pushSnapshot([makeDashboard(TWO_WIDGETS())]);
+    await settleDock();
+
+    act(() => {
+      getDashboard().addWidget('clock', { x: 300, y: 200 });
+    });
+
+    await waitFor(() => {
+      expect(getDashboard().activeDashboard?.widgets.length).toBe(3);
+    });
+    const added = getDashboard().activeDashboard?.widgets.find(
+      (w) => w.type === 'clock'
+    );
+    expect(added).toMatchObject({ x: 300, y: 200 });
+  });
+});
+
 describe('correctness — tool-visibility state + persistence', () => {
   // The mock env (empty selectedBuildings + empty featurePermissions) makes the
   // provider's dock-init effect seed ALL accessible tools, so 'clock' may
