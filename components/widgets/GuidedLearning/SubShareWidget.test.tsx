@@ -143,20 +143,39 @@ describe('SubShareGuidedLearningWidget', () => {
     );
   });
 
+  const denied = () => Promise.resolve({ payload: null, denied: true });
+
   it('says so when the share does not name this reader', async () => {
     render(
       <SubShareGuidedLearningWidget
         widget={widget({ playerSetId: 'set-1' })}
       />,
-      {
-        wrapper: inShare(() =>
-          Promise.resolve({ payload: null, denied: true })
-        ),
-      }
+      { wrapper: inShare(denied) }
     );
 
     expect(await screen.findByText('Not shared with you')).toBeInTheDocument();
-    expect(getDoc).not.toHaveBeenCalled();
+  });
+
+  // A building set is readable by any signed-in user, so a reader the share
+  // does not name is still entitled to it: the key refusal says nothing about
+  // a collection that never held a key.
+  it('falls back to a building set even when the key read was refused', async () => {
+    getDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ id: 'set-1', title: 'Fire drill', steps: [] }),
+    });
+
+    render(
+      <SubShareGuidedLearningWidget
+        widget={widget({ playerSetId: 'set-1' })}
+      />,
+      { wrapper: inShare(denied) }
+    );
+
+    expect(await screen.findByTestId('gl-player')).toHaveTextContent(
+      'Fire drill'
+    );
+    expect(screen.queryByText('Not shared with you')).not.toBeInTheDocument();
   });
 
   it('says so when neither the share nor the building collection has it', async () => {

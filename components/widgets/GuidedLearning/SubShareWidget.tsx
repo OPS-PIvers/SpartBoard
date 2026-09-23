@@ -100,9 +100,13 @@ export const SubShareGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     'guidedLearning',
     config.playerSetId
   );
-  // Nothing bundled is the building-set case, so only then is the read worth
-  // making: a personal set that failed to bundle is not in there either.
-  const building = useBuildingSet(config.playerSetId, status === 'missing');
+  // No key of our own is the building-set case: either the share carried none
+  // (`missing`) or it does not name this reader (`denied`), and a building set
+  // is readable by any signed-in user either way.
+  const building = useBuildingSet(
+    config.playerSetId,
+    status === 'missing' || status === 'denied'
+  );
 
   const set = payload?.set ?? building.set;
   if (set) {
@@ -116,6 +120,15 @@ export const SubShareGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       </Suspense>
     );
   }
+  if (building.loading) {
+    return (
+      <ScaledEmptyState
+        icon={Compass}
+        title="Loading the guided activity"
+        subtitle="Reading the copy your teacher shared."
+      />
+    );
+  }
   if (status === 'denied') {
     return (
       <ScaledEmptyState
@@ -125,7 +138,7 @@ export const SubShareGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       />
     );
   }
-  if (status === 'loading' || (status === 'missing' && building.loading)) {
+  if (status === 'loading') {
     return (
       <ScaledEmptyState
         icon={Compass}
