@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type * as admin from 'firebase-admin';
-import { isPeriodFrozen, withQuizSessionContent } from './quizSessionContent';
+import {
+  isPeriodFrozen,
+  PERIOD_WINDOW_GRACE_MS,
+  withQuizSessionContent,
+} from './quizSessionContent';
 
 const NOW = 1_000_000;
 
@@ -45,8 +49,8 @@ describe('isPeriodFrozen', () => {
     periodAccess: {
       A: open,
       B: { ...open, state: 'paused' },
-      C: { ...open, openAt: NOW + 1 },
-      D: { ...open, closeAt: NOW },
+      C: { ...open, openAt: NOW + PERIOD_WINDOW_GRACE_MS + 1 },
+      D: { ...open, closeAt: NOW - PERIOD_WINDOW_GRACE_MS },
     },
   };
 
@@ -60,6 +64,17 @@ describe('isPeriodFrozen', () => {
     expect(isPeriodFrozen(session, { classId: 'C' }, NOW)).toBe(true);
     expect(isPeriodFrozen(session, { classId: 'D' }, NOW)).toBe(true);
     expect(isPeriodFrozen(session, {}, NOW)).toBe(true);
+  });
+
+  it('gives the window edges the same grace as the rules', () => {
+    const edges = {
+      periodAccess: {
+        E: { ...open, openAt: NOW + PERIOD_WINDOW_GRACE_MS },
+        F: { ...open, closeAt: NOW - PERIOD_WINDOW_GRACE_MS + 1 },
+      },
+    };
+    expect(isPeriodFrozen(edges, { classId: 'E' }, NOW)).toBe(false);
+    expect(isPeriodFrozen(edges, { classId: 'F' }, NOW)).toBe(false);
   });
 
   it('lets an unexpired Let in now pass through', () => {

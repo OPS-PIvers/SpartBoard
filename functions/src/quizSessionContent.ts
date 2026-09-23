@@ -22,6 +22,9 @@ export async function withQuizSessionContent<T extends Record<string, unknown>>(
   return out as T;
 }
 
+/** Matches `beforeClose`/`afterOpen` in firestore.rules, so both gates agree at the boundary. */
+export const PERIOD_WINDOW_GRACE_MS = 120_000;
+
 interface PeriodWindow {
   state?: unknown;
   openAt?: unknown;
@@ -44,7 +47,12 @@ export function isPeriodFrozen(
   if (typeof letIn === 'number' && letIn > nowMs) return false;
   const p = typeof response.classId === 'string' ? pa[response.classId] : null;
   if (!p || p.state !== 'open') return true;
-  if (typeof p.openAt === 'number' && nowMs < p.openAt) return true;
-  if (typeof p.closeAt === 'number' && nowMs >= p.closeAt) return true;
+  if (typeof p.openAt === 'number' && nowMs < p.openAt - PERIOD_WINDOW_GRACE_MS)
+    return true;
+  if (
+    typeof p.closeAt === 'number' &&
+    nowMs >= p.closeAt + PERIOD_WINDOW_GRACE_MS
+  )
+    return true;
   return false;
 }

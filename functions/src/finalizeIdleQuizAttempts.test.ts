@@ -333,7 +333,7 @@ describe('runFinalizeIdleQuizAttempts', () => {
           periodAccess: {
             A: period('closed'),
             B: period('open'),
-            C: { ...period('open'), closeAt: NOW - MIN },
+            C: { ...period('open'), closeAt: NOW - 5 * MIN },
           },
         },
       },
