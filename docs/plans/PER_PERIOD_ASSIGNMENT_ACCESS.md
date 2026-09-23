@@ -42,7 +42,7 @@ Three existing gaps make it worse:
 | 16  | A student in a closed period sees a locked card in My Assignments with no questions.                                                                |
 | 17  | Sessions without per-period state behave exactly as today, except that quiz pause becomes rules-enforced for every quiz.                            |
 | 18  | **Let in now** unlocks one student regardless of their period's state, defaulting to the current bell.                                              |
-| 19  | Always on, no setup. Chips only render when a quiz targets more than one period.                                                                    |
+| 19  | No setup once released: chips only render when a quiz targets more than one period. It still ships behind a flag, on for Paul first (see Rollout).  |
 
 Two details chosen without asking: bell times are resolved to epoch ms on the teacher's device (no
 building timezone field exists or is needed), and a student in more than one targeted class gets in
@@ -196,22 +196,33 @@ open.
 
 ## Rollout
 
-A merge to `dev-paul` ships **rules** to the shared production project while production browsers
-still run `main`. Every phase must be safe against the older client.
+`dev-paul` deploys to `spartboard-dev`, so phases can merge there in any order. Compatibility is a
+release-time rule: at each `main` release, rules and functions must tolerate a teacher's
+already-open tab running the previous client.
 
-1. **Rules + types, additive.** `periodOpen` is a no-op without `periodAccess`; the content doc
-   rule is new. The global pause check is the one tightening. Before shipping it, confirm that
-   production's client writes nothing but allowlisted fields while paused.
-2. **Student side to `main`.** The student app reads content from the subdoc when present and
-   falls back to `publicQuestions`; it renders the locked states and handles the frozen attempt.
-   Nothing creates gated sessions yet.
-3. **Bell schedule admin + roster tagging.** Independent of 1–2.
-4. **Teacher side.** The assign-modal mode toggle, the chip strip and Let in now. Gated sessions
-   only exist from here, after every student client can read them.
+**Flag.** Add `per-period-access` to `GlobalFeature` (`types.ts`) with a `FEATURE_DEFAULTS` entry in
+`config/featureDefaults.ts` (`defaultAccessLevel: 'admin'`, `defaultEnabled: true`,
+`missingDocPublic: false`). `canAccessFeature('per-period-access')` gates the assign-modal mode
+toggle, the chip strip, Let in now, and the roster/admin bell-period fields. With the flag off,
+nothing creates `periodAccess`, so every session behaves as today. Admins always pass, so "on for
+Paul" means Paul plus the other `/admins`. Opening it: Admin Settings > Access > Global Settings >
+Per-period access > Public, which Paul does after testing in prod.
+
+1. **Rules + types.** `periodOpen` is a no-op without `periodAccess`, and the content doc rule is
+   new. The global pause check is a bug fix restoring intended behaviour, so it is exempt from the
+   flag. It is still the one tightening: before it reaches `main`, confirm that the released client
+   writes only allowlisted fields while paused.
+2. **Student side.** The student app reads content from the subdoc when present and falls back to
+   `publicQuestions`. It renders the locked states and handles the frozen attempt. It ships to
+   `main` no later than the teacher side, so no released teacher client can create a session that
+   released students cannot read.
+3. **Bell schedule admin + roster tagging**, behind the flag. Independent of 1–2.
+4. **Teacher side**, behind the flag: the assign-modal mode toggle, the chip strip and Let in now.
 5. **Video Activity**, then Guided Learning, Mini-app and Flashcards (which gain pause as part of
    adopting this).
 
-Each teacher-visible phase gets a `public/changelog.json` entry written for teachers.
+Verify on https://spartboard-dev.web.app with the mock test class. The `public/changelog.json`
+entry is written when the flag opens to everyone, not at merge.
 
 ## Open questions
 
