@@ -72,8 +72,16 @@ export function useSubShareContentLoader(
             denied: false,
           }))
           .catch((err: unknown) => {
-            logError('useSubShareContentLoader.loadKey', err, { shareId, id });
-            return { payload: null, denied: isPermissionDenied(err) };
+            // A refusal is an expected outcome here: any district viewer with
+            // the link who the share does not name hits it on every key.
+            const denied = isPermissionDenied(err);
+            if (!denied) {
+              logError('useSubShareContentLoader.loadKey', err, {
+                shareId,
+                id,
+              });
+            }
+            return { payload: null, denied };
           });
         keyCache.set(id, read);
         return read;

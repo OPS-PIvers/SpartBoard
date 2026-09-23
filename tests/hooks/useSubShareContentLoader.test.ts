@@ -3,6 +3,8 @@ import { renderHook } from '@testing-library/react';
 import { doc, getDoc } from 'firebase/firestore';
 import { useSubShareContentLoader } from '@/hooks/useSubShareContentLoader';
 
+const { mockLogError } = vi.hoisted(() => ({ mockLogError: vi.fn() }));
+
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((_db: unknown, ...path: string[]) => ({
     __path: path.join('/'),
@@ -11,7 +13,7 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 vi.mock('@/config/firebase', () => ({ db: { __mock: 'db' } }));
-vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
+vi.mock('@/utils/logError', () => ({ logError: mockLogError }));
 
 const mockGetDoc = getDoc as Mock;
 
@@ -127,7 +129,7 @@ describe('useSubShareContentLoader keys', () => {
     expect(mockGetDoc).toHaveBeenCalledTimes(1);
   });
 
-  it('says denied when the rules refuse the read', async () => {
+  it('says denied when the rules refuse the read, and logs nothing', async () => {
     mockGetDoc.mockRejectedValue({ code: 'permission-denied' });
     const { result } = renderHook(() => useSubShareContentLoader('share-1', 3));
 
@@ -135,11 +137,14 @@ describe('useSubShareContentLoader keys', () => {
       payload: null,
       denied: true,
     });
+    // Every viewer the share does not name hits this on every key, so it is
+    // not something to page through error monitoring for.
+    expect(mockLogError).not.toHaveBeenCalled();
   });
 
   // A network blip is not "this share is not yours": the widget should say the
   // key is missing, and a reload can still find it.
-  it('does not call an ordinary failure denied', async () => {
+  it('does not call an ordinary failure denied, and logs it', async () => {
     mockGetDoc.mockRejectedValue(new Error('offline'));
     const { result } = renderHook(() => useSubShareContentLoader('share-1', 3));
 
@@ -147,6 +152,7 @@ describe('useSubShareContentLoader keys', () => {
       payload: null,
       denied: false,
     });
+    expect(mockLogError).toHaveBeenCalledTimes(1);
   });
 
   it('keeps content and key caches apart', async () => {
