@@ -32,9 +32,26 @@ export interface PrintableDocument {
    * sources are object URLs it owns uses this to know when it may free them.
    */
   onImagesReady?: () => void;
+  /**
+   * Page margins drawn by the document instead of `@page`, so the browser has
+   * no margin to print its own header and footer (the "about:blank" URL) in.
+   */
+  marginMm?: { vertical: number; horizontal: number };
   /** Runs after fonts load and images decode, just before the dialog opens; may reflow the page. */
   beforePrint?: (win: Window) => void | Promise<void>;
 }
+
+// Chrome repeats a table's thead and tfoot on every printed page, which gives
+// each page its top and bottom margin once `@page` has none.
+const marginStyles = (m: { vertical: number; horizontal: number }): string => `
+  @page { margin: 0; }
+  table.page-margins { width: 100%; border-collapse: collapse; }
+  table.page-margins > thead td, table.page-margins > tfoot td { height: ${m.vertical}mm; padding: 0; }
+  table.page-margins > tbody > tr > td { padding: 0 ${m.horizontal}mm; }
+`;
+
+const withDrawnMargins = (body: string): string =>
+  `<table class="page-margins"><thead><tr><td></td></tr></thead><tfoot><tr><td></td></tr></tfoot><tbody><tr><td>${body}</td></tr></tbody></table>`;
 
 /** Throws the same pop-up message as `exportPdf` when the window is blocked. */
 export function printHtmlDocument(
@@ -52,9 +69,9 @@ export function printHtmlDocument(
   <head>
     <meta charset="utf-8" />
     <title>${escapeHtml(doc.title)}</title>
-    <style>${doc.styles}</style>
+    <style>${doc.styles}${doc.marginMm ? marginStyles(doc.marginMm) : ''}</style>
   </head>
-  <body>${doc.body}</body>
+  <body>${doc.marginMm ? withDrawnMargins(doc.body) : doc.body}</body>
 </html>`);
   printWindow.document.close();
 

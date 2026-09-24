@@ -28,7 +28,7 @@ export interface PaperTestJob {
 }
 
 const STYLES = `
-  @page { size: 215.9mm 279.4mm; margin: 18mm 20mm; }
+  @page { size: 215.9mm 279.4mm; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 11pt; }
   .brand { display: flex; align-items: center; gap: 3mm; margin-bottom: 5mm; }
@@ -75,6 +75,7 @@ export function printPaperTest(
       title: `${job.quizTitle} — test`,
       styles: STYLES,
       body: buildPaperTestHtml(job),
+      marginMm: { vertical: 18, horizontal: 20 },
     },
     openWindow
   );

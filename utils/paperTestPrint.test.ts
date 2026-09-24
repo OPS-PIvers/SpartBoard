@@ -71,6 +71,20 @@ describe('printPaperTest', () => {
     expect(win.print).toHaveBeenCalledOnce();
   });
 
+  it('draws its own page margins so the browser prints no URL footer', () => {
+    const doc = { open: vi.fn(), write: vi.fn(), close: vi.fn() };
+    const win = {
+      document: doc,
+      focus: vi.fn(),
+      print: vi.fn(),
+      close: vi.fn(),
+    };
+    printPaperTest(job, () => win as unknown as Window);
+    const written = doc.write.mock.calls[0][0] as string;
+    expect(written).toContain('@page { margin: 0; }');
+    expect(written).toContain('<table class="page-margins">');
+  });
+
   it('reports a blocked pop-up and prints nothing for an empty test', () => {
     expect(() => printPaperTest(job, () => null)).toThrow(/pop-ups/i);
     const open = vi.fn();
