@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   BookOpen,
@@ -108,6 +108,20 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
   // Trash is a collapsed subsection inside Settings (Decision §6.1) — it mounts
   // its own (heavy-ish) listeners only once expanded.
   const [trashOpen, setTrashOpen] = useState(false);
+  const trashRef = useRef<HTMLDivElement>(null);
+
+  const toggleTrash = () => {
+    const opening = !trashOpen;
+    setTrashOpen(opening);
+    if (!opening) return;
+    // Settings is long; bring the expanded Trash into view once it renders.
+    requestAnimationFrame(() => {
+      trashRef.current?.scrollIntoView?.({
+        block: 'nearest',
+        behavior: 'smooth',
+      });
+    });
+  };
   // Opt-in weekly digest (Decision 2.3). The flag lives on the PLC root doc;
   // any member can flip it. `digestOptIn` defaults to false (absent ⇒ off).
   const digestOptIn = plc.digestOptIn === true;
@@ -296,10 +310,10 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
 
       {/* Trash (Decision §6.1) — collapsed by default; expanding mounts the
           PlcTrashBody listeners. */}
-      <div className="border-t border-slate-200 pt-4">
+      <div ref={trashRef} className="border-t border-slate-200 pt-4">
         <button
           type="button"
-          onClick={() => setTrashOpen((o) => !o)}
+          onClick={toggleTrash}
           aria-expanded={trashOpen}
           aria-controls="plc-settings-trash"
           className="w-full flex items-center justify-between gap-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 rounded-lg"
