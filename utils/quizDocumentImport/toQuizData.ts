@@ -104,6 +104,8 @@ export interface ReviewExtras {
   untick: ReadonlyMap<string, string>;
   /** Learning-target lines by question id (R20). */
   suggestedTargets: ReadonlyMap<string, SuggestedTarget>;
+  /** How the answer key matched, for the review banner (R19). */
+  keySummary?: ExtractedQuiz['keySummary'];
 }
 
 // By id too: review edits hand back a copy of the quiz with the same id.
@@ -163,6 +165,11 @@ export function extractedToQuizData(
   if (reviewExtras.size >= 8) {
     reviewExtras.delete(reviewExtras.keys().next().value as string);
   }
-  reviewExtras.set(data.id, { allQuestions, untick, suggestedTargets });
+  reviewExtras.set(data.id, {
+    allQuestions,
+    untick,
+    suggestedTargets,
+    ...(extracted.keySummary ? { keySummary: extracted.keySummary } : {}),
+  });
   return data;
 }

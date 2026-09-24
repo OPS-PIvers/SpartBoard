@@ -342,3 +342,23 @@ describe('QuizDocumentReview — rows from the reliable reader (R9, R25)', () =>
     ).toBeInTheDocument();
   });
 });
+
+describe('QuizDocumentReview answer-key banner (R19)', () => {
+  it('shows how the key matched above the rows', () => {
+    render(
+      <QuizDocumentReview
+        data={quiz([question()])}
+        onChange={vi.fn()}
+        keySummary={{
+          entries: 3,
+          matched: 1,
+          unmatchedLabels: ['2', '3'],
+          conflicts: 1,
+        }}
+      />
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Answer key: 1 of 1 question matched · key lists 3 entries (2–3 matched no question) · 1 conflict'
+    );
+  });
+});

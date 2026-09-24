@@ -468,6 +468,7 @@ export function createQuizImportAdapter(
               data,
               onChange,
               images: deps.documentImages?.() ?? [],
+              keySummary: reviewExtrasFor(data)?.keySummary,
               ...(deps.canSuggestTargets
                 ? { suggestedTargets: reviewExtrasFor(data)?.suggestedTargets }
                 : {}),
