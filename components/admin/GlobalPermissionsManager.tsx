@@ -203,6 +203,13 @@ const GLOBAL_FEATURES: {
       'Shows "Draft with AI" inside the question-bank editor so teachers can generate bank questions from a prompt or file. Only takes effect when Gemini Functions is also enabled for the teacher; the generated questions inherit the bank\'s learning-target tags.',
   },
   {
+    id: 'quiz-document-ai-reader',
+    label: 'AI reader for quiz document import',
+    icon: FileText,
+    description:
+      'Reads an imported test document with AI (Gemini) instead of the plain text-and-scan reader, which handles unusual layouts better and counts against the teacher\u2019s daily AI limit. Teachers who have it see a \u201CRead with AI\u201D checkbox, off by default, on each import. Only takes effect when Build a quiz from a test document and Gemini Functions are also enabled. Fail-closed: nobody gets it until this is saved and enabled.',
+  },
+  {
     id: 'paper-answer-sheets',
     label: 'Paper answer sheets (Scantron replacement)',
     icon: Printer,

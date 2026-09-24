@@ -47,9 +47,10 @@ import {
   MIN_CHOICE_COUNT,
   pageCountForQuestions,
 } from '@/utils/paperSheetLayout';
-import type {
-  ExtractedQuestion,
-  ExtractedQuiz,
+import {
+  readByLabel,
+  type ExtractedQuestion,
+  type ExtractedQuiz,
 } from '@/utils/quizDocumentImport';
 import {
   MAX_PDF_PAGES_LISTED,
@@ -174,9 +175,10 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     fileName: string;
     questions: ExtractedQuestion[];
     warnings: string[];
+    note: string;
   } | null>(null);
   const [readingDoc, setReadingDoc] = useState(false);
-  const [useAi, setUseAi] = useState(true);
+  const [useAi, setUseAi] = useState(false);
   const [pickingDoc, setPickingDoc] = useState(false);
   const questionsFileRef = useRef<HTMLInputElement>(null);
   const [spareCount, setSpareCount] = useState(2);
@@ -410,6 +412,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       setReadDoc({
         fileName,
         questions,
+        note: readByLabel(extracted.readBy),
         // Row notes are numbered by the reader, so they name their own row.
         warnings: [
           ...extracted.warnings,
@@ -924,7 +927,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                       {readDoc.questions.length} question
                       {readDoc.questions.length === 1 ? '' : 's'} read. Results
                       will name the question a student missed, not just its
-                      number.
+                      number.{readDoc.note ? ` ${readDoc.note}` : ''}
                     </p>
                   </div>
                   <button

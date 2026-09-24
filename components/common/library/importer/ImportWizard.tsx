@@ -105,6 +105,7 @@ export function ImportWizard<TData>({
   const [pasteText, setPasteText] = useState('');
   const [parsed, setParsed] = useState<TData | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [note, setNote] = useState('');
   const [title, setTitle] = useState(defaultTitle ?? '');
   const [parseError, setParseError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -133,8 +134,8 @@ export function ImportWizard<TData>({
     file: Blob;
     fileName: string;
   } | null>(null);
-  // Kept across opens so an admin testing the plain reader needn't re-untick it.
-  const [aiReaderOff, setAiReaderOff] = useState(false);
+  // Off by default; kept across opens so a teacher needn't re-tick it.
+  const [aiReaderOff, setAiReaderOff] = useState(true);
 
   // Bumped on every open/close transition; in-flight handlers check it to drop results from a cancelled session.
   const sessionRef = useRef(0);
@@ -151,6 +152,7 @@ export function ImportWizard<TData>({
       setParsed(null);
       setKeyFile(null);
       setWarnings([]);
+      setNote('');
       setTitle(defaultTitle ?? '');
       setParseError(null);
       setValidationErrors([]);
@@ -195,6 +197,7 @@ export function ImportWizard<TData>({
       if (session !== sessionRef.current) return;
       setParsed(result.data);
       setWarnings(result.warnings);
+      setNote(result.note ?? '');
       // If the adapter can extract a title from the parsed data (e.g. an
       // HTML `<title>` tag) and the user hasn't typed one, prefill it so
       // the derived title isn't wasted. We only overwrite empty input —
@@ -255,7 +258,7 @@ export function ImportWizard<TData>({
       file,
       fileName: file.name,
       ...(keyFile ? { keyFile } : {}),
-      ...(aiReaderOff ? { useAi: false } : {}),
+      ...(supportsAiReader && aiReaderOff ? { useAi: false } : {}),
     });
   };
 
@@ -290,7 +293,7 @@ export function ImportWizard<TData>({
           file: picked.file,
           fileName: picked.fileName,
           ...(keyFile ? { keyFile } : {}),
-          ...(aiReaderOff ? { useAi: false } : {}),
+          ...(supportsAiReader && aiReaderOff ? { useAi: false } : {}),
         });
       }
     } catch (err) {
@@ -319,7 +322,7 @@ export function ImportWizard<TData>({
         file,
         fileName: file.name,
         ...(keyFile ? { keyFile } : {}),
-        ...(aiReaderOff ? { useAi: false } : {}),
+        ...(supportsAiReader && aiReaderOff ? { useAi: false } : {}),
       });
       return;
     }
@@ -863,6 +866,7 @@ export function ImportWizard<TData>({
           <p className="text-sm text-slate-500">No preview available.</p>
         )}
       </div>
+      {note && <p className="text-xs font-medium text-slate-500">{note}</p>}
       {warnings.length > 0 && (
         <ul
           role="alert"

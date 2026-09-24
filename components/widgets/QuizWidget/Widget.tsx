@@ -218,10 +218,11 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { showConfirm } = useDialog();
   const { openPicker } = useGooglePicker();
   const canImportDocuments = useQuizDocumentImportGate();
-  // D1: the AI reader handles the layouts the browser reader can't, like a
-  // key in a table; it needs the same AI permission as every other AI feature.
+  // D1: the AI reader has its own admin-default permission, AND-ed with the AI one.
   const canUseAiReader =
-    canImportDocuments && canAccessFeature('gemini-functions');
+    canImportDocuments &&
+    canAccessFeature('quiz-document-ai-reader') &&
+    canAccessFeature('gemini-functions');
   const config = widget.config as QuizConfig;
 
   // Opens the Google Picker so the teacher selects a Sheet to import. Picking

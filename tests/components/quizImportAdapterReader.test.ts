@@ -89,9 +89,11 @@ describe('quiz import reader selection', () => {
 
   it('says which reader ran only to a teacher who has AI', async () => {
     const plain = await adapter().parse(source);
-    expect(plain.warnings).not.toContain('Read without AI.');
+    expect(plain.note).toBeUndefined();
     const ai = await adapter({ aiExtract: vi.fn() }).parse(source);
-    expect(ai.warnings[0]).toBe('Read with AI.');
+    expect(ai.note).toBe('Read with AI.');
+    // A status line, not a warning.
+    expect(ai.warnings).not.toContain('Read with AI.');
   });
 
   it('reads without AI when the teacher switched it off', async () => {
@@ -100,7 +102,7 @@ describe('quiz import reader selection', () => {
     const result = await off.parse({ ...source, useAi: false });
     expect(readQuizDocumentWithAi).not.toHaveBeenCalled();
     expect(readQuizDocument).toHaveBeenCalled();
-    expect(result.warnings[0]).toBe('Read without AI.');
+    expect(result.note).toBe('Read without AI.');
   });
 
   it('offers no AI switch to a teacher without AI', () => {

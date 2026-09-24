@@ -231,6 +231,13 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // AI reading of an imported test document; also requires quiz-document-import
+  // and gemini-functions. Fail-closed, so nobody gets it until it is saved.
+  'quiz-document-ai-reader': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Print/scan paper answer sheets. Admin-only until opened up; the Rollouts
   // switch (admin_settings/paper_answer_sheets) must also be on.
   'paper-answer-sheets': {

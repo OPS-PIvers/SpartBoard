@@ -31,9 +31,6 @@ async function pdfTextLines(file: Blob): Promise<DocLine[]> {
 export const AI_READER_FELL_BACK =
   'The document was read the simple way because the smarter reader wasn’t available. Check the questions and answers below.';
 
-export const READ_WITH_AI = 'Read with AI.';
-export const READ_WITHOUT_AI = 'Read without AI.';
-
 export interface ReadTestDocumentOptions {
   /** Supplied only when the teacher has AI access; absent means browser-only. */
   aiExtract?: AiExtractFn;
@@ -62,7 +59,7 @@ export async function readTestDocument(
   // Only a teacher who could have had AI is told which reader ran.
   if (options.useAi === false || kind === 'rtf' || kind === 'cartridge') {
     const extracted = await inBrowser();
-    return { ...extracted, warnings: [READ_WITHOUT_AI, ...extracted.warnings] };
+    return { ...extracted, readBy: 'plain' };
   }
 
   try {
@@ -72,13 +69,14 @@ export async function readTestDocument(
       cropper: browserPdfCropper,
       readPdfLines: pdfTextLines,
     });
-    return { ...extracted, warnings: [READ_WITH_AI, ...extracted.warnings] };
+    return { ...extracted, readBy: 'ai' };
   } catch (err) {
     // Half a quiz to fix beats an error screen mid-import.
     console.warn('[quizImport] AI reader unavailable', err);
     const extracted = await inBrowser();
     return {
       ...extracted,
+      readBy: 'plain',
       warnings: [AI_READER_FELL_BACK, ...extracted.warnings],
     };
   }

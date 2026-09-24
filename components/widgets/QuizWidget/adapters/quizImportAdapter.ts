@@ -28,6 +28,7 @@ import {
   documentKind,
   extractedToQuizData,
   readAnswerKeyFile,
+  readByLabel,
   rowWarnings,
   type AiExtractFn,
   type ExtractedImage,
@@ -452,6 +453,7 @@ export function createQuizImportAdapter(
           // Row notes ride the wizard's own warnings list, numbered so they
           // line up with the review rows (D10).
           warnings: [...extracted.warnings, ...rowWarnings(extracted)],
+          ...(extracted.readBy ? { note: readByLabel(extracted.readBy) } : {}),
         };
       }
       throw new Error(

@@ -60,7 +60,17 @@ export interface ExtractedQuiz {
   images: ExtractedImage[];
   /** Notes about the document as a whole. */
   warnings: string[];
+  /** Which reader ran; set only for a teacher who has AI access. */
+  readBy?: 'ai' | 'plain';
 }
+
+/** The neutral status line naming the reader, or '' when there is none. */
+export const readByLabel = (readBy: ExtractedQuiz['readBy']): string =>
+  readBy === 'ai'
+    ? 'Read with AI.'
+    : readBy === 'plain'
+      ? 'Read without AI.'
+      : '';
 
 /** True when the reader found the question but no answer for it (D5). */
 export const questionNeedsKey = (q: ExtractedQuestion): boolean =>

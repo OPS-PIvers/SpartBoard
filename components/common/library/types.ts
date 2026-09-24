@@ -559,6 +559,8 @@ export type ImportSourcePayload =
 export interface ImportParseResult<TData> {
   data: TData;
   warnings: string[];
+  /** A neutral status line, shown plainly rather than as a warning. */
+  note?: string;
 }
 
 /** Validation result — `errors` block Save; empty array = pass. */

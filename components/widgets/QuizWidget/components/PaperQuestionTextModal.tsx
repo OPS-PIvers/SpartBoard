@@ -20,7 +20,7 @@ import {
   parseNumberedQuestions,
   type QuestionFill,
 } from '@/utils/paperQuestionOcr';
-import type { ExtractedQuiz } from '@/utils/quizDocumentImport';
+import { readByLabel, type ExtractedQuiz } from '@/utils/quizDocumentImport';
 import { rasterizeScan, type RasterizedPage } from '@/utils/paperScanRaster';
 import type { RasterPage } from '@/utils/paperSheetReader';
 
@@ -91,7 +91,8 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   // which only ever produced stem text.
   const [fills, setFills] = useState<Record<number, QuestionFill>>({});
   const [notes, setNotes] = useState<string[]>([]);
-  const [useAi, setUseAi] = useState(true);
+  const [useAi, setUseAi] = useState(false);
+  const [readerNote, setReaderNote] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const rows = useMemo(
@@ -132,6 +133,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
       };
     }
 
+    setReaderNote(readByLabel(extracted.readBy));
     setDrafts(nextDrafts);
     setApply(nextApply);
     setFills(nextFills);
@@ -317,6 +319,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
         Check each question before applying. Rows already holding real text are
         left alone unless you tick them.
       </p>
+      {readerNote && <p className="text-xs text-slate-500">{readerNote}</p>}
       {missing.length > 0 && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           Not found in the scan: question{missing.length === 1 ? '' : 's'}{' '}
