@@ -2391,7 +2391,7 @@ export interface TalkingToolCategory {
 /**
  * Per-building surface-color defaults for the Talking Tool widget. Only
  * `cardColor`/`cardOpacity` are exposed — `fontFamily`/`fontColor` are
- * currently dead controls at the user level (see TalkingToolAppearanceSettings)
+ * never read by the face (see TalkingTool/settings.schema.ts styleKeys)
  * so seeding them would replicate the ConceptWeb/GraphicOrganizer anti-pattern.
  */
 export interface BuildingTalkingToolDefaults {
