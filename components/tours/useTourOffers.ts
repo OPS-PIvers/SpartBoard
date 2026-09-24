@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useContext,
   useEffect,
   useEffectEvent,
@@ -6,55 +7,26 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { GuidedLearningSet, WidgetType } from '@/types';
+import type { WidgetType } from '@/types';
 import type { HelpResourceItem } from '@/types/helpCenter';
 import { AuthContext } from '@/context/AuthContextValue';
 import { useDashboard } from '@/context/useDashboard';
-import { loadBuildingSet } from '@/hooks/useGuidedLearning';
 import { useSharedHelpItems } from '@/hooks/useHelpResources';
 import { TOOLS } from '@/config/tools';
 import { isTourRunning, requestStartTour } from './tourState';
 import { tourStepsOf } from './tourSession';
+import {
+  getToursVersion,
+  isTourRunnable,
+  loadRunnableTour,
+  watchTours,
+} from './publishedTours';
 
-/** Sets saved before the stamp existed fall back to their steps. */
-export const setHasLiveTour = (set: GuidedLearningSet): boolean =>
-  set.hasLiveTour ?? tourStepsOf(set).length > 0;
-
-const checks = new Map<string, Promise<boolean>>();
-const known = new Map<string, boolean>();
-const listeners = new Set<() => void>();
-let version = 0;
-
-const subscribe = (listener: () => void) => {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-};
-const getVersion = () => version;
-
-/** Loads a building set once per page and caches whether it has a live tour. */
-export const checkLiveTour = (setId: string): Promise<boolean> => {
-  const pending = checks.get(setId);
-  if (pending) return pending;
-  const check = loadBuildingSet(setId)
-    .then((set) => !!set && setHasLiveTour(set))
-    .catch(() => false)
-    .then((has) => {
-      known.set(setId, has);
-      version++;
-      listeners.forEach((l) => l());
-      return has;
-    });
-  checks.set(setId, check);
-  return check;
-};
-
-export const __resetLiveTourCacheForTests = () => {
-  checks.clear();
-  known.clear();
-  version = 0;
-};
+/** Reads the published snapshot fresh each time, so a newly published tour is offered without a reload. */
+export const checkLiveTour = (setId: string): Promise<boolean> =>
+  loadRunnableTour(setId)
+    .then((set) => !!set && tourStepsOf(set).length > 0)
+    .catch(() => false);
 
 /** Building-set ids behind a widget type's Guided Learning help items. */
 export const guideSetIds = (
@@ -82,18 +54,24 @@ export const useLiveTourSet = (
 export const useHasLiveTour = (setId: string | undefined): boolean =>
   useFirstLiveSet(setId ? [setId] : []) !== null;
 
+/** The first of these building sets with a runnable published tour, once known; null while disabled. */
+export function useFirstRunnableTour(
+  ids: readonly string[],
+  enabled: boolean
+): string | null {
+  const idsKey = enabled ? ids.join(',') : '';
+  const subscribe = useCallback(
+    (onChange: () => void) =>
+      idsKey ? watchTours(idsKey.split(','), onChange) : () => undefined,
+    [idsKey]
+  );
+  useSyncExternalStore(subscribe, getToursVersion, getToursVersion);
+  if (!idsKey) return null;
+  return ids.find((id) => isTourRunnable(id) === true) ?? null;
+}
+
 function useFirstLiveSet(ids: readonly string[]): string | null {
-  const enabled = useLiveToursEnabled();
-  const idsKey = ids.join(',');
-  useSyncExternalStore(subscribe, getVersion);
-
-  useEffect(() => {
-    if (!enabled || !idsKey) return;
-    idsKey.split(',').forEach((id) => void checkLiveTour(id));
-  }, [enabled, idsKey]);
-
-  if (!enabled) return null;
-  return ids.find((id) => known.get(id) === true) ?? null;
+  return useFirstRunnableTour(ids, useLiveToursEnabled());
 }
 
 const offeredKey = (type: WidgetType) => `spart_tour_offered_${type}`;

@@ -1106,6 +1106,12 @@ service cloud.firestore {
       allow read: if request.auth != null;
     }
 
+    // Published live tours (P7-3): staff read, admins publish; students never run tours.
+    match /building_guided_learning_tours/{setId} {
+      allow read: if request.auth != null && notAnon() && !isStudentRoleUser();
+      allow write: if isAdmin();
+    }
+
     // Admin backgrounds - authenticated users can read based on access level, only admins can write
     match /admin_backgrounds/{backgroundId} {
       // Admins can read everything

@@ -14,11 +14,12 @@ import { WidgetHelpButton } from '@/components/help/WidgetHelpButton';
 import { HELP_OPEN_EVENT } from '@/components/help/helpCenterState';
 import { setTourRunning, TOUR_START_EVENT } from './tourState';
 import {
-  __resetLiveTourCacheForTests,
   checkLiveTour,
   guideSetIds,
   TourOfferWatcher,
+  useHasLiveTour,
 } from './useTourOffers';
+import { __resetPublishedToursForTests } from './publishedTours';
 
 const h = vi.hoisted(() => {
   const board = {
@@ -36,8 +37,37 @@ const h = vi.hoisted(() => {
     addToast: vi.fn(),
     loadBuildingSet: vi.fn(),
     helpItems: [] as HelpResourceItem[],
+    // Fake building_guided_learning_tours collection, keyed by doc id.
+    tours: new Map<string, unknown>(),
+    watchers: new Map<string, Set<(snap: unknown) => void>>(),
   };
 });
+
+const snapOf = (id: string) => ({
+  exists: () => h.tours.has(id),
+  data: () => h.tours.get(id),
+});
+
+// Publishes (or removes) a tour doc and tells its live listeners.
+const writeTour = (id: string, data: unknown) => {
+  if (data === undefined) h.tours.delete(id);
+  else h.tours.set(id, data);
+  h.watchers.get(id)?.forEach((cb) => cb(snapOf(id)));
+};
+
+vi.mock('@/config/firebase', () => ({ db: {}, isConfigured: true }));
+vi.mock('firebase/firestore', () => ({
+  doc: (_db: unknown, _coll: string, id: string) => ({ id }),
+  getDoc: (ref: { id: string }) => Promise.resolve(snapOf(ref.id)),
+  setDoc: vi.fn(),
+  onSnapshot: (ref: { id: string }, next: (snap: unknown) => void) => {
+    const set = h.watchers.get(ref.id) ?? new Set();
+    h.watchers.set(ref.id, set);
+    set.add(next);
+    queueMicrotask(() => next(snapOf(ref.id)));
+    return () => set.delete(next);
+  },
+}));
 
 vi.mock('@/hooks/useGuidedLearning', () => ({
   loadBuildingSet: h.loadBuildingSet,
@@ -105,8 +135,19 @@ const sets: Record<string, GuidedLearningSet> = {
   stamped: tourSet('stamped', false, true),
 };
 
+const published = (set: GuidedLearningSet) => ({
+  set,
+  publishedAt: 1,
+  publishedBy: 'admin',
+});
+
 beforeEach(() => {
-  __resetLiveTourCacheForTests();
+  __resetPublishedToursForTests();
+  h.tours.clear();
+  h.watchers.clear();
+  h.tours.set('_meta', { seededAt: 1 });
+  h.tours.set('live', published(sets.live));
+  h.tours.set('plain', published(sets.plain));
   h.loadBuildingSet.mockReset();
   h.loadBuildingSet.mockImplementation((id: string) =>
     Promise.resolve(sets[id] ?? null)
@@ -124,13 +165,27 @@ afterEach(() => {
 });
 
 describe('live tour lookup', () => {
-  it('reads the stamp, falls back to steps, and loads each set once', async () => {
+  it('reads only published snapshots once the one-time publish ran', async () => {
     await expect(checkLiveTour('live')).resolves.toBe(true);
     await expect(checkLiveTour('plain')).resolves.toBe(false);
-    await expect(checkLiveTour('stamped')).resolves.toBe(true);
+    await expect(checkLiveTour('stamped')).resolves.toBe(false);
     await expect(checkLiveTour('gone')).resolves.toBe(false);
-    await checkLiveTour('live');
-    expect(h.loadBuildingSet).toHaveBeenCalledTimes(4);
+    expect(h.loadBuildingSet).not.toHaveBeenCalled();
+  });
+
+  it('is not cached for the page: a newly published tour is found', async () => {
+    await expect(checkLiveTour('stamped')).resolves.toBe(false);
+    writeTour('stamped', published(tourSet('stamped', true)));
+    await expect(checkLiveTour('stamped')).resolves.toBe(true);
+  });
+
+  it('falls back to the saved set until the one-time publish marker exists', async () => {
+    h.tours.clear();
+    await expect(checkLiveTour('live')).resolves.toBe(true);
+    await expect(checkLiveTour('plain')).resolves.toBe(false);
+    // A stamp without tour steps has nothing the runner could run.
+    await expect(checkLiveTour('stamped')).resolves.toBe(false);
+    expect(h.loadBuildingSet).toHaveBeenCalledTimes(3);
   });
 
   it('picks guide sets for a widget type', () => {
@@ -160,7 +215,10 @@ describe('WidgetHelpButton', () => {
         />
       )
     );
-    await waitFor(() => expect(h.loadBuildingSet).toHaveBeenCalled());
+    await waitFor(() => expect(h.watchers.has('plain')).toBe(true));
+    await act(async () => {
+      await Promise.resolve();
+    });
     fireEvent.click(
       screen.getByRole('button', { name: 'Guides for this widget' })
     );
@@ -213,7 +271,42 @@ describe('WidgetHelpButton', () => {
         false
       )
     );
+    expect(h.watchers.size).toBe(0);
     expect(h.loadBuildingSet).not.toHaveBeenCalled();
+  });
+});
+
+describe('useHasLiveTour', () => {
+  const Probe: React.FC<{ setId: string }> = ({ setId }) => (
+    <span>{useHasLiveTour(setId) ? 'tour' : 'no tour'}</span>
+  );
+
+  it('ignores Studio edits until they are published', async () => {
+    h.tours.delete('stamped');
+    render(withAuth(<Probe setId="stamped" />));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    // The saved set has a tour, but nothing is published.
+    expect(screen.getByText('no tour')).toBeInTheDocument();
+    expect(h.loadBuildingSet).not.toHaveBeenCalled();
+    act(() => writeTour('stamped', published(tourSet('stamped', true))));
+    expect(screen.getByText('tour')).toBeInTheDocument();
+    act(() => writeTour('stamped', published(tourSet('stamped', false))));
+    expect(screen.getByText('no tour')).toBeInTheDocument();
+  });
+
+  it('keeps an unpublished tour offered before the one-time publish ran', async () => {
+    h.tours.clear();
+    render(withAuth(<Probe setId="live" />));
+    expect(await screen.findByText('tour')).toBeInTheDocument();
+    expect(h.loadBuildingSet).toHaveBeenCalledWith('live');
+  });
+
+  it('stays off without the flag', () => {
+    render(withAuth(<Probe setId="live" />, false));
+    expect(screen.getByText('no tour')).toBeInTheDocument();
+    expect(h.watchers.size).toBe(0);
   });
 });
 

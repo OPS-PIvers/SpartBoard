@@ -1,6 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { GuidedLearningStep, GuidedLearningTourBinding } from '@/types';
+import type {
+  GuidedLearningSet,
+  GuidedLearningStep,
+  GuidedLearningTourBinding,
+} from '@/types';
 import {
   TOUR_ANCHORS,
   isTourAnchorId,
@@ -11,10 +15,13 @@ import {
 } from '@/config/tourAnchors';
 import { TOOLS } from '@/config/tools';
 import { teacherMustClick } from '@/components/tours/tourSession';
+import { StudioTourPublish } from './StudioTourPublish';
 
 interface StudioTourControlsProps {
   step: GuidedLearningStep;
   onChange: (step: GuidedLearningStep) => void;
+  /** The set being edited; shows its publish status and Publish tour when given. */
+  publishSet?: GuidedLearningSet;
 }
 
 const GROUPS = [
@@ -41,6 +48,7 @@ const selectClass =
 export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
   step,
   onChange,
+  publishSet,
 }) => {
   const { t } = useTranslation();
   const tour = step.tour;
@@ -83,6 +91,7 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
           {t('glStudio.tourHint')}
         </p>
       </div>
+      {publishSet && <StudioTourPublish set={publishSet} />}
       <label className="flex flex-col gap-1.5 text-xs font-bold text-slate-600">
         {t('glStudio.tourAnchor')}
         <select

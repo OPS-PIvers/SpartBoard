@@ -28,6 +28,7 @@ import type {
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { loadBuildingSet } from '@/hooks/useGuidedLearning';
+import { loadRunnableTour } from './publishedTours';
 import { Z_INDEX } from '@/config/zIndex';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { placeCallout } from '@/components/widgets/GuidedLearning/utils/calloutPlacement';
@@ -223,7 +224,9 @@ export const LiveTourRunner: React.FC = () => {
       startingRef.current = true;
       void (async () => {
         try {
-          const set = await loadBuildingSet(req.setId);
+          const set = req.draft
+            ? await loadBuildingSet(req.setId)
+            : await loadRunnableTour(req.setId);
           const steps = set ? liveTourStepsOf(set) : [];
           if (!set || steps.length === 0) {
             d.addToast(tr('tours.unavailable'), 'error');

@@ -92,6 +92,16 @@ describe('gcOrphanedSlidePaths', () => {
     expect(await gcOrphanedSlidePaths([P1])).toEqual([]);
   });
 
+  it('keeps a path a published tour still shows after its set moved on', async () => {
+    setup({
+      'building_guided_learning_tours/b1': {
+        set: { imageUrls: [url(P1)], steps: [] },
+        publishedAt: 1,
+      },
+    });
+    expect(await gcOrphanedSlidePaths([P1, P2])).toEqual([P2]);
+  });
+
   it('keeps a path an assignment session or its period content uses', async () => {
     setup({
       'guided_learning_sessions/s1': { imageUrls: [url(P1)], publicSteps: [] },

@@ -1,6 +1,8 @@
 export interface TourStartRequest {
   setId: string;
   fromStep?: number;
+  /** Studio preview: run the saved set instead of the published snapshot. */
+  draft?: boolean;
 }
 
 export const TOUR_START_EVENT = 'spart:start-tour';

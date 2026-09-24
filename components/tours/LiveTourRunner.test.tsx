@@ -53,7 +53,8 @@ const h = vi.hoisted(() => {
     actions,
     reset,
     canAccess: vi.fn(() => true),
-    loadBuildingSet: vi.fn(),
+    loadTour: vi.fn(),
+    loadDraft: vi.fn(),
   };
 });
 
@@ -79,7 +80,11 @@ vi.mock('@/context/useDashboard', () => ({
 }));
 
 vi.mock('@/hooks/useGuidedLearning', () => ({
-  loadBuildingSet: h.loadBuildingSet,
+  loadBuildingSet: h.loadDraft,
+}));
+
+vi.mock('./publishedTours', () => ({
+  loadRunnableTour: h.loadTour,
 }));
 
 vi.mock('./TourMiniPlayer', () => ({
@@ -150,7 +155,7 @@ const frames = async (ms = 50) => {
 };
 
 const start = async (set: GuidedLearningSet) => {
-  h.loadBuildingSet.mockResolvedValue(set);
+  h.loadTour.mockResolvedValue(set);
   render(
     <>
       <Fixture />
@@ -177,7 +182,8 @@ beforeEach(() => {
   );
   scrollIntoView.mockClear();
   HTMLElement.prototype.scrollIntoView = scrollIntoView;
-  h.loadBuildingSet.mockReset();
+  h.loadTour.mockReset();
+  h.loadDraft.mockReset();
   vi.useFakeTimers();
   h.reset();
   h.canAccess.mockReturnValue(true);
@@ -457,7 +463,7 @@ describe('LiveTourRunner', () => {
     await start(
       makeSet([{ anchor: 'sidebar.boards', action: 'observe' }], ['dice'])
     );
-    h.loadBuildingSet.mockResolvedValue(
+    h.loadTour.mockResolvedValue(
       makeSet([
         { anchor: 'sidebar.boards', action: 'observe' },
         { anchor: 'dock.item:dice', action: 'observe' },
@@ -467,16 +473,64 @@ describe('LiveTourRunner', () => {
       requestStartTour({ setId: 'set-2' });
     });
     await frames();
-    expect(h.loadBuildingSet).toHaveBeenCalledTimes(1);
+    expect(h.loadTour).toHaveBeenCalledTimes(1);
     expect(progress()).toBe('1 / 1');
     fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
     expect(screen.getByText("Keep the tour's widgets?")).toBeInTheDocument();
   });
 
+  it('runs the published snapshot, never the saved draft, from a launch point', async () => {
+    h.loadDraft.mockResolvedValue(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'observe' },
+        { anchor: 'dock.item:dice', action: 'observe' },
+      ])
+    );
+    await start(makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]));
+    expect(h.loadTour).toHaveBeenCalledWith('set-1');
+    expect(h.loadDraft).not.toHaveBeenCalled();
+    expect(progress()).toBe('1 / 1');
+  });
+
+  it('runs the saved set for a Studio preview', async () => {
+    h.loadDraft.mockResolvedValue(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'observe' },
+        { anchor: 'dock.item:dice', action: 'observe' },
+      ])
+    );
+    render(
+      <>
+        <Fixture />
+        <LiveTourRunner />
+      </>
+    );
+    act(() => {
+      requestStartTour({ setId: 'set-1', draft: true });
+    });
+    await frames();
+    expect(h.loadTour).not.toHaveBeenCalled();
+    expect(progress()).toBe('1 / 2');
+  });
+
+  it('says the tour is unavailable when nothing is published', async () => {
+    h.loadTour.mockResolvedValue(null);
+    render(<LiveTourRunner />);
+    act(() => {
+      requestStartTour({ setId: 'set-1' });
+    });
+    await frames();
+    expect(h.actions.addToast).toHaveBeenCalledWith(
+      expect.any(String),
+      'error'
+    );
+    expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
+  });
+
   it('ignores start requests without the flag', async () => {
     h.canAccess.mockReturnValue(false);
     await start(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));
-    expect(h.loadBuildingSet).not.toHaveBeenCalled();
+    expect(h.loadTour).not.toHaveBeenCalled();
     expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
   });
 
@@ -944,7 +998,7 @@ describe('LiveTourRunner plain steps and welcome', () => {
 
   it('starts from a chosen step counted among all steps', async () => {
     const set = mixedSet();
-    h.loadBuildingSet.mockResolvedValue(set);
+    h.loadTour.mockResolvedValue(set);
     render(
       <>
         <Fixture />
@@ -981,7 +1035,7 @@ describe('LiveTourRunner plain steps and welcome', () => {
       welcomeEnabled: true,
       welcomeMessage: 'Hi there.',
     });
-    h.loadBuildingSet.mockResolvedValue(set);
+    h.loadTour.mockResolvedValue(set);
     render(
       <>
         <Fixture />
