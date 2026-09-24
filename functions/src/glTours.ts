@@ -68,7 +68,7 @@ export async function claimGlToursSeed(
   });
 }
 
-/** Publishes every set with a live tour that has no snapshot yet, then writes the marker. */
+/** Publishes every set with a live tour that has no snapshot yet, then writes the marker unless a publish failed. */
 export async function seedGlTours(
   db: admin.firestore.Firestore,
   now: number = Date.now()
@@ -110,7 +110,8 @@ export async function seedGlTours(
     cursor = page.docs[page.docs.length - 1];
   }
   const batch = db.batch();
-  batch.set(tours.doc(GL_TOURS_META_ID), { seededAt: now });
+  // A failed publish leaves the marker unwritten so a later set write retries.
+  if (failed === 0) batch.set(tours.doc(GL_TOURS_META_ID), { seededAt: now });
   batch.delete(tours.doc(GL_TOURS_LOCK_ID));
   await batch.commit();
   return { published, skipped, failed };

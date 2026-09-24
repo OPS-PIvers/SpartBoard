@@ -51,6 +51,11 @@ describe('teacherMustClick', () => {
     expect(teacherMustClick({ anchor: 'sidebar.boards' })).toBe(false);
   });
 
+  it('defaults to true for fallback-only steps', () => {
+    expect(teacherMustClick({ anchor: '' })).toBe(true);
+    expect(teacherMustClick({ anchor: 'not.registered' })).toBe(true);
+  });
+
   it('lets the step override the default', () => {
     expect(
       teacherMustClick({ anchor: 'widget.close', teacherMustClick: false })

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  clearStudioReturn,
   requestRecordTour,
   requestRerecordStep,
   requestStartTour,
@@ -55,6 +56,15 @@ describe('tourState', () => {
     const open = listen(TOUR_OPEN_STUDIO_EVENT);
     requestStartTour({ setId: 'set-1', draft: true, returnToStepId: 's' });
     requestStartTour({ setId: 'set-2' });
+    setTourRunning(true);
+    setTourRunning(false);
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it('forgets the Studio return once cleared after a failed launch', () => {
+    const open = listen(TOUR_OPEN_STUDIO_EVENT);
+    requestStartTour({ setId: 'set-1', draft: true, returnToStepId: 's' });
+    clearStudioReturn();
     setTourRunning(true);
     setTourRunning(false);
     expect(open).not.toHaveBeenCalled();

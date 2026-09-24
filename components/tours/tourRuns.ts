@@ -19,6 +19,10 @@ export interface TourRun {
 
 /** The rules cap on `misses`. */
 export const MAX_RUN_MISSES = 50;
+/** The rules cap on `furthest`; higher step indexes are recorded as this. */
+export const MAX_RUN_STEP = 500;
+const stepIndex = (n: number) =>
+  Math.min(Math.max(Math.trunc(n) || 0, 0), MAX_RUN_STEP);
 /** At most one mid-run write per interval; start and end write at once. */
 export const TOUR_RUN_WRITE_INTERVAL_MS = 30_000;
 
@@ -76,9 +80,9 @@ export function startTourRunLog(
   intervalMs = TOUR_RUN_WRITE_INTERVAL_MS
 ): TourRunLog {
   let run: TourRun = {
-    v: start.v,
+    v: Number.isFinite(start.v) ? Math.trunc(start.v) : 0,
     startedAt: Date.now(),
-    furthest: start.furthest,
+    furthest: stepIndex(start.furthest),
     done: false,
     misses: [],
   };
@@ -106,7 +110,7 @@ export function startTourRunLog(
   return {
     update: (patch) => {
       if (ended) return;
-      const furthest = Math.max(run.furthest, patch.furthest ?? 0);
+      const furthest = Math.max(run.furthest, stepIndex(patch.furthest ?? 0));
       if (furthest === run.furthest) return;
       run = { ...run, furthest };
       dirty = true;
@@ -127,7 +131,8 @@ export function startTourRunLog(
       if (ended) return;
       ended = true;
       run = { ...run, done: patch.done };
-      if (!patch.done && patch.exit !== undefined) run.exit = patch.exit;
+      if (!patch.done && patch.exit !== undefined)
+        run.exit = stepIndex(patch.exit);
       dirty = true;
       flush();
     },

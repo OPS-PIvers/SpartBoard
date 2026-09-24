@@ -5,7 +5,11 @@ import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
 import type { GuidedLearningSet, WidgetType } from '@/types';
 import { LiveTourRunner } from './LiveTourRunner';
 import { TRY_HINT_MS } from '@/components/widgets/GuidedLearning/components/player/playback';
-import { requestStartTour } from './tourState';
+import {
+  requestStartTour,
+  setTourRunning,
+  TOUR_OPEN_STUDIO_EVENT,
+} from './tourState';
 import { ANCHOR_SEARCH_MS } from './useAnchorElement';
 import { tourHealthOf } from './tourHealth';
 import { SAVED_TOUR_KEY } from './tourResume';
@@ -114,6 +118,7 @@ type Binding = {
   anchor: string;
   action: 'click' | 'observe';
   teacherMustClick?: boolean;
+  fallback?: { role: string; name: string };
 };
 
 const makeSet = (
@@ -548,6 +553,32 @@ describe('LiveTourRunner', () => {
     expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
   });
 
+  it('forgets the Studio return of a Studio run that fails to load', async () => {
+    const open = vi.fn();
+    window.addEventListener(TOUR_OPEN_STUDIO_EVENT, open);
+    h.loadDraft.mockResolvedValue(null);
+    render(
+      <>
+        <Fixture />
+        <LiveTourRunner />
+      </>
+    );
+    act(() => {
+      requestStartTour({ setId: 'set-1', draft: true, returnToStepId: 's0' });
+    });
+    await frames();
+    expect(h.actions.addToast).toHaveBeenCalledWith(
+      "This tour isn't available right now.",
+      'error'
+    );
+    act(() => {
+      setTourRunning(true);
+      setTourRunning(false);
+    });
+    window.removeEventListener(TOUR_OPEN_STUDIO_EVENT, open);
+    expect(open).not.toHaveBeenCalled();
+  });
+
   it('ignores start requests without the flag', async () => {
     h.canAccess.mockReturnValue(false);
     await start(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));
@@ -807,6 +838,31 @@ describe('LiveTourRunner modes', () => {
     expect(progress()).toBe('1 / 2');
     expect(status()).toHaveTextContent('Your turn: click the highlighted spot');
     fireEvent.click(screen.getByText('Close w1'));
+    await frames();
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it('Guided: a fallback-only step is found by role and name, then left to the teacher', async () => {
+    await start(
+      makeSet(
+        [
+          {
+            anchor: '',
+            action: 'click',
+            fallback: { role: 'button', name: 'Elsewhere' },
+          },
+          { anchor: 'sidebar.boards', action: 'observe' },
+        ],
+        [],
+        'guided'
+      )
+    );
+    const elsewhere = recordEvents(screen.getByText('Elsewhere'));
+    await run(4000);
+    expect(elsewhere).toEqual([]);
+    expect(progress()).toBe('1 / 2');
+    expect(status()).toHaveTextContent('Your turn: click the highlighted spot');
+    fireEvent.click(screen.getByText('Elsewhere'));
     await frames();
     expect(progress()).toBe('2 / 2');
   });
@@ -1291,6 +1347,35 @@ describe('LiveTourRunner stacking, feedback, reload and access', () => {
     expect(h.loadDraft).toHaveBeenCalledTimes(2);
     expect(h.loadTour).not.toHaveBeenCalled();
     expect(progress()).toBe('1 / 2');
+  });
+
+  it('stops offering the resume when the resumed tour fails to load', async () => {
+    const first = await launch(
+      makeSet([{ anchor: 'sidebar.boards', action: 'observe' }])
+    );
+    first.unmount();
+    h.loadTour.mockResolvedValue(null);
+    const second = mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Resume tour' }));
+    await frames();
+    expect(saved()).toBeNull();
+    second.unmount();
+    mount();
+    expect(screen.queryByText('Pick up your tour?')).not.toBeInTheDocument();
+  });
+
+  it('stops offering the resume when the practice board is declined', async () => {
+    const first = await launch(
+      makeSet([{ anchor: 'sidebar.boards', action: 'observe' }])
+    );
+    first.unmount();
+    h.board.readOnly = true;
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Resume tour' }));
+    await frames();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
+    expect(saved()).toBeNull();
   });
 
   it('removes the added widgets instead of resuming', async () => {

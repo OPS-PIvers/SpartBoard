@@ -173,6 +173,26 @@ describe('useAnchorElement', () => {
     expect(result.current.status).toBe('found');
   });
 
+  it('goes straight to the fallback when the anchor is empty', async () => {
+    const fallbackOnly = {
+      anchor: '',
+      fallback: { role: 'button', name: 'Open menu' },
+    };
+    const { result } = renderHook(() => useAnchorElement(fallbackOnly, scope));
+    expect(result.current.status).toBe('searching');
+    const el = document.createElement('button');
+    el.textContent = 'Open menu';
+    act(() => {
+      document.body.appendChild(el);
+    });
+    await advance(ANCHOR_SEARCH_THROTTLE_MS + 20);
+    expect(result.current.status).toBe('found');
+    expect(result.current.element).toBe(el);
+
+    const bare = renderHook(() => useAnchorElement({ anchor: '' }, scope));
+    expect(bare.result.current.status).toBe('idle');
+  });
+
   it('observes nothing without an anchor and disconnects on unmount', async () => {
     const observe = vi.spyOn(MutationObserver.prototype, 'observe');
     const disconnect = vi.spyOn(MutationObserver.prototype, 'disconnect');

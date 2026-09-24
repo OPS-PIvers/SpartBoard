@@ -54,6 +54,14 @@ describe('tour anchor refs', () => {
 });
 
 describe('findTourAnchor', () => {
+  it('skips the tag lookup for an empty anchor', () => {
+    mount('<button data-tour="">Blank</button><button>Menu</button>');
+    expect(
+      findTourAnchor({ anchor: '', fallback: { role: 'button', name: 'Menu' } })
+        ?.textContent
+    ).toBe('Menu');
+  });
+
   it('finds a tagged element', () => {
     mount('<button data-tour="sidebar.boards">Boards</button>');
     expect(findTourAnchor({ anchor: 'sidebar.boards' })?.textContent).toBe(

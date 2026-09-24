@@ -61,6 +61,14 @@ describe('startTourRunLog', () => {
     expect(write.mock.calls[1][0]).not.toHaveProperty('exit');
   });
 
+  it('keeps every write inside the rules bounds', () => {
+    const write = writer();
+    const log = startTourRunLog('set', 'uid', { v: 7.5, furthest: 600 }, write);
+    expect(write.mock.calls[0][0]).toMatchObject({ v: 7, furthest: 500 });
+    log.end({ done: false, exit: 700 });
+    expect(write.mock.calls[1][0]).toMatchObject({ furthest: 500, exit: 500 });
+  });
+
   it('stops adding misses at the rules cap', () => {
     const write = writer();
     const log = startTourRunLog('set', 'uid', { v: 1, furthest: 0 }, write);

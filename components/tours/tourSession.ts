@@ -1,4 +1,8 @@
-import { isDestructiveAnchor } from '@/config/tourAnchors';
+import {
+  isDestructiveAnchor,
+  isTourAnchorId,
+  parseTourAnchorRef,
+} from '@/config/tourAnchors';
 import type {
   GuidedLearningSet,
   GuidedLearningTourBinding,
@@ -73,7 +77,10 @@ export const hasStepSlide = (
   step: Pick<GuidedLearningStep, 'imageIndex'>
 ): boolean => !!set.imageUrls[step.imageIndex ?? 0];
 
-/** Whether autopilot must leave this step's click to the teacher. */
+/** Whether autopilot must leave this step's click to the teacher; fallback-only steps default to yes. */
 export const teacherMustClick = (
   binding: Pick<GuidedLearningTourBinding, 'anchor' | 'teacherMustClick'>
-): boolean => binding.teacherMustClick ?? isDestructiveAnchor(binding.anchor);
+): boolean =>
+  binding.teacherMustClick ??
+  (!isTourAnchorId(parseTourAnchorRef(binding.anchor).id) ||
+    isDestructiveAnchor(binding.anchor));

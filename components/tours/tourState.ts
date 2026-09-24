@@ -40,6 +40,11 @@ export function requestStartTour(req: TourStartRequest): void {
   );
 }
 
+/** Drops the Studio return of a launch that never started, so a later run does not reopen it. */
+export const clearStudioReturn = (): void => {
+  studioReturn = null;
+};
+
 export const setTourRunning = (running: boolean): void => {
   const ended = tourRunning && !running;
   tourRunning = running;

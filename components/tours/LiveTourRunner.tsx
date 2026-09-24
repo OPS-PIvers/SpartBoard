@@ -44,6 +44,7 @@ import {
   useReadAloud,
 } from '@/components/widgets/GuidedLearning/components/player/useReadAloud';
 import {
+  clearStudioReturn,
   isTourRunning,
   setTourRunning,
   TOUR_START_EVENT,
@@ -321,6 +322,12 @@ export const LiveTourRunner: React.FC = () => {
       return;
     startingRef.current = true;
     setResumeOffer(null);
+    // A failed launch drops its Studio return and any saved run, so neither comes back later.
+    const launchFailed = () => {
+      clearStudioReturn();
+      clearSavedTour();
+      d.addToast(tr('tours.unavailable'), 'error');
+    };
     void (async () => {
       try {
         const set = req.draft
@@ -328,7 +335,7 @@ export const LiveTourRunner: React.FC = () => {
           : await loadRunnableTour(req.setId);
         const steps = set ? liveTourStepsOf(set) : [];
         if (!set || steps.length === 0) {
-          d.addToast(tr('tours.unavailable'), 'error');
+          launchFailed();
           return;
         }
         // The welcome opens a tour from the start, not a run from a chosen step.
@@ -344,7 +351,7 @@ export const LiveTourRunner: React.FC = () => {
         );
       } catch (err) {
         console.error('LiveTourRunner: could not load tour', err);
-        d.addToast(tr('tours.unavailable'), 'error');
+        launchFailed();
       } finally {
         startingRef.current = false;
       }
@@ -383,6 +390,12 @@ export const LiveTourRunner: React.FC = () => {
     setResumeOffer(null);
   };
 
+  // Leaving before the run starts also drops a resumed run's saved state.
+  const abandon = () => {
+    clearSavedTour();
+    setTour(null);
+  };
+
   const startOnPracticeBoard = async () => {
     if (!tour) return;
     const { set, steps, index, draft } = tour;
@@ -390,7 +403,7 @@ export const LiveTourRunner: React.FC = () => {
       latest.current.t('tours.practiceBoardName')
     );
     if (!id) {
-      setTour(null);
+      abandon();
       return;
     }
     const deadline = performance.now() + BOARD_WAIT_MS;
@@ -405,7 +418,7 @@ export const LiveTourRunner: React.FC = () => {
         latest.current.t('tours.practiceFailed'),
         'error'
       );
-      setTour(null);
+      abandon();
       return;
     }
     runSetup(set, steps, index, { draft });
@@ -799,11 +812,7 @@ export const LiveTourRunner: React.FC = () => {
       t('tours.readOnlyTitle'),
       t('tours.readOnlyBody'),
       <>
-        <button
-          type="button"
-          className={secondaryBtn}
-          onClick={() => setTour(null)}
-        >
+        <button type="button" className={secondaryBtn} onClick={abandon}>
           {t('tours.cancel')}
         </button>
         <button

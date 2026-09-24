@@ -146,6 +146,14 @@ describe('tour runs writes', () => {
     const ref = doc(db, `${RUNS}/teacher-uid`);
     await assertFails(setDoc(ref, { ...run, note: 'extra' }));
     await assertFails(setDoc(ref, { ...run, furthest: '2' }));
+    await assertFails(setDoc(ref, { ...run, furthest: 501 }));
+    await assertFails(setDoc(ref, { ...run, furthest: -1 }));
+    await assertFails(setDoc(ref, { ...run, v: '9' }));
+    await assertFails(setDoc(ref, { ...run, startedAt: 'now' }));
+    await assertFails(setDoc(ref, { ...run, done: 'yes' }));
+    await assertFails(setDoc(ref, { ...run, exit: '2' }));
+    await assertFails(setDoc(ref, { ...run, misses: 'step-a' }));
+    await assertSucceeds(setDoc(ref, { ...run, furthest: 500 }));
     await assertFails(
       setDoc(ref, {
         ...run,

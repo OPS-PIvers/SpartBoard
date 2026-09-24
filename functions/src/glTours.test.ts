@@ -5,6 +5,7 @@ type DocData = Record<string, unknown>;
 // In-memory Firestore covering exactly what glTours touches.
 const h = vi.hoisted(() => {
   const store = new Map<string, Record<string, unknown>>();
+  const failCreate = new Set<string>();
   const ref = (path: string) => ({
     path,
     id: path.split('/').pop() as string,
@@ -12,6 +13,9 @@ const h = vi.hoisted(() => {
       Promise.resolve({ exists: store.has(path), data: () => store.get(path) }),
     delete: () => Promise.resolve(void store.delete(path)),
     create: (d: DocData) => {
+      if (failCreate.has(path)) {
+        return Promise.reject(Object.assign(new Error('down'), { code: 14 }));
+      }
       if (store.has(path)) {
         return Promise.reject(Object.assign(new Error('exists'), { code: 6 }));
       }
@@ -81,7 +85,7 @@ const h = vi.hoisted(() => {
       return run;
     },
   };
-  return { store, db };
+  return { store, failCreate, db };
 });
 
 vi.mock('firebase-admin', () => ({
@@ -147,7 +151,10 @@ const tourSet = (over: DocData = {}): DocData => ({
   ...over,
 });
 
-beforeEach(() => h.store.clear());
+beforeEach(() => {
+  h.store.clear();
+  h.failCreate.clear();
+});
 
 describe('buildGlTourContent', () => {
   it('keeps the tour content and drops bookkeeping', () => {
@@ -195,6 +202,21 @@ describe('one-time publish of existing tours', () => {
     h.store.set('building_guided_learning_tours/live', mine);
     await trigger({ params: { setId: 'live' } });
     expect(tour('live')).toEqual(mine);
+    expect(h.store.has(META)).toBe(true);
+  });
+
+  it('leaves the marker unwritten when a publish fails, so a later write retries', async () => {
+    h.store.set('building_guided_learning/live', tourSet({ id: 'live' }));
+    h.store.set('building_guided_learning/next', tourSet({ id: 'next' }));
+    h.failCreate.add('building_guided_learning_tours/live');
+    await trigger({ params: { setId: 'live' } });
+    expect(tour('next')).toBeDefined();
+    expect(h.store.has(META)).toBe(false);
+    expect(h.store.has(LOCK)).toBe(false);
+
+    h.failCreate.clear();
+    await trigger({ params: { setId: 'live' } });
+    expect(tour('live')).toBeDefined();
     expect(h.store.has(META)).toBe(true);
   });
 

@@ -65,6 +65,8 @@ export function useAnchorElement(
   const fallbackRole = binding?.fallback?.role;
   const fallbackName = binding?.fallback?.name;
   const scopeKey = (scope.widgetIds ?? []).join(',');
+  // An empty anchor goes straight to the role/name fallback.
+  const searchable = !!anchor || !!(fallbackRole && fallbackName);
   const requestKey = [
     anchor,
     fallbackRole,
@@ -78,10 +80,10 @@ export function useAnchorElement(
   });
 
   useEffect(() => {
-    if (!anchor) return;
+    if (!searchable) return;
     const key = requestKey;
     const target = {
-      anchor,
+      anchor: anchor ?? '',
       fallback:
         fallbackRole && fallbackName
           ? { role: fallbackRole, name: fallbackName }
@@ -253,9 +255,9 @@ export function useAnchorElement(
         document.removeEventListener(t, onMotionEnd, true)
       );
     };
-  }, [anchor, fallbackRole, fallbackName, scopeKey, requestKey]);
+  }, [searchable, anchor, fallbackRole, fallbackName, scopeKey, requestKey]);
 
-  if (!anchor) return IDLE;
+  if (!searchable) return IDLE;
   if (state.key !== requestKey) {
     return { element: null, rect: null, status: 'searching' };
   }
