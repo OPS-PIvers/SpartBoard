@@ -118,9 +118,6 @@ describe('GuidedLearningPlayer resume', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
     expect(counter()).toHaveTextContent('2 / 3');
-    expect(
-      screen.getByRole('button', { name: /^click along$/i })
-    ).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('starts over when asked, and ignores a place older than 14 days', () => {

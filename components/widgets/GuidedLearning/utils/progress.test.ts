@@ -62,17 +62,42 @@ describe('applyStepEvent', () => {
     expect(p.completed).toBe(true);
   });
 
-  it('records the mode and counts switches after the first', () => {
+  it('no longer records a mode or mode switches', () => {
     let p = applyStepEvent(
       emptyProgress(),
       ev({ type: 'enter', mode: 'watch' }),
       0,
       2
     );
-    expect(p).toMatchObject({ mode: 'watch', modeSwitches: 0 });
     p = applyStepEvent(p, ev({ type: 'enter', mode: 'try' }), 0, 2);
-    p = applyStepEvent(p, ev({ type: 'enter', mode: null }), 0, 2);
-    expect(p).toMatchObject({ mode: 'try', modeSwitches: 1 });
+    expect(p).not.toHaveProperty('mode');
+    expect(p).not.toHaveProperty('modeSwitches');
+  });
+
+  it('completes a structured run on reaching the last step, whatever its type', () => {
+    let p = applyStepEvent(
+      emptyProgress(),
+      ev({ type: 'enter', stepId: 'q1' }),
+      1,
+      2
+    );
+    expect(p.completed).toBe(false);
+    // The last step is a question: no click ever completes it.
+    p = applyStepEvent(p, ev({ type: 'enter', stepId: 'q2' }), 2, 2);
+    expect(p.completed).toBe(true);
+  });
+
+  it('does not complete a guided run just by reaching the last step', () => {
+    const p = applyStepEvent(
+      emptyProgress(),
+      ev({ type: 'enter', mode: 'watch' }),
+      2,
+      2
+    );
+    expect(p.completed).toBe(false);
+    expect(
+      applyStepEvent(p, ev({ type: 'complete', mode: 'watch' }), 2, 2).completed
+    ).toBe(true);
   });
 
   it('adds no new step keys past the rules cap', () => {
@@ -101,7 +126,6 @@ describe('parseProgressDoc', () => {
         steps: { a: { ms: 5, clicks: [{ x: 1, y: 2 }, { x: 'no' }] }, b: null },
       })
     ).toEqual({
-      modeSwitches: 0,
       furthestStepIdx: 0,
       completed: false,
       steps: {
@@ -131,7 +155,13 @@ describe('summarizeEngagement', () => {
     steps: s,
   });
 
-  it('builds the funnel, heatmap dots and mode split', () => {
+  it('keeps legacy mode fields when reading an old doc', () => {
+    expect(
+      parseProgressDoc({ mode: 'watch', modeSwitches: 2, completed: true })
+    ).toMatchObject({ mode: 'watch', modeSwitches: 2, completed: true });
+  });
+
+  it('builds the funnel, heatmap dots and finished count', () => {
     const summary = summarizeEngagement(
       [
         doc(2, 'try', true, {
@@ -168,9 +198,7 @@ describe('summarizeEngagement', () => {
     expect(summary.misclicksBySlide.get(1)).toEqual([
       { x: 50, y: 50, stepId: 'c' },
     ]);
-    expect(summary.split).toEqual({
-      watch: { viewers: 1, completed: 0 },
-      try: { viewers: 2, completed: 1 },
-    });
+    expect(summary.completed).toBe(1);
+    expect(summary).not.toHaveProperty('split');
   });
 });

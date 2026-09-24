@@ -94,7 +94,7 @@ export const SpotlightInteraction: React.FC<Props> = ({
             left: labelX,
             top: shapeBottom + Math.max(12, containerHeight * 0.04),
             transform: 'translate(-50%, -80%)',
-            fontSize: 'min(14px, 4cqmin)',
+            fontSize: 'var(--gl-text-title, min(14px, 4cqmin))',
             opacity: 0.9,
           }}
         >

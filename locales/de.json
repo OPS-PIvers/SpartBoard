@@ -3445,11 +3445,11 @@
     "endTour": "Tour beenden"
   },
   "glPlayer": {
-    "watch": "Ansehen",
-    "tryIt": "Mitklicken",
-    "watchHint": "Jeden Schritt vorgespielt bekommen",
-    "tryHint": "Jede Stelle im Bild selbst anklicken",
-    "playbackMode": "Wiedergabemodus",
+    "modeChip": {
+      "guided": "Sieh dir die Schritte an",
+      "structured": "Tippe auf die markierte Stelle",
+      "explore": "Erkunde die Markierungen"
+    },
     "playbackSpeed": "Wiedergabegeschwindigkeit",
     "speedOption": "{{speed}} Geschwindigkeit",
     "position": "Position in der Anleitung",
@@ -3468,7 +3468,50 @@
       "startOver": "Von vorn beginnen"
     },
     "live": "Schritt {{current}} von {{total}}: {{text}}",
-    "readAloud": "Vorlesen"
+    "readAloud": "Vorlesen",
+    "reveal": {
+      "show": "Antwort zeigen",
+      "hide": "Antwort verbergen",
+      "title": "Antwort"
+    },
+    "more": "Weitere Optionen",
+    "miss": "Nicht dort. Versuche die markierte Stelle.",
+    "question": {
+      "recorded": "Antwort gespeichert",
+      "yourAnswer": "Deine Antwort: {{answer}}",
+      "change": "Antwort ändern",
+      "matchPrompt": "Ordne jedem Eintrag links sein Gegenstück zu:",
+      "sortPrompt": "Ziehe die Einträge oder nutze die Pfeile, um sie richtig zu ordnen:",
+      "selectPlaceholder": "-- auswählen --",
+      "moveUp": "Nach oben",
+      "moveDown": "Nach unten",
+      "submit": "Antwort abgeben",
+      "correct": "Richtig!",
+      "notQuite": "Nicht ganz",
+      "correctAnswer": "Richtige Antwort:",
+      "continue": "Weiter"
+    },
+    "slide": {
+      "loading": "Folie wird geladen…",
+      "error": "Diese Folie konnte nicht geladen werden",
+      "retry": "Erneut versuchen"
+    },
+    "closePlayer": "Player schließen",
+    "exploreHint": "Klicke auf eine Markierung, um zu entdecken",
+    "showSlide": "Folie {{n}} anzeigen",
+    "prev": "Vorheriger Schritt",
+    "next": "Nächster Schritt",
+    "play": "Abspielen",
+    "pause": "Pause",
+    "sessionProgress": "Fortschritt der Sitzung",
+    "stepProgress": "Schrittfortschritt",
+    "goToStep": "Zu Schritt {{n}}",
+    "resetView": "Ansicht zurücksetzen",
+    "close": "Schließen",
+    "closeOverlay": "Einblendung schließen",
+    "closeVideo": "Video schließen",
+    "audio": "Audio",
+    "video": "Video"
   },
   "glEngagement": {
     "title": "Beteiligung",
@@ -3478,8 +3521,6 @@
     "viewers_other": "{{count}} Personen",
     "views_one": "{{count}} Aufruf",
     "views_other": "{{count}} Aufrufe",
-    "watch": "Ansehen",
-    "try": "Mitklicken",
     "finished": "{{completed}} von {{viewers}} fertig",
     "funnelTitle": "Wie weit sie gekommen sind",
     "reached": "{{reached}} von {{total}}",
@@ -3496,7 +3537,80 @@
   "glStudent": {
     "submitting": "Wird gesendet…",
     "submitFailed": "Senden fehlgeschlagen. Deine Antworten sind noch da.",
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "finished": {
+      "title": "Du bist fertig",
+      "body": "Gib deine Arbeit ab, wenn du bereit bist.",
+      "submit": "Abgeben",
+      "back": "Zurück"
+    },
+    "confirmSubmit": {
+      "title": "Jetzt abgeben?",
+      "unanswered_one": "{{count}} Frage unbeantwortet.",
+      "unanswered_other": "{{count}} Fragen unbeantwortet.",
+      "early": "Du bist noch nicht am Ende.",
+      "submit": "Abgeben",
+      "keepGoing": "Weitermachen"
+    },
+    "loading": "Wird geladen…",
+    "loadingActivity": "Aktivität wird geladen…",
+    "done": "Ich bin fertig",
+    "error": {
+      "title": "Hoppla",
+      "connect": "Keine Verbindung möglich. Bitte lade die Seite neu und versuche es noch einmal.",
+      "notFound": "Sitzung nicht gefunden.",
+      "statusFailed": "Dein Abgabestatus konnte nicht geladen werden. Bitte lade die Seite neu und versuche es noch einmal.",
+      "needsSignIn": "Für diese Aktivität brauchst du deine Schulanmeldung. Melde dich mit deinem Schulkonto an, um teilzunehmen.",
+      "notInClass": "Du bist in keiner Klasse, der diese Aktivität zugewiesen wurde. Frag deine Lehrkraft.",
+      "joinFailed": "Beitritt zur Klasse fehlgeschlagen. Bitte versuche es noch einmal."
+    },
+    "start": {
+      "selectClass": "Wähle deine Klasse",
+      "whichPeriod": "In welcher Stunde bist du?",
+      "pickOne": "Wähle eine aus, um fortzufahren. Deine PIN kannst du danach eingeben.",
+      "legacyMode": {
+        "guided": "Geführter Modus",
+        "structured": "Strukturierter Modus",
+        "explore": "Entdeckungsmodus"
+      },
+      "steps_one": "{{count}} Schritt",
+      "steps_other": "{{count}} Schritte",
+      "class": "Klasse",
+      "change": "Ändern",
+      "pin": "Deine PIN",
+      "optional": "(optional)",
+      "pinPlaceholder": "Gib deine Klassen-PIN ein",
+      "getStarted": "Los geht's",
+      "start": "Start"
+    },
+    "complete": {
+      "reachedEnd": "Du bist am Ende dieser Aktivität angekommen.",
+      "replay": "Von vorne abspielen",
+      "submitted": "Deine Antworten wurden abgegeben.",
+      "askTeacher": "Frag deine Lehrkraft nach deinen Ergebnissen.",
+      "complete": "Geschafft!",
+      "scored": "Du hast <b>{{score}} %</b> bei den Verständnisfragen erreicht."
+    },
+    "review": {
+      "title": "Deine Ergebnisse",
+      "correctOf": "{{correct}} von {{total}} richtig",
+      "correct": "Richtig",
+      "incorrect": "Falsch",
+      "yourAnswer": "Deine Antwort:",
+      "noAnswer": "Keine Antwort",
+      "correctAnswer": "Richtige Antwort:"
+    },
+    "locked": {
+      "title": "Noch nicht geöffnet",
+      "body": "Lass diesen Tab geöffnet. Die Aktivität erscheint hier, sobald deine Klasse freigeschaltet ist.",
+      "paused": "Pausiert",
+      "closed": "Geschlossen",
+      "opens": "Öffnet {{day}} {{time}}"
+    },
+    "pausedOverlay": {
+      "title": "Für deine Klasse pausiert",
+      "body": "Deine Lehrkraft hat die Aktivität für deine Klasse pausiert. Deine Antworten bleiben auf dieser Seite. Lass diesen Tab geöffnet, um dort weiterzumachen, wo du aufgehört hast."
+    }
   },
   "glResults": {
     "loadFailedTitle": "Diese Ergebnisse konnten nicht geöffnet werden",

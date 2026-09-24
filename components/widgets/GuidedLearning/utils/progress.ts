@@ -15,15 +15,15 @@ export interface StepProgress {
 
 /** Firestore `guided_learning_sessions/{id}/progress/{uid}` minus the timestamps. */
 export interface GuidedLearningProgress {
+  /** Legacy Watch/Try fields: read from old docs, never written. */
   mode?: PlaybackMode;
-  modeSwitches: number;
+  modeSwitches?: number;
   furthestStepIdx: number;
   completed: boolean;
   steps: Record<string, StepProgress>;
 }
 
 export const emptyProgress = (): GuidedLearningProgress => ({
-  modeSwitches: 0,
   furthestStepIdx: 0,
   completed: false,
   steps: {},
@@ -46,14 +46,12 @@ export function applyStepEvent(
   };
   const next: GuidedLearningProgress = { ...prev };
   let nextStep = step;
-  if (e.mode && e.mode !== prev.mode) {
-    if (prev.mode) next.modeSwitches = prev.modeSwitches + 1;
-    next.mode = e.mode;
-  }
   switch (e.type) {
     case 'enter':
       if (stepIdx >= 0)
         next.furthestStepIdx = Math.max(prev.furthestStepIdx, stepIdx);
+      // A structured run is finished once it reaches the last step, whatever that step is.
+      if (e.mode === 'try' && stepIdx === lastIdx) next.completed = true;
       break;
     case 'leave':
       nextStep = { ...step, ms: step.ms + Math.max(0, Math.round(e.ms)) };
@@ -113,7 +111,9 @@ export function parseProgressDoc(raw: unknown): GuidedLearningProgress {
   }
   return {
     ...(d.mode === 'watch' || d.mode === 'try' ? { mode: d.mode } : {}),
-    modeSwitches: typeof d.modeSwitches === 'number' ? d.modeSwitches : 0,
+    ...(typeof d.modeSwitches === 'number'
+      ? { modeSwitches: d.modeSwitches }
+      : {}),
     furthestStepIdx:
       typeof d.furthestStepIdx === 'number' ? d.furthestStepIdx : 0,
     completed: d.completed === true,
@@ -127,7 +127,8 @@ export interface EngagementSummary {
   funnel: { stepId: string; reached: number; medianMs: number | null }[];
   /** Misclick dots per slide index, in image-%. */
   misclicksBySlide: Map<number, { x: number; y: number; stepId: string }[]>;
-  split: Record<PlaybackMode, { viewers: number; completed: number }>;
+  /** Viewers whose run reached the end. */
+  completed: number;
 }
 
 function median(values: number[]): number | null {
@@ -167,14 +168,6 @@ export function summarizeEngagement(
       misclicksBySlide.set(slide, dots);
     }
   }
-  const split: EngagementSummary['split'] = {
-    watch: { viewers: 0, completed: 0 },
-    try: { viewers: 0, completed: 0 },
-  };
-  for (const d of docs) {
-    if (!d.mode) continue;
-    split[d.mode].viewers += 1;
-    if (d.completed) split[d.mode].completed += 1;
-  }
-  return { viewers: docs.length, funnel, misclicksBySlide, split };
+  const completed = docs.filter((d) => d.completed).length;
+  return { viewers: docs.length, funnel, misclicksBySlide, completed };
 }

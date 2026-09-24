@@ -80,46 +80,135 @@ const tick = (ms: number) =>
   act(() => {
     vi.advanceTimersByTime(ms);
   });
-const pressed = (name: RegExp) =>
-  screen.getByRole('button', { name }).getAttribute('aria-pressed');
-
-describe('GuidedLearningPlayer Watch / Try', () => {
-  it('starts guided sets in Watch and structured sets in Try', () => {
-    renderPlayer(makeSet('guided'));
-    expect(pressed(/^watch$/i)).toBe('true');
-    cleanup();
-    restore?.();
-    renderPlayer(makeSet('structured'));
-    expect(pressed(/^click along$/i)).toBe('true');
+describe('GuidedLearningPlayer author mode', () => {
+  it('has no Watch / Try toggle in any mode', () => {
+    for (const mode of ['guided', 'structured', 'explore'] as const) {
+      renderPlayer(makeSet(mode));
+      expect(screen.queryByRole('button', { name: /^watch$/i })).toBeNull();
+      expect(
+        screen.queryByRole('button', { name: /^click along$/i })
+      ).toBeNull();
+      cleanup();
+      restore?.();
+    }
   });
 
-  it('shows no toggle in explore mode', () => {
+  it('shows a visible chip saying what to do for each mode', () => {
+    const chips = {
+      guided: 'Watch the steps',
+      structured: 'Tap the highlighted spot',
+      explore: 'Explore the pins',
+    } as const;
+    for (const mode of ['guided', 'structured', 'explore'] as const) {
+      renderPlayer(makeSet(mode));
+      expect(screen.getByTestId('gl-mode-chip')).toHaveTextContent(chips[mode]);
+      cleanup();
+      restore?.();
+    }
     renderPlayer(makeSet('explore'));
-    expect(screen.queryByRole('group', { name: /playback mode/i })).toBeNull();
+    expect(screen.queryByText('Click any pin to explore')).toBeNull();
   });
 
-  it('shows no toggle or cursor when player v2 is off', () => {
-    vi.useFakeTimers();
-    renderPlayer(makeSet('guided'), { playerV2: false });
-    expect(screen.queryByRole('group', { name: /playback mode/i })).toBeNull();
-    expect(screen.queryByTestId('gl-cursor')).toBeNull();
-    expect(screen.getByTestId('gl-tooltip-card')).toBeInTheDocument();
-  });
-
-  it('keeps the current step when switching between Try and Watch', () => {
-    renderPlayer(makeSet('structured'));
-    fireEvent.click(screen.getByRole('button', { name: /next step/i }));
-    expect(screen.getByText('2 / 2')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^watch$/i }));
-    expect(pressed(/^watch$/i)).toBe('true');
-    expect(screen.getByText('2 / 2')).toBeInTheDocument();
+  it('plays guided sets as Watch: scrubber and Play, no Try clicks', () => {
+    renderPlayer(makeSet('guided'));
     expect(
       screen.getByRole('slider', { name: /walkthrough position/i })
-    ).toHaveAttribute('aria-valuenow', '2');
-    // The step stays shown rather than replaying its cursor.
-    expect(screen.queryByTestId('gl-cursor')).toBeNull();
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^play$/i })).toBeInTheDocument();
+    expect(screen.getByTestId('gl-cursor')).toBeInTheDocument();
   });
 
+  it('plays structured sets as Try: no Play button, and Next always works', () => {
+    const events: StepEvent[] = [];
+    renderPlayer(makeSet('structured'), {
+      onStepEvent: (e) => events.push(e),
+    });
+    expect(screen.queryByRole('button', { name: /^play$/i })).toBeNull();
+    expect(screen.queryByTestId('gl-cursor')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /next step/i }));
+    expect(screen.getByText('2 / 2')).toBeInTheDocument();
+    expect(events.every((e) => e.mode === 'try')).toBe(true);
+  });
+
+  it('shows no chip, toggle or cursor when player v2 is off', () => {
+    vi.useFakeTimers();
+    renderPlayer(makeSet('guided'), { playerV2: false });
+    expect(screen.queryByTestId('gl-mode-chip')).toBeNull();
+    expect(screen.queryByTestId('gl-cursor')).toBeNull();
+    expect(screen.getByTestId('gl-tooltip-card')).toBeInTheDocument();
+    cleanup();
+    restore?.();
+    renderPlayer(makeSet('explore'), { playerV2: false });
+    expect(screen.getByText('Click any pin to explore')).toBeInTheDocument();
+  });
+});
+
+describe('GuidedLearningPlayer guided start', () => {
+  // Glide 600ms + ripple 420ms, then the 3s step floor.
+  const oneStep = () => {
+    tick(600);
+    tick(420);
+    tick(3100);
+  };
+
+  it('auto-plays a guided set when asked (the student app)', () => {
+    vi.useFakeTimers();
+    renderPlayer(makeSet('guided'), { autoPlay: true });
+    expect(
+      screen.getByRole('button', { name: /^pause$/i })
+    ).toBeInTheDocument();
+    oneStep();
+    expect(screen.getByText('2 / 2')).toBeInTheDocument();
+  });
+
+  it('starts paused without autoPlay (the teacher board)', () => {
+    vi.useFakeTimers();
+    renderPlayer(makeSet('guided'));
+    expect(screen.getByRole('button', { name: /^play$/i })).toBeInTheDocument();
+    oneStep();
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+  });
+
+  it('never auto-plays structured sets or v1 guided sets', () => {
+    vi.useFakeTimers();
+    renderPlayer(makeSet('structured'), { autoPlay: true });
+    oneStep();
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+    cleanup();
+    restore?.();
+    renderPlayer(makeSet('guided'), { autoPlay: true, playerV2: false });
+    expect(screen.getByRole('button', { name: /^play$/i })).toBeInTheDocument();
+    tick(10000);
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+  });
+
+  it('holds auto-play while the resume question is open', () => {
+    vi.useFakeTimers();
+    window.localStorage.setItem(
+      'spartboard.gl.resume.set',
+      JSON.stringify({
+        id: 'set',
+        idx: 1,
+        mode: 'watch',
+        updatedAt: Date.now(),
+      })
+    );
+    renderPlayer(
+      {
+        ...makeSet('guided'),
+        steps: [target, { ...target, id: 'two' }, { ...target, id: 'three' }],
+      },
+      { autoPlay: true }
+    );
+    oneStep();
+    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Start over' }));
+    oneStep();
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+  });
+});
+
+describe('GuidedLearningPlayer Watch / Try', () => {
   it('glides the Watch cursor first, then auto-advances after the step time', () => {
     vi.useFakeTimers();
     renderPlayer(makeSet('guided'));
@@ -244,5 +333,124 @@ describe('GuidedLearningPlayer Watch / Try', () => {
     });
     fireEvent.keyDown(slider, { key: 'ArrowRight' });
     expect(slider).toHaveAttribute('aria-valuenow', '2');
+  });
+});
+
+describe('GuidedLearningPlayer reaching the end', () => {
+  it('finishes when Next is pressed on the last step (v2)', () => {
+    const onReachedEnd = vi.fn();
+    renderPlayer(makeSet('structured'), { onReachedEnd });
+    const next = () => screen.getByRole('button', { name: /next step/i });
+    fireEvent.click(next());
+    expect(onReachedEnd).not.toHaveBeenCalled();
+    expect(next()).toBeEnabled();
+    fireEvent.click(next());
+    expect(onReachedEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('finishes when a guided run auto-advances off the last step', () => {
+    vi.useFakeTimers();
+    const onReachedEnd = vi.fn();
+    renderPlayer(
+      { ...makeSet('guided'), steps: [{ ...target, cursor: { hide: true } }] },
+      { autoPlay: true, onReachedEnd }
+    );
+    tick(3100);
+    expect(onReachedEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('never finishes from the player in v1', () => {
+    const onReachedEnd = vi.fn();
+    renderPlayer(makeSet('structured'), { onReachedEnd, playerV2: false });
+    const next = screen.getByRole('button', { name: /next step/i });
+    fireEvent.click(next);
+    expect(next).toBeDisabled();
+    expect(onReachedEnd).not.toHaveBeenCalled();
+  });
+});
+
+describe('GuidedLearningPlayer presenting keys (v2)', () => {
+  const threeSteps = (mode: GuidedLearningSet['mode']) => ({
+    ...makeSet(mode),
+    steps: [target, { ...target, id: 'two' }, { ...target, id: 'three' }],
+  });
+  const nextBtn = () => screen.getByRole('button', { name: /next step/i });
+  const prevBtn = () => screen.getByRole('button', { name: /previous step/i });
+
+  it('steps with PageDown and PageUp from a clicker', () => {
+    renderPlayer(threeSteps('structured'));
+    stage().focus();
+    fireEvent.keyDown(stage(), { key: 'PageDown' });
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    fireEvent.keyDown(stage(), { key: 'PageDown' });
+    expect(screen.getByText('3 / 3')).toBeInTheDocument();
+    fireEvent.keyDown(stage(), { key: 'PageUp' });
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+  });
+
+  it('steps with arrows and PageDown while a footer button has focus', () => {
+    renderPlayer(threeSteps('guided'));
+    nextBtn().focus();
+    fireEvent.keyDown(nextBtn(), { key: 'ArrowRight' });
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    const play = screen.getByRole('button', { name: /^play$/i });
+    play.focus();
+    fireEvent.keyDown(play, { key: 'PageDown' });
+    expect(screen.getByText('3 / 3')).toBeInTheDocument();
+    prevBtn().focus();
+    fireEvent.keyDown(prevBtn(), { key: 'ArrowLeft' });
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+  });
+
+  it('ignores step keys when focus is outside the player', () => {
+    renderPlayer(threeSteps('structured'));
+    const outside = document.createElement('div');
+    outside.tabIndex = 0;
+    document.body.appendChild(outside);
+    outside.focus();
+    fireEvent.keyDown(outside, { key: 'PageDown' });
+    fireEvent.keyDown(outside, { key: 'ArrowRight' });
+    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+    outside.remove();
+  });
+
+  it('leaves Enter on a footer button to the button', () => {
+    renderPlayer(threeSteps('structured'));
+    prevBtn().focus();
+    fireEvent.keyDown(prevBtn(), { key: 'Enter' });
+    fireEvent.keyDown(prevBtn(), { key: ' ', code: 'Space' });
+    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+  });
+
+  it('keeps v1 on arrows over the canvas only', () => {
+    renderPlayer(threeSteps('structured'), { playerV2: false });
+    stage().focus();
+    fireEvent.keyDown(stage(), { key: 'PageDown' });
+    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+    nextBtn().focus();
+    fireEvent.keyDown(nextBtn(), { key: 'ArrowRight' });
+    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+    stage().focus();
+    fireEvent.keyDown(stage(), { key: 'ArrowRight' });
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+  });
+
+  it('scales callout text up to 30px in v2 only', () => {
+    renderPlayer(makeSet('structured'));
+    const root = screen.getByTestId('gl-player-root');
+    expect(root.style.getPropertyValue('--gl-text-title')).toBe(
+      'clamp(14px, 4.4cqmin, 30px)'
+    );
+    expect(screen.getByTestId('gl-tooltip-card').style.fontSize).toContain(
+      'var(--gl-text-body'
+    );
+    cleanup();
+    restore?.();
+    renderPlayer(makeSet('structured'), { playerV2: false });
+    expect(
+      screen
+        .getByTestId('gl-player-root')
+        .style.getPropertyValue('--gl-text-title')
+    ).toBe('');
   });
 });

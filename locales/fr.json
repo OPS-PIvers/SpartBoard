@@ -3445,11 +3445,11 @@
     "endTour": "Terminer la visite"
   },
   "glPlayer": {
-    "watch": "Regarder",
-    "tryIt": "Cliquer soi-même",
-    "watchHint": "Regarder chaque étape jouée pour vous",
-    "tryHint": "Cliquez vous-même sur chaque zone de l’image",
-    "playbackMode": "Mode de lecture",
+    "modeChip": {
+      "guided": "Regarde les étapes",
+      "structured": "Touche la zone en surbrillance",
+      "explore": "Explore les repères"
+    },
     "playbackSpeed": "Vitesse de lecture",
     "speedOption": "vitesse {{speed}}",
     "position": "Position dans le parcours",
@@ -3468,7 +3468,50 @@
       "startOver": "Recommencer"
     },
     "live": "Étape {{current}} sur {{total}} : {{text}}",
-    "readAloud": "Lire à voix haute"
+    "readAloud": "Lire à voix haute",
+    "reveal": {
+      "show": "Afficher la réponse",
+      "hide": "Masquer la réponse",
+      "title": "Réponse"
+    },
+    "more": "Plus d’options",
+    "miss": "Pas ici. Essaie la zone en surbrillance.",
+    "question": {
+      "recorded": "Réponse enregistrée",
+      "yourAnswer": "Ta réponse : {{answer}}",
+      "change": "Modifier la réponse",
+      "matchPrompt": "Associe chaque élément de gauche à sa paire :",
+      "sortPrompt": "Fais glisser ou utilise les flèches pour mettre les éléments dans le bon ordre :",
+      "selectPlaceholder": "-- choisir --",
+      "moveUp": "Monter",
+      "moveDown": "Descendre",
+      "submit": "Envoyer la réponse",
+      "correct": "Correct !",
+      "notQuite": "Pas tout à fait",
+      "correctAnswer": "Bonne réponse :",
+      "continue": "Continuer"
+    },
+    "slide": {
+      "loading": "Chargement de la diapositive…",
+      "error": "Impossible de charger cette diapositive",
+      "retry": "Réessayer"
+    },
+    "closePlayer": "Fermer le lecteur",
+    "exploreHint": "Clique sur un repère pour explorer",
+    "showSlide": "Afficher la diapositive {{n}}",
+    "prev": "Étape précédente",
+    "next": "Étape suivante",
+    "play": "Lire",
+    "pause": "Pause",
+    "sessionProgress": "Progression de la séance",
+    "stepProgress": "Progression des étapes",
+    "goToStep": "Aller à l’étape {{n}}",
+    "resetView": "Réinitialiser la vue",
+    "close": "Fermer",
+    "closeOverlay": "Fermer la superposition",
+    "closeVideo": "Fermer la vidéo",
+    "audio": "Audio",
+    "video": "Vidéo"
   },
   "glEngagement": {
     "title": "Participation",
@@ -3478,8 +3521,6 @@
     "viewers_other": "{{count}} personnes",
     "views_one": "{{count}} vue",
     "views_other": "{{count}} vues",
-    "watch": "Regarder",
-    "try": "Cliquer soi-même",
     "finished": "{{completed}} sur {{viewers}} ont terminé",
     "funnelTitle": "Jusqu’où ils sont allés",
     "reached": "{{reached}} sur {{total}}",
@@ -3496,7 +3537,80 @@
   "glStudent": {
     "submitting": "Envoi…",
     "submitFailed": "Impossible d'envoyer. Vos réponses sont toujours là.",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "finished": {
+      "title": "Vous avez terminé",
+      "body": "Envoyez votre travail quand vous êtes prêt.",
+      "submit": "Envoyer",
+      "back": "Retour"
+    },
+    "confirmSubmit": {
+      "title": "Envoyer maintenant ?",
+      "unanswered_one": "{{count}} question sans réponse.",
+      "unanswered_other": "{{count}} questions sans réponse.",
+      "early": "Vous n'êtes pas encore arrivé à la fin.",
+      "submit": "Envoyer",
+      "keepGoing": "Continuer"
+    },
+    "loading": "Chargement…",
+    "loadingActivity": "Chargement de l’activité…",
+    "done": "J’ai fini",
+    "error": {
+      "title": "Oups",
+      "connect": "Connexion impossible. Actualise la page et réessaie.",
+      "notFound": "Séance introuvable.",
+      "statusFailed": "Impossible de charger l’état de ta remise. Actualise la page et réessaie.",
+      "needsSignIn": "Cette activité nécessite ta connexion scolaire. Connecte-toi avec ton compte scolaire pour participer.",
+      "notInClass": "Tu n’es dans aucune classe à laquelle cette activité a été attribuée. Demande à ton enseignant.",
+      "joinFailed": "Impossible de rejoindre ta classe. Réessaie."
+    },
+    "start": {
+      "selectClass": "Choisis ta classe",
+      "whichPeriod": "Dans quel cours es-tu ?",
+      "pickOne": "Choisis-en un pour continuer. Tu pourras saisir ton code PIN ensuite.",
+      "legacyMode": {
+        "guided": "mode guidé",
+        "structured": "mode structuré",
+        "explore": "mode exploration"
+      },
+      "steps_one": "{{count}} étape",
+      "steps_other": "{{count}} étapes",
+      "class": "Classe",
+      "change": "Changer",
+      "pin": "Ton code PIN",
+      "optional": "(facultatif)",
+      "pinPlaceholder": "Saisis le code PIN de ta classe",
+      "getStarted": "Commencer",
+      "start": "Démarrer"
+    },
+    "complete": {
+      "reachedEnd": "Tu es arrivé à la fin de cette activité.",
+      "replay": "Rejouer depuis le début",
+      "submitted": "Tes réponses ont été envoyées.",
+      "askTeacher": "Demande à ton enseignant pour voir tes résultats.",
+      "complete": "Terminé !",
+      "scored": "Tu as obtenu <b>{{score}} %</b> aux questions de compréhension."
+    },
+    "review": {
+      "title": "Tes résultats",
+      "correctOf": "{{correct}} sur {{total}} correctes",
+      "correct": "Correcte",
+      "incorrect": "Incorrecte",
+      "yourAnswer": "Ta réponse :",
+      "noAnswer": "Aucune réponse",
+      "correctAnswer": "Bonne réponse :"
+    },
+    "locked": {
+      "title": "Pas encore ouverte",
+      "body": "Garde cet onglet ouvert. L’activité apparaîtra ici dès que ta classe y aura accès.",
+      "paused": "En pause",
+      "closed": "Fermée",
+      "opens": "Ouvre le {{day}} à {{time}}"
+    },
+    "pausedOverlay": {
+      "title": "En pause pour ta classe",
+      "body": "Ton enseignant a mis cette activité en pause pour ta classe. Tes réponses sont conservées sur cette page. Garde cet onglet ouvert pour reprendre là où tu t’étais arrêté."
+    }
   },
   "glResults": {
     "loadFailedTitle": "Impossible d'ouvrir ces résultats",

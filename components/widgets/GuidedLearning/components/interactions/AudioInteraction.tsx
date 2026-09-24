@@ -1,18 +1,25 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Play, Pause, Volume2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { GuidedLearningPublicStep } from '@/types';
 
 interface Props {
   step: GuidedLearningPublicStep;
   autoPlay?: boolean;
   onEnded?: () => void;
+  /** Pauses playback while set, and resumes what it paused when cleared. */
+  paused?: boolean;
+  onError?: () => void;
 }
 
 export const AudioInteraction: React.FC<Props> = ({
   step,
   autoPlay,
   onEnded,
+  paused = false,
+  onError,
 }) => {
+  const { t } = useTranslation();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -25,6 +32,22 @@ export const AudioInteraction: React.FC<Props> = ({
       });
     }
   }, [autoPlay]);
+
+  // Pausing the element is external-system sync; only a clip this paused resumes.
+  const heldPlayingRef = useRef(false);
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (paused) {
+      heldPlayingRef.current = heldPlayingRef.current || !el.paused;
+      el.pause();
+    } else if (heldPlayingRef.current) {
+      heldPlayingRef.current = false;
+      void el.play().catch(() => {
+        /* resume blocked; user can press play */
+      });
+    }
+  }, [paused]);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
@@ -63,6 +86,7 @@ export const AudioInteraction: React.FC<Props> = ({
             setPlaying(false);
             onEnded?.();
           }}
+          onError={onError}
           onTimeUpdate={(e) => setProgress(e.currentTarget.currentTime)}
           onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
         />
@@ -93,11 +117,11 @@ export const AudioInteraction: React.FC<Props> = ({
               className="text-white font-bold truncate"
               style={{ fontSize: 'min(14px, 3.5cqmin)' }}
             >
-              {step.label ?? 'Audio'}
+              {step.label ?? t('glPlayer.audio')}
             </p>
             {step.text && (
               <p
-                className="text-slate-400 font-medium truncate"
+                className="text-slate-300 font-medium truncate"
                 style={{ fontSize: 'min(11px, 2.8cqmin)' }}
               >
                 {step.text}
@@ -108,7 +132,7 @@ export const AudioInteraction: React.FC<Props> = ({
             onClick={togglePlay}
             className="rounded-full bg-indigo-600 hover:bg-indigo-500 flex items-center justify-center flex-shrink-0 transition-all active:scale-90"
             style={{ width: 'min(36px, 9cqmin)', height: 'min(36px, 9cqmin)' }}
-            aria-label={playing ? 'Pause' : 'Play'}
+            aria-label={playing ? t('glPlayer.pause') : t('glPlayer.play')}
           >
             {playing ? (
               <Pause
@@ -143,7 +167,7 @@ export const AudioInteraction: React.FC<Props> = ({
           />
         </div>
         <div
-          className="flex justify-between text-slate-500 font-mono mt-1"
+          className="flex justify-between text-slate-300 font-mono mt-1"
           style={{ fontSize: 'min(10px, 2.5cqmin)' }}
         >
           <span>{formatTime(progress)}</span>
