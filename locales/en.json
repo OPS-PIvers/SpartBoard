@@ -1563,6 +1563,14 @@
       "centrallyManaged": "Centrally managed",
       "managedHelp": "Your district administrator configures the embedded URL for all classrooms."
     },
+    "catalyst": {
+      "centrallyManaged": "Admin managed",
+      "managedHelp": "Catalyst routines and categories are managed for all classrooms by your district administrator."
+    },
+    "miniApp": {
+      "apps": "Apps",
+      "manageHelp": "Manage apps in the main view."
+    },
     "first-5": {
       "automaticContent": "Automatic content",
       "automaticHelp": "This widget shows today’s First 5 content for your selected building and updates each weekday at 6:00 AM.",
