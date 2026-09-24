@@ -393,7 +393,7 @@ describe('readCartridge — a cc_profile instead of question_type', () => {
     expect(quiz.questions[0].type).toBe('free-response');
   });
 
-  it('leaves a select-all question blank, whose answers sit inside an <and>', async () => {
+  it('reads a select-all question as MA when choose-all is on', async () => {
     const item = ccItem(
       'cc.multiple_response.v0p1',
       `<presentation>
@@ -415,13 +415,59 @@ describe('readCartridge — a cc_profile instead of question_type', () => {
          </respcondition>
        </resprocessing>`
     );
-    const quiz = await readCartridge(await oneQuiz(item), 'fallback');
-    expect(quiz.questions[0].type).toBe('MC');
+    const quiz = await readCartridge(
+      await oneQuiz(item),
+      'fallback',
+      undefined,
+      { multiAnswer: true }
+    );
+    expect(quiz.questions[0].type).toBe('MA');
     expect(quiz.questions[0].options).toHaveLength(3);
-    expect(quiz.questions[0].correctAnswer).toBe('');
-    expect(quiz.questions[0].warnings.join(' ')).toMatch(
+    expect(quiz.questions[0].correctAnswer).toBe('Two|Three');
+    expect(quiz.questions[0].warnings).toEqual([]);
+
+    const off = await readCartridge(await oneQuiz(item), 'fallback');
+    expect(off.questions[0].type).toBe('MC');
+    expect(off.questions[0].correctAnswer).toBe('');
+    expect(off.questions[0].warnings.join(' ')).toMatch(
       /more than one correct answer/i
     );
+  });
+
+  it('reads a Canvas multiple-answers item, skipping the choices under <not>', async () => {
+    const item = `
+      <item ident="ma1">
+        <itemmetadata><qtimetadata><qtimetadatafield>
+          <fieldlabel>question_type</fieldlabel><fieldentry>multiple_answers_question</fieldentry>
+        </qtimetadatafield></qtimetadata></itemmetadata>
+        <presentation>
+          <material><mattext texttype="text/plain">Which are mammals?</mattext></material>
+          <response_lid ident="response1" rcardinality="Multiple"><render_choice>
+            <response_label ident="w"><material><mattext texttype="text/plain">Whale</mattext></material></response_label>
+            <response_label ident="s"><material><mattext texttype="text/plain">Shark</mattext></material></response_label>
+            <response_label ident="b"><material><mattext texttype="text/plain">Bat</mattext></material></response_label>
+          </render_choice></response_lid>
+        </presentation>
+        <resprocessing>
+          <outcomes><decvar maxvalue="100" minvalue="0" varname="SCORE" vartype="Decimal"/></outcomes>
+          <respcondition continue="No">
+            <conditionvar><and>
+              <varequal respident="response1">w</varequal>
+              <not><varequal respident="response1">s</varequal></not>
+              <varequal respident="response1">b</varequal>
+            </and></conditionvar>
+            <setvar action="Set" varname="SCORE">100</setvar>
+          </respcondition>
+        </resprocessing>
+      </item>`;
+    const quiz = await readCartridge(
+      await oneQuiz(item),
+      'fallback',
+      undefined,
+      { multiAnswer: true }
+    );
+    expect(quiz.questions[0].type).toBe('MA');
+    expect(quiz.questions[0].correctAnswer).toBe('Whale|Bat');
   });
 
   it('still prefers question_type when an export writes both', async () => {

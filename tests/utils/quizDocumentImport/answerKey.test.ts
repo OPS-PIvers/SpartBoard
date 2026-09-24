@@ -291,3 +291,62 @@ ANS: B PTS: 1`)
     expect(questions[0].options).toHaveLength(2);
   });
 });
+
+const MULTI = { multiAnswer: true };
+
+describe('a key with several letters for one question', () => {
+  it('ignores a letter list while choose-all is off', () => {
+    const { answerByNumber } = findAnswerKey(
+      lines(`Answer Key
+1. A, C`)
+    );
+    expect(answerByNumber.get(1)).not.toBe('A, C');
+  });
+
+  it('reads `3. A, C` as one entry and keys a choose-all question', () => {
+    const [, , q3] = parseQuestionLines(
+      lines(`1. Pick one.
+A. Yes
+B. No
+2. Pick one.
+A. Up
+B. Down
+3. Which are mammals?
+A. Whale
+B. Shark
+C. Bat
+Answer Key
+1. A
+2. B
+3. A, C`),
+      MULTI
+    );
+    expect(q3.type).toBe('MA');
+    expect(q3.correctAnswer).toBe('Whale|Bat');
+    expect(q3.warnings.join(' ')).toMatch(/choose all that apply/i);
+  });
+
+  it('reads `A and C` and `A & C` the same way', () => {
+    const { answerByNumber } = findAnswerKey(
+      lines(`Answer Key
+1. a and c
+2. B & D`),
+      MULTI
+    );
+    expect(answerByNumber.get(1)).toBe('A, C');
+    expect(answerByNumber.get(2)).toBe('B, D');
+  });
+
+  it('notes a listed letter the question does not have', () => {
+    const [q] = parseQuestionLines(
+      lines(`1. Which are mammals?
+A. Whale
+B. Shark
+Answer Key
+1. A, D`),
+      MULTI
+    );
+    expect(q.correctAnswer).toBe('');
+    expect(q.warnings.join(' ')).toMatch(/no option D/);
+  });
+});

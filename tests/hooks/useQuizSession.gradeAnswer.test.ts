@@ -401,3 +401,50 @@ describe('gradeAnswer — Matching non-partial strict correctness vs duplicate p
     expect(result.pointsEarned).toBe(0);
   });
 });
+
+describe('gradeAnswer — MA (choose all that apply)', () => {
+  const ma = (overrides: Partial<QuizQuestion> = {}): QuizQuestion =>
+    q({
+      type: 'MA',
+      text: 'Which are prime?',
+      correctAnswer: '2|3|5',
+      incorrectAnswers: ['4', '9'],
+      points: 6,
+      ...overrides,
+    });
+
+  it('gives full credit for exactly the right set, in any order', () => {
+    expect(gradeAnswer(ma(), '5|2|3')).toEqual({
+      isCorrect: true,
+      pointsEarned: 6,
+      pointsMax: 6,
+      state: 'scored',
+    });
+  });
+
+  it('gives 0 for a wrong set when partial credit is off', () => {
+    const result = gradeAnswer(ma(), '2|3');
+    expect(result.isCorrect).toBe(false);
+    expect(result.pointsEarned).toBe(0);
+    expect(result.state).toBe('scored');
+  });
+
+  it('scores right% minus wrong%, floored at 0, when partial credit is on', () => {
+    const partial = ma({ allowPartialCredit: true });
+    const all = gradeAnswer(partial, '2|3|5|4|9');
+    expect(all.pointsEarned).toBe(0);
+    expect(all.isCorrect).toBe(false);
+    expect(gradeAnswer(partial, '2|3').pointsEarned).toBeCloseTo(4);
+    expect(gradeAnswer(partial, '2|3|5|4').pointsEarned).toBeCloseTo(3);
+    expect(gradeAnswer(partial, '2|3|5').isCorrect).toBe(true);
+  });
+
+  it('treats a blank answer as not attempted', () => {
+    expect(gradeAnswer(ma({ allowPartialCredit: true }), '')).toEqual({
+      isCorrect: false,
+      pointsEarned: 0,
+      pointsMax: 6,
+      state: 'not-attempted',
+    });
+  });
+});

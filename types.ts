@@ -3428,6 +3428,7 @@ export interface RecessGearConfig {
  * Question types supported in the quiz widget.
  * MC = Multiple Choice, FIB = Fill in the Blank,
  * Matching = Match left to right, Ordering = Place items in correct sequence,
+ * MA = choose all that apply (one or more correct options),
  * free-response = open-ended written or spoken answer (manually graded).
  * Legacy 'short'/'essay' values are normalized on read; see
  * `utils/quizQuestionNormalize.ts`.
@@ -3437,6 +3438,7 @@ export type QuizQuestionType =
   | 'FIB'
   | 'Matching'
   | 'Ordering'
+  | 'MA'
   | 'free-response';
 
 /** True iff the question type requires manual teacher grading. */
@@ -3499,10 +3501,11 @@ export interface QuizQuestion {
    * MC/FIB: the correct answer text.
    * Matching: pipe-separated pairs "term1:def1|term2:def2"
    * Ordering: pipe-separated items in correct order "item1|item2|item3"
+   * MA: pipe-separated correct options "opt1|opt2"
    * free-response: always empty string (no key — graded manually).
    */
   correctAnswer: string;
-  /** MC only: up to 4 incorrect answer choices */
+  /** MC: up to 4 incorrect answer choices. MA: the wrong options. */
   incorrectAnswers: string[];
   /**
    * Set by a document import that read the question but not its key
@@ -3521,7 +3524,7 @@ export interface QuizQuestion {
    */
   matchingDistractors?: string[];
   /**
-   * Per-question opt-in for partial credit on Matching/Ordering. Ignored
+   * Per-question opt-in for partial credit on Matching/Ordering/MA. Ignored
    * for MC/FIB/free-response. Defaults to false.
    */
   allowPartialCredit?: boolean;
@@ -4058,7 +4061,7 @@ export interface QuizPublicQuestion {
   type: QuizQuestion['type'];
   text: string;
   timeLimit: number;
-  /** MC only: all answer choices pre-shuffled (correct identity unknown) */
+  /** MC/MA: all answer choices pre-shuffled (correct identity unknown) */
   choices?: string[];
   /** Matching only: left-side terms (prompt side) */
   matchingLeft?: string[];
@@ -4113,7 +4116,7 @@ export interface QuestionTranslation {
   text: string;
   /** FIB only: the translated accepted answer. Teacher-private — never projected to students. */
   answer?: string;
-  /** MC: index-aligned with `[correctAnswer, ...incorrectAnswers.filter(Boolean)]`. */
+  /** MC: index-aligned with `[correctAnswer, ...incorrectAnswers.filter(Boolean)]`. MA: with `multiAnswerOptions`. */
   choices?: string[];
   /** Matching: index-aligned with the parsed pairs of `correctAnswer`. */
   matchingLeft?: string[];
@@ -8682,7 +8685,9 @@ export type GlobalFeature =
   /** Printing quiz results to hand back: presets, bulk print, bubble-sheet reprints. */
   | 'quiz-results-print'
   /** PLC Home v2: tile dashboard with a spotlight, meeting cadence and assign-from-library. */
-  | 'plc-home-v2';
+  | 'plc-home-v2'
+  /** Choose-all-that-apply quiz questions in the quiz editor and AI drafting. */
+  | 'quiz-choose-all';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

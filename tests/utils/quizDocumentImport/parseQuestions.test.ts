@@ -223,3 +223,40 @@ Answer Key
     expect(q.warnings.join(' ')).not.toMatch(/probably missed/i);
   });
 });
+
+describe('parseQuestionLines — choose all that apply', () => {
+  it('reads "select all that apply" wording as MA', () => {
+    const [q] = parseQuestionLines(
+      lines(`1. Select all that apply: which are planets?
+A. Mars
+B. Pluto
+C. Venus`),
+      { multiAnswer: true }
+    );
+    expect(q.type).toBe('MA');
+    expect(q.correctAnswer).toBe('');
+  });
+
+  it('keys an MA from the options marked, when some but not all are', () => {
+    const [q] = parseQuestionLines(
+      [
+        { text: '1. Which are planets?' },
+        { text: 'A. Mars', emphasized: true },
+        { text: 'B. Pluto' },
+        { text: 'C. Venus', emphasized: true },
+      ],
+      { multiAnswer: true }
+    );
+    expect(q.type).toBe('MA');
+    expect(q.correctAnswer).toBe('Mars|Venus');
+  });
+
+  it('keeps multiple choice while choose-all is off', () => {
+    const [q] = parseQuestionLines(
+      lines(`1. Select all that apply: which are planets?
+A. Mars
+B. Pluto`)
+    );
+    expect(q.type).toBe('MC');
+  });
+});

@@ -16,6 +16,7 @@ import type {
   ExtractedQuestion,
   ExtractedQuiz,
 } from './types';
+import { multiAnswerKey, type ReaderOptions } from './types';
 import type { QuizQuestionType } from '@/types';
 import { DocumentTooLargeError, MAX_CARTRIDGE_UNZIPPED_BYTES } from './limits';
 
@@ -95,7 +96,7 @@ function metadataField(item: Element, label: string): string {
  * pointing a `respcondition` that sets a score at a choice's ident, so this is
  * where the answer key lives.
  */
-function correctIdents(item: Element): Map<string, string[]> {
+function correctIdents(item: Element, multi: boolean): Map<string, string[]> {
   const byResponse = new Map<string, string[]>();
   const processing = firstDescendant(item, 'resprocessing');
   if (!processing) return byResponse;
@@ -108,9 +109,11 @@ function correctIdents(item: Element): Map<string, string[]> {
     });
     if (!scores) continue;
     // A condition under `<not>` names a wrong answer, not a right one.
-    if (descendants(condition, 'not').length > 0) continue;
+    if (!multi && descendants(condition, 'not').length > 0) continue;
 
     for (const equal of descendants(condition, 'varequal')) {
+      // A choice-all item mixes right choices with wrong ones under `<not>`.
+      if (underNot(equal, condition)) continue;
       const respident = equal.getAttribute('respident') ?? '';
       const value = (equal.textContent ?? '').trim();
       if (!value) continue;
@@ -118,6 +121,13 @@ function correctIdents(item: Element): Map<string, string[]> {
     }
   }
   return byResponse;
+}
+
+function underNot(el: Element, stop: Element): boolean {
+  for (let p = el.parentElement; p && p !== stop; p = p.parentElement) {
+    if (localName(p) === 'not') return true;
+  }
+  return false;
 }
 
 interface Choice {
@@ -142,11 +152,15 @@ const asOptions = (choices: Choice[]): ExtractedOption[] =>
   }));
 
 /** Common Cartridge states the type as a `cc_profile`; Canvas writes `question_type`. */
-function typeFromProfile(profile: string): QuizQuestionType | null {
+function typeFromProfile(
+  profile: string,
+  multi: boolean
+): QuizQuestionType | null {
   const kind = profile.toLowerCase();
   if (!kind.startsWith('cc.')) return null;
   if (kind.includes('essay')) return 'free-response';
   if (kind.includes('fib') || kind.includes('pattern_match')) return 'FIB';
+  if (multi && kind.includes('multiple_response')) return 'MA';
   if (
     kind.includes('multiple_choice') ||
     kind.includes('multiple_response') ||
@@ -161,7 +175,8 @@ function typeFromProfile(profile: string): QuizQuestionType | null {
 function typeOf(
   declared: string,
   profile: string,
-  responseLids: Element[]
+  responseLids: Element[],
+  multi: boolean
 ): QuizQuestionType {
   const kind = declared.toLowerCase();
   if (kind.includes('essay')) return 'free-response';
@@ -169,10 +184,19 @@ function typeOf(
   if (kind.includes('ordering')) return 'Ordering';
   if (kind.includes('short_answer') || kind.includes('numerical')) return 'FIB';
   if (kind.includes('fill_in') || kind.includes('fib')) return 'FIB';
-  const fromProfile = typeFromProfile(profile);
+  if (
+    multi &&
+    (kind.includes('multiple_answers') || kind.includes('multiple_response'))
+  ) {
+    return 'MA';
+  }
+  const fromProfile = typeFromProfile(profile, multi);
   if (fromProfile) return fromProfile;
   if (responseLids.length > 1) return 'Matching';
-  if (responseLids.length === 1) return 'MC';
+  if (responseLids.length === 1) {
+    const cardinality = responseLids[0].getAttribute('rcardinality') ?? '';
+    return multi && cardinality.toLowerCase() === 'multiple' ? 'MA' : 'MC';
+  }
   return 'free-response';
 }
 
@@ -212,7 +236,11 @@ function matchingPairs(
   return { answer: pairs.join('|'), warnings };
 }
 
-function toQuestion(item: Element, number: number): ExtractedQuestion {
+function toQuestion(
+  item: Element,
+  number: number,
+  multi: boolean
+): ExtractedQuestion {
   const warnings: string[] = [];
   const presentation = firstDescendant(item, 'presentation');
   const responseLids = presentation
@@ -220,7 +248,7 @@ function toQuestion(item: Element, number: number): ExtractedQuestion {
     : [];
   const declared = metadataField(item, 'question_type');
   const profile = metadataField(item, 'cc_profile');
-  const type = typeOf(declared, profile, responseLids);
+  const type = typeOf(declared, profile, responseLids, multi);
 
   // The stem is the material that is not inside a choice list.
   const stemHolders = presentation
@@ -236,7 +264,7 @@ function toQuestion(item: Element, number: number): ExtractedQuestion {
       { text: '', imageSrcs: [] }
     );
 
-  const correct = correctIdents(item);
+  const correct = correctIdents(item, multi);
   let options: ExtractedOption[] = [];
   let correctAnswer = '';
 
@@ -262,6 +290,19 @@ function toQuestion(item: Element, number: number): ExtractedQuestion {
         warnings.push(
           'The export marks an answer this question does not offer, so it was left blank.'
         );
+    }
+  } else if (type === 'MA' && responseLids.length === 1) {
+    const choices = choicesOf(responseLids[0]);
+    options = asOptions(choices);
+    const ident = responseLids[0].getAttribute('ident') ?? '';
+    const wanted = new Set(correct.get(ident) ?? [...correct.values()][0]);
+    correctAnswer = multiAnswerKey(
+      choices.filter((c) => wanted.has(c.ident)).map((c) => c.text)
+    );
+    if (!correctAnswer) {
+      warnings.push(
+        'The export did not mark which choices are correct, so they were left blank.'
+      );
     }
   } else if (type === 'Ordering') {
     warnings.push(
@@ -447,8 +488,10 @@ async function attachCartridgeImages(
 export async function readCartridge(
   file: Blob,
   fallbackTitle: string,
-  maxUnzippedBytes: number = MAX_CARTRIDGE_UNZIPPED_BYTES
+  maxUnzippedBytes: number = MAX_CARTRIDGE_UNZIPPED_BYTES,
+  options: ReaderOptions = {}
 ): Promise<ExtractedQuiz> {
+  const multi = options.multiAnswer === true;
   const budget: UnzipBudget = { remaining: maxUnzippedBytes };
   const zip = await new JSZip().loadAsync(file);
   if (!zip.file(MANIFEST)) {
@@ -478,7 +521,9 @@ export async function readCartridge(
     );
   }
 
-  const read = first.items.map((item, index) => toQuestion(item, index + 1));
+  const read = first.items.map((item, index) =>
+    toQuestion(item, index + 1, multi)
+  );
   const { questions, images } = await attachCartridgeImages(read, zip, budget);
 
   return {

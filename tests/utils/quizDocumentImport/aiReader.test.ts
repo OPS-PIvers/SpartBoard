@@ -117,6 +117,32 @@ describe('aiQuizToExtracted', () => {
     expect(quiz.questions[0].options).toEqual([]);
   });
 
+  it('keeps a choose-all question and its options only while choose-all is on', () => {
+    const ma = aiQuiz({
+      questions: [
+        {
+          number: 1,
+          text: 'Which are mammals?',
+          type: 'MA',
+          options: [
+            { letter: 'A', text: 'Whale' },
+            { letter: 'B', text: 'Shark' },
+            { letter: 'C', text: 'Bat' },
+          ],
+          correctAnswer: 'Whale|Bat',
+          warnings: [],
+        },
+      ],
+    });
+    const on = aiQuizToExtracted(ma, 'Fallback', { multiAnswer: true });
+    expect(on.questions[0].type).toBe('MA');
+    expect(on.questions[0].options).toHaveLength(3);
+    expect(on.questions[0].correctAnswer).toBe('Whale|Bat');
+    expect(aiQuizToExtracted(ma, 'Fallback').questions[0].type).toBe(
+      'free-response'
+    );
+  });
+
   it('numbers a question the model left unnumbered', () => {
     const quiz = aiQuizToExtracted(
       aiQuiz({

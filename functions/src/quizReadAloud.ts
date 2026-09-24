@@ -169,6 +169,9 @@ export interface PrepareQuizReadAloudResult {
   chars: number;
 }
 
+/** MC and choose-all-that-apply both show a choice list. */
+const hasChoices = (type: unknown): boolean => type === 'MC' || type === 'MA';
+
 interface SessionQuestion {
   id?: unknown;
   type?: unknown;
@@ -355,7 +358,7 @@ export function wholeSubParts(question: SessionQuestion): SubPart[] {
       out.push({ mark: `${kind}:${index}`, text: capText(text) });
     });
   };
-  if (question.type === 'MC') add('choice', strings(question.choices));
+  if (hasChoices(question.type)) add('choice', strings(question.choices));
   if (question.type === 'Matching') {
     add('matchingLeft', strings(question.matchingLeft));
     add('matchingRight', strings(question.matchingRight));
@@ -385,7 +388,7 @@ export function resolvePartText(
       return text ? [{ text: capText(text) }] : null;
     }
     case 'choice':
-      return question.type === 'MC'
+      return hasChoices(question.type)
         ? single(question.choices, part.index)
         : null;
     case 'matchingLeft':
@@ -497,7 +500,7 @@ export function enumerateParts(session: Record<string, unknown>): {
         push(partKey(q.id as string, part), resolvePartText(q, part));
       });
     };
-    if (q.type === 'MC') listed('choice', q.choices);
+    if (hasChoices(q.type)) listed('choice', q.choices);
     if (q.type === 'Matching') {
       listed('matchingLeft', q.matchingLeft);
       listed('matchingRight', q.matchingRight);

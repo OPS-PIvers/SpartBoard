@@ -589,6 +589,108 @@ describe('gradeGroupAnswer', () => {
     ).toBe(2);
   });
 
+  describe('choose all that apply (MA)', () => {
+    // 3 right of 5 options; choices carry right then wrong, as parseSyncedQuestion builds them.
+    const ma = q({
+      type: 'MA',
+      points: 3,
+      correctAnswer: 'A|B|C',
+      choices: ['A', 'B', 'C', 'D', 'E'],
+    });
+
+    it('needs the exact set without partial credit', () => {
+      expect(gradeGroupAnswer(ma, 'c|a|b', undefined)).toMatchObject({
+        isCorrect: true,
+        pointsEarned: 3,
+      });
+      expect(gradeGroupAnswer(ma, 'A|B', undefined)).toMatchObject({
+        isCorrect: false,
+        pointsEarned: 0,
+      });
+    });
+
+    it('scores 0 for picking all five with partial credit on', () => {
+      expect(
+        gradeGroupAnswer(
+          { ...ma, allowPartialCredit: true },
+          'A|B|C|D|E',
+          undefined
+        )
+      ).toMatchObject({ isCorrect: false, pointsEarned: 0 });
+    });
+
+    it('gives 2/3 of the points for 2 right and none wrong', () => {
+      const g = gradeGroupAnswer(
+        { ...ma, allowPartialCredit: true },
+        'A|B',
+        undefined
+      );
+      expect(g.isCorrect).toBe(false);
+      expect(g.pointsEarned).toBeCloseTo(2);
+    });
+
+    it('subtracts the wrong share and floors at 0', () => {
+      const partial = { ...ma, allowPartialCredit: true };
+      // 3/3 right − 1/2 wrong = 0.5
+      expect(
+        gradeGroupAnswer(partial, 'A|B|C|D', undefined).pointsEarned
+      ).toBeCloseTo(1.5);
+      // 1/3 right − 2/2 wrong → 0
+      expect(gradeGroupAnswer(partial, 'A|D|E', undefined).pointsEarned).toBe(
+        0
+      );
+    });
+
+    it('reads the options, right then wrong, from the synced key', () => {
+      const [synced] = resolveGroupQuestions(
+        {
+          questions: [
+            {
+              id: 'm1',
+              type: 'MA',
+              text: 'Mammals?',
+              correctAnswer: 'Whale|Bat',
+              incorrectAnswers: ['Shark', ''],
+            },
+          ],
+        },
+        []
+      );
+      expect(synced.choices).toEqual(['Whale', 'Bat', 'Shark']);
+    });
+
+    it('counts each option picked in the choice distribution', () => {
+      const agg = computeAssessmentAggregate({
+        assessmentId: 'a1',
+        title: 'T',
+        kind: 'quiz',
+        groupQuestions: [{ ...ma, id: 'q1' }],
+        sessions: [
+          session(
+            's-a',
+            'teacherA',
+            [
+              response([answer('q1', 'A|B|C', { isCorrect: true })], {
+                studentUid: 's1',
+              }),
+              response([answer('q1', 'A|D', { isCorrect: false })], {
+                studentUid: 's2',
+              }),
+            ],
+            [{ id: 'q1', type: 'MA', text: 'Pick', choices: ['A', 'B'] }]
+          ),
+        ],
+      });
+      expect(agg.perQuestion[0].choiceDistribution).toEqual([
+        { label: 'A', count: 2, isCorrect: true },
+        { label: 'B', count: 1, isCorrect: true },
+        { label: 'C', count: 1, isCorrect: true },
+        { label: 'D', count: 1, isCorrect: false },
+        { label: 'E', count: 0, isCorrect: false },
+      ]);
+    });
+  });
+
   it('grades ordering with partial credit by ordered subsequence', () => {
     const o = q({ type: 'Ordering', correctAnswer: 'a|b|c|d' });
     expect(gradeGroupAnswer(o, 'a|c|b|d', undefined).pointsEarned).toBe(0);

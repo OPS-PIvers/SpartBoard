@@ -69,6 +69,7 @@ import {
 // Re-export for backward compatibility with callers that imported
 // QuizSessionOptions from this module before it was moved into types.ts.
 import { normalizeQuizSession } from '@/utils/quizQuestionNormalize';
+import { multiAnswerOptions, scoreMultiAnswer } from '@/utils/quizMultiAnswer';
 import {
   mergeQuizSessionContent,
   QUIZ_CONTENT_COLLECTION,
@@ -415,6 +416,19 @@ export function toPublicQuestion(
       if (choices && !introducesAmbiguity(choices, english))
         localized[loc].choices = choices;
     }
+  } else if (q.type === 'MA') {
+    const english = multiAnswerOptions(q);
+    const permutation = randomPermutation(english.length);
+    base.choices = permutation.map((i) => english[i]);
+    for (const [loc, tr] of entries) {
+      const choices = permuteAligned(tr.choices, english.length, permutation);
+      if (
+        choices &&
+        !carriesDelimiter(choices, '|') &&
+        !introducesAmbiguity(choices, english)
+      )
+        localized[loc].choices = choices;
+    }
   } else if (q.type === 'Matching') {
     // Use indexOf+slice (not split(':')) so a definition that itself contains
     // a colon (e.g. "9:00 AM", "H:O") survives intact. Only the FIRST colon
@@ -689,6 +703,28 @@ export function gradeAnswer(
     return {
       isCorrect,
       pointsEarned: isCorrect ? max : 0,
+      pointsMax: max,
+      state,
+    };
+  }
+  if (question.type === 'MA') {
+    const score = scoreMultiAnswer(
+      question.correctAnswer,
+      question.incorrectAnswers,
+      studentAnswer,
+      normalizeAnswer
+    );
+    if (!partial) {
+      return {
+        isCorrect: score.exact,
+        pointsEarned: score.exact ? max : 0,
+        pointsMax: max,
+        state,
+      };
+    }
+    return {
+      isCorrect: score.exact,
+      pointsEarned: score.fraction * max,
       pointsMax: max,
       state,
     };

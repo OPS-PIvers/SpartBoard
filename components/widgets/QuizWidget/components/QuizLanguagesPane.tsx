@@ -14,6 +14,7 @@ import { isAppLocale } from '@/utils/isAppLocale';
 import type { UseQuizTranslations } from '@/hooks/useQuizTranslations';
 import { fibTranslationIssue } from '@/utils/quizFibTranslation';
 import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
+import { multiAnswerOptions } from '@/utils/quizMultiAnswer';
 
 export interface QuizLanguagesPaneProps {
   quiz: QuizData;
@@ -337,10 +338,10 @@ export const QuizLanguagesDetailPane: React.FC<QuizLanguagesPaneProps> = ({
     edit({ [field]: next } as Partial<QuestionTranslation>);
   };
 
-  const englishChoices = [
-    question.correctAnswer,
-    ...question.incorrectAnswers.filter(Boolean),
-  ];
+  const englishChoices =
+    question.type === 'MA'
+      ? multiAnswerOptions(question)
+      : [question.correctAnswer, ...question.incorrectAnswers.filter(Boolean)];
 
   const row = (
     key: string,
@@ -377,7 +378,7 @@ export const QuizLanguagesDetailPane: React.FC<QuizLanguagesPaneProps> = ({
         {row('text', question.text, entry?.text ?? '', (value) =>
           edit({ text: value })
         )}
-        {question.type === 'MC' &&
+        {(question.type === 'MC' || question.type === 'MA') &&
           englishChoices.map((choice, i) =>
             row(`choice-${i}`, choice, entry?.choices?.[i] ?? '', (value) =>
               editArray('choices', i, value)

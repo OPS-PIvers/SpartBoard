@@ -434,10 +434,17 @@ export async function assertQuizTranslationFeature(
 
 // ── Alignment helpers ──────────────────────────────────────────────────────
 
-export const filteredChoices = (q: TranslatableQuestion): string[] => [
-  q.correctAnswer ?? '',
-  ...(q.incorrectAnswers ?? []).filter(Boolean),
-];
+const nonBlank = (s: string | undefined): s is string =>
+  !!s && s.trim().length > 0;
+
+/** MC: answer then distractors. MA: right options then wrong (mirrors utils/quizMultiAnswer multiAnswerOptions). */
+export const filteredChoices = (q: TranslatableQuestion): string[] =>
+  isMultiAnswer(q.type)
+    ? [
+        ...(q.correctAnswer ?? '').split('|').filter(nonBlank),
+        ...(q.incorrectAnswers ?? []).filter(nonBlank),
+      ]
+    : [q.correctAnswer ?? '', ...(q.incorrectAnswers ?? []).filter(Boolean)];
 
 export const filteredDistractors = (q: TranslatableQuestion): string[] =>
   (q.matchingDistractors ?? []).filter(Boolean);
@@ -496,9 +503,12 @@ const sortedTokens = (text: string): string => fibTokens(text).sort().join(',');
 const normalizeAnswer = (s: string): string =>
   s.trim().toLowerCase().replace(/\s+/g, ' ').replace(/ё/g, 'е');
 
+function isMultiAnswer(type: string): boolean {
+  return type === 'MA';
+}
 const isMatching = (type: string) => type === 'Matching';
 const isOrdering = (type: string) => type === 'Ordering';
-const isMultipleChoice = (type: string) => type === 'MC';
+const isMultipleChoice = (type: string) => type === 'MC' || type === 'MA';
 const isFreeResponse = (type: string) => type === 'free-response';
 
 const hasForbiddenChar = (values: string[]): boolean =>
@@ -533,6 +543,11 @@ export function validateQuizTranslation(
       const normalized = (t.choices ?? []).map(normalizeAnswer);
       if (new Set(normalized).size !== normalized.length)
         return `Question ${id}: translated choices are not mutually distinct.`;
+      if (
+        isMultiAnswer(q.type) &&
+        (t.choices ?? []).some((c) => c.includes('|'))
+      )
+        return `Question ${id}: choose-all choices may not contain "|".`;
     }
 
     if (isMatching(q.type)) {
@@ -730,7 +745,7 @@ function pickForType(
 ): QuestionTranslation {
   const text = typeof q.text === 'string' ? q.text : '';
   if (isMultipleChoice(type))
-    // Invariant: `choices[0]` is the CORRECT answer (filteredChoices order), so
+    // Invariant: `choices` follow filteredChoices order (MC: [0] is correct), so
     // consumers map by index onto the shuffled English array — never render in order.
     return { text, ...(q.choices ? { choices: q.choices } : {}) };
   if (isMatching(type))

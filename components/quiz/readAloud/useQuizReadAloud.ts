@@ -110,7 +110,7 @@ export function questionPartKeys(q: QuizPublicQuestion): string[] {
     (items ?? []).forEach((_t, index) =>
       keys.push(readAloudPartKey(q.id, { kind, index } as QuizReadAloudPart))
     );
-  if (q.type === 'MC') listed('choice', q.choices);
+  if (q.type === 'MC' || q.type === 'MA') listed('choice', q.choices);
   if (q.type === 'Matching') {
     listed('matchingLeft', q.matchingLeft);
     listed('matchingRight', q.matchingRight);

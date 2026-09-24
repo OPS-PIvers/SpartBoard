@@ -208,6 +208,41 @@ describe('validateQuizTranslation', () => {
     expect(result).toMatch(/expected 3 choices/);
   });
 
+  it('aligns choose-all choices with right options then wrong ones', () => {
+    const ma: TranslatableQuestion = {
+      id: 'q9',
+      type: 'MA',
+      text: 'Which are mammals?',
+      correctAnswer: 'Whale|Bat',
+      incorrectAnswers: ['Shark', '', 'Trout'],
+    };
+    const payload = JSON.parse(
+      buildTranslationPrompt('Quiz', [ma], ['q9']).split('\n').pop() as string
+    ) as { choices?: string[] }[];
+    expect(payload[0].choices).toEqual(['Whale', 'Bat', 'Shark', 'Trout']);
+    expect(
+      validateQuizTranslation([ma], ['q9'], {
+        q9: {
+          text: 'x',
+          choices: ['Ballena', 'Murciélago', 'Tiburón', 'Trucha'],
+        },
+      })
+    ).toBeNull();
+    expect(
+      validateQuizTranslation([ma], ['q9'], {
+        q9: { text: 'x', choices: ['Ballena', 'Murciélago', 'Tiburón'] },
+      })
+    ).toMatch(/expected 4 choices/);
+    expect(
+      validateQuizTranslation([ma], ['q9'], {
+        q9: {
+          text: 'x',
+          choices: ['Ballena', 'Mur|ciélago', 'Tiburón', 'Trucha'],
+        },
+      })
+    ).toMatch(/may not contain/);
+  });
+
   it('rejects a missing question id', () => {
     expect(validateQuizTranslation([mcQuestion()], ['q1'], {})).toMatch(
       /Missing translation for question q1/

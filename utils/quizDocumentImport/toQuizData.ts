@@ -8,18 +8,26 @@
  */
 
 import type { QuizData, QuizQuestion } from '@/types';
-import type { ExtractedQuestion, ExtractedQuiz } from './types';
+import {
+  multiAnswerPart,
+  type ExtractedQuestion,
+  type ExtractedQuiz,
+} from './types';
 
 function toQuizQuestion(q: ExtractedQuestion): QuizQuestion {
-  const optionTexts = q.options.map((o) => o.text);
+  const isMulti = q.type === 'MA';
+  const optionTexts = q.options.map((o) =>
+    isMulti ? multiAnswerPart(o.text) : o.text
+  );
   const answer = q.correctAnswer.trim();
   const isWritten = q.type === 'free-response';
+  const rightSet = new Set(isMulti ? answer.split('|') : [answer]);
 
   // The answer is one of the options, so the rest are the distractors. With
   // no answer yet, every option stays a distractor and the teacher picks one
   // in the editor — nothing is dropped either way.
   const incorrectAnswers = answer
-    ? optionTexts.filter((text) => text !== answer)
+    ? optionTexts.filter((text) => !rightSet.has(text))
     : optionTexts;
 
   return {

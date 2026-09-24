@@ -111,7 +111,7 @@ export function headersHaveAnswerColumns(headers: string[]): boolean {
   return headers.some((h) => /^Q\d+ Answer$/.test(h));
 }
 
-/** Readable answer text for a quiz answer; Matching/Ordering unpacked from their pipe encoding. */
+/** Readable answer text for a quiz answer; Matching/Ordering/MA unpacked from their pipe encoding. */
 export function formatQuizAnswerText(
   question: Pick<QuizQuestion, 'type'>,
   answer: Pick<QuizResponseAnswer, 'answer' | 'artifacts' | 'unresponded'>
@@ -134,6 +134,8 @@ export function formatQuizAnswerText(
       .split('|')
       .map((item, i) => `${i + 1}. ${item}`)
       .join('; ');
+  } else if (raw && question.type === 'MA') {
+    text = raw.split('|').filter(Boolean).join('; ');
   }
   const parts = [text.trim()];
   for (const art of answer.artifacts ?? []) {

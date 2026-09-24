@@ -23,6 +23,8 @@ export interface ReadKeyFileOptions {
   fileName?: string;
   /** Required to read a PDF key; a Word or rich text file needs none. */
   pdf?: PdfReaderDeps;
+  /** Reads `3. A, C` as one question keyed with several letters. */
+  multiAnswer?: boolean;
 }
 
 export { keyFromLines, applyAnswerKey } from './answerKey';
@@ -38,6 +40,7 @@ export async function readAnswerKeyFile(
 ): Promise<Map<number, string>> {
   const fileName = options.fileName ?? (file as File).name ?? '';
   const kind = documentKind(file, fileName);
+  const reader = { multiAnswer: options.multiAnswer === true };
   if (!kind) {
     throw new Error(
       'That answer key can’t be read. Upload a PDF, a Word file (.docx), a rich text file (.rtf) or a Google Doc.'
@@ -47,11 +50,11 @@ export async function readAnswerKeyFile(
 
   if (kind === 'docx') {
     const { lines } = await readDocx(file);
-    return keyFromLines(lines);
+    return keyFromLines(lines, reader);
   }
   if (kind === 'rtf') {
     const { lines } = await readRtf(file);
-    return keyFromLines(lines);
+    return keyFromLines(lines, reader);
   }
   if (kind === 'cartridge') {
     throw new Error(
@@ -64,5 +67,5 @@ export async function readAnswerKeyFile(
   const { lines } = await readPdf(file, options.pdf, {
     maxPages: MAX_DOCUMENT_PAGES,
   });
-  return keyFromLines(lines);
+  return keyFromLines(lines, reader);
 }

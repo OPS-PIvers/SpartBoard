@@ -289,6 +289,13 @@ export function publicQuestionFromKey(q: KeyQuestion): Record<string, unknown> {
   if (q.type === 'MC') {
     const english = [q.correctAnswer ?? '', ...(q.incorrectAnswers ?? [])];
     base.choices = shuffled(english.filter(Boolean));
+  } else if (q.type === 'MA') {
+    // Right options then wrong (utils/quizMultiAnswer multiAnswerOptions), shuffled so neither side shows.
+    const nonBlank = (s: string) => s.trim().length > 0;
+    base.choices = shuffled([
+      ...(q.correctAnswer ?? '').split('|').filter(nonBlank),
+      ...(q.incorrectAnswers ?? []).filter((s) => !!s && nonBlank(s)),
+    ]);
   } else if (q.type === 'Matching') {
     // Only the first colon separates term from definition, so a definition
     // containing one survives intact.

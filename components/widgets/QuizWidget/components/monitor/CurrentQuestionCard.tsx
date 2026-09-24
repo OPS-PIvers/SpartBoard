@@ -182,7 +182,9 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
         >
           Revealed to class:{' '}
           <span className="font-semibold">
-            {session.revealedAnswers[currentQ.id]}
+            {currentQ.type === 'MA'
+              ? session.revealedAnswers[currentQ.id].split('|').join(', ')
+              : session.revealedAnswers[currentQ.id]}
           </span>
         </p>
       )}

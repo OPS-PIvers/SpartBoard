@@ -54,11 +54,13 @@ import {
 import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
 import { WordLimitFields } from './WordLimitFields';
+import { MultiAnswerEditor } from './MultiAnswerEditor';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import { questionNeedsKey } from '@/utils/quizNeedsKey';
 import type { QuizEditorController } from './useQuizEditorState';
+import type { QuizGenType } from '@/utils/ai';
 
 interface PaneProps {
   state: QuizEditorController;
@@ -93,6 +95,11 @@ const QUESTION_TYPES: {
     hint: 'Student types the exact correct word/phrase.',
   },
   {
+    value: 'MA',
+    label: 'Choose All That Apply',
+    hint: 'Students pick every correct option. With partial credit, each wrong pick takes points away, so choosing everything earns nothing.',
+  },
+  {
     value: 'Matching',
     label: 'Matching',
     hint: 'Pair terms with their matching definitions. Add extra distractors to increase difficulty.',
@@ -120,6 +127,7 @@ const TYPE_BADGE: Record<QuizQuestionType, string> = {
   FIB: 'bg-amber-100 text-amber-800',
   Matching: 'bg-purple-100 text-purple-700',
   Ordering: 'bg-teal-100 text-teal-700',
+  MA: 'bg-emerald-100 text-emerald-700',
   'free-response': 'bg-rose-100 text-rose-700',
 };
 
@@ -702,7 +710,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   );
 
   const { t } = useTranslation();
-  const { user, canAccessQuizMediaResponse } = useAuth();
+  const { user, canAccessQuizMediaResponse, canAccessFeature } = useAuth();
   // Fail-closed: no permission record means the controls never mount, so the
   // editor is pixel-identical to today for everyone else.
   const mediaResponseAllowed = canAccessQuizMediaResponse();
@@ -883,7 +891,8 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   mediaResponseAllowed && !isWritten && !!q.recording;
                 updateQuestion(q.id, {
                   type: nextType,
-                  incorrectAnswers: nextType === 'MC' ? ['', ''] : [],
+                  incorrectAnswers:
+                    nextType === 'MC' || nextType === 'MA' ? ['', ''] : [],
                   correctAnswer: '',
                   matchingDistractors: undefined,
                   // Reset written-specific fields when switching off written types
@@ -904,7 +913,12 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               }}
               className={`${inputClass} appearance-none`}
             >
-              {QUESTION_TYPES.map((t) => (
+              {QUESTION_TYPES.filter(
+                (t) =>
+                  t.value !== 'MA' ||
+                  q.type === 'MA' ||
+                  canAccessFeature('quiz-choose-all')
+              ).map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
                 </option>
@@ -999,7 +1013,9 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           />
         )}
 
-        {(q.type === 'Matching' || q.type === 'Ordering') && (
+        {(q.type === 'Matching' ||
+          q.type === 'Ordering' ||
+          q.type === 'MA') && (
           <div className="flex items-start gap-2">
             <div className="flex-1 flex gap-2 p-2.5 bg-brand-blue-primary text-white rounded-lg shadow-sm">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -1010,7 +1026,9 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               title={
                 q.type === 'Matching'
                   ? 'Award partial points based on the number of correct pairs.'
-                  : 'Award partial points based on the longest correctly-ordered sequence.'
+                  : q.type === 'MA'
+                    ? 'Award partial points for each correct option chosen, minus points for each incorrect option chosen.'
+                    : 'Award partial points based on the longest correctly-ordered sequence.'
               }
             >
               <input
@@ -1044,6 +1062,24 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             correctAnswer={q.correctAnswer}
             onChange={handleOrderingChange}
           />
+        ) : q.type === 'MA' ? (
+          <div className="space-y-1">
+            <MultiAnswerEditor
+              correctAnswer={q.correctAnswer}
+              incorrectAnswers={q.incorrectAnswers}
+              onChange={(updates) => updateQuestion(q.id, updates)}
+            />
+            {questionNeedsKey(q) && (
+              <p
+                role="status"
+                className="flex items-center gap-1 text-xxs font-bold text-amber-700"
+              >
+                <AlertCircle className="w-3 h-3" aria-hidden />
+                The imported document didn&apos;t give an answer for this
+                question. Fill it in before you assign the quiz.
+              </p>
+            )}
+          </div>
         ) : isFreeResponseType(q.type) ? (
           <div className="space-y-3">
             {!timeLimitLockedByRecording && (
@@ -1191,7 +1227,7 @@ interface AiOverlayProps {
 }
 
 const QUIZ_TYPE_STEPPER_ROWS: ReadonlyArray<{
-  type: 'MC' | 'FIB' | 'Matching' | 'Ordering';
+  type: QuizGenType;
   label: string;
   hint: string;
 }> = [
@@ -1210,6 +1246,11 @@ const QUIZ_TYPE_STEPPER_ROWS: ReadonlyArray<{
     type: 'Ordering',
     label: 'Ordering',
     hint: 'Put items in the correct sequence',
+  },
+  {
+    type: 'MA',
+    label: 'Choose All That Apply',
+    hint: 'Several correct options among wrong ones',
   },
 ];
 
@@ -1257,7 +1298,9 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
           <span>Total: {aiTotalCount}</span>
         </div>
         <ul className="space-y-2">
-          {QUIZ_TYPE_STEPPER_ROWS.map((row) => {
+          {QUIZ_TYPE_STEPPER_ROWS.filter(
+            (row) => row.type !== 'MA' || canAccessFeature('quiz-choose-all')
+          ).map((row) => {
             const value = aiTypeCounts[row.type];
             return (
               <li

@@ -490,12 +490,13 @@ export class QuizDriveService {
    * Expected column layout (1-based in UI, 0-based here):
    *   A: Time Limit (seconds, blank = no limit)
    *   B: Question Text
-   *   C: Question Type (MC | FIB | Matching | Ordering)
+   *   C: Question Type (MC | FIB | Matching | Ordering | MA)
    *   D: Correct Answer
-   *   E-H: Incorrect 1-4 (MC only)
+   *   E-H: Incorrect 1-4 (MC and MA)
    *
    * For Matching: D = "term1:def1|term2:def2|term3:def3"
    * For Ordering: D = "item1|item2|item3" (in correct order)
+   * For MA (choose all that apply): D = "right1|right2", E-H = wrong options
    */
   async importFromGoogleSheet(
     sheetId: string,
@@ -524,7 +525,7 @@ export class QuizDriveService {
     let startRow = 0;
     if (rows.length > 0) {
       const firstCell = (rows[0][COL_QUESTION_TYPE] ?? '').toUpperCase().trim();
-      if (!['MC', 'FIB', 'MATCHING', 'ORDERING'].includes(firstCell)) {
+      if (!['MC', 'FIB', 'MATCHING', 'ORDERING', 'MA'].includes(firstCell)) {
         startRow = 1;
       }
     }
@@ -546,6 +547,7 @@ export class QuizDriveService {
         FIB: 'FIB',
         MATCHING: 'Matching',
         ORDERING: 'Ordering',
+        MA: 'MA',
       };
       const questionType: QuizQuestionType = typeMap[typeRaw] ?? 'MC';
 
@@ -567,7 +569,7 @@ export class QuizDriveService {
 
     if (questions.length === 0) {
       throw new Error(
-        'No valid questions found. Check the sheet format: Column A=Time Limit, B=Question, C=Type (MC/FIB/Matching/Ordering), D=Correct Answer, E-H=Incorrect Answers.'
+        'No valid questions found. Check the sheet format: Column A=Time Limit, B=Question, C=Type (MC/FIB/Matching/Ordering/MA), D=Correct Answer, E-H=Incorrect Answers.'
       );
     }
 
@@ -625,7 +627,7 @@ export class QuizDriveService {
     // Skip header row if present (detect by checking if row 0 col C is not a valid question type)
     let startRow = 0;
     if (rows.length > 0) {
-      const typeMap = ['MC', 'FIB', 'MATCHING', 'ORDERING'];
+      const typeMap = ['MC', 'FIB', 'MATCHING', 'ORDERING', 'MA'];
       const firstCell = (rows[0][COL_QUESTION_TYPE] ?? '').toUpperCase().trim();
       if (!typeMap.includes(firstCell)) {
         startRow = 1;
@@ -638,6 +640,7 @@ export class QuizDriveService {
       FIB: 'FIB',
       MATCHING: 'Matching',
       ORDERING: 'Ordering',
+      MA: 'MA',
     };
 
     for (let i = startRow; i < rows.length; i++) {
@@ -671,7 +674,7 @@ export class QuizDriveService {
 
     if (questions.length === 0) {
       throw new Error(
-        'No valid questions found in CSV. Expected columns: Time Limit, Question, Type (MC/FIB/Matching/Ordering), Correct Answer, Incorrect 1-4.'
+        'No valid questions found in CSV. Expected columns: Time Limit, Question, Type (MC/FIB/Matching/Ordering/MA), Correct Answer, Incorrect 1-4.'
       );
     }
 
@@ -1600,6 +1603,16 @@ export class QuizDriveService {
       'Declaration of Independence|Civil War|World War I|Moon Landing',
       '',
       '',
+      '',
+      '',
+    ],
+    [
+      '30',
+      'Which of these are prime numbers? (Choose all that apply)',
+      'MA',
+      '2|3|7',
+      '4',
+      '9',
       '',
       '',
     ],

@@ -328,4 +328,38 @@ describe('validateAndBucketQuizQuestions', () => {
     });
     expect(out.map((q) => q.text)).toEqual(['mc1', 'mc2', 'fib1']);
   });
+
+  it('accepts MA with ≥2 right and ≥2 wrong options, only when requested', () => {
+    const raw = [
+      baseQuizQ({
+        text: 'ma-ok',
+        type: 'MA',
+        correctAnswer: 'Whale|Bat',
+        incorrectAnswers: ['Shark', 'Trout'],
+      }),
+      baseQuizQ({
+        text: 'ma-one-right',
+        type: 'MA',
+        correctAnswer: 'Whale',
+        incorrectAnswers: ['Shark', 'Trout'],
+      }),
+      baseQuizQ({
+        text: 'ma-one-wrong',
+        type: 'MA',
+        correctAnswer: 'Whale|Bat',
+        incorrectAnswers: ['Shark'],
+      }),
+    ];
+    const out = validateAndBucketQuizQuestions(raw, { MA: 5 });
+    expect(out.map((q) => q.text)).toEqual(['ma-ok']);
+    expect(out[0].incorrectAnswers).toEqual(['Shark', 'Trout']);
+    expect(
+      validateAndBucketQuizQuestions(raw, {
+        MC: 5,
+        FIB: 0,
+        Matching: 0,
+        Ordering: 0,
+      })
+    ).toEqual([]);
+  });
 });

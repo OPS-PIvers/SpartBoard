@@ -10,6 +10,11 @@ import {
   type ResponseDocKey,
 } from '@/hooks/useQuizSession';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import {
+  multiAnswerCorrectOptions,
+  multiAnswerOptions,
+  parseMultiAnswer,
+} from '@/utils/quizMultiAnswer';
 import { isQuestionExcused } from '@/utils/mediaGrading';
 import {
   gradeQuestionForResponse,
@@ -28,16 +33,41 @@ export interface AnswerGroup<T> {
   /** First spelling seen, trimmed (MC: the option text). */
   label: string;
   items: T[];
+  /** MA only: this option is part of the key. */
+  isKey?: boolean;
+}
+
+/** MA: one row per option in option order; each answer counts once under every option it chose. */
+function groupMultiAnswerPicks<T>(
+  question: Pick<QuizQuestion, 'correctAnswer' | 'incorrectAnswers'>,
+  entries: readonly { answer: string; item: T }[]
+): AnswerGroup<T>[] {
+  const keySet = new Set(
+    multiAnswerCorrectOptions(question.correctAnswer).map(normalizeAnswer)
+  );
+  const groups = new Map<string, AnswerGroup<T>>();
+  for (const label of multiAnswerOptions(question)) {
+    const key = normalizeAnswer(label);
+    if (!groups.has(key))
+      groups.set(key, { key, label, items: [], isKey: keySet.has(key) });
+  }
+  for (const { answer, item } of entries) {
+    const picked = new Set(parseMultiAnswer(answer).map(normalizeAnswer));
+    for (const key of picked) groups.get(key)?.items.push(item);
+  }
+  return [...groups.values()];
 }
 
 /**
  * Bucket answers the way the grader compares them: MC by option (every option
- * listed, in option order), anything else by normalized text, most common first.
+ * listed, in option order), MA by each option picked, anything else by
+ * normalized text, most common first.
  */
 export function groupAnswersByOption<T>(
   question: Pick<QuizQuestion, 'type' | 'correctAnswer' | 'incorrectAnswers'>,
   entries: readonly { answer: string; item: T }[]
 ): AnswerGroup<T>[] {
+  if (question.type === 'MA') return groupMultiAnswerPicks(question, entries);
   const groups = new Map<string, AnswerGroup<T>>();
   const isMc = question.type === 'MC';
   if (isMc) {
@@ -76,7 +106,7 @@ export interface DrilldownStudent {
   name: string;
 }
 
-/** MC option, FIB answer, or wrong Ordering sequence. */
+/** MC/MA option, FIB answer, or wrong Ordering sequence. */
 export interface DrilldownAnswerRow {
   key: string;
   label: string;
@@ -213,7 +243,9 @@ function buildDistribution(
     isCorrect:
       question.type === 'MC'
         ? gradeAnswer(question, g.label).isCorrect
-        : g.items.some((e) => e.outcome === 'correct'),
+        : question.type === 'MA'
+          ? g.isKey === true
+          : g.items.some((e) => e.outcome === 'correct'),
     students: g.items.map((e) => e.student).sort(byName),
   }));
   return { kind: 'options', rows };

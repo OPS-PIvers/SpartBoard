@@ -101,6 +101,29 @@ describe('extractedToQuizData', () => {
   });
 });
 
+describe('extractedToQuizData — choose all that apply', () => {
+  it('keeps every right option and makes the rest distractors', () => {
+    const data = extractedToQuizData(
+      quiz({
+        questions: [
+          question({
+            type: 'MA',
+            options: [
+              { letter: 'A', text: 'Blue' },
+              { letter: 'B', text: 'Green' },
+              { letter: 'C', text: 'Grey' },
+            ],
+            correctAnswer: 'Blue|Grey',
+          }),
+        ],
+      })
+    );
+    expect(data.questions[0].type).toBe('MA');
+    expect(data.questions[0].correctAnswer).toBe('Blue|Grey');
+    expect(data.questions[0].incorrectAnswers).toEqual(['Green']);
+  });
+});
+
 describe('rowWarnings', () => {
   it('numbers each note so it lines up with its review row', () => {
     expect(

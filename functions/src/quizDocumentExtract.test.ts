@@ -50,6 +50,7 @@ import {
   MAX_FIGURES,
   MAX_QUESTIONS,
   buildDocumentResponseSchema,
+  buildExtractPrompt,
   chargeQuizQuota,
   documentMimeType,
   extractQuizFromDocument,
@@ -486,6 +487,75 @@ describe('buildDocumentResponseSchema', () => {
       buildDocumentResponseSchema().properties?.questions?.items?.properties
         ?.figures?.items;
     expect(box?.required).toEqual(['page', 'x', 'y', 'width', 'height']);
+  });
+});
+
+describe('choose all that apply', () => {
+  const maQuestion = (correctAnswer: string) => ({
+    questions: [
+      {
+        number: 1,
+        text: 'Which are mammals?',
+        type: 'MA',
+        options: [
+          { letter: 'A', text: 'Whale' },
+          { letter: 'B', text: 'Shark' },
+          { letter: 'C', text: 'Bat' },
+        ],
+        correctAnswer,
+        warnings: [],
+      },
+    ],
+  });
+
+  it('offers MA in the schema and prompt only when asked', () => {
+    const types = (on: boolean) =>
+      buildDocumentResponseSchema(on).properties?.questions?.items?.properties
+        ?.type?.enum;
+    expect(types(false)).not.toContain('MA');
+    expect(types(true)).toContain('MA');
+    expect(buildExtractPrompt(false)).not.toMatch(/choose all/i);
+    expect(buildExtractPrompt(true)).toMatch(/choose all/i);
+  });
+
+  it('keeps the options and the |-joined right ones', () => {
+    const quiz = normalizeAiQuiz(maQuestion('whale|Bat'), 'f', true);
+    const [q] = quiz.questions;
+    expect(q.type).toBe('MA');
+    expect(q.options).toHaveLength(3);
+    expect(q.correctAnswer).toBe('Whale|Bat');
+  });
+
+  it('blanks the key when a part matches no choice', () => {
+    const [q] = normalizeAiQuiz(
+      maQuestion('Whale|Dolphin'),
+      'f',
+      true
+    ).questions;
+    expect(q.correctAnswer).toBe('');
+    expect(q.warnings[0]).toMatch(/do not all match/i);
+  });
+
+  it('turns MA into a written response when not asked for', () => {
+    const [q] = normalizeAiQuiz(maQuestion('Whale|Bat'), 'f').questions;
+    expect(q.type).toBe('free-response');
+  });
+
+  it('reads the flag off the request and passes it to the model', async () => {
+    const parsed = parseExtractDocumentRequest({
+      fileName: 'a.pdf',
+      mimeType: PDF_MIME,
+      data: Buffer.from('%PDF-1.4 fake').toString('base64'),
+      multiAnswer: true,
+    });
+    expect(parsed.multiAnswer).toBe(true);
+    const { deps } = makeDeps();
+    await extractQuizFromDocument(parsed, teacher, deps);
+    expect(deps.extract).toHaveBeenCalledWith(
+      expect.anything(),
+      PDF_MIME,
+      true
+    );
   });
 });
 

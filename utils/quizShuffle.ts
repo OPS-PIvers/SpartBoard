@@ -83,7 +83,11 @@ export function shuffleQuestionForStudent(
   studentSeed: string
 ): QuizPublicQuestion {
   const seed = `${studentSeed}:${q.id}`;
-  if (q.type === 'MC' && q.choices && q.choices.length > 1) {
+  if (
+    (q.type === 'MC' || q.type === 'MA') &&
+    q.choices &&
+    q.choices.length > 1
+  ) {
     return reindexChoiceArray(
       q,
       'choices',

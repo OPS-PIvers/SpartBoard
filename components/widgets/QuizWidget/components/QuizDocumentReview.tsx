@@ -13,6 +13,10 @@ import { AlertCircle, FileWarning, X } from 'lucide-react';
 import type { QuizData, QuizQuestion, QuizQuestionType } from '@/types';
 import type { ExtractedImage } from '@/utils/quizDocumentImport';
 import { questionNeedsKey } from '@/utils/quizNeedsKey';
+import {
+  multiAnswerCorrectOptions,
+  multiAnswerOptions,
+} from '@/utils/quizMultiAnswer';
 
 interface Props {
   data: QuizData;
@@ -30,14 +34,17 @@ const TYPE_LABEL: Record<QuizQuestionType, string> = {
   FIB: 'Fill in the blank',
   Matching: 'Matching',
   Ordering: 'Ordering',
+  MA: 'Choose all that apply',
   'free-response': 'Written response',
 };
 
 /** Every choice the document listed, answer first so the order is stable. */
-const choicesOf = (q: QuizQuestion): string[] =>
-  q.correctAnswer.trim()
+const choicesOf = (q: QuizQuestion): string[] => {
+  if (q.type === 'MA') return multiAnswerOptions(q);
+  return q.correctAnswer.trim()
     ? [q.correctAnswer, ...q.incorrectAnswers]
     : q.incorrectAnswers;
+};
 
 export const QuizDocumentReview: React.FC<Props> = ({
   data,
@@ -215,7 +222,59 @@ export const QuizDocumentReview: React.FC<Props> = ({
                     className="w-full resize-y rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none"
                   />
 
-                  {choices.length > 0 && (
+                  {choices.length > 0 && q.type === 'MA' && (
+                    <fieldset className="space-y-1">
+                      <legend className="text-xxs font-bold uppercase tracking-wider text-slate-500">
+                        Correct answers
+                      </legend>
+                      {choices.map((choice, choiceIndex) => {
+                        const right = multiAnswerCorrectOptions(
+                          q.correctAnswer
+                        );
+                        return (
+                          <label
+                            key={`${q.id}-${choiceIndex}`}
+                            className="flex items-center gap-2 text-sm text-slate-700"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={right.includes(choice)}
+                              onChange={(e) =>
+                                updateQuestion(q.id, (prev) => {
+                                  const all =
+                                    choiceOrder.get(q.id) ?? choicesOf(prev);
+                                  const picked = new Set(
+                                    multiAnswerCorrectOptions(
+                                      prev.correctAnswer
+                                    )
+                                  );
+                                  if (e.target.checked) picked.add(choice);
+                                  else picked.delete(choice);
+                                  return {
+                                    ...prev,
+                                    correctAnswer: all
+                                      .filter((c) => picked.has(c))
+                                      .join('|'),
+                                    incorrectAnswers: all.filter(
+                                      (c) => !picked.has(c)
+                                    ),
+                                    needsKey: picked.size === 0,
+                                  };
+                                })
+                              }
+                              className="shrink-0 accent-brand-blue-primary"
+                              aria-label={`Question ${index + 1}, correct answer: ${choice}`}
+                            />
+                            <span className="min-w-0 flex-1 truncate">
+                              {choice}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </fieldset>
+                  )}
+
+                  {choices.length > 0 && q.type !== 'MA' && (
                     <fieldset className="space-y-1">
                       <legend className="text-xxs font-bold uppercase tracking-wider text-slate-500">
                         Correct answer
