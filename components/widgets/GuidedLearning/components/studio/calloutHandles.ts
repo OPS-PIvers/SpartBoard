@@ -1,6 +1,11 @@
 import type { GuidedLearningStep } from '@/types';
 import type { PxRect, StageGeometry } from '../../types/stage';
 import type { Point } from '../../utils/calloutPlacement';
+import {
+  clampCalloutScale,
+  clampCalloutWidthPct,
+} from '../../utils/calloutStyle';
+import { setCalloutScale, setCalloutWidthPct } from './regionEdits';
 
 /** Side handles set the width; corner handles scale the whole card. Height fits the content, so no top or bottom handle. */
 export type CalloutHandle = 'nw' | 'ne' | 'e' | 'se' | 'sw' | 'w';
@@ -13,29 +18,17 @@ export const CALLOUT_HANDLES: readonly CalloutHandle[] = [
   'w',
 ];
 
-export const CALLOUT_WIDTH_MIN = 10;
-export const CALLOUT_WIDTH_MAX = 95;
-export const CALLOUT_SCALE_MIN = 0.75;
-export const CALLOUT_SCALE_MAX = 2;
 /** Keyboard steps: Alt+←/→ width in stage-%, Alt+↑/↓ scale. */
 export const CALLOUT_WIDTH_STEP = 2;
 export const CALLOUT_SCALE_STEP = 0.05;
-
-// Phase A adds these to GuidedLearningStep; the intersection keeps this file compiling either way.
-export type SizedStep = GuidedLearningStep & {
-  calloutWidthPct?: number;
-  calloutScale?: number;
-};
 
 const clamp = (n: number, lo: number, hi: number): number =>
   Math.min(Math.max(n, lo), hi);
 const round = (n: number, places: number): number =>
   Math.round(n * 10 ** places) / 10 ** places;
 
-export const clampWidthPct = (n: number): number =>
-  round(clamp(n, CALLOUT_WIDTH_MIN, CALLOUT_WIDTH_MAX), 2);
-export const clampScale = (n: number): number =>
-  round(clamp(n, CALLOUT_SCALE_MIN, CALLOUT_SCALE_MAX), 3);
+const clampWidthPct = (n: number): number => round(clampCalloutWidthPct(n), 2);
+const clampScale = (n: number): number => round(clampCalloutScale(n), 3);
 
 const OVERLAY_TYPES = new Set(['pan-zoom', 'pan-zoom-spotlight', 'spotlight']);
 
@@ -55,6 +48,22 @@ export function isTooltipCallout(step: GuidedLearningStep): boolean {
     step.interactionType === 'tooltip' ||
     (OVERLAY_TYPES.has(step.interactionType) && step.showOverlay === 'tooltip')
   );
+}
+
+/** Tooltip ⇄ popover, keeping label, text, pin, size and tone. */
+export function toggleCalloutKind(
+  step: GuidedLearningStep
+): GuidedLearningStep {
+  if (step.interactionType === 'tooltip') {
+    return { ...step, interactionType: 'text-popover' };
+  }
+  if (step.interactionType === 'text-popover') {
+    return { ...step, interactionType: 'tooltip' };
+  }
+  return {
+    ...step,
+    showOverlay: step.showOverlay === 'tooltip' ? 'popover' : 'tooltip',
+  };
 }
 
 /** Result of a handle drag: the fields to write, and the new pinned centre in container px (null = leave the pin alone). */
@@ -138,17 +147,17 @@ export function scaleCalloutCorner(
 
 /** Writes width and scale, dropping either when it returns to its default. */
 export function withCalloutSize(
-  step: SizedStep,
+  step: GuidedLearningStep,
   size: { widthPct?: number; scale?: number }
-): SizedStep {
-  const next: SizedStep = { ...step };
+): GuidedLearningStep {
+  let next = step;
   if (size.widthPct !== undefined) {
-    next.calloutWidthPct = clampWidthPct(size.widthPct);
+    next = setCalloutWidthPct(next, clampWidthPct(size.widthPct));
   }
   if (size.scale !== undefined) {
     const s = clampScale(size.scale);
+    next = setCalloutScale(next, s);
     if (s === 1) delete next.calloutScale;
-    else next.calloutScale = s;
   }
   return next;
 }

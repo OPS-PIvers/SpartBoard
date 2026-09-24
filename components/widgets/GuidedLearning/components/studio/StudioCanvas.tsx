@@ -34,6 +34,8 @@ interface StudioCanvasProps {
   preset: DevicePreset;
   /** Apply the v2 player's text sizes, matching how sessions will play. */
   playerV2?: boolean;
+  /** Deletes a step with the Studio's undo toast (callout toolbar). */
+  onDeleteStep?: (id: string) => void;
 }
 
 const TOOL_ICONS: Record<DrawShape, typeof Square> = {
@@ -49,6 +51,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   setId,
   preset,
   playerV2 = false,
+  onDeleteStep,
 }) => {
   const { t } = useTranslation();
   const {
@@ -169,6 +172,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           editing={editingStepId !== null}
           calloutEditing={calloutEditing}
           calloutSelected={calloutSelected}
+          onDeleteStep={onDeleteStep}
           beginGesture={beginGesture}
           endGesture={endGesture}
         />
@@ -193,6 +197,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       setCalloutFocused,
       calloutSelected,
       calloutEditing,
+      onDeleteStep,
       setEditingStepId,
       editingStepId,
       beginGesture,
@@ -209,10 +214,11 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           onChange={updateStep}
           onDone={() => setEditingStepId(null)}
           holdOpen={linkPending}
+          editKeys={calloutEditing}
         />
       ) : null;
     },
-    [steps, updateStep, setEditingStepId, linkPending]
+    [steps, updateStep, setEditingStepId, linkPending, calloutEditing]
   );
 
   const applyBlur = async () => {

@@ -18,7 +18,6 @@ import {
   hasEditableCallout,
   scaleCalloutCorner,
   withCalloutSize,
-  type SizedStep,
 } from './calloutHandles';
 import { safeLinkUrl, wrapSelection } from './inlineText';
 import type { RedactMode, RedactRect } from '../../utils/redactImage';
@@ -207,7 +206,7 @@ export function useCanvasTools(
   const sizeCallout = useCallback(
     (axis: 'width' | 'scale', dir: 1 | -1) => {
       if (!selected) return;
-      const step: SizedStep = selected;
+      const step = selected;
       const g = geometryRef.current;
       const el = findCallout(
         document.querySelector(CANVAS_SELECTOR),

@@ -42,9 +42,9 @@ import {
   scaleCalloutCorner,
   withCalloutSize,
   type CalloutHandle,
-  type SizedStep,
 } from './calloutHandles';
 import { useDeviceFrame } from './deviceFrameContext';
+import { CalloutToolbar } from './CalloutToolbar';
 import { isDoubleTap, type Tap } from './touchGestures';
 
 export type DrawShape = GuidedLearningRegion['shape'];
@@ -59,6 +59,8 @@ const HANDLE_PX = 10;
 const REPEAT_CLICK_MS = 500;
 /** Pins are hard to hit at their drawn size, so they get the player's touch target. */
 const MIN_PIN_HIT_PX = 44;
+/** Screen px above a selected callout that its toolbar needs before it flips below. */
+const TOOLBAR_ROOM_PX = 56;
 
 interface StudioEditLayerProps {
   g: StageGeometry;
@@ -83,6 +85,8 @@ interface StudioEditLayerProps {
   calloutEditing?: boolean;
   /** The selected step's callout (not its region) is selected. */
   calloutSelected?: boolean;
+  /** The Studio's delete-step action, with its undo toast. */
+  onDeleteStep?: (id: string) => void;
   beginGesture: () => void;
   endGesture: () => void;
 }
@@ -107,7 +111,7 @@ type Gesture =
   | { kind: 'vertex'; step: GuidedLearningStep; index: number }
   | {
       kind: 'callout-size';
-      step: SizedStep;
+      step: GuidedLearningStep;
       handle: CalloutHandle;
       box: PxRect;
     }
@@ -151,6 +155,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
   editing,
   calloutEditing = false,
   calloutSelected = false,
+  onDeleteStep,
   beginGesture,
   endGesture,
 }) => {
@@ -931,7 +936,36 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
           );
         })}
 
-      {selected?.calloutPin && selRect && (
+      {selected && selBox && calloutSelected && !editing && (
+        <div
+          className="absolute"
+          style={
+            // Flips below the callout when there is no room above it.
+            selBox.y * scale.screenPerPx < TOOLBAR_ROOM_PX
+              ? {
+                  left: selBox.x,
+                  top: selBox.y + selBox.h,
+                  transform: `scale(${1 / scale.screenPerPx}) translateY(12px)`,
+                  transformOrigin: 'top left',
+                }
+              : {
+                  left: selBox.x,
+                  top: selBox.y,
+                  transform: `scale(${1 / scale.screenPerPx}) translateY(calc(-100% - 12px))`,
+                  transformOrigin: 'top left',
+                }
+          }
+        >
+          <CalloutToolbar
+            step={selected}
+            onChange={onChange}
+            onEdit={() => onEditCallout(selected.id)}
+            onDelete={() => onDeleteStep?.(selected.id)}
+          />
+        </div>
+      )}
+
+      {selected?.calloutPin && selRect && !(calloutSelected && selBox) && (
         <div
           className="absolute flex"
           style={{

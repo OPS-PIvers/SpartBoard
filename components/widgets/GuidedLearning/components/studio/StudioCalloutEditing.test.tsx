@@ -2,6 +2,7 @@ import React, { Profiler, useEffect } from 'react';
 import {
   act,
   cleanup,
+  within,
   fireEvent,
   render,
   screen,
@@ -130,7 +131,13 @@ const Harness: React.FC = () => {
     latest.current = state;
   });
   return (
-    <StudioCanvas state={state} tools={tools} setId="set-1" preset={BOARD} />
+    <StudioCanvas
+      state={state}
+      tools={tools}
+      setId="set-1"
+      preset={BOARD}
+      onDeleteStep={(id) => state.deleteStep(id)}
+    />
   );
 };
 
@@ -220,11 +227,7 @@ describe('Studio callout editing (gl-callout-editing)', () => {
       ctrlKey: true,
     });
   };
-  const sized = (id: string) =>
-    stepById(id) as GuidedLearningStep & {
-      calloutWidthPct?: number;
-      calloutScale?: number;
-    };
+  const sized = (id: string) => stepById(id);
 
   it('outlines the callout on hover with a move cursor', () => {
     click([18, 18]);
@@ -319,5 +322,103 @@ describe('Studio callout editing (gl-callout-editing)', () => {
     selectCallout();
     fireEvent.keyDown(canvas() as Element, { key: 'Enter' });
     expect(canvas()).toHaveAttribute('data-editing-step', 'rect-1');
+  });
+
+  describe('toolbar', () => {
+    const toolbar = () => screen.getByTestId('gl-callout-toolbar');
+    const button = (name: string) =>
+      within(toolbar()).getByRole('button', { name });
+
+    it('shows over a selected callout and leaves the canvas gesture alone', () => {
+      selectCallout();
+      expect(toolbar()).toBeInTheDocument();
+      expect(button('Reset position')).toBeDisabled();
+      expect(button('Reset size')).toBeDisabled();
+      fireEvent.pointerDown(button('Reset size'), { button: 0, pointerId: 1 });
+      expect(screen.getByTestId('gl-callout-selection')).toBeInTheDocument();
+    });
+
+    it('resets size and position', () => {
+      selectCallout();
+      act(() =>
+        editor().updateStep({
+          ...stepById('rect-1'),
+          calloutPin: { xPct: 90, yPct: 83 },
+          calloutWidthPct: 40,
+          calloutScale: 1.5,
+          calloutTone: 'light',
+        })
+      );
+      fireEvent.click(button('Reset size'));
+      expect(stepById('rect-1').calloutWidthPct).toBeUndefined();
+      expect(stepById('rect-1').calloutScale).toBeUndefined();
+      expect(stepById('rect-1').calloutPin).toBeDefined();
+      fireEvent.click(button('Reset position'));
+      expect(stepById('rect-1').calloutPin).toBeUndefined();
+      expect(stepById('rect-1').calloutTone).toBe('light');
+    });
+
+    it('switches a tooltip to a text box and back, keeping its text and style', () => {
+      selectCallout();
+      act(() =>
+        editor().updateStep({ ...stepById('rect-1'), calloutScale: 1.25 })
+      );
+      fireEvent.click(button('Change to text box'));
+      expect(stepById('rect-1')).toMatchObject({
+        interactionType: 'text-popover',
+        text: 'First',
+        calloutScale: 1.25,
+      });
+      fireEvent.click(button('Change to tooltip'));
+      expect(stepById('rect-1').interactionType).toBe('tooltip');
+    });
+
+    it('picks a colour and marks the one in use', () => {
+      selectCallout();
+      expect(button('Dark')).toHaveAttribute('aria-pressed', 'true');
+      fireEvent.click(button('Accent'));
+      expect(stepById('rect-1').calloutTone).toBe('accent');
+      expect(button('Accent')).toHaveAttribute('aria-pressed', 'true');
+      fireEvent.click(button('Dark'));
+      expect(stepById('rect-1').calloutTone).toBeUndefined();
+    });
+
+    it('opens inline editing', () => {
+      selectCallout();
+      fireEvent.click(button('Edit text'));
+      expect(canvas()).toHaveAttribute('data-editing-step', 'rect-1');
+    });
+
+    it('deletes the step', () => {
+      selectCallout();
+      fireEvent.click(button('Delete step'));
+      expect(editor().steps.some((s) => s.id === 'rect-1')).toBe(false);
+    });
+  });
+
+  describe('inline editing keys', () => {
+    const openEditor = () => {
+      selectCallout();
+      fireEvent.keyDown(canvas() as Element, { key: 'Enter' });
+    };
+
+    it('moves from the title to the body on Enter', () => {
+      openEditor();
+      const title = screen.getByLabelText('Callout title');
+      title.focus();
+      fireEvent.keyDown(title, { key: 'Enter' });
+      expect(document.activeElement).toHaveAttribute('data-gl-inline', 'text');
+    });
+
+    it('keeps blank lines in the body and finishes on Ctrl+Enter', () => {
+      openEditor();
+      const body = screen.getByLabelText('Callout text');
+      fireEvent.change(body, { target: { value: 'a\n\nb\n' } });
+      fireEvent.keyDown(body, { key: 'Enter' });
+      expect(canvas()).toHaveAttribute('data-editing-step', 'rect-1');
+      fireEvent.keyDown(body, { key: 'Enter', ctrlKey: true });
+      expect(canvas()).not.toHaveAttribute('data-editing-step');
+      expect(stepById('rect-1').text).toBe('a\n\nb\n');
+    });
   });
 });

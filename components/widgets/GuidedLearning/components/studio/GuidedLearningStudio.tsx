@@ -1024,6 +1024,7 @@ const StudioSession: React.FC<
                 setId={set.id}
                 preset={preset}
                 playerV2={canAccessFeature('gl-player-v2')}
+                onDeleteStep={deleteStepWithUndo}
               />
             )}
             {canvasDrop.active && (
@@ -1060,6 +1061,7 @@ const StudioSession: React.FC<
             state={editorState}
             onDeleteStep={deleteStepWithUndo}
             canvasRef={canvasRef}
+            calloutEditing={calloutEditing}
             liveTours={liveTours}
             tourSet={
               liveTours && !readOnly

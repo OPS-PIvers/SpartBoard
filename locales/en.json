@@ -4086,7 +4086,20 @@
       "needs-open-widget": "Not found. Open or add the widget this button belongs to.",
       "needs-panel": "Not found. Open the menu or panel it's in, then try again.",
       "not-found": "Not found on the board."
-    }
+    },
+    "calloutToolbar": "Callout tools",
+    "calloutEditText": "Edit text",
+    "calloutResetPosition": "Reset position",
+    "calloutResetSize": "Reset size",
+    "calloutToPopover": "Change to text box",
+    "calloutToTooltip": "Change to tooltip",
+    "calloutColour": "Colour",
+    "calloutDeleteStep": "Delete step",
+    "calloutWidthPct": "Width {{pct}}%",
+    "calloutWidthAuto": "Auto width",
+    "calloutScaleX": "{{scale}}×",
+    "resetCalloutAll": "Reset all",
+    "calloutSizeHint": "Click the callout to resize it with its handles, or pick a colour."
   },
   "helpCenter": {
     "title": "Help",
