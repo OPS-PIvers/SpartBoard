@@ -1193,6 +1193,29 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     </div>
   );
 
+  // v2 drops the name heading; the current target's state (and, with the list collapsed, tab switches) stays.
+  const studentStatusRow = response && (
+    <div className="flex flex-wrap items-center gap-2">
+      <span
+        className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xxs uppercase tracking-wider ${headerVocabulary.chip}`}
+      >
+        {headerVocabulary.key.endsWith('.scored') && !slotExcused && (
+          <CheckCircle2 aria-hidden className="h-3 w-3" />
+        )}
+        {t(headerVocabulary.key)}
+      </span>
+      {railCollapsed && tabSwitches > 0 && (
+        <span
+          className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700"
+          title={tg('tabSwitchesTitle', { count: tabSwitches })}
+        >
+          <ShieldAlert aria-hidden className="h-3 w-3" />
+          {tg('tabSwitches', { count: tabSwitches })}
+        </span>
+      )}
+    </div>
+  );
+
   const status = writeQueue.status;
   const statusChip =
     status === 'saving' ? (
@@ -1546,7 +1569,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           </div>
 
           <div className="flex flex-col gap-4 p-6">
-            {!graderV2 && studentHeading}
+            {graderV2 ? studentStatusRow : studentHeading}
             {!target && (
               <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm italic text-slate-500">
                 {tg('noAnswersOnQuestion')}

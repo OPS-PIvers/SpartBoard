@@ -99,6 +99,8 @@ describe('FreeResponseGrader — quiz-grader-v2', () => {
     fireEvent.click(screen.getByRole('button', { name: /hide student list/i }));
     expect(screen.queryByText('Ada Lovelace')).toBeNull();
     expect(screen.getByLabelText('0 of 2 graded')).toBeTruthy();
+    expect(screen.getAllByText(/ungraded/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/3 tab switches/i)).toBeTruthy();
     unmount();
     renderGrader(true);
     expect(
