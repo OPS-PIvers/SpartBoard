@@ -937,22 +937,19 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
       {selected && selBox && calloutSelected && !editing && (
         <div
           className="absolute"
-          style={
-            // Flips below the callout when there is no room above it.
-            selBox.y * scale.screenPerPx < TOOLBAR_ROOM_PX
-              ? {
-                  left: selBox.x,
-                  top: selBox.y + selBox.h,
-                  transform: `scale(${1 / scale.screenPerPx}) translateY(12px)`,
-                  transformOrigin: 'top left',
-                }
-              : {
-                  left: selBox.x,
-                  top: selBox.y,
-                  transform: `scale(${1 / scale.screenPerPx}) translateY(calc(-100% - 12px))`,
-                  transformOrigin: 'top left',
-                }
-          }
+          style={(() => {
+            const below = selBox.y * scale.screenPerPx < TOOLBAR_ROOM_PX;
+            // Right-aligned on the right half, so the frame never clips it.
+            const right = selBox.x + selBox.w / 2 > g.containerSize.w / 2;
+            return {
+              left: right ? selBox.x + selBox.w : selBox.x,
+              top: below ? selBox.y + selBox.h : selBox.y,
+              transform: `scale(${1 / scale.screenPerPx}) translate(${
+                right ? '-100%' : '0'
+              }, ${below ? '12px' : 'calc(-100% - 12px)'})`,
+              transformOrigin: 'top left',
+            };
+          })()}
         >
           <CalloutToolbar
             step={selected}

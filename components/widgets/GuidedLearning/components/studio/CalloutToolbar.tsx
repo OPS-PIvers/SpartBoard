@@ -46,12 +46,14 @@ export const CalloutToolbar: React.FC<CalloutToolbarProps> = ({
   const KindIcon = tooltip ? MessageSquare : MessageSquareShare;
   return (
     <div
-      role="toolbar"
+      role="group"
       aria-label={t('glStudio.calloutToolbar')}
       data-testid="gl-callout-toolbar"
       data-gl-callout-toolbar=""
       // A press here is a button press, never a canvas gesture.
       onPointerDown={(e) => e.stopPropagation()}
+      // Keeps focus on the canvas, so Alt+arrows and typing still work after a click.
+      onMouseDown={(e) => e.preventDefault()}
       onDoubleClick={(e) => e.stopPropagation()}
       className="pointer-events-auto flex items-center gap-0.5 whitespace-nowrap rounded-lg border border-slate-200 bg-white/95 p-1 shadow-lg"
     >

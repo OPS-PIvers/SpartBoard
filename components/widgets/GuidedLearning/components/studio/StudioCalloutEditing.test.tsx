@@ -268,6 +268,14 @@ describe('Studio callout editing (gl-callout-editing)', () => {
     expect(screen.queryByTestId('gl-callout-selection')).toBeNull();
   });
 
+  it('drops the callout selection when another step is selected by any route', () => {
+    selectCallout();
+    act(() => editor().setSelectedStepId('rect-2'));
+    expect(screen.queryByTestId('gl-callout-selection')).toBeNull();
+    act(() => editor().setSelectedStepId('rect-1'));
+    expect(screen.queryByTestId('gl-callout-selection')).toBeNull();
+  });
+
   it('sets the width from a side handle as one undo step', () => {
     selectCallout();
     dragHandle('e', [700, 430], [740, 430]);

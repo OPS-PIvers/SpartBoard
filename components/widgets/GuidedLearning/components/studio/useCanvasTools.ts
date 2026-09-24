@@ -79,7 +79,17 @@ export function useCanvasTools(
   const viewport = useCanvasViewport(preset.id);
   const [shape, setShape] = useState<DrawShape>('rect');
   const [draft, setDraft] = useState<PctPoint[] | null>(null);
-  const [calloutFocused, setCalloutFocused] = useState(false);
+  // Tied to a step id, so selecting another step by any route drops the callout focus.
+  const [calloutFocusId, setCalloutFocusId] = useState<string | null>(null);
+  if (calloutFocusId !== null && calloutFocusId !== selectedStepId) {
+    setCalloutFocusId(null);
+  }
+  const calloutFocused =
+    calloutFocusId !== null && calloutFocusId === selectedStepId;
+  const setCalloutFocused = useCallback(
+    (focused: boolean) => setCalloutFocusId(focused ? selectedStepId : null),
+    [selectedStepId]
+  );
   const [editing, setEditing] = useState<string | null>(null);
   const [linkPending, setLinkPending] = useState(false);
   const [blurring, setBlurring] = useState(false);
@@ -259,7 +269,7 @@ export function useCanvasTools(
       setCalloutFocused(false);
       setSelectedStepId(slideSteps[next].id);
     },
-    [slideSteps, selectedStepId, setSelectedStepId]
+    [slideSteps, selectedStepId, setSelectedStepId, setCalloutFocused]
   );
 
   /** Delete on a focused polygon vertex removes that vertex; returns whether it did. */
@@ -488,6 +498,7 @@ export function useCanvasTools(
   }, [
     selected,
     calloutSelected,
+    setCalloutFocused,
     sizeCallout,
     nudge,
     chooseTool,
