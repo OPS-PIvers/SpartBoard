@@ -95,6 +95,8 @@ interface EditProps extends BaseProps {
    * resolution). Strand-tagging chips only render when it has criteria.
    */
   rubric?: Rubric;
+  /** With a one-strand rubric, every new highlight is tagged to that strand. */
+  autoTagSingleStrand?: boolean;
 }
 
 interface ReadProps extends BaseProps {
@@ -437,7 +439,12 @@ const EditView: React.FC<EditProps> = ({
   activeId,
   onActiveIdChange,
   rubric,
+  autoTagSingleStrand = false,
 }) => {
+  const singleStrandTags =
+    autoTagSingleStrand && rubric?.criteria.length === 1
+      ? toggleStrandTag(undefined, rubric.criteria[0].id, rubric)
+      : undefined;
   const articleRef = useRef<HTMLElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const reactId = useId();
@@ -819,12 +826,17 @@ const EditView: React.FC<EditProps> = ({
           }
           onColorChange={(c) =>
             popover.kind === 'pending'
-              ? commitPending({ color: c })
+              ? commitPending({ color: c, criteria: singleStrandTags })
               : updateActiveAnnotation({ highlightColor: c })
           }
           rubric={rubric}
+          pendingStrandTags={singleStrandTags}
           onToggleStrand={(criterionId) => {
             if (!rubric) return;
+            if (popover.kind === 'pending' && singleStrandTags) {
+              commitPending({ color: 'yellow', criteria: singleStrandTags });
+              return;
+            }
             if (popover.kind === 'pending') {
               // D4: tagging from pending mode commits the highlight the
               // same way a color click does, in the default yellow.
@@ -899,6 +911,8 @@ const AnchoredAnnotationEditor: React.FC<{
   onColorChange: (c: Color) => void;
   /** Effective rubric; the strand chip row is hidden without one. */
   rubric?: Rubric;
+  /** Tags a pending highlight will get on commit, shown pre-selected. */
+  pendingStrandTags?: RubricStrandTag[];
   /** Strand chip click. In pending mode this commits in yellow. */
   onToggleStrand: (criterionId: string) => void;
   /** Edit-mode only. Not rendered in pending mode. */
@@ -914,6 +928,7 @@ const AnchoredAnnotationEditor: React.FC<{
   onCommentChange,
   onColorChange,
   rubric,
+  pendingStrandTags,
   onToggleStrand,
   onDelete,
   onClose,
@@ -987,7 +1002,7 @@ const AnchoredAnnotationEditor: React.FC<{
       </div>
       <RubricStrandChips
         rubric={rubric}
-        value={isPending ? undefined : annotation.rubricCriteria}
+        value={isPending ? pendingStrandTags : annotation.rubricCriteria}
         onToggle={onToggleStrand}
       />
       <textarea

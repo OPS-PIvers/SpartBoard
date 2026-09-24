@@ -8717,7 +8717,9 @@ export type GlobalFeature =
   /** "View full screen" toggle on large pop-ups (editors, graders). */
   | 'modal-fullscreen'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
-  | 'quiz-results-tools';
+  | 'quiz-results-tools'
+  /** Free-response grader: collapsible student list, no repeated name, one-strand auto-tagging. */
+  | 'quiz-grader-v2';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

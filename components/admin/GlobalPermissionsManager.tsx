@@ -44,6 +44,7 @@ import {
   TextCursorInput,
   Maximize2,
   UserSearch,
+  PanelLeftClose,
   PlayCircle,
   Music2,
   Link2,
@@ -317,6 +318,13 @@ const GLOBAL_FEATURES: {
     icon: UserSearch,
     description:
       "In question results, each student name opens that student's answers on the Students page. Admin-only until this is saved and opened up.",
+  },
+  {
+    id: 'quiz-grader-v2',
+    label: 'Tidier free-response grader',
+    icon: PanelLeftClose,
+    description:
+      "In the quiz free-response grader, teachers can collapse the student list to a thin strip that still shows how many are graded (and hides names while grading). The student's name no longer repeats above the answer, and tab-switch warnings move into the student list. On a question whose rubric has one strand, every highlight is tagged to that strand automatically. Admin-only until this is saved and opened up.",
   },
   {
     id: 'settings-drawer',

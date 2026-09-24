@@ -11,6 +11,7 @@
 
 import React, {
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -27,6 +28,8 @@ import {
   Clock,
   Loader2,
   Mic,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pencil,
   Pin,
   ShieldAlert,
@@ -47,6 +50,7 @@ import {
   isFreeResponseType,
 } from '@/types';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
+import { AuthContext } from '@/context/AuthContextValue';
 import { sanitizeQuizResponse } from '@/utils/security';
 import { countWords } from '@/utils/wordCount';
 import { wordCounterLabel, wordLimitStatus } from '@/utils/wordLimit';
@@ -178,6 +182,24 @@ const targetIsGraded = (question: QuizQuestion, target: GradeTarget) => {
 };
 
 /** One vocabulary for a target's state — the header badge and the rail agree. */
+const RAIL_COLLAPSED_KEY = 'spart:freeResponseGrader:railCollapsed';
+
+const readRailCollapsed = (): boolean => {
+  try {
+    return window.localStorage.getItem(RAIL_COLLAPSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
+const writeRailCollapsed = (collapsed: boolean): void => {
+  try {
+    window.localStorage.setItem(RAIL_COLLAPSED_KEY, collapsed ? '1' : '0');
+  } catch {
+    // Storage blocked (private window); the rail just won't remember.
+  }
+};
+
 const targetVocabulary = (
   target: GradeTarget | undefined
 ): { key: string; chip: string } => {
@@ -370,6 +392,15 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
+  const graderV2 =
+    useContext(AuthContext)?.canAccessFeature('quiz-grader-v2') ?? false;
+  const [railCollapsedPref, setRailCollapsedPref] = useState(readRailCollapsed);
+  const railCollapsed = graderV2 && railCollapsedPref;
+  const toggleRail = () => {
+    const next = !railCollapsedPref;
+    setRailCollapsedPref(next);
+    writeRailCollapsed(next);
+  };
   const tg = useCallback(
     (key: string, params?: Record<string, unknown>) =>
       t(`quizMediaResponse.grading.${key}`, params),
@@ -1292,6 +1323,26 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     </div>
   );
 
+  const railRows = students.map((entry, idx) => {
+    const entryRow =
+      mode === 'question'
+        ? queue[idx]
+        : queue.find((r) => r.responseKey === entry.responseKey);
+    const entryTarget =
+      entryRow?.targets.find(
+        (x) => x.kind === 'media' && x.slot.slot === slotName
+      ) ?? entryRow?.targets[0];
+    return { entry, vocabulary: targetVocabulary(entryTarget) };
+  });
+  const gradedCount = railRows.filter(
+    ({ vocabulary }) =>
+      vocabulary.key.endsWith('.scored') || vocabulary.key.endsWith('.excused')
+  ).length;
+  const gradedCountLabel = tg('gradedCountLabel', {
+    graded: gradedCount,
+    total: railRows.length,
+  });
+
   return (
     <EditorModalShell
       isOpen
@@ -1307,74 +1358,137 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       bodyClassName="!p-0 !overflow-hidden"
       saveErrorMessage={false}
     >
-      <div className="grid h-full min-h-0 grid-cols-[minmax(180px,1fr)_2.4fr_1.2fr]">
-        {/* Left rail — the student queue. */}
-        <nav
-          aria-label={tg('queueLabel')}
-          className="overflow-y-auto border-r border-slate-200 bg-slate-50"
-        >
-          <div className="sticky top-0 z-10 flex items-center gap-1 border-b border-slate-200 bg-slate-50/95 py-1.5 pl-4 pr-2 backdrop-blur">
-            <p className="min-w-0 flex-1 truncate text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              {tg('queueLabel')}
+      <div
+        className={`grid h-full min-h-0 ${
+          railCollapsed
+            ? 'grid-cols-[3rem_2.4fr_1.2fr]'
+            : 'grid-cols-[minmax(180px,1fr)_2.4fr_1.2fr]'
+        }`}
+      >
+        {railCollapsed ? (
+          <nav
+            aria-label={tg('queueLabel')}
+            className="flex flex-col items-center gap-2 border-r border-slate-200 bg-slate-50 py-2"
+          >
+            <button
+              type="button"
+              onClick={toggleRail}
+              aria-label={tg('expandList')}
+              title={tg('expandList')}
+              aria-expanded={false}
+              className={stepperButton}
+            >
+              <PanelLeftOpen aria-hidden className="h-4 w-4" />
+            </button>
+            <p
+              aria-label={gradedCountLabel}
+              title={gradedCountLabel}
+              className="text-center text-xs font-bold leading-tight text-slate-600 tabular-nums"
+            >
+              <span className="block text-sm text-slate-900">
+                {gradedCount}
+              </span>
+              <span aria-hidden className="block text-slate-400">
+                /{railRows.length}
+              </span>
             </p>
-            <button
-              type="button"
-              onClick={goPrevStudent}
-              disabled={studentIdx === 0}
-              aria-label={tg('prevStudent')}
-              title={tg('prevStudent')}
-              className={stepperButton}
-            >
-              <ChevronLeft aria-hidden className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={goNextStudent}
-              disabled={studentIdx >= students.length - 1}
-              aria-label={tg('nextStudent')}
-              title={tg('nextStudent')}
-              className={stepperButton}
-            >
-              <ChevronRight aria-hidden className="h-4 w-4" />
-            </button>
-          </div>
-          <ul>
-            {students.map((entry, idx) => {
-              const entryRow =
-                mode === 'question'
-                  ? queue[idx]
-                  : queue.find((r) => r.responseKey === entry.responseKey);
-              const entryTarget =
-                entryRow?.targets.find(
-                  (x) => x.kind === 'media' && x.slot.slot === slotName
-                ) ?? entryRow?.targets[0];
-              const vocabulary = targetVocabulary(entryTarget);
-              return (
-                <li key={entry.responseKey ?? idx}>
-                  <button
-                    type="button"
-                    onClick={() => selectStudent(idx)}
-                    aria-current={idx === studentIdx ? 'true' : undefined}
-                    className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition-colors ${
-                      idx === studentIdx
-                        ? 'bg-white font-bold text-brand-blue-dark'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <span className="min-w-0 flex-1 truncate">
-                      {nameFor(entry.response)}
-                    </span>
-                    <span
-                      className={`shrink-0 rounded px-1.5 py-0.5 text-xxs uppercase tracking-wider ${vocabulary.chip}`}
+          </nav>
+        ) : (
+          /* Left rail — the student queue. */
+          <nav
+            aria-label={tg('queueLabel')}
+            className="overflow-y-auto border-r border-slate-200 bg-slate-50"
+          >
+            <div className="sticky top-0 z-10 flex items-center gap-1 border-b border-slate-200 bg-slate-50/95 py-1.5 pl-4 pr-2 backdrop-blur">
+              {graderV2 && (
+                <button
+                  type="button"
+                  onClick={toggleRail}
+                  aria-label={tg('collapseList')}
+                  title={tg('collapseList')}
+                  aria-expanded
+                  className={`${stepperButton} -ml-2`}
+                >
+                  <PanelLeftClose aria-hidden className="h-4 w-4" />
+                </button>
+              )}
+              <p className="min-w-0 flex-1 truncate text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                {graderV2 ? (
+                  <span title={gradedCountLabel}>
+                    {tg('gradedCount', {
+                      graded: gradedCount,
+                      total: railRows.length,
+                    })}
+                  </span>
+                ) : (
+                  tg('queueLabel')
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={goPrevStudent}
+                disabled={studentIdx === 0}
+                aria-label={tg('prevStudent')}
+                title={tg('prevStudent')}
+                className={stepperButton}
+              >
+                <ChevronLeft aria-hidden className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={goNextStudent}
+                disabled={studentIdx >= students.length - 1}
+                aria-label={tg('nextStudent')}
+                title={tg('nextStudent')}
+                className={stepperButton}
+              >
+                <ChevronRight aria-hidden className="h-4 w-4" />
+              </button>
+            </div>
+            <ul>
+              {railRows.map(({ entry, vocabulary }, idx) => {
+                const entryTabSwitches = entry.response.tabSwitchWarnings ?? 0;
+                return (
+                  <li key={entry.responseKey ?? idx}>
+                    <button
+                      type="button"
+                      onClick={() => selectStudent(idx)}
+                      aria-current={idx === studentIdx ? 'true' : undefined}
+                      className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition-colors ${
+                        idx === studentIdx
+                          ? 'bg-white font-bold text-brand-blue-dark'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
                     >
-                      {t(vocabulary.key)}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+                      <span className="min-w-0 flex-1 truncate">
+                        {nameFor(entry.response)}
+                      </span>
+                      {graderV2 && entryTabSwitches > 0 && (
+                        <span
+                          className="inline-flex shrink-0 items-center gap-0.5 rounded bg-amber-100 px-1 py-0.5 text-xxs font-bold text-amber-700"
+                          title={tg('tabSwitchesTitle', {
+                            count: entryTabSwitches,
+                          })}
+                        >
+                          <ShieldAlert aria-hidden className="h-3 w-3" />
+                          <span aria-hidden>{entryTabSwitches}</span>
+                          <span className="sr-only">
+                            {tg('tabSwitches', { count: entryTabSwitches })}
+                          </span>
+                        </span>
+                      )}
+                      <span
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-xxs uppercase tracking-wider ${vocabulary.chip}`}
+                      >
+                        {t(vocabulary.key)}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        )}
 
         {/* Center — the response itself. */}
         <section className="overflow-y-auto bg-slate-50">
@@ -1432,7 +1546,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           </div>
 
           <div className="flex flex-col gap-4 p-6">
-            {studentHeading}
+            {!graderV2 && studentHeading}
             {!target && (
               <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm italic text-slate-500">
                 {tg('noAnswersOnQuestion')}
@@ -1476,6 +1590,12 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                   >
                     {wordCounterLabel(answerWordCount, question)}
                   </span>
+                  {graderV2 && textEntry?.timedOutUnderMinimum && (
+                    <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700">
+                      <Clock aria-hidden className="h-3 w-3" />
+                      {tg('timedOutUnderMinimum')}
+                    </span>
+                  )}
                 </div>
                 {studentAnswer ? (
                   <AnnotatedResponseView
@@ -1488,6 +1608,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                     activeId={activeAnnotationId}
                     onActiveIdChange={setActiveAnnotationId}
                     rubric={taggableRubric}
+                    autoTagSingleStrand={graderV2}
                   />
                 ) : (
                   <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm italic text-slate-500">

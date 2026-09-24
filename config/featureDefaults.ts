@@ -334,6 +334,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Free-response grader layout pass from the teacher feedback session. Admin-only until Paul has graded with it.
+  'quiz-grader-v2': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /**
