@@ -766,6 +766,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     [selection, studentResultsActions, plcView]
   );
 
+  const resultsTools = canAccessFeature('quiz-results-tools');
   // The Students screen's open row, lifted so item analysis can jump to a student.
   const [expandedStudentKey, setExpandedStudentKey] = useState<string | null>(
     null
@@ -773,14 +774,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const [focusStudentKey, setFocusStudentKey] = useState<string | null>(null);
   const handleOpenStudent = useMemo(
     () =>
-      canAccessFeature('quiz-results-tools') && !plcView
+      resultsTools && !plcView
         ? (responseKey: string) => {
             setExpandedStudentKey(responseKey);
             setFocusStudentKey(responseKey);
             setScreen('students');
           }
         : undefined,
-    [canAccessFeature, plcView]
+    [resultsTools, plcView]
   );
 
   // Printing to hand back (docs/plans/QUIZ_RESULTS_PRINT.md); never for PLC teammates (D7).
@@ -1984,6 +1985,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               fibGrading={fibGrading}
               studentResultsActions={studentResultsActions}
               onPrintStudents={canPrintResults ? openPrint : undefined}
+              showStudentFeedback={resultsTools}
               expandedKey={expandedStudentKey}
               onExpandedKeyChange={setExpandedStudentKey}
               focusKey={focusStudentKey}
@@ -3059,6 +3061,7 @@ const StudentDrilldownPanel: React.FC<{
   addToast: (message: string, type?: import('@/types').Toast['type']) => void;
   /** Opens the print modal; absent keeps the one-checkbox report. */
   onPrintStudents?: (responseKeys: string[]) => void;
+  showFeedback: boolean;
 }> = ({
   id,
   quizTitle,
@@ -3072,6 +3075,7 @@ const StudentDrilldownPanel: React.FC<{
   resultsControl,
   addToast,
   onPrintStudents,
+  showFeedback,
 }) => {
   const [includeAnswers, setIncludeAnswers] = useState(true);
   const drilldown = useMemo(
@@ -3139,6 +3143,7 @@ const StudentDrilldownPanel: React.FC<{
               <StudentAnswerLine
                 key={line.questionId}
                 line={line}
+                showFeedback={showFeedback}
                 onOpenGrader={
                   gradable
                     ? () =>
@@ -3210,6 +3215,8 @@ const StudentsScreen: React.FC<{
   fibGrading?: FibGradingContext | null;
   studentResultsActions?: StudentResultsActions;
   onPrintStudents?: (responseKeys: string[]) => void;
+  /** Show written-answer comments and rubric levels in the open row. */
+  showStudentFeedback: boolean;
   expandedKey: string | null;
   onExpandedKeyChange: (key: string | null) => void;
   /** A row to scroll to and focus once, after a jump from item analysis. */
@@ -3233,6 +3240,7 @@ const StudentsScreen: React.FC<{
   fibGrading = null,
   studentResultsActions,
   onPrintStudents,
+  showStudentFeedback,
   expandedKey,
   onExpandedKeyChange,
   focusKey,
@@ -3723,6 +3731,7 @@ const StudentsScreen: React.FC<{
                   onOpenGrader={onOpenGrader}
                   addToast={addToast}
                   onPrintStudents={onPrintStudents}
+                  showFeedback={showStudentFeedback}
                   resultsControl={
                     resultsActions ? (
                       <StudentResultsControl

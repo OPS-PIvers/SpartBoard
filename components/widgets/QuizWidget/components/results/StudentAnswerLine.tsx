@@ -67,10 +67,12 @@ function answerLabel(line: StudentQuestionLine): string {
 export const StudentAnswerLine: React.FC<{
   line: StudentQuestionLine;
   onOpenGrader?: () => void;
-}> = ({ line, onOpenGrader }) => {
+  /** Teacher comment and rubric levels under a written answer. */
+  showFeedback?: boolean;
+}> = ({ line, onOpenGrader, showFeedback = false }) => {
   const { icon: MarkIcon, className } = MARK_STYLE[line.mark];
   const answer = answerLabel(line);
-  const grade = line.writtenGrade;
+  const grade = showFeedback ? line.writtenGrade : undefined;
   const comment = grade?.overallComment?.trim();
   const rubricRows =
     line.rubric && grade?.rubricScores?.length
