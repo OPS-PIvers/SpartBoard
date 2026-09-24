@@ -1,13 +1,26 @@
 import { GuidedLearningSet, GuidedLearningStep } from '@/types';
 import { ImageOffset, toImageSpotlightRadiusPct } from './imageUtils';
+import { stepUsesCalloutStyle } from './calloutStyle';
 
 type LegacyGuidedLearningSet = GuidedLearningSet & {
   imageUrl?: string;
   imagePath?: string;
 };
 
-/** Schema version stamped on new/re-saved sets; v3 only adds fields, so v2 semantics apply from 2 up. */
-export const GL_SET_SCHEMA_VERSION = 3;
+/** Newest schema this client reads; v3 and v4 only add fields, so v2 semantics apply from 2 up. */
+export const GL_SET_SCHEMA_VERSION = 4;
+
+/** Stamp for sets without v4 callout styling, so older clients still import them. */
+export const GL_SET_BASE_SCHEMA_VERSION = 3;
+
+/** 4 only when a step uses callout width, scale or tone; else 3. */
+export function requiredSchemaVersion(
+  set: Pick<GuidedLearningSet, 'steps'>
+): number {
+  return set.steps.some(stepUsesCalloutStyle)
+    ? GL_SET_SCHEMA_VERSION
+    : GL_SET_BASE_SCHEMA_VERSION;
+}
 
 /** Absent/1 = legacy semantics; existing sets are never rewritten. */
 export function isGuidedLearningSetV2(

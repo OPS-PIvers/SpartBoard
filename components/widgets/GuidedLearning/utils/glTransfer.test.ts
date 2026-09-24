@@ -301,10 +301,37 @@ describe('parseGuidedLearningJson', () => {
 
   it('refuses a file from a newer schema version', () => {
     expect(() =>
-      parseGuidedLearningJson(
-        JSON.stringify(makeSet({ schemaVersion: 4 as 3 }))
-      )
+      parseGuidedLearningJson(JSON.stringify(makeSet({ schemaVersion: 5 })))
     ).toThrow(/newer version/);
+  });
+
+  it('accepts a v4 file with callout styling', () => {
+    const { set } = parseGuidedLearningJson(
+      JSON.stringify(
+        makeSet({
+          schemaVersion: 4,
+          steps: [
+            {
+              id: 's1',
+              xPct: 50,
+              yPct: 50,
+              imageIndex: 0,
+              interactionType: 'tooltip',
+              text: 'Hi',
+              calloutWidthPct: 40,
+              calloutScale: 1.5,
+              calloutTone: 'accent',
+            },
+          ],
+        })
+      )
+    );
+    expect(set.schemaVersion).toBe(4);
+    expect(set.steps[0]).toMatchObject({
+      calloutWidthPct: 40,
+      calloutScale: 1.5,
+      calloutTone: 'accent',
+    });
   });
 
   it('re-imports an exported v3 set deep-equal', async () => {

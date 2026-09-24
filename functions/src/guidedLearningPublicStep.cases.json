@@ -195,5 +195,35 @@
       "region": { "xPct": 10, "yPct": 10, "wPct": 30, "hPct": 20 },
       "cursor": { "kind": "pointer" }
     }
+  },
+  {
+    "name": "a styled tooltip keeps its callout width, scale and tone",
+    "step": {
+      "id": "s9",
+      "xPct": 30,
+      "yPct": 60,
+      "imageIndex": 0,
+      "label": "Menu",
+      "interactionType": "tooltip",
+      "text": "Open the menu.",
+      "calloutPin": { "xPct": 55, "yPct": 20 },
+      "calloutWidthPct": 42,
+      "calloutScale": 1.25,
+      "calloutTone": "light",
+      "tour": { "anchorId": "board-canvas" }
+    },
+    "expected": {
+      "id": "s9",
+      "xPct": 30,
+      "yPct": 60,
+      "imageIndex": 0,
+      "label": "Menu",
+      "interactionType": "tooltip",
+      "text": "Open the menu.",
+      "calloutPin": { "xPct": 55, "yPct": 20 },
+      "calloutWidthPct": 42,
+      "calloutScale": 1.25,
+      "calloutTone": "light"
+    }
   }
 ]

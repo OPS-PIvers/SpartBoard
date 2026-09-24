@@ -1019,6 +1019,7 @@ const StudioSession: React.FC<
                 tools={tools}
                 setId={set.id}
                 preset={preset}
+                playerV2={canAccessFeature('gl-player-v2')}
               />
             )}
             {canvasDrop.active && (
