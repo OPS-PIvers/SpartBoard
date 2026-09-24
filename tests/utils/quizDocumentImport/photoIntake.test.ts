@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { heicTo } from 'heic-to/csp';
 import {
   HEIC_UNREADABLE,
   decodeIfHeic,
@@ -100,6 +101,19 @@ describe('decoding an iPhone photo (R30)', () => {
   it('passes other photos through untouched', async () => {
     const jpg = photo('p.jpg');
     await expect(decodeIfHeic(jpg)).resolves.toBe(jpg);
+  });
+
+  it('decodes an iPhone photo to JPEG, not PNG', async () => {
+    vi.mocked(heicTo).mockResolvedValueOnce(
+      new Blob([new Uint8Array([1])], { type: 'image/jpeg' })
+    );
+    const out = await decodeIfHeic(photo('IMG_1.HEIC', ''));
+    expect(vi.mocked(heicTo)).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: 'image/jpeg', quality: 0.9 })
+    );
+    expect(out.type).toBe('image/jpeg');
+    expect(out.name).toBe('IMG_1.jpg');
+    expect(documentKind(out)).toBe('image');
   });
 
   it('says to export as JPEG when the decoder fails', async () => {

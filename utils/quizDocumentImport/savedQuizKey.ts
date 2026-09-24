@@ -12,6 +12,7 @@
 import type { QuizQuestion } from '@/types';
 import { multiAnswerKey, type KeyItem } from './types';
 import { keyItemLabel } from './mergeKey';
+import { questionNeedsKey } from '@/utils/quizNeedsKey';
 
 export interface SavedKeySkip {
   /** The question the entry matched, when it matched one. */
@@ -35,7 +36,8 @@ const FALSE = /^(?:f|false)$/i;
 /** The question a key entry is for: by printed label where the quiz has one, else by order. */
 function questionFor(
   questions: readonly QuizQuestion[],
-  item: KeyItem
+  item: KeyItem,
+  items: readonly KeyItem[]
 ): number {
   const plain = `${item.item}${item.part ?? ''}`;
   const full = keyItemLabel(item);
@@ -43,7 +45,14 @@ function questionFor(
     (q) => q.sourceLabel === full || q.sourceLabel === plain
   );
   if (labelled !== -1) return labelled;
-  if (item.section || item.part) return -1;
+  if (item.part) return -1;
+  // A sectioned entry falls back to position only when its number is unique in the key.
+  if (
+    item.section &&
+    items.filter((other) => other.item === item.item).length > 1
+  ) {
+    return -1;
+  }
   const at = item.item - 1;
   return at >= 0 && at < questions.length && !questions[at].sourceLabel
     ? at
@@ -126,13 +135,13 @@ export function fillSavedQuizKey(
   for (const item of items) {
     const label = keyItemLabel(item);
     if (!item.answer) continue;
-    const at = questionFor(next, item);
+    const at = questionFor(next, item, items);
     if (at === -1) {
       skipped.push({ label, reason: 'no question with this number' });
       continue;
     }
     const q = next[at];
-    if (!q.needsKey) {
+    if (!questionNeedsKey(q)) {
       skipped.push({
         questionId: q.id,
         label,

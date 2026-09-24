@@ -344,6 +344,20 @@ c. The gate closed.`);
     );
   });
 
+  it('makes an unanswered choice question ordering when the key orders it', () => {
+    const { questions } = read(`1. Which shows the events in order?
+a. The fox ran.
+b. The dog barked.`);
+    expect(questions[0].type).toBe('MC');
+    const merged = mergeAnswerKey(quizOf(questions), [
+      { item: 1, answer: '', ordering: ['The dog barked', 'The fox ran'] },
+    ]);
+    expect(merged.questions[0]).toMatchObject({
+      type: 'Ordering',
+      correctAnswer: 'The dog barked.|The fox ran.',
+    });
+  });
+
   it('notes a rubric and suggests unticking an item not scored', () => {
     const { questions } = read(`1. Explain the theme.
 2. How did you feel?`);
@@ -534,5 +548,47 @@ describe('fillSavedQuizKey (R26)', () => {
       [{ item: 1, answer: 'A', section: { ordinal: 2, printed: 2 } }]
     );
     expect(result.filled).toEqual(['b']);
+  });
+
+  it('never overwrites an answer typed in while needsKey is still set', () => {
+    const typed = q({
+      id: 'a',
+      correctAnswer: 'blue',
+      incorrectAnswers: ['red', 'green', 'yellow'],
+    });
+    const result = fillSavedQuizKey([typed], [{ item: 1, answer: 'B' }]);
+    expect(result.filled).toEqual([]);
+    expect(result.questions[0]).toBe(typed);
+    expect(result.skipped[0].reason).toBe('already answered — skipped');
+  });
+
+  it('falls back to position for sectioned entries on an unlabelled quiz', () => {
+    const result = fillSavedQuizKey(
+      [q({ id: 'a' }), q({ id: 'b' }), q({ id: 'c' }), q({ id: 'd' })],
+      [
+        { item: 1, answer: 'B', section: { ordinal: 1, printed: 1 } },
+        { item: 2, answer: 'A', section: { ordinal: 1, printed: 1 } },
+        { item: 3, answer: 'C', section: { ordinal: 2, printed: 2 } },
+        { item: 4, answer: 'D', section: { ordinal: 2, printed: 2 } },
+      ]
+    );
+    expect(result.filled).toEqual(['a', 'b', 'c', 'd']);
+    expect(result.questions.map((x) => x.correctAnswer)).toEqual([
+      'Blue',
+      'Red',
+      'Green',
+      'Gold',
+    ]);
+  });
+
+  it('does not guess a position when sections repeat an item number', () => {
+    const result = fillSavedQuizKey(
+      [q({ id: 'a' }), q({ id: 'b' })],
+      [
+        { item: 1, answer: 'B', section: { ordinal: 1, printed: 1 } },
+        { item: 1, answer: 'A', section: { ordinal: 2, printed: 2 } },
+      ]
+    );
+    expect(result.filled).toEqual([]);
   });
 });

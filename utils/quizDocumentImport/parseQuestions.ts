@@ -68,8 +68,9 @@ const RANGE_INSTRUCTION =
 const READ_INSTRUCTION =
   /^\s*(?:read|reread|re-read|look\s+at|use|study|refer\s+to|listen\s+to)\b/i;
 
+/** An imperative "Number/Put/Arrange … in order" sentence, not a question about order. */
 const ORDERING =
-  /\b(?:number|put|place|arrange|list|write)\b[^.?]*\bin\s+(?:the\s+)?(?:correct\s+|right\s+|chronological\s+|time\s+)?order\b|\bsequence\b|\bchronological\s+order\b|\border\s+(?:in\s+which|that)\s+(?:they|the\s+events)\b/i;
+  /(?:^|[.!:;]\s+)(?:number|put|place|arrange|rearrange|list|write)\b[^.?]*\bin\s+(?:the\s+)?(?:correct\s+|right\s+|chronological\s+|time\s+)?order\b/i;
 
 const SORTING =
   /\bdraw\s+a\s+line\s+to\s+sort\b|\bsort\s+(?:the|each|these)?\s*[^.?]*\binto\b|\bsort\s+(?:them|each)\b/i;
@@ -207,7 +208,16 @@ function typeFor(draft: Draft, stem: string, multi: boolean): QuizQuestionType {
   const options = draft.options;
   if (options.length === 0) return 'free-response';
   if (SORTING.test(stem)) return 'free-response';
-  if (ORDERING.test(stem) && options.length >= 2) return 'Ordering';
+  const starred =
+    options.some((o) => o.marked) && !options.every((o) => o.marked);
+  if (
+    ORDERING.test(stem) &&
+    !stem.includes('?') &&
+    !starred &&
+    options.length >= 2
+  ) {
+    return 'Ordering';
+  }
   if (!multi) return 'MC';
   const marked = options.filter((o) => o.marked).length;
   // Some but not all marked reads as several answers; all marked is formatting.

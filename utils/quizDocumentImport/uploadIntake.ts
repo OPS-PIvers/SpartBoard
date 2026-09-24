@@ -84,14 +84,18 @@ export function naturalCompare(a: string, b: string): number {
   return collator.compare(a, b);
 }
 
-/** A HEIC photo becomes a PNG; anything else passes through. */
+/** A HEIC photo becomes a JPEG, which keeps pages under the upload cap; anything else passes through. */
 export async function decodeIfHeic(file: File): Promise<File> {
   if (!isHeicFile(file)) return file;
   try {
     const { heicTo } = await import('heic-to/csp');
-    const png = await heicTo({ blob: file, type: 'image/png' });
-    return new File([png], file.name.replace(/\.(heic|heif)$/i, '.png'), {
-      type: 'image/png',
+    const jpeg = await heicTo({
+      blob: file,
+      type: 'image/jpeg',
+      quality: 0.9,
+    });
+    return new File([jpeg], file.name.replace(/\.(heic|heif)$/i, '.jpg'), {
+      type: 'image/jpeg',
     });
   } catch (err) {
     console.warn('[quizImport] HEIC decode failed', err);

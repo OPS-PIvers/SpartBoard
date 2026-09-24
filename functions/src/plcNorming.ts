@@ -612,7 +612,11 @@ export async function cleanupNormingSourcesForSession(
     .collection(NORMING_SOURCES)
     .where('sessionId', '==', sessionId)
     .get();
-  await Promise.all(sources.docs.map((d) => d.ref.delete()));
+  // Response deletes may run after this, so drop audio copies here too.
+  const keys = new Set(sources.docs.map((d) => str(d.data().responseKey)));
+  for (const key of keys) {
+    await cleanupNormingForResponse(deps, sessionId, key);
+  }
 }
 
 // ── Default deps + entry points ─────────────────────────────────────────────

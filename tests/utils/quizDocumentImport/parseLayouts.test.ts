@@ -324,6 +324,22 @@ c. The gate closed.`)
     expect(q.options).toHaveLength(3);
   });
 
+  it('keeps a question about order or a sequence as multiple choice', () => {
+    const questions = parseQuestionLines(
+      plain(`1. What is the next number in the sequence 2, 4, 8?
+a. 10
+b. 16
+2. Which list shows the steps in the correct order?
+a. Mix, bake, cool
+b. Bake, mix, cool
+3. Put the events in order.
+*a. The fox ran.
+b. The dog barked.`)
+    );
+    expect(questions.map((q) => q.type)).toEqual(['MC', 'MC', 'MC']);
+    expect(questions[0].options).toHaveLength(2);
+  });
+
   it('lists a sorting table cleanly as a written question', () => {
     const [q] = parseQuestionLines([
       { text: '4. Draw a line to sort each phrase into the correct column.' },

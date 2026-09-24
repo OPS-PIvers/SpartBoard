@@ -459,11 +459,9 @@ export function useSetDraftPersistence({
     // radius); otherwise the set stays legacy — matching the preview.
     const steps = editorState.steps;
     const required = requiredSchemaVersion({ steps });
-    // A legacy-radius set still needs the v4 stamp so older clients won't save over its callout fields.
+    // Unconverted legacy radii keep the legacy stamp even with callout styling, or spotlights resize.
     const schemaVersion =
-      editorState.spotlightRadiiV2 ||
-      !steps.some(stepUsesSpotlight) ||
-      required === GL_SET_SCHEMA_VERSION
+      editorState.spotlightRadiiV2 || !steps.some(stepUsesSpotlight)
         ? required
         : set.schemaVersion;
     // Editor-owned optional fields are dropped here and re-added below only when set.

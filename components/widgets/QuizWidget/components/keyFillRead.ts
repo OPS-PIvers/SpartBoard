@@ -8,6 +8,7 @@ import {
 import { readKeyDocument } from '@/utils/quizDocumentImport/readTestAndKey';
 import type { KeyItem } from '@/utils/quizDocumentImport/types';
 import type { UploadedDocument } from '@/utils/quizDocumentImport/uploadIntake';
+import { questionNeedsKey } from '@/utils/quizNeedsKey';
 
 export type ReadKeyFile = (
   key: UploadedDocument,
@@ -26,7 +27,9 @@ export async function readKeyFill(
   readKey: ReadKeyFile = readKeyDocument,
   fill: FillFromKey = fillSavedQuizKey
 ): Promise<SavedKeyFill> {
-  const multiAnswer = questions.some((q) => q.needsKey && q.type === 'MA');
+  const multiAnswer = questions.some(
+    (q) => q.type === 'MA' && questionNeedsKey(q)
+  );
   return fill(questions, await readKey(key, multiAnswer));
 }
 

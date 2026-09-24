@@ -244,6 +244,30 @@ describe('TestAndKeyUploader', () => {
     );
   });
 
+  it('checks the page cap before decoding any photo', async () => {
+    const decode = vi.fn((file: File) => Promise.resolve(file));
+    setup({ decode });
+    drop(
+      'test',
+      Array.from({ length: 21 }, (_, i) => jpg(`p${i + 1}.jpg`))
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /21 photos\. Use 20 or fewer/
+    );
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  it('does not read an oversized file to sniff for a key', async () => {
+    const looksLikeKey = vi.fn(() => Promise.resolve(true));
+    setup({ looksLikeKey });
+    const big = pdf('Unit 3.pdf');
+    Object.defineProperty(big, 'size', { value: 26 * 1024 * 1024 });
+    drop('test', [big]);
+    await screen.findByText('Unit 3.pdf');
+    expect(looksLikeKey).not.toHaveBeenCalled();
+    expect(screen.queryByText(/This looks like an answer key/)).toBeNull();
+  });
+
   it('says so when an iPhone photo cannot be opened', async () => {
     setup({ decode: () => Promise.reject(new Error(HEIC_UNREADABLE)) });
     drop('test', [

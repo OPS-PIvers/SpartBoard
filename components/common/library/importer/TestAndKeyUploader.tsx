@@ -8,10 +8,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { CloudDownload, FileText, FileUp, Loader2, X } from 'lucide-react';
 import { useFilesDrop } from '@/hooks/useFileDrop';
 import { documentKind } from '@/utils/quizDocumentImport/fileKind';
-import { MAX_DOCUMENT_PAGES } from '@/utils/quizDocumentImport/limits';
+import {
+  MAX_DOCUMENT_BYTES,
+  MAX_DOCUMENT_PAGES,
+} from '@/utils/quizDocumentImport/limits';
 import {
   decodeIfHeic,
   looksLikeAnswerKey,
+  looksLikeKeyName,
   naturalCompare,
   type UploadedDocument,
 } from '@/utils/quizDocumentImport/uploadIntake';
@@ -154,6 +158,12 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
       ? 'That answer key can’t be read. Use a PDF, a Word file (.docx), a rich text file (.rtf), a Google Doc or photos of the pages.'
       : `That file can’t be read. Use a PDF, a Word file (.docx), a rich text file (.rtf), a Google Doc${allowCartridge ? ', an LMS export (.imscc)' : ''} or photos of the pages.`;
 
+  // An oversized file is never read; its size error shows on submit.
+  const sniffKey = (file: Blob, name: string): Promise<boolean> =>
+    file.size > MAX_DOCUMENT_BYTES
+      ? Promise.resolve(looksLikeKeyName(name))
+      : looksLikeKey(file, name);
+
   /** Whether a zone takes this document at all. */
   const acceptsDocument = (zone: Zone, file: Blob, name: string): boolean => {
     const kind = documentKind(file, name);
@@ -174,7 +184,7 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
     put(zone, { kind: 'document', file, fileName });
     // R32: a key dropped on the test zone is pointed out, never moved.
     if (zone === 'test' && showKey && !content.key) {
-      const isKey = await looksLikeKey(file, fileName);
+      const isKey = await sniffKey(file, fileName);
       // The key zone may have been filled while the file was read.
       const now = contentRef.current;
       if (
@@ -189,24 +199,24 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
   };
 
   const addPhotos = async (zone: Zone, files: File[]): Promise<void> => {
-    const decoded: File[] = [];
-    for (const f of files) decoded.push(await decode(f));
     const existing =
       contentRef.current[zone]?.kind === 'photos'
         ? (contentRef.current[zone] as { photos: Photo[] }).photos
         : [];
+    const total = existing.length + files.length;
+    if (total > MAX_DOCUMENT_PAGES) {
+      fail(
+        zone,
+        `That’s ${total} photos. Use ${MAX_DOCUMENT_PAGES} or fewer, one per page.`
+      );
+      return;
+    }
+    const decoded: File[] = [];
+    for (const f of files) decoded.push(await decode(f));
     const added = decoded
       .sort((a, b) => naturalCompare(a.name, b.name))
       .map((file) => ({ id: crypto.randomUUID(), file, url: objectUrl(file) }));
     const photos = [...existing, ...added];
-    if (photos.length > MAX_DOCUMENT_PAGES) {
-      revoke(added);
-      fail(
-        zone,
-        `That’s ${photos.length} photos. Use ${MAX_DOCUMENT_PAGES} or fewer, one per page.`
-      );
-      return;
-    }
     put(zone, { kind: 'photos', photos });
   };
 
@@ -214,8 +224,8 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
   const autoAssign = async (zone: Zone, files: File[]): Promise<void> => {
     const [a, b] = files;
     const [aKey, bKey] = await Promise.all([
-      looksLikeKey(a, a.name),
-      looksLikeKey(b, b.name),
+      sniffKey(a, a.name),
+      sniffKey(b, b.name),
     ]);
     let test = zone === 'test' ? a : b;
     let key = zone === 'test' ? b : a;

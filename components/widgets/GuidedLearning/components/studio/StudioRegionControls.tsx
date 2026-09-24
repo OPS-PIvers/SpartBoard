@@ -8,7 +8,11 @@ import {
   setCorner,
   type StudioShape,
 } from './regionEdits';
-import { CALLOUT_TONE_STYLES, stepHasCallout } from '../../utils/calloutStyle';
+import {
+  CALLOUT_TONE_STYLES,
+  calloutToneOf,
+  stepHasCallout,
+} from '../../utils/calloutStyle';
 import {
   ChoiceGroup,
   fieldLabelClass,
@@ -54,7 +58,7 @@ export const StudioRegionControls: React.FC<StudioRegionControlsProps> = ({
     t('glStudio.calloutScaleX', {
       scale: Number((step.calloutScale ?? 1).toFixed(2)),
     }),
-    t(CALLOUT_TONE_STYLES[step.calloutTone ?? 'dark'].labelKey),
+    t(CALLOUT_TONE_STYLES[calloutToneOf(step)].labelKey),
   ].join(' · ');
   const canReset = !!step.calloutPin || legacy || (styled && sized);
   return (
@@ -114,7 +118,7 @@ export const StudioRegionControls: React.FC<StudioRegionControlsProps> = ({
         {canReset && (
           <button
             type="button"
-            onClick={() => onChange(resetCalloutPlacement(step), false)}
+            onClick={() => onChange(resetCalloutPlacement(step, styled), false)}
             className={quietButtonClass}
           >
             <RotateCcw className="h-3 w-3" aria-hidden="true" />
