@@ -1,7 +1,8 @@
 /**
  * PlcAssessmentDetail — the pooled results view for one assessment
  * (plan D3/D8): team average, students counted, teachers contributing,
- * per-question % incorrect worst-first with a choice-distribution panel, and
+ * a score-distribution chart, per-question % correct in quiz order (or most
+ * missed first) with a choice-distribution panel, and
  * a per-teacher table only when the PLC's `showPerTeacher` setting is on.
  * Reads the server-written aggregate only; no student names exist in it.
  */
@@ -22,6 +23,7 @@ import {
 import {
   getPlcFeatures,
   type Plc,
+  type PlcAggregateScoreBand,
   type PlcAggregateTargetRow,
   type PlcAssessmentAggregate,
 } from '@/types';
@@ -37,11 +39,17 @@ import { usePlcLearningTargets } from '@/hooks/useLearningTargets';
 import { DEFAULT_MASTERY_CUTOFFS } from '@/utils/learningTargets';
 import { masteryBandFor, type MasteryBand } from '@/utils/quizTargetStats';
 import {
+  SCORE_DISTRIBUTION_BANDS,
+  scoreColorClasses,
+} from '@/utils/scoreColor';
+import {
   aggregateStatus,
   firstNonEmpty,
   formatShortDate,
   hasTeamAverage,
-  sortWorstFirst,
+  isQuestionScored,
+  sortQuestions,
+  type PlcQuestionSort,
   teacherPoolSize,
 } from './assessmentListSelectors';
 import { AssessmentStatusBadge } from './PlcAssessmentList';
@@ -59,29 +67,8 @@ const MASTERY_BAR_CLASS: Record<MasteryBand, string> = {
   beginning: 'bg-brand-red-light',
 };
 
-/** Tone by % incorrect: low error emerald, moderate amber, high red. */
-function incorrectToneClass(incorrectPercent: number): string {
-  if (incorrectPercent <= 20) return 'text-emerald-600';
-  if (incorrectPercent <= 40) return 'text-amber-600';
-  return 'text-brand-red-primary';
-}
-
-function incorrectBarClass(incorrectPercent: number): string {
-  if (incorrectPercent <= 20) return 'bg-emerald-500';
-  if (incorrectPercent <= 40) return 'bg-amber-500';
-  return 'bg-brand-red-primary';
-}
-
 function scoreToneClass(percent: number): string {
-  if (percent >= 80) return 'text-emerald-600';
-  if (percent >= 60) return 'text-amber-600';
-  return 'text-brand-red-primary';
-}
-
-function scoreBarClass(percent: number): string {
-  if (percent >= 80) return 'bg-emerald-500';
-  if (percent >= 60) return 'bg-amber-500';
-  return 'bg-brand-red-primary';
+  return scoreColorClasses(percent).text;
 }
 
 const QuestionRow: React.FC<{ question: PerQuestion; index: number }> = ({
@@ -90,8 +77,8 @@ const QuestionRow: React.FC<{ question: PerQuestion; index: number }> = ({
 }) => {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const scored = typeof question.incorrectPercent === 'number';
-  const incorrect = question.incorrectPercent ?? 0;
+  const scored = isQuestionScored(question);
+  const percent = Math.min(100, Math.max(0, question.correctPercent));
   const byPoints = scored && question.scoring === 'points';
   const distribution = question.choiceDistribution ?? [];
   const canExpand = distribution.length > 0;
@@ -117,23 +104,17 @@ const QuestionRow: React.FC<{ question: PerQuestion; index: number }> = ({
               })}
           </span>
           <span className="flex items-center gap-2 shrink-0">
-            {byPoints ? (
-              <span
-                className={`text-sm font-bold ${scoreToneClass(question.correctPercent)}`}
-              >
-                {t('plcDashboard.assessmentDetail.averagePointsPercent', {
-                  defaultValue: '{{percent}}% of points',
-                  percent: question.correctPercent,
-                })}
-              </span>
-            ) : scored ? (
-              <span
-                className={`text-sm font-bold ${incorrectToneClass(incorrect)}`}
-              >
-                {t('plcDashboard.assessmentDetail.incorrectPercent', {
-                  defaultValue: '{{percent}}% incorrect',
-                  percent: incorrect,
-                })}
+            {scored ? (
+              <span className={`text-sm font-bold ${scoreToneClass(percent)}`}>
+                {byPoints
+                  ? t('plcDashboard.assessmentDetail.averagePointsPercent', {
+                      defaultValue: '{{percent}}% of points',
+                      percent,
+                    })
+                  : t('plcDashboard.assessmentDetail.correctPercent', {
+                      defaultValue: '{{percent}}% correct',
+                      percent,
+                    })}
               </span>
             ) : (
               <span className="text-xs font-semibold text-slate-500">
@@ -150,12 +131,10 @@ const QuestionRow: React.FC<{ question: PerQuestion; index: number }> = ({
             )}
           </span>
         </div>
-        <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+        <div className="mt-2 h-2 bg-slate-100 rounded-full overflow-hidden">
           <div
-            className={`h-full rounded-full ${byPoints ? scoreBarClass(question.correctPercent) : scored ? incorrectBarClass(incorrect) : 'bg-slate-300'}`}
-            style={{
-              width: `${scored ? Math.min(100, Math.max(0, byPoints ? question.correctPercent : incorrect)) : 0}%`,
-            }}
+            className={`h-full rounded-full ${scored ? scoreColorClasses(percent).bar : 'bg-slate-300'}`}
+            style={{ width: `${scored ? percent : 0}%` }}
           />
         </div>
         <div className="mt-1.5 text-xs text-slate-500">
@@ -300,6 +279,51 @@ const TargetAggregateRow: React.FC<{
   );
 };
 
+const QUESTION_SORTS: ReadonlyArray<[PlcQuestionSort, string, string]> = [
+  ['order', 'sortQuizOrder', 'Quiz order'],
+  ['missed', 'sortMostMissed', 'Most missed'],
+];
+
+/** Pooled score bands in the teacher view's band order; counts only. */
+const ScoreDistributionChart: React.FC<{ bands: PlcAggregateScoreBand[] }> = ({
+  bands,
+}) => {
+  const { t } = useTranslation();
+  const total = bands.reduce((sum, b) => sum + b.count, 0);
+  return (
+    <ul data-testid="score-distribution" className="flex flex-col gap-2.5">
+      {SCORE_DISTRIBUTION_BANDS.map((band) => {
+        const count = bands.find((b) => b.min === band.min)?.count ?? 0;
+        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+        return (
+          <li
+            key={band.label}
+            data-testid="score-band"
+            className="grid grid-cols-[4.5rem_1fr_auto] items-center gap-3"
+          >
+            <span className="text-sm font-semibold tabular-nums text-slate-700">
+              {band.label}
+            </span>
+            <span className="h-3.5 overflow-hidden rounded-full bg-slate-100">
+              <span
+                className={`block h-full rounded-full ${band.color}`}
+                style={{ width: `${pct}%` }}
+              />
+            </span>
+            <span className="w-28 text-right text-xs tabular-nums text-slate-600">
+              {t('plcDashboard.assessmentDetail.bandCount', {
+                defaultValue: '{{count}} students · {{percent}}%',
+                count,
+                percent: pct,
+              })}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+};
+
 export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
   plc,
   assessmentId,
@@ -327,9 +351,10 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
     () => aggregates.find((a) => a.assessmentId === assessmentId) ?? null,
     [aggregates, assessmentId]
   );
+  const [questionSort, setQuestionSort] = useState<PlcQuestionSort>('order');
   const questions = useMemo(
-    () => sortWorstFirst(aggregate?.perQuestion ?? []),
-    [aggregate]
+    () => sortQuestions(aggregate?.perQuestion ?? [], questionSort),
+    [aggregate, questionSort]
   );
   const questionsById = useMemo(
     () =>
@@ -405,6 +430,11 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
   const teacherCount = aggregate?.teacherCount ?? 0;
   const studentCount = aggregate?.studentCount ?? 0;
   const ranAt = aggregate && aggregate.ranAt > 0 ? aggregate.ranAt : null;
+  const teamAverage = Math.min(
+    100,
+    Math.max(0, aggregate?.teamAveragePercent ?? 0)
+  );
+  const scoreBands = aggregate?.scoreDistribution;
 
   return (
     <div className="flex flex-col gap-5">
@@ -434,24 +464,7 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
           </div>
         </div>
 
-        <dl className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-slate-50 rounded-xl px-3 py-2.5">
-            <dt className="text-xxs font-bold uppercase tracking-wider text-slate-500">
-              {t('plcDashboard.assessmentDetail.teamAverage', {
-                defaultValue: 'Team average',
-              })}
-            </dt>
-            <dd
-              data-testid="team-average"
-              className={`text-2xl font-extrabold mt-0.5 ${scored ? scoreToneClass(aggregate?.teamAveragePercent ?? 0) : 'text-slate-500 text-base'}`}
-            >
-              {scored
-                ? `${aggregate?.teamAveragePercent ?? 0}%`
-                : t('plcDashboard.assessmentDetail.notScoredYet', {
-                    defaultValue: 'Not scored yet',
-                  })}
-            </dd>
-          </div>
+        <dl className="mt-4 grid grid-cols-3 gap-3">
           <div className="bg-slate-50 rounded-xl px-3 py-2.5">
             <dt className="text-xxs font-bold uppercase tracking-wider text-slate-500">
               {t('plcDashboard.assessmentDetail.students', {
@@ -512,6 +525,78 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
         )}
       </header>
 
+      <section
+        data-testid="results-summary"
+        aria-labelledby="plc-results-summary-heading"
+        className="bg-white border border-slate-200 rounded-2xl p-5"
+      >
+        <h3
+          id="plc-results-summary-heading"
+          className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4"
+        >
+          {t('plcDashboard.assessmentDetail.summaryHeading', {
+            defaultValue: 'How the team did',
+          })}
+        </h3>
+        <div className="grid gap-6 md:grid-cols-[11rem_1fr] md:items-center">
+          <div>
+            <p className="text-xxs font-bold uppercase tracking-wider text-slate-500">
+              {t('plcDashboard.assessmentDetail.teamAverage', {
+                defaultValue: 'Team average',
+              })}
+            </p>
+            <p
+              data-testid="team-average"
+              className={`font-extrabold tabular-nums mt-1 ${scored ? `text-5xl ${scoreToneClass(teamAverage)}` : 'text-base text-slate-500'}`}
+            >
+              {scored
+                ? `${teamAverage}%`
+                : t('plcDashboard.assessmentDetail.notScoredYet', {
+                    defaultValue: 'Not scored yet',
+                  })}
+            </p>
+            {scored && (
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className={`h-full rounded-full ${scoreColorClasses(teamAverage).bar}`}
+                  style={{ width: `${teamAverage}%` }}
+                />
+              </div>
+            )}
+            {scored && typeof aggregate?.scoredStudentCount === 'number' && (
+              <p className="mt-2 text-xs text-slate-500">
+                {t('plcDashboard.assessmentDetail.scoredStudents', {
+                  defaultValue: '{{count}} students scored',
+                  count: aggregate.scoredStudentCount,
+                })}
+              </p>
+            )}
+          </div>
+          <div>
+            <h4 className="text-xxs font-bold uppercase tracking-wider text-slate-500 mb-2.5">
+              {t('plcDashboard.assessmentDetail.scoreDistribution', {
+                defaultValue: 'Score distribution',
+              })}
+            </h4>
+            {scored && scoreBands ? (
+              <ScoreDistributionChart bands={scoreBands} />
+            ) : (
+              <p className="text-sm text-slate-500">
+                {scored
+                  ? t('plcDashboard.assessmentDetail.distributionPending', {
+                      defaultValue:
+                        'The chart appears after the next results refresh, within a few minutes.',
+                    })
+                  : t('plcDashboard.assessmentDetail.distributionEmpty', {
+                      defaultValue:
+                        'The chart fills in once teachers publish scores.',
+                    })}
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
+
       {(standards.length > 0 || targets.length > 0) && (
         <section data-testid="target-mastery">
           <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-500">
@@ -560,13 +645,45 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
         </section>
       )}
 
-      {/* Per-question error frequency */}
+      {/* Per-question % correct */}
       <section>
-        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">
-          {t('plcDashboard.assessmentDetail.questionsHeading', {
-            defaultValue: 'Questions, most missed first',
-          })}
-        </h3>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">
+            {t('plcDashboard.assessmentDetail.questionsHeading', {
+              defaultValue: 'Questions',
+            })}
+          </h3>
+          {questions.length > 1 && (
+            <div
+              role="group"
+              aria-label={t('plcDashboard.assessmentDetail.sortQuestions', {
+                defaultValue: 'Sort questions',
+              })}
+              className="flex flex-wrap gap-1"
+            >
+              {QUESTION_SORTS.map(([value, key, label]) => {
+                const on = questionSort === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setQuestionSort(value)}
+                    aria-pressed={on}
+                    className={`rounded-full border px-3 py-0.5 text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
+                      on
+                        ? 'bg-brand-blue-lighter border-brand-blue-primary text-brand-blue-dark'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {t(`plcDashboard.assessmentDetail.${key}`, {
+                      defaultValue: label,
+                    })}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
         {questions.length === 0 ? (
           <p className="text-sm text-slate-500 bg-white border border-slate-200 rounded-2xl px-4 py-6 text-center">
             {t('plcDashboard.assessmentDetail.noQuestions', {
@@ -576,8 +693,12 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
           </p>
         ) : (
           <ul className="space-y-2">
-            {questions.map((q, i) => (
-              <QuestionRow key={q.questionId} question={q} index={i} />
+            {questions.map(({ question, index }) => (
+              <QuestionRow
+                key={question.questionId}
+                question={question}
+                index={index}
+              />
             ))}
           </ul>
         )}

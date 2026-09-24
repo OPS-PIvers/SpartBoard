@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
+  AGGREGATE_SCHEMA_VERSION,
   ALIGNMENT_WARNING,
+  bucketScores,
   alignSessionQuestions,
   computeAssessmentAggregate,
   gradeGroupAnswer,
@@ -232,7 +234,13 @@ describe('computeAssessmentAggregate', () => {
       ]),
     ]);
 
-    expect(agg.schemaVersion).toBe(5);
+    expect(agg.schemaVersion).toBe(AGGREGATE_SCHEMA_VERSION);
+    expect(agg.scoreDistribution).toEqual([
+      { min: 90, max: 100, count: 1 },
+      { min: 80, max: 89, count: 0 },
+      { min: 60, max: 79, count: 0 },
+      { min: 0, max: 59, count: 2 },
+    ]);
     expect(agg.title).toBe('Unit 4 CFA');
     expect(agg.kind).toBe('quiz');
     expect(agg.teacherCount).toBe(2);
@@ -1102,5 +1110,20 @@ describe('localized FIB grading', () => {
     const q = payload.perQuestion.find((r) => r.questionId === 'q2');
     expect(q?.graded).toBe(2);
     expect(q?.correct).toBe(1);
+  });
+});
+
+describe('bucketScores', () => {
+  it('pools scores into the shared percent bands, including fractional edges', () => {
+    expect(bucketScores([100, 90, 89.5, 80, 79, 60, 59, 0])).toEqual([
+      { min: 90, max: 100, count: 2 },
+      { min: 80, max: 89, count: 2 },
+      { min: 60, max: 79, count: 2 },
+      { min: 0, max: 59, count: 2 },
+    ]);
+  });
+
+  it('returns zeroed bands when nothing is scored', () => {
+    expect(bucketScores([]).map((b) => b.count)).toEqual([0, 0, 0, 0]);
   });
 });

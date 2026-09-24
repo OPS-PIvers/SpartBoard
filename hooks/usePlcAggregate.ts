@@ -31,6 +31,7 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import type {
   PlcAggregateChoiceRow,
+  PlcAggregateScoreBand,
   PlcAggregateTargetRow,
   PlcAssessmentAggregate,
 } from '@/types';
@@ -101,6 +102,28 @@ function optionalNumber<K extends string>(
   return typeof value === 'number' && Number.isFinite(value)
     ? ({ [key]: value } as Record<K, number>)
     : {};
+}
+
+/** Schema 6 score bands; omitted when absent or any band is malformed. */
+function parseScoreDistribution(
+  raw: unknown
+): Pick<PlcAssessmentAggregate, 'scoreDistribution'> {
+  if (!Array.isArray(raw)) return {};
+  const bands: PlcAggregateScoreBand[] = [];
+  for (const b of raw) {
+    if (!b || typeof b !== 'object') return {};
+    const rec = b as Record<string, unknown>;
+    if (
+      typeof rec.min !== 'number' ||
+      typeof rec.max !== 'number' ||
+      typeof rec.count !== 'number' ||
+      !Number.isFinite(rec.count)
+    ) {
+      return {};
+    }
+    bands.push({ min: rec.min, max: rec.max, count: rec.count });
+  }
+  return { scoreDistribution: bands };
 }
 
 /** Tolerant parse of the schema 2 `choiceDistribution` rows; malformed rows are skipped. */
@@ -253,6 +276,7 @@ export function parsePlcAggregate(
       : {}),
     ...optionalNumber('sessionCount', data.sessionCount),
     ...optionalNumber('scoredStudentCount', data.scoredStudentCount),
+    ...parseScoreDistribution(data.scoreDistribution),
     ...optionalNumber('linkedSessionCount', data.linkedSessionCount),
     ...optionalNumber('publishedSessionCount', data.publishedSessionCount),
     ...(Array.isArray(data.computedFromSessionIds)
