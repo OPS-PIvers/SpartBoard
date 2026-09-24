@@ -291,8 +291,39 @@ describe('LiveTourRunner', () => {
     const ring = () => screen.getByTestId('tour-spotlight-ring');
     expect(ring().getAttribute('x')).toBe('94');
     x = 300;
+    fireEvent.scroll(window);
     await frames();
     expect(ring().getAttribute('x')).toBe('294');
+  });
+
+  it('continues without Retry when a missing anchor appears late', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await start(
+      withSteps(
+        makeSet([
+          { anchor: 'sidebar.classes', action: 'click' },
+          { anchor: 'sidebar.boards', action: 'observe' },
+        ]),
+        [{ imageIndex: 0 }],
+        ['https://example.com/slide.png']
+      )
+    );
+    await frames(ANCHOR_SEARCH_MS + 100);
+    expect(screen.getByTestId('tour-mini-player')).toBeInTheDocument();
+    await frames(5000 - ANCHOR_SEARCH_MS - 150);
+    const late = document.createElement('button');
+    late.setAttribute('data-tour', 'sidebar.classes');
+    late.textContent = 'My Classes';
+    act(() => {
+      document.body.appendChild(late);
+    });
+    await frames(300);
+    expect(screen.getByTestId('tour-spotlight')).toBeInTheDocument();
+    expect(screen.queryByTestId('tour-mini-player')).not.toBeInTheDocument();
+    fireEvent.click(late);
+    await frames();
+    expect(progress()).toBe('2 / 2');
+    late.remove();
   });
 
   it('advances on a click on the anchor but not elsewhere', async () => {
