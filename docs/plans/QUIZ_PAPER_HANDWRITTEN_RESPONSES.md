@@ -94,6 +94,16 @@ A teacher prints paper answer sheets that include lined boxes for free-response 
 
 LMS push is unchanged: points only.
 
+### 2.6 Question-text sheets (added 2026-09-24)
+
+A batch printed with "Include question text" (`PaperBatch.sheetLayout: 'questions'`, #3404) prints each MC question's stem with its choices listed beneath, each beside its own bubble, in fixed 42 mm slots, 5 to a page (`QUESTION_ROW_PITCH_MM`, `QUESTION_ROWS_PER_PAGE` in `utils/paperSheetLayout.ts`).
+
+| #   | Decision  | Choice                                                                                                                                                                                                                                                                                                                                                                                        |
+| --- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D27 | Placement | **On a question-text sheet, written boxes print inline, in quiz order, among the MC questions**, so the sheet reads like the test. A written question takes one or more whole slots (its stem, then the lined box), so every MC bubble stays on the fixed slot grid. A box that needs more slots than remain on the page starts the next page, and a Full-page box gets its own page (as D9). |
+| D28 | Slot map  | **The batch records which slot holds what**: extend D11 so `writtenBoxes` carry their slots, and add a per-page list of the MC sheet rows each page carries. The reader, `rowsOnPage` and `paperImportAssemble` read the MC rows from that map instead of `questionsPerPage` whenever `writtenBoxes` is present on a `'questions'` batch. Batches without it keep today's arithmetic.         |
+| D29 | Numbering | **Question-text sheets number every question by its place in the quiz**, written ones included, so "7." on the sheet, the test paper and the grader all mean the same question. Plain bubble sheets keep numbering MC rows only, with written pages after them (D7).                                                                                                                          |
+
 ## 3. Data model
 
 - **`QuizQuestion.paperLines?: number`** (free-response only). Stubs store the same on their placeholder questions, which become `type: 'free-response'` when marked written.
@@ -121,7 +131,8 @@ Each phase is its own PR to `dev-paul`, verified on `spartboard-dev`.
 - `analyzePaperQuiz` includes free-response when the flag passes. The print modal lists them as "written, transcribed" rather than excluded.
 - `paperSheetLayout.ts`: box packing (D8–D10). `paperSheetPrint.ts`: render written pages. Marker: flag bit `0b10`. The batch stores `writtenBoxes`.
 - The reader and assembler must accept written pages and ignore them for bubble scoring. Before Phase 2 lands, the import summary says "written pages found; transcription coming soon", so a teacher can already print and scan safely.
-- Tests: packing (never splits, Full page alone, stems shortened), marker round-trip with the new flag, assembly with written pages present.
+- Question-text sheets (D27–D29): inline boxes on the slot grid, the per-page MC row map on the batch, and quiz-order numbering.
+- Tests: packing (never splits, Full page alone, stems shortened), marker round-trip with the new flag, assembly with written pages present, and a question-text sheet mixing MC slots and inline boxes read back correctly.
 
 ### Phase 2: Crop, upload and transcribe
 
