@@ -339,7 +339,9 @@ describe('useGuidedLearningEditorState history', () => {
       });
     const flush = async (
       result: { current: ReturnType<typeof useGuidedLearningEditorState> },
-      release: ReturnType<typeof vi.fn>
+      release: Parameters<
+        ReturnType<typeof useGuidedLearningEditorState>['flushMediaDeletions']
+      >[0]
     ) => {
       await act(() => result.current.flushMediaDeletions(release));
     };

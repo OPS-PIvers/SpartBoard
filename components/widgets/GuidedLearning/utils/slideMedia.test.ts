@@ -26,6 +26,7 @@ describe('withSlideFileRefs', () => {
   it('lists step audio, video and recorded narration, but not the TTS cache', () => {
     const out = withSlideFileRefs({
       imageUrls: [],
+      imagePaths: [] as string[],
       steps: [
         { audioStoragePath: 'users/u/hotspot_images/a.mp3' },
         { videoUrl: storageUrl('users/u/hotspot_images/v.mp4') },
