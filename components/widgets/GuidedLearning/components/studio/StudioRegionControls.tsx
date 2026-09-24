@@ -8,6 +8,7 @@ import {
   setCorner,
   type StudioShape,
 } from './regionEdits';
+import { CALLOUT_TONE_STYLES, stepHasCallout } from '../../utils/calloutStyle';
 import {
   ChoiceGroup,
   fieldLabelClass,
@@ -19,6 +20,8 @@ interface StudioRegionControlsProps {
   step: GuidedLearningStep;
   /** `field` names a continuous edit so it coalesces; false makes its own undo entry. */
   onChange: (step: GuidedLearningStep, field?: string | false) => void;
+  /** `gl-callout-editing`: size and colour summary, and Reset all. */
+  calloutEditing?: boolean;
 }
 
 const SHAPES: readonly StudioShape[] = ['point', 'rect', 'ellipse', 'polygon'];
@@ -28,6 +31,7 @@ const LEGACY_SIDES = ['above', 'below', 'left', 'right'] as const;
 export const StudioRegionControls: React.FC<StudioRegionControlsProps> = ({
   step,
   onChange,
+  calloutEditing = false,
 }) => {
   const { t } = useTranslation();
   const current: StudioShape = step.region?.shape ?? 'point';
@@ -40,6 +44,19 @@ export const StudioRegionControls: React.FC<StudioRegionControlsProps> = ({
           side: t(`glStudio.calloutSide_${legacySide}`),
         })
       : t('glStudio.calloutAuto');
+  const styled = calloutEditing && stepHasCallout(step);
+  const sized =
+    step.calloutWidthPct !== undefined || step.calloutScale !== undefined;
+  const summary = [
+    step.calloutWidthPct !== undefined
+      ? t('glStudio.calloutWidthPct', { pct: Math.round(step.calloutWidthPct) })
+      : t('glStudio.calloutWidthAuto'),
+    t('glStudio.calloutScaleX', {
+      scale: Number((step.calloutScale ?? 1).toFixed(2)),
+    }),
+    t(CALLOUT_TONE_STYLES[step.calloutTone ?? 'dark'].labelKey),
+  ].join(' · ');
+  const canReset = !!step.calloutPin || legacy || (styled && sized);
   return (
     <div
       className="flex flex-col gap-4"
@@ -81,15 +98,29 @@ export const StudioRegionControls: React.FC<StudioRegionControlsProps> = ({
       >
         <span className={fieldLabelClass}>{t('glStudio.calloutPosition')}</span>
         <p className="text-sm text-slate-800">{placement}</p>
-        <p className={hintClass}>{t('glStudio.calloutDragHint')}</p>
-        {(!!step.calloutPin || legacy) && (
+        {styled && (
+          <p
+            className="text-sm tabular-nums text-slate-800"
+            data-testid="gl-studio-callout-style"
+          >
+            {summary}
+          </p>
+        )}
+        <p className={hintClass}>
+          {styled
+            ? t('glStudio.calloutSizeHint')
+            : t('glStudio.calloutDragHint')}
+        </p>
+        {canReset && (
           <button
             type="button"
             onClick={() => onChange(resetCalloutPlacement(step), false)}
             className={quietButtonClass}
           >
             <RotateCcw className="h-3 w-3" aria-hidden="true" />
-            {t('glStudio.resetCallout')}
+            {styled
+              ? t('glStudio.resetCalloutAll')
+              : t('glStudio.resetCallout')}
           </button>
         )}
       </div>

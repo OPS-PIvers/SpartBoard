@@ -2951,7 +2951,20 @@
       "needs-open-widget": "Introuvable. Ouvrez ou ajoutez le widget auquel appartient ce bouton.",
       "needs-panel": "Introuvable. Ouvrez le menu ou le panneau où il se trouve, puis réessayez.",
       "not-found": "Introuvable sur le tableau."
-    }
+    },
+    "calloutToolbar": "Outils de la bulle",
+    "calloutEditText": "Modifier le texte",
+    "calloutResetPosition": "Réinitialiser la position",
+    "calloutResetSize": "Réinitialiser la taille",
+    "calloutToPopover": "Changer en zone de texte",
+    "calloutToTooltip": "Changer en info-bulle",
+    "calloutColour": "Couleur",
+    "calloutDeleteStep": "Supprimer l’étape",
+    "calloutWidthPct": "Largeur {{pct}} %",
+    "calloutWidthAuto": "Largeur automatique",
+    "calloutScaleX": "{{scale}}×",
+    "resetCalloutAll": "Tout réinitialiser",
+    "calloutSizeHint": "Cliquez sur la bulle pour la redimensionner avec ses poignées ou choisir une couleur."
   },
   "helpCenter": {
     "title": "Aide",
