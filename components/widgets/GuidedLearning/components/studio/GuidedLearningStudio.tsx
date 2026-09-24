@@ -135,6 +135,7 @@ const StudioSession: React.FC<
     folders,
     folderId,
     onFolderChange,
+    setWideTimeline: true,
   });
   const {
     draftToken,

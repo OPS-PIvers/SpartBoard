@@ -116,7 +116,7 @@ async function closeAndGetSaved(
 }
 
 const selectFirstStep = () => {
-  const timeline = screen.getByRole('region', { name: 'Steps on slide 1' });
+  const timeline = screen.getByRole('region', { name: 'Play order' });
   fireEvent.click(within(timeline).getByRole('button', { name: 'Step 1' }));
 };
 

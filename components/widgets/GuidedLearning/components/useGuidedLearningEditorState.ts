@@ -38,6 +38,11 @@ import {
   type EditorDocument,
   type MediaDeletionRef,
 } from './editorHistory';
+import {
+  playOrderInsertIndex,
+  remapStepSlides,
+  stepsFollowSlide,
+} from './studio/timelineOrder';
 
 /** Deletes the files the editor removed, each only if nothing else still uses it. */
 export type MediaRelease = (files: {
@@ -68,6 +73,8 @@ interface UseGuidedLearningEditorStateProps {
   folders?: LibraryFolder[];
   folderId?: string | null;
   onFolderChange?: (folderId: string | null) => void;
+  /** Studio: new steps go after the slide's last step, and the canvas follows the selected step. */
+  setWideTimeline?: boolean;
 }
 
 export interface GuidedLearningEditorController extends EditorHistoryApi {
@@ -116,8 +123,10 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   /** Uploads a redacted copy over a slide and queues the old image for deletion on close. */
   replaceSlideImage: (index: number, blob: Blob) => Promise<boolean>;
   moveImage: (fromIndex: number, direction: -1 | 1) => void;
-  /** Reorder slides; `order[i]` is the old index of the slide now at `i`. */
-  reorderImages: (order: number[]) => void;
+  /** Reorder slides; `order[i]` is the old index of the slide now at `i`. `moveStepsOf` (an old index) takes that slide's steps along in play order. */
+  reorderImages: (order: number[], moveStepsOf?: number) => void;
+  /** Whether taking slide `moved` (an old index) along in `order` would change play order. */
+  slideMoveReordersSteps: (order: number[], moved: number) => boolean;
   imageError: string;
   // Steps
   steps: GuidedLearningStep[];
@@ -180,6 +189,7 @@ export function useGuidedLearningEditorState({
   folders,
   folderId,
   onFolderChange,
+  setWideTimeline = false,
 }: UseGuidedLearningEditorStateProps): GuidedLearningEditorController {
   const { user } = useAuth();
   const {
@@ -586,24 +596,33 @@ export function useGuidedLearningEditorState({
   );
 
   const reorderImages = useCallback(
-    (order: number[]) => {
+    (order: number[], moveStepsOf?: number) => {
       if (order.length !== imageUrls.length) return;
       const newIndexOf = new Map(order.map((oldIndex, i) => [oldIndex, i]));
-      applyDoc((doc) => ({
-        ...doc,
-        imageUrls: order.map((i) => doc.imageUrls[i]),
-        imageKinds: order.map((i) => doc.imageKinds[i]),
-        videoTrims: order.map((i) => doc.videoTrims[i] ?? null),
-        steps: doc.steps.map((step) => {
-          const next = newIndexOf.get(step.imageIndex);
-          return next === undefined || next === step.imageIndex
-            ? step
-            : { ...step, imageIndex: next };
-        }),
-      }));
+      const followed =
+        moveStepsOf === undefined ? undefined : newIndexOf.get(moveStepsOf);
+      applyDoc((doc) => {
+        const steps = remapStepSlides(doc.steps, order);
+        return {
+          ...doc,
+          imageUrls: order.map((i) => doc.imageUrls[i]),
+          imageKinds: order.map((i) => doc.imageKinds[i]),
+          videoTrims: order.map((i) => doc.videoTrims[i] ?? null),
+          steps:
+            followed === undefined ? steps : stepsFollowSlide(steps, followed),
+        };
+      });
       setCurrentImageIndex((prev) => newIndexOf.get(prev) ?? prev);
     },
     [imageUrls.length, applyDoc]
+  );
+
+  const slideMoveReordersSteps = useCallback(
+    (order: number[], moved: number) => {
+      const remapped = remapStepSlides(historyRef.current.present.steps, order);
+      return stepsFollowSlide(remapped, order.indexOf(moved)) !== remapped;
+    },
+    []
   );
 
   const addStepAt = useCallback(
@@ -618,11 +637,15 @@ export function useGuidedLearningEditorState({
         text: '',
         ...(region ? { region } : {}),
       };
-      setSteps((prev) => [...prev, newStep]);
+      setSteps((prev) => {
+        if (!setWideTimeline) return [...prev, newStep];
+        const at = playOrderInsertIndex(prev, currentImageIndex);
+        return [...prev.slice(0, at), newStep, ...prev.slice(at)];
+      });
       setSelectedStepId(newStep.id);
       setAddingStep(false);
     },
-    [currentImageIndex, setSteps]
+    [currentImageIndex, setSteps, setWideTimeline]
   );
 
   const updateStep = useCallback(
@@ -761,6 +784,29 @@ export function useGuidedLearningEditorState({
     [steps, selectedStepId]
   );
 
+  // The canvas follows a newly selected step, or one moved to another slide; slide reorders don't count.
+  const [followed, setFollowed] = useState<{
+    id: string | null;
+    imageIndex: number;
+    urls: string[];
+  }>({ id: null, imageIndex: -1, urls: imageUrls });
+  const followId = selectedStep?.id ?? null;
+  const followIndex = selectedStep?.imageIndex ?? -1;
+  if (
+    setWideTimeline &&
+    (followId !== followed.id ||
+      followIndex !== followed.imageIndex ||
+      imageUrls !== followed.urls)
+  ) {
+    const moved =
+      followId !== followed.id ||
+      (followIndex !== followed.imageIndex && imageUrls === followed.urls);
+    setFollowed({ id: followId, imageIndex: followIndex, urls: imageUrls });
+    if (followId && moved && followIndex !== rawImageIndex) {
+      setCurrentImageIndex(followIndex);
+    }
+  }
+
   const currentImageSteps = useMemo(
     () => steps.filter((step) => step.imageIndex === currentImageIndex),
     [steps, currentImageIndex]
@@ -800,6 +846,7 @@ export function useGuidedLearningEditorState({
     replaceSlideImage,
     moveImage,
     reorderImages,
+    slideMoveReordersSteps,
     imageError,
     steps,
     setSteps,

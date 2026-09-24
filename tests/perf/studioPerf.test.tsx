@@ -190,7 +190,7 @@ describe('Guided Learning Studio performance', () => {
     await settle();
     const mount = rec.record('studio.mount');
 
-    const timeline = screen.getByRole('region', { name: 'Steps on slide 1' });
+    const timeline = screen.getByRole('region', { name: 'Play order' });
     fireEvent.click(within(timeline).getByRole('button', { name: 'Step 1' }));
     await settle();
 
@@ -222,10 +222,10 @@ describe('Guided Learning Studio performance', () => {
     await settle();
     const add = rec.record('studio.addStep');
 
-    const slide11 = screen.getByRole('region', { name: 'Steps on slide 11' });
+    const playOrder = screen.getByRole('region', { name: 'Play order' });
     expect(
-      within(slide11).getAllByRole('button', { name: /^Step \d+$/ })
-    ).toHaveLength(3);
+      within(playOrder).getAllByRole('button', { name: /^Step \d+$/ })
+    ).toHaveLength(31);
     expect(mount.commits).toBeLessThanOrEqual(CLASSIC.mount.commits);
     expect(type25.commits).toBeLessThanOrEqual(CLASSIC.type25.commits);
     // The stage commits again as each slide's media mounts, and twice as the transition ends.
@@ -256,7 +256,7 @@ describe('Guided Learning Studio performance', () => {
     mountStudio(set, rec.onRender);
     await settle();
 
-    const timeline = screen.getByRole('region', { name: 'Steps on slide 1' });
+    const timeline = screen.getByRole('region', { name: 'Play order' });
     fireEvent.click(within(timeline).getByRole('button', { name: 'Step 1' }));
     const layer = screen.getByTestId('gl-studio-edit-layer');
     fireEvent.pointerDown(layer, { button: 0, pointerId: 1, ...at(30, 30) });

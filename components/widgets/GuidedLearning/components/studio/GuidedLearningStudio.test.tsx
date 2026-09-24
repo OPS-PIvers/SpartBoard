@@ -299,13 +299,30 @@ describe('GuidedLearningStudio', () => {
 
   it('opens a step from the timeline in the properties panel', () => {
     renderStudio();
-    const timeline = screen.getByRole('region', { name: 'Steps on slide 1' });
+    const timeline = screen.getByRole('region', { name: 'Play order' });
     fireEvent.click(within(timeline).getByRole('button', { name: 'Step 1' }));
     expect(screen.queryByTestId('gl-studio-set-settings')).toBeNull();
     expect(screen.getByDisplayValue('Click **Start**')).toBeInTheDocument();
     expect(
       within(timeline).getByRole('button', { name: 'Step 1' })
     ).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('follows a step to the slide picked in the panel', () => {
+    const set = buildSet();
+    set.imageUrls = [...set.imageUrls, 'https://example.com/slide-2.png'];
+    renderStudio({ set });
+    const timeline = screen.getByRole('region', { name: 'Play order' });
+    fireEvent.click(within(timeline).getByRole('button', { name: 'Step 1' }));
+    fireEvent.change(screen.getByDisplayValue('Slide 1'), {
+      target: { value: '1' },
+    });
+    expect(
+      screen.getByRole('button', { name: 'Slide 2, 1 step' })
+    ).toHaveAttribute('aria-current', 'true');
+    expect(
+      within(timeline).getByRole('button', { name: 'Go to slide 2' })
+    ).toHaveAttribute('aria-current', 'true');
   });
 
   it('opens on the step it is given', () => {
@@ -370,7 +387,7 @@ describe('GuidedLearningStudio', () => {
       pressKey('Escape');
     });
     expect(screen.queryByTestId('gl-studio-play')).toBeNull();
-    const timeline = screen.getByRole('region', { name: 'Steps on slide 1' });
+    const timeline = screen.getByRole('region', { name: 'Play order' });
     expect(
       within(timeline).getByRole('button', { name: 'Step 1' })
     ).toHaveAttribute('aria-pressed', 'true');

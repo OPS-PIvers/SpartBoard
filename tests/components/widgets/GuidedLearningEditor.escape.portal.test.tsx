@@ -74,6 +74,7 @@ const makeState = (): GuidedLearningEditorController => ({
   replaceSlideImage: vi.fn(),
   moveImage: vi.fn(),
   reorderImages: vi.fn(),
+  slideMoveReordersSteps: vi.fn(),
   imageError: '',
   steps: [],
   setSteps: vi.fn(),

@@ -20,6 +20,7 @@ import {
 import { CaptureMenuButton } from '../editorShared/CaptureMenuButton';
 import { ScreenCaptureModal, type CaptureMode } from '../ScreenCaptureModal';
 import type { GuidedLearningEditorController } from '../useGuidedLearningEditorState';
+import { useDialog } from '@/context/useDialog';
 
 interface SlideItem {
   id: string;
@@ -132,7 +133,7 @@ const SlideList = React.memo(function SlideList({
   renderItem,
 }: {
   slides: SlideItem[];
-  onReorder: (next: SlideItem[]) => void;
+  onReorder: (next: SlideItem[], movedId: string) => void;
   renderItem: (
     slide: SlideItem,
     handle: SortableListDragHandleProps
@@ -156,7 +157,6 @@ type FilmstripState = Pick<
   | 'slideThumbnails'
   | 'currentImageIndex'
   | 'setCurrentImageIndex'
-  | 'reorderImages'
   | 'deleteImage'
   | 'uploading'
   | 'uploadProgress'
@@ -168,6 +168,8 @@ type FilmstripState = Pick<
 
 interface FilmstripBodyProps extends FilmstripState {
   stepCounts: number[];
+  /** `order[i]` is the old index of the slide now at `i`; `moved` is the dragged slide's old index. */
+  onReorderSlides: (order: number[], moved: number) => void;
 }
 
 const sameProps = (a: FilmstripBodyProps, b: FilmstripBodyProps) =>
@@ -185,7 +187,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
   slideThumbnails,
   currentImageIndex,
   setCurrentImageIndex,
-  reorderImages,
+  onReorderSlides,
   deleteImage,
   uploading,
   uploadProgress,
@@ -218,8 +220,15 @@ const FilmstripBody = React.memo(function FilmstripBody({
     [currentImageIndex, stepCounts]
   );
   const onReorder = useCallback(
-    (next: SlideItem[]) => reorderImages(next.map((s) => s.index)),
-    [reorderImages]
+    (next: SlideItem[], movedId: string) => {
+      const moved = next.find((s) => s.id === movedId);
+      if (moved)
+        onReorderSlides(
+          next.map((s) => s.index),
+          moved.index
+        );
+    },
+    [onReorderSlides]
   );
   const renderSlide = useCallback(
     (slide: SlideItem, handle: SortableListDragHandleProps) => (
@@ -380,7 +389,24 @@ interface StudioFilmstripProps {
 
 /** Left column: slide thumbnails to pick, reorder, add and delete. */
 export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({ state }) => {
-  const { steps, imageUrls } = state;
+  const { t } = useTranslation();
+  const { showConfirm } = useDialog();
+  const { steps, imageUrls, reorderImages, slideMoveReordersSteps } = state;
+  // Asks only when taking the slide's steps along would change play order.
+  const onReorderSlides = useCallback(
+    (order: number[], moved: number) => {
+      if (!slideMoveReordersSteps(order, moved)) {
+        reorderImages(order);
+        return;
+      }
+      void showConfirm(t('glStudio.moveStepsBody'), {
+        title: t('glStudio.moveStepsTitle'),
+        confirmLabel: t('glStudio.moveStepsYes'),
+        cancelLabel: t('glStudio.moveStepsNo'),
+      }).then((yes) => reorderImages(order, yes ? moved : undefined));
+    },
+    [showConfirm, t, reorderImages, slideMoveReordersSteps]
+  );
   const stepCounts = useMemo(() => {
     const counts = new Array<number>(imageUrls.length).fill(0);
     for (const s of steps) {
@@ -396,7 +422,7 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({ state }) => {
       slideThumbnails={state.slideThumbnails}
       currentImageIndex={state.currentImageIndex}
       setCurrentImageIndex={state.setCurrentImageIndex}
-      reorderImages={state.reorderImages}
+      onReorderSlides={onReorderSlides}
       deleteImage={state.deleteImage}
       uploading={state.uploading}
       uploadProgress={state.uploadProgress}
