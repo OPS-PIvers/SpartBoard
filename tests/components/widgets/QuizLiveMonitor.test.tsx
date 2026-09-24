@@ -513,7 +513,7 @@ describe('QuizLiveMonitor (rebuilt)', () => {
     ).toBeInTheDocument();
   });
 
-  it('does not call onEnd when the Make Inactive confirm is declined', async () => {
+  it('does not call onEnd when the End confirm is declined', async () => {
     const onEnd = vi.fn().mockResolvedValue(undefined);
     renderMonitor({ onEnd });
     showConfirm.mockResolvedValueOnce(false);

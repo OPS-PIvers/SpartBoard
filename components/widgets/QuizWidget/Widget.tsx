@@ -1620,7 +1620,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           await advanceQuestion();
         }}
         onEnd={async () => {
-          // "End" now means Make Inactive at the assignment level so the URL
+          // "End" now deactivates at the assignment level so the URL
           // dies but responses are preserved. Confirmation happens inside
           // QuizLiveMonitor.
           const assignmentId = config.activeAssignmentId;
