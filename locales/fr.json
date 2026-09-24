@@ -2935,7 +2935,24 @@
     "shortcut_zoomActual": "Taille réelle",
     "shortcut_bold": "Gras",
     "shortcut_link": "Ajouter un lien",
-    "shortcut_doneEditing": "Terminer la modification"
+    "shortcut_doneEditing": "Terminer la modification",
+    "runLiveDraft": "Lancer en direct sur mon tableau (brouillon)",
+    "runLiveFromStep": "Lancer en direct à partir de cette étape",
+    "rerecordStep": "Réenregistrer cette étape",
+    "rerecordFailed": "Impossible d'enregistrer la visite, le réenregistrement n'a donc pas démarré.",
+    "reopenFailed": "Impossible de rouvrir la visite dans le Studio.",
+    "tourAnchorId": "Id :",
+    "tourAnchorWidgetType": "Widget :",
+    "tourSuggestedId": "Id suggéré",
+    "tourCopyFailed": "Copie impossible. L'id est sélectionné : appuyez sur Ctrl+C (Cmd+C sur Mac) pour le copier.",
+    "tourFind": {
+      "button": "Trouver sur le tableau",
+      "found": "Trouvé sur le tableau.",
+      "needs-widget": "Introuvable. Il faut {{widget}} sur le tableau.",
+      "needs-open-widget": "Introuvable. Ouvrez ou ajoutez le widget auquel appartient ce bouton.",
+      "needs-panel": "Introuvable. Ouvrez le menu ou le panneau où il se trouve, puis réessayez.",
+      "not-found": "Introuvable sur le tableau."
+    }
   },
   "helpCenter": {
     "title": "Aide",
@@ -3376,7 +3393,10 @@
     "reviewNoFramesShort": "Aucune image",
     "retry": "Réessayer",
     "saving": "Enregistrement de la visite...",
-    "saveFailed": "Impossible d'enregistrer la visite. L'enregistrement est conservé, tu peux donc réessayer."
+    "saveFailed": "Impossible d'enregistrer la visite. L'enregistrement est conservé, tu peux donc réessayer.",
+    "rerecordPrompt": "Cliquez sur ce que cette étape doit montrer",
+    "rerecordSaving": "Enregistrement du nouveau clic...",
+    "rerecordFailed": "Impossible d'enregistrer le nouveau clic. L'étape est inchangée."
   },
   "tours": {
     "unavailable": "Cette visite n'est pas disponible pour le moment.",

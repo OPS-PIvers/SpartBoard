@@ -4066,7 +4066,24 @@
     "shortcut_zoomActual": "Actual size",
     "shortcut_bold": "Bold",
     "shortcut_link": "Add a link",
-    "shortcut_doneEditing": "Finish editing"
+    "shortcut_doneEditing": "Finish editing",
+    "runLiveDraft": "Run live on my board (draft)",
+    "runLiveFromStep": "Run live from this step",
+    "rerecordStep": "Re-record this step",
+    "rerecordFailed": "Couldn't save the tour, so re-recording didn't start.",
+    "reopenFailed": "Couldn't reopen the tour in the Studio.",
+    "tourAnchorId": "Id:",
+    "tourAnchorWidgetType": "Widget:",
+    "tourSuggestedId": "Suggested id",
+    "tourCopyFailed": "Couldn't copy. The id is selected, so press Ctrl+C (Cmd+C on a Mac) to copy it.",
+    "tourFind": {
+      "button": "Find on board",
+      "found": "Found on the board.",
+      "needs-widget": "Not found. Needs {{widget}} on the board.",
+      "needs-open-widget": "Not found. Open or add the widget this button belongs to.",
+      "needs-panel": "Not found. Open the menu or panel it's in, then try again.",
+      "not-found": "Not found on the board."
+    }
   },
   "helpCenter": {
     "title": "Help",
@@ -4533,7 +4550,10 @@
     "reviewNoFramesShort": "No frames",
     "retry": "Retry",
     "saving": "Saving the tour...",
-    "saveFailed": "Couldn't save the tour. Your recording is kept, so you can try again."
+    "saveFailed": "Couldn't save the tour. Your recording is kept, so you can try again.",
+    "rerecordPrompt": "Click what this step should show",
+    "rerecordSaving": "Saving the new click...",
+    "rerecordFailed": "Couldn't save the new click. The step is unchanged."
   },
   "tours": {
     "unavailable": "This tour isn't available right now.",

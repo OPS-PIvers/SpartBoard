@@ -16,7 +16,9 @@ import {
   GuidedLearningVideoTrim,
   GuidedLearningWatchPace,
   LibraryFolder,
+  WidgetType,
 } from '@/types';
+import type { StepRecapture } from './recorder/recordingHandoff';
 import type { EditorHistoryApi } from '../types/stage';
 import { useAuth } from '@/context/useAuth';
 import {
@@ -127,6 +129,11 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   /** Watch-mode pacing; undefined = standard. */
   watchPace: GuidedLearningWatchPace | undefined;
   setWatchPace: (next: GuidedLearningWatchPace | undefined) => void;
+  /** Live tours: widget types the tour adds; each change is one undo entry. */
+  tourSetupWidgets: WidgetType[];
+  setTourSetupWidgets: (next: WidgetType[]) => void;
+  /** Swaps in a re-recorded click as one undo entry; a slide other steps share is kept. */
+  recaptureStep: (capture: StepRecapture) => boolean;
   // Slides (images, GIFs, and uploaded/recorded videos)
   imageUrls: string[];
   imageKinds: GuidedLearningMediaKind[];
@@ -273,6 +280,7 @@ export function useGuidedLearningEditorState({
     welcomeEnabled,
     welcomeMessage,
     watchPace,
+    tourSetupWidgets,
   } = history.present;
 
   const applyDoc = useCallback(
@@ -325,6 +333,10 @@ export function useGuidedLearningEditorState({
   );
   const setWatchPace = useCallback(
     (next: GuidedLearningWatchPace | undefined) => setField('watchPace', next),
+    [setField]
+  );
+  const setTourSetupWidgets = useCallback(
+    (next: WidgetType[]) => setField('tourSetupWidgets', next),
     [setField]
   );
   const setSteps = useCallback<
@@ -644,6 +656,63 @@ export function useGuidedLearningEditorState({
       return true;
     },
     [user, uploadSlideImage, applyDoc]
+  );
+
+  const recaptureStep = useCallback(
+    (capture: StepRecapture): boolean => {
+      const doc = historyRef.current.present;
+      const step = doc.steps.find((s) => s.id === capture.stepId);
+      if (!step) return false;
+      const slide = step.imageIndex;
+      const oldUrl = doc.imageUrls[slide];
+      const replace =
+        !!oldUrl &&
+        !doc.steps.some((s) => s.id !== step.id && s.imageIndex === slide);
+      const at = replace ? slide : Math.min(slide + 1, doc.imageUrls.length);
+      const { xPct, yPct, region } = capture.placement;
+      applyDoc((d) => {
+        const insertAt = <T>(list: T[], value: T): T[] =>
+          replace
+            ? list.map((v, i) => (i === at ? value : v))
+            : [...list.slice(0, at), value, ...list.slice(at)];
+        return {
+          ...d,
+          imageUrls: insertAt(d.imageUrls, capture.url),
+          imageKinds: insertAt<GuidedLearningMediaKind>(d.imageKinds, 'image'),
+          videoTrims: insertAt<GuidedLearningVideoTrim | null>(
+            d.videoTrims,
+            null
+          ),
+          steps: d.steps.map((s) => {
+            if (s.id === capture.stepId)
+              return {
+                ...s,
+                xPct,
+                yPct,
+                region,
+                tour: capture.tour,
+                imageIndex: at,
+              };
+            return !replace && s.imageIndex >= at
+              ? { ...s, imageIndex: s.imageIndex + 1 }
+              : s;
+          }),
+        };
+      });
+      const thumb = capture.thumbnailUrl;
+      if (thumb)
+        setSlideThumbnails((prev) => ({ ...prev, [capture.url]: thumb }));
+      if (replace) {
+        for (const url of [oldUrl, slideThumbnailsRef.current[oldUrl]]) {
+          const ref = url ? slideMediaRef(url) : null;
+          if (ref) dispatch({ type: 'queueMedia', ref });
+        }
+      }
+      setSelectedStepId(capture.stepId);
+      setCurrentImageIndex(at);
+      return true;
+    },
+    [applyDoc]
   );
 
   const moveImage = useCallback(
@@ -1117,6 +1186,9 @@ export function useGuidedLearningEditorState({
     setWelcomeMessage,
     watchPace,
     setWatchPace,
+    tourSetupWidgets,
+    setTourSetupWidgets,
+    recaptureStep,
     imageUrls,
     imageKinds,
     videoTrims,

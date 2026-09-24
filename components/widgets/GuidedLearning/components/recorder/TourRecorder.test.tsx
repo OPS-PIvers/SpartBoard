@@ -374,4 +374,31 @@ describe('TourRecorder', () => {
       'sidebar.open-menu',
     ]);
   });
+
+  it('re-records one step: finishes itself on the first captured click', async () => {
+    const onFinish = vi.fn();
+    render(
+      <>
+        <button data-tour="sidebar.boards">Boards</button>
+        <TourRecorder
+          single
+          matcher={null}
+          onFinish={onFinish}
+          onDiscard={vi.fn()}
+        />
+      </>
+    );
+    await startRecording();
+    expect(
+      screen.getByText('Click what this step should show')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Finish' })).toBeNull();
+    fireEvent.pointerDown(screen.getByText('Boards'), { button: 0 });
+    await settle();
+    expect(onFinish).toHaveBeenCalledTimes(1);
+    const recording = onFinish.mock.calls[0][0] as TourRecording;
+    expect(recording.frames).toEqual([REDACTED]);
+    expect(recording.steps[0].tour.anchor).toBe('sidebar.boards');
+    expect(stopTrack).toHaveBeenCalled();
+  });
 });

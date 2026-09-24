@@ -55,6 +55,7 @@ const editorFor = (
     videoTrims: set.imageUrls.map(() => null),
     steps: set.steps,
     watchPace: set.watchPace,
+    tourSetupWidgets: set.tourSetup?.widgets ?? [],
     setSteps: vi.fn(),
     canvasMeasurementsRef: { current: null },
     canvasMeasuredTick: 0,
@@ -136,6 +137,47 @@ describe('useSetDraftPersistence.buildSavedSet', () => {
     expect(saved?.slideThumbnails).toEqual({
       'https://example.com/new.png': 'https://example.com/new-thumb.webp',
     });
+  });
+});
+
+describe('useSetDraftPersistence tour setup', () => {
+  const tourSet = buildSet({
+    isBuilding: true,
+    tourSetup: { widgets: ['time-tool'] },
+  });
+
+  it('writes the chips from editor state, not the loaded copy', () => {
+    const saved = build(tourSet, { tourSetupWidgets: ['time-tool', 'clock'] });
+    expect(saved?.tourSetup).toEqual({ widgets: ['time-tool', 'clock'] });
+    expect(build(tourSet, { tourSetupWidgets: [] })?.tourSetup).toEqual({
+      widgets: [],
+    });
+  });
+
+  it('adds tourSetup only once a chip exists', () => {
+    expect(build(buildSet())).not.toHaveProperty('tourSetup');
+    expect(build(buildSet(), { tourSetupWidgets: ['clock'] })).toMatchObject({
+      tourSetup: { widgets: ['clock'] },
+    });
+  });
+
+  it('counts a chip edit as a draft change', () => {
+    const { result, rerender } = renderHook(
+      ({ edits }: { edits: Partial<GuidedLearningEditorController> }) =>
+        useSetDraftPersistence({
+          isOpen: true,
+          set: tourSet,
+          editorState: editorFor(tourSet, edits),
+          onSave: vi.fn(),
+          onClose: vi.fn(),
+        }),
+      { initialProps: { edits: {} } }
+    );
+    const idle = result.current.draftToken;
+    expect(result.current.isDirty).toBe(false);
+    rerender({ edits: { tourSetupWidgets: ['time-tool', 'clock'] } });
+    expect(result.current.isDirty).toBe(true);
+    expect(result.current.draftToken).not.toBe(idle);
   });
 });
 

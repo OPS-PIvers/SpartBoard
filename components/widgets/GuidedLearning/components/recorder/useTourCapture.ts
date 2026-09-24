@@ -6,6 +6,7 @@ import { redactImage, type RedactRect } from '../../utils/redactImage';
 import {
   rectToImagePct,
   resolveRecordedAnchor,
+  suggestAnchorId,
   type RecordedAnchor,
   type RecordedPlacement,
 } from './resolveAnchor';
@@ -114,13 +115,6 @@ export const widgetIdOf = (el: Element): string | undefined =>
   el.closest('[data-tour-widget]')?.getAttribute('data-tour-widget') ??
   undefined;
 
-const slug = (s: string) =>
-  s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40);
-
 /** Like `resolveRecordedAnchor`, but an untagged opener inside a tagged container binds to the opener itself. */
 export function resolveCaptureTarget(target: Element): RecordedAnchor | null {
   const resolved = resolveRecordedAnchor(target);
@@ -135,7 +129,7 @@ export function resolveCaptureTarget(target: Element): RecordedAnchor | null {
     anchor: '',
     fallback,
     untagged: true,
-    suggestedId: fallback ? `${role}.${slug(name)}` : undefined,
+    suggestedId: suggestAnchorId(fallback),
     element: opener,
   };
 }
@@ -150,10 +144,12 @@ interface Options {
   chromeRef: React.RefObject<HTMLElement | null>;
   /** Roster names to blur in every frame. */
   matcher: NameMatcher | null;
+  /** Called each time a captured step lands, with the count and the hook's own finish. */
+  onStep?: (count: number, finish: () => Promise<TourRecording>) => void;
 }
 
 /** Records a click-through of this tab: a frame and a tour-bound step per click. */
-export function useTourCapture({ chromeRef, matcher }: Options) {
+export function useTourCapture({ chromeRef, matcher, onStep }: Options) {
   const [status, setStatus] = useState<CaptureStatus>('idle');
   const [error, setError] = useState<CaptureError | null>(null);
   const [stepCount, setStepCount] = useState(0);
@@ -238,6 +234,7 @@ export function useTourCapture({ chromeRef, matcher }: Options) {
 
   const flush = () => {
     const rec = recording.current;
+    const before = rec.steps.length;
     while (done.current.has(seq.current.flushed)) {
       const entry = done.current.get(seq.current.flushed);
       done.current.delete(seq.current.flushed);
@@ -248,6 +245,7 @@ export function useTourCapture({ chromeRef, matcher }: Options) {
       rec.steps.push({ ...entry.step, frameIndex: rec.frames.length - 1 });
     }
     setStepCount(rec.steps.length);
+    if (rec.steps.length > before) onStep?.(rec.steps.length, finish);
   };
 
   /** Grabs a frame with the recorder hidden, blurs names and `data-pii` into it, and builds a step bound to `target`. */

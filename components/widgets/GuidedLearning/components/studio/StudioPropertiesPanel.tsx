@@ -9,11 +9,14 @@ import {
 } from 'lucide-react';
 import type {
   GuidedLearningMode,
+  GuidedLearningSet,
   GuidedLearningStep,
   GuidedLearningWatchPace,
 } from '@/types';
 import { StudioRegionControls } from './StudioRegionControls';
 import { StudioTourControls } from './StudioTourControls';
+import { StudioTourPublish } from './StudioTourPublish';
+import { StudioTourSetup } from './StudioTourSetup';
 import { StudioNarration, StudioNarrationBatch } from './StudioNarration';
 import { StudioStepFields, StudioStepPlayback } from './StudioStepFields';
 import { VideoTrimBar } from '../editorShared/VideoTrimBar';
@@ -35,6 +38,20 @@ interface StudioPropertiesPanelProps {
   canvasRef: React.RefObject<HTMLElement | null>;
   /** Shows each step's live-tour link; building sets with live tours only. */
   liveTours?: boolean;
+  /** The set as a save would write it now, for the tour's publish status. */
+  tourSet?: GuidedLearningSet;
+  /** Runs the saved draft live from this step. */
+  onRunFromStep?: (stepId: string) => void;
+  /** Captures one new click for this step. */
+  onRerecordStep?: (stepId: string) => void;
+  /** Fades the Studio while Find on board flashes a button. */
+  onPeekBoard?: (peeking: boolean) => void;
+}
+
+interface TourTools {
+  onRunFromStep?: (stepId: string) => void;
+  onRerecordStep?: (stepId: string) => void;
+  onPeekBoard?: (peeking: boolean) => void;
 }
 
 const MODES: readonly GuidedLearningMode[] = [
@@ -93,8 +110,13 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
   onDeleteStep,
   canvasRef,
   liveTours = false,
+  tourSet,
+  onRunFromStep,
+  onRerecordStep,
+  onPeekBoard,
 }) => {
   const { selectedStep } = state;
+  const tools: TourTools = { onRunFromStep, onRerecordStep, onPeekBoard };
   return (
     <div className="flex flex-col divide-y divide-slate-200">
       {selectedStep ? (
@@ -104,9 +126,14 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
           step={selectedStep}
           onDeleteStep={onDeleteStep}
           liveTours={liveTours}
+          tools={tools}
         />
       ) : (
-        <ActivitySection state={state} />
+        <ActivitySection
+          state={state}
+          liveTours={liveTours}
+          tourSet={tourSet}
+        />
       )}
       {state.imageUrls.length > 0 && (
         <SlideSection state={state} canvasRef={canvasRef} />
@@ -120,7 +147,8 @@ const StepSection: React.FC<{
   step: GuidedLearningStep;
   onDeleteStep?: (id: string) => void;
   liveTours: boolean;
-}> = ({ state, step, onDeleteStep, liveTours }) => {
+  tools: TourTools;
+}> = ({ state, step, onDeleteStep, liveTours, tools }) => {
   const { t } = useTranslation();
   const { steps, imageUrls, updateStep, deleteStep } = state;
   const n = steps.findIndex((s) => s.id === step.id) + 1;
@@ -183,15 +211,29 @@ const StepSection: React.FC<{
         <StudioTourControls
           step={step}
           onChange={(next) => updateStep(next, false)}
+          setupWidgets={state.tourSetupWidgets}
+          onPeekBoard={tools.onPeekBoard}
+          onRunFromStep={
+            tools.onRunFromStep
+              ? () => tools.onRunFromStep?.(step.id)
+              : undefined
+          }
+          onRerecord={
+            tools.onRerecordStep
+              ? () => tools.onRerecordStep?.(step.id)
+              : undefined
+          }
         />
       )}
     </section>
   );
 };
 
-const ActivitySection: React.FC<{ state: GuidedLearningEditorController }> = ({
-  state,
-}) => {
+const ActivitySection: React.FC<{
+  state: GuidedLearningEditorController;
+  liveTours: boolean;
+  tourSet?: GuidedLearningSet;
+}> = ({ state, liveTours, tourSet }) => {
   const { t } = useTranslation();
   const {
     steps,
@@ -281,6 +323,17 @@ const ActivitySection: React.FC<{ state: GuidedLearningEditorController }> = ({
         )}
       </div>
       {steps.length > 0 && <StudioNarrationBatch state={state} />}
+      {liveTours && (
+        <Group title={t('glStudio.tourTitle')} testId="gl-studio-set-tour">
+          {tourSet && steps.some((s) => !!s.tour) && (
+            <StudioTourPublish set={tourSet} />
+          )}
+          <StudioTourSetup
+            widgets={state.tourSetupWidgets}
+            onChange={state.setTourSetupWidgets}
+          />
+        </Group>
+      )}
       {imageUrls.length > 0 && (
         <p className={hintClass}>{t('glStudio.selectStepHint')}</p>
       )}

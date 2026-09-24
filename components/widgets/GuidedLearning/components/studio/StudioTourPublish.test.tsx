@@ -5,6 +5,7 @@ import type { GuidedLearningSet, GuidedLearningStep } from '@/types';
 import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import { __resetPublishedToursForTests } from '@/components/tours/publishedTours';
 import { StudioTourControls } from './StudioTourControls';
+import { StudioTourPublish } from './StudioTourPublish';
 
 const h = vi.hoisted(() => ({
   docs: new Map<string, unknown>(),
@@ -65,7 +66,7 @@ const renderPublish = (set: GuidedLearningSet) => {
     <AuthContext.Provider
       value={{ user: { uid: 'admin-uid' } } as unknown as AuthContextType}
     >
-      <StudioTourControls step={s.steps[0]} onChange={vi.fn()} publishSet={s} />
+      <StudioTourPublish set={s} />
     </AuthContext.Provider>
   );
   const view = render(ui(set));
@@ -155,7 +156,7 @@ describe('Publish tour', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Draft');
   });
 
-  it('is hidden when the caller passes no set', () => {
+  it("is set-level, so a step's tour controls never show it", () => {
     render(
       <StudioTourControls step={step('sidebar.boards')} onChange={vi.fn()} />
     );

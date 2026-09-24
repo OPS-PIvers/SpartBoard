@@ -18,7 +18,14 @@
  * Reference: components/widgets/QuizWidget/components/QuizManager.tsx.
  */
 
-import React, { useCallback, useMemo, useState, lazy, Suspense } from 'react';
+import React, {
+  useCallback,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  lazy,
+  Suspense,
+} from 'react';
 import {
   Plus,
   Play,
@@ -90,6 +97,11 @@ import {
   requestStartTour,
 } from '@/components/tours/tourState';
 import { useLiveToursEnabled } from '@/components/tours/useTourOffers';
+import {
+  getToursVersion,
+  isTourRunnable,
+  watchTours,
+} from '@/components/tours/publishedTours';
 
 // Lazy so the preview player chunk loads only when a teacher hits Play preview.
 const LazyGuidedLearningPlayer = lazy(() =>
@@ -442,6 +454,21 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
   const liveTours = useLiveToursEnabled();
+  // Only a published snapshot runs from the library; the shared watchers read each tour once per page.
+  const liveTourKey = liveTours
+    ? buildingSets
+        .filter((e) => e.hasLiveTour)
+        .map((e) => e.id)
+        .join(',')
+    : '';
+  const watchLiveTours = useCallback(
+    (onChange: () => void) =>
+      liveTourKey
+        ? watchTours(liveTourKey.split(','), onChange)
+        : () => undefined,
+    [liveTourKey]
+  );
+  useSyncExternalStore(watchLiveTours, getToursVersion, getToursVersion);
   // Same gate as the Studio's AI button.
   const aiAuthoring =
     React.useContext(AuthContext)?.canAccessFeature('gemini-functions') ??
@@ -808,12 +835,23 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         : entry.id.slice('building:'.length);
 
     if (liveTours && entry.buildingEntry?.hasLiveTour) {
-      secondary.push({
-        id: 'run-live',
-        label: 'Run live on my board',
-        icon: Footprints,
-        onClick: () => requestStartTour({ setId: rawId }),
-      });
+      const runnable = isTourRunnable(rawId);
+      if (runnable === true) {
+        secondary.push({
+          id: 'run-live',
+          label: t('glStudio.runLive'),
+          icon: Footprints,
+          onClick: () => requestStartTour({ setId: rawId }),
+        });
+      } else if (runnable === false && canEdit) {
+        // Authors can try an unpublished tour; teachers never see it.
+        secondary.push({
+          id: 'run-live',
+          label: t('glStudio.runLiveDraft'),
+          icon: Footprints,
+          onClick: () => requestStartTour({ setId: rawId, draft: true }),
+        });
+      }
     }
 
     const recentSessionId = recentSessionIds[rawId];

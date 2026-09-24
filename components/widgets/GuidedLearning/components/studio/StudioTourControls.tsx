@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { AlertTriangle, Circle, Copy, Footprints } from 'lucide-react';
 import type {
-  GuidedLearningSet,
   GuidedLearningStep,
   GuidedLearningTourBinding,
+  WidgetType,
 } from '@/types';
 import {
   TOUR_ANCHORS,
@@ -15,13 +16,20 @@ import {
 } from '@/config/tourAnchors';
 import { TOOLS } from '@/config/tools';
 import { teacherMustClick } from '@/components/tours/tourSession';
-import { StudioTourPublish } from './StudioTourPublish';
+import { suggestAnchorId } from '../recorder/resolveAnchor';
+import { StudioFindOnBoard } from './StudioFindOnBoard';
 
 interface StudioTourControlsProps {
   step: GuidedLearningStep;
   onChange: (step: GuidedLearningStep) => void;
-  /** The set being edited; shows its publish status and Publish tour when given. */
-  publishSet?: GuidedLearningSet;
+  /** The tour's setup widgets, so Find on board can name a missing one. */
+  setupWidgets?: readonly WidgetType[];
+  /** Fades the Studio while Find on board flashes the button. */
+  onPeekBoard?: (peeking: boolean) => void;
+  /** Runs the saved draft live from this step. */
+  onRunFromStep?: () => void;
+  /** Captures one new click for this step. */
+  onRerecord?: () => void;
 }
 
 const GROUPS = [
@@ -41,6 +49,74 @@ const isPerWidgetType = (id: TourAnchorId): boolean => {
   return !!def.perWidgetType;
 };
 
+const actionClass =
+  'flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:border-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40';
+
+type CopyState = 'idle' | 'copied' | 'failed';
+
+/** Warns that the recorder couldn't tag this step's button, with the id to tag it in code. */
+const UntaggedWarning: React.FC<{
+  fallback: GuidedLearningTourBinding['fallback'];
+}> = ({ fallback }) => {
+  const { t } = useTranslation();
+  const suggested = suggestAnchorId(fallback);
+  const [copy, setCopy] = useState<CopyState>('idle');
+  const idRef = useRef<HTMLInputElement>(null);
+  const copyId = async (id: string) => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('No clipboard');
+      await navigator.clipboard.writeText(id);
+      setCopy('copied');
+    } catch {
+      // Blocked clipboard: select the id so the author can copy it by hand.
+      setCopy('failed');
+      idRef.current?.focus();
+      idRef.current?.select();
+    }
+  };
+  return (
+    <div
+      data-testid="gl-studio-untagged"
+      className="flex flex-col gap-2 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900"
+    >
+      <p className="flex items-center gap-1.5 font-bold">
+        <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        {t('glRecorder.untaggedTitle')}
+      </p>
+      <p>{t('glRecorder.untaggedBody')}</p>
+      {suggested ? (
+        <div className="flex items-center gap-1.5">
+          <input
+            ref={idRef}
+            readOnly
+            value={suggested}
+            aria-label={t('glStudio.tourSuggestedId')}
+            onFocus={(e) => e.currentTarget.select()}
+            className="min-w-0 flex-1 rounded-md border border-amber-300 bg-white px-2 py-1 font-mono text-xs text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+          />
+          <button
+            type="button"
+            onClick={() => void copyId(suggested)}
+            className="flex shrink-0 items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-1 font-bold text-amber-900 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+          >
+            <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+            {copy === 'copied'
+              ? t('glRecorder.copied')
+              : t('glRecorder.copyId')}
+          </button>
+        </div>
+      ) : (
+        <p className="font-semibold">{t('glRecorder.untaggedNoId')}</p>
+      )}
+      {copy === 'failed' && (
+        <p role="alert" className="font-semibold">
+          {t('glStudio.tourCopyFailed')}
+        </p>
+      )}
+    </div>
+  );
+};
+
 const selectClass =
   'rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-normal text-slate-800 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
 
@@ -48,7 +124,10 @@ const selectClass =
 export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
   step,
   onChange,
-  publishSet,
+  setupWidgets = [],
+  onPeekBoard,
+  onRunFromStep,
+  onRerecord,
 }) => {
   const { t } = useTranslation();
   const tour = step.tour;
@@ -91,7 +170,7 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
           {t('glStudio.tourHint')}
         </p>
       </div>
-      {publishSet && <StudioTourPublish set={publishSet} />}
+      {tour && !tour.anchor && <UntaggedWarning fallback={tour.fallback} />}
       <label className="flex flex-col gap-1.5 text-xs font-bold text-slate-600">
         {t('glStudio.tourAnchor')}
         <select
@@ -114,6 +193,34 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
           ))}
         </select>
       </label>
+      {anchorId && (
+        <p
+          className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600"
+          data-testid="gl-studio-tour-anchor-id"
+        >
+          <span>
+            {t('glStudio.tourAnchorId')}{' '}
+            <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-slate-800">
+              {anchorId}
+            </code>
+          </span>
+          {widgetType && (
+            <span>
+              {t('glStudio.tourAnchorWidgetType')}{' '}
+              <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-slate-800">
+                {widgetType}
+              </code>
+            </span>
+          )}
+        </p>
+      )}
+      {tour && (
+        <StudioFindOnBoard
+          binding={tour}
+          setupWidgets={setupWidgets}
+          onPeek={onPeekBoard}
+        />
+      )}
       {anchorId && perType && tour && (
         <label className="flex flex-col gap-1.5 text-xs font-bold text-slate-600">
           {t('glStudio.tourWidget')}
@@ -179,6 +286,26 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
             </span>
           </span>
         </label>
+      )}
+      {(!!onRunFromStep || !!onRerecord) && (
+        <div className="flex flex-wrap gap-2">
+          {onRunFromStep && (
+            <button
+              type="button"
+              onClick={onRunFromStep}
+              className={actionClass}
+            >
+              <Footprints className="h-4 w-4" aria-hidden="true" />
+              {t('glStudio.runLiveFromStep')}
+            </button>
+          )}
+          {onRerecord && (
+            <button type="button" onClick={onRerecord} className={actionClass}>
+              <Circle className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('glStudio.rerecordStep')}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

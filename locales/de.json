@@ -2935,7 +2935,24 @@
     "shortcut_zoomActual": "Originalgröße",
     "shortcut_bold": "Fett",
     "shortcut_link": "Link hinzufügen",
-    "shortcut_doneEditing": "Bearbeitung beenden"
+    "shortcut_doneEditing": "Bearbeitung beenden",
+    "runLiveDraft": "Live auf meiner Tafel starten (Entwurf)",
+    "runLiveFromStep": "Ab diesem Schritt live starten",
+    "rerecordStep": "Diesen Schritt neu aufnehmen",
+    "rerecordFailed": "Die Tour konnte nicht gespeichert werden, daher wurde die Neuaufnahme nicht gestartet.",
+    "reopenFailed": "Die Tour konnte nicht wieder im Studio geöffnet werden.",
+    "tourAnchorId": "ID:",
+    "tourAnchorWidgetType": "Widget:",
+    "tourSuggestedId": "Vorgeschlagene ID",
+    "tourCopyFailed": "Kopieren nicht möglich. Die ID ist markiert, drücke Strg+C (Cmd+C auf dem Mac), um sie zu kopieren.",
+    "tourFind": {
+      "button": "Auf der Tafel finden",
+      "found": "Auf der Tafel gefunden.",
+      "needs-widget": "Nicht gefunden. {{widget}} muss auf der Tafel sein.",
+      "needs-open-widget": "Nicht gefunden. Öffne oder füge das Widget hinzu, zu dem diese Schaltfläche gehört.",
+      "needs-panel": "Nicht gefunden. Öffne das Menü oder den Bereich, in dem sie liegt, und versuche es erneut.",
+      "not-found": "Nicht auf der Tafel gefunden."
+    }
   },
   "helpCenter": {
     "title": "Hilfe",
@@ -3376,7 +3393,10 @@
     "reviewNoFramesShort": "Keine Bilder",
     "retry": "Erneut versuchen",
     "saving": "Tour wird gespeichert...",
-    "saveFailed": "Die Tour konnte nicht gespeichert werden. Deine Aufnahme bleibt erhalten, du kannst es also erneut versuchen."
+    "saveFailed": "Die Tour konnte nicht gespeichert werden. Deine Aufnahme bleibt erhalten, du kannst es also erneut versuchen.",
+    "rerecordPrompt": "Klicke auf das, was dieser Schritt zeigen soll",
+    "rerecordSaving": "Neuer Klick wird gespeichert...",
+    "rerecordFailed": "Der neue Klick konnte nicht gespeichert werden. Der Schritt bleibt unverändert."
   },
   "tours": {
     "unavailable": "Diese Tour ist gerade nicht verfügbar.",

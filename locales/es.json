@@ -2935,7 +2935,24 @@
     "shortcut_zoomActual": "Tamaño real",
     "shortcut_bold": "Negrita",
     "shortcut_link": "Añadir un enlace",
-    "shortcut_doneEditing": "Terminar de editar"
+    "shortcut_doneEditing": "Terminar de editar",
+    "runLiveDraft": "Ejecutar en vivo en mi pizarra (borrador)",
+    "runLiveFromStep": "Ejecutar en vivo desde este paso",
+    "rerecordStep": "Volver a grabar este paso",
+    "rerecordFailed": "No se pudo guardar el recorrido, así que no empezó la nueva grabación.",
+    "reopenFailed": "No se pudo volver a abrir el recorrido en el Studio.",
+    "tourAnchorId": "Id:",
+    "tourAnchorWidgetType": "Widget:",
+    "tourSuggestedId": "Id sugerido",
+    "tourCopyFailed": "No se pudo copiar. El id está seleccionado: pulsa Ctrl+C (Cmd+C en Mac) para copiarlo.",
+    "tourFind": {
+      "button": "Buscar en la pizarra",
+      "found": "Encontrado en la pizarra.",
+      "needs-widget": "No encontrado. Necesita {{widget}} en la pizarra.",
+      "needs-open-widget": "No encontrado. Abre o añade el widget al que pertenece este botón.",
+      "needs-panel": "No encontrado. Abre el menú o panel donde está y vuelve a intentarlo.",
+      "not-found": "No encontrado en la pizarra."
+    }
   },
   "helpCenter": {
     "title": "Ayuda",
@@ -3376,7 +3393,10 @@
     "reviewNoFramesShort": "Sin imágenes",
     "retry": "Reintentar",
     "saving": "Guardando el recorrido...",
-    "saveFailed": "No se pudo guardar el recorrido. La grabación se conserva, así que puedes intentarlo de nuevo."
+    "saveFailed": "No se pudo guardar el recorrido. La grabación se conserva, así que puedes intentarlo de nuevo.",
+    "rerecordPrompt": "Haz clic en lo que debe mostrar este paso",
+    "rerecordSaving": "Guardando el nuevo clic...",
+    "rerecordFailed": "No se pudo guardar el nuevo clic. El paso no cambió."
   },
   "tours": {
     "unavailable": "Este recorrido no está disponible en este momento.",
