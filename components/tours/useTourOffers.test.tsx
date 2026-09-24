@@ -355,7 +355,7 @@ describe('first-use tour offer', () => {
   it('marks the offer shown only after Start or No thanks', async () => {
     h.helpItems = [guide('a', 'live', ['clock'])];
     render(<TourOfferWatcher />);
-    const readd = async () => {
+    const readd = () => {
       act(() => {
         h.board.widgets = [];
         h.emit();
@@ -366,7 +366,7 @@ describe('first-use tour offer', () => {
     await waitFor(() => expect(h.addToast).toHaveBeenCalledTimes(1));
     // Ignored: nothing is stored, so the offer comes back next time.
     expect(localStorage.getItem('spart_tour_offered_clock')).toBeNull();
-    await readd();
+    readd();
     await waitFor(() => expect(h.addToast).toHaveBeenCalledTimes(2));
     const action = h.addToast.mock.calls[1][2] as {
       secondary: { label: string; onClick: () => void };
@@ -374,7 +374,7 @@ describe('first-use tour offer', () => {
     expect(action.secondary.label).toBe('No thanks');
     action.secondary.onClick();
     expect(localStorage.getItem('spart_tour_offered_clock')).toBe('1');
-    await readd();
+    readd();
     await act(async () => {
       await Promise.resolve();
     });
