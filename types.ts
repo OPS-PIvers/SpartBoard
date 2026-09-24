@@ -7917,6 +7917,8 @@ export interface ProjectGroupImportEntry {
   classLinkSourcedIds: string[];
   /** Test-class members, who have no sourcedId; the server checks each against its test class. */
   testEmails?: string[];
+  /** Current members the client cannot name; the server keeps only uids already on the group. */
+  keepMemberUids?: string[];
 }
 
 /**

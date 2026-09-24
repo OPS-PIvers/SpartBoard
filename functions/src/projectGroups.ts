@@ -23,6 +23,8 @@ interface CommitProjectGroupEntry {
   order: number;
   classLinkSourcedIds: string[];
   testEmails: string[];
+  /** Current members to keep as-is; only uids already on the stored group survive. */
+  keepMemberUids: string[];
 }
 
 const asString = (v: unknown): string => (typeof v === 'string' ? v : '');
@@ -36,11 +38,43 @@ const isDocumentId = (v: string): boolean =>
   v !== '..' &&
   !/^__.*__$/.test(v);
 
-function parseGroups(raw: unknown): CommitProjectGroupEntry[] {
+const stringList = (v: unknown): string[] =>
+  Array.isArray(v)
+    ? v.filter((s): s is string => typeof s === 'string' && s.length > 0)
+    : [];
+
+function parseDeleteIds(raw: unknown): string[] {
+  if (raw === undefined) return [];
+  if (!Array.isArray(raw)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'deleteGroupIds must be an array.'
+    );
+  }
+  const ids = Array.from(new Set(stringList(raw)));
+  if (ids.length > MAX_GROUPS) {
+    throw new HttpsError(
+      'invalid-argument',
+      `deleteGroupIds exceeds the max of ${MAX_GROUPS}.`
+    );
+  }
+  if (!ids.every(isDocumentId)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'deleteGroupIds has an id that is not a document id.'
+    );
+  }
+  return ids;
+}
+
+function parseGroups(
+  raw: unknown,
+  allowEmpty: boolean
+): CommitProjectGroupEntry[] {
   if (!Array.isArray(raw)) {
     throw new HttpsError('invalid-argument', 'groups must be an array.');
   }
-  if (raw.length === 0) {
+  if (raw.length === 0 && !allowEmpty) {
     throw new HttpsError('invalid-argument', 'groups must not be empty.');
   }
   if (raw.length > MAX_GROUPS) {
@@ -73,11 +107,8 @@ function parseGroups(raw: unknown): CommitProjectGroupEntry[] {
         `groups[${index}] has an id that is not a document id.`
       );
     }
-    const sourcedIds = Array.isArray(e.classLinkSourcedIds)
-      ? e.classLinkSourcedIds.filter(
-          (s): s is string => typeof s === 'string' && s.length > 0
-        )
-      : [];
+    const sourcedIds = stringList(e.classLinkSourcedIds);
+    const keepMemberUids = Array.from(new Set(stringList(e.keepMemberUids)));
     const testEmails = Array.isArray(e.testEmails)
       ? e.testEmails
           .filter(
@@ -86,7 +117,10 @@ function parseGroups(raw: unknown): CommitProjectGroupEntry[] {
           )
           .map((s) => s.trim().toLowerCase())
       : [];
-    if (sourcedIds.length + testEmails.length > MAX_MEMBERS_PER_GROUP) {
+    if (
+      sourcedIds.length + testEmails.length + keepMemberUids.length >
+      MAX_MEMBERS_PER_GROUP
+    ) {
       throw new HttpsError(
         'invalid-argument',
         `groups[${index}] exceeds ${MAX_MEMBERS_PER_GROUP} members.`
@@ -99,6 +133,7 @@ function parseGroups(raw: unknown): CommitProjectGroupEntry[] {
       order: typeof e.order === 'number' ? e.order : index,
       classLinkSourcedIds: Array.from(new Set(sourcedIds)),
       testEmails: Array.from(new Set(testEmails)),
+      keepMemberUids,
     };
   });
 }
@@ -143,7 +178,7 @@ async function allowedTestEmails(
   return allowed;
 }
 
-/** Teacher-only. Writes only the groups it was handed, never deleting others (D9). */
+/** Teacher-only. Writes the groups it was handed and deletes only the ids named in `deleteGroupIds` (D9). */
 export const commitProjectGroupsV1 = onCall(
   {
     memory: '256MiB',
@@ -162,6 +197,7 @@ export const commitProjectGroupsV1 = onCall(
     const rawData = (request.data ?? {}) as {
       runId?: unknown;
       groups?: unknown;
+      deleteGroupIds?: unknown;
     };
     const runId = asString(rawData.runId);
     if (!runId) {
@@ -170,7 +206,14 @@ export const commitProjectGroupsV1 = onCall(
     if (!isDocumentId(runId)) {
       throw new HttpsError('invalid-argument', 'runId is not a document id.');
     }
-    const groups = parseGroups(rawData.groups);
+    const deleteGroupIds = parseDeleteIds(rawData.deleteGroupIds);
+    const groups = parseGroups(rawData.groups, deleteGroupIds.length > 0);
+    if (groups.some((g) => deleteGroupIds.includes(g.id))) {
+      throw new HttpsError(
+        'invalid-argument',
+        'A group cannot be both written and deleted.'
+      );
+    }
 
     const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
     if (!hmacSecret) {
@@ -194,11 +237,19 @@ export const commitProjectGroupsV1 = onCall(
     }
 
     const now = Date.now();
-    const existing = await db.getAll(
-      ...groups.map((g) => runRef.collection('groups').doc(g.id))
-    );
+    const existing =
+      groups.length > 0
+        ? await db.getAll(
+            ...groups.map((g) => runRef.collection('groups').doc(g.id))
+          )
+        : [];
     const alreadyTracked = new Set(
       existing.filter((snap) => snap.exists).map((snap) => snap.id)
+    );
+    const storedMembers = new Map(
+      existing
+        .filter((snap) => snap.exists)
+        .map((snap) => [snap.id, new Set(stringList(snap.data()?.memberUids))])
     );
 
     const testMembers = await allowedTestEmails(
@@ -212,7 +263,7 @@ export const commitProjectGroupsV1 = onCall(
 
     for (const group of groups) {
       const inTestClass = testMembers.get(group.classId);
-      const memberUids = [
+      const minted = [
         ...group.classLinkSourcedIds.map((sourcedId) =>
           computeStudentUid(sourcedId, hmacSecret)
         ),
@@ -221,7 +272,11 @@ export const commitProjectGroupsV1 = onCall(
           .filter((email) => inTestClass?.has(email))
           .map((email) => computeStudentUid(`test:${email}`, hmacSecret)),
       ];
-      membersResolved += memberUids.length;
+      // Never trust a client uid: a kept member must already be on this group.
+      const stored = storedMembers.get(group.id);
+      const kept = group.keepMemberUids.filter((uid) => stored?.has(uid));
+      const memberUids = Array.from(new Set([...kept, ...minted]));
+      membersResolved += minted.length;
       const ref = runRef.collection('groups').doc(group.id);
       if (alreadyTracked.has(group.id)) {
         // D10 — a membership edit moves who may edit, and nothing else.
@@ -256,10 +311,19 @@ export const commitProjectGroupsV1 = onCall(
       ])
     );
     batch.update(runRef, { classIds, updatedAt: now });
+    for (const groupId of deleteGroupIds) {
+      batch.delete(runRef.collection('grades').doc(groupId));
+    }
 
     await batch.commit();
 
+    // Uploads already archived to the teacher's Drive stay there; the records go.
+    for (const groupId of deleteGroupIds) {
+      await db.recursiveDelete(runRef.collection('groups').doc(groupId));
+    }
+
     return {
+      groupsDeleted: deleteGroupIds.length,
       groupsWritten: groups.length,
       groupsCreated: groups.length - alreadyTracked.size,
       membersResolved,

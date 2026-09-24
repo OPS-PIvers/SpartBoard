@@ -280,9 +280,8 @@ export const ProjectSetupGroupsModal: React.FC<
               className={`${inputClass} w-28`}
             />
             <p className="text-xs text-slate-500">
-              Named Group {groupsInClass + 1}–{groupsInClass + manualCount}. To
-              put students in them, build the set in the Group Maker and use
-              &ldquo;Send to Projects&rdquo;.
+              Named Group {groupsInClass + 1}–{groupsInClass + manualCount}. Put
+              students in them afterwards with Manage groups.
             </p>
             {pendingImport && !usingPush && (
               <p className="text-xs text-slate-500">

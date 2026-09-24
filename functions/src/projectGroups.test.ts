@@ -26,7 +26,12 @@ import * as CryptoJS from 'crypto-js';
 const h = vi.hoisted(() => ({
   hmacSecret: 'test-hmac-secret' as string,
   docStore: new Map<string, any>(),
-  writes: [] as Array<{ type: 'set' | 'update'; path: string; data: any }>,
+  writes: [] as Array<{
+    type: 'set' | 'update' | 'delete';
+    path: string;
+    data?: any;
+  }>,
+  recursiveDeletes: [] as string[],
 }));
 
 vi.mock('./functionsInit', () => ({}));
@@ -95,8 +100,13 @@ vi.mock('firebase-admin', () => {
         h.writes.push({ type: 'set', path: ref._path, data }),
       update: (ref: any, data: any) =>
         h.writes.push({ type: 'update', path: ref._path, data }),
+      delete: (ref: any) => h.writes.push({ type: 'delete', path: ref._path }),
       commit: async () => {
         for (const w of h.writes) {
+          if (w.type === 'delete') {
+            h.docStore.delete(w.path);
+            continue;
+          }
           h.docStore.set(
             w.path,
             w.type === 'set'
@@ -106,6 +116,14 @@ vi.mock('firebase-admin', () => {
         }
       },
     }),
+    recursiveDelete: async (ref: any) => {
+      h.recursiveDeletes.push(ref._path);
+      for (const key of [...h.docStore.keys()]) {
+        if (key === ref._path || key.startsWith(`${ref._path}/`)) {
+          h.docStore.delete(key);
+        }
+      }
+    },
   };
   return { firestore: () => db };
 });
@@ -146,6 +164,7 @@ const groupEntry = (overrides: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   h.docStore.clear();
   h.writes.length = 0;
+  h.recursiveDeletes.length = 0;
   h.hmacSecret = 'test-hmac-secret';
   h.docStore.set(RUN_PATH, {
     id: RUN_ID,
@@ -406,5 +425,105 @@ describe('commitProjectGroupsV1 test-class members', () => {
         ADMIN_AUTH
       )
     ).rejects.toMatchObject({ code: 'invalid-argument' });
+  });
+});
+
+describe('commitProjectGroupsV1 edits and deletes', () => {
+  const seedGroup = (id: string, memberUids: string[]) =>
+    h.docStore.set(`${RUN_PATH}/groups/${id}`, {
+      id,
+      name: id,
+      classId: 'class-a',
+      memberUids,
+      order: 0,
+      stepStates: { 'step-1': 'done' },
+      needsSupport: false,
+      workLinks: [],
+      updatedAt: 1,
+    });
+
+  it('keeps a stored member the client could not name', async () => {
+    seedGroup('g1', ['unnamed-uid']);
+    await call({
+      runId: RUN_ID,
+      groups: [
+        groupEntry({
+          classLinkSourcedIds: ['SID-1'],
+          keepMemberUids: ['unnamed-uid'],
+        }),
+      ],
+    });
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([
+      'unnamed-uid',
+      expectedUid('SID-1'),
+    ]);
+  });
+
+  it('drops a kept uid that is not already on the group', async () => {
+    seedGroup('g1', ['unnamed-uid']);
+    await call({
+      runId: RUN_ID,
+      groups: [
+        groupEntry({
+          classLinkSourcedIds: [],
+          keepMemberUids: ['unnamed-uid', 'someone-else'],
+        }),
+      ],
+    });
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([
+      'unnamed-uid',
+    ]);
+  });
+
+  it('never keeps a uid on a brand-new group', async () => {
+    await call({
+      runId: RUN_ID,
+      groups: [
+        groupEntry({ classLinkSourcedIds: [], keepMemberUids: ['forged'] }),
+      ],
+    });
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([]);
+  });
+
+  it('deletes a group with its grade and subcollections', async () => {
+    seedGroup('g1', ['u1']);
+    seedGroup('g2', ['u2']);
+    h.docStore.set(`${RUN_PATH}/groups/g1/uploads/up1`, { id: 'up1' });
+    h.docStore.set(`${RUN_PATH}/grades/g1`, { groupId: 'g1' });
+
+    const result = await call({
+      runId: RUN_ID,
+      groups: [],
+      deleteGroupIds: ['g1'],
+    });
+
+    expect(result.groupsDeleted).toBe(1);
+    expect(h.recursiveDeletes).toEqual([`${RUN_PATH}/groups/g1`]);
+    expect(h.docStore.has(`${RUN_PATH}/groups/g1`)).toBe(false);
+    expect(h.docStore.has(`${RUN_PATH}/groups/g1/uploads/up1`)).toBe(false);
+    expect(h.docStore.has(`${RUN_PATH}/grades/g1`)).toBe(false);
+    expect(h.docStore.has(`${RUN_PATH}/groups/g2`)).toBe(true);
+  });
+
+  it('refuses a delete from someone other than the run teacher', async () => {
+    seedGroup('g1', ['u1']);
+    await expect(
+      call(
+        { runId: RUN_ID, groups: [], deleteGroupIds: ['g1'] },
+        { uid: 'teacher-2', token: {} }
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(h.docStore.has(`${RUN_PATH}/groups/g1`)).toBe(true);
+  });
+
+  it.each([
+    [{ runId: RUN_ID, groups: [], deleteGroupIds: ['a/b'] }],
+    [{ runId: RUN_ID, groups: [], deleteGroupIds: 'g1' }],
+    [{ runId: RUN_ID, groups: [groupEntry()], deleteGroupIds: ['g1'] }],
+    [{ runId: RUN_ID, groups: [], deleteGroupIds: [] }],
+  ])('rejects %j', async (payload) => {
+    await expect(call(payload)).rejects.toMatchObject({
+      code: 'invalid-argument',
+    });
   });
 });

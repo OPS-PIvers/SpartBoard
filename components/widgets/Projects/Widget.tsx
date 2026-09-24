@@ -19,6 +19,7 @@ import { ProjectsManager } from './components/ProjectsManager';
 import { ProjectBoardView } from './components/ProjectBoardView';
 import { ProjectSetupGroupsModal } from './components/ProjectSetupGroupsModal';
 import { ProjectGrader } from './components/ProjectGrader';
+import { ProjectGroupsManager } from './components/ProjectGroupsManager';
 
 /**
  * R1 — a widget placed before the manager landed carries a `projectId` and no
@@ -36,6 +37,7 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
   const inShare = useInSubShare();
 
   const [setupProjectId, setSetupProjectId] = useState<string | null>(null);
+  const [groupsProjectId, setGroupsProjectId] = useState<string | null>(null);
   const [gradingProjectId, setGradingProjectId] = useState<string | null>(null);
 
   const update = (updates: Partial<ProjectsConfig>): void =>
@@ -66,6 +68,11 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
   const view = inShare ? 'board' : resolveView(config);
   const openBoard = (projectId: string): void =>
     update({ view: 'board', projectId });
+  // A Group Maker push still lands through the import dialog; everything else is the group manager.
+  const openGroups = (projectId: string): void =>
+    config.pendingImport
+      ? setSetupProjectId(projectId)
+      : setGroupsProjectId(projectId);
 
   return (
     <WidgetLayout
@@ -79,13 +86,15 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
               projectId={config.projectId}
               onBackToLibrary={() => update({ view: 'manager' })}
               onGrade={() => setGradingProjectId(config.projectId ?? null)}
-              onManageGroups={() => setSetupProjectId(config.projectId ?? null)}
+              onManageGroups={() =>
+                setGroupsProjectId(config.projectId ?? null)
+              }
             />
           ) : (
             <ProjectsManager
               widget={widget}
               onOpenBoard={openBoard}
-              onSetupGroups={setSetupProjectId}
+              onSetupGroups={openGroups}
               onGrade={setGradingProjectId}
             />
           )}
@@ -96,6 +105,15 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
               projectId={setupProjectId}
               onDone={openBoard}
               onClose={() => setSetupProjectId(null)}
+            />
+          )}
+
+          {groupsProjectId && (
+            <GroupsManagerHost
+              widget={widget}
+              projectId={groupsProjectId}
+              onClose={() => setGroupsProjectId(null)}
+              onSaved={openBoard}
             />
           )}
 
@@ -166,6 +184,59 @@ const SetupGroupsHost: React.FC<{
       pendingImport={config.pendingImport}
       defaultRosterId={activeRosterId}
       onCommit={handleCommit}
+      onClose={onClose}
+    />
+  );
+};
+
+/** Mounts `useProjectRun` only for the project whose groups are open. */
+const GroupsManagerHost: React.FC<{
+  widget: WidgetData;
+  projectId: string;
+  onClose: () => void;
+  onSaved: (projectId: string) => void;
+}> = ({ widget, projectId, onClose, onSaved }) => {
+  const { user, orgId } = useAuth();
+  const { rosters, activeRosterId, addToast } = useDashboard();
+  const buildingId = useWidgetBuildingId(widget);
+  const buildingDefaults = useProjectsBuildingDefaults(buildingId);
+  const { projects } = useProjectLibrary(user?.uid);
+  const { run, groups, loading, ensureRun, importGroups } = useProjectRun(
+    user?.uid,
+    projectId,
+    user?.uid
+  );
+  const project = projects.find((p) => p.id === projectId);
+  const title = run?.title ?? project?.title;
+  if (loading || !title) return null;
+
+  const handleSave = async (
+    _classId: string,
+    entries: ProjectGroupImportEntry[],
+    deleteGroupIds: string[]
+  ): Promise<void> => {
+    if (!run) {
+      if (!project)
+        throw new Error('This project is no longer in your library.');
+      await ensureRun(project, {
+        showStatusToStudents: buildingDefaults.defaultShowStatusToStudents,
+      });
+    }
+    await importGroups(entries, deleteGroupIds);
+    addToast('Groups saved.', 'success');
+    onSaved(projectId);
+  };
+
+  return (
+    <ProjectGroupsManager
+      isOpen
+      projectTitle={title}
+      runId={run?.id ?? null}
+      orgId={orgId}
+      rosters={rosters}
+      groups={groups}
+      initialRosterId={activeRosterId}
+      onSave={handleSave}
       onClose={onClose}
     />
   );

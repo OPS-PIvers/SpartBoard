@@ -359,7 +359,30 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
         subtitle={
           readOnly
             ? 'This project runs with another class.'
-            : 'Add groups to this class from the In Progress tab.'
+            : 'Make groups for this class to start tracking it.'
+        }
+        action={
+          readOnly ? undefined : (
+            <button
+              type="button"
+              onClick={onManageGroups}
+              className="inline-flex items-center rounded-full bg-brand-blue-primary font-bold text-white"
+              style={{
+                gap: 'min(4px, 1cqmin)',
+                padding: 'min(6px, 1.4cqmin) min(12px, 2.8cqmin)',
+                fontSize: 'min(13px, 4cqmin)',
+              }}
+            >
+              <Users
+                aria-hidden
+                style={{
+                  width: 'min(14px, 3.8cqmin)',
+                  height: 'min(14px, 3.8cqmin)',
+                }}
+              />
+              Manage groups
+            </button>
+          )
         }
       />
     );
@@ -423,7 +446,11 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
                 ariaLabel="Project actions"
                 items={[
                   { label: 'Grade groups', icon: SquarePen, onClick: onGrade },
-                  { label: 'Add groups', icon: Users, onClick: onManageGroups },
+                  {
+                    label: 'Manage groups',
+                    icon: Users,
+                    onClick: onManageGroups,
+                  },
                 ]}
               />
             </>
