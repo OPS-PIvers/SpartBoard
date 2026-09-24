@@ -1038,7 +1038,11 @@ const StudioSession: React.FC<
             onDeleteStep={deleteStepWithUndo}
             canvasRef={canvasRef}
             liveTours={liveTours}
-            tourSet={liveTours && !readOnly ? buildSavedSet() : undefined}
+            tourSet={
+              liveTours && !readOnly
+                ? (buildSavedSet() ?? undefined)
+                : undefined
+            }
             saveForPublish={saveForPublish}
             onRunFromStep={canRunLive ? (id) => void runLive(id) : undefined}
             onRerecordStep={
