@@ -39,15 +39,3 @@ export const CatalystInstructionWidget: React.FC<{ widget: WidgetData }> = ({
     />
   );
 };
-
-export const CatalystInstructionSettings: React.FC<{ widget: WidgetData }> = ({
-  widget: _widget,
-}) => {
-  return (
-    <div className="p-4 text-center">
-      <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
-        Guide Mode Controls
-      </p>
-    </div>
-  );
-};

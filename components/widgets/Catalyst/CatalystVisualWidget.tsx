@@ -75,15 +75,3 @@ export const CatalystVisualWidget: React.FC<{ widget: WidgetData }> = ({
     />
   );
 };
-
-export const CatalystVisualSettings: React.FC<{ widget: WidgetData }> = ({
-  widget: _widget,
-}) => {
-  return (
-    <div className="p-4 text-center">
-      <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
-        Visual Anchor Mode
-      </p>
-    </div>
-  );
-};

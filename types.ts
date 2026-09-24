@@ -3386,8 +3386,8 @@ export interface SmartNotebookConfig {
   activeNotebookId: string | null;
   storageLimitMb?: number;
   /**
-   * Appearance fields, surfaced via the shared `TypographySettings` /
-   * `SurfaceColorSettings` primitives in `SmartNotebookAppearanceSettings`.
+   * Appearance fields, surfaced as `styleKeys` in
+   * `components/widgets/SmartNotebook/settings.schema.ts`.
    * These are user-level only and are intentionally NOT admin-configurable
    * per building: the widget renders imported SMART pages as image/SVG and
    * has no themed text/surface chrome to apply them to, so there is no

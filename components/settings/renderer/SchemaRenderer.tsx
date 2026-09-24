@@ -21,6 +21,8 @@ export type SchemaRendererProps = {
   defaults?: Record<string, unknown>;
   /** Which tab's groups to render (D8 order within the tab). Defaults to the Settings tab. */
   tab?: SettingsTab;
+  /** Rendered instead of nothing when the tab has no visible fields. */
+  emptyFallback?: React.ReactNode;
 };
 
 export const SchemaRenderer: React.FC<SchemaRendererProps> = ({
@@ -30,13 +32,17 @@ export const SchemaRenderer: React.FC<SchemaRendererProps> = ({
   updateConfig,
   defaults,
   tab = 'settings',
+  emptyFallback = null,
 }) => {
   const uid = useId();
 
   const groups = TAB_GROUPS[tab]
     .map((id) => schema.groups.find((group) => group.id === id))
     .filter((group): group is Group => group !== undefined);
-  if (groups.length === 0) return null;
+  const hasVisibleField = groups.some((group) =>
+    group.fields.some((field) => isFieldVisible(field, ctx))
+  );
+  if (!hasVisibleField) return <>{emptyFallback}</>;
 
   return (
     <div className="flex flex-col gap-5">
