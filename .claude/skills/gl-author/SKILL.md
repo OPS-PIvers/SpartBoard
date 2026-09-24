@@ -210,7 +210,7 @@ pan-zoom and spotlight steps; the validator rejects them anywhere else.
 | ----------------- | ------------------------------------------- | ------------------------------- |
 | `calloutWidthPct` | 10–95, % of the **stage** width (not image) | auto width, text sets the width |
 | `calloutScale`    | 0.75–2, multiplies text size and padding    | 1                               |
-| `calloutTone`     | `"dark"`, `"light"` or `"accent"`           | `"dark"` (today's card)         |
+| `calloutTone`     | `"light"` or `"accent"`                     | dark (today's card)             |
 
 - Leave all three out unless a callout needs one, the same as `calloutPin`.
   Auto sizing fits most text, and any of them forces `schemaVersion` 4.
@@ -218,7 +218,7 @@ pan-zoom and spotlight steps; the validator rejects them anywhere else.
   moves with the image but keeps its width. Height always fits the text.
 - `light` is a white card with dark text, `accent` a brand-blue card with
   white text. A tooltip's leader line takes the card's colour. There is no
-  free colour.
+  free colour, and dark is written by leaving the field out.
 
 ### Questions
 

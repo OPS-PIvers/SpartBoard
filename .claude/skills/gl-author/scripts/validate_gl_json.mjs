@@ -16,7 +16,8 @@ const EDGE_SLACK = 0.01;
 const BBOX_SLACK = 0.5;
 // Callout size and colour fields; any of them requires schemaVersion 4.
 const CALLOUT_STYLE_FIELDS = ['calloutWidthPct', 'calloutScale', 'calloutTone'];
-const CALLOUT_TONES = ['dark', 'light', 'accent'];
+// Dark is the default and is stored as an absent field.
+const CALLOUT_TONES = ['light', 'accent'];
 
 const hasCallout = (step) =>
   step.interactionType === 'tooltip' ||
@@ -43,11 +44,14 @@ function validateCalloutStyle(step, path) {
   if (step.calloutScale !== undefined && !inRange(step.calloutScale, 0.75, 2)) {
     fail(`${path}.calloutScale must be a number from 0.75 to 2`);
   }
+  if (step.calloutTone === 'dark') {
+    fail(`${path}.calloutTone: omit it for the default dark card`);
+  }
   if (
     step.calloutTone !== undefined &&
     !CALLOUT_TONES.includes(step.calloutTone)
   ) {
-    fail(`${path}.calloutTone must be dark, light, or accent`);
+    fail(`${path}.calloutTone must be light or accent`);
   }
   return true;
 }

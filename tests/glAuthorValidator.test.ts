@@ -176,13 +176,14 @@ describe('validateGlSet callouts, narration and tours', () => {
       set([step({ interactionType: 'tooltip', ...over })], {
         schemaVersion: 4,
       });
-    ok(v4({ calloutWidthPct: 10, calloutScale: 0.75, calloutTone: 'dark' }));
+    ok(v4({ calloutWidthPct: 10, calloutScale: 0.75, calloutTone: 'light' }));
     ok(v4({ calloutWidthPct: 95, calloutScale: 2, calloutTone: 'accent' }));
     bad(v4({ calloutWidthPct: 9 }), /calloutWidthPct/);
     bad(v4({ calloutWidthPct: 96 }), /calloutWidthPct/);
     bad(v4({ calloutScale: 0.5 }), /calloutScale/);
     bad(v4({ calloutScale: 2.5 }), /calloutScale/);
     bad(v4({ calloutTone: 'red' }), /calloutTone/);
+    bad(v4({ calloutTone: 'dark' }), /omit it/);
   });
 
   it('allows callout style only where a callout renders', () => {
