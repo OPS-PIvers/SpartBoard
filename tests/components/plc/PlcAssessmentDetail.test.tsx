@@ -1,6 +1,6 @@
 /**
  * PlcAssessmentDetail renders the pooled view from a fixture aggregate:
- * worst-first question order, "Not scored yet" when nothing is published,
+ * quiz-order questions with a most-missed toggle, % correct bars, the score chart, "Not scored yet" when nothing is published,
  * no per-teacher breakdown, and the alignment note.
  */
 
@@ -252,7 +252,7 @@ describe('PlcAssessmentDetail', () => {
     expect(screen.getByText('3 of 4')).toBeInTheDocument();
   });
 
-  it('renders the header stats and the questions worst-first', () => {
+  it('renders the header stats and the questions in quiz order', () => {
     render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
 
     expect(screen.getByText('Unit 4 CFA')).toBeInTheDocument();
@@ -262,12 +262,77 @@ describe('PlcAssessmentDetail', () => {
 
     const rows = screen.getAllByTestId('question-row');
     expect(rows.map((r) => r.textContent)).toEqual([
-      expect.stringContaining('Hard question'),
       expect.stringContaining('Easy question'),
+      expect.stringContaining('Hard question'),
       expect.stringContaining('Essay question'),
     ]);
-    expect(within(rows[0]).getByText('59% incorrect')).toBeInTheDocument();
+    expect(within(rows[0]).getByText('92% correct')).toBeInTheDocument();
+    expect(within(rows[1]).getByText('41% correct')).toBeInTheDocument();
     expect(within(rows[2]).getByText('Not scored')).toBeInTheDocument();
+    expect(screen.queryByText(/incorrect/)).toBeNull();
+  });
+
+  it('draws the bar as % correct: long green when high, short red when low', () => {
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
+    const [easy, hard] = screen.getAllByTestId('question-row');
+    const easyBar = easy.querySelector('[style]') as HTMLElement;
+    const hardBar = hard.querySelector('[style]') as HTMLElement;
+    expect(easyBar.style.width).toBe('92%');
+    expect(easyBar.className).toContain('bg-emerald-500');
+    expect(hardBar.style.width).toBe('41%');
+    expect(hardBar.className).toContain('bg-brand-red-primary');
+  });
+
+  it('re-sorts to most missed first and back, keeping quiz numbers', () => {
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
+    const quizOrder = screen.getByRole('button', { name: 'Quiz order' });
+    const mostMissed = screen.getByRole('button', { name: 'Most missed' });
+    expect(quizOrder).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(mostMissed);
+    expect(mostMissed).toHaveAttribute('aria-pressed', 'true');
+    const rows = screen.getAllByTestId('question-row');
+    expect(rows.map((r) => r.textContent)).toEqual([
+      expect.stringContaining('2.Hard question'),
+      expect.stringContaining('1.Easy question'),
+      expect.stringContaining('3.Essay question'),
+    ]);
+
+    fireEvent.click(quizOrder);
+    expect(screen.getAllByTestId('question-row')[0].textContent).toContain(
+      'Easy question'
+    );
+  });
+
+  it('charts the pooled score bands next to the team average', () => {
+    mockAggregatesSlice.data = [
+      makeAggregate({
+        scoreDistribution: [
+          { min: 90, max: 100, count: 10 },
+          { min: 80, max: 89, count: 10 },
+          { min: 60, max: 79, count: 12 },
+          { min: 0, max: 59, count: 8 },
+        ],
+      }),
+    ];
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
+    const bands = within(
+      screen.getByTestId('score-distribution')
+    ).getAllByTestId('score-band');
+    expect(bands.map((b) => b.textContent)).toEqual([
+      '90–100%10 students · 25%',
+      '80–89%10 students · 25%',
+      '60–79%12 students · 30%',
+      '0–59%8 students · 20%',
+    ]);
+  });
+
+  it('explains a missing chart until the aggregate is recomputed', () => {
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
+    expect(screen.queryByTestId('score-distribution')).toBeNull();
+    expect(screen.getByTestId('results-summary')).toHaveTextContent(
+      'The chart appears after the next results refresh'
+    );
   });
 
   it('shows a rubric question as the average percent of points', () => {
@@ -300,7 +365,7 @@ describe('PlcAssessmentDetail', () => {
 
   it('toggles the choice distribution for MC questions', () => {
     render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
-    const easy = screen.getAllByTestId('question-row')[1];
+    const easy = screen.getAllByTestId('question-row')[0];
     expect(screen.queryByTestId('choice-distribution')).toBeNull();
     fireEvent.click(within(easy).getByRole('button'));
     const panel = screen.getByTestId('choice-distribution');

@@ -985,6 +985,13 @@ export interface PlcCommonAssessment {
 }
 
 /** One answer-choice row of a pooled MC distribution. Labels are option text, never student text. */
+/** One pooled score band of a PLC aggregate: a count, never student rows. */
+export interface PlcAggregateScoreBand {
+  min: number;
+  max: number;
+  count: number;
+}
+
 export interface PlcAggregateChoiceRow {
   label: string;
   count: number;
@@ -1031,6 +1038,8 @@ export interface PlcAssessmentAggregate {
   teamAveragePercent: number;
   /** Completed responses that carried a numeric score (schema 2+). */
   scoredStudentCount?: number;
+  /** Scored students pooled into percent bands; counts only (schema 6+). */
+  scoreDistribution?: PlcAggregateScoreBand[];
   /** Linked sessions with at least one completed response (schema 2+). */
   sessionCount?: number;
   /** Every linked session, including ones with no completed responses (schema 2+). */

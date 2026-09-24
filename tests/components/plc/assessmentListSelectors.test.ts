@@ -11,7 +11,7 @@ import {
   filterAssessmentRows,
   filterRowsByFolder,
   hasTeamAverage,
-  sortWorstFirst,
+  sortQuestions,
   suggestedFolderNames,
 } from '@/components/plc/assessments/assessmentListSelectors';
 import type {
@@ -401,46 +401,63 @@ describe('suggestedFolderNames', () => {
   });
 });
 
-describe('sortWorstFirst', () => {
-  it('orders by incorrectPercent desc with unscored questions last', () => {
-    const sorted = sortWorstFirst([
-      {
-        questionId: 'q1',
-        text: '',
-        correctPercent: 0,
-        points: 1,
-        incorrectPercent: null,
-      },
-      {
-        questionId: 'q2',
-        text: '',
-        correctPercent: 40,
-        points: 1,
-        incorrectPercent: 60,
-      },
-      {
-        questionId: 'q3',
-        text: '',
-        correctPercent: 90,
-        points: 1,
-        incorrectPercent: 10,
-      },
-      {
-        questionId: 'q4',
-        text: '',
-        correctPercent: 40,
-        points: 1,
-        incorrectPercent: 60,
-      },
-      {
-        questionId: 'q-low-sample',
-        text: '',
-        correctPercent: 0,
-        points: 1,
-        incorrectPercent: 100,
-        servedCount: 4,
-      },
+describe('sortQuestions', () => {
+  const perQuestion = [
+    {
+      questionId: 'q1',
+      text: '',
+      correctPercent: 0,
+      points: 1,
+      incorrectPercent: null,
+    },
+    {
+      questionId: 'q2',
+      text: '',
+      correctPercent: 40,
+      points: 1,
+      incorrectPercent: 60,
+    },
+    {
+      questionId: 'q3',
+      text: '',
+      correctPercent: 90,
+      points: 1,
+      incorrectPercent: 10,
+    },
+    {
+      questionId: 'q4',
+      text: '',
+      correctPercent: 40,
+      points: 1,
+      incorrectPercent: 60,
+    },
+    {
+      questionId: 'q-low-sample',
+      text: '',
+      correctPercent: 0,
+      points: 1,
+      incorrectPercent: 100,
+      servedCount: 4,
+    },
+  ];
+
+  it("keeps quiz order and each question's quiz position", () => {
+    const sorted = sortQuestions(perQuestion, 'order');
+    expect(sorted.map((r) => [r.question.questionId, r.index])).toEqual([
+      ['q1', 0],
+      ['q2', 1],
+      ['q3', 2],
+      ['q4', 3],
     ]);
-    expect(sorted.map((q) => q.questionId)).toEqual(['q2', 'q4', 'q3', 'q1']);
+  });
+
+  it('puts the lowest % correct first with unscored questions last', () => {
+    const sorted = sortQuestions(perQuestion, 'missed');
+    expect(sorted.map((r) => r.question.questionId)).toEqual([
+      'q2',
+      'q4',
+      'q3',
+      'q1',
+    ]);
   });
 });
