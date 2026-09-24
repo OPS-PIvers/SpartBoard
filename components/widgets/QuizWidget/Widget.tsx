@@ -3418,12 +3418,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             ? {
                 // The same readers the import wizard uses, so a new paper
                 // test can start from the teacher's own test paper (D17).
-                readDocument: (file: Blob, fileName: string) =>
+                readDocument: (file: Blob, fileName: string, useAi?: boolean) =>
                   readTestDocument(file, fileName, {
                     ...(canUseAiReader
                       ? { aiExtract: extractQuizFromDocument }
                       : {}),
+                    ...(useAi === false ? { useAi } : {}),
                   }),
+                canUseAi: canUseAiReader,
                 pickDocument,
               }
             : {})}
@@ -3537,12 +3539,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             ? {
                 // The same readers the import wizard uses, so a stub fills
                 // with choices and a key rather than stem text alone (D17).
-                readDocument: (file: Blob, fileName: string) =>
+                readDocument: (file: Blob, fileName: string, useAi?: boolean) =>
                   readTestDocument(file, fileName, {
                     ...(canUseAiReader
                       ? { aiExtract: extractQuizFromDocument }
                       : {}),
+                    ...(useAi === false ? { useAi } : {}),
                   }),
+                canUseAi: canUseAiReader,
               }
             : {})}
           onClose={() => setPaperOcr(null)}

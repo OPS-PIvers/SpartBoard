@@ -14,6 +14,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import { AiReaderToggle } from './AiReaderToggle';
 import {
   AlertCircle,
   ArrowLeft,
@@ -132,6 +133,8 @@ export function ImportWizard<TData>({
     file: Blob;
     fileName: string;
   } | null>(null);
+  // Kept across opens so an admin testing the plain reader needn't re-untick it.
+  const [aiReaderOff, setAiReaderOff] = useState(false);
 
   // Bumped on every open/close transition; in-flight handlers check it to drop results from a cancelled session.
   const sessionRef = useRef(0);
@@ -171,6 +174,8 @@ export function ImportWizard<TData>({
   const supportsFile = adapter.supportedSources.includes('file');
   const supportsDocument = adapter.supportedSources.includes('document');
   const supportsKeyFile = supportsDocument && adapter.supportsKeyFile === true;
+  const supportsAiReader =
+    supportsDocument && adapter.supportsAiReader === true;
   const supportsAnyUpload =
     supportsCsv || supportsJson || supportsHtml || supportsFile;
   const supportsJsonPaste = supportsJson && adapter.supportsJsonPaste === true;
@@ -250,6 +255,7 @@ export function ImportWizard<TData>({
       file,
       fileName: file.name,
       ...(keyFile ? { keyFile } : {}),
+      ...(aiReaderOff ? { useAi: false } : {}),
     });
   };
 
@@ -284,6 +290,7 @@ export function ImportWizard<TData>({
           file: picked.file,
           fileName: picked.fileName,
           ...(keyFile ? { keyFile } : {}),
+          ...(aiReaderOff ? { useAi: false } : {}),
         });
       }
     } catch (err) {
@@ -312,6 +319,7 @@ export function ImportWizard<TData>({
         file,
         fileName: file.name,
         ...(keyFile ? { keyFile } : {}),
+        ...(aiReaderOff ? { useAi: false } : {}),
       });
       return;
     }
@@ -767,6 +775,13 @@ export function ImportWizard<TData>({
                 Add a separate answer key (optional)
               </button>
             ))}
+          {supportsAiReader && (
+            <AiReaderToggle
+              checked={!aiReaderOff}
+              onChange={(on) => setAiReaderOff(!on)}
+              disabled={loading || picking}
+            />
+          )}
           <p className="text-[11px] text-slate-500 font-medium">
             We&apos;ll read the questions and answer choices, and the answer key
             if the file has one. You can check everything before the quiz is

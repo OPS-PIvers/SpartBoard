@@ -27,6 +27,7 @@ import {
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { AiReaderToggle } from '@/components/common/library/importer/AiReaderToggle';
 import { Toggle } from '@/components/common/Toggle';
 import { useFileDrop } from '@/hooks/useFileDrop';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
@@ -118,7 +119,13 @@ interface PaperPrintModalProps {
    * test carries its real questions from the start instead of placeholders.
    * Absent when the document-import feature is off, which hides the upload.
    */
-  readDocument?: (file: Blob, fileName: string) => Promise<ExtractedQuiz>;
+  readDocument?: (
+    file: Blob,
+    fileName: string,
+    useAi?: boolean
+  ) => Promise<ExtractedQuiz>;
+  /** The teacher has AI access, so the reader can be switched off for a read. */
+  canUseAi?: boolean;
   /** Drive picker for that document; absent hides the Drive button. */
   pickDocument?: () => Promise<{ file: Blob; fileName: string } | null>;
   /** The quiz is in a PLC sync group, so its sheet images need sharing (D6). */
@@ -140,6 +147,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   onCreateQuiz,
   onSaveSheetStimuli,
   readDocument,
+  canUseAi = false,
   pickDocument,
   inPlcGroup = false,
   onClose,
@@ -168,6 +176,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     warnings: string[];
   } | null>(null);
   const [readingDoc, setReadingDoc] = useState(false);
+  const [useAi, setUseAi] = useState(true);
   const [pickingDoc, setPickingDoc] = useState(false);
   const questionsFileRef = useRef<HTMLInputElement>(null);
   const [spareCount, setSpareCount] = useState(2);
@@ -377,7 +386,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     if (!readDocument) return;
     setReadingDoc(true);
     try {
-      const extracted = await readDocument(file, fileName);
+      const extracted = await readDocument(
+        file,
+        fileName,
+        canUseAi ? useAi : undefined
+      );
       const questions = extracted.questions.filter((q) => q.text.trim());
       if (questions.length === 0) {
         onError(
@@ -1001,6 +1014,13 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                     )}
                     Pick the test from Google Drive
                   </button>
+                )}
+                {canUseAi && (
+                  <AiReaderToggle
+                    checked={useAi}
+                    onChange={setUseAi}
+                    disabled={readingDoc || pickingDoc}
+                  />
                 )}
                 <p className="text-xs text-slate-500">
                   The questions and answer choices come from your file. Students

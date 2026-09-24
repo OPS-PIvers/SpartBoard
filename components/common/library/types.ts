@@ -551,6 +551,8 @@ export type ImportSourcePayload =
        * attached none, which is the common case.
        */
       keyFile?: { file: Blob; fileName: string };
+      /** False when the teacher switched the AI reader off for this read. */
+      useAi?: boolean;
     };
 
 /** Parser result — `warnings` surface non-fatal issues in the preview. */
@@ -601,6 +603,8 @@ export interface ImportAdapter<TData> {
    * then offers a slot for one beside the test document.
    */
   supportsKeyFile?: boolean;
+  /** True when this adapter can read a document with AI; the wizard offers a switch. */
+  supportsAiReader?: boolean;
   /** Optional helper for Google Sheets template creation. */
   templateHelper?: {
     createTemplate: () => Promise<{ url: string }>;

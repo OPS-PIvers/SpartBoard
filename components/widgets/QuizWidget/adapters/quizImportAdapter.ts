@@ -356,8 +356,11 @@ async function withAnswerKey(
 export function createQuizImportAdapter(
   deps: QuizImportAdapterDeps
 ): ImportAdapter<QuizData> {
-  const readDocument = (file: Blob, fileName: string) =>
-    readTestDocument(file, fileName, { aiExtract: deps.aiExtract });
+  const readDocument = (file: Blob, fileName: string, useAi?: boolean) =>
+    readTestDocument(file, fileName, {
+      aiExtract: deps.aiExtract,
+      ...(useAi === false ? { useAi } : {}),
+    });
   return {
     widgetLabel: deps.widgetLabel ?? 'Quiz',
     supportedSources: deps.canImportDocuments
@@ -365,6 +368,9 @@ export function createQuizImportAdapter(
       : ['sheet', 'csv'],
     pickSheet: deps.pickSheet,
     ...(deps.canImportDocuments ? { supportsKeyFile: true } : {}),
+    ...(deps.canImportDocuments && deps.aiExtract
+      ? { supportsAiReader: true }
+      : {}),
     ...(deps.canImportDocuments && deps.pickDocument
       ? { pickDocument: deps.pickDocument }
       : {}),
@@ -432,7 +438,11 @@ export function createQuizImportAdapter(
         if (source.keyFile) {
           assertWithinByteLimit(source.file, source.keyFile.file);
         }
-        const read = await readDocument(source.file, source.fileName);
+        const read = await readDocument(
+          source.file,
+          source.fileName,
+          source.useAi
+        );
         const extracted = source.keyFile
           ? await withAnswerKey(read, source.keyFile)
           : read;

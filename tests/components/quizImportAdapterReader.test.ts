@@ -87,6 +87,26 @@ describe('quiz import reader selection', () => {
     expect(result.data.title).toBe('browser');
   });
 
+  it('says which reader ran only to a teacher who has AI', async () => {
+    const plain = await adapter().parse(source);
+    expect(plain.warnings).not.toContain('Read without AI.');
+    const ai = await adapter({ aiExtract: vi.fn() }).parse(source);
+    expect(ai.warnings[0]).toBe('Read with AI.');
+  });
+
+  it('reads without AI when the teacher switched it off', async () => {
+    const off = adapter({ aiExtract: vi.fn() });
+    expect(off.supportsAiReader).toBe(true);
+    const result = await off.parse({ ...source, useAi: false });
+    expect(readQuizDocumentWithAi).not.toHaveBeenCalled();
+    expect(readQuizDocument).toHaveBeenCalled();
+    expect(result.warnings[0]).toBe('Read without AI.');
+  });
+
+  it('offers no AI switch to a teacher without AI', () => {
+    expect(adapter().supportsAiReader).toBeUndefined();
+  });
+
   it('uses the AI reader when one is supplied', async () => {
     const aiExtract = vi.fn();
     const result = await adapter({ aiExtract }).parse(source);

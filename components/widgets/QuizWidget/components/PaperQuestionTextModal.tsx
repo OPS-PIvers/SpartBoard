@@ -10,6 +10,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { CloudDownload, FileUp, Loader2, ScanText, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { AiReaderToggle } from '@/components/common/library/importer/AiReaderToggle';
 import { useFileDrop } from '@/hooks/useFileDrop';
 import type { QuizData } from '@/types';
 import {
@@ -35,7 +36,13 @@ interface PaperQuestionTextModalProps {
    * the document-import feature is on; without it the OCR path below runs
    * exactly as it did before.
    */
-  readDocument?: (file: Blob, fileName: string) => Promise<ExtractedQuiz>;
+  readDocument?: (
+    file: Blob,
+    fileName: string,
+    useAi?: boolean
+  ) => Promise<ExtractedQuiz>;
+  /** The teacher has AI access, so the reader can be switched off for a read. */
+  canUseAi?: boolean;
   /** Test seams. */
   rasterize?: (file: Blob) => AsyncGenerator<RasterizedPage>;
   recognize?: (page: RasterPage) => Promise<string>;
@@ -70,6 +77,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   onClose,
   onError,
   readDocument,
+  canUseAi = false,
   rasterize = rasterizeScan,
   recognize = recognizeWithTesseract,
 }) => {
@@ -83,6 +91,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   // which only ever produced stem text.
   const [fills, setFills] = useState<Record<number, QuestionFill>>({});
   const [notes, setNotes] = useState<string[]>([]);
+  const [useAi, setUseAi] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const rows = useMemo(
@@ -101,7 +110,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
     read: NonNullable<PaperQuestionTextModalProps['readDocument']>
   ) => {
     setProgress('Reading the test…');
-    const extracted = await read(file, file.name);
+    const extracted = await read(file, file.name, canUseAi ? useAi : undefined);
     const byNumber = new Map(extracted.questions.map((q) => [q.number, q]));
     const nextDrafts: Record<number, string> = {};
     const nextApply: Record<number, boolean> = {};
@@ -292,6 +301,9 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
           )}
           Pick the test paper from Google Drive
         </button>
+      )}
+      {readDocument && canUseAi && (
+        <AiReaderToggle checked={useAi} onChange={setUseAi} />
       )}
       <p className="text-xs text-slate-500">
         Questions are matched by the number printed before them.

@@ -274,4 +274,23 @@ describe('PaperQuestionTextModal with the shared readers', () => {
     await waitFor(() => expect(readDocument).toHaveBeenCalled());
     expect(recognize).not.toHaveBeenCalled();
   });
+
+  it('lets a teacher with AI read the paper without it', async () => {
+    const readDocument = vi.fn(() => Promise.resolve(read([question(1)])));
+    setup([], { readDocument, canUseAi: true });
+    fireEvent.click(screen.getByLabelText(/Read with AI/));
+    chooseFile();
+    await waitFor(() =>
+      expect(readDocument).toHaveBeenCalledWith(
+        expect.anything(),
+        'test.pdf',
+        false
+      )
+    );
+  });
+
+  it('shows no AI switch to a teacher without AI', () => {
+    setup([], { readDocument: vi.fn() });
+    expect(screen.queryByLabelText(/Read with AI/)).not.toBeInTheDocument();
+  });
 });
