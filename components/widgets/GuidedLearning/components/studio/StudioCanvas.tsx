@@ -79,6 +79,8 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     setPolygonDraft,
     closePolygon,
     setCalloutFocused,
+    calloutSelected,
+    calloutEditing,
     editingStepId,
     setEditingStepId,
     linkPending,
@@ -165,6 +167,8 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           onCalloutFocus={setCalloutFocused}
           onEditCallout={setEditingStepId}
           editing={editingStepId !== null}
+          calloutEditing={calloutEditing}
+          calloutSelected={calloutSelected}
           beginGesture={beginGesture}
           endGesture={endGesture}
         />
@@ -187,6 +191,8 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       updateStep,
       addStepAt,
       setCalloutFocused,
+      calloutSelected,
+      calloutEditing,
       setEditingStepId,
       editingStepId,
       beginGesture,

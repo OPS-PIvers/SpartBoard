@@ -535,12 +535,15 @@ const StudioSession: React.FC<
     setCurrentImageIndex(shown.imageIndex);
   }, [steps, setSelectedStepId, setCurrentImageIndex]);
 
-  const tools = useCanvasTools(editorState, preset);
-  const { rows: canvasRows, deleteFocusedVertex } = tools;
+  const calloutEditing =
+    canAccessFeature('gl-studio') && canAccessFeature('gl-callout-editing');
+  const tools = useCanvasTools(editorState, preset, { calloutEditing });
+  const { rows: canvasRows, typeRows, deleteFocusedVertex } = tools;
 
   const selectedIndex = steps.findIndex((s) => s.id === selectedStepId);
   const editKeymap = useMemo<StudioShortcut[]>(
     () => [
+      ...typeRows,
       { id: 'play', key: ' ', shift: true, run: startPlay },
       // Shift+/ on most layouts, a plain key on some.
       { id: 'help', key: '?', shift: true, run: () => setShortcutsOpen(true) },
@@ -603,6 +606,7 @@ const StudioSession: React.FC<
       deleteSelected,
       deleteFocusedVertex,
       canvasRows,
+      typeRows,
       selectStepAt,
       selectedIndex,
       steps.length,

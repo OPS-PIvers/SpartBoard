@@ -7,6 +7,8 @@ export interface StudioShortcut {
   mod?: boolean;
   shift?: boolean;
   alt?: boolean;
+  /** Matches any printable character typed without Ctrl, ⌘ or Alt (`key` is ignored). */
+  printable?: boolean;
   /** Also fire while inline text editing is active (P1-6 rows only). */
   whileEditing?: boolean;
   /** Row applies only when this passes; otherwise the key keeps its normal meaning. */
@@ -32,6 +34,9 @@ export function matchesShortcut(
   row: StudioShortcut
 ): boolean {
   const mod = event.ctrlKey || event.metaKey;
+  if (row.printable) {
+    return event.key.length === 1 && event.key !== ' ' && !mod && !event.altKey;
+  }
   return (
     event.key.toLowerCase() === row.key.toLowerCase() &&
     mod === Boolean(row.mod) &&

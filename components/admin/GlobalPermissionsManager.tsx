@@ -343,6 +343,13 @@ const GLOBAL_FEATURES: {
       "In the quiz free-response grader, teachers can collapse the student list to a thin strip that still shows how many are graded (and hides names while grading). The student's name no longer repeats above the answer, and tab-switch warnings move into the student list. On a question whose rubric has one strand, every highlight is tagged to that strand automatically. Admin-only until this is saved and opened up.",
   },
   {
+    id: 'gl-callout-editing',
+    label: 'Guided Learning callout editing',
+    icon: MousePointerClick,
+    description:
+      'In the Guided Learning Studio, clicking a tooltip or text box on the slide selects it. Teachers can drag its sides to make it wider or narrower, drag a corner to make the whole box and its text bigger or smaller, pick a dark, light or blue style, and switch it between a tooltip and a text box from a small toolbar. Only matters for teachers who also have the Studio editor. Admin-only until this is saved and opened up.',
+  },
+  {
     id: 'settings-drawer',
     label: 'Widget Settings Drawer (alpha)',
     icon: PanelRight,

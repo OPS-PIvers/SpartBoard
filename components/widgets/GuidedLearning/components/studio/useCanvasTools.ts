@@ -11,6 +11,15 @@ import { moveStep, removeVertex, setCalloutPin } from './regionEdits';
 import { useCanvasViewport } from './useCanvasViewport';
 import { fitScale } from './deviceFrameContext';
 import { findCallout } from './canvasScale';
+import {
+  CALLOUT_SCALE_STEP,
+  CALLOUT_WIDTH_STEP,
+  clientRectToContainer,
+  hasEditableCallout,
+  scaleCalloutCorner,
+  withCalloutSize,
+  type SizedStep,
+} from './calloutHandles';
 import { safeLinkUrl, wrapSelection } from './inlineText';
 import type { RedactMode, RedactRect } from '../../utils/redactImage';
 
@@ -47,7 +56,8 @@ function inlineField(
 /** Tool state, canvas viewport and shortcut rows for the Studio canvas. */
 export function useCanvasTools(
   state: GuidedLearningEditorController,
-  preset: DevicePreset
+  preset: DevicePreset,
+  { calloutEditing = false }: { calloutEditing?: boolean } = {}
 ) {
   const { t } = useTranslation();
   const dialog = useContext(DialogContext);
@@ -88,6 +98,11 @@ export function useCanvasTools(
     [steps, currentImageIndex]
   );
   const selected = slideSteps.find((s) => s.id === selectedStepId) ?? null;
+  const calloutSelected =
+    calloutEditing &&
+    calloutFocused &&
+    selected !== null &&
+    hasEditableCallout(selected);
   const slideUrl = imageUrls[currentImageIndex] ?? '';
   const canBlur = slideUrl !== '' && imageKinds[currentImageIndex] !== 'video';
   const onGeometry = useCallback(
@@ -186,6 +201,47 @@ export function useCanvasTools(
       );
     },
     [selected, calloutFocused, updateStep]
+  );
+
+  /** Alt+arrows: width by 2 stage-% points, scale by 0.05, as the handles would. */
+  const sizeCallout = useCallback(
+    (axis: 'width' | 'scale', dir: 1 | -1) => {
+      if (!selected) return;
+      const step: SizedStep = selected;
+      const g = geometryRef.current;
+      const el = findCallout(
+        document.querySelector(CANVAS_SELECTOR),
+        selected.id
+      );
+      if (axis === 'width') {
+        let widthPct = step.calloutWidthPct;
+        if (widthPct === undefined && g && el) {
+          const box = clientRectToContainer(g, el.getBoundingClientRect());
+          widthPct = (box.w / Math.max(g.containerSize.w, 1)) * 100;
+        }
+        if (widthPct === undefined) return;
+        updateStep(
+          withCalloutSize(step, {
+            widthPct: Math.round(widthPct) + dir * CALLOUT_WIDTH_STEP,
+          })
+        );
+        return;
+      }
+      const from = step.calloutScale ?? 1;
+      const unit = { x: 0, y: 0, w: 1, h: 1 };
+      // The se corner of a unit box, moved to the target ratio, reuses the corner maths.
+      const ratio = (from + dir * CALLOUT_SCALE_STEP) / from;
+      const edit = scaleCalloutCorner(
+        unit,
+        'se',
+        { x: ratio, y: ratio },
+        from,
+        step.calloutWidthPct,
+        false
+      );
+      updateStep(withCalloutSize(step, edit));
+    },
+    [selected, updateStep]
   );
 
   const selectedSlideIndex = slideSteps.findIndex(
@@ -330,6 +386,32 @@ export function useCanvasTools(
         },
       },
       {
+        id: 'deselect-callout',
+        key: 'Escape',
+        when: () =>
+          calloutSelected &&
+          editingStepId === null &&
+          !addingStep &&
+          !blurActive,
+        run: () => setCalloutFocused(false),
+      },
+      ...(
+        [
+          ['callout-narrower', 'ArrowLeft', 'width', -1],
+          ['callout-wider', 'ArrowRight', 'width', 1],
+          ['callout-larger', 'ArrowUp', 'scale', 1],
+          ['callout-smaller', 'ArrowDown', 'scale', -1],
+        ] as const
+      ).map(
+        ([id, key, axis, dir]): StudioShortcut => ({
+          id,
+          key,
+          alt: true,
+          when: (e) => calloutSelected && onCanvas(e),
+          run: () => sizeCallout(axis, dir),
+        })
+      ),
+      {
         id: 'place-step',
         key: 'Enter',
         when: (e) =>
@@ -406,6 +488,8 @@ export function useCanvasTools(
     ];
   }, [
     selected,
+    calloutSelected,
+    sizeCallout,
     nudge,
     chooseTool,
     toggleBlur,
@@ -430,8 +514,41 @@ export function useCanvasTools(
     preset,
   ]);
 
+  // Ahead of every other row, so typing into a selected callout never triggers a tool key.
+  const typeRows = useMemo<StudioShortcut[]>(
+    () => [
+      {
+        id: 'type-into-callout',
+        key: '',
+        printable: true,
+        when: (e) =>
+          calloutSelected &&
+          editingStepId === null &&
+          !addingStep &&
+          !blurActive &&
+          onCanvas(e),
+        run: (e) => {
+          if (!selected) return;
+          updateStep({ ...selected, text: `${selected.text ?? ''}${e.key}` });
+          setEditing(selected.id);
+        },
+      },
+    ],
+    [
+      calloutSelected,
+      editingStepId,
+      addingStep,
+      blurActive,
+      selected,
+      updateStep,
+    ]
+  );
+
   return {
     rows,
+    typeRows,
+    calloutSelected,
+    calloutEditing,
     deleteFocusedVertex,
     viewport,
     shape,
