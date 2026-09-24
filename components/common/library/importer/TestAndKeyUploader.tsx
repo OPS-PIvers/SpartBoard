@@ -125,7 +125,7 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
       }
       return { ...prev, [zone]: next };
     });
-    if (zone === 'test') setKeyHint(false);
+    setKeyHint(false);
   };
 
   const fail = (zone: Zone, message: string): void =>
@@ -156,7 +156,9 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
     put(zone, { kind: 'document', file, fileName });
     // R32: a key dropped on the test zone is pointed out, never moved.
     if (zone === 'test' && showKey && !content.key) {
-      if (await looksLikeKey(file, fileName)) setKeyHint(true);
+      const isKey = await looksLikeKey(file, fileName);
+      // The key zone may have been filled while the file was read.
+      if (isKey && !contentRef.current.key) setKeyHint(true);
     }
   };
 
@@ -262,7 +264,7 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
   };
 
   const moveTestToKey = (): void => {
-    setContent((prev) => ({ test: null, key: prev.test }));
+    setContent((prev) => (prev.key ? prev : { test: null, key: prev.test }));
     setKeyHint(false);
   };
 

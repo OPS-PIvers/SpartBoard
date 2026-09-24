@@ -106,6 +106,15 @@ describe('TestAndKeyUploader', () => {
     expect(screen.queryByText(/This looks like an answer key/)).toBeNull();
   });
 
+  it('drops the hint once the key zone is filled, and never overwrites it', async () => {
+    setup();
+    drop('test', [pdf('scoring guide.pdf')]);
+    await screen.findByText(/This looks like an answer key/);
+    drop('key', [pdf('real key.pdf')]);
+    await within(screen.getByTestId('key-zone')).findByText('real key.pdf');
+    expect(screen.queryByText(/This looks like an answer key/)).toBeNull();
+  });
+
   it('says nothing for an ordinary test', async () => {
     setup();
     drop('test', [pdf('Unit 3.pdf')]);
