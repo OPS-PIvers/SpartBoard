@@ -57,6 +57,7 @@ import {
   subscribeStepClipboard,
   writeStepClipboard,
 } from './studio/stepClipboard';
+import { settleAiDraft } from './studio/aiDraftReview';
 
 /** Deletes the files the editor removed, each only if nothing else still uses it. */
 export type MediaRelease = (files: {
@@ -735,7 +736,9 @@ export function useGuidedLearningEditorState({
       applyDoc(
         (doc) => ({
           ...doc,
-          steps: doc.steps.map((s) => (s.id === updated.id ? updated : s)),
+          steps: doc.steps.map((s) =>
+            s.id === updated.id ? settleAiDraft(s, updated) : s
+          ),
         }),
         field === false
           ? undefined

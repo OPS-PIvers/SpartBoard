@@ -1,6 +1,12 @@
 import React, { useCallback, useRef, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Film, Image as ImageIcon, Sparkles, Trash2 } from 'lucide-react';
+import {
+  Check,
+  Film,
+  Image as ImageIcon,
+  Sparkles,
+  Trash2,
+} from 'lucide-react';
 import type {
   GuidedLearningMode,
   GuidedLearningStep,
@@ -19,6 +25,7 @@ import {
   inputClass,
 } from './panelControls';
 import type { GuidedLearningEditorController } from '../useGuidedLearningEditorState';
+import { markReviewed } from './aiDraftReview';
 
 interface StudioPropertiesPanelProps {
   state: GuidedLearningEditorController;
@@ -26,8 +33,6 @@ interface StudioPropertiesPanelProps {
   onDeleteStep?: (id: string) => void;
   /** The canvas element, used to find the stage's video for trimming. */
   canvasRef: React.RefObject<HTMLElement | null>;
-  /** Recorder-drafted step text, flagged until the author edits it. */
-  aiDrafts?: ReadonlyMap<string, { label: string; text: string }>;
   /** Shows each step's live-tour link; building sets with live tours only. */
   liveTours?: boolean;
 }
@@ -87,7 +92,6 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
   state,
   onDeleteStep,
   canvasRef,
-  aiDrafts,
   liveTours = false,
 }) => {
   const { selectedStep } = state;
@@ -99,7 +103,6 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
           state={state}
           step={selectedStep}
           onDeleteStep={onDeleteStep}
-          aiDrafts={aiDrafts}
           liveTours={liveTours}
         />
       ) : (
@@ -116,17 +119,11 @@ const StepSection: React.FC<{
   state: GuidedLearningEditorController;
   step: GuidedLearningStep;
   onDeleteStep?: (id: string) => void;
-  aiDrafts?: ReadonlyMap<string, { label: string; text: string }>;
   liveTours: boolean;
-}> = ({ state, step, onDeleteStep, aiDrafts, liveTours }) => {
+}> = ({ state, step, onDeleteStep, liveTours }) => {
   const { t } = useTranslation();
   const { steps, imageUrls, updateStep, deleteStep } = state;
   const n = steps.findIndex((s) => s.id === step.id) + 1;
-  const draft = aiDrafts?.get(step.id);
-  const isDraft =
-    !!draft &&
-    (step.label ?? '') === draft.label &&
-    (step.text ?? '') === draft.text;
   return (
     <section
       aria-labelledby="gl-studio-step-heading"
@@ -154,11 +151,21 @@ const StepSection: React.FC<{
           {t('glStudio.deleteStep')}
         </button>
       </header>
-      {isDraft && (
-        <p className="-mt-3 flex w-fit items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-800">
-          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-          {t('glRecorder.aiDraft')}
-        </p>
+      {step.aiDraft && (
+        <div className="-mt-3 flex flex-wrap items-center gap-2">
+          <p className="flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-800">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('glRecorder.aiDraft')}
+          </p>
+          <button
+            type="button"
+            onClick={() => updateStep(markReviewed(step))}
+            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+          >
+            <Check className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('glStudio.markReviewed')}
+          </button>
+        </div>
       )}
       <StudioStepFields
         step={step}

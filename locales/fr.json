@@ -2856,7 +2856,12 @@
     "trimStart": "Début de la découpe",
     "trimEnd": "Fin de la découpe",
     "trimReset": "Réinitialiser",
-    "trimLoading": "Chargement de la vidéo…"
+    "trimLoading": "Chargement de la vidéo…",
+    "aiDraftsToReview_one": "{{count}} brouillon IA à vérifier",
+    "aiDraftsToReview_other": "{{count}} brouillons IA à vérifier",
+    "previousAiDraft": "Brouillon IA précédent",
+    "nextAiDraft": "Brouillon IA suivant",
+    "markReviewed": "Marquer comme vérifié"
   },
   "helpCenter": {
     "title": "Aide",
@@ -3287,7 +3292,17 @@
     "drafting": "Rédaction du texte des étapes...",
     "uploadFailed": "Impossible d'envoyer les images. Réessaie.",
     "untitled": "Visite sans titre",
-    "aiDraft": "Brouillon IA"
+    "aiDraft": "Brouillon IA",
+    "reviewRemove": "Retirer l'image",
+    "reviewRemoveHint_one": "Retire aussi l'étape de cette image.",
+    "reviewRemoveHint_other": "Retire aussi les {{count}} étapes de cette image.",
+    "reviewRemoved": "Image retirée.",
+    "reviewUndoRemove": "Annuler",
+    "reviewNoFrames": "Toutes les images ont été retirées. Annule pour en récupérer une, ou supprime l'enregistrement.",
+    "reviewNoFramesShort": "Aucune image",
+    "retry": "Réessayer",
+    "saving": "Enregistrement de la visite...",
+    "saveFailed": "Impossible d'enregistrer la visite. L'enregistrement est conservé, tu peux donc réessayer."
   },
   "tours": {
     "unavailable": "Cette visite n'est pas disponible pour le moment.",

@@ -3987,7 +3987,12 @@
     "trimStart": "Trim start",
     "trimEnd": "Trim end",
     "trimReset": "Reset",
-    "trimLoading": "Loading video…"
+    "trimLoading": "Loading video…",
+    "aiDraftsToReview_one": "{{count}} AI draft to review",
+    "aiDraftsToReview_other": "{{count}} AI drafts to review",
+    "previousAiDraft": "Previous AI draft",
+    "nextAiDraft": "Next AI draft",
+    "markReviewed": "Mark reviewed"
   },
   "helpCenter": {
     "title": "Help",
@@ -4444,7 +4449,17 @@
     "drafting": "Drafting step text...",
     "uploadFailed": "Couldn't upload the frames. Try again.",
     "untitled": "Untitled tour",
-    "aiDraft": "AI draft"
+    "aiDraft": "AI draft",
+    "reviewRemove": "Remove frame",
+    "reviewRemoveHint_one": "Also removes this frame's step.",
+    "reviewRemoveHint_other": "Also removes this frame's {{count}} steps.",
+    "reviewRemoved": "Frame removed.",
+    "reviewUndoRemove": "Undo",
+    "reviewNoFrames": "Every frame was removed. Undo to bring one back, or discard the recording.",
+    "reviewNoFramesShort": "No frames",
+    "retry": "Retry",
+    "saving": "Saving the tour...",
+    "saveFailed": "Couldn't save the tour. Your recording is kept, so you can try again."
   },
   "tours": {
     "unavailable": "This tour isn't available right now.",

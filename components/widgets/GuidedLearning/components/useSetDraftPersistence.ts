@@ -115,7 +115,8 @@ function stepsEqual(a: GuidedLearningStep[], b: GuidedLearningStep[]): boolean {
       (sa.bannerTone ?? 'blue') !== (sb.bannerTone ?? 'blue') ||
       (sa.autoAdvanceDuration ?? 0) !== (sb.autoAdvanceDuration ?? 0) ||
       !!sa.hideStepNumber !== !!sb.hideStepNumber ||
-      !!sa.hotspotAlwaysHidden !== !!sb.hotspotAlwaysHidden
+      !!sa.hotspotAlwaysHidden !== !!sb.hotspotAlwaysHidden ||
+      !!sa.aiDraft !== !!sb.aiDraft
     ) {
       return false;
     }

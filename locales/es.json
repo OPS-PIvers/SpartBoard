@@ -2856,7 +2856,12 @@
     "trimStart": "Inicio del recorte",
     "trimEnd": "Fin del recorte",
     "trimReset": "Restablecer",
-    "trimLoading": "Cargando video…"
+    "trimLoading": "Cargando video…",
+    "aiDraftsToReview_one": "{{count}} borrador de IA por revisar",
+    "aiDraftsToReview_other": "{{count}} borradores de IA por revisar",
+    "previousAiDraft": "Borrador de IA anterior",
+    "nextAiDraft": "Siguiente borrador de IA",
+    "markReviewed": "Marcar como revisado"
   },
   "helpCenter": {
     "title": "Ayuda",
@@ -3287,7 +3292,17 @@
     "drafting": "Redactando el texto de los pasos...",
     "uploadFailed": "No se pudieron subir las imágenes. Inténtalo de nuevo.",
     "untitled": "Recorrido sin título",
-    "aiDraft": "Borrador de IA"
+    "aiDraft": "Borrador de IA",
+    "reviewRemove": "Quitar imagen",
+    "reviewRemoveHint_one": "También quita el paso de esta imagen.",
+    "reviewRemoveHint_other": "También quita los {{count}} pasos de esta imagen.",
+    "reviewRemoved": "Imagen quitada.",
+    "reviewUndoRemove": "Deshacer",
+    "reviewNoFrames": "Quitaste todas las imágenes. Deshaz para recuperar una o descarta la grabación.",
+    "reviewNoFramesShort": "Sin imágenes",
+    "retry": "Reintentar",
+    "saving": "Guardando el recorrido...",
+    "saveFailed": "No se pudo guardar el recorrido. La grabación se conserva, así que puedes intentarlo de nuevo."
   },
   "tours": {
     "unavailable": "Este recorrido no está disponible en este momento.",

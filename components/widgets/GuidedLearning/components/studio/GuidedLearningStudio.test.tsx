@@ -494,16 +494,87 @@ describe('GuidedLearningStudio', () => {
     expect(screen.getByDisplayValue('Click **Start**')).toBeInTheDocument();
   });
 
-  it('flags recorder-drafted text until it is edited', () => {
-    renderStudio({
-      initialStepId: 'step-1',
-      aiDrafts: new Map([['step-1', { label: '', text: 'Click **Start**' }]]),
+  describe('AI drafts to review', () => {
+    const draftedSet = (): GuidedLearningSet => {
+      const set = buildSet();
+      const step = (id: string, text: string, aiDraft: boolean) => ({
+        ...set.steps[0],
+        id,
+        text,
+        ...(aiDraft ? { aiDraft: true } : {}),
+      });
+      set.steps = [
+        step('step-1', 'Click **Start**', true),
+        step('step-2', 'Plain step', false),
+        step('step-3', 'Then press Stop', true),
+      ];
+      return set;
+    };
+    const reviewBar = () => screen.getByTestId('gl-studio-ai-drafts');
+    const heading = () =>
+      screen.getByRole('heading', { level: 2, name: /^Step \d+$/ });
+
+    it('counts drafts in the header and steps through them with next and previous', () => {
+      renderStudio({ set: draftedSet() });
+      expect(reviewBar()).toHaveTextContent('2 AI drafts to review');
+      fireEvent.click(screen.getByRole('button', { name: 'Next AI draft' }));
+      expect(heading()).toHaveTextContent('Step 1');
+      fireEvent.click(screen.getByRole('button', { name: 'Next AI draft' }));
+      expect(heading()).toHaveTextContent('Step 3');
+      fireEvent.click(screen.getByRole('button', { name: 'Next AI draft' }));
+      expect(heading()).toHaveTextContent('Step 1');
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Previous AI draft' })
+      );
+      expect(heading()).toHaveTextContent('Step 3');
     });
-    expect(screen.getByText('AI draft')).toBeInTheDocument();
-    fireEvent.change(screen.getByDisplayValue('Click **Start**'), {
-      target: { value: 'Press Start' },
+
+    it('clears a step once its text is edited', () => {
+      renderStudio({ set: draftedSet(), initialStepId: 'step-1' });
+      expect(screen.getByText('AI draft')).toBeInTheDocument();
+      fireEvent.change(screen.getByDisplayValue('Click **Start**'), {
+        target: { value: 'Press Start' },
+      });
+      expect(screen.queryByText('AI draft')).toBeNull();
+      expect(reviewBar()).toHaveTextContent('1 AI draft to review');
     });
-    expect(screen.queryByText('AI draft')).toBeNull();
+
+    it('clears a step marked reviewed, saves that, and hides the header when none are left', async () => {
+      const { onSave, onClose } = renderStudio({
+        set: draftedSet(),
+        initialStepId: 'step-1',
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Mark reviewed' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Next AI draft' }));
+      expect(heading()).toHaveTextContent('Step 3');
+      fireEvent.click(screen.getByRole('button', { name: 'Mark reviewed' }));
+      expect(screen.queryByTestId('gl-studio-ai-drafts')).toBeNull();
+
+      // Undo brings the marker back, since review is one history entry.
+      fireEvent.click(screen.getByTestId('gl-studio-undo'));
+      expect(reviewBar()).toHaveTextContent('1 AI draft to review');
+      fireEvent.click(screen.getByRole('button', { name: 'Mark reviewed' }));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Close editor' }));
+      await waitFor(() => expect(onClose).toHaveBeenCalled());
+      const saved = onSave.mock.calls.at(-1)?.[0] as GuidedLearningSet;
+      expect(saved.steps.some((s) => 'aiDraft' in s)).toBe(false);
+      expect(saved.steps[0].text).toBe('Click **Start**');
+    });
+
+    it('keeps unreviewed drafts marked across a save and reopen', async () => {
+      const { onSave, onClose } = renderStudio({ set: draftedSet() });
+      fireEvent.change(screen.getByLabelText('Activity title'), {
+        target: { value: 'Retitled' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Close editor' }));
+      await waitFor(() => expect(onClose).toHaveBeenCalled());
+      const saved = onSave.mock.calls.at(-1)?.[0] as GuidedLearningSet;
+      expect(saved.steps.filter((s) => s.aiDraft)).toHaveLength(2);
+      cleanup();
+      renderStudio({ set: saved });
+      expect(reviewBar()).toHaveTextContent('2 AI drafts to review');
+    });
   });
 
   it('lists slides with their step counts', () => {

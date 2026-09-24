@@ -58,6 +58,7 @@ import { StudioPlayMode } from './StudioPlayMode';
 import { StudioFilmstrip } from './StudioFilmstrip';
 import { StudioTimeline } from './StudioTimeline';
 import { StudioPropertiesPanel } from './StudioPropertiesPanel';
+import { StudioDraftReview } from './StudioDraftReview';
 import { DevicePresetPicker } from './DevicePresetPicker';
 import { loadDevicePreset, saveDevicePreset } from './devicePresets';
 import {
@@ -87,8 +88,6 @@ export interface GuidedLearningStudioProps {
   onFolderChange?: (folderId: string | null) => void;
   /** Opens with this step selected. */
   initialStepId?: string;
-  /** Recorder-drafted step text, flagged in the properties panel until edited. */
-  aiDrafts?: ReadonlyMap<string, { label: string; text: string }>;
   /** Closes the Studio and opens the .gl.json import; offered on an empty set. */
   onImport?: () => void;
 }
@@ -138,7 +137,6 @@ const StudioSession: React.FC<
   folderId,
   onFolderChange,
   initialStepId,
-  aiDrafts,
   onImport,
   loadedUpdatedAt,
   onReloaded,
@@ -613,6 +611,13 @@ const StudioSession: React.FC<
         extras={
           <>
             {!playing && (
+              <StudioDraftReview
+                steps={steps}
+                selectedIndex={selectedIndex}
+                onSelect={selectStepAt}
+              />
+            )}
+            {!playing && (
               <div className="flex items-center gap-1">
                 <button
                   type="button"
@@ -814,7 +819,6 @@ const StudioSession: React.FC<
             state={editorState}
             onDeleteStep={deleteStepWithUndo}
             canvasRef={canvasRef}
-            aiDrafts={aiDrafts}
             liveTours={!!set.isBuilding && canAccessFeature('gl-live-tours')}
           />
         </aside>

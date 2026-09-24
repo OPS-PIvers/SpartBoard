@@ -58,6 +58,7 @@ import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
+import { AuthContext } from '@/context/AuthContextValue';
 import { useDialog } from '@/context/useDialog';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
@@ -441,6 +442,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
   const liveTours = useLiveToursEnabled();
+  // Same gate as the Studio's AI button.
+  const aiAuthoring =
+    React.useContext(AuthContext)?.canAccessFeature('gemini-functions') ??
+    false;
   const [tab, setTab] = React.useState<LibraryTab>('library');
 
   // ─── Bulk selection (Step 8) ────────────────────────────────────────────
@@ -724,7 +729,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     ...(isAdmin && liveTours
       ? [{ label: 'Record a tour', icon: Circle, onClick: requestRecordTour }]
       : []),
-    ...(isAdmin
+    ...(isAdmin && aiAuthoring
       ? [
           {
             label: 'AI',

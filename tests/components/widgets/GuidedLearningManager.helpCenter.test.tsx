@@ -5,6 +5,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 
 import { GuidedLearningManager } from '@/components/widgets/GuidedLearning/components/GuidedLearningManager';
+import { AuthContext } from '@/context/AuthContextValue';
 import type { GuidedLearningSet, GuidedLearningSetMetadata } from '@/types';
 import { toBuildingIndexEntry } from '@/tests/helpers/glBuildingIndexEntry';
 
@@ -63,33 +64,42 @@ const renderManager = (
   onOpenAIAuthoring: (library: 'personal' | 'building') => void = vi.fn()
 ) =>
   render(
-    <GuidedLearningManager
-      userId="teacher-1"
-      sets={[personalSet]}
-      buildingSets={buildingSets.map(toBuildingIndexEntry)}
-      assignments={[]}
-      loading={false}
-      buildingLoading={false}
-      assignmentsLoading={false}
-      isDriveConnected={true}
-      isAdmin={isAdmin}
-      onPlay={vi.fn()}
-      onEdit={vi.fn()}
-      onAssign={vi.fn()}
-      onDeletePersonal={vi.fn()}
-      onDeleteBuilding={vi.fn()}
-      onCreateNewPersonal={vi.fn()}
-      onCreateNewBuilding={vi.fn()}
-      onOpenAIAuthoring={onOpenAIAuthoring}
-      onReorderPersonal={vi.fn()}
-      recentSessionIds={{}}
-      onViewResults={vi.fn()}
-      onAssignmentCopyLink={vi.fn()}
-      onAssignmentOpenResults={vi.fn()}
-      onAssignmentArchive={vi.fn()}
-      onAssignmentUnarchive={vi.fn()}
-      onAssignmentDelete={vi.fn()}
-    />
+    <AuthContext.Provider
+      value={
+        {
+          canAccessFeature: (id: string) => id === 'gemini-functions',
+          canSeeShareTracking: () => false,
+        } as unknown as React.ContextType<typeof AuthContext>
+      }
+    >
+      <GuidedLearningManager
+        userId="teacher-1"
+        sets={[personalSet]}
+        buildingSets={buildingSets.map(toBuildingIndexEntry)}
+        assignments={[]}
+        loading={false}
+        buildingLoading={false}
+        assignmentsLoading={false}
+        isDriveConnected={true}
+        isAdmin={isAdmin}
+        onPlay={vi.fn()}
+        onEdit={vi.fn()}
+        onAssign={vi.fn()}
+        onDeletePersonal={vi.fn()}
+        onDeleteBuilding={vi.fn()}
+        onCreateNewPersonal={vi.fn()}
+        onCreateNewBuilding={vi.fn()}
+        onOpenAIAuthoring={onOpenAIAuthoring}
+        onReorderPersonal={vi.fn()}
+        recentSessionIds={{}}
+        onViewResults={vi.fn()}
+        onAssignmentCopyLink={vi.fn()}
+        onAssignmentOpenResults={vi.fn()}
+        onAssignmentArchive={vi.fn()}
+        onAssignmentUnarchive={vi.fn()}
+        onAssignmentDelete={vi.fn()}
+      />
+    </AuthContext.Provider>
   );
 
 describe('GuidedLearningManager — Help Center activities', () => {

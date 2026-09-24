@@ -7083,6 +7083,8 @@ export interface GuidedLearningStep {
   narration?: GuidedLearningNarration;
   /** Live-tour binding. Teacher-only: never mirrored to public steps. */
   tour?: GuidedLearningTourBinding;
+  /** AI-drafted text the author has not yet edited or marked reviewed. Editor-only. */
+  aiDraft?: boolean;
 }
 
 export interface GuidedLearningRegion {

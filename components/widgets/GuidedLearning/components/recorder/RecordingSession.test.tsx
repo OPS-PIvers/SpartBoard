@@ -51,12 +51,10 @@ vi.mock('./TourRecorder', () => ({
   },
 }));
 vi.mock('../studio/GuidedLearningStudio', () => ({
-  GuidedLearningStudio: (props: {
-    set: GuidedLearningSet;
-    aiDrafts?: ReadonlyMap<string, unknown>;
-  }) => (
+  GuidedLearningStudio: (props: { set: GuidedLearningSet }) => (
     <div data-testid="studio">
-      {props.set.title} · {props.aiDrafts?.size ?? 0} drafted
+      {props.set.title} · {props.set.steps.filter((s) => s.aiDraft).length}{' '}
+      drafted
     </div>
   ),
 }));
@@ -190,8 +188,10 @@ describe('RecordingSession', () => {
     expect(saved.steps[0]).toMatchObject({
       label: 'Clock widget',
       text: 'Click the clock to add it.',
+      aiDraft: true,
     });
     expect(saved.steps[1].label).toBe('');
+    expect(saved.steps[1].aiDraft).toBeUndefined();
     expect(await screen.findByTestId('studio')).toHaveTextContent(
       'Add a clock · 1 drafted'
     );
@@ -212,5 +212,91 @@ describe('RecordingSession', () => {
     expect(await screen.findByTestId('studio')).toHaveTextContent(
       'Untitled tour · 0 drafted'
     );
+  });
+
+  const reachUpload = () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stub finish' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next frame' }));
+  };
+  const clickAndSettle = async (name: string) => {
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name }));
+      await Promise.resolve();
+    });
+  };
+
+  it('retries an upload without re-sending the frames that already uploaded', async () => {
+    h.upload
+      .mockImplementationOnce((_uid: string, file: File) =>
+        Promise.resolve({ url: `https://storage.example/${file.name}` })
+      )
+      .mockImplementationOnce(() => Promise.reject(new Error('network')));
+    renderSession();
+    reachUpload();
+    await clickAndSettle('Upload and open in Studio');
+    expect(
+      await screen.findByText("Couldn't upload the frames. Try again.")
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('studio')).toBeNull();
+    expect(h.upload).toHaveBeenCalledTimes(2);
+
+    await clickAndSettle('Retry');
+    expect(await screen.findByTestId('studio')).toBeInTheDocument();
+    expect(h.upload).toHaveBeenCalledTimes(3);
+    expect(await readText(h.upload.mock.calls[2][1] as File)).toBe(
+      'blurred two'
+    );
+    const saved = h.save.mock.calls[0][0] as GuidedLearningSet;
+    expect(saved.imageUrls).toEqual([
+      'https://storage.example/tour-step-1.png',
+      'https://storage.example/tour-step-2.png',
+    ]);
+  });
+
+  it('opens the Studio only after the first save succeeds, and Retry keeps the recording', async () => {
+    h.save.mockRejectedValueOnce(new Error('offline'));
+    renderSession();
+    reachUpload();
+    await clickAndSettle('Upload and open in Studio');
+    expect(
+      await screen.findByText(
+        "Couldn't save the tour. Your recording is kept, so you can try again."
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('studio')).toBeNull();
+    expect(
+      screen.getByRole('dialog', {
+        name: 'Check every frame before it uploads',
+      })
+    ).toBeInTheDocument();
+
+    await clickAndSettle('Retry');
+    expect(await screen.findByTestId('studio')).toBeInTheDocument();
+    expect(h.save).toHaveBeenCalledTimes(2);
+    expect(h.upload).toHaveBeenCalledTimes(2);
+    expect(h.draft).toHaveBeenCalledTimes(1);
+    const [first, second] = h.save.mock.calls.map(
+      (c) => c[0] as GuidedLearningSet
+    );
+    expect(second.id).toBe(first.id);
+  });
+
+  it('uploads without a frame the author removed, and drops its steps', async () => {
+    renderSession();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stub finish' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove frame' }));
+    expect(screen.getByText('Frame 1 of 1')).toBeInTheDocument();
+    await clickAndSettle('Upload and open in Studio');
+    expect(await screen.findByTestId('studio')).toBeInTheDocument();
+
+    expect(h.upload).toHaveBeenCalledTimes(1);
+    expect(await readText(h.upload.mock.calls[0][1] as File)).toBe(
+      'blurred two'
+    );
+    const saved = h.save.mock.calls[0][0] as GuidedLearningSet;
+    expect(saved.steps).toHaveLength(1);
+    expect(saved.steps[0]).toMatchObject({ id: 'step-1', imageIndex: 0 });
   });
 });

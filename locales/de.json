@@ -2856,7 +2856,12 @@
     "trimStart": "Anfang des Zuschnitts",
     "trimEnd": "Ende des Zuschnitts",
     "trimReset": "Zurücksetzen",
-    "trimLoading": "Video wird geladen …"
+    "trimLoading": "Video wird geladen …",
+    "aiDraftsToReview_one": "{{count}} KI-Entwurf zu prüfen",
+    "aiDraftsToReview_other": "{{count}} KI-Entwürfe zu prüfen",
+    "previousAiDraft": "Vorheriger KI-Entwurf",
+    "nextAiDraft": "Nächster KI-Entwurf",
+    "markReviewed": "Als geprüft markieren"
   },
   "helpCenter": {
     "title": "Hilfe",
@@ -3287,7 +3292,17 @@
     "drafting": "Schritttexte werden entworfen...",
     "uploadFailed": "Die Bilder konnten nicht hochgeladen werden. Versuche es erneut.",
     "untitled": "Tour ohne Titel",
-    "aiDraft": "KI-Entwurf"
+    "aiDraft": "KI-Entwurf",
+    "reviewRemove": "Bild entfernen",
+    "reviewRemoveHint_one": "Entfernt auch den Schritt dieses Bildes.",
+    "reviewRemoveHint_other": "Entfernt auch die {{count}} Schritte dieses Bildes.",
+    "reviewRemoved": "Bild entfernt.",
+    "reviewUndoRemove": "Rückgängig",
+    "reviewNoFrames": "Alle Bilder wurden entfernt. Mache es rückgängig, um eines zurückzuholen, oder verwirf die Aufnahme.",
+    "reviewNoFramesShort": "Keine Bilder",
+    "retry": "Erneut versuchen",
+    "saving": "Tour wird gespeichert...",
+    "saveFailed": "Die Tour konnte nicht gespeichert werden. Deine Aufnahme bleibt erhalten, du kannst es also erneut versuchen."
   },
   "tours": {
     "unavailable": "Diese Tour ist gerade nicht verfügbar.",

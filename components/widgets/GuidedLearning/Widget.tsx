@@ -190,6 +190,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const { user, isAdmin, getAssignmentMode, canAccessFeature } = useAuth();
   const playerV2 = canAccessFeature('gl-player-v2');
   const studioEditor = canAccessFeature('gl-studio');
+  const canUseAi = isAdmin === true && canAccessFeature('gemini-functions');
   const assignmentMode: AssignmentMode = getAssignmentMode('guidedLearning');
   const isViewOnly = assignmentMode === 'view-only';
   const rawConfig = widget.config as GuidedLearningConfig;
@@ -1525,7 +1526,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                 );
               })()}
 
-            {aiLibrary && (
+            {aiLibrary && canUseAi && (
               <Suspense fallback={<LazyOverlaySpinner />}>
                 <GuidedLearningAIGenerator
                   mediaHome={aiLibrary === 'building' ? 'storage' : 'drive'}

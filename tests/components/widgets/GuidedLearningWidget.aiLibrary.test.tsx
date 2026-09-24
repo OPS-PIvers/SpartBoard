@@ -40,7 +40,8 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1' },
     isAdmin: true,
     getAssignmentMode: () => 'graded',
-    canAccessFeature: (id: string) => id === 'gl-studio',
+    canAccessFeature: (id: string) =>
+      id === 'gl-studio' || id === 'gemini-functions',
   }),
 }));
 vi.mock('@/context/useDialog', () => ({
