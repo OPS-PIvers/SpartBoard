@@ -2147,11 +2147,16 @@ service cloud.firestore {
         && plcUpdatedAtOk();
     }
 
-    // Lead or co-lead renaming norming levels; value shape is left to the client parser.
+    // Lead or co-lead renaming the High/Medium/Low norming levels (strings of 40 chars or fewer).
+    function normingLabelOk(m, k) {
+      return !(k in m) || (m[k] is string && m[k].size() <= 40);
+    }
     function isUpdatingPlcNormingLabels() {
+      let m = request.resource.data.get('normingLevelLabels', {});
       return isPlcMembershipManager(resource.data)
         && changedOnly(['normingLevelLabels', 'updatedAt'])
-        && request.resource.data.get('normingLevelLabels', {}).keys().hasOnly(['high', 'medium', 'low'])
+        && m.keys().hasOnly(['high', 'medium', 'low'])
+        && normingLabelOk(m, 'high') && normingLabelOk(m, 'medium') && normingLabelOk(m, 'low')
         && plcUpdatedAtOk();
     }
 

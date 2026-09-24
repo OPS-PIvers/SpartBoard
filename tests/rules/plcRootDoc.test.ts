@@ -986,7 +986,7 @@ describe('plcs/{plcId} update — isUpdatingPlcNormingLabels', () => {
     }
   });
 
-  it('rejects renaming Review, a non-map, or smuggling another field', async () => {
+  it('rejects renaming Review, a non-map, a non-string or overlong name, or smuggling another field', async () => {
     await setRoleB('coLead');
     await assertFails(
       updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
@@ -997,6 +997,18 @@ describe('plcs/{plcId} update — isUpdatingPlcNormingLabels', () => {
     await assertFails(
       updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
         normingLevelLabels: 'Exceeds',
+        updatedAt: 2,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
+        normingLevelLabels: { high: 12345 },
+        updatedAt: 2,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
+        normingLevelLabels: { low: 'x'.repeat(41) },
         updatedAt: 2,
       })
     );
