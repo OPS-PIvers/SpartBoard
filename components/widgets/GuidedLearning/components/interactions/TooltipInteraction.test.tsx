@@ -83,6 +83,22 @@ describe('TooltipInteraction', () => {
     expect(screen.getByTestId('gl-callout-arrow')).toBeInTheDocument();
   });
 
+  it('keeps line breaks and blank lines while still wrapping at the max width', () => {
+    render(
+      <TooltipInteraction
+        step={{ ...baseStep, text: 'a\n\nb' }}
+        containerWidth={800}
+        containerHeight={400}
+      />
+    );
+    const body = screen.getByText(
+      (_, el) => el?.textContent === 'a\n\nb' && el.children.length === 0
+    );
+    expect(body).toHaveClass('whitespace-pre-wrap');
+    expect(card().style.width).toBe('max-content');
+    expect(card().style.maxWidth).not.toBe('');
+  });
+
   it('marks the card for Studio hit-testing and renders rich text', () => {
     render(
       <TooltipInteraction

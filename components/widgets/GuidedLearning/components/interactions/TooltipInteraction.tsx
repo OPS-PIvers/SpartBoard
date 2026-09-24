@@ -132,7 +132,9 @@ export const TooltipInteraction: React.FC<Props> = ({
                 {renderStepText(step.label)}
               </div>
             )}
-            <div className="text-slate-100">{renderStepText(step.text)}</div>
+            <div className="text-slate-100 whitespace-pre-wrap">
+              {renderStepText(step.text)}
+            </div>
           </>
         )}
       </div>
