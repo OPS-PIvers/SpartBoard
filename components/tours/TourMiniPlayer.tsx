@@ -1,19 +1,22 @@
 import React from 'react';
-import type { GuidedLearningPublicStep, GuidedLearningSet } from '@/types';
+import type {
+  GuidedLearningPublicStep,
+  GuidedLearningSet,
+  GuidedLearningStep,
+} from '@/types';
 import { GuidedLearningStage } from '@/components/widgets/GuidedLearning/components/GuidedLearningStage';
 import { DeviceFrame } from '@/components/widgets/GuidedLearning/components/studio/DeviceFrame';
 import { customPreset } from '@/components/widgets/GuidedLearning/components/studio/devicePresets';
-import type { TourStep } from './tourSession';
 
 const PREVIEW = customPreset(480, 270);
 const NO_ANSWERS: ReadonlySet<string> = new Set();
 const noop = () => undefined;
 
 /** The step's recorded slide, shown when its anchor can't be found on screen. */
-const TourMiniPlayer: React.FC<{ set: GuidedLearningSet; step: TourStep }> = ({
-  set,
-  step,
-}) => (
+const TourMiniPlayer: React.FC<{
+  set: GuidedLearningSet;
+  step: GuidedLearningStep;
+}> = ({ set, step }) => (
   <div
     data-testid="tour-mini-player"
     className="aspect-video w-full overflow-hidden rounded-lg"

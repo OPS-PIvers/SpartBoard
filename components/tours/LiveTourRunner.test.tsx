@@ -7,6 +7,7 @@ import { LiveTourRunner } from './LiveTourRunner';
 import { TRY_HINT_MS } from '@/components/widgets/GuidedLearning/components/player/playback';
 import { requestStartTour } from './tourState';
 import { ANCHOR_SEARCH_MS } from './useAnchorElement';
+import { tourHealthOf } from './tourHealth';
 
 const h = vi.hoisted(() => {
   type Widget = { id: string; type: string };
@@ -104,7 +105,6 @@ const makeSet = (
     mode,
     imageUrls: [],
     steps: [
-      { id: 'intro', label: 'Not a tour step' },
       ...steps.map((tour, i) => ({
         id: `s${i}`,
         label: `Step ${i + 1}`,
@@ -834,5 +834,202 @@ describe('LiveTourRunner modes', () => {
     fireEvent.click(screen.getByText('Dice'));
     await frames();
     expect(progress()).toBe('2 / 2');
+  });
+});
+
+describe('LiveTourRunner plain steps and welcome', () => {
+  const run = async (ms = 50) => {
+    for (let t = 0; t < ms; t += 50) await frames(Math.min(50, ms - t));
+  };
+  const isPlain = () =>
+    screen.getByTestId('tour-callout').hasAttribute('data-plain');
+
+  // Intro, click, question, observe, wrap-up: anchored and plain steps mixed.
+  const mixedSet = (
+    mode: GuidedLearningSet['mode'] = 'structured',
+    extra: Record<string, unknown> = {}
+  ): GuidedLearningSet =>
+    ({
+      id: 'set-1',
+      title: 'Boards tour',
+      mode,
+      imageUrls: [],
+      tourSetup: { widgets: [] },
+      steps: [
+        {
+          id: 'intro',
+          label: 'Welcome aboard',
+          text: 'This tour shows boards.',
+        },
+        {
+          id: 'a1',
+          label: 'Open boards',
+          tour: { anchor: 'sidebar.boards', action: 'click' },
+        },
+        {
+          id: 'q',
+          label: 'Check in',
+          question: { type: 'text', text: 'Which board is yours?' },
+        },
+        {
+          id: 'a2',
+          label: 'Dice step',
+          tour: { anchor: 'dock.item:dice', action: 'observe' },
+        },
+        { id: 'wrap', label: 'All done', text: 'That is the tour.' },
+      ],
+      ...extra,
+    }) as unknown as GuidedLearningSet;
+
+  it('shows plain steps as centred cards on the dimmed board, counting every step', async () => {
+    await start(mixedSet());
+    expect(progress()).toBe('1 / 5');
+    expect(isPlain()).toBe(true);
+    expect(screen.getByText('Welcome aboard')).toBeInTheDocument();
+    expect(screen.getByText('This tour shows boards.')).toBeInTheDocument();
+    expect(screen.getByTestId('tour-spotlight')).toBeInTheDocument();
+    expect(screen.queryByTestId('tour-spotlight-ring')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Couldn't find/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames();
+    expect(progress()).toBe('2 / 5');
+    expect(isPlain()).toBe(false);
+    expect(screen.getByTestId('tour-spotlight-ring')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Boards'));
+    await frames();
+    expect(progress()).toBe('3 / 5');
+    expect(isPlain()).toBe(true);
+    expect(screen.getByText('Which board is yours?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames();
+    expect(progress()).toBe('4 / 5');
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames();
+    expect(progress()).toBe('5 / 5');
+    expect(isPlain()).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
+  });
+
+  it('numbers anchored steps the way Tour Health and the Studio do', async () => {
+    const set = mixedSet();
+    const health = tourHealthOf(set);
+    expect(health.map((x) => x.number)).toEqual([2, 4]);
+    await start(set);
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames();
+    expect(progress()).toBe(`${health[0].number} / ${set.steps.length}`);
+    fireEvent.click(screen.getByText('Boards'));
+    await frames();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames();
+    expect(progress()).toBe(`${health[1].number} / ${set.steps.length}`);
+  });
+
+  it('Guided: plain steps move on at reading pace and a click into one does not wait', async () => {
+    await start(mixedSet('guided'));
+    expect(progress()).toBe('1 / 5');
+    expect(screen.getByTestId('tour-auto-status')).toHaveTextContent(
+      'Playing each step for you'
+    );
+    await run(3500);
+    expect(progress()).toBe('2 / 5');
+    await run(4000);
+    expect(progress()).toBe('3 / 5');
+    expect(isPlain()).toBe(true);
+  });
+
+  it('starts from a chosen step counted among all steps', async () => {
+    const set = mixedSet();
+    h.loadBuildingSet.mockResolvedValue(set);
+    render(
+      <>
+        <Fixture />
+        <LiveTourRunner />
+      </>
+    );
+    act(() => requestStartTour({ setId: set.id, fromStep: 3 }));
+    await frames();
+    expect(progress()).toBe('4 / 5');
+    expect(screen.getByText('Dice step')).toBeInTheDocument();
+  });
+
+  it('opens with the welcome message before touching the board', async () => {
+    await start(
+      mixedSet('structured', {
+        welcomeEnabled: true,
+        welcomeMessage: 'Hi there.\nThis takes a minute.',
+        tourSetup: { widgets: ['clock'] },
+      })
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Boards tour' });
+    expect(dialog).toHaveTextContent('Hi there.');
+    expect(screen.queryByTestId('tour-callout')).not.toBeInTheDocument();
+    expect(h.actions.addWidget).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start tour' }));
+    await frames();
+    expect(h.actions.addWidget).toHaveBeenCalledWith('clock');
+    expect(progress()).toBe('1 / 5');
+  });
+
+  it('skips the welcome when starting from a later step', async () => {
+    const set = mixedSet('structured', {
+      welcomeEnabled: true,
+      welcomeMessage: 'Hi there.',
+    });
+    h.loadBuildingSet.mockResolvedValue(set);
+    render(
+      <>
+        <Fixture />
+        <LiveTourRunner />
+      </>
+    );
+    act(() => requestStartTour({ setId: set.id, fromStep: 1 }));
+    await frames();
+    expect(progress()).toBe('2 / 5');
+  });
+
+  it('closes from the welcome without adding anything', async () => {
+    await start(
+      mixedSet('structured', {
+        welcomeEnabled: true,
+        welcomeMessage: 'Hi there.',
+        tourSetup: { widgets: ['clock'] },
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
+    expect(h.actions.addWidget).not.toHaveBeenCalled();
+  });
+
+  it('goes from the welcome to the practice offer on a view-only board', async () => {
+    h.board.readOnly = true;
+    await start(
+      mixedSet('structured', { welcomeEnabled: true, welcomeMessage: 'Hi.' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Start tour' }));
+    await frames();
+    expect(screen.getByText('This board is view-only')).toBeInTheDocument();
+  });
+
+  it('skips a blank welcome', async () => {
+    await start(
+      mixedSet('structured', { welcomeEnabled: true, welcomeMessage: '   ' })
+    );
+    expect(progress()).toBe('1 / 5');
+  });
+
+  it('toasts when no step is anchored', async () => {
+    await start(
+      mixedSet('structured', { steps: [{ id: 'p', label: 'Only plain' }] })
+    );
+    expect(h.actions.addToast).toHaveBeenCalledWith(
+      "This tour isn't available right now.",
+      'error'
+    );
   });
 });

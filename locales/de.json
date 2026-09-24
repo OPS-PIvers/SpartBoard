@@ -3392,7 +3392,10 @@
     "autoPlaying": "Jeder Schritt wird für Sie abgespielt",
     "autoPaused": "Pausiert. Klicken Sie auf die markierte Stelle oder auf Fortsetzen.",
     "yourTurn": "Sie sind dran: Klicken Sie auf die markierte Stelle",
-    "autoFallback": "Hier klicken, um fortzufahren"
+    "autoFallback": "Hier klicken, um fortzufahren",
+    "welcomeTitle": "Willkommen",
+    "notNow": "Nicht jetzt",
+    "startTour": "Tour starten"
   },
   "glPlayer": {
     "watch": "Ansehen",

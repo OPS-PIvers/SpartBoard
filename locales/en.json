@@ -4549,7 +4549,10 @@
     "autoPlaying": "Playing each step for you",
     "autoPaused": "Paused. Click the highlighted spot, or press Resume.",
     "yourTurn": "Your turn: click the highlighted spot",
-    "autoFallback": "Click here to continue"
+    "autoFallback": "Click here to continue",
+    "welcomeTitle": "Welcome",
+    "notNow": "Not now",
+    "startTour": "Start tour"
   },
   "glPlayer": {
     "watch": "Watch",

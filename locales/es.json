@@ -3392,7 +3392,10 @@
     "autoPlaying": "Reproduciendo cada paso por usted",
     "autoPaused": "En pausa. Haga clic en el punto resaltado o pulse Reanudar.",
     "yourTurn": "Su turno: haga clic en el punto resaltado",
-    "autoFallback": "Haga clic aquí para continuar"
+    "autoFallback": "Haga clic aquí para continuar",
+    "welcomeTitle": "Bienvenida",
+    "notNow": "Ahora no",
+    "startTour": "Iniciar recorrido"
   },
   "glPlayer": {
     "watch": "Ver",

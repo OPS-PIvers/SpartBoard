@@ -3392,7 +3392,10 @@
     "autoPlaying": "Chaque étape est jouée pour vous",
     "autoPaused": "En pause. Cliquez sur la zone en surbrillance ou sur Reprendre.",
     "yourTurn": "À vous : cliquez sur la zone en surbrillance",
-    "autoFallback": "Cliquez ici pour continuer"
+    "autoFallback": "Cliquez ici pour continuer",
+    "welcomeTitle": "Bienvenue",
+    "notNow": "Pas maintenant",
+    "startTour": "Commencer la visite"
   },
   "glPlayer": {
     "watch": "Regarder",

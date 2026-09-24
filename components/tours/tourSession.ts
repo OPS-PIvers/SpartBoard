@@ -15,6 +15,19 @@ export type TourStep = GuidedLearningStep & {
 export const tourStepsOf = (set: GuidedLearningSet): TourStep[] =>
   set.steps.filter((s): s is TourStep => !!s.tour);
 
+/** Every step a live tour plays, anchored or plain, or none when nothing is anchored. */
+export const liveTourStepsOf = (
+  set: Pick<GuidedLearningSet, 'steps'>
+): GuidedLearningStep[] => (set.steps.some((s) => !!s.tour) ? set.steps : []);
+
+/** The set's welcome message when it is switched on and not blank. */
+export const tourWelcome = (
+  set: Pick<GuidedLearningSet, 'welcomeEnabled' | 'welcomeMessage'>
+): string | null => {
+  const message = set.welcomeMessage?.trim();
+  return set.welcomeEnabled && message ? message : null;
+};
+
 /** Widget types the tour needs that the board does not have yet. */
 export const missingSetupWidgets = (
   set: Pick<GuidedLearningSet, 'tourSetup'>,
