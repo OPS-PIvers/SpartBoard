@@ -14,8 +14,11 @@ import * as admin from 'firebase-admin';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { isRulesAdmin } from './glBuildingIndex';
 import {
+  GL_MEDIA_MARKER,
+  glMediaOwner,
   isGlMediaPath,
   loadSharedReferences,
+  ownerHasUnrecordedSet,
   personalSetListsPath,
   type IgnoredPersonalSet,
 } from './glMediaReferences';
@@ -65,11 +68,23 @@ export async function gcOrphanedSlidePaths(
     return [];
   }
   const deleted: string[] = [];
+  const unrecorded = new Map<string, Promise<boolean>>();
   for (const path of paths) {
     try {
       if (shared.has(path)) continue;
       if (await personalSetListsPath(db, path, opts.ignorePersonal)) continue;
-      await bucket.file(path).delete({ ignoreNotFound: true });
+      // Older clients never listed shared files, so an owner with such a set keeps everything.
+      const owner = glMediaOwner(path);
+      if (owner) {
+        if (!unrecorded.has(owner))
+          unrecorded.set(owner, ownerHasUnrecordedSet(db, owner));
+        if (await unrecorded.get(owner)) continue;
+      }
+      const file = bucket.file(path);
+      // Files uploaded before GL uploads were marked may be shared with sets that never listed them.
+      const [meta] = await file.getMetadata();
+      if (meta.metadata?.[GL_MEDIA_MARKER] !== '1') continue;
+      await file.delete({ ignoreNotFound: true });
       deleted.push(path);
     } catch (err) {
       logger.warn('[gcGuidedLearningMedia] failed to gc slide', { path, err });

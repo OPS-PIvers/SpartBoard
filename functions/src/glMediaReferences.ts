@@ -201,3 +201,17 @@ export async function personalSetListsPath(
       doc.ref.parent.parent?.id !== ignore.uid
   );
 }
+
+/** True when the owner has a personal set last saved by a client that did not record its files. */
+export async function ownerHasUnrecordedSet(
+  db: Firestore,
+  uid: string
+): Promise<boolean> {
+  const snap = await db.collection(`users/${uid}/${PERSONAL_COLLECTION}`).get();
+  return snap.docs.some((doc) => !Array.isArray(doc.get('driveFileIds')));
+}
+
+/** The uploading user of a GL media path. */
+export function glMediaOwner(path: string): string | undefined {
+  return GL_MEDIA_PATH.exec(path)?.[1];
+}
