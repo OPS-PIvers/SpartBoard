@@ -73,6 +73,23 @@ describe('groupAnswersByOption', () => {
       ['C', []],
     ]);
   });
+
+  it('MA: lists every option once and counts an answer under each option it chose', () => {
+    const groups = groupAnswersByOption(
+      q('q1', 'MA', 'A|C', { incorrectAnswers: ['B', 'D'] }),
+      [
+        { answer: 'A|C', item: 1 },
+        { answer: 'a|b', item: 2 },
+        { answer: '', item: 3 },
+      ]
+    );
+    expect(groups.map((g) => [g.label, g.items, g.isKey])).toEqual([
+      ['A', [1, 2], true],
+      ['C', [1], true],
+      ['B', [2], false],
+      ['D', [], false],
+    ]);
+  });
 });
 
 describe('computeQuestionDrilldowns', () => {
@@ -99,6 +116,33 @@ describe('computeQuestionDrilldowns', () => {
     expect(keys(d.outcomes.correct)).toEqual(['s1', 's3']);
     expect(keys(d.outcomes.incorrect)).toEqual(['s2']);
     expect(d.outcomes.correct[0].name).toBe('Name s1');
+  });
+
+  it('MA: per-option pick counts, key options marked, partial credit bucketed', () => {
+    const ma = q('q1', 'MA', 'A|C', {
+      incorrectAnswers: ['B', 'D'],
+      allowPartialCredit: true,
+    });
+    const d = drill(
+      [ma],
+      [
+        response('s1', { q1: 'C|A' }),
+        response('s2', { q1: 'A' }),
+        response('s3', { q1: 'B|D' }),
+      ]
+    );
+    if (d.distribution.kind !== 'options') throw new Error('kind');
+    expect(
+      d.distribution.rows.map((r) => [r.label, r.isCorrect, keys(r.students)])
+    ).toEqual([
+      ['A', true, ['s1', 's2']],
+      ['C', true, ['s1']],
+      ['B', false, ['s3']],
+      ['D', false, ['s3']],
+    ]);
+    expect(keys(d.outcomes.correct)).toEqual(['s1']);
+    expect(keys(d.outcomes.partial)).toEqual(['s2']);
+    expect(keys(d.outcomes.incorrect)).toEqual(['s3']);
   });
 
   it('FIB: groups answers after normalization, most common first, accepted marked', () => {

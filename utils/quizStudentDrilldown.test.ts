@@ -187,6 +187,33 @@ describe('computeStudentDrilldown — print data', () => {
     expect(order('s1')).toEqual(order('s2'));
   });
 
+  it('lists every MA option with each pick and the key, readable answer text', () => {
+    const ma = q('q1', 'MA', 'A|C', {
+      incorrectAnswers: ['B', 'D'],
+      allowPartialCredit: true,
+    });
+    const d = computeStudentDrilldown([ma], response({ q1: 'a|B' }));
+    const line = d.lines[0];
+    const opts = line.options ?? [];
+    expect(opts.map((o) => o.text).sort()).toEqual(['A', 'B', 'C', 'D']);
+    expect(
+      opts
+        .filter((o) => o.picked)
+        .map((o) => o.text)
+        .sort()
+    ).toEqual(['A', 'B']);
+    expect(
+      opts
+        .filter((o) => o.correct)
+        .map((o) => o.text)
+        .sort()
+    ).toEqual(['A', 'C']);
+    expect(line.answerText).toBe('a; B');
+    expect(line.correctAnswerText).toBe('A; C');
+    // 1/2 right − 1/2 wrong = 0.
+    expect([line.mark, line.pointsEarned]).toEqual(['incorrect', 0]);
+  });
+
   it('breaks Matching into pairs and keeps both Ordering sequences', () => {
     const d = computeStudentDrilldown(
       [

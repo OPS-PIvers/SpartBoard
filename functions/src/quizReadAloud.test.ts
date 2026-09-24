@@ -278,6 +278,19 @@ describe('part resolution from the session doc (D9)', () => {
     ]);
   });
 
+  it('reads a choose-all question like MC, prompt then each choice', () => {
+    const ma = { ...QUESTIONS[0], id: 'q9', type: 'MA' };
+    expect(wholeSubParts(ma).map((p) => p.mark)).toEqual([
+      'question',
+      'choice:0',
+      'choice:1',
+      'choice:2',
+    ]);
+    expect(resolvePartText(ma, { kind: 'choice', index: 1 })).toEqual([
+      { text: '4' },
+    ]);
+  });
+
   it('reads matching left column then right column', () => {
     expect(wholeSubParts(QUESTIONS[1]).map((p) => p.text)).toEqual([
       'Match each capital.',

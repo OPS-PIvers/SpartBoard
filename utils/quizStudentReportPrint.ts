@@ -262,6 +262,7 @@ function mcAnswer(
   options: QuizResultsPrintOptions,
   showKey: boolean
 ): string {
+  const multi = line.type === 'MA';
   const opts = line.options ?? [];
   const items = opts
     .map((opt, i) => {
@@ -275,7 +276,8 @@ function mcAnswer(
         showKey && opt.correct
           ? ' <span class="keytag">Correct answer</span>'
           : '';
-      return `<li class="opt${opt.picked ? ' picked' : ''}"><span class="bullet">${opt.picked ? '●' : '○'}</span> ${letter}${escapeHtml(opt.text)}${mark}${key}</li>`;
+      const bullet = multi ? (opt.picked ? '☑' : '☐') : opt.picked ? '●' : '○';
+      return `<li class="opt${opt.picked ? ' picked' : ''}"><span class="bullet">${bullet}</span> ${letter}${escapeHtml(opt.text)}${mark}${key}</li>`;
     })
     .join('');
   const unmatched =
@@ -384,7 +386,8 @@ function answerBlock(
   if (!options.includeQuestions) {
     return `<div class="answer">${line.answerText ? escapeHtml(line.answerText) : '<em>No answer</em>'}</div>${keyLine('Correct answer', escapeHtml(line.correctAnswerText ?? ''))}`;
   }
-  if (line.type === 'MC') return mcAnswer(line, student, options, showKey);
+  if (line.type === 'MC' || line.type === 'MA')
+    return mcAnswer(line, student, options, showKey);
   if (line.type === 'Matching') return matchingAnswer(line, options, showKey);
   if (line.type === 'Ordering' && line.order) {
     const given =

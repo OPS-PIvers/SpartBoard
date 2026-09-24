@@ -75,3 +75,20 @@ export const readByLabel = (readBy: ExtractedQuiz['readBy']): string =>
 /** True when the reader found the question but no answer for it (D5). */
 export const questionNeedsKey = (q: ExtractedQuestion): boolean =>
   q.type !== 'free-response' && !q.correctAnswer.trim();
+
+/** An option as a choose-all key part; `|` separates the parts, so it can't appear inside one. */
+export const multiAnswerPart = (text: string): string =>
+  text.replace(/\|/g, '/').trim();
+
+/** The `|`-joined key `QuizQuestion` stores for choose-all-that-apply. */
+export const multiAnswerKey = (texts: readonly string[]): string =>
+  texts.map(multiAnswerPart).filter(Boolean).join('|');
+
+/** "Select all that apply" and its cousins, in a question's own wording. */
+export const SELECT_ALL_WORDING =
+  /\b(?:select|choose|mark|check|circle|pick|identify|click)\s+(?:all|each|every)\b|\ball\s+(?:that|which)\s+apply\b|\bmore\s+than\s+one\s+(?:correct\s+)?(?:answer|choice|option)\b/i;
+
+/** Reader switches; `multiAnswer` lets a read produce choose-all-that-apply questions. */
+export interface ReaderOptions {
+  multiAnswer?: boolean;
+}

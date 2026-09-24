@@ -4,6 +4,10 @@ import {
   type QuizQuestion,
   type VideoActivityQuestion,
 } from '@/types';
+import {
+  multiAnswerCorrectOptions,
+  multiAnswerOptions,
+} from './quizMultiAnswer';
 
 /**
  * Two levels of check. `…IncompleteReason` is the editor's nudge: everything
@@ -41,6 +45,8 @@ export const quizIncompleteReason = (
     // on purpose (D7).
     if (!isFreeResponseType(q.type) && !q.needsKey && !q.correctAnswer.trim())
       return `Question ${i + 1}: correct answer is required`;
+    const maProblem = multiAnswerProblem(q);
+    if (maProblem) return `Question ${i + 1}: ${maProblem}`;
   }
   return null;
 };
@@ -52,7 +58,19 @@ const questionKeyProblem = (questions: QuizQuestion[]): string | null => {
     if (!q.text.trim()) return `question ${i + 1} has no text`;
     if (!isFreeResponseType(q.type) && !q.needsKey && !q.correctAnswer.trim())
       return `question ${i + 1} has no correct answer`;
+    const maProblem = multiAnswerProblem(q);
+    if (maProblem) return `question ${i + 1}: ${maProblem}`;
   }
+  return null;
+};
+
+/** Choose-all questions need a correct option and at least two options overall. */
+const multiAnswerProblem = (q: QuizQuestion): string | null => {
+  if (q.type !== 'MA') return null;
+  const right = multiAnswerCorrectOptions(q.correctAnswer);
+  if (right.length === 0)
+    return q.needsKey ? null : 'add at least one correct option';
+  if (multiAnswerOptions(q).length < 2) return 'add at least two options';
   return null;
 };
 

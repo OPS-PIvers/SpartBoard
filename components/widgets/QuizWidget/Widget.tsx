@@ -1409,6 +1409,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       canImportDocuments,
       pickDocument,
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
+      canUseChooseAll: canAccessFeature('quiz-choose-all'),
       onDocumentImages: (images) => {
         documentImagesRef.current = images;
       },

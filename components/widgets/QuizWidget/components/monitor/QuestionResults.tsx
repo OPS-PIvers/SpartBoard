@@ -117,7 +117,10 @@ export const QuestionDetail: React.FC<QuestionDetailProps> = ({
       )
   );
   const hasDistribution =
-    question.type === 'MC' || question.type === 'FIB' || rows.length > 0;
+    question.type === 'MC' ||
+    question.type === 'MA' ||
+    question.type === 'FIB' ||
+    rows.length > 0;
 
   return (
     <div className="flex flex-col" style={{ gap: 'min(10px, 2.5cqmin)' }}>

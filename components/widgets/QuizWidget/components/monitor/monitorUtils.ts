@@ -108,7 +108,7 @@ export function matchesFilter(
 
 export interface AnswerDistribution {
   totalAnswered: number;
-  /** Ordered rows: MC uses the option list, others group normalized answers. */
+  /** Ordered rows: MC/MA use the option list, others group normalized answers. */
   rows: { label: string; count: number; isCorrect: boolean }[];
 }
 
@@ -127,7 +127,7 @@ export function buildDistribution(
     rows: groupAnswersByOption(question, entries).map((g) => ({
       label: g.label,
       count: g.items.length,
-      isCorrect: gradeAnswer(question, g.label).isCorrect,
+      isCorrect: g.isKey ?? gradeAnswer(question, g.label).isCorrect,
     })),
   };
 }

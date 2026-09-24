@@ -14,13 +14,26 @@
  * line below `ANS:`. That shape is unambiguous, so it is read first.
  */
 
-import type { DocLine, ExtractedQuestion, ExtractedQuiz } from './types';
+import {
+  multiAnswerKey,
+  type DocLine,
+  type ExtractedQuestion,
+  type ExtractedQuiz,
+  type ReaderOptions,
+} from './types';
 
 /** `1. B`, `1) b`, `1-B`, `1: B`, `1 B`, `1. T`, `1. True` — alone on the line. */
 const KEY_ENTRY = /(\d{1,3})\s*[.):\-–]?\s*(true|false|[a-ft])(?![a-z0-9])/gi;
 
 /** `1. B - producer`, `1. B. producer`: a letter, then the choice it names. */
 const LETTER_WITH_TEXT = /^\s*(\d{1,3})\s*[.):\-–]\s*([a-f])\s*[.):\-–—]\s+\S/i;
+
+/** `3. A, C` / `3. A and C`: one question keyed with several letters. */
+const LETTER_LIST_ENTRY =
+  /^\s*(\d{1,3})\s*[.):\-–]?\s*([a-f](?:\s*(?:,|;|&|\band\b)\s*[a-f]|\s+[a-f])+)\s*$/i;
+
+/** A key answer naming several letters, already normalized to `A, C`. */
+const LETTER_LIST = /^[A-F](?:, [A-F])+$/;
 
 /** Any numbered line, which under a key heading is an entry with a written answer. */
 const NUMBERED_ENTRY = /^\s*(\d{1,3})\s*[.):\-–]\s*(.+)$/;
@@ -81,10 +94,20 @@ const EMPTY: ParsedKey = {
 
 const tidy = (s: string): string => s.replace(/\s+/g, ' ').trim();
 
+/** The letters of `a and c` / `A, C`, uppercased. */
+const listedLetters = (text: string): string[] =>
+  text
+    .replace(/\band\b/gi, ' ')
+    .toUpperCase()
+    .match(/[A-F]/g) ?? [];
+
 /** Uppercase a letter, title-case True/False, leave written answers as printed. */
-function normalizeAnswer(raw: string): string {
+function normalizeAnswer(raw: string, multi = false): string {
   const text = tidy(raw);
   if (/^[a-ft]$/i.test(text)) return text.toUpperCase();
+  if (multi && /^[a-f](?:\s*(?:,|;|&|\band\b)\s*[a-f])+$/i.test(text)) {
+    return listedLetters(text).join(', ');
+  }
   if (/^true$/i.test(text)) return 'True';
   if (/^false$/i.test(text)) return 'False';
   return text;
@@ -94,9 +117,13 @@ function normalizeAnswer(raw: string): string {
  * Entries on one line, but only if the line is *nothing but* entries — so
  * "1. B" and "1. B 2. C 3. A" count while "1. Because the moon..." does not.
  */
-export function entriesOnLine(text: string): KeyEntry[] {
+export function entriesOnLine(text: string, multi = false): KeyEntry[] {
   const trimmed = text.trim();
   if (!trimmed) return [];
+  const list = multi ? LETTER_LIST_ENTRY.exec(trimmed) : null;
+  if (list) {
+    return [[Number(list[1]), listedLetters(list[2]).join(', ')]];
+  }
   const withText = LETTER_WITH_TEXT.exec(trimmed);
   if (withText) return [[Number(withText[1]), withText[2].toUpperCase()]];
   const found: KeyEntry[] = [];
@@ -116,7 +143,10 @@ export const answerBeforeFields = (text: string): string => {
 };
 
 /** A test bank's answer section, from its first entry to the end of the document. */
-function findTestBankKey(lines: readonly DocLine[]): ParsedKey | null {
+function findTestBankKey(
+  lines: readonly DocLine[],
+  multi = false
+): ParsedKey | null {
   const first = lines.findIndex((l) => TEST_BANK_ENTRY.test(l.text));
   if (first === -1) return null;
 
@@ -124,7 +154,7 @@ function findTestBankKey(lines: readonly DocLine[]): ParsedKey | null {
   let open: { number: number; parts: string[] } | null = null;
   const close = () => {
     if (open && !answerByNumber.has(open.number)) {
-      const answer = normalizeAnswer(open.parts.join(' '));
+      const answer = normalizeAnswer(open.parts.join(' '), multi);
       if (answer) answerByNumber.set(open.number, answer);
     }
     open = null;
@@ -190,10 +220,11 @@ function entriesAt(
   index: number,
   headed: boolean,
   /** In a test, a written answer must repeat a question number printed above it. */
-  askedNumbers?: ReadonlySet<number>
+  askedNumbers?: ReadonlySet<number>,
+  multi = false
 ): { entries: KeyEntry[]; used: number } | null {
   const text = lines[index].text;
-  const entries = entriesOnLine(text);
+  const entries = entriesOnLine(text, multi);
   if (entries.length > 0) return { entries, used: 1 };
 
   // A Word table puts the number and the answer in separate paragraphs.
@@ -207,7 +238,7 @@ function entriesAt(
     const numbered = NUMBERED_ENTRY.exec(text);
     if (numbered && (!askedNumbers || askedNumbers.has(Number(numbered[1])))) {
       return {
-        entries: [[Number(numbered[1]), normalizeAnswer(numbered[2])]],
+        entries: [[Number(numbered[1]), normalizeAnswer(numbered[2], multi)]],
         used: 1,
       };
     }
@@ -221,8 +252,12 @@ function entriesAt(
  * run. A run directly under an "Answer Key" heading is taken at any length,
  * and may carry written answers as well as letters.
  */
-export function findAnswerKey(lines: readonly DocLine[]): ParsedKey {
-  const testBank = findTestBankKey(lines);
+export function findAnswerKey(
+  lines: readonly DocLine[],
+  options: ReaderOptions = {}
+): ParsedKey {
+  const multi = options.multiAnswer === true;
+  const testBank = findTestBankKey(lines, multi);
   if (testBank) return testBank;
 
   let best: { start: number; end: number; entries: KeyEntry[] } | null = null;
@@ -232,7 +267,7 @@ export function findAnswerKey(lines: readonly DocLine[]): ParsedKey {
     const headingAt = headingAbove(lines, i);
     const headed = headingAt !== -1;
     const asked = headed ? numbersAbove(lines, headingAt) : undefined;
-    const first = entriesAt(lines, i, headed, asked);
+    const first = entriesAt(lines, i, headed, asked, multi);
     if (!first) {
       i += 1;
       continue;
@@ -244,7 +279,7 @@ export function findAnswerKey(lines: readonly DocLine[]): ParsedKey {
         i += 1;
         continue;
       }
-      const more = entriesAt(lines, i, headed, asked);
+      const more = entriesAt(lines, i, headed, asked, multi);
       if (!more) break;
       run.push(...more.entries);
       i += more.used;
@@ -288,15 +323,21 @@ function headingAbove(lines: readonly DocLine[], index: number): number {
  * Every entry in a file that is nothing but a key. A test-bank key is read the
  * same way as at the back of a test; otherwise each line stands on its own.
  */
-export function keyFromLines(lines: readonly DocLine[]): Map<number, string> {
-  const testBank = findTestBankKey(lines);
+export function keyFromLines(
+  lines: readonly DocLine[],
+  options: ReaderOptions = {}
+): Map<number, string> {
+  const multi = options.multiAnswer === true;
+  const testBank = findTestBankKey(lines, multi);
   if (testBank) return testBank.answerByNumber;
 
   const headed = lines.some((l) => isHeading(l.text));
   const byNumber = new Map<number, string>();
   let i = 0;
   while (i < lines.length) {
-    const found = lines[i].text.trim() ? entriesAt(lines, i, headed) : null;
+    const found = lines[i].text.trim()
+      ? entriesAt(lines, i, headed, undefined, multi)
+      : null;
     if (!found) {
       i += 1;
       continue;
@@ -352,9 +393,26 @@ const note = (
 export function applyKeyAnswer(
   question: ExtractedQuestion,
   answer: string,
-  source: KeySource = 'file'
+  source: KeySource = 'file',
+  multi = false
 ): ExtractedQuestion {
-  const said = isLetter(answer) ? answer : `“${answer}”`;
+  const isList = multi && LETTER_LIST.test(answer);
+  const said = isLetter(answer) || isList ? answer : `“${answer}”`;
+
+  if ((question.type === 'MC' || question.type === 'MA') && isList) {
+    return applyLetterList(question, answer, source);
+  }
+
+  if (question.type === 'MA') {
+    const option = choiceFor(question, answer);
+    if (!option) {
+      return note(
+        question,
+        `The answer key says ${said}, which doesn’t match any of this question’s choices.`
+      );
+    }
+    return withKeyedAnswers(question, multiAnswerKey([option.text]), source);
+  }
 
   if (question.type === 'MC') {
     const option = choiceFor(question, answer);
@@ -378,13 +436,14 @@ export function applyKeyAnswer(
     );
   }
 
-  if (question.type === 'FIB' && !isLetter(answer)) {
+  if (question.type === 'FIB' && !isLetter(answer) && !isList) {
     return { ...question, correctAnswer: answer };
   }
 
   if (question.type === 'free-response') {
     if (
       isLetter(answer) ||
+      isList ||
       TRUE_ANSWER.test(answer) ||
       FALSE_ANSWER.test(answer)
     ) {
@@ -409,6 +468,56 @@ export function applyKeyAnswer(
   );
 }
 
+/** Several letters key a choose-all question; an MC question becomes one. */
+function applyLetterList(
+  question: ExtractedQuestion,
+  answer: string,
+  source: KeySource
+): ExtractedQuestion {
+  const letters = answer.split(', ');
+  const missing = letters.filter(
+    (l) => !question.options.some((o) => o.letter === l)
+  );
+  if (missing.length > 0) {
+    return note(
+      question,
+      `The answer key says ${answer}, but this question has no option ${missing.join(', ')}.`
+    );
+  }
+  const texts = question.options
+    .filter((o) => letters.includes(o.letter))
+    .map((o) => o.text);
+  const keyed = withKeyedAnswers(
+    { ...question, type: 'MA' },
+    multiAnswerKey(texts),
+    source
+  );
+  return question.type === 'MA'
+    ? keyed
+    : note(
+        keyed,
+        `The answer key gives more than one answer (${answer}), so this came in as choose all that apply.`
+      );
+}
+
+/** Set a choose-all key, noting when it overrides a different marked answer. */
+function withKeyedAnswers(
+  question: ExtractedQuestion,
+  key: string,
+  source: KeySource
+): ExtractedQuestion {
+  const previous = question.correctAnswer.trim();
+  const next = { ...question, correctAnswer: key };
+  if (!previous || previous === key) return next;
+  const shown = previous.split('|').join(', ');
+  return note(
+    next,
+    source === 'file'
+      ? `The test document answered this differently (${shown}); the key file’s answer was used.`
+      : `This question was marked with a different answer (${shown}); the answer key’s answer was used.`
+  );
+}
+
 const ordinal = (numbers: number[]): string =>
   numbers.length === 1
     ? `question ${numbers[0]}`
@@ -421,13 +530,16 @@ const ordinal = (numbers: number[]): string =>
 export function applyAnswerKey(
   quiz: ExtractedQuiz,
   key: ReadonlyMap<number, string>,
-  source: KeySource = 'file'
+  source: KeySource = 'file',
+  options: ReaderOptions = {}
 ): ExtractedQuiz {
   if (key.size === 0) return quiz;
 
   const questions = quiz.questions.map((question) => {
     const answer = key.get(question.number);
-    return answer ? applyKeyAnswer(question, answer, source) : question;
+    return answer
+      ? applyKeyAnswer(question, answer, source, options.multiAnswer === true)
+      : question;
   });
 
   const numbers = new Set(quiz.questions.map((q) => q.number));

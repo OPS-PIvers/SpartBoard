@@ -288,6 +288,13 @@ const GLOBAL_FEATURES: {
       'Replaces the PLC Home page with tiles: team results by learning target, the next meeting, your action items and recent activity, and docs. Each teacher can spotlight, reorder, add and remove tiles, and leads can set a regular meeting schedule. Adds "Assign from my library" to Assessments. Admin-only until this is saved and opened up.',
   },
   {
+    id: 'quiz-choose-all',
+    label: 'Choose-all-that-apply quiz questions',
+    icon: ListChecks,
+    description:
+      'Adds a "Choose All That Apply" question type to the quiz editor and AI drafting, where students tick every correct option. Teachers can turn on partial credit, which takes points away for each wrong option ticked, so ticking everything earns nothing. Admin-only until this is saved and opened up.',
+  },
+  {
     id: 'settings-drawer',
     label: 'Widget Settings Drawer (alpha)',
     icon: PanelRight,

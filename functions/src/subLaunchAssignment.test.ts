@@ -1002,6 +1002,24 @@ describe('publicQuestionFromKey', () => {
     ]);
   });
 
+  it('shuffles every choose-all option together and keeps no key', () => {
+    const q = publicQuestionFromKey({
+      id: 'q9',
+      type: 'MA',
+      text: 'Which are mammals?',
+      correctAnswer: 'Whale|Bat',
+      incorrectAnswers: ['Shark', ''],
+    });
+
+    expect(q.correctAnswer).toBeUndefined();
+    expect(q.incorrectAnswers).toBeUndefined();
+    expect((q.choices as string[]).slice().sort()).toEqual([
+      'Bat',
+      'Shark',
+      'Whale',
+    ]);
+  });
+
   it('mixes matching distractors into the right column without listing them', () => {
     const q = publicQuestionFromKey({
       id: 'q3',

@@ -36,6 +36,8 @@ export interface ReadTestDocumentOptions {
   aiExtract?: AiExtractFn;
   /** False when a teacher with AI access switched it off for this read. */
   useAi?: boolean;
+  /** Lets the read produce choose-all-that-apply questions. */
+  multiAnswer?: boolean;
 }
 
 export async function readTestDocument(
@@ -50,6 +52,7 @@ export async function readTestDocument(
     readQuizDocument(file, {
       fileName,
       ...(kind === 'pdf' ? { pdf: await browserPdfDeps(file) } : {}),
+      ...(options.multiAnswer ? { multiAnswer: true } : {}),
     });
 
   // Rich text and LMS exports go straight to the plain reader: the callable
@@ -68,6 +71,7 @@ export async function readTestDocument(
       extract: options.aiExtract,
       cropper: browserPdfCropper,
       readPdfLines: pdfTextLines,
+      ...(options.multiAnswer ? { multiAnswer: true } : {}),
     });
     return { ...extracted, readBy: 'ai' };
   } catch (err) {

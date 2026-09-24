@@ -18,7 +18,14 @@ import {
   applyKeyAnswer,
   findAnswerKey,
 } from './answerKey';
-import type { DocLine, ExtractedOption, ExtractedQuestion } from './types';
+import {
+  SELECT_ALL_WORDING,
+  multiAnswerKey,
+  type DocLine,
+  type ExtractedOption,
+  type ExtractedQuestion,
+  type ReaderOptions,
+} from './types';
 
 /** `A.` / `b)` / `(C)` opening an option, optionally starred as the answer. */
 const OPTION = /^\s*(\*\s*)?\(?([A-Fa-f])[.)]\s*(.*)$/;
@@ -56,8 +63,21 @@ const followsInSequence = (options: OptionDraft[], letter: string): boolean => {
   return letter === expected;
 };
 
-function typeFor(options: OptionDraft[]): QuizQuestionType {
+function typeFor(
+  options: OptionDraft[],
+  stem: string,
+  multi: boolean
+): QuizQuestionType {
   if (options.length === 0) return 'free-response';
+  if (!multi) return 'MC';
+  const marked = options.filter((o) => o.marked).length;
+  // Some but not all marked reads as several answers; all marked is formatting.
+  if (
+    SELECT_ALL_WORDING.test(stem) ||
+    (marked > 1 && marked < options.length)
+  ) {
+    return 'MA';
+  }
   return 'MC';
 }
 
@@ -72,11 +92,12 @@ interface Draft {
 
 function finish(
   draft: Draft,
-  keyAnswer: string | undefined
+  keyAnswer: string | undefined,
+  multi: boolean
 ): ExtractedQuestion {
   const warnings: string[] = [];
   const text = tidy(draft.textParts.join(' '));
-  const type = typeFor(draft.options);
+  const type = typeFor(draft.options, text, multi);
   const options: ExtractedOption[] = draft.options.map((o) => ({
     letter: o.letter,
     text: o.text,
@@ -95,6 +116,15 @@ function finish(
     if (draft.options.length === 1) {
       warnings.push('Only one answer choice was found.');
     }
+  } else if (type === 'MA') {
+    const marked = draft.options.filter((o) => o.marked);
+    if (marked.length > 0 && marked.length < draft.options.length) {
+      correctAnswer = multiAnswerKey(marked.map((o) => o.text));
+    } else if (marked.length > 0 && !keyAnswer && !draft.inlineAnswer) {
+      warnings.push(
+        'Every answer choice is marked, so the answers were left blank.'
+      );
+    }
   }
 
   if (!text) warnings.push('No question text was found.');
@@ -111,7 +141,7 @@ function finish(
   // The key at the back wins over an answer printed under the question.
   const answer = keyAnswer ?? draft.inlineAnswer;
   const keyed = answer
-    ? applyKeyAnswer(question, answer, 'document')
+    ? applyKeyAnswer(question, answer, 'document', multi)
     : question;
   if (keyed.type !== 'free-response') return keyed;
   return {
@@ -129,9 +159,11 @@ function finish(
  * Numbers must ascend, so a "2." inside a sentence cannot restart the count.
  */
 export function parseQuestionLines(
-  lines: readonly DocLine[]
+  lines: readonly DocLine[],
+  options: ReaderOptions = {}
 ): ExtractedQuestion[] {
-  const { answerByNumber, keyLineIndexes } = findAnswerKey(lines);
+  const multi = options.multiAnswer === true;
+  const { answerByNumber, keyLineIndexes } = findAnswerKey(lines, options);
 
   const drafts: Draft[] = [];
   let current: Draft | null = null;
@@ -196,7 +228,7 @@ export function parseQuestionLines(
     current.imageIds.push(...(line.imageIds ?? []));
   });
 
-  return drafts.map((d) => finish(d, answerByNumber.get(d.number)));
+  return drafts.map((d) => finish(d, answerByNumber.get(d.number), multi));
 }
 
 /** True/False written as two options — kept as MC, which is how Quiz stores it. */

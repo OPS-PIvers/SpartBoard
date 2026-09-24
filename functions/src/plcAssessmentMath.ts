@@ -22,7 +22,7 @@ export interface GroupQuestion {
   text: string;
   type: string;
   points: number;
-  /** MC option labels in canonical order; empty for other types. */
+  /** MC option labels in canonical order (MA: right then wrong); empty for other types. */
   choices: string[];
   /** Known only when the synced group carries the answer key. */
   correctAnswer: string | null;
@@ -267,7 +267,12 @@ function parseSyncedQuestion(raw: unknown): GroupQuestion | null {
       ? [correctAnswer, ...asStringArray(r.incorrectAnswers)].filter(
           (c) => c.length > 0
         )
-      : [];
+      : type === 'MA'
+        ? [
+            ...multiAnswerParts(correctAnswer),
+            ...asStringArray(r.incorrectAnswers),
+          ].filter((c) => c.trim().length > 0)
+        : [];
   return {
     id,
     text: asString(r.text),
@@ -293,7 +298,7 @@ export function parsePublicQuestion(raw: unknown): GroupQuestion | null {
     text: asString(r.text),
     type,
     points: asFiniteNumber(r.points) ?? 1,
-    choices: type === 'MC' ? asStringArray(r.choices) : [],
+    choices: type === 'MC' || type === 'MA' ? asStringArray(r.choices) : [],
     correctAnswer: null,
     allowPartialCredit: false,
     rubricCriterionIds: [],
@@ -435,6 +440,44 @@ export interface LocalGrade {
 const normalizeAnswer = (s: string): string =>
   s.trim().toLowerCase().replace(/\s+/g, ' ').replace(/ё/g, 'е');
 
+/** Non-blank `|` parts of a choose-all key or answer. */
+function multiAnswerParts(value: string): string[] {
+  return (value ?? '').split('|').filter((s) => s.trim().length > 0);
+}
+
+/** Mirrors utils/quizMultiAnswer.ts scoreMultiAnswer: right% − wrong%, floored at 0. */
+export function scoreMultiAnswerServer(
+  correctAnswer: string,
+  incorrectAnswers: readonly string[],
+  studentAnswer: string
+): { fraction: number; exact: boolean } {
+  const right = new Set(multiAnswerParts(correctAnswer).map(normalizeAnswer));
+  const wrongTotal = new Set(
+    incorrectAnswers
+      .map(normalizeAnswer)
+      .filter((s) => s.length > 0 && !right.has(s))
+  ).size;
+  const given = new Set(
+    (studentAnswer ?? '')
+      .split('|')
+      .filter((s) => s.length > 0)
+      .map(normalizeAnswer)
+  );
+  given.delete('');
+  let rightPicked = 0;
+  let wrongPicked = 0;
+  for (const g of given) {
+    if (right.has(g)) rightPicked++;
+    else wrongPicked++;
+  }
+  if (right.size === 0) return { fraction: 0, exact: false };
+  const exact = rightPicked === right.size && wrongPicked === 0;
+  const wrongDenominator = Math.max(wrongTotal, wrongPicked);
+  const penalty = wrongDenominator === 0 ? 0 : wrongPicked / wrongDenominator;
+  const fraction = Math.max(0, rightPicked / right.size - penalty);
+  return { fraction: exact ? 1 : fraction, exact };
+}
+
 function hasSubmittedContent(answer: string): boolean {
   let stripped = answer ?? '';
   let previous: string;
@@ -526,6 +569,23 @@ export function gradeGroupAnswer(
   const correct = normalizeAnswer(question.correctAnswer);
   const given = normalizeAnswer(studentAnswer);
   const partial = question.allowPartialCredit;
+  if (question.type === 'MA') {
+    const right = new Set(
+      multiAnswerParts(question.correctAnswer).map(normalizeAnswer)
+    );
+    const score = scoreMultiAnswerServer(
+      question.correctAnswer,
+      question.choices.filter((c) => !right.has(normalizeAnswer(c))),
+      studentAnswer
+    );
+    const earned = partial ? score.fraction : score.exact ? 1 : 0;
+    return {
+      isCorrect: score.exact,
+      pointsEarned: earned * max,
+      pointsMax: max,
+      state,
+    };
+  }
   if (question.type === 'Matching') {
     const splitPair = (p: string): [string, string] => {
       const sep = p.indexOf(':');
@@ -585,6 +645,30 @@ export function gradeGroupAnswer(
     pointsMax: max,
     state,
   };
+}
+
+/** Per option: how many students picked it, from their `|`-joined answers. */
+function multiAnswerDistribution(
+  gq: GroupQuestion,
+  answerCounts: ReadonlyMap<string, number>,
+  correctAnswers: ReadonlySet<string>
+): AggregateChoiceRow[] {
+  const picks = new Map<string, number>();
+  for (const [answer, n] of answerCounts) {
+    for (const part of new Set(multiAnswerParts(answer))) {
+      picks.set(part, (picks.get(part) ?? 0) + n);
+    }
+  }
+  const right = new Set(
+    gq.correctAnswer !== null
+      ? multiAnswerParts(gq.correctAnswer)
+      : [...correctAnswers].flatMap(multiAnswerParts)
+  );
+  return gq.choices.map((label) => ({
+    label,
+    count: picks.get(label) ?? 0,
+    isCorrect: right.has(label),
+  }));
 }
 
 function pct(numerator: number, denominator: number): number {
@@ -772,7 +856,9 @@ export function computeAssessmentAggregate(
                 ? label === gq.correctAnswer
                 : q.correctLabels.has(label),
           }))
-        : [];
+        : gq.type === 'MA'
+          ? multiAnswerDistribution(gq, q.choiceCounts, q.correctLabels)
+          : [];
     return {
       questionId: gq.id,
       text: gq.text,
