@@ -85,7 +85,10 @@ export interface ReadPdfOptions {
 }
 
 /** A laid-out line's baseline and horizontal span as fractions of the viewport. */
-function positionLine(line: DocLine, viewport: PdfViewportLike): PositionedLine {
+function positionLine(
+  line: DocLine,
+  viewport: PdfViewportLike
+): PositionedLine {
   const [a, b, c, d, e, f] = viewport.transform;
   const at = (x: number, y: number) => ({
     x: (a * x + c * y + e) / viewport.width,
