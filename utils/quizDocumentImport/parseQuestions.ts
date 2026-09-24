@@ -488,6 +488,8 @@ export function parseDocument(
     section: Section;
     textId?: string;
     instruction?: string;
+    /** An instruction with no question range covers only the next question. */
+    once?: boolean;
   } | null = null;
 
   const endQuestion = (): void => {
@@ -545,7 +547,7 @@ export function parseDocument(
     }
     if (instruction) {
       covering = {
-        ...(waiting.range ? { range: waiting.range } : {}),
+        ...(waiting.range ? { range: waiting.range } : { once: true }),
         section: waiting.section,
         instruction,
       };
@@ -572,7 +574,7 @@ export function parseDocument(
       cover &&
       cover.section === section &&
       (!cover.range || (item >= cover.range[0] && item <= cover.range[1]));
-    if (cover && !covered && cover.range) covering = null;
+    if (cover && ((!covered && cover.range) || cover.once)) covering = null;
     current = {
       item,
       ...(part && part[1].toUpperCase() === 'A' ? { part: 'A' } : {}),

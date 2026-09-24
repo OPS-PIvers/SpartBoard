@@ -218,6 +218,23 @@ Created with a test generator`)
 });
 
 describe('item shapes (R9, R25)', () => {
+  it('keeps an instruction with no question range on the next question only', () => {
+    const questions = parseQuestionLines(
+      plain(`Section 1
+Use a ruler for the next question.
+6. Measure the line.
+a. 2 cm
+b. 3 cm
+7. What is 3+3?
+a. 6
+b. 5`)
+    );
+    expect(questions[0].text).toBe(
+      'Use a ruler for the next question. Measure the line.'
+    );
+    expect(questions[1].text).toBe('What is 3+3?');
+  });
+
   it('splits Part A and Part B into two questions sharing a short lead-in', () => {
     const questions = parseQuestionLines(
       plain(`5. Read paragraph 8.
