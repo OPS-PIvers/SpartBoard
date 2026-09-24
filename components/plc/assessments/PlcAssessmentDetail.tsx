@@ -30,7 +30,10 @@ import {
   usePlcAssessmentsData,
   usePlcMembers,
 } from '@/context/usePlcContext';
+import { useAuth } from '@/context/useAuth';
+import { useDashboard } from '@/context/useDashboard';
 import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
+import { PlcNormingSection } from '@/components/plc/norming/PlcNormingSection';
 import { PlcCommentsThread } from '@/components/plc/comments/PlcCommentsThread';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { usePlcLearningTargets } from '@/hooks/useLearningTargets';
@@ -327,6 +330,8 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
   assessmentId,
 }) => {
   const { t, i18n } = useTranslation();
+  const { user, canAccessFeature } = useAuth();
+  const { addToast } = useDashboard();
   const { data: assessments, loading: assessmentsLoading } =
     usePlcAssessmentsData();
   const { data: aggregates, loading: aggregatesLoading } =
@@ -700,6 +705,18 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
           </ul>
         )}
       </section>
+
+      {kind === 'quiz' && canAccessFeature('plc-norming-flags') && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-5">
+          <PlcNormingSection
+            plcId={plc.id}
+            assessmentId={assessmentId}
+            currentUid={user?.uid}
+            labels={plc.normingLevelLabels}
+            onError={(message) => addToast(message, 'error')}
+          />
+        </div>
+      )}
 
       {/* Scoped comments, keyed to the canonical assessment id. */}
       <div className="border-t border-slate-200 pt-4">

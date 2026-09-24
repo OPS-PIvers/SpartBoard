@@ -129,8 +129,8 @@ one exists; otherwise covered by an explicit reasoning note in the PR.
 - **F2 (settings):** a "Norming levels" card in `PlcSettingsTab.tsx`, editable by lead/co-lead.
 - **F4 (PLC page):** `PlcNormingSection.tsx`, mounted from `PlcAssessmentDetail.tsx` behind the flag.
   Query `plcs/{plcId}/norming where assessmentId == X`; group by question (question order), then
-  level (High, Medium, Low, Review). Cards show the answer text or an audio player (URL from
-  `getDownloadURL` on the member-readable path), the level and the flagging teacher. No scoring or
+  level (High, Medium, Low, Review). Cards show the answer text or an audio player (bytes from
+  `getBlob` on the member-readable path, per decision 1), the level and the flagging teacher. No scoring or
   voting.
 
 ## Compatibility
@@ -160,9 +160,10 @@ closed update branch, a new Storage path. The previous client never writes any o
 11. Viewers cannot flag (server mirrors `plcCanEditContent`). Only a submitted, responded answer can
     be flagged.
 12. Extra lifecycle: deleting a response deletes the audio copies made from it (voice identifies) and
-    its source docs, and keeps text copies; deleting a session deletes only source docs; deleting a
-    teacher account sweeps sources `where flaggedByUid == uid`. PLC delete uses
-    `deleteFiles({ prefix })`. The membership trigger is idempotent.
+    its source docs, and keeps text copies; deleting a session deletes only source docs. Deleting a
+    teacher account has no sweep of its own: leaving the PLC already removes that teacher's copies,
+    sources and audio. PLC delete uses `deleteFiles({ prefix })`. The membership trigger is
+    idempotent.
 13. Media slots: the callable takes `slot: 'primary' | 'addendum'` (default primary), included in
     `sourceId`.
 
@@ -170,5 +171,5 @@ closed update branch, a new Storage path. The previous client never writes any o
 
 1. #3396: server, rules and indexes, the grader flag (mounted in `QuizResults` via the grader's
    `renderNormingFlag` prop) and the "Norming levels" card in PLC settings.
-2. Follow-up: mount `PlcNormingSection` in `PlcAssessmentDetail.tsx` once the A5 per-teacher removal
-   lands there.
+2. Follow-up (after #3400): `PlcNormingSection` mounted in `PlcAssessmentDetail.tsx` for quiz
+   assessments, behind the flag.

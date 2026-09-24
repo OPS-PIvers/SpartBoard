@@ -77,6 +77,33 @@ vi.mock('@/hooks/useLearningTargets', () => ({
   }),
 }));
 
+let mockNormingAccess = false;
+const addToast = vi.fn();
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({
+    user: { uid: 'uid-alice' },
+    canAccessFeature: (id: string) =>
+      id === 'plc-norming-flags' && mockNormingAccess,
+  }),
+}));
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({ addToast }),
+}));
+vi.mock('@/components/plc/norming/PlcNormingSection', () => ({
+  PlcNormingSection: (p: {
+    assessmentId: string;
+    currentUid?: string;
+    labels?: { high?: string };
+  }) => (
+    <div
+      data-testid="norming-section"
+      data-assessment-id={p.assessmentId}
+      data-uid={p.currentUid}
+      data-high={p.labels?.high}
+    />
+  ),
+}));
+
 import { PlcAssessmentDetail } from '@/components/plc/assessments/PlcAssessmentDetail';
 
 const members: PlcMember[] = [
@@ -232,6 +259,7 @@ function setDefaults() {
     enabled: true,
   };
   spaNavigate.mockReset();
+  mockNormingAccess = false;
 }
 
 describe('PlcAssessmentDetail', () => {
@@ -438,5 +466,31 @@ describe('PlcAssessmentDetail', () => {
       <PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />
     );
     expect(container.textContent).not.toContain('studentDisplayName');
+  });
+
+  it('hides the norming section without the flag', () => {
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
+    expect(screen.queryByTestId('norming-section')).toBeNull();
+  });
+
+  it('mounts the norming section behind the flag with the PLC labels', () => {
+    mockNormingAccess = true;
+    render(
+      <PlcAssessmentDetail
+        plc={{ ...makePlc(), normingLevelLabels: { high: 'Exemplar' } }}
+        assessmentId="a1"
+      />
+    );
+    const section = screen.getByTestId('norming-section');
+    expect(section).toHaveAttribute('data-assessment-id', 'a1');
+    expect(section).toHaveAttribute('data-uid', 'uid-alice');
+    expect(section).toHaveAttribute('data-high', 'Exemplar');
+  });
+
+  it('skips the norming section for a video activity', () => {
+    mockNormingAccess = true;
+    mockAssessmentsSlice.data = [{ ...assessment, kind: 'video-activity' }];
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
+    expect(screen.queryByTestId('norming-section')).toBeNull();
   });
 });
