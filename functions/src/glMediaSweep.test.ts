@@ -51,6 +51,7 @@ describe('runGlMediaSweep', () => {
     const result = await sweep(
       {
         'users/t1/guided_learning/s1': {
+          driveFileIds: [],
           imagePaths: [path('personal.webp')],
           imageUrl: url(path('thumbs/personal.webp')),
         },
@@ -109,5 +110,19 @@ describe('runGlMediaSweep', () => {
     );
     expect(result).toEqual({ candidates: 0, deleted: [] });
     expect(db.collection).not.toHaveBeenCalled();
+  });
+  it('skips an owner who has a set an older client saved', async () => {
+    const bucket = createFakeBucket([
+      { name: path('orphan.webp'), timeCreated: OLD },
+      { name: 'users/t2/hotspot_images/o.webp', timeCreated: OLD },
+    ]);
+    const result = await sweep(
+      {
+        'users/t1/guided_learning/old': { title: 'saved by an old tab' },
+        'users/t2/guided_learning/new': { driveFileIds: [] },
+      },
+      bucket
+    );
+    expect(result.deleted).toEqual(['users/t2/hotspot_images/o.webp']);
   });
 });

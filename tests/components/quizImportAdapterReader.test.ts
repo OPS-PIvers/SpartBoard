@@ -57,8 +57,10 @@ const extracted = (title: string): ExtractedQuiz => ({
 function adapter(over: Record<string, unknown> = {}) {
   return createQuizImportAdapter({
     saveQuiz: () => Promise.resolve(),
-    importFromSheet: () => Promise.resolve({} as QuizData),
-    importFromCSV: () => Promise.resolve({} as QuizData),
+    importFromSheet: () =>
+      Promise.resolve({ questions: [] } as unknown as QuizData),
+    importFromCSV: () =>
+      Promise.resolve({ questions: [] } as unknown as QuizData),
     createQuizTemplate: () => Promise.resolve(''),
     ensureDriveScope: () => Promise.resolve('token'),
     pickSheet: () => Promise.resolve(null),

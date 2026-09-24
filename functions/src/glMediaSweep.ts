@@ -4,8 +4,10 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import {
   GL_MEDIA_MARKER,
+  glMediaOwner,
   isGlMediaPath,
   loadAllReferences,
+  ownerHasUnrecordedSet,
 } from './glMediaReferences';
 import './functionsInit';
 
@@ -65,10 +67,16 @@ export async function runGlMediaSweep(
   // Throws on a failed scan, so a partial reference picture never deletes anything.
   const refs = await loadAllReferences(db);
   const deleted: string[] = [];
+  const unrecorded = new Map<string, Promise<boolean>>();
   for (const path of candidates) {
     if (deleted.length >= SWEEP_MAX_DELETES) break;
     if (refs.has(path)) continue;
     try {
+      // An older client's save drops the file list, so that owner's files are never provably unused.
+      const owner = glMediaOwner(path) ?? '';
+      if (!unrecorded.has(owner))
+        unrecorded.set(owner, ownerHasUnrecordedSet(db, owner));
+      if (await unrecorded.get(owner)) continue;
       await bucket.file(path).delete({ ignoreNotFound: true });
       deleted.push(path);
       logger.info('[glMediaSweep] deleted unreferenced GL file', { path });

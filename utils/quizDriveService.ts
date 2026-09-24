@@ -1606,16 +1606,6 @@ export class QuizDriveService {
       '',
       '',
     ],
-    [
-      '30',
-      'Which of these are prime numbers? (Choose all that apply)',
-      'MA',
-      '2|3|7',
-      '4',
-      '9',
-      '',
-      '',
-    ],
   ];
 
   /**

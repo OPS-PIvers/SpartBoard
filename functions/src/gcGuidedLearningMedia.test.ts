@@ -77,8 +77,27 @@ describe('gcOrphanedSlidePaths', () => {
   });
 
   it('keeps a path a duplicate personal set still lists', async () => {
-    setup({ 'users/t1/guided_learning/dup': { imagePaths: [P1] } });
+    setup({
+      'users/t1/guided_learning/dup': { imagePaths: [P1], driveFileIds: [] },
+    });
     expect(await gcOrphanedSlidePaths([P1, P2])).toEqual([P2]);
+  });
+
+  it('never deletes a file uploaded before GL uploads were marked', async () => {
+    state.bucket = bucket = createFakeBucket([
+      { name: P1, timeCreated: '', marked: false },
+    ]);
+    expect(await gcOrphanedSlidePaths([P1, P2])).toEqual([P2]);
+    expect(bucket.deleted).toEqual([P2]);
+  });
+
+  it('keeps every file of an owner with a set an older client saved', async () => {
+    setup({
+      'users/t1/guided_learning/old': { imagePaths: [] },
+      'users/t2/guided_learning/new': { driveFileIds: [] },
+    });
+    const P3 = 'users/t2/hotspot_images/3-c.webp';
+    expect(await gcOrphanedSlidePaths([P1, P3])).toEqual([P3]);
   });
 
   it('keeps a path a building or Help Center set shows, even unlisted', async () => {
@@ -146,7 +165,7 @@ describe('gcOrphanedSlidePaths', () => {
 
   it('ignores only the named set when the editor releases its own files', async () => {
     setup({
-      'users/t1/guided_learning/own': { imagePaths: [P1] },
+      'users/t1/guided_learning/own': { imagePaths: [P1], driveFileIds: [] },
       'building_guided_learning/b1': { imagePaths: [P2] },
     });
     expect(
@@ -159,7 +178,9 @@ describe('gcOrphanedSlidePaths', () => {
 
 describe('set-delete triggers', () => {
   it('personal: deletes only the owner’s unreferenced uploads', async () => {
-    setup({ 'users/t1/guided_learning/dup': { imagePaths: [P2] } });
+    setup({
+      'users/t1/guided_learning/dup': { imagePaths: [P2], driveFileIds: [] },
+    });
     await run(gcGuidedLearningMedia, {
       params: { uid: 't1', setId: 's' },
       data: {
@@ -183,7 +204,9 @@ describe('set-delete triggers', () => {
 
 describe('releaseGuidedLearningMediaV1', () => {
   it('lets a teacher release their own files, never another user’s', async () => {
-    setup({ 'users/t1/guided_learning/own': { imagePaths: [P1] } });
+    setup({
+      'users/t1/guided_learning/own': { imagePaths: [P1], driveFileIds: [] },
+    });
     const res = await run(releaseGuidedLearningMediaV1, {
       auth: { uid: 't1', token: {} },
       data: {

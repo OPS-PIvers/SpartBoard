@@ -90,8 +90,16 @@ export function createFakeDb(docs: Record<string, Data>) {
     limit: (n) => query(() => list().slice(0, n)),
   });
   return {
-    collection: (name: string) =>
-      query(() => matching((parts) => parts.length === 2 && parts[0] === name)),
+    collection: (name: string) => {
+      const prefix = name.split('/');
+      return query(() =>
+        matching(
+          (parts) =>
+            parts.length === prefix.length + 1 &&
+            prefix.every((seg, i) => parts[i] === seg)
+        )
+      );
+    },
     collectionGroup: (name: string) =>
       query(() => matching((parts) => parts[parts.length - 2] === name)),
     doc: (path: string) => ({ path }),
@@ -122,6 +130,16 @@ export function createFakeBucket(files: FakeFile[]) {
         null,
       ]),
     file: (name: string) => ({
+      // Files not listed count as marked GL uploads.
+      getMetadata: () =>
+        Promise.resolve([
+          {
+            metadata:
+              files.find((f) => f.name === name)?.marked === false
+                ? {}
+                : { glMedia: '1' },
+          },
+        ]),
       delete: () => {
         deleted.push(name);
         return Promise.resolve();
