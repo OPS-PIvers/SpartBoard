@@ -6,6 +6,12 @@
  * id, so a stimulus shared across consecutive questions does not remount
  * (and audio/video does not restart) as the student advances within its
  * question set (see GuidedLearningPlayer's unkeyed-media precedent).
+ *
+ * `cqScaled`: set only by callers mounted inside a widget's own container-
+ * query scope (the `quiz` monitor and preview views). Left unset (default
+ * false) by the full-page `/quiz` student route and the teacher grading UI,
+ * neither of which sits inside a `container-type: size` ancestor — `cqmin`
+ * would compute to zero there, so those two keep the fixed Tailwind sizing.
  */
 import React, {
   useCallback,
@@ -68,7 +74,12 @@ export interface StimulusRendererProps {
   enforcePlayLimit?: boolean;
   /** Light (self-paced student / preview) vs dark (live student) surfaces. */
   light?: boolean;
+  /** Set only inside a widget's own CSS container-query scope — see file header. */
+  cqScaled?: boolean;
 }
+
+/** `min(Xpx, Ycqmin)`, only meaningful when the caller passes `cqScaled`. */
+const mm = (px: number, cqmin: number) => `min(${px}px, ${cqmin}cqmin)`;
 
 const surfaceCls = (light: boolean) =>
   light
@@ -81,40 +92,77 @@ const mutedTextCls = (light: boolean) =>
 const StimulusErrorCard: React.FC<{
   light: boolean;
   onRetry: () => void;
-}> = ({ light, onRetry }) => (
+  cqScaled?: boolean;
+}> = ({ light, onRetry, cqScaled }) => (
   <div
-    className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm ${
+    className={`flex items-center rounded-xl ${cqScaled ? '' : 'gap-3 px-4 py-3 text-sm'} ${
       light
         ? 'bg-amber-50 border border-amber-200 text-amber-800'
         : 'bg-amber-500/15 border border-amber-500/40 text-amber-200'
     }`}
+    style={
+      cqScaled
+        ? {
+            gap: mm(12, 3),
+            padding: `${mm(12, 3)} ${mm(16, 4)}`,
+            fontSize: mm(14, 5.5),
+          }
+        : undefined
+    }
     role="alert"
   >
-    <AlertTriangle className="w-4 h-4 shrink-0" aria-hidden />
+    <AlertTriangle
+      className={cqScaled ? 'shrink-0' : 'w-4 h-4 shrink-0'}
+      style={cqScaled ? { width: mm(16, 4), height: mm(16, 4) } : undefined}
+      aria-hidden
+    />
     <span className="flex-1">
       This attachment didn&apos;t load. You can keep answering.
     </span>
     <button
       type="button"
       onClick={onRetry}
-      className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-colors ${
+      className={`inline-flex items-center rounded-lg font-bold transition-colors ${
+        cqScaled ? '' : 'gap-1.5 px-2.5 py-1.5 text-xs'
+      } ${
         light
           ? 'bg-white border border-amber-300 hover:bg-amber-100'
           : 'bg-slate-800 border border-amber-500/50 hover:bg-slate-700'
       }`}
+      style={
+        cqScaled
+          ? {
+              gap: mm(6, 1.5),
+              padding: `${mm(6, 1.5)} ${mm(10, 2.5)}`,
+              fontSize: mm(11, 4),
+            }
+          : undefined
+      }
     >
-      <RefreshCw className="w-3.5 h-3.5" aria-hidden />
+      <RefreshCw
+        className={cqScaled ? undefined : 'w-3.5 h-3.5'}
+        style={
+          cqScaled ? { width: mm(14, 3.5), height: mm(14, 3.5) } : undefined
+        }
+        aria-hidden
+      />
       Reload
     </button>
   </div>
 );
 
-const PlayLimitCard: React.FC<{ light: boolean; limit: number }> = ({
-  light,
-  limit,
-}) => (
+const PlayLimitCard: React.FC<{
+  light: boolean;
+  limit: number;
+  cqScaled?: boolean;
+}> = ({ light, limit, cqScaled }) => (
   <div
-    className={`rounded-xl px-4 py-3 text-sm font-medium ${surfaceCls(light)} ${mutedTextCls(light)}`}
+    className={`rounded-xl font-medium ${cqScaled ? '' : 'px-4 py-3 text-sm'} ${surfaceCls(light)} ${mutedTextCls(light)}`}
+    style={
+      cqScaled
+        ? { padding: `${mm(12, 3)} ${mm(16, 4)}`, fontSize: mm(14, 5.5) }
+        : undefined
+    }
   >
     Play limit reached ({limit} {limit === 1 ? 'play' : 'plays'}).
   </div>
@@ -123,8 +171,12 @@ const PlayLimitCard: React.FC<{ light: boolean; limit: number }> = ({
 const PlaysRemainingNote: React.FC<{
   light: boolean;
   remaining: number;
-}> = ({ light, remaining }) => (
-  <p className={`text-xs mt-1 ${mutedTextCls(light)}`}>
+  cqScaled?: boolean;
+}> = ({ light, remaining, cqScaled }) => (
+  <p
+    className={`${cqScaled ? '' : 'text-xs mt-1'} ${mutedTextCls(light)}`}
+    style={cqScaled ? { fontSize: mm(11, 4), marginTop: mm(4, 1) } : undefined}
+  >
     {remaining} {remaining === 1 ? 'play' : 'plays'} remaining
   </p>
 );
@@ -133,7 +185,7 @@ const PlaysRemainingNote: React.FC<{
 
 const ImageStimulus: React.FC<
   StimulusRendererProps & { retryNonce: number }
-> = ({ stimulus, onLoadError, retryNonce }) => {
+> = ({ stimulus, onLoadError, retryNonce, cqScaled }) => {
   const [failed, setFailed] = useState(false);
   // Reset failure state when a retry remounts the element.
   const [prevNonce, setPrevNonce] = useState(retryNonce);
@@ -147,7 +199,8 @@ const ImageStimulus: React.FC<
       key={retryNonce}
       src={stimulusMediaUrl(stimulus)}
       alt="Question stimulus"
-      className="max-w-full max-h-[50vh] rounded-xl object-contain"
+      className={`max-w-full rounded-xl object-contain ${cqScaled ? '' : 'max-h-[50vh]'}`}
+      style={cqScaled ? { maxHeight: 'min(50vh, 60cqh)' } : undefined}
       onError={() => {
         setFailed(true);
         onLoadError?.(stimulus.id);
@@ -165,6 +218,7 @@ const AvStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
   onLoadError,
   enforcePlayLimit = true,
   light = false,
+  cqScaled,
   retryNonce,
 }) => {
   const [failed, setFailed] = useState(false);
@@ -178,7 +232,9 @@ const AvStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
   const remaining =
     enforcePlayLimit && limit && limit > 0 ? limit - playsUsed : null;
   if (remaining !== null && remaining <= 0) {
-    return <PlayLimitCard light={light} limit={limit ?? 0} />;
+    return (
+      <PlayLimitCard light={light} limit={limit ?? 0} cqScaled={cqScaled} />
+    );
   }
   if (failed) return null;
 
@@ -211,13 +267,18 @@ const AvStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
         <video
           key={retryNonce}
           {...shared}
-          className="w-full max-h-[50vh] rounded-xl bg-black"
+          className={`w-full rounded-xl bg-black ${cqScaled ? '' : 'max-h-[50vh]'}`}
+          style={cqScaled ? { maxHeight: 'min(50vh, 60cqh)' } : undefined}
           preload="metadata"
           playsInline
         />
       )}
       {remaining !== null && (
-        <PlaysRemainingNote light={light} remaining={remaining} />
+        <PlaysRemainingNote
+          light={light}
+          remaining={remaining}
+          cqScaled={cqScaled}
+        />
       )}
     </div>
   );
@@ -234,6 +295,7 @@ const YouTubeStimulus: React.FC<
   onLoadError,
   enforcePlayLimit = true,
   light = false,
+  cqScaled,
   retryNonce,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -304,7 +366,10 @@ const YouTubeStimulus: React.FC<
   ]);
 
   if (!videoId) return null;
-  if (exhausted) return <PlayLimitCard light={light} limit={limit ?? 0} />;
+  if (exhausted)
+    return (
+      <PlayLimitCard light={light} limit={limit ?? 0} cqScaled={cqScaled} />
+    );
   if (failed) return null;
   return (
     <div>
@@ -313,7 +378,11 @@ const YouTubeStimulus: React.FC<
         className="w-full aspect-video rounded-xl overflow-hidden bg-black"
       />
       {remaining !== null && (
-        <PlaysRemainingNote light={light} remaining={remaining} />
+        <PlaysRemainingNote
+          light={light}
+          remaining={remaining}
+          cqScaled={cqScaled}
+        />
       )}
     </div>
   );
@@ -323,12 +392,13 @@ const YouTubeStimulus: React.FC<
 
 const GdocStimulus: React.FC<
   StimulusRendererProps & { retryNonce: number }
-> = ({ stimulus, retryNonce }) => (
+> = ({ stimulus, retryNonce, cqScaled }) => (
   <iframe
     key={retryNonce}
     src={convertToEmbedUrl(stimulus.url)}
     title="Question stimulus document"
-    className="w-full h-full min-h-[320px] rounded-xl bg-white"
+    className={`w-full h-full rounded-xl bg-white ${cqScaled ? '' : 'min-h-[320px]'}`}
+    style={cqScaled ? { minHeight: mm(320, 60) } : undefined}
     sandbox="allow-scripts allow-same-origin allow-popups"
   />
 );
@@ -343,11 +413,17 @@ const GdocStimulus: React.FC<
 const TextStimulus: React.FC<StimulusRendererProps> = ({
   stimulus,
   light = false,
+  cqScaled,
 }) => (
   <div
-    className={`w-full h-full min-h-[120px] overflow-auto rounded-xl p-4 text-base leading-relaxed whitespace-pre-wrap ${
-      light ? 'bg-white text-slate-800' : 'bg-slate-800/60 text-slate-100'
-    }`}
+    className={`w-full h-full overflow-auto rounded-xl leading-relaxed whitespace-pre-wrap ${
+      cqScaled ? '' : 'min-h-[120px] p-4 text-base'
+    } ${light ? 'bg-white text-slate-800' : 'bg-slate-800/60 text-slate-100'}`}
+    style={
+      cqScaled
+        ? { minHeight: mm(120, 30), padding: mm(16, 4), fontSize: mm(16, 6) }
+        : undefined
+    }
   >
     {stimulus.text ?? ''}
   </div>
@@ -363,6 +439,7 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
   stimulus,
   light = false,
   onLoadError,
+  cqScaled,
   retryNonce,
 }) => {
   const [state, setState] = useState<
@@ -441,7 +518,8 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
       <iframe
         src={drivePreviewUrl(stimulus.driveFileId)}
         title="Question stimulus PDF"
-        className="w-full h-full min-h-[320px] rounded-xl bg-white"
+        className={`w-full h-full rounded-xl bg-white ${cqScaled ? '' : 'min-h-[320px]'}`}
+        style={cqScaled ? { minHeight: mm(320, 60) } : undefined}
         sandbox="allow-scripts allow-same-origin allow-popups"
       />
     );
@@ -450,16 +528,30 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
 
   return (
     <div
-      className={`flex flex-col h-full min-h-[320px] rounded-xl overflow-hidden ${surfaceCls(light)}`}
+      className={`flex flex-col h-full rounded-xl overflow-hidden ${cqScaled ? '' : 'min-h-[320px]'} ${surfaceCls(light)}`}
+      style={cqScaled ? { minHeight: mm(320, 60) } : undefined}
     >
       <div
-        className={`flex items-center gap-2 px-3 py-1.5 border-b text-xs font-bold ${
-          light
-            ? 'border-slate-200 text-slate-600'
-            : 'border-slate-700 text-slate-300'
-        }`}
+        className={`flex items-center border-b font-bold ${
+          cqScaled ? '' : 'gap-2 px-3 py-1.5 text-xs'
+        } ${light ? 'border-slate-200 text-slate-600' : 'border-slate-700 text-slate-300'}`}
+        style={
+          cqScaled
+            ? {
+                gap: mm(8, 2),
+                padding: `${mm(6, 1.5)} ${mm(12, 3)}`,
+                fontSize: mm(11, 4),
+              }
+            : undefined
+        }
       >
-        <FileText className="w-3.5 h-3.5" aria-hidden />
+        <FileText
+          className={cqScaled ? undefined : 'w-3.5 h-3.5'}
+          style={
+            cqScaled ? { width: mm(14, 3.5), height: mm(14, 3.5) } : undefined
+          }
+          aria-hidden
+        />
         <span className="flex-1 truncate">
           PDF{pageCount > 0 ? ` · ${pageCount} pages` : ''}
         </span>
@@ -468,11 +560,20 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
           aria-label="Zoom out"
           disabled={zoomIdx === 0}
           onClick={() => setZoomIdx((i) => Math.max(0, i - 1))}
-          className="p-1 rounded hover:bg-slate-500/20 disabled:opacity-30"
+          className={`rounded hover:bg-slate-500/20 disabled:opacity-30 ${cqScaled ? '' : 'p-1'}`}
+          style={cqScaled ? { padding: mm(4, 1) } : undefined}
         >
-          <Minus className="w-3.5 h-3.5" />
+          <Minus
+            className={cqScaled ? undefined : 'w-3.5 h-3.5'}
+            style={
+              cqScaled ? { width: mm(14, 3.5), height: mm(14, 3.5) } : undefined
+            }
+          />
         </button>
-        <span className="tabular-nums w-10 text-center">
+        <span
+          className={`tabular-nums text-center ${cqScaled ? '' : 'w-10'}`}
+          style={cqScaled ? { width: mm(40, 10) } : undefined}
+        >
           {Math.round(zoom * 100)}%
         </span>
         <button
@@ -482,26 +583,41 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
           onClick={() =>
             setZoomIdx((i) => Math.min(PDF_ZOOM_STEPS.length - 1, i + 1))
           }
-          className="p-1 rounded hover:bg-slate-500/20 disabled:opacity-30"
+          className={`rounded hover:bg-slate-500/20 disabled:opacity-30 ${cqScaled ? '' : 'p-1'}`}
+          style={cqScaled ? { padding: mm(4, 1) } : undefined}
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus
+            className={cqScaled ? undefined : 'w-3.5 h-3.5'}
+            style={
+              cqScaled ? { width: mm(14, 3.5), height: mm(14, 3.5) } : undefined
+            }
+          />
         </button>
       </div>
-      <div className="relative flex-1 overflow-auto bg-slate-500/10 p-2">
+      <div
+        className={`relative flex-1 overflow-auto bg-slate-500/10 ${cqScaled ? '' : 'p-2'}`}
+        style={cqScaled ? { padding: mm(8, 2) } : undefined}
+      >
         {state === 'loading' && (
           <div
             className={`absolute inset-0 flex items-center justify-center ${mutedTextCls(light)}`}
           >
             <Loader2
-              className="w-6 h-6 animate-spin"
+              className={cqScaled ? 'animate-spin' : 'w-6 h-6 animate-spin'}
+              style={
+                cqScaled ? { width: mm(24, 6), height: mm(24, 6) } : undefined
+              }
               aria-label="Loading PDF"
             />
           </div>
         )}
         <div
           ref={pagesHostRef}
-          className="quiz-pdf-pages flex flex-col items-center gap-2"
-          style={{ ['--pdf-zoom' as string]: zoom }}
+          className={`quiz-pdf-pages flex flex-col items-center ${cqScaled ? '' : 'gap-2'}`}
+          style={{
+            ['--pdf-zoom' as string]: zoom,
+            ...(cqScaled ? { gap: mm(8, 2) } : undefined),
+          }}
         />
         {/* Page canvases are appended imperatively; scale via CSS so zoom
             doesn't force a re-render of every page. */}
@@ -516,13 +632,15 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
 const StimulusReadAloudHeader: React.FC<{
   readAloud: StimulusReadAloud;
   light: boolean;
-}> = ({ readAloud, light }) => {
+  cqScaled?: boolean;
+}> = ({ readAloud, light, cqScaled }) => {
   const { t } = useTranslation();
   return (
     <div
-      className={`flex items-center gap-2 rounded-2xl pr-3 transition-colors ${
-        readAloud.highlighted ? READ_ALOUD_HIGHLIGHT_CLASS : ''
-      }`}
+      className={`flex items-center rounded-2xl transition-colors ${
+        cqScaled ? '' : 'gap-2 pr-3'
+      } ${readAloud.highlighted ? READ_ALOUD_HIGHLIGHT_CLASS : ''}`}
+      style={cqScaled ? { gap: mm(8, 2), paddingRight: mm(12, 3) } : undefined}
     >
       <ReadAloudButton
         label={t('quizReadAloud.readPassage', 'Read passage aloud')}
@@ -532,7 +650,8 @@ const StimulusReadAloudHeader: React.FC<{
         variant="ghost"
       />
       <span
-        className={`text-xs font-bold ${light ? 'text-slate-600' : 'text-slate-300'}`}
+        className={`font-bold ${cqScaled ? '' : 'text-xs'} ${light ? 'text-slate-600' : 'text-slate-300'}`}
+        style={cqScaled ? { fontSize: mm(11, 4) } : undefined}
       >
         {t('quizReadAloud.passage', 'Passage')}
       </span>
@@ -543,7 +662,8 @@ const StimulusReadAloudHeader: React.FC<{
 const StimulusReadAloudPane: React.FC<{
   readAloud: StimulusReadAloud;
   light: boolean;
-}> = ({ readAloud, light }) => {
+  cqScaled?: boolean;
+}> = ({ readAloud, light, cqScaled }) => {
   const chunks = useMemo(
     () => chunkReadAloudText(readAloud.text),
     [readAloud.text]
@@ -551,18 +671,22 @@ const StimulusReadAloudPane: React.FC<{
   return (
     <div
       data-testid="stimulus-read-aloud-pane"
-      className={`rounded-xl border p-3 text-sm leading-relaxed ${
+      className={`rounded-xl border leading-relaxed ${cqScaled ? '' : 'p-3 text-sm'} ${
         light
           ? 'border-slate-200 bg-white text-slate-800'
           : 'border-slate-700 bg-slate-800/60 text-slate-100'
       }`}
+      style={
+        cqScaled ? { padding: mm(12, 3), fontSize: mm(14, 5.5) } : undefined
+      }
     >
       {chunks.map((chunk, i) => (
         <p
           key={i}
-          className={`whitespace-pre-line rounded-lg px-2 py-1 transition-colors ${
-            i === readAloud.chunkIndex ? READ_ALOUD_HIGHLIGHT_CLASS : ''
-          }`}
+          className={`whitespace-pre-line rounded-lg transition-colors ${
+            cqScaled ? '' : 'px-2 py-1'
+          } ${i === readAloud.chunkIndex ? READ_ALOUD_HIGHLIGHT_CLASS : ''}`}
+          style={cqScaled ? { padding: `${mm(4, 1)} ${mm(8, 2)}` } : undefined}
         >
           {chunk}
         </p>
@@ -572,7 +696,7 @@ const StimulusReadAloudPane: React.FC<{
 };
 
 export const StimulusRenderer: React.FC<StimulusRendererProps> = (props) => {
-  const { stimulus, light = false, readAloud } = props;
+  const { stimulus, light = false, readAloud, cqScaled } = props;
   const [retryNonce, setRetryNonce] = useState(0);
   const [failed, setFailed] = useState(false);
 
@@ -618,14 +742,32 @@ export const StimulusRenderer: React.FC<StimulusRendererProps> = (props) => {
   }
 
   return (
-    <div className="flex flex-col gap-2 h-full" data-stimulus-id={stimulus.id}>
+    <div
+      className={`flex flex-col h-full ${cqScaled ? '' : 'gap-2'}`}
+      style={cqScaled ? { gap: mm(8, 2) } : undefined}
+      data-stimulus-id={stimulus.id}
+    >
       {readAloud && (
-        <StimulusReadAloudHeader readAloud={readAloud} light={light} />
+        <StimulusReadAloudHeader
+          readAloud={readAloud}
+          light={light}
+          cqScaled={cqScaled}
+        />
       )}
-      {failed && <StimulusErrorCard light={light} onRetry={handleRetry} />}
+      {failed && (
+        <StimulusErrorCard
+          light={light}
+          onRetry={handleRetry}
+          cqScaled={cqScaled}
+        />
+      )}
       {body}
       {readAloud && readAloud.status !== 'idle' && (
-        <StimulusReadAloudPane readAloud={readAloud} light={light} />
+        <StimulusReadAloudPane
+          readAloud={readAloud}
+          light={light}
+          cqScaled={cqScaled}
+        />
       )}
     </div>
   );
@@ -638,7 +780,9 @@ export const CollapsibleStimuli: React.FC<{
   light?: boolean;
   /** Optional label override, e.g. "Stimuli". */
   label?: string;
-}> = ({ stimuli, light = true, label }) => {
+  /** Set only inside a widget's own CSS container-query scope — see file header. */
+  cqScaled?: boolean;
+}> = ({ stimuli, light = true, label, cqScaled }) => {
   const [open, setOpen] = useState(false);
   if (stimuli.length === 0) return null;
   return (
@@ -646,30 +790,63 @@ export const CollapsibleStimuli: React.FC<{
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`inline-flex items-center gap-1.5 text-xs font-bold rounded-lg px-2 py-1 transition-colors ${
+        className={`inline-flex items-center font-bold rounded-lg transition-colors ${
+          cqScaled ? '' : 'gap-1.5 text-xs px-2 py-1'
+        } ${
           light
             ? 'text-slate-600 hover:bg-slate-100'
             : 'text-slate-300 hover:bg-slate-700/50'
         }`}
+        style={
+          cqScaled
+            ? {
+                gap: mm(6, 1.5),
+                fontSize: mm(11, 4),
+                padding: `${mm(4, 1)} ${mm(8, 2)}`,
+              }
+            : undefined
+        }
         aria-expanded={open}
       >
         {open ? (
-          <ChevronDown className="w-3.5 h-3.5" aria-hidden />
+          <ChevronDown
+            className={cqScaled ? undefined : 'w-3.5 h-3.5'}
+            style={
+              cqScaled ? { width: mm(14, 3.5), height: mm(14, 3.5) } : undefined
+            }
+            aria-hidden
+          />
         ) : (
-          <ChevronRight className="w-3.5 h-3.5" aria-hidden />
+          <ChevronRight
+            className={cqScaled ? undefined : 'w-3.5 h-3.5'}
+            style={
+              cqScaled ? { width: mm(14, 3.5), height: mm(14, 3.5) } : undefined
+            }
+            aria-hidden
+          />
         )}
-        <Paperclip className="w-3.5 h-3.5" aria-hidden />
+        <Paperclip
+          className={cqScaled ? undefined : 'w-3.5 h-3.5'}
+          style={
+            cqScaled ? { width: mm(14, 3.5), height: mm(14, 3.5) } : undefined
+          }
+          aria-hidden
+        />
         {label ??
           `${stimuli.length} ${stimuli.length === 1 ? 'attachment' : 'attachments'}`}
       </button>
       {open && (
-        <div className="mt-2 space-y-3">
+        <div
+          className={`flex flex-col ${cqScaled ? '' : 'mt-2 space-y-3'}`}
+          style={cqScaled ? { marginTop: mm(8, 2), gap: mm(12, 3) } : undefined}
+        >
           {stimuli.map((s) => (
             <StimulusRenderer
               key={s.id}
               stimulus={s}
               light={light}
               enforcePlayLimit={false}
+              cqScaled={cqScaled}
             />
           ))}
         </div>

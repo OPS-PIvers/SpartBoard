@@ -218,6 +218,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
                   stimulus={s}
                   light
                   enforcePlayLimit={false}
+                  cqScaled
                 />
               ))}
             </div>

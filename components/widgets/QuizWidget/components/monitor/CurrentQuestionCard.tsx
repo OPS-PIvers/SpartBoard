@@ -173,6 +173,7 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
         <CollapsibleStimuli
           stimuli={resolveStimuli(currentQ.stimulusIds, session.stimuli)}
           light
+          cqScaled
         />
       )}
       {session.revealedAnswers?.[currentQ.id] && (
