@@ -2565,6 +2565,11 @@
     "titlePlaceholder": "Activité sans titre",
     "undo": "Annuler",
     "unsavedBody": "Vos dernières modifications n’ont pas pu être enregistrées. Si vous fermez maintenant, elles seront perdues.",
+    "uploadingTitle": "Une diapositive est encore en cours d'envoi",
+    "uploadingBody": "Si vous fermez maintenant, la diapositive en cours d'envoi ne sera pas ajoutée.",
+    "emptySetTitle": "Cet ensemble n'a pas encore de diapositive",
+    "emptySetBody": "Un ensemble doit contenir au moins une diapositive pour être enregistré. Si vous fermez maintenant, le titre et la description seront perdus.",
+    "discard": "Ignorer",
     "unsavedTitle": "Modifications non enregistrées",
     "emptyCanvas": "Ajoutez une diapositive pour commencer à placer des étapes.",
     "devices": {
@@ -3207,5 +3212,15 @@
     "noMisclicks": "Aucun clic manqué pour l’instant.",
     "seconds": "{{seconds}} s",
     "minutes": "{{minutes}} min {{seconds}} s"
+  },
+  "glStudent": {
+    "submitting": "Envoi…",
+    "submitFailed": "Impossible d'envoyer. Vos réponses sont toujours là.",
+    "retry": "Réessayer"
+  },
+  "glResults": {
+    "loadFailedTitle": "Impossible d'ouvrir ces résultats",
+    "loadFailedBody": "L'ensemble de ce devoir a été supprimé ou n'a pas pu être chargé.",
+    "backToLibrary": "Retour à la bibliothèque"
   }
 }

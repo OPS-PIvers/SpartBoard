@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import type { GuidedLearningSet } from '@/types';
+import type { GuidedLearningResponse, GuidedLearningSet } from '@/types';
 
 const getDocMock = vi.fn();
+let mockResponses: GuidedLearningResponse[] = [];
 const subscribeToResponses = vi.fn(() => () => undefined);
 const viewCountMock = vi.fn((..._args: unknown[]) => ({
   count: 7,
@@ -17,7 +18,7 @@ vi.mock('firebase/firestore', () => ({
 }));
 vi.mock('@/hooks/useGuidedLearningSession', () => ({
   useGuidedLearningSessionTeacher: () => ({
-    responses: [],
+    responses: mockResponses,
     responsesLoading: false,
     subscribeToResponses,
     exportResponsesAsCSV: () => '',
@@ -56,6 +57,7 @@ beforeEach(() => {
   getDocMock.mockReset();
   subscribeToResponses.mockClear();
   viewCountMock.mockClear();
+  mockResponses = [];
 });
 
 describe('GuidedLearningResults engagement gating', () => {
@@ -144,5 +146,29 @@ describe('GuidedLearningResults — who started the run', () => {
 
     expect(await screen.findByText(/No responses yet/)).toBeInTheDocument();
     expect(screen.queryByTestId('launched-by-sub')).not.toBeInTheDocument();
+  });
+});
+
+describe('GuidedLearningResults — saved but not submitted', () => {
+  it('lists a student whose answers are saved without a submit as In progress', async () => {
+    session({ classIds: [] });
+    const base = {
+      sessionId: 's1',
+      answers: [],
+      startedAt: 1,
+      score: null,
+    };
+    mockResponses = [
+      { ...base, studentAnonymousId: 'u1', pin: '11', completedAt: null },
+      { ...base, studentAnonymousId: 'u2', pin: '22', completedAt: 5 },
+    ];
+    render(
+      <GuidedLearningResults set={set} sessionId="s1" onClose={vi.fn()} />
+    );
+    const inProgress = await screen.findByText('In progress');
+    expect(inProgress.parentElement).toHaveTextContent('PIN: 11');
+    expect(screen.getByText('Completed').parentElement).toHaveTextContent(
+      'PIN: 22'
+    );
   });
 });

@@ -121,6 +121,9 @@ const Fixture: React.FC = () => {
     <div>
       <button {...tourTypeAttr('dock.item', 'dice')}>Dice</button>
       <button {...tourAttr('sidebar.boards')}>Boards</button>
+      <div hidden>
+        <input {...tourAttr('library.search')} aria-label="Search" />
+      </div>
       <button>Elsewhere</button>
       {widgets.map((w) => (
         <div key={w.id} {...tourAttr('widget.window', w.id)}>
@@ -155,7 +158,18 @@ const start = async (set: GuidedLearningSet) => {
 
 const progress = () => screen.getByText(/^\d+ \/ \d+$/).textContent;
 
+const scrollIntoView = vi.fn();
+
 beforeEach(() => {
+  // jsdom has no layout: anything under [hidden] is zero-size, the rest is a 40px box.
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+    function (this: HTMLElement) {
+      const size = this.closest('[hidden]') ? 0 : 40;
+      return new DOMRect(10, 10, size, size);
+    }
+  );
+  scrollIntoView.mockClear();
+  HTMLElement.prototype.scrollIntoView = scrollIntoView;
   h.loadBuildingSet.mockReset();
   vi.useFakeTimers();
   h.reset();
@@ -165,6 +179,8 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
 });
 
 // Adds step fields (text, cursor, imageIndex) to a set's tour steps, in order.
@@ -215,6 +231,43 @@ describe('LiveTourRunner', () => {
     fireEvent.click(screen.getByText('Settings w1'));
     await frames();
     expect(screen.getByText("Keep the tour's widgets?")).toBeInTheDocument();
+  });
+
+  it('tears down only the widget it added, not a same-type one added mid-tour', async () => {
+    await start(
+      makeSet([{ anchor: 'sidebar.boards', action: 'observe' }], ['dice'])
+    );
+    expect(h.board.widgets.map((w) => w.id)).toEqual(['w1']);
+    act(() => h.actions.addWidget('dice'));
+    await frames();
+    fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove them' }));
+    expect(h.actions.removeWidgets).toHaveBeenCalledWith(['w1']);
+    expect(h.board.widgets.map((w) => w.id)).toEqual(['w2']);
+  });
+
+  it('treats a hidden anchor as missing and shows the slide', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await start(
+      withSteps(
+        makeSet([{ anchor: 'library.search', action: 'click' }]),
+        [{ imageIndex: 0 }],
+        ['https://example.com/slide.png']
+      )
+    );
+    expect(screen.queryByTestId('tour-spotlight')).not.toBeInTheDocument();
+    await frames(ANCHOR_SEARCH_MS + 100);
+    await frames();
+    expect(screen.getByTestId('tour-mini-player')).toBeInTheDocument();
+    expect(screen.queryByTestId('tour-spotlight')).not.toBeInTheDocument();
+  });
+
+  it('scrolls the anchor into view once, when first found', async () => {
+    await start(makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]));
+    await frames();
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+    expect(scrollIntoView.mock.contexts[0]).toBe(screen.getByText('Boards'));
   });
 
   it('keeps the added widgets when asked', async () => {

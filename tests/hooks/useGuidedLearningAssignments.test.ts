@@ -295,6 +295,51 @@ describe('useGuidedLearningAssignments — publish / unpublish', () => {
     expect(blankCall[1]).toMatchObject({ score: 0, answers: [] });
   });
 
+  it('leaves answers saved without a submit ungraded', async () => {
+    const set = mcSet([mcStep('s0', 'a', ['a', 'b'])]);
+    const refDone = { id: 'r-done' };
+    const refWorking = { id: 'r-working' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          ref: refDone,
+          data: () => ({
+            studentAnonymousId: 'u1',
+            startedAt: 1,
+            completedAt: 2,
+            score: null,
+            answers: [{ stepId: 's0', answer: 'a', isCorrect: null }],
+          }),
+        },
+        {
+          ref: refWorking,
+          data: () => ({
+            studentAnonymousId: 'u2',
+            startedAt: 1,
+            completedAt: null,
+            score: null,
+            answers: [{ stepId: 's0', answer: 'a', isCorrect: null }],
+          }),
+        },
+      ],
+    });
+    const { result } = renderHook(() =>
+      useGuidedLearningAssignments(TEACHER_UID)
+    );
+    await act(async () => {
+      const outcome = await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        set,
+        'score-only'
+      );
+      expect(outcome).toEqual({ responsesUpdated: 1 });
+    });
+    expect(batchUpdate.mock.calls.some(([ref]) => ref === refDone)).toBe(true);
+    expect(batchUpdate.mock.calls.some(([ref]) => ref === refWorking)).toBe(
+      false
+    );
+  });
+
   it('populates revealedAnswers on score-responses-and-answers, formatting matching/sorting too', async () => {
     const matching: GuidedLearningQuestion = {
       type: 'matching',

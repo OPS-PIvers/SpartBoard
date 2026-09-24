@@ -109,6 +109,7 @@ export interface CreateAssignmentInput {
   dueAt?: number;
   /** Per-period gate mirrored from the session for the hub. */
   periodGate?: Pick<GuidedLearningSession, 'accessMode' | 'periodAccess'>;
+  answerKeys?: GuidedLearningAssignment['answerKeys'];
 }
 
 export interface UseGuidedLearningAssignmentsResult {
@@ -237,6 +238,9 @@ export const useGuidedLearningAssignments = (
         ...(input.openAt !== undefined ? { openAt: input.openAt } : {}),
         ...(input.closeAt !== undefined ? { closeAt: input.closeAt } : {}),
         ...(input.dueAt !== undefined ? { dueAt: input.dueAt } : {}),
+        ...(input.answerKeys && Object.keys(input.answerKeys).length > 0
+          ? { answerKeys: input.answerKeys }
+          : {}),
         ...(input.periodGate?.periodAccess
           ? {
               accessMode: input.periodGate.accessMode,
@@ -440,6 +444,8 @@ export const useGuidedLearningAssignments = (
       const updates: ResponseUpdate[] = [];
       for (const d of responseDocs) {
         const data = d.data() as GuidedLearningResponse;
+        // Answers saved mid-activity aren't a submission until completedAt is set.
+        if (typeof data.completedAt !== 'number') continue;
         const answers = Array.isArray(data.answers) ? data.answers : [];
         let correctCount = 0;
         // Track which stepIds have already contributed to the score so a

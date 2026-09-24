@@ -10,8 +10,9 @@
  *  5. Submit responses and show completion screen
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { signInAnonymously } from 'firebase/auth';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowRight,
   BookOpen,
@@ -46,6 +47,19 @@ import {
 } from './GuidedLearningPeriodLockedScreen';
 
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
+
+type ResponseAnswers = GuidedLearningResponse['answers'];
+
+/** Saved answers overlaid with this visit's, so a write never drops one. */
+// eslint-disable-next-line react-refresh/only-export-components
+export function mergeAnswers(
+  saved: ResponseAnswers,
+  local: ResponseAnswers
+): ResponseAnswers {
+  const localIds = new Set(local.map((a) => a.stepId));
+  return [...saved.filter((a) => !localIds.has(a.stepId)), ...local];
+}
+
 // Clearance above the Player's bottom nav footer (max 61px tall).
 const NAV_FOOTER_CLEARANCE_PX = 68;
 
@@ -155,6 +169,7 @@ const StudentExperience: React.FC<{
     contentPending = false,
     takeSeat,
   } = useGuidedLearningSessionStudent(sessionId, anonymousUid);
+  const { t } = useTranslation();
   const isViewOnly = session?.assignmentMode === 'view-only';
 
   // View tracking — log each pageview of a view-only Share link as an
@@ -175,10 +190,22 @@ const StudentExperience: React.FC<{
   }, [isViewOnly, sessionId, anonymousUid]);
 
   const [pin, setPin] = useState('');
+  // Phase 5A: post-PIN class-period picker. When the session has multiple
+  // periods configured, the student chooses one before the experience
+  // begins; the value is persisted on their response doc.
+  const [classPeriod, setClassPeriod] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [score, setScore] = useState<number | null>(null);
-  const [answers, setAnswers] = useState<GuidedLearningResponse['answers']>([]);
+  const [answers, setAnswers] = useState<ResponseAnswers>([]);
+  // Latest answers for queued writes; set in handlers and the response listener.
+  const answersRef = useRef<ResponseAnswers>([]);
+  // True once the response doc exists, so later writes update instead of create.
+  const responseCreatedRef = useRef(false);
+  const seededRef = useRef(false);
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
+  const [submitting, setSubmitting] = useState(false);
+  const [submitFailed, setSubmitFailed] = useState(false);
   // Realtime listener on /guided_learning_sessions/{id}/responses/{uid}
   // so a returning student gets their published score + per-step
   // `isCorrect` flags, and a teacher unpublish (which clears
@@ -221,9 +248,28 @@ const StudentExperience: React.FC<{
         // submission yet" path — not an error. Clearing `myResponseError`
         // here lets a transient listener failure self-heal once the
         // backend recovers.
-        setMyResponse(
-          snap.exists() ? (snap.data() as GuidedLearningResponse) : null
-        );
+        const data = snap.exists()
+          ? (snap.data() as GuidedLearningResponse)
+          : null;
+        if (data) responseCreatedRef.current = true;
+        // A reload mid-activity picks up the answers already saved.
+        if (
+          data &&
+          !seededRef.current &&
+          typeof data.completedAt !== 'number'
+        ) {
+          seededRef.current = true;
+          const merged = mergeAnswers(
+            Array.isArray(data.answers) ? data.answers : [],
+            answersRef.current
+          );
+          answersRef.current = merged;
+          setAnswers(merged);
+          if (data.pin) setPin((p) => p || (data.pin ?? ''));
+          if (data.classPeriod)
+            setClassPeriod((c) => c ?? data.classPeriod ?? null);
+        }
+        setMyResponse(data);
         setMyResponseError(null);
         setMyResponseLoading(false);
       },
@@ -247,10 +293,6 @@ const StudentExperience: React.FC<{
   // internal state (currentIdx, activeStepId, image index, etc.) fully
   // resets to a fresh experience without needing reload.
   const [replayKey, setReplayKey] = useState(0);
-  // Phase 5A: post-PIN class-period picker. When the session has multiple
-  // periods configured, the student chooses one before the experience
-  // begins; the value is persisted on their response doc.
-  const [classPeriod, setClassPeriod] = useState<string | null>(null);
   // M17 C3-gl: this student's accommodation override, read from their own
   // pointer doc (`/student_assignments/{auth.uid}/items/{sessionId}`) — never
   // a session-side map (spec §5 C3). Absent for class-wide (non-individually-
@@ -300,89 +342,83 @@ const StudentExperience: React.FC<{
   const [seatError, setSeatError] = useState<string | null>(null);
   const [seating, setSeating] = useState(false);
 
-  const handleAnswer = useCallback(
-    (stepId: string, answer: string | string[], isCorrect: boolean | null) => {
-      setAnswers((prev) => {
-        const existing = prev.find((a) => a.stepId === stepId);
-        if (existing)
-          return prev.map((a) =>
-            a.stepId === stepId ? { stepId, answer, isCorrect } : a
-          );
-        return [...prev, { stepId, answer, isCorrect }];
-      });
-    },
-    []
-  );
+  // Writes run one at a time, each carrying the latest answers.
+  const saveResponse = (completedAt: number | null): Promise<void> => {
+    const trimmedPin = pin.trim() || undefined;
+    const run = async () => {
+      const response: GuidedLearningResponse = {
+        sessionId,
+        studentAnonymousId: anonymousUid,
+        pin: trimmedPin,
+        answers: answersRef.current,
+        startedAt: startedAt.current,
+        completedAt,
+        score: null,
+        ...(classPeriod ? { classPeriod } : {}),
+        ...(periodKeys[0] ? { classId: periodKeys[0] } : {}),
+      };
+      if (responseCreatedRef.current) {
+        await submitResponse(response, { exists: true });
+      } else {
+        await submitResponse(response);
+      }
+      responseCreatedRef.current = true;
+    };
+    const write = saveChainRef.current.then(run);
+    saveChainRef.current = write.catch(() => undefined);
+    return write;
+  };
 
-  const handleComplete = useCallback(async () => {
-    if (!session) return;
+  const isPermissionDenied = (err: unknown) =>
+    (err as { code?: string } | null)?.code === 'permission-denied';
+
+  const handleAnswer = (
+    stepId: string,
+    answer: string | string[],
+    isCorrect: boolean | null
+  ) => {
+    const next = mergeAnswers(answersRef.current, [
+      { stepId, answer, isCorrect },
+    ]);
+    answersRef.current = next;
+    setAnswers(next);
+    if (isViewOnly || periodPaused) return;
+    saveResponse(null).catch((err: unknown) => {
+      // Unsaved answers still go out with the next write or the submit.
+      if (perPeriod && isPermissionDenied(err)) setFrozenGate(gateKey);
+      else logError('GuidedLearningStudentApp.saveAnswer', err, { sessionId });
+    });
+  };
+
+  const handleComplete = async () => {
+    if (!session || submitting) return;
     // In the student app the answer key is not available client-side.
     // Score is computed on the teacher/results side from raw answers + answer key.
-    const computedScore: number | null = null;
-
-    // Per-period: the rules refuse the write while the period is shut, so finish only once it lands.
-    if (perPeriod) {
-      if (periodPaused) return;
-      try {
-        await submitResponse({
-          sessionId,
-          studentAnonymousId: anonymousUid,
-          pin: pin.trim() || undefined,
-          answers,
-          startedAt: startedAt.current,
-          completedAt: Date.now(),
-          score: computedScore,
-          ...(classPeriod ? { classPeriod } : {}),
-          ...(periodKeys[0] ? { classId: periodKeys[0] } : {}),
-        });
-      } catch (err) {
-        if ((err as { code?: string }).code === 'permission-denied') {
-          setFrozenGate(gateKey);
-          return;
-        }
-        console.error('[GuidedLearningStudentApp] Submit error:', err);
-      }
-      setScore(computedScore);
+    // View-only shares never persist a response.
+    if (isViewOnly) {
+      setScore(null);
       setCompleted(true);
       return;
     }
-
-    setScore(computedScore);
-    setCompleted(true);
-
-    // View-only shares never persist a response — the Firestore rule rejects
-    // the write defense-in-depth, but skip it client-side too so the console
-    // stays clean.
-    if (isViewOnly) return;
-
-    const response: GuidedLearningResponse = {
-      sessionId,
-      studentAnonymousId: anonymousUid,
-      pin: pin.trim() || undefined,
-      answers,
-      startedAt: startedAt.current,
-      completedAt: Date.now(),
-      score: computedScore,
-      ...(classPeriod ? { classPeriod } : {}),
-    };
-
-    await submitResponse(response).catch((err) => {
-      console.error('[GuidedLearningStudentApp] Submit error:', err);
-    });
-  }, [
-    session,
-    answers,
-    pin,
-    anonymousUid,
-    sessionId,
-    submitResponse,
-    classPeriod,
-    isViewOnly,
-    perPeriod,
-    periodPaused,
-    periodKeys,
-    gateKey,
-  ]);
+    // Per-period: the rules refuse the write while the period is shut.
+    if (perPeriod && periodPaused) return;
+    setSubmitting(true);
+    setSubmitFailed(false);
+    try {
+      await saveResponse(Date.now());
+      setScore(null);
+      setCompleted(true);
+    } catch (err) {
+      if (perPeriod && isPermissionDenied(err)) {
+        setFrozenGate(gateKey);
+      } else {
+        logError('GuidedLearningStudentApp.submit', err, { sessionId });
+        setSubmitFailed(true);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const { onStepEvent } = useGuidedLearningProgress({
     sessionId,
@@ -442,13 +478,24 @@ const StudentExperience: React.FC<{
     );
   }
 
-  // Returning student case — a response already exists in Firestore. Show
+  // Until the first response snapshot lands, a save could not tell a create from an update.
+  if (!completed && shouldSubscribeResponse && myResponseLoading) {
+    return <FullPageLoader />;
+  }
+
+  // Returning student who submitted (completedAt set). Show
   // either the published review or a "wait for teacher" placeholder
   // rather than dropping them back onto the start screen (which would
   // imply they could submit again). `completed` short-circuits this
   // branch so the just-submitted screen still wins immediately after
   // `handleComplete` flips the local state.
-  if (!completed && !isViewOnly && !myResponseLoading && myResponse) {
+  if (
+    !completed &&
+    !isViewOnly &&
+    !myResponseLoading &&
+    myResponse &&
+    typeof myResponse.completedAt === 'number'
+  ) {
     const visibility = session.scoreVisibility ?? 'none';
     if (visibility !== 'none') {
       return (
@@ -482,6 +529,7 @@ const StudentExperience: React.FC<{
           // fresh state at step 0 / image 0. Keep `started` true so the
           // user goes straight to the player rather than back through
           // the start screen.
+          answersRef.current = [];
           setAnswers([]);
           setScore(null);
           setCompleted(false);
@@ -561,16 +609,16 @@ const StudentExperience: React.FC<{
             setForPlayer as Parameters<typeof GuidedLearningPlayer>[0]['set']
           }
           onAnswer={handleAnswer}
+          initialAnsweredStepIds={answers.map((a) => a.stepId)}
           teacherMode={false}
           timeMultiplier={timeMultiplier}
           playerV2={session.playerV2 === true}
           onStepEvent={onStepEvent}
         />
         {periodPaused && <GuidedLearningPeriodPausedOverlay />}
-        <button
-          onClick={handleComplete}
+        <div
           hidden={periodPaused}
-          className="absolute right-3 z-40 px-4 py-2 bg-emerald-600/95 hover:bg-emerald-500 text-white text-sm rounded-xl transition-colors font-medium shadow-xl border border-emerald-400/30 backdrop-blur-sm"
+          className="absolute right-3 z-40 flex flex-col items-end gap-2"
           style={{
             // Explore mode renders no nav footer, so only safe-area clearance is needed.
             bottom:
@@ -579,8 +627,27 @@ const StudentExperience: React.FC<{
                 : `calc(max(env(safe-area-inset-bottom, 0px), 0.75rem) + ${NAV_FOOTER_CLEARANCE_PX}px)`,
           }}
         >
-          I&apos;m Done
-        </button>
+          {submitFailed && !submitting && (
+            <p
+              role="alert"
+              className="flex items-center gap-1.5 rounded-lg bg-slate-900/95 border border-red-400/40 px-3 py-1.5 text-sm text-red-200 shadow-xl"
+            >
+              <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+              {t('glStudent.submitFailed')}
+            </p>
+          )}
+          <button
+            onClick={() => void handleComplete()}
+            disabled={submitting}
+            className="px-4 py-2 bg-emerald-600/95 hover:bg-emerald-500 disabled:opacity-70 text-white text-sm rounded-xl transition-colors font-medium shadow-xl border border-emerald-400/30 backdrop-blur-sm"
+          >
+            {submitting
+              ? t('glStudent.submitting')
+              : submitFailed
+                ? t('glStudent.retry')
+                : "I'm Done"}
+          </button>
+        </div>
       </div>
     </div>
   );

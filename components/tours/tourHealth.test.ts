@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet } from '@/types';
 import { anchorProblem, checkAnchorsLive, tourHealthOf } from './tourHealth';
 
@@ -42,6 +42,9 @@ describe('tourHealthOf', () => {
 
 describe('checkAnchorsLive', () => {
   it('reports which anchors resolve on the page', () => {
+    const rect = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockReturnValue(new DOMRect(0, 0, 40, 40));
     const root = document.createElement('div');
     root.innerHTML = '<button data-tour="sidebar.boards">Boards</button>';
     const live = checkAnchorsLive(
@@ -50,5 +53,6 @@ describe('checkAnchorsLive', () => {
     );
     expect(live.get('a')).toBe(true);
     expect(live.get('b')).toBe(false);
+    rect.mockRestore();
   });
 });

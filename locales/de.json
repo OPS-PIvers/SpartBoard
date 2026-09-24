@@ -2565,6 +2565,11 @@
     "titlePlaceholder": "Aktivität ohne Titel",
     "undo": "Rückgängig",
     "unsavedBody": "Deine letzten Änderungen konnten nicht gespeichert werden. Wenn du jetzt schließt, gehen sie verloren.",
+    "uploadingTitle": "Eine Folie wird noch hochgeladen",
+    "uploadingBody": "Wenn du jetzt schließt, wird die Folie, die gerade hochgeladen wird, nicht hinzugefügt.",
+    "emptySetTitle": "Dieses Set hat noch keine Folien",
+    "emptySetBody": "Ein Set braucht mindestens eine Folie, bevor es gespeichert werden kann. Wenn du jetzt schließt, gehen Titel und Beschreibung verloren.",
+    "discard": "Verwerfen",
     "unsavedTitle": "Änderungen nicht gespeichert",
     "emptyCanvas": "Füge eine Folie hinzu, um Schritte zu platzieren.",
     "devices": {
@@ -3207,5 +3212,15 @@
     "noMisclicks": "Noch keine Fehlklicks.",
     "seconds": "{{seconds}} s",
     "minutes": "{{minutes}} min {{seconds}} s"
+  },
+  "glStudent": {
+    "submitting": "Wird gesendet…",
+    "submitFailed": "Senden fehlgeschlagen. Deine Antworten sind noch da.",
+    "retry": "Erneut versuchen"
+  },
+  "glResults": {
+    "loadFailedTitle": "Diese Ergebnisse konnten nicht geöffnet werden",
+    "loadFailedBody": "Das Set dieser Aufgabe wurde gelöscht oder konnte nicht geladen werden.",
+    "backToLibrary": "Zurück zur Bibliothek"
   }
 }

@@ -107,19 +107,47 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
     onSave: persistDraft,
   });
 
-  const flushOrConfirm = useCallback(async (): Promise<boolean> => {
-    if (await autosave.flush()) return true;
-    return showConfirm(t('glStudio.unsavedBody'), {
-      title: t('glStudio.unsavedTitle'),
-      variant: 'warning',
-      confirmLabel: t('glStudio.closeAnyway'),
-      cancelLabel: t('glStudio.keepEditing'),
-    });
-  }, [autosave, showConfirm, t]);
+  const flushOrConfirm = useCallback(
+    async (force = false): Promise<boolean> => {
+      if (await autosave.flush({ force })) return true;
+      return showConfirm(t('glStudio.unsavedBody'), {
+        title: t('glStudio.unsavedTitle'),
+        variant: 'warning',
+        confirmLabel: t('glStudio.closeAnyway'),
+        cancelLabel: t('glStudio.keepEditing'),
+      });
+    },
+    [autosave, showConfirm, t]
+  );
 
   const requestClose = useCallback(async () => {
+    const { uploading, imageUrls, title, description, abandonUploads } =
+      editorState;
+    if (uploading) {
+      const closeAnyway = await showConfirm(t('glStudio.uploadingBody'), {
+        title: t('glStudio.uploadingTitle'),
+        variant: 'warning',
+        confirmLabel: t('glStudio.closeAnyway'),
+        cancelLabel: t('glStudio.keepEditing'),
+      });
+      if (!closeAnyway) return;
+      abandonUploads();
+      if (imageUrls.length > 0 && !(await flushOrConfirm(true))) return;
+      closeEditor();
+      return;
+    }
+    if (imageUrls.length === 0 && (title.trim() || description.trim())) {
+      const discard = await showConfirm(t('glStudio.emptySetBody'), {
+        title: t('glStudio.emptySetTitle'),
+        variant: 'warning',
+        confirmLabel: t('glStudio.discard'),
+        cancelLabel: t('glStudio.keepEditing'),
+      });
+      if (discard) closeEditor();
+      return;
+    }
     if (await flushOrConfirm()) closeEditor();
-  }, [flushOrConfirm, closeEditor]);
+  }, [editorState, showConfirm, t, flushOrConfirm, closeEditor]);
 
   // The runner loads the saved set, so an unsaved draft never starts.
   const runLive = useCallback(async () => {

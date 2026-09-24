@@ -278,7 +278,6 @@ export function useSetDraftPersistence({
   // and an unmeasurable set stays legacy on save.
   const {
     steps: draftSteps,
-    setSteps,
     imageUrls,
     imageKinds,
     canvasMeasurementsRef,
@@ -339,9 +338,10 @@ export function useSetDraftPersistence({
         measurements
       );
       if (!convertedDraft || !convertedOriginal) return;
-      setSteps(convertedDraft);
       setOriginalSteps(convertedOriginal);
-      markSpotlightRadiiV2();
+      markSpotlightRadiiV2((steps) =>
+        convertLegacySpotlightRadii(steps, measurements)
+      );
     })();
     return () => {
       cancelled = true;
@@ -356,7 +356,6 @@ export function useSetDraftPersistence({
     imageUrls,
     imageKinds,
     canvasMeasurementsRef,
-    setSteps,
     markSpotlightRadiiV2,
   ]);
 
@@ -408,7 +407,23 @@ export function useSetDraftPersistence({
         ? GL_SET_SCHEMA_VERSION
         : set.schemaVersion;
     const now = Date.now();
+    // Editor-owned optional fields are dropped here and re-added below only when set.
+    const {
+      schemaVersion: _schemaVersion,
+      description: _description,
+      imageKinds: _imageKinds,
+      videoTrims: _videoTrims,
+      hotspotPulse: _hotspotPulse,
+      imageTransition: _imageTransition,
+      welcomeEnabled: _welcomeEnabled,
+      welcomeMessage: _welcomeMessage,
+      watchPace: _watchPace,
+      hasLiveTour: _hasLiveTour,
+      ...carried
+    } = set;
     return {
+      // Carries imagePaths, tourSetup, helpCenter and fields a newer client added.
+      ...carried,
       id: set.id,
       ...(schemaVersion !== undefined ? { schemaVersion } : {}),
       title: editorState.title.trim(),
@@ -426,11 +441,7 @@ export function useSetDraftPersistence({
         : {}),
       steps,
       mode: editorState.mode,
-      createdAt: set.createdAt,
       updatedAt: now,
-      isBuilding: set.isBuilding,
-      ...(set.helpCenter ? { helpCenter: true } : {}),
-      authorUid: set.authorUid,
       // Only persist a hotspotPulse value when it differs from the default
       // ('consistent') — keeps untouched legacy sets clean of new fields.
       ...(editorState.hotspotPulse !== 'consistent'
@@ -450,8 +461,6 @@ export function useSetDraftPersistence({
           }
         : {}),
       ...(editorState.watchPace ? { watchPace: editorState.watchPace } : {}),
-      // The classic editor has no tour controls, so tour setup rides through.
-      ...(set.tourSetup ? { tourSetup: set.tourSetup } : {}),
       // Launch points read this instead of loading every step.
       ...(set.isBuilding ? { hasLiveTour: steps.some((s) => !!s.tour) } : {}),
     };

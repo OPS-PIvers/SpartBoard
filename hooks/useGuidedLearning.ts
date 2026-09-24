@@ -5,9 +5,10 @@
  * - Admin building sets: full data in Firestore /building_guided_learning
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   onSnapshot,
@@ -89,6 +90,8 @@ export const useGuidedLearning = (
   const [buildingLoading, setBuildingLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [prevUserId, setPrevUserId] = useState(userId);
+  // Latest metadata snapshot, read by saveSet to return folderId and order.
+  const setsRef = useRef<GuidedLearningSetMetadata[]>([]);
 
   // Adjusting-state-while-rendering: synchronously reset on userId transitions.
   if (prevUserId !== userId) {
@@ -116,6 +119,7 @@ export const useGuidedLearning = (
         const list: GuidedLearningSetMetadata[] = snap.docs.map(
           (d) => d.data() as GuidedLearningSetMetadata
         );
+        setsRef.current = list;
         setSets(list);
         setLoading(false);
       },
@@ -154,18 +158,23 @@ export const useGuidedLearning = (
     return unsub;
   }, []);
 
-  const getDriveService = useCallback((): GuidedLearningDriveLike => {
+  // One service per token, so its folder cache survives across saves.
+  const driveService = useMemo((): GuidedLearningDriveLike | null => {
     if (isAuthBypass) {
-      if (!userId) throw new Error('Not authenticated');
-      return new MockGuidedLearningDriveService(userId);
+      return userId ? new MockGuidedLearningDriveService(userId) : null;
     }
-    if (!googleAccessToken) {
-      throw new Error(
-        'Not connected to Google Drive. Please sign in again to grant access.'
-      );
-    }
-    return new GuidedLearningDriveService(googleAccessToken);
+    return googleAccessToken
+      ? new GuidedLearningDriveService(googleAccessToken)
+      : null;
   }, [googleAccessToken, userId]);
+
+  const getDriveService = useCallback((): GuidedLearningDriveLike => {
+    if (driveService) return driveService;
+    if (isAuthBypass) throw new Error('Not authenticated');
+    throw new Error(
+      'Not connected to Google Drive. Please sign in again to grant access.'
+    );
+  }, [driveService]);
 
   const saveSet = useCallback(
     async (
@@ -196,9 +205,25 @@ export const useGuidedLearning = (
       const imagePaths = (updatedSet.imagePaths ?? []).filter(Boolean);
       if (imagePaths.length > 0) metadata.imagePaths = imagePaths;
 
-      await setDoc(doc(db, 'users', userId, GL_COLLECTION, set.id), metadata);
+      // Merge keeps library-owned fields (folderId, order) the editor never sees.
+      await setDoc(
+        doc(db, 'users', userId, GL_COLLECTION, set.id),
+        {
+          ...metadata,
+          description: metadata.description ?? deleteField(),
+          imagePaths: metadata.imagePaths ?? deleteField(),
+        },
+        { merge: true }
+      );
 
-      return metadata;
+      const existing = setsRef.current.find((m) => m.id === set.id);
+      return {
+        ...metadata,
+        ...(existing?.folderId !== undefined
+          ? { folderId: existing.folderId }
+          : {}),
+        ...(existing?.order !== undefined ? { order: existing.order } : {}),
+      };
     },
     [userId, getDriveService]
   );

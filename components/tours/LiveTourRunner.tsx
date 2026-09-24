@@ -45,11 +45,13 @@ import {
   type TourStartRequest,
 } from './tourState';
 import {
-  addedWidgetIds,
+  claimTourWidgets,
   hasStepSlide,
   missingSetupWidgets,
   tourStepsOf,
+  tourWidgetIds,
   type TourStep,
+  type TourWidgetClaims,
 } from './tourSession';
 import { useAnchorElement } from './useAnchorElement';
 import { TourSpotlight } from './TourSpotlight';
@@ -66,6 +68,8 @@ interface ActiveTour {
   index: number;
   beforeIds: ReadonlySet<string>;
   addedTypes: WidgetType[];
+  /** The exact widgets the tour added; teardown removes only these. */
+  claims: TourWidgetClaims;
 }
 
 interface Point {
@@ -111,9 +115,16 @@ export const LiveTourRunner: React.FC = () => {
   latest.current = { dashboard, canAccessFeature, t };
 
   const widgets = activeDashboard?.widgets ?? [];
-  const added = tour
-    ? addedWidgetIds(widgets, tour.beforeIds, tour.addedTypes)
-    : [];
+  if (tour) {
+    const claims = claimTourWidgets(
+      widgets,
+      tour.beforeIds,
+      tour.addedTypes,
+      tour.claims
+    );
+    if (claims !== tour.claims) setTour({ ...tour, claims });
+  }
+  const added = tour ? tourWidgetIds(widgets, tour.claims) : [];
   const step =
     tour?.phase === 'running' ? (tour.steps[tour.index] ?? null) : null;
   const anchor = useAnchorElement(
@@ -138,6 +149,7 @@ export const LiveTourRunner: React.FC = () => {
       index: Math.min(Math.max(from, 0), steps.length - 1),
       beforeIds,
       addedTypes: missing,
+      claims: {},
     });
   };
 
@@ -169,6 +181,7 @@ export const LiveTourRunner: React.FC = () => {
               index: req.fromStep ?? 0,
               beforeIds: new Set(),
               addedTypes: [],
+              claims: {},
             });
             return;
           }

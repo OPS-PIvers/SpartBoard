@@ -63,7 +63,11 @@ export type EditorHistoryAction =
   | { type: 'beginGesture' }
   | { type: 'endGesture' }
   | { type: 'queueMedia'; ref: MediaDeletionRef }
-  | { type: 'clearHistory' }
+  | {
+      type: 'rebase';
+      /** Rewrites every document in history without adding an entry; null drops that entry and older ones. */
+      convert: (doc: EditorDocument) => EditorDocument | null;
+    }
   | { type: 'reset'; doc: EditorDocument };
 
 function kindsForSet(set: GuidedLearningSet | null): GuidedLearningMediaKind[] {
@@ -197,17 +201,39 @@ export function editorHistoryReducer(
         ],
       };
     }
-    case 'clearHistory':
+    case 'rebase': {
+      const present = action.convert(state.present);
+      if (!present) return state;
+      const past: HistoryEntry[] = [];
+      let dropped: HistoryEntry[] = [];
+      for (let i = state.past.length - 1; i >= 0; i--) {
+        const doc = action.convert(state.past[i].doc);
+        if (!doc) {
+          dropped = state.past.slice(0, i + 1);
+          break;
+        }
+        past.unshift({ ...state.past[i], doc });
+      }
+      const future: HistoryEntry[] = [];
+      for (const entry of state.future) {
+        const doc = action.convert(entry.doc);
+        if (!doc) break;
+        future.push({ ...entry, doc });
+      }
       return {
         ...state,
-        past: [],
-        future: [],
+        past,
+        present,
+        future,
         retiredMedia: [
           ...state.retiredMedia,
-          ...state.past.flatMap((e) => e.media),
+          ...dropped.flatMap((e) => e.media),
         ],
-        lastCoalesce: null,
+        gestureBase: state.gestureBase
+          ? (action.convert(state.gestureBase) ?? present)
+          : null,
       };
+    }
     case 'reset':
       return initialHistory(action.doc);
   }

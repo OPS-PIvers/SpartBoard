@@ -200,10 +200,13 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
         );
         if (cancelled) return;
         // Flashcards: a Study is never completed; a Check is once graded.
+        // Guided learning saves answers as the student goes; completedAt marks the submit.
         const done =
           assignment.kind === 'flashcards'
             ? snap.exists() && typeof snap.data()?.submittedAt === 'number'
-            : snap.exists();
+            : assignment.kind === 'guided-learning'
+              ? snap.exists() && typeof snap.data()?.completedAt === 'number'
+              : snap.exists();
         const next: CompletionState = done ? 'completed' : 'not-completed';
         setCompletion(next);
         // Quiz-only: surface the teacher-controlled lockout flag so the row
