@@ -8,7 +8,8 @@
 
 import { readDocx } from './docxReader';
 import { parseQuestionLines } from './parseQuestions';
-import { applyAnswerKey, findAnswerKey } from './answerKey';
+import { findAnswerKey } from './answerKey';
+import { mergeAnswerKey } from './mergeKey';
 import { UNREADABLE_FILE, documentKind, titleFromFileName } from './fileKind';
 import { assertWithinByteLimit } from './limits';
 import type {
@@ -17,6 +18,7 @@ import type {
   ExtractedOption,
   ExtractedQuestion,
   ExtractedQuiz,
+  QuestionRef,
   ReaderOptions,
 } from './types';
 import {
@@ -32,6 +34,10 @@ export interface AiExtractedQuiz {
   title: string;
   questions: {
     number: number;
+    /** The section heading as printed (R29); absent from an older function. */
+    section?: string;
+    /** The number as printed, e.g. "3" or "5A" (R29). */
+    label?: string;
     text: string;
     type: QuizQuestionType;
     options: { letter: string; text: string }[];
@@ -96,7 +102,7 @@ function toExtractedQuestion(
       ? raw.type
       : 'free-response';
   return {
-    number: Number.isInteger(raw.number) ? raw.number : index + 1,
+    number: index + 1,
     text: typeof raw.text === 'string' ? raw.text : '',
     type,
     options:
@@ -108,6 +114,50 @@ function toExtractedQuestion(
   };
 }
 
+const PRINTED_LABEL = /^(\d{1,3})\s*([A-Da-d])?$/;
+
+/**
+ * Printed numbers from the AI's `section` and `label` (R29). Every question
+ * needs a readable label, or none gets a ref and matching falls back to
+ * position, which is also how an older function's answer reads.
+ */
+export function withPrintedRefs(
+  questions: readonly ExtractedQuestion[],
+  raws: readonly AiExtractedQuiz['questions'][number][]
+): ExtractedQuestion[] {
+  const labels = raws.map((r) =>
+    PRINTED_LABEL.exec(typeof r.label === 'string' ? r.label.trim() : '')
+  );
+  if (labels.some((m) => !m)) return [...questions];
+  const sectionNames: string[] = [];
+  const refs: QuestionRef[] = raws.map((raw, i) => {
+    const name = typeof raw.section === 'string' ? raw.section.trim() : '';
+    if (!sectionNames.includes(name)) sectionNames.push(name);
+    const printed = /\d{1,2}/.exec(name);
+    const m = labels[i] as RegExpExecArray;
+    return {
+      section: sectionNames.indexOf(name) + 1,
+      ...(name ? { sectionName: name } : {}),
+      ...(printed ? { sectionNumber: Number(printed[0]) } : {}),
+      item: Number(m[1]),
+      ...(m[2] ? { part: m[2].toUpperCase() } : {}),
+    };
+  });
+  const keys = refs.map((r) => `${r.item}${r.part ?? ''}`);
+  const restarted = new Set(keys).size !== keys.length;
+  return questions.map((q, i) => {
+    const r = refs[i];
+    const label = restarted
+      ? `${r.sectionNumber ?? r.section}·${keys[i]}`
+      : keys[i];
+    return {
+      ...q,
+      ref: r,
+      ...(label !== String(q.number) ? { sourceLabel: label } : {}),
+    };
+  });
+}
+
 export function aiQuizToExtracted(
   ai: AiExtractedQuiz,
   fallbackTitle: string,
@@ -117,7 +167,10 @@ export function aiQuizToExtracted(
   const multi = options.multiAnswer === true;
   return {
     title: (ai.title || '').trim() || fallbackTitle,
-    questions: questions.map((q, i) => toExtractedQuestion(q, i, multi)),
+    questions: withPrintedRefs(
+      questions.map((q, i) => toExtractedQuestion(q, i, multi)),
+      questions
+    ),
     images: [],
     warnings: Array.isArray(ai.warnings) ? ai.warnings.filter(Boolean) : [],
   };
@@ -134,9 +187,17 @@ export function graftDocxImages(
   anchored: readonly ExtractedQuestion[],
   images: readonly ExtractedImage[]
 ): ExtractedQuiz {
-  const byNumber = new Map(anchored.map((q) => [q.number, q.imageIds]));
+  // When one reader skipped a question, printed refs line the two up instead.
+  const refKey = (q: ExtractedQuestion): string | number =>
+    q.ref ? `${q.ref.section}:${q.ref.item}${q.ref.part ?? ''}` : q.number;
+  const useRefs =
+    quiz.questions.length !== anchored.length &&
+    quiz.questions.every((q) => q.ref) &&
+    anchored.every((q) => q.ref);
+  const keyOf = (q: ExtractedQuestion) => (useRefs ? refKey(q) : q.number);
+  const byNumber = new Map(anchored.map((q) => [keyOf(q), q.imageIds]));
   const questions = quiz.questions.map((q) => {
-    const imageIds = byNumber.get(q.number);
+    const imageIds = byNumber.get(keyOf(q));
     return imageIds && imageIds.length > 0
       ? { ...q, imageIds: [...imageIds] }
       : q;
@@ -227,9 +288,9 @@ function withDocumentKey(
   lines: readonly DocLine[],
   reader: ReaderOptions
 ): ExtractedQuiz {
-  return applyAnswerKey(
+  return mergeAnswerKey(
     quiz,
-    findAnswerKey(lines, reader).answerByNumber,
+    findAnswerKey(lines, reader).items,
     'document',
     reader
   );

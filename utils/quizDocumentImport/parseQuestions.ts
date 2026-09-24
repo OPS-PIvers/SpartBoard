@@ -18,6 +18,7 @@ import {
   findAnswerKey,
   isHeading,
 } from './answerKey';
+import { mergeAnswerKey } from './mergeKey';
 import {
   SELECT_ALL_WORDING,
   lineSegments,
@@ -257,7 +258,8 @@ function finish(
   draft: Draft,
   position: number,
   label: string,
-  keyAnswer: string | undefined,
+  /** The document's key has an entry for this item, so markings don't decide. */
+  keyed: boolean,
   multi: boolean
 ): ExtractedQuestion {
   const warnings: string[] = [];
@@ -303,7 +305,7 @@ function finish(
     const marked = sortedOptions.filter((o) => o.marked);
     if (marked.length === 1) {
       correctAnswer = marked[0].text;
-    } else if (marked.length > 1 && !keyAnswer && !draft.inlineAnswer) {
+    } else if (marked.length > 1 && !keyed && !draft.inlineAnswer) {
       warnings.push(
         'More than one answer choice is marked, so the answer was left blank.'
       );
@@ -315,7 +317,7 @@ function finish(
     const marked = sortedOptions.filter((o) => o.marked);
     if (marked.length > 0 && marked.length < sortedOptions.length) {
       correctAnswer = multiAnswerKey(marked.map((o) => o.text));
-    } else if (marked.length > 0 && !keyAnswer && !draft.inlineAnswer) {
+    } else if (marked.length > 0 && !keyed && !draft.inlineAnswer) {
       warnings.push(
         'Every answer choice is marked, so the answers were left blank.'
       );
@@ -330,6 +332,7 @@ function finish(
   const ref: QuestionRef = {
     section: draft.section.ordinal,
     ...(draft.section.name ? { sectionName: draft.section.name } : {}),
+    ...(draft.section.printed ? { sectionNumber: draft.section.printed } : {}),
     item: draft.item,
     ...(draft.part ? { part: draft.part } : {}),
   };
@@ -353,18 +356,23 @@ function finish(
         }
       : {}),
   };
-  // The key at the back wins over an answer printed under the question.
-  const answer = keyAnswer ?? draft.inlineAnswer;
-  const keyed =
-    answer && type !== 'Ordering'
-      ? applyKeyAnswer(question, answer, 'document', multi)
-      : question;
-  if (keyed.type !== 'free-response' || SORTING.test(stem)) return keyed;
+  // The key at the back is merged afterwards and wins over this.
+  return draft.inlineAnswer && type !== 'Ordering'
+    ? applyKeyAnswer(question, draft.inlineAnswer, 'document', multi)
+    : question;
+}
+
+/** A written question the reader expected choices on says so, after any key has had its say. */
+function noteMissingChoices(
+  question: ExtractedQuestion,
+  sorting: boolean
+): ExtractedQuestion {
+  if (question.type !== 'free-response' || sorting) return question;
   return {
-    ...keyed,
+    ...question,
     warnings: [
       'No answer choices were found, so this came in as a written-response question.',
-      ...keyed.warnings,
+      ...question.warnings,
     ],
   };
 }
@@ -449,10 +457,15 @@ function isWrapOf(option: DocLine, previous: DocLine, line: DocLine): boolean {
 export function parseDocument(
   documentLines: readonly DocLine[],
   options: ReaderOptions = {}
-): { questions: ExtractedQuestion[]; texts: ExtractedText[] } {
+): {
+  questions: ExtractedQuestion[];
+  texts: ExtractedText[];
+  /** Notes about the whole document, such as key entries with no question. */
+  warnings: string[];
+} {
   const multi = options.multiAnswer === true;
   const lines = splitAtColumnMarkers(documentLines);
-  const { answerByNumber, keyLineIndexes } = findAnswerKey(lines, options);
+  const { keyLineIndexes, items: keyItems } = findAnswerKey(lines, options);
 
   const drafts: Draft[] = [];
   const texts: ExtractedText[] = [];
@@ -792,23 +805,25 @@ export function parseDocument(
     return `${d.section.printed ?? d.section.ordinal}·${item}`;
   };
 
-  // A key keyed by bare number fits only an item printed once (1c matches by section).
-  const itemCounts = new Map<number, number>();
-  for (const d of drafts) {
-    itemCounts.set(d.item, (itemCounts.get(d.item) ?? 0) + 1);
-  }
-
-  const questions = drafts.map((d, i) =>
-    finish(
-      d,
-      i + 1,
-      labelOf(d),
-      itemCounts.get(d.item) === 1 ? answerByNumber.get(d.item) : undefined,
-      multi
-    )
+  const keyedItems = new Set(keyItems.map((k) => k.item));
+  const finished = drafts.map((d, i) =>
+    finish(d, i + 1, labelOf(d), keyedItems.has(d.item), multi)
+  );
+  const merged = mergeAnswerKey(
+    { title: '', questions: finished, images: [], warnings: [] },
+    keyItems,
+    'document',
+    options
+  );
+  const questions = merged.questions.map((q, i) =>
+    noteMissingChoices(q, SORTING.test(tidy(drafts[i].textParts.join(' '))))
   );
   const used = new Set(questions.map((q) => q.sharedTextId).filter(Boolean));
-  return { questions, texts: texts.filter((t) => used.has(t.id)) };
+  return {
+    questions,
+    texts: texts.filter((t) => used.has(t.id)),
+    warnings: merged.warnings,
+  };
 }
 
 /** The questions alone, for callers that don't carry shared text. */

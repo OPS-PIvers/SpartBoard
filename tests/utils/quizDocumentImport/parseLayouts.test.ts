@@ -132,6 +132,7 @@ b. Two`);
     expect(questions[4].ref).toEqual({
       section: 2,
       sectionName: 'Section 2',
+      sectionNumber: 2,
       item: 3,
     });
     // Section 2's first question is not appended to section 1's last option.

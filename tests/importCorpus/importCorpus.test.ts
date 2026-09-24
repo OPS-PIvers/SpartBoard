@@ -61,7 +61,7 @@ async function countsFor(name: string, bytes: Buffer): Promise<Counts> {
       fileName: name,
       ...(pdf ? { pdf } : {}),
     });
-    return { kind: 'key', keyEntries: key.size };
+    return { kind: 'key', keyEntries: key.length };
   }
   const quiz = await readQuizDocument(file, {
     fileName: name,

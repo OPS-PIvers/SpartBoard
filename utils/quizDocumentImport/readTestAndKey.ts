@@ -3,7 +3,7 @@
  * screen that has the two drop zones (docs/plans/QUIZ_IMPORT_RELIABILITY.md R14).
  */
 
-import { applyAnswerKey, readAnswerKeyFile } from './index';
+import { mergeAnswerKey, readAnswerKeyFile } from './index';
 import { documentKind } from './fileKind';
 import { assertWithinByteLimit } from './limits';
 import { browserPdfDeps } from './pdfBrowserDeps';
@@ -12,7 +12,7 @@ import {
   readTestDocument,
   type ReadTestDocumentOptions,
 } from './readTestDocument';
-import type { ExtractedQuiz } from './types';
+import type { ExtractedQuiz, KeyItem } from './types';
 import type { UploadedDocument } from './uploadIntake';
 
 export const KEY_FILE_UNREADABLE =
@@ -24,7 +24,7 @@ const allPages = (doc: UploadedDocument): Blob[] => doc.pages ?? [doc.file];
 export async function readKeyDocument(
   key: UploadedDocument,
   multiAnswer = false
-): Promise<Map<number, string>> {
+): Promise<KeyItem[]> {
   const kind = documentKind(key.file, key.fileName);
   return readAnswerKeyFile(key.file, {
     fileName: key.fileName,
@@ -41,7 +41,7 @@ async function withAnswerKey(
   multiAnswer: boolean
 ): Promise<ExtractedQuiz> {
   try {
-    return applyAnswerKey(
+    return mergeAnswerKey(
       quiz,
       await readKeyDocument(key, multiAnswer),
       'file',

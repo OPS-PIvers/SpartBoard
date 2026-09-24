@@ -39,9 +39,17 @@ export { findAnswerKey } from './answerKey';
 export {
   keyFromLines,
   applyAnswerKey,
+  mergeAnswerKey,
   readAnswerKeyFile,
   type ReadKeyFileOptions,
 } from './keyFile';
+export { keyItemLabel } from './mergeKey';
+export { readKeyItems } from './keyForms';
+export {
+  fillSavedQuizKey,
+  type SavedKeyFill,
+  type SavedKeySkip,
+} from './savedQuizKey';
 export { readDocx } from './docxReader';
 export { readRtf, parseRtf } from './rtfReader';
 export { readCartridge } from './cartridgeReader';
@@ -136,7 +144,12 @@ export async function readQuizDocument(
     warnings.push(
       'Pictures in a rich text file aren’t brought in — add them to the questions that need them in the editor.'
     );
-    const { questions, texts } = parseDocument(lines, reader);
+    const {
+      questions,
+      texts,
+      warnings: keyWarnings,
+    } = parseDocument(lines, reader);
+    warnings.push(...keyWarnings);
     return {
       title: titleFromFileName(fileName),
       questions,
@@ -148,7 +161,12 @@ export async function readQuizDocument(
 
   if (kind === 'docx') {
     const { lines, images } = await readDocx(file);
-    const { questions, texts } = parseDocument(lines, reader);
+    const {
+      questions,
+      texts,
+      warnings: keyWarnings,
+    } = parseDocument(lines, reader);
+    warnings.push(...keyWarnings);
     const used = new Set(questions.flatMap((q) => q.imageIds));
     return {
       title: titleFromFileName(fileName),
@@ -204,7 +222,12 @@ export async function readQuizDocument(
     );
   }
 
-  const { questions, texts } = parseDocument(lines, reader);
+  const {
+    questions,
+    texts,
+    warnings: keyWarnings,
+  } = parseDocument(lines, reader);
+  warnings.push(...keyWarnings);
   const withTexts = texts.length > 0 ? { texts } : {};
   if (!options.pdfCropper) {
     // D15: without a cropper the browser reader leaves a PDF's pictures behind.
