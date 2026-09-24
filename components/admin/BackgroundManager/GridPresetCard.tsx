@@ -91,6 +91,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
             activeColor="bg-green-500"
             showLabels={false}
             variant="transparent"
+            label={`${preset.label} active`}
           />
         </div>
       </div>

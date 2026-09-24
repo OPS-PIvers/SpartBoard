@@ -1200,6 +1200,7 @@ export const GlobalPermissionsManager: React.FC = () => {
                           })
                         }
                         size="sm"
+                        label={`${feature.label} enabled`}
                       />
                     </div>
 
@@ -1248,6 +1249,7 @@ export const GlobalPermissionsManager: React.FC = () => {
                               })
                             }
                             size="xs"
+                            label={`${feature.label} daily limit`}
                           />
                         </div>
 
@@ -1442,6 +1444,7 @@ export const GlobalPermissionsManager: React.FC = () => {
                       })
                     }
                     size="md"
+                    label={`${feature.label} enabled`}
                   />
                 </div>
 
@@ -1548,6 +1551,7 @@ export const GlobalPermissionsManager: React.FC = () => {
                             (permission.config?.dailyLimitEnabled as boolean) ??
                             true
                           }
+                          label={`${feature.label} daily limit`}
                           onChange={(checked) =>
                             updatePermission(feature.id, {
                               config: {
