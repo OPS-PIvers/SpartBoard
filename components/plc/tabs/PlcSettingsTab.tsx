@@ -22,6 +22,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { PlcTrashBody } from '@/components/plc/settings/PlcTrashBody';
 import { PlcMeetingCadenceSection } from '@/components/plc/settings/PlcMeetingCadenceSection';
+import { PlcNormingLevelsSection } from '@/components/plc/norming/PlcNormingLevelsSection';
 
 interface PlcSettingsTabProps {
   plc: Plc;
@@ -245,6 +246,10 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
 
       {canAccessFeature('plc-home-v2') && (
         <PlcMeetingCadenceSection plc={plc} />
+      )}
+
+      {canAccessFeature('plc-norming-flags') && (
+        <PlcNormingLevelsSection plc={plc} />
       )}
 
       {/* Notifications — opt-in weekly email digest (Decision 2.3). Any

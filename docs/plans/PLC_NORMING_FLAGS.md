@@ -165,3 +165,10 @@ closed update branch, a new Storage path. The previous client never writes any o
     `deleteFiles({ prefix })`. The membership trigger is idempotent.
 13. Media slots: the callable takes `slot: 'primary' | 'addendum'` (default primary), included in
     `sourceId`.
+
+## Rollout slices
+
+1. #3396: server, rules and indexes, the grader flag (mounted in `QuizResults` via the grader's
+   `renderNormingFlag` prop) and the "Norming levels" card in PLC settings.
+2. Follow-up: mount `PlcNormingSection` in `PlcAssessmentDetail.tsx` once the A5 per-teacher removal
+   lands there.

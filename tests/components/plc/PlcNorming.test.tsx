@@ -14,6 +14,19 @@ vi.mock('@/hooks/usePlcNorming', () => ({
   usePlcNormingCopies: () => copiesState,
 }));
 vi.mock('@/config/firebase', () => ({ storage: {} }));
+const { authState, updatePlcNormingLabels } = vi.hoisted(() => ({
+  authState: { uid: 'lead' },
+  updatePlcNormingLabels: vi.fn(() => Promise.resolve()),
+}));
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ user: { uid: authState.uid } }),
+}));
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({ addToast: vi.fn() }),
+}));
+vi.mock('@/hooks/usePlcs', () => ({
+  usePlcs: () => ({ updatePlcNormingLabels }),
+}));
 vi.mock('firebase/storage', () => ({
   getBlob,
   ref: (_s: unknown, p: string) => p,
@@ -21,6 +34,8 @@ vi.mock('firebase/storage', () => ({
 
 import { PlcNormingFlagControl } from '@/components/plc/norming/PlcNormingFlagControl';
 import { PlcNormingSection } from '@/components/plc/norming/PlcNormingSection';
+import { PlcNormingLevelsSection } from '@/components/plc/norming/PlcNormingLevelsSection';
+import type { Plc } from '@/types';
 
 const base = {
   sessionId: 's1',
@@ -140,5 +155,45 @@ describe('PlcNormingSection', () => {
     copiesState.copies = [];
     render(<PlcNormingSection plcId="p1" assessmentId="a1" currentUid="me" />);
     expect(screen.getByText(/Nothing flagged yet/)).toBeInTheDocument();
+  });
+});
+
+describe('PlcNormingLevelsSection', () => {
+  const plc = {
+    id: 'p1',
+    leadUid: 'lead',
+    memberUids: ['lead', 'member'],
+    members: {
+      lead: { uid: 'lead', role: 'lead', status: 'active' },
+      member: { uid: 'member', role: 'member', status: 'active' },
+    },
+    normingLevelLabels: { high: 'Exceeds' },
+  } as unknown as Plc;
+
+  it('lets a lead rename the levels', async () => {
+    authState.uid = 'lead';
+    render(<PlcNormingLevelsSection plc={plc} />);
+    expect(
+      screen.getByText('Exceeds, Medium, Low, Review')
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name for Medium' }), {
+      target: { value: 'Meets' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save names' }));
+    await waitFor(() =>
+      expect(updatePlcNormingLabels).toHaveBeenCalledWith('p1', {
+        high: 'Exceeds',
+        medium: 'Meets',
+      })
+    );
+  });
+
+  it('shows members the names without an editor', () => {
+    authState.uid = 'member';
+    render(<PlcNormingLevelsSection plc={plc} />);
+    expect(
+      screen.getByText('Exceeds, Medium, Low, Review')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save names' })).toBeNull();
   });
 });
