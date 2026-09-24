@@ -27,7 +27,10 @@ vi.mock('@/utils/guidedLearningMedia', async (importOriginal) => ({
   makeSlideThumbnail: () => Promise.resolve(thumb.blob),
 }));
 
-const IMMUTABLE = { cacheControl: 'public, max-age=31536000, immutable' };
+const IMMUTABLE = {
+  cacheControl: 'public, max-age=31536000, immutable',
+  customMetadata: { glMedia: '1' },
+};
 const drive = {
   uploadFile: vi.fn().mockResolvedValue({ id: 'drive-1' }),
   makePublic: vi.fn().mockResolvedValue(undefined),

@@ -3230,7 +3230,11 @@
     "backToLibrary": "Retour à la bibliothèque"
   },
   "glData": {
-    "setTooLarge": "Cet ensemble est trop volumineux pour être enregistré : divisez-le ou supprimez des diapositives."
+    "setTooLarge": "Cet ensemble est trop volumineux pour être enregistré : divisez-le ou supprimez des diapositives.",
+    "deleteSetTitle": "Supprimer « {{title}} » ?",
+    "deleteWithOpenAssignments_one": "Les élèves de {{count}} devoir ouvert le perdront.",
+    "deleteWithOpenAssignments_other": "Les élèves de {{count}} devoirs ouverts le perdront.",
+    "deleteConfirm": "Supprimer"
   },
   "glAssignments": {
     "showOlder": "Afficher les plus anciennes"

@@ -21,7 +21,7 @@ import {
   isGuidedLearningSetV2,
   stepUsesSpotlight,
 } from '../utils/setMigration';
-import { slideMediaRef } from '../utils/slideMedia';
+import { fileRefsIn, slideMediaRef } from '../utils/slideMedia';
 import { narrationDeletionRef } from '../utils/narration';
 import {
   getMediaKind,
@@ -38,6 +38,12 @@ import {
   type EditorDocument,
   type MediaDeletionRef,
 } from './editorHistory';
+
+/** Deletes the files the editor removed, each only if nothing else still uses it. */
+export type MediaRelease = (files: {
+  storagePaths: string[];
+  driveFileIds: string[];
+}) => Promise<void>;
 
 /** Live progress for the slide-upload pipeline (null when idle). */
 export interface SlideUploadProgress {
@@ -157,11 +163,8 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   markSpotlightRadiiV2: (
     convert: (steps: GuidedLearningStep[]) => GuidedLearningStep[] | null
   ) => void;
-  /** Deletes every queued file whose edit is still in effect; call after a closing save. */
-  flushMediaDeletions: (
-    deleteFile: (storagePath: string) => Promise<void>,
-    deleteDriveFile: (fileId: string) => Promise<void>
-  ) => Promise<void>;
+  /** Releases every queued file whose edit is still in effect and the set no longer uses; call after a closing save. */
+  flushMediaDeletions: (release: MediaRelease) => Promise<void>;
 }
 
 // A set with no spotlight has no radius to convert, so it needs no load-time measuring.
@@ -288,6 +291,8 @@ export function useGuidedLearningEditorState({
   const [slideThumbnails, setSlideThumbnails] = useState<
     Record<string, string>
   >(() => existingSet?.slideThumbnails ?? {});
+  const slideThumbnailsRef = useRef(slideThumbnails);
+  slideThumbnailsRef.current = slideThumbnails;
   const mediaHome: GuidedLearningMediaHome =
     existingSet?.isBuilding || existingSet?.helpCenter ? 'storage' : 'drive';
 
@@ -492,6 +497,7 @@ export function useGuidedLearningEditorState({
   const deleteImage = useCallback(
     (deleteIndex: number) => {
       const remaining = imageUrls.length - 1;
+      const removedUrl = historyRef.current.present.imageUrls[deleteIndex];
       applyDoc((doc) => ({
         ...doc,
         imageUrls: doc.imageUrls.filter((_, index) => index !== deleteIndex),
@@ -505,6 +511,13 @@ export function useGuidedLearningEditorState({
               : step
           ),
       }));
+      // Queued on the delete's history entry, so undo keeps the file until save-and-close.
+      for (const url of removedUrl
+        ? [removedUrl, slideThumbnails[removedUrl]]
+        : []) {
+        const ref = url ? slideMediaRef(url) : null;
+        if (ref) dispatch({ type: 'queueMedia', ref });
+      }
       setCurrentImageIndex((curr) => {
         if (remaining <= 0) return 0;
         if (curr === deleteIndex) return Math.min(deleteIndex, remaining - 1);
@@ -512,7 +525,7 @@ export function useGuidedLearningEditorState({
         return curr;
       });
     },
-    [imageUrls.length, applyDoc]
+    [imageUrls.length, applyDoc, slideThumbnails]
   );
 
   const replaceSlideImage = useCallback(
@@ -718,24 +731,30 @@ export function useGuidedLearningEditorState({
     (ref: MediaDeletionRef) => dispatch({ type: 'queueMedia', ref }),
     []
   );
-  const flushMediaDeletions = useCallback(
-    async (
-      deleteFile: (storagePath: string) => Promise<void>,
-      deleteDriveFile: (fileId: string) => Promise<void>
-    ) => {
-      const pending = pendingMediaDeletions(historyRef.current).filter(
-        (ref) => !flushedMediaRef.current.has(ref)
-      );
-      for (const ref of pending) flushedMediaRef.current.add(ref);
-      await Promise.allSettled(
-        pending.flatMap((ref) => [
-          ...(ref.storagePath ? [deleteFile(ref.storagePath)] : []),
-          ...(ref.driveFileId ? [deleteDriveFile(ref.driveFileId)] : []),
-        ])
-      );
-    },
-    []
-  );
+  const flushMediaDeletions = useCallback(async (release: MediaRelease) => {
+    const pending = pendingMediaDeletions(historyRef.current).filter(
+      (ref) => !flushedMediaRef.current.has(ref)
+    );
+    for (const ref of pending) flushedMediaRef.current.add(ref);
+    // A file the saved set still shows (a duplicated slide, a re-added image) is never released.
+    const present = historyRef.current.present;
+    const inUse = fileRefsIn([
+      present.imageUrls,
+      present.steps,
+      present.imageUrls.map((url) => slideThumbnailsRef.current[url]),
+    ]);
+    const storagePaths = pending.flatMap((ref) =>
+      ref.storagePath && !inUse.has(ref.storagePath) ? [ref.storagePath] : []
+    );
+    const driveFileIds = pending.flatMap((ref) =>
+      ref.driveFileId && !inUse.has(ref.driveFileId) ? [ref.driveFileId] : []
+    );
+    if (storagePaths.length === 0 && driveFileIds.length === 0) return;
+    await release({
+      storagePaths: [...new Set(storagePaths)],
+      driveFileIds: [...new Set(driveFileIds)],
+    });
+  }, []);
 
   const selectedStep = useMemo(
     () => steps.find((s) => s.id === selectedStepId) ?? null,

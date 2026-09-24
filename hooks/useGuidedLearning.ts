@@ -6,7 +6,7 @@
  *   the library lists the server-written /building_guided_learning_index.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   collection,
   deleteField,
@@ -47,6 +47,11 @@ import { withSlideFileRefs } from '@/components/widgets/GuidedLearning/utils/sli
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
 import {
+  releaseClosedTombstones,
+  releaseDriveFiles,
+  writeTombstone,
+} from '@/utils/guidedLearningFileRelease';
+import {
   GuidedLearningSaveConflictError,
   type GuidedLearningSaveGuard,
   isStaleRevision,
@@ -58,6 +63,8 @@ import {
 } from './useSharedSubscription';
 
 const GL_COLLECTION = 'guided_learning';
+// Users whose closed tombstones were already released this page load.
+const releasedTombstoneUsers = new Set<string>();
 const BUILDING_GL_COLLECTION = 'building_guided_learning';
 const BUILDING_GL_INDEX_COLLECTION = 'building_guided_learning_index';
 
@@ -163,8 +170,12 @@ export interface UseGuidedLearningResult {
   ) => Promise<GuidedLearningSetMetadata>;
   /** Load full set data from Drive by driveFileId */
   loadSetData: (driveFileId: string) => Promise<GuidedLearningSet>;
-  /** Delete a personal set from Drive and Firestore */
-  deleteSet: (setId: string, driveFileId: string) => Promise<void>;
+  /** Delete a personal set; with open assignments its files are held by a tombstone until they close. */
+  deleteSet: (
+    setId: string,
+    driveFileId: string,
+    openAssignmentIds?: string[]
+  ) => Promise<void>;
   /**
    * Duplicate a personal set. Loads the source's JSON from Drive, mints
    * a new id + Drive file, and writes a fresh metadata doc with a
@@ -277,7 +288,8 @@ export const useGuidedLearning = (
         ...metadata,
         description: metadata.description ?? deleteField(),
         imagePaths: metadata.imagePaths ?? deleteField(),
-        driveFileIds: metadata.driveFileIds ?? deleteField(),
+        // An empty list marks the set as recorded; absent means saved before ids were kept.
+        driveFileIds: metadata.driveFileIds ?? [],
       };
       if (guard) {
         await runTransaction(db, async (tx) => {
@@ -314,19 +326,72 @@ export const useGuidedLearning = (
   );
 
   const deleteSet = useCallback(
-    async (setId: string, driveFileId: string): Promise<void> => {
+    async (
+      setId: string,
+      driveFileId: string,
+      openAssignmentIds: string[] = []
+    ): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
       const drive = getDriveService();
+      const metaRef = doc(db, 'users', userId, GL_COLLECTION, setId);
+      const meta = (await getDoc(metaRef)).data() as
+        | Partial<GuidedLearningSetMetadata>
+        | undefined;
+      const driveFileIds = Array.isArray(meta?.driveFileIds)
+        ? meta.driveFileIds
+        : [];
+      // Written before the delete so the server's cleanup already sees the hold.
+      if (openAssignmentIds.length > 0) {
+        await writeTombstone(userId, {
+          setId,
+          storagePaths: Array.isArray(meta?.imagePaths) ? meta.imagePaths : [],
+          driveFileIds,
+          assignmentIds: openAssignmentIds,
+          createdAt: Date.now(),
+        });
+      }
 
       await drive.deleteSetFile(driveFileId).catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
         console.warn('[useGuidedLearning] Drive delete warning:', msg);
       });
 
-      await deleteDoc(doc(db, 'users', userId, GL_COLLECTION, setId));
+      await deleteDoc(metaRef);
+
+      if (openAssignmentIds.length === 0 && driveFileIds.length > 0) {
+        await releaseDriveFiles(
+          {
+            uid: userId,
+            candidates: driveFileIds,
+            excludeSetId: setId,
+            isAdmin: isAdmin === true,
+            loadSet: (id) => drive.loadSet(id),
+          },
+          (id) => drive.deleteSetFile(id)
+        );
+      }
     },
-    [userId, getDriveService]
+    [userId, getDriveService, isAdmin]
   );
+
+  // Once per session with a Drive token: free the Drive slides of tombstones whose assignments closed.
+  useEffect(() => {
+    if (!userId || !driveService || isAdmin === null) return;
+    const key = `${userId}:${isAdmin ? 'a' : 't'}`;
+    if (releasedTombstoneUsers.has(key)) return;
+    releasedTombstoneUsers.add(key);
+    void releaseClosedTombstones(
+      userId,
+      (id) => driveService.deleteSetFile(id),
+      {
+        isAdmin,
+        loadSet: (id) => driveService.loadSet(id),
+      }
+    ).catch((err: unknown) => {
+      releasedTombstoneUsers.delete(key);
+      logError('useGuidedLearning.releaseClosedTombstones', err, { userId });
+    });
+  }, [userId, driveService, isAdmin]);
 
   /**
    * Hand-rolled write (not via `saveSet`) so we can observe the
@@ -370,7 +435,7 @@ export const useGuidedLearning = (
           updatedAt: fresh.updatedAt,
           // Listed on the copy too, so cleanup keeps files the two share.
           ...(fresh.imagePaths ? { imagePaths: fresh.imagePaths } : {}),
-          ...(fresh.driveFileIds ? { driveFileIds: fresh.driveFileIds } : {}),
+          driveFileIds: fresh.driveFileIds ?? [],
           // Preserve folder placement on duplicate.
           ...(source.folderId !== undefined
             ? { folderId: source.folderId }

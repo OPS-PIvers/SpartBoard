@@ -3253,6 +3253,8 @@ describe('index barrel — deployed export set', () => {
     // Guided Learning Storage slide GC
     'gcGuidedLearningMedia',
     'gcBuildingGuidedLearningMedia',
+    'releaseGuidedLearningMediaV1',
+    'gcGuidedLearningMediaSweep',
     'glBuildingIndexMirror',
     'rebuildGlBuildingIndexV1',
     // Admin analytics snapshot + maintenance

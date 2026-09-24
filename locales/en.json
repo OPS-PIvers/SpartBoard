@@ -4387,7 +4387,11 @@
     "backToLibrary": "Back to library"
   },
   "glData": {
-    "setTooLarge": "This set is too large to save — split it or remove slides."
+    "setTooLarge": "This set is too large to save — split it or remove slides.",
+    "deleteSetTitle": "Delete \"{{title}}\"?",
+    "deleteWithOpenAssignments_one": "Students in {{count}} open assignment will lose it.",
+    "deleteWithOpenAssignments_other": "Students in {{count}} open assignments will lose it.",
+    "deleteConfirm": "Delete"
   },
   "glAssignments": {
     "showOlder": "Show older"
