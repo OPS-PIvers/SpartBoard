@@ -1012,23 +1012,24 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           </div>
         </div>
 
-        <div className="max-w-[12rem]">
-          <label className={labelClass} htmlFor="question-source-label">
-            Printed number
-          </label>
-          <input
-            id="question-source-label"
-            type="text"
-            value={q.sourceLabel ?? ''}
-            onChange={(e) =>
-              updateQuestion(q.id, {
-                sourceLabel: e.target.value || undefined,
-              })
-            }
-            placeholder="e.g. 2·3"
-            className={inputClass}
-          />
-        </div>
+        {/* Only an import writes a printed number, so only those questions show the field. */}
+        {q.sourceLabel !== undefined && (
+          <div className="max-w-[12rem]">
+            <label className={labelClass} htmlFor="question-source-label">
+              Printed number
+            </label>
+            <input
+              id="question-source-label"
+              type="text"
+              value={q.sourceLabel ?? ''}
+              onChange={(e) =>
+                updateQuestion(q.id, { sourceLabel: e.target.value })
+              }
+              placeholder="e.g. 2·3"
+              className={inputClass}
+            />
+          </div>
+        )}
 
         {isFreeResponseType(q.type) && mediaResponseAllowed && (
           <SpokenResponseSettings

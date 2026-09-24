@@ -324,4 +324,20 @@ describe('QuizEditorModal isDirty (behavior compare)', () => {
     fireEvent.change(field, { target: { value: '2·3' } });
     expect(dirtyAttr()).toBe('false');
   });
+
+  it('shows no printed-number field on a question no import labelled', () => {
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={fakeQuiz}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    expect(
+      within(screen.getByTestId('detail-pane')).queryByLabelText(
+        'Printed number'
+      )
+    ).toBeNull();
+  });
 });
