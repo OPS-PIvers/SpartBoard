@@ -3473,6 +3473,13 @@
       "show": "Antwort zeigen",
       "hide": "Antwort verbergen",
       "title": "Antwort"
+    },
+    "more": "Weitere Optionen",
+    "miss": "Nicht dort. Versuche die markierte Stelle.",
+    "question": {
+      "recorded": "Antwort gespeichert",
+      "yourAnswer": "Deine Antwort: {{answer}}",
+      "change": "Antwort ändern"
     }
   },
   "glEngagement": {

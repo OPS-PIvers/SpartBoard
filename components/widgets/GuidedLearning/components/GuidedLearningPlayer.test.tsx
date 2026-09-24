@@ -1207,6 +1207,8 @@ describe('GuidedLearningPlayer', () => {
         <GuidedLearningPlayer set={pacedSet()} playerV2 />
       );
       fireEvent.load(screen.getByAltText('Paced'));
+      // The 400px player keeps speed in the overflow menu.
+      fireEvent.click(screen.getByRole('button', { name: /more options/i }));
       const half = screen.getByRole('button', { name: /0\.5× speed/i });
       fireEvent.click(half);
       expect(half).toHaveAttribute('aria-pressed', 'true');
@@ -1221,6 +1223,7 @@ describe('GuidedLearningPlayer', () => {
       unmount();
 
       render(<GuidedLearningPlayer set={pacedSet()} playerV2 />);
+      fireEvent.click(screen.getByRole('button', { name: /more options/i }));
       expect(
         screen.getByRole('button', { name: /0\.5× speed/i })
       ).toHaveAttribute('aria-pressed', 'true');
@@ -1249,6 +1252,7 @@ describe('GuidedLearningPlayer', () => {
           playerV2
         />
       );
+      fireEvent.click(screen.getByRole('button', { name: /more options/i }));
       expect(
         screen.getByRole('group', { name: /playback speed/i })
       ).toBeInTheDocument();

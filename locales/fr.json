@@ -3473,6 +3473,13 @@
       "show": "Afficher la réponse",
       "hide": "Masquer la réponse",
       "title": "Réponse"
+    },
+    "more": "Plus d’options",
+    "miss": "Pas ici. Essaie la zone en surbrillance.",
+    "question": {
+      "recorded": "Réponse enregistrée",
+      "yourAnswer": "Ta réponse : {{answer}}",
+      "change": "Modifier la réponse"
     }
   },
   "glEngagement": {

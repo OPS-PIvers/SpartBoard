@@ -6,7 +6,7 @@ import React, {
   useRef,
   useCallback,
 } from 'react';
-import { Minimize2 } from 'lucide-react';
+import { Minimize2, X } from 'lucide-react';
 import type {
   GuidedLearningPublicStep,
   GuidedLearningVideoTrim,
@@ -42,6 +42,7 @@ import {
   motionMs,
 } from '../utils/motion';
 import { AnimatedCursor } from './player/AnimatedCursor';
+import { TOUCH_TARGET_PX, TouchHitBox } from './player/TouchHitBox';
 import type {
   GuidedLearningStageProps,
   PctPoint,
@@ -94,6 +95,8 @@ export interface StageCursorCue {
 
 /** Smallest Try hit target for a step with no drawn region, in px. */
 const MIN_PIN_HIT_PX = 44;
+/** How long a Try miss marker stays on screen. */
+export const MISS_MARKER_MS = 1200;
 
 /** Player-only additions; the Studio renders with the frozen props alone. */
 export interface GuidedLearningStageRuntimeProps {
@@ -114,6 +117,10 @@ export interface GuidedLearningStageRuntimeProps {
   youtubeEndEvents?: boolean;
   /** Answer keys by step id, behind each question's Reveal answer button. */
   revealKeys?: ReadonlyMap<string, QuestionAnswerKey>;
+  /** Player v2: 44px hit boxes, small Try targets hit within 44px, and a static miss marker. */
+  touchTargets?: boolean;
+  /** Player v2: each question opens on its saved answer, which can be changed. */
+  priorAnswers?: ReadonlyMap<string, string | string[]>;
 }
 
 export const GuidedLearningStage: React.FC<
@@ -143,6 +150,8 @@ export const GuidedLearningStage: React.FC<
   accessibleOverlays = false,
   youtubeEndEvents = false,
   revealKeys,
+  touchTargets = false,
+  priorAnswers,
 }) => {
   // Hotspot pulse style — 'consistent' (default) preserves the legacy ping
   // ring; 'reminder' adds a periodic wiggle on the marker itself; 'off'
@@ -503,6 +512,15 @@ export const GuidedLearningStage: React.FC<
     y: number;
     n: number;
   } | null>(null);
+  // Try miss marker at the click point; static, so it also shows under reduced motion.
+  const [miss, setMiss] = useState<{ x: number; y: number; n: number } | null>(
+    null
+  );
+  useEffect(() => {
+    if (!miss) return;
+    const id = setTimeout(() => setMiss(null), MISS_MARKER_MS);
+    return () => clearTimeout(id);
+  }, [miss]);
   const handleStageClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!onTargetClick || !geometry || !currentStep) return;
     const el = e.target as Element;
@@ -524,9 +542,18 @@ export const GuidedLearningStage: React.FC<
             h: Math.max(region.h, MIN_PIN_HIT_PX),
           }
         : region;
-    const hit = pointInRegion(px, hitRegion);
+    // v2: a small target also counts anywhere in a 44px box around its centre.
+    const hit =
+      pointInRegion(px, hitRegion) ||
+      (touchTargets &&
+        (region.w < TOUCH_TARGET_PX || region.h < TOUCH_TARGET_PX) &&
+        Math.abs(px.x - region.cx) <= Math.max(region.w, TOUCH_TARGET_PX) / 2 &&
+        Math.abs(px.y - region.cy) <= Math.max(region.h, TOUCH_TARGET_PX) / 2);
     if (hit && !prefersReducedMotion) {
       setPulse((prev) => ({ x: px.x, y: px.y, n: (prev?.n ?? 0) + 1 }));
+    }
+    if (!hit && touchTargets) {
+      setMiss((prev) => ({ x: px.x, y: px.y, n: (prev?.n ?? 0) + 1 }));
     }
     onTargetClick(hit, at);
   };
@@ -663,6 +690,7 @@ export const GuidedLearningStage: React.FC<
         >
           {dialogTitle}
           <QuestionInteraction
+            key={priorAnswers ? activeStep.id : undefined}
             step={activeStep}
             onAnswer={(answer, isCorrect) =>
               onAnswer?.(activeStep.id, answer, isCorrect)
@@ -673,6 +701,8 @@ export const GuidedLearningStage: React.FC<
             correctSortingItems={origStep?.question?.sortingItems}
             studentMode={!teacherMode}
             revealKey={revealKeys?.get(activeStep.id)}
+            priorAnswer={priorAnswers?.get(activeStep.id)}
+            allowChange={priorAnswers !== undefined}
           />
         </div>
       );
@@ -941,7 +971,13 @@ export const GuidedLearningStage: React.FC<
                   height: `${region.hPct * imgOffset.scaleY}%`,
                   ...shapeStyle,
                 }}
-              />
+              >
+                {touchTargets &&
+                  region.shape !== 'polygon' &&
+                  (wPx < TOUCH_TARGET_PX || hPx < TOUCH_TARGET_PX) && (
+                    <TouchHitBox />
+                  )}
+              </button>
             );
           })}
 
@@ -1010,6 +1046,7 @@ export const GuidedLearningStage: React.FC<
                 }}
                 aria-label={step.label ?? `Step ${idx + 1}`}
               >
+                {touchTargets && <TouchHitBox round />}
                 {pulseMode === 'consistent' && (
                   <span className="pointer-events-none absolute inset-0 rounded-full border border-white/70 animate-ping opacity-70 motion-reduce:hidden [animation-duration:2s]" />
                 )}
@@ -1105,6 +1142,30 @@ export const GuidedLearningStage: React.FC<
             />
           );
         })()}
+
+      {miss && (
+        <span
+          key={miss.n}
+          data-testid="gl-miss-marker"
+          aria-hidden="true"
+          className="absolute z-40 pointer-events-none flex items-center justify-center rounded-full border-2 border-white bg-slate-900/70 text-white"
+          style={{
+            left: miss.x,
+            top: miss.y,
+            width: 'min(32px, 8cqmin)',
+            height: 'min(32px, 8cqmin)',
+            marginLeft: 'calc(min(32px, 8cqmin) / -2)',
+            marginTop: 'calc(min(32px, 8cqmin) / -2)',
+          }}
+        >
+          <X
+            style={{
+              width: 'min(18px, 4.5cqmin)',
+              height: 'min(18px, 4.5cqmin)',
+            }}
+          />
+        </span>
+      )}
 
       {pulse && (
         <span

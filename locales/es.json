@@ -3473,6 +3473,13 @@
       "show": "Mostrar respuesta",
       "hide": "Ocultar respuesta",
       "title": "Respuesta"
+    },
+    "more": "Más opciones",
+    "miss": "Ahí no. Prueba en el punto resaltado.",
+    "question": {
+      "recorded": "Respuesta guardada",
+      "yourAnswer": "Tu respuesta: {{answer}}",
+      "change": "Cambiar respuesta"
     }
   },
   "glEngagement": {

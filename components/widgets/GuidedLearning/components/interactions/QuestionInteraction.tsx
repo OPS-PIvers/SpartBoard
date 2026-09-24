@@ -23,6 +23,32 @@ interface Props {
   studentMode?: boolean;
   /** Subs and the teacher's board: a Reveal answer button shows this key for the room. */
   revealKey?: QuestionAnswerKey;
+  /** v2: an answer saved on an earlier visit; the question opens on it. */
+  priorAnswer?: string | string[];
+  /** v2: the recorded view offers Change answer. */
+  allowChange?: boolean;
+}
+
+/** Matching answers are stored as `left:right`; split on the first colon. */
+function matchingFrom(answer: string | string[] | undefined) {
+  const out: Record<string, string> = {};
+  if (!Array.isArray(answer)) return out;
+  for (const a of answer) {
+    const i = a.indexOf(':');
+    if (i > 0) out[a.slice(0, i)] = a.slice(i + 1);
+  }
+  return out;
+}
+
+/** A saved answer as one line of text. */
+function answerText(answer: string | string[]): string {
+  if (typeof answer === 'string') return answer;
+  return answer
+    .map((a) => {
+      const i = a.indexOf(':');
+      return i < 0 ? a : `${a.slice(0, i)} → ${a.slice(i + 1)}`;
+    })
+    .join(', ');
 }
 
 export const QuestionInteraction: React.FC<Props> = ({
@@ -34,6 +60,8 @@ export const QuestionInteraction: React.FC<Props> = ({
   correctSortingItems,
   studentMode = false,
   revealKey,
+  priorAnswer,
+  allowChange = false,
 }) => {
   const { t } = useTranslation();
   const q = step.question;
@@ -44,49 +72,68 @@ export const QuestionInteraction: React.FC<Props> = ({
   const [shown] = useState(() =>
     q ? playableQuestion(q, correctSortingItems) : undefined
   );
-  const [selectedMC, setSelectedMC] = useState<string | null>(null);
+  const priorSorting =
+    Array.isArray(priorAnswer) &&
+    q?.type === 'sorting' &&
+    priorAnswer.length === (shown?.sortingItems ?? []).length
+      ? priorAnswer
+      : null;
+  const [selectedMC, setSelectedMC] = useState<string | null>(
+    typeof priorAnswer === 'string' && priorAnswer ? priorAnswer : null
+  );
   const [matchingAnswers, setMatchingAnswers] = useState<
     Record<string, string>
-  >({});
+  >(() => matchingFrom(priorAnswer));
   const [sortingOrder, setSortingOrder] = useState<string[]>(
-    shown?.sortingItems ?? []
+    priorSorting ?? shown?.sortingItems ?? []
   );
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState(priorAnswer !== undefined);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+  // The saved answer shown in the recorded view, until the learner changes it.
+  const [recorded, setRecorded] = useState(priorAnswer);
 
   if (!q) return null;
 
-  const handleSubmit = () => {
-    let correct: boolean | null = null;
-    let answer: string | string[] = '';
-
+  const grade = (): { answer: string | string[]; correct: boolean | null } => {
     if (q.type === 'multiple-choice') {
-      answer = selectedMC ?? '';
-      if (!studentMode) {
-        correct = correctAnswer ? selectedMC === correctAnswer : null;
-      }
-    } else if (q.type === 'matching') {
-      answer = Object.entries(matchingAnswers).map(([l, r]) => `${l}:${r}`);
-      if (!studentMode) {
-        correct = correctMatchingPairs
-          ? correctMatchingPairs.every(
-              (pair) => matchingAnswers[pair.left] === pair.right
-            )
-          : null;
-      }
-    } else if (q.type === 'sorting') {
-      answer = sortingOrder;
-      if (!studentMode) {
-        correct = correctSortingItems
-          ? sortingOrder.every((item, i) => item === correctSortingItems[i])
-          : null;
-      }
+      return {
+        answer: selectedMC ?? '',
+        correct:
+          !studentMode && correctAnswer ? selectedMC === correctAnswer : null,
+      };
     }
+    if (q.type === 'matching') {
+      return {
+        answer: Object.entries(matchingAnswers).map(([l, r]) => `${l}:${r}`),
+        correct:
+          !studentMode && correctMatchingPairs
+            ? correctMatchingPairs.every(
+                (pair) => matchingAnswers[pair.left] === pair.right
+              )
+            : null,
+      };
+    }
+    if (q.type === 'sorting') {
+      return {
+        answer: sortingOrder,
+        correct:
+          !studentMode && correctSortingItems
+            ? sortingOrder.every((item, i) => item === correctSortingItems[i])
+            : null,
+      };
+    }
+    return { answer: '', correct: null };
+  };
 
+  const handleSubmit = () => {
+    const { answer, correct } = grade();
     setIsCorrect(correct);
+    setRecorded(undefined);
     setSubmitted(true);
     onAnswer(answer, correct);
   };
+  // A saved answer shows as recorded rather than graded again.
+  const showRecorded = studentMode || recorded !== undefined;
 
   const canSubmit = (() => {
     if (q.type === 'multiple-choice') return selectedMC !== null;
@@ -295,7 +342,7 @@ export const QuestionInteraction: React.FC<Props> = ({
           </>
         ) : (
           <div className="text-center">
-            {studentMode ? (
+            {showRecorded ? (
               <>
                 <BookOpen
                   className="text-indigo-400 mx-auto mb-2"
@@ -310,8 +357,37 @@ export const QuestionInteraction: React.FC<Props> = ({
                     fontSize: 'var(--gl-text-title, min(16px, 4cqmin))',
                   }}
                 >
-                  Answer recorded
+                  {t('glPlayer.question.recorded')}
                 </p>
+                {recorded !== undefined && answerText(recorded) && (
+                  <p
+                    className="text-slate-200"
+                    style={{
+                      fontSize: 'var(--gl-text-body, min(12px, 3cqmin))',
+                    }}
+                  >
+                    {t('glPlayer.question.yourAnswer', {
+                      answer: answerText(recorded),
+                    })}
+                  </p>
+                )}
+                {allowChange && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRecorded(undefined);
+                      setSubmitted(false);
+                    }}
+                    className="rounded-lg border border-white/15 bg-white/5 text-slate-200 font-semibold hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+                    style={{
+                      marginTop: 'min(8px, 2cqmin)',
+                      padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                      fontSize: 'var(--gl-text-small, min(12px, 3cqmin))',
+                    }}
+                  >
+                    {t('glPlayer.question.change')}
+                  </button>
+                )}
               </>
             ) : isCorrect ? (
               <>

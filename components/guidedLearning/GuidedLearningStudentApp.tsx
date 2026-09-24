@@ -643,6 +643,7 @@ const StudentExperience: React.FC<{
           }
           onAnswer={handleAnswer}
           initialAnsweredStepIds={answers.map((a) => a.stepId)}
+          initialAnswers={answers}
           teacherMode={false}
           timeMultiplier={timeMultiplier}
           playerV2={session.playerV2 === true}

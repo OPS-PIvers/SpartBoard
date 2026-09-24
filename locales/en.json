@@ -4630,6 +4630,13 @@
       "show": "Reveal answer",
       "hide": "Hide answer",
       "title": "Answer"
+    },
+    "more": "More options",
+    "miss": "Not there. Try the highlighted spot.",
+    "question": {
+      "recorded": "Answer recorded",
+      "yourAnswer": "Your answer: {{answer}}",
+      "change": "Change answer"
     }
   },
   "glEngagement": {

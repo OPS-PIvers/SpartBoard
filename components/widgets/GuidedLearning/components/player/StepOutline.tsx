@@ -3,6 +3,7 @@ import { Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { GuidedLearningPublicStep } from '@/types';
 import { plainStepText } from '../../utils/stepText';
+import { TouchHitBox } from './TouchHitBox';
 
 interface Props {
   steps: GuidedLearningPublicStep[];
@@ -60,12 +61,13 @@ export const StepOutline: React.FC<Props> = ({
           total: steps.length,
         })}
         onClick={() => setOpen((v) => !v)}
-        className="text-slate-200 font-bold tabular-nums rounded-full hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+        className="relative text-slate-200 font-bold tabular-nums rounded-full hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
         style={{
           fontSize: 'var(--gl-text-small, min(12px, 3.2cqmin))',
           padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
         }}
       >
+        <TouchHitBox />
         {currentIdx + 1} / {steps.length}
       </button>
       {open && (
