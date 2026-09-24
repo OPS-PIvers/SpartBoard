@@ -22,6 +22,7 @@ import {
   Plc,
   PlcFeatureSettings,
   PlcMeetingCadence,
+  PlcNormingLevelLabels,
   PlcMember,
   PlcRole,
 } from '@/types';
@@ -31,6 +32,7 @@ import {
   parseMeetingCadence,
 } from '@/utils/plcMeetingCadence';
 import { writePlcActivityEvent } from '@/utils/plcActivity';
+import { parseNormingLevelLabels } from '@/utils/plcNorming';
 import { isSuperAdminActor } from '@/utils/superAdmin';
 import i18n from '@/i18n/index';
 
@@ -196,6 +198,11 @@ interface UsePlcsResult {
   updatePlcMeetingCadence: (
     plcId: string,
     cadence: PlcMeetingCadence | null
+  ) => Promise<void>;
+  /** Lead or co-lead: rename the norming levels (null restores the defaults). */
+  updatePlcNormingLabels: (
+    plcId: string,
+    labels: PlcNormingLevelLabels | null
   ) => Promise<void>;
 }
 
@@ -400,6 +407,7 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
   // only the literal boolean `true` opts a PLC in.
   const digestOptIn = data.digestOptIn === true;
   const meetingCadence = parseMeetingCadence(data.meetingCadence);
+  const normingLevelLabels = parseNormingLevelLabels(data.normingLevelLabels);
   // orgId / buildingId: optional tenancy (Decision 1.1). Absent ⇒ null.
   const orgId = typeof data.orgId === 'string' ? data.orgId : null;
   const buildingId =
@@ -421,6 +429,7 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
     digestOptIn,
     ...(features ? { features } : {}),
     ...(meetingCadence ? { meetingCadence } : {}),
+    ...(normingLevelLabels ? { normingLevelLabels } : {}),
     // serverTimestamp-tolerant (Decision 1.3): accept a Firestore Timestamp
     // or a legacy numeric millis value.
     createdAt: tsToMillis(data.createdAt),
@@ -1186,6 +1195,18 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     [user]
   );
 
+  const updatePlcNormingLabels = useCallback(
+    async (plcId: string, labels: PlcNormingLevelLabels | null) => {
+      if (!user) throw new Error(i18n.t('plc.errors.notSignedIn'));
+      const clean = parseNormingLevelLabels(labels);
+      await updateDoc(doc(db, PLCS_COLLECTION, plcId), {
+        normingLevelLabels: clean ?? deleteField(),
+        updatedAt: serverTimestamp(),
+      });
+    },
+    [user]
+  );
+
   return useMemo(
     () => ({
       plcs,
@@ -1207,6 +1228,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       updatePlcFeatures,
       updatePlcDigestOptIn,
       updatePlcMeetingCadence,
+      updatePlcNormingLabels,
     }),
     [
       plcs,
@@ -1228,6 +1250,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       updatePlcFeatures,
       updatePlcDigestOptIn,
       updatePlcMeetingCadence,
+      updatePlcNormingLabels,
     ]
   );
 };

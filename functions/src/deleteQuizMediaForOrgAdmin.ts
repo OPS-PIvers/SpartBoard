@@ -131,6 +131,12 @@ export interface OrgMediaDeps {
   deleteDriveFile: (accessToken: string, fileId: string) => Promise<void>;
   deleteStorageObject: (storagePath: string) => Promise<void>;
   now: () => number;
+  /** Deletes PLC norming audio copied from this answer; voice identifies a student. */
+  deleteNormingAudio?: (
+    sessionId: string,
+    responseKey: string,
+    questionId: string
+  ) => Promise<void>;
 }
 
 // ── Pure helpers (exported for tests) ──────────────────────────────────────
@@ -780,6 +786,20 @@ export async function deleteOrgQuizMediaSets(
       });
       continue;
     }
+    if (deps.deleteNormingAudio) {
+      await deps
+        .deleteNormingAudio(
+          target.sessionId,
+          target.responseKey,
+          target.questionId
+        )
+        .catch((err: unknown) =>
+          console.error(
+            '[deleteQuizMediaForOrgAdmin] norming cleanup failed',
+            err
+          )
+        );
+    }
     const data = responseSnap.data() ?? {};
     const studentUid = asString(data.studentUid);
     const artifacts = collectQuestionArtifacts(data.answers, target.questionId);
@@ -949,6 +969,25 @@ export function buildDefaultOrgMediaDeps(): OrgMediaDeps {
         .delete({ ignoreNotFound: true });
     },
     now: () => Date.now(),
+    deleteNormingAudio: async (sessionId, responseKey, questionId) => {
+      const norming = await import('./plcNorming');
+      await norming.cleanupNormingForResponse(
+        {
+          db,
+          deleteAudio: async (p) => {
+            await admin
+              .storage()
+              .bucket()
+              .file(p)
+              .delete({ ignoreNotFound: true });
+          },
+          deleteAudioPrefix: () => Promise.resolve(),
+        },
+        sessionId,
+        responseKey,
+        questionId
+      );
+    },
   };
 }
 

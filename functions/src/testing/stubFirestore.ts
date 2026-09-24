@@ -208,6 +208,7 @@ export function makeStubFirestore(seed: Record<string, StubData> = {}) {
         get: (ref: StubDocRef) => Promise<StubDocSnap>;
         update: (ref: StubDocRef, data: StubData) => void;
         set: (ref: StubDocRef, data: StubData) => void;
+        delete: (ref: StubDocRef) => void;
       }) => Promise<T>
     ): Promise<T> => {
       const pending: Array<() => Promise<void>> = [];
@@ -218,6 +219,9 @@ export function makeStubFirestore(seed: Record<string, StubData> = {}) {
         },
         set: (ref, data) => {
           pending.push(() => ref.set(data));
+        },
+        delete: (ref) => {
+          pending.push(() => ref.delete());
         },
       });
       for (const p of pending) await p();

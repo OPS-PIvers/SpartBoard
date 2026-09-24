@@ -2147,6 +2147,19 @@ service cloud.firestore {
         && plcUpdatedAtOk();
     }
 
+    // Lead or co-lead renaming the High/Medium/Low norming levels (strings of 40 chars or fewer).
+    function normingLabelOk(m, k) {
+      return !(k in m) || (m[k] is string && m[k].size() <= 40);
+    }
+    function isUpdatingPlcNormingLabels() {
+      let m = request.resource.data.get('normingLevelLabels', {});
+      return isPlcMembershipManager(resource.data)
+        && changedOnly(['normingLevelLabels', 'updatedAt'])
+        && m.keys().hasOnly(['high', 'medium', 'low'])
+        && normingLabelOk(m, 'high') && normingLabelOk(m, 'medium') && normingLabelOk(m, 'low')
+        && plcUpdatedAtOk();
+    }
+
     function isUpdatingPlcDigestOptIn() {
       return (request.auth.uid in resource.data.memberUids)
         && changedOnly(['digestOptIn', 'updatedAt'])
@@ -2386,6 +2399,13 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Private flag -> answer pointer; only the flagging teacher reads it, only the server writes.
+    match /plc_norming_sources/{sourceId} {
+      allow read: if request.auth != null
+        && resource.data.flaggedByUid == request.auth.uid;
+      allow write: if false;
+    }
+
     match /plcs/{plcId} {
       // Members + same-org admins only. The root doc carries member PII
       // (emails/names), so it's NOT exposed to same-org peers — discovery reads
@@ -2473,6 +2493,7 @@ service cloud.firestore {
         || isUpdatingPlcFeatures()
         || isUpdatingPlcDigestOptIn()
         || isUpdatingPlcMeetingCadence()
+        || isUpdatingPlcNormingLabels()
         || isAdminManagingPlc()
         || isAdminEditingPlcMembers()
       );
@@ -2547,6 +2568,12 @@ service cloud.firestore {
         // owner to sweep stale entries.
         allow delete: if request.auth != null
           && request.auth.uid == resource.data.ownerUid;
+      }
+
+      // Anonymized norming copies; written only by setPlcNormingFlagV1.
+      match /norming/{normingId} {
+        allow read: if request.auth != null && plcMember(plcId);
+        allow write: if false;
       }
 
       // Anonymized per-assessment aggregates (Decisions 6.0+3.3) — member-readable,

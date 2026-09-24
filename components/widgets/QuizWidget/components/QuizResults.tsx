@@ -46,6 +46,9 @@ import {
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';
+import { useMyNormingFlags } from '@/hooks/usePlcNorming';
+import { normingFlagKey } from '@/utils/plcNorming';
+import { PlcNormingFlagControl } from '@/components/plc/norming/PlcNormingFlagControl';
 import {
   PlcSheetMissingError,
   PlcSheetSchemaMismatchError,
@@ -386,6 +389,18 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
   const { plcs, clearPlcSharedSheetUrl, setPlcSharedSheetUrl } = usePlcs();
+  const normingEnabled =
+    canAccessFeature('plc-norming-flags') &&
+    !!session?.plcId &&
+    !!session.syncGroupId;
+  const myNormingFlags = useMyNormingFlags(
+    user?.uid,
+    session?.id,
+    normingEnabled
+  );
+  const normingLabels = normingEnabled
+    ? plcs.find((p) => p.id === session?.plcId)?.normingLevelLabels
+    : undefined;
   const [exporting, setExporting] = useState(false);
   const [pushingGrades, setPushingGrades] = useState(false);
   const [pushingSchoologyGrades, setPushingSchoologyGrades] = useState(false);
@@ -2266,6 +2281,32 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
             hideNames ? maskedNameByResponseKey : displayNameByResponseKey
           }
           initialTarget={graderTarget}
+          renderNormingFlag={
+            normingEnabled
+              ? (answer) => (
+                  <PlcNormingFlagControl
+                    key={normingFlagKey(
+                      answer.responseKey,
+                      answer.questionId,
+                      answer.slot
+                    )}
+                    sessionId={session.id}
+                    {...answer}
+                    level={
+                      myNormingFlags.get(
+                        normingFlagKey(
+                          answer.responseKey,
+                          answer.questionId,
+                          answer.slot
+                        )
+                      ) ?? null
+                    }
+                    labels={normingLabels}
+                    onError={(message) => addToast(message, 'error')}
+                  />
+                )
+              : undefined
+          }
           teacherUid={user.uid}
           resolveTakeUrl={showMediaGrading ? resolveTakeUrl : undefined}
           onSaveGrade={saveWrittenGrade}

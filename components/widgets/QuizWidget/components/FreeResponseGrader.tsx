@@ -159,6 +159,13 @@ export interface FreeResponseGraderProps {
   onAutoAdvanceChange?: (enabled: boolean) => void;
   /** Open on this student's answer to this question instead of the first in the queue. */
   initialTarget?: { questionId: string; responseKey: string };
+  /** PLC norming flag under the answer; omitted when the quiz isn't PLC-shared or the flag is off. */
+  renderNormingFlag?: (answer: {
+    responseKey: string;
+    questionId: string;
+    slot: ArtifactSlot;
+    isAudio: boolean;
+  }) => React.ReactNode;
   onClose: () => void;
 }
 
@@ -367,6 +374,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   autoAdvance = true,
   onAutoAdvanceChange,
   initialTarget,
+  renderNormingFlag,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -1583,6 +1591,18 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 seekNonce={seek.nonce}
               />
             )}
+
+            {renderNormingFlag &&
+              target &&
+              response &&
+              question &&
+              (isMedia ? !isUnavailable : !!studentAnswer) &&
+              renderNormingFlag({
+                responseKey: responseKeyOf(response),
+                questionId: question.id,
+                slot: targetSlot(target),
+                isAudio: isMedia,
+              })}
           </div>
         </section>
 

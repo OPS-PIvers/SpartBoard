@@ -283,6 +283,13 @@ service firebase.storage {
         );
     }
 
+    // PLC norming audio copies: members read, only setPlcNormingFlagV1 writes.
+    match /plc_norming_media/{plcId}/{fileName} {
+      allow read: if request.auth != null
+        && request.auth.uid in firestore.get(/databases/(default)/documents/plcs/$(plcId)).data.memberUids;
+      allow write: if false;
+    }
+
     // Quiz read-aloud MP3 cache (docs/plans/QUIZ_READ_ALOUD.md §5): content-hashed,
     // PII-free, written only by Cloud Functions; SSO students read via the SDK.
     match /quiz_tts_cache/{voice}/{fileName} {

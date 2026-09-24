@@ -950,3 +950,85 @@ describe('plcs/{plcId} update — isUpdatingPlcMeetingCadence', () => {
     await assertFails(getDoc(doc(asNonMember(), `plcs/${PLC_ID}`)));
   });
 });
+
+describe('plcs/{plcId} update — isUpdatingPlcNormingLabels', () => {
+  const labels = { high: 'Exceeds', medium: 'Meets', low: 'Partially meets' };
+  const setRoleB = async (role: string) => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        members: {
+          [MEMBER_A_UID]: { uid: MEMBER_A_UID, role: 'lead', status: 'active' },
+          [MEMBER_B_UID]: { uid: MEMBER_B_UID, role, status: 'active' },
+        },
+      });
+    });
+  };
+
+  it('a co-lead can rename the levels', async () => {
+    await setRoleB('coLead');
+    await assertSucceeds(
+      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
+        normingLevelLabels: labels,
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  it('rejects a plain member or a viewer renaming the levels', async () => {
+    for (const role of ['member', 'viewer']) {
+      await setRoleB(role);
+      await assertFails(
+        updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
+          normingLevelLabels: labels,
+          updatedAt: 2,
+        })
+      );
+    }
+  });
+
+  it('rejects renaming Review, a non-map, a non-string or overlong name, or smuggling another field', async () => {
+    await setRoleB('coLead');
+    await assertFails(
+      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
+        normingLevelLabels: { ...labels, review: 'Unsure' },
+        updatedAt: 2,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
+        normingLevelLabels: 'Exceeds',
+        updatedAt: 2,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
+        normingLevelLabels: { high: 12345 },
+        updatedAt: 2,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
+        normingLevelLabels: { low: 'x'.repeat(41) },
+        updatedAt: 2,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
+        normingLevelLabels: labels,
+        name: 'Renamed',
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('members read the labels; non-members cannot', async () => {
+    await setRoleB('viewer');
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        normingLevelLabels: labels,
+      });
+    });
+    await assertSucceeds(getDoc(doc(asMemberB(), `plcs/${PLC_ID}`)));
+    await assertFails(getDoc(doc(asNonMember(), `plcs/${PLC_ID}`)));
+  });
+});

@@ -62,6 +62,7 @@ import {
   Clapperboard,
   CalendarClock,
   LayoutDashboard,
+  Flag,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -289,6 +290,13 @@ const GLOBAL_FEATURES: {
     icon: LayoutDashboard,
     description:
       'Replaces the PLC Home page with tiles: team results by learning target, the next meeting, your action items and recent activity, and docs. Each teacher can spotlight, reorder, add and remove tiles, and leads can set a regular meeting schedule. Adds "Assign from my library" to Assessments. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'plc-norming-flags',
+    label: 'PLC norming flags',
+    icon: Flag,
+    description:
+      "Adds a small flag under each written or spoken answer in the grader of a quiz shared with a PLC. A teacher picks High, Medium, Low or Review, and a copy of the answer without the student's name appears in a Norming section on that PLC assessment page, for the team to bring to a meeting. Spoken answers are shared as recordings, so teammates may recognize a voice. Leads can rename the levels in PLC settings. Admin-only until this is saved and opened up.",
   },
   {
     id: 'quiz-choose-all',
