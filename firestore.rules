@@ -2565,17 +2565,17 @@ service cloud.firestore {
           && request.auth.uid == resource.data.ownerUid;
       }
 
-      // Anonymized per-assessment aggregates (Decisions 6.0+3.3) — member-readable,
-      // PII-free rollups of every teacher's contributions. Writes are server-only
-      // (aggregatePlcAssessment + migratePlcs via Admin SDK). Members read (gated
-      // on members map OR memberUids); never create/update/delete, so the
-      // raw-contribution PII boundary holds.
       // Anonymized norming copies; written only by setPlcNormingFlagV1.
       match /norming/{normingId} {
         allow read: if request.auth != null && plcMember(plcId);
         allow write: if false;
       }
 
+      // Anonymized per-assessment aggregates (Decisions 6.0+3.3) — member-readable,
+      // PII-free rollups of every teacher's contributions. Writes are server-only
+      // (aggregatePlcAssessment + migratePlcs via Admin SDK). Members read (gated
+      // on members map OR memberUids); never create/update/delete, so the
+      // raw-contribution PII boundary holds.
       match /aggregates/{aggregateId} {
         function plcRootData() {
           return get(/databases/$(database)/documents/plcs/$(plcId)).data;
