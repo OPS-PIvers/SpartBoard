@@ -424,6 +424,27 @@ describe('AI reader printed numbers (R29)', () => {
     expect(merged.warnings).toEqual([]);
   });
 
+  it('still matches the other questions when one printed number is unreadable', () => {
+    const raw = ai([{}, {}, {}]);
+    raw.questions.forEach((q, i) => {
+      q.number = 21 + i;
+    });
+    raw.questions[1].number = Number.NaN;
+    const quiz = aiQuizToExtracted(raw, 'fallback');
+    expect(quiz.questions[1].ref).toBeUndefined();
+    const merged = mergeAnswerKey(quiz, [
+      { item: 21, answer: 'B' },
+      { item: 22, answer: 'B' },
+      { item: 23, answer: 'A' },
+    ]);
+    expect(merged.questions.map((q) => q.correctAnswer)).toEqual([
+      'y',
+      '',
+      'x',
+    ]);
+    expect(merged.keySummary?.unmatchedLabels).toEqual(['22']);
+  });
+
   it('reads labels printed with a point or a Q', () => {
     const quiz = aiQuizToExtracted(
       ai([{ label: '21.' }, { label: 'Q22' }]),

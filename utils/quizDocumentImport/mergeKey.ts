@@ -38,10 +38,12 @@ function matcherFor(
 ): Matcher {
   const byPosition: Matcher = (item) =>
     questions.flatMap((q, i) => (q.number === item.item ? [i] : []));
-  if (!questions.every((q) => q.ref)) return byPosition;
+  // A question without a printed number just goes unmatched; the rest still match.
+  if (!questions.some((q) => q.ref)) return byPosition;
 
-  const refs = questions.map((q) => q.ref as NonNullable<typeof q.ref>);
-  const quizSections = [...new Set(refs.map((r) => r.section))].sort(
+  const refs = questions.map((q) => q.ref);
+  const present = refs.filter((r): r is NonNullable<typeof r> => Boolean(r));
+  const quizSections = [...new Set(present.map((r) => r.section))].sort(
     (a, b) => a - b
   );
   const keySections = [
@@ -54,7 +56,7 @@ function matcherFor(
       const printed = item.section?.printed;
       const byNumber =
         printed !== undefined
-          ? refs.find((r) => r.sectionNumber === printed)?.section
+          ? present.find((r) => r.sectionNumber === printed)?.section
           : undefined;
       if (byNumber !== undefined) return byNumber;
       const at = keySections.indexOf(item.section?.ordinal ?? -1);
@@ -63,8 +65,8 @@ function matcherFor(
     return (item) => {
       const section = sectionFor(item);
       return questions.flatMap((q, i) =>
-        refs[i].section === section &&
-        refs[i].item === item.item &&
+        refs[i]?.section === section &&
+        refs[i]?.item === item.item &&
         partMatches(item, q)
           ? [i]
           : []
@@ -72,7 +74,7 @@ function matcherFor(
     };
   }
 
-  const printed = refs.map((r) => `${r.item}${r.part ?? ''}`);
+  const printed = present.map((r) => `${r.item}${r.part ?? ''}`);
   if (new Set(printed).size === printed.length) {
     if (keySections.length > 1) {
       // A key that restarts against a test that doesn't: take the key in order.
