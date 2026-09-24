@@ -38,6 +38,15 @@ vi.mock('@/components/widgets/Projects/components/ProjectsManager', () => ({
   ),
 }));
 
+// Stands in for the board's "Manage groups" menu item.
+vi.mock('@/components/widgets/Projects/components/ProjectBoardView', () => ({
+  ProjectBoardView: ({ onManageGroups }: { onManageGroups: () => void }) => (
+    <button type="button" onClick={onManageGroups}>
+      Manage groups
+    </button>
+  ),
+}));
+
 const projectA: ProjectDefinition = {
   id: 'project-a',
   title: 'Ecosystem poster',
@@ -159,6 +168,26 @@ describe('Projects — setting up groups', () => {
     expect(entries.map((e) => e.name)).toEqual(['Group 1', 'Group 2']);
     expect(entries[0].classId).toBe('class-a');
     expect(deleteIds).toEqual([]);
+  });
+
+  it('sends a waiting Group Maker push through the import dialog from the board too', async () => {
+    const onBoard = {
+      ...widget,
+      config: {
+        view: 'board',
+        projectId: 'project-a',
+        pendingImport: {
+          rosterId: 'roster-1',
+          at: 1,
+          groups: [{ name: 'A', studentIds: [] }],
+        },
+      },
+    } as unknown as WidgetData;
+    render(<ProjectsWidget widget={onBoard} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Manage groups' }));
+    expect(
+      await screen.findByRole('button', { name: 'Add 1 group' })
+    ).toBeInTheDocument();
   });
 
   it('calls a hand-built roster import a tracker rather than reporting no students', async () => {

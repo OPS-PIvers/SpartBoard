@@ -87,7 +87,7 @@ export const ProjectsWidget: React.FC<{ widget: WidgetData }> = ({
               onBackToLibrary={() => update({ view: 'manager' })}
               onGrade={() => setGradingProjectId(config.projectId ?? null)}
               onManageGroups={() =>
-                setGroupsProjectId(config.projectId ?? null)
+                config.projectId && openGroups(config.projectId)
               }
             />
           ) : (
