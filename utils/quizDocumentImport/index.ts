@@ -148,6 +148,7 @@ export async function readQuizDocument(
       questions,
       texts,
       warnings: keyWarnings,
+      keySummary,
     } = parseDocument(lines, reader);
     warnings.push(...keyWarnings);
     return {
@@ -155,6 +156,7 @@ export async function readQuizDocument(
       questions,
       images: [],
       ...(texts.length > 0 ? { texts } : {}),
+      ...(keySummary ? { keySummary } : {}),
       warnings,
     };
   }
@@ -165,6 +167,7 @@ export async function readQuizDocument(
       questions,
       texts,
       warnings: keyWarnings,
+      keySummary,
     } = parseDocument(lines, reader);
     warnings.push(...keyWarnings);
     const used = new Set(questions.flatMap((q) => q.imageIds));
@@ -172,6 +175,7 @@ export async function readQuizDocument(
       title: titleFromFileName(fileName),
       questions,
       ...(texts.length > 0 ? { texts } : {}),
+      ...(keySummary ? { keySummary } : {}),
       // A picture nothing points at would upload to Drive unused.
       images: images.filter((img) => used.has(img.id)),
       warnings,
@@ -226,9 +230,13 @@ export async function readQuizDocument(
     questions,
     texts,
     warnings: keyWarnings,
+    keySummary,
   } = parseDocument(lines, reader);
   warnings.push(...keyWarnings);
-  const withTexts = texts.length > 0 ? { texts } : {};
+  const withTexts = {
+    ...(texts.length > 0 ? { texts } : {}),
+    ...(keySummary ? { keySummary } : {}),
+  };
   if (!options.pdfCropper) {
     // D15: without a cropper the browser reader leaves a PDF's pictures behind.
     warnings.push(

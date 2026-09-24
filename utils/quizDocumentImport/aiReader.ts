@@ -114,31 +114,40 @@ function toExtractedQuestion(
   };
 }
 
-const PRINTED_LABEL = /^(\d{1,3})\s*([A-Da-d])?$/;
+/** "3", "5A", "21.", "Q5", "Question 5)" */
+const PRINTED_LABEL =
+  /^(?:q(?:uestion)?\.?\s*)?(\d{1,3})\s*([A-Da-d])?\s*[.):]?$/i;
 
 /**
- * Printed numbers from the AI's `section` and `label` (R29). Every question
- * needs a readable label, or none gets a ref and matching falls back to
- * position, which is also how an older function's answer reads.
+ * Printed numbers from the AI's `section` and `label` (R29), else its
+ * `number`. When neither reads for every question, none gets a ref and
+ * matching falls back to position.
  */
 export function withPrintedRefs(
   questions: readonly ExtractedQuestion[],
   raws: readonly AiExtractedQuiz['questions'][number][]
 ): ExtractedQuestion[] {
-  const labels = raws.map((r) =>
+  const fromLabel = raws.map((r) =>
     PRINTED_LABEL.exec(typeof r.label === 'string' ? r.label.trim() : '')
   );
+  const fromNumber = raws.map((r) =>
+    Number.isInteger(r.number) && r.number > 0
+      ? PRINTED_LABEL.exec(String(r.number))
+      : null
+  );
+  const labels = fromLabel.every(Boolean) ? fromLabel : fromNumber;
   if (labels.some((m) => !m)) return [...questions];
   const sectionNames: string[] = [];
   const refs: QuestionRef[] = raws.map((raw, i) => {
     const name = typeof raw.section === 'string' ? raw.section.trim() : '';
     if (!sectionNames.includes(name)) sectionNames.push(name);
-    const printed = /\d{1,2}/.exec(name);
+    const printed =
+      /\b(?:section|part)\s+(\d{1,2})\b/i.exec(name) ?? /(\d{1,2})/.exec(name);
     const m = labels[i] as RegExpExecArray;
     return {
       section: sectionNames.indexOf(name) + 1,
       ...(name ? { sectionName: name } : {}),
-      ...(printed ? { sectionNumber: Number(printed[0]) } : {}),
+      ...(printed ? { sectionNumber: Number(printed[1]) } : {}),
       item: Number(m[1]),
       ...(m[2] ? { part: m[2].toUpperCase() } : {}),
     };

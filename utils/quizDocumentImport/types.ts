@@ -140,6 +140,19 @@ export interface ExtractedQuestion {
   warnings: string[];
 }
 
+/** What a key merge did, for the review banner (R13, R19). */
+export interface KeySummary {
+  source: 'document' | 'file';
+  /** Key entries that gave an answer. */
+  entries: number;
+  /** Entries that found their question. */
+  matched: number;
+  /** Printed labels of entries with no question, e.g. `2·3`. */
+  unmatchedLabels: string[];
+  /** Questions where a key file overruled the test's own answer. */
+  conflicts: number;
+}
+
 export interface ExtractedQuiz {
   /** Defaults to the document's name (D11). */
   title: string;
@@ -149,6 +162,8 @@ export interface ExtractedQuiz {
   texts?: ExtractedText[];
   /** Notes about the document as a whole. */
   warnings: string[];
+  /** The last key merged onto these questions; a key file's wins. */
+  keySummary?: KeySummary;
   /** Which reader ran; set only for a teacher who has AI access. */
   readBy?: 'ai' | 'plain';
 }

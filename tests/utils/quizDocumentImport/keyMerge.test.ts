@@ -146,6 +146,39 @@ describe('key tables', () => {
   });
 });
 
+describe('key layouts that must not read as sections', () => {
+  const six = [1, 2, 3, 4, 5, 6]
+    .map((n) => `${n}. Pick ${n}.\na. A${n}\nb. B${n}\nc. C${n}\nd. D${n}`)
+    .join('\n');
+
+  it('reads a two-column key row by row without splitting it', () => {
+    const { questions, warnings } = read(`${six}
+Answer Key
+1. A    4. D
+2. B    5. A
+3. C    6. B`);
+    expect(questions.map((q) => q.correctAnswer)).toEqual([
+      'A1',
+      'B2',
+      'C3',
+      'D4',
+      'A5',
+      'B6',
+    ]);
+    expect(warnings).toEqual([]);
+  });
+
+  it('treats a key printed twice as one key', () => {
+    const items = readKeyItems(plain('1. A\n2. B\n3. C\n1. A\n2. B\n3. C'));
+    expect(items.every((k) => !k.section)).toBe(true);
+    const merged = mergeAnswerKey(
+      quizOf(read(six.split('\n').slice(0, 15).join('\n')).questions),
+      items
+    );
+    expect(merged.warnings).toEqual([]);
+  });
+});
+
 describe('keys printed in the test', () => {
   const test = `1. Pick one.
 a. First
@@ -212,6 +245,13 @@ Answer Key
     expect(merged.questions[0].warnings).toContain(
       'Test file said C, key file said B — using B.'
     );
+    expect(merged.keySummary).toEqual({
+      source: 'file',
+      entries: 1,
+      matched: 1,
+      unmatchedLabels: [],
+      conflicts: 1,
+    });
   });
 
   it('never drops an entry silently (R13)', () => {
@@ -225,6 +265,7 @@ b. Second`);
     expect(merged.warnings).toEqual([
       'The answer key has an answer for question 7, which isn’t in this test.',
     ]);
+    expect(merged.keySummary?.unmatchedLabels).toEqual(['7']);
   });
 
   it('turns several letters into choose-all only when that is on', () => {
@@ -341,8 +382,44 @@ describe('AI reader printed numbers (R29)', () => {
     expect(merged.questions.map((q) => q.correctAnswer)).toEqual(['x', 'y']);
   });
 
-  it('falls back to sequential numbers when they are missing', () => {
-    const quiz = aiQuizToExtracted(ai([{}, {}]), 'fallback');
+  it('falls back to the AI’s own numbers when labels are missing', () => {
+    const raw = ai([{}, {}, {}]);
+    raw.questions.forEach((q, i) => {
+      q.number = 21 + i;
+    });
+    const quiz = aiQuizToExtracted(raw, 'fallback');
+    expect(quiz.questions.map((q) => q.number)).toEqual([1, 2, 3]);
+    expect(quiz.questions.map((q) => q.sourceLabel)).toEqual([
+      '21',
+      '22',
+      '23',
+    ]);
+    const merged = mergeAnswerKey(quiz, [
+      { item: 21, answer: 'B' },
+      { item: 23, answer: 'A' },
+    ]);
+    expect(merged.questions.map((q) => q.correctAnswer)).toEqual([
+      'y',
+      '',
+      'x',
+    ]);
+    expect(merged.warnings).toEqual([]);
+  });
+
+  it('reads labels printed with a point or a Q', () => {
+    const quiz = aiQuizToExtracted(
+      ai([{ label: '21.' }, { label: 'Q22' }]),
+      'fallback'
+    );
+    expect(quiz.questions.map((q) => q.ref?.item)).toEqual([21, 22]);
+  });
+
+  it('falls back to position when nothing is numbered', () => {
+    const raw = ai([{}, {}]);
+    raw.questions.forEach((q) => {
+      q.number = Number.NaN;
+    });
+    const quiz = aiQuizToExtracted(raw, 'fallback');
     expect(quiz.questions.map((q) => [q.number, q.ref])).toEqual([
       [1, undefined],
       [2, undefined],

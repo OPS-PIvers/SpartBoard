@@ -28,6 +28,7 @@ import {
   type ExtractedOption,
   type ExtractedQuestion,
   type ExtractedText,
+  type KeySummary,
   type QuestionRef,
   type ReaderOptions,
   type SuggestedTarget,
@@ -462,6 +463,7 @@ export function parseDocument(
   texts: ExtractedText[];
   /** Notes about the whole document, such as key entries with no question. */
   warnings: string[];
+  keySummary?: KeySummary;
 } {
   const multi = options.multiAnswer === true;
   const lines = splitAtColumnMarkers(documentLines);
@@ -823,6 +825,7 @@ export function parseDocument(
     questions,
     texts: texts.filter((t) => used.has(t.id)),
     warnings: merged.warnings,
+    ...(merged.keySummary ? { keySummary: merged.keySummary } : {}),
   };
 }
 

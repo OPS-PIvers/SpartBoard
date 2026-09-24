@@ -54,6 +54,7 @@ describe('aiQuizToExtracted', () => {
     expect(quiz.questions).toEqual([
       {
         number: 1,
+        ref: { section: 1, item: 1 },
         text: 'What is the capital of France?',
         type: 'MC',
         options: [

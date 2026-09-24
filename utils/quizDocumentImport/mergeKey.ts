@@ -166,10 +166,15 @@ export function mergeAnswerKey(
   const questions = [...quiz.questions];
   const match = matcherFor(questions, items);
   const unmatched: string[] = [];
+  let entries = 0;
+  let matched = 0;
+  let conflicts = 0;
 
   items.forEach((item, index) => {
     const targets = match(item, index);
     const hasAnswer = Boolean(item.answer) || Boolean(item.ordering?.length);
+    if (hasAnswer) entries += 1;
+    if (hasAnswer && targets.length > 0) matched += 1;
     if (targets.length === 0) {
       if (hasAnswer) unmatched.push(keyItemLabel(item));
       return;
@@ -188,7 +193,11 @@ export function mergeAnswerKey(
       if (targets.length === 1 && item.ordering?.length) {
         q = applyOrdering(q, item.ordering);
       } else if (targets.length === 1 && item.answer) {
+        const before = q.correctAnswer.trim();
         q = applyKeyAnswer(q, item.answer, source, multi);
+        if (source === 'file' && before && q.correctAnswer.trim() !== before) {
+          conflicts += 1;
+        }
       }
       if (item.points !== undefined) {
         const shares = item.pointsForItem
@@ -219,7 +228,18 @@ export function mergeAnswerKey(
         : `The answer key at the end of the document has an answer for ${listed(unmatched)}, which ${verb} among the questions read.`
     );
   }
-  return { ...quiz, questions, warnings };
+  return {
+    ...quiz,
+    questions,
+    warnings,
+    keySummary: {
+      source,
+      entries,
+      matched,
+      unmatchedLabels: unmatched,
+      conflicts,
+    },
+  };
 }
 
 /** A key as answers by number, for callers that have only that. */

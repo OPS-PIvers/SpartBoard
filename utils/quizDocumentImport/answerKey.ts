@@ -19,6 +19,7 @@ import {
   type DocLine,
   type ExtractedQuestion,
   type KeyItem,
+  type KeySection,
   type ReaderOptions,
 } from './types';
 
@@ -141,33 +142,59 @@ export type RawKeyItem = KeyItem | { heading: { printed?: number } };
  */
 export function withKeySections(raws: readonly RawKeyItem[]): KeyItem[] {
   const items: KeyItem[] = [];
+  const headed = new Set<number>();
   let ordinal = 0;
   let printed: number | undefined;
   let heading: { printed?: number } | null = null;
-  let last: KeyItem | null = null;
+  let first: KeyItem | null = null;
   for (const raw of raws) {
     if ('heading' in raw) {
       heading = raw.heading;
       continue;
     }
+    // Only a drop back to the section's first number restarts, so a
+    // two-column key read row by row (1, 4, 2, 5 …) stays one section.
     const restarted =
-      last !== null &&
-      (raw.item < last.item ||
-        (raw.item === last.item && (raw.part ?? '') <= (last.part ?? '')));
-    if (last === null || heading || restarted) {
+      first !== null &&
+      (raw.item < first.item ||
+        (raw.item === first.item && (raw.part ?? '') <= (first.part ?? '')));
+    if (first === null || heading || restarted) {
       ordinal += 1;
       printed = heading?.printed;
+      if (heading) headed.add(ordinal);
       heading = null;
+      first = raw;
     }
-    const item: KeyItem = {
+    items.push({
       ...raw,
       section: { ordinal, ...(printed ? { printed } : {}) },
-    };
-    items.push(item);
-    last = item;
+    });
   }
-  if (ordinal > 1) return items;
-  return items.map(({ section: _section, ...rest }) => rest);
+
+  // A key printed twice without a heading is one key, not two sections.
+  const sectionItems = (n: number) =>
+    items
+      .filter((k) => k.section?.ordinal === n)
+      .map((k) => `${k.item}${k.part ?? ''}=${k.answer}`)
+      .join(';');
+  const repeats = new Set<number>();
+  for (let n = 2; n <= ordinal; n += 1) {
+    if (!headed.has(n) && sectionItems(n) === sectionItems(n - 1)) {
+      repeats.add(n);
+    }
+  }
+  const kept = items.filter((k) => !repeats.has(k.section?.ordinal ?? 0));
+  const ordinals = [...new Set(kept.map((k) => k.section?.ordinal ?? 0))];
+  if (ordinals.length > 1) {
+    return kept.map((k) => ({
+      ...k,
+      section: {
+        ...(k.section as KeySection),
+        ordinal: ordinals.indexOf(k.section?.ordinal ?? 0) + 1,
+      },
+    }));
+  }
+  return kept.map(({ section: _section, ...rest }) => rest);
 }
 
 const entryItem = ([item, answer, points]: KeyEntry): KeyItem => ({
