@@ -4,8 +4,15 @@
  * question: the key comes from the bubbled key sheet and scores from bubbles.
  */
 
-import type { QuizData } from '@/types';
+import type { QuizData, QuizQuestion } from '@/types';
 import { matchQuestionOpening } from '@/utils/questionNumbering';
+import {
+  fillSavedQuizKey,
+  type SavedKeyFill,
+} from './quizDocumentImport/savedQuizKey';
+import type { KeyItem } from './quizDocumentImport/types';
+import { CHOICE_LETTERS } from './paperSheetLayout';
+import { isPlaceholderLetterChoices } from './paperSheetPlan';
 
 /** `A.` / `b)` / `(C)` option lines, which end the question text. */
 const OPTION = /^\s*\(?[A-Ea-e][.)]\s|^\s*\([A-Ea-e]\)\s*/;
@@ -134,4 +141,33 @@ export function applyQuestionFill(
     return next;
   });
   return changed ? { ...quiz, questions, updatedAt: now } : quiz;
+}
+
+/**
+ * A key file's answers onto stub rows (R17). A row still holding the bare
+ * bubble letters has only a placeholder key, so it takes the key's letter;
+ * rows the test already filled go through the saved-quiz rules (R26).
+ */
+export function fillStubKey(
+  questions: readonly QuizQuestion[],
+  items: readonly KeyItem[]
+): SavedKeyFill {
+  const open = questions.map((q) => {
+    const choices = [q.correctAnswer, ...q.incorrectAnswers];
+    if (q.type !== 'MC' || !isPlaceholderLetterChoices(choices)) return q;
+    return {
+      ...q,
+      correctAnswer: '',
+      incorrectAnswers: CHOICE_LETTERS.slice(0, choices.length),
+      needsKey: true,
+    };
+  });
+  const result = fillSavedQuizKey(open, items);
+  const filled = new Set(result.filled);
+  return {
+    ...result,
+    questions: result.questions.map((q, i) =>
+      filled.has(q.id) ? q : questions[i]
+    ),
+  };
 }

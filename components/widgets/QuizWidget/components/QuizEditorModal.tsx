@@ -39,6 +39,7 @@ import {
   QuizEditorDetailPane,
 } from './QuizEditor';
 import { StimulusManagerPanel } from './StimulusManagerPanel';
+import { AnswerKeyFillModal } from './AnswerKeyFill';
 import { useQuizEditorState } from './useQuizEditorState';
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
 import { QuizLanguageField } from './QuizLanguageField';
@@ -97,6 +98,11 @@ interface QuizEditorModalProps {
    * authoring hands the saved quiz to the assignment config modal.
    */
   autosave?: boolean;
+  /** Offers "Add answer key" beside the needs-answer count; absent when document import is off. */
+  answerKeyFill?: {
+    onPickFromDrive?: () => Promise<File | null>;
+    onError: (message: string) => void;
+  };
 }
 
 const stimuliEqual = (a: QuizStimulus[], b: QuizStimulus[]): boolean => {
@@ -261,6 +267,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   aiAllowed,
   metadata,
   autosave = true,
+  answerKeyFill,
 }) => {
   const { t } = useTranslation();
   const { canAccessFeature } = useAuth();
@@ -269,6 +276,8 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   const readAloudAvailable = canAccessFeature('quiz-read-aloud');
   const handRaiseMode = useQuizHandRaiseMode();
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);
+  const [keyFillOpen, setKeyFillOpen] = useState(false);
+  const openKeyFill = useCallback(() => setKeyFillOpen(true), []);
 
   const editorState = useQuizEditorState({
     quiz,
@@ -615,6 +624,9 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               titleSlot={bankTargetsStrip}
               titlePlaceholder={isBank ? 'Bank title' : undefined}
               inheritedTargets={isBank ? bankTargets : undefined}
+              onAddAnswerKey={
+                answerKeyFill && !isBank ? openKeyFill : undefined
+              }
             />
           ) : activeTab === 'stimuli' ? (
             <StimulusManagerPanel
@@ -683,6 +695,25 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       overlay={
         <>
           <QuizAiOverlay state={editorState} />
+          {keyFillOpen && answerKeyFill && (
+            <AnswerKeyFillModal
+              quiz={{ ...quiz, title, questions }}
+              onApply={(result) => {
+                const filled = new Set(result.filled);
+                for (const q of result.questions) {
+                  if (!filled.has(q.id)) continue;
+                  editorState.updateQuestion(q.id, {
+                    correctAnswer: q.correctAnswer,
+                    incorrectAnswers: q.incorrectAnswers,
+                    needsKey: undefined,
+                  });
+                }
+              }}
+              onPickFromDrive={answerKeyFill.onPickFromDrive}
+              onClose={() => setKeyFillOpen(false)}
+              onError={answerKeyFill.onError}
+            />
+          )}
           {targetPickerOpen && onBankTargetsChange && (
             <TargetPicker
               open

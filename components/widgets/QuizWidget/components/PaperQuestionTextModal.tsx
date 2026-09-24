@@ -16,6 +16,7 @@ import type { QuizData } from '@/types';
 import {
   applyQuestionFill,
   applyQuestionText,
+  fillStubKey,
   isPlaceholderQuestion,
   parseNumberedQuestions,
   type QuestionFill,
@@ -24,6 +25,9 @@ import { readByLabel } from '@/utils/quizDocumentImport';
 import { recognizeRasterPage } from '@/utils/quizDocumentImport/imageBrowserDeps';
 import type { ReadUploadedTest } from '@/utils/quizDocumentImport/readTestAndKey';
 import type { UploadedDocument } from '@/utils/quizDocumentImport/uploadIntake';
+import type { SavedKeyFill } from '@/utils/quizDocumentImport';
+import { KeyFillReview } from './AnswerKeyFill';
+import { keyFillLabel, readKeyFill, type ReadKeyFile } from './keyFillRead';
 import {
   TestAndKeyUploader,
   type TestAndKeySelection,
@@ -49,6 +53,7 @@ interface PaperQuestionTextModalProps {
   /** Test seams. */
   rasterize?: (file: Blob) => AsyncGenerator<RasterizedPage>;
   recognize?: (page: RasterPage) => Promise<string>;
+  readKey?: ReadKeyFile;
 }
 
 type Step = 'setup' | 'reading' | 'review' | 'saving';
@@ -63,6 +68,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   canUseAi = false,
   rasterize = rasterizeScan,
   recognize = recognizeRasterPage,
+  readKey,
 }) => {
   const [step, setStep] = useState<Step>('setup');
   const [progress, setProgress] = useState('');
@@ -76,6 +82,8 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   const [notes, setNotes] = useState<string[]>([]);
   const [useAi, setUseAi] = useState(false);
   const [readerNote, setReaderNote] = useState('');
+  // Set when only a key was added: the review then shows the answer fill (R17).
+  const [keyFill, setKeyFill] = useState<SavedKeyFill | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const rows = useMemo(
@@ -187,14 +195,43 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
 
   /** The shared uploader's test, and optionally its key file (R14). */
   const readSelection = async ({ test, key }: TestAndKeySelection) => {
-    if (!readDocument || !test) return;
+    if (!readDocument || (!test && !key)) return;
     setStep('reading');
     try {
-      await readWithImporter(test, key, readDocument);
+      if (test) {
+        setKeyFill(null);
+        await readWithImporter(test, key, readDocument);
+      } else if (key) {
+        setProgress('Reading the answer key…');
+        setKeyFill(
+          await readKeyFill(quiz.questions, key, readKey, fillStubKey)
+        );
+      }
       setStep('review');
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Could not read the test.');
+      onError(
+        err instanceof Error
+          ? err.message
+          : test
+            ? 'Could not read the test.'
+            : 'Could not read the answer key.'
+      );
       setStep('setup');
+    }
+  };
+
+  const saveKeyFill = async (fill: SavedKeyFill) => {
+    setStep('saving');
+    try {
+      await onSave({
+        ...quiz,
+        questions: fill.questions,
+        updatedAt: Date.now(),
+      });
+      onClose();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Could not save the quiz.');
+      setStep('review');
     }
   };
 
@@ -259,9 +296,11 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
       <p className="text-sm text-slate-700">
         Add the test paper and the numbered questions will be read into this
         quiz. Results then show the question a student missed, not just its
-        number. Scores are never affected.
+        number. To fill in only the answers, add just the answer key.
       </p>
       <TestAndKeyUploader
+        allowKeyAlone
+        keyAloneLabel="Read the answer key"
         pickFromDrive={
           onPickFromDrive
             ? async () => {
@@ -428,7 +467,25 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   );
 
   const footer =
-    step === 'review' ? (
+    step === 'review' && keyFill ? (
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => setStep('setup')}
+          className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={() => void saveKeyFill(keyFill)}
+          disabled={keyFill.filled.length === 0}
+          className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {keyFillLabel(keyFill.filled.length)}
+        </button>
+      </div>
+    ) : step === 'review' ? (
       <div className="flex justify-end gap-2">
         <button
           type="button"
@@ -466,7 +523,14 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
           {step === 'reading' ? progress || 'Reading…' : 'Saving…'}
         </div>
       )}
-      {step === 'review' && renderReview()}
+      {step === 'review' &&
+        (keyFill ? (
+          <div className="px-5 pb-5 pt-4">
+            <KeyFillReview before={quiz.questions} result={keyFill} />
+          </div>
+        ) : (
+          renderReview()
+        ))}
     </Modal>
   );
 };

@@ -12,6 +12,7 @@ import {
   AlertCircle,
   ChevronDown,
   GripVertical,
+  KeyRound,
   Library,
   Mic,
   MousePointerClick,
@@ -58,7 +59,10 @@ import { AlternateAnswersEditor, MultiAnswerEditor } from './MultiAnswerEditor';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
-import { questionNeedsKey } from '@/utils/quizNeedsKey';
+import {
+  countQuestionsNeedingKey,
+  questionNeedsKey,
+} from '@/utils/quizNeedsKey';
 import type { QuizEditorController } from './useQuizEditorState';
 import type { QuizGenType } from '@/utils/ai';
 
@@ -77,6 +81,8 @@ interface PaneProps {
   titlePlaceholder?: string;
   /** Bank-level tags every question inherits; rows render them muted. */
   inheritedTargets?: QuestionTargetTag[];
+  /** Opens "Add answer key"; shown beside the needs-answer count when set (R31). */
+  onAddAnswerKey?: () => void;
 }
 
 const QUESTION_TYPES: {
@@ -159,6 +165,7 @@ const quizContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.titleSlot === next.titleSlot &&
   prev.titlePlaceholder === next.titlePlaceholder &&
   prev.inheritedTargets === next.inheritedTargets &&
+  prev.onAddAnswerKey === next.onAddAnswerKey &&
   prev.state.error === next.state.error;
 
 export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
@@ -172,6 +179,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
   titleSlot,
   titlePlaceholder,
   inheritedTargets,
+  onAddAnswerKey,
 }: PaneProps) {
   const { canAccessQuizMediaResponse } = useAuth();
   const mediaResponseAllowed = canAccessQuizMediaResponse();
@@ -233,6 +241,10 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
     [questions, checkedIds]
   );
   const banksAvailable = !!bankApi && bankApi.sources.length > 0;
+  const needsKeyCount = useMemo(
+    () => countQuestionsNeedingKey(questions),
+    [questions]
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -259,6 +271,27 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
           <div className="p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg flex items-center gap-2 text-xs text-brand-red-dark font-bold">
             <AlertCircle className="w-4 h-4 shrink-0" />
             {error}
+          </div>
+        )}
+        {onAddAnswerKey && needsKeyCount > 0 && (
+          <div
+            role="status"
+            className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-xs text-amber-900 font-semibold"
+          >
+            <AlertCircle className="w-4 h-4 shrink-0" aria-hidden />
+            <span className="flex-1">
+              {needsKeyCount === 1
+                ? '1 question still needs an answer.'
+                : `${needsKeyCount} questions still need an answer.`}
+            </span>
+            <button
+              type="button"
+              onClick={onAddAnswerKey}
+              className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-xs font-bold transition-colors"
+            >
+              <KeyRound className="w-3.5 h-3.5" aria-hidden />
+              Add answer key
+            </button>
           </div>
         )}
         {bankNotice && (

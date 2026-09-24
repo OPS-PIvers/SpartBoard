@@ -44,6 +44,8 @@ interface TestAndKeyUploaderProps {
   allowCartridge?: boolean;
   pickFromDrive?: () => Promise<{ file: Blob; fileName: string } | null>;
   submitLabel: string;
+  /** The button's label when only a key has been added, with `allowKeyAlone`. */
+  keyAloneLabel?: string;
   busy?: boolean;
   busyLabel?: string;
   onSubmit: (selection: TestAndKeySelection) => void;
@@ -80,6 +82,7 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
   allowCartridge = false,
   pickFromDrive,
   submitLabel,
+  keyAloneLabel,
   busy = false,
   busyLabel,
   onSubmit,
@@ -398,7 +401,11 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-blue-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-40"
       >
         {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-        {busy && busyLabel ? busyLabel : submitLabel}
+        {busy && busyLabel
+          ? busyLabel
+          : keyAloneLabel && showTest && !content.test && content.key
+            ? keyAloneLabel
+            : submitLabel}
       </button>
     </div>
   );
