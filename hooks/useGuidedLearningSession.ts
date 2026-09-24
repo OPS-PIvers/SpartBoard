@@ -490,7 +490,11 @@ export interface UseGuidedLearningSessionStudentResult {
   session: GuidedLearningSession | null;
   loading: boolean;
   error: string | null;
-  submitResponse: (response: GuidedLearningResponse) => Promise<void>;
+  /** Creates the response doc, or with `exists` updates only answers, pin and a set `completedAt`. */
+  submitResponse: (
+    response: GuidedLearningResponse,
+    opts?: { exists?: boolean }
+  ) => Promise<void>;
   /** The period the student's seat names on a per-period session (empty otherwise). */
   periodKeys: string[];
   /** True while a per-period session's steps are hidden or still loading. */
@@ -653,16 +657,32 @@ export const useGuidedLearningSessionStudent = (
   );
 
   const submitResponse = useCallback(
-    async (response: GuidedLearningResponse): Promise<void> => {
+    async (
+      response: GuidedLearningResponse,
+      opts?: { exists?: boolean }
+    ): Promise<void> => {
+      const ref = doc(
+        db,
+        GL_SESSIONS_COLLECTION,
+        sessionId,
+        'responses',
+        response.studentAnonymousId
+      );
+      if (!opts?.exists) {
+        await setDoc(ref, response);
+        return;
+      }
+      // The student update rule allows only answers, completedAt and pin to change.
       await setDoc(
-        doc(
-          db,
-          GL_SESSIONS_COLLECTION,
-          sessionId,
-          'responses',
-          response.studentAnonymousId
-        ),
-        response
+        ref,
+        {
+          answers: response.answers,
+          ...(response.pin ? { pin: response.pin } : {}),
+          ...(response.completedAt !== null
+            ? { completedAt: response.completedAt }
+            : {}),
+        },
+        { merge: true }
       );
     },
     [sessionId]

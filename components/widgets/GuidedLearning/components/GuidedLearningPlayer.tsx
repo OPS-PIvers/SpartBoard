@@ -71,6 +71,8 @@ interface Props {
   onStepEvent?: (e: StepEvent) => void;
   /** Open at this step instead of the first (the Studio's Play from here). */
   startStepId?: string;
+  /** Questions already answered on an earlier visit (read on mount). */
+  initialAnsweredStepIds?: readonly string[];
 }
 
 export const GuidedLearningPlayer: React.FC<Props> = ({
@@ -82,6 +84,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   playerV2 = false,
   onStepEvent,
   startStepId,
+  initialAnsweredStepIds,
 }) => {
   const { t } = useTranslation();
   const mode: GuidedLearningMode = set.mode;
@@ -104,7 +107,9 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   );
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0); // 0-1 for guided auto-advance
-  const [answeredSteps, setAnsweredSteps] = useState<Set<string>>(new Set());
+  const [answeredSteps, setAnsweredSteps] = useState<Set<string>>(
+    () => new Set(initialAnsweredStepIds)
+  );
   // Ref kept in sync with the latest `answeredSteps` value on every render.
   // The setInterval callback in startTimer closes over this ref rather than
   // `answeredSteps` directly — if it captured the state value, every call to

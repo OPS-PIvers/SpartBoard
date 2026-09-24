@@ -3212,5 +3212,10 @@
     "noMisclicks": "Aucun clic manqué pour l’instant.",
     "seconds": "{{seconds}} s",
     "minutes": "{{minutes}} min {{seconds}} s"
+  },
+  "glStudent": {
+    "submitting": "Envoi…",
+    "submitFailed": "Impossible d'envoyer. Vos réponses sont toujours là.",
+    "retry": "Réessayer"
   }
 }

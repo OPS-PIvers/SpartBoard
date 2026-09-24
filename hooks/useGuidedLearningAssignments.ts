@@ -440,6 +440,8 @@ export const useGuidedLearningAssignments = (
       const updates: ResponseUpdate[] = [];
       for (const d of responseDocs) {
         const data = d.data() as GuidedLearningResponse;
+        // Answers saved mid-activity aren't a submission until completedAt is set.
+        if (typeof data.completedAt !== 'number') continue;
         const answers = Array.isArray(data.answers) ? data.answers : [];
         let correctCount = 0;
         // Track which stepIds have already contributed to the score so a
