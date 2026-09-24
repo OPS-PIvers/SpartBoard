@@ -231,7 +231,11 @@ describe('duplicate slide', () => {
       );
     });
     act(() =>
-      result.current.setStepNarration('s1', { source: 'recorded', ...take })
+      result.current.setStepNarration('s1', {
+        source: 'recorded',
+        durationMs: 1000,
+        ...take,
+      })
     );
     act(() => result.current.duplicateStep('s1'));
     const copyId = result.current.steps[1].id;
@@ -352,7 +356,11 @@ describe('copy and paste steps', () => {
       );
     });
     act(() =>
-      result.current.setStepNarration('s1', { source: 'recorded', ...take })
+      result.current.setStepNarration('s1', {
+        source: 'recorded',
+        durationMs: 1000,
+        ...take,
+      })
     );
     result.current.copySteps(['s1']);
     act(() => result.current.setStepNarration('s1', undefined));

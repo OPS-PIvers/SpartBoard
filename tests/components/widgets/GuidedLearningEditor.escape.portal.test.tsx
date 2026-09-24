@@ -107,6 +107,13 @@ const makeState = (): GuidedLearningEditorController => ({
   endGesture: vi.fn(),
   queueMediaDeletion: vi.fn(),
   flushMediaDeletions: vi.fn(),
+  duplicateStep: vi.fn(),
+  duplicateSlide: vi.fn(),
+  appendDraftedSet: vi.fn(),
+  mediaHome: 'storage',
+  copySteps: vi.fn(),
+  pasteSteps: vi.fn(),
+  clipboardStepCount: 0,
 });
 
 describe('GuidedLearningEditorContextPane — SettingChip Escape closes popover', () => {
