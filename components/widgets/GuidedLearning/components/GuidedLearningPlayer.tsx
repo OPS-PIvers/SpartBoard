@@ -48,6 +48,7 @@ import { useResumeOffer, writeResume } from './player/useResume';
 import { speechAvailable, useReadAloud } from './player/useReadAloud';
 import { spokenStepText } from '../utils/stepText';
 import type { PctPoint, PlaybackMode, StepEvent } from '../types/stage';
+import { PROJECTOR_TEXT_VARS } from '../utils/projectorTextVars';
 
 const nowMs = (): number => performance.now();
 
@@ -69,16 +70,6 @@ function answerKeysOf(
 
 /** Step keys in v2: arrows plus a presentation clicker's PageUp/PageDown. */
 const NAV_KEYS_V2 = ['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown'];
-
-/** v2 callout, question and footer text scales up to projector size. */
-const PROJECTOR_TEXT_VARS = {
-  '--gl-text-title': 'clamp(14px, 4.4cqmin, 30px)',
-  '--gl-text-body': 'clamp(14px, 3.8cqmin, 28px)',
-  '--gl-text-small': 'clamp(14px, 3cqmin, 22px)',
-  '--gl-callout-max-w': 'min(max(340px, 50cqmin), 60cqw)',
-  '--gl-popover-max-w': 'min(max(380px, 56cqmin), 90cqw)',
-  '--gl-question-max-w': 'min(max(420px, 64cqmin), 90cqw)',
-} as React.CSSProperties;
 
 /** Below this player width, v2 moves speed and read-aloud into an overflow menu. */
 export const FOOTER_COMPACT_PX = 520;

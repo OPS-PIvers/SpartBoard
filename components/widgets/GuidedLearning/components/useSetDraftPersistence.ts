@@ -11,6 +11,7 @@ import {
   GL_SET_SCHEMA_VERSION,
   SlideMeasurement,
   convertLegacySpotlightRadii,
+  requiredSchemaVersion,
   stepUsesSpotlight,
 } from '../utils/setMigration';
 import { calculateImageFootprint, toImageOffset } from '../utils/imageUtils';
@@ -85,6 +86,9 @@ function studioFieldsEqual(a: GuidedLearningStep, b: GuidedLearningStep) {
 export const STUDIO_STEP_FIELDS = [
   'region',
   'calloutPin',
+  'calloutWidthPct',
+  'calloutScale',
+  'calloutTone',
   'cursor',
   'narration',
   'tour',
@@ -456,7 +460,7 @@ export function useSetDraftPersistence({
     const steps = editorState.steps;
     const schemaVersion =
       editorState.spotlightRadiiV2 || !steps.some(stepUsesSpotlight)
-        ? GL_SET_SCHEMA_VERSION
+        ? requiredSchemaVersion({ steps })
         : set.schemaVersion;
     // Editor-owned optional fields are dropped here and re-added below only when set.
     const {

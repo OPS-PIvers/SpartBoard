@@ -6,6 +6,7 @@ import {
   convertLegacySpotlightRadii,
   isGuidedLearningSetV2,
   isGuidedLearningSetV3,
+  requiredSchemaVersion,
   stepUsesSpotlight,
 } from './setMigration';
 import {
@@ -24,7 +25,37 @@ describe('isGuidedLearningSetV2', () => {
   it('treats v2 and above as v2', () => {
     expect(isGuidedLearningSetV2({ schemaVersion: 2 })).toBe(true);
     expect(isGuidedLearningSetV2({ schemaVersion: 3 })).toBe(true);
-    expect(GL_SET_SCHEMA_VERSION).toBe(3);
+    expect(GL_SET_SCHEMA_VERSION).toBe(4);
+  });
+});
+
+describe('requiredSchemaVersion', () => {
+  const step = (
+    over: Partial<GuidedLearningStep> = {}
+  ): GuidedLearningStep => ({
+    id: 's',
+    xPct: 50,
+    yPct: 50,
+    imageIndex: 0,
+    interactionType: 'tooltip',
+    ...over,
+  });
+
+  it('stays at 3 when no step uses callout styling', () => {
+    expect(requiredSchemaVersion({ steps: [] })).toBe(3);
+    expect(
+      requiredSchemaVersion({
+        steps: [step({ calloutPin: { xPct: 1, yPct: 2 } })],
+      })
+    ).toBe(3);
+  });
+
+  it.each([
+    { calloutWidthPct: 40 },
+    { calloutScale: 1.25 },
+    { calloutTone: 'light' as const },
+  ])('is 4 once a step sets %o', (over) => {
+    expect(requiredSchemaVersion({ steps: [step(), step(over)] })).toBe(4);
   });
 });
 

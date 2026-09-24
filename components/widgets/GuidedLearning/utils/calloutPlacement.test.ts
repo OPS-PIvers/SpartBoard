@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { PxRect } from '../types/stage';
 import {
+  arrowBetween,
+  leaderCurve,
   placeBanner,
   placeCallout,
   placePopover,
@@ -172,5 +174,58 @@ describe('placePopover', () => {
     const p = placePopover(box, target, container);
     expect(p.left + 150).toBeLessThan(400);
     expect(p.top + 100).toBeLessThan(300);
+  });
+});
+
+describe('arrowBetween normal', () => {
+  const box: PxRect = { x: 100, y: 100, w: 200, h: 80 };
+
+  it('points out of the bottom edge for a target below', () => {
+    const a = arrowBetween(box, { x: 180, y: 300, w: 20, h: 20 });
+    expect(a.from).toEqual({ x: 190, y: 180 });
+    expect(a.normal).toEqual({ x: 0, y: 1 });
+  });
+
+  it('points out of the left edge for a target to the left', () => {
+    const a = arrowBetween(box, { x: 0, y: 130, w: 20, h: 20 });
+    expect(a.normal).toEqual({ x: -1, y: 0 });
+  });
+
+  it('picks the axis facing the target at a corner', () => {
+    // Up-right of the box, further right than up.
+    const a = arrowBetween(box, { x: 500, y: 60, w: 10, h: 10 });
+    expect(a.from).toEqual({ x: 300, y: 100 });
+    expect(a.normal).toEqual({ x: 1, y: 0 });
+  });
+});
+
+describe('leaderCurve', () => {
+  it('leaves along the normal and ends heading into the target', () => {
+    const from = { x: 0, y: 0 };
+    const to = { x: 200, y: 200 };
+    const { c1, c2, endTangent } = leaderCurve(from, { x: 0, y: 1 }, to);
+    const d = 0.4 * Math.hypot(200, 200);
+    expect(c1.x).toBeCloseTo(0);
+    expect(c1.y).toBeCloseTo(d);
+    // c2 sits on the segment from the target back toward c1.
+    const back = Math.hypot(c1.x - c2.x, c1.y - c2.y);
+    const whole = Math.hypot(c1.x - to.x, c1.y - to.y);
+    expect(back + d).toBeCloseTo(whole);
+    expect(Math.hypot(endTangent.x, endTangent.y)).toBeCloseTo(1);
+    expect(endTangent.x).toBeGreaterThan(0);
+  });
+
+  it('keeps short lines almost straight', () => {
+    const { c1 } = leaderCurve({ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 10, y: 0 });
+    expect(Math.hypot(c1.x, c1.y)).toBeLessThan(1);
+  });
+
+  it('is deterministic', () => {
+    const args = [
+      { x: 3, y: 4 },
+      { x: 1, y: 0 },
+      { x: 90, y: -30 },
+    ] as const;
+    expect(leaderCurve(...args)).toEqual(leaderCurve(...args));
   });
 });

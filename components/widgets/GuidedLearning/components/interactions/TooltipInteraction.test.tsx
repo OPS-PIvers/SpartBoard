@@ -111,3 +111,90 @@ describe('TooltipInteraction', () => {
     expect(card().querySelector('strong')?.textContent).toBe('menu');
   });
 });
+
+describe('TooltipInteraction callout style', () => {
+  it('renders the default dark card at auto width and scale 1', () => {
+    render(
+      <TooltipInteraction
+        step={{ ...baseStep, xPct: 50, yPct: 80 }}
+        containerWidth={800}
+        containerHeight={400}
+      />
+    );
+    expect(card().style.width).toBe('max-content');
+    expect(card().style.getPropertyValue('--gl-callout-scale')).toBe('1');
+    expect(card().className).toContain('bg-slate-900/90');
+  });
+
+  it('uses the authored width as % of the stage, clamped and capped to fit', () => {
+    render(
+      <TooltipInteraction
+        step={{ ...baseStep, xPct: 50, yPct: 80, calloutWidthPct: 40 }}
+        containerWidth={800}
+        containerHeight={400}
+      />
+    );
+    expect(card().style.width).toBe('320px');
+  });
+
+  it('caps an out-of-range width at 95% and never wider than the stage', () => {
+    render(
+      <TooltipInteraction
+        step={{ ...baseStep, xPct: 50, yPct: 80, calloutWidthPct: 400 }}
+        containerWidth={200}
+        containerHeight={400}
+      />
+    );
+    expect(card().style.width).toBe(`${200 - 24}px`);
+  });
+
+  it('clamps the scale and applies the tone to card and line', () => {
+    render(
+      <TooltipInteraction
+        step={{
+          ...baseStep,
+          xPct: 50,
+          yPct: 80,
+          calloutScale: 9,
+          calloutTone: 'light',
+        }}
+        containerWidth={800}
+        containerHeight={400}
+      />
+    );
+    expect(card().style.getPropertyValue('--gl-callout-scale')).toBe('2');
+    expect(card().className).toContain('bg-white');
+    expect(
+      screen.getByTestId('gl-callout-arrow-line').getAttribute('stroke')
+    ).toBe('rgb(15,23,42)');
+  });
+
+  it('ignores an unknown tone', () => {
+    render(
+      <TooltipInteraction
+        step={{
+          ...baseStep,
+          xPct: 50,
+          yPct: 80,
+          calloutTone: 'neon' as unknown as 'dark',
+        }}
+        containerWidth={800}
+        containerHeight={400}
+      />
+    );
+    expect(card().className).toContain('bg-slate-900/90');
+  });
+
+  it('draws a curved leader, not a straight segment', () => {
+    render(
+      <TooltipInteraction
+        step={{ ...baseStep, xPct: 50, yPct: 80 }}
+        containerWidth={800}
+        containerHeight={400}
+      />
+    );
+    expect(
+      screen.getByTestId('gl-callout-arrow-line').getAttribute('d')
+    ).toMatch(/^M [\d.-]+ [\d.-]+ C /);
+  });
+});
