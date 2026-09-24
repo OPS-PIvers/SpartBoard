@@ -52,7 +52,7 @@ import {
   driveStimulusUploader,
   type ExtractedImage,
 } from '@/utils/quizDocumentImport';
-import { readTestDocument } from '@/utils/quizDocumentImport/readTestDocument';
+import { readTestAndKey } from '@/utils/quizDocumentImport/readTestAndKey';
 import {
   callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
@@ -3422,12 +3422,13 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             ? {
                 // The same readers the import wizard uses, so a new paper
                 // test can start from the teacher's own test paper (D17).
-                readDocument: (file: Blob, fileName: string, useAi?: boolean) =>
-                  readTestDocument(file, fileName, {
+                readDocument: (test, { useAi, key } = {}) =>
+                  readTestAndKey(test, {
                     ...(canUseAiReader
                       ? { aiExtract: extractQuizFromDocument }
                       : {}),
                     ...(useAi === false ? { useAi } : {}),
+                    key,
                   }),
                 canUseAi: canUseAiReader,
                 pickDocument,
@@ -3543,12 +3544,13 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             ? {
                 // The same readers the import wizard uses, so a stub fills
                 // with choices and a key rather than stem text alone (D17).
-                readDocument: (file: Blob, fileName: string, useAi?: boolean) =>
-                  readTestDocument(file, fileName, {
+                readDocument: (test, { useAi, key } = {}) =>
+                  readTestAndKey(test, {
                     ...(canUseAiReader
                       ? { aiExtract: extractQuizFromDocument }
                       : {}),
                     ...(useAi === false ? { useAi } : {}),
+                    key,
                   }),
                 canUseAi: canUseAiReader,
               }
