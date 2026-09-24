@@ -61,6 +61,7 @@ const makeState = (): GuidedLearningEditorController => ({
   imageUrls: [],
   imageKinds: [],
   videoTrims: [],
+  slideThumbnails: {},
   setVideoTrim: vi.fn(),
   currentImageIndex: 0,
   setCurrentImageIndex: vi.fn(),

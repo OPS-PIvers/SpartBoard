@@ -1,4 +1,7 @@
-import type { GuidedLearningSet } from '@/types';
+import type {
+  GuidedLearningBuildingSetIndex,
+  GuidedLearningSet,
+} from '@/types';
 import type { HelpResourceItem } from '@/types/helpCenter';
 
 // Library source-filter value that lists only the Help Center's own sets.
@@ -15,5 +18,9 @@ export const helpCenterSetIdsOf = (
 
 // Only the explicit flag counts: a shared building set a help item links to stays in the library.
 export const isHelpCenterSet = (
-  set: Pick<GuidedLearningSet, 'helpCenter'>
-): boolean => set.helpCenter === true;
+  set:
+    | Pick<GuidedLearningSet, 'helpCenter'>
+    | Pick<GuidedLearningBuildingSetIndex, 'isHelpCenter'>
+): boolean =>
+  ('helpCenter' in set && set.helpCenter === true) ||
+  ('isHelpCenter' in set && set.isHelpCenter === true);

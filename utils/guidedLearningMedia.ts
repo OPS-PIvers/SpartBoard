@@ -139,12 +139,58 @@ export async function prepareImageForUpload(file: File): Promise<File> {
 export function pickThumbnailUrl(set: {
   imageUrls: string[];
   imageKinds?: ('image' | 'video')[];
+  slideThumbnails?: Record<string, string>;
 }): string {
   const kinds = set.imageKinds ?? [];
   const idx = set.imageUrls.findIndex(
     (_, i) => (kinds[i] ?? 'image') !== 'video'
   );
-  return idx >= 0 ? set.imageUrls[idx] : '';
+  return idx >= 0 ? thumbnailUrl(set.imageUrls[idx], set.slideThumbnails) : '';
+}
+
+/** Longest edge of library and filmstrip thumbnails. */
+export const GL_THUMBNAIL_PX = 400;
+
+const DRIVE_SLIDE_URL = /^https:\/\/lh3\.googleusercontent\.com\/d\/[^/?#=]+$/;
+
+/** The small version of a slide: its Storage thumbnail, a sized Drive URL, or the slide itself. */
+export function thumbnailUrl(
+  url: string,
+  slideThumbnails?: Record<string, string>
+): string {
+  const stored = slideThumbnails?.[url];
+  if (stored) return stored;
+  if (DRIVE_SLIDE_URL.test(url)) return `${url}=w${GL_THUMBNAIL_PX}`;
+  return url;
+}
+
+/** A 400px WebP of a static image; null for GIFs, SVGs, small images and decode failures. */
+export async function makeSlideThumbnail(file: File): Promise<Blob | null> {
+  if (
+    file.type === 'image/gif' ||
+    file.type === 'image/svg+xml' ||
+    /\.(gif|svg)$/i.test(file.name) ||
+    typeof document === 'undefined'
+  ) {
+    return null;
+  }
+  let img: HTMLImageElement;
+  try {
+    img = await loadImageFromFile(file);
+  } catch {
+    return null;
+  }
+  const { naturalWidth: w, naturalHeight: h } = img;
+  if (w === 0 || h === 0 || Math.max(w, h) <= GL_THUMBNAIL_PX) return null;
+  const scale = GL_THUMBNAIL_PX / Math.max(w, h);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(w * scale);
+  canvas.height = Math.round(h * scale);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  const blob = await canvasToBlob(canvas, 'image/webp', 0.8);
+  return blob?.type === 'image/webp' ? blob : null;
 }
 
 /** File extension for an uploaded/recorded video blob's MIME type. */

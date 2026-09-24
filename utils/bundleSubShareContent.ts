@@ -541,6 +541,7 @@ async function bundleGuidedLearning(
   const {
     authorUid: _authorUid,
     imagePaths: _imagePaths,
+    driveFileIds: _driveFileIds,
     tourSetup: _tourSetup,
     steps,
     ...rest

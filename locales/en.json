@@ -3671,6 +3671,12 @@
     "done": "Done"
   },
   "glStudio": {
+    "conflictTitle": "Edited elsewhere",
+    "conflictBody": "This set was saved in another tab or on another device since you opened it, so autosave is paused. Reload to see that version, or overwrite it with yours.",
+    "conflictReload": "Reload",
+    "conflictOverwrite": "Overwrite",
+    "reloadFailed": "Couldn't load the latest version. Try again.",
+    "newerVersion": "This set was saved by a newer version of SpartBoard. Refresh the page to edit it.",
     "needSlide": "Not ready to use yet: add at least one slide.",
     "needTitle": "Not ready to use yet: give this activity a title.",
     "classicEditorNotice": "This activity uses Studio features. Edit regions and callouts in the Studio.",
@@ -4379,5 +4385,8 @@
     "loadFailedTitle": "Couldn't open these results",
     "loadFailedBody": "The set for this assignment was deleted or couldn't be loaded.",
     "backToLibrary": "Back to library"
+  },
+  "glData": {
+    "setTooLarge": "This set is too large to save — split it or remove slides."
   }
 }

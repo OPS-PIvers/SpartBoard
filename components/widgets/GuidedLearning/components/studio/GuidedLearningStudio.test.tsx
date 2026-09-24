@@ -13,6 +13,16 @@ import type { GuidedLearningSet } from '@/types';
 import { mockStageLayout } from '@/tests/utils/mockStageLayout';
 import { TOUR_START_EVENT } from '@/components/tours/tourState';
 import { GuidedLearningStudio } from './GuidedLearningStudio';
+import {
+  GuidedLearningSaveConflictError,
+  type GuidedLearningSaveGuard,
+} from '../../utils/saveConflict';
+
+type SaveFn = (
+  set: GuidedLearningSet,
+  driveFileId?: string,
+  guard?: GuidedLearningSaveGuard
+) => Promise<void>;
 
 const features = vi.hoisted(() => new Set<string>());
 vi.mock('@/context/useAuth', () => ({
@@ -496,6 +506,98 @@ describe('GuidedLearningStudio', () => {
       expect(onSave.mock.calls[0][0]).toMatchObject({
         title: 'Board switched away',
       });
+    });
+  });
+
+  describe('conflict and schema guards', () => {
+    const editTitle = async (value: string) => {
+      fireEvent.change(screen.getByLabelText('Activity title'), {
+        target: { value },
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+    };
+    const theirs = { ...buildSet(), title: 'Saved in another tab' };
+    const secondTabSaved = () =>
+      new GuidedLearningSaveConflictError(() =>
+        Promise.resolve({ set: theirs, updatedAt: 500 })
+      );
+
+    it('pauses autosave behind the banner when another tab saved first', async () => {
+      vi.useFakeTimers();
+      const onSave = vi.fn<SaveFn>().mockRejectedValue(secondTabSaved());
+      renderStudio({ onSave });
+      await editTitle('Mine');
+      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(onSave.mock.calls[0][2]).toEqual({ expectedUpdatedAt: 1 });
+      const banner = screen.getByTestId('gl-studio-conflict');
+      expect(banner).toHaveTextContent('Edited elsewhere');
+      await editTitle('Mine, again');
+      expect(onSave).toHaveBeenCalledTimes(1);
+    });
+
+    it('Overwrite saves this draft without the check and resumes autosave', async () => {
+      vi.useFakeTimers();
+      const onSave = vi
+        .fn<SaveFn>()
+        .mockRejectedValueOnce(secondTabSaved())
+        .mockResolvedValue(undefined);
+      renderStudio({ onSave });
+      await editTitle('Mine');
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Overwrite' }));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(onSave).toHaveBeenCalledTimes(2);
+      expect(onSave.mock.calls[1][0]).toMatchObject({ title: 'Mine' });
+      expect(onSave.mock.calls[1][2]).toEqual({ expectedUpdatedAt: undefined });
+      expect(screen.queryByTestId('gl-studio-conflict')).toBeNull();
+      await editTitle('Mine, later');
+      expect(onSave).toHaveBeenCalledTimes(3);
+      expect(onSave.mock.calls[2][2]).toEqual({
+        expectedUpdatedAt: onSave.mock.calls[1][0].updatedAt,
+      });
+    });
+
+    it('Reload swaps in the other tab’s version and saves against its revision', async () => {
+      vi.useFakeTimers();
+      const onSave = vi
+        .fn<SaveFn>()
+        .mockRejectedValueOnce(secondTabSaved())
+        .mockResolvedValue(undefined);
+      renderStudio({ onSave });
+      await editTitle('Mine');
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(screen.getByLabelText('Activity title')).toHaveValue(
+        'Saved in another tab'
+      );
+      expect(screen.queryByTestId('gl-studio-conflict')).toBeNull();
+      await editTitle('Theirs, edited');
+      expect(onSave).toHaveBeenCalledTimes(2);
+      expect(onSave.mock.calls[1][2]).toEqual({ expectedUpdatedAt: 500 });
+    });
+
+    it('opens a set from a newer schema read-only and never saves it', async () => {
+      vi.useFakeTimers();
+      const { onSave, onClose } = renderStudio({
+        set: { ...buildSet(), schemaVersion: 99 },
+      });
+      expect(screen.getByTestId('gl-studio-read-only')).toHaveTextContent(
+        'saved by a newer version'
+      );
+      await editTitle('Should not stick');
+      expect(screen.getByLabelText('Activity title')).toHaveValue('Timer tour');
+      expect(onSave).not.toHaveBeenCalled();
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Close editor' }));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(onClose).toHaveBeenCalled();
+      expect(onSave).not.toHaveBeenCalled();
     });
   });
 });

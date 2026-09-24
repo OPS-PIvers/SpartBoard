@@ -2,7 +2,8 @@
  * useGuidedLearning hook
  *
  * - Personal sets: metadata in Firestore, full data in Google Drive
- * - Admin building sets: full data in Firestore /building_guided_learning
+ * - Admin building sets: full data in Firestore /building_guided_learning;
+ *   the library lists the server-written /building_guided_learning_index.
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -17,11 +18,24 @@ import {
   deleteDoc,
   query,
   orderBy,
+  runTransaction,
+  type DocumentData,
+  type DocumentReference,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from './useGoogleDrive';
-import { GuidedLearningSet, GuidedLearningSetMetadata } from '@/types';
+import {
+  GuidedLearningBuildingSetIndex,
+  GuidedLearningSet,
+  GuidedLearningSetMetadata,
+} from '@/types';
+import { assertGuidedLearningDocFits } from '@/utils/firestoreDocSize';
+import {
+  BUILDING_INDEX_CONTROL_IDS,
+  BUILDING_INDEX_META_ID,
+  buildBuildingIndexEntry,
+} from '@/components/widgets/GuidedLearning/utils/buildingIndexEntry';
 import { pickThumbnailUrl } from '@/utils/guidedLearningMedia';
 import { GuidedLearningDriveService } from '@/utils/guidedLearningDriveService';
 import {
@@ -29,15 +43,23 @@ import {
   MockGuidedLearningDriveService,
 } from '@/utils/mockGuidedLearningDriveService';
 import { normalizeGuidedLearningSet } from '@/components/widgets/GuidedLearning/utils/setMigration';
+import { withSlideFileRefs } from '@/components/widgets/GuidedLearning/utils/slideMedia';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
+import {
+  GuidedLearningSaveConflictError,
+  type GuidedLearningSaveGuard,
+  isStaleRevision,
+} from '@/components/widgets/GuidedLearning/utils/saveConflict';
 
 const GL_COLLECTION = 'guided_learning';
 const BUILDING_GL_COLLECTION = 'building_guided_learning';
+const BUILDING_GL_INDEX_COLLECTION = 'building_guided_learning_index';
 
 export interface UseGuidedLearningResult {
   sets: GuidedLearningSetMetadata[];
-  buildingSets: GuidedLearningSet[];
+  /** Library entries only; fetch the full set with `loadBuildingSet` on Play, Edit or preview. */
+  buildingSets: GuidedLearningBuildingSetIndex[];
   loading: boolean;
   buildingLoading: boolean;
   error: string | null;
@@ -45,7 +67,8 @@ export interface UseGuidedLearningResult {
   /** Save or update a personal set (saves to Drive + upserts Firestore metadata) */
   saveSet: (
     set: GuidedLearningSet,
-    existingDriveFileId?: string
+    existingDriveFileId?: string,
+    guard?: GuidedLearningSaveGuard
   ) => Promise<GuidedLearningSetMetadata>;
   /** Load full set data from Drive by driveFileId */
   loadSetData: (driveFileId: string) => Promise<GuidedLearningSet>;
@@ -63,20 +86,14 @@ export interface UseGuidedLearningResult {
     source: GuidedLearningSetMetadata
   ) => Promise<GuidedLearningSetMetadata>;
   /** Save an admin building set to Firestore */
-  saveBuildingSet: (set: GuidedLearningSet) => Promise<void>;
+  saveBuildingSet: (
+    set: GuidedLearningSet,
+    guard?: GuidedLearningSaveGuard
+  ) => Promise<void>;
   /** Delete an admin building set from Firestore */
   deleteBuildingSet: (setId: string) => Promise<void>;
-  /**
-   * Duplicate an admin building set. Mirrors `duplicateSet` for the
-   * Firestore-only building-set collection: clones the source's
-   * `GuidedLearningSet` directly into a new doc with a fresh id and a
-   * suggested title. No Drive involvement (building sets store full
-   * data inline in Firestore). Storage image refs are shared with the
-   * source — matches `duplicateSet`'s personal-set policy.
-   */
-  duplicateBuildingSet: (
-    source: GuidedLearningSet
-  ) => Promise<GuidedLearningSet>;
+  /** Duplicate an admin building set by id into a new doc (Storage refs shared). */
+  duplicateBuildingSet: (setId: string) => Promise<GuidedLearningSet>;
 }
 
 export const useGuidedLearning = (
@@ -85,7 +102,9 @@ export const useGuidedLearning = (
   const { googleAccessToken, isAdmin } = useAuth();
   const { isConnected } = useGoogleDrive();
   const [sets, setSets] = useState<GuidedLearningSetMetadata[]>([]);
-  const [buildingSets, setBuildingSets] = useState<GuidedLearningSet[]>([]);
+  const [buildingSets, setBuildingSets] = useState<
+    GuidedLearningBuildingSetIndex[]
+  >([]);
   const [loading, setLoading] = useState(!!userId);
   const [buildingLoading, setBuildingLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,19 +152,41 @@ export const useGuidedLearning = (
     return unsub;
   }, [userId]);
 
-  // Load building sets (one-time fetch — real-time listener not needed for admin content)
+  // Null until the index's _meta marker is read; false means not backfilled yet.
+  const [indexReady, setIndexReady] = useState<boolean | null>(null);
+  useEffect(
+    () =>
+      onSnapshot(
+        doc(db, BUILDING_GL_INDEX_COLLECTION, BUILDING_INDEX_META_ID),
+        (snap) => setIndexReady(snap.exists()),
+        (err) => {
+          console.error('[useGuidedLearning] Index marker error:', err);
+          setIndexReady(false);
+        }
+      ),
+    []
+  );
+
+  // Listens to the slim index once backfilled, else derives entries from the full sets.
   useEffect(() => {
+    if (indexReady === null) return;
     const q = query(
-      collection(db, BUILDING_GL_COLLECTION),
+      collection(
+        db,
+        indexReady ? BUILDING_GL_INDEX_COLLECTION : BUILDING_GL_COLLECTION
+      ),
       orderBy('createdAt', 'desc')
     );
 
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const list: GuidedLearningSet[] = snap.docs.map((d) =>
-          normalizeGuidedLearningSet(d.data() as GuidedLearningSet)
-        );
+        const list = snap.docs.flatMap((d) => {
+          if (BUILDING_INDEX_CONTROL_IDS.has(d.id)) return [];
+          if (indexReady) return [d.data() as GuidedLearningBuildingSetIndex];
+          const entry = buildBuildingIndexEntry(d.id, d.data());
+          return entry ? [entry] : [];
+        });
         setBuildingSets(list);
         setBuildingLoading(false);
       },
@@ -156,7 +197,7 @@ export const useGuidedLearning = (
     );
 
     return unsub;
-  }, []);
+  }, [indexReady]);
 
   // One service per token, so its folder cache survives across saves.
   const driveService = useMemo((): GuidedLearningDriveLike | null => {
@@ -179,14 +220,37 @@ export const useGuidedLearning = (
   const saveSet = useCallback(
     async (
       set: GuidedLearningSet,
-      existingDriveFileId?: string
+      existingDriveFileId?: string,
+      guard?: GuidedLearningSaveGuard
     ): Promise<GuidedLearningSetMetadata> => {
       if (!userId) throw new Error('Not authenticated');
       const drive = getDriveService();
-      const updatedSet: GuidedLearningSet = normalizeGuidedLearningSet({
-        ...set,
-        updatedAt: Date.now(),
-      });
+      const metaRef = doc(db, 'users', userId, GL_COLLECTION, set.id);
+      // Drive can't be transacted, so check the metadata revision before touching it.
+      const personalConflict = (stored: DocumentData) =>
+        new GuidedLearningSaveConflictError(async () => {
+          const latest = normalizeGuidedLearningSet(
+            await drive.loadSet(String(stored.driveFileId))
+          );
+          const revision: unknown = stored.updatedAt;
+          return {
+            set: latest,
+            updatedAt:
+              typeof revision === 'number' ? revision : latest.updatedAt,
+          };
+        });
+      if (guard) {
+        const before = (await getDoc(metaRef)).data();
+        if (before && isStaleRevision(before, guard))
+          throw personalConflict(before);
+      }
+      // A guarded save keeps the editor's stamp so the editor knows the new revision.
+      const updatedSet: GuidedLearningSet = withSlideFileRefs(
+        normalizeGuidedLearningSet({
+          ...set,
+          updatedAt: guard ? set.updatedAt : Date.now(),
+        })
+      );
 
       const driveFileId = await drive.saveSet(updatedSet, existingDriveFileId);
 
@@ -201,20 +265,28 @@ export const useGuidedLearning = (
         createdAt: set.createdAt,
         updatedAt: updatedSet.updatedAt,
       };
-      // Mirrored so the Storage GC function can see which slides a set owns.
-      const imagePaths = (updatedSet.imagePaths ?? []).filter(Boolean);
-      if (imagePaths.length > 0) metadata.imagePaths = imagePaths;
+      // Mirrored so file cleanup can see which slides a set owns.
+      if (updatedSet.imagePaths) metadata.imagePaths = updatedSet.imagePaths;
+      if (updatedSet.driveFileIds)
+        metadata.driveFileIds = updatedSet.driveFileIds;
 
       // Merge keeps library-owned fields (folderId, order) the editor never sees.
-      await setDoc(
-        doc(db, 'users', userId, GL_COLLECTION, set.id),
-        {
-          ...metadata,
-          description: metadata.description ?? deleteField(),
-          imagePaths: metadata.imagePaths ?? deleteField(),
-        },
-        { merge: true }
-      );
+      const metaWrite = {
+        ...metadata,
+        description: metadata.description ?? deleteField(),
+        imagePaths: metadata.imagePaths ?? deleteField(),
+        driveFileIds: metadata.driveFileIds ?? deleteField(),
+      };
+      if (guard) {
+        await runTransaction(db, async (tx) => {
+          const stored = (await tx.get(metaRef)).data();
+          if (stored && isStaleRevision(stored, guard))
+            throw personalConflict(stored);
+          tx.set(metaRef, metaWrite, { merge: true });
+        });
+      } else {
+        await setDoc(metaRef, metaWrite, { merge: true });
+      }
 
       const existing = setsRef.current.find((m) => m.id === set.id);
       return {
@@ -267,16 +339,18 @@ export const useGuidedLearning = (
       const drive = getDriveService();
       const sourceData = await loadSetData(source.driveFileId);
       const now = Date.now();
-      const fresh: GuidedLearningSet = normalizeGuidedLearningSet({
-        ...sourceData,
-        id: crypto.randomUUID(),
-        title: suggestDuplicateTitle(sourceData.title || source.title),
-        createdAt: now,
-        updatedAt: now,
-        // Storage image refs are shared — see hook header doc. If
-        // teachers report stale images after a delete, switch this to a
-        // deep copy via the storage-clone helper.
-      });
+      const fresh: GuidedLearningSet = withSlideFileRefs(
+        normalizeGuidedLearningSet({
+          ...sourceData,
+          id: crypto.randomUUID(),
+          title: suggestDuplicateTitle(sourceData.title || source.title),
+          createdAt: now,
+          updatedAt: now,
+          // Storage image refs are shared — see hook header doc. If
+          // teachers report stale images after a delete, switch this to a
+          // deep copy via the storage-clone helper.
+        })
+      );
       let createdDriveFileId: string | undefined;
       try {
         createdDriveFileId = await drive.saveSet(fresh);
@@ -290,6 +364,9 @@ export const useGuidedLearning = (
           driveFileId: createdDriveFileId,
           createdAt: fresh.createdAt,
           updatedAt: fresh.updatedAt,
+          // Listed on the copy too, so cleanup keeps files the two share.
+          ...(fresh.imagePaths ? { imagePaths: fresh.imagePaths } : {}),
+          ...(fresh.driveFileIds ? { driveFileIds: fresh.driveFileIds } : {}),
           // Preserve folder placement on duplicate.
           ...(source.folderId !== undefined
             ? { folderId: source.folderId }
@@ -318,35 +395,36 @@ export const useGuidedLearning = (
   );
 
   const saveBuildingSet = useCallback(
-    async (set: GuidedLearningSet): Promise<void> => {
+    async (
+      set: GuidedLearningSet,
+      guard?: GuidedLearningSaveGuard
+    ): Promise<void> => {
       if (!isAdmin) throw new Error('Admin access required');
       const updatedSet: GuidedLearningSet = {
-        ...normalizeGuidedLearningSet(set),
+        ...withSlideFileRefs(normalizeGuidedLearningSet(set)),
         isBuilding: true,
-        updatedAt: Date.now(),
+        updatedAt: guard ? set.updatedAt : Date.now(),
       };
-      await setDoc(doc(db, BUILDING_GL_COLLECTION, set.id), updatedSet);
+      assertGuidedLearningDocFits(
+        `${BUILDING_GL_COLLECTION}/${set.id}`,
+        updatedSet
+      );
+      await writeBuildingSet(
+        doc(db, BUILDING_GL_COLLECTION, set.id),
+        updatedSet,
+        guard
+      );
     },
     [isAdmin]
   );
 
-  /**
-   * Building-set duplicate. Firestore-only — no Drive rollback path
-   * needed because the failure mode is a single `setDoc` rejection
-   * with no orphan to clean up.
-   *
-   * Re-attributes `authorUid` to the current admin. The spread of
-   * `...source` would otherwise carry the original author's uid into
-   * the copy, which mis-attributes the audit trail and (since the
-   * project's user-deletion sweep checks authorUid) makes the copy
-   * appear as content owned by a possibly-since-deleted author.
-   * Storage image refs are shared with the source — matches the
-   * personal-set policy in `duplicateSet`.
-   */
+  // Re-attributes authorUid to the duplicating admin; Storage refs stay shared.
   const duplicateBuildingSet = useCallback(
-    async (source: GuidedLearningSet): Promise<GuidedLearningSet> => {
+    async (setId: string): Promise<GuidedLearningSet> => {
       if (!isAdmin) throw new Error('Admin access required');
       if (!userId) throw new Error('Not authenticated');
+      const source = await loadBuildingSet(setId);
+      if (!source) throw new Error('Set not found');
       const now = Date.now();
       const fresh: GuidedLearningSet = normalizeGuidedLearningSet({
         ...source,
@@ -357,6 +435,10 @@ export const useGuidedLearning = (
         createdAt: now,
         updatedAt: now,
       });
+      assertGuidedLearningDocFits(
+        `${BUILDING_GL_COLLECTION}/${fresh.id}`,
+        fresh
+      );
       await setDoc(doc(db, BUILDING_GL_COLLECTION, fresh.id), fresh);
       return fresh;
     },
@@ -386,6 +468,28 @@ export const useGuidedLearning = (
     saveBuildingSet,
     deleteBuildingSet,
   };
+};
+
+// Transactional revision check for a building set; unguarded callers write as before.
+const writeBuildingSet = async (
+  ref: DocumentReference,
+  set: GuidedLearningSet,
+  guard: GuidedLearningSaveGuard | undefined
+): Promise<void> => {
+  if (!guard) {
+    await setDoc(ref, set);
+    return;
+  }
+  await runTransaction(db, async (tx) => {
+    const stored = (await tx.get(ref)).data();
+    if (stored && isStaleRevision(stored, guard)) {
+      const latest = normalizeGuidedLearningSet(stored as GuidedLearningSet);
+      throw new GuidedLearningSaveConflictError(() =>
+        Promise.resolve({ set: latest, updatedAt: latest.updatedAt })
+      );
+    }
+    tx.set(ref, set);
+  });
 };
 
 // Single shared-set read for surfaces that reference one set by id (Help center guides).

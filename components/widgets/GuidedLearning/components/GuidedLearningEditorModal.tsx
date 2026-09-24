@@ -28,13 +28,18 @@ import {
 } from './useSetDraftPersistence';
 import { useGuidedLearningEditorState } from './useGuidedLearningEditorState';
 import { GuidedLearningAIGenerator } from './GuidedLearningAIGenerator';
+import type { GuidedLearningSaveGuard } from '../utils/saveConflict';
 
 interface GuidedLearningEditorModalProps {
   isOpen: boolean;
   set: GuidedLearningSet | null;
   meta: GuidedLearningSetMetadata | null;
   onClose: () => void;
-  onSave: (set: GuidedLearningSet, driveFileId?: string) => Promise<void>;
+  onSave: (
+    set: GuidedLearningSet,
+    driveFileId?: string,
+    guard?: GuidedLearningSaveGuard
+  ) => Promise<void>;
   /**
    * When provided, shows a "Generate with AI" button inside the modal (admin +
    * `gemini-functions` gated). Invoked with the generated set so the parent
@@ -105,6 +110,7 @@ export const GuidedLearningEditorModal: React.FC<
     editorState,
     onSave,
     driveFileId: meta?.driveFileId,
+    loadedUpdatedAt: meta?.updatedAt,
     onClose,
   });
 

@@ -14,10 +14,10 @@ const storage = vi.hoisted(() => ({
 vi.mock('@/hooks/useStorage', () => ({
   useStorage: () => ({
     uploading: false,
-    uploadHotspotImage: vi.fn(
+    uploadGuidedLearningImage: vi.fn(
       () =>
-        new Promise<string>((resolve) => {
-          storage.resolveUpload = resolve;
+        new Promise<{ url: string; storagePath: string }>((resolve) => {
+          storage.resolveUpload = (url) => resolve({ url, storagePath: '' });
         })
     ),
     uploadGuidedLearningMedia: vi.fn(),

@@ -25,7 +25,7 @@ vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: () => Promise.resolve(true) }),
 }));
 vi.mock('@/hooks/useStorage', () => ({
-  useStorage: () => ({ uploadHotspotImage: h.upload }),
+  useStorage: () => ({ uploadGuidedLearningImage: h.upload }),
 }));
 vi.mock('@/hooks/useGuidedLearning', () => ({
   useGuidedLearning: () => ({ saveBuildingSet: h.save }),
@@ -97,7 +97,11 @@ const renderSession = (onEnd = vi.fn()) => {
 beforeEach(() => {
   h.upload.mockReset();
   h.upload.mockImplementation((_uid: string, file: File) =>
-    Promise.resolve(`https://drive.example/${file.name}`)
+    Promise.resolve({
+      url: `https://storage.example/${file.name}`,
+      storagePath: `users/admin-1/hotspot_images/${file.name}`,
+      thumbnailUrl: `https://storage.example/thumbs/${file.name}`,
+    })
   );
   h.save.mockReset();
   h.save.mockResolvedValue(undefined);
@@ -157,6 +161,7 @@ describe('RecordingSession', () => {
       h.upload.mock.calls.map((call) => readText(call[1] as File))
     );
     expect(uploaded).toEqual(['blurred one', 'blurred two']);
+    for (const call of h.upload.mock.calls) expect(call[3]).toBe('storage');
     expect(h.draft).toHaveBeenCalledWith(
       expect.objectContaining({ frames }),
       'Add a clock'
@@ -167,9 +172,19 @@ describe('RecordingSession', () => {
       isBuilding: true,
       hasLiveTour: true,
       imageUrls: [
-        'https://drive.example/tour-step-1.png',
-        'https://drive.example/tour-step-2.png',
+        'https://storage.example/tour-step-1.png',
+        'https://storage.example/tour-step-2.png',
       ],
+      imagePaths: [
+        'users/admin-1/hotspot_images/tour-step-1.png',
+        'users/admin-1/hotspot_images/tour-step-2.png',
+      ],
+      slideThumbnails: {
+        'https://storage.example/tour-step-1.png':
+          'https://storage.example/thumbs/tour-step-1.png',
+        'https://storage.example/tour-step-2.png':
+          'https://storage.example/thumbs/tour-step-2.png',
+      },
       tourSetup: { widgets: ['clock', 'timer'] },
     });
     expect(saved.steps[0]).toMatchObject({

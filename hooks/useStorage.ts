@@ -10,8 +10,19 @@ import { doc, setDoc } from 'firebase/firestore';
 import { storage, db } from '@/config/firebase';
 import { useGoogleDrive } from './useGoogleDrive';
 import { PdfItem } from '@/types';
+import { makeSlideThumbnail } from '@/utils/guidedLearningMedia';
 
 export const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
+
+/** Personal sets keep slides on the teacher's Drive; district sets on Firebase Storage. */
+export type GuidedLearningMediaHome = 'drive' | 'storage';
+
+export interface GuidedLearningImageUpload {
+  url: string;
+  storagePath: string;
+  driveFileId?: string;
+  thumbnailUrl?: string;
+}
 
 export const useStorage = () => {
   const [uploading, setUploading] = useState(false);
@@ -164,13 +175,14 @@ export const useStorage = () => {
     return { url, storagePath };
   };
 
-  // Drive-first image slide upload for imported sets; Storage only when Drive is unavailable.
+  // Image slides: Drive for personal sets (Storage when Drive is off), Storage with a thumbnail for district sets.
   const uploadGuidedLearningImage = async (
     userId: string,
     blob: Blob,
-    fileName: string
-  ): Promise<{ url: string; storagePath: string; driveFileId?: string }> => {
-    if (driveService) {
+    fileName: string,
+    home: GuidedLearningMediaHome = 'drive'
+  ): Promise<GuidedLearningImageUpload> => {
+    if (home === 'drive' && driveService) {
       setUploading(true);
       try {
         const driveFile = await driveService.uploadFile(
@@ -188,7 +200,24 @@ export const useStorage = () => {
         setUploading(false);
       }
     }
-    return uploadGuidedLearningMedia(userId, blob, fileName);
+    const uploaded = await uploadGuidedLearningMedia(userId, blob, fileName);
+    const file =
+      blob instanceof File
+        ? blob
+        : new File([blob], fileName, { type: blob.type });
+    const thumb = await makeSlideThumbnail(file).catch(() => null);
+    if (!thumb) return uploaded;
+    const thumbnailPath = uploaded.storagePath.replace(
+      /\/([^/]+?)(\.[^./]+)?$/,
+      '/thumbs/$1.webp'
+    );
+    try {
+      const thumbnailUrl = await uploadFileWithProgress(thumbnailPath, thumb);
+      return { ...uploaded, thumbnailUrl };
+    } catch {
+      // The slide itself landed; the library just shows the full image.
+      return uploaded;
+    }
   };
 
   const deleteDriveFile = async (fileId: string): Promise<void> => {

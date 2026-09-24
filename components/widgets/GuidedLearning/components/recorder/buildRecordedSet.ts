@@ -7,6 +7,7 @@ interface BuildOptions {
   /** Uploaded slide URLs, one per recorded frame, in order. */
   imageUrls: string[];
   imagePaths?: string[];
+  slideThumbnails?: Record<string, string>;
   /** Widget types on the board when recording started. */
   widgets: WidgetType[];
   now?: number;
@@ -23,7 +24,10 @@ export function buildRecordedSet(
     schemaVersion: 3,
     title: opts.title,
     imageUrls: opts.imageUrls,
-    ...(opts.imagePaths ? { imagePaths: opts.imagePaths } : {}),
+    ...(opts.imagePaths?.length ? { imagePaths: opts.imagePaths } : {}),
+    ...(opts.slideThumbnails && Object.keys(opts.slideThumbnails).length > 0
+      ? { slideThumbnails: opts.slideThumbnails }
+      : {}),
     steps: recording.steps.map((s) => ({
       id: s.id,
       xPct: s.xPct,

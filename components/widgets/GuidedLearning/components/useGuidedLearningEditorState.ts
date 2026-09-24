@@ -12,7 +12,11 @@ import {
 } from '@/types';
 import type { EditorHistoryApi } from '../types/stage';
 import { useAuth } from '@/context/useAuth';
-import { useStorage } from '@/hooks/useStorage';
+import {
+  useStorage,
+  type GuidedLearningImageUpload,
+  type GuidedLearningMediaHome,
+} from '@/hooks/useStorage';
 import {
   isGuidedLearningSetV2,
   stepUsesSpotlight,
@@ -84,6 +88,8 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   imageUrls: string[];
   imageKinds: GuidedLearningMediaKind[];
   videoTrims: (GuidedLearningVideoTrim | null)[];
+  /** Slide URL → 400px thumbnail URL, for slides uploaded to Storage. */
+  slideThumbnails: Record<string, string>;
   /** Set/clear the playback-range trim for a video slide. */
   setVideoTrim: (index: number, trim: GuidedLearningVideoTrim | null) => void;
   currentImageIndex: number;
@@ -175,7 +181,6 @@ export function useGuidedLearningEditorState({
   const { user } = useAuth();
   const {
     uploading,
-    uploadHotspotImage,
     uploadGuidedLearningMedia,
     uploadGuidedLearningImage,
     deleteFile: deleteStorageFile,
@@ -279,6 +284,12 @@ export function useGuidedLearningEditorState({
   const [spotlightRadiiV2, setSpotlightRadiiV2] = useState<boolean>(() =>
     startsOnV2Radii(existingSet)
   );
+  // Outside undo history: an undone slide keeps its entry, and saves drop entries for absent slides.
+  const [slideThumbnails, setSlideThumbnails] = useState<
+    Record<string, string>
+  >(() => existingSet?.slideThumbnails ?? {});
+  const mediaHome: GuidedLearningMediaHome =
+    existingSet?.isBuilding || existingSet?.helpCenter ? 'storage' : 'drive';
 
   // Reset all draft state when the underlying set identity changes (parent
   // swapped to a different set). Uses the "adjust state while rendering"
@@ -296,6 +307,7 @@ export function useGuidedLearningEditorState({
     setAddingStep(false);
     setUploadProgress(null);
     setSpotlightRadiiV2(startsOnV2Radii(existingSet));
+    setSlideThumbnails(existingSet?.slideThumbnails ?? {});
   }
 
   // Render-synced mirror of imageUrls.length so the sequential upload loop
@@ -340,6 +352,27 @@ export function useGuidedLearningEditorState({
     [deleteStorageFile, deleteDriveSlide]
   );
 
+  // Prepared (WebP, 2560 cap) and sent to this set's media home; null when it landed after close.
+  const uploadSlideImage = useCallback(
+    async (uid: string, file: File): Promise<string | null> => {
+      const prepared = await prepareImageForUpload(file);
+      const upload: GuidedLearningImageUpload = await uploadGuidedLearningImage(
+        uid,
+        prepared,
+        prepared.name.replace(/[^\w.-]+/g, '_'),
+        mediaHome
+      );
+      const { url, thumbnailUrl: thumb } = upload;
+      if (discardIfAbandoned(url)) {
+        if (thumb) discardIfAbandoned(thumb);
+        return null;
+      }
+      if (thumb) setSlideThumbnails((prev) => ({ ...prev, [url]: thumb }));
+      return url;
+    },
+    [uploadGuidedLearningImage, mediaHome, discardIfAbandoned]
+  );
+
   /**
    * Validate, compress, and upload a batch of slide files (images, GIFs,
    * MP4/WebM videos). Files upload sequentially so the progress indicator
@@ -382,9 +415,8 @@ export function useGuidedLearningEditorState({
               );
               if (!discardIfAbandoned(url)) appendSlides([url], ['video']);
             } else {
-              const prepared = await prepareImageForUpload(file);
-              const url = await uploadHotspotImage(user.uid, prepared);
-              if (!discardIfAbandoned(url)) appendSlides([url], ['image']);
+              const url = await uploadSlideImage(user.uid, file);
+              if (url) appendSlides([url], ['image']);
             }
           } catch (err) {
             errors.push(
@@ -401,7 +433,7 @@ export function useGuidedLearningEditorState({
     },
     [
       user,
-      uploadHotspotImage,
+      uploadSlideImage,
       uploadGuidedLearningMedia,
       appendSlides,
       discardIfAbandoned,
@@ -487,12 +519,12 @@ export function useGuidedLearningEditorState({
     async (index: number, blob: Blob): Promise<boolean> => {
       const oldUrl = historyRef.current.present.imageUrls[index];
       if (!user || !oldUrl) return false;
-      const { url } = await uploadGuidedLearningImage(
+      const ext = blob.type === 'image/webp' ? 'webp' : 'png';
+      const url = await uploadSlideImage(
         user.uid,
-        blob,
-        'redacted.png'
+        new File([blob], `redacted.${ext}`, { type: blob.type || 'image/png' })
       );
-      if (discardIfAbandoned(url)) return false;
+      if (!url) return false;
       // Slides may have moved during the upload, so find the old image again.
       if (!historyRef.current.present.imageUrls.includes(oldUrl)) return false;
       applyDoc((doc) => ({
@@ -503,7 +535,7 @@ export function useGuidedLearningEditorState({
       if (ref) dispatch({ type: 'queueMedia', ref });
       return true;
     },
-    [user, uploadGuidedLearningImage, applyDoc, discardIfAbandoned]
+    [user, uploadSlideImage, applyDoc]
   );
 
   const moveImage = useCallback(
@@ -735,6 +767,7 @@ export function useGuidedLearningEditorState({
     imageUrls,
     imageKinds,
     videoTrims,
+    slideThumbnails,
     setVideoTrim,
     currentImageIndex,
     setCurrentImageIndex,

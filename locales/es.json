@@ -2540,6 +2540,12 @@
     "done": "Listo"
   },
   "glStudio": {
+    "conflictTitle": "Editado en otro lugar",
+    "conflictBody": "Este conjunto se guardó en otra pestaña o en otro dispositivo desde que lo abriste, así que el guardado automático está en pausa. Recarga para ver esa versión o sobrescríbela con la tuya.",
+    "conflictReload": "Recargar",
+    "conflictOverwrite": "Sobrescribir",
+    "reloadFailed": "No se pudo cargar la versión más reciente. Inténtalo de nuevo.",
+    "newerVersion": "Este conjunto se guardó con una versión más reciente de SpartBoard. Actualiza la página para editarlo.",
     "needSlide": "Aún no está lista: añade al menos una diapositiva.",
     "needTitle": "Aún no está lista: ponle un título a esta actividad.",
     "classicEditorNotice": "Esta actividad usa funciones de Studio. Edita las regiones y las llamadas en Studio.",
@@ -3222,5 +3228,8 @@
     "loadFailedTitle": "No se pudieron abrir estos resultados",
     "loadFailedBody": "El conjunto de esta tarea se eliminó o no se pudo cargar.",
     "backToLibrary": "Volver a la biblioteca"
+  },
+  "glData": {
+    "setTooLarge": "Este conjunto es demasiado grande para guardarse: divídelo o quita diapositivas."
   }
 }

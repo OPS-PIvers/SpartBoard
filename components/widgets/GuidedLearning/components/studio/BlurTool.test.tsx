@@ -51,6 +51,13 @@ vi.mock('@/context/useDialog', () => ({
   }),
 }));
 vi.mock('../../utils/redactImage', () => ({ redactImage: redact }));
+const prepareSpy = vi.hoisted(() =>
+  vi.fn((file: File) => Promise.resolve(file))
+);
+vi.mock('@/utils/guidedLearningMedia', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/guidedLearningMedia')>()),
+  prepareImageForUpload: prepareSpy,
+}));
 
 const dialog = {
   currentDialog: null,
@@ -126,7 +133,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   dialog.showConfirm.mockResolvedValue(true);
   drive.downloadFile.mockResolvedValue(new Blob(['original']));
-  redact.mockResolvedValue(new Blob(['blurred'], { type: 'image/png' }));
+  redact.mockResolvedValue(new Blob(['blurred'], { type: 'image/webp' }));
   storage.uploadGuidedLearningImage.mockResolvedValue({
     url: NEW_URL,
     storagePath: '',
@@ -159,10 +166,12 @@ describe('Studio blur tool', () => {
     expect(rects[0].wPct).toBeCloseTo(30);
     expect(rects[0].hPct).toBeCloseTo(30);
     expect(opts).toEqual({ mode: 'blur' });
+    expect(prepareSpy).toHaveBeenCalledTimes(1);
     expect(storage.uploadGuidedLearningImage).toHaveBeenCalledWith(
       'test-user',
-      expect.any(Blob),
-      'redacted.png'
+      expect.objectContaining({ type: 'image/webp' }),
+      'redacted.webp',
+      'drive'
     );
     expect(showsSlide(OLD_URL)).toBe(false);
     expect(screen.queryByTestId('gl-blur-layer')).toBeNull();

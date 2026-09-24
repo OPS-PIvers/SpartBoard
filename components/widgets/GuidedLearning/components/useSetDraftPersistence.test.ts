@@ -1,8 +1,21 @@
-import { renderHook } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
+import { describe, expect, it, vi, type Mock } from 'vitest';
 import type { GuidedLearningSet } from '@/types';
 import type { GuidedLearningEditorController } from './useGuidedLearningEditorState';
-import { useSetDraftPersistence } from './useSetDraftPersistence';
+import {
+  GuidedLearningReadOnlyError,
+  useSetDraftPersistence,
+} from './useSetDraftPersistence';
+import {
+  GuidedLearningSaveConflictError,
+  type GuidedLearningSaveGuard,
+} from '../utils/saveConflict';
+
+type SaveFn = (
+  set: GuidedLearningSet,
+  driveFileId?: string,
+  guard?: GuidedLearningSaveGuard
+) => Promise<void>;
 
 vi.mock('@/hooks/useStorage', () => ({
   useStorage: () => ({ deleteFile: vi.fn(), deleteDriveFile: vi.fn() }),
@@ -108,5 +121,88 @@ describe('useSetDraftPersistence.buildSavedSet', () => {
     });
     expect(saved?.description).toBeUndefined();
     expect(saved).not.toHaveProperty('hotspotPulse');
+  });
+
+  it('carries driveFileIds and saves only thumbnails of slides still in the set', () => {
+    const set = buildSet({ driveFileIds: ['drive-a'] });
+    const saved = build(set, {
+      imageUrls: ['https://example.com/a.png', 'https://example.com/new.png'],
+      slideThumbnails: {
+        'https://example.com/b.png': 'https://example.com/b-thumb.webp',
+        'https://example.com/new.png': 'https://example.com/new-thumb.webp',
+      },
+    });
+    expect(saved?.driveFileIds).toEqual(['drive-a']);
+    expect(saved?.slideThumbnails).toEqual({
+      'https://example.com/new.png': 'https://example.com/new-thumb.webp',
+    });
+  });
+});
+
+describe('useSetDraftPersistence revision guard', () => {
+  const persist = (
+    set: GuidedLearningSet,
+    onSave: Mock<SaveFn>,
+    loadedUpdatedAt?: number
+  ) =>
+    renderHook(() =>
+      useSetDraftPersistence({
+        isOpen: true,
+        set,
+        editorState: editorFor(set, { title: 'Edited' }),
+        onSave,
+        driveFileId: 'drive-1',
+        loadedUpdatedAt,
+        onClose: vi.fn(),
+      })
+    );
+
+  it('saves against the loaded revision, then against the one it wrote', async () => {
+    const onSave = vi.fn<SaveFn>().mockResolvedValue(undefined);
+    const { result } = persist(buildSet({ updatedAt: 50 }), onSave, 70);
+    await act(() => result.current.persistDraft());
+    const [first, driveId, guard] = onSave.mock.calls[0];
+    expect(driveId).toBe('drive-1');
+    expect(guard).toEqual({ expectedUpdatedAt: 70 });
+    expect(first.updatedAt).toBeGreaterThan(70);
+    await act(() => result.current.persistDraft());
+    expect(onSave.mock.calls[1][2]).toEqual({
+      expectedUpdatedAt: first.updatedAt,
+    });
+  });
+
+  it('reports a conflict, and Overwrite skips the check once', async () => {
+    const conflict = new GuidedLearningSaveConflictError(() =>
+      Promise.resolve({ set: buildSet(), updatedAt: 90 })
+    );
+    const onSave = vi
+      .fn<SaveFn>()
+      .mockRejectedValueOnce(conflict)
+      .mockResolvedValue(undefined);
+    const { result } = persist(buildSet(), onSave);
+    await act(() =>
+      expect(result.current.persistDraft()).rejects.toBe(conflict)
+    );
+    expect(result.current.conflict).toBe(conflict);
+    act(() => result.current.armOverwrite());
+    await act(() => result.current.persistDraft());
+    expect(onSave.mock.calls[1][2]).toEqual({ expectedUpdatedAt: undefined });
+    expect(result.current.conflict).toBeNull();
+    await act(() => result.current.persistDraft());
+    expect(onSave.mock.calls[2][2]).toEqual({
+      expectedUpdatedAt: onSave.mock.calls[1][0].updatedAt,
+    });
+  });
+
+  it('refuses to save a set a newer schema wrote', async () => {
+    const onSave = vi.fn<SaveFn>();
+    const { result } = persist(buildSet({ schemaVersion: 99 }), onSave);
+    expect(result.current.readOnly).toBe(true);
+    await act(() =>
+      expect(result.current.persistDraft()).rejects.toBeInstanceOf(
+        GuidedLearningReadOnlyError
+      )
+    );
+    expect(onSave).not.toHaveBeenCalled();
   });
 });

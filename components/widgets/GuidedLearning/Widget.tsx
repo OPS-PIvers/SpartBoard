@@ -13,6 +13,7 @@ import {
   AssignmentMode,
   WidgetData,
   GuidedLearningConfig,
+  GuidedLearningBuildingSetIndex,
   GuidedLearningSet,
   GuidedLearningSetMetadata,
   GuidedLearningAssignment,
@@ -27,7 +28,7 @@ import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareGuidedLearningWidget } from './SubShareWidget';
 import { useDialog } from '@/context/useDialog';
 import { useAuth } from '@/context/useAuth';
-import { useGuidedLearning } from '@/hooks/useGuidedLearning';
+import { loadBuildingSet, useGuidedLearning } from '@/hooks/useGuidedLearning';
 import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useFolders } from '@/hooks/useFolders';
@@ -68,8 +69,12 @@ import {
   prepareImportedSet,
   rehostImportedSetImages,
 } from './utils/glTransfer';
-import { pickThumbnailUrl } from '@/utils/guidedLearningMedia';
+import {
+  pickThumbnailUrl,
+  prepareImageForUpload,
+} from '@/utils/guidedLearningMedia';
 import { SetPrefetchCache } from './utils/setPrefetchCache';
+import type { GuidedLearningSaveGuard } from './utils/saveConflict';
 import {
   answerKeysForSteps,
   withFrozenAnswerKeys,
@@ -244,10 +249,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // The Studio is admin-only until P1-10 retires the classic editor.
   const [classicEditor, setClassicEditor] = useState(false);
 
-  const { folders: glFolders, moveItem: moveGlItem } = useFolders(
-    user?.uid,
-    'guided_learning'
-  );
+  const { folders: glFolders } = useFolders(user?.uid, 'guided_learning');
   const [showAIGen, setShowAIGen] = useState(false);
   // Shared rapid-click guards (personal sets + admin building sets).
   // See `hooks/useBusyIdSet.ts`.
@@ -325,14 +327,24 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // rapid card-to-card clicks never race each other.
   const prefetchCacheRef = useRef(new SetPrefetchCache<GuidedLearningSet>());
 
-  // Fetch set data (building sets skip Drive), deduped through the cache.
+  // Fetch set data (building sets from Firestore, personal from Drive), deduped through the cache.
   const fetchSetCached = useCallback(
     async (
       setId: string,
       driveFileId?: string,
-      buildingSet?: GuidedLearningSet
+      buildingEntry?: GuidedLearningBuildingSetIndex
     ): Promise<GuidedLearningSet | null> => {
-      if (buildingSet) return normalizeGuidedLearningSet(buildingSet);
+      if (buildingEntry) {
+        return prefetchCacheRef.current.fetch(
+          setId,
+          () =>
+            loadBuildingSet(setId).then((set) => {
+              if (!set) throw new Error('This set was deleted.');
+              return set;
+            }),
+          buildingEntry.updatedAt
+        );
+      }
       if (!driveFileId) return null;
       // Version by the realtime metadata updatedAt so edits elsewhere refetch.
       const version = sets.find((s) => s.id === setId)?.updatedAt;
@@ -347,8 +359,12 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
 
   // Fire-and-forget warmup on card select so Play is instant.
   const prefetchSet = useCallback(
-    (setId: string, driveFileId?: string, buildingSet?: GuidedLearningSet) => {
-      void fetchSetCached(setId, driveFileId, buildingSet).catch(
+    (
+      setId: string,
+      driveFileId?: string,
+      buildingEntry?: GuidedLearningBuildingSetIndex
+    ) => {
+      void fetchSetCached(setId, driveFileId, buildingEntry).catch(
         () => undefined
       );
     },
@@ -360,10 +376,10 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     async (
       setId: string,
       driveFileId?: string,
-      buildingSet?: GuidedLearningSet
+      buildingEntry?: GuidedLearningBuildingSetIndex
     ): Promise<GuidedLearningSet | null> => {
       try {
-        return await fetchSetCached(setId, driveFileId, buildingSet);
+        return await fetchSetCached(setId, driveFileId, buildingEntry);
       } catch {
         return null;
       }
@@ -371,18 +387,17 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     [fetchSetCached]
   );
 
-  // Load set data from Drive or use building set directly
+  // Load set data (Drive or Firestore) with the widget spinner and an error toast.
   const loadSet = useCallback(
     async (
       setId: string,
       driveFileId?: string,
-      buildingSet?: GuidedLearningSet
+      buildingEntry?: GuidedLearningBuildingSetIndex
     ): Promise<GuidedLearningSet | null> => {
-      if (buildingSet) return normalizeGuidedLearningSet(buildingSet);
-      if (!driveFileId) return null;
+      if (!buildingEntry && !driveFileId) return null;
       setLoadingSet(true);
       try {
-        return await fetchSetCached(setId, driveFileId);
+        return await fetchSetCached(setId, driveFileId, buildingEntry);
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to load set';
         addToast(msg, 'error');
@@ -408,8 +423,8 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     if (rehydratingSetIdRef.current === setId) return;
     rehydratingSetIdRef.current = setId;
     const meta = sets.find((s) => s.id === setId);
-    const buildingSet = buildingSets.find((s) => s.id === setId);
-    void loadSet(setId, meta?.driveFileId, buildingSet).then((loaded) => {
+    const buildingEntry = buildingSets.find((s) => s.id === setId);
+    void loadSet(setId, meta?.driveFileId, buildingEntry).then((loaded) => {
       rehydratingSetIdRef.current = null;
       if (loaded) setActiveSet(loaded);
       else setView('library');
@@ -444,8 +459,8 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     }
     rehydratingSetIdRef.current = sessionId;
     const meta = sets.find((s) => s.id === setId);
-    const buildingSet = buildingSets.find((s) => s.id === setId);
-    void loadSet(setId, meta?.driveFileId, buildingSet).then((loaded) => {
+    const buildingEntry = buildingSets.find((s) => s.id === setId);
+    void loadSet(setId, meta?.driveFileId, buildingEntry).then((loaded) => {
       rehydratingSetIdRef.current = null;
       if (loaded) setActiveSet(loaded);
       else setResultsLoadError(sessionId);
@@ -468,9 +483,9 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const handlePlay = async (
     setId: string,
     driveFileId?: string,
-    buildingSet?: GuidedLearningSet
+    buildingEntry?: GuidedLearningBuildingSetIndex
   ) => {
-    const data = await loadSet(setId, driveFileId, buildingSet);
+    const data = await loadSet(setId, driveFileId, buildingEntry);
     if (!data) return;
     setActiveSet(data);
     updateWidget(widget.id, {
@@ -485,10 +500,12 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const handleEdit = async (
     setId: string,
     driveFileId?: string,
-    buildingSet?: GuidedLearningSet
+    buildingEntry?: GuidedLearningBuildingSetIndex
   ) => {
-    if (buildingSet) {
-      setEditingSet(buildingSet);
+    if (buildingEntry) {
+      const data = await loadSet(setId, undefined, buildingEntry);
+      if (!data) return;
+      setEditingSet(data);
       setEditingMeta(null);
     } else {
       const meta = sets.find((s) => s.id === setId) ?? null;
@@ -502,15 +519,19 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // The Manager delegates save routing back here: building sets go to
   // Firestore-only via saveBuildingSet, personal sets go through Drive +
   // Firestore metadata via saveSet. The Manager never sees this branching.
-  const handleSave = async (set: GuidedLearningSet, driveFileId?: string) => {
+  const handleSave = async (
+    set: GuidedLearningSet,
+    driveFileId?: string,
+    guard?: GuidedLearningSaveGuard
+  ) => {
     // Saved content invalidates any prefetched copy.
     prefetchCacheRef.current.invalidate(set.id);
     // The editor autosaves and shows its own save state, so no toast per write.
-    if (set.isBuilding) await saveBuildingSet(set);
+    if (set.isBuilding) await saveBuildingSet(set, guard);
     else {
       // Adopt what was written. Without this a new set keeps autosaving with no
       // drive file id, so every retitled write orphans another .gl.json file.
-      const meta = await saveSet(set, driveFileId);
+      const meta = await saveSet(set, driveFileId, guard);
       setEditingMeta(meta);
     }
   };
@@ -529,7 +550,12 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const handleEditorFolderChange = editingMeta
     ? async (folderId: string | null) => {
         try {
-          await moveGlItem(editingMeta.id, folderId);
+          // No updatedAt bump: the open editor reads that as an edit elsewhere.
+          if (!user?.uid) return;
+          await updateDoc(
+            doc(db, 'users', user.uid, GL_PERSONAL_COLLECTION, editingMeta.id),
+            { folderId }
+          );
           addToast('Folder updated.', 'success');
         } catch (err) {
           addToast(
@@ -552,6 +578,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   };
 
   const handleDeleteBuilding = async (setId: string) => {
+    prefetchCacheRef.current.invalidate(setId);
     try {
       await deleteBuildingSet(setId);
       addToast('Building set deleted.', 'success');
@@ -774,11 +801,11 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const handleAssign = async (
     setId: string,
     driveFileId?: string,
-    buildingSet?: GuidedLearningSet
+    buildingEntry?: GuidedLearningBuildingSetIndex
   ) => {
-    const data = await loadSet(setId, driveFileId, buildingSet);
+    const data = await loadSet(setId, driveFileId, buildingEntry);
     if (!data) return;
-    const source: 'personal' | 'building' = buildingSet
+    const source: 'personal' | 'building' = buildingEntry
       ? 'building'
       : 'personal';
     // View-only flows skip the picker entirely — open the simplified Share
@@ -859,8 +886,8 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     if (matchingEntry) {
       const [setId] = matchingEntry;
       const meta = sets.find((s) => s.id === setId);
-      const buildingSet = buildingSets.find((s) => s.id === setId);
-      loaded = await loadSet(setId, meta?.driveFileId, buildingSet);
+      const buildingEntry = buildingSets.find((s) => s.id === setId);
+      loaded = await loadSet(setId, meta?.driveFileId, buildingEntry);
     }
     setActiveSet(loaded);
     setResultsLoadError(loaded ? null : sessionId);
@@ -877,11 +904,11 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     assignment: GuidedLearningAssignment
   ) => {
     const meta = sets.find((s) => s.id === assignment.setId);
-    const buildingSet = buildingSets.find((s) => s.id === assignment.setId);
+    const buildingEntry = buildingSets.find((s) => s.id === assignment.setId);
     const loaded = await loadSet(
       assignment.setId,
       meta?.driveFileId,
-      buildingSet
+      buildingEntry
     );
     setActiveSet(loaded);
     setResultsLoadError(loaded ? null : assignment.sessionId);
@@ -1042,12 +1069,12 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const handleExport = async (
     setId: string,
     driveFileId?: string,
-    buildingSet?: GuidedLearningSet
+    buildingEntry?: GuidedLearningBuildingSetIndex
   ) => {
     if (exportingSetId) return;
     setExportingSetId(setId);
     try {
-      const data = await loadSet(setId, driveFileId, buildingSet);
+      const data = await loadSet(setId, driveFileId, buildingEntry);
       if (!data) return;
       const { set: embedded, warnings } = await embedSetImages(
         data,
@@ -1107,10 +1134,15 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         // Image slides go to Drive (the app's primary media store); video stays in Storage.
         const result = await rehostImportedSetImages(
           set,
-          (blob, fileName) =>
-            blob.type.startsWith('image/')
-              ? uploadGuidedLearningImage(uid, blob, fileName)
-              : uploadGuidedLearningMedia(uid, blob, fileName),
+          async (blob, fileName) => {
+            if (!blob.type.startsWith('image/')) {
+              return uploadGuidedLearningMedia(uid, blob, fileName);
+            }
+            const prepared = await prepareImageForUpload(
+              new File([blob], fileName, { type: blob.type })
+            );
+            return uploadGuidedLearningImage(uid, prepared, prepared.name);
+          },
           (storagePath, driveFileId) => {
             partial.imagePaths = [...(partial.imagePaths ?? []), storagePath];
             if (driveFileId) driveFileIds.push(driveFileId);
@@ -1231,14 +1263,14 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   assignmentsLoading={assignmentsLoading}
                   isDriveConnected={isDriveConnected}
                   isAdmin={isAdmin ?? false}
-                  onPlay={(setId, driveFileId, buildingSet) => {
-                    void handlePlay(setId, driveFileId, buildingSet);
+                  onPlay={(setId, driveFileId, buildingEntry) => {
+                    void handlePlay(setId, driveFileId, buildingEntry);
                   }}
-                  onEdit={(setId, driveFileId, buildingSet) => {
-                    void handleEdit(setId, driveFileId, buildingSet);
+                  onEdit={(setId, driveFileId, buildingEntry) => {
+                    void handleEdit(setId, driveFileId, buildingEntry);
                   }}
-                  onAssign={(setId, driveFileId, buildingSet) => {
-                    void handleAssign(setId, driveFileId, buildingSet);
+                  onAssign={(setId, driveFileId, buildingEntry) => {
+                    void handleAssign(setId, driveFileId, buildingEntry);
                   }}
                   onDeletePersonal={(setId, driveFileId) => {
                     void handleDelete(setId, driveFileId);
@@ -1266,11 +1298,9 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   }}
                   isDuplicatingPersonal={personalDuplicateBusy.isBusy}
                   onDuplicateBuilding={(setId) => {
-                    const source = buildingSets.find((s) => s.id === setId);
-                    if (!source) return;
                     void buildingDuplicateBusy.run(setId, async () => {
                       try {
-                        const copy = await duplicateBuildingSet(source);
+                        const copy = await duplicateBuildingSet(setId);
                         addToast(
                           `Duplicated building set as "${copy.title}".`,
                           'success'
@@ -1331,8 +1361,8 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                       );
                     }
                   }}
-                  onExport={(setId, driveFileId, buildingSet) => {
-                    void handleExport(setId, driveFileId, buildingSet);
+                  onExport={(setId, driveFileId, buildingEntry) => {
+                    void handleExport(setId, driveFileId, buildingEntry);
                   }}
                   onImport={() => {
                     importWizardClosedRef.current = false;
@@ -1593,13 +1623,13 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               // `correctAnswer` / `matchingPairs` / `sortingItems` —
               // `session.publicSteps` strips them for student safety.
               const personalMeta = sets.find((s) => s.id === target.setId);
-              const buildingSet = buildingSets.find(
+              const buildingEntry = buildingSets.find(
                 (s) => s.id === target.setId
               );
               const data = await loadSet(
                 target.setId,
                 personalMeta?.driveFileId,
-                buildingSet
+                buildingEntry
               );
               if (!data) {
                 addToast(

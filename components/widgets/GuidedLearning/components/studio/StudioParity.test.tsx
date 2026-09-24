@@ -135,7 +135,10 @@ beforeEach(() => {
   dialog.showAlert.mockResolvedValue(undefined);
   dialog.showConfirm.mockResolvedValue(false);
   dialog.showPrompt.mockResolvedValue(null);
-  storage.uploadHotspotImage.mockResolvedValue(NEW_URL);
+  storage.uploadGuidedLearningImage.mockResolvedValue({
+    url: NEW_URL,
+    storagePath: '',
+  });
 });
 afterEach(() => {
   cleanup();
@@ -239,9 +242,11 @@ describe('Guided Learning Studio parity with the classic editor', () => {
     expect(
       await screen.findByRole('button', { name: 'Slide 2, 0 steps' })
     ).toBeInTheDocument();
-    expect(storage.uploadHotspotImage).toHaveBeenCalledWith(
+    expect(storage.uploadGuidedLearningImage).toHaveBeenCalledWith(
       'test-user',
-      expect.any(File)
+      expect.any(File),
+      'shot.gif',
+      expect.stringMatching(/^(drive|storage)$/)
     );
   });
 
@@ -253,7 +258,7 @@ describe('Guided Learning Studio parity with the classic editor', () => {
     expect(
       await screen.findByRole('button', { name: 'Slide 2, 0 steps' })
     ).toBeInTheDocument();
-    expect(storage.uploadHotspotImage).toHaveBeenCalledTimes(1);
+    expect(storage.uploadGuidedLearningImage).toHaveBeenCalledTimes(1);
   });
 
   it('adds a slide from an image pasted anywhere outside a text field', async () => {
@@ -269,7 +274,7 @@ describe('Guided Learning Studio parity with the classic editor', () => {
       await screen.findByRole('button', { name: 'Slide 2, 0 steps' })
     ).toBeInTheDocument();
     expect(paste.defaultPrevented).toBe(true);
-    expect(storage.uploadHotspotImage).toHaveBeenCalledTimes(1);
+    expect(storage.uploadGuidedLearningImage).toHaveBeenCalledTimes(1);
   });
 
   it('deletes a slide from its filmstrip button', async () => {

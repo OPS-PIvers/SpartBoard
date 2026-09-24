@@ -1,12 +1,12 @@
-// Regression test: "All items" badge must count building sets, not just personal sets.
+// The library shows small thumbnails: Storage thumbs for district sets, sized Drive URLs for personal ones.
 
 import React from 'react';
+import { buildBuildingIndexEntry } from '@/components/widgets/GuidedLearning/utils/buildingIndexEntry';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 
 import { GuidedLearningManager } from '@/components/widgets/GuidedLearning/components/GuidedLearningManager';
 import type { GuidedLearningSet, GuidedLearningSetMetadata } from '@/types';
-import { toBuildingIndexEntry } from '@/tests/helpers/glBuildingIndexEntry';
 
 vi.mock('@/hooks/useFolders', () => ({
   useFolders: () => ({
@@ -25,34 +25,43 @@ vi.mock('@/hooks/useSessionViewCount', () => ({
   useSessionViewCount: () => ({ count: 0 }),
 }));
 
+const DRIVE = 'https://lh3.googleusercontent.com/d/drive-slide';
+const SLIDE = 'https://firebasestorage.googleapis.com/v0/b/b/o/slide.webp';
+const THUMB = 'https://firebasestorage.googleapis.com/v0/b/b/o/thumbs%2Fs.webp';
+
 const personalSet: GuidedLearningSetMetadata = {
   id: 'set-1',
   title: 'Personal Set',
   stepCount: 3,
   mode: 'guided',
-  imageUrl: '',
+  imageUrl: DRIVE,
   driveFileId: 'drive-1',
   createdAt: 1000,
   updatedAt: 2000,
 };
 
 const buildingSet: GuidedLearningSet = {
-  id: 'building-1',
-  title: 'Building Set',
-  imageUrls: [],
+  id: 'b-1',
+  title: 'Building Lesson',
+  imageUrls: [SLIDE],
+  slideThumbnails: { [SLIDE]: THUMB },
   steps: [],
   mode: 'guided',
   createdAt: 1000,
   updatedAt: 2000,
+  isBuilding: true,
 };
 
-describe('GuidedLearningManager — folder sidebar item counts', () => {
-  it('includes building sets in the "All items" badge total', async () => {
-    render(
+const buildingEntry = buildBuildingIndexEntry(buildingSet.id, buildingSet);
+if (!buildingEntry) throw new Error('fixture must build an index entry');
+
+describe('GuidedLearningManager — thumbnails', () => {
+  it('uses thumbnail URLs and lazy, async-decoded images', async () => {
+    const { container } = render(
       <GuidedLearningManager
         userId="teacher-1"
         sets={[personalSet]}
-        buildingSets={[toBuildingIndexEntry(buildingSet)]}
+        buildingSets={[buildingEntry]}
         assignments={[]}
         loading={false}
         buildingLoading={false}
@@ -77,17 +86,15 @@ describe('GuidedLearningManager — folder sidebar item counts', () => {
         onAssignmentDelete={vi.fn()}
       />
     );
-
-    // Both cards are visible — the "All items" view shows personal + building.
     await screen.findByText('Personal Set');
-    await screen.findByText('Building Set');
-
-    const allItemsRow = screen.getByText('All items').closest('button');
-    expect(allItemsRow).not.toBeNull();
-
-    // Badge must equal all visible entries (1 personal + 1 building), not just personal.
-    expect(
-      within(allItemsRow as HTMLElement).getByText('2')
-    ).toBeInTheDocument();
+    const imgs = Array.from(container.querySelectorAll('img'));
+    const srcs = imgs.map((img) => img.getAttribute('src'));
+    expect(srcs).toContain(`${DRIVE}=w400`);
+    expect(srcs).toContain(THUMB);
+    expect(srcs).not.toContain(SLIDE);
+    for (const img of imgs) {
+      expect(img.getAttribute('loading')).toBe('lazy');
+      expect(img.getAttribute('decoding')).toBe('async');
+    }
   });
 });
