@@ -2,7 +2,8 @@
  * useGuidedLearning hook
  *
  * - Personal sets: metadata in Firestore, full data in Google Drive
- * - Admin building sets: full data in Firestore /building_guided_learning
+ * - Admin building sets: full data in Firestore /building_guided_learning;
+ *   the library lists the server-written /building_guided_learning_index.
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -24,7 +25,12 @@ import {
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from './useGoogleDrive';
-import { GuidedLearningSet, GuidedLearningSetMetadata } from '@/types';
+import {
+  GuidedLearningBuildingSetIndex,
+  GuidedLearningSet,
+  GuidedLearningSetMetadata,
+} from '@/types';
+import { assertGuidedLearningDocFits } from '@/utils/firestoreDocSize';
 import { pickThumbnailUrl } from '@/utils/guidedLearningMedia';
 import { GuidedLearningDriveService } from '@/utils/guidedLearningDriveService';
 import {
@@ -43,10 +49,12 @@ import {
 
 const GL_COLLECTION = 'guided_learning';
 const BUILDING_GL_COLLECTION = 'building_guided_learning';
+const BUILDING_GL_INDEX_COLLECTION = 'building_guided_learning_index';
 
 export interface UseGuidedLearningResult {
   sets: GuidedLearningSetMetadata[];
-  buildingSets: GuidedLearningSet[];
+  /** Library entries only; fetch the full set with `loadBuildingSet` on Play, Edit or preview. */
+  buildingSets: GuidedLearningBuildingSetIndex[];
   loading: boolean;
   buildingLoading: boolean;
   error: string | null;
@@ -79,17 +87,8 @@ export interface UseGuidedLearningResult {
   ) => Promise<void>;
   /** Delete an admin building set from Firestore */
   deleteBuildingSet: (setId: string) => Promise<void>;
-  /**
-   * Duplicate an admin building set. Mirrors `duplicateSet` for the
-   * Firestore-only building-set collection: clones the source's
-   * `GuidedLearningSet` directly into a new doc with a fresh id and a
-   * suggested title. No Drive involvement (building sets store full
-   * data inline in Firestore). Storage image refs are shared with the
-   * source — matches `duplicateSet`'s personal-set policy.
-   */
-  duplicateBuildingSet: (
-    source: GuidedLearningSet
-  ) => Promise<GuidedLearningSet>;
+  /** Duplicate an admin building set by id into a new doc (Storage refs shared). */
+  duplicateBuildingSet: (setId: string) => Promise<GuidedLearningSet>;
 }
 
 export const useGuidedLearning = (
@@ -98,7 +97,9 @@ export const useGuidedLearning = (
   const { googleAccessToken, isAdmin } = useAuth();
   const { isConnected } = useGoogleDrive();
   const [sets, setSets] = useState<GuidedLearningSetMetadata[]>([]);
-  const [buildingSets, setBuildingSets] = useState<GuidedLearningSet[]>([]);
+  const [buildingSets, setBuildingSets] = useState<
+    GuidedLearningBuildingSetIndex[]
+  >([]);
   const [loading, setLoading] = useState(!!userId);
   const [buildingLoading, setBuildingLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -146,18 +147,18 @@ export const useGuidedLearning = (
     return unsub;
   }, [userId]);
 
-  // Load building sets (one-time fetch — real-time listener not needed for admin content)
+  // Listens to the slim index; full sets are fetched only when opened.
   useEffect(() => {
     const q = query(
-      collection(db, BUILDING_GL_COLLECTION),
+      collection(db, BUILDING_GL_INDEX_COLLECTION),
       orderBy('createdAt', 'desc')
     );
 
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const list: GuidedLearningSet[] = snap.docs.map((d) =>
-          normalizeGuidedLearningSet(d.data() as GuidedLearningSet)
+        const list = snap.docs.map(
+          (d) => d.data() as GuidedLearningBuildingSetIndex
         );
         setBuildingSets(list);
         setBuildingLoading(false);
@@ -377,6 +378,10 @@ export const useGuidedLearning = (
         isBuilding: true,
         updatedAt: guard ? set.updatedAt : Date.now(),
       };
+      assertGuidedLearningDocFits(
+        `${BUILDING_GL_COLLECTION}/${set.id}`,
+        updatedSet
+      );
       await writeBuildingSet(
         doc(db, BUILDING_GL_COLLECTION, set.id),
         updatedSet,
@@ -386,23 +391,13 @@ export const useGuidedLearning = (
     [isAdmin]
   );
 
-  /**
-   * Building-set duplicate. Firestore-only — no Drive rollback path
-   * needed because the failure mode is a single `setDoc` rejection
-   * with no orphan to clean up.
-   *
-   * Re-attributes `authorUid` to the current admin. The spread of
-   * `...source` would otherwise carry the original author's uid into
-   * the copy, which mis-attributes the audit trail and (since the
-   * project's user-deletion sweep checks authorUid) makes the copy
-   * appear as content owned by a possibly-since-deleted author.
-   * Storage image refs are shared with the source — matches the
-   * personal-set policy in `duplicateSet`.
-   */
+  // Re-attributes authorUid to the duplicating admin; Storage refs stay shared.
   const duplicateBuildingSet = useCallback(
-    async (source: GuidedLearningSet): Promise<GuidedLearningSet> => {
+    async (setId: string): Promise<GuidedLearningSet> => {
       if (!isAdmin) throw new Error('Admin access required');
       if (!userId) throw new Error('Not authenticated');
+      const source = await loadBuildingSet(setId);
+      if (!source) throw new Error('Set not found');
       const now = Date.now();
       const fresh: GuidedLearningSet = normalizeGuidedLearningSet({
         ...source,
@@ -413,6 +408,10 @@ export const useGuidedLearning = (
         createdAt: now,
         updatedAt: now,
       });
+      assertGuidedLearningDocFits(
+        `${BUILDING_GL_COLLECTION}/${fresh.id}`,
+        fresh
+      );
       await setDoc(doc(db, BUILDING_GL_COLLECTION, fresh.id), fresh);
       return fresh;
     },

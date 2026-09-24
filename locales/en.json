@@ -4385,5 +4385,8 @@
     "loadFailedTitle": "Couldn't open these results",
     "loadFailedBody": "The set for this assignment was deleted or couldn't be loaded.",
     "backToLibrary": "Back to library"
+  },
+  "glData": {
+    "setTooLarge": "This set is too large to save — split it or remove slides."
   }
 }

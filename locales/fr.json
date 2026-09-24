@@ -3228,5 +3228,8 @@
     "loadFailedTitle": "Impossible d'ouvrir ces résultats",
     "loadFailedBody": "L'ensemble de ce devoir a été supprimé ou n'a pas pu être chargé.",
     "backToLibrary": "Retour à la bibliothèque"
+  },
+  "glData": {
+    "setTooLarge": "Cet ensemble est trop volumineux pour être enregistré : divisez-le ou supprimez des diapositives."
   }
 }

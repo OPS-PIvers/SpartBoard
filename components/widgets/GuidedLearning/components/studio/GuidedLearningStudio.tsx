@@ -46,6 +46,7 @@ import { StudioPropertiesPanel } from './StudioPropertiesPanel';
 import { DevicePresetPicker } from './DevicePresetPicker';
 import { loadDevicePreset, saveDevicePreset } from './devicePresets';
 import { useStudioShortcuts, type StudioShortcut } from './useStudioShortcuts';
+import { SetTooLargeError } from '@/utils/firestoreDocSize';
 
 export interface GuidedLearningStudioProps {
   set: GuidedLearningSet;
@@ -414,11 +415,13 @@ const StudioSession: React.FC<
         titlePlaceholder={t('glStudio.titlePlaceholder')}
         subtitle={t('glStudio.stepCount', { count: stepCount })}
         notice={
-          editorState.imageUrls.length === 0
-            ? t('glStudio.needSlide')
-            : !editorState.title.trim()
-              ? t('glStudio.needTitle')
-              : null
+          autosave.error instanceof SetTooLargeError
+            ? autosave.error.message
+            : editorState.imageUrls.length === 0
+              ? t('glStudio.needSlide')
+              : !editorState.title.trim()
+                ? t('glStudio.needTitle')
+                : null
         }
         autosaveStatus={autosave.status}
         onRetrySave={() => void autosave.flush()}

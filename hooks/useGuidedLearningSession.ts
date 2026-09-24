@@ -42,6 +42,7 @@ import {
   studentPeriodKeys,
 } from '@/utils/periodAccess';
 import { getServerNow } from '@/utils/serverTime';
+import { assertGuidedLearningDocFits } from '@/utils/firestoreDocSize';
 
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
 
@@ -419,6 +420,8 @@ export const useGuidedLearningSessionTeacher = (
       };
 
       const sessionRef = doc(db, GL_SESSIONS_COLLECTION, sessionId);
+      const sessionPath = `${GL_SESSIONS_COLLECTION}/${sessionId}`;
+      assertGuidedLearningDocFits(sessionPath, session);
       if (inContent) {
         const content: GuidedLearningSessionContent = {
           publicSteps,
@@ -426,6 +429,10 @@ export const useGuidedLearningSessionTeacher = (
           ...(imageKinds ? { imageKinds } : {}),
           ...(videoTrims ? { videoTrims } : {}),
         };
+        assertGuidedLearningDocFits(
+          `${sessionPath}/${GL_CONTENT_COLLECTION}/${GL_CONTENT_DOC}`,
+          content
+        );
         // One batch: the content rule checks the session's teacher via getAfter.
         await writeBatch(db)
           .set(sessionRef, session)

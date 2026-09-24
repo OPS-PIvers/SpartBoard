@@ -14,6 +14,7 @@ import {
   TOUR_START_EVENT,
 } from '@/components/tours/tourState';
 import type { GuidedLearningSet } from '@/types';
+import { toBuildingIndexEntry } from '@/tests/helpers/glBuildingIndexEntry';
 
 vi.mock('@/hooks/useFolders', () => ({
   useFolders: () => ({
@@ -71,7 +72,7 @@ const renderManager = (liveTours: boolean, isAdmin = true) =>
         buildingSets={[
           buildingSet('live-1', 'Live tour', true),
           buildingSet('plain-1', 'Plain set', false),
-        ]}
+        ].map(toBuildingIndexEntry)}
         assignments={[]}
         loading={false}
         buildingLoading={false}

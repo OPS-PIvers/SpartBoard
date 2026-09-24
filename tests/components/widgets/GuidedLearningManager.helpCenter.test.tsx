@@ -6,6 +6,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 
 import { GuidedLearningManager } from '@/components/widgets/GuidedLearning/components/GuidedLearningManager';
 import type { GuidedLearningSet, GuidedLearningSetMetadata } from '@/types';
+import { toBuildingIndexEntry } from '@/tests/helpers/glBuildingIndexEntry';
 
 vi.mock('@/hooks/useFolders', () => ({
   useFolders: () => ({
@@ -62,7 +63,7 @@ const renderManager = (isAdmin: boolean) =>
     <GuidedLearningManager
       userId="teacher-1"
       sets={[personalSet]}
-      buildingSets={buildingSets}
+      buildingSets={buildingSets.map(toBuildingIndexEntry)}
       assignments={[]}
       loading={false}
       buildingLoading={false}

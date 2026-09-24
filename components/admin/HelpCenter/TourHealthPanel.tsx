@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useContext, useState } from 'react';
+import React, { lazy, Suspense, useContext, useEffect, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -7,7 +7,7 @@ import {
   Radar,
 } from 'lucide-react';
 import type { GuidedLearningSet } from '@/types';
-import { useGuidedLearning } from '@/hooks/useGuidedLearning';
+import { loadBuildingSet, useGuidedLearning } from '@/hooks/useGuidedLearning';
 import { AuthContext } from '@/context/AuthContextValue';
 import { requestRecordTour } from '@/components/tours/tourState';
 import {
@@ -44,7 +44,36 @@ const TourHealthPanel: React.FC = () => {
 
   const canRecord =
     useContext(AuthContext)?.canAccessFeature('gl-live-tours') ?? false;
-  const tours = buildingSets
+
+  // The index says which sets have tours; only those full sets are fetched.
+  const tourKey = buildingSets
+    .filter((entry) => entry.hasLiveTour)
+    .map((entry) => `${entry.id}@${entry.updatedAt}`)
+    .join(',');
+  const [loaded, setLoaded] = useState<{
+    key: string;
+    sets: GuidedLearningSet[];
+  } | null>(null);
+  useEffect(() => {
+    if (buildingLoading) return;
+    let cancelled = false;
+    const ids = tourKey ? tourKey.split(',').map((k) => k.split('@')[0]) : [];
+    void Promise.all(
+      ids.map((id) => loadBuildingSet(id).catch(() => null))
+    ).then((sets) => {
+      if (!cancelled) {
+        setLoaded({
+          key: tourKey,
+          sets: sets.filter((s): s is GuidedLearningSet => !!s),
+        });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tourKey, buildingLoading]);
+
+  const tours = (loaded?.sets ?? [])
     .map((set) => ({ set, steps: tourHealthOf(set) }))
     .filter((tour) => tour.steps.length > 0);
 
@@ -53,7 +82,7 @@ const TourHealthPanel: React.FC = () => {
       checkAnchorsLive(tours.flatMap((tour) => tour.steps.map((h) => h.step)))
     );
 
-  if (buildingLoading) {
+  if (buildingLoading || loaded?.key !== tourKey) {
     return (
       <p className="flex items-center gap-2 text-sm text-slate-500">
         <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />

@@ -3228,5 +3228,8 @@
     "loadFailedTitle": "Diese Ergebnisse konnten nicht geöffnet werden",
     "loadFailedBody": "Das Set dieser Aufgabe wurde gelöscht oder konnte nicht geladen werden.",
     "backToLibrary": "Zurück zur Bibliothek"
+  },
+  "glData": {
+    "setTooLarge": "Dieses Set ist zu groß zum Speichern – teile es auf oder entferne Folien."
   }
 }

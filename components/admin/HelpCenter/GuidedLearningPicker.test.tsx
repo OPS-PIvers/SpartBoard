@@ -15,6 +15,7 @@ const glState = vi.hoisted(() => ({
     Promise.resolve()
   ),
   loadSetData: vi.fn<(driveFileId: string) => Promise<GuidedLearningSet>>(),
+  loadBuildingSet: vi.fn<(id: string) => Promise<GuidedLearningSet | null>>(),
 }));
 
 vi.mock('@/context/useAuth', () => ({
@@ -40,7 +41,14 @@ const set = (
   ...extra,
 });
 
+const fullBuilding = [
+  set('b-1', 'Building Lesson'),
+  set('h-1', 'Help Guide', { helpCenter: true }),
+];
+
+// The hook hands out index entries; full sets come from loadBuildingSet.
 vi.mock('@/hooks/useGuidedLearning', () => ({
+  loadBuildingSet: glState.loadBuildingSet,
   useGuidedLearning: () => ({
     sets: [
       {
@@ -53,10 +61,11 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
         updatedAt: 1,
       },
     ],
-    buildingSets: [
-      set('b-1', 'Building Lesson'),
-      set('h-1', 'Help Guide', { helpCenter: true }),
-    ],
+    buildingSets: fullBuilding.map((full) => ({
+      id: full.id,
+      title: full.title,
+      isHelpCenter: full.helpCenter === true,
+    })),
     buildingLoading: false,
     loadSetData: glState.loadSetData,
     saveBuildingSet: glState.saveBuildingSet,
@@ -113,6 +122,10 @@ describe('GuidedLearningPicker', () => {
   beforeEach(() => {
     glState.saveBuildingSet.mockClear();
     glState.loadSetData.mockReset();
+    glState.loadBuildingSet.mockReset();
+    glState.loadBuildingSet.mockImplementation((id) =>
+      Promise.resolve(fullBuilding.find((full) => full.id === id) ?? null)
+    );
   });
 
   it('separates flagged Help Center activities from the building library', () => {
@@ -175,6 +188,13 @@ describe('GuidedLearningPicker', () => {
 
     await waitFor(() => expect(glState.saveBuildingSet).toHaveBeenCalled());
     expect(glState.saveBuildingSet.mock.calls[0][0].helpCenter).toBeUndefined();
+    expect(glState.loadBuildingSet).toHaveBeenCalledWith('b-1');
+  });
+
+  it('reads no full set until an activity is opened for editing', () => {
+    renderPicker({ selectedSetId: 'b-1' });
+    expect(screen.getAllByText('Building Lesson').length).toBeGreaterThan(0);
+    expect(glState.loadBuildingSet).not.toHaveBeenCalled();
   });
 
   it('opens the selected activity for editing', async () => {

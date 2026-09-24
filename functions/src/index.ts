@@ -78,6 +78,11 @@ export {
   gcGuidedLearningMedia,
   gcBuildingGuidedLearningMedia,
 } from './gcGuidedLearningMedia';
+// Guided Learning building-set library index (server-written) + admin backfill.
+export {
+  glBuildingIndexMirror,
+  rebuildGlBuildingIndexV1,
+} from './glBuildingIndex';
 
 // ── Student identity (ClassLink-via-Google SSO) + PIN→SSO unification ───────
 export {

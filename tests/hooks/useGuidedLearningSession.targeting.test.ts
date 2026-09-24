@@ -107,3 +107,28 @@ describe('useGuidedLearningSessionTeacher.createSession — player v2 stamp', ()
     ).toBe(true);
   });
 });
+
+describe('useGuidedLearningSessionTeacher.createSession — size guard', () => {
+  it('refuses a session over 900 KB before writing anything', async () => {
+    const { result } = renderHook(() =>
+      useGuidedLearningSessionTeacher('teacher-1')
+    );
+    const huge: GuidedLearningSet = {
+      ...baseSet(),
+      steps: [
+        {
+          id: 'step-1',
+          xPct: 0,
+          yPct: 0,
+          imageIndex: 0,
+          interactionType: 'text-popover',
+          text: 'x'.repeat(950 * 1024),
+        },
+      ],
+    };
+    await expect(result.current.createSession(huge)).rejects.toThrow(
+      'This set is too large to save — split it or remove slides.'
+    );
+    expect(mockSetDoc).not.toHaveBeenCalled();
+  });
+});

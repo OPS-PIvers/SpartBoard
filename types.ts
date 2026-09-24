@@ -7225,6 +7225,24 @@ export interface GuidedLearningSetMetadata {
   folderId?: string | null;
 }
 
+/** Library entry for a building set, written only by the glBuildingIndexMirror function. */
+export interface GuidedLearningBuildingSetIndex {
+  id: string;
+  title: string;
+  description: string | null;
+  stepCount: number;
+  mode: GuidedLearningMode;
+  /** First non-video slide URL, or '' */
+  thumbnail: string;
+  createdAt: number;
+  updatedAt: number;
+  hasLiveTour: boolean;
+  /** From the set's `helpCenter: true` flag. */
+  isHelpCenter: boolean;
+  folderId: string | null;
+  order: number | null;
+}
+
 /**
  * Student-safe step — no answer keys.
  * Choices/pairs/items are pre-shuffled before writing to session doc.
