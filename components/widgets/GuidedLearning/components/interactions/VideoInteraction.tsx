@@ -1,22 +1,70 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { GuidedLearningPublicStep } from '@/types';
-import { extractYouTubeId } from '@/utils/youtube';
+import {
+  extractYouTubeId,
+  loadYouTubeApi,
+  YT_PLAYER_STATE,
+  type YTPlayer,
+} from '@/utils/youtube';
 
 interface Props {
   step: GuidedLearningPublicStep;
   onClose: () => void;
   onEnded?: () => void;
+  /** Embed YouTube through the IFrame API so its ENDED state calls onEnded. */
+  youtubeApi?: boolean;
 }
 
 export const VideoInteraction: React.FC<Props> = ({
   step,
   onClose,
   onEnded,
+  youtubeApi = false,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const url = step.videoUrl ?? '';
   const youtubeId = extractYouTubeId(url);
+  const ytHostRef = useRef<HTMLDivElement>(null);
+  const onEndedRef = useRef(onEnded);
+  // eslint-disable-next-line react-hooks/refs
+  onEndedRef.current = onEnded;
+
+  // If the API never loads, nothing fires and the step waits for Next.
+  const apiVideoId = youtubeApi ? youtubeId : null;
+  useEffect(() => {
+    if (!apiVideoId) return;
+    let cancelled = false;
+    let player: YTPlayer | null = null;
+    const host = ytHostRef.current;
+    loadYouTubeApi(() => {
+      if (cancelled || !host || !window.YT?.Player) return;
+      // The API swaps this div for its iframe, so React never owns it.
+      const el = document.createElement('div');
+      el.id = `gl-yt-${Math.random().toString(36).slice(2)}`;
+      host.appendChild(el);
+      player = new window.YT.Player(el.id, {
+        height: '100%',
+        width: '100%',
+        videoId: apiVideoId,
+        playerVars: { autoplay: 1, rel: 0, playsinline: 1 },
+        events: {
+          onStateChange: (e) => {
+            if (e.data === YT_PLAYER_STATE.ENDED) onEndedRef.current?.();
+          },
+        },
+      });
+    });
+    return () => {
+      cancelled = true;
+      try {
+        player?.destroy();
+      } catch {
+        // The iframe may already be gone.
+      }
+      if (host) host.innerHTML = '';
+    };
+  }, [apiVideoId]);
 
   if (!url) return null;
 
@@ -58,7 +106,15 @@ export const VideoInteraction: React.FC<Props> = ({
             {step.label}
           </div>
         )}
-        {youtubeId ? (
+        {apiVideoId ? (
+          <div className="aspect-video w-full">
+            <div
+              ref={ytHostRef}
+              className="w-full h-full"
+              data-testid="gl-youtube-player"
+            />
+          </div>
+        ) : youtubeId ? (
           <div className="aspect-video w-full">
             <iframe
               className="w-full h-full border-0"

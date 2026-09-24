@@ -30,7 +30,12 @@ import {
 import { SpeedControl } from './player/SpeedControl';
 import { useLearnerSpeed } from './player/useLearnerSpeed';
 import { WatchScrubber } from './player/WatchScrubber';
-import { TRY_HINT_MS, defaultPlayback, hasStepTarget } from './player/playback';
+import {
+  TRY_HINT_MS,
+  defaultPlayback,
+  hasStepTarget,
+  holdsForMedia,
+} from './player/playback';
 import { StepOutline } from './player/StepOutline';
 import { ResumePrompt } from './player/ResumePrompt';
 import { useResumeOffer, writeResume } from './player/useResume';
@@ -49,6 +54,7 @@ interface StepRun {
   misclicks: number;
   hinted: boolean;
   lastMiss: PctPoint | null;
+  mediaEnded: boolean;
 }
 
 interface Props {
@@ -194,6 +200,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     misclicks: 0,
     hinted: false,
     lastMiss: null,
+    mediaEnded: false,
   });
   let stepRun = run;
   if (run.idx !== currentIdx) {
@@ -205,6 +212,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       misclicks: 0,
       hinted: false,
       lastMiss: null,
+      mediaEnded: false,
     };
     setRun(stepRun);
   }
@@ -259,6 +267,11 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   const speakingRef = useRef(speaking);
   // eslint-disable-next-line react-hooks/refs
   speakingRef.current = speaking;
+  // v2: audio and uploaded or YouTube video hold the step clock until they end.
+  const mediaHeldRef = useRef(false);
+  // eslint-disable-next-line react-hooks/refs
+  mediaHeldRef.current =
+    v2Playback && holdsForMedia(currentStep) && !stepRun.mediaEnded;
 
   // Step events: ms counts from the step's enter.
   const enteredAtRef = useRef(0);
@@ -437,6 +450,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         ) {
           return;
         }
+        if (mediaHeldRef.current) return;
         // Read-aloud: the step lasts until the voice finishes too.
         if (speakingRef.current) {
           voiceHeldRef.current = true;
@@ -633,6 +647,12 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   const handleStageAdvance = () => {
     const type = activeStep?.interactionType;
     if (type === 'audio' || type === 'video') {
+      if (v2Playback) {
+        setRun((r) => (r.seq === stepRun.seq ? { ...r, mediaEnded: true } : r));
+        if (autoAdvance && playing && currentStep) {
+          emitStepEvent('complete', currentStep.id);
+        }
+      }
       if (autoAdvance && playing) goNext();
       return;
     }
@@ -759,6 +779,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           }
           misclickCount={stepRun.misclicks}
           accessibleOverlays={playerV2}
+          youtubeEndEvents={playerV2}
         />
         {resumeOffer && (
           <ResumePrompt

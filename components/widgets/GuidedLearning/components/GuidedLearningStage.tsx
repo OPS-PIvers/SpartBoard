@@ -107,6 +107,8 @@ export interface GuidedLearningStageRuntimeProps {
   misclickCount?: number;
   /** Player v2: dialogs take focus and hand it back, and the image alt names the step. */
   accessibleOverlays?: boolean;
+  /** Player v2: YouTube steps load through the IFrame API so their end is heard. */
+  youtubeEndEvents?: boolean;
 }
 
 export const GuidedLearningStage: React.FC<
@@ -134,6 +136,7 @@ export const GuidedLearningStage: React.FC<
   onTargetClick,
   misclickCount = 0,
   accessibleOverlays = false,
+  youtubeEndEvents = false,
 }) => {
   // Hotspot pulse style — 'consistent' (default) preserves the legacy ping
   // ring; 'reminder' adds a periodic wiggle on the marker itself; 'off'
@@ -634,6 +637,7 @@ export const GuidedLearningStage: React.FC<
             step={activeStep}
             onClose={dismiss}
             onEnded={advance}
+            youtubeApi={youtubeEndEvents}
           />
         </div>
       );

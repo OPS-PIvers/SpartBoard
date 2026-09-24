@@ -18,6 +18,14 @@ export function hasStepTarget(step: GuidedLearningPublicStep | null): boolean {
   return true;
 }
 
+/** Whether a step plays media whose end, not the step clock, advances Watch. */
+export function holdsForMedia(step: GuidedLearningPublicStep | null): boolean {
+  if (!step) return false;
+  if (step.interactionType === 'audio') return Boolean(step.audioUrl);
+  if (step.interactionType === 'video') return Boolean(step.videoUrl);
+  return false;
+}
+
 /** Point on the gentle quadratic curve from `a` to `b` at t (control bowed up-left). */
 export function curvePoint(
   a: { x: number; y: number },
