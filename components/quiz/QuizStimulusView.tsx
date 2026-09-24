@@ -9,9 +9,12 @@
  *
  * `cqScaled`: set only by callers mounted inside a widget's own container-
  * query scope (the `quiz` monitor and preview views). Left unset (default
- * false) by the full-page `/quiz` student route and the teacher grading UI,
- * neither of which sits inside a `container-type: size` ancestor — `cqmin`
- * would compute to zero there, so those two keep the fixed Tailwind sizing.
+ * false) by every other consumer — the full-page `/quiz` student route
+ * (`QuizStudentApp.tsx`), the teacher grading UI (`FreeResponseGrader.tsx`),
+ * and the Present paced-answering view (`PresentPacedAnswering.tsx`, which
+ * mounts into a `window.open()` popup document via `PresentWindow.tsx`) —
+ * none of which sits inside a `container-type: size` ancestor. `cqmin`
+ * would compute to zero there, so those three keep the fixed Tailwind sizing.
  */
 import React, {
   useCallback,
