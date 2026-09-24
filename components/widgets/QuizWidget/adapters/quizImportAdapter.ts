@@ -368,6 +368,25 @@ async function withAnswerKey(
   }
 }
 
+// Choose-all rows need the quiz-choose-all feature; without it they are left out with a note.
+function withoutChooseAll(
+  data: QuizData,
+  allowed: boolean
+): { data: QuizData; warnings: string[] } {
+  if (allowed) return { data, warnings: [] };
+  const questions = data.questions.filter((q) => q.type !== 'MA');
+  const dropped = data.questions.length - questions.length;
+  if (dropped === 0) return { data, warnings: [] };
+  return {
+    data: { ...data, questions },
+    warnings: [
+      dropped === 1
+        ? '1 choose-all-that-apply question was left out because that question type isn’t available yet.'
+        : `${dropped} choose-all-that-apply questions were left out because that question type isn’t available yet.`,
+    ],
+  };
+}
+
 export function createQuizImportAdapter(
   deps: QuizImportAdapterDeps
 ): ImportAdapter<QuizData> {
@@ -443,11 +462,11 @@ export function createQuizImportAdapter(
           PLACEHOLDER_TITLE,
           token
         );
-        return { data, warnings: [] };
+        return withoutChooseAll(data, multiAnswer);
       }
       if (source.kind === 'csv') {
         const data = await deps.importFromCSV(source.text, PLACEHOLDER_TITLE);
-        return { data, warnings: [] };
+        return withoutChooseAll(data, multiAnswer);
       }
       if (source.kind === 'document') {
         // D18's budget covers the import, not each file, so the two are
