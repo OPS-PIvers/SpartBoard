@@ -6,13 +6,17 @@ import {
   CalendarDays,
   FileText,
   ListChecks,
+  Users2,
+  UsersRound,
   type LucideIcon,
 } from 'lucide-react';
-import type { Plc } from '@/types';
+import { getPlcFeatures, type Plc } from '@/types';
 import { ResultsTile } from './ResultsTile';
 import { MeetingTile } from './MeetingTile';
 import { ActionsActivityTile } from './ActionsActivityTile';
 import { DocsTile } from './DocsTile';
+import { ParticipationTile } from './ParticipationTile';
+import { PerTeacherTile } from './PerTeacherTile';
 import {
   PLC_HOME_TILE_KINDS,
   PLC_HOME_TILE_SLICES,
@@ -85,6 +89,30 @@ export const PLC_HOME_TILE_DEFS: Partial<
     slices: PLC_HOME_TILE_SLICES.docs,
     isAvailable: always,
     Component: DocsTile,
+  },
+  participation: {
+    kind: 'participation',
+    labelKey: 'plcDashboard.home.participation.title',
+    descriptionKey: 'plcDashboard.home.participation.description',
+    labelDefault: 'Participation',
+    descriptionDefault: 'How many teachers ran each common assessment',
+    icon: UsersRound,
+    slices: PLC_HOME_TILE_SLICES.participation,
+    isAvailable: always,
+    Component: ParticipationTile,
+  },
+  perTeacher: {
+    kind: 'perTeacher',
+    labelKey: 'plcDashboard.home.perTeacher.title',
+    descriptionKey: 'plcDashboard.home.perTeacher.description',
+    labelDefault: 'Per-teacher averages',
+    descriptionDefault: 'Each teacher’s class average on one assessment',
+    multiple: true,
+    icon: Users2,
+    slices: PLC_HOME_TILE_SLICES.perTeacher,
+    // D15: only when the PLC shows per-teacher results.
+    isAvailable: (plc) => getPlcFeatures(plc).showPerTeacher,
+    Component: PerTeacherTile,
   },
 };
 
