@@ -98,7 +98,7 @@ describe('parsePlcAggregate — tolerant parsing', () => {
     expect(parsed?.studentCount).toBe(40);
     expect(parsed?.teamAveragePercent).toBe(78);
     expect(parsed?.perQuestion).toHaveLength(2);
-    expect(parsed?.perTeacher[0]?.teacherUid).toBe('tA');
+    expect(parsed?.contributorUids).toEqual(['tA']);
     expect(parsed?.ranAt).toBe(1718764800000);
   });
 
@@ -123,14 +123,21 @@ describe('parsePlcAggregate — tolerant parsing', () => {
     expect(parsed?.ranAt).toBe(0);
   });
 
-  it('never emits student names (anonymized perTeacher rows)', () => {
+  it('never surfaces per-teacher scores or names from a legacy doc', () => {
     const parsed = parsePlcAggregate('a', validAggregateData());
     const serialized = JSON.stringify(parsed);
     expect(serialized).not.toContain('studentDisplayName');
-    for (const row of parsed?.perTeacher ?? []) {
-      expect(row).not.toHaveProperty('studentDisplayName');
-      expect(row).toHaveProperty('studentCount');
-    }
+    expect(parsed).not.toHaveProperty('perTeacher');
+    expect(serialized).not.toContain('Teacher A');
+    expect(serialized).not.toContain('82');
+  });
+
+  it('prefers contributorUids and accepts a doc without perTeacher', () => {
+    const data: Record<string, unknown> = validAggregateData({
+      contributorUids: ['tB', 'tC'],
+    });
+    delete data.perTeacher;
+    expect(parsePlcAggregate('a', data)?.contributorUids).toEqual(['tB', 'tC']);
   });
 
   it('parses schema 3 served counts and target rollups', () => {
@@ -228,21 +235,14 @@ describe('parsePlcAggregate — rejection of malformed docs', () => {
       )
     ).toBeNull();
   });
-  it('rejects the WHOLE doc when a perTeacher entry is malformed', () => {
+  it('rejects the WHOLE doc when a contributor uid is malformed', () => {
+    expect(
+      parsePlcAggregate('a', validAggregateData({ contributorUids: ['t', 3] }))
+    ).toBeNull();
     expect(
       parsePlcAggregate(
         'a',
-        validAggregateData({
-          perTeacher: [
-            {
-              teacherUid: 'tA',
-              teacherName: 'A',
-              classCount: 1,
-              averagePercent: 50,
-              // studentCount missing → reject
-            },
-          ],
-        })
+        validAggregateData({ perTeacher: [{ name: 'A' }] })
       )
     ).toBeNull();
   });

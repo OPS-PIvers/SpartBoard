@@ -184,7 +184,7 @@ export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({ plc, onNavigate }) => {
     });
   };
 
-  // Tiles hidden here (per-teacher while the PLC hides it) stay saved for when it returns.
+  // Tiles hidden here stay saved for when they become available again.
   const hiddenTiles = () => {
     const shown = new Set(tiles.map((tile) => tile.id));
     return effectiveTiles(layout).filter((tile) => !shown.has(tile.id));

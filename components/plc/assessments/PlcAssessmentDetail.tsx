@@ -1,8 +1,8 @@
 /**
  * PlcAssessmentDetail — the pooled results view for one assessment
  * (plan D3/D8): team average, students counted, teachers contributing,
- * per-question % incorrect worst-first with a choice-distribution panel, and
- * a per-teacher table only when the PLC's `showPerTeacher` setting is on.
+ * and per-question % incorrect worst-first with a choice-distribution panel.
+ * Team aggregate only: no per-teacher breakdown.
  * Reads the server-written aggregate only; no student names exist in it.
  */
 
@@ -16,11 +16,9 @@ import {
   ChevronRight,
   ClipboardList,
   Loader2,
-  Users,
   Video,
 } from 'lucide-react';
 import {
-  getPlcFeatures,
   type Plc,
   type PlcAggregateTargetRow,
   type PlcAssessmentAggregate,
@@ -315,7 +313,6 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
     [members]
   );
   const { list: learningTargetList } = usePlcLearningTargets(plc.id);
-  const showPerTeacher = getPlcFeatures(plc).showPerTeacher;
 
   const assessment = useMemo(
     () =>
@@ -582,87 +579,6 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
           </ul>
         )}
       </section>
-
-      {/* Per-teacher table (gated by the PLC setting) */}
-      {showPerTeacher && aggregate && aggregate.perTeacher.length > 0 && (
-        <section data-testid="per-teacher-table">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">
-            {t('plcDashboard.assessmentDetail.perTeacherHeading', {
-              defaultValue: 'By teacher',
-            })}
-          </h3>
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xxs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-100">
-                  <th className="px-4 py-2.5">
-                    {t('plcDashboard.assessmentDetail.teacher', {
-                      defaultValue: 'Teacher',
-                    })}
-                  </th>
-                  <th className="px-4 py-2.5">
-                    {t('plcDashboard.assessmentDetail.classes', {
-                      defaultValue: 'Classes',
-                    })}
-                  </th>
-                  <th className="px-4 py-2.5">
-                    {t('plcDashboard.assessmentDetail.studentsColumn', {
-                      defaultValue: 'Students',
-                    })}
-                  </th>
-                  <th className="px-4 py-2.5">
-                    {t('plcDashboard.assessmentDetail.average', {
-                      defaultValue: 'Average',
-                    })}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {aggregate.perTeacher.map((row) => (
-                  <tr
-                    key={row.teacherUid}
-                    className="border-b border-slate-100 last:border-b-0"
-                  >
-                    <td className="px-4 py-2.5 font-semibold text-slate-800">
-                      <span className="inline-flex items-center gap-2">
-                        <Users
-                          className="w-3.5 h-3.5 text-slate-400"
-                          aria-hidden="true"
-                        />
-                        {row.teacherName ||
-                          (memberUids.has(row.teacherUid)
-                            ? t(
-                                'plcDashboard.assessmentDetail.unknownTeacher',
-                                {
-                                  defaultValue: 'Teacher',
-                                }
-                              )
-                            : t(
-                                'plcDashboard.assessmentDetail.nonMemberTeacher',
-                                {
-                                  defaultValue: 'Not a PLC member',
-                                }
-                              ))}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-slate-700">
-                      {row.classCount}
-                    </td>
-                    <td className="px-4 py-2.5 text-slate-700">
-                      {row.studentCount}
-                    </td>
-                    <td
-                      className={`px-4 py-2.5 font-bold ${scoreToneClass(row.averagePercent)}`}
-                    >
-                      {row.averagePercent}%
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
 
       {/* Scoped comments, keyed to the canonical assessment id. */}
       <div className="border-t border-slate-200 pt-4">

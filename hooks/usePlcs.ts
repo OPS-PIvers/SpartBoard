@@ -386,10 +386,6 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
         typeof raw.sharedBoards === 'boolean'
           ? raw.sharedBoards
           : DEFAULT_PLC_FEATURE_SETTINGS.sharedBoards,
-      showPerTeacher:
-        typeof raw.showPerTeacher === 'boolean'
-          ? raw.showPerTeacher
-          : DEFAULT_PLC_FEATURE_SETTINGS.showPerTeacher,
       printForTeammates:
         typeof raw.printForTeammates === 'boolean'
           ? raw.printForTeammates

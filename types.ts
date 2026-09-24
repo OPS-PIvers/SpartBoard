@@ -383,8 +383,6 @@ export interface PlcFeatureSettings {
   todos?: boolean;
   /** PLC Shared Boards tab (Phase 6). */
   sharedBoards: boolean;
-  /** Per-teacher rows on pooled assessment results (plan D3); off by default. */
-  showPerTeacher: boolean;
   /**
    * Let a member print paper answer sheets for a teammate who is out
    * (PLC_DELEGATED_PAPER_PRINTING.md D8). On by default. Any member can flip
@@ -399,7 +397,6 @@ export const DEFAULT_PLC_FEATURE_SETTINGS: PlcFeatureSettings = {
   videoActivities: true,
   notes: true,
   sharedBoards: true,
-  showPerTeacher: false,
   printForTeammates: true,
 };
 
@@ -1015,8 +1012,8 @@ export interface PlcAggregateTargetRow {
  * but never write). `schemaVersion` 1 docs came from the retired contribution
  * pipeline and lack the optional fields below.
  *
- * Crucially, `perTeacher` rows carry `studentCount` but **no student names and
- * no per-student rows** — the FERPA boundary is enforced here and in rules.
+ * Team aggregate only: no student names, no per-student rows and no per-teacher
+ * scores — the FERPA boundary is enforced here and in rules.
  */
 export interface PlcAssessmentAggregate {
   /** Matches the `PlcCommonAssessment.id` this aggregate rolls up (== doc id). */
@@ -1075,21 +1072,8 @@ export interface PlcAssessmentAggregate {
   perTarget?: PlcAggregateTargetRow[];
   /** Standards directly tagged or inherited from child targets (schema 3+). */
   perStandard?: PlcAggregateTargetRow[];
-  /**
-   * Per-teacher rollup — **anonymized**: a count of that teacher's students,
-   * NEVER student names and NEVER per-student rows.
-   */
-  perTeacher: Array<{
-    teacherUid: string;
-    /** Display-name snapshot of the teacher (teacher identity, not student). */
-    teacherName: string;
-    /** Number of that teacher's classes/sections that ran the assessment. */
-    classCount: number;
-    /** That teacher's average score (0-100) across their students. */
-    averagePercent: number;
-    /** Count of that teacher's students. No names, no per-student rows. */
-    studentCount: number;
-  }>;
+  /** Uids of teachers who contributed results; the PLC page shows no per-teacher scores. */
+  contributorUids: string[];
   /** serverTimestamp resolved to ms on read; when the function last recomputed. */
   ranAt: number;
 }

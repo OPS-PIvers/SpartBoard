@@ -9,8 +9,7 @@ export type PlcHomeTileKind =
   | 'meeting'
   | 'actionsActivity'
   | 'docs'
-  | 'participation'
-  | 'perTeacher';
+  | 'participation';
 
 export const PLC_HOME_TILE_KINDS: readonly PlcHomeTileKind[] = [
   'results',
@@ -18,14 +17,13 @@ export const PLC_HOME_TILE_KINDS: readonly PlcHomeTileKind[] = [
   'actionsActivity',
   'docs',
   'participation',
-  'perTeacher',
 ];
 
 /** Provider subcollections a tile can ask to open while Home is active. */
 export type PlcHomeSlice = 'notes' | 'docs' | 'meetings';
 
 export interface PlcHomeTileOptions {
-  /** perTeacher: which assessment to chart; latest when absent. */
+  /** Which assessment a tile charts; latest when absent. */
   assessmentId?: string;
 }
 
@@ -45,7 +43,6 @@ export const PLC_HOME_TILE_SLICES: Record<
   actionsActivity: ['notes'],
   docs: ['notes', 'docs'],
   participation: [],
-  perTeacher: [],
 };
 
 /** Signals the hero resolver and each tile's hero score read. */
@@ -76,6 +73,6 @@ export interface PlcHomeTileProps {
   hero: boolean;
   /** Header controls Home supplies (spotlight, Customize remove). */
   controls?: ReactNode;
-  /** Saves this tile's options (perTeacher's assessment). */
+  /** Saves this tile's options. */
   onOptionsChange?: (options: PlcHomeTileOptions) => void;
 }

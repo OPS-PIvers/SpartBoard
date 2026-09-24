@@ -17,38 +17,6 @@ import type { PlcAssessmentAggregate, PlcCommonAssessment } from '@/types';
 //
 // These helpers are pure (no React / no Firebase) so they unit-test cleanly.
 
-/** How a card may be filtered by the assessment lifecycle status. */
-export type AssessmentStatusFilter = PlcCommonAssessment['status'] | 'all';
-
-/** Filter shape for the aggregate-driven Data section. All ANDed together. */
-export interface SharedDataAggregateFilters {
-  /** 'all' means no kind filter. Kind comes from the designated assessment. */
-  type: 'all' | 'quiz' | 'video-activity';
-  /** Teacher uid (matched against `perTeacher`), or 'all'. */
-  teacherUid: string;
-  /** Unit label (from the designated assessment), or 'all'. */
-  unitLabel: string;
-  /** Lifecycle status (from the designated assessment), or 'all'. */
-  status: AssessmentStatusFilter;
-  /** Case-insensitive substring over the card title; '' means no search. */
-  search: string;
-}
-
-/** A single per-class compare row (PRD §11: `classPeriod` is the class key;
- *  in the anonymized aggregate that signal survives as the per-teacher rollup
- *  with its `classCount`). Anonymized — NEVER carries student names. */
-export interface AssessmentClassRow {
-  teacherUid: string;
-  teacherName: string;
-  classCount: number;
-  averagePercent: number;
-  studentCount: number;
-  /** True when this row is the signed-in member's own results. */
-  isYou: boolean;
-  /** True when this teacher has actually contributed to the rollup. */
-  hasRun: boolean;
-}
-
 /** A weak-question row, sorted ascending by `correctPercent`. */
 export interface AssessmentWeakQuestion {
   questionId: string;
@@ -87,8 +55,6 @@ export interface AssessmentDataCard {
   studentCount: number;
   /** Weakest questions first (ascending correctPercent). */
   weakestQuestions: AssessmentWeakQuestion[];
-  /** Per-class (per-teacher) compare rows, strongest average first. */
-  perClass: AssessmentClassRow[];
   /** Cross-reference of every member against "has run it". */
   whoRan: AssessmentRunStatus[];
   /** Count of members who have contributed results. */
@@ -101,7 +67,7 @@ export interface AssessmentDataCard {
   updating: boolean;
 }
 
-/** A team member as needed for the who-ran-it cross-reference + per-class "you". */
+/** A team member as needed for the who-ran-it cross-reference. */
 export interface SharedDataTeamMember {
   uid: string;
   displayName: string;
@@ -136,14 +102,12 @@ export function weakestQuestions(
  *
  * - `aggregates` — anonymized server rollups (the card data; no PII).
  * - `assessments` — live common assessments (title/kind/unit/status).
- * - `members` — team roster, for the who-ran-it cross-reference + per-class "you".
- * - `currentUid` — the signed-in member (marks their own per-class row).
+ * - `members` — team roster, for the who-ran-it cross-reference.
  */
 export function buildAssessmentCards(
   aggregates: PlcAssessmentAggregate[],
   assessments: PlcCommonAssessment[],
-  members: SharedDataTeamMember[],
-  currentUid: string | null
+  members: SharedDataTeamMember[]
 ): AssessmentDataCard[] {
   const assessmentById = new Map<string, PlcCommonAssessment>();
   for (const a of assessments) {
@@ -157,34 +121,9 @@ export function buildAssessmentCards(
     const syncGroupId = assessment?.syncGroupId ?? aggregate.assessmentId;
 
     const weak = weakestQuestions(aggregate.perQuestion);
-    const ranUids = new Set(aggregate.perTeacher.map((p) => p.teacherUid));
-
-    const perClass: AssessmentClassRow[] = [...aggregate.perTeacher]
-      .sort(
-        (a, b) =>
-          b.averagePercent - a.averagePercent ||
-          a.teacherName.localeCompare(b.teacherName)
-      )
-      .map((p) => ({
-        teacherUid: p.teacherUid,
-        teacherName: p.teacherName,
-        classCount: p.classCount,
-        averagePercent: p.averagePercent,
-        studentCount: p.studentCount,
-        isYou: currentUid != null && p.teacherUid === currentUid,
-        hasRun: true,
-      }));
-
-    // Who-ran-it: cross-reference every team member against the rollup. Falls
-    // back to the rollup's own teachers when the roster is unavailable.
-    const rosterSource: SharedDataTeamMember[] =
-      members.length > 0
-        ? members
-        : aggregate.perTeacher.map((p) => ({
-            uid: p.teacherUid,
-            displayName: p.teacherName,
-          }));
-    const whoRan: AssessmentRunStatus[] = rosterSource
+    // Who-ran-it: cross-reference every team member against the contributors.
+    const ranUids = new Set(aggregate.contributorUids);
+    const whoRan: AssessmentRunStatus[] = members
       .map((m) => ({
         teacherUid: m.uid,
         teacherName: m.displayName,
@@ -219,10 +158,12 @@ export function buildAssessmentCards(
       teacherCount: aggregate.teacherCount,
       studentCount: aggregate.studentCount,
       weakestQuestions: weak,
-      perClass,
       whoRan,
-      ranCount: whoRan.filter((w) => w.hasRun).length,
-      expectedCount: whoRan.length,
+      ranCount:
+        members.length > 0
+          ? whoRan.filter((w) => w.hasRun).length
+          : ranUids.size,
+      expectedCount: members.length > 0 ? whoRan.length : ranUids.size,
       ranAt: aggregate.ranAt,
       updating: aggregate.ranAt === 0,
     };
@@ -233,49 +174,6 @@ export function buildAssessmentCards(
     (a, b) => b.studentCount - a.studentCount || a.title.localeCompare(b.title)
   );
   return cards;
-}
-
-/** Apply the aggregate-driven filters to the built cards. */
-export function filterAssessmentCards(
-  cards: AssessmentDataCard[],
-  filters: SharedDataAggregateFilters
-): AssessmentDataCard[] {
-  const needle = filters.search.trim().toLowerCase();
-  return cards.filter((card) => {
-    if (filters.type !== 'all' && card.kind !== filters.type) return false;
-    if (
-      filters.teacherUid !== 'all' &&
-      !card.aggregate.perTeacher.some(
-        (p) => p.teacherUid === filters.teacherUid
-      )
-    ) {
-      return false;
-    }
-    if (filters.unitLabel !== 'all') {
-      if ((card.assessment?.unitLabel ?? '') !== filters.unitLabel)
-        return false;
-    }
-    if (filters.status !== 'all') {
-      if ((card.assessment?.status ?? null) !== filters.status) return false;
-    }
-    if (needle.length > 0 && !card.title.toLowerCase().includes(needle)) {
-      return false;
-    }
-    return true;
-  });
-}
-
-/** Distinct teachers across all aggregates' `perTeacher` rows, name-sorted. */
-export function collectAggregateTeachers(
-  aggregates: PlcAssessmentAggregate[]
-): { uid: string; name: string }[] {
-  const map = new Map<string, string>();
-  for (const agg of aggregates) {
-    for (const p of agg.perTeacher) map.set(p.teacherUid, p.teacherName);
-  }
-  return Array.from(map.entries())
-    .map(([uid, name]) => ({ uid, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** Distinct, non-empty unit labels across designated assessments, sorted. */

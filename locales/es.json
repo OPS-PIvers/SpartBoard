@@ -530,10 +530,6 @@
         "title": "Resumen semanal por correo",
         "optInDescription": "Envía a cada miembro un correo semanal con un resumen de lo que ocurrió en la Comunidad. Desactivado de forma predeterminada; cualquier miembro puede cambiarlo.",
         "saveFailed": "No se pudo actualizar la configuración del resumen"
-      },
-      "showPerTeacher": {
-        "title": "Desglose por docente",
-        "description": "Muestra el promedio de cada docente en los resultados reunidos. Desactivado por defecto para que el equipo mire primero los datos combinados."
       }
     },
     "overview": {
@@ -881,12 +877,9 @@
       "untitledAssessment": "Evaluación sin título",
       "untitledQuestion": "Pregunta sin título",
       "common": "Común",
-      "you": "(tú)",
       "teamAverage": "Promedio del equipo",
       "teacherStudentCount": "{{teachers}} docentes · {{students}} estudiantes",
-      "classCount": "{{count}} cl.",
       "weakestQuestions": "Preguntas más débiles",
-      "byClass": "Por docente / clase",
       "whoRanIt": "Quién la aplicó",
       "ranOf": "({{ran}} de {{total}})",
       "hasRun": "la aplicó",
@@ -1221,14 +1214,7 @@
       "notScored": "Sin calificar",
       "gradedOfAnswered": "{{served}} presentadas · {{graded}} calificadas · {{answered}} respondidas",
       "choiceDistribution": "Distribución de respuestas",
-      "choiceCount": "{{count}} · {{percent}} %",
-      "perTeacherHeading": "Por docente",
-      "teacher": "Docente",
-      "classes": "Clases",
-      "studentsColumn": "Estudiantes",
-      "average": "Promedio",
-      "unknownTeacher": "Docente",
-      "nonMemberTeacher": "No es miembro de la Comunidad"
+      "choiceCount": "{{count}} · {{percent}} %"
     },
     "learningTargets": {
       "heading": "Objetivos de aprendizaje",

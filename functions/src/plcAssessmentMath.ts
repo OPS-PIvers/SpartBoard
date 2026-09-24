@@ -1,7 +1,7 @@
 // Pure math for the PLC pooled-assessment aggregate (docs/plans/PLC_ASSESSMENT_DATA.md §5.3).
 // Local mirrors of the root `types.ts` shapes; functions cannot import across the repo root.
 
-export const AGGREGATE_SCHEMA_VERSION = 5;
+export const AGGREGATE_SCHEMA_VERSION = 6;
 
 export type LearningTargetKind = 'standard' | 'plc' | 'personal';
 
@@ -173,6 +173,9 @@ export interface AggregatePayload {
   perQuestion: AggregatePerQuestion[];
   perTarget: AggregateTargetRow[];
   perStandard: AggregateTargetRow[];
+  /** Uids of teachers whose sessions contributed, sorted; no scores. */
+  contributorUids: string[];
+  /** Still written for older clients; current clients read `contributorUids`. */
   perTeacher: AggregatePerTeacher[];
 }
 
@@ -1050,6 +1053,7 @@ export function computeAssessmentAggregate(
     perQuestion,
     perTarget,
     perStandard,
+    contributorUids: perTeacher.map((t) => t.teacherUid),
     perTeacher,
   };
   if (anyMismatch) payload.alignmentWarning = ALIGNMENT_WARNING;

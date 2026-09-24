@@ -3,7 +3,6 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UsersRound } from 'lucide-react';
-import { getPlcFeatures } from '@/types';
 import {
   usePlcAggregatesData,
   usePlcAssessmentsData,
@@ -85,14 +84,6 @@ const HeroRow: React.FC<{ row: ParticipationRow }> = ({ row }) => {
           })}
         </span>
       </div>
-      {row.notRanNames.length > 0 && (
-        <p className="mt-0.5 text-xs text-slate-500">
-          {t('plcDashboard.home.participation.notYet', {
-            names: row.notRanNames.join(', '),
-            defaultValue: 'Not yet: {{names}}',
-          })}
-        </p>
-      )}
     </li>
   );
 };
@@ -108,7 +99,6 @@ export const ParticipationTile: React.FC<PlcHomeTileProps> = ({
   const { data: assessments, loading: assessmentsLoading } =
     usePlcAssessmentsData();
   const members = usePlcMembers();
-  const withNames = getPlcFeatures(ctx.plc).showPerTeacher;
   const rows = useMemo(
     () =>
       participationRows({
@@ -116,9 +106,8 @@ export const ParticipationTile: React.FC<PlcHomeTileProps> = ({
         assessments,
         members,
         now: ctx.now,
-        withNames,
       }),
-    [aggregates, assessments, members, ctx.now, withNames]
+    [aggregates, assessments, members, ctx.now]
   );
   const latest = rows[0];
   const loading = aggregatesLoading || assessmentsLoading;

@@ -530,10 +530,6 @@
         "title": "Résumé hebdomadaire par e-mail",
         "optInDescription": "Envoie à chaque membre un e-mail hebdomadaire résumant ce qui s'est passé dans la Communauté. Désactivé par défaut ; tout membre peut le modifier.",
         "saveFailed": "Échec de la mise à jour du paramètre de résumé"
-      },
-      "showPerTeacher": {
-        "title": "Détail par enseignant(e)",
-        "description": "Affiche la moyenne de chaque enseignant(e) dans les résultats regroupés. Désactivé par défaut pour que l’équipe regarde d’abord les données combinées."
       }
     },
     "overview": {
@@ -881,12 +877,9 @@
       "untitledAssessment": "Évaluation sans titre",
       "untitledQuestion": "Question sans titre",
       "common": "Commune",
-      "you": "(vous)",
       "teamAverage": "Moyenne de l’équipe",
       "teacherStudentCount": "{{teachers}} enseignants · {{students}} élèves",
-      "classCount": "{{count}} cl.",
       "weakestQuestions": "Questions les plus faibles",
-      "byClass": "Par enseignant / classe",
       "whoRanIt": "Qui l’a fait passer",
       "ranOf": "({{ran}} sur {{total}})",
       "hasRun": "l’a fait passer",
@@ -1221,14 +1214,7 @@
       "notScored": "Non notée",
       "gradedOfAnswered": "{{served}} présentées · {{graded}} notées · {{answered}} répondues",
       "choiceDistribution": "Répartition des réponses",
-      "choiceCount": "{{count}} · {{percent}} %",
-      "perTeacherHeading": "Par enseignant(e)",
-      "teacher": "Enseignant(e)",
-      "classes": "Classes",
-      "studentsColumn": "Élèves",
-      "average": "Moyenne",
-      "unknownTeacher": "Enseignant(e)",
-      "nonMemberTeacher": "Non membre de la CAP"
+      "choiceCount": "{{count}} · {{percent}} %"
     },
     "learningTargets": {
       "heading": "Objectifs d’apprentissage",

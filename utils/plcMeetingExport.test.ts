@@ -74,7 +74,7 @@ const CTX: PlcMeetingExportContext = {
         { questionId: 'q2', text: 'Divide', correctPercent: 40, points: 1 },
         { questionId: 'q3', text: 'Multiply', correctPercent: 55, points: 1 },
       ],
-      perTeacher: [],
+      contributorUids: [],
       ranAt: 3,
     } satisfies PlcAssessmentAggregate,
   },
@@ -316,7 +316,7 @@ describe('buildMeetingExportRows', () => {
   it('does not leak student names — only anonymized aggregate fields', () => {
     const meeting = makeMeeting({ assessmentIds: ['a1'] });
     const json = JSON.stringify(buildMeetingExportRows(meeting, CTX));
-    // The aggregate fixture carries no perTeacher names; assert the report has
+    // The aggregate fixture carries no teacher or student names; assert the report has
     // no per-student leakage vector (no "studentDisplayName" surface).
     expect(json).not.toContain('studentDisplayName');
   });

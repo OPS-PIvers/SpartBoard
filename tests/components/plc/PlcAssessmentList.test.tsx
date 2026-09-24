@@ -197,7 +197,7 @@ function makeAggregate(
     linkedSessionCount: 2,
     publishedSessionCount: 2,
     perQuestion: [],
-    perTeacher: [],
+    contributorUids: [],
     ranAt: 5_000_000,
     ...overrides,
   };
