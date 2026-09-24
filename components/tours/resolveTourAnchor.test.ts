@@ -1,10 +1,16 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseTourAnchorRef, tourAnchorRef } from '@/config/tourAnchors';
-import { accessibleName, findTourAnchor, roleOf } from './resolveTourAnchor';
 import {
-  addedWidgetIds,
+  accessibleName,
+  findTourAnchor,
+  isAnchorVisible,
+  roleOf,
+} from './resolveTourAnchor';
+import {
+  claimTourWidgets,
   missingSetupWidgets,
   tourStepsOf,
+  tourWidgetIds,
 } from './tourSession';
 import type { GuidedLearningSet, WidgetType } from '@/types';
 
@@ -12,8 +18,26 @@ const mount = (html: string) => {
   document.body.innerHTML = html;
 };
 
+// jsdom has no layout: `data-zero` marks a zero-size box, `data-invisible` a hidden one.
+beforeEach(() => {
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(
+    function (this: Element) {
+      const size = this.hasAttribute('data-zero') ? 0 : 20;
+      return new DOMRect(0, 0, size, size);
+    }
+  );
+  Object.defineProperty(Element.prototype, 'checkVisibility', {
+    configurable: true,
+    value(this: Element) {
+      return !this.closest('[data-invisible]');
+    },
+  });
+});
+
 afterEach(() => {
   document.body.innerHTML = '';
+  vi.restoreAllMocks();
+  delete (Element.prototype as Partial<Element>).checkVisibility;
 });
 
 describe('tour anchor refs', () => {
@@ -71,6 +95,37 @@ describe('findTourAnchor', () => {
     );
   });
 
+  it('skips zero-size and hidden matches so they read as missing', () => {
+    mount(`
+      <button data-tour="sidebar.boards" data-zero>Collapsed</button>
+      <div data-invisible><button data-tour="sidebar.boards">Hidden</button></div>`);
+    expect(findTourAnchor({ anchor: 'sidebar.boards' })).toBeNull();
+    mount(`
+      <button data-tour="sidebar.boards" data-zero>Collapsed</button>
+      <button data-tour="sidebar.boards">Shown</button>`);
+    expect(findTourAnchor({ anchor: 'sidebar.boards' })?.textContent).toBe(
+      'Shown'
+    );
+  });
+
+  it('applies the same visibility rule to the role fallback', () => {
+    mount(
+      `<div data-invisible><button aria-label="Save board">x</button></div>`
+    );
+    expect(
+      findTourAnchor({
+        anchor: 'board-actions.missing',
+        fallback: { role: 'button', name: 'save board' },
+      })
+    ).toBeNull();
+  });
+
+  it('treats a missing checkVisibility as visible', () => {
+    delete (Element.prototype as Partial<Element>).checkVisibility;
+    mount('<button id="b">B</button>');
+    expect(isAnchorVisible(document.getElementById('b') as Element)).toBe(true);
+  });
+
   it('falls back to role and accessible name', () => {
     mount(`
       <div data-tour-ignore><button aria-label="Save board">x</button></div>
@@ -122,14 +177,30 @@ describe('tour session helpers', () => {
     expect(missingSetupWidgets({}, [])).toEqual([]);
   });
 
-  it('finds only new widgets of added types', () => {
-    const widgets = [
+  it('claims only the widget the tour added, never a same-type one added later', () => {
+    const before = new Set(['old']);
+    const board = [
       { id: 'old', type: 'dice' as WidgetType },
-      { id: 'new', type: 'dice' as WidgetType },
+      { id: 'tour', type: 'dice' as WidgetType },
       { id: 'other', type: 'poll' as WidgetType },
     ];
-    expect(addedWidgetIds(widgets, new Set(['old']), ['dice'])).toEqual([
-      'new',
-    ]);
+    const claims = claimTourWidgets(board, before, ['dice']);
+    expect(claims).toEqual({ dice: 'tour' });
+    const later = [...board, { id: 'teacher', type: 'dice' as WidgetType }];
+    const again = claimTourWidgets(later, before, ['dice'], claims);
+    expect(again).toBe(claims);
+    expect(tourWidgetIds(later, again)).toEqual(['tour']);
+  });
+
+  it('does not reclaim a type after the tour widget is closed', () => {
+    const before = new Set<string>();
+    const claims = claimTourWidgets(
+      [{ id: 'tour', type: 'dice' as WidgetType }],
+      before,
+      ['dice']
+    );
+    const replaced = [{ id: 'teacher', type: 'dice' as WidgetType }];
+    const again = claimTourWidgets(replaced, before, ['dice'], claims);
+    expect(tourWidgetIds(replaced, again)).toEqual([]);
   });
 });

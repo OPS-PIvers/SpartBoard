@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet } from '@/types';
 import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import { TOUR_RECORD_EVENT } from '@/components/tours/tourState';
@@ -65,6 +65,14 @@ const plainSet = {
 beforeEach(() => {
   h.sets = [tourSet, plainSet];
   document.body.innerHTML = '';
+  // jsdom has no layout; zero-size anchors would read as hidden.
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+    new DOMRect(0, 0, 40, 40)
+  );
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('TourHealthPanel', () => {

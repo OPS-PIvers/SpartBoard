@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { GuidedLearningTourBinding } from '@/types';
-import { findTourAnchor, type TourAnchorScope } from './resolveTourAnchor';
+import {
+  findTourAnchor,
+  isAnchorVisible,
+  type TourAnchorScope,
+} from './resolveTourAnchor';
 
 export const ANCHOR_SEARCH_MS = 3000;
 
@@ -56,12 +60,17 @@ export function useAnchorElement(
     let cancelled = false;
     let element: HTMLElement | null = null;
     let started = performance.now();
+    let scrolled = false;
 
     const search = () => {
       if (cancelled) return;
       const found = findTourAnchor(target, { widgetIds });
       if (found) {
         element = found;
+        if (!scrolled) {
+          scrolled = true;
+          found.scrollIntoView?.({ block: 'nearest' });
+        }
         raf = requestAnimationFrame(track);
         return;
       }
@@ -74,9 +83,10 @@ export function useAnchorElement(
     // Widgets move by transform and panels animate open, so re-measure every frame.
     const track = () => {
       if (cancelled || !element) return;
-      if (!element.isConnected) {
+      if (!element.isConnected || !isAnchorVisible(element)) {
         element = null;
         started = performance.now();
+        setState({ element: null, rect: null, status: 'searching', key });
         search();
         return;
       }
