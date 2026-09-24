@@ -478,6 +478,11 @@ const StudentExperience: React.FC<{
     );
   }
 
+  // Until the first response snapshot lands, a save could not tell a create from an update.
+  if (!completed && shouldSubscribeResponse && myResponseLoading) {
+    return <FullPageLoader />;
+  }
+
   // Returning student who submitted (completedAt set). Show
   // either the published review or a "wait for teacher" placeholder
   // rather than dropping them back onto the start screen (which would

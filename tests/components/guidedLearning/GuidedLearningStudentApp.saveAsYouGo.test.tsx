@@ -165,6 +165,16 @@ describe('GuidedLearningStudentApp — answers saved as they go', () => {
     ).toEqual(['q1', 'q2']);
   });
 
+  it('offers Start only after the saved response has been read', async () => {
+    render(<GuidedLearningStudentApp />);
+    await waitFor(() => expect(listener.next).not.toBeNull());
+    expect(screen.queryByRole('button', { name: /^start/i })).toBeNull();
+    emit(null);
+    expect(
+      await screen.findByRole('button', { name: /^start/i })
+    ).toBeInTheDocument();
+  });
+
   it('writes one answer at a time, in order', async () => {
     let release: () => void = () => undefined;
     submitResponse.mockImplementationOnce(

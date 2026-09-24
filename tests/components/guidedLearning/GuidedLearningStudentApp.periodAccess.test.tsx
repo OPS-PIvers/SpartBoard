@@ -42,7 +42,13 @@ vi.mock('firebase/firestore', () => ({
   addDoc: vi.fn(() => Promise.resolve()),
   collection: vi.fn(),
   doc: vi.fn(),
-  onSnapshot: vi.fn(() => () => undefined),
+  // No saved response: the student app waits for this first snapshot before showing the player.
+  onSnapshot: vi.fn(
+    (_ref: unknown, next: (snap: { exists: () => boolean }) => void) => {
+      next({ exists: () => false });
+      return () => undefined;
+    }
+  ),
   serverTimestamp: vi.fn(),
 }));
 
