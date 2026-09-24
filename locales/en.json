@@ -3628,7 +3628,11 @@
       "tabSwitches_other": "{{count}} tab switches",
       "tabSwitchesTitle_one": "{{count}} tab switch warning during the assessment",
       "tabSwitchesTitle_other": "{{count}} tab switch warnings during the assessment",
-      "noAnswersOnQuestion": "No answers on this question yet."
+      "noAnswersOnQuestion": "No answers on this question yet.",
+      "collapseList": "Hide student list",
+      "expandList": "Show student list",
+      "gradedCount": "{{graded}}/{{total}} graded",
+      "gradedCountLabel": "{{graded}} of {{total}} graded"
     },
     "results": {
       "gradeButton": "Grade Free Response"
