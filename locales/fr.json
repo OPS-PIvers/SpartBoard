@@ -2572,6 +2572,7 @@
     "titleLabel": "Titre de l’activité",
     "titlePlaceholder": "Activité sans titre",
     "undo": "Annuler",
+    "undoFromHeader": "Vous avez modifié depuis. Utilisez Annuler dans l’en-tête.",
     "unsavedBody": "Vos dernières modifications n’ont pas pu être enregistrées. Si vous fermez maintenant, elles seront perdues.",
     "uploadingTitle": "Une diapositive est encore en cours d'envoi",
     "uploadingBody": "Si vous fermez maintenant, la diapositive en cours d'envoi ne sera pas ajoutée.",

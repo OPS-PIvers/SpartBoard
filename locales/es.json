@@ -2572,6 +2572,7 @@
     "titleLabel": "Título de la actividad",
     "titlePlaceholder": "Actividad sin título",
     "undo": "Deshacer",
+    "undoFromHeader": "Has hecho cambios desde entonces. Usa Deshacer en la cabecera.",
     "unsavedBody": "No se pudieron guardar tus últimos cambios. Si cierras ahora, se perderán.",
     "uploadingTitle": "Todavía se está subiendo una diapositiva",
     "uploadingBody": "Si cierras ahora, la diapositiva que se está subiendo no se añadirá.",

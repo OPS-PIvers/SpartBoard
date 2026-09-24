@@ -126,6 +126,29 @@ describe('editorHistoryReducer', () => {
     expect(editorHistoryReducer(s, { type: 'undo' })).toBe(s);
   });
 
+  it('undoes a tagged edit only while it is the newest and nothing was undone', () => {
+    const tag = {};
+    const tagged = editorHistoryReducer(base(), {
+      type: 'apply',
+      update: (d) => ({ ...d, title: 'deleted' }),
+      at: 0,
+      tag,
+    });
+    const undone = editorHistoryReducer(tagged, { type: 'undoIfLatest', tag });
+    expect(undone.present.title).toBe('Original');
+    const edited = retitle(tagged, 'later', 1);
+    expect(editorHistoryReducer(edited, { type: 'undoIfLatest', tag })).toBe(
+      edited
+    );
+    const afterUndo = editorHistoryReducer(edited, { type: 'undo' });
+    expect(editorHistoryReducer(afterUndo, { type: 'undoIfLatest', tag })).toBe(
+      afterUndo
+    );
+    expect(
+      editorHistoryReducer(tagged, { type: 'undoIfLatest', tag: {} })
+    ).toBe(tagged);
+  });
+
   it('drops a gesture that changed nothing', () => {
     let s = editorHistoryReducer(base(), { type: 'beginGesture' });
     s = editorHistoryReducer(s, { type: 'endGesture' });

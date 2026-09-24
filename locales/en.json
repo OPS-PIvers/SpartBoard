@@ -3703,6 +3703,7 @@
     "titleLabel": "Activity title",
     "titlePlaceholder": "Untitled activity",
     "undo": "Undo",
+    "undoFromHeader": "You have edited since then. Use Undo in the header.",
     "unsavedBody": "Your latest changes could not be saved. If you close now, they will be lost.",
     "uploadingTitle": "A slide is still uploading",
     "uploadingBody": "If you close now, the slide that is uploading won't be added.",

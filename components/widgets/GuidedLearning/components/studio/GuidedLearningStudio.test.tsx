@@ -265,6 +265,48 @@ describe('GuidedLearningStudio', () => {
       expect(subtitle()).toHaveTextContent('1 step');
     });
 
+    it('never undoes a later edit from a delete toast', () => {
+      renderWithToasts();
+      act(() => {
+        pressKey(']');
+      });
+      act(() => {
+        pressKey('Delete');
+      });
+      const toastUndo = lastToastUndo();
+      fireEvent.change(screen.getByLabelText('Activity title'), {
+        target: { value: 'Renamed' },
+      });
+      act(() => toastUndo());
+      expect(screen.getByLabelText('Activity title')).toHaveValue('Renamed');
+      expect(subtitle()).toHaveTextContent('0 steps');
+      expect(addToast).toHaveBeenLastCalledWith(
+        'You have edited since then. Use Undo in the header.',
+        'info'
+      );
+    });
+
+    it('does nothing from a slide toast after a header undo', () => {
+      const set = buildSet();
+      set.imageUrls = [...set.imageUrls, 'https://example.com/slide-2.png'];
+      renderWithToasts({ set });
+      fireEvent.change(screen.getByLabelText('Activity title'), {
+        target: { value: 'Renamed' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Delete slide 1' }));
+      const toastUndo = lastToastUndo();
+      fireEvent.click(screen.getByTestId('gl-studio-undo'));
+      expect(
+        screen.getByRole('button', { name: 'Delete slide 2' })
+      ).toBeInTheDocument();
+      act(() => toastUndo());
+      expect(screen.getByLabelText('Activity title')).toHaveValue('Renamed');
+      expect(addToast).toHaveBeenLastCalledWith(
+        'You have edited since then. Use Undo in the header.',
+        'info'
+      );
+    });
+
     it('keeps slide delete buttons visible on touch screens', () => {
       renderWithToasts();
       expect(

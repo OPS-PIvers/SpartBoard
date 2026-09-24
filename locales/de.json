@@ -2572,6 +2572,7 @@
     "titleLabel": "Titel der Aktivität",
     "titlePlaceholder": "Aktivität ohne Titel",
     "undo": "Rückgängig",
+    "undoFromHeader": "Du hast seitdem weiter bearbeitet. Nutze „Rückgängig“ oben in der Kopfzeile.",
     "unsavedBody": "Deine letzten Änderungen konnten nicht gespeichert werden. Wenn du jetzt schließt, gehen sie verloren.",
     "uploadingTitle": "Eine Folie wird noch hochgeladen",
     "uploadingBody": "Wenn du jetzt schließt, wird die Folie, die gerade hochgeladen wird, nicht hinzugefügt.",

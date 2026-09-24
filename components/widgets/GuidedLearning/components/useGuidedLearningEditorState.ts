@@ -34,6 +34,7 @@ import {
   documentFromSet,
   editorHistoryReducer,
   initialHistory,
+  isLatestEdit,
   pendingMediaDeletions,
   type EditorDocument,
   type MediaDeletionRef,
@@ -119,7 +120,8 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
     kind: GuidedLearningMediaKind,
     baseName: string
   ) => Promise<void>;
-  deleteImage: (index: number) => void;
+  /** `tag` marks the edit so `undoIfLatest` can target it. */
+  deleteImage: (index: number, tag?: object) => void;
   /** Uploads a redacted copy over a slide and queues the old image for deletion on close. */
   replaceSlideImage: (index: number, blob: Blob) => Promise<boolean>;
   moveImage: (fromIndex: number, direction: -1 | 1) => void;
@@ -142,7 +144,9 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
     region?: GuidedLearningRegion
   ) => void;
   updateStep: (updated: GuidedLearningStep) => void;
-  deleteStep: (id: string) => void;
+  deleteStep: (id: string, tag?: object) => void;
+  /** Undoes the tagged edit only if nothing was edited or undone since; returns whether it did. */
+  undoIfLatest: (tag: object) => boolean;
   /** Apply a new ordering of the entire steps array (e.g. from drag-reorder). */
   reorderSteps: (next: GuidedLearningStep[]) => void;
   /** Uploads a recorded narration take for this editing session. */
@@ -223,8 +227,11 @@ export function useGuidedLearningEditorState({
   } = history.present;
 
   const applyDoc = useCallback(
-    (update: (doc: EditorDocument) => EditorDocument, coalesceKey?: string) =>
-      dispatch({ type: 'apply', update, coalesceKey, at: Date.now() }),
+    (
+      update: (doc: EditorDocument) => EditorDocument,
+      coalesceKey?: string,
+      tag?: object
+    ) => dispatch({ type: 'apply', update, coalesceKey, at: Date.now(), tag }),
     []
   );
   const setField = useCallback(
@@ -505,22 +512,30 @@ export function useGuidedLearningEditorState({
   );
 
   const deleteImage = useCallback(
-    (deleteIndex: number) => {
+    (deleteIndex: number, tag?: object) => {
       const remaining = imageUrls.length - 1;
       const removedUrl = historyRef.current.present.imageUrls[deleteIndex];
-      applyDoc((doc) => ({
-        ...doc,
-        imageUrls: doc.imageUrls.filter((_, index) => index !== deleteIndex),
-        imageKinds: doc.imageKinds.filter((_, index) => index !== deleteIndex),
-        videoTrims: doc.videoTrims.filter((_, index) => index !== deleteIndex),
-        steps: doc.steps
-          .filter((step) => step.imageIndex !== deleteIndex)
-          .map((step) =>
-            step.imageIndex > deleteIndex
-              ? { ...step, imageIndex: step.imageIndex - 1 }
-              : step
+      applyDoc(
+        (doc) => ({
+          ...doc,
+          imageUrls: doc.imageUrls.filter((_, index) => index !== deleteIndex),
+          imageKinds: doc.imageKinds.filter(
+            (_, index) => index !== deleteIndex
           ),
-      }));
+          videoTrims: doc.videoTrims.filter(
+            (_, index) => index !== deleteIndex
+          ),
+          steps: doc.steps
+            .filter((step) => step.imageIndex !== deleteIndex)
+            .map((step) =>
+              step.imageIndex > deleteIndex
+                ? { ...step, imageIndex: step.imageIndex - 1 }
+                : step
+            ),
+        }),
+        undefined,
+        tag
+      );
       // Queued on the delete's history entry, so undo keeps the file until save-and-close.
       for (const url of removedUrl
         ? [removedUrl, slideThumbnails[removedUrl]]
@@ -661,11 +676,20 @@ export function useGuidedLearningEditorState({
   );
 
   const deleteStep = useCallback(
-    (id: string) => {
-      setSteps((prev) => prev.filter((s) => s.id !== id));
+    (id: string, tag?: object) => {
+      applyDoc(
+        (doc) => {
+          const next = doc.steps.filter((s) => s.id !== id);
+          return next.length === doc.steps.length
+            ? doc
+            : { ...doc, steps: next };
+        },
+        undefined,
+        tag
+      );
       if (selectedStepId === id) setSelectedStepId(null);
     },
-    [selectedStepId, setSteps]
+    [selectedStepId, applyDoc]
   );
 
   const reorderSteps = useCallback(
@@ -745,6 +769,11 @@ export function useGuidedLearningEditorState({
 
   const undo = useCallback(() => dispatch({ type: 'undo' }), []);
   const redo = useCallback(() => dispatch({ type: 'redo' }), []);
+  const undoIfLatest = useCallback((tag: object) => {
+    if (!isLatestEdit(historyRef.current, tag)) return false;
+    dispatch({ type: 'undoIfLatest', tag });
+    return true;
+  }, []);
   const beginGesture = useCallback(
     () => dispatch({ type: 'beginGesture' }),
     []
@@ -872,6 +901,7 @@ export function useGuidedLearningEditorState({
     markSpotlightRadiiV2,
     undo,
     redo,
+    undoIfLatest,
     canUndo: !history.gestureBase && history.past.length > 0,
     canRedo: !history.gestureBase && history.future.length > 0,
     beginGesture,

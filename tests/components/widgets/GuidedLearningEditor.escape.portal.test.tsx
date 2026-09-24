@@ -100,6 +100,7 @@ const makeState = (): GuidedLearningEditorController => ({
   setWatchPace: vi.fn(),
   undo: vi.fn(),
   redo: vi.fn(),
+  undoIfLatest: vi.fn(),
   canUndo: false,
   canRedo: false,
   beginGesture: vi.fn(),

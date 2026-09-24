@@ -261,6 +261,7 @@ const StudioSession: React.FC<
     deleteImage,
     undo,
     redo,
+    undoIfLatest,
     canUndo,
     canRedo,
   } = editorState;
@@ -290,25 +291,33 @@ const StudioSession: React.FC<
   }
 
   // Every delete is undoable from its toast; none asks first.
+  const toastUndoFor = useCallback(
+    (tag: object) => () => {
+      if (!undoIfLatest(tag)) addToast?.(t('glStudio.undoFromHeader'), 'info');
+    },
+    [undoIfLatest, addToast, t]
+  );
   const deleteStepWithUndo = useCallback(
     (id: string) => {
-      deleteStep(id);
+      const tag = {};
+      deleteStep(id, tag);
       addToast?.(t('glStudio.stepDeleted'), 'info', {
         label: t('glStudio.undo'),
-        onClick: undo,
+        onClick: toastUndoFor(tag),
       });
     },
-    [deleteStep, addToast, t, undo]
+    [deleteStep, addToast, t, toastUndoFor]
   );
   const deleteSlideWithUndo = useCallback(
     (index: number) => {
-      deleteImage(index);
+      const tag = {};
+      deleteImage(index, tag);
       addToast?.(t('glStudio.slideDeleted', { n: index + 1 }), 'info', {
         label: t('glStudio.undo'),
-        onClick: undo,
+        onClick: toastUndoFor(tag),
       });
     },
-    [deleteImage, addToast, t, undo]
+    [deleteImage, addToast, t, toastUndoFor]
   );
   const deleteSelected = useCallback(() => {
     if (selectedStepId) deleteStepWithUndo(selectedStepId);
