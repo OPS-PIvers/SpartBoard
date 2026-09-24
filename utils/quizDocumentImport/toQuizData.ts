@@ -106,11 +106,12 @@ export interface ReviewExtras {
   suggestedTargets: ReadonlyMap<string, SuggestedTarget>;
 }
 
-const reviewExtras = new WeakMap<QuizData, ReviewExtras>();
+// By id too: review edits hand back a copy of the quiz with the same id.
+const reviewExtras = new Map<string, ReviewExtras>();
 
-/** The review extras for a quiz `extractedToQuizData` built, if any. */
+/** The review extras for a quiz `extractedToQuizData` built, or an edited copy of it. */
 export const reviewExtrasFor = (data: QuizData): ReviewExtras | undefined =>
-  reviewExtras.get(data);
+  reviewExtras.get(data.id);
 
 /**
  * Build a quiz from a read document. Rows the reader suggests unticking are
@@ -158,6 +159,10 @@ export function extractedToQuizData(
     createdAt: now,
     updatedAt: now,
   };
-  reviewExtras.set(data, { allQuestions, untick, suggestedTargets });
+  // A few recent reads are kept, so the map never grows with a long session.
+  if (reviewExtras.size >= 8) {
+    reviewExtras.delete(reviewExtras.keys().next().value as string);
+  }
+  reviewExtras.set(data.id, { allQuestions, untick, suggestedTargets });
   return data;
 }

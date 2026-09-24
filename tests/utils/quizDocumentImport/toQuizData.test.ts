@@ -248,5 +248,8 @@ describe('extractedToQuizData — reliability fields (R9, R23, R25)', () => {
     expect(
       reviewExtrasFor(data)?.suggestedTargets.get(data.questions[0].id)
     ).toEqual({ code: 'ELT 1.1', label: 'I can x.' });
+    // Review edits hand back a copy; the extras must survive it.
+    const edited = { ...data, questions: [] };
+    expect(reviewExtrasFor(edited)?.suggestedTargets.size).toBe(1);
   });
 });
