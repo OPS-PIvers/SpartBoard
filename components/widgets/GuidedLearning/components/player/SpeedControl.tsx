@@ -37,7 +37,7 @@ export const SpeedControl: React.FC<Props> = ({ speed, onChange }) => {
           }`}
           style={{
             padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-            fontSize: 'min(12px, 3.2cqmin)',
+            fontSize: 'var(--gl-text-small, min(12px, 3.2cqmin))',
           }}
         >
           {LABELS[s]}

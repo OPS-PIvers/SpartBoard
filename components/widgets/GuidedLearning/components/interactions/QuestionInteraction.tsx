@@ -87,18 +87,18 @@ export const QuestionInteraction: React.FC<Props> = ({
   return (
     <div
       className="w-full h-full flex items-center justify-center overflow-y-auto custom-scrollbar"
-      style={{ padding: 'min(12px, 3cqmin)' }}
+      style={{ padding: 'var(--gl-text-body, min(12px, 3cqmin))' }}
     >
       <div
         className="bg-slate-800/95 backdrop-blur-sm border border-white/20 rounded-2xl w-full shadow-xl max-h-full overflow-y-auto"
         style={{
-          maxWidth: 'min(420px, 90cqw)',
+          maxWidth: 'var(--gl-question-max-w, min(420px, 90cqw))',
           padding: 'min(14px, 3.5cqmin)',
         }}
       >
         <p
           className="text-white font-bold mb-4 leading-snug"
-          style={{ fontSize: 'min(15px, 4cqmin)' }}
+          style={{ fontSize: 'var(--gl-text-title, min(15px, 4cqmin))' }}
         >
           {q.text}
         </p>
@@ -119,7 +119,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                     }`}
                     style={{
                       padding: 'min(10px, 2.5cqmin) min(14px, 3.5cqmin)',
-                      fontSize: 'min(13px, 3.5cqmin)',
+                      fontSize: 'var(--gl-text-body, min(13px, 3.5cqmin))',
                     }}
                   >
                     {choice}
@@ -133,7 +133,9 @@ export const QuestionInteraction: React.FC<Props> = ({
               <div className="space-y-2">
                 <p
                   className="text-slate-400 font-medium mb-2"
-                  style={{ fontSize: 'min(11px, 2.8cqmin)' }}
+                  style={{
+                    fontSize: 'var(--gl-text-small, min(11px, 2.8cqmin))',
+                  }}
                 >
                   Match each item on the left to its pair:
                 </p>
@@ -147,14 +149,16 @@ export const QuestionInteraction: React.FC<Props> = ({
                       className="text-slate-200 font-bold flex-1 bg-slate-700 rounded-lg truncate"
                       style={{
                         padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-                        fontSize: 'min(12px, 3cqmin)',
+                        fontSize: 'var(--gl-text-body, min(12px, 3cqmin))',
                       }}
                     >
                       {left}
                     </span>
                     <span
                       className="text-slate-500 font-bold"
-                      style={{ fontSize: 'min(12px, 3cqmin)' }}
+                      style={{
+                        fontSize: 'var(--gl-text-body, min(12px, 3cqmin))',
+                      }}
                     >
                       →
                     </span>
@@ -169,7 +173,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                       className="flex-1 bg-slate-700 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 appearance-none"
                       style={{
                         padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-                        fontSize: 'min(12px, 3cqmin)',
+                        fontSize: 'var(--gl-text-body, min(12px, 3cqmin))',
                       }}
                     >
                       <option value="">-- select --</option>
@@ -189,7 +193,9 @@ export const QuestionInteraction: React.FC<Props> = ({
               <div className="space-y-1.5">
                 <p
                   className="text-slate-400 font-medium mb-2"
-                  style={{ fontSize: 'min(11px, 2.8cqmin)' }}
+                  style={{
+                    fontSize: 'var(--gl-text-small, min(11px, 2.8cqmin))',
+                  }}
                 >
                   Drag or use arrows to put items in the correct order:
                 </p>
@@ -206,14 +212,16 @@ export const QuestionInteraction: React.FC<Props> = ({
                       className="text-slate-400 font-mono font-bold text-center"
                       style={{
                         width: 'min(20px, 5cqmin)',
-                        fontSize: 'min(11px, 2.8cqmin)',
+                        fontSize: 'var(--gl-text-small, min(11px, 2.8cqmin))',
                       }}
                     >
                       {idx + 1}
                     </span>
                     <span
                       className="flex-1 text-slate-200 font-bold truncate"
-                      style={{ fontSize: 'min(12px, 3cqmin)' }}
+                      style={{
+                        fontSize: 'var(--gl-text-body, min(12px, 3cqmin))',
+                      }}
                     >
                       {item}
                     </span>
@@ -229,7 +237,9 @@ export const QuestionInteraction: React.FC<Props> = ({
                           setSortingOrder(arr);
                         }}
                         className="text-slate-400 hover:text-white disabled:opacity-30 leading-none transition-colors"
-                        style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+                        style={{
+                          fontSize: 'var(--gl-text-small, min(10px, 2.5cqmin))',
+                        }}
                         aria-label="Move up"
                       >
                         ▲
@@ -242,7 +252,9 @@ export const QuestionInteraction: React.FC<Props> = ({
                           setSortingOrder(arr);
                         }}
                         className="text-slate-400 hover:text-white disabled:opacity-30 leading-none transition-colors"
-                        style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+                        style={{
+                          fontSize: 'var(--gl-text-small, min(10px, 2.5cqmin))',
+                        }}
                         aria-label="Move down"
                       >
                         ▼
@@ -259,8 +271,8 @@ export const QuestionInteraction: React.FC<Props> = ({
               className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-indigo-500/20"
               style={{
                 marginTop: 'min(16px, 4cqmin)',
-                padding: 'min(10px, 2.5cqmin)',
-                fontSize: 'min(14px, 3.5cqmin)',
+                padding: 'var(--gl-text-small, min(10px, 2.5cqmin))',
+                fontSize: 'var(--gl-text-body, min(14px, 3.5cqmin))',
               }}
             >
               Submit Answer
@@ -279,7 +291,9 @@ export const QuestionInteraction: React.FC<Props> = ({
                 />
                 <p
                   className="font-bold mb-1 text-indigo-300"
-                  style={{ fontSize: 'min(16px, 4cqmin)' }}
+                  style={{
+                    fontSize: 'var(--gl-text-title, min(16px, 4cqmin))',
+                  }}
                 >
                   Answer recorded
                 </p>
@@ -295,7 +309,9 @@ export const QuestionInteraction: React.FC<Props> = ({
                 />
                 <p
                   className="font-bold mb-1 text-emerald-400"
-                  style={{ fontSize: 'min(16px, 4cqmin)' }}
+                  style={{
+                    fontSize: 'var(--gl-text-title, min(16px, 4cqmin))',
+                  }}
                 >
                   Correct!
                 </p>
@@ -311,14 +327,18 @@ export const QuestionInteraction: React.FC<Props> = ({
                 />
                 <p
                   className="font-bold mb-1 text-red-400"
-                  style={{ fontSize: 'min(16px, 4cqmin)' }}
+                  style={{
+                    fontSize: 'var(--gl-text-title, min(16px, 4cqmin))',
+                  }}
                 >
                   Not quite
                 </p>
                 {correctAnswer && (
                   <p
                     className="text-slate-400 font-medium mb-3"
-                    style={{ fontSize: 'min(12px, 3cqmin)' }}
+                    style={{
+                      fontSize: 'var(--gl-text-body, min(12px, 3cqmin))',
+                    }}
                   >
                     Correct answer:{' '}
                     <span className="text-white">{correctAnswer}</span>
@@ -330,10 +350,10 @@ export const QuestionInteraction: React.FC<Props> = ({
               onClick={onContinue}
               className="flex items-center mx-auto bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-indigo-500/20"
               style={{
-                marginTop: 'min(12px, 3cqmin)',
+                marginTop: 'var(--gl-text-body, min(12px, 3cqmin))',
                 padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
                 gap: 'min(6px, 1.5cqmin)',
-                fontSize: 'min(14px, 3.5cqmin)',
+                fontSize: 'var(--gl-text-body, min(14px, 3.5cqmin))',
               }}
             >
               Continue

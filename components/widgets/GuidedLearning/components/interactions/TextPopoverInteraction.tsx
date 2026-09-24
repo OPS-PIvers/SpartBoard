@@ -86,7 +86,7 @@ export const TextPopoverInteraction: React.FC<Props> = ({
           placed ? 'absolute' : 'relative w-full'
         }`}
         style={{
-          maxWidth: 'min(380px, 90cqw)',
+          maxWidth: 'var(--gl-popover-max-w, min(380px, 90cqw))',
           padding: 'min(20px, 5cqmin)',
           ...(placed
             ? { left: placed.left, top: placed.top, width: box.w }
@@ -114,14 +114,16 @@ export const TextPopoverInteraction: React.FC<Props> = ({
             {step.label && (
               <h3
                 className="text-white font-bold mb-2 pr-6 leading-tight"
-                style={{ fontSize: 'min(16px, 4.5cqmin)' }}
+                style={{
+                  fontSize: 'var(--gl-text-title, min(16px, 4.5cqmin))',
+                }}
               >
                 {renderStepText(step.label)}
               </h3>
             )}
             <p
               className="text-slate-200 leading-relaxed whitespace-pre-wrap"
-              style={{ fontSize: 'min(14px, 3.5cqmin)' }}
+              style={{ fontSize: 'var(--gl-text-body, min(14px, 3.5cqmin))' }}
             >
               {renderStepText(step.text ?? '')}
             </p>

@@ -368,3 +368,89 @@ describe('GuidedLearningPlayer reaching the end', () => {
     expect(onReachedEnd).not.toHaveBeenCalled();
   });
 });
+
+describe('GuidedLearningPlayer presenting keys (v2)', () => {
+  const threeSteps = (mode: GuidedLearningSet['mode']) => ({
+    ...makeSet(mode),
+    steps: [target, { ...target, id: 'two' }, { ...target, id: 'three' }],
+  });
+  const nextBtn = () => screen.getByRole('button', { name: /next step/i });
+  const prevBtn = () => screen.getByRole('button', { name: /previous step/i });
+
+  it('steps with PageDown and PageUp from a clicker', () => {
+    renderPlayer(threeSteps('structured'));
+    stage().focus();
+    fireEvent.keyDown(stage(), { key: 'PageDown' });
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    fireEvent.keyDown(stage(), { key: 'PageDown' });
+    expect(screen.getByText('3 / 3')).toBeInTheDocument();
+    fireEvent.keyDown(stage(), { key: 'PageUp' });
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+  });
+
+  it('steps with arrows and PageDown while a footer button has focus', () => {
+    renderPlayer(threeSteps('guided'));
+    nextBtn().focus();
+    fireEvent.keyDown(nextBtn(), { key: 'ArrowRight' });
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    const play = screen.getByRole('button', { name: /^play$/i });
+    play.focus();
+    fireEvent.keyDown(play, { key: 'PageDown' });
+    expect(screen.getByText('3 / 3')).toBeInTheDocument();
+    prevBtn().focus();
+    fireEvent.keyDown(prevBtn(), { key: 'ArrowLeft' });
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+  });
+
+  it('ignores step keys when focus is outside the player', () => {
+    renderPlayer(threeSteps('structured'));
+    const outside = document.createElement('div');
+    outside.tabIndex = 0;
+    document.body.appendChild(outside);
+    outside.focus();
+    fireEvent.keyDown(outside, { key: 'PageDown' });
+    fireEvent.keyDown(outside, { key: 'ArrowRight' });
+    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+    outside.remove();
+  });
+
+  it('leaves Enter on a footer button to the button', () => {
+    renderPlayer(threeSteps('structured'));
+    prevBtn().focus();
+    fireEvent.keyDown(prevBtn(), { key: 'Enter' });
+    fireEvent.keyDown(prevBtn(), { key: ' ', code: 'Space' });
+    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+  });
+
+  it('keeps v1 on arrows over the canvas only', () => {
+    renderPlayer(threeSteps('structured'), { playerV2: false });
+    stage().focus();
+    fireEvent.keyDown(stage(), { key: 'PageDown' });
+    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+    nextBtn().focus();
+    fireEvent.keyDown(nextBtn(), { key: 'ArrowRight' });
+    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+    stage().focus();
+    fireEvent.keyDown(stage(), { key: 'ArrowRight' });
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+  });
+
+  it('scales callout text up to 30px in v2 only', () => {
+    renderPlayer(makeSet('structured'));
+    const root = screen.getByTestId('gl-player-root');
+    expect(root.style.getPropertyValue('--gl-text-title')).toBe(
+      'clamp(14px, 4.4cqmin, 30px)'
+    );
+    expect(screen.getByTestId('gl-tooltip-card').style.fontSize).toContain(
+      'var(--gl-text-body'
+    );
+    cleanup();
+    restore?.();
+    renderPlayer(makeSet('structured'), { playerV2: false });
+    expect(
+      screen
+        .getByTestId('gl-player-root')
+        .style.getPropertyValue('--gl-text-title')
+    ).toBe('');
+  });
+});

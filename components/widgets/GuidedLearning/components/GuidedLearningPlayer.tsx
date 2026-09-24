@@ -45,6 +45,19 @@ import type { PctPoint, PlaybackMode, StepEvent } from '../types/stage';
 
 const nowMs = (): number => performance.now();
 
+/** Step keys in v2: arrows plus a presentation clicker's PageUp/PageDown. */
+const NAV_KEYS_V2 = ['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown'];
+
+/** v2 callout, question and footer text scales up to projector size. */
+const PROJECTOR_TEXT_VARS = {
+  '--gl-text-title': 'clamp(14px, 4.4cqmin, 30px)',
+  '--gl-text-body': 'clamp(14px, 3.8cqmin, 28px)',
+  '--gl-text-small': 'clamp(14px, 3cqmin, 22px)',
+  '--gl-callout-max-w': 'min(max(340px, 50cqmin), 60cqw)',
+  '--gl-popover-max-w': 'min(max(380px, 56cqmin), 90cqw)',
+  '--gl-question-max-w': 'min(max(420px, 64cqmin), 90cqw)',
+} as React.CSSProperties;
+
 /** Per-visit state of the current step; replaced whenever the step changes. */
 interface StepRun {
   idx: number;
@@ -157,7 +170,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     }
   }
 
-  // Keyboard scope: the canvas wrapper around the stage.
+  // Keyboard scope: the whole player in v2, the canvas wrapper in v1.
+  const rootRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const progressRef = useRef(0);
@@ -488,23 +502,33 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
 
   const handleKeyDown = useEffectEvent((event: KeyboardEvent) => {
     if (event.defaultPrevented) return;
-    const container = containerRef.current;
+    // v2 listens anywhere in the player; v1 only over the canvas.
+    const scope = playerV2 ? rootRef.current : containerRef.current;
     const activeElement = document.activeElement;
     const hasKeyboardFocus = Boolean(
-      container && activeElement && container.contains(activeElement)
+      scope && activeElement && scope.contains(activeElement)
     );
-    const isHovered = Boolean(container?.matches(':hover'));
+    const isHovered = Boolean(scope?.matches(':hover'));
     if (!hasKeyboardFocus && !isHovered) return;
 
     const target = event.target as HTMLElement | null;
+    const navKey = playerV2
+      ? NAV_KEYS_V2.includes(event.key)
+      : event.key === 'ArrowLeft' || event.key === 'ArrowRight';
+    // v2: step keys still work while a footer button (not the outline list) has focus.
+    const footerButton =
+      playerV2 &&
+      navKey &&
+      Boolean(target?.closest('[data-gl-footer]')) &&
+      !target?.closest('[role="dialog"]');
     if (
       target &&
       (target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA' ||
-        target.tagName === 'BUTTON' ||
         target.tagName === 'SELECT' ||
-        target.tagName === 'A' ||
-        target.isContentEditable)
+        target.isContentEditable ||
+        ((target.tagName === 'BUTTON' || target.tagName === 'A') &&
+          !footerButton))
     ) {
       return;
     }
@@ -514,17 +538,11 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       return;
     }
 
-    if (mode === 'structured' || mode === 'guided') {
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        goPrev();
-        return;
-      }
-      if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        goNext();
-        return;
-      }
+    if ((mode === 'structured' || mode === 'guided') && navKey) {
+      event.preventDefault();
+      if (event.key === 'ArrowLeft' || event.key === 'PageUp') goPrev();
+      else goNext();
+      return;
     }
 
     const onStage = Boolean(target?.hasAttribute('data-gl-stage'));
@@ -675,7 +693,12 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-900">
+    <div
+      ref={rootRef}
+      data-testid="gl-player-root"
+      className="h-full flex flex-col bg-slate-900"
+      style={playerV2 ? PROJECTOR_TEXT_VARS : undefined}
+    >
       {/* Controls bar */}
       <div
         className="flex items-center border-b border-white/10 flex-shrink-0 bg-slate-900/90 backdrop-blur-sm"
@@ -711,7 +734,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
             className="rounded-full bg-white/10 border border-white/15 text-slate-200 font-semibold whitespace-nowrap flex-shrink-0"
             style={{
               padding: 'min(3px, 0.8cqmin) min(10px, 2.4cqmin)',
-              fontSize: 'min(12px, 3.2cqmin)',
+              fontSize: 'var(--gl-text-small, min(12px, 3.2cqmin))',
             }}
           >
             {t(`glPlayer.modeChip.${mode}`)}
@@ -810,6 +833,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       {/* Bottom nav footer — structured and guided modes only; v2 follows Watch/Try */}
       {mode !== 'explore' && steps.length > 0 && (
         <div
+          data-gl-footer
           className="flex items-center flex-shrink-0 border-t border-white/10 bg-slate-900/80 backdrop-blur-md"
           style={{
             gap: 'min(10px, 2.5cqmin)',

@@ -62,7 +62,7 @@ export const StepOutline: React.FC<Props> = ({
         onClick={() => setOpen((v) => !v)}
         className="text-slate-200 font-bold tabular-nums rounded-full hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
         style={{
-          fontSize: 'min(12px, 3.2cqmin)',
+          fontSize: 'var(--gl-text-small, min(12px, 3.2cqmin))',
           padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
         }}
       >
@@ -92,7 +92,7 @@ export const StepOutline: React.FC<Props> = ({
             id={titleId}
             className="text-slate-300 font-bold uppercase tracking-wide"
             style={{
-              fontSize: 'min(11px, 3cqmin)',
+              fontSize: 'var(--gl-text-small, min(11px, 3cqmin))',
               padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
             }}
           >
@@ -109,7 +109,7 @@ export const StepOutline: React.FC<Props> = ({
                     aria-hidden="true"
                     className="text-slate-300 font-semibold"
                     style={{
-                      fontSize: 'min(11px, 3cqmin)',
+                      fontSize: 'var(--gl-text-small, min(11px, 3cqmin))',
                       padding: 'min(8px, 2cqmin) min(8px, 2cqmin) 0',
                     }}
                   >
@@ -141,7 +141,7 @@ export const StepOutline: React.FC<Props> = ({
                       style={{
                         gap: 'min(8px, 2cqmin)',
                         padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
-                        fontSize: 'min(13px, 3.4cqmin)',
+                        fontSize: 'var(--gl-text-body, min(13px, 3.4cqmin))',
                       }}
                     >
                       <span className="tabular-nums text-slate-300 flex-shrink-0">
