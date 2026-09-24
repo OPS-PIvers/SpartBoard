@@ -110,7 +110,7 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
         onClick={() => onDelete(slide.index)}
         aria-label={t('glStudio.deleteSlideN', { n })}
         title={t('glStudio.deleteSlideN', { n })}
-        className="absolute right-1 top-1 rounded-md bg-white/90 p-1 text-slate-600 opacity-0 shadow-sm transition-opacity hover:text-red-700 focus:opacity-100 group-hover:opacity-100"
+        className="absolute right-1 top-1 rounded-md bg-white/90 p-1 text-slate-600 opacity-0 shadow-sm transition-opacity hover:text-red-700 focus:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
       >
         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
@@ -385,10 +385,15 @@ const FilmstripBody = React.memo(function FilmstripBody({
 
 interface StudioFilmstripProps {
   state: GuidedLearningEditorController;
+  /** Deletes a slide; the Studio passes one that offers Undo. */
+  onDeleteSlide?: (index: number) => void;
 }
 
 /** Left column: slide thumbnails to pick, reorder, add and delete. */
-export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({ state }) => {
+export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({
+  state,
+  onDeleteSlide,
+}) => {
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
   const { steps, imageUrls, reorderImages, slideMoveReordersSteps } = state;
@@ -423,7 +428,7 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({ state }) => {
       currentImageIndex={state.currentImageIndex}
       setCurrentImageIndex={state.setCurrentImageIndex}
       onReorderSlides={onReorderSlides}
-      deleteImage={state.deleteImage}
+      deleteImage={onDeleteSlide ?? state.deleteImage}
       uploading={state.uploading}
       uploadProgress={state.uploadProgress}
       uploadFromFiles={state.uploadFromFiles}

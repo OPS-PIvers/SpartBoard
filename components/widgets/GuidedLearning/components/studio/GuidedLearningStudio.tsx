@@ -15,6 +15,8 @@ import {
   Lock,
   PanelRight,
   Play,
+  Redo2,
+  Undo2,
 } from 'lucide-react';
 import type {
   GuidedLearningSet,
@@ -256,8 +258,11 @@ const StudioSession: React.FC<
     setSelectedStepId,
     setCurrentImageIndex,
     deleteStep,
+    deleteImage,
     undo,
     redo,
+    canUndo,
+    canRedo,
   } = editorState;
   const canRunLive =
     !!set.isBuilding &&
@@ -284,14 +289,30 @@ const StudioSession: React.FC<
     }
   }
 
+  // Every delete is undoable from its toast; none asks first.
+  const deleteStepWithUndo = useCallback(
+    (id: string) => {
+      deleteStep(id);
+      addToast?.(t('glStudio.stepDeleted'), 'info', {
+        label: t('glStudio.undo'),
+        onClick: undo,
+      });
+    },
+    [deleteStep, addToast, t, undo]
+  );
+  const deleteSlideWithUndo = useCallback(
+    (index: number) => {
+      deleteImage(index);
+      addToast?.(t('glStudio.slideDeleted', { n: index + 1 }), 'info', {
+        label: t('glStudio.undo'),
+        onClick: undo,
+      });
+    },
+    [deleteImage, addToast, t, undo]
+  );
   const deleteSelected = useCallback(() => {
-    if (!selectedStepId) return;
-    deleteStep(selectedStepId);
-    addToast?.(t('glStudio.stepDeleted'), 'info', {
-      label: t('glStudio.undo'),
-      onClick: undo,
-    });
-  }, [selectedStepId, deleteStep, addToast, t, undo]);
+    if (selectedStepId) deleteStepWithUndo(selectedStepId);
+  }, [selectedStepId, deleteStepWithUndo]);
 
   const [playing, setPlaying] = useState<{
     set: GuidedLearningSet;
@@ -432,6 +453,32 @@ const StudioSession: React.FC<
         extras={
           <>
             {!playing && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={undo}
+                  disabled={!canUndo || readOnly}
+                  aria-label={t('glStudio.undo')}
+                  title={t('glStudio.undo')}
+                  data-testid="gl-studio-undo"
+                  className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:hover:bg-transparent"
+                >
+                  <Undo2 className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={redo}
+                  disabled={!canRedo || readOnly}
+                  aria-label={t('glStudio.redo')}
+                  title={t('glStudio.redo')}
+                  data-testid="gl-studio-redo"
+                  className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:hover:bg-transparent"
+                >
+                  <Redo2 className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            )}
+            {!playing && (
               <button
                 type="button"
                 onClick={startPlay}
@@ -530,7 +577,10 @@ const StudioSession: React.FC<
         inert={readOnly && !playing}
         className="relative grid min-h-0 flex-1 grid-cols-[200px_minmax(0,1fr)] lg:grid-cols-[200px_minmax(0,1fr)_360px]"
       >
-        <StudioFilmstrip state={editorState} />
+        <StudioFilmstrip
+          state={editorState}
+          onDeleteSlide={deleteSlideWithUndo}
+        />
         <div className="flex min-h-0 min-w-0 flex-col">
           <main ref={canvasRef} className="min-h-0 flex-1 p-6">
             {playing ? (
@@ -575,6 +625,7 @@ const StudioSession: React.FC<
         >
           <StudioPropertiesPanel
             state={editorState}
+            onDeleteStep={deleteStepWithUndo}
             canvasRef={canvasRef}
             aiDrafts={aiDrafts}
             liveTours={!!set.isBuilding && canAccessFeature('gl-live-tours')}

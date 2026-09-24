@@ -2566,6 +2566,8 @@
     "slides": "Diapositives",
     "stepCount_one": "{{count}} étape",
     "stepCount_other": "{{count}} étapes",
+    "redo": "Rétablir",
+    "slideDeleted": "Diapositive {{n}} supprimée.",
     "stepDeleted": "Étape supprimée.",
     "titleLabel": "Titre de l’activité",
     "titlePlaceholder": "Activité sans titre",

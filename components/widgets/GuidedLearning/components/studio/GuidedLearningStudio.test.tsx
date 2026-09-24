@@ -12,6 +12,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet } from '@/types';
 import { mockStageLayout } from '@/tests/utils/mockStageLayout';
 import { TOUR_START_EVENT } from '@/components/tours/tourState';
+import {
+  DashboardContext,
+  type DashboardContextValue,
+} from '@/context/DashboardContextValue';
 import { GuidedLearningStudio } from './GuidedLearningStudio';
 import {
   GuidedLearningSaveConflictError,
@@ -95,6 +99,34 @@ function renderStudio(
   return { ...utils, onSave, onClose };
 }
 
+type ToastAction = { label: string; onClick: () => void };
+const addToast =
+  vi.fn<(message: string, type?: string, action?: ToastAction) => void>();
+
+function renderWithToasts(
+  props: Partial<React.ComponentProps<typeof GuidedLearningStudio>> = {}
+) {
+  const value = { addToast } as unknown as DashboardContextValue;
+  return render(
+    <DashboardContext.Provider value={value}>
+      <GuidedLearningStudio
+        set={props.set ?? buildSet()}
+        meta={null}
+        onClose={vi.fn()}
+        onSave={vi.fn().mockResolvedValue(undefined)}
+        {...props}
+      />
+    </DashboardContext.Provider>
+  );
+}
+
+const lastToastUndo = () => {
+  const action = addToast.mock.lastCall?.[2];
+  if (!action) throw new Error('no undo action');
+  expect(action.label).toBe('Undo');
+  return action.onClick;
+};
+
 const frame = () => screen.getByTestId('gl-device-frame');
 const pressKey = (key: string, init: KeyboardEventInit = {}) =>
   fireEvent.keyDown(window, { key, ...init });
@@ -105,6 +137,7 @@ beforeEach(() => {
   localStorage.clear();
   storage.uploading = false;
   showConfirm.mockReset().mockResolvedValue(false);
+  addToast.mockReset();
   const handle = mockStageLayout({
     container: { w: 720, h: 520 },
     image: { w: 1440, h: 1040 },
@@ -173,6 +206,94 @@ describe('GuidedLearningStudio', () => {
     expect(
       screen.getByLabelText('Activity title').nextSibling
     ).toHaveTextContent('1 step');
+  });
+
+  describe('undo everywhere', () => {
+    const subtitle = () => screen.getByLabelText('Activity title').nextSibling;
+
+    it('offers Undo after deleting a step with the Delete key', () => {
+      renderWithToasts();
+      act(() => {
+        pressKey(']');
+      });
+      act(() => {
+        pressKey('Delete');
+      });
+      expect(addToast).toHaveBeenCalledWith(
+        'Step deleted.',
+        'info',
+        expect.objectContaining({ label: 'Undo' })
+      );
+      expect(subtitle()).toHaveTextContent('0 steps');
+      act(() => lastToastUndo()());
+      expect(subtitle()).toHaveTextContent('1 step');
+    });
+
+    it('offers Undo after deleting a step from the panel, without asking', () => {
+      renderWithToasts({ initialStepId: 'step-1' });
+      fireEvent.click(screen.getByRole('button', { name: 'Delete step' }));
+      expect(showConfirm).not.toHaveBeenCalled();
+      expect(addToast).toHaveBeenCalledWith(
+        'Step deleted.',
+        'info',
+        expect.objectContaining({ label: 'Undo' })
+      );
+      expect(subtitle()).toHaveTextContent('0 steps');
+      act(() => lastToastUndo()());
+      expect(subtitle()).toHaveTextContent('1 step');
+    });
+
+    it('offers Undo after deleting a slide from the filmstrip, restoring its steps', () => {
+      const set = buildSet();
+      set.imageUrls = [...set.imageUrls, 'https://example.com/slide-2.png'];
+      renderWithToasts({ set });
+      fireEvent.click(screen.getByRole('button', { name: 'Delete slide 1' }));
+      expect(showConfirm).not.toHaveBeenCalled();
+      expect(addToast).toHaveBeenCalledWith(
+        'Slide 1 deleted.',
+        'info',
+        expect.objectContaining({ label: 'Undo' })
+      );
+      expect(
+        screen.queryByRole('button', { name: 'Delete slide 2' })
+      ).toBeNull();
+      expect(subtitle()).toHaveTextContent('0 steps');
+      act(() => lastToastUndo()());
+      expect(
+        screen.getByRole('button', { name: 'Delete slide 2' })
+      ).toBeInTheDocument();
+      expect(subtitle()).toHaveTextContent('1 step');
+    });
+
+    it('keeps slide delete buttons visible on touch screens', () => {
+      renderWithToasts();
+      expect(
+        screen.getByRole('button', { name: 'Delete slide 1' }).className
+      ).toContain('[@media(hover:none)]:opacity-100');
+    });
+
+    it('binds the header undo and redo buttons to history', () => {
+      renderWithToasts();
+      const undoButton = screen.getByTestId('gl-studio-undo');
+      const redoButton = screen.getByTestId('gl-studio-redo');
+      expect(undoButton).toBeDisabled();
+      expect(redoButton).toBeDisabled();
+      act(() => {
+        pressKey(']');
+      });
+      act(() => {
+        pressKey('Delete');
+      });
+      expect(undoButton).toBeEnabled();
+      expect(redoButton).toBeDisabled();
+      fireEvent.click(undoButton);
+      expect(subtitle()).toHaveTextContent('1 step');
+      expect(undoButton).toBeDisabled();
+      expect(redoButton).toBeEnabled();
+      fireEvent.click(redoButton);
+      expect(subtitle()).toHaveTextContent('0 steps');
+      expect(redoButton).toBeDisabled();
+    });
   });
 
   it('leaves the keyboard to an open dialog', () => {

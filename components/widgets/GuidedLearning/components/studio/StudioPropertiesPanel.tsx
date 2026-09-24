@@ -17,6 +17,8 @@ import type { GuidedLearningEditorController } from '../useGuidedLearningEditorS
 
 interface StudioPropertiesPanelProps {
   state: GuidedLearningEditorController;
+  /** Deletes a step; the Studio passes one that offers Undo. */
+  onDeleteStep?: (id: string) => void;
   /** The canvas element, used to find the stage's video for trimming. */
   canvasRef: React.RefObject<HTMLElement | null>;
   /** Recorder-drafted step text, flagged until the author edits it. */
@@ -58,6 +60,7 @@ function useStageVideo(
 /** Right column: the selected step's editor, or the set's settings when nothing is selected. */
 export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
   state,
+  onDeleteStep,
   canvasRef,
   aiDrafts,
   liveTours = false,
@@ -123,7 +126,7 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
           stepNumber={stepNumber}
           imageCount={imageUrls.length}
           onChange={updateStep}
-          onDelete={() => deleteStep(selectedStep.id)}
+          onDelete={() => (onDeleteStep ?? deleteStep)(selectedStep.id)}
         />
       </>
     );

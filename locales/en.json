@@ -3697,6 +3697,8 @@
     "slides": "Slides",
     "stepCount_one": "{{count}} step",
     "stepCount_other": "{{count}} steps",
+    "redo": "Redo",
+    "slideDeleted": "Slide {{n}} deleted.",
     "stepDeleted": "Step deleted.",
     "titleLabel": "Activity title",
     "titlePlaceholder": "Untitled activity",

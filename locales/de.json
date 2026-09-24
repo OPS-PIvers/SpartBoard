@@ -2566,6 +2566,8 @@
     "slides": "Folien",
     "stepCount_one": "{{count}} Schritt",
     "stepCount_other": "{{count}} Schritte",
+    "redo": "Wiederholen",
+    "slideDeleted": "Folie {{n}} gelöscht.",
     "stepDeleted": "Schritt gelöscht.",
     "titleLabel": "Titel der Aktivität",
     "titlePlaceholder": "Aktivität ohne Titel",
