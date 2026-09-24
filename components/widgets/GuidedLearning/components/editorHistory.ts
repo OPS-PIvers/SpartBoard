@@ -33,6 +33,8 @@ export interface MediaDeletionRef {
 export interface HistoryEntry {
   doc: EditorDocument;
   media: MediaDeletionRef[];
+  /** Identifies the edit that pushed this entry, for a targeted undo. */
+  tag?: object;
 }
 
 export interface EditorHistoryState {
@@ -57,8 +59,11 @@ export type EditorHistoryAction =
       /** Edits sharing a key within COALESCE_MS of each other form one entry. */
       coalesceKey?: string;
       at?: number;
+      tag?: object;
     }
   | { type: 'undo' }
+  /** Undoes only while the tagged edit is still the newest one. */
+  | { type: 'undoIfLatest'; tag: object }
   | { type: 'redo' }
   | { type: 'beginGesture' }
   | { type: 'endGesture' }
@@ -125,6 +130,15 @@ function pushPast(
   };
 }
 
+/** True while the tagged edit is the newest undoable one and nothing was undone since. */
+export function isLatestEdit(state: EditorHistoryState, tag: object): boolean {
+  return (
+    !state.gestureBase &&
+    state.future.length === 0 &&
+    state.past[state.past.length - 1]?.tag === tag
+  );
+}
+
 export function editorHistoryReducer(
   state: EditorHistoryState,
   action: EditorHistoryAction
@@ -146,12 +160,19 @@ export function editorHistoryReducer(
       if (coalesce) return { ...state, present: next, lastCoalesce };
       return {
         ...state,
-        ...pushPast(state, { doc: state.present, media: [] }),
+        ...pushPast(state, {
+          doc: state.present,
+          media: [],
+          ...(action.tag ? { tag: action.tag } : {}),
+        }),
         present: next,
         future: [],
         lastCoalesce,
       };
     }
+    case 'undoIfLatest':
+      if (!isLatestEdit(state, action.tag)) return state;
+      return editorHistoryReducer(state, { type: 'undo' });
     case 'undo': {
       if (state.gestureBase || state.past.length === 0) return state;
       const entry = state.past[state.past.length - 1];

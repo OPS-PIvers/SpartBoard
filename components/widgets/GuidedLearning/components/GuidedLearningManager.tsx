@@ -58,6 +58,7 @@ import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
+import { AuthContext } from '@/context/AuthContextValue';
 import { useDialog } from '@/context/useDialog';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
@@ -218,8 +219,8 @@ export interface GuidedLearningManagerProps {
   importFocusCounter?: number;
   onCreateNewPersonal: () => void;
   onCreateNewBuilding: () => void;
-  /** Admin-only — opens the standalone AI authoring dialog for building sets. */
-  onOpenAIAuthoring: () => void;
+  /** Admin-only: opens AI authoring for a new set in the library being viewed. */
+  onOpenAIAuthoring: (library: 'personal' | 'building') => void;
   /**
    * Persist new personal-set ordering. Writes `order` to the metadata doc; the
    * Drive blob is untouched. Rejecting reverts the optimistic reorder.
@@ -441,6 +442,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
   const liveTours = useLiveToursEnabled();
+  // Same gate as the Studio's AI button.
+  const aiAuthoring =
+    React.useContext(AuthContext)?.canAccessFeature('gemini-functions') ??
+    false;
   const [tab, setTab] = React.useState<LibraryTab>('library');
 
   // ─── Bulk selection (Step 8) ────────────────────────────────────────────
@@ -724,8 +729,15 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     ...(isAdmin && liveTours
       ? [{ label: 'Record a tour', icon: Circle, onClick: requestRecordTour }]
       : []),
-    ...(isAdmin && isBuildingFiltered
-      ? [{ label: 'AI', icon: Sparkles, onClick: onOpenAIAuthoring }]
+    ...(isAdmin && aiAuthoring
+      ? [
+          {
+            label: 'AI',
+            icon: Sparkles,
+            onClick: () =>
+              onOpenAIAuthoring(isBuildingFiltered ? 'building' : 'personal'),
+          },
+        ]
       : []),
     ...(onImport
       ? [

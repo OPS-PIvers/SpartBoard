@@ -74,6 +74,7 @@ const makeState = (): GuidedLearningEditorController => ({
   replaceSlideImage: vi.fn(),
   moveImage: vi.fn(),
   reorderImages: vi.fn(),
+  slideMoveReordersSteps: vi.fn(),
   imageError: '',
   steps: [],
   setSteps: vi.fn(),
@@ -99,12 +100,20 @@ const makeState = (): GuidedLearningEditorController => ({
   setWatchPace: vi.fn(),
   undo: vi.fn(),
   redo: vi.fn(),
+  undoIfLatest: vi.fn(),
   canUndo: false,
   canRedo: false,
   beginGesture: vi.fn(),
   endGesture: vi.fn(),
   queueMediaDeletion: vi.fn(),
   flushMediaDeletions: vi.fn(),
+  duplicateStep: vi.fn(),
+  duplicateSlide: vi.fn(),
+  appendDraftedSet: vi.fn(),
+  mediaHome: 'storage',
+  copySteps: vi.fn(),
+  pasteSteps: vi.fn(),
+  clipboardStepCount: 0,
 });
 
 describe('GuidedLearningEditorContextPane — SettingChip Escape closes popover', () => {

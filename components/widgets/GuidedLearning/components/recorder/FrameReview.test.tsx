@@ -27,6 +27,12 @@ const recording = (): TourRecording => ({
 const upload = () =>
   screen.getByRole('button', { name: 'Upload and open in Studio' });
 const next = () => screen.getByRole('button', { name: 'Next frame' });
+// Identity, not toEqual: any two Blobs compare equal.
+const expectUploaded = (fn: ReturnType<typeof vi.fn>, expected: Blob[]) => {
+  const got = (fn.mock.calls[0][0] as TourRecording).frames;
+  expect(got).toHaveLength(expected.length);
+  got.forEach((f, i) => expect(f).toBe(expected[i]));
+};
 
 beforeEach(() => {
   h.redactImage.mockReset();
@@ -51,7 +57,7 @@ describe('FrameReview', () => {
     fireEvent.click(next());
     expect(screen.getByText('3 of 3 frames checked')).toBeInTheDocument();
     fireEvent.click(upload());
-    expect(onUpload).toHaveBeenCalledWith(frames);
+    expectUploaded(onUpload, frames);
   });
 
   it('lists an untagged step with its suggested id', () => {
@@ -108,6 +114,50 @@ describe('FrameReview', () => {
     );
     expect(screen.getAllByTestId('gl-frame-review-blurred')).toHaveLength(2);
     fireEvent.click(upload());
-    expect(onUpload).toHaveBeenCalledWith([reblurred, frames[1], frames[2]]);
+    expectUploaded(onUpload, [reblurred, frames[1], frames[2]]);
+  });
+
+  it('discards a frame with its steps, and Undo brings it back', () => {
+    const onUpload = vi.fn();
+    render(
+      <FrameReview
+        recording={recording()}
+        onUpload={onUpload}
+        onDiscard={vi.fn()}
+      />
+    );
+    fireEvent.click(next());
+    fireEvent.click(screen.getByRole('button', { name: 'Remove frame' }));
+    expect(screen.getByText('Frame removed.')).toBeInTheDocument();
+    expect(screen.getByText('Frame 2 of 2')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(screen.getByText('Frame 2 of 3')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove frame' }));
+    expect(screen.getByText('2 of 2 frames checked')).toBeInTheDocument();
+    fireEvent.click(upload());
+    const reviewed = onUpload.mock.calls[0][0] as TourRecording;
+    expect(reviewed.frames[0]).toBe(frames[0]);
+    expect(reviewed.frames[1]).toBe(frames[2]);
+    expect(reviewed.redactions).toEqual([recording().redactions[0], []]);
+    expect(reviewed.steps.map((s) => [s.id, s.frameIndex])).toEqual([
+      ['s0', 0],
+      ['s2', 1],
+    ]);
+  });
+
+  it('shows an upload error with Retry, which uploads again', () => {
+    const onUpload = vi.fn();
+    render(
+      <FrameReview
+        recording={recording()}
+        onUpload={onUpload}
+        onDiscard={vi.fn()}
+        error="Couldn't save."
+      />
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent("Couldn't save.");
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expectUploaded(onUpload, frames);
   });
 });

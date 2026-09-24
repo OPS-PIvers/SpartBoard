@@ -1,6 +1,8 @@
 import React, {
   useCallback,
   useContext,
+  useEffect,
+  useEffectEvent,
   useMemo,
   useRef,
   useState,
@@ -11,10 +13,18 @@ import {
   AlertTriangle,
   Folder as FolderIcon,
   Footprints,
+  History,
   Inbox,
+  Keyboard,
+  Laptop,
   Lock,
   PanelRight,
   Play,
+  Redo2,
+  Sparkles,
+  Undo2,
+  Upload,
+  X,
 } from 'lucide-react';
 import type {
   GuidedLearningSet,
@@ -26,11 +36,18 @@ import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { useAutosave } from '@/hooks/useAutosave';
-import { requestStartTour } from '@/components/tours/tourState';
+import {
+  requestRecordTour,
+  requestStartTour,
+} from '@/components/tours/tourState';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { EditorHeader } from '../EditorHeader';
 import { GuidedLearningAIGenerator } from '../GuidedLearningAIGenerator';
-import { useGuidedLearningEditorState } from '../useGuidedLearningEditorState';
+import {
+  useGuidedLearningEditorState,
+  type SlideUploadIssue,
+} from '../useGuidedLearningEditorState';
+import { ScreenCaptureModal } from '../ScreenCaptureModal';
 import { useSetDraftPersistence } from '../useSetDraftPersistence';
 import type {
   GuidedLearningLatestSet,
@@ -38,15 +55,52 @@ import type {
 } from '../../utils/saveConflict';
 import type { DevicePreset } from '../../types/stage';
 import { StudioCanvas } from './StudioCanvas';
+import { StudioStartHub } from './StudioStartHub';
+import { useFileDrop } from './useFileDrop';
+import { uploadIssueMessage } from './uploadIssueMessage';
 import { useCanvasTools } from './useCanvasTools';
 import { StudioPlayMode } from './StudioPlayMode';
 import { StudioFilmstrip } from './StudioFilmstrip';
 import { StudioTimeline } from './StudioTimeline';
 import { StudioPropertiesPanel } from './StudioPropertiesPanel';
+import { StudioDraftReview } from './StudioDraftReview';
 import { DevicePresetPicker } from './DevicePresetPicker';
 import { loadDevicePreset, saveDevicePreset } from './devicePresets';
-import { useStudioShortcuts, type StudioShortcut } from './useStudioShortcuts';
+import {
+  hasTextSelection,
+  isTypingTarget,
+  useStudioShortcuts,
+  type StudioShortcut,
+} from './useStudioShortcuts';
+import { stepClipboardIsLatest } from './stepClipboard';
+import { StudioShortcutSheet } from './StudioShortcutSheet';
+import {
+  useReturnFocusOnClose,
+  useStudioFocusTrap,
+} from './useStudioFocusTrap';
+import { StudioMenu, type StudioMenuItem } from './StudioMenu';
+import {
+  COMPACT_HEADER_QUERY,
+  SMALL_SCREEN_QUERY,
+  useMediaQuery,
+} from './useMediaQuery';
 import { SetTooLargeError } from '@/utils/firestoreDocSize';
+
+const MAX_ISSUE_TOASTS = 3;
+const SMALL_SCREEN_NOTE_KEY = 'gl-studio-small-screen-note-dismissed';
+
+const readNoteDismissed = (): boolean => {
+  try {
+    return localStorage.getItem(SMALL_SCREEN_NOTE_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
+const isSmallScreen = (): boolean =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia(SMALL_SCREEN_QUERY).matches;
 
 export interface GuidedLearningStudioProps {
   set: GuidedLearningSet;
@@ -57,7 +111,6 @@ export interface GuidedLearningStudioProps {
     driveFileId?: string,
     guard?: GuidedLearningSaveGuard
   ) => Promise<void>;
-  onAiGenerated?: (set: GuidedLearningSet) => void;
   /** Close the Studio and open the classic editor on this (latest) draft. */
   onOpenClassic?: (latest: GuidedLearningSet) => void;
   folders?: LibraryFolder[];
@@ -65,14 +118,15 @@ export interface GuidedLearningStudioProps {
   onFolderChange?: (folderId: string | null) => void;
   /** Opens with this step selected. */
   initialStepId?: string;
-  /** Recorder-drafted step text, flagged in the properties panel until edited. */
-  aiDrafts?: ReadonlyMap<string, { label: string; text: string }>;
+  /** Closes the Studio and opens the .gl.json import; offered on an empty set. */
+  onImport?: () => void;
 }
 
 /** Full-screen Guided Learning editor whose canvas is the real player stage. */
 export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = (
   props
 ) => {
+  useReturnFocusOnClose();
   const [reloaded, setReloaded] = useState<{
     from: GuidedLearningSet;
     latest: GuidedLearningLatestSet;
@@ -109,13 +163,12 @@ const StudioSession: React.FC<
   meta,
   onClose,
   onSave,
-  onAiGenerated,
   onOpenClassic,
   folders,
   folderId,
   onFolderChange,
   initialStepId,
-  aiDrafts,
+  onImport,
   loadedUpdatedAt,
   onReloaded,
 }) => {
@@ -128,6 +181,35 @@ const StudioSession: React.FC<
   // Below 1024px the properties column is a drawer.
   const [propertiesOpen, setPropertiesOpen] = useState(false);
   const canvasRef = useRef<HTMLElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [capturing, setCapturing] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const compact = useMediaQuery(COMPACT_HEADER_QUERY);
+  const smallScreen = useMediaQuery(SMALL_SCREEN_QUERY);
+  const [noteDismissed, setNoteDismissed] = useState(readNoteDismissed);
+  const dismissNote = () => {
+    setNoteDismissed(true);
+    try {
+      localStorage.setItem(SMALL_SCREEN_NOTE_KEY, '1');
+    } catch {
+      // Private windows can refuse storage; the note stays hidden for this session.
+    }
+  };
+  // Tablets start with the filmstrip folded so the canvas gets the width.
+  const [filmstripCollapsed, setFilmstripCollapsed] = useState(isSmallScreen);
+  const moreRef = useRef<HTMLDivElement>(null);
+
+  const toastUploadIssues = useCallback(
+    (issues: SlideUploadIssue[]) => {
+      const shown = issues.slice(0, MAX_ISSUE_TOASTS);
+      for (const issue of shown)
+        addToast?.(uploadIssueMessage(t, issue), 'error');
+      const rest = issues.length - shown.length;
+      if (rest > 0)
+        addToast?.(t('glStudio.uploadMoreIssues', { count: rest }), 'error');
+    },
+    [addToast, t]
+  );
 
   const editorState = useGuidedLearningEditorState({
     existingSet: set,
@@ -135,6 +217,8 @@ const StudioSession: React.FC<
     folders,
     folderId,
     onFolderChange,
+    setWideTimeline: true,
+    onUploadIssues: toastUploadIssues,
   });
   const {
     draftToken,
@@ -198,7 +282,8 @@ const StudioSession: React.FC<
     setResolving(false);
   }, [armOverwrite, autosave]);
 
-  const requestClose = useCallback(async () => {
+  // Resolves true once the Studio has closed.
+  const requestClose = useCallback(async (): Promise<boolean> => {
     const { uploading, imageUrls, title, description, abandonUploads } =
       editorState;
     if (uploading) {
@@ -208,11 +293,11 @@ const StudioSession: React.FC<
         confirmLabel: t('glStudio.closeAnyway'),
         cancelLabel: t('glStudio.keepEditing'),
       });
-      if (!closeAnyway) return;
+      if (!closeAnyway) return false;
       abandonUploads();
-      if (imageUrls.length > 0 && !(await flushOrConfirm(true))) return;
+      if (imageUrls.length > 0 && !(await flushOrConfirm(true))) return false;
       closeEditor();
-      return;
+      return true;
     }
     if (imageUrls.length === 0 && (title.trim() || description.trim())) {
       const discard = await showConfirm(t('glStudio.emptySetBody'), {
@@ -222,10 +307,22 @@ const StudioSession: React.FC<
         cancelLabel: t('glStudio.keepEditing'),
       });
       if (discard) closeEditor();
-      return;
+      return discard;
     }
-    if (await flushOrConfirm()) closeEditor();
+    if (!(await flushOrConfirm())) return false;
+    closeEditor();
+    return true;
   }, [editorState, showConfirm, t, flushOrConfirm, closeEditor]);
+
+  // Hub targets that happen outside the Studio close it first.
+  const leaveThen = useCallback(
+    (next: () => void) => {
+      void requestClose().then((closed) => {
+        if (closed) next();
+      });
+    },
+    [requestClose]
+  );
 
   // The runner loads the saved set, so an unsaved draft never starts.
   const runLive = useCallback(async () => {
@@ -255,8 +352,20 @@ const StudioSession: React.FC<
     setSelectedStepId,
     setCurrentImageIndex,
     deleteStep,
+    deleteImage,
+    duplicateStep,
+    duplicateSlide,
+    appendDraftedSet,
+    copySteps,
+    pasteSteps,
+    currentImageIndex,
+    imageUrls,
     undo,
     redo,
+    undoIfLatest,
+    canUndo,
+    canRedo,
+    clipboardStepCount,
   } = editorState;
   const canRunLive =
     !!set.isBuilding &&
@@ -283,14 +392,72 @@ const StudioSession: React.FC<
     }
   }
 
+  // Every delete is undoable from its toast; none asks first.
+  const toastUndoFor = useCallback(
+    (tag: object) => () => {
+      if (!undoIfLatest(tag)) addToast?.(t('glStudio.undoFromHeader'), 'info');
+    },
+    [undoIfLatest, addToast, t]
+  );
+  const deleteStepWithUndo = useCallback(
+    (id: string) => {
+      const tag = {};
+      const n = steps.findIndex((s) => s.id === id) + 1;
+      deleteStep(id, tag);
+      addToast?.(t('glStudio.stepDeleted', { n }), 'info', {
+        label: t('glStudio.undo'),
+        onClick: toastUndoFor(tag),
+      });
+    },
+    [steps, deleteStep, addToast, t, toastUndoFor]
+  );
+  const deleteSlideWithUndo = useCallback(
+    (index: number) => {
+      const tag = {};
+      deleteImage(index, tag);
+      addToast?.(t('glStudio.slideDeleted', { n: index + 1 }), 'info', {
+        label: t('glStudio.undo'),
+        onClick: toastUndoFor(tag),
+      });
+    },
+    [deleteImage, addToast, t, toastUndoFor]
+  );
+  // The draft joins this set as one undoable edit; the set keeps its id.
+  const appendDrafted = useCallback(
+    (drafted: GuidedLearningSet) => {
+      setShowAiGen(false);
+      const tag = {};
+      const count = appendDraftedSet(drafted, tag);
+      if (count === 0) return;
+      addToast?.(t('glStudio.aiSlidesAdded', { count }), 'success', {
+        label: t('glStudio.undo'),
+        onClick: toastUndoFor(tag),
+      });
+    },
+    [appendDraftedSet, addToast, t, toastUndoFor]
+  );
   const deleteSelected = useCallback(() => {
-    if (!selectedStepId) return;
-    deleteStep(selectedStepId);
-    addToast?.(t('glStudio.stepDeleted'), 'info', {
-      label: t('glStudio.undo'),
-      onClick: undo,
-    });
-  }, [selectedStepId, deleteStep, addToast, t, undo]);
+    if (selectedStepId) deleteStepWithUndo(selectedStepId);
+  }, [selectedStepId, deleteStepWithUndo]);
+
+  // With no step selected, the current slide is what Duplicate copies.
+  const duplicateSelection = useCallback(() => {
+    if (selectedStepId) duplicateStep(selectedStepId);
+    else if (imageUrls.length > 0) duplicateSlide(currentImageIndex);
+  }, [
+    selectedStepId,
+    duplicateStep,
+    duplicateSlide,
+    imageUrls.length,
+    currentImageIndex,
+  ]);
+  const copyStepWithToast = useCallback(
+    (id: string) => {
+      const count = copySteps([id]);
+      if (count > 0) addToast?.(t('glStudio.stepsCopied', { count }), 'info');
+    },
+    [copySteps, addToast, t]
+  );
 
   const [playing, setPlaying] = useState<{
     set: GuidedLearningSet;
@@ -322,9 +489,37 @@ const StudioSession: React.FC<
   const editKeymap = useMemo<StudioShortcut[]>(
     () => [
       { id: 'play', key: ' ', shift: true, run: startPlay },
+      // Shift+/ on most layouts, a plain key on some.
+      { id: 'help', key: '?', shift: true, run: () => setShortcutsOpen(true) },
+      { id: 'help-plain', key: '?', run: () => setShortcutsOpen(true) },
       { id: 'undo', key: 'z', mod: true, run: undo },
       { id: 'redo', key: 'z', mod: true, shift: true, run: redo },
       { id: 'redo-y', key: 'y', mod: true, run: redo },
+      {
+        id: 'duplicate',
+        key: 'd',
+        mod: true,
+        when: () => selectedStepId !== null || imageUrls.length > 0,
+        run: duplicateSelection,
+      },
+      {
+        id: 'copy-step',
+        key: 'c',
+        mod: true,
+        // A text selection keeps the browser's own copy.
+        when: () => selectedStepId !== null && !hasTextSelection(),
+        run: () => {
+          if (selectedStepId) copyStepWithToast(selectedStepId);
+        },
+      },
+      {
+        id: 'paste-steps',
+        key: 'v',
+        mod: true,
+        // Otherwise the browser's paste runs, so a newer copied image still becomes a slide.
+        when: () => imageUrls.length > 0 && stepClipboardIsLatest(),
+        run: () => pasteSteps(),
+      },
       {
         id: 'delete',
         key: 'Delete',
@@ -359,6 +554,11 @@ const StudioSession: React.FC<
       selectedIndex,
       steps.length,
       startPlay,
+      selectedStepId,
+      imageUrls.length,
+      duplicateSelection,
+      copyStepWithToast,
+      pasteSteps,
     ]
   );
   const playKeymap = useMemo<StudioShortcut[]>(
@@ -377,14 +577,49 @@ const StudioSession: React.FC<
     ],
     [exitPlay]
   );
+  const shortcutsEnabled =
+    !showAiGen && !currentDialog && !readOnly && !shortcutsOpen;
+  useStudioFocusTrap(
+    rootRef,
+    !showAiGen && !currentDialog && !capturing && !shortcutsOpen
+  );
   useStudioShortcuts(playing ? playKeymap : editKeymap, {
     // An open dialog owns the keyboard, Escape included; a read-only set takes no edits.
-    enabled: !showAiGen && !currentDialog && !readOnly,
+    enabled: shortcutsEnabled,
     editing: !playing && tools.editingStepId !== null,
   });
 
+  // A browser paste with no image in it pastes copied steps, e.g. after the author switched windows.
+  const onPasteEvent = useEffectEvent((e: ClipboardEvent) => {
+    if (e.defaultPrevented || isTypingTarget(e.target)) return;
+    if (tools.editingStepId !== null || imageUrls.length === 0) return;
+    const hasFiles = Array.from(e.clipboardData?.files ?? []).some((f) =>
+      f.type.startsWith('image/')
+    );
+    if (hasFiles) return;
+    if (pasteSteps() > 0) e.preventDefault();
+  });
+  const pasteListening = shortcutsEnabled && !playing;
+  useEffect(() => {
+    if (!pasteListening) return;
+    window.addEventListener('paste', onPasteEvent);
+    return () => window.removeEventListener('paste', onPasteEvent);
+  }, [pasteListening]);
+
   const canUseAi =
-    !!onAiGenerated && isAdmin === true && canAccessFeature('gemini-functions');
+    !readOnly && isAdmin === true && canAccessFeature('gemini-functions');
+  const canRecordTour = isAdmin === true && canAccessFeature('gl-live-tours');
+
+  const canvasDrop = useFileDrop(
+    (files) => void editorState.uploadFromFiles(files),
+    !playing && !readOnly
+  );
+  const pasteBlocked =
+    typeof navigator === 'undefined' || !navigator.clipboard?.read
+      ? t('glStudio.hubPasteUnsupported')
+      : clipboardStepCount > 0 && stepClipboardIsLatest()
+        ? t('glStudio.hubPasteStepsWaiting')
+        : null;
 
   const folderButtonRef = useRef<HTMLButtonElement>(null);
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
@@ -400,13 +635,67 @@ const StudioSession: React.FC<
 
   const stepCount = steps.length;
 
+  // Below ~1100px the less-used header actions fold into one menu.
+  const overflowItems: StudioMenuItem[] = compact
+    ? [
+        ...(canRunLive && !playing
+          ? [
+              {
+                id: 'run-live',
+                label: t('glStudio.runLive'),
+                icon: Footprints,
+                onSelect: () => void runLive(),
+              },
+            ]
+          : []),
+        ...(canUseAi
+          ? [
+              {
+                id: 'draft-ai',
+                label: t('glStudio.draftWithAi'),
+                icon: Sparkles,
+                onSelect: () => setShowAiGen(true),
+              },
+            ]
+          : []),
+        ...(folderPickerEnabled
+          ? [
+              {
+                id: 'folder',
+                label: folderLabel,
+                icon: folderId == null ? Inbox : FolderIcon,
+                onSelect: () => setFolderPickerOpen(true),
+              },
+            ]
+          : []),
+        {
+          id: 'shortcuts',
+          label: t('glStudio.shortcutsOpen'),
+          icon: Keyboard,
+          onSelect: () => setShortcutsOpen(true),
+        },
+        ...(onOpenClassic
+          ? [
+              {
+                id: 'classic',
+                label: t('glStudio.openClassicEditor'),
+                icon: History,
+                onSelect: () => void openClassic(),
+              },
+            ]
+          : []),
+      ]
+    : [];
+
   return createPortal(
     <div
+      ref={rootRef}
       role="dialog"
       aria-modal="true"
       aria-label={t('glStudio.dialogLabel')}
+      tabIndex={-1}
       data-testid="gl-studio"
-      className="fixed inset-0 flex flex-col bg-slate-100"
+      className="fixed inset-0 flex flex-col bg-slate-100 focus:outline-none"
       style={{ zIndex: Z_INDEX.modalContent }}
     >
       <EditorHeader
@@ -425,11 +714,50 @@ const StudioSession: React.FC<
         }
         autosaveStatus={autosave.status}
         onRetrySave={() => void autosave.flush()}
-        onDraftWithAi={canUseAi ? () => setShowAiGen(true) : undefined}
-        onOpenClassic={onOpenClassic ? () => void openClassic() : undefined}
+        onDraftWithAi={
+          canUseAi && !compact ? () => setShowAiGen(true) : undefined
+        }
+        onOpenClassic={
+          onOpenClassic && !compact ? () => void openClassic() : undefined
+        }
         onClose={() => void requestClose()}
+        compact={compact}
         extras={
           <>
+            {!playing && (
+              <StudioDraftReview
+                steps={steps}
+                selectedIndex={selectedIndex}
+                onSelect={selectStepAt}
+                compact={compact}
+              />
+            )}
+            {!playing && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={undo}
+                  disabled={!canUndo || readOnly}
+                  aria-label={t('glStudio.undo')}
+                  title={t('glStudio.undo')}
+                  data-testid="gl-studio-undo"
+                  className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:hover:bg-transparent"
+                >
+                  <Undo2 className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={redo}
+                  disabled={!canRedo || readOnly}
+                  aria-label={t('glStudio.redo')}
+                  title={t('glStudio.redo')}
+                  data-testid="gl-studio-redo"
+                  className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:hover:bg-transparent"
+                >
+                  <Redo2 className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            )}
             {!playing && (
               <button
                 type="button"
@@ -442,7 +770,7 @@ const StudioSession: React.FC<
                 {t('glStudio.playFromHere')}
               </button>
             )}
-            {canRunLive && !playing && (
+            {canRunLive && !playing && !compact && (
               <button
                 type="button"
                 onClick={() => void runLive()}
@@ -453,7 +781,24 @@ const StudioSession: React.FC<
                 {t('glStudio.runLive')}
               </button>
             )}
-            <DevicePresetPicker preset={preset} onChange={choosePreset} />
+            <DevicePresetPicker
+              preset={preset}
+              onChange={choosePreset}
+              compact={compact}
+            />
+            {!compact && (
+              <button
+                type="button"
+                onClick={() => setShortcutsOpen(true)}
+                aria-label={t('glStudio.shortcutsOpen')}
+                title={t('glStudio.shortcutsOpen')}
+                aria-haspopup="dialog"
+                data-testid="gl-studio-shortcuts-button"
+                className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              >
+                <Keyboard className="h-5 w-5" aria-hidden="true" />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setPropertiesOpen((v) => !v)}
@@ -464,7 +809,18 @@ const StudioSession: React.FC<
               <PanelRight className="h-4 w-4" aria-hidden="true" />
               {t('glStudio.properties')}
             </button>
-            {folderPickerEnabled && (
+            {compact && (
+              <div ref={moreRef}>
+                <StudioMenu
+                  label={t('glStudio.moreActions')}
+                  items={overflowItems}
+                  testId="gl-studio-more"
+                  iconClassName="h-5 w-5"
+                  triggerClassName="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                />
+              </div>
+            )}
+            {folderPickerEnabled && !compact && (
               <button
                 ref={folderButtonRef}
                 type="button"
@@ -524,14 +880,49 @@ const StudioSession: React.FC<
           {t('glStudio.newerVersion')}
         </p>
       )}
+      {smallScreen && !noteDismissed && (
+        <div
+          data-testid="gl-studio-small-screen-note"
+          className="flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600"
+        >
+          <Laptop
+            className="h-4 w-4 shrink-0 text-slate-500"
+            aria-hidden="true"
+          />
+          <p className="min-w-0 flex-1">{t('glStudio.smallScreenNote')}</p>
+          <button
+            type="button"
+            onClick={dismissNote}
+            aria-label={t('glStudio.dismissSmallScreenNote')}
+            title={t('glStudio.dismissSmallScreenNote')}
+            className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      )}
       <div
         // Read-only sets can still be played from the header.
         inert={readOnly && !playing}
-        className="relative grid min-h-0 flex-1 grid-cols-[200px_minmax(0,1fr)] lg:grid-cols-[200px_minmax(0,1fr)_360px]"
+        className={`relative grid min-h-0 flex-1 ${
+          filmstripCollapsed
+            ? 'grid-cols-[52px_minmax(0,1fr)] lg:grid-cols-[52px_minmax(0,1fr)_360px]'
+            : 'grid-cols-[200px_minmax(0,1fr)] lg:grid-cols-[200px_minmax(0,1fr)_360px]'
+        }`}
       >
-        <StudioFilmstrip state={editorState} />
+        <StudioFilmstrip
+          state={editorState}
+          onDeleteSlide={deleteSlideWithUndo}
+          collapsed={filmstripCollapsed}
+          onToggleCollapsed={() => setFilmstripCollapsed((v) => !v)}
+        />
         <div className="flex min-h-0 min-w-0 flex-col">
-          <main ref={canvasRef} className="min-h-0 flex-1 p-6">
+          <main
+            ref={canvasRef}
+            data-testid="gl-studio-canvas-drop"
+            className="relative min-h-0 flex-1 p-6"
+            {...canvasDrop.handlers}
+          >
             {playing ? (
               <StudioPlayMode
                 set={playing.set}
@@ -543,6 +934,19 @@ const StudioSession: React.FC<
                 }}
                 onExit={exitPlay}
               />
+            ) : imageUrls.length === 0 ? (
+              <StudioStartHub
+                onFiles={(files) => void editorState.uploadFromFiles(files)}
+                onPaste={() => void editorState.uploadFromClipboard()}
+                pasteBlocked={pasteBlocked}
+                onCapture={() => setCapturing(true)}
+                uploadProgress={editorState.uploadProgress}
+                onRecordTour={
+                  canRecordTour ? () => leaveThen(requestRecordTour) : undefined
+                }
+                onDraftWithAi={canUseAi ? () => setShowAiGen(true) : undefined}
+                onImport={onImport ? () => leaveThen(onImport) : undefined}
+              />
             ) : (
               <StudioCanvas
                 state={editorState}
@@ -551,8 +955,17 @@ const StudioSession: React.FC<
                 preset={preset}
               />
             )}
+            {canvasDrop.active && (
+              <div
+                data-testid="gl-studio-drop-overlay"
+                className="pointer-events-none absolute inset-3 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-blue-primary bg-white/85 text-sm font-bold text-brand-blue-primary"
+              >
+                <Upload className="h-6 w-6" aria-hidden="true" />
+                {t('glStudio.dropToAdd')}
+              </div>
+            )}
           </main>
-          <StudioTimeline state={editorState} />
+          <StudioTimeline state={editorState} onCopyStep={copyStepWithToast} />
         </div>
         {propertiesOpen && (
           <button
@@ -574,25 +987,33 @@ const StudioSession: React.FC<
         >
           <StudioPropertiesPanel
             state={editorState}
+            onDeleteStep={deleteStepWithUndo}
             canvasRef={canvasRef}
-            aiDrafts={aiDrafts}
             liveTours={!!set.isBuilding && canAccessFeature('gl-live-tours')}
           />
         </aside>
       </div>
+      {capturing && (
+        <ScreenCaptureModal
+          mode="snap"
+          onAddMedia={editorState.addCapturedMedia}
+          onClose={() => setCapturing(false)}
+        />
+      )}
       {showAiGen && canUseAi && (
         <GuidedLearningAIGenerator
+          mediaHome={editorState.mediaHome}
           onClose={() => setShowAiGen(false)}
-          onGenerated={(generated) => {
-            setShowAiGen(false);
-            onAiGenerated?.(generated);
-          }}
+          onGenerated={appendDrafted}
         />
+      )}
+      {shortcutsOpen && (
+        <StudioShortcutSheet onClose={() => setShortcutsOpen(false)} />
       )}
       {folderPickerEnabled && folderPickerOpen && (
         <FolderPickerPopover
           variant="popover"
-          anchorRef={folderButtonRef}
+          anchorRef={compact ? moreRef : folderButtonRef}
           folders={folders ?? []}
           selectedFolderId={folderId ?? null}
           onSelect={(next) => onFolderChange?.(next)}

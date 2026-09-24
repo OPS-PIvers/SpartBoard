@@ -22,11 +22,10 @@ const CANVAS_SELECTOR = '[data-gl-studio-canvas]';
 
 const CONTROL_SELECTOR = 'button, a, input, textarea, select';
 
-/** Canvas-scoped keys only fire when focus is on the page or the canvas itself, not a control in it. */
+/** Canvas-scoped keys only fire when focus is on the canvas itself, not a control in it or the page. */
 function onCanvas(event: KeyboardEvent): boolean {
   const target = event.target;
   if (!(target instanceof Element)) return true;
-  if (target === document.body) return true;
   return (
     target.closest(CANVAS_SELECTOR) !== null &&
     target.closest(CONTROL_SELECTOR) === null
@@ -189,6 +188,9 @@ export function useCanvasTools(
     [selected, calloutFocused, updateStep]
   );
 
+  const selectedSlideIndex = slideSteps.findIndex(
+    (s) => s.id === selectedStepId
+  );
   const cycle = useCallback(
     (dir: 1 | -1) => {
       if (slideSteps.length === 0) return;
@@ -198,7 +200,7 @@ export function useCanvasTools(
           ? dir === 1
             ? 0
             : slideSteps.length - 1
-          : (i + dir + slideSteps.length) % slideSteps.length;
+          : Math.max(0, Math.min(slideSteps.length - 1, i + dir));
       setCalloutFocused(false);
       setSelectedStepId(slideSteps[next].id);
     },
@@ -328,6 +330,16 @@ export function useCanvasTools(
         },
       },
       {
+        id: 'place-step',
+        key: 'Enter',
+        when: (e) =>
+          !blurActive &&
+          (polygonDraft?.length ?? 0) === 0 &&
+          (addingStep || selected === null) &&
+          onCanvas(e),
+        run: () => addStepAt(50, 50),
+      },
+      {
         id: 'edit-callout',
         key: 'Enter',
         when: (e) =>
@@ -361,14 +373,16 @@ export function useCanvasTools(
       {
         id: 'next-hotspot',
         key: 'Tab',
-        when: (e) => slideSteps.length > 0 && onCanvas(e),
+        // Past either end Tab leaves the canvas, so it never traps focus.
+        when: (e) => selectedSlideIndex < slideSteps.length - 1 && onCanvas(e),
         run: () => cycle(1),
       },
       {
         id: 'prev-hotspot',
         key: 'Tab',
         shift: true,
-        when: (e) => slideSteps.length > 0 && onCanvas(e),
+        when: (e) =>
+          slideSteps.length > 0 && selectedSlideIndex !== 0 && onCanvas(e),
         run: () => cycle(-1),
       },
       {
@@ -401,11 +415,13 @@ export function useCanvasTools(
     shape,
     polygonDraft,
     closePolygon,
+    addStepAt,
     editingStepId,
     linkPending,
     bold,
     link,
     slideSteps.length,
+    selectedSlideIndex,
     cycle,
     setSpaceHeld,
     fit,

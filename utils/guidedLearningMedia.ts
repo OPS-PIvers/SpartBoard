@@ -31,22 +31,34 @@ export function getMediaKind(file: File): GuidedLearningMediaKind | null {
   return null;
 }
 
+/** Why a slide file can't be added, as data the caller can translate. */
+export type SlideFileIssue =
+  | { code: 'unsupported' }
+  | { code: 'tooLarge'; kind: GuidedLearningMediaKind; maxMb: number };
+
+export function slideFileIssue(file: File): SlideFileIssue | null {
+  const kind = getMediaKind(file);
+  if (!kind) return { code: 'unsupported' };
+  const max = kind === 'video' ? GL_MAX_VIDEO_BYTES : GL_MAX_IMAGE_BYTES;
+  if (file.size > max)
+    return { code: 'tooLarge', kind, maxMb: Math.round(max / 1024 / 1024) };
+  return null;
+}
+
 /**
  * Validate a slide upload. Returns an error string (for the editor's error
  * strip) or null when the file is acceptable.
  */
 export function validateSlideFile(file: File): string | null {
-  const kind = getMediaKind(file);
-  if (!kind) {
+  const issue = slideFileIssue(file);
+  if (!issue) return null;
+  if (issue.code === 'unsupported') {
     return `"${file.name}" isn't a supported file. Use an image (PNG, JPG, GIF, WebP…) or a video (MP4, WebM, MOV).`;
   }
-  if (kind === 'video' && file.size > GL_MAX_VIDEO_BYTES) {
-    return `"${file.name}" is too large (max ${Math.round(GL_MAX_VIDEO_BYTES / 1024 / 1024)}MB for video). Trim it or record a shorter clip.`;
+  if (issue.kind === 'video') {
+    return `"${file.name}" is too large (max ${issue.maxMb}MB for video). Trim it or record a shorter clip.`;
   }
-  if (kind === 'image' && file.size > GL_MAX_IMAGE_BYTES) {
-    return `"${file.name}" is too large (max ${Math.round(GL_MAX_IMAGE_BYTES / 1024 / 1024)}MB for images).`;
-  }
-  return null;
+  return `"${file.name}" is too large (max ${issue.maxMb}MB for images).`;
 }
 
 function loadImageFromFile(file: File): Promise<HTMLImageElement> {

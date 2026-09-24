@@ -206,3 +206,43 @@ describe('useSetDraftPersistence revision guard', () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 });
+
+describe('useSetDraftPersistence during a gesture', () => {
+  const step = (xPct: number): GuidedLearningSet['steps'][number] => ({
+    id: 's1',
+    xPct,
+    yPct: 50,
+    imageIndex: 0,
+    interactionType: 'tooltip',
+    showOverlay: 'tooltip',
+    text: 'Drag me',
+  });
+
+  it('holds isDirty and the autosave token mid-drag, then commits the final state on endGesture', async () => {
+    const set = buildSet({ steps: [step(20)] });
+    const onSave = vi.fn<SaveFn>().mockResolvedValue(undefined);
+    const { result, rerender } = renderHook(
+      ({ edits }: { edits: Partial<GuidedLearningEditorController> }) =>
+        useSetDraftPersistence({
+          isOpen: true,
+          set,
+          editorState: editorFor(set, edits),
+          onSave,
+          onClose: vi.fn(),
+        }),
+      { initialProps: { edits: {} } }
+    );
+    const idle = result.current.draftToken;
+    expect(result.current.isDirty).toBe(false);
+    for (const x of [25, 30, 35]) {
+      rerender({ edits: { steps: [step(x)], gestureOpen: true } });
+      expect(result.current.draftToken).toBe(idle);
+      expect(result.current.isDirty).toBe(false);
+    }
+    rerender({ edits: { steps: [step(40)], gestureOpen: false } });
+    expect(result.current.draftToken).not.toBe(idle);
+    expect(result.current.isDirty).toBe(true);
+    await act(() => result.current.persistDraft());
+    expect(onSave.mock.calls[0][0].steps[0].xPct).toBe(40);
+  });
+});

@@ -1,29 +1,50 @@
 import React, { useCallback, useRef, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Activity, ArrowLeftRight, Sparkles } from 'lucide-react';
-import { GuidedLearningStepEditor } from '../GuidedLearningStepEditor';
+import {
+  Check,
+  Film,
+  Image as ImageIcon,
+  Sparkles,
+  Trash2,
+} from 'lucide-react';
+import type {
+  GuidedLearningMode,
+  GuidedLearningStep,
+  GuidedLearningWatchPace,
+} from '@/types';
 import { StudioRegionControls } from './StudioRegionControls';
 import { StudioTourControls } from './StudioTourControls';
 import { StudioNarration, StudioNarrationBatch } from './StudioNarration';
-import { SettingChip } from '../editorShared/SettingChip';
-import { WelcomeChip } from '../editorShared/WelcomeChip';
+import { StudioStepFields, StudioStepPlayback } from './StudioStepFields';
 import { VideoTrimBar } from '../editorShared/VideoTrimBar';
 import {
-  MODE_OPTIONS,
-  PULSE_OPTIONS,
-  TRANSITION_OPTIONS,
-} from '../editorShared/setOptions';
+  ChoiceGroup,
+  Field,
+  groupHeadingClass,
+  hintClass,
+  inputClass,
+} from './panelControls';
 import type { GuidedLearningEditorController } from '../useGuidedLearningEditorState';
+import { markReviewed } from './aiDraftReview';
 
 interface StudioPropertiesPanelProps {
   state: GuidedLearningEditorController;
+  /** Deletes a step; the Studio passes one that offers Undo. */
+  onDeleteStep?: (id: string) => void;
   /** The canvas element, used to find the stage's video for trimming. */
   canvasRef: React.RefObject<HTMLElement | null>;
-  /** Recorder-drafted step text, flagged until the author edits it. */
-  aiDrafts?: ReadonlyMap<string, { label: string; text: string }>;
   /** Shows each step's live-tour link; building sets with live tours only. */
   liveTours?: boolean;
 }
+
+const MODES: readonly GuidedLearningMode[] = [
+  'structured',
+  'guided',
+  'explore',
+];
+const PULSES = ['consistent', 'reminder', 'off'] as const;
+const TRANSITIONS = ['none', 'slide', 'fade'] as const;
+const PACES: readonly GuidedLearningWatchPace[] = ['standard', 'calm'];
 
 const findStageVideo = (canvas: HTMLElement | null) =>
   canvas?.querySelector('video') ?? null;
@@ -55,165 +76,291 @@ function useStageVideo(
   return { videoRef, duration };
 }
 
-/** Right column: the selected step's editor, or the set's settings when nothing is selected. */
+const Group: React.FC<{
+  title: string;
+  testId?: string;
+  children: React.ReactNode;
+}> = ({ title, testId, children }) => (
+  <div className="flex flex-col gap-4" data-testid={testId}>
+    <h3 className={groupHeadingClass}>{title}</h3>
+    {children}
+  </div>
+);
+
+/** Right column: the selected step and its slide, or the activity's settings and the current slide. */
 export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
   state,
+  onDeleteStep,
   canvasRef,
-  aiDrafts,
   liveTours = false,
+}) => {
+  const { selectedStep } = state;
+  return (
+    <div className="flex flex-col divide-y divide-slate-200">
+      {selectedStep ? (
+        <StepSection
+          key={selectedStep.id}
+          state={state}
+          step={selectedStep}
+          onDeleteStep={onDeleteStep}
+          liveTours={liveTours}
+        />
+      ) : (
+        <ActivitySection state={state} />
+      )}
+      {state.imageUrls.length > 0 && (
+        <SlideSection state={state} canvasRef={canvasRef} />
+      )}
+    </div>
+  );
+};
+
+const StepSection: React.FC<{
+  state: GuidedLearningEditorController;
+  step: GuidedLearningStep;
+  onDeleteStep?: (id: string) => void;
+  liveTours: boolean;
+}> = ({ state, step, onDeleteStep, liveTours }) => {
+  const { t } = useTranslation();
+  const { steps, imageUrls, updateStep, deleteStep } = state;
+  const n = steps.findIndex((s) => s.id === step.id) + 1;
+  return (
+    <section
+      aria-labelledby="gl-studio-step-heading"
+      data-testid="gl-studio-step-section"
+      className="flex flex-col gap-6 p-4"
+    >
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2
+            id="gl-studio-step-heading"
+            className="text-lg font-bold text-slate-900"
+          >
+            {t('glStudio.stepN', { n })}
+          </h2>
+          <p className="truncate text-xs text-slate-600">
+            {t(`glStudio.interaction_${step.interactionType}`)}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => (onDeleteStep ?? deleteStep)(step.id)}
+          className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40"
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+          {t('glStudio.deleteStep')}
+        </button>
+      </header>
+      {step.aiDraft && (
+        <div className="-mt-3 flex flex-wrap items-center gap-2">
+          <p className="flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-800">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('glRecorder.aiDraft')}
+          </p>
+          <button
+            type="button"
+            onClick={() => updateStep(markReviewed(step))}
+            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+          >
+            <Check className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('glStudio.markReviewed')}
+          </button>
+        </div>
+      )}
+      <StudioStepFields
+        step={step}
+        slideCount={imageUrls.length}
+        onChange={updateStep}
+      />
+      <Group title={t('glStudio.targetGroup')}>
+        <StudioRegionControls step={step} onChange={updateStep} />
+      </Group>
+      <Group title={t('glStudio.playbackGroup')}>
+        <StudioStepPlayback step={step} onChange={updateStep} />
+      </Group>
+      <StudioNarration state={state} step={step} />
+      {liveTours && (
+        <StudioTourControls
+          step={step}
+          onChange={(next) => updateStep(next, false)}
+        />
+      )}
+    </section>
+  );
+};
+
+const ActivitySection: React.FC<{ state: GuidedLearningEditorController }> = ({
+  state,
 }) => {
   const { t } = useTranslation();
   const {
-    selectedStep,
     steps,
     imageUrls,
-    imageKinds,
-    videoTrims,
-    setVideoTrim,
-    currentImageIndex,
-    updateStep,
-    deleteStep,
     description,
     setDescription,
     mode,
     setMode,
-    hotspotPulse,
-    setHotspotPulse,
-    imageTransition,
-    setImageTransition,
+    watchPace,
+    setWatchPace,
     welcomeEnabled,
     setWelcomeEnabled,
     welcomeMessage,
     setWelcomeMessage,
   } = state;
-
-  const isVideoSlide = imageKinds[currentImageIndex] === 'video';
-  const { videoRef, duration } = useStageVideo(
-    canvasRef,
-    isVideoSlide ? (imageUrls[currentImageIndex] ?? '') : ''
-  );
-
-  if (selectedStep) {
-    const stepNumber = steps.findIndex((s) => s.id === selectedStep.id) + 1;
-    const draft = aiDrafts?.get(selectedStep.id);
-    const isDraft =
-      !!draft &&
-      (selectedStep.label ?? '') === draft.label &&
-      (selectedStep.text ?? '') === draft.text;
-    return (
-      <>
-        {isDraft && (
-          <p className="mx-4 mt-4 flex w-fit items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-800">
-            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-            {t('glRecorder.aiDraft')}
-          </p>
-        )}
-        <StudioRegionControls step={selectedStep} onChange={updateStep} />
-        {liveTours && (
-          <StudioTourControls step={selectedStep} onChange={updateStep} />
-        )}
-        <StudioNarration
-          key={`narration-${selectedStep.id}`}
-          state={state}
-          step={selectedStep}
-        />
-        <GuidedLearningStepEditor
-          key={selectedStep.id}
-          step={selectedStep}
-          stepNumber={stepNumber}
-          imageCount={imageUrls.length}
-          onChange={updateStep}
-          onDelete={() => deleteStep(selectedStep.id)}
-        />
-      </>
-    );
-  }
-
   return (
-    <div
-      className="flex flex-col gap-5 p-4"
+    <section
+      aria-labelledby="gl-studio-activity-heading"
+      className="flex flex-col gap-6 p-4"
       data-testid="gl-studio-set-settings"
     >
-      <h2 className="text-xxs font-bold uppercase tracking-wider text-slate-500">
+      <h2
+        id="gl-studio-activity-heading"
+        className="text-lg font-bold text-slate-900"
+      >
         {t('glStudio.activitySettings')}
       </h2>
-      <label className="flex flex-col gap-1.5 text-xs font-bold text-slate-600">
-        {t('glStudio.description')}
+      <Field label={t('glStudio.description')}>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
           placeholder={t('glStudio.descriptionPlaceholder')}
-          className="resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-800 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+          className={`${inputClass} resize-none`}
         />
-      </label>
-      <fieldset className="flex flex-col gap-1.5">
-        <legend className="mb-1.5 text-xs font-bold text-slate-600">
-          {t('glStudio.playMode')}
-        </legend>
-        <div className="flex flex-wrap gap-1.5">
-          {MODE_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setMode(opt.value)}
-              aria-pressed={mode === opt.value}
-              title={opt.desc}
-              className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
-                mode === opt.value
-                  ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
-                  : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </fieldset>
-      <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-bold text-slate-600">
-          {t('glStudio.display')}
-        </span>
-        <div className="flex flex-wrap gap-1.5">
-          <SettingChip
-            label="Pulse"
-            icon={Activity}
-            value={hotspotPulse}
-            options={PULSE_OPTIONS}
-            onChange={setHotspotPulse}
+      </Field>
+      <ChoiceGroup
+        legend={t('glStudio.playMode')}
+        value={mode}
+        options={MODES.map((value) => ({
+          value,
+          label: t(`glStudio.mode_${value}`),
+          desc: t(`glStudio.modeDesc_${value}`),
+        }))}
+        onChange={setMode}
+      />
+      {mode === 'guided' && (
+        <ChoiceGroup
+          legend={t('glStudio.watchPace')}
+          value={watchPace ?? 'standard'}
+          options={PACES.map((value) => ({
+            value,
+            label: t(`glStudio.pace_${value}`),
+            desc: t(`glStudio.paceDesc_${value}`),
+          }))}
+          onChange={(next) =>
+            setWatchPace(next === 'standard' ? undefined : next)
+          }
+          testId="gl-studio-watch-pace"
+        />
+      )}
+      <div className="flex flex-col gap-2">
+        <label className="flex items-start gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={welcomeEnabled}
+            onChange={(e) => setWelcomeEnabled(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-brand-blue-primary"
           />
-          <SettingChip
-            label="Transition"
-            icon={ArrowLeftRight}
-            value={imageTransition}
-            options={TRANSITION_OPTIONS}
-            onChange={setImageTransition}
-          />
-          <WelcomeChip
-            enabled={welcomeEnabled}
-            message={welcomeMessage}
-            onEnabledChange={setWelcomeEnabled}
-            onMessageChange={setWelcomeMessage}
-          />
-        </div>
+          <span className="flex flex-col gap-0.5">
+            <span className="text-xs font-bold">
+              {t('glStudio.welcomeToggle')}
+            </span>
+            <span className={hintClass}>{t('glStudio.welcomeHint')}</span>
+          </span>
+        </label>
+        {welcomeEnabled && (
+          <Field label={t('glStudio.welcomeMessage')}>
+            <textarea
+              value={welcomeMessage}
+              onChange={(e) => setWelcomeMessage(e.target.value)}
+              rows={3}
+              placeholder={t('glStudio.welcomePlaceholder')}
+              className={`${inputClass} resize-none`}
+            />
+          </Field>
+        )}
       </div>
       {steps.length > 0 && <StudioNarrationBatch state={state} />}
-      {isVideoSlide && (
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-bold text-slate-600">
-            {t('glStudio.videoSlide', { n: currentImageIndex + 1 })}
-          </span>
-          <VideoTrimBar
-            videoRef={videoRef}
-            duration={duration}
-            trim={videoTrims[currentImageIndex] ?? null}
-            onChange={(trim) => setVideoTrim(currentImageIndex, trim)}
-          />
-        </div>
-      )}
       {imageUrls.length > 0 && (
-        <p className="text-xs text-slate-500">{t('glStudio.selectStepHint')}</p>
+        <p className={hintClass}>{t('glStudio.selectStepHint')}</p>
       )}
-    </div>
+    </section>
+  );
+};
+
+const SlideSection: React.FC<{
+  state: GuidedLearningEditorController;
+  canvasRef: React.RefObject<HTMLElement | null>;
+}> = ({ state, canvasRef }) => {
+  const { t } = useTranslation();
+  const {
+    imageUrls,
+    imageKinds,
+    videoTrims,
+    setVideoTrim,
+    currentImageIndex,
+    hotspotPulse,
+    setHotspotPulse,
+    imageTransition,
+    setImageTransition,
+  } = state;
+  const kind = imageKinds[currentImageIndex] ?? 'image';
+  const isVideo = kind === 'video';
+  const { videoRef, duration } = useStageVideo(
+    canvasRef,
+    isVideo ? (imageUrls[currentImageIndex] ?? '') : ''
+  );
+  const KindIcon = isVideo ? Film : ImageIcon;
+  return (
+    <section
+      aria-labelledby="gl-studio-slide-heading"
+      data-testid="gl-studio-slide-section"
+      className="flex flex-col gap-6 p-4"
+    >
+      <div>
+        <h2
+          id="gl-studio-slide-heading"
+          className="text-lg font-bold text-slate-900"
+        >
+          {t('glStudio.slideN', { n: currentImageIndex + 1 })}
+        </h2>
+        <p className="flex items-center gap-1 text-xs text-slate-600">
+          <KindIcon className="h-3.5 w-3.5" aria-hidden="true" />
+          {t(`glStudio.slideKind_${kind}`)}
+        </p>
+      </div>
+      {isVideo && (
+        <VideoTrimBar
+          videoRef={videoRef}
+          duration={duration}
+          trim={videoTrims[currentImageIndex] ?? null}
+          onChange={(trim) => setVideoTrim(currentImageIndex, trim)}
+        />
+      )}
+      <Group title={t('glStudio.allSlides')}>
+        <ChoiceGroup
+          legend={t('glStudio.pulse')}
+          value={hotspotPulse}
+          options={PULSES.map((value) => ({
+            value,
+            label: t(`glStudio.pulse_${value}`),
+            desc: t(`glStudio.pulseDesc_${value}`),
+          }))}
+          onChange={setHotspotPulse}
+          testId="gl-studio-pulse"
+        />
+        <ChoiceGroup
+          legend={t('glStudio.transition')}
+          value={imageTransition}
+          options={TRANSITIONS.map((value) => ({
+            value,
+            label: t(`glStudio.transition_${value}`),
+            desc: t(`glStudio.transitionDesc_${value}`),
+          }))}
+          onChange={setImageTransition}
+          testId="gl-studio-transition"
+        />
+      </Group>
+    </section>
   );
 };

@@ -32,7 +32,7 @@ import {
   buildPromptWithFileContext,
   GuidedLearningImageInput,
 } from '@/utils/ai';
-import { useStorage } from '@/hooks/useStorage';
+import { useStorage, type GuidedLearningMediaHome } from '@/hooks/useStorage';
 import { useAuth } from '@/context/useAuth';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
 import {
@@ -46,6 +46,8 @@ import { Z_INDEX } from '@/config/zIndex';
 interface Props {
   onClose: () => void;
   onGenerated: (set: GuidedLearningSet) => void;
+  /** Where uploaded images go; matches the set they will join. */
+  mediaHome: GuidedLearningMediaHome;
 }
 
 interface GeneratorImage {
@@ -186,6 +188,7 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
 export const GuidedLearningAIGenerator: React.FC<Props> = ({
   onClose,
   onGenerated,
+  mediaHome,
 }) => {
   const { user, canAccessFeature } = useAuth();
   const { uploading, uploadGuidedLearningImage } = useStorage();
@@ -238,14 +241,13 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
       try {
         const uploads = await Promise.all(
           accepted.map(async (file) => {
-            // Generated sets are building sets, so slides live on Storage.
             const [{ url, thumbnailUrl }, base64] = await Promise.all([
               prepareImageForUpload(file).then((prepared) =>
                 uploadGuidedLearningImage(
                   user.uid,
                   prepared,
                   prepared.name.replace(/[^\w.-]+/g, '_'),
-                  'storage'
+                  mediaHome
                 )
               ),
               blobToBase64(file),
@@ -272,7 +274,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         setUploadingImages(false);
       }
     },
-    [user, uploadGuidedLearningImage, images.length]
+    [user, uploadGuidedLearningImage, images.length, mediaHome]
   );
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -380,7 +382,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         mode: result.suggestedMode,
         createdAt: Date.now(),
         updatedAt: Date.now(),
-        isBuilding: true,
+        ...(mediaHome === 'storage' ? { isBuilding: true } : {}),
         authorUid: user?.uid,
       };
       onGenerated(set);
