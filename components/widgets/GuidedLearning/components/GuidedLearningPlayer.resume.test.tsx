@@ -45,6 +45,16 @@ describe('GuidedLearningPlayer server-seeded resume (P8-8)', () => {
     expect(screen.getByText('Resume at step 2?')).toBeInTheDocument();
   });
 
+  it('does not offer a late server step after the learner moved and came back', () => {
+    const { rerender } = render(<GuidedLearningPlayer set={set} playerV2 />);
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /previous/i }));
+    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+    rerender(<GuidedLearningPlayer set={set} playerV2 resumeServerIdx={2} />);
+    expect(screen.queryByText(/resume at step/i)).toBeNull();
+  });
+
   it('keeps this device’s place over the server’s', () => {
     writeResume({ id: 'set', idx: 1, mode: 'try', updatedAt: Date.now() });
     render(<GuidedLearningPlayer set={set} playerV2 resumeServerIdx={2} />);

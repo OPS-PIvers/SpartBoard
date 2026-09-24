@@ -277,12 +277,15 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
 
   const v2Playback = playerV2 && mode !== 'explore';
   // Saved place from an earlier visit on this device (sets and sessions alike key on set.id).
+  // Sticky once the learner leaves the start step, so returning to it doesn't reopen a late offer.
+  const [moved, setMoved] = useState(false);
+  if (!moved && currentIdx !== startIdx) setMoved(true);
   const [resumeOffer, dismissResume] = useResumeOffer(
     set.id,
     steps.length,
     v2Playback,
     resumeServerIdx,
-    currentIdx === startIdx
+    !moved && currentIdx === startIdx
   );
   const [readAloud, setReadAloud] = useState(false);
   const readAloudAvailable =
