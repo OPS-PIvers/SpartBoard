@@ -5000,6 +5000,9 @@ export interface PaperSeatAssignment {
 /** Answer columns a printed sheet carries; one column frees its right half. */
 export type PaperColumns = 1 | 2;
 
+/** Row geometry a page is printed in: 1 or 2 answer columns, or tall rows carrying each question's text. */
+export type PaperGrid = PaperColumns | 'questions';
+
 export interface PaperBatch {
   id: string;
   /** Quiz these sheets were printed for. Deleted with the quiz. */
@@ -5030,6 +5033,8 @@ export interface PaperBatch {
    * desks (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D2).
    */
   columnsPerPage?: PaperColumns;
+  /** Set when each row printed with its question text beside the bubbles; overrides `columnsPerPage`. */
+  sheetLayout?: 'questions';
   createdAt: number;
   /** A review the teacher left unfinished, resumable from any device (plan Q26). */
   pendingReview?: PaperPendingReview;

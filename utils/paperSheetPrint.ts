@@ -28,14 +28,17 @@ import {
   REGISTRATION_MARK_CENTERS_MM,
   REGISTRATION_MARK_SIZE_MM,
   ROWS_PER_COLUMN,
-  ROW_PITCH_MM,
   bubbleRectMm,
   markerCellRectMm,
   pageCountForQuestions,
   questionSlotOnPage,
+  questionChoiceTextRectMm,
+  questionStemRectMm,
   questionsPerPage,
-  type PaperColumns,
+  rowTopMm,
+  type PaperGrid,
 } from './paperSheetLayout';
+import { isPlaceholderLetterChoices } from './paperSheetPlan';
 import { encodePaperMarker, paperBatchTag } from './paperSheetMarker';
 import type { PaperSheetPlan } from './paperSheetPlan';
 import {
@@ -60,8 +63,11 @@ export interface PaperPrintJob {
   /**
    * Answer columns per page; absent = 2, the layout every batch printed before
    * sheet stimuli existed used (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D1).
+   * `'questions'` prints each row's question text beside its bubbles.
    */
-  columnsPerPage?: PaperColumns;
+  columnsPerPage?: PaperGrid;
+  /** Question text per sheet row, for the `'questions'` grid. */
+  questionTexts?: readonly PaperSheetQuestionText[];
   /** Items printed in the sheet's right-hand band; every sheet gets them (D15). */
   sheetStimuli?: readonly PaperSheetStimulus[];
   /**
@@ -80,6 +86,13 @@ export interface PaperPrintJob {
    * caller that owns their object URLs knows when it may free them.
    */
   onImagesReady?: () => void;
+}
+
+/** What a question-text row prints beside its bubbles. */
+export interface PaperSheetQuestionText {
+  text: string;
+  /** Option text in bubble-letter order. */
+  choices: readonly string[];
 }
 
 /** A graded paper response redrawn onto its sheet (docs/plans/QUIZ_RESULTS_PRINT.md D22-D23). */
@@ -214,8 +227,10 @@ function headerHtml(
 function columnLegendsHtml(
   choiceCount: number,
   columns: number,
-  columnsPerPage: PaperColumns
+  columnsPerPage: PaperGrid
 ): string {
+  // Every bubble on the question-text grid sits beside its own choice.
+  if (columnsPerPage === 'questions') return '';
   const parts: string[] = [];
   for (let column = 0; column < columns; column += 1) {
     for (let choice = 0; choice < choiceCount; choice += 1) {
@@ -231,14 +246,40 @@ function columnLegendsHtml(
   return parts.join('');
 }
 
+/** The stem above a question's bubbles, and each choice's text beside its own bubble. */
+function questionTextHtml(
+  indexOnPage: number,
+  q: PaperSheetQuestionText
+): string {
+  const stem = questionStemRectMm(indexOnPage);
+  const parts = [
+    `<div class="qt-stem" style="left:${mm(stem.x)};top:${mm(stem.y)};width:${mm(
+      stem.w
+    )};height:${mm(stem.h)}">${escapeHtml(q.text)}</div>`,
+  ];
+  // A stub's options are just the bubble letters, which say nothing to a student.
+  if (!isPlaceholderLetterChoices(q.choices)) {
+    q.choices.slice(0, MAX_CHOICE_COUNT).forEach((choice, i) => {
+      const r = questionChoiceTextRectMm(indexOnPage, i);
+      parts.push(
+        `<div class="qt-choice" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(
+          r.w
+        )};height:${mm(r.h)}">${escapeHtml(choice)}</div>`
+      );
+    });
+  }
+  return parts.join('');
+}
+
 const MARK_GLYPH = { correct: '✓', incorrect: '✗', unclear: '?' } as const;
 
 function answerRowsHtml(
   page: number,
   questionCount: number,
   choiceCount: number,
-  columnsPerPage: PaperColumns,
-  fill?: SheetFill
+  columnsPerPage: PaperGrid,
+  fill?: SheetFill,
+  questionTexts?: readonly PaperSheetQuestionText[]
 ): { html: string; columns: number } {
   const perPage = questionsPerPage(columnsPerPage);
   const first = (page - 1) * perPage;
@@ -250,11 +291,17 @@ function answerRowsHtml(
     const { column, row } = questionSlotOnPage(i, columnsPerPage);
     columns = Math.max(columns, column + 1);
     parts.push(
-      `<div class="num" style="left:${mm(COLUMN_X_MM[column])};top:${mm(
-        GRID_TOP_MM + row * ROW_PITCH_MM
-      )};width:${mm(NUMBER_WIDTH_MM - 2)}">${first + i + 1}</div>`
+      `<div class="${columnsPerPage === 'questions' ? 'num qnum' : 'num'}" style="left:${mm(
+        COLUMN_X_MM[column]
+      )};top:${mm(rowTopMm(row, columnsPerPage))};width:${mm(
+        NUMBER_WIDTH_MM - 2
+      )}">${first + i + 1}</div>`
     );
     const index = first + i;
+    const text = questionTexts?.[index];
+    if (columnsPerPage === 'questions' && text) {
+      parts.push(questionTextHtml(i, text));
+    }
     for (let choice = 0; choice < choiceCount; choice += 1) {
       const r = bubbleRectMm(i, choice, columnsPerPage);
       const cls = fill
@@ -271,10 +318,17 @@ function answerRowsHtml(
     const mark = fill?.marks[index];
     if (mark) {
       const r = bubbleRectMm(i, choiceCount - 1, columnsPerPage);
+      // Beside the number on the question-text grid, where choice text fills the row.
+      const left =
+        columnsPerPage === 'questions'
+          ? COLUMN_X_MM[0] - BUBBLE_PITCH_MM
+          : r.x + BUBBLE_PITCH_MM;
+      const top =
+        columnsPerPage === 'questions' ? rowTopMm(row, columnsPerPage) : r.y;
       parts.push(
-        `<div class="rowmark" style="left:${mm(r.x + BUBBLE_PITCH_MM)};top:${mm(
-          r.y
-        )}">${MARK_GLYPH[mark]}</div>`
+        `<div class="rowmark" style="left:${mm(left)};top:${mm(top)}">${
+          MARK_GLYPH[mark]
+        }</div>`
       );
     }
   }
@@ -304,7 +358,8 @@ function sheetPagesHtml(
       job.questionCount,
       choiceCount,
       columnsPerPage,
-      fill
+      fill,
+      job.questionTexts
     );
     const scanMarks = fill
       ? ''
@@ -343,7 +398,24 @@ const SHEET_STYLES = `
     color: #000;
   }
   .sheet:last-child { page-break-after: auto; }
-  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap { position: absolute; }
+  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap, .qt-stem, .qt-choice { position: absolute; }
+  .qt-stem {
+    font-size: 9pt;
+    line-height: 3.6mm;
+    color: #000;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+  }
+  .qt-choice {
+    font-size: 9pt;
+    line-height: ${BUBBLE_DIAMETER_MM}mm;
+    color: #000;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .stim { object-fit: contain; }
   .stim-cap {
     font-size: ${CAPTION_SIZE_PT}pt;
@@ -382,6 +454,7 @@ const SHEET_STYLES = `
     text-align: right;
     line-height: ${BUBBLE_DIAMETER_MM}mm;
   }
+  .num.qnum { font-size: 9pt; font-weight: 700; line-height: 3.6mm; }
   .legend { font-size: 7pt; text-align: center; color: #444; }
   .bub {
     border: 0.35mm solid #000;
@@ -420,7 +493,12 @@ export function buildFilledSheetHtml(
   sheet: PaperSheetPlan,
   job: Pick<
     PaperPrintJob,
-    'batchId' | 'quizTitle' | 'questionCount' | 'choiceCount' | 'columnsPerPage'
+    | 'batchId'
+    | 'quizTitle'
+    | 'questionCount'
+    | 'choiceCount'
+    | 'columnsPerPage'
+    | 'questionTexts'
   >,
   pageCount: number,
   fill: SheetFill

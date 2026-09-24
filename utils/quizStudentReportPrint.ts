@@ -535,6 +535,9 @@ function sheetReprintHtml(
       questionCount: reprint.questionCount,
       choiceCount: reprint.choiceCount,
       columnsPerPage: reprint.columnsPerPage,
+      ...(reprint.questionTexts
+        ? { questionTexts: reprint.questionTexts }
+        : {}),
     },
     reprint.pageCount,
     sheetFillFor(reprint, {

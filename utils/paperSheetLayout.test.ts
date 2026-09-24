@@ -17,8 +17,10 @@ import {
   pageCountForQuestions,
   questionRowRectMm,
   questionSlotOnPage,
+  questionChoiceTextRectMm,
+  questionStemRectMm,
   questionsPerPage,
-  type PaperColumns,
+  type PaperGrid,
   type RectMm,
 } from './paperSheetLayout';
 import { READER_THRESHOLDS } from './paperSheetReader';
@@ -32,7 +34,7 @@ const onPage = (r: RectMm): boolean =>
   r.x + r.w <= PAGE_WIDTH_MM &&
   r.y + r.h <= PAGE_HEIGHT_MM;
 
-const allBubbles = (columns: PaperColumns = 2): RectMm[] => {
+const allBubbles = (columns: PaperGrid = 2): RectMm[] => {
   const rects: RectMm[] = [];
   for (let q = 0; q < questionsPerPage(columns); q += 1) {
     for (let c = 0; c < MAX_CHOICE_COUNT; c += 1)
@@ -173,6 +175,95 @@ describe('paperSheetLayout, single column', () => {
     ];
     for (const win of windows) {
       expect(overlaps(STIMULUS_RECT_MM, win)).toBe(false);
+    }
+  });
+});
+
+describe('question-text layout', () => {
+  const pad = (r: RectMm, by: number): RectMm => ({
+    x: r.x - by,
+    y: r.y - by,
+    w: r.w + by * 2,
+    h: r.h + by * 2,
+  });
+  const perPage = questionsPerPage('questions');
+  const slots = Array.from({ length: perPage }, (_, q) => q);
+  const stems = slots.map((q) => questionStemRectMm(q));
+  const choiceTexts = slots.flatMap((q) =>
+    Array.from({ length: MAX_CHOICE_COUNT }, (_, c) =>
+      questionChoiceTextRectMm(q, c)
+    )
+  );
+  const texts = [...stems, ...choiceTexts];
+
+  it('fits five questions a page above the footer', () => {
+    expect(perPage).toBe(5);
+    expect(pageCountForQuestions(30, 'questions')).toBe(6);
+    for (const r of [...allBubbles('questions'), ...texts]) {
+      expect(onPage(r)).toBe(true);
+      expect(overlaps(r, FOOTER_RECT_MM)).toBe(false);
+      expect(overlaps(r, HEADER_RECT_MM)).toBe(false);
+    }
+  });
+
+  it('lists the choices under the stem, one a line, each beside its bubble', () => {
+    const bubbles = Array.from({ length: MAX_CHOICE_COUNT }, (_, i) =>
+      bubbleRectMm(0, i, 'questions')
+    );
+    const stem = questionStemRectMm(0);
+    expect(bubbles[0].y).toBeGreaterThan(stem.y + stem.h);
+    bubbles.forEach((b, i) => {
+      expect(b.x).toBe(bubbles[0].x);
+      if (i > 0) expect(b.y).toBeGreaterThan(bubbles[i - 1].y);
+      const text = questionChoiceTextRectMm(0, i);
+      expect(text.x).toBeGreaterThan(b.x + b.w);
+      expect(text.y).toBe(b.y);
+    });
+  });
+
+  it('keeps every bubble clear of all text and of the other bubbles', () => {
+    const bubbles = allBubbles('questions');
+    for (const bubble of bubbles) {
+      for (const text of texts) {
+        expect(overlaps(pad(bubble, 1), text)).toBe(false);
+      }
+    }
+    for (let i = 0; i < bubbles.length; i += 1) {
+      for (let j = i + 1; j < bubbles.length; j += 1) {
+        expect(overlaps(pad(bubbles[i], 0.45), bubbles[j])).toBe(false);
+      }
+    }
+  });
+
+  it('crops a row to its choices without reaching the next question', () => {
+    for (const q of slots.slice(0, -1)) {
+      const crop = questionRowRectMm(q, MAX_CHOICE_COUNT, 'questions');
+      for (let c = 0; c < MAX_CHOICE_COUNT; c += 1) {
+        expect(overlaps(crop, bubbleRectMm(q, c, 'questions'))).toBe(true);
+        expect(overlaps(crop, bubbleRectMm(q + 1, c, 'questions'))).toBe(false);
+      }
+      expect(overlaps(crop, questionStemRectMm(q + 1))).toBe(false);
+    }
+  });
+
+  it('keeps text and bubbles off the marker grid, registration marks and corner windows', () => {
+    const f = READER_THRESHOLDS.registrationSearchFraction;
+    const w = PAGE_WIDTH_MM * f;
+    const h = PAGE_HEIGHT_MM * f;
+    const windows: RectMm[] = [
+      { x: 0, y: 0, w, h },
+      { x: PAGE_WIDTH_MM - w, y: 0, w, h },
+      { x: 0, y: PAGE_HEIGHT_MM - h, w, h },
+      { x: PAGE_WIDTH_MM - w, y: PAGE_HEIGHT_MM - h, w, h },
+    ];
+    for (const r of [...texts, ...allBubbles('questions')]) {
+      for (const win of windows) expect(overlaps(r, win)).toBe(false);
+      for (const reg of registrationRects()) {
+        expect(overlaps(r, reg)).toBe(false);
+      }
+      for (let i = 0; i < MARKER_CELL_COUNT; i += 1) {
+        expect(overlaps(r, markerCellRectMm(i))).toBe(false);
+      }
     }
   });
 });

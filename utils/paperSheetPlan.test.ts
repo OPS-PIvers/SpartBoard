@@ -181,6 +181,19 @@ describe('planPaperBatch', () => {
     expect(batch.rosterIds).toEqual(['r1', 'r2']);
   });
 
+  it('records the question-text layout and sizes pages for it', () => {
+    const { batch } = planPaperBatch({
+      ...base,
+      selections: twoClasses,
+      sheetLayout: 'questions',
+    });
+    expect(batch.sheetLayout).toBe('questions');
+    expect(batch.pagesPerSheet).toBe(4);
+    expect(
+      planPaperBatch({ ...base, selections: twoClasses }).batch
+    ).not.toHaveProperty('sheetLayout');
+  });
+
   it('keeps the same PIN in two classes apart', () => {
     const { batch } = planPaperBatch({ ...base, selections: twoClasses });
     expect(batch.seats[1].rosterId).not.toBe(batch.seats[3].rosterId);

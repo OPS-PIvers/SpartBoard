@@ -46,6 +46,7 @@ import {
   MAX_CHOICE_COUNT,
   MIN_CHOICE_COUNT,
   pageCountForQuestions,
+  paperGridOf,
 } from '@/utils/paperSheetLayout';
 import {
   readByLabel,
@@ -183,6 +184,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const questionsFileRef = useRef<HTMLInputElement>(null);
   const [spareCount, setSpareCount] = useState(2);
   const [includeKeySheet, setIncludeKeySheet] = useState(isStub);
+  const [includeQuestionText, setIncludeQuestionText] = useState(false);
   const [printing, setPrinting] = useState(false);
   /** Set once an authored quiz's sheets printed; the test paper comes next. */
   const [printedBatch, setPrintedBatch] = useState<PaperBatch | null>(null);
@@ -213,6 +215,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   // Anything in the band takes the page's right half, so the answers drop to
   // one column and the test spreads over twice as many pages (D1).
   const columnsPerPage = sheetStimuli.length > 0 ? 1 : 2;
+  // Question text takes the band stimuli would print in, so the two never combine.
+  const questionTextLayout =
+    includeQuestionText && !isStub && sheetStimuli.length === 0;
   const sheetImages = usePaperSheetStimulusImages(sheetStimuli);
   const sharing = usePaperSheetImageSharing(sheetStimuli, inPlcGroup);
   /** Set once the teacher has answered the sharing ask, either way. */
@@ -347,7 +352,10 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     0
   );
   const sheetCount = studentSheetCount + spareCount + (includeKeySheet ? 1 : 0);
-  const pagesPerSheet = pageCountForQuestions(questionCount, columnsPerPage);
+  const pagesPerSheet = pageCountForQuestions(
+    questionCount,
+    questionTextLayout ? 'questions' : columnsPerPage
+  );
   const canPrint =
     sheetCount > 0 &&
     questionCount > 0 &&
@@ -526,6 +534,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           ? { choiceOrder: readChoiceOrder }
           : {}),
         ...(columnsPerPage === 1 ? { columnsPerPage: 1 as const } : {}),
+        ...(questionTextLayout ? { sheetLayout: 'questions' as const } : {}),
         createdAt: now,
       });
       if (onCreateQuiz) await onCreateQuiz(printedQuiz);
@@ -541,8 +550,16 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         quizTitle: printedQuiz.title,
         questionCount: batch.questionCount,
         choiceCount: batch.choiceCount,
-        ...(batch.columnsPerPage
-          ? { columnsPerPage: batch.columnsPerPage }
+        ...(batch.columnsPerPage || batch.sheetLayout
+          ? { columnsPerPage: paperGridOf(batch) }
+          : {}),
+        ...(batch.sheetLayout === 'questions'
+          ? {
+              questionTexts: sheetQuestions.map((q) => ({
+                text: q.text,
+                choices: batch.choiceOrder?.[q.id] ?? [],
+              })),
+            }
           : {}),
         ...(sheetStimuli.length > 0
           ? {
@@ -791,9 +808,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 Response sheets sent to print
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                Now print the test paper. Its choices are lettered to match
-                these sheets, so hand out this copy rather than one written by
-                hand — the import reads each bubble through that order.
+                {printedBatch.sheetLayout === 'questions'
+                  ? 'The questions are printed on the sheets. Print the test paper too if any question was too long to fit beside its bubbles.'
+                  : 'Now print the test paper. Its choices are lettered to match these sheets, so hand out this copy rather than one written by hand — the import reads each bubble through that order.'}
               </p>
             </div>
           </div>
@@ -1230,6 +1247,26 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           onPickFromDrive={pickSheetImage}
           busy={stimulusBusy}
         />
+
+        {!isStub && (
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm text-slate-700">Include question text</p>
+              <p className="text-xs text-slate-500">
+                {sheetStimuli.length > 0
+                  ? 'Not available while the sheet has images or templates on it.'
+                  : 'Prints each question with its choices listed underneath, each beside its own bubble. Fits 5 questions per page.'}
+              </p>
+            </div>
+            <Toggle
+              checked={questionTextLayout}
+              onChange={setIncludeQuestionText}
+              disabled={sheetStimuli.length > 0}
+              label="Include question text"
+              size="sm"
+            />
+          </div>
+        )}
 
         <div className="flex items-start justify-between gap-3">
           <div>
