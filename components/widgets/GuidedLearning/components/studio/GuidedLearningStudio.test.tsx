@@ -448,6 +448,22 @@ describe('GuidedLearningStudio', () => {
       });
     });
 
+    it('warns before discarding edits when the save fails mid-upload', async () => {
+      storage.uploading = true;
+      showConfirm.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+      const onSave = vi.fn().mockRejectedValue(new Error('offline'));
+      const { onClose } = renderStudio({ onSave });
+      fireEvent.change(screen.getByLabelText('Activity title'), {
+        target: { value: 'Edited during upload' },
+      });
+      close();
+      await waitFor(() => expect(showConfirm).toHaveBeenCalledTimes(2));
+      expect(showConfirm.mock.calls[1][1]).toMatchObject({
+        title: 'Changes not saved',
+      });
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
     it('stays open when the author keeps editing during an upload', async () => {
       storage.uploading = true;
       const { onClose } = renderStudio();

@@ -107,15 +107,18 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
     onSave: persistDraft,
   });
 
-  const flushOrConfirm = useCallback(async (): Promise<boolean> => {
-    if (await autosave.flush()) return true;
-    return showConfirm(t('glStudio.unsavedBody'), {
-      title: t('glStudio.unsavedTitle'),
-      variant: 'warning',
-      confirmLabel: t('glStudio.closeAnyway'),
-      cancelLabel: t('glStudio.keepEditing'),
-    });
-  }, [autosave, showConfirm, t]);
+  const flushOrConfirm = useCallback(
+    async (force = false): Promise<boolean> => {
+      if (await autosave.flush({ force })) return true;
+      return showConfirm(t('glStudio.unsavedBody'), {
+        title: t('glStudio.unsavedTitle'),
+        variant: 'warning',
+        confirmLabel: t('glStudio.closeAnyway'),
+        cancelLabel: t('glStudio.keepEditing'),
+      });
+    },
+    [autosave, showConfirm, t]
+  );
 
   const requestClose = useCallback(async () => {
     const { uploading, imageUrls, title, description, abandonUploads } =
@@ -129,9 +132,7 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
       });
       if (!closeAnyway) return;
       abandonUploads();
-      if (imageUrls.length > 0 && !(await autosave.flush({ force: true }))) {
-        if (!(await flushOrConfirm())) return;
-      }
+      if (imageUrls.length > 0 && !(await flushOrConfirm(true))) return;
       closeEditor();
       return;
     }
@@ -146,7 +147,7 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
       return;
     }
     if (await flushOrConfirm()) closeEditor();
-  }, [editorState, showConfirm, t, autosave, flushOrConfirm, closeEditor]);
+  }, [editorState, showConfirm, t, flushOrConfirm, closeEditor]);
 
   // The runner loads the saved set, so an unsaved draft never starts.
   const runLive = useCallback(async () => {
