@@ -305,4 +305,100 @@ describe('TourRecorder', () => {
       ['sidebar.boards', 'observe'],
     ]);
   });
+
+  it('records a click that opens a menu as its own step, then the menu item', async () => {
+    const Board = () => {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <div data-tour="settings.root">
+          <button
+            aria-haspopup="menu"
+            aria-expanded={open}
+            onClick={() => setOpen(true)}
+          >
+            Layout options
+          </button>
+          {open && (
+            <div role="menu">
+              <button data-tour="sidebar.classes">Two columns</button>
+            </div>
+          )}
+        </div>
+      );
+    };
+    const onFinish = renderRecorder(vi.fn(), null, <Board />);
+    await startRecording();
+    const opener = screen.getByText('Layout options');
+    fireEvent.pointerDown(opener, { button: 0 });
+    fireEvent.click(opener, { detail: 1 });
+    await settle();
+    fireEvent.pointerDown(screen.getByText('Two columns'), { button: 0 });
+    await settle();
+    const recording = await finish(onFinish);
+    expect(recording.steps.map((s) => s.tour)).toEqual([
+      {
+        anchor: '',
+        fallback: { role: 'button', name: 'layout options' },
+        action: 'click',
+      },
+      {
+        anchor: 'sidebar.classes',
+        fallback: { role: 'button', name: 'two columns' },
+        action: 'click',
+      },
+    ]);
+    expect(recording.steps[0]).toMatchObject({
+      untagged: true,
+      suggestedId: 'button.layout-options',
+    });
+  });
+
+  it('records a keyboard-opened menu as its own step', async () => {
+    const onFinish = renderRecorder(
+      vi.fn(),
+      null,
+      <>
+        <button data-tour="sidebar.open-menu" aria-expanded="false">
+          Menu
+        </button>
+        <button>Plain</button>
+      </>
+    );
+    await startRecording();
+    fireEvent.click(screen.getByText('Menu'), { detail: 0 });
+    // A keyboard click on a control that opens nothing stays unrecorded.
+    fireEvent.click(screen.getByText('Plain'), { detail: 0 });
+    await settle();
+    const recording = await finish(onFinish);
+    expect(recording.steps.map((s) => s.tour.anchor)).toEqual([
+      'sidebar.open-menu',
+    ]);
+  });
+
+  it('re-records one step: finishes itself on the first captured click', async () => {
+    const onFinish = vi.fn();
+    render(
+      <>
+        <button data-tour="sidebar.boards">Boards</button>
+        <TourRecorder
+          single
+          matcher={null}
+          onFinish={onFinish}
+          onDiscard={vi.fn()}
+        />
+      </>
+    );
+    await startRecording();
+    expect(
+      screen.getByText('Click what this step should show')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Finish' })).toBeNull();
+    fireEvent.pointerDown(screen.getByText('Boards'), { button: 0 });
+    await settle();
+    expect(onFinish).toHaveBeenCalledTimes(1);
+    const recording = onFinish.mock.calls[0][0] as TourRecording;
+    expect(recording.frames).toEqual([REDACTED]);
+    expect(recording.steps[0].tour.anchor).toBe('sidebar.boards');
+    expect(stopTrack).toHaveBeenCalled();
+  });
 });

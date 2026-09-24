@@ -3256,6 +3256,7 @@ describe('index barrel — deployed export set', () => {
     'releaseGuidedLearningMediaV1',
     'gcGuidedLearningMediaSweep',
     'glBuildingIndexMirror',
+    'glTourSnapshots',
     'rebuildGlBuildingIndexV1',
     // Admin analytics snapshot + maintenance
     'recomputeAdminAnalytics',

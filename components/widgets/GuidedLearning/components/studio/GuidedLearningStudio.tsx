@@ -38,6 +38,7 @@ import { DashboardContext } from '@/context/DashboardContextValue';
 import { useAutosave } from '@/hooks/useAutosave';
 import {
   requestRecordTour,
+  requestRerecordStep,
   requestStartTour,
 } from '@/components/tours/tourState';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
@@ -54,6 +55,7 @@ import type {
   GuidedLearningSaveGuard,
 } from '../../utils/saveConflict';
 import type { DevicePreset } from '../../types/stage';
+import type { StepRecapture } from '../recorder/recordingHandoff';
 import { StudioCanvas } from './StudioCanvas';
 import { StudioStartHub } from './StudioStartHub';
 import { useFileDrop } from './useFileDrop';
@@ -120,6 +122,8 @@ export interface GuidedLearningStudioProps {
   initialStepId?: string;
   /** Closes the Studio and opens the .gl.json import; offered on an empty set. */
   onImport?: () => void;
+  /** A re-recorded click to apply to its step as one undoable edit on open. */
+  recapture?: StepRecapture;
 }
 
 /** Full-screen Guided Learning editor whose canvas is the real player stage. */
@@ -169,6 +173,7 @@ const StudioSession: React.FC<
   onFolderChange,
   initialStepId,
   onImport,
+  recapture,
   loadedUpdatedAt,
   onReloaded,
 }) => {
@@ -324,15 +329,48 @@ const StudioSession: React.FC<
     [requestClose]
   );
 
-  // The runner loads the saved set, so an unsaved draft never starts.
-  const runLive = useCallback(async () => {
-    if (conflict || !(await autosave.flush())) {
-      addToast?.(t('glStudio.runLiveFailed'), 'error');
-      return;
-    }
-    closeEditor();
-    requestStartTour({ setId: set.id });
-  }, [conflict, autosave, addToast, t, closeEditor, set.id]);
+  // The runner loads the saved draft, so edits are saved first and never need publishing to test.
+  const runLive = useCallback(
+    async (fromStepId?: string) => {
+      if (conflict || !(await autosave.flush())) {
+        addToast?.(t('glStudio.runLiveFailed'), 'error');
+        return;
+      }
+      const fromStep = fromStepId
+        ? editorState.steps.findIndex((s) => s.id === fromStepId)
+        : -1;
+      closeEditor();
+      requestStartTour({
+        setId: set.id,
+        draft: true,
+        ...(fromStepId && fromStep >= 0
+          ? { fromStep, returnToStepId: fromStepId }
+          : {}),
+      });
+    },
+    [conflict, autosave, addToast, t, closeEditor, set.id, editorState.steps]
+  );
+
+  // The recorder takes over the board, then reopens the Studio with the new click applied.
+  const rerecordStep = useCallback(
+    async (stepId: string) => {
+      if (conflict || !(await autosave.flush())) {
+        addToast?.(t('glStudio.rerecordFailed'), 'error');
+        return;
+      }
+      closeEditor();
+      requestRerecordStep({ setId: set.id, stepId });
+    },
+    [conflict, autosave, addToast, t, closeEditor, set.id]
+  );
+  const [peeking, setPeeking] = useState(false);
+
+  // Teachers get exactly what is saved: publish only after the same forced save close uses.
+  const saveForPublish = useCallback(async () => {
+    if (conflict || readOnly || !(await autosave.flush({ force: true })))
+      return null;
+    return buildSavedSet();
+  }, [conflict, readOnly, autosave, buildSavedSet]);
 
   // The draft travels to the classic editor, which keeps saving it, so nothing to confirm.
   const openClassic = useCallback(async () => {
@@ -367,10 +405,8 @@ const StudioSession: React.FC<
     canRedo,
     clipboardStepCount,
   } = editorState;
-  const canRunLive =
-    !!set.isBuilding &&
-    canAccessFeature('gl-live-tours') &&
-    steps.some((step) => step.tour);
+  const liveTours = !!set.isBuilding && canAccessFeature('gl-live-tours');
+  const canRunLive = liveTours && steps.some((step) => step.tour);
 
   const selectStepAt = useCallback(
     (index: number) => {
@@ -382,7 +418,16 @@ const StudioSession: React.FC<
     [steps, setSelectedStepId, setCurrentImageIndex]
   );
 
-  const [pendingStepId, setPendingStepId] = useState(initialStepId);
+  const [pendingRecapture, setPendingRecapture] = useState(recapture);
+  if (pendingRecapture) {
+    setPendingRecapture(undefined);
+    editorState.recaptureStep(pendingRecapture);
+  }
+
+  // A recapture selects its own step, wherever its slide ended up.
+  const [pendingStepId, setPendingStepId] = useState(
+    recapture ? undefined : initialStepId
+  );
   if (pendingStepId) {
     const opening = steps.find((s) => s.id === pendingStepId);
     setPendingStepId(undefined);
@@ -695,7 +740,10 @@ const StudioSession: React.FC<
       aria-label={t('glStudio.dialogLabel')}
       tabIndex={-1}
       data-testid="gl-studio"
-      className="fixed inset-0 flex flex-col bg-slate-100 focus:outline-none"
+      data-peeking={peeking || undefined}
+      className={`fixed inset-0 flex flex-col bg-slate-100 transition-opacity focus:outline-none motion-reduce:transition-none ${
+        peeking ? 'opacity-0' : ''
+      }`}
       style={{ zIndex: Z_INDEX.modalContent }}
     >
       <EditorHeader
@@ -989,7 +1037,20 @@ const StudioSession: React.FC<
             state={editorState}
             onDeleteStep={deleteStepWithUndo}
             canvasRef={canvasRef}
-            liveTours={!!set.isBuilding && canAccessFeature('gl-live-tours')}
+            liveTours={liveTours}
+            tourSet={
+              liveTours && !readOnly
+                ? (buildSavedSet() ?? undefined)
+                : undefined
+            }
+            saveForPublish={saveForPublish}
+            onRunFromStep={canRunLive ? (id) => void runLive(id) : undefined}
+            onRerecordStep={
+              canRecordTour && !readOnly
+                ? (id) => void rerecordStep(id)
+                : undefined
+            }
+            onPeekBoard={setPeeking}
           />
         </aside>
       </div>

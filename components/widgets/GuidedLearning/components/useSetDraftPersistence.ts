@@ -252,6 +252,7 @@ export function useSetDraftPersistence({
   );
 
   const originalWatchPace = set?.watchPace;
+  const originalTourSetup = useMemo(() => set?.tourSetup?.widgets ?? [], [set]);
 
   const [prevSet, setPrevSet] = useState<GuidedLearningSet | null>(set);
   if (set !== prevSet) {
@@ -288,7 +289,8 @@ export function useSetDraftPersistence({
       !arraysEqual(tracked.imageKinds, originalImageKinds) ||
       !trimsEqual(tracked.videoTrims, originalVideoTrims) ||
       !stepsEqual(tracked.steps, originalSteps) ||
-      tracked.watchPace !== originalWatchPace
+      tracked.watchPace !== originalWatchPace ||
+      !arraysEqual(tracked.tourSetupWidgets, originalTourSetup)
     );
   }, [
     tracked.title,
@@ -303,6 +305,7 @@ export function useSetDraftPersistence({
     tracked.videoTrims,
     tracked.steps,
     tracked.watchPace,
+    tracked.tourSetupWidgets,
     originalTitle,
     originalDescription,
     originalMode,
@@ -315,6 +318,7 @@ export function useSetDraftPersistence({
     originalVideoTrims,
     originalSteps,
     originalWatchPace,
+    originalTourSetup,
   ]);
 
   // One-time v1→v2 radius conversion at editor load: convert every spotlight
@@ -420,6 +424,7 @@ export function useSetDraftPersistence({
       tracked.videoTrims,
       tracked.steps,
       tracked.watchPace,
+      tracked.tourSetupWidgets,
     ],
     [
       tracked.title,
@@ -434,6 +439,7 @@ export function useSetDraftPersistence({
       tracked.videoTrims,
       tracked.steps,
       tracked.watchPace,
+      tracked.tourSetupWidgets,
     ]
   );
   const draftTokenRef = useRef(draftToken);
@@ -465,6 +471,7 @@ export function useSetDraftPersistence({
       watchPace: _watchPace,
       hasLiveTour: _hasLiveTour,
       slideThumbnails: _slideThumbnails,
+      tourSetup: _tourSetup,
       ...carried
     } = set;
     const thumbs = editorState.slideThumbnails ?? set.slideThumbnails ?? {};
@@ -474,7 +481,7 @@ export function useSetDraftPersistence({
       )
     );
     return {
-      // Carries imagePaths, tourSetup, helpCenter and fields a newer client added.
+      // Carries imagePaths, helpCenter and fields a newer client added.
       ...carried,
       id: set.id,
       ...(schemaVersion !== undefined ? { schemaVersion } : {}),
@@ -515,6 +522,14 @@ export function useSetDraftPersistence({
           }
         : {}),
       ...(editorState.watchPace ? { watchPace: editorState.watchPace } : {}),
+      ...(set.tourSetup || editorState.tourSetupWidgets.length > 0
+        ? {
+            tourSetup: {
+              ...set.tourSetup,
+              widgets: editorState.tourSetupWidgets,
+            },
+          }
+        : {}),
       // Launch points read this instead of loading every step.
       ...(set.isBuilding ? { hasLiveTour: steps.some((s) => !!s.tour) } : {}),
     };

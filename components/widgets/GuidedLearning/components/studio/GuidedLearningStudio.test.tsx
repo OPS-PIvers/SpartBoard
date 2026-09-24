@@ -33,6 +33,7 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'test-user' },
     isAdmin: true,
+    featurePermissions: [],
     canAccessFeature: (id: string) => features.has(id),
   }),
 }));
@@ -667,7 +668,7 @@ describe('GuidedLearningStudio', () => {
       expect(screen.getByTestId('gl-studio-tour-controls')).toBeInTheDocument();
     });
 
-    it('closes the Studio and starts the saved tour on the board', async () => {
+    it('closes the Studio and starts the saved draft on the board', async () => {
       features.add('gl-live-tours');
       const started = vi.fn();
       const onStart = (e: Event) => {
@@ -680,7 +681,8 @@ describe('GuidedLearningStudio', () => {
           screen.getByRole('button', { name: 'Run live on my board' })
         );
         await waitFor(() => expect(onClose).toHaveBeenCalled());
-        expect(started).toHaveBeenCalledWith({ setId: 'set-1' });
+        // The Studio runs the saved draft, not the published snapshot.
+        expect(started).toHaveBeenCalledWith({ setId: 'set-1', draft: true });
       } finally {
         window.removeEventListener(TOUR_START_EVENT, onStart);
       }

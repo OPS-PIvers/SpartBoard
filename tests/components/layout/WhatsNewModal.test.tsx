@@ -5,7 +5,6 @@ import { WhatsNewModal } from '@/components/layout/WhatsNewModal';
 import type { ChangelogEntry } from '@/hooks/useChangelog';
 import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import { TOUR_START_EVENT } from '@/components/tours/tourState';
-import { __resetLiveTourCacheForTests } from '@/components/tours/useTourOffers';
 
 // The shape returned by useChangelog — typed explicitly so the mock factory
 // can return it without the `as any` cast that triggers @typescript-eslint/no-unsafe-return.
@@ -24,9 +23,15 @@ interface ChangelogHookReturn {
 const useChangelogMock = vi.fn<() => ChangelogHookReturn>();
 const writeLastSeenVersionMock = vi.fn<(v: string | null) => void>();
 
-const loadBuildingSetMock = vi.hoisted(() => vi.fn());
-vi.mock('@/hooks/useGuidedLearning', () => ({
-  loadBuildingSet: loadBuildingSetMock,
+const tours = vi.hoisted(() => ({
+  runnable: vi.fn<(id: string) => boolean | undefined>(),
+  watch: vi.fn(() => () => undefined),
+}));
+vi.mock('@/components/tours/publishedTours', () => ({
+  watchTours: tours.watch,
+  getToursVersion: () => 0,
+  isTourRunnable: tours.runnable,
+  loadRunnableTour: vi.fn(),
 }));
 
 vi.mock('@/hooks/useChangelog', () => ({
@@ -396,18 +401,8 @@ describe('WhatsNewModal — live tour entries', () => {
     return onClose;
   };
 
-  const tourSet = (withTour: boolean) => ({
-    id: 'set-1',
-    steps: [
-      withTour
-        ? { id: 's', tour: { anchor: 'sidebar.boards', action: 'click' } }
-        : { id: 's' },
-    ],
-  });
-
   beforeEach(() => {
-    __resetLiveTourCacheForTests();
-    loadBuildingSetMock.mockResolvedValue(tourSet(true));
+    tours.runnable.mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -432,13 +427,13 @@ describe('WhatsNewModal — live tour entries', () => {
     expect(
       screen.queryByRole('button', { name: 'Show me' })
     ).not.toBeInTheDocument();
-    expect(loadBuildingSetMock).not.toHaveBeenCalled();
+    expect(tours.watch).not.toHaveBeenCalled();
   });
 
-  it('hides Show me when the set no longer has a tour', async () => {
-    loadBuildingSetMock.mockResolvedValue(tourSet(false));
+  it('hides Show me when the set has no published tour', async () => {
+    tours.runnable.mockReturnValue(false);
     renderWithAuth(true);
-    await waitFor(() => expect(loadBuildingSetMock).toHaveBeenCalled());
+    await waitFor(() => expect(tours.watch).toHaveBeenCalled());
     await act(async () => {
       await Promise.resolve();
     });

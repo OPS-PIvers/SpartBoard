@@ -198,16 +198,30 @@ const ToastContainer: React.FC = () => {
             <div className="flex flex-col gap-1">
               <span className="font-semibold text-sm">{toast.message}</span>
               {toast.action && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toast.action?.onClick();
-                    removeToast(toast.id);
-                  }}
-                  className="w-fit px-2 py-1 bg-black/5 hover:bg-black/10 rounded-lg text-xxs font-black uppercase tracking-widest transition-colors"
-                >
-                  {toast.action.label}
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toast.action?.onClick();
+                      removeToast(toast.id);
+                    }}
+                    className="w-fit px-2 py-1 bg-black/5 hover:bg-black/10 rounded-lg text-xxs font-black uppercase tracking-widest transition-colors"
+                  >
+                    {toast.action.label}
+                  </button>
+                  {toast.action.secondary && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toast.action?.secondary?.onClick();
+                        removeToast(toast.id);
+                      }}
+                      className="w-fit px-2 py-1 hover:bg-black/5 rounded-lg text-xxs font-bold uppercase tracking-widest transition-colors"
+                    >
+                      {toast.action.secondary.label}
+                    </button>
+                  )}
+                </div>
               )}
             </div>
             {/* Explicit dismiss control so SR/keyboard users can close a toast

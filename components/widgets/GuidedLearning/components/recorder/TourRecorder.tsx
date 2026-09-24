@@ -22,6 +22,8 @@ interface TourRecorderProps {
   matcher: NameMatcher | null;
   onFinish: (recording: TourRecording) => void;
   onDiscard: () => void;
+  /** Re-record one step: finishes on the first captured click. */
+  single?: boolean;
 }
 
 const btn =
@@ -32,11 +34,24 @@ export const TourRecorder: React.FC<TourRecorderProps> = ({
   matcher,
   onFinish,
   onDiscard,
+  single = false,
 }) => {
   const { t } = useTranslation();
   const pillRef = useRef<HTMLDivElement>(null);
-  const capture = useTourCapture({ chromeRef: pillRef, matcher });
   const [finishing, setFinishing] = useState(false);
+  const finishingRef = useRef(false);
+  const finishWith = (finish: () => Promise<TourRecording>) => {
+    if (finishingRef.current) return;
+    finishingRef.current = true;
+    setFinishing(true);
+    void finish().then(onFinish);
+  };
+  const capture = useTourCapture({
+    chromeRef: pillRef,
+    matcher,
+    // Single mode finishes itself once the one click lands.
+    onStep: single ? (_count, finish) => finishWith(finish) : undefined,
+  });
   const { status, stepCount } = capture;
   const live = status === 'recording' || status === 'paused';
   const message = capture.error ? t(ERROR_KEYS[capture.error]) : null;
@@ -54,12 +69,14 @@ export const TourRecorder: React.FC<TourRecorderProps> = ({
       <div className="flex items-center gap-1">
         {live ? (
           <span role="status" className="px-2 text-sm font-semibold">
-            {t(
-              status === 'recording'
-                ? 'glRecorder.recording'
-                : 'glRecorder.paused',
-              { count: stepCount }
-            )}
+            {single && status === 'recording'
+              ? t('glRecorder.rerecordPrompt')
+              : t(
+                  status === 'recording'
+                    ? 'glRecorder.recording'
+                    : 'glRecorder.paused',
+                  { count: stepCount }
+                )}
           </span>
         ) : (
           <button
@@ -95,15 +112,12 @@ export const TourRecorder: React.FC<TourRecorderProps> = ({
             {t('glRecorder.resume')}
           </button>
         )}
-        {live && (
+        {live && !single && (
           <button
             type="button"
             className={btn}
             disabled={stepCount === 0 || finishing}
-            onClick={() => {
-              setFinishing(true);
-              void capture.finish().then(onFinish);
-            }}
+            onClick={() => finishWith(capture.finish)}
           >
             <Square className="h-3.5 w-3.5" aria-hidden="true" />
             {t('glRecorder.finish')}
@@ -118,7 +132,7 @@ export const TourRecorder: React.FC<TourRecorderProps> = ({
           }}
         >
           <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-          {t('glRecorder.discard')}
+          {t(single ? 'glRecorder.cancel' : 'glRecorder.discard')}
         </button>
       </div>
       {message && (

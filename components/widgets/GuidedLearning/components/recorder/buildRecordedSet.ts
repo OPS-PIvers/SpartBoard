@@ -1,5 +1,41 @@
-import type { GuidedLearningSet, WidgetType } from '@/types';
-import type { TourRecording } from './useTourCapture';
+import type { GuidedLearningSet, WidgetData, WidgetType } from '@/types';
+import {
+  TOUR_ANCHORS,
+  isTourAnchorId,
+  parseTourAnchorRef,
+  type TourAnchorDef,
+} from '@/config/tourAnchors';
+import type { RecordedStep, TourRecording } from './useTourCapture';
+
+type BoardWidget = Pick<WidgetData, 'id' | 'type'>;
+
+/** Widget type a dock or library tile click adds, if the step is one. */
+const addedTypeOf = (anchor: string): WidgetType | undefined => {
+  const { id, widgetType } = parseTourAnchorRef(anchor);
+  if (!widgetType || !isTourAnchorId(id)) return undefined;
+  const def: TourAnchorDef = TOUR_ANCHORS[id];
+  return def.perWidgetType ? (widgetType as WidgetType) : undefined;
+};
+
+/** Widget types the recorded steps clicked inside, minus ones an earlier step added itself. */
+export function touchedWidgetTypes(
+  steps: readonly Pick<RecordedStep, 'tour' | 'widgetId'>[],
+  widgets: readonly BoardWidget[],
+  startIds: ReadonlySet<string>
+): WidgetType[] {
+  const typeOf = new Map(widgets.map((w) => [w.id, w.type]));
+  const added = new Set<WidgetType>();
+  const touched = new Set<WidgetType>();
+  for (const step of steps) {
+    const adds = addedTypeOf(step.tour.anchor);
+    if (adds) added.add(adds);
+    const type = step.widgetId ? typeOf.get(step.widgetId) : undefined;
+    if (!type || !step.widgetId) continue;
+    if (!startIds.has(step.widgetId) && added.has(type)) continue;
+    touched.add(type);
+  }
+  return [...touched];
+}
 
 interface BuildOptions {
   id: string;
@@ -8,8 +44,10 @@ interface BuildOptions {
   imageUrls: string[];
   imagePaths?: string[];
   slideThumbnails?: Record<string, string>;
-  /** Widget types on the board when recording started. */
-  widgets: WidgetType[];
+  /** Every widget seen on the board during the recording. */
+  widgets: readonly BoardWidget[];
+  /** Ids of the widgets on the board when recording started. */
+  startIds: ReadonlySet<string>;
   now?: number;
 }
 
@@ -43,7 +81,9 @@ export function buildRecordedSet(
     createdAt: now,
     updatedAt: now,
     isBuilding: true,
-    tourSetup: { widgets: [...new Set(opts.widgets)] },
+    tourSetup: {
+      widgets: touchedWidgetTypes(recording.steps, opts.widgets, opts.startIds),
+    },
     hasLiveTour: recording.steps.length > 0,
   };
 }

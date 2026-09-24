@@ -1,5 +1,11 @@
+import {
+  isDestructiveAnchor,
+  isTourAnchorId,
+  parseTourAnchorRef,
+} from '@/config/tourAnchors';
 import type {
   GuidedLearningSet,
+  GuidedLearningTourBinding,
   GuidedLearningStep,
   WidgetData,
   WidgetType,
@@ -12,6 +18,19 @@ export type TourStep = GuidedLearningStep & {
 /** A set's live-tour steps, in authored order. */
 export const tourStepsOf = (set: GuidedLearningSet): TourStep[] =>
   set.steps.filter((s): s is TourStep => !!s.tour);
+
+/** Every step a live tour plays, anchored or plain, or none when nothing is anchored. */
+export const liveTourStepsOf = (
+  set: Pick<GuidedLearningSet, 'steps'>
+): GuidedLearningStep[] => (set.steps.some((s) => !!s.tour) ? set.steps : []);
+
+/** The set's welcome message when it is switched on and not blank. */
+export const tourWelcome = (
+  set: Pick<GuidedLearningSet, 'welcomeEnabled' | 'welcomeMessage'>
+): string | null => {
+  const message = set.welcomeMessage?.trim();
+  return set.welcomeEnabled && message ? message : null;
+};
 
 /** Widget types the tour needs that the board does not have yet. */
 export const missingSetupWidgets = (
@@ -57,3 +76,11 @@ export const hasStepSlide = (
   set: Pick<GuidedLearningSet, 'imageUrls'>,
   step: Pick<GuidedLearningStep, 'imageIndex'>
 ): boolean => !!set.imageUrls[step.imageIndex ?? 0];
+
+/** Whether autopilot must leave this step's click to the teacher; fallback-only steps default to yes. */
+export const teacherMustClick = (
+  binding: Pick<GuidedLearningTourBinding, 'anchor' | 'teacherMustClick'>
+): boolean =>
+  binding.teacherMustClick ??
+  (!isTourAnchorId(parseTourAnchorRef(binding.anchor).id) ||
+    isDestructiveAnchor(binding.anchor));

@@ -29,6 +29,13 @@ vi.mock('@/hooks/useFolders', () => ({
   }),
 }));
 
+const runnable = vi.hoisted(() => new Map<string, boolean | undefined>());
+vi.mock('@/components/tours/publishedTours', () => ({
+  watchTours: () => () => undefined,
+  getToursVersion: () => 0,
+  isTourRunnable: (id: string) => runnable.get(id),
+}));
+
 vi.mock('@/hooks/useSessionViewCount', () => ({
   useSessionViewCount: () => ({ count: 0 }),
 }));
@@ -118,6 +125,7 @@ const listen = (type: string) => {
 afterEach(() => {
   listeners.forEach(([type, fn]) => window.removeEventListener(type, fn));
   listeners.length = 0;
+  runnable.clear();
 });
 
 describe('GuidedLearningManager live tours', () => {
@@ -140,9 +148,10 @@ describe('GuidedLearningManager live tours', () => {
     expect(screen.queryByRole('button', { name: 'Record a tour' })).toBeNull();
   });
 
-  it('runs a set with live steps on the board from its menu', async () => {
+  it('runs a published tour on the board from its menu', async () => {
+    runnable.set('live-1', true);
     const start = listen(TOUR_START_EVENT);
-    renderManager(true);
+    renderManager(true, false);
     await cardMenu('Live tour');
     fireEvent.click(
       await screen.findByRole('menuitem', { name: /Run live on my board/ })
@@ -158,5 +167,38 @@ describe('GuidedLearningManager live tours', () => {
     expect(
       screen.queryByRole('menuitem', { name: /Run live on my board/ })
     ).toBeNull();
+  });
+
+  it('hides Run live from teachers until the tour is published', async () => {
+    // A teacher's card has no menu at all without a runnable tour.
+    const noRunLive = async () => {
+      await screen.findByText('Live tour');
+      const more = screen.queryAllByRole('button', { name: 'More actions' });
+      more.forEach((b) => fireEvent.click(b));
+      expect(screen.queryByRole('menuitem', { name: /Run live/ })).toBeNull();
+    };
+    runnable.set('live-1', false);
+    renderManager(true, false);
+    await noRunLive();
+    cleanup();
+    runnable.delete('live-1');
+    renderManager(true, false);
+    await noRunLive();
+  });
+
+  it('lets an admin who can edit run an unpublished tour as a draft', async () => {
+    runnable.set('live-1', false);
+    const start = listen(TOUR_START_EVENT);
+    renderManager(true, true);
+    await cardMenu('Live tour');
+    fireEvent.click(
+      await screen.findByRole('menuitem', {
+        name: /Run live on my board \(draft\)/,
+      })
+    );
+    expect((start.mock.calls[0][0] as CustomEvent).detail).toEqual({
+      setId: 'live-1',
+      draft: true,
+    });
   });
 });

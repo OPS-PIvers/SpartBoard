@@ -1106,6 +1106,24 @@ service cloud.firestore {
       allow read: if request.auth != null;
     }
 
+    // Published live tours (P7-3): staff read, admins publish; students never run tours.
+    match /building_guided_learning_tours/{setId} {
+      function staff() { return request.auth != null && notAnon() && !isStudentRoleUser(); }
+      allow read: if staff();
+      allow write: if isAdmin();
+      // Each teacher's latest run of the tour (P7-6): write-only, admins read.
+      match /runs/{uid} {
+        function validRun(d) {
+          return d.keys().hasOnly(['v', 'startedAt', 'furthest', 'done', 'exit', 'misses']) &&
+            d.v is int && d.startedAt is int && d.done is bool && optInt(d, 'exit') &&
+            d.furthest is int && d.furthest >= 0 && d.furthest <= 500 &&
+            d.misses is list && d.misses.size() <= 50;
+        }
+        allow read: if isAdmin();
+        allow create, update: if staff() && uid == request.auth.uid && validRun(request.resource.data);
+      }
+    }
+
     // Admin backgrounds - authenticated users can read based on access level, only admins can write
     match /admin_backgrounds/{backgroundId} {
       // Admins can read everything
@@ -4776,9 +4794,9 @@ service cloud.firestore {
             d.furthestStepIdx is int && d.furthestStepIdx >= 0 && d.furthestStepIdx <= 500 &&
             d.steps is map && d.steps.size() <= 200 &&
             d.startedAt is timestamp &&
-            (!('mode' in d) || d.mode in ['watch', 'try']) &&
+            d.get('mode', 'try') in ['watch', 'try'] &&
             optInt(d, 'modeSwitches') && optBool(d, 'completed') &&
-            (!('updatedAt' in d) || d.updatedAt is timestamp);
+            d.get('updatedAt', d.startedAt) is timestamp;
         }
         allow get: if request.auth != null &&
           (uid == request.auth.uid || glIsTeacher() || isSubMonitor(glSession()));
@@ -4811,9 +4829,7 @@ service cloud.firestore {
         allow create: if request.auth != null &&
           request.resource.data.keys().hasOnly(['viewedAt']) &&
           request.resource.data.viewedAt is timestamp &&
-          exists(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)) &&
           glSessionMode() == 'view-only';
-        allow update, delete: if false;
       }
     }
 

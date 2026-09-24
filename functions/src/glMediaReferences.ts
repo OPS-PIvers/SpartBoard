@@ -7,6 +7,7 @@ type Query = admin.firestore.Query;
 
 const PERSONAL_COLLECTION = 'guided_learning';
 const BUILDING_COLLECTION = 'building_guided_learning';
+const TOURS_COLLECTION = 'building_guided_learning_tours';
 const SESSIONS_COLLECTION = 'guided_learning_sessions';
 const TOMBSTONES_COLLECTION = 'gl_media_tombstones';
 const ASSIGNMENTS_COLLECTION = 'guided_learning_assignments';
@@ -139,7 +140,7 @@ export interface ReferenceScanOptions {
   ignoreBuildingSetId?: string;
 }
 
-/** Building and Help Center sets, sessions, sub-share keys and open tombstones. */
+/** Building and Help Center sets, published tours, sessions, sub-share keys and open tombstones. */
 export async function loadSharedReferences(
   db: Firestore,
   opts: ReferenceScanOptions = {}
@@ -150,6 +151,10 @@ export async function loadSharedReferences(
       if (doc.id !== opts.ignoreBuildingSetId)
         collectReferences(doc.data(), refs);
     }),
+    // A published tour keeps showing its slides until it is republished.
+    scan(db.collection(TOURS_COLLECTION), (doc) =>
+      collectReferences(doc.data(), refs)
+    ),
     addSessionReferences(db, refs),
     addSubShareReferences(db, refs),
     addTombstoneHolds(db, refs),

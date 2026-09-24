@@ -1,4 +1,15 @@
+import type { GuidedLearningTourBinding } from '@/types';
+import type { RecordedPlacement } from './resolveAnchor';
 import type { TourRecording } from './useTourCapture';
+
+/** One re-recorded click: the uploaded frame and the step's new placement and binding. */
+export interface StepRecapture {
+  stepId: string;
+  url: string;
+  thumbnailUrl?: string;
+  placement: RecordedPlacement;
+  tour: GuidedLearningTourBinding;
+}
 
 export interface UploadedFrame {
   url: string;

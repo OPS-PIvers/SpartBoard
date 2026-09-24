@@ -20,7 +20,7 @@ import { loadBuildingSet } from '@/hooks/useGuidedLearning';
 import { logError } from '@/utils/logError';
 import { useAuth } from '@/context/useAuth';
 import { requestStartTour } from '@/components/tours/tourState';
-import { setHasLiveTour } from '@/components/tours/useTourOffers';
+import { useFirstRunnableTour } from '@/components/tours/useTourOffers';
 
 // Lazy so the Help modal never pulls the Guided Learning player for teachers who only read embeds.
 const GuidedLearningPlayer = lazy(() =>
@@ -47,6 +47,11 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
   const { t } = useTranslation();
   const { canAccessFeature } = useAuth();
   const [state, setState] = useState<GlState>({ status: 'loading' });
+  const hasTour =
+    useFirstRunnableTour(
+      [setId],
+      !fill && canAccessFeature('gl-live-tours')
+    ) !== null;
 
   useEffect(() => {
     let cancelled = false;
@@ -80,9 +85,6 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
     );
   }
 
-  const showLive =
-    !fill && canAccessFeature('gl-live-tours') && setHasLiveTour(state.set);
-
   const player = (
     <div
       className={`relative w-full overflow-hidden bg-slate-900 ${
@@ -106,7 +108,7 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
     </div>
   );
 
-  if (!showLive) return player;
+  if (!hasTour) return player;
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">

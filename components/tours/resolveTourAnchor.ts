@@ -80,9 +80,9 @@ export function findTourAnchor(
   const selector =
     `[data-tour=${quote(id)}]` +
     (widgetType ? `[data-tour-widget-type=${quote(widgetType)}]` : '');
-  const tagged = Array.from(
-    root.querySelectorAll<HTMLElement>(selector)
-  ).filter(usable);
+  const tagged = id
+    ? Array.from(root.querySelectorAll<HTMLElement>(selector)).filter(usable)
+    : [];
   if (tagged.length > 0) {
     const scoped = scope.widgetIds?.length
       ? tagged.find((el) =>
