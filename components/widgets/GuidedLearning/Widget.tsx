@@ -70,6 +70,10 @@ import {
 } from './utils/glTransfer';
 import { pickThumbnailUrl } from '@/utils/guidedLearningMedia';
 import { SetPrefetchCache } from './utils/setPrefetchCache';
+import {
+  answerKeysForSteps,
+  withFrozenAnswerKeys,
+} from './utils/resultsScoring';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 
 // Code-split (Phase 5): heavy GL surfaces load on demand, not with the dashboard.
@@ -224,6 +228,14 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // Local component state
   const [loadingSet, setLoadingSet] = useState(false);
   const [activeSet, setActiveSet] = useState<GuidedLearningSet | null>(null);
+  // Results score against the keys frozen at assign, when the assignment has them.
+  const resultsAnswerKeys = assignments.find(
+    (a) => a.id === config.resultsSessionId
+  )?.answerKeys;
+  const resultsSet = useMemo(
+    () => activeSet && withFrozenAnswerKeys(activeSet, resultsAnswerKeys),
+    [activeSet, resultsAnswerKeys]
+  );
   // Session whose set couldn't be loaded, so Results shows an error instead of a stale set.
   const [resultsLoadError, setResultsLoadError] = useState<string | null>(null);
   const [editingSet, setEditingSet] = useState<GuidedLearningSet | null>(null);
@@ -632,6 +644,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               closeAt: periodGate ? undefined : expandedTargeting.closeAt,
               dueAt: expandedTargeting.dueAt,
               ...(periodGate ? { periodGate } : {}),
+              answerKeys: answerKeysForSteps(data.steps),
             });
           } catch (err) {
             console.warn('[GuidedLearning] Failed to record assignment:', err);
@@ -1445,7 +1458,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                 return (
                   <Suspense fallback={<LazySpinner />}>
                     <GuidedLearningResults
-                      set={activeSet}
+                      set={resultsSet ?? activeSet}
                       sessionId={config.resultsSessionId}
                       onClose={closeResults}
                       viewOnly={isViewOnlyResults}
@@ -1597,7 +1610,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               }
               const result = await publishAssignmentScores(
                 target.id,
-                data,
+                withFrozenAnswerKeys(data, target.answerKeys),
                 visibility
               );
               addToast(

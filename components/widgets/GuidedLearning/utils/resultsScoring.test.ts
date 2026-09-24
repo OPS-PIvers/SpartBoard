@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import type { GuidedLearningPublicStep, GuidedLearningStep } from '@/types';
-import { scoringStepsForSession } from './resultsScoring';
+import {
+  answerKeysForSteps,
+  scoringStepsForSession,
+  withFrozenAnswerKeys,
+} from './resultsScoring';
 
 const mc = (id: string, correct: string, text = id): GuidedLearningStep => ({
   id,
@@ -61,5 +65,44 @@ describe('scoringStepsForSession', () => {
   it("falls back to the set's own questions when the session has none to read", () => {
     const steps = scoringStepsForSession(null, [...assigned, mc('q1', 'b')]);
     expect(steps.map((s) => s.id)).toEqual(['q1', 'q2']);
+  });
+});
+
+describe('frozen answer keys', () => {
+  const set = (steps: GuidedLearningStep[]) => ({
+    id: 'set-1',
+    title: 'Set',
+    imageUrls: [],
+    steps,
+    mode: 'structured' as const,
+    createdAt: 1,
+    updatedAt: 1,
+  });
+
+  it('captures only question keys, with no undefined fields', () => {
+    const keys = answerKeysForSteps([mc('q1', 'a'), text('t1')]);
+    expect(keys).toEqual({
+      q1: { type: 'multiple-choice', choices: ['a', 'b'], correctAnswer: 'a' },
+    });
+    expect(Object.values(keys.q1)).not.toContain(undefined);
+  });
+
+  it('scores an edited set against the keys frozen at assign', () => {
+    const keys = answerKeysForSteps([mc('q1', 'a')]);
+    const edited = set([mc('q1', 'b', 'Reworded')]);
+    const frozen = withFrozenAnswerKeys(edited, keys);
+    expect(frozen.steps[0].question?.correctAnswer).toBe('a');
+    expect(frozen.steps[0].question?.text).toBe('Reworded');
+  });
+
+  it('leaves a question whose type changed, and sets without keys, alone', () => {
+    const keys = answerKeysForSteps([mc('q1', 'a')]);
+    const sorting: GuidedLearningStep = {
+      ...mc('q1', 'a'),
+      question: { type: 'sorting', text: 'q1', sortingItems: ['x', 'y'] },
+    };
+    const edited = set([sorting]);
+    expect(withFrozenAnswerKeys(edited, keys).steps[0]).toBe(sorting);
+    expect(withFrozenAnswerKeys(edited, undefined)).toBe(edited);
   });
 });

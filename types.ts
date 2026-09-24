@@ -9791,7 +9791,15 @@ export interface GuidedLearningAssignment
   targetSkippedCount?: number;
   /** Individually-targeted refs removed via the hub (M17 §5 D3). See `QuizAssignment.removedStudentRefs`. */
   removedStudentRefs?: StudentTargetRef[];
+  /** Answer keys by step id, frozen at assign so a later set edit never rescores. */
+  answerKeys?: Record<string, GuidedLearningAnswerKey>;
 }
+
+/** The scoring half of a question, stored on the teacher-only assignment doc. */
+export type GuidedLearningAnswerKey = Pick<
+  GuidedLearningQuestion,
+  'type' | 'choices' | 'correctAnswer' | 'matchingPairs' | 'sortingItems'
+>;
 
 // === Library folders (Wave 3) ===
 //

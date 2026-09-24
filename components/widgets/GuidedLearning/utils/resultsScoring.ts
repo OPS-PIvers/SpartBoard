@@ -1,5 +1,7 @@
 import type {
+  GuidedLearningAnswerKey,
   GuidedLearningPublicStep,
+  GuidedLearningSet,
   GuidedLearningQuestion,
   GuidedLearningStep,
 } from '@/types';
@@ -42,4 +44,50 @@ export function scoringStepsForSession(
     });
   }
   return out;
+}
+
+/** Each question's key by step id, with no undefined fields (Firestore rejects them). */
+export function answerKeysForSteps(
+  steps: GuidedLearningStep[]
+): Record<string, GuidedLearningAnswerKey> {
+  const keys: Record<string, GuidedLearningAnswerKey> = {};
+  for (const s of steps) {
+    if (!isQuestion(s) || !s.question || keys[s.id]) continue;
+    const { type, choices, correctAnswer, matchingPairs, sortingItems } =
+      s.question;
+    keys[s.id] = {
+      type,
+      ...(choices ? { choices } : {}),
+      ...(correctAnswer !== undefined ? { correctAnswer } : {}),
+      ...(matchingPairs ? { matchingPairs } : {}),
+      ...(sortingItems ? { sortingItems } : {}),
+    };
+  }
+  return keys;
+}
+
+/** The set with each question's key replaced by the one frozen at assign, where the type still matches. */
+export function withFrozenAnswerKeys(
+  set: GuidedLearningSet,
+  keys: Record<string, GuidedLearningAnswerKey> | undefined
+): GuidedLearningSet {
+  if (!keys) return set;
+  return {
+    ...set,
+    steps: set.steps.map((s) => {
+      const key = keys[s.id];
+      if (!key || !s.question || s.question.type !== key.type) return s;
+      return {
+        ...s,
+        question: {
+          type: s.question.type,
+          text: s.question.text,
+          choices: key.choices,
+          correctAnswer: key.correctAnswer,
+          matchingPairs: key.matchingPairs,
+          sortingItems: key.sortingItems,
+        },
+      };
+    }),
+  };
 }
