@@ -115,6 +115,33 @@ describe('TestAndKeyUploader', () => {
     expect(screen.queryByText(/This looks like an answer key/)).toBeNull();
   });
 
+  it('keeps each zone busy on its own while a file is checked', async () => {
+    let release: (v: boolean) => void = () => undefined;
+    const { onSubmit } = setup({
+      looksLikeKey: (_f, name) =>
+        name === 'slow test.pdf'
+          ? new Promise<boolean>((r) => {
+              release = r;
+            })
+          : Promise.resolve(false),
+    });
+    drop('test', [pdf('slow test.pdf')]);
+    drop('key', [pdf('key.pdf')]);
+    await within(screen.getByTestId('key-zone')).findByText('key.pdf');
+    // The key finishing must not free the test zone mid-check.
+    drop('test', [pdf('other.pdf')]);
+    release(true);
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Read the test' })
+      ).toBeEnabled()
+    );
+    expect(screen.queryByText('other.pdf')).toBeNull();
+    expect(screen.queryByText(/This looks like an answer key/)).toBeNull();
+    read();
+    expect(onSubmit.mock.calls[0][0].test?.fileName).toBe('slow test.pdf');
+  });
+
   it('says nothing for an ordinary test', async () => {
     setup();
     drop('test', [pdf('Unit 3.pdf')]);

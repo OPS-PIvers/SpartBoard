@@ -96,7 +96,22 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
     key: '',
   });
   const [keyHint, setKeyHint] = useState(false);
-  const [working, setWorking] = useState<Zone | null>(null);
+  const [working, setWorking] = useState<Record<Zone, boolean>>({
+    test: false,
+    key: false,
+  });
+  // Per zone, and a ref so two quick drops can't both pass before a render.
+  const inFlight = useRef<Record<Zone, boolean>>({ test: false, key: false });
+  const begin = (zone: Zone): boolean => {
+    if (busy || inFlight.current[zone]) return false;
+    inFlight.current[zone] = true;
+    setWorking((prev) => ({ ...prev, [zone]: true }));
+    return true;
+  };
+  const end = (zone: Zone): void => {
+    inFlight.current[zone] = false;
+    setWorking((prev) => ({ ...prev, [zone]: false }));
+  };
   const showTest = zones !== 'key';
   const showKey = zones !== 'test';
 
@@ -112,7 +127,7 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
     []
   );
 
-  const disabled = busy || working !== null;
+  const disabled = busy || working.test || working.key;
 
   const put = (zone: Zone, next: ZoneContent | null): void => {
     setContent((prev) => {
@@ -158,7 +173,15 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
     if (zone === 'test' && showKey && !content.key) {
       const isKey = await looksLikeKey(file, fileName);
       // The key zone may have been filled while the file was read.
-      if (isKey && !contentRef.current.key) setKeyHint(true);
+      const now = contentRef.current;
+      if (
+        isKey &&
+        !now.key &&
+        now.test?.kind === 'document' &&
+        now.test.file === file
+      ) {
+        setKeyHint(true);
+      }
     }
   };
 
@@ -166,8 +189,8 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
     const decoded: File[] = [];
     for (const f of files) decoded.push(await decode(f));
     const existing =
-      content[zone]?.kind === 'photos'
-        ? (content[zone] as { photos: Photo[] }).photos
+      contentRef.current[zone]?.kind === 'photos'
+        ? (contentRef.current[zone] as { photos: Photo[] }).photos
         : [];
     const added = decoded
       .sort((a, b) => naturalCompare(a.name, b.name))
@@ -210,9 +233,8 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
   };
 
   const takeFiles = async (zone: Zone, files: File[]): Promise<void> => {
-    if (files.length === 0 || busy || working === zone) return;
+    if (files.length === 0 || !begin(zone)) return;
     setErrors((prev) => ({ ...prev, [zone]: '' }));
-    setWorking(zone);
     try {
       const images = files.filter((f) => documentKind(f, f.name) === 'image');
       if (images.length === files.length) {
@@ -237,14 +259,13 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
         err instanceof Error ? err.message : 'That file couldn’t be opened.'
       );
     } finally {
-      setWorking(null);
+      end(zone);
     }
   };
 
   const pickDrive = async (zone: Zone): Promise<void> => {
-    if (!pickFromDrive || busy || working === zone) return;
+    if (!pickFromDrive || !begin(zone)) return;
     setErrors((prev) => ({ ...prev, [zone]: '' }));
-    setWorking(zone);
     try {
       const picked = await pickFromDrive();
       if (picked) await placeDocument(zone, picked.file, picked.fileName);
@@ -254,7 +275,7 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
         err instanceof Error ? err.message : 'Could not open the Drive file.'
       );
     } finally {
-      setWorking(null);
+      end(zone);
     }
   };
 
@@ -312,8 +333,8 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
             accept={`${DOCUMENT_ACCEPT}${allowCartridge ? ',.imscc' : ''},${PHOTO_ACCEPT}`}
             content={content.test}
             error={errors.test}
-            working={working === 'test'}
-            disabled={busy || working === 'test'}
+            working={working.test}
+            disabled={busy || working.test}
             canPickFromDrive={!!pickFromDrive}
             onFiles={(files) => void takeFiles('test', files)}
             onPickDrive={() => void pickDrive('test')}
@@ -345,8 +366,8 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
             accept={`${DOCUMENT_ACCEPT},${PHOTO_ACCEPT}`}
             content={content.key}
             error={errors.key}
-            working={working === 'key'}
-            disabled={busy || working === 'key'}
+            working={working.key}
+            disabled={busy || working.key}
             canPickFromDrive={!!pickFromDrive}
             onFiles={(files) => void takeFiles('key', files)}
             onPickDrive={() => void pickDrive('key')}
