@@ -315,7 +315,7 @@ describe('QuizDocumentReview — rows from the reliable reader (R9, R25)', () =>
     });
     const { latest } = setup(data);
     const box = screen.getByLabelText('Create question 2');
-    expect(box.checked).toBe(false);
+    expect(box).not.toBeChecked();
     expect(
       screen.getByText(/This looks like a self-reflection item/)
     ).toBeInTheDocument();
