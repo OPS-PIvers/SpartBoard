@@ -8744,6 +8744,8 @@ export type GlobalFeature =
   | 'quiz-choose-all'
   /** "Also accept" alternate answers on fill-in-the-blank quiz questions. */
   | 'quiz-fib-alternates'
+  /** "View full screen" toggle on large pop-ups (editors, graders). */
+  | 'modal-fullscreen'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
   | 'quiz-results-tools';
 

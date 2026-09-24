@@ -101,6 +101,7 @@ export const ProjectGroupsManager: React.FC<ProjectGroupsManagerProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={`Groups — ${projectTitle}`}
+      allowFullscreen
       maxWidth="max-w-5xl"
       contentClassName="flex min-h-0 flex-col px-6 pb-5"
     >

@@ -44,7 +44,7 @@ import { normalizeQuizTranslation } from '@/utils/quizTranslationNormalize';
  * Defined at module scope so it has stable identity — `buildResultsSheetData`
  * is allocation-sensitive on big PLC exports.
  */
-function makeQuizGradeFn(fibGrading?: FibGradingContext | null) {
+export function makeQuizGradeFn(fibGrading?: FibGradingContext | null) {
   return (
     question: QuizQuestion,
     studentAnswer: string,

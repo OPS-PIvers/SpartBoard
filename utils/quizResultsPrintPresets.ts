@@ -5,7 +5,9 @@ export type ResultsPrintPresetId =
   | 'graded-copy'
   | 'responses-only'
   | 'answer-key-review'
-  | 'bubble-sheet';
+  | 'bubble-sheet'
+  | 'full-report'
+  | 'missed-only';
 
 export interface ResultsPrintPreset {
   id: ResultsPrintPresetId;
@@ -66,6 +68,35 @@ export const RESULTS_PRINT_PRESETS: readonly ResultsPrintPreset[] = [
       layout: 'sheet',
     },
   },
+  {
+    id: 'full-report',
+    label: 'Full report',
+    options: {
+      ...base,
+      keyMode: 'all',
+      showCommentBox: false,
+      showWrittenFeedback: true,
+      includeStimuli: true,
+      questionScope: 'all',
+    },
+  },
+  {
+    id: 'missed-only',
+    label: 'Missed only',
+    options: {
+      ...base,
+      keyMode: 'all',
+      showCommentBox: false,
+      showWrittenFeedback: true,
+      questionScope: 'missed',
+    },
+  },
+];
+
+/** The two report choices teachers pick between when the results tools are on. */
+export const REPORT_CHOICE_PRESETS: readonly ResultsPrintPresetId[] = [
+  'full-report',
+  'missed-only',
 ];
 
 export const DEFAULT_RESULTS_PRINT_PRESET: ResultsPrintPresetId =
@@ -98,10 +129,12 @@ const BOOLEAN_KEYS = [
 ] as const;
 
 /** The last preset and toggles on this browser, or the default preset (D11). */
-export function loadResultsPrintChoice(): SavedResultsPrintChoice {
+export function loadResultsPrintChoice(
+  defaultPreset: ResultsPrintPresetId = DEFAULT_RESULTS_PRINT_PRESET
+): SavedResultsPrintChoice {
   const fallback: SavedResultsPrintChoice = {
-    preset: DEFAULT_RESULTS_PRINT_PRESET,
-    options: applyPreset(DEFAULT_RESULTS_PRINT_PRESET),
+    preset: defaultPreset,
+    options: applyPreset(defaultPreset),
   };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -128,6 +161,11 @@ export function loadResultsPrintChoice(): SavedResultsPrintChoice {
       saved.layout === 'both'
     ) {
       options.layout = saved.layout;
+    }
+    if (saved.questionScope === 'all' || saved.questionScope === 'missed') {
+      options.questionScope = saved.questionScope;
+    } else {
+      delete options.questionScope;
     }
     const preset = RESULTS_PRINT_PRESETS.some((p) => p.id === parsed?.preset)
       ? (parsed?.preset as ResultsPrintPresetId)

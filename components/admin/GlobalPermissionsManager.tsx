@@ -42,6 +42,7 @@ import {
   Eye,
   ListChecks,
   TextCursorInput,
+  Maximize2,
   UserSearch,
   PlayCircle,
   Music2,
@@ -312,11 +313,18 @@ const GLOBAL_FEATURES: {
       'Adds an "Also Accept" list under the correct answer of fill-in-the-blank quiz questions, so answers like "colour" and "color" both count. The extra answers are shown to students wherever the correct answer is revealed. Admin-only until this is saved and opened up.',
   },
   {
+    id: 'modal-fullscreen',
+    label: 'Full screen for large pop-ups',
+    icon: Maximize2,
+    description:
+      'Adds a "View full screen" button to large pop-ups such as the quiz editor, the free-response grader and other editors, so they fill the whole screen on small Chromebooks. Esc returns to the normal size. Admin-only until this is saved and opened up.',
+  },
+  {
     id: 'quiz-results-tools',
     label: 'Quiz results teacher tools',
     icon: UserSearch,
     description:
-      "In question results, each student name opens that student's answers on the Students page. Admin-only until this is saved and opened up.",
+      'Adds tools to quiz results. In question results, each student name opens that student\'s answers, and "Select these students" picks exactly that group. The student list shows each written answer\'s teacher comment and rubric levels. Printing leads with a choice between a full report and missed questions only. With students selected, teachers can export their results as a spreadsheet file, or reopen the quiz so they can change their answers and submit again while the assignment is still open. Admin-only until this is saved and opened up.',
   },
   {
     id: 'settings-drawer',
