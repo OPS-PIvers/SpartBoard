@@ -43,6 +43,8 @@ playwright-report/
 
 # Vitest
 coverage/
+# Real teacher test files for the import corpus; never committed
+tests/fixtures/private-quiz-import/
 .vitest-reports/
 .env
 .env.*

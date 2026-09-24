@@ -55,7 +55,9 @@ export async function readTestDocument(
   const inBrowser = async (): Promise<ExtractedQuiz> =>
     readQuizDocument(file, {
       fileName,
-      ...(kind === 'pdf' ? { pdf: await browserPdfDeps(file) } : {}),
+      ...(kind === 'pdf'
+        ? { pdf: await browserPdfDeps(file), pdfCropper: browserPdfCropper }
+        : {}),
       ...(kind === 'image' ? { pdf: browserImageDeps(pages), pages } : {}),
       ...(options.multiAnswer ? { multiAnswer: true } : {}),
     });

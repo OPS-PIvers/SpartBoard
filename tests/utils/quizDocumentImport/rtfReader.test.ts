@@ -104,11 +104,46 @@ describe('parseRtf', () => {
     expect(lines[0].text.trim()).toBe('xéy');
   });
 
-  it('starts a new line at a table cell so two-column options stay apart', () => {
+  it('reads a table row as one line with a segment per cell', () => {
     const lines = parseRtf(
       `${HEADER}\\pard\\intbl A. Rome\\cell B. Paris\\cell\\row}`
     );
-    expect(lines.map((l) => l.text.trim())).toEqual(['A. Rome', 'B. Paris']);
+    expect(lines).toHaveLength(1);
+    expect(lines[0].segments?.map((s) => s.text.trim())).toEqual([
+      'A. Rome',
+      'B. Paris',
+    ]);
+    expect(lines[0].text).toBe('A. Rome B. Paris');
+  });
+
+  it('keeps a cell with two paragraphs in one segment', () => {
+    const lines = parseRtf(
+      `${HEADER}\\pard\\intbl 1\\cell First part\\par second part\\cell\\row}`
+    );
+    expect(lines[0].segments?.map((s) => s.text.trim())).toEqual([
+      '1',
+      'First part second part',
+    ]);
+  });
+
+  it('breaks a segment at a tab and keeps bold on the piece it covers', () => {
+    const lines = parseRtf(
+      `${HEADER}\\pard a. 357.4\\tab {\\b d. 35,740}\\par}`
+    );
+    expect(lines[0].segments?.map((s) => s.text.trim())).toEqual([
+      'a. 357.4',
+      'd. 35,740',
+    ]);
+    expect(lines[0].segments?.[0].emphasized).toBeUndefined();
+    expect(lines[0].segments?.[1].emphasized).toBe(true);
+  });
+
+  it('flattens a nested cell into a segment break, not a new line', () => {
+    const lines = parseRtf(
+      `${HEADER}\\pard\\intbl\\itap2 A. One\\nestcell B. Two\\nestcell{\\*\\nesttableprops\\nestrow}\\itap1 C. Three\\cell\\row}`
+    );
+    expect(lines).toHaveLength(1);
+    expect(lines[0].text.replace(/\s+/g, ' ')).toBe('A. One B. Two C. Three');
   });
 
   it('keeps literal braces and backslashes', () => {
