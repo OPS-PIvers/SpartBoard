@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import {
   TAB_WARNING_THRESHOLD_MIN,
   TAB_WARNING_THRESHOLD_MAX,
@@ -110,6 +111,9 @@ export const TabAwayLimitRow: React.FC<{
       tabAwayLimitSeconds: clampTabAwaySeconds(next),
     });
   const step = current < 60 ? 5 : 15;
+  const hasPresetMatch = (TAB_AWAY_LIMIT_PRESETS as readonly number[]).includes(
+    current
+  );
 
   return (
     <div>
@@ -129,26 +133,36 @@ export const TabAwayLimitRow: React.FC<{
       {enabled && (
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
           <div
-            role="group"
+            role="radiogroup"
             aria-label="Time allowed away"
             className="inline-flex rounded-lg border border-slate-200 bg-white overflow-hidden"
+            onKeyDown={(e) =>
+              handleRadioGroupKeyDown(e, TAB_AWAY_LIMIT_PRESETS, set)
+            }
           >
-            {TAB_AWAY_LIMIT_PRESETS.map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                aria-pressed={current === preset}
-                onClick={() => set(preset)}
-                className={
-                  'px-2.5 py-1 text-xs font-bold transition ' +
-                  (current === preset
-                    ? 'bg-brand-blue-primary text-white'
-                    : 'text-slate-600 hover:bg-slate-50')
-                }
-              >
-                {presetLabel(preset)}
-              </button>
-            ))}
+            {TAB_AWAY_LIMIT_PRESETS.map((preset, index) => {
+              const checked = current === preset;
+              return (
+                <button
+                  key={preset}
+                  type="button"
+                  role="radio"
+                  aria-checked={checked}
+                  tabIndex={
+                    checked || (!hasPresetMatch && index === 0) ? 0 : -1
+                  }
+                  onClick={() => set(preset)}
+                  className={
+                    'px-2.5 py-1 text-xs font-bold transition ' +
+                    (checked
+                      ? 'bg-brand-blue-primary text-white'
+                      : 'text-slate-600 hover:bg-slate-50')
+                  }
+                >
+                  {presetLabel(preset)}
+                </button>
+              );
+            })}
           </div>
           <div className="inline-flex items-center gap-1">
             <button
