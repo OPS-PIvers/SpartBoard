@@ -7,7 +7,15 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Clipboard, Film, Loader2, Trash2, Upload } from 'lucide-react';
+import {
+  Clipboard,
+  ClipboardPaste,
+  Copy,
+  Film,
+  Loader2,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import {
   SortableList,
   type SortableListDragHandleProps,
@@ -21,6 +29,8 @@ import { CaptureMenuButton } from '../editorShared/CaptureMenuButton';
 import { ScreenCaptureModal, type CaptureMode } from '../ScreenCaptureModal';
 import type { GuidedLearningEditorController } from '../useGuidedLearningEditorState';
 import { useDialog } from '@/context/useDialog';
+import { StudioMenu } from './StudioMenu';
+import { modShortcutLabel } from './useStudioShortcuts';
 
 interface SlideItem {
   id: string;
@@ -42,6 +52,10 @@ interface SlideThumbProps {
   handle: SortableListDragHandleProps;
   onSelect: (index: number) => void;
   onDelete: (index: number) => void;
+  onDuplicate: (index: number) => void;
+  onPaste: (index: number) => void;
+  /** Steps waiting on the clipboard. */
+  pasteCount: number;
 }
 
 const SlideThumbBody = React.memo(function SlideThumbBody({
@@ -49,6 +63,9 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
   handle,
   onSelect,
   onDelete,
+  onDuplicate,
+  onPaste,
+  pasteCount,
   current,
   count,
 }: SlideThumbProps & { current: boolean; count: number }) {
@@ -114,6 +131,29 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
       >
         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
+      <div className="absolute bottom-1 right-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 has-[[aria-expanded=true]]:opacity-100 [@media(hover:none)]:opacity-100">
+        <StudioMenu
+          label={t('glStudio.slideActionsN', { n })}
+          testId={`gl-studio-slide-menu-${slide.index}`}
+          triggerClassName="rounded-md bg-white/90 p-1 text-slate-600 shadow-sm hover:text-slate-900"
+          items={[
+            {
+              id: 'duplicate',
+              label: t('glStudio.duplicateSlide'),
+              icon: Copy,
+              hint: current ? modShortcutLabel('d') : undefined,
+              onSelect: () => onDuplicate(slide.index),
+            },
+            {
+              id: 'paste',
+              label: t('glStudio.pasteStepsHere'),
+              icon: ClipboardPaste,
+              disabled: pasteCount === 0,
+              onSelect: () => onPaste(slide.index),
+            },
+          ]}
+        />
+      </div>
     </div>
   );
 });
@@ -158,6 +198,9 @@ type FilmstripState = Pick<
   | 'currentImageIndex'
   | 'setCurrentImageIndex'
   | 'deleteImage'
+  | 'duplicateSlide'
+  | 'pasteSteps'
+  | 'clipboardStepCount'
   | 'uploading'
   | 'uploadProgress'
   | 'uploadFromFiles'
@@ -189,6 +232,9 @@ const FilmstripBody = React.memo(function FilmstripBody({
   setCurrentImageIndex,
   onReorderSlides,
   deleteImage,
+  duplicateSlide,
+  pasteSteps,
+  clipboardStepCount,
   uploading,
   uploadProgress,
   uploadFromFiles,
@@ -237,9 +283,18 @@ const FilmstripBody = React.memo(function FilmstripBody({
         handle={handle}
         onSelect={setCurrentImageIndex}
         onDelete={deleteImage}
+        onDuplicate={duplicateSlide}
+        onPaste={pasteSteps}
+        pasteCount={clipboardStepCount}
       />
     ),
-    [setCurrentImageIndex, deleteImage]
+    [
+      setCurrentImageIndex,
+      deleteImage,
+      duplicateSlide,
+      pasteSteps,
+      clipboardStepCount,
+    ]
   );
 
   // Ctrl/⌘+V anywhere outside a text field adds the clipboard image as a slide.
@@ -429,6 +484,9 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({
       setCurrentImageIndex={state.setCurrentImageIndex}
       onReorderSlides={onReorderSlides}
       deleteImage={onDeleteSlide ?? state.deleteImage}
+      duplicateSlide={state.duplicateSlide}
+      pasteSteps={state.pasteSteps}
+      clipboardStepCount={state.clipboardStepCount}
       uploading={state.uploading}
       uploadProgress={state.uploadProgress}
       uploadFromFiles={state.uploadFromFiles}

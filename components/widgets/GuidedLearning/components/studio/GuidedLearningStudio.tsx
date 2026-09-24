@@ -1,6 +1,8 @@
 import React, {
   useCallback,
   useContext,
+  useEffect,
+  useEffectEvent,
   useMemo,
   useRef,
   useState,
@@ -47,7 +49,13 @@ import { StudioTimeline } from './StudioTimeline';
 import { StudioPropertiesPanel } from './StudioPropertiesPanel';
 import { DevicePresetPicker } from './DevicePresetPicker';
 import { loadDevicePreset, saveDevicePreset } from './devicePresets';
-import { useStudioShortcuts, type StudioShortcut } from './useStudioShortcuts';
+import {
+  hasTextSelection,
+  isTypingTarget,
+  useStudioShortcuts,
+  type StudioShortcut,
+} from './useStudioShortcuts';
+import { stepClipboardIsLatest } from './stepClipboard';
 import { SetTooLargeError } from '@/utils/firestoreDocSize';
 
 export interface GuidedLearningStudioProps {
@@ -259,6 +267,12 @@ const StudioSession: React.FC<
     setCurrentImageIndex,
     deleteStep,
     deleteImage,
+    duplicateStep,
+    duplicateSlide,
+    copySteps,
+    pasteSteps,
+    currentImageIndex,
+    imageUrls,
     undo,
     redo,
     undoIfLatest,
@@ -323,6 +337,25 @@ const StudioSession: React.FC<
     if (selectedStepId) deleteStepWithUndo(selectedStepId);
   }, [selectedStepId, deleteStepWithUndo]);
 
+  // With no step selected, the current slide is what Duplicate copies.
+  const duplicateSelection = useCallback(() => {
+    if (selectedStepId) duplicateStep(selectedStepId);
+    else if (imageUrls.length > 0) duplicateSlide(currentImageIndex);
+  }, [
+    selectedStepId,
+    duplicateStep,
+    duplicateSlide,
+    imageUrls.length,
+    currentImageIndex,
+  ]);
+  const copyStepWithToast = useCallback(
+    (id: string) => {
+      const count = copySteps([id]);
+      if (count > 0) addToast?.(t('glStudio.stepsCopied', { count }), 'info');
+    },
+    [copySteps, addToast, t]
+  );
+
   const [playing, setPlaying] = useState<{
     set: GuidedLearningSet;
     startStepId: string | null;
@@ -357,6 +390,31 @@ const StudioSession: React.FC<
       { id: 'redo', key: 'z', mod: true, shift: true, run: redo },
       { id: 'redo-y', key: 'y', mod: true, run: redo },
       {
+        id: 'duplicate',
+        key: 'd',
+        mod: true,
+        when: () => selectedStepId !== null || imageUrls.length > 0,
+        run: duplicateSelection,
+      },
+      {
+        id: 'copy-step',
+        key: 'c',
+        mod: true,
+        // A text selection keeps the browser's own copy.
+        when: () => selectedStepId !== null && !hasTextSelection(),
+        run: () => {
+          if (selectedStepId) copyStepWithToast(selectedStepId);
+        },
+      },
+      {
+        id: 'paste-steps',
+        key: 'v',
+        mod: true,
+        // Otherwise the browser's paste runs, so a newer copied image still becomes a slide.
+        when: () => imageUrls.length > 0 && stepClipboardIsLatest(),
+        run: () => pasteSteps(),
+      },
+      {
         id: 'delete',
         key: 'Delete',
         run: (e) => {
@@ -390,6 +448,11 @@ const StudioSession: React.FC<
       selectedIndex,
       steps.length,
       startPlay,
+      selectedStepId,
+      imageUrls.length,
+      duplicateSelection,
+      copyStepWithToast,
+      pasteSteps,
     ]
   );
   const playKeymap = useMemo<StudioShortcut[]>(
@@ -408,11 +471,29 @@ const StudioSession: React.FC<
     ],
     [exitPlay]
   );
+  const shortcutsEnabled = !showAiGen && !currentDialog && !readOnly;
   useStudioShortcuts(playing ? playKeymap : editKeymap, {
     // An open dialog owns the keyboard, Escape included; a read-only set takes no edits.
-    enabled: !showAiGen && !currentDialog && !readOnly,
+    enabled: shortcutsEnabled,
     editing: !playing && tools.editingStepId !== null,
   });
+
+  // A browser paste with no image in it pastes copied steps, e.g. after the author switched windows.
+  const onPasteEvent = useEffectEvent((e: ClipboardEvent) => {
+    if (e.defaultPrevented || isTypingTarget(e.target)) return;
+    if (tools.editingStepId !== null || imageUrls.length === 0) return;
+    const hasFiles = Array.from(e.clipboardData?.files ?? []).some((f) =>
+      f.type.startsWith('image/')
+    );
+    if (hasFiles) return;
+    if (pasteSteps() > 0) e.preventDefault();
+  });
+  const pasteListening = shortcutsEnabled && !playing;
+  useEffect(() => {
+    if (!pasteListening) return;
+    window.addEventListener('paste', onPasteEvent);
+    return () => window.removeEventListener('paste', onPasteEvent);
+  }, [pasteListening]);
 
   const canUseAi =
     !!onAiGenerated && isAdmin === true && canAccessFeature('gemini-functions');
@@ -612,7 +693,7 @@ const StudioSession: React.FC<
               />
             )}
           </main>
-          <StudioTimeline state={editorState} />
+          <StudioTimeline state={editorState} onCopyStep={copyStepWithToast} />
         </div>
         {propertiesOpen && (
           <button

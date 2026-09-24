@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Film, Plus } from 'lucide-react';
+import { ClipboardPaste, Copy, CopyPlus, Film, Plus } from 'lucide-react';
 import { SortableList } from '@/components/common/SortableList';
 import {
   thumbnailUrl,
@@ -8,6 +8,8 @@ import {
 } from '@/utils/guidedLearningMedia';
 import type { GuidedLearningEditorController } from '../useGuidedLearningEditorState';
 import { stepsInIdOrder } from './timelineOrder';
+import { StudioMenu } from './StudioMenu';
+import { modShortcutLabel } from './useStudioShortcuts';
 
 interface StepChip {
   id: string;
@@ -50,6 +52,10 @@ interface TimelineBodyProps {
   setCurrentImageIndex: GuidedLearningEditorController['setCurrentImageIndex'];
   setAddingStep: GuidedLearningEditorController['setAddingStep'];
   onReorder: (ids: string[]) => void;
+  onDuplicateStep: (id: string) => void;
+  onCopyStep: (id: string) => void;
+  onPasteSteps: () => void;
+  clipboardStepCount: number;
 }
 
 const sameBodyProps = (a: TimelineBodyProps, b: TimelineBodyProps) =>
@@ -72,6 +78,10 @@ const TimelineBody = React.memo(function TimelineBody({
   setCurrentImageIndex,
   setAddingStep,
   onReorder,
+  onDuplicateStep,
+  onCopyStep,
+  onPasteSteps,
+  clipboardStepCount,
 }: TimelineBodyProps) {
   const { t } = useTranslation();
 
@@ -178,6 +188,41 @@ const TimelineBody = React.memo(function TimelineBody({
           />
         )}
       </div>
+      <StudioMenu
+        label={t('glStudio.stepActions')}
+        testId="gl-studio-step-menu"
+        triggerClassName="flex shrink-0 items-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 transition-colors hover:border-slate-400"
+        items={[
+          {
+            id: 'duplicate',
+            label: t('glStudio.duplicateStep'),
+            icon: CopyPlus,
+            hint: modShortcutLabel('d'),
+            disabled: selectedStepId === null,
+            onSelect: () => {
+              if (selectedStepId) onDuplicateStep(selectedStepId);
+            },
+          },
+          {
+            id: 'copy',
+            label: t('glStudio.copyStep'),
+            icon: Copy,
+            hint: modShortcutLabel('c'),
+            disabled: selectedStepId === null,
+            onSelect: () => {
+              if (selectedStepId) onCopyStep(selectedStepId);
+            },
+          },
+          {
+            id: 'paste',
+            label: t('glStudio.pasteSteps'),
+            icon: ClipboardPaste,
+            hint: modShortcutLabel('v'),
+            disabled: clipboardStepCount === 0,
+            onSelect: onPasteSteps,
+          },
+        ]}
+      />
       <button
         type="button"
         onClick={() => {
@@ -200,11 +245,24 @@ const TimelineBody = React.memo(function TimelineBody({
 
 interface StudioTimelineProps {
   state: GuidedLearningEditorController;
+  /** Copies a step; the Studio passes one that confirms with a toast. */
+  onCopyStep?: (id: string) => void;
 }
 
 /** Bottom strip: every step in play order, grouped into runs per slide. */
-export const StudioTimeline: React.FC<StudioTimelineProps> = ({ state }) => {
-  const { steps, setSteps, imageUrls, imageKinds, slideThumbnails } = state;
+export const StudioTimeline: React.FC<StudioTimelineProps> = ({
+  state,
+  onCopyStep,
+}) => {
+  const {
+    steps,
+    setSteps,
+    imageUrls,
+    imageKinds,
+    slideThumbnails,
+    copySteps,
+    pasteSteps,
+  } = state;
 
   const chips = useMemo<StepChip[]>(
     () =>
@@ -232,6 +290,15 @@ export const StudioTimeline: React.FC<StudioTimelineProps> = ({ state }) => {
     (ids: string[]) => setSteps((prev) => stepsInIdOrder(prev, ids)),
     [setSteps]
   );
+  const copyStep = useCallback(
+    (id: string) => {
+      copySteps([id]);
+    },
+    [copySteps]
+  );
+  const pasteHere = useCallback(() => {
+    pasteSteps();
+  }, [pasteSteps]);
 
   return (
     <TimelineBody
@@ -244,6 +311,10 @@ export const StudioTimeline: React.FC<StudioTimelineProps> = ({ state }) => {
       setCurrentImageIndex={state.setCurrentImageIndex}
       setAddingStep={state.setAddingStep}
       onReorder={onReorder}
+      onDuplicateStep={state.duplicateStep}
+      onCopyStep={onCopyStep ?? copyStep}
+      onPasteSteps={pasteHere}
+      clipboardStepCount={state.clipboardStepCount}
     />
   );
 };

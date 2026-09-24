@@ -1,4 +1,11 @@
-import { useCallback, useMemo, useReducer, useRef, useState } from 'react';
+import {
+  useCallback,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import {
   GuidedLearningSet,
   GuidedLearningMode,
@@ -44,6 +51,11 @@ import {
   remapStepSlides,
   stepsFollowSlide,
 } from './studio/timelineOrder';
+import {
+  readStepClipboard,
+  subscribeStepClipboard,
+  writeStepClipboard,
+} from './studio/stepClipboard';
 
 /** Deletes the files the editor removed, each only if nothing else still uses it. */
 export type MediaRelease = (files: {
@@ -147,6 +159,16 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   deleteStep: (id: string, tag?: object) => void;
   /** Undoes the tagged edit only if nothing was edited or undone since; returns whether it did. */
   undoIfLatest: (tag: object) => boolean;
+  /** Copies the step, with a new id, to just after it and selects the copy; one undo entry. */
+  duplicateStep: (id: string) => void;
+  /** Copies the slide and its steps to just after it, sharing the media file; one undo entry. */
+  duplicateSlide: (index: number) => void;
+  /** Puts these steps, in play order, on the clipboard shared by every set in this browser session. */
+  copySteps: (ids: string[]) => number;
+  /** Pastes clipboard steps, with new ids, onto `slide` (default: the current slide); one undo entry. */
+  pasteSteps: (slide?: number) => number;
+  /** Steps waiting on the clipboard. */
+  clipboardStepCount: number;
   /** Apply a new ordering of the entire steps array (e.g. from drag-reorder). */
   reorderSteps: (next: GuidedLearningStep[]) => void;
   /** Uploads a recorded narration take for this editing session. */
@@ -565,10 +587,17 @@ export function useGuidedLearningEditorState({
       if (!url) return false;
       // Slides may have moved during the upload, so find the old image again.
       if (!historyRef.current.present.imageUrls.includes(oldUrl)) return false;
-      applyDoc((doc) => ({
-        ...doc,
-        imageUrls: doc.imageUrls.map((u) => (u === oldUrl ? url : u)),
-      }));
+      applyDoc((doc) => {
+        // A duplicate sharing the old image keeps it.
+        const at =
+          doc.imageUrls[index] === oldUrl
+            ? index
+            : doc.imageUrls.indexOf(oldUrl);
+        return {
+          ...doc,
+          imageUrls: doc.imageUrls.map((u, i) => (i === at ? url : u)),
+        };
+      });
       const ref = slideMediaRef(oldUrl);
       if (ref) dispatch({ type: 'queueMedia', ref });
       return true;
@@ -697,8 +726,129 @@ export function useGuidedLearningEditorState({
     [setSteps]
   );
 
+  const duplicateStep = useCallback(
+    (id: string) => {
+      const source = historyRef.current.present.steps.find((s) => s.id === id);
+      if (!source) return;
+      const copy: GuidedLearningStep = {
+        ...structuredClone(source),
+        id: crypto.randomUUID(),
+      };
+      applyDoc((doc) => {
+        const at = doc.steps.findIndex((s) => s.id === id);
+        if (at < 0) return doc;
+        return {
+          ...doc,
+          steps: [
+            ...doc.steps.slice(0, at + 1),
+            copy,
+            ...doc.steps.slice(at + 1),
+          ],
+        };
+      });
+      setSelectedStepId(copy.id);
+    },
+    [applyDoc]
+  );
+
+  const duplicateSlide = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= historyRef.current.present.imageUrls.length)
+        return;
+      const at = index + 1;
+      const insert = <T>(list: T[], value: T): T[] => [
+        ...list.slice(0, at),
+        value,
+        ...list.slice(at),
+      ];
+      // Ids are minted outside the reducer so it stays pure.
+      const newIds = new Map(
+        historyRef.current.present.steps
+          .filter((s) => s.imageIndex === index)
+          .map((s): [string, string] => [s.id, crypto.randomUUID()])
+      );
+      applyDoc((doc) => {
+        const shifted = doc.steps.map((s) =>
+          s.imageIndex > index ? { ...s, imageIndex: s.imageIndex + 1 } : s
+        );
+        const copies = doc.steps.flatMap((s) => {
+          const id = s.imageIndex === index ? newIds.get(s.id) : undefined;
+          return id ? [{ ...structuredClone(s), id, imageIndex: at }] : [];
+        });
+        // The copies play right after the original slide's last step.
+        let after = -1;
+        shifted.forEach((s, i) => {
+          if (s.imageIndex === index) after = i;
+        });
+        return {
+          ...doc,
+          imageUrls: insert(doc.imageUrls, doc.imageUrls[index]),
+          imageKinds: insert(doc.imageKinds, doc.imageKinds[index] ?? 'image'),
+          videoTrims: insert(doc.videoTrims, doc.videoTrims[index] ?? null),
+          steps: [
+            ...shifted.slice(0, after + 1),
+            ...copies,
+            ...shifted.slice(after + 1),
+          ],
+        };
+      });
+      setSelectedStepId(null);
+      setCurrentImageIndex(at);
+    },
+    [applyDoc]
+  );
+
   // Takes from earlier sessions may be shared by copies or live assignments, so only this session's are ever deleted.
   const sessionTakesRef = useRef<Set<string>>(new Set());
+
+  const copySteps = useCallback((ids: string[]) => {
+    const wanted = new Set(ids);
+    const picked = historyRef.current.present.steps.filter((s) =>
+      wanted.has(s.id)
+    );
+    if (picked.length === 0) return 0;
+    // A copied take may now live in another set, so this session never deletes it.
+    for (const s of picked) {
+      if (s.narration) sessionTakesRef.current.delete(s.narration.storagePath);
+    }
+    writeStepClipboard(structuredClone(picked));
+    return picked.length;
+  }, []);
+
+  const pasteSteps = useCallback(
+    (slide?: number) => {
+      const copied = readStepClipboard();
+      const target = slide ?? currentImageIndex;
+      if (
+        copied.length === 0 ||
+        target < 0 ||
+        target >= historyRef.current.present.imageUrls.length
+      )
+        return 0;
+      const pasted = copied.map((s) => ({
+        ...structuredClone(s),
+        id: crypto.randomUUID(),
+        imageIndex: target,
+      }));
+      setSteps((prev) => {
+        if (!setWideTimeline) return [...prev, ...pasted];
+        const at = playOrderInsertIndex(prev, target);
+        return [...prev.slice(0, at), ...pasted, ...prev.slice(at)];
+      });
+      setCurrentImageIndex(target);
+      setSelectedStepId(pasted[pasted.length - 1].id);
+      setAddingStep(false);
+      return pasted.length;
+    },
+    [currentImageIndex, setSteps, setWideTimeline]
+  );
+
+  const clipboardStepCount = useSyncExternalStore(
+    subscribeStepClipboard,
+    () => readStepClipboard().length,
+    () => 0
+  );
+
   const uploadNarrationTake = useCallback(
     async (blob: Blob, mimeType: string) => {
       if (!user) throw new Error('Not signed in');
@@ -784,22 +934,25 @@ export function useGuidedLearningEditorState({
     []
   );
   const flushMediaDeletions = useCallback(async (release: MediaRelease) => {
-    const pending = pendingMediaDeletions(historyRef.current).filter(
-      (ref) => !flushedMediaRef.current.has(ref)
-    );
-    for (const ref of pending) flushedMediaRef.current.add(ref);
-    // A file the saved set still shows (a duplicated slide, a re-added image) is never released.
+    // A file the set still shows (a duplicated slide, a re-added image) is never released.
     const present = historyRef.current.present;
     const inUse = fileRefsIn([
       present.imageUrls,
       present.steps,
       present.imageUrls.map((url) => slideThumbnailsRef.current[url]),
     ]);
+    const pending = pendingMediaDeletions(historyRef.current).filter(
+      (ref) =>
+        !flushedMediaRef.current.has(ref) &&
+        !(ref.storagePath && inUse.has(ref.storagePath)) &&
+        !(ref.driveFileId && inUse.has(ref.driveFileId))
+    );
+    for (const ref of pending) flushedMediaRef.current.add(ref);
     const storagePaths = pending.flatMap((ref) =>
-      ref.storagePath && !inUse.has(ref.storagePath) ? [ref.storagePath] : []
+      ref.storagePath ? [ref.storagePath] : []
     );
     const driveFileIds = pending.flatMap((ref) =>
-      ref.driveFileId && !inUse.has(ref.driveFileId) ? [ref.driveFileId] : []
+      ref.driveFileId ? [ref.driveFileId] : []
     );
     if (storagePaths.length === 0 && driveFileIds.length === 0) return;
     await release({
@@ -887,6 +1040,11 @@ export function useGuidedLearningEditorState({
     updateStep,
     deleteStep,
     reorderSteps,
+    duplicateStep,
+    duplicateSlide,
+    copySteps,
+    pasteSteps,
+    clipboardStepCount,
     uploadNarrationTake,
     setStepNarration,
     folders,

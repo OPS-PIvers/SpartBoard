@@ -40,6 +40,19 @@ export function matchesShortcut(
   );
 }
 
+/** A mod shortcut as the author's keyboard labels it: ⌘D on Apple devices, Ctrl+D elsewhere. */
+export function modShortcutLabel(key: string): string {
+  const apple =
+    typeof navigator !== 'undefined' &&
+    /Mac|iPhone|iPad/.test(navigator.userAgent);
+  return apple ? `⌘${key.toUpperCase()}` : `Ctrl+${key.toUpperCase()}`;
+}
+
+/** True while the page has a text selection, so Ctrl/⌘+C keeps its native meaning. */
+export function hasTextSelection(): boolean {
+  return (window.getSelection?.()?.toString() ?? '') !== '';
+}
+
 /** The one Studio keymap listener; handled keys stop propagating so dashboard shortcuts never fire. */
 export function useStudioShortcuts(
   keymap: readonly StudioShortcut[],
