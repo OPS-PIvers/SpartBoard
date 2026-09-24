@@ -20,14 +20,15 @@ vi.mock('@/hooks/usePlcs', () => ({
 }));
 vi.mock('@/hooks/useLearningTargets', () => ({
   useLearningTargetSources: () => ({ sources, loading: false }),
-  usePersonalLearningTargets: () => ({
-    list: null,
-    loading: false,
-    save: personalSave,
-  }),
-  usePlcLearningTargets: (plcId: string | null) => {
-    plcIdsSeen.push(plcId);
-    return { list: null, loading: false, save: plcSave };
+  saveLearningTargetList: (
+    owner: { kind: 'personal'; uid: string } | { kind: 'plc'; plcId: string },
+    list: LearningTargetList
+  ) => {
+    if (owner.kind === 'plc') {
+      plcIdsSeen.push(owner.plcId);
+      return plcSave(list);
+    }
+    return personalSave(list);
   },
 }));
 
@@ -203,11 +204,11 @@ describe('suggested targets in the import review', () => {
     );
     expect(options).toEqual(['My learning targets', 'Science PLC']);
     fireEvent.change(menu, { target: { value: '1' } });
-    expect(plcIdsSeen).toContain('p1');
     fireEvent.click(
       screen.getByRole('button', { name: /Create target ELT 1.1/ })
     );
     await waitFor(() => expect(plcSave).toHaveBeenCalledTimes(1));
+    expect(plcIdsSeen).toEqual(['p1']);
     expect(personalSave).not.toHaveBeenCalled();
     await waitFor(() =>
       expect(latest().questions[0].targets?.[0]).toMatchObject({

@@ -7,8 +7,7 @@ import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';
 import {
   useLearningTargetSources,
-  usePersonalLearningTargets,
-  usePlcLearningTargets,
+  saveLearningTargetList,
 } from '@/hooks/useLearningTargets';
 import { canEditPlcContent } from '@/utils/plc';
 import { logError } from '@/utils/logError';
@@ -62,10 +61,6 @@ const useSuggestedTargetsSlots = (
   );
   const [destIndex, setDestIndex] = useState(0);
   const destination = destinations[destIndex] ?? destinations[0];
-  const personal = usePersonalLearningTargets();
-  const plcTargets = usePlcLearningTargets(
-    destination?.kind === 'plc' ? destination.plcId : null
-  );
   // Targets made here, until the list listener catches up, so a second click never duplicates one.
   const [created, setCreated] = useState<
     ReadonlyMap<string, QuestionTargetTag>
@@ -98,12 +93,15 @@ const useSuggestedTargetsSlots = (
         ? s.kind === 'plc' && s.ownerId === destination.plcId
         : s.kind === 'personal'
     );
-    if (!source?.list) return null;
+    if (!source?.list || !user) return null;
     setBusy(true);
     setError(null);
     try {
       const result = createSuggestedTargets(source.list, toCreate, destination);
-      await (destination.kind === 'plc' ? plcTargets.save : personal.save)(
+      await saveLearningTargetList(
+        destination.kind === 'plc'
+          ? { kind: 'plc', plcId: destination.plcId }
+          : { kind: 'personal', uid: user.uid },
         result.list
       );
       setCreated((prev) => new Map([...prev, ...result.tags]));
