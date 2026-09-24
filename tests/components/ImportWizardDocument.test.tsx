@@ -15,7 +15,29 @@ import type {
   ImportSourcePayload,
 } from '@/components/common/library/types';
 
+// Content sniffing opens the file with the real readers; these tests are about routing.
+vi.mock('@/utils/quizDocumentImport/uploadIntake', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/utils/quizDocumentImport/uploadIntake')
+  >('@/utils/quizDocumentImport/uploadIntake');
+  return {
+    ...actual,
+    looksLikeAnswerKey: (_file: Blob, name: string) =>
+      Promise.resolve(actual.looksLikeKeyName(name)),
+  };
+});
+
 type FakeData = { rows: string[] };
+
+/** Put a file in the test zone and press Read, as a teacher does. */
+async function readTest(file: File) {
+  fireEvent.change(screen.getByLabelText('Upload test questions'), {
+    target: { files: [file] },
+  });
+  const read = screen.getByRole('button', { name: 'Read the test' });
+  await waitFor(() => expect(read).not.toBeDisabled());
+  fireEvent.click(read);
+}
 
 function makeAdapter(
   opts: {
@@ -79,14 +101,14 @@ describe('ImportWizard — test document source', () => {
   it('hides the tile for an adapter that does not support documents', () => {
     const { adapter } = makeAdapter({ supportedSources: ['csv'] });
     renderWizard(adapter);
-    expect(screen.queryByText(/Upload a test document/i)).toBeNull();
+    expect(screen.queryByLabelText('Upload test questions')).toBeNull();
   });
 
   it('shows the upload tile but no Drive button when the adapter cannot pick', () => {
     const { adapter } = makeAdapter();
     renderWizard(adapter);
-    expect(screen.getByText(/Upload a test document/i)).toBeTruthy();
-    expect(screen.queryByText(/Choose a test from Drive/i)).toBeNull();
+    expect(screen.getByLabelText('Upload test questions')).toBeTruthy();
+    expect(screen.queryByText(/Choose from Drive/i)).toBeNull();
   });
 
   it('keeps test documents out of the generic upload button', () => {
@@ -98,8 +120,8 @@ describe('ImportWizard — test document source', () => {
       screen.getByLabelText('Upload import file').getAttribute('accept')
     ).toBe('.csv');
     expect(
-      screen.getByLabelText('Upload a test document').getAttribute('accept')
-    ).toBe('.pdf,.docx,.rtf,.imscc');
+      screen.getByLabelText('Upload test questions').getAttribute('accept')
+    ).toBe('.pdf,.docx,.rtf,.imscc,.jpg,.jpeg,.png,.heic,.heif');
   });
 
   it('still reads a test document forced through the generic button', async () => {
@@ -121,8 +143,7 @@ describe('ImportWizard — test document source', () => {
   it('parses an uploaded PDF as bytes rather than reading it as text', async () => {
     const { adapter, parseSpy } = makeAdapter();
     renderWizard(adapter);
-    const input = screen.getByLabelText('Upload a test document');
-    fireEvent.change(input, { target: { files: [PDF_BYTES] } });
+    await readTest(PDF_BYTES);
     await waitFor(() => expect(parseSpy).toHaveBeenCalledTimes(1));
     expect(parseSpy.mock.calls[0][0]).toEqual({
       kind: 'document',
@@ -138,7 +159,9 @@ describe('ImportWizard — test document source', () => {
     );
     const { adapter, parseSpy } = makeAdapter({ pickDocument });
     renderWizard(adapter);
-    fireEvent.click(screen.getByText(/Choose a test from Drive/i));
+    fireEvent.click(screen.getByText(/Choose from Drive/i));
+    await screen.findByText('Quiz 1.docx');
+    fireEvent.click(screen.getByRole('button', { name: 'Read the test' }));
     await waitFor(() => expect(parseSpy).toHaveBeenCalledTimes(1));
     expect(parseSpy.mock.calls[0][0]).toEqual({
       kind: 'document',
@@ -151,10 +174,10 @@ describe('ImportWizard — test document source', () => {
     const pickDocument = vi.fn(() => Promise.resolve(null));
     const { adapter, parseSpy } = makeAdapter({ pickDocument });
     renderWizard(adapter);
-    fireEvent.click(screen.getByText(/Choose a test from Drive/i));
+    fireEvent.click(screen.getByText(/Choose from Drive/i));
     await waitFor(() => expect(pickDocument).toHaveBeenCalled());
     expect(parseSpy).not.toHaveBeenCalled();
-    expect(screen.getByText(/Upload a test document/i)).toBeTruthy();
+    expect(screen.getByLabelText('Upload test questions')).toBeTruthy();
   });
 
   it('surfaces a Drive failure instead of leaving the button spinning', async () => {
@@ -163,7 +186,7 @@ describe('ImportWizard — test document source', () => {
     );
     const { adapter } = makeAdapter({ pickDocument });
     renderWizard(adapter);
-    fireEvent.click(screen.getByText(/Choose a test from Drive/i));
+    fireEvent.click(screen.getByText(/Choose from Drive/i));
     await waitFor(() =>
       expect(
         screen.getByText('Could not download that file from Drive.')
@@ -184,9 +207,7 @@ describe('ImportWizard — busy state', () => {
       })) as unknown as ImportAdapter<FakeData>['parse'];
     renderWizard(adapter);
 
-    fireEvent.change(screen.getByLabelText('Upload a test document'), {
-      target: { files: [PDF_BYTES] },
-    });
+    await readTest(PDF_BYTES);
 
     // The old inline banner sat below the document tiles, off-screen until the
     // teacher scrolled; this one covers the whole panel.
@@ -209,9 +230,7 @@ describe('ImportWizard — busy state', () => {
       )) as unknown as ImportAdapter<FakeData>['parse'];
     const { onClose } = renderWizard(adapter);
 
-    fireEvent.change(screen.getByLabelText('Upload a test document'), {
-      target: { files: [PDF_BYTES] },
-    });
+    await readTest(PDF_BYTES);
     await screen.findByRole('status');
 
     fireEvent.click(screen.getByLabelText('Close import wizard'));
@@ -224,9 +243,7 @@ describe('ImportWizard — LMS exports', () => {
     const { adapter, parseSpy } = makeAdapter();
     renderWizard(adapter);
     const imscc = new File([new Uint8Array([80, 75])], 'Unit 3 Test.imscc');
-    fireEvent.change(screen.getByLabelText('Upload a test document'), {
-      target: { files: [imscc] },
-    });
+    await readTest(imscc);
     await waitFor(() => expect(parseSpy).toHaveBeenCalledTimes(1));
     expect(parseSpy.mock.calls[0][0]).toEqual({
       kind: 'document',
@@ -240,10 +257,8 @@ describe('ImportWizard — LMS exports', () => {
     renderWizard(adapter);
     // An export carries its own answers, so it is never the key file.
     expect(
-      screen
-        .getByLabelText('Upload a separate answer key')
-        .getAttribute('accept')
-    ).toBe('.pdf,.docx,.rtf');
+      screen.getByLabelText('Upload answer key').getAttribute('accept')
+    ).toBe('.pdf,.docx,.rtf,.jpg,.jpeg,.png,.heic,.heif');
   });
 });
 
@@ -270,13 +285,11 @@ describe('ImportWizard — rich text documents', () => {
     const { adapter, parseSpy } = makeAdapter({ supportsKeyFile: true });
     renderWizard(adapter);
     const key = new File(['{\\rtf1}'], 'key.rtf', { type: 'application/rtf' });
-    fireEvent.change(screen.getByLabelText('Upload a separate answer key'), {
+    fireEvent.change(screen.getByLabelText('Upload answer key'), {
       target: { files: [key] },
     });
-    await screen.findByText(/Answer key: key\.rtf/);
-    fireEvent.change(screen.getByLabelText('Upload a test document'), {
-      target: { files: [RTF] },
-    });
+    await screen.findByText('key.rtf');
+    await readTest(RTF);
     await waitFor(() => expect(parseSpy).toHaveBeenCalledTimes(1));
     expect(parseSpy.mock.calls[0][0]).toMatchObject({
       kind: 'document',
@@ -289,9 +302,7 @@ describe('ImportWizard — editable review step', () => {
   it('keeps the read-only preview for an adapter without one', async () => {
     const { adapter } = makeAdapter();
     renderWizard(adapter);
-    fireEvent.change(screen.getByLabelText('Upload a test document'), {
-      target: { files: [PDF_BYTES] },
-    });
+    await readTest(PDF_BYTES);
     await waitFor(() => expect(screen.getByTestId('preview')).toBeTruthy());
     expect(screen.queryByTestId('review')).toBeNull();
   });
@@ -299,9 +310,7 @@ describe('ImportWizard — editable review step', () => {
   it('renders the review pane instead of the preview when the adapter has one', async () => {
     const { adapter } = makeAdapter({ withReview: true });
     renderWizard(adapter);
-    fireEvent.change(screen.getByLabelText('Upload a test document'), {
-      target: { files: [PDF_BYTES] },
-    });
+    await readTest(PDF_BYTES);
     await waitFor(() => expect(screen.getByTestId('review')).toBeTruthy());
     expect(screen.queryByTestId('preview')).toBeNull();
   });
@@ -309,9 +318,7 @@ describe('ImportWizard — editable review step', () => {
   it('saves what the teacher corrected in the review, not what was parsed', async () => {
     const { adapter, saveSpy } = makeAdapter({ withReview: true });
     renderWizard(adapter);
-    fireEvent.change(screen.getByLabelText('Upload a test document'), {
-      target: { files: [PDF_BYTES] },
-    });
+    await readTest(PDF_BYTES);
     await waitFor(() => expect(screen.getByTestId('review')).toBeTruthy());
 
     fireEvent.click(screen.getByText('Edit rows'));
@@ -340,18 +347,16 @@ describe('the optional answer key slot (D8)', () => {
   it('is not offered by an adapter that does not read a key', () => {
     const { adapter } = makeAdapter();
     renderWizard(adapter);
-    expect(
-      screen.queryByText(/Add a separate answer key/i)
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Answer key (optional)')).not.toBeInTheDocument();
   });
 
   it('sends an attached key along with the test document', async () => {
     const { adapter, parseSpy } = makeAdapter({ supportsKeyFile: true });
     renderWizard(adapter);
 
-    upload('Upload a separate answer key', 'key.pdf');
-    await screen.findByText(/Answer key: key\.pdf/);
-    upload('Upload a test document', 'test.pdf');
+    upload('Upload answer key', 'key.pdf');
+    await screen.findByText('key.pdf');
+    await readTest(new File(['x'], 'test.pdf', { type: 'application/pdf' }));
 
     await waitFor(() => expect(parseSpy).toHaveBeenCalled());
     expect(parseSpy.mock.calls[0][0]).toMatchObject({
@@ -367,8 +372,8 @@ describe('the optional answer key slot (D8)', () => {
       <ImportWizard isOpen onClose={vi.fn()} adapter={adapter} />
     );
 
-    upload('Upload a separate answer key', 'key.pdf');
-    await screen.findByText(/Answer key: key\.pdf/);
+    upload('Upload answer key', 'key.pdf');
+    await screen.findByText('key.pdf');
 
     // Closing and reopening starts a fresh import; last week's key silently
     // marking this week's test would be invisible until a student's paper.
@@ -377,9 +382,9 @@ describe('the optional answer key slot (D8)', () => {
     );
     rerender(<ImportWizard isOpen onClose={vi.fn()} adapter={adapter} />);
 
-    expect(screen.queryByText(/Answer key: key\.pdf/)).not.toBeInTheDocument();
+    expect(screen.queryByText('key.pdf')).not.toBeInTheDocument();
 
-    upload('Upload a test document', 'test.pdf');
+    await readTest(new File(['x'], 'test.pdf', { type: 'application/pdf' }));
     await waitFor(() => expect(parseSpy).toHaveBeenCalled());
     expect(parseSpy.mock.calls[0][0]).not.toHaveProperty('keyFile');
   });
@@ -388,9 +393,10 @@ describe('the optional answer key slot (D8)', () => {
     const { adapter, parseSpy } = makeAdapter({ supportsKeyFile: true });
     renderWizard(adapter);
 
-    upload('Upload a separate answer key', 'key.pdf');
-    fireEvent.click(await screen.findByText('Remove'));
-    upload('Upload a test document', 'test.pdf');
+    upload('Upload answer key', 'key.pdf');
+    await screen.findByText('key.pdf');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove answer key' }));
+    await readTest(new File(['x'], 'test.pdf', { type: 'application/pdf' }));
 
     await waitFor(() => expect(parseSpy).toHaveBeenCalled());
     expect(parseSpy.mock.calls[0][0]).not.toHaveProperty('keyFile');

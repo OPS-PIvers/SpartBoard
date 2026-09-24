@@ -10,6 +10,7 @@ import { readQuizDocumentWithAi, type AiExtractFn } from './aiReader';
 import type { ExtractedQuiz } from './types';
 import { documentKind } from './fileKind';
 import { browserPdfDeps } from './pdfBrowserDeps';
+import { browserImageDeps } from './imageBrowserDeps';
 import { browserPdfCropper } from './pdfCropBrowser';
 import { readPdf } from './pdfReader';
 import { MAX_DOCUMENT_PAGES } from './limits';
@@ -38,6 +39,8 @@ export interface ReadTestDocumentOptions {
   useAi?: boolean;
   /** Lets the read produce choose-all-that-apply questions. */
   multiAnswer?: boolean;
+  /** Photos of the test, one per page in order; `file` is the first (R30). */
+  pages?: readonly Blob[];
 }
 
 export async function readTestDocument(
@@ -48,19 +51,24 @@ export async function readTestDocument(
   // pdf.js and tesseract are only loaded when the file is a PDF, so a Word
   // import never pays for them.
   const kind = documentKind(file, fileName);
+  const pages = options.pages?.length ? options.pages : [file];
   const inBrowser = async (): Promise<ExtractedQuiz> =>
     readQuizDocument(file, {
       fileName,
       ...(kind === 'pdf' ? { pdf: await browserPdfDeps(file) } : {}),
+      ...(kind === 'image' ? { pdf: browserImageDeps(pages), pages } : {}),
       ...(options.multiAnswer ? { multiAnswer: true } : {}),
     });
 
-  // Rich text and LMS exports go straight to the plain reader: the callable
-  // takes a PDF or a Word file, and both of those already state their own
-  // structure — an export even states its own answers.
+  // The callable takes only a PDF or a Word file, so everything else is read here.
   if (!options.aiExtract) return inBrowser();
   // Only a teacher who could have had AI is told which reader ran.
-  if (options.useAi === false || kind === 'rtf' || kind === 'cartridge') {
+  if (
+    options.useAi === false ||
+    kind === 'rtf' ||
+    kind === 'cartridge' ||
+    kind === 'image'
+  ) {
     const extracted = await inBrowser();
     return { ...extracted, readBy: 'plain' };
   }

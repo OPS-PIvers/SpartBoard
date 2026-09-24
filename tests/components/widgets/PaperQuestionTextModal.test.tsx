@@ -6,6 +6,17 @@ import { PaperQuestionTextModal } from '@/components/widgets/QuizWidget/componen
 import type { QuizData } from '@/types';
 import type { RasterizedPage } from '@/utils/paperScanRaster';
 import { buildPaperStubQuiz } from '@/utils/paperSheetPlan';
+
+vi.mock('@/utils/quizDocumentImport/uploadIntake', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/utils/quizDocumentImport/uploadIntake')
+  >('@/utils/quizDocumentImport/uploadIntake');
+  return {
+    ...actual,
+    looksLikeAnswerKey: (_file: Blob, name: string) =>
+      Promise.resolve(actual.looksLikeKeyName(name)),
+  };
+});
 import type {
   ExtractedQuestion,
   ExtractedQuiz,
@@ -62,6 +73,18 @@ const chooseFile = () => {
     type: 'application/pdf',
   });
   fireEvent.change(input, { target: { files: [file] } });
+};
+
+/** The shared uploader: the test goes in its zone, then Read. */
+const chooseTest = async () => {
+  const file = new File([new Uint8Array(4)], 'test.pdf', {
+    type: 'application/pdf',
+  });
+  fireEvent.change(screen.getByLabelText('Upload test questions'), {
+    target: { files: [file] },
+  });
+  await screen.findByText('test.pdf');
+  fireEvent.click(screen.getByRole('button', { name: 'Read the test' }));
 };
 
 describe('PaperQuestionTextModal', () => {
@@ -184,7 +207,7 @@ describe('PaperQuestionTextModal with the shared readers', () => {
 
   it('fills the choices and the key onto a stub row', async () => {
     const { onSave } = readSetup(read([question(1), question(2), question(3)]));
-    chooseFile();
+    await chooseTest();
     await waitFor(() =>
       expect(screen.getByLabelText('Question 1 text')).toBeInTheDocument()
     );
@@ -202,7 +225,7 @@ describe('PaperQuestionTextModal with the shared readers', () => {
 
   it('shows the choices it will apply, with the answer named', async () => {
     readSetup(read([question(1)]));
-    chooseFile();
+    await chooseTest();
     await waitFor(() =>
       expect(screen.getByLabelText('Question 1 text')).toBeInTheDocument()
     );
@@ -212,7 +235,7 @@ describe('PaperQuestionTextModal with the shared readers', () => {
 
   it('says a question still needs an answer when the paper marked none', async () => {
     readSetup(read([question(1, { correctAnswer: '' })]));
-    chooseFile();
+    await chooseTest();
     await waitFor(() =>
       expect(screen.getByLabelText('Question 1 text')).toBeInTheDocument()
     );
@@ -223,7 +246,7 @@ describe('PaperQuestionTextModal with the shared readers', () => {
 
   it('keeps the teacher’s own wording when they edit the box', async () => {
     const { onSave } = readSetup(read([question(1)]));
-    chooseFile();
+    await chooseTest();
     await waitFor(() =>
       expect(screen.getByLabelText('Question 1 text')).toBeInTheDocument()
     );
@@ -247,7 +270,7 @@ describe('PaperQuestionTextModal with the shared readers', () => {
         ['The document was read the simple way.']
       )
     );
-    chooseFile();
+    await chooseTest();
     await waitFor(() =>
       expect(screen.getByLabelText('Question 1 text')).toBeInTheDocument()
     );
@@ -261,7 +284,7 @@ describe('PaperQuestionTextModal with the shared readers', () => {
 
   it('names the rows the paper had nothing for', async () => {
     readSetup(read([question(1)]));
-    chooseFile();
+    await chooseTest();
     await waitFor(() =>
       expect(screen.getByLabelText('Question 1 text')).toBeInTheDocument()
     );
@@ -270,7 +293,7 @@ describe('PaperQuestionTextModal with the shared readers', () => {
 
   it('never reaches for the OCR path when a reader is supplied', async () => {
     const { recognize, readDocument } = readSetup(read([question(1)]));
-    chooseFile();
+    await chooseTest();
     await waitFor(() => expect(readDocument).toHaveBeenCalled());
     expect(recognize).not.toHaveBeenCalled();
   });
@@ -279,12 +302,11 @@ describe('PaperQuestionTextModal with the shared readers', () => {
     const readDocument = vi.fn(() => Promise.resolve(read([question(1)])));
     setup([], { readDocument, canUseAi: true });
     expect(screen.getByLabelText(/Read with AI/)).not.toBeChecked();
-    chooseFile();
+    await chooseTest();
     await waitFor(() =>
       expect(readDocument).toHaveBeenCalledWith(
-        expect.anything(),
-        'test.pdf',
-        false
+        expect.objectContaining({ fileName: 'test.pdf' }),
+        { useAi: false, key: null }
       )
     );
   });
@@ -293,12 +315,11 @@ describe('PaperQuestionTextModal with the shared readers', () => {
     const readDocument = vi.fn(() => Promise.resolve(read([question(1)])));
     setup([], { readDocument, canUseAi: true });
     fireEvent.click(screen.getByLabelText(/Read with AI/));
-    chooseFile();
+    await chooseTest();
     await waitFor(() =>
       expect(readDocument).toHaveBeenCalledWith(
-        expect.anything(),
-        'test.pdf',
-        true
+        expect.objectContaining({ fileName: 'test.pdf' }),
+        { useAi: true, key: null }
       )
     );
   });
@@ -306,7 +327,7 @@ describe('PaperQuestionTextModal with the shared readers', () => {
   it('names the reader in plain text, not as a warning', async () => {
     const extracted = { ...read([question(1)]), readBy: 'plain' as const };
     setup([], { readDocument: vi.fn(() => Promise.resolve(extracted)) });
-    chooseFile();
+    await chooseTest();
     expect(await screen.findByText('Read without AI.')).toBeInTheDocument();
   });
 
