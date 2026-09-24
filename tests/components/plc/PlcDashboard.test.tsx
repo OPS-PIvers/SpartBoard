@@ -262,7 +262,7 @@ describe('PlcDashboard (Wave 1 — pathname-driven render/smoke)', () => {
     expect(screen.queryByTestId('section-home')).not.toBeInTheDocument();
   });
 
-  it('pads every panel except full-bleed sections', () => {
+  it('pads and scrolls every panel except full-bleed sections', () => {
     const { unmount } = render(
       <PlcDashboard plc={fakePlc} activeSection="targets" onClose={vi.fn()} />
     );
@@ -273,13 +273,19 @@ describe('PlcDashboard (Wave 1 — pathname-driven render/smoke)', () => {
     render(
       <PlcDashboard plc={fakePlc} activeSection="settings" onClose={vi.fn()} />
     );
-    expect(screen.getByRole('tabpanel')).toHaveClass('p-4', 'md:p-6');
+    // The panel scrolls itself so its bottom padding survives long content.
+    expect(screen.getByRole('tabpanel')).toHaveClass(
+      'p-4',
+      'md:p-6',
+      'overflow-y-auto'
+    );
     cleanup();
 
     render(
       <PlcDashboard plc={fakePlc} activeSection="home" onClose={vi.fn()} />
     );
     expect(screen.getByRole('tabpanel')).not.toHaveClass('p-4');
+    expect(screen.getByRole('tabpanel')).not.toHaveClass('overflow-y-auto');
   });
 
   it("renders Meeting Mode (live) when activeSection='meeting' with no meetingId", () => {
