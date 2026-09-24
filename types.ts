@@ -8699,7 +8699,9 @@ export type GlobalFeature =
   /** Choose-all-that-apply quiz questions in the quiz editor and AI drafting. */
   | 'quiz-choose-all'
   /** "Also accept" alternate answers on fill-in-the-blank quiz questions. */
-  | 'quiz-fib-alternates';
+  | 'quiz-fib-alternates'
+  /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
+  | 'quiz-results-tools';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
