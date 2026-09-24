@@ -274,4 +274,44 @@ describe('PaperQuestionTextModal with the shared readers', () => {
     await waitFor(() => expect(readDocument).toHaveBeenCalled());
     expect(recognize).not.toHaveBeenCalled();
   });
+
+  it('reads without AI unless the teacher ticks it', async () => {
+    const readDocument = vi.fn(() => Promise.resolve(read([question(1)])));
+    setup([], { readDocument, canUseAi: true });
+    expect(screen.getByLabelText(/Read with AI/)).not.toBeChecked();
+    chooseFile();
+    await waitFor(() =>
+      expect(readDocument).toHaveBeenCalledWith(
+        expect.anything(),
+        'test.pdf',
+        false
+      )
+    );
+  });
+
+  it('reads with AI once the teacher ticks it', async () => {
+    const readDocument = vi.fn(() => Promise.resolve(read([question(1)])));
+    setup([], { readDocument, canUseAi: true });
+    fireEvent.click(screen.getByLabelText(/Read with AI/));
+    chooseFile();
+    await waitFor(() =>
+      expect(readDocument).toHaveBeenCalledWith(
+        expect.anything(),
+        'test.pdf',
+        true
+      )
+    );
+  });
+
+  it('names the reader in plain text, not as a warning', async () => {
+    const extracted = { ...read([question(1)]), readBy: 'plain' as const };
+    setup([], { readDocument: vi.fn(() => Promise.resolve(extracted)) });
+    chooseFile();
+    expect(await screen.findByText('Read without AI.')).toBeInTheDocument();
+  });
+
+  it('shows no AI switch to a teacher without AI', () => {
+    setup([], { readDocument: vi.fn() });
+    expect(screen.queryByLabelText(/Read with AI/)).not.toBeInTheDocument();
+  });
 });
