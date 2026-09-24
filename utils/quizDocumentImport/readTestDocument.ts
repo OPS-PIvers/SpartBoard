@@ -11,6 +11,22 @@ import type { ExtractedQuiz } from './types';
 import { documentKind } from './fileKind';
 import { browserPdfDeps } from './pdfBrowserDeps';
 import { browserPdfCropper } from './pdfCropBrowser';
+import { readPdf } from './pdfReader';
+import { MAX_DOCUMENT_PAGES } from './limits';
+import type { DocLine } from './types';
+
+/** Text layer only: a scanned key isn't worth OCR on top of the AI read. */
+async function pdfTextLines(file: Blob): Promise<DocLine[]> {
+  const { loadPdf } = await browserPdfDeps(file);
+  const { lines } = await readPdf(
+    file,
+    { loadPdf },
+    {
+      maxPages: MAX_DOCUMENT_PAGES,
+    }
+  );
+  return lines;
+}
 
 export const AI_READER_FELL_BACK =
   'The document was read the simple way because the smarter reader wasn’t available. Check the questions and answers below.';
@@ -46,6 +62,7 @@ export async function readTestDocument(
       fileName,
       extract: options.aiExtract,
       cropper: browserPdfCropper,
+      readPdfLines: pdfTextLines,
     });
   } catch (err) {
     // Half a quiz to fix beats an error screen mid-import.

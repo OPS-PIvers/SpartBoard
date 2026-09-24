@@ -68,13 +68,35 @@ describe('keyFromLines', () => {
     expect([...key.values()]).toEqual(['B', 'C', 'A']);
   });
 
-  it('ignores a heading and anything with words in it', () => {
-    const key = keyFromLines([
+  it('ignores a heading, and takes a written answer only under one', () => {
+    const headed = keyFromLines([
       { text: 'Answer Key' },
+      { text: '1. B' },
+      { text: '2. photosynthesis' },
+    ]);
+    expect([...headed]).toEqual([
+      [1, 'B'],
+      [2, 'photosynthesis'],
+    ]);
+    const bare = keyFromLines([
       { text: '1. B' },
       { text: '2. Because the moon orbits the earth' },
     ]);
-    expect([...key]).toEqual([[1, 'B']]);
+    expect([...bare]).toEqual([[1, 'B']]);
+  });
+
+  it('reads a test-bank key file', () => {
+    const key = keyFromLines([
+      { text: 'Unit 3 Test' },
+      { text: 'Answer Section' },
+      { text: 'MULTIPLE CHOICE' },
+      { text: '1. ANS: B PTS: 1' },
+      { text: '2. ANS: D PTS: 1 DIF: Easy' },
+    ]);
+    expect([...key]).toEqual([
+      [1, 'B'],
+      [2, 'D'],
+    ]);
   });
 
   it('keeps the first answer when a number is listed twice', () => {
@@ -100,7 +122,7 @@ describe('applyAnswerKey', () => {
   it('notes a letter the question has no choice for', () => {
     const result = applyAnswerKey(quiz([mc(1)]), new Map([[1, 'D']]));
     expect(result.questions[0].correctAnswer).toBe('');
-    expect(result.questions[0].warnings[0]).toContain('no choice D');
+    expect(result.questions[0].warnings[0]).toContain('no option D');
   });
 
   it('notes an answer for a question that is not in the test', () => {
@@ -148,7 +170,66 @@ describe('applyAnswerKey', () => {
     const written = mc(1, { type: 'free-response', options: [] });
     const result = applyAnswerKey(quiz([written]), new Map([[1, 'B']]));
     expect(result.questions[0].correctAnswer).toBe('');
-    expect(result.questions[0].warnings[0]).toContain('isn’t multiple choice');
+    expect(result.questions[0].warnings[0]).toContain('probably missed');
+    const matching = mc(1, { type: 'Matching', options: [] });
+    const other = applyAnswerKey(quiz([matching]), new Map([[1, 'B']]));
+    expect(other.questions[0].warnings[0]).toContain('isn’t multiple choice');
+  });
+
+  it('matches T and F to True and False choices', () => {
+    const tf = (n: number) =>
+      mc(n, {
+        options: [
+          { letter: 'A', text: 'True' },
+          { letter: 'B', text: 'False' },
+        ],
+      });
+    const result = applyAnswerKey(
+      quiz([tf(1), tf(2)]),
+      new Map([
+        [1, 'F'],
+        [2, 'T'],
+      ])
+    );
+    expect(result.questions.map((q) => q.correctAnswer)).toEqual([
+      'False',
+      'True',
+    ]);
+  });
+
+  it('puts a written answer on a fill-in-the-blank question', () => {
+    const fib = mc(1, { type: 'FIB', options: [] });
+    const result = applyAnswerKey(quiz([fib]), new Map([[1, 'mitochondria']]));
+    expect(result.questions[0].correctAnswer).toBe('mitochondria');
+  });
+
+  it('turns a short-answer question into fill in the blank, and says so', () => {
+    const written = mc(1, { type: 'free-response', options: [] });
+    const result = applyAnswerKey(quiz([written]), new Map([[1, 'eyes']]));
+    expect(result.questions[0].type).toBe('FIB');
+    expect(result.questions[0].correctAnswer).toBe('eyes');
+    expect(result.questions[0].warnings[0]).toContain('fill in the blank');
+  });
+
+  it('keeps an essay or a flagged question written, with the key as a note', () => {
+    const essay = mc(1, { type: 'free-response', options: [] });
+    const graph = mc(2, {
+      type: 'free-response',
+      options: [],
+      warnings: ['Graphing question requiring a hand-drawn graph.'],
+    });
+    const result = applyAnswerKey(
+      quiz([essay, graph]),
+      new Map([
+        [1, 'Answers will vary but should mention energy loss.'],
+        [2, 'ii'],
+      ])
+    );
+    expect(result.questions.map((q) => q.type)).toEqual([
+      'free-response',
+      'free-response',
+    ]);
+    expect(result.questions[1].warnings[1]).toContain('“ii”');
   });
 
   it('is a no-op when no key file was attached', () => {

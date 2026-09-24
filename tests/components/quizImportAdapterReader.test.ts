@@ -95,6 +95,8 @@ describe('quiz import reader selection', () => {
       extract: aiExtract,
       // Without a cropper the reader drops every figure silently (D13).
       cropper: browserPdfCropper,
+      // Without it a test-bank key at the back is left to the model alone.
+      readPdfLines: expect.any(Function),
     });
     expect(readQuizDocument).not.toHaveBeenCalled();
     expect(result.data.title).toBe('ai');

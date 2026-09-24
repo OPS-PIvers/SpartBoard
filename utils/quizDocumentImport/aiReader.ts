@@ -8,9 +8,11 @@
 
 import { readDocx } from './docxReader';
 import { parseQuestionLines } from './parseQuestions';
+import { applyAnswerKey, findAnswerKey } from './answerKey';
 import { UNREADABLE_FILE, documentKind, titleFromFileName } from './fileKind';
 import { assertWithinByteLimit } from './limits';
 import type {
+  DocLine,
   ExtractedImage,
   ExtractedOption,
   ExtractedQuestion,
@@ -201,6 +203,35 @@ export interface AiReadOptions {
   extract: AiExtractFn;
   /** Crops a PDF's figures out of the page (D13); omitted skips them. */
   cropper?: (file: Blob) => Promise<PdfCropperDeps>;
+  /** A PDF's text layer, read to check the model against the key at the back. */
+  readPdfLines?: (file: Blob) => Promise<DocLine[]>;
+}
+
+/**
+ * The key printed at the back of the document, read the plain way. The model
+ * often leaves a test-bank answer section unmatched, and a letter-to-choice
+ * lookup is exactly what code does better, so the key found here wins.
+ */
+function withDocumentKey(
+  quiz: ExtractedQuiz,
+  lines: readonly DocLine[]
+): ExtractedQuiz {
+  return applyAnswerKey(quiz, findAnswerKey(lines).answerByNumber, 'document');
+}
+
+async function withPdfKey(
+  quiz: ExtractedQuiz,
+  file: Blob,
+  readLines: AiReadOptions['readPdfLines']
+): Promise<ExtractedQuiz> {
+  if (!readLines) return quiz;
+  try {
+    return withDocumentKey(quiz, await readLines(file));
+  } catch (err) {
+    // The model's answers stand; a text layer that won't open costs nothing more.
+    console.warn('[quizDocumentImport] could not read the answer key', err);
+    return quiz;
+  }
 }
 
 /**
@@ -227,11 +258,17 @@ export async function readQuizDocumentWithAi(
   });
   const quiz = aiQuizToExtracted(ai, titleFromFileName(fileName));
 
-  if (kind !== 'docx') return attachPdfFigures(quiz, ai, file, options.cropper);
+  if (kind !== 'docx') {
+    const withFigures = await attachPdfFigures(quiz, ai, file, options.cropper);
+    return withPdfKey(withFigures, file, options.readPdfLines);
+  }
 
   try {
     const { lines, images } = await readDocx(file);
-    return graftDocxImages(quiz, parseQuestionLines(lines), images);
+    return withDocumentKey(
+      graftDocxImages(quiz, parseQuestionLines(lines), images),
+      lines
+    );
   } catch (err) {
     // The questions are already read; losing the pictures is worth a note,
     // not an error that throws the import away.
