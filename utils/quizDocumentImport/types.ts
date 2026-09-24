@@ -63,9 +63,45 @@ export interface ExtractedImage {
   name: string;
 }
 
+/** Where a question sat in the printed test, for matching a key to it (R7). */
+export interface QuestionRef {
+  /** 1-based, counting only sections that hold questions. */
+  section: number;
+  /** The section heading as printed, e.g. "Section 2". */
+  sectionName?: string;
+  /** The item number as printed within its section. */
+  item: number;
+  /** 'A' / 'B' for a Part A / Part B item. */
+  part?: string;
+}
+
+/** A learning target the test printed ("ELT 1.1 - I can …"), offered in review (R9, R20). */
+export interface SuggestedTarget {
+  code?: string;
+  label: string;
+}
+
+/** Text several questions share, becoming one `text` stimulus (R25). */
+export interface ExtractedText {
+  id: string;
+  text: string;
+  label: string;
+}
+
 export interface ExtractedQuestion {
-  /** The number as printed, 1-based. */
+  /** Position in the quiz, 1-based; the printed number lives in `ref`. */
   number: number;
+  /** Where the test printed it; absent when a reader doesn't know. */
+  ref?: QuestionRef;
+  /** The printed number, set only when it differs from `number` (R23). */
+  sourceLabel?: string;
+  /** Point value, when the key or test gave one (R12). */
+  points?: number;
+  suggestedTarget?: SuggestedTarget;
+  /** Why the row should start unticked in review, e.g. a survey item (R9). */
+  suggestUntick?: string;
+  /** A shared lead-in or passage, by `ExtractedText.id` (R25). */
+  sharedTextId?: string;
   text: string;
   type: QuizQuestionType;
   /** Empty for anything that isn't multiple choice. */
@@ -83,6 +119,8 @@ export interface ExtractedQuiz {
   title: string;
   questions: ExtractedQuestion[];
   images: ExtractedImage[];
+  /** Shared passages and lead-ins (R25). */
+  texts?: ExtractedText[];
   /** Notes about the document as a whole. */
   warnings: string[];
   /** Which reader ran; set only for a teacher who has AI access. */
@@ -99,7 +137,10 @@ export const readByLabel = (readBy: ExtractedQuiz['readBy']): string =>
 
 /** True when the reader found the question but no answer for it (D5). */
 export const questionNeedsKey = (q: ExtractedQuestion): boolean =>
-  q.type !== 'free-response' && !q.correctAnswer.trim();
+  q.type !== 'free-response' &&
+  // An unkeyed ordering item comes in as a written response (see toQuizData).
+  q.type !== 'Ordering' &&
+  !q.correctAnswer.trim();
 
 /** An option as a choose-all key part; `|` separates the parts, so it can't appear inside one. */
 export const multiAnswerPart = (text: string): string =>

@@ -3544,6 +3544,8 @@ export interface QuizQuestion {
   needsKey?: boolean;
   /** Point value for this question. Defaults to 1 if not set. */
   points?: number;
+  /** The number the imported test printed (`2·3`, `5A`), set only when it differs from the question's position; display only. */
+  sourceLabel?: string;
   /**
    * Matching only. Extra incorrect definitions added to the student's
    * word bank to increase difficulty (e.g., 3 terms but 6 definitions).

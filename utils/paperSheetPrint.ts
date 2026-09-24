@@ -68,6 +68,8 @@ export interface PaperPrintJob {
   columnsPerPage?: PaperGrid;
   /** Question text per sheet row, for the `'questions'` grid. */
   questionTexts?: readonly PaperSheetQuestionText[];
+  /** Imported test's own number per row index, printed small inside the number cell. */
+  rowLabels?: readonly (string | undefined)[];
   /** Items printed in the sheet's right-hand band; every sheet gets them (D15). */
   sheetStimuli?: readonly PaperSheetStimulus[];
   /**
@@ -279,7 +281,8 @@ function answerRowsHtml(
   choiceCount: number,
   columnsPerPage: PaperGrid,
   fill?: SheetFill,
-  questionTexts?: readonly PaperSheetQuestionText[]
+  questionTexts?: readonly PaperSheetQuestionText[],
+  rowLabels?: readonly (string | undefined)[]
 ): { html: string; columns: number } {
   const perPage = questionsPerPage(columnsPerPage);
   const first = (page - 1) * perPage;
@@ -290,14 +293,19 @@ function answerRowsHtml(
   for (let i = 0; i < onThisPage; i += 1) {
     const { column, row } = questionSlotOnPage(i, columnsPerPage);
     columns = Math.max(columns, column + 1);
-    parts.push(
-      `<div class="${columnsPerPage === 'questions' ? 'num qnum' : 'num'}" style="left:${mm(
-        COLUMN_X_MM[column]
-      )};top:${mm(rowTopMm(row, columnsPerPage))};width:${mm(
-        NUMBER_WIDTH_MM - 2
-      )}">${first + i + 1}</div>`
-    );
     const index = first + i;
+    const label = rowLabels?.[index];
+    // The label shrinks and clips inside the fixed number cell so bubbles never move.
+    const numberHtml = label
+      ? `<span>${index + 1}</span><span class="num-src">(${escapeHtml(label)})</span>`
+      : `${index + 1}`;
+    parts.push(
+      `<div class="${columnsPerPage === 'questions' ? 'num qnum' : 'num'}${
+        label ? ' labelled' : ''
+      }" style="left:${mm(COLUMN_X_MM[column])};top:${mm(
+        rowTopMm(row, columnsPerPage)
+      )};width:${mm(NUMBER_WIDTH_MM - 2)}">${numberHtml}</div>`
+    );
     const text = questionTexts?.[index];
     if (columnsPerPage === 'questions' && text) {
       parts.push(questionTextHtml(i, text));
@@ -359,7 +367,8 @@ function sheetPagesHtml(
       choiceCount,
       columnsPerPage,
       fill,
-      job.questionTexts
+      job.questionTexts,
+      job.rowLabels
     );
     const scanMarks = fill
       ? ''
@@ -453,6 +462,22 @@ const SHEET_STYLES = `
     font-size: 8pt;
     text-align: right;
     line-height: ${BUBBLE_DIAMETER_MM}mm;
+  }
+  .num.labelled {
+    display: flex;
+    justify-content: flex-end;
+    align-items: baseline;
+    gap: 0.6mm;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .num.labelled span:first-child { flex-shrink: 0; }
+  .num-src {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 5.5pt;
+    color: #444;
   }
   .num.qnum { font-size: 9pt; font-weight: 700; line-height: 3.6mm; }
   .legend { font-size: 7pt; text-align: center; color: #444; }

@@ -163,6 +163,7 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       (qa.allowPartialCredit === true) !== (qb.allowPartialCredit === true) ||
       qa.incorrectAnswers.length !== qb.incorrectAnswers.length ||
       (qa.placeholder ?? '') !== (qb.placeholder ?? '') ||
+      (qa.sourceLabel ?? '') !== (qb.sourceLabel ?? '') ||
       (qa.minWords ?? 0) !== (qb.minWords ?? 0) ||
       (qa.maxWords ?? 0) !== (qb.maxWords ?? 0) ||
       (qa.enforceWordLimit === true) !== (qb.enforceWordLimit === true) ||

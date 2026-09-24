@@ -528,6 +528,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               })),
             }
           : {}),
+        ...(!isStub && analysis.rows.some((r) => r.sourceLabel)
+          ? { rowLabels: analysis.rows.map((r) => r.sourceLabel) }
+          : {}),
         ...(sheetStimuli.length > 0
           ? {
               sheetStimuli,

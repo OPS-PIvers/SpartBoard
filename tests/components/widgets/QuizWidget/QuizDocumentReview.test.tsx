@@ -10,6 +10,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { QuizDocumentReview } from '@/components/widgets/QuizWidget/components/QuizDocumentReview';
 import type { QuizData, QuizQuestion } from '@/types';
 import type { ExtractedImage } from '@/utils/quizDocumentImport';
+import { extractedToQuizData } from '@/utils/quizDocumentImport/toQuizData';
 
 function question(over: Partial<QuizQuestion> = {}): QuizQuestion {
   return {
@@ -151,6 +152,12 @@ describe('QuizDocumentReview', () => {
     expect(screen.queryByText('Needs answer')).toBeNull();
   });
 
+  it('shows the number the test printed beside the position', () => {
+    setup(quiz([question(), question({ id: 'q2', sourceLabel: '2·3' })]));
+    expect(screen.getByText('printed 2·3')).toBeTruthy();
+    expect(screen.getAllByText(/^printed /)).toHaveLength(1);
+  });
+
   it('keeps the quiz title the read produced', () => {
     const { latest } = setup(quiz([question(), question({ id: 'q2' })]));
     fireEvent.click(screen.getByLabelText('Create question 2'));
@@ -272,5 +279,66 @@ describe('QuizDocumentReview spill warnings and filter (R18, R19)', () => {
   it('offers no filter when nothing is flagged', () => {
     setup(quiz([question()]));
     expect(screen.queryByText(/Show only flagged rows/)).toBeNull();
+  });
+});
+
+describe('QuizDocumentReview — rows from the reliable reader (R9, R25)', () => {
+  it('shows a survey item unticked and lets the teacher tick it back on', () => {
+    const data = extractedToQuizData({
+      title: 'Test',
+      images: [],
+      warnings: [],
+      questions: [
+        {
+          number: 1,
+          text: 'Graded?',
+          type: 'MC',
+          options: [
+            { letter: 'A', text: 'x' },
+            { letter: 'B', text: 'y' },
+          ],
+          correctAnswer: 'x',
+          imageIds: [],
+          warnings: [],
+        },
+        {
+          number: 2,
+          text: 'How confident are you?',
+          type: 'free-response',
+          options: [],
+          correctAnswer: '',
+          imageIds: [],
+          warnings: [],
+          suggestUntick: 'This looks like a self-reflection item.',
+        },
+      ],
+    });
+    const { latest } = setup(data);
+    const box = screen.getByLabelText('Create question 2');
+    expect(box).not.toBeChecked();
+    expect(
+      screen.getByText(/This looks like a self-reflection item/)
+    ).toBeInTheDocument();
+    fireEvent.click(box);
+    expect(latest().questions.map((q) => q.text)).toEqual([
+      'Graded?',
+      'How confident are you?',
+    ]);
+  });
+
+  it('names the shared passage a row uses and where else it is used', () => {
+    const data: QuizData = {
+      ...quiz([
+        question({ id: 'a', stimulusIds: ['p1'] }),
+        question({ id: 'b', stimulusIds: ['p1'] }),
+      ]),
+      stimuli: [
+        { id: 'p1', type: 'text', url: '', text: 'Story', label: 'Passage 1' },
+      ],
+    };
+    setup(data);
+    expect(
+      screen.getByText('Uses Passage 1, shared with 2')
+    ).toBeInTheDocument();
   });
 });

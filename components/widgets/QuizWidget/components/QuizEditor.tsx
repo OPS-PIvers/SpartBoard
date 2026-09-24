@@ -602,6 +602,11 @@ const QuestionRow = React.memo(function QuestionRow({
       <span className="text-slate-400 font-mono font-bold text-xs w-5 shrink-0 text-center">
         {index + 1}
       </span>
+      {question.sourceLabel && (
+        <span className="shrink-0 text-slate-400 font-mono text-xxs">
+          · printed {question.sourceLabel}
+        </span>
+      )}
       <span
         className={`shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xxs font-bold uppercase tracking-wider ${TYPE_BADGE[question.type]}`}
       >
@@ -1006,6 +1011,25 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             )}
           </div>
         </div>
+
+        {/* Only an import writes a printed number, so only those questions show the field. */}
+        {q.sourceLabel !== undefined && (
+          <div className="max-w-[12rem]">
+            <label className={labelClass} htmlFor="question-source-label">
+              Printed number
+            </label>
+            <input
+              id="question-source-label"
+              type="text"
+              value={q.sourceLabel ?? ''}
+              onChange={(e) =>
+                updateQuestion(q.id, { sourceLabel: e.target.value })
+              }
+              placeholder="e.g. 2·3"
+              className={inputClass}
+            />
+          </div>
+        )}
 
         {isFreeResponseType(q.type) && mediaResponseAllowed && (
           <SpokenResponseSettings
