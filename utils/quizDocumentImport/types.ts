@@ -7,9 +7,23 @@
 
 import type { QuizQuestionType } from '@/types';
 
+/** One column-separated piece of a line: a table cell, a tab stop, or a PDF x-gap. */
+export interface DocSegment {
+  text: string;
+  /** Left edge in PDF points (or scaled OCR pixels); absent for Word and RTF. */
+  x?: number;
+  /** Right edge in the same units as `x`. */
+  xEnd?: number;
+  /** Bold, underlined or highlighted somewhere in this segment. */
+  emphasized?: boolean;
+}
+
 /** One line of a document, with the little formatting the parser cares about. */
 export interface DocLine {
+  /** The segments joined by a single space. */
   text: string;
+  /** Present when the line had a column gap; absent means one segment holding `text`. */
+  segments?: DocSegment[];
   /**
    * The line was bold, underlined or highlighted. Only meaningful on an
    * option line, where it is how a teacher marks the answer in Word.
@@ -17,9 +31,20 @@ export interface DocLine {
   emphasized?: boolean;
   /** 1-based page the line came from; PDFs only. */
   page?: number;
+  /** Baseline in points up from the page bottom; PDFs only. */
+  y?: number;
   /** Ids of pictures anchored to this line, into `ExtractedQuiz.images`. */
   imageIds?: string[];
 }
+
+/** A line's segments, or the whole line as one segment when it had no gap. */
+export const lineSegments = (line: DocLine): DocSegment[] =>
+  line.segments ?? [
+    {
+      text: line.text,
+      ...(line.emphasized ? { emphasized: true } : {}),
+    },
+  ];
 
 /** An answer choice as the document wrote it. */
 export interface ExtractedOption {

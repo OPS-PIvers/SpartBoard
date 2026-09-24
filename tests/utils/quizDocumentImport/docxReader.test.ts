@@ -205,3 +205,215 @@ describe('readDocx — pictures', () => {
     expect(images).toEqual([]);
   });
 });
+
+/* ─── Layout (docs/plans/QUIZ_IMPORT_RELIABILITY.md R2, R24) ──────────────── */
+
+const cell = (inner: string, props = ''): string =>
+  `<w:tc>${props ? `<w:tcPr>${props}</w:tcPr>` : ''}${inner}</w:tc>`;
+const row = (...cells: string[]): string => `<w:tr>${cells.join('')}</w:tr>`;
+const table = (...rows: string[]): string => `<w:tbl>${rows.join('')}</w:tbl>`;
+
+async function makeDocxWithParts(
+  body: string,
+  parts: Record<string, string>
+): Promise<Blob> {
+  const zip = new JSZip();
+  zip.file(
+    'word/document.xml',
+    `<?xml version="1.0"?><w:document ${W} ${R} ${A}><w:body>${body}</w:body></w:document>`
+  );
+  for (const [path, xml] of Object.entries(parts)) zip.file(path, xml);
+  return zip.generateAsync({ type: 'blob' });
+}
+
+describe('readDocx — tables and tabs', () => {
+  it('reads a table row as one line with a segment per cell', async () => {
+    const { lines } = await readDocx(
+      await makeDocx(
+        [
+          para(run('1. Pick the largest number.')),
+          table(
+            row(cell(para(run('a. 357.4'))), cell(para(run('d. 35,740')))),
+            row(cell(para(run('b. 3,574'))), cell(para(run('e. 0.3574')))),
+            row(cell(para(run('c. 35.74'))), cell(para()))
+          ),
+        ].join('')
+      )
+    );
+    expect(lines.map((l) => l.text.trim())).toEqual([
+      '1. Pick the largest number.',
+      'a. 357.4 d. 35,740',
+      'b. 3,574 e. 0.3574',
+      'c. 35.74',
+    ]);
+    expect(lines[1].segments?.map((s) => s.text)).toEqual([
+      'a. 357.4',
+      'd. 35,740',
+    ]);
+  });
+
+  it('keeps a two-paragraph cell, a spanned cell and a merged cell in their columns', async () => {
+    const { lines } = await readDocx(
+      await makeDocx(
+        table(
+          row(
+            cell(para(run('ITEM 1')) + para(run('Which is a noun?'))),
+            cell(para(run('Correct Answer: b')), '<w:gridSpan w:val="2"/>')
+          ),
+          row(cell(para(run('ITEM 2'))), cell(para(), '<w:vMerge/>'))
+        )
+      )
+    );
+    expect(lines[0].segments?.map((s) => s.text)).toEqual([
+      'ITEM 1 Which is a noun?',
+      'Correct Answer: b',
+    ]);
+    expect(lines[1].segments?.map((s) => s.text)).toEqual(['ITEM 2', '']);
+  });
+
+  it('flattens a nested table into its parent cell', async () => {
+    const { lines } = await readDocx(
+      await makeDocx(
+        table(
+          row(
+            cell(para(run('1'))),
+            cell(table(row(cell(para(run('B'))), cell(para(run('noun'))))))
+          )
+        )
+      )
+    );
+    expect(lines).toHaveLength(1);
+    expect(lines[0].segments?.map((s) => s.text)).toEqual(['1', 'B noun']);
+  });
+
+  it('splits at a tab and keeps bold on the choice it covers', async () => {
+    const { lines } = await readDocx(
+      await makeDocx(
+        `<w:p>${run('a. Rome')}<w:r><w:tab/></w:r>${run('d. Paris', 'b')}</w:p>`
+      )
+    );
+    expect(lines[0].segments?.map((s) => s.text)).toEqual([
+      'a. Rome',
+      'd. Paris',
+    ]);
+    expect(lines[0].segments?.[0].emphasized).toBeUndefined();
+    expect(lines[0].segments?.[1].emphasized).toBe(true);
+  });
+
+  it('reads a text box once, after the paragraph that anchors it', async () => {
+    const { lines } = await readDocx(
+      await makeDocx(
+        `<w:p>${run('1. Read the note.')}<w:r><w:drawing><w:txbxContent>${para(run('Boxed note'))}</w:txbxContent></w:drawing></w:r></w:p>` +
+          para(run('A. Yes'))
+      )
+    );
+    expect(lines.map((l) => l.text)).toEqual([
+      '1. Read the note.',
+      'Boxed note',
+      'A. Yes',
+    ]);
+  });
+
+  it('parses options laid out in a table as separate choices', async () => {
+    const { lines } = await readDocx(
+      await makeDocx(
+        [
+          para(run('1. Which city is in Italy?')),
+          table(row(cell(para(run('A. Rome'))), cell(para(run('B. Paris'))))),
+        ].join('')
+      )
+    );
+    const [q] = parseQuestionLines(lines);
+    expect(q.options.map((o) => o.text)).toEqual(['Rome', 'Paris']);
+  });
+});
+
+const numbering = (abstracts: string, nums: string): string =>
+  `<?xml version="1.0"?><w:numbering ${W}>${abstracts}${nums}</w:numbering>`;
+const lvl = (ilvl: number, fmt: string, text: string, start = 1): string =>
+  `<w:lvl w:ilvl="${ilvl}"><w:start w:val="${start}"/><w:numFmt w:val="${fmt}"/><w:lvlText w:val="${text}"/></w:lvl>`;
+const numPara = (numId: string, ilvl: number, text: string): string =>
+  `<w:p><w:pPr><w:numPr><w:ilvl w:val="${ilvl}"/><w:numId w:val="${numId}"/></w:numPr></w:pPr>${run(text)}</w:p>`;
+
+describe('readDocx — Word list numbering (R24)', () => {
+  const NUMBERING = numbering(
+    `<w:abstractNum w:abstractNumId="0">${lvl(0, 'decimal', '%1.')}${lvl(1, 'lowerLetter', '%2)')}</w:abstractNum>` +
+      `<w:abstractNum w:abstractNumId="1">${lvl(0, 'bullet', '•')}</w:abstractNum>` +
+      `<w:abstractNum w:abstractNumId="2">${lvl(0, 'upperRoman', '(%1)')}</w:abstractNum>`,
+    `<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>` +
+      `<w:num w:numId="2"><w:abstractNumId w:val="1"/></w:num>` +
+      `<w:num w:numId="3"><w:abstractNumId w:val="0"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="10"/></w:lvlOverride></w:num>` +
+      `<w:num w:numId="4"><w:abstractNumId w:val="2"/></w:num>`
+  );
+
+  it('renders question numbers and option letters Word adds itself', async () => {
+    const { lines } = await readDocx(
+      await makeDocxWithParts(
+        [
+          numPara('1', 0, 'Which planet is closest to the sun?'),
+          numPara('1', 1, 'Mercury'),
+          numPara('1', 1, 'Venus'),
+          numPara('1', 0, 'Which planet is largest?'),
+          numPara('1', 1, 'Jupiter'),
+          numPara('2', 0, 'A bullet adds nothing'),
+          numPara('4', 0, 'Roman'),
+        ].join(''),
+        { 'word/numbering.xml': NUMBERING }
+      )
+    );
+    expect(lines.map((l) => l.text)).toEqual([
+      '1. Which planet is closest to the sun?',
+      'a) Mercury',
+      'b) Venus',
+      '2. Which planet is largest?',
+      // The letters restart under each new question.
+      'a) Jupiter',
+      'A bullet adds nothing',
+      '(I) Roman',
+    ]);
+    expect(lines[0].segments?.map((s) => s.text)).toEqual([
+      '1.',
+      'Which planet is closest to the sun?',
+    ]);
+    const questions = parseQuestionLines(lines);
+    expect(questions.map((q) => q.number)).toEqual([1, 2]);
+    expect(questions[0].options.map((o) => o.text)).toEqual([
+      'Mercury',
+      'Venus',
+    ]);
+  });
+
+  it('restarts a list that overrides its start', async () => {
+    const { lines } = await readDocx(
+      await makeDocxWithParts(
+        [
+          numPara('1', 0, 'First'),
+          numPara('3', 0, 'Restarted'),
+          numPara('3', 0, 'Next'),
+        ].join(''),
+        { 'word/numbering.xml': NUMBERING }
+      )
+    );
+    expect(lines.map((l) => l.text)).toEqual([
+      '1. First',
+      '10. Restarted',
+      '11. Next',
+    ]);
+  });
+
+  it('numbers a paragraph whose style carries the list', async () => {
+    const styles = `<?xml version="1.0"?><w:styles ${W}>
+      <w:style w:type="paragraph" w:styleId="QuestionBase"><w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr></w:style>
+      <w:style w:type="paragraph" w:styleId="Question"><w:basedOn w:val="QuestionBase"/></w:style>
+    </w:styles>`;
+    const styled = (text: string) =>
+      `<w:p><w:pPr><w:pStyle w:val="Question"/></w:pPr>${run(text)}</w:p>`;
+    const { lines } = await readDocx(
+      await makeDocxWithParts([styled('One?'), styled('Two?')].join(''), {
+        'word/numbering.xml': NUMBERING,
+        'word/styles.xml': styles,
+      })
+    );
+    expect(lines.map((l) => l.text)).toEqual(['1. One?', '2. Two?']);
+  });
+});

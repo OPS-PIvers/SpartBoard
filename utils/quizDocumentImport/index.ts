@@ -26,7 +26,11 @@ export {
   UNREADABLE_FILE,
   type DocumentKind,
 } from './fileKind';
-export { parseQuestionLines, isTrueFalse } from './parseQuestions';
+export {
+  parseQuestionLines,
+  isTrueFalse,
+  splitAtColumnMarkers,
+} from './parseQuestions';
 export { findAnswerKey } from './answerKey';
 export {
   keyFromLines,
@@ -38,6 +42,14 @@ export { readDocx } from './docxReader';
 export { readRtf, parseRtf } from './rtfReader';
 export { readCartridge } from './cartridgeReader';
 export { readPdf, groupItemsIntoLines } from './pdfReader';
+export {
+  columnBands,
+  bandOf,
+  layoutPage,
+  ocrItems,
+  stripRunningLines,
+  type OcrPage,
+} from './pdfLayout';
 export { extractedToQuizData, rowWarnings } from './toQuizData';
 export {
   cropPdfFigures,

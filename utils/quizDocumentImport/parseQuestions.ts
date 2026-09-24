@@ -20,8 +20,10 @@ import {
 } from './answerKey';
 import {
   SELECT_ALL_WORDING,
+  lineSegments,
   multiAnswerKey,
   type DocLine,
+  type DocSegment,
   type ExtractedOption,
   type ExtractedQuestion,
   type ReaderOptions,
@@ -154,15 +156,59 @@ function finish(
 }
 
 /**
+ * A column gap that opens an option or a question starts a line of its own
+ * (R5), so a table row `A. Rome | B. Paris` reads as two options. A marker
+ * inside one segment never splits.
+ */
+export function splitAtColumnMarkers(lines: readonly DocLine[]): DocLine[] {
+  const out: DocLine[] = [];
+  for (const line of lines) {
+    if (!line.segments || line.segments.length < 2) {
+      out.push(line);
+      continue;
+    }
+    const groups: DocSegment[][] = [];
+    for (const segment of lineSegments(line)) {
+      const text = segment.text.trim();
+      if (!text) continue;
+      const opens =
+        OPTION_PAREN.test(text) ||
+        OPTION.test(text) ||
+        matchQuestionOpening(text) !== null;
+      const last = groups[groups.length - 1];
+      if (last && !opens) last.push(segment);
+      else groups.push([segment]);
+    }
+    if (groups.length < 2) {
+      out.push(line);
+      continue;
+    }
+    groups.forEach((segments, i) => {
+      const emphasized = segments.some((s) => s.emphasized);
+      out.push({
+        text: segments.map((s) => s.text.trim()).join(' '),
+        segments,
+        ...(emphasized ? { emphasized: true } : {}),
+        ...(line.page !== undefined ? { page: line.page } : {}),
+        ...(line.y !== undefined ? { y: line.y } : {}),
+        ...(i === 0 && line.imageIds ? { imageIds: line.imageIds } : {}),
+      });
+    });
+  }
+  return out;
+}
+
+/**
  * Walk the lines once. A numbered line opens a question, option lines attach
  * to it in letter order, and anything else extends whichever part is open.
  * Numbers must ascend, so a "2." inside a sentence cannot restart the count.
  */
 export function parseQuestionLines(
-  lines: readonly DocLine[],
+  documentLines: readonly DocLine[],
   options: ReaderOptions = {}
 ): ExtractedQuestion[] {
   const multi = options.multiAnswer === true;
+  const lines = splitAtColumnMarkers(documentLines);
   const { answerByNumber, keyLineIndexes } = findAnswerKey(lines, options);
 
   const drafts: Draft[] = [];

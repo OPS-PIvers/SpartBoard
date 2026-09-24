@@ -36,6 +36,7 @@
     "test:e2e": "playwright test",
     "test:rules": "pnpm run check:rules-size && firebase emulators:exec --only firestore \"vitest run --config vitest.rules.config.ts --reporter=default --reporter=json --outputFile=.vitest-reports/rules.json && node scripts/checkTestCounts.mjs rules\"",
     "test:perf": "vitest run --config vitest.perf.config.ts",
+    "test:import-corpus": "vitest run --config vitest.corpus.config.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "new-widget-settings": "node scripts/new-widget-settings.ts",
