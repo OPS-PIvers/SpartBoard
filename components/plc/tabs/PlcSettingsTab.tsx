@@ -19,7 +19,9 @@ import {
 } from '@/types';
 import { usePlcs } from '@/hooks/usePlcs';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { PlcTrashBody } from '@/components/plc/settings/PlcTrashBody';
+import { PlcMeetingCadenceSection } from '@/components/plc/settings/PlcMeetingCadenceSection';
 
 interface PlcSettingsTabProps {
   plc: Plc;
@@ -100,6 +102,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
     enabled: false,
   });
   const { addToast } = useDashboard();
+  const { canAccessFeature } = useAuth();
   const features = getPlcFeatures(plc);
   const [busyKey, setBusyKey] = useState<keyof PlcFeatureSettings | null>(null);
   // Trash is a collapsed subsection inside Settings (Decision §6.1) — it mounts
@@ -225,6 +228,10 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
           );
         })}
       </div>
+
+      {canAccessFeature('plc-home-v2') && (
+        <PlcMeetingCadenceSection plc={plc} />
+      )}
 
       {/* Notifications — opt-in weekly email digest (Decision 2.3). Any
           member can flip it; default OFF. */}

@@ -339,8 +339,28 @@ export interface Plc {
    * switch is on.
    */
   digestOptIn?: boolean;
+  /** PLC Home v2 recurring meeting schedule; leads and co-leads edit it. */
+  meetingCadence?: PlcMeetingCadence;
   createdAt: number;
   updatedAt: number;
+}
+
+export type PlcMeetingFrequency = 'weekly' | 'biweekly' | 'monthlyNthWeekday';
+
+/** Recurring PLC meeting, on a Chicago wall clock; the next date is computed client-side. */
+export interface PlcMeetingCadence {
+  frequency: PlcMeetingFrequency;
+  /** 0 = Sunday. */
+  weekday: number;
+  /** monthlyNthWeekday: 1-4, or -1 for the last. */
+  nth?: number;
+  /** 'HH:mm'. */
+  time: string;
+  /** 'YYYY-MM-DD' of the first occurrence; sets biweekly parity. */
+  anchorDate: string;
+  defaultAgenda?: string;
+  /** Keyed by an occurrence's original 'YYYY-MM-DD'. */
+  overrides?: Record<string, { movedTo?: string; skipped?: true }>;
 }
 
 /**
