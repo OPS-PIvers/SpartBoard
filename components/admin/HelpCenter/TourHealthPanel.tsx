@@ -202,7 +202,7 @@ const TourHealthPanel: React.FC = () => {
             meta={null}
             initialStepId={studio.stepId}
             onClose={() => setStudio(null)}
-            onSave={saveBuildingSet}
+            onSave={(next, _driveFileId, guard) => saveBuildingSet(next, guard)}
           />
         </Suspense>
       )}

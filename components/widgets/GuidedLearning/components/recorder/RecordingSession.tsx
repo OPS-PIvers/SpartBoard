@@ -122,8 +122,10 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
           return { ...step, label: d.label, text: d.text };
         }),
       };
-      await saveBuildingSet(set).catch((err: unknown) =>
-        console.error('[TourRecorder] Saving the recorded set failed:', err)
+      // A guard keeps set.updatedAt, the revision the Studio then saves against.
+      await saveBuildingSet(set, { expectedUpdatedAt: undefined }).catch(
+        (err: unknown) =>
+          console.error('[TourRecorder] Saving the recorded set failed:', err)
       );
       setPhase({ kind: 'studio', set, drafts });
     } catch (err) {
@@ -176,7 +178,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
           meta={null}
           aiDrafts={phase.drafts}
           onClose={onEnd}
-          onSave={saveBuildingSet}
+          onSave={(next, _driveFileId, guard) => saveBuildingSet(next, guard)}
         />
       </Suspense>
     );

@@ -8,9 +8,11 @@ import React, {
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
+  AlertTriangle,
   Folder as FolderIcon,
   Footprints,
   Inbox,
+  Lock,
   PanelRight,
   Play,
 } from 'lucide-react';
@@ -30,6 +32,10 @@ import { EditorHeader } from '../EditorHeader';
 import { GuidedLearningAIGenerator } from '../GuidedLearningAIGenerator';
 import { useGuidedLearningEditorState } from '../useGuidedLearningEditorState';
 import { useSetDraftPersistence } from '../useSetDraftPersistence';
+import type {
+  GuidedLearningLatestSet,
+  GuidedLearningSaveGuard,
+} from '../../utils/saveConflict';
 import type { DevicePreset } from '../../types/stage';
 import { StudioCanvas } from './StudioCanvas';
 import { useCanvasTools } from './useCanvasTools';
@@ -45,7 +51,11 @@ export interface GuidedLearningStudioProps {
   set: GuidedLearningSet;
   meta: GuidedLearningSetMetadata | null;
   onClose: () => void;
-  onSave: (set: GuidedLearningSet, driveFileId?: string) => Promise<void>;
+  onSave: (
+    set: GuidedLearningSet,
+    driveFileId?: string,
+    guard?: GuidedLearningSaveGuard
+  ) => Promise<void>;
   onAiGenerated?: (set: GuidedLearningSet) => void;
   /** Close the Studio and open the classic editor on this (latest) draft. */
   onOpenClassic?: (latest: GuidedLearningSet) => void;
@@ -59,7 +69,41 @@ export interface GuidedLearningStudioProps {
 }
 
 /** Full-screen Guided Learning editor whose canvas is the real player stage. */
-export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
+export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = (
+  props
+) => {
+  const [reloaded, setReloaded] = useState<{
+    from: GuidedLearningSet;
+    latest: GuidedLearningLatestSet;
+    count: number;
+  } | null>(null);
+  // A different set from the parent drops a reloaded copy.
+  const current = reloaded?.from === props.set ? reloaded : null;
+  return (
+    <StudioSession
+      key={current?.count ?? 0}
+      {...props}
+      set={current?.latest.set ?? props.set}
+      loadedUpdatedAt={
+        current ? current.latest.updatedAt : props.meta?.updatedAt
+      }
+      onReloaded={(latest) =>
+        setReloaded((prev) => ({
+          from: props.set,
+          latest,
+          count: (prev?.count ?? 0) + 1,
+        }))
+      }
+    />
+  );
+};
+
+const StudioSession: React.FC<
+  GuidedLearningStudioProps & {
+    loadedUpdatedAt?: number;
+    onReloaded: (latest: GuidedLearningLatestSet) => void;
+  }
+> = ({
   set,
   meta,
   onClose,
@@ -71,6 +115,8 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
   onFolderChange,
   initialStepId,
   aiDrafts,
+  loadedUpdatedAt,
+  onReloaded,
 }) => {
   const { t } = useTranslation();
   const { isAdmin, canAccessFeature } = useAuth();
@@ -89,27 +135,40 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
     folderId,
     onFolderChange,
   });
-  const { draftToken, persistDraft, buildSavedSet, closeEditor } =
-    useSetDraftPersistence({
-      isOpen: true,
-      set,
-      editorState,
-      onSave,
-      driveFileId: meta?.driveFileId,
-      onClose,
-    });
+  const {
+    draftToken,
+    persistDraft,
+    buildSavedSet,
+    closeEditor,
+    conflict,
+    armOverwrite,
+    readOnly,
+  } = useSetDraftPersistence({
+    isOpen: true,
+    set,
+    editorState,
+    onSave,
+    driveFileId: meta?.driveFileId,
+    loadedUpdatedAt,
+    onClose,
+  });
 
   const autosave = useAutosave({
     draftToken,
     resetKey: set.id,
-    // A set with no slide has nothing to persist, and an in-flight upload would be written as a half-set.
-    enabled: editorState.imageUrls.length > 0 && !editorState.uploading,
+    // No slide, an in-flight upload, an unresolved conflict or a newer schema: nothing safe to write.
+    enabled:
+      editorState.imageUrls.length > 0 &&
+      !editorState.uploading &&
+      !conflict &&
+      !readOnly,
     onSave: persistDraft,
   });
 
   const flushOrConfirm = useCallback(
     async (force = false): Promise<boolean> => {
-      if (await autosave.flush({ force })) return true;
+      // Paused autosave reports nothing owed, but a conflicted draft is unsaved.
+      if (!conflict && (await autosave.flush({ force }))) return true;
       return showConfirm(t('glStudio.unsavedBody'), {
         title: t('glStudio.unsavedTitle'),
         variant: 'warning',
@@ -117,8 +176,26 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
         cancelLabel: t('glStudio.keepEditing'),
       });
     },
-    [autosave, showConfirm, t]
+    [conflict, autosave, showConfirm, t]
   );
+
+  const [resolving, setResolving] = useState(false);
+  const reloadLatest = useCallback(async () => {
+    if (!conflict) return;
+    setResolving(true);
+    try {
+      onReloaded(await conflict.loadLatest());
+    } catch {
+      addToast?.(t('glStudio.reloadFailed'), 'error');
+      setResolving(false);
+    }
+  }, [conflict, onReloaded, addToast, t]);
+  const overwrite = useCallback(async () => {
+    armOverwrite();
+    setResolving(true);
+    await autosave.flush({ force: true });
+    setResolving(false);
+  }, [armOverwrite, autosave]);
 
   const requestClose = useCallback(async () => {
     const { uploading, imageUrls, title, description, abandonUploads } =
@@ -151,13 +228,13 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
 
   // The runner loads the saved set, so an unsaved draft never starts.
   const runLive = useCallback(async () => {
-    if (!(await autosave.flush())) {
+    if (conflict || !(await autosave.flush())) {
       addToast?.(t('glStudio.runLiveFailed'), 'error');
       return;
     }
     closeEditor();
     requestStartTour({ setId: set.id });
-  }, [autosave, addToast, t, closeEditor, set.id]);
+  }, [conflict, autosave, addToast, t, closeEditor, set.id]);
 
   // The draft travels to the classic editor, which keeps saving it, so nothing to confirm.
   const openClassic = useCallback(async () => {
@@ -300,8 +377,8 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
     [exitPlay]
   );
   useStudioShortcuts(playing ? playKeymap : editKeymap, {
-    // An open dialog owns the keyboard, Escape included.
-    enabled: !showAiGen && !currentDialog,
+    // An open dialog owns the keyboard, Escape included; a read-only set takes no edits.
+    enabled: !showAiGen && !currentDialog && !readOnly,
     editing: !playing && tools.editingStepId !== null,
   });
 
@@ -333,7 +410,7 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
     >
       <EditorHeader
         title={editorState.title}
-        onTitleChange={editorState.setTitle}
+        onTitleChange={readOnly ? () => undefined : editorState.setTitle}
         titlePlaceholder={t('glStudio.titlePlaceholder')}
         subtitle={t('glStudio.stepCount', { count: stepCount })}
         notice={
@@ -405,7 +482,50 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
           </>
         }
       />
-      <div className="relative grid min-h-0 flex-1 grid-cols-[200px_minmax(0,1fr)] lg:grid-cols-[200px_minmax(0,1fr)_360px]">
+      {conflict && (
+        <div
+          role="alert"
+          data-testid="gl-studio-conflict"
+          className="flex flex-wrap items-center gap-3 border-b border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900"
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <p className="min-w-0 flex-1">
+            <strong className="font-bold">{t('glStudio.conflictTitle')}</strong>{' '}
+            {t('glStudio.conflictBody')}
+          </p>
+          <button
+            type="button"
+            onClick={() => void reloadLatest()}
+            disabled={resolving}
+            className="rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+          >
+            {t('glStudio.conflictReload')}
+          </button>
+          <button
+            type="button"
+            onClick={() => void overwrite()}
+            disabled={resolving}
+            className="rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+          >
+            {t('glStudio.conflictOverwrite')}
+          </button>
+        </div>
+      )}
+      {readOnly && (
+        <p
+          role="status"
+          data-testid="gl-studio-read-only"
+          className="flex items-center gap-2 border-b border-slate-300 bg-slate-50 px-4 py-2.5 text-sm text-slate-700"
+        >
+          <Lock className="h-4 w-4 shrink-0" aria-hidden="true" />
+          {t('glStudio.newerVersion')}
+        </p>
+      )}
+      <div
+        // Read-only sets can still be played from the header.
+        inert={readOnly && !playing}
+        className="relative grid min-h-0 flex-1 grid-cols-[200px_minmax(0,1fr)] lg:grid-cols-[200px_minmax(0,1fr)_360px]"
+      >
         <StudioFilmstrip state={editorState} />
         <div className="flex min-h-0 min-w-0 flex-col">
           <main ref={canvasRef} className="min-h-0 flex-1 p-6">

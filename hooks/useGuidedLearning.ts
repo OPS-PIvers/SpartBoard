@@ -17,6 +17,9 @@ import {
   deleteDoc,
   query,
   orderBy,
+  runTransaction,
+  type DocumentData,
+  type DocumentReference,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
@@ -32,6 +35,11 @@ import { normalizeGuidedLearningSet } from '@/components/widgets/GuidedLearning/
 import { withSlideFileRefs } from '@/components/widgets/GuidedLearning/utils/slideMedia';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
+import {
+  GuidedLearningSaveConflictError,
+  type GuidedLearningSaveGuard,
+  isStaleRevision,
+} from '@/components/widgets/GuidedLearning/utils/saveConflict';
 
 const GL_COLLECTION = 'guided_learning';
 const BUILDING_GL_COLLECTION = 'building_guided_learning';
@@ -46,7 +54,8 @@ export interface UseGuidedLearningResult {
   /** Save or update a personal set (saves to Drive + upserts Firestore metadata) */
   saveSet: (
     set: GuidedLearningSet,
-    existingDriveFileId?: string
+    existingDriveFileId?: string,
+    guard?: GuidedLearningSaveGuard
   ) => Promise<GuidedLearningSetMetadata>;
   /** Load full set data from Drive by driveFileId */
   loadSetData: (driveFileId: string) => Promise<GuidedLearningSet>;
@@ -64,7 +73,10 @@ export interface UseGuidedLearningResult {
     source: GuidedLearningSetMetadata
   ) => Promise<GuidedLearningSetMetadata>;
   /** Save an admin building set to Firestore */
-  saveBuildingSet: (set: GuidedLearningSet) => Promise<void>;
+  saveBuildingSet: (
+    set: GuidedLearningSet,
+    guard?: GuidedLearningSaveGuard
+  ) => Promise<void>;
   /** Delete an admin building set from Firestore */
   deleteBuildingSet: (setId: string) => Promise<void>;
   /**
@@ -180,12 +192,36 @@ export const useGuidedLearning = (
   const saveSet = useCallback(
     async (
       set: GuidedLearningSet,
-      existingDriveFileId?: string
+      existingDriveFileId?: string,
+      guard?: GuidedLearningSaveGuard
     ): Promise<GuidedLearningSetMetadata> => {
       if (!userId) throw new Error('Not authenticated');
       const drive = getDriveService();
+      const metaRef = doc(db, 'users', userId, GL_COLLECTION, set.id);
+      // Drive can't be transacted, so check the metadata revision before touching it.
+      const personalConflict = (stored: DocumentData) =>
+        new GuidedLearningSaveConflictError(async () => {
+          const latest = normalizeGuidedLearningSet(
+            await drive.loadSet(String(stored.driveFileId))
+          );
+          const revision: unknown = stored.updatedAt;
+          return {
+            set: latest,
+            updatedAt:
+              typeof revision === 'number' ? revision : latest.updatedAt,
+          };
+        });
+      if (guard) {
+        const before = (await getDoc(metaRef)).data();
+        if (before && isStaleRevision(before, guard))
+          throw personalConflict(before);
+      }
+      // A guarded save keeps the editor's stamp so the editor knows the new revision.
       const updatedSet: GuidedLearningSet = withSlideFileRefs(
-        normalizeGuidedLearningSet({ ...set, updatedAt: Date.now() })
+        normalizeGuidedLearningSet({
+          ...set,
+          updatedAt: guard ? set.updatedAt : Date.now(),
+        })
       );
 
       const driveFileId = await drive.saveSet(updatedSet, existingDriveFileId);
@@ -207,16 +243,22 @@ export const useGuidedLearning = (
         metadata.driveFileIds = updatedSet.driveFileIds;
 
       // Merge keeps library-owned fields (folderId, order) the editor never sees.
-      await setDoc(
-        doc(db, 'users', userId, GL_COLLECTION, set.id),
-        {
-          ...metadata,
-          description: metadata.description ?? deleteField(),
-          imagePaths: metadata.imagePaths ?? deleteField(),
-          driveFileIds: metadata.driveFileIds ?? deleteField(),
-        },
-        { merge: true }
-      );
+      const metaWrite = {
+        ...metadata,
+        description: metadata.description ?? deleteField(),
+        imagePaths: metadata.imagePaths ?? deleteField(),
+        driveFileIds: metadata.driveFileIds ?? deleteField(),
+      };
+      if (guard) {
+        await runTransaction(db, async (tx) => {
+          const stored = (await tx.get(metaRef)).data();
+          if (stored && isStaleRevision(stored, guard))
+            throw personalConflict(stored);
+          tx.set(metaRef, metaWrite, { merge: true });
+        });
+      } else {
+        await setDoc(metaRef, metaWrite, { merge: true });
+      }
 
       const existing = setsRef.current.find((m) => m.id === set.id);
       return {
@@ -325,14 +367,21 @@ export const useGuidedLearning = (
   );
 
   const saveBuildingSet = useCallback(
-    async (set: GuidedLearningSet): Promise<void> => {
+    async (
+      set: GuidedLearningSet,
+      guard?: GuidedLearningSaveGuard
+    ): Promise<void> => {
       if (!isAdmin) throw new Error('Admin access required');
       const updatedSet: GuidedLearningSet = {
         ...withSlideFileRefs(normalizeGuidedLearningSet(set)),
         isBuilding: true,
-        updatedAt: Date.now(),
+        updatedAt: guard ? set.updatedAt : Date.now(),
       };
-      await setDoc(doc(db, BUILDING_GL_COLLECTION, set.id), updatedSet);
+      await writeBuildingSet(
+        doc(db, BUILDING_GL_COLLECTION, set.id),
+        updatedSet,
+        guard
+      );
     },
     [isAdmin]
   );
@@ -393,6 +442,28 @@ export const useGuidedLearning = (
     saveBuildingSet,
     deleteBuildingSet,
   };
+};
+
+// Transactional revision check for a building set; unguarded callers write as before.
+const writeBuildingSet = async (
+  ref: DocumentReference,
+  set: GuidedLearningSet,
+  guard: GuidedLearningSaveGuard | undefined
+): Promise<void> => {
+  if (!guard) {
+    await setDoc(ref, set);
+    return;
+  }
+  await runTransaction(db, async (tx) => {
+    const stored = (await tx.get(ref)).data();
+    if (stored && isStaleRevision(stored, guard)) {
+      const latest = normalizeGuidedLearningSet(stored as GuidedLearningSet);
+      throw new GuidedLearningSaveConflictError(() =>
+        Promise.resolve({ set: latest, updatedAt: latest.updatedAt })
+      );
+    }
+    tx.set(ref, set);
+  });
 };
 
 // Single shared-set read for surfaces that reference one set by id (Help center guides).

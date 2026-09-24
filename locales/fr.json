@@ -2540,6 +2540,12 @@
     "done": "Terminé"
   },
   "glStudio": {
+    "conflictTitle": "Modifié ailleurs",
+    "conflictBody": "Cet ensemble a été enregistré dans un autre onglet ou sur un autre appareil depuis son ouverture, l'enregistrement automatique est donc en pause. Rechargez pour voir cette version ou remplacez-la par la vôtre.",
+    "conflictReload": "Recharger",
+    "conflictOverwrite": "Remplacer",
+    "reloadFailed": "Impossible de charger la dernière version. Réessayez.",
+    "newerVersion": "Cet ensemble a été enregistré avec une version plus récente de SpartBoard. Actualisez la page pour le modifier.",
     "needSlide": "Pas encore prête : ajoutez au moins une diapositive.",
     "needTitle": "Pas encore prête : donnez un titre à cette activité.",
     "classicEditorNotice": "Cette activité utilise des fonctions du Studio. Modifiez les zones et les bulles dans le Studio.",

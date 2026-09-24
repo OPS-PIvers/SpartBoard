@@ -2540,6 +2540,12 @@
     "done": "Fertig"
   },
   "glStudio": {
+    "conflictTitle": "Anderswo bearbeitet",
+    "conflictBody": "Dieses Set wurde seit dem Öffnen in einem anderen Tab oder auf einem anderen Gerät gespeichert, daher ist das automatische Speichern pausiert. Laden Sie diese Version neu oder überschreiben Sie sie mit Ihrer.",
+    "conflictReload": "Neu laden",
+    "conflictOverwrite": "Überschreiben",
+    "reloadFailed": "Die neueste Version konnte nicht geladen werden. Versuchen Sie es erneut.",
+    "newerVersion": "Dieses Set wurde mit einer neueren Version von SpartBoard gespeichert. Laden Sie die Seite neu, um es zu bearbeiten.",
     "needSlide": "Noch nicht einsatzbereit: Füge mindestens eine Folie hinzu.",
     "needTitle": "Noch nicht einsatzbereit: Gib dieser Aktivität einen Titel.",
     "classicEditorNotice": "Diese Aktivität nutzt Studio-Funktionen. Bearbeite Bereiche und Hinweise im Studio.",

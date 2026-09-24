@@ -73,6 +73,7 @@ import {
   prepareImageForUpload,
 } from '@/utils/guidedLearningMedia';
 import { SetPrefetchCache } from './utils/setPrefetchCache';
+import type { GuidedLearningSaveGuard } from './utils/saveConflict';
 import {
   answerKeysForSteps,
   withFrozenAnswerKeys,
@@ -247,10 +248,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // The Studio is admin-only until P1-10 retires the classic editor.
   const [classicEditor, setClassicEditor] = useState(false);
 
-  const { folders: glFolders, moveItem: moveGlItem } = useFolders(
-    user?.uid,
-    'guided_learning'
-  );
+  const { folders: glFolders } = useFolders(user?.uid, 'guided_learning');
   const [showAIGen, setShowAIGen] = useState(false);
   // Shared rapid-click guards (personal sets + admin building sets).
   // See `hooks/useBusyIdSet.ts`.
@@ -505,15 +503,19 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // The Manager delegates save routing back here: building sets go to
   // Firestore-only via saveBuildingSet, personal sets go through Drive +
   // Firestore metadata via saveSet. The Manager never sees this branching.
-  const handleSave = async (set: GuidedLearningSet, driveFileId?: string) => {
+  const handleSave = async (
+    set: GuidedLearningSet,
+    driveFileId?: string,
+    guard?: GuidedLearningSaveGuard
+  ) => {
     // Saved content invalidates any prefetched copy.
     prefetchCacheRef.current.invalidate(set.id);
     // The editor autosaves and shows its own save state, so no toast per write.
-    if (set.isBuilding) await saveBuildingSet(set);
+    if (set.isBuilding) await saveBuildingSet(set, guard);
     else {
       // Adopt what was written. Without this a new set keeps autosaving with no
       // drive file id, so every retitled write orphans another .gl.json file.
-      const meta = await saveSet(set, driveFileId);
+      const meta = await saveSet(set, driveFileId, guard);
       setEditingMeta(meta);
     }
   };
@@ -532,7 +534,12 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const handleEditorFolderChange = editingMeta
     ? async (folderId: string | null) => {
         try {
-          await moveGlItem(editingMeta.id, folderId);
+          // No updatedAt bump: the open editor reads that as an edit elsewhere.
+          if (!user?.uid) return;
+          await updateDoc(
+            doc(db, 'users', user.uid, GL_PERSONAL_COLLECTION, editingMeta.id),
+            { folderId }
+          );
           addToast('Folder updated.', 'success');
         } catch (err) {
           addToast(

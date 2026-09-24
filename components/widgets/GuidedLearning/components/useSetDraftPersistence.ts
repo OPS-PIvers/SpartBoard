@@ -14,6 +14,10 @@ import {
   stepUsesSpotlight,
 } from '../utils/setMigration';
 import { calculateImageFootprint, toImageOffset } from '../utils/imageUtils';
+import {
+  GuidedLearningSaveConflictError,
+  type GuidedLearningSaveGuard,
+} from '../utils/saveConflict';
 import type { GuidedLearningEditorController } from './useGuidedLearningEditorState';
 
 function arraysEqual(a: string[], b: string[]): boolean {
@@ -148,10 +152,28 @@ interface UseSetDraftPersistenceArgs {
   isOpen: boolean;
   set: GuidedLearningSet | null;
   editorState: GuidedLearningEditorController;
-  onSave: (set: GuidedLearningSet, driveFileId?: string) => Promise<void>;
+  onSave: (
+    set: GuidedLearningSet,
+    driveFileId?: string,
+    guard?: GuidedLearningSaveGuard
+  ) => Promise<void>;
   driveFileId?: string;
+  /** Stored revision the editor opened on; personal sets pass the metadata doc's. */
+  loadedUpdatedAt?: number;
   onClose: () => void;
 }
+
+/** Thrown by a save of a set a newer client wrote. */
+export class GuidedLearningReadOnlyError extends Error {
+  constructor() {
+    super('This set was saved by a newer version. Refresh to edit it.');
+    this.name = 'GuidedLearningReadOnlyError';
+  }
+}
+
+/** True when a newer client wrote the set, so this one must not save it. */
+export const isNewerSchema = (set: GuidedLearningSet | null): boolean =>
+  (set?.schemaVersion ?? 1) > GL_SET_SCHEMA_VERSION;
 
 export interface SetDraftPersistence {
   saving: boolean;
@@ -166,6 +188,12 @@ export interface SetDraftPersistence {
   buildSavedSet: () => GuidedLearningSet | null;
   /** Close, deleting queued media when the latest draft is saved. */
   closeEditor: () => void;
+  /** Set when a save found someone else's newer save; autosave should pause. */
+  conflict: GuidedLearningSaveConflictError | null;
+  /** Makes the next save skip the revision check. */
+  armOverwrite: () => void;
+  /** A newer client wrote this set, so every save is refused. */
+  readOnly: boolean;
 }
 
 /** Dirty tracking, legacy radius conversion, save payload and close flush for a GL editor. */
@@ -175,10 +203,19 @@ export function useSetDraftPersistence({
   editorState,
   onSave,
   driveFileId,
+  loadedUpdatedAt,
   onClose,
 }: UseSetDraftPersistenceArgs): SetDraftPersistence {
   const { deleteFile, deleteDriveFile } = useStorage();
   const [saving, setSaving] = useState(false);
+  const [conflict, setConflict] =
+    useState<GuidedLearningSaveConflictError | null>(null);
+  // Stored revision the next save must find; advances with each save that lands.
+  const revisionRef = useRef<number | undefined>(
+    loadedUpdatedAt ?? set?.updatedAt
+  );
+  const overwriteRef = useRef(false);
+  const readOnly = isNewerSchema(set);
 
   // Snapshot originals when `set` identity changes
   const originalTitle = set?.title ?? '';
@@ -220,6 +257,9 @@ export function useSetDraftPersistence({
     setPrevSet(set);
     setSaving(false);
     setOriginalSteps(set ? structuredClone(set.steps) : []);
+    setConflict(null);
+    revisionRef.current = loadedUpdatedAt ?? set?.updatedAt;
+    overwriteRef.current = false;
   }
 
   // Without a slide the editor cannot save at all, so that comes first.
@@ -406,7 +446,6 @@ export function useSetDraftPersistence({
       editorState.spotlightRadiiV2 || !steps.some(stepUsesSpotlight)
         ? GL_SET_SCHEMA_VERSION
         : set.schemaVersion;
-    const now = Date.now();
     // Editor-owned optional fields are dropped here and re-added below only when set.
     const {
       schemaVersion: _schemaVersion,
@@ -449,7 +488,8 @@ export function useSetDraftPersistence({
         : {}),
       steps,
       mode: editorState.mode,
-      updatedAt: now,
+      // The loaded revision; persistDraft stamps the next one.
+      updatedAt: revisionRef.current ?? set.updatedAt,
       // Only persist a hotspotPulse value when it differs from the default
       // ('consistent') — keeps untouched legacy sets clean of new fields.
       ...(editorState.hotspotPulse !== 'consistent'
@@ -475,17 +515,34 @@ export function useSetDraftPersistence({
   };
 
   const persistDraft = async () => {
+    if (readOnly) throw new GuidedLearningReadOnlyError();
     const builtSet = buildSavedSet();
     if (!builtSet) return;
     const token = draftTokenRef.current;
+    const base = revisionRef.current;
+    // Strictly newer than the base, so a same-millisecond save still moves the revision.
+    const updatedAt = Math.max(Date.now(), (base ?? 0) + 1);
+    const guard: GuidedLearningSaveGuard = {
+      expectedUpdatedAt: overwriteRef.current ? undefined : base,
+    };
     setSaving(true);
     try {
-      await onSave(builtSet, driveFileId);
+      await onSave({ ...builtSet, updatedAt }, driveFileId, guard);
+      revisionRef.current = updatedAt;
+      overwriteRef.current = false;
+      setConflict(null);
       savedTokenRef.current = token;
+    } catch (err) {
+      if (err instanceof GuidedLearningSaveConflictError) setConflict(err);
+      throw err;
     } finally {
       setSaving(false);
     }
   };
+
+  const armOverwrite = useCallback(() => {
+    overwriteRef.current = true;
+  }, []);
 
   const { flushMediaDeletions } = editorState;
   const closeEditor = useCallback(() => {
@@ -503,5 +560,8 @@ export function useSetDraftPersistence({
     persistDraft,
     buildSavedSet,
     closeEditor,
+    conflict,
+    armOverwrite,
+    readOnly,
   };
 }
