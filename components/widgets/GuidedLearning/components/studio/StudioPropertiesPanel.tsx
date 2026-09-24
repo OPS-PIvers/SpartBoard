@@ -40,6 +40,8 @@ interface StudioPropertiesPanelProps {
   liveTours?: boolean;
   /** The set as a save would write it now, for the tour's publish status. */
   tourSet?: GuidedLearningSet;
+  /** Saves the draft and resolves the saved set, or null when the save failed. */
+  saveForPublish?: () => Promise<GuidedLearningSet | null>;
   /** Runs the saved draft live from this step. */
   onRunFromStep?: (stepId: string) => void;
   /** Captures one new click for this step. */
@@ -111,6 +113,7 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
   canvasRef,
   liveTours = false,
   tourSet,
+  saveForPublish,
   onRunFromStep,
   onRerecordStep,
   onPeekBoard,
@@ -133,6 +136,7 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
           state={state}
           liveTours={liveTours}
           tourSet={tourSet}
+          saveForPublish={saveForPublish}
         />
       )}
       {state.imageUrls.length > 0 && (
@@ -233,7 +237,8 @@ const ActivitySection: React.FC<{
   state: GuidedLearningEditorController;
   liveTours: boolean;
   tourSet?: GuidedLearningSet;
-}> = ({ state, liveTours, tourSet }) => {
+  saveForPublish?: () => Promise<GuidedLearningSet | null>;
+}> = ({ state, liveTours, tourSet, saveForPublish }) => {
   const { t } = useTranslation();
   const {
     steps,
@@ -326,7 +331,7 @@ const ActivitySection: React.FC<{
       {liveTours && (
         <Group title={t('glStudio.tourTitle')} testId="gl-studio-set-tour">
           {tourSet && steps.some((s) => !!s.tour) && (
-            <StudioTourPublish set={tourSet} />
+            <StudioTourPublish set={tourSet} saveFirst={saveForPublish} />
           )}
           <StudioTourSetup
             widgets={state.tourSetupWidgets}

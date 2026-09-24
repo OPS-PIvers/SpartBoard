@@ -3396,7 +3396,7 @@
     "saveFailed": "No se pudo guardar el recorrido. La grabación se conserva, así que puedes intentarlo de nuevo.",
     "rerecordPrompt": "Haz clic en lo que debe mostrar este paso",
     "rerecordSaving": "Guardando el nuevo clic...",
-    "rerecordFailed": "No se pudo guardar el nuevo clic. El paso no cambió."
+    "rerecordFailed": "No se pudo subir el nuevo clic. Inténtalo de nuevo o descártalo para dejar el paso como está."
   },
   "tours": {
     "unavailable": "Este recorrido no está disponible en este momento.",

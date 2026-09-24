@@ -3396,7 +3396,7 @@
     "saveFailed": "Die Tour konnte nicht gespeichert werden. Deine Aufnahme bleibt erhalten, du kannst es also erneut versuchen.",
     "rerecordPrompt": "Klicke auf das, was dieser Schritt zeigen soll",
     "rerecordSaving": "Neuer Klick wird gespeichert...",
-    "rerecordFailed": "Der neue Klick konnte nicht gespeichert werden. Der Schritt bleibt unverändert."
+    "rerecordFailed": "Der neue Klick konnte nicht hochgeladen werden. Versuche es erneut oder verwirf ihn, damit der Schritt unverändert bleibt."
   },
   "tours": {
     "unavailable": "Diese Tour ist gerade nicht verfügbar.",

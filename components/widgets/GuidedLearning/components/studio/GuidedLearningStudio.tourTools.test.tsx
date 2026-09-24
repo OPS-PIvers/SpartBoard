@@ -16,6 +16,7 @@ import {
   TOUR_RECORD_EVENT,
   TOUR_START_EVENT,
 } from '@/components/tours/tourState';
+import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import { GuidedLearningStudio } from './GuidedLearningStudio';
 
 const features = vi.hoisted(() => new Set<string>(['gl-live-tours']));
@@ -44,12 +45,13 @@ vi.mock('@/context/useDialog', () => ({
     showPrompt: vi.fn().mockResolvedValue(null),
   }),
 }));
-// Publishing reads Firestore; here it only needs to render its status.
+// Publishing reads Firestore; here it only needs its status and the write.
+const publishTour = vi.hoisted(() => vi.fn());
 vi.mock('@/components/tours/publishedTours', () => ({
   watchTours: () => () => undefined,
   getToursVersion: () => 0,
   readPublishedTour: () => ({ loaded: true, tour: null }),
-  publishTour: vi.fn(),
+  publishTour,
 }));
 
 const step = (id: string, imageIndex: number): GuidedLearningStep => ({
@@ -85,13 +87,17 @@ const renderStudio = (
   const onSave = vi.fn().mockResolvedValue(undefined);
   const onClose = vi.fn();
   render(
-    <GuidedLearningStudio
-      set={tourSet()}
-      meta={null}
-      onClose={onClose}
-      onSave={onSave}
-      {...props}
-    />
+    <AuthContext.Provider
+      value={{ user: { uid: 'test-user' } } as unknown as AuthContextType}
+    >
+      <GuidedLearningStudio
+        set={tourSet()}
+        meta={null}
+        onClose={onClose}
+        onSave={onSave}
+        {...props}
+      />
+    </AuthContext.Provider>
   );
   return { onSave, onClose };
 };
@@ -115,6 +121,7 @@ const selectStep = (n: number) => {
 let restore: (() => void) | null = null;
 beforeEach(() => {
   localStorage.clear();
+  publishTour.mockReset().mockResolvedValue(undefined);
   restore = mockStageLayout({
     container: { w: 720, h: 520 },
     image: { w: 1440, h: 1040 },
@@ -142,6 +149,40 @@ describe('Studio tour tools', () => {
     expect(within(settings).getByTestId('gl-studio-tour-setup')).toBeVisible();
   });
 
+  it('saves the draft first and publishes exactly what was saved', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    renderStudio({ onSave });
+    fireEvent.change(screen.getByLabelText('Activity title'), {
+      target: { value: 'Boards tour, revised' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Publish tour' }));
+    await waitFor(() => expect(publishTour).toHaveBeenCalled());
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const saved = onSave.mock.calls[0][0] as GuidedLearningSet;
+    const published = publishTour.mock.calls[0][0] as GuidedLearningSet;
+    expect(published.title).toBe('Boards tour, revised');
+    expect(published.steps).toEqual(saved.steps);
+    expect(publishTour.mock.calls[0][1]).toBe('test-user');
+    expect(onSave.mock.invocationCallOrder[0]).toBeLessThan(
+      publishTour.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('does not publish when the save fails, and shows the save error', async () => {
+    const onSave = vi.fn().mockRejectedValue(new Error('offline'));
+    renderStudio({ onSave });
+    fireEvent.change(screen.getByLabelText('Activity title'), {
+      target: { value: 'Boards tour, revised' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Publish tour' }));
+    expect(await screen.findByText('Couldn’t save')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Publish tour' })).toBeEnabled()
+    );
+    expect(onSave).toHaveBeenCalled();
+    expect(publishTour).not.toHaveBeenCalled();
+  });
+
   it('hides tour settings without the live tours flag', () => {
     features.clear();
     renderStudio();
@@ -164,7 +205,7 @@ describe('Studio tour tools', () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Close editor' }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
-    expect(onSave.mock.lastCall?.[0].tourSetup).toEqual({
+    expect((onSave.mock.lastCall?.[0] as GuidedLearningSet).tourSetup).toEqual({
       widgets: ['time-tool', 'clock'],
     });
   });

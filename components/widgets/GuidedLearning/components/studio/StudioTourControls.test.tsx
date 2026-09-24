@@ -161,22 +161,20 @@ describe('StudioTourControls untagged warning', () => {
     expect(screen.getByLabelText('Suggested id')).toHaveValue(
       'button.save-changes'
     );
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Copy id' }));
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Copy id' }));
     expect(writeText).toHaveBeenCalledWith('button.save-changes');
-    expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Copied' })
+    ).toBeInTheDocument();
   });
 
   it('selects the id for a manual copy when the clipboard is blocked', async () => {
     const writeText = vi.fn().mockRejectedValue(new Error('denied'));
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
     renderControls(untagged);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Copy id' }));
-    });
-    expect(screen.getByRole('alert')).toHaveTextContent("Couldn't copy");
-    const input = screen.getByLabelText('Suggested id') as HTMLInputElement;
+    fireEvent.click(screen.getByRole('button', { name: 'Copy id' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't copy");
+    const input = screen.getByLabelText<HTMLInputElement>('Suggested id');
     expect(document.activeElement).toBe(input);
     expect(input.selectionStart).toBe(0);
     expect(input.selectionEnd).toBe('button.save-changes'.length);

@@ -3396,7 +3396,7 @@
     "saveFailed": "Impossible d'enregistrer la visite. L'enregistrement est conservé, tu peux donc réessayer.",
     "rerecordPrompt": "Cliquez sur ce que cette étape doit montrer",
     "rerecordSaving": "Enregistrement du nouveau clic...",
-    "rerecordFailed": "Impossible d'enregistrer le nouveau clic. L'étape est inchangée."
+    "rerecordFailed": "Impossible de téléverser le nouveau clic. Réessayez, ou abandonnez-le pour garder l'étape telle quelle."
   },
   "tours": {
     "unavailable": "Cette visite n'est pas disponible pour le moment.",

@@ -48,9 +48,11 @@ const usePublishedTour = (setId: string) => {
 };
 
 /** Publishes the set's tour to teachers and shows whether they run the latest edits. */
-export const StudioTourPublish: React.FC<{ set: GuidedLearningSet }> = ({
-  set,
-}) => {
+export const StudioTourPublish: React.FC<{
+  set: GuidedLearningSet;
+  /** Saves the draft first; resolves the saved set to publish, or null when the save failed. */
+  saveFirst?: () => Promise<GuidedLearningSet | null>;
+}> = ({ set, saveFirst }) => {
   const { t, i18n } = useTranslation();
   const uid = useContext(AuthContext)?.user?.uid;
   const { loaded, tour } = usePublishedTour(set.id);
@@ -68,7 +70,9 @@ export const StudioTourPublish: React.FC<{ set: GuidedLearningSet }> = ({
     setPublishing(true);
     setFailed(false);
     try {
-      await publishTour(set, uid);
+      // A failed save shows the Studio's own save error; nothing is published.
+      const saved = saveFirst ? await saveFirst() : set;
+      if (saved) await publishTour(saved, uid);
     } catch (err) {
       logError('StudioTourPublish', err, { setId: set.id });
       setFailed(true);

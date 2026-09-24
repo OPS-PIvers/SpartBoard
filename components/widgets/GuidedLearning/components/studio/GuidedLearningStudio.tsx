@@ -365,6 +365,13 @@ const StudioSession: React.FC<
   );
   const [peeking, setPeeking] = useState(false);
 
+  // Teachers get exactly what is saved: publish only after the same forced save close uses.
+  const saveForPublish = useCallback(async () => {
+    if (conflict || readOnly || !(await autosave.flush({ force: true })))
+      return null;
+    return buildSavedSet();
+  }, [conflict, readOnly, autosave, buildSavedSet]);
+
   // The draft travels to the classic editor, which keeps saving it, so nothing to confirm.
   const openClassic = useCallback(async () => {
     if (!onOpenClassic) return;
@@ -1032,6 +1039,7 @@ const StudioSession: React.FC<
             canvasRef={canvasRef}
             liveTours={liveTours}
             tourSet={liveTours && !readOnly ? buildSavedSet() : undefined}
+            saveForPublish={saveForPublish}
             onRunFromStep={canRunLive ? (id) => void runLive(id) : undefined}
             onRerecordStep={
               canRecordTour && !readOnly

@@ -4553,7 +4553,7 @@
     "saveFailed": "Couldn't save the tour. Your recording is kept, so you can try again.",
     "rerecordPrompt": "Click what this step should show",
     "rerecordSaving": "Saving the new click...",
-    "rerecordFailed": "Couldn't save the new click. The step is unchanged."
+    "rerecordFailed": "Couldn't upload the new click. Try again, or discard it to keep the step as it is."
   },
   "tours": {
     "unavailable": "This tour isn't available right now.",
