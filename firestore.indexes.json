@@ -645,6 +645,34 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "plc_norming_sources",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "flaggedByUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "normingId",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "plc_norming_sources",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "flaggedByUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "plcId",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [
