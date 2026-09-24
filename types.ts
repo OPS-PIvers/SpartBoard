@@ -1041,7 +1041,7 @@ export interface PlcAssessmentAggregate {
   teamAveragePercent: number;
   /** Completed responses that carried a numeric score (schema 2+). */
   scoredStudentCount?: number;
-  /** Scored students pooled into percent bands; counts only (schema 5+). */
+  /** Scored students pooled into percent bands; counts only (schema 6+). */
   scoreDistribution?: PlcAggregateScoreBand[];
   /** Linked sessions with at least one completed response (schema 2+). */
   sessionCount?: number;

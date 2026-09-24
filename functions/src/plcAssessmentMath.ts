@@ -185,7 +185,7 @@ export interface AggregatePayload {
   teamAveragePercent: number;
   /** Completed responses that carried a numeric score. */
   scoredStudentCount: number;
-  /** Scored students pooled into percent bands (schema 5+). */
+  /** Scored students pooled into percent bands (schema 6+). */
   scoreDistribution: AggregateScoreBand[];
   sessionCount: number;
   /** Every linked session, including ones with no completed responses. */

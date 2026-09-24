@@ -104,7 +104,7 @@ function optionalNumber<K extends string>(
     : {};
 }
 
-/** Schema 5 score bands; omitted when absent or any band is malformed. */
+/** Schema 6 score bands; omitted when absent or any band is malformed. */
 function parseScoreDistribution(
   raw: unknown
 ): Pick<PlcAssessmentAggregate, 'scoreDistribution'> {
