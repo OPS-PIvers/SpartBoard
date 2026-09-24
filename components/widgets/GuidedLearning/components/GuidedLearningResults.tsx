@@ -14,6 +14,7 @@ import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import {
   GuidedLearningSet,
+  type GuidedLearningPublicStep,
   type PeriodAccessSessionFields,
   type SubLaunchedSessionFields,
 } from '@/types';
@@ -34,6 +35,11 @@ import { LaunchedBySubTag } from '@/components/common/sessionViews/LaunchedBySub
 import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
 import { hasPeriodAccess } from '@/utils/periodAccess';
 import { PeriodAccessStrip } from '@/components/widgets/QuizWidget/components/monitor/PeriodAccessStrip';
+import {
+  GL_CONTENT_COLLECTION,
+  GL_CONTENT_DOC,
+} from '@/utils/guidedLearningSessionContent';
+import { scoringStepsForSession } from '../utils/resultsScoring';
 
 type PeriodSession = PeriodAccessSessionFields & {
   id: string;
@@ -99,6 +105,9 @@ export const GuidedLearningResults: React.FC<Props> = ({
   const [launchedBy, setLaunchedBy] =
     useState<SubLaunchedSessionFields['launchedBy']>(undefined);
   const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [sessionSteps, setSessionSteps] = useState<
+    GuidedLearningPublicStep[] | null
+  >(null);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -113,10 +122,32 @@ export const GuidedLearningResults: React.FC<Props> = ({
               classIds?: string[];
               playerV2?: boolean;
               createdAt?: number;
+              publicSteps?: GuidedLearningPublicStep[];
+              stepsInContent?: boolean;
               teacherUid?: string;
               launchedBy?: SubLaunchedSessionFields['launchedBy'];
             })
           | undefined;
+        let frozen = Array.isArray(data?.publicSteps) ? data.publicSteps : null;
+        if (data?.stepsInContent) {
+          const content = await getDoc(
+            doc(
+              db,
+              'guided_learning_sessions',
+              sessionId,
+              GL_CONTENT_COLLECTION,
+              GL_CONTENT_DOC
+            )
+          ).catch(() => null);
+          if (cancelled) return;
+          const steps = (
+            content?.data() as { publicSteps?: unknown } | undefined
+          )?.publicSteps;
+          frozen = Array.isArray(steps)
+            ? (steps as GuidedLearningPublicStep[])
+            : null;
+        }
+        setSessionSteps(frozen);
         setPeriodSession(toPeriodSession(sessionId, data));
         setPlayerV2(data?.playerV2 === true);
         setLaunchedBy(data?.launchedBy);
@@ -216,9 +247,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
     questionStats,
     responseStats,
   } = useMemo(() => {
-    const qSteps = set.steps.filter(
-      (s) => s.interactionType === 'question' && s.question
-    );
+    const qSteps = scoringStepsForSession(sessionSteps, set.steps);
 
     // Create a fast lookup map for question steps.
     const qStepMap = new Map(qSteps.map((step) => [step.id, step]));
@@ -228,29 +257,18 @@ export const GuidedLearningResults: React.FC<Props> = ({
 
     const rStats = responses.map((r) => {
       let qCorrect = 0;
-      let qAnswered = 0;
-
-      // We iterate over the student's answers instead of scanning all possible steps
+      const seen = new Set<string>();
+      // First answer per step counts, matching the CSV export and published scores.
       for (const a of r.answers) {
         const step = qStepMap.get(a.stepId);
-        if (step) {
-          qAnswered++;
-          if (isAnswerCorrect(step, a.answer)) {
-            qCorrect++;
-          }
-
-          // Also build up the answersByStep map for the later qStats pass
-          if (!answersByStep.has(a.stepId)) {
-            answersByStep.set(a.stepId, []);
-          }
-          const bucket = answersByStep.get(a.stepId);
-          if (bucket) {
-            bucket.push(a);
-          }
-        }
+        if (!step || seen.has(a.stepId)) continue;
+        seen.add(a.stepId);
+        if (isAnswerCorrect(step, a.answer)) qCorrect++;
+        const bucket = answersByStep.get(a.stepId);
+        if (bucket) bucket.push(a);
+        else answersByStep.set(a.stepId, [a]);
       }
-
-      return { response: r, qCorrect, qAnswered };
+      return { response: r, qCorrect };
     });
 
     const qStats = qSteps.map((step) => {
@@ -289,10 +307,13 @@ export const GuidedLearningResults: React.FC<Props> = ({
       questionStats: qStats,
       responseStats: rStats,
     };
-  }, [set.steps, responses]);
+  }, [sessionSteps, set.steps, responses]);
 
   const handleExport = () => {
-    const csv = exportResponsesAsCSV(responses, set);
+    const csv = exportResponsesAsCSV(responses, {
+      ...set,
+      steps: questionSteps,
+    });
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -303,7 +324,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
   };
 
   if (viewOnly && sessionLoaded && !playerV2) return <>{viewOnlyFallback}</>;
-  const loading = viewOnly ? !sessionLoaded : responsesLoading;
+  const loading = !sessionLoaded || (!viewOnly && responsesLoading);
 
   return (
     <div className="h-full flex flex-col">
@@ -637,51 +658,49 @@ export const GuidedLearningResults: React.FC<Props> = ({
                     className="flex flex-col"
                     style={{ gap: 'min(6px, 1.5cqmin)' }}
                   >
-                    {responseStats.map(
-                      ({ response: r, qCorrect, qAnswered }) => {
-                        const classLinkName = formatStudentName(
-                          byStudentUid.get(r.studentAnonymousId)
-                        );
-                        const label =
-                          classLinkName ||
-                          (r.pin ? `PIN: ${r.pin}` : 'Anonymous');
-                        return (
-                          <div
-                            key={r.studentAnonymousId}
-                            className="flex items-center justify-between bg-white/5 rounded-lg"
-                            style={{
-                              padding: 'min(8px, 2cqmin) min(12px, 2.5cqmin)',
-                            }}
-                          >
-                            <div>
-                              <span
-                                className="text-white font-medium"
-                                style={{ fontSize: 'min(12px, 4.5cqmin)' }}
-                              >
-                                {label}
-                              </span>
-                              <span
-                                className="text-slate-300"
-                                style={{
-                                  fontSize: 'min(12px, 4.5cqmin)',
-                                  marginLeft: 'min(8px, 2cqmin)',
-                                }}
-                              >
-                                {r.completedAt ? 'Completed' : 'In progress'}
-                              </span>
-                            </div>
-                            {questionSteps.length > 0 && (
-                              <span
-                                className="text-slate-300"
-                                style={{ fontSize: 'min(12px, 4.5cqmin)' }}
-                              >
-                                {qCorrect}/{qAnswered} correct
-                              </span>
-                            )}
+                    {responseStats.map(({ response: r, qCorrect }) => {
+                      const classLinkName = formatStudentName(
+                        byStudentUid.get(r.studentAnonymousId)
+                      );
+                      const label =
+                        classLinkName ||
+                        (r.pin ? `PIN: ${r.pin}` : 'Anonymous');
+                      return (
+                        <div
+                          key={r.studentAnonymousId}
+                          className="flex items-center justify-between bg-white/5 rounded-lg"
+                          style={{
+                            padding: 'min(8px, 2cqmin) min(12px, 2.5cqmin)',
+                          }}
+                        >
+                          <div>
+                            <span
+                              className="text-white font-medium"
+                              style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                            >
+                              {label}
+                            </span>
+                            <span
+                              className="text-slate-300"
+                              style={{
+                                fontSize: 'min(12px, 4.5cqmin)',
+                                marginLeft: 'min(8px, 2cqmin)',
+                              }}
+                            >
+                              {r.completedAt ? 'Completed' : 'In progress'}
+                            </span>
                           </div>
-                        );
-                      }
-                    )}
+                          {questionSteps.length > 0 && (
+                            <span
+                              className="text-slate-300"
+                              style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                            >
+                              {qCorrect}/{questionSteps.length} correct
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

@@ -3217,5 +3217,10 @@
     "submitting": "Enviando…",
     "submitFailed": "No se pudo enviar. Tus respuestas siguen aquí.",
     "retry": "Reintentar"
+  },
+  "glResults": {
+    "loadFailedTitle": "No se pudieron abrir estos resultados",
+    "loadFailedBody": "El conjunto de esta tarea se eliminó o no se pudo cargar.",
+    "backToLibrary": "Volver a la biblioteca"
   }
 }

@@ -55,7 +55,9 @@ import {
   payloadRequiresCall,
   EMPTY_ASSIGN_TARGETING_VALUE,
 } from '@/utils/studentTargetRef';
-import { Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { normalizeGuidedLearningSet } from './utils/setMigration';
 import { useStorage } from '@/hooks/useStorage';
 import { ImportWizard } from '@/components/common/library/importer/ImportWizard';
@@ -173,6 +175,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, addToast, rosters, updateRoster } = useDashboard();
+  const { t } = useTranslation();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { showConfirm } = useDialog();
   const { user, isAdmin, getAssignmentMode, canAccessFeature } = useAuth();
@@ -221,6 +224,8 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // Local component state
   const [loadingSet, setLoadingSet] = useState(false);
   const [activeSet, setActiveSet] = useState<GuidedLearningSet | null>(null);
+  // Session whose set couldn't be loaded, so Results shows an error instead of a stale set.
+  const [resultsLoadError, setResultsLoadError] = useState<string | null>(null);
   const [editingSet, setEditingSet] = useState<GuidedLearningSet | null>(null);
   const [editingMeta, setEditingMeta] =
     useState<GuidedLearningSetMetadata | null>(null);
@@ -407,6 +412,45 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     buildingSets,
     loadSet,
     setView,
+  ]);
+
+  // Same remount gap for Results: reload the assigned set from the session id.
+  useEffect(() => {
+    const sessionId = config.resultsSessionId;
+    if (config.view !== 'results' || !sessionId || activeSet) return;
+    if (loading || buildingLoading || assignmentsLoading) return;
+    if (resultsLoadError === sessionId) return;
+    if (rehydratingSetIdRef.current === sessionId) return;
+    const setId =
+      assignments.find((a) => a.sessionId === sessionId)?.setId ??
+      Object.entries(recentSessionIds).find(
+        ([, sid]) => sid === sessionId
+      )?.[0];
+    if (!setId) {
+      setResultsLoadError(sessionId);
+      return;
+    }
+    rehydratingSetIdRef.current = sessionId;
+    const meta = sets.find((s) => s.id === setId);
+    const buildingSet = buildingSets.find((s) => s.id === setId);
+    void loadSet(setId, meta?.driveFileId, buildingSet).then((loaded) => {
+      rehydratingSetIdRef.current = null;
+      if (loaded) setActiveSet(loaded);
+      else setResultsLoadError(sessionId);
+    });
+  }, [
+    config.view,
+    config.resultsSessionId,
+    activeSet,
+    loading,
+    buildingLoading,
+    assignmentsLoading,
+    resultsLoadError,
+    assignments,
+    recentSessionIds,
+    sets,
+    buildingSets,
+    loadSet,
   ]);
 
   const handlePlay = async (
@@ -798,13 +842,15 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     const matchingEntry = Object.entries(recentSessionIds).find(
       ([, storedSessionId]) => storedSessionId === sessionId
     );
+    let loaded: GuidedLearningSet | null = null;
     if (matchingEntry) {
       const [setId] = matchingEntry;
       const meta = sets.find((s) => s.id === setId);
       const buildingSet = buildingSets.find((s) => s.id === setId);
-      const loaded = await loadSet(setId, meta?.driveFileId, buildingSet);
-      if (loaded) setActiveSet(loaded);
+      loaded = await loadSet(setId, meta?.driveFileId, buildingSet);
     }
+    setActiveSet(loaded);
+    setResultsLoadError(loaded ? null : sessionId);
     updateWidget(widget.id, {
       config: {
         ...config,
@@ -824,7 +870,8 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       meta?.driveFileId,
       buildingSet
     );
-    if (loaded) setActiveSet(loaded);
+    setActiveSet(loaded);
+    setResultsLoadError(loaded ? null : assignment.sessionId);
     updateWidget(widget.id, {
       config: {
         ...config,
@@ -1302,6 +1349,43 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                 />
               </Suspense>
             )}
+
+            {config.view === 'results' &&
+              config.resultsSessionId &&
+              !activeSet &&
+              resultsLoadError === config.resultsSessionId && (
+                <ScaledEmptyState
+                  icon={AlertTriangle}
+                  title={t('glResults.loadFailedTitle')}
+                  subtitle={t('glResults.loadFailedBody')}
+                  iconClassName="text-amber-500"
+                  titleClassName="text-slate-700"
+                  subtitleClassName="text-slate-500"
+                  action={
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResultsLoadError(null);
+                        updateWidget(widget.id, {
+                          config: {
+                            ...config,
+                            view: 'library',
+                            resultsSessionId: null,
+                          } as GuidedLearningConfig,
+                        });
+                      }}
+                      className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors"
+                      style={{
+                        paddingInline: 'min(12px, 3cqmin)',
+                        paddingBlock: 'min(8px, 2cqmin)',
+                        fontSize: 'min(12px, 4cqmin)',
+                      }}
+                    >
+                      {t('glResults.backToLibrary')}
+                    </button>
+                  }
+                />
+              )}
 
             {config.view === 'results' &&
               config.resultsSessionId &&

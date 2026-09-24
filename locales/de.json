@@ -3217,5 +3217,10 @@
     "submitting": "Wird gesendet…",
     "submitFailed": "Senden fehlgeschlagen. Deine Antworten sind noch da.",
     "retry": "Erneut versuchen"
+  },
+  "glResults": {
+    "loadFailedTitle": "Diese Ergebnisse konnten nicht geöffnet werden",
+    "loadFailedBody": "Das Set dieser Aufgabe wurde gelöscht oder konnte nicht geladen werden.",
+    "backToLibrary": "Zurück zur Bibliothek"
   }
 }

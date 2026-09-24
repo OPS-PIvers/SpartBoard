@@ -3217,5 +3217,10 @@
     "submitting": "Envoi…",
     "submitFailed": "Impossible d'envoyer. Vos réponses sont toujours là.",
     "retry": "Réessayer"
+  },
+  "glResults": {
+    "loadFailedTitle": "Impossible d'ouvrir ces résultats",
+    "loadFailedBody": "L'ensemble de ce devoir a été supprimé ou n'a pas pu être chargé.",
+    "backToLibrary": "Retour à la bibliothèque"
   }
 }
