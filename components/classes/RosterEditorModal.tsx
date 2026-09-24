@@ -186,6 +186,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      allowFullscreen
       maxWidth="max-w-5xl"
       className="h-[85vh]"
       contentClassName="px-6 pb-6 flex flex-col"

@@ -4,9 +4,12 @@ import React, {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 import { AlertCircle, AlertTriangle, Check, Loader2, X } from 'lucide-react';
 import { Modal } from './Modal';
+import { FullscreenToggleButton } from './FullscreenToggleButton';
+import { useModalFullscreenEnabled } from '@/hooks/useModalFullscreenEnabled';
 import { useDialog } from '@/context/useDialog';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { useAutosave, type AutosaveStatus } from '@/hooks/useAutosave';
@@ -124,6 +127,8 @@ interface EditorModalShellProps {
    * the toast when the caller surfaces its own error UI (e.g. inline banner).
    */
   saveErrorMessage?: string | false;
+  /** Offers the "View full screen" toggle (behind the modal-fullscreen flag). */
+  allowFullscreen?: boolean;
   children: React.ReactNode;
 }
 
@@ -167,8 +172,12 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   className = 'h-[85vh]',
   bodyClassName = 'px-6 py-5',
   saveErrorMessage = 'Could not save your changes. Please try again.',
+  allowFullscreen = true,
   children,
 }) => {
+  const fullscreenAvailable = useModalFullscreenEnabled() && allowFullscreen;
+  const [fullscreen, setFullscreen] = useState(false);
+  const isFullscreen = fullscreenAvailable && fullscreen;
   const { showConfirm, showAlert } = useDialog();
   // Optional: LMS iframes (Classroom add-on, Schoology) mount editors with no DashboardProvider.
   const addToast = useContext(DashboardContext)?.addToast;
@@ -306,6 +315,12 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
         {headerExtras && (
           <div className="flex items-center gap-2 shrink-0">{headerExtras}</div>
         )}
+        {fullscreenAvailable && (
+          <FullscreenToggleButton
+            fullscreen={isFullscreen}
+            onToggle={() => setFullscreen((v) => !v)}
+          />
+        )}
         {!hideHeaderClose && (
           <button
             onClick={() => void requestClose()}
@@ -325,6 +340,8 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       subtitle,
       headerExtras,
       requestClose,
+      fullscreenAvailable,
+      isFullscreen,
     ]
   );
 
@@ -401,6 +418,8 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       className={className}
       contentClassName={bodyClassName}
       ariaLabelledby="editor-modal-shell-title"
+      fullscreen={isFullscreen}
+      onFullscreenChange={setFullscreen}
     >
       <div style={{ colorScheme: 'light' }} className="contents">
         {children}

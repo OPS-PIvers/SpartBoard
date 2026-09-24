@@ -1,10 +1,12 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { decrementOpenModalCount, incrementOpenModalCount } from './modalStore';
 import { acquireBodyScrollLock, releaseBodyScrollLock } from './bodyScrollLock';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
+import { FullscreenToggleButton } from './FullscreenToggleButton';
+import { useModalFullscreenEnabled } from '@/hooks/useModalFullscreenEnabled';
 
 interface ModalProps {
   variant?: 'default' | 'bare';
@@ -28,6 +30,11 @@ interface ModalProps {
   captureEscape?: boolean; // Whether to use capture phase for Escape key
   ariaLabel?: string;
   ariaLabelledby?: string;
+  /** Shows a "View full screen" toggle in the default header (behind the modal-fullscreen flag). */
+  allowFullscreen?: boolean;
+  /** Controlled full-screen state, for callers that render their own header toggle. */
+  fullscreen?: boolean;
+  onFullscreenChange?: (next: boolean) => void;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -47,7 +54,18 @@ export const Modal: React.FC<ModalProps> = ({
   captureEscape = false,
   ariaLabel,
   ariaLabelledby,
+  allowFullscreen = false,
+  fullscreen: fullscreenProp,
+  onFullscreenChange,
 }) => {
+  const fullscreenEnabled = useModalFullscreenEnabled();
+  const [fullscreenState, setFullscreenState] = useState(false);
+  const isFullscreen =
+    fullscreenProp ?? (allowFullscreen && fullscreenEnabled && fullscreenState);
+  const setFullscreen = onFullscreenChange ?? setFullscreenState;
+  const showHeaderToggle =
+    allowFullscreen && fullscreenEnabled && fullscreenProp === undefined;
+
   // Dismiss only when the press and the release both land on the backdrop, so
   // a select-drag out of the panel doesn't read as a backdrop click.
   const backdropProps = useBackdropDismiss(onClose);
@@ -65,6 +83,10 @@ export const Modal: React.FC<ModalProps> = ({
   // Intentionally NOT in useEffect deps — see comment below.
   // eslint-disable-next-line react-hooks/refs -- intentional render-body ref sync to avoid stale-closure without re-subscribing the effect (CLAUDE.md pattern)
   onCloseRef.current = onClose;
+  // Escape leaves full screen before it closes the modal.
+  const exitFullscreenRef = useRef<(() => void) | null>(null);
+  // eslint-disable-next-line react-hooks/refs -- same render-body ref sync as onCloseRef above
+  exitFullscreenRef.current = isFullscreen ? () => setFullscreen(false) : null;
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -75,6 +97,10 @@ export const Modal: React.FC<ModalProps> = ({
       // own handler run (don't kill it with stopImmediatePropagation).
       if (isEscapeFromWidgetInput(e)) return;
       if (captureEscape) e.stopImmediatePropagation();
+      if (exitFullscreenRef.current) {
+        exitFullscreenRef.current();
+        return;
+      }
       // Read from ref so we always call the current onClose even though
       // onClose is not in the effect deps array.
       onCloseRef.current();
@@ -110,7 +136,7 @@ export const Modal: React.FC<ModalProps> = ({
 
   return createPortal(
     <div
-      className={`fixed inset-0 ${zIndex} flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200`}
+      className={`fixed inset-0 ${zIndex} flex items-center justify-center ${isFullscreen ? 'p-0' : 'p-4'} bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200`}
       {...backdropProps}
       role="dialog"
       aria-modal="true"
@@ -118,7 +144,8 @@ export const Modal: React.FC<ModalProps> = ({
       aria-labelledby={ariaLabelledby}
     >
       <div
-        className={`${overlay ? 'relative' : ''} w-full ${maxWidth} flex flex-col max-h-[90vh] ${variant === 'default' ? 'bg-white rounded-2xl shadow-2xl' : ''} ${className} animate-in zoom-in-95 duration-200`}
+        className={`${overlay ? 'relative' : ''} w-full ${maxWidth} flex flex-col max-h-[90vh] ${variant === 'default' ? 'bg-white rounded-2xl shadow-2xl' : ''} ${className} ${isFullscreen ? '!h-full !max-h-none !max-w-none !rounded-none' : ''} animate-in zoom-in-95 duration-200`}
+        data-fullscreen={isFullscreen || undefined}
         onClick={(e) => e.stopPropagation()}
       >
         {variant === 'default' &&
@@ -127,9 +154,17 @@ export const Modal: React.FC<ModalProps> = ({
               {title && (
                 <h3 className="font-black text-lg text-slate-800">{title}</h3>
               )}
+              {showHeaderToggle && (
+                <span className="ml-auto">
+                  <FullscreenToggleButton
+                    fullscreen={isFullscreen}
+                    onToggle={() => setFullscreen(!isFullscreen)}
+                  />
+                </span>
+              )}
               <button
                 onClick={onClose}
-                className="p-1 hover:bg-slate-100 rounded-full text-slate-400 transition-colors ml-auto"
+                className={`p-1 hover:bg-slate-100 rounded-full text-slate-400 transition-colors ${showHeaderToggle ? '' : 'ml-auto'}`}
                 aria-label="Close"
               >
                 <X size={20} />
