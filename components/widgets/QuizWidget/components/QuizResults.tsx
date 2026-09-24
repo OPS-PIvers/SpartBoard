@@ -785,7 +785,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   );
 
   // Printing to hand back (docs/plans/QUIZ_RESULTS_PRINT.md); never for PLC teammates (D7).
-  const canPrintResults = canAccessFeature('quiz-results-print') && !plcView;
+  const canPrintResults =
+    (canAccessFeature('quiz-results-print') || resultsTools) && !plcView;
   const [printSelection, setPrintSelection] = useState<
     readonly string[] | null | undefined
   >(undefined);
@@ -2171,6 +2172,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           periodOrder={printPeriodOrder}
           sessionLive={!!session && session.status !== 'ended'}
           sheetsAvailable={paperSheetsEnabled}
+          reportChoice={resultsTools}
           teacherUid={user?.uid ?? null}
           onClose={() => setPrintSelection(undefined)}
           onError={(message) => addToast(message, 'error')}

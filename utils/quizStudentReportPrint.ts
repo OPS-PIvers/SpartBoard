@@ -141,7 +141,17 @@ export interface QuizResultsPrintOptions {
   includeStimuli: boolean;
   duplexPadding: boolean;
   layout: ResultsPrintLayout;
+  /** 'missed' prints only incorrect, partial and unanswered questions; absent means all. */
+  questionScope?: ResultsQuestionScope;
 }
+
+export type ResultsQuestionScope = 'all' | 'missed';
+
+const MISSED_MARKS: ReadonlySet<StudentOutcome> = new Set([
+  'incorrect',
+  'partial',
+  'noAnswer',
+]);
 
 export interface ResultsPrintStudent {
   key: string;
@@ -448,7 +458,11 @@ function studentReport(
 ): string {
   const stimuliById = new Map(job.stimuli.map((s) => [s.id, s]));
   const printed = new Set<string>();
-  const rows = student.drilldown.lines
+  const missedOnly = options.questionScope === 'missed';
+  const lines = missedOnly
+    ? student.drilldown.lines.filter((line) => MISSED_MARKS.has(line.mark))
+    : student.drilldown.lines;
+  const rows = lines
     .map((line) => {
       let stim = '';
       if (options.includeStimuli) {
@@ -466,9 +480,13 @@ function studentReport(
     })
     .join('');
   const questions =
-    student.drilldown.lines.length > 0
-      ? `<ol class="q">${rows}</ol>`
-      : '<p class="sub" data-unit>No questions were served to this student yet.</p>';
+    lines.length > 0
+      ? `${missedOnly ? '<h2 class="scope" data-unit>Questions to review</h2>' : ''}<ol class="q">${rows}</ol>`
+      : `<p class="sub" data-unit>${
+          missedOnly && student.drilldown.lines.length > 0
+            ? 'No missed questions.'
+            : 'No questions were served to this student yet.'
+        }</p>`;
 
   const targets =
     options.showTargets && student.targets.length > 0
