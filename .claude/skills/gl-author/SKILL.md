@@ -123,9 +123,10 @@ video), `hotspotPulse` (`"consistent"|"reminder"|"off"`), `imageTransition`
 (`"none"|"slide"|"fade"`), `welcomeEnabled` (boolean) + `welcomeMessage`
 (string), `watchPace` (`"calm"|"standard"`; calm slows Watch playback).
 
-`schemaVersion` is **required**. Write `3`, or `4` when any step sets
-`calloutWidthPct`, `calloutScale` or `calloutTone`; the validator rejects a
-mismatch either way. It version-gates renderer behavior: 2 and above use the
+`schemaVersion` is **required**. Write `3`, or `4` when a step that draws a
+callout (see Callout size and colour) sets `calloutWidthPct`, `calloutScale`
+or a `light`/`accent` `calloutTone`. This is the app's own stamping rule, and
+the validator rejects a mismatch either way. It version-gates renderer behavior: 2 and above use the
 image-relative coordinate model this doc describes (omitting it would make
 spotlights render with legacy container-relative semantics), 3 adds
 `region`, `calloutPin` and `cursor`, and 4 adds the callout size and colour
