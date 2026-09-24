@@ -48,6 +48,7 @@ import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { PlcTeammatePrintModal } from '@/components/plc/PlcTeammatePrintModal';
+import { PlcNewQuizAssignmentModal } from '@/components/plc/PlcNewQuizAssignmentModal';
 import {
   buildAssessmentRows,
   countRowsByFolder,
@@ -562,7 +563,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   const { t } = useTranslation();
   const { addToast } = useDashboard();
   const { showPrompt } = useDialog();
-  const { user, canAccessFeature } = useAuth();
+  const { user, canAccessFeature, getAssignmentMode } = useAuth();
   const { updateAssessment, archiveQuiz, restoreQuiz } = usePlcActions();
   const canEdit = useCanEditPlcContent();
   const {
@@ -602,6 +603,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   );
   const [teammatePrintRow, setTeammatePrintRow] =
     useState<AssessmentListRow | null>(null);
+  const [libraryAssignOpen, setLibraryAssignOpen] = useState(false);
 
   const [filter, setFilter] = useState<AssessmentListFilter>('all');
   const [search, setSearch] = useState('');
@@ -914,6 +916,32 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
     </button>
   ) : null;
 
+  // Home v2 drops quick-create, so the library assign flow lives here behind the same flag.
+  const canAssignFromLibrary = canEdit && canAccessFeature('plc-home-v2');
+  const assignFromLibraryButton = canAssignFromLibrary ? (
+    <button
+      type="button"
+      onClick={() => setLibraryAssignOpen(true)}
+      disabled={!isDriveConnected}
+      title={
+        !isDriveConnected
+          ? t('plcDashboard.newAssignment.quiz.ctaDisabledDrive', {
+              defaultValue: 'Connect Google Drive to assign a quiz.',
+            })
+          : t('plcDashboard.assessmentList.assignFromLibraryTooltip', {
+              defaultValue:
+                'Pick a quiz from your personal library and assign it to your class through this PLC.',
+            })
+      }
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand-blue-primary/30 bg-white text-brand-blue-dark text-xs font-bold hover:bg-brand-blue-lighter/40 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+    >
+      <BookOpen className="w-3.5 h-3.5" aria-hidden="true" />
+      {t('plcDashboard.assessmentList.assignFromLibrary', {
+        defaultValue: 'Assign from my library',
+      })}
+    </button>
+  ) : null;
+
   const mainContent = (
     <div className="flex flex-col gap-4 h-full min-w-0 flex-1">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -986,7 +1014,12 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
             </select>
           )}
         </div>
-        {shareButton}
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            {assignFromLibraryButton}
+            {shareButton}
+          </div>
+        )}
       </div>
 
       <div className="flex-1 min-h-0 mt-4">
@@ -1137,6 +1170,14 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
         {sidebar}
         {mainContent}
       </LibraryDndContext>
+      {libraryAssignOpen && (
+        <PlcNewQuizAssignmentModal
+          plc={plc}
+          assignmentMode={getAssignmentMode('quiz')}
+          onClose={() => setLibraryAssignOpen(false)}
+          onCreated={() => setLibraryAssignOpen(false)}
+        />
+      )}
       {teammatePrintRow?.plcQuizId && (
         <PlcTeammatePrintModal
           plc={plc}

@@ -297,6 +297,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // PLC Home v2 tile dashboard. Admin-only until Paul has run a PLC on it in prod.
+  'plc-home-v2': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /**
