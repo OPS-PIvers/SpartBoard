@@ -671,11 +671,18 @@ export const LiveTourRunner: React.FC = () => {
   };
   const pause = () => {
     setPaused(true);
+    autoWait.current?.abort();
     stopDemo();
+  };
+  // Autopilot already clicked this step before the pause, so resuming moves on.
+  const resume = () => {
+    setPaused(false);
+    if (autoStage === 'waiting' && tour) goTo(tour.index + 1);
   };
   const takeOver = () => {
     setTakenOver(true);
     setPaused(false);
+    autoWait.current?.abort();
     stopDemo();
   };
 
@@ -1009,7 +1016,7 @@ export const LiveTourRunner: React.FC = () => {
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={paused ? () => setPaused(false) : pause}
+                onClick={paused ? resume : pause}
                 className={`${secondaryBtn} flex items-center gap-1`}
               >
                 {paused ? (

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useEffectEvent, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, CheckCircle2, Crosshair, XCircle } from 'lucide-react';
@@ -63,14 +63,20 @@ export const StudioFindOnBoard: React.FC<StudioFindOnBoardProps> = ({
   const [result, setResult] = useState<FindResult | null>(null);
   const [flash, setFlash] = useState<DOMRect | null>(null);
 
+  const endPeek = useEffectEvent(() => onPeek?.(false));
+  const flashing = flash !== null;
+
   useEffect(() => {
     if (!flash) return;
     const timer = window.setTimeout(() => setFlash(null), FIND_FLASH_MS);
-    return () => {
-      window.clearTimeout(timer);
-      onPeek?.(false);
-    };
-  }, [flash, onPeek]);
+    return () => window.clearTimeout(timer);
+  }, [flash]);
+
+  // Keyed on flashing, not the rect, so a re-click doesn't end the peek it just started.
+  useEffect(() => {
+    if (!flashing) return;
+    return () => endPeek();
+  }, [flashing]);
 
   const find = () => {
     const el = findTourAnchor(binding);

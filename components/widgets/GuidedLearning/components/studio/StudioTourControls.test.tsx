@@ -248,6 +248,30 @@ describe('StudioTourControls Find on board', () => {
     expect(onPeekBoard).toHaveBeenLastCalledWith(false);
   });
 
+  it('keeps the Studio faded when Find on board is clicked again mid-flash', () => {
+    vi.useFakeTimers();
+    const board = document.createElement('button');
+    board.setAttribute('data-tour', 'sidebar.boards');
+    document.body.appendChild(board);
+    vi.spyOn(board, 'getBoundingClientRect').mockImplementation(
+      () => ({ top: 10, left: 20, width: 30, height: 40 }) as DOMRect
+    );
+    const { onPeekBoard } = renderFind('sidebar.boards');
+    act(() => {
+      vi.advanceTimersByTime(FIND_FLASH_MS / 2);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Find on board' }));
+    expect(onPeekBoard).toHaveBeenLastCalledWith(true);
+    act(() => {
+      vi.advanceTimersByTime(FIND_FLASH_MS - 1);
+    });
+    expect(onPeekBoard).toHaveBeenLastCalledWith(true);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(onPeekBoard).toHaveBeenLastCalledWith(false);
+  });
+
   it('names the widget a missing widget button needs', () => {
     renderFind('widget.close', ['clock', 'time-tool'], ['time-tool']);
     expect(screen.getByTestId('gl-studio-find-result')).toHaveTextContent(

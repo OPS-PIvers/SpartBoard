@@ -942,6 +942,49 @@ describe('LiveTourRunner modes', () => {
     expect(progress()).toBe('2 / 2');
   });
 
+  it('Guided: Pause after the auto-click holds the step, and Resume moves on', async () => {
+    await start(
+      makeSet(
+        [
+          { anchor: 'dock.item:dice', action: 'click' },
+          { anchor: 'sidebar.classes', action: 'click' },
+        ],
+        [],
+        'guided'
+      )
+    );
+    const dice = recordEvents(screen.getByText('Dice'));
+    await run(4000);
+    expect(dice).toEqual(AUTO_TYPES);
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    await run(ANCHOR_SEARCH_MS + 1000);
+    expect(progress()).toBe('1 / 2');
+    expect(status()).toHaveTextContent('Paused');
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
+    await frames();
+    expect(progress()).toBe('2 / 2');
+  });
+
+  it('Guided: Take over after the auto-click stops the pending advance', async () => {
+    await start(
+      makeSet(
+        [
+          { anchor: 'dock.item:dice', action: 'click' },
+          { anchor: 'sidebar.classes', action: 'click' },
+        ],
+        [],
+        'guided'
+      )
+    );
+    const dice = recordEvents(screen.getByText('Dice'));
+    await run(4000);
+    expect(dice).toEqual(AUTO_TYPES);
+    fireEvent.click(screen.getByRole('button', { name: 'Take over' }));
+    await run(ANCHOR_SEARCH_MS + 1000);
+    expect(progress()).toBe('1 / 2');
+    expect(status()).not.toBeInTheDocument();
+  });
+
   it('Guided: falls back to the teacher when the click does not bring up the next anchor', async () => {
     await start(
       makeSet(
