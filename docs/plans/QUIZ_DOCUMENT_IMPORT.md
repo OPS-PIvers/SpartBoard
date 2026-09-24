@@ -26,7 +26,7 @@ Grilled and settled 2026-09-21. Four stacked PRs to dev-paul, in the order below
 ### Engine
 
 - **D1.** Two readers behind one interface. The AI reader (new Cloud Function, Gemini on Vertex) runs when the teacher has AI access (`gemini-functions`). Otherwise the browser reader runs. Both return the same `ExtractedQuiz` shape, so the review table and create step do not care which ran.
-- **D2.** Browser reader: text layer first (pdf.js `getTextContent` for PDFs, `word/document.xml` via jszip for DOCX), tesseract only when a PDF page has no usable text layer. It handles MC and T/F only: numbered stems, lettered option lines (A–F), and a key from either an answer block ("1. B", "1) b", "1-B") or a marked option (DOCX bold/highlight/underline, a leading `*`). Anything else is a free-response row with a "couldn't read this question type" warning.
+- **D2.** Browser reader: text layer first (pdf.js `getTextContent` for PDFs, `word/document.xml` via jszip for DOCX), tesseract only when a PDF page has no usable text layer. It handles MC and T/F only: numbered stems, lettered option lines (A–F), and a key from either an answer block ("1. B", "1) b", "1-B") or a marked option (DOCX bold/highlight/underline, a leading `*`). Anything else is a free-response row with a "couldn't read this question type" warning. Layout, sections and more key forms: see `QUIZ_IMPORT_RELIABILITY.md` (R2–R13).
 - **D3.** AI reader: structured JSON response schema, a prompt that says **extract, never invent** (no new questions, no rewording, no guessed keys). It reads the PDF directly (not transcribed text), so layout, bold and a key table at the end all count. DOCX and Google Docs go to it as text with formatting markers, plus their images (D13).
 - **D4.** Google Docs are exported from Drive as DOCX, then take the DOCX path in both readers. One path, and bold/highlight keys survive.
 
@@ -35,7 +35,7 @@ Grilled and settled 2026-09-21. Four stacked PRs to dev-paul, in the order below
 - **D5.** A missing key does not block import. The question is created with `correctAnswer: ''` and a `needsKey: true` flag, shown as "Needs answer" in the review table and the editor.
 - **D6.** A quiz with any `needsKey` question cannot be assigned (Assign button disabled with the count). Printing response sheets is still allowed; the bubbled key sheet fills the key as it does for stubs today, which clears `needsKey`.
 - **D7.** The import adapter's `validate` and `QuizEditorModal` save accept `needsKey` questions. Assign, live start and PLC share are the gates.
-- **D8.** An optional second "Answer key file" slot beside the test file. Keys are matched by question number; mismatches (key for Q14 on a 12-question test, a letter with no such option) show as row warnings. A key inside the test document is still found.
+- **D8.** An optional second "Answer key file" slot beside the test file. Keys are matched by question number; mismatches (key for Q14 on a 12-question test, a letter with no such option) show as row warnings. A key inside the test document is still found. Superseded by the two-zone uploader and key-file-wins merge in `QUIZ_IMPORT_RELIABILITY.md` (R10, R14–R17).
 
 ### Flow
 
