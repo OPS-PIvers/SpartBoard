@@ -234,3 +234,43 @@ describe('QuizDocumentReview pictures', () => {
     expect(screen.queryByAltText(/on question 1/)).toBeNull();
   });
 });
+
+describe('QuizDocumentReview spill warnings and filter (R18, R19)', () => {
+  it('marks a choice that swallowed another one, in words', () => {
+    setup(
+      quiz([
+        question({
+          correctAnswer: '',
+          needsKey: true,
+          incorrectAnswers: ['357.4 d. 35,740', '3,574', '35.74'],
+        }),
+      ])
+    );
+    expect(screen.getByText('Check text')).toBeTruthy();
+    expect(
+      screen.getByText('This choice may contain another choice')
+    ).toBeTruthy();
+  });
+
+  it('filters to flagged rows', () => {
+    setup(
+      quiz([
+        question({ id: 'clean', text: 'Clean question' }),
+        question({
+          id: 'spill',
+          text: 'Spilled question',
+          incorrectAnswers: ['Green 1. B 2. C', 'Red'],
+        }),
+      ])
+    );
+    expect(screen.getByText('Clean question')).toBeTruthy();
+    fireEvent.click(screen.getByLabelText(/Show only flagged rows \(1\)/));
+    expect(screen.queryByDisplayValue('Clean question')).toBeNull();
+    expect(screen.getByDisplayValue('Spilled question')).toBeTruthy();
+  });
+
+  it('offers no filter when nothing is flagged', () => {
+    setup(quiz([question()]));
+    expect(screen.queryByText(/Show only flagged rows/)).toBeNull();
+  });
+});

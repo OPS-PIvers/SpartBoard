@@ -64,6 +64,7 @@ import {
   CalendarClock,
   LayoutDashboard,
   Flag,
+  Target,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -214,6 +215,13 @@ const GLOBAL_FEATURES: {
     icon: FileText,
     description:
       'Reads an imported test document with AI (Gemini) instead of the plain text-and-scan reader, which handles unusual layouts better and counts against the teacher\u2019s daily AI limit. Teachers who have it see a \u201CRead with AI\u201D checkbox, off by default, on each import. Only takes effect when Build a quiz from a test document and Gemini Functions are also enabled. Fail-closed: nobody gets it until this is saved and enabled.',
+  },
+  {
+    id: 'quiz-import-suggested-targets',
+    label: 'Suggested learning targets on quiz import',
+    icon: Target,
+    description:
+      'When an imported test prints learning targets beside its questions (for example \u201CELT 1.1 \u2013 I can explain\u2026\u201D), the review screen offers each one as a suggested target. A suggestion that matches one of the teacher\u2019s targets or a PLC target by code or wording tags the question with it; otherwise the teacher can create it in their own list or a PLC they can edit. \u201CAdd all\u201D covers every question in one step. Only takes effect when Build a quiz from a test document is also enabled. Admin-only until this is saved and opened up.',
   },
   {
     id: 'paper-answer-sheets',

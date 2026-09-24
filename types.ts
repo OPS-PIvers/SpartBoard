@@ -8711,6 +8711,8 @@ export type GlobalFeature =
   | 'quiz-document-import'
   /** The AI reader for that import; AND-ed with `quiz-document-import` and `gemini-functions`. */
   | 'quiz-document-ai-reader'
+  /** Learning targets read off an imported test, offered as chips in its review. */
+  | 'quiz-import-suggested-targets'
   /** Handing a board or a collection to a substitute, and managing live shares. */
   | 'sub-share-collections'
   /** Guided Learning player v2: calm motion, learner speed, Watch/Try; stamped on sessions. */
