@@ -23,6 +23,8 @@ export interface OverflowMenuItem {
   disabled?: boolean;
   /** Show a spinner in place of the icon while an async action is in flight. */
   loading?: boolean;
+  /** Tooltip shown on hover. */
+  title?: string;
 }
 
 interface OverflowMenuProps {
@@ -172,6 +174,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
               return (
                 <button
                   key={item.id ?? item.label}
+                  title={item.title}
                   type="button"
                   role="menuitem"
                   aria-disabled={!!item.disabled || !!item.loading || undefined}

@@ -144,7 +144,7 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
   }, []);
 
   const handleEnd = useCallback(async () => {
-    // "End" = make inactive (kills the student URL, preserves responses).
+    // "End" = deactivate (kills the student URL, preserves responses).
     // Confirmation happens inside QuizLiveMonitor. QuizLiveMonitor only
     // resets its busy flag (try/finally) and doesn't surface rejections, so
     // catch here and keep the modal open if deactivation failed.

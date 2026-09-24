@@ -21,14 +21,14 @@ describe('QuizBehaviorSettingsPanel', () => {
     expect(screen.getByText('Self-paced')).toBeInTheDocument();
   });
 
-  it('renders the toggle group (Tab Switch Detection is visible)', () => {
+  it('renders the toggle group (Focus mode is visible)', () => {
     render(
       <QuizBehaviorSettingsPanel value={defaultValue} onChange={vi.fn()} />
     );
-    expect(screen.getByText('Tab Switch Detection')).toBeInTheDocument();
+    expect(screen.getByText('Focus mode')).toBeInTheDocument();
   });
 
-  it('renders the Block Copy & Paste toggle under Tab Switch Detection', () => {
+  it('renders the Block Copy & Paste toggle under Focus mode', () => {
     render(
       <QuizBehaviorSettingsPanel value={defaultValue} onChange={vi.fn()} />
     );
@@ -46,7 +46,7 @@ describe('QuizBehaviorSettingsPanel', () => {
       screen.getByRole('switch', { name: /Block Copy & Paste/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('switch', { name: /Tab Switch Detection/i })
+      screen.getByRole('switch', { name: /Focus mode/i })
     ).toBeInTheDocument();
   });
 
@@ -140,9 +140,9 @@ describe('QuizBehaviorSettingsPanel', () => {
     };
     render(<QuizBehaviorSettingsPanel value={value} onChange={onChange} />);
 
-    // Tab Switch Detection toggle is on — toggle it off.
+    // Focus mode toggle is on — toggle it off.
     // The toggle renders as role="switch"
-    const tabSwitchLabel = screen.getByText('Tab Switch Detection');
+    const tabSwitchLabel = screen.getByText('Focus mode');
     const row = tabSwitchLabel.closest('div');
     const switchEl = row?.querySelector('[role="switch"]');
     expect(switchEl).not.toBeNull();
