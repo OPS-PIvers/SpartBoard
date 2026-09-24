@@ -11,6 +11,7 @@ import {
   type OpenWindow,
 } from './printHtmlDocument';
 import { CHOICE_LETTERS } from './paperSheetLayout';
+import { isPlaceholderLetterChoices } from './paperSheetPlan';
 import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
 
 export interface PaperTestQuestion {
@@ -45,13 +46,16 @@ const STYLES = `
 `;
 
 function questionHtml(q: PaperTestQuestion): string {
-  const choices = q.choices
-    .map(
-      (c, i) =>
-        `<li><span class="letter">${CHOICE_LETTERS[i]}.</span><span class="text">${escapeHtml(c)}</span></li>`
-    )
-    .join('');
-  return `<li><span class="num">${q.row}.</span><div><div class="text">${escapeHtml(q.text)}</div><ol class="c">${choices}</ol></div></li>`;
+  // A stub's options are just the bubble letters, which say nothing to a student.
+  const choices = isPlaceholderLetterChoices(q.choices)
+    ? ''
+    : `<ol class="c">${q.choices
+        .map(
+          (c, i) =>
+            `<li><span class="letter">${CHOICE_LETTERS[i]}.</span><span class="text">${escapeHtml(c)}</span></li>`
+        )
+        .join('')}</ol>`;
+  return `<li><span class="num">${q.row}.</span><div><div class="text">${escapeHtml(q.text)}</div>${choices}</div></li>`;
 }
 
 /** The document `printPaperTest` would write. Exported for tests. */

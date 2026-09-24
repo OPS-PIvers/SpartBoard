@@ -45,6 +45,16 @@ const isTrueFalse = (choices: readonly string[]): boolean =>
     .sort()
     .join('|') === 'false|true';
 
+/** True when the options are only the bare letters a paper stub writes, in any order. */
+export const isPlaceholderLetterChoices = (
+  choices: readonly string[]
+): boolean =>
+  choices.length > 0 &&
+  choices
+    .map((c) => c.trim())
+    .sort()
+    .join('|') === CHOICE_LETTERS.slice(0, choices.length).join('|');
+
 /**
  * The lettered order a question's options print in on the test paper.
  *
@@ -64,6 +74,10 @@ export function paperChoiceOrder(
     return [...choices].sort((a) =>
       a.trim().toLowerCase() === 'true' ? -1 : 1
     );
+  }
+  // Shuffled letters would print "A. C" and bubble A would mean option C.
+  if (isPlaceholderLetterChoices(choices)) {
+    return [...choices].sort((a, b) => a.trim().localeCompare(b.trim()));
   }
   const rand = seededRandom(`${batchId}:${question.id}`);
   for (let i = choices.length - 1; i > 0; i -= 1) {

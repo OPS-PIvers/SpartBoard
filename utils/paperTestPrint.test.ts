@@ -30,6 +30,21 @@ describe('buildPaperTestHtml', () => {
     expect(html).toContain('SpartBoard Responses');
   });
 
+  it('prints only the question when its options are placeholder letters', () => {
+    const html = buildPaperTestHtml({
+      quizTitle: 'Vocab',
+      questions: [
+        { row: 1, text: 'Define pariah.', choices: ['B', 'C', 'D', 'A'] },
+        { row: 2, text: 'Pick one', choices: ['A', 'Paris'] },
+      ],
+    });
+    expect(html).toContain('Define pariah.');
+    const letters = [...html.matchAll(/class="letter">([A-E])\./g)].map(
+      (m) => m[1]
+    );
+    expect(letters).toEqual(['A', 'B']);
+  });
+
   it('escapes question and choice text', () => {
     const html = buildPaperTestHtml({
       quizTitle: '<b>',

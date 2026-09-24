@@ -156,6 +156,10 @@ describe('client/server paper batch plan parity', () => {
         clientChoiceOrder('other-batch', q)
       );
     }
+    const stub = question('q6', 'C', ['A', 'B', 'D']);
+    expect(serverChoiceOrder(BATCH_ID, stub)).toEqual(
+      clientChoiceOrder(BATCH_ID, stub)
+    );
   });
 
   it('picks the same printable rows out of a mixed quiz', () => {
