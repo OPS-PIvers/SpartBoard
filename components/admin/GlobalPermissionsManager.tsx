@@ -308,7 +308,7 @@ const GLOBAL_FEATURES: {
     label: 'Quiz results teacher tools',
     icon: UserSearch,
     description:
-      "In question results, each student name opens that student's answers on the Students page. Admin-only until this is saved and opened up.",
+      'Adds tools to quiz results. In question results, each student name opens that student\'s answers, and "Select these students" picks exactly that group. The student list shows each written answer\'s teacher comment and rubric levels. Printing leads with a choice between a full report and missed questions only. With students selected, teachers can export their results as a spreadsheet file, or reopen the quiz so they can change their answers and submit again while the assignment is still open. Admin-only until this is saved and opened up.',
   },
   {
     id: 'settings-drawer',
