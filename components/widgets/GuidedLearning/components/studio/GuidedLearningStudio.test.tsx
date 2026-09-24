@@ -23,9 +23,10 @@ vi.mock('@/context/useAuth', () => ({
   }),
 }));
 
+const storage = vi.hoisted(() => ({ uploading: false }));
 vi.mock('@/hooks/useStorage', () => ({
   useStorage: () => ({
-    uploading: false,
+    uploading: storage.uploading,
     uploadHotspotImage: vi.fn(),
     uploadGuidedLearningMedia: vi.fn(),
     deleteFile: vi.fn(),
@@ -34,11 +35,12 @@ vi.mock('@/hooks/useStorage', () => ({
 }));
 
 const openDialog = vi.hoisted(() => ({ current: null as unknown }));
+const showConfirm = vi.hoisted(() => vi.fn());
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({
     currentDialog: openDialog.current,
     showAlert: vi.fn().mockResolvedValue(undefined),
-    showConfirm: vi.fn().mockResolvedValue(false),
+    showConfirm,
     showPrompt: vi.fn().mockResolvedValue(null),
   }),
 }));
@@ -91,6 +93,8 @@ let restore: (() => void) | null = null;
 let fireResize: () => void = () => undefined;
 beforeEach(() => {
   localStorage.clear();
+  storage.uploading = false;
+  showConfirm.mockReset().mockResolvedValue(false);
   const handle = mockStageLayout({
     container: { w: 720, h: 520 },
     image: { w: 1440, h: 1040 },
@@ -419,6 +423,63 @@ describe('GuidedLearningStudio', () => {
       } finally {
         window.removeEventListener(TOUR_START_EVENT, onStart);
       }
+    });
+  });
+
+  describe('closing', () => {
+    const close = () =>
+      fireEvent.click(screen.getByRole('button', { name: 'Close editor' }));
+
+    it('asks before closing mid-upload and saves what is there if the author closes', async () => {
+      storage.uploading = true;
+      showConfirm.mockResolvedValue(true);
+      const { onClose, onSave } = renderStudio();
+      fireEvent.change(screen.getByLabelText('Activity title'), {
+        target: { value: 'Edited during upload' },
+      });
+      close();
+      await waitFor(() => expect(onClose).toHaveBeenCalled());
+      expect(showConfirm.mock.calls[0][1]).toMatchObject({
+        title: 'A slide is still uploading',
+      });
+      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(onSave.mock.calls[0][0]).toMatchObject({
+        title: 'Edited during upload',
+      });
+    });
+
+    it('stays open when the author keeps editing during an upload', async () => {
+      storage.uploading = true;
+      const { onClose } = renderStudio();
+      close();
+      await waitFor(() => expect(showConfirm).toHaveBeenCalled());
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('warns before discarding a titled set with no slides', async () => {
+      const { onClose, onSave } = renderStudio({
+        set: { ...buildSet(), imageUrls: [], steps: [] },
+      });
+      close();
+      await waitFor(() => expect(showConfirm).toHaveBeenCalled());
+      expect(showConfirm.mock.calls[0][1]).toMatchObject({
+        title: 'This set has no slides yet',
+        confirmLabel: 'Discard',
+      });
+      expect(onClose).not.toHaveBeenCalled();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+
+    it('writes pending edits when unmounted without a close', async () => {
+      const { onSave, unmount } = renderStudio();
+      fireEvent.change(screen.getByLabelText('Activity title'), {
+        target: { value: 'Board switched away' },
+      });
+      unmount();
+      await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+      expect(onSave.mock.calls[0][0]).toMatchObject({
+        title: 'Board switched away',
+      });
     });
   });
 });

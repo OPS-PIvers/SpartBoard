@@ -91,6 +91,8 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   uploading: boolean;
   uploadProgress: SlideUploadProgress | null;
   uploadFromFiles: (files: File[]) => Promise<void>;
+  /** The author closed mid-upload: stop, and delete whatever finishes uploading. */
+  abandonUploads: () => void;
   uploadFromClipboard: () => Promise<void>;
   /** Add an editor-captured blob (screen snap / recording) as a new slide. */
   addCapturedMedia: (
@@ -146,7 +148,9 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   notifyCanvasMeasured: () => void;
   /** True once in-editor spotlight radii use v2 image-relative semantics. */
   spotlightRadiiV2: boolean;
-  markSpotlightRadiiV2: () => void;
+  markSpotlightRadiiV2: (
+    convert: (steps: GuidedLearningStep[]) => GuidedLearningStep[] | null
+  ) => void;
   /** Deletes every queued file whose edit is still in effect; call after a closing save. */
   flushMediaDeletions: (
     deleteFile: (storagePath: string) => Promise<void>,
@@ -174,6 +178,8 @@ export function useGuidedLearningEditorState({
     uploadHotspotImage,
     uploadGuidedLearningMedia,
     uploadGuidedLearningImage,
+    deleteFile: deleteStorageFile,
+    deleteDriveFile: deleteDriveSlide,
   } = useStorage();
 
   const [history, dispatch] = useReducer(
@@ -314,6 +320,26 @@ export function useGuidedLearningEditorState({
     [applyDoc]
   );
 
+  const abandonedRef = useRef(false);
+  const abandonUploads = useCallback(() => {
+    abandonedRef.current = true;
+  }, []);
+  // True when the upload landed after the author closed; its file is deleted.
+  const discardIfAbandoned = useCallback(
+    (url: string): boolean => {
+      if (!abandonedRef.current) return false;
+      const ref = slideMediaRef(url);
+      const deletion = !ref
+        ? null
+        : 'storagePath' in ref
+          ? deleteStorageFile(ref.storagePath)
+          : deleteDriveSlide(ref.driveFileId);
+      void deletion?.catch(() => undefined);
+      return true;
+    },
+    [deleteStorageFile, deleteDriveSlide]
+  );
+
   /**
    * Validate, compress, and upload a batch of slide files (images, GIFs,
    * MP4/WebM videos). Files upload sequentially so the progress indicator
@@ -334,6 +360,7 @@ export function useGuidedLearningEditorState({
 
       try {
         for (let i = 0; i < accepted.length; i++) {
+          if (abandonedRef.current) break;
           const file = accepted[i];
           const kind = getMediaKind(file) ?? 'image';
           setUploadProgress({
@@ -353,11 +380,11 @@ export function useGuidedLearningEditorState({
                     prev ? { ...prev, percent } : prev
                   )
               );
-              appendSlides([url], ['video']);
+              if (!discardIfAbandoned(url)) appendSlides([url], ['video']);
             } else {
               const prepared = await prepareImageForUpload(file);
               const url = await uploadHotspotImage(user.uid, prepared);
-              appendSlides([url], ['image']);
+              if (!discardIfAbandoned(url)) appendSlides([url], ['image']);
             }
           } catch (err) {
             errors.push(
@@ -372,7 +399,13 @@ export function useGuidedLearningEditorState({
       }
       if (errors.length > 0) setImageError(errors.join(' '));
     },
-    [user, uploadHotspotImage, uploadGuidedLearningMedia, appendSlides]
+    [
+      user,
+      uploadHotspotImage,
+      uploadGuidedLearningMedia,
+      appendSlides,
+      discardIfAbandoned,
+    ]
   );
 
   const uploadFromClipboard = useCallback(async () => {
@@ -459,6 +492,7 @@ export function useGuidedLearningEditorState({
         blob,
         'redacted.png'
       );
+      if (discardIfAbandoned(url)) return false;
       // Slides may have moved during the upload, so find the old image again.
       if (!historyRef.current.present.imageUrls.includes(oldUrl)) return false;
       applyDoc((doc) => ({
@@ -469,7 +503,7 @@ export function useGuidedLearningEditorState({
       if (ref) dispatch({ type: 'queueMedia', ref });
       return true;
     },
-    [user, uploadGuidedLearningImage, applyDoc]
+    [user, uploadGuidedLearningImage, applyDoc, discardIfAbandoned]
   );
 
   const moveImage = useCallback(
@@ -626,12 +660,20 @@ export function useGuidedLearningEditorState({
     []
   );
 
-  // The load-time radius conversion is not an edit: undoing past it would
-  // restore legacy radii under v2 semantics.
-  const markSpotlightRadiiV2 = useCallback(() => {
-    setSpotlightRadiiV2(true);
-    dispatch({ type: 'clearHistory' });
-  }, []);
+  // The load-time radius conversion rewrites history too, so undo never restores legacy radii under v2 semantics.
+  const markSpotlightRadiiV2 = useCallback(
+    (convert: (steps: GuidedLearningStep[]) => GuidedLearningStep[] | null) => {
+      setSpotlightRadiiV2(true);
+      dispatch({
+        type: 'rebase',
+        convert: (doc) => {
+          const steps = convert(doc.steps);
+          return steps ? { ...doc, steps } : null;
+        },
+      });
+    },
+    []
+  );
 
   const undo = useCallback(() => dispatch({ type: 'undo' }), []);
   const redo = useCallback(() => dispatch({ type: 'redo' }), []);
@@ -699,6 +741,7 @@ export function useGuidedLearningEditorState({
     uploading,
     uploadProgress,
     uploadFromFiles,
+    abandonUploads,
     uploadFromClipboard,
     addCapturedMedia,
     deleteImage,

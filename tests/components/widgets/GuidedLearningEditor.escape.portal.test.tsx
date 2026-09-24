@@ -93,6 +93,7 @@ const makeState = (): GuidedLearningEditorController => ({
   notifyCanvasMeasured: vi.fn(),
   spotlightRadiiV2: true,
   markSpotlightRadiiV2: vi.fn(),
+  abandonUploads: vi.fn(),
   watchPace: undefined,
   setWatchPace: vi.fn(),
   undo: vi.fn(),

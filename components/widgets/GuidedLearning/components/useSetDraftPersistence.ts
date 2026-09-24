@@ -278,7 +278,6 @@ export function useSetDraftPersistence({
   // and an unmeasurable set stays legacy on save.
   const {
     steps: draftSteps,
-    setSteps,
     imageUrls,
     imageKinds,
     canvasMeasurementsRef,
@@ -339,9 +338,10 @@ export function useSetDraftPersistence({
         measurements
       );
       if (!convertedDraft || !convertedOriginal) return;
-      setSteps(convertedDraft);
       setOriginalSteps(convertedOriginal);
-      markSpotlightRadiiV2();
+      markSpotlightRadiiV2((steps) =>
+        convertLegacySpotlightRadii(steps, measurements)
+      );
     })();
     return () => {
       cancelled = true;
@@ -356,7 +356,6 @@ export function useSetDraftPersistence({
     imageUrls,
     imageKinds,
     canvasMeasurementsRef,
-    setSteps,
     markSpotlightRadiiV2,
   ]);
 

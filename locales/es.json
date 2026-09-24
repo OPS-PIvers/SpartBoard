@@ -2565,6 +2565,11 @@
     "titlePlaceholder": "Actividad sin título",
     "undo": "Deshacer",
     "unsavedBody": "No se pudieron guardar tus últimos cambios. Si cierras ahora, se perderán.",
+    "uploadingTitle": "Todavía se está subiendo una diapositiva",
+    "uploadingBody": "Si cierras ahora, la diapositiva que se está subiendo no se añadirá.",
+    "emptySetTitle": "Este conjunto aún no tiene diapositivas",
+    "emptySetBody": "Un conjunto necesita al menos una diapositiva para poder guardarse. Si cierras ahora, se perderán el título y la descripción.",
+    "discard": "Descartar",
     "unsavedTitle": "Cambios sin guardar",
     "emptyCanvas": "Añade una diapositiva para empezar a colocar pasos.",
     "devices": {

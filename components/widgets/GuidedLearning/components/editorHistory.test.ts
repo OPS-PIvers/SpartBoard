@@ -317,18 +317,40 @@ describe('useGuidedLearningEditorState history', () => {
     expect(deleteFile).not.toHaveBeenCalled();
   });
 
-  it('makes the load-time radius conversion not undoable', () => {
+  it('keeps undo history through the load-time radius conversion', () => {
     const { result } = renderEditor(makeSet({ schemaVersion: 1 }));
     act(() => result.current.setTitle('Edited'));
-    act(() => {
-      result.current.setSteps((prev) =>
-        prev.map((s) => ({ ...s, spotlightRadius: 5 }))
-      );
-      result.current.markSpotlightRadiiV2();
-    });
+    act(() =>
+      result.current.markSpotlightRadiiV2((steps) =>
+        steps.map((s) => ({ ...s, spotlightRadius: 5 }))
+      )
+    );
     expect(result.current.spotlightRadiiV2).toBe(true);
-    expect(result.current.canUndo).toBe(false);
+    expect(result.current.canUndo).toBe(true);
     expect(result.current.steps[0].spotlightRadius).toBe(5);
+    act(() => result.current.undo());
+    expect(result.current.title).not.toBe('Edited');
+    expect(result.current.steps[0].spotlightRadius).toBe(5);
+    act(() => result.current.redo());
+    expect(result.current.title).toBe('Edited');
+  });
+
+  it('drops only the history the conversion cannot rewrite', () => {
+    const { result } = renderEditor(makeSet({ schemaVersion: 1 }));
+    act(() => result.current.setTitle('First'));
+    act(() => result.current.setMode('guided'));
+    let calls = 0;
+    act(() =>
+      result.current.markSpotlightRadiiV2((steps) => {
+        calls += 1;
+        // present and the newest past entry convert; the oldest does not
+        return calls <= 2 ? steps : null;
+      })
+    );
+    act(() => result.current.undo());
+    expect(result.current.title).toBe('First');
+    expect(result.current.mode).not.toBe('guided');
+    expect(result.current.canUndo).toBe(false);
   });
 });
 

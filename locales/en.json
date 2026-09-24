@@ -3696,6 +3696,11 @@
     "titlePlaceholder": "Untitled activity",
     "undo": "Undo",
     "unsavedBody": "Your latest changes could not be saved. If you close now, they will be lost.",
+    "uploadingTitle": "A slide is still uploading",
+    "uploadingBody": "If you close now, the slide that is uploading won't be added.",
+    "emptySetTitle": "This set has no slides yet",
+    "emptySetBody": "A set needs at least one slide before it can be saved. If you close now, the title and description are lost.",
+    "discard": "Discard",
     "unsavedTitle": "Changes not saved",
     "emptyCanvas": "Add a slide to start placing steps.",
     "devices": {

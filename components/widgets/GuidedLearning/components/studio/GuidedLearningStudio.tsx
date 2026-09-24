@@ -118,8 +118,35 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = ({
   }, [autosave, showConfirm, t]);
 
   const requestClose = useCallback(async () => {
+    const { uploading, imageUrls, title, description, abandonUploads } =
+      editorState;
+    if (uploading) {
+      const closeAnyway = await showConfirm(t('glStudio.uploadingBody'), {
+        title: t('glStudio.uploadingTitle'),
+        variant: 'warning',
+        confirmLabel: t('glStudio.closeAnyway'),
+        cancelLabel: t('glStudio.keepEditing'),
+      });
+      if (!closeAnyway) return;
+      abandonUploads();
+      if (imageUrls.length > 0 && !(await autosave.flush({ force: true }))) {
+        if (!(await flushOrConfirm())) return;
+      }
+      closeEditor();
+      return;
+    }
+    if (imageUrls.length === 0 && (title.trim() || description.trim())) {
+      const discard = await showConfirm(t('glStudio.emptySetBody'), {
+        title: t('glStudio.emptySetTitle'),
+        variant: 'warning',
+        confirmLabel: t('glStudio.discard'),
+        cancelLabel: t('glStudio.keepEditing'),
+      });
+      if (discard) closeEditor();
+      return;
+    }
     if (await flushOrConfirm()) closeEditor();
-  }, [flushOrConfirm, closeEditor]);
+  }, [editorState, showConfirm, t, autosave, flushOrConfirm, closeEditor]);
 
   // The runner loads the saved set, so an unsaved draft never starts.
   const runLive = useCallback(async () => {

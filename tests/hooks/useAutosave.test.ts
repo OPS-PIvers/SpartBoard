@@ -255,4 +255,35 @@ describe('useAutosave', () => {
     await new Promise((r) => setTimeout(r, 150));
     expect(peak).toBe(1);
   });
+
+  it('writes an owed draft when the editor unmounts', async () => {
+    const onSave = vi.fn((): Promise<void> => Promise.resolve());
+    const { rerender, unmount } = setup({ onSave });
+    rerender({ draftToken: 'a', resetKey: 'item-1', enabled: true, onSave });
+    unmount();
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+  });
+
+  it('writes nothing on unmount when the draft is saved or disabled', async () => {
+    const onSave = vi.fn((): Promise<void> => Promise.resolve());
+    const { rerender, unmount } = setup({ onSave, enabled: false });
+    rerender({ draftToken: 'a', resetKey: 'item-1', enabled: false, onSave });
+    unmount();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('force-flushes while disabled', async () => {
+    const onSave = vi.fn((): Promise<void> => Promise.resolve());
+    const { result, rerender } = setup({ onSave, enabled: false });
+    rerender({ draftToken: 'a', resetKey: 'item-1', enabled: false, onSave });
+    await act(async () => {
+      expect(await result.current.flush()).toBe(true);
+    });
+    expect(onSave).not.toHaveBeenCalled();
+    await act(async () => {
+      expect(await result.current.flush({ force: true })).toBe(true);
+    });
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
 });
