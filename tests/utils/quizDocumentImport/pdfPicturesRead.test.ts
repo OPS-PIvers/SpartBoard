@@ -33,9 +33,18 @@ async function nodePdfDeps(): Promise<PdfReaderDeps> {
           const page = await doc.getPage(n);
           return {
             getTextContent: async () => ({
-              items: (await page.getTextContent()).items.filter(
-                (i): i is PdfTextItem & { width: number; height: number } =>
+              items: (await page.getTextContent()).items.flatMap(
+                (i): PdfTextItem[] =>
                   'str' in i
+                    ? [
+                        {
+                          str: i.str,
+                          transform: i.transform as number[],
+                          width: i.width,
+                          height: i.height,
+                        },
+                      ]
+                    : []
               ),
             }),
             getPictures: async (items: readonly PdfTextItem[]) => {
