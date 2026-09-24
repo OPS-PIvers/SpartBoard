@@ -898,6 +898,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           youtubeEndEvents={playerV2}
           revealKeys={revealKeys}
           touchTargets={playerV2}
+          slideLoading={playerV2}
           priorAnswers={playerV2 ? answerMap : undefined}
         />
         {resumeOffer && (

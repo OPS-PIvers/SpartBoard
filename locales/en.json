@@ -4637,6 +4637,11 @@
       "recorded": "Answer recorded",
       "yourAnswer": "Your answer: {{answer}}",
       "change": "Change answer"
+    },
+    "slide": {
+      "loading": "Loading slide…",
+      "error": "Couldn't load this slide",
+      "retry": "Retry"
     }
   },
   "glEngagement": {

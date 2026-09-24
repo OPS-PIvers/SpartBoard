@@ -3480,6 +3480,11 @@
       "recorded": "Respuesta guardada",
       "yourAnswer": "Tu respuesta: {{answer}}",
       "change": "Cambiar respuesta"
+    },
+    "slide": {
+      "loading": "Cargando diapositiva…",
+      "error": "No se pudo cargar esta diapositiva",
+      "retry": "Reintentar"
     }
   },
   "glEngagement": {

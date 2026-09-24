@@ -6,7 +6,9 @@ import React, {
   useRef,
   useCallback,
 } from 'react';
-import { Minimize2, X } from 'lucide-react';
+import { ImageOff, Minimize2, RotateCcw, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import type {
   GuidedLearningPublicStep,
   GuidedLearningVideoTrim,
@@ -97,6 +99,29 @@ export interface StageCursorCue {
 const MIN_PIN_HIT_PX = 44;
 /** How long a Try miss marker stays on screen. */
 export const MISS_MARKER_MS = 1200;
+/** v2 preloads image slides this far either side of the current one. */
+export const PRELOAD_RADIUS = 2;
+
+/** v2 preload window: slides to fetch and the one slide to decode ahead. */
+export function preloadWindow(
+  current: number,
+  count: number,
+  isVideo: (i: number) => boolean
+): { fetch: number[]; decode: number | null } {
+  const fetch: number[] = [];
+  for (
+    let i = Math.max(0, current - PRELOAD_RADIUS);
+    i <= Math.min(count - 1, current + PRELOAD_RADIUS);
+    i++
+  ) {
+    if (i !== current && !isVideo(i)) fetch.push(i);
+  }
+  const next = current + 1;
+  return {
+    fetch,
+    decode: next < count && !isVideo(next) ? next : null,
+  };
+}
 
 /** Player-only additions; the Studio renders with the frozen props alone. */
 export interface GuidedLearningStageRuntimeProps {
@@ -121,6 +146,8 @@ export interface GuidedLearningStageRuntimeProps {
   touchTargets?: boolean;
   /** Player v2: each question opens on its saved answer, which can be changed. */
   priorAnswers?: ReadonlyMap<string, string | string[]>;
+  /** Player v2: a shimmer while the slide loads, Retry on error, and a ±2 preload window. */
+  slideLoading?: boolean;
 }
 
 export const GuidedLearningStage: React.FC<
@@ -152,7 +179,9 @@ export const GuidedLearningStage: React.FC<
   revealKeys,
   touchTargets = false,
   priorAnswers,
+  slideLoading = false,
 }) => {
+  const { t } = useTranslation();
   // Hotspot pulse style — 'consistent' (default) preserves the legacy ping
   // ring; 'reminder' adds a periodic wiggle on the marker itself; 'off'
   // disables both. All variants degrade to no-animation under
@@ -264,6 +293,30 @@ export const GuidedLearningStage: React.FC<
   // entries (and legacy sets/sessions) play the full file.
   const slideTrim = set.videoTrims?.[currentImageIndex] ?? null;
 
+  // v2 slide load state, reset whenever the slide's URL changes.
+  const [slideLoad, setSlideLoad] = useState<{
+    url: string | undefined;
+    status: 'loading' | 'loaded' | 'error';
+    attempt: number;
+  }>({ url: currentImageUrl, status: 'loading', attempt: 0 });
+  let loadStatus = slideLoad.status;
+  if (slideLoad.url !== currentImageUrl) {
+    loadStatus = 'loading';
+    setSlideLoad({ url: currentImageUrl, status: 'loading', attempt: 0 });
+  }
+  const markSlide = (status: 'loaded' | 'error') =>
+    setSlideLoad((prev) =>
+      prev.url === currentImageUrl && prev.status !== status
+        ? { ...prev, status }
+        : prev
+    );
+  const retrySlide = () =>
+    setSlideLoad((prev) => ({
+      ...prev,
+      status: 'loading',
+      attempt: prev.attempt + 1,
+    }));
+
   // Image-transition bookkeeping — when `currentImageIndex` changes and a
   // transition is enabled, we briefly render the previous image as an
   // exiting layer alongside the current one. The "adjust state during
@@ -299,7 +352,16 @@ export const GuidedLearningStage: React.FC<
     // DOM measurement after commit; it cannot be computed during render.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     measureImg();
-  }, [measureImg, currentImageUrl, currentImageIndex]);
+    // A cached image can swap in without a load event.
+    const img = imgRef.current;
+    if (slideLoading && img?.complete && img.naturalWidth > 0) {
+      setSlideLoad((prev) =>
+        prev.url === currentImageUrl && prev.status === 'loading'
+          ? { ...prev, status: 'loaded' }
+          : prev
+      );
+    }
+  }, [measureImg, currentImageUrl, currentImageIndex, slideLoading]);
 
   const toContainerStep = useCallback(
     (step: GuidedLearningPublicStep | null) => {
@@ -321,7 +383,45 @@ export const GuidedLearningStage: React.FC<
       ? panZoomTargetStep.id
       : null;
 
+  // v2: the preload window around the current slide; null marks a slide already shown.
+  const preloadedRef = useRef<Map<string, HTMLImageElement | null>>(new Map());
+  const decodedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
+    if (!slideLoading) return;
+    const urls = set.imageUrls;
+    const kinds = set.imageKinds;
+    const cache = preloadedRef.current;
+    const shown = urls[currentImageIndex];
+    if (shown && !cache.has(shown)) cache.set(shown, null);
+    const { fetch, decode } = preloadWindow(
+      currentImageIndex,
+      urls.length,
+      (i) => (kinds?.[i] ?? 'image') === 'video'
+    );
+    const load = (url: string) => {
+      const existing = cache.get(url);
+      if (existing) return existing;
+      const image = new Image();
+      image.src = url;
+      cache.set(url, image);
+      return image;
+    };
+    for (const i of fetch) {
+      const url = urls[i];
+      if (url && !cache.has(url)) load(url);
+    }
+    const next = decode !== null ? urls[decode] : undefined;
+    if (next && !decodedRef.current.has(next)) {
+      decodedRef.current.add(next);
+      // Decode the next slide so the swap paints immediately.
+      void load(next)
+        .decode?.()
+        .catch(() => undefined);
+    }
+  }, [slideLoading, set.imageUrls, set.imageKinds, currentImageIndex]);
+
+  useEffect(() => {
+    if (slideLoading) return;
     // Warm the browser cache for image slides so step navigation doesn't
     // flash. Video slides are intentionally skipped — preloading every MP4
     // up front would burn bandwidth; the <video> element streams on demand.
@@ -332,7 +432,7 @@ export const GuidedLearningStage: React.FC<
       // Decode ahead of time so a slide swap paints immediately.
       void image.decode?.().catch(() => undefined);
     });
-  }, [set.imageUrls, set.imageKinds]);
+  }, [slideLoading, set.imageUrls, set.imageKinds]);
 
   useEffect(() => {
     if (
@@ -523,6 +623,7 @@ export const GuidedLearningStage: React.FC<
   }, [miss]);
   const handleStageClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!onTargetClick || !geometry || !currentStep) return;
+    if (slideLoading && loadStatus === 'error') return;
     const el = e.target as Element;
     if (
       el.closest(
@@ -852,7 +953,9 @@ export const GuidedLearningStage: React.FC<
             autoPlay
             playsInline
             className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+            onError={slideLoading ? () => markSlide('error') : undefined}
             onLoadedMetadata={(e) => {
+              if (slideLoading) markSlide('loaded');
               measureImg();
               if (slideTrim) {
                 const el = e.currentTarget;
@@ -880,6 +983,7 @@ export const GuidedLearningStage: React.FC<
         )}
         {currentImageUrl && slideKind !== 'video' && (
           <img
+            key={slideLoad.attempt}
             ref={attachImg}
             src={currentImageUrl}
             alt={
@@ -889,7 +993,11 @@ export const GuidedLearningStage: React.FC<
             }
             className="absolute inset-0 w-full h-full object-contain pointer-events-none"
             draggable={false}
-            onLoad={measureImg}
+            onLoad={() => {
+              if (slideLoading) markSlide('loaded');
+              measureImg();
+            }}
+            onError={slideLoading ? () => markSlide('error') : undefined}
           />
         )}
         {/* Previous image — only mounted while a transition is in
@@ -1068,6 +1176,53 @@ export const GuidedLearningStage: React.FC<
           );
         })}
       </div>
+
+      {slideLoading &&
+        currentImageUrl &&
+        slideKind !== 'video' &&
+        loadStatus === 'loading' && (
+          <div
+            role="status"
+            data-testid="gl-slide-loading"
+            className="absolute inset-0 z-[15] overflow-hidden bg-slate-800/70 pointer-events-none"
+          >
+            <div className="h-full w-full -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent motion-reduce:animate-none" />
+            <span className="sr-only">{t('glPlayer.slide.loading')}</span>
+          </div>
+        )}
+      {slideLoading && currentImageUrl && loadStatus === 'error' && (
+        <div
+          role="alert"
+          data-testid="gl-slide-error"
+          className="absolute inset-0 z-[45] bg-slate-950"
+        >
+          <ScaledEmptyState
+            icon={ImageOff}
+            title={t('glPlayer.slide.error')}
+            action={
+              <button
+                type="button"
+                onClick={retrySlide}
+                className="flex items-center rounded-full bg-white text-slate-900 font-bold hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                style={{
+                  gap: 'min(6px, 1.5cqmin)',
+                  padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
+                  fontSize: 'var(--gl-text-body, min(14px, 3.6cqmin))',
+                }}
+              >
+                <RotateCcw
+                  aria-hidden="true"
+                  style={{
+                    width: 'min(16px, 4cqmin)',
+                    height: 'min(16px, 4cqmin)',
+                  }}
+                />
+                {t('glPlayer.slide.retry')}
+              </button>
+            }
+          />
+        </div>
+      )}
 
       {/* Reset view — v2 sets only, shown only while a non-identity zoom
           is actually rendered. Gated on the rendered transform (not raw
