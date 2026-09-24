@@ -8656,7 +8656,9 @@ export type GlobalFeature =
   /** Per-period start/pause and windows on assignments shared by several classes. */
   | 'per-period-access'
   /** Printing quiz results to hand back: presets, bulk print, bubble-sheet reprints. */
-  | 'quiz-results-print';
+  | 'quiz-results-print'
+  /** PLC Home v2: tile dashboard with a spotlight, meeting cadence and assign-from-library. */
+  | 'plc-home-v2';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

@@ -58,6 +58,7 @@ import {
   Footprints,
   Clapperboard,
   CalendarClock,
+  LayoutDashboard,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -271,6 +272,13 @@ const GLOBAL_FEATURES: {
     icon: Printer,
     description:
       'A Print button on quiz results prints a copy for every student in one go, each starting on its own page, to hand back. Teachers pick what each copy shows: the questions, right and wrong marks, the correct answers, the score, learning targets, written-answer feedback, and passages and pictures. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'plc-home-v2',
+    label: 'PLC Home dashboard',
+    icon: LayoutDashboard,
+    description:
+      'Replaces the PLC Home page with tiles: team results by learning target, the next meeting, your action items and recent activity, and docs. Each teacher can spotlight, reorder, add and remove tiles, and leads can set a regular meeting schedule. Adds "Assign from my library" to Assessments. Admin-only until this is saved and opened up.',
   },
   {
     id: 'settings-drawer',
