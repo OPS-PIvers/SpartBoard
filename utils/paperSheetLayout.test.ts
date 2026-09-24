@@ -17,7 +17,8 @@ import {
   pageCountForQuestions,
   questionRowRectMm,
   questionSlotOnPage,
-  questionTextRectMm,
+  questionChoiceTextRectMm,
+  questionStemRectMm,
   questionsPerPage,
   type PaperGrid,
   type RectMm,
@@ -185,13 +186,19 @@ describe('question-text layout', () => {
     w: r.w + by * 2,
     h: r.h + by * 2,
   });
-  const texts = Array.from({ length: questionsPerPage('questions') }, (_, q) =>
-    questionTextRectMm(q)
+  const perPage = questionsPerPage('questions');
+  const slots = Array.from({ length: perPage }, (_, q) => q);
+  const stems = slots.map((q) => questionStemRectMm(q));
+  const choiceTexts = slots.flatMap((q) =>
+    Array.from({ length: MAX_CHOICE_COUNT }, (_, c) =>
+      questionChoiceTextRectMm(q, c)
+    )
   );
+  const texts = [...stems, ...choiceTexts];
 
-  it('fits eight tall rows above the footer', () => {
-    expect(questionsPerPage('questions')).toBe(8);
-    expect(pageCountForQuestions(30, 'questions')).toBe(4);
+  it('fits five questions a page above the footer', () => {
+    expect(perPage).toBe(5);
+    expect(pageCountForQuestions(30, 'questions')).toBe(6);
     for (const r of [...allBubbles('questions'), ...texts]) {
       expect(onPage(r)).toBe(true);
       expect(overlaps(r, FOOTER_RECT_MM)).toBe(false);
@@ -199,23 +206,47 @@ describe('question-text layout', () => {
     }
   });
 
-  it('keeps question text 4 mm clear of every bubble and row crop', () => {
-    for (const text of texts) {
-      for (const bubble of allBubbles('questions')) {
-        expect(overlaps(pad(text, 4), bubble)).toBe(false);
+  it('lists the choices under the stem, one a line, each beside its bubble', () => {
+    const bubbles = Array.from({ length: MAX_CHOICE_COUNT }, (_, i) =>
+      bubbleRectMm(0, i, 'questions')
+    );
+    const stem = questionStemRectMm(0);
+    expect(bubbles[0].y).toBeGreaterThan(stem.y + stem.h);
+    bubbles.forEach((b, i) => {
+      expect(b.x).toBe(bubbles[0].x);
+      if (i > 0) expect(b.y).toBeGreaterThan(bubbles[i - 1].y);
+      const text = questionChoiceTextRectMm(0, i);
+      expect(text.x).toBeGreaterThan(b.x + b.w);
+      expect(text.y).toBe(b.y);
+    });
+  });
+
+  it('keeps every bubble clear of all text and of the other bubbles', () => {
+    const bubbles = allBubbles('questions');
+    for (const bubble of bubbles) {
+      for (const text of texts) {
+        expect(overlaps(pad(bubble, 1), text)).toBe(false);
       }
-      for (let q = 0; q < texts.length; q += 1) {
-        expect(
-          overlaps(
-            text,
-            pad(questionRowRectMm(q, MAX_CHOICE_COUNT, 'questions'), 2)
-          )
-        ).toBe(false);
+    }
+    for (let i = 0; i < bubbles.length; i += 1) {
+      for (let j = i + 1; j < bubbles.length; j += 1) {
+        expect(overlaps(pad(bubbles[i], 0.45), bubbles[j])).toBe(false);
       }
     }
   });
 
-  it('keeps question text off the marker grid, registration marks and corner windows', () => {
+  it('crops a row to its choices without reaching the next question', () => {
+    for (const q of slots.slice(0, -1)) {
+      const crop = questionRowRectMm(q, MAX_CHOICE_COUNT, 'questions');
+      for (let c = 0; c < MAX_CHOICE_COUNT; c += 1) {
+        expect(overlaps(crop, bubbleRectMm(q, c, 'questions'))).toBe(true);
+        expect(overlaps(crop, bubbleRectMm(q + 1, c, 'questions'))).toBe(false);
+      }
+      expect(overlaps(crop, questionStemRectMm(q + 1))).toBe(false);
+    }
+  });
+
+  it('keeps text and bubbles off the marker grid, registration marks and corner windows', () => {
     const f = READER_THRESHOLDS.registrationSearchFraction;
     const w = PAGE_WIDTH_MM * f;
     const h = PAGE_HEIGHT_MM * f;
@@ -225,17 +256,14 @@ describe('question-text layout', () => {
       { x: 0, y: PAGE_HEIGHT_MM - h, w, h },
       { x: PAGE_WIDTH_MM - w, y: PAGE_HEIGHT_MM - h, w, h },
     ];
-    for (const text of texts) {
-      for (const win of windows) expect(overlaps(text, win)).toBe(false);
+    for (const r of [...texts, ...allBubbles('questions')]) {
+      for (const win of windows) expect(overlaps(r, win)).toBe(false);
       for (const reg of registrationRects()) {
-        expect(overlaps(text, reg)).toBe(false);
+        expect(overlaps(r, reg)).toBe(false);
       }
       for (let i = 0; i < MARKER_CELL_COUNT; i += 1) {
-        expect(overlaps(text, markerCellRectMm(i))).toBe(false);
+        expect(overlaps(r, markerCellRectMm(i))).toBe(false);
       }
-    }
-    for (const bubble of allBubbles('questions')) {
-      for (const win of windows) expect(overlaps(bubble, win)).toBe(false);
     }
   });
 });

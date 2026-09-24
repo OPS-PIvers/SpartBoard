@@ -188,7 +188,7 @@ describe('planPaperBatch', () => {
       sheetLayout: 'questions',
     });
     expect(batch.sheetLayout).toBe('questions');
-    expect(batch.pagesPerSheet).toBe(3);
+    expect(batch.pagesPerSheet).toBe(4);
     expect(
       planPaperBatch({ ...base, selections: twoClasses }).batch
     ).not.toHaveProperty('sheetLayout');

@@ -184,7 +184,7 @@ describe('buildPaperSheetsHtml', () => {
     );
   });
 
-  it('prints each question and its options beside the bubbles on the question-text grid', () => {
+  it('prints each question with every choice beside its own bubble on the question-text grid', () => {
     const questionTexts = Array.from({ length: 10 }, (_, i) => ({
       text: `Question <${i + 1}>`,
       choices:
@@ -195,21 +195,21 @@ describe('buildPaperSheetsHtml', () => {
     );
     const rendered = pages(html);
     expect(rendered).toHaveLength(2);
-    expect(rendered[0].match(/class="qt"/g)).toHaveLength(8);
-    expect(rendered[1].match(/class="qt"/g)).toHaveLength(2);
+    expect(rendered[0].match(/class="qt-stem"/g)).toHaveLength(5);
+    expect(rendered[1].match(/class="qt-stem"/g)).toHaveLength(5);
     expect(rendered[0]).toContain('Question &lt;1&gt;');
-    expect(rendered[0]).toContain('<b>A.</b> Paris');
-    // Placeholder letters say nothing to a student, so row 2 prints its stem only.
-    const row2 = rendered[0].split('class="qt"')[2].split('class="num"')[0];
-    expect(row2).not.toContain('qt-opt');
-    expect(rendered[1]).toContain('Question &lt;9&gt;');
+    expect(rendered[0]).toContain('>Paris</div>');
+    expect(rendered[0]).not.toContain('class="legend"');
+    // Placeholder letters say nothing to a student, so question 2 prints its stem and bubbles only.
+    expect(rendered[0].match(/class="qt-choice"/g)).toHaveLength(4 * 4);
+    expect(rendered[1]).toContain('Question &lt;6&gt;');
   });
 
   it('prints no question text on the ordinary grids', () => {
     const html = buildPaperSheetsHtml(
       job({ questionTexts: [{ text: 'Hidden', choices: ['x', 'y'] }] })
     );
-    expect(html).not.toContain('class="qt"');
+    expect(html).not.toContain('qt-');
   });
 
   it('prints two columns byte for byte as before when the job says nothing', () => {

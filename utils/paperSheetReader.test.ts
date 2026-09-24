@@ -402,10 +402,10 @@ describe('readPaperPage on a question-text sheet', () => {
   const marks = [
     { row: 0, choice: 4 },
     { row: 3, choice: 1 },
-    { row: 7, choice: 0 },
+    { row: 4, choice: 2 },
   ];
 
-  it('reads eight rows a page, with the question text printed beside them', () => {
+  it('reads five questions a page, with the question text printed around the bubbles', () => {
     const read = ok(
       readPaperPage(
         paintSyntheticSheet({
@@ -422,22 +422,13 @@ describe('readPaperPage on a question-text sheet', () => {
         TALL
       )
     );
-    expect(read.rows).toHaveLength(8);
-    expect(read.rows.map((r) => r.choice)).toEqual([
-      4,
-      null,
-      null,
-      1,
-      null,
-      null,
-      null,
-      0,
-    ]);
+    expect(read.rows).toHaveLength(5);
+    expect(read.rows.map((r) => r.choice)).toEqual([4, null, null, 1, 2]);
     expect(read.rows.some((r) => r.doubt)).toBe(false);
   });
 
   it('carries the rest of the test onto page two', () => {
-    expect(rowsOnPage(2, TALL.questionCount, 'questions')).toBe(4);
+    expect(rowsOnPage(2, TALL.questionCount, 'questions')).toBe(5);
   });
 });
 

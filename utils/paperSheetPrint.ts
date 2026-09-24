@@ -32,7 +32,8 @@ import {
   markerCellRectMm,
   pageCountForQuestions,
   questionSlotOnPage,
-  questionTextRectMm,
+  questionChoiceTextRectMm,
+  questionStemRectMm,
   questionsPerPage,
   rowTopMm,
   type PaperGrid,
@@ -228,6 +229,8 @@ function columnLegendsHtml(
   columns: number,
   columnsPerPage: PaperGrid
 ): string {
+  // Every bubble on the question-text grid sits beside its own choice.
+  if (columnsPerPage === 'questions') return '';
   const parts: string[] = [];
   for (let column = 0; column < columns; column += 1) {
     for (let choice = 0; choice < choiceCount; choice += 1) {
@@ -243,36 +246,29 @@ function columnLegendsHtml(
   return parts.join('');
 }
 
-/** Lines the question-text box holds at its font size. */
-const QUESTION_TEXT_LINES = 6;
-/** Rough characters per line across the box, for budgeting the stem's lines. */
-const QUESTION_TEXT_CHARS_PER_LINE = 62;
-
+/** The stem above a question's bubbles, and each choice's text beside its own bubble. */
 function questionTextHtml(
   indexOnPage: number,
   q: PaperSheetQuestionText
 ): string {
-  const r = questionTextRectMm(indexOnPage);
-  const choices = isPlaceholderLetterChoices(q.choices)
-    ? []
-    : q.choices.map(
-        (c, i) =>
-          `<span class="qt-opt"><b>${CHOICE_LETTERS[i]}.</b> ${escapeHtml(c)}</span>`
+  const stem = questionStemRectMm(indexOnPage);
+  const parts = [
+    `<div class="qt-stem" style="left:${mm(stem.x)};top:${mm(stem.y)};width:${mm(
+      stem.w
+    )};height:${mm(stem.h)}">${escapeHtml(q.text)}</div>`,
+  ];
+  // A stub's options are just the bubble letters, which say nothing to a student.
+  if (!isPlaceholderLetterChoices(q.choices)) {
+    q.choices.slice(0, MAX_CHOICE_COUNT).forEach((choice, i) => {
+      const r = questionChoiceTextRectMm(indexOnPage, i);
+      parts.push(
+        `<div class="qt-choice" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(
+          r.w
+        )};height:${mm(r.h)}">${escapeHtml(choice)}</div>`
       );
-  const optionChars = q.choices.reduce((n, c) => n + c.length + 6, 0);
-  const optionLines = choices.length
-    ? Math.min(
-        QUESTION_TEXT_LINES - 2,
-        Math.ceil(optionChars / QUESTION_TEXT_CHARS_PER_LINE)
-      )
-    : 0;
-  // The stem gives up lines to the options; the box clips whatever is left over.
-  const stemLines = QUESTION_TEXT_LINES - optionLines;
-  return `<div class="qt" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(
-    r.w
-  )};height:${mm(r.h)}"><div class="qt-stem" style="-webkit-line-clamp:${stemLines}">${escapeHtml(
-    q.text
-  )}</div>${choices.length ? `<div class="qt-opts">${choices.join('')}</div>` : ''}</div>`;
+    });
+  }
+  return parts.join('');
 }
 
 const MARK_GLYPH = { correct: '✓', incorrect: '✗', unclear: '?' } as const;
@@ -295,9 +291,11 @@ function answerRowsHtml(
     const { column, row } = questionSlotOnPage(i, columnsPerPage);
     columns = Math.max(columns, column + 1);
     parts.push(
-      `<div class="num" style="left:${mm(COLUMN_X_MM[column])};top:${mm(
-        rowTopMm(row, columnsPerPage)
-      )};width:${mm(NUMBER_WIDTH_MM - 2)}">${first + i + 1}</div>`
+      `<div class="${columnsPerPage === 'questions' ? 'num qnum' : 'num'}" style="left:${mm(
+        COLUMN_X_MM[column]
+      )};top:${mm(rowTopMm(row, columnsPerPage))};width:${mm(
+        NUMBER_WIDTH_MM - 2
+      )}">${first + i + 1}</div>`
     );
     const index = first + i;
     const text = questionTexts?.[index];
@@ -320,10 +318,17 @@ function answerRowsHtml(
     const mark = fill?.marks[index];
     if (mark) {
       const r = bubbleRectMm(i, choiceCount - 1, columnsPerPage);
+      // Beside the number on the question-text grid, where choice text fills the row.
+      const left =
+        columnsPerPage === 'questions'
+          ? COLUMN_X_MM[0] - BUBBLE_PITCH_MM
+          : r.x + BUBBLE_PITCH_MM;
+      const top =
+        columnsPerPage === 'questions' ? rowTopMm(row, columnsPerPage) : r.y;
       parts.push(
-        `<div class="rowmark" style="left:${mm(r.x + BUBBLE_PITCH_MM)};top:${mm(
-          r.y
-        )}">${MARK_GLYPH[mark]}</div>`
+        `<div class="rowmark" style="left:${mm(left)};top:${mm(top)}">${
+          MARK_GLYPH[mark]
+        }</div>`
       );
     }
   }
@@ -393,10 +398,24 @@ const SHEET_STYLES = `
     color: #000;
   }
   .sheet:last-child { page-break-after: auto; }
-  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap, .qt { position: absolute; }
-  .qt { font-size: 8.5pt; line-height: 3.6mm; overflow: hidden; color: #000; }
-  .qt-stem { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
-  .qt-opts { display: flex; flex-wrap: wrap; column-gap: 5mm; }
+  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap, .qt-stem, .qt-choice { position: absolute; }
+  .qt-stem {
+    font-size: 9pt;
+    line-height: 3.6mm;
+    color: #000;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+  }
+  .qt-choice {
+    font-size: 9pt;
+    line-height: ${BUBBLE_DIAMETER_MM}mm;
+    color: #000;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .stim { object-fit: contain; }
   .stim-cap {
     font-size: ${CAPTION_SIZE_PT}pt;
@@ -435,6 +454,7 @@ const SHEET_STYLES = `
     text-align: right;
     line-height: ${BUBBLE_DIAMETER_MM}mm;
   }
+  .num.qnum { font-size: 9pt; font-weight: 700; line-height: 3.6mm; }
   .legend { font-size: 7pt; text-align: center; color: #444; }
   .bub {
     border: 0.35mm solid #000;

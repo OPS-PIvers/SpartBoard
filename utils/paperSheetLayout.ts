@@ -71,14 +71,20 @@ export const QUESTIONS_PER_PAGE = ROWS_PER_COLUMN * COLUMNS_PER_PAGE;
 /** Batches printed before sheet stimuli existed carry no count and are two-column. */
 export const DEFAULT_COLUMNS_PER_PAGE: PaperColumns = COLUMNS_PER_PAGE;
 
-/** Tall rows of the question-text layout: bubbles left, the question's text beside them. */
-export const QUESTION_ROW_PITCH_MM = 24;
-export const QUESTION_ROWS_PER_PAGE = 8;
-/** Left edge of the question text, clear of bubble E and the reader's row crop. */
-export const QUESTION_TEXT_X_MM = 80;
-/** Stops short of the bottom-right corner search window. */
-export const QUESTION_TEXT_W_MM = 100;
-export const QUESTION_TEXT_H_MM = 22;
+/** Question-text layout: each question's stem, then one line per choice with its bubble beside it. */
+export const QUESTION_GRID_TOP_MM = 54;
+export const QUESTION_ROW_PITCH_MM = 42;
+export const QUESTION_ROWS_PER_PAGE = 5;
+/** Stem box; stops short of the bottom-right corner search window. */
+export const QUESTION_STEM_X_MM = 36;
+export const QUESTION_STEM_W_MM = 144;
+export const QUESTION_STEM_H_MM = 10.8;
+export const QUESTION_CHOICE_TOP_MM = 12;
+export const QUESTION_CHOICE_LINE_MM = 6;
+/** Bubble x of every choice; clears the bottom-left corner window. */
+export const QUESTION_CHOICE_X_MM = 36;
+/** Gap between a bubble and its choice text. */
+export const QUESTION_CHOICE_TEXT_GAP_MM = 2;
 
 /** The grid a batch printed in. */
 export function paperGridOf(
@@ -91,9 +97,6 @@ export function paperGridOf(
 
 const rowsPerColumn = (grid: PaperGrid): number =>
   grid === 'questions' ? QUESTION_ROWS_PER_PAGE : ROWS_PER_COLUMN;
-
-const rowPitchMm = (grid: PaperGrid): number =>
-  grid === 'questions' ? QUESTION_ROW_PITCH_MM : ROW_PITCH_MM;
 
 /** Per-page capacity of a grid. */
 export function questionsPerPage(
@@ -178,9 +181,20 @@ export function bubbleRectMm(
     throw new RangeError(`choice ${choiceIndex} out of range`);
   }
   const { column, row } = questionSlotOnPage(indexOnPage, columns);
+  if (columns === 'questions') {
+    return {
+      x: QUESTION_CHOICE_X_MM,
+      y:
+        rowTopMm(row, columns) +
+        QUESTION_CHOICE_TOP_MM +
+        choiceIndex * QUESTION_CHOICE_LINE_MM,
+      w: BUBBLE_DIAMETER_MM,
+      h: BUBBLE_DIAMETER_MM,
+    };
+  }
   return {
     x: COLUMN_X_MM[column] + NUMBER_WIDTH_MM + choiceIndex * BUBBLE_PITCH_MM,
-    y: GRID_TOP_MM + row * rowPitchMm(columns),
+    y: rowTopMm(row, columns),
     w: BUBBLE_DIAMETER_MM,
     h: BUBBLE_DIAMETER_MM,
   };
@@ -197,9 +211,20 @@ export function questionRowRectMm(
     Math.max(choiceCount, MIN_CHOICE_COUNT),
     MAX_CHOICE_COUNT
   );
+  if (columns === 'questions') {
+    // The choices block, text included, so review shows what each bubble meant.
+    const first = bubbleRectMm(indexOnPage, 0, columns);
+    const last = bubbleRectMm(indexOnPage, choices - 1, columns);
+    return {
+      x: COLUMN_X_MM[0],
+      y: first.y,
+      w: QUESTION_STEM_X_MM + QUESTION_STEM_W_MM - COLUMN_X_MM[0],
+      h: last.y + last.h - first.y,
+    };
+  }
   return {
     x: COLUMN_X_MM[column],
-    y: GRID_TOP_MM + row * rowPitchMm(columns),
+    y: rowTopMm(row, columns),
     w: NUMBER_WIDTH_MM + (choices - 1) * BUBBLE_PITCH_MM + BUBBLE_DIAMETER_MM,
     h: BUBBLE_DIAMETER_MM,
   };
@@ -215,16 +240,33 @@ export function pageCountForQuestions(
 
 /** Top of row `row` on the page. */
 export function rowTopMm(row: number, columns: PaperGrid): number {
-  return GRID_TOP_MM + row * rowPitchMm(columns);
+  return columns === 'questions'
+    ? QUESTION_GRID_TOP_MM + row * QUESTION_ROW_PITCH_MM
+    : GRID_TOP_MM + row * ROW_PITCH_MM;
 }
 
-/** Box a question's text prints in, beside its bubbles, on the question-text layout. */
-export function questionTextRectMm(indexOnPage: number): RectMm {
+/** Box a question's stem prints in on the question-text layout. */
+export function questionStemRectMm(indexOnPage: number): RectMm {
   const { row } = questionSlotOnPage(indexOnPage, 'questions');
   return {
-    x: QUESTION_TEXT_X_MM,
+    x: QUESTION_STEM_X_MM,
     y: rowTopMm(row, 'questions'),
-    w: QUESTION_TEXT_W_MM,
-    h: QUESTION_TEXT_H_MM,
+    w: QUESTION_STEM_W_MM,
+    h: QUESTION_STEM_H_MM,
+  };
+}
+
+/** Box a choice's text prints in, just right of its bubble. */
+export function questionChoiceTextRectMm(
+  indexOnPage: number,
+  choiceIndex: number
+): RectMm {
+  const b = bubbleRectMm(indexOnPage, choiceIndex, 'questions');
+  const x = b.x + b.w + QUESTION_CHOICE_TEXT_GAP_MM;
+  return {
+    x,
+    y: b.y,
+    w: QUESTION_STEM_X_MM + QUESTION_STEM_W_MM - x,
+    h: b.h,
   };
 }

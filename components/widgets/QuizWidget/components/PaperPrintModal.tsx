@@ -1255,7 +1255,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               <p className="text-xs text-slate-500">
                 {sheetStimuli.length > 0
                   ? 'Not available while the sheet has images or templates on it.'
-                  : 'Prints each question and its choices beside its bubbles, 8 questions per page.'}
+                  : 'Prints each question with its choices listed underneath, each beside its own bubble. Fits 5 questions per page.'}
               </p>
             </div>
             <Toggle

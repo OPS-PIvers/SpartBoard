@@ -15,7 +15,8 @@ import {
   STIMULUS_RECT_MM,
   bubbleRectMm,
   markerCellRectMm,
-  questionTextRectMm,
+  questionChoiceTextRectMm,
+  questionStemRectMm,
   type PaperGrid,
   type RectMm,
 } from '@/utils/paperSheetLayout';
@@ -175,11 +176,19 @@ export function paintSyntheticSheet(opts: SyntheticSheetOptions): RasterPage {
     }
   }
   if (opts.questionText && columns === 'questions') {
+    // Lines of glyph ink: three for the stem, one beside every bubble.
+    const inkLines = (box: RectMm, lines: number) => {
+      for (let l = 0; l < lines; l += 1) {
+        fillRect(
+          { x: box.x, y: box.y + l * 3.6 + 0.6, w: box.w, h: 2.4 },
+          0.55
+        );
+      }
+    };
     for (let row = 0; row < rows; row += 1) {
-      const box = questionTextRectMm(row);
-      // Lines of black glyph ink, 2.4 mm tall on a 3.6 mm pitch, filling the box.
-      for (let y = box.y; y + 2.4 <= box.y + box.h; y += 3.6) {
-        fillRect({ x: box.x, y, w: box.w, h: 2.4 }, 0.55);
+      inkLines(questionStemRectMm(row), 3);
+      for (let c = 0; c < opts.choiceCount; c += 1) {
+        inkLines(questionChoiceTextRectMm(row, c), 1);
       }
     }
   }
