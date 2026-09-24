@@ -44,6 +44,7 @@ import {
   motionMs,
 } from '../utils/motion';
 import { AnimatedCursor } from './player/AnimatedCursor';
+import { preloadWindow } from '../utils/preloadWindow';
 import { TOUCH_TARGET_PX, TouchHitBox } from './player/TouchHitBox';
 import type {
   GuidedLearningStageProps,
@@ -99,30 +100,6 @@ export interface StageCursorCue {
 const MIN_PIN_HIT_PX = 44;
 /** How long a Try miss marker stays on screen. */
 export const MISS_MARKER_MS = 1200;
-/** v2 preloads image slides this far either side of the current one. */
-export const PRELOAD_RADIUS = 2;
-
-/** v2 preload window: slides to fetch and the one slide to decode ahead. */
-export function preloadWindow(
-  current: number,
-  count: number,
-  isVideo: (i: number) => boolean
-): { fetch: number[]; decode: number | null } {
-  const fetch: number[] = [];
-  for (
-    let i = Math.max(0, current - PRELOAD_RADIUS);
-    i <= Math.min(count - 1, current + PRELOAD_RADIUS);
-    i++
-  ) {
-    if (i !== current && !isVideo(i)) fetch.push(i);
-  }
-  const next = current + 1;
-  return {
-    fetch,
-    decode: next < count && !isVideo(next) ? next : null,
-  };
-}
-
 /** Player-only additions; the Studio renders with the frozen props alone. */
 export interface GuidedLearningStageRuntimeProps {
   /** The sequenced step in structured/guided mode, kept while its overlay is dismissed. Defaults to activeStepId. */
@@ -1064,7 +1041,9 @@ export const GuidedLearningStage: React.FC<
                 type="button"
                 data-gl-region={step.id}
                 onClick={() => onPinClick(step.id)}
-                aria-label={step.label ?? `Step ${idx + 1}`}
+                aria-label={
+                  step.label ?? t('glPlayer.outline.step', { n: idx + 1 })
+                }
                 className={`absolute z-[5] bg-transparent transition-colors focus:outline-none focus-visible:bg-white/20 ${
                   hidden
                     ? ''
@@ -1152,7 +1131,9 @@ export const GuidedLearningStage: React.FC<
                   width: 'min(32px, 8cqmin)',
                   height: 'min(32px, 8cqmin)',
                 }}
-                aria-label={step.label ?? `Step ${idx + 1}`}
+                aria-label={
+                  step.label ?? t('glPlayer.outline.step', { n: idx + 1 })
+                }
               >
                 {touchTargets && <TouchHitBox round />}
                 {pulseMode === 'consistent' && (
@@ -1235,7 +1216,7 @@ export const GuidedLearningStage: React.FC<
       {schemaV2 && renderedTransform.scale > 1 && onResetZoom && (
         <button
           onClick={onResetZoom}
-          aria-label="Reset view"
+          aria-label={t('glPlayer.resetView')}
           className="absolute left-1/2 -translate-x-1/2 z-40 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
           style={{
             top: 'clamp(8px, 2cqmin, 12px)',

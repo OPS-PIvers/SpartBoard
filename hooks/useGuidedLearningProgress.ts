@@ -1,5 +1,5 @@
 // Writes a viewer's step analytics to guided_learning_sessions/{id}/progress/{uid} (GL Studio plan P2-5).
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { StepEvent } from '@/components/widgets/GuidedLearning/types/stage';
@@ -37,7 +37,11 @@ export function useGuidedLearningProgress({
   enabled,
   stepIds,
   paused = false,
-}: Options): { onStepEvent: (e: StepEvent) => void } {
+}: Options): {
+  onStepEvent: (e: StepEvent) => void;
+  /** The doc as first read: undefined while loading, null when absent or unreadable. */
+  stored: GuidedLearningProgress | null | undefined;
+} {
   const stepIdsRef = useRef(stepIds);
   // eslint-disable-next-line react-hooks/refs -- render-body ref sync so the load effect doesn't re-run on new step ids (CLAUDE.md pattern)
   stepIdsRef.current = stepIds;
@@ -53,6 +57,11 @@ export function useGuidedLearningProgress({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scheduleRef = useRef<() => void>(() => undefined);
   const active = enabled && Boolean(sessionId) && Boolean(uid);
+  const docKey = active ? `${sessionId}/${uid}` : null;
+  const [loaded, setLoaded] = useState<{
+    key: string;
+    value: GuidedLearningProgress | null;
+  } | null>(null);
 
   const apply = useCallback((e: StepEvent) => {
     const ids = stepIdsRef.current;
@@ -129,6 +138,7 @@ export function useGuidedLearningProgress({
       loadFailed = false
     ) => {
       if (cancelled) return;
+      setLoaded({ key: `${sessionId}/${uid}`, value: stored });
       if (stored) {
         existsRef.current = true;
         stateRef.current = stored;
@@ -178,5 +188,8 @@ export function useGuidedLearningProgress({
     [active, apply]
   );
 
-  return { onStepEvent };
+  return {
+    onStepEvent,
+    stored: docKey && loaded?.key === docKey ? loaded.value : undefined,
+  };
 }

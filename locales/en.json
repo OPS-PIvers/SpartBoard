@@ -4636,13 +4636,39 @@
     "question": {
       "recorded": "Answer recorded",
       "yourAnswer": "Your answer: {{answer}}",
-      "change": "Change answer"
+      "change": "Change answer",
+      "matchPrompt": "Match each item on the left to its pair:",
+      "sortPrompt": "Drag or use arrows to put items in the correct order:",
+      "selectPlaceholder": "-- select --",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "submit": "Submit Answer",
+      "correct": "Correct!",
+      "notQuite": "Not quite",
+      "correctAnswer": "Correct answer:",
+      "continue": "Continue"
     },
     "slide": {
       "loading": "Loading slide…",
       "error": "Couldn't load this slide",
       "retry": "Retry"
-    }
+    },
+    "closePlayer": "Close player",
+    "exploreHint": "Click any pin to explore",
+    "showSlide": "Show slide {{n}}",
+    "prev": "Previous step",
+    "next": "Next step",
+    "play": "Play",
+    "pause": "Pause",
+    "sessionProgress": "Session progress",
+    "stepProgress": "Step progress",
+    "goToStep": "Go to step {{n}}",
+    "resetView": "Reset view",
+    "close": "Close",
+    "closeOverlay": "Close overlay",
+    "closeVideo": "Close video",
+    "audio": "Audio",
+    "video": "Video"
   },
   "glEngagement": {
     "title": "Engagement",
@@ -4682,6 +4708,65 @@
       "early": "You haven't reached the end yet.",
       "submit": "Submit",
       "keepGoing": "Keep going"
+    },
+    "loading": "Loading…",
+    "loadingActivity": "Loading activity…",
+    "done": "I'm Done",
+    "error": {
+      "title": "Oops",
+      "connect": "Unable to connect. Please refresh and try again.",
+      "notFound": "Session not found.",
+      "statusFailed": "Couldn't load your submission status. Please refresh and try again.",
+      "needsSignIn": "This activity needs your school sign-in. Sign in with your school account to join.",
+      "notInClass": "You're not in a class this activity was assigned to. Ask your teacher.",
+      "joinFailed": "Couldn't join your class. Please try again."
+    },
+    "start": {
+      "selectClass": "Select Your Class",
+      "whichPeriod": "Which class period are you in?",
+      "pickOne": "Pick one to continue. You can enter your PIN after this step.",
+      "legacyMode": {
+        "guided": "guided mode",
+        "structured": "structured mode",
+        "explore": "explore mode"
+      },
+      "steps_one": "{{count}} step",
+      "steps_other": "{{count}} steps",
+      "class": "Class",
+      "change": "Change",
+      "pin": "Your PIN",
+      "optional": "(optional)",
+      "pinPlaceholder": "Enter your class PIN",
+      "getStarted": "Get started",
+      "start": "Start"
+    },
+    "complete": {
+      "reachedEnd": "You've reached the end of this activity.",
+      "replay": "Replay from beginning",
+      "submitted": "Your responses have been submitted.",
+      "askTeacher": "Ask your teacher to see your results.",
+      "complete": "Complete!",
+      "scored": "You scored <b>{{score}}%</b> on the comprehension questions."
+    },
+    "review": {
+      "title": "Your results",
+      "correctOf": "{{correct}} of {{total}} correct",
+      "correct": "Correct",
+      "incorrect": "Incorrect",
+      "yourAnswer": "Your answer:",
+      "noAnswer": "No answer",
+      "correctAnswer": "Correct answer:"
+    },
+    "locked": {
+      "title": "Not open yet",
+      "body": "Keep this tab open. The activity appears here as soon as your class is let in.",
+      "paused": "Paused",
+      "closed": "Closed",
+      "opens": "Opens {{day}} {{time}}"
+    },
+    "pausedOverlay": {
+      "title": "Paused for your class",
+      "body": "Your teacher paused this for your class. Your answers are kept on this page. Keep this tab open to pick up where you left off."
     }
   },
   "glResults": {

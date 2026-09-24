@@ -13,7 +13,7 @@ import {
   type StageLayoutHandle,
 } from '@/tests/utils/mockStageLayout';
 import { GuidedLearningPlayer } from './GuidedLearningPlayer';
-import { preloadWindow } from './GuidedLearningStage';
+import { preloadWindow } from '../utils/preloadWindow';
 
 let handle: StageLayoutHandle | null = null;
 afterEach(() => {

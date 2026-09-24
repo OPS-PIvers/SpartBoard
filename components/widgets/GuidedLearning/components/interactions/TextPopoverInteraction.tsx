@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { GuidedLearningPublicStep } from '@/types';
 import type { PxRect } from '../../types/stage';
 import {
@@ -31,6 +32,7 @@ export const TextPopoverInteraction: React.FC<Props> = ({
   containerHeight = 0,
   editor,
 }) => {
+  const { t } = useTranslation();
   const cardRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
 
@@ -95,12 +97,12 @@ export const TextPopoverInteraction: React.FC<Props> = ({
       >
         <button
           onClick={onClose}
-          className="absolute text-slate-400 hover:text-white transition-colors"
+          className="absolute text-slate-300 hover:text-white transition-colors"
           style={{
             top: 'min(12px, 3cqmin)',
             right: 'min(12px, 3cqmin)',
           }}
-          aria-label="Close"
+          aria-label={t('glPlayer.close')}
         >
           <X
             style={{

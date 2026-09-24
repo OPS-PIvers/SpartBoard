@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { GuidedLearningPublicStep } from '@/types';
 import {
   extractYouTubeId,
@@ -22,6 +23,7 @@ export const VideoInteraction: React.FC<Props> = ({
   onEnded,
   youtubeApi = false,
 }) => {
+  const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
   const url = step.videoUrl ?? '';
   const youtubeId = extractYouTubeId(url);
@@ -86,7 +88,7 @@ export const VideoInteraction: React.FC<Props> = ({
             width: 'min(28px, 7cqmin)',
             height: 'min(28px, 7cqmin)',
           }}
-          aria-label="Close video"
+          aria-label={t('glPlayer.closeVideo')}
         >
           <X
             style={{
@@ -119,7 +121,7 @@ export const VideoInteraction: React.FC<Props> = ({
             <iframe
               className="w-full h-full border-0"
               src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`}
-              title={step.label ?? 'Video'}
+              title={step.label ?? t('glPlayer.video')}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
             />

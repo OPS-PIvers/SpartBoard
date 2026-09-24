@@ -3479,13 +3479,39 @@
     "question": {
       "recorded": "Respuesta guardada",
       "yourAnswer": "Tu respuesta: {{answer}}",
-      "change": "Cambiar respuesta"
+      "change": "Cambiar respuesta",
+      "matchPrompt": "Relaciona cada elemento de la izquierda con su pareja:",
+      "sortPrompt": "Arrastra o usa las flechas para poner los elementos en el orden correcto:",
+      "selectPlaceholder": "-- seleccionar --",
+      "moveUp": "Subir",
+      "moveDown": "Bajar",
+      "submit": "Enviar respuesta",
+      "correct": "¡Correcto!",
+      "notQuite": "No del todo",
+      "correctAnswer": "Respuesta correcta:",
+      "continue": "Continuar"
     },
     "slide": {
       "loading": "Cargando diapositiva…",
       "error": "No se pudo cargar esta diapositiva",
       "retry": "Reintentar"
-    }
+    },
+    "closePlayer": "Cerrar reproductor",
+    "exploreHint": "Haz clic en cualquier marcador para explorar",
+    "showSlide": "Mostrar diapositiva {{n}}",
+    "prev": "Paso anterior",
+    "next": "Paso siguiente",
+    "play": "Reproducir",
+    "pause": "Pausa",
+    "sessionProgress": "Progreso de la sesión",
+    "stepProgress": "Progreso de los pasos",
+    "goToStep": "Ir al paso {{n}}",
+    "resetView": "Restablecer vista",
+    "close": "Cerrar",
+    "closeOverlay": "Cerrar superposición",
+    "closeVideo": "Cerrar video",
+    "audio": "Audio",
+    "video": "Video"
   },
   "glEngagement": {
     "title": "Participación",
@@ -3525,6 +3551,65 @@
       "early": "Todavía no has llegado al final.",
       "submit": "Enviar",
       "keepGoing": "Seguir"
+    },
+    "loading": "Cargando…",
+    "loadingActivity": "Cargando actividad…",
+    "done": "Terminé",
+    "error": {
+      "title": "Ups",
+      "connect": "No se pudo conectar. Actualiza la página e inténtalo de nuevo.",
+      "notFound": "No se encontró la sesión.",
+      "statusFailed": "No se pudo cargar el estado de tu entrega. Actualiza la página e inténtalo de nuevo.",
+      "needsSignIn": "Esta actividad necesita tu inicio de sesión escolar. Inicia sesión con tu cuenta escolar para unirte.",
+      "notInClass": "No estás en una clase a la que se asignó esta actividad. Pregúntale a tu maestro.",
+      "joinFailed": "No se pudo unir a tu clase. Inténtalo de nuevo."
+    },
+    "start": {
+      "selectClass": "Selecciona tu clase",
+      "whichPeriod": "¿En qué periodo de clase estás?",
+      "pickOne": "Elige uno para continuar. Podrás escribir tu PIN después de este paso.",
+      "legacyMode": {
+        "guided": "modo guiado",
+        "structured": "modo estructurado",
+        "explore": "modo exploración"
+      },
+      "steps_one": "{{count}} paso",
+      "steps_other": "{{count}} pasos",
+      "class": "Clase",
+      "change": "Cambiar",
+      "pin": "Tu PIN",
+      "optional": "(opcional)",
+      "pinPlaceholder": "Escribe el PIN de tu clase",
+      "getStarted": "Comenzar",
+      "start": "Empezar"
+    },
+    "complete": {
+      "reachedEnd": "Llegaste al final de esta actividad.",
+      "replay": "Repetir desde el principio",
+      "submitted": "Tus respuestas se enviaron.",
+      "askTeacher": "Pregúntale a tu maestro para ver tus resultados.",
+      "complete": "¡Completado!",
+      "scored": "Obtuviste <b>{{score}} %</b> en las preguntas de comprensión."
+    },
+    "review": {
+      "title": "Tus resultados",
+      "correctOf": "{{correct}} de {{total}} correctas",
+      "correct": "Correcta",
+      "incorrect": "Incorrecta",
+      "yourAnswer": "Tu respuesta:",
+      "noAnswer": "Sin respuesta",
+      "correctAnswer": "Respuesta correcta:"
+    },
+    "locked": {
+      "title": "Todavía no está abierta",
+      "body": "Mantén esta pestaña abierta. La actividad aparecerá aquí en cuanto tu clase tenga acceso.",
+      "paused": "En pausa",
+      "closed": "Cerrada",
+      "opens": "Se abre {{day}} {{time}}"
+    },
+    "pausedOverlay": {
+      "title": "En pausa para tu clase",
+      "body": "Tu maestro pausó esta actividad para tu clase. Tus respuestas se guardan en esta página. Mantén esta pestaña abierta para continuar donde te quedaste."
     }
   },
   "glResults": {

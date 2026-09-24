@@ -192,3 +192,25 @@ describe('useGuidedLearningProgress — paused period', () => {
     expect(payload(0)).toMatchObject({ furthestStepIdx: 0 });
   });
 });
+
+describe('useGuidedLearningProgress stored doc (P8-8)', () => {
+  it('reports the stored doc once read, for cross-device resume', async () => {
+    getDocMock.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ furthestStepIdx: 1, completed: false, steps: {} }),
+    });
+    const { result } = render();
+    expect(result.current.stored).toBeUndefined();
+    await settle();
+    expect(result.current.stored).toMatchObject({ furthestStepIdx: 1 });
+  });
+
+  it('reports null when there is no doc, and nothing when disabled', async () => {
+    const { result } = render();
+    await settle();
+    expect(result.current.stored).toBeNull();
+    const off = render(false);
+    await settle();
+    expect(off.result.current.stored).toBeUndefined();
+  });
+});

@@ -130,6 +130,8 @@ interface Props {
     stepId: string;
     answer: string | string[];
   }[];
+  /** v2: the progress doc's furthest step, offered when this device saved no place. */
+  resumeServerIdx?: number | null;
   /** v2 guided sets start playing on mount (the student app, after Start). */
   autoPlay?: boolean;
   /** v2: moving on from the last step (timer, target, Next or Continue) finishes the run. */
@@ -149,6 +151,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   startStepId,
   initialAnsweredStepIds,
   initialAnswers,
+  resumeServerIdx,
   autoPlay = false,
   onReachedEnd,
   revealAnswers = false,
@@ -274,7 +277,9 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   const [resumeOffer, dismissResume] = useResumeOffer(
     set.id,
     steps.length,
-    v2Playback
+    v2Playback,
+    resumeServerIdx,
+    currentIdx === startIdx
   );
   const [readAloud, setReadAloud] = useState(false);
   const readAloudAvailable =
@@ -789,10 +794,11 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         {onClose && (
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
-            aria-label="Close player"
+            className="text-slate-300 hover:text-white transition-colors"
+            aria-label={t('glPlayer.closePlayer')}
           >
             <X
+              aria-hidden="true"
               style={{
                 width: 'min(16px, 4cqmin)',
                 height: 'min(16px, 4cqmin)',
@@ -827,10 +833,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           >
             {!playerV2 && (
               <span
-                className="text-slate-400 font-medium"
+                className="text-slate-300 font-medium"
                 style={{ fontSize: 'min(11px, 3cqmin)' }}
               >
-                Click any pin to explore
+                {t('glPlayer.exploreHint')}
               </span>
             )}
             {set.imageUrls.length > 1 && (
@@ -854,9 +860,9 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                       padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
                       fontSize: 'min(10px, 2.6cqmin)',
                     }}
-                    aria-label={`Show slide ${imageIndex + 1}`}
+                    aria-label={t('glPlayer.showSlide', { n: imageIndex + 1 })}
                   >
-                    Slide {imageIndex + 1}
+                    {t('glPlayer.outline.slide', { n: imageIndex + 1 })}
                   </button>
                 ))}
               </div>
@@ -939,7 +945,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           <button
             onClick={goPrev}
             disabled={currentIdx === 0}
-            aria-label="Previous step"
+            aria-label={t('glPlayer.prev')}
             className={`${footerButtonClass} disabled:opacity-40`}
             style={FOOTER_BUTTON_SIZE}
           >
@@ -949,7 +955,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           {footerKind === 'guided' && (
             <button
               onClick={() => setPlaying((v) => !v)}
-              aria-label={playing ? 'Pause' : 'Play'}
+              aria-label={playing ? t('glPlayer.pause') : t('glPlayer.play')}
               className={footerButtonClass}
               style={FOOTER_BUTTON_SIZE}
             >
@@ -972,7 +978,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
             ) : (
               <div
                 role="progressbar"
-                aria-label="Session progress"
+                aria-label={t('glPlayer.sessionProgress')}
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={Math.round(guidedProgress * 100)}
@@ -988,7 +994,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           ) : steps.length > 20 ? (
             <div
               role="progressbar"
-              aria-label="Step progress"
+              aria-label={t('glPlayer.stepProgress')}
               aria-valuemin={1}
               aria-valuemax={steps.length}
               aria-valuenow={currentIdx + 1}
@@ -1025,7 +1031,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                         : 'clamp(8px, 2cqmin, 14px)',
                     height: 'clamp(8px, 2cqmin, 14px)',
                   }}
-                  aria-label={`Go to step ${i + 1}`}
+                  aria-label={t('glPlayer.goToStep', { n: i + 1 })}
                   aria-current={i === currentIdx ? 'step' : undefined}
                 >
                   {playerV2 && (
@@ -1066,7 +1072,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           <button
             onClick={goNext}
             disabled={nextDisabled}
-            aria-label="Next step"
+            aria-label={t('glPlayer.next')}
             className={`${footerButtonClass} disabled:opacity-40`}
             style={FOOTER_BUTTON_SIZE}
           >

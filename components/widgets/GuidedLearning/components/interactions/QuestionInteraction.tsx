@@ -70,7 +70,9 @@ export const QuestionInteraction: React.FC<Props> = ({
   const revealed = revealedStepId === step.id;
   // The teacher's Play passes the author's copy, so build the columns from either shape once.
   const [shown] = useState(() =>
-    q ? playableQuestion(q, correctSortingItems) : undefined
+    q
+      ? playableQuestion(q, correctSortingItems ?? revealKey?.sortingItems)
+      : undefined
   );
   const priorSorting =
     Array.isArray(priorAnswer) &&
@@ -194,12 +196,12 @@ export const QuestionInteraction: React.FC<Props> = ({
             {q.type === 'matching' && (
               <div className="space-y-2">
                 <p
-                  className="text-slate-400 font-medium mb-2"
+                  className="text-slate-300 font-medium mb-2"
                   style={{
                     fontSize: 'var(--gl-text-small, min(11px, 2.8cqmin))',
                   }}
                 >
-                  Match each item on the left to its pair:
+                  {t('glPlayer.question.matchPrompt')}
                 </p>
                 {(shown?.matchingLeft ?? []).map((left) => (
                   <div
@@ -217,7 +219,8 @@ export const QuestionInteraction: React.FC<Props> = ({
                       {left}
                     </span>
                     <span
-                      className="text-slate-500 font-bold"
+                      aria-hidden="true"
+                      className="text-slate-300 font-bold"
                       style={{
                         fontSize: 'var(--gl-text-body, min(12px, 3cqmin))',
                       }}
@@ -238,7 +241,9 @@ export const QuestionInteraction: React.FC<Props> = ({
                         fontSize: 'var(--gl-text-body, min(12px, 3cqmin))',
                       }}
                     >
-                      <option value="">-- select --</option>
+                      <option value="">
+                        {t('glPlayer.question.selectPlaceholder')}
+                      </option>
                       {(shown?.matchingRight ?? []).map((r) => (
                         <option key={r} value={r}>
                           {r}
@@ -254,12 +259,12 @@ export const QuestionInteraction: React.FC<Props> = ({
             {q.type === 'sorting' && (
               <div className="space-y-1.5">
                 <p
-                  className="text-slate-400 font-medium mb-2"
+                  className="text-slate-300 font-medium mb-2"
                   style={{
                     fontSize: 'var(--gl-text-small, min(11px, 2.8cqmin))',
                   }}
                 >
-                  Drag or use arrows to put items in the correct order:
+                  {t('glPlayer.question.sortPrompt')}
                 </p>
                 {sortingOrder.map((item, idx) => (
                   <div
@@ -271,7 +276,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                     }}
                   >
                     <span
-                      className="text-slate-400 font-mono font-bold text-center"
+                      className="text-slate-300 font-mono font-bold text-center"
                       style={{
                         width: 'min(20px, 5cqmin)',
                         fontSize: 'var(--gl-text-small, min(11px, 2.8cqmin))',
@@ -298,11 +303,11 @@ export const QuestionInteraction: React.FC<Props> = ({
                           [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
                           setSortingOrder(arr);
                         }}
-                        className="text-slate-400 hover:text-white disabled:opacity-30 leading-none transition-colors"
+                        className="text-slate-300 hover:text-white disabled:opacity-30 leading-none transition-colors"
                         style={{
                           fontSize: 'var(--gl-text-small, min(10px, 2.5cqmin))',
                         }}
-                        aria-label="Move up"
+                        aria-label={t('glPlayer.question.moveUp')}
                       >
                         ▲
                       </button>
@@ -313,11 +318,11 @@ export const QuestionInteraction: React.FC<Props> = ({
                           [arr[idx + 1], arr[idx]] = [arr[idx], arr[idx + 1]];
                           setSortingOrder(arr);
                         }}
-                        className="text-slate-400 hover:text-white disabled:opacity-30 leading-none transition-colors"
+                        className="text-slate-300 hover:text-white disabled:opacity-30 leading-none transition-colors"
                         style={{
                           fontSize: 'var(--gl-text-small, min(10px, 2.5cqmin))',
                         }}
-                        aria-label="Move down"
+                        aria-label={t('glPlayer.question.moveDown')}
                       >
                         ▼
                       </button>
@@ -330,14 +335,14 @@ export const QuestionInteraction: React.FC<Props> = ({
             <button
               onClick={handleSubmit}
               disabled={!canSubmit}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-indigo-500/20"
+              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-300 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-indigo-500/20"
               style={{
                 marginTop: 'min(16px, 4cqmin)',
                 padding: 'var(--gl-text-small, min(10px, 2.5cqmin))',
                 fontSize: 'var(--gl-text-body, min(14px, 3.5cqmin))',
               }}
             >
-              Submit Answer
+              {t('glPlayer.question.submit')}
             </button>
           </>
         ) : (
@@ -404,7 +409,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                     fontSize: 'var(--gl-text-title, min(16px, 4cqmin))',
                   }}
                 >
-                  Correct!
+                  {t('glPlayer.question.correct')}
                 </p>
               </>
             ) : (
@@ -422,16 +427,16 @@ export const QuestionInteraction: React.FC<Props> = ({
                     fontSize: 'var(--gl-text-title, min(16px, 4cqmin))',
                   }}
                 >
-                  Not quite
+                  {t('glPlayer.question.notQuite')}
                 </p>
                 {correctAnswer && (
                   <p
-                    className="text-slate-400 font-medium mb-3"
+                    className="text-slate-300 font-medium mb-3"
                     style={{
                       fontSize: 'var(--gl-text-body, min(12px, 3cqmin))',
                     }}
                   >
-                    Correct answer:{' '}
+                    {t('glPlayer.question.correctAnswer')}{' '}
                     <span className="text-white">{correctAnswer}</span>
                   </p>
                 )}
@@ -447,8 +452,9 @@ export const QuestionInteraction: React.FC<Props> = ({
                 fontSize: 'var(--gl-text-body, min(14px, 3.5cqmin))',
               }}
             >
-              Continue
+              {t('glPlayer.question.continue')}
               <ArrowRight
+                aria-hidden="true"
                 style={{
                   width: 'min(16px, 4cqmin)',
                   height: 'min(16px, 4cqmin)',
