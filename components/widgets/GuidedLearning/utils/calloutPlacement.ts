@@ -29,7 +29,14 @@ export interface CalloutPlacement {
   /** Box width after any shrink; equals box.w unless auto placement narrowed it. */
   width: number;
   side: Side;
-  arrow: { from: Point; to: Point };
+  arrow: CalloutArrowGeometry;
+}
+
+export interface CalloutArrowGeometry {
+  from: Point;
+  to: Point;
+  /** Unit outward normal of the box edge the line leaves from. */
+  normal: Point;
 }
 
 export const CALLOUT_PADDING = 12;
@@ -54,15 +61,72 @@ function nearestPointOnRect(p: Point, r: PxRect): Point {
   };
 }
 
+/** Outward normal of the box edge `p` lies on; corners pick the axis facing `toward`. */
+function edgeNormal(p: Point, box: PxRect, toward: Point): Point {
+  const onLeft = p.x <= box.x;
+  const onRight = p.x >= box.x + box.w;
+  const onTop = p.y <= box.y;
+  const onBottom = p.y >= box.y + box.h;
+  const horizontal = onLeft || onRight;
+  const vertical = onTop || onBottom;
+  const dx = toward.x - p.x;
+  const dy = toward.y - p.y;
+  const useX = horizontal && (!vertical || Math.abs(dx) >= Math.abs(dy));
+  if (useX) return { x: onLeft ? -1 : 1, y: 0 };
+  if (vertical) return { x: 0, y: onTop ? -1 : 1 };
+  // Target overlaps the box: head straight for it.
+  const len = Math.hypot(dx, dy);
+  return len > 0 ? { x: dx / len, y: dy / len } : { x: 0, y: 1 };
+}
+
 /** Arrow from the box edge nearest the target to the target edge nearest that point. */
-function arrowBetween(box: PxRect, target: PxRect): { from: Point; to: Point } {
+export function arrowBetween(
+  box: PxRect,
+  target: PxRect
+): CalloutArrowGeometry {
   const targetCentre = {
     x: target.x + target.w / 2,
     y: target.y + target.h / 2,
   };
   const from = nearestPointOnRect(targetCentre, box);
   const to = nearestPointOnRect(from, target);
-  return { from, to };
+  return { from, to, normal: edgeNormal(from, box, to) };
+}
+
+export interface LeaderCurve {
+  c1: Point;
+  c2: Point;
+  /** Unit tangent of the curve where it meets the target. */
+  endTangent: Point;
+}
+
+/** Control points so a line leaves the box square to its edge and bends into the target. */
+export function leaderCurve(
+  from: Point,
+  normal: Point,
+  to: Point
+): LeaderCurve {
+  const chord = Math.hypot(to.x - from.x, to.y - from.y);
+  // ~40% of the chord, eased toward 0 under 48px so short lines stay nearly straight.
+  const d = 0.4 * chord * Math.min(1, chord / 48);
+  const c1 = { x: from.x + normal.x * d, y: from.y + normal.y * d };
+  const bx = c1.x - to.x;
+  const by = c1.y - to.y;
+  const blen = Math.hypot(bx, by);
+  const c2 =
+    blen > 0
+      ? { x: to.x + (bx / blen) * d, y: to.y + (by / blen) * d }
+      : { ...to };
+  const tx = to.x - c2.x;
+  const ty = to.y - c2.y;
+  const tlen = Math.hypot(tx, ty);
+  const endTangent =
+    tlen > 0
+      ? { x: tx / tlen, y: ty / tlen }
+      : chord > 0
+        ? { x: (to.x - from.x) / chord, y: (to.y - from.y) / chord }
+        : { x: 0, y: 1 };
+  return { c1, c2, endTangent };
 }
 
 interface Candidate {

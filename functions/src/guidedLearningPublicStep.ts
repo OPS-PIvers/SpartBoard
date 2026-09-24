@@ -43,6 +43,9 @@ const PRESENTATION_FIELDS = [
   'autoAdvanceDuration',
   'region',
   'calloutPin',
+  'calloutWidthPct',
+  'calloutScale',
+  'calloutTone',
   'cursor',
 ] as const;
 

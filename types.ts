@@ -7113,6 +7113,12 @@ export interface GuidedLearningStep {
   region?: GuidedLearningRegion;
   /** Absent = auto placement. Present = callout box centre pinned in image-%. */
   calloutPin?: GuidedLearningCalloutPin;
+  /** Callout width, % of stage width (10-95). Absent = auto width. */
+  calloutWidthPct?: number;
+  /** Callout text and padding scale, 0.75-2. Absent = 1. */
+  calloutScale?: number;
+  /** Callout colour preset. Absent = 'dark'. */
+  calloutTone?: GuidedLearningCalloutTone;
   /** Watch-mode demonstration override; absent = cursor goes to region centre. */
   cursor?: GuidedLearningStepCursor;
   /** Narration track: generated TTS or the author's recorded voice. */
@@ -7138,6 +7144,9 @@ export interface GuidedLearningCalloutPin {
   xPct: number;
   yPct: number;
 }
+
+/** Callout colour presets; stored as an enum, never a free colour. */
+export type GuidedLearningCalloutTone = 'dark' | 'light' | 'accent';
 
 export interface GuidedLearningStepCursor {
   hide?: boolean;
@@ -7342,6 +7351,9 @@ export interface GuidedLearningPublicStep {
   autoAdvanceDuration?: number;
   region?: GuidedLearningRegion;
   calloutPin?: GuidedLearningCalloutPin;
+  calloutWidthPct?: number;
+  calloutScale?: number;
+  calloutTone?: GuidedLearningCalloutTone;
   cursor?: GuidedLearningStepCursor;
   narration?: GuidedLearningPublicNarration;
 }

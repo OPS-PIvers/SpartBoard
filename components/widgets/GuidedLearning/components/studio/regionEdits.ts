@@ -1,10 +1,19 @@
-import type { GuidedLearningRegion, GuidedLearningStep } from '@/types';
+import type {
+  GuidedLearningCalloutTone,
+  GuidedLearningRegion,
+  GuidedLearningStep,
+} from '@/types';
 import type { PctPoint } from '../../types/stage';
 import {
   MIN_REGION_PCT,
   clampRegion,
   polygonBBox,
 } from '../../utils/regionGeometry';
+import {
+  clampCalloutScale,
+  clampCalloutWidthPct,
+  isCalloutTone,
+} from '../../utils/calloutStyle';
 
 /** An image-% box by its edges. */
 export interface PctBox {
@@ -277,9 +286,46 @@ export function clearCalloutPin(step: GuidedLearningStep): GuidedLearningStep {
 export function resetCalloutPlacement(
   step: GuidedLearningStep
 ): GuidedLearningStep {
-  const next = clearCalloutPin(step);
+  const next = clearCalloutSize(clearCalloutPin(step));
   delete next.tooltipPosition;
   delete next.tooltipOffset;
+  return next;
+}
+
+/** Width as % of stage width, clamped 10-95. */
+export function setCalloutWidthPct(
+  step: GuidedLearningStep,
+  pct: number
+): GuidedLearningStep {
+  if (!Number.isFinite(pct)) return step;
+  return { ...step, calloutWidthPct: clampCalloutWidthPct(pct) };
+}
+
+/** Text and padding scale, clamped 0.75-2. */
+export function setCalloutScale(
+  step: GuidedLearningStep,
+  scale: number
+): GuidedLearningStep {
+  if (!Number.isFinite(scale)) return step;
+  return { ...step, calloutScale: clampCalloutScale(scale) };
+}
+
+/** 'dark' is the default, so it is stored as absent. */
+export function setCalloutTone(
+  step: GuidedLearningStep,
+  tone: GuidedLearningCalloutTone
+): GuidedLearningStep {
+  const next = { ...step };
+  if (tone === 'dark' || !isCalloutTone(tone)) delete next.calloutTone;
+  else next.calloutTone = tone;
+  return next;
+}
+
+/** Back to auto width and default scale. */
+export function clearCalloutSize(step: GuidedLearningStep): GuidedLearningStep {
+  const next = { ...step };
+  delete next.calloutWidthPct;
+  delete next.calloutScale;
   return next;
 }
 
