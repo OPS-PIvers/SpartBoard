@@ -1861,6 +1861,27 @@
       "goToLibrary": "Go to library",
       "settingsHelp": "Use the main widget panel to create, edit, and assign guided learning sets. Settings are configured per-set inside the editor."
     },
+    "projects": {
+      "library": "Project library",
+      "libraryHelp": "Build projects, set up groups and grade them from the main widget panel. Each project's steps and rubric live in its own editor.",
+      "goToLibrary": "Go to library",
+      "rolloutOff": "Projects is switched off for this district. An admin turns it on under Admin Settings, Rollouts.",
+      "groupRows": "Group rows",
+      "groupRowsHelp": "These style the project board, the group rows you project."
+    },
+    "activity-wall": {
+      "walls": "Walls",
+      "wallsManaged": "Walls are managed from the widget face.",
+      "wallsHelp": "Use the Library button to pick, create, edit, duplicate, or delete a wall. Each wall carries its own layout, appearance, and posting rules."
+    },
+    "talking-tool": {
+      "globalContent": "Global content settings",
+      "globalContentHelp": "Talking stems and categories are configured by an admin via Feature Permissions."
+    },
+    "stickers": {
+      "stickerBook": "Sticker book",
+      "stickerBookHelp": "Upload, favorite, and reorder stickers on the widget itself."
+    },
     "countdown": {
       "title": "Event title",
       "titlePlaceholder": "e.g. Summer Break",

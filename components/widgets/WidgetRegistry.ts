@@ -244,12 +244,6 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
  * - Every type registered in `WIDGET_SETTINGS_SCHEMAS`: its schema owns both
  *   Settings and Style drawer content, so it must not also be registered in
  *   either legacy component map below.
- * - `stickers`: All sticker configuration lives in the appearance panel
- *   (`StickerBookAppearanceSettings`, registered in
- *   `WIDGET_APPEARANCE_COMPONENTS`). The flip button is always rendered,
- *   so when users flip the widget the "Settings" tab shows the standard
- *   fallback face ("Standard settings available.") while the "Style" tab
- *   surfaces the actual sticker appearance controls.
  * - `blooms-detail`: Read-only companion widget spawned programmatically by
  *   `blooms-taxonomy`. All editing happens on the parent widget; the detail
  *   widget has no per-instance configuration.
@@ -364,43 +358,24 @@ export const WIDGET_SETTINGS_SCHEMAS: Partial<
     import('@/components/settings/schema/noSettingsSchema').then(
       (m) => m.default
     ),
+  projects: () => import('./Projects/settings.schema').then((m) => m.default),
+  'activity-wall': () =>
+    import('./ActivityWall/settings.schema').then((m) => m.default),
+  'talking-tool': () =>
+    import('./TalkingTool/settings.schema').then((m) => m.default),
+  stickers: () => import('./stickers/settings.schema').then((m) => m.default),
 };
 
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
   Record<WidgetType, SettingsComponent>
 > = {
   // onboarding has no settings panel
-  'activity-wall': lazyNamed(
-    () => import('./ActivityWall/Settings'),
-    'ActivityWallSettings'
-  ),
-  'talking-tool': lazyNamed(
-    () => import('./TalkingTool'),
-    'TalkingToolSettings'
-  ),
-  projects: lazyNamed(() => import('./Projects/Settings'), 'ProjectsSettings'),
 };
 
 export const WIDGET_APPEARANCE_COMPONENTS: Partial<
   Record<WidgetType, SettingsComponent>
 > = {
   // Populated per-widget in components/widgets/*/Settings.tsx
-  'activity-wall': lazyNamed(
-    () => import('./ActivityWall/Settings'),
-    'ActivityWallAppearanceSettings'
-  ),
-  'talking-tool': lazyNamed(
-    () => import('./TalkingTool'),
-    'TalkingToolAppearanceSettings'
-  ),
-  stickers: lazyNamed(
-    () => import('./stickers/StickerBookSettings'),
-    'StickerBookAppearanceSettings'
-  ),
-  projects: lazyNamed(
-    () => import('./Projects/Settings'),
-    'ProjectsAppearanceSettings'
-  ),
 };
 
 export const DEFAULT_SCALING_CONFIG: ScalingConfig = {

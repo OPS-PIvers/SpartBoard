@@ -4,6 +4,7 @@ import { WidgetType } from '@/types';
 import {
   WIDGET_SETTINGS_COMPONENTS,
   WIDGET_APPEARANCE_COMPONENTS,
+  WIDGET_SETTINGS_SCHEMAS,
 } from '@/components/widgets/WidgetRegistry';
 import { renderLegacySettings, LegacySlot } from './renderLegacySettings';
 
@@ -115,4 +116,11 @@ describe('legacy settings render snapshots', () => {
   );
 
   it.skip.each(skippedCases)('$slot slot for $type', () => undefined);
+
+  // Keeps the suite non-empty now that every widget renders through a settings schema.
+  it('never registers a legacy panel for a schema-owned widget', () => {
+    expect(
+      allCases.filter(({ type }) => WIDGET_SETTINGS_SCHEMAS[type])
+    ).toEqual([]);
+  });
 });

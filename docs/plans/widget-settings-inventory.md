@@ -1847,3 +1847,7 @@ find-a-setting filter.
 | Mini App               | `miniApp`               | 13   | current work                                    | yes  |
 | Traffic Light          | `traffic`               | 13   | current work                                    | yes  |
 | Classes                | `classes`               | 13   | current work                                    | yes  |
+| Projects               | `projects`              | 14   | current work                                    | yes  |
+| Activity Wall          | `activity-wall`         | 14   | current work                                    | yes  |
+| Talking Tool           | `talking-tool`          | 14   | current work                                    | yes  |
+| Sticker Book           | `stickers`              | 14   | current work                                    | yes  |
