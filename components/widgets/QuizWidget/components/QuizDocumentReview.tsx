@@ -10,13 +10,29 @@
 
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, FileWarning, X } from 'lucide-react';
-import type { QuizData, QuizQuestion, QuizQuestionType } from '@/types';
+import type {
+  QuestionTargetTag,
+  QuizData,
+  QuizQuestion,
+  QuizQuestionType,
+} from '@/types';
 import type { ExtractedImage } from '@/utils/quizDocumentImport';
 import { questionNeedsKey } from '@/utils/quizNeedsKey';
 import {
   multiAnswerCorrectOptions,
   multiAnswerOptions,
 } from '@/utils/quizMultiAnswer';
+import { withTargetTag } from '@/utils/quizDocumentImport/suggestedTargets';
+import {
+  spillMessage,
+  spillWarnings,
+  type SpillWarning,
+} from '@/utils/quizDocumentImport/spillWarnings';
+import type { SuggestedTarget } from '@/utils/quizDocumentImport/suggestedTargets';
+import {
+  WithSuggestedTargets,
+  type SuggestedTargetsSlots,
+} from './QuizImportSuggestedTargets';
 
 interface Props {
   data: QuizData;
@@ -27,6 +43,8 @@ interface Props {
    * is uploaded.
    */
   images?: readonly ExtractedImage[];
+  /** Target lines the reader found, by question id; pass only when the suggested-targets flag is on. */
+  suggestedTargets?: ReadonlyMap<string, SuggestedTarget>;
 }
 
 const TYPE_LABEL: Record<QuizQuestionType, string> = {
@@ -46,11 +64,17 @@ const choicesOf = (q: QuizQuestion): string[] => {
     : q.incorrectAnswers;
 };
 
-export const QuizDocumentReview: React.FC<Props> = ({
-  data,
-  onChange,
-  images = [],
-}) => {
+const SpillNote: React.FC<{ warning?: SpillWarning }> = ({ warning }) =>
+  warning ? (
+    <span className="flex shrink-0 items-center gap-1 text-xxs font-bold text-amber-800">
+      <AlertCircle className="h-3 w-3" aria-hidden />
+      {spillMessage(warning)}
+    </span>
+  ) : null;
+
+const ReviewTable: React.FC<
+  Omit<Props, 'suggestedTargets'> & { targetSlots?: SuggestedTargetsSlots }
+> = ({ data, onChange, images = [], targetSlots }) => {
   // The full set read from the document. Unticking removes a question from
   // what gets created, so the master list has to outlive that or a row could
   // never be ticked back on. The preview step mounts once per read.
@@ -58,6 +82,7 @@ export const QuizDocumentReview: React.FC<Props> = ({
     data.questions
   );
   const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set());
+  const [onlyFlagged, setOnlyFlagged] = useState(false);
   // The choice order is fixed when the read lands. Deriving it from the
   // current answer would reshuffle the radio list under the teacher's cursor
   // the moment they pick a different one.
@@ -123,6 +148,15 @@ export const QuizDocumentReview: React.FC<Props> = ({
       stimulusIds: (prev.stimulusIds ?? []).filter((id) => id !== imageId),
     }));
 
+  const applyTargets = (tags: ReadonlyMap<string, QuestionTargetTag>): void => {
+    const next = allQuestions.map((q) => {
+      const tag = tags.get(q.id);
+      return tag ? { ...q, targets: withTargetTag(q.targets, tag) } : q;
+    });
+    setAllQuestions(next);
+    emit(excluded, next);
+  };
+
   const toggle = (id: string, include: boolean): void => {
     const next = new Set(excluded);
     if (include) next.delete(id);
@@ -151,6 +185,16 @@ export const QuizDocumentReview: React.FC<Props> = ({
   const needingKey = allQuestions.filter(
     (q) => !excluded.has(q.id) && questionNeedsKey(q)
   ).length;
+  const spills = new Map<string, SpillWarning[]>(
+    allQuestions.map((q) => [
+      q.id,
+      spillWarnings(q.text, choiceOrder.get(q.id) ?? choicesOf(q)),
+    ])
+  );
+  const isFlagged = (q: QuizQuestion): boolean =>
+    questionNeedsKey(q) || (spills.get(q.id)?.length ?? 0) > 0;
+  const flaggedCount = allQuestions.filter(isFlagged).length;
+  const showOnlyFlagged = onlyFlagged && flaggedCount > 0;
 
   return (
     <div className="space-y-3">
@@ -167,9 +211,28 @@ export const QuizDocumentReview: React.FC<Props> = ({
         )}
       </div>
 
+      {flaggedCount > 0 && (
+        <label className="flex items-center gap-1.5 text-xs text-slate-600">
+          <input
+            type="checkbox"
+            checked={onlyFlagged}
+            onChange={(e) => setOnlyFlagged(e.target.checked)}
+            className="accent-brand-blue-primary"
+          />
+          Show only flagged rows ({flaggedCount})
+        </label>
+      )}
+
+      {targetSlots?.header(allQuestions, applyTargets)}
+
       <ul className="max-h-[22rem] space-y-2 overflow-y-auto">
         {allQuestions.map((q, index) => {
+          if (showOnlyFlagged && !isFlagged(q)) return null;
           const included = !excluded.has(q.id);
+          const rowSpills = spills.get(q.id) ?? [];
+          const choiceSpill = (i: number): SpillWarning | undefined =>
+            rowSpills.find((w) => w.at === i);
+          const stemSpill = rowSpills.find((w) => w.at === 'stem');
           const choices = choiceOrder.get(q.id) ?? choicesOf(q);
           // Only ids the document actually carried; a stimulus added some
           // other way has no thumbnail to show here.
@@ -207,6 +270,12 @@ export const QuizDocumentReview: React.FC<Props> = ({
                         Needs answer
                       </span>
                     )}
+                    {rowSpills.length > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-amber-800">
+                        <AlertCircle className="h-3 w-3" aria-hidden />
+                        Check text
+                      </span>
+                    )}
                   </div>
 
                   <textarea
@@ -221,6 +290,11 @@ export const QuizDocumentReview: React.FC<Props> = ({
                     aria-label={`Question ${index + 1} text`}
                     className="w-full resize-y rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none"
                   />
+                  {stemSpill && <SpillNote warning={stemSpill} />}
+
+                  {targetSlots?.row(q, index + 1, (tag) =>
+                    applyTargets(new Map([[q.id, tag]]))
+                  )}
 
                   {choices.length > 0 && q.type === 'MA' && (
                     <fieldset className="space-y-1">
@@ -265,9 +339,14 @@ export const QuizDocumentReview: React.FC<Props> = ({
                               className="shrink-0 accent-brand-blue-primary"
                               aria-label={`Question ${index + 1}, correct answer: ${choice}`}
                             />
-                            <span className="min-w-0 flex-1 truncate">
+                            <span
+                              className={`min-w-0 flex-1 ${choiceSpill(choiceIndex) ? 'break-words' : 'truncate'}`}
+                            >
                               {choice}
                             </span>
+                            {choiceSpill(choiceIndex) && (
+                              <SpillNote warning={choiceSpill(choiceIndex)} />
+                            )}
                           </label>
                         );
                       })}
@@ -307,9 +386,14 @@ export const QuizDocumentReview: React.FC<Props> = ({
                             className="shrink-0 accent-brand-blue-primary"
                             aria-label={`Question ${index + 1}, answer: ${choice}`}
                           />
-                          <span className="min-w-0 flex-1 truncate">
+                          <span
+                            className={`min-w-0 flex-1 ${choiceSpill(choiceIndex) ? 'break-words' : 'truncate'}`}
+                          >
                             {choice}
                           </span>
+                          {choiceSpill(choiceIndex) && (
+                            <SpillNote warning={choiceSpill(choiceIndex)} />
+                          )}
                         </label>
                       ))}
                     </fieldset>
@@ -383,3 +467,15 @@ export const QuizDocumentReview: React.FC<Props> = ({
     </div>
   );
 };
+
+export const QuizDocumentReview: React.FC<Props> = ({
+  suggestedTargets,
+  ...props
+}) =>
+  suggestedTargets && suggestedTargets.size > 0 ? (
+    <WithSuggestedTargets suggestions={suggestedTargets}>
+      {(slots) => <ReviewTable {...props} targetSlots={slots} />}
+    </WithSuggestedTargets>
+  ) : (
+    <ReviewTable {...props} />
+  );
