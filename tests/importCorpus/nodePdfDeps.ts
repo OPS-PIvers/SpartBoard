@@ -12,7 +12,7 @@ export async function nodePdfDeps(bytes: Uint8Array): Promise<PdfReaderDeps> {
   pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(
     require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs')
   ).href;
-  const task = pdfjs.getDocument({ data: bytes, isEvalSupported: false });
+  const task = pdfjs.getDocument({ data: bytes });
   const doc = await task.promise;
   return {
     loadPdf: () =>
