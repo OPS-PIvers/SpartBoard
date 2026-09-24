@@ -31,7 +31,8 @@ data URIs.
    callouts overlaid and look at it. Every target is covered before you move
    on; estimated pins miss small icons about half the time. Leave callouts on
    auto placement and add a `calloutPin` only when auto placement clearly
-   covers something the learner needs.
+   covers something the learner needs. Leave callout width, scale and tone
+   out too unless a callout needs them (see Callout size and colour).
 5. **Choose the interaction per step** (see Interaction choice) and write
    the text (see Writing rules). Every step gets a `label`.
 6. **Embed images.** Convert each image to a base64 data URI
@@ -112,7 +113,7 @@ Required fields:
   "mode": "structured", // "structured" | "guided" | "explore"
   "createdAt": 0, // ms epoch; regenerated on import
   "updatedAt": 0,
-  "schemaVersion": 3, // always stamp 3 for new files
+  "schemaVersion": 3, // 4 only when a step uses callout size or colour
 }
 ```
 
@@ -122,11 +123,14 @@ video), `hotspotPulse` (`"consistent"|"reminder"|"off"`), `imageTransition`
 (`"none"|"slide"|"fade"`), `welcomeEnabled` (boolean) + `welcomeMessage`
 (string), `watchPace` (`"calm"|"standard"`; calm slows Watch playback).
 
-`schemaVersion` is **required**. Write `3`. It version-gates renderer
-behavior: 2 and above use the image-relative coordinate model this doc
-describes (omitting it would make spotlights render with legacy
-container-relative semantics), and 3 adds `region`, `calloutPin` and
-`cursor`. The validator also accepts `2`, for editing older exports.
+`schemaVersion` is **required**. Write `3`, or `4` when any step sets
+`calloutWidthPct`, `calloutScale` or `calloutTone`; the validator rejects a
+mismatch either way. It version-gates renderer behavior: 2 and above use the
+image-relative coordinate model this doc describes (omitting it would make
+spotlights render with legacy container-relative semantics), 3 adds
+`region`, `calloutPin` and `cursor`, and 4 adds the callout size and colour
+fields. A file stays at 3 when it doesn't need 4, so older app versions can
+still import it. The validator also accepts `2`, for editing older exports.
 
 Do NOT include: `imagePaths`, `isBuilding`, `authorUid` (all
 importer-specific; stripped or rewritten on import). Exports carry
@@ -192,8 +196,29 @@ one, the pin button is the only target, as in older files.
 - `calloutPin: { "xPct", "yPct" }` fixes the callout's centre in image-%.
   Omit it: auto placement keeps the callout off the region. Pin only when
   the verification render shows auto placement is clearly wrong.
+- Callout size and colour, below, are schemaVersion 4 fields.
 - Never write `narration` (audio lives in Storage and is made in the Studio)
   or `tour` (live-tour bindings are made by the recorder).
+
+### Callout size and colour (schemaVersion 4)
+
+Three optional step fields restyle a callout. They apply to `tooltip` and
+`text-popover` steps, and to a `showOverlay` of `popover` or `tooltip` on
+pan-zoom and spotlight steps; the validator rejects them anywhere else.
+
+| Field             | Value                                       | Absent means                    |
+| ----------------- | ------------------------------------------- | ------------------------------- |
+| `calloutWidthPct` | 10–95, % of the **stage** width (not image) | auto width, text sets the width |
+| `calloutScale`    | 0.75–2, multiplies text size and padding    | 1                               |
+| `calloutTone`     | `"dark"`, `"light"` or `"accent"`           | `"dark"` (today's card)         |
+
+- Leave all three out unless a callout needs one, the same as `calloutPin`.
+  Auto sizing fits most text, and any of them forces `schemaVersion` 4.
+- Width tracks the screen, not the zoom: on a pan-zoom step a pinned callout
+  moves with the image but keeps its width. Height always fits the text.
+- `light` is a white card with dark text, `accent` a brand-blue card with
+  white text. A tooltip's leader line takes the card's colour. There is no
+  free colour.
 
 ### Questions
 
@@ -226,9 +251,10 @@ Author-side rules the importer does not check but the player relies on:
 multiple-choice `correctAnswer` must appear verbatim in `choices`;
 matching/sorting arrays must be non-empty; `schemaVersion` must be `3`
 (or `2` for an older export; the importer passes it through, and without it
-spotlights render with legacy container-relative semantics). The importer
-refuses a file with `schemaVersion` above 3 and one whose `region` or
-`calloutPin` is out of range.
+spotlights render with legacy container-relative semantics), or `4` when a
+step uses `calloutWidthPct`, `calloutScale` or `calloutTone`. The importer
+refuses a file with `schemaVersion` above 4 and one whose `region`,
+`calloutPin`, callout width, scale or tone is out of range.
 
 The validator also decodes every embedded image and prints its byte count.
 Large base64 strings are often shortened by file previews, so judge

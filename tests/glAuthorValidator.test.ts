@@ -44,7 +44,7 @@ describe('validateGlSet schema versions', () => {
   it('accepts 2 and 3 and rejects anything else', () => {
     ok(set([step()], { schemaVersion: 2 }));
     ok(set([step()]));
-    bad(set([step()], { schemaVersion: 4 }), /schemaVersion must be 2 or 3/);
+    bad(set([step()], { schemaVersion: 5 }), /schemaVersion must be 2, 3 or 4/);
     bad(set([step()], { schemaVersion: undefined }), /schemaVersion/);
   });
 
@@ -169,6 +169,40 @@ describe('validateGlSet callouts, narration and tours', () => {
     );
     bad(set([step({ calloutPin: { xPct: -1, yPct: 5 } })]), /calloutPin\.xPct/);
     bad(set([step({ cursor: { hide: 'yes' } })]), /cursor/);
+  });
+
+  it('checks callout width, scale and tone ranges', () => {
+    const v4 = (over: Record<string, unknown>) =>
+      set([step({ interactionType: 'tooltip', ...over })], {
+        schemaVersion: 4,
+      });
+    ok(v4({ calloutWidthPct: 10, calloutScale: 0.75, calloutTone: 'dark' }));
+    ok(v4({ calloutWidthPct: 95, calloutScale: 2, calloutTone: 'accent' }));
+    bad(v4({ calloutWidthPct: 9 }), /calloutWidthPct/);
+    bad(v4({ calloutWidthPct: 96 }), /calloutWidthPct/);
+    bad(v4({ calloutScale: 0.5 }), /calloutScale/);
+    bad(v4({ calloutScale: 2.5 }), /calloutScale/);
+    bad(v4({ calloutTone: 'red' }), /calloutTone/);
+  });
+
+  it('allows callout style only where a callout renders', () => {
+    const v4 = (over: Record<string, unknown>) =>
+      set([step({ calloutTone: 'light', ...over })], { schemaVersion: 4 });
+    ok(v4({ interactionType: 'text-popover' }));
+    ok(v4({ interactionType: 'pan-zoom', showOverlay: 'popover' }));
+    ok(v4({ interactionType: 'spotlight', showOverlay: 'tooltip' }));
+    bad(
+      v4({ interactionType: 'spotlight', showOverlay: 'banner' }),
+      /only applies/
+    );
+    bad(v4({ interactionType: 'question' }), /only applies/);
+  });
+
+  it('ties schemaVersion 4 to the callout style fields', () => {
+    const styled = step({ interactionType: 'tooltip', calloutScale: 1.25 });
+    ok(set([styled], { schemaVersion: 4 }));
+    bad(set([styled]), /schemaVersion must be 4/);
+    bad(set([step()], { schemaVersion: 4 }), /schemaVersion must be 3/);
   });
 
   it('rejects narration, which lives in Storage', () => {

@@ -14,6 +14,43 @@ const fail = (message) => {
 // Rounding slack for regions measured from pixel bounds, in image-%.
 const EDGE_SLACK = 0.01;
 const BBOX_SLACK = 0.5;
+// Callout size and colour fields; any of them requires schemaVersion 4.
+const CALLOUT_STYLE_FIELDS = ['calloutWidthPct', 'calloutScale', 'calloutTone'];
+const CALLOUT_TONES = ['dark', 'light', 'accent'];
+
+const hasCallout = (step) =>
+  step.interactionType === 'tooltip' ||
+  step.interactionType === 'text-popover' ||
+  (['pan-zoom', 'spotlight', 'pan-zoom-spotlight'].includes(
+    step.interactionType
+  ) &&
+    ['popover', 'tooltip'].includes(step.showOverlay));
+
+function validateCalloutStyle(step, path) {
+  const used = CALLOUT_STYLE_FIELDS.filter((key) => step[key] !== undefined);
+  if (used.length === 0) return false;
+  if (!hasCallout(step)) {
+    fail(
+      `${path}.${used[0]} only applies to tooltip and text-popover steps, or a popover or tooltip showOverlay`
+    );
+  }
+  if (
+    step.calloutWidthPct !== undefined &&
+    !inRange(step.calloutWidthPct, 10, 95)
+  ) {
+    fail(`${path}.calloutWidthPct must be a number from 10 to 95`);
+  }
+  if (step.calloutScale !== undefined && !inRange(step.calloutScale, 0.75, 2)) {
+    fail(`${path}.calloutScale must be a number from 0.75 to 2`);
+  }
+  if (
+    step.calloutTone !== undefined &&
+    !CALLOUT_TONES.includes(step.calloutTone)
+  ) {
+    fail(`${path}.calloutTone must be dark, light, or accent`);
+  }
+  return true;
+}
 
 function validateRegion(step, path) {
   const region = step.region;
@@ -91,8 +128,8 @@ export function validateGlSet(set, { tourAnchorIds = null } = {}) {
   if (typeof set.title !== 'string' || !set.title.trim()) {
     fail('title must be a non-empty string');
   }
-  if (set.schemaVersion !== 2 && set.schemaVersion !== 3) {
-    fail('schemaVersion must be 2 or 3');
+  if (![2, 3, 4].includes(set.schemaVersion)) {
+    fail('schemaVersion must be 2, 3 or 4');
   }
   if (
     set.watchPace !== undefined &&
@@ -166,6 +203,7 @@ export function validateGlSet(set, { tourAnchorIds = null } = {}) {
     'question',
   ]);
   const ids = new Set();
+  let usesCalloutStyle = false;
 
   set.steps.forEach((step, index) => {
     const path = `steps[${index}]`;
@@ -215,6 +253,7 @@ export function validateGlSet(set, { tourAnchorIds = null } = {}) {
         }
       }
     }
+    if (validateCalloutStyle(step, path)) usesCalloutStyle = true;
     if (
       step.cursor !== undefined &&
       (!isObject(step.cursor) ||
@@ -265,6 +304,16 @@ export function validateGlSet(set, { tourAnchorIds = null } = {}) {
       }
     }
   });
+  if (usesCalloutStyle && set.schemaVersion !== 4) {
+    fail(
+      'schemaVersion must be 4 when a step sets calloutWidthPct, calloutScale or calloutTone'
+    );
+  }
+  if (!usesCalloutStyle && set.schemaVersion === 4) {
+    fail(
+      'schemaVersion must be 3 unless a step sets calloutWidthPct, calloutScale or calloutTone'
+    );
+  }
   return decodedImages;
 }
 
