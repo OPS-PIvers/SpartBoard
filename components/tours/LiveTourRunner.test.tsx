@@ -8,6 +8,8 @@ import { TRY_HINT_MS } from '@/components/widgets/GuidedLearning/components/play
 import { requestStartTour } from './tourState';
 import { ANCHOR_SEARCH_MS } from './useAnchorElement';
 import { tourHealthOf } from './tourHealth';
+import { SAVED_TOUR_KEY } from './tourResume';
+import { Z_INDEX } from '@/config/zIndex';
 
 const h = vi.hoisted(() => {
   type Widget = { id: string; type: string };
@@ -187,6 +189,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   h.reset();
   h.canAccess.mockReturnValue(true);
+  sessionStorage.clear();
 });
 
 afterEach(() => {
@@ -1085,5 +1088,280 @@ describe('LiveTourRunner plain steps and welcome', () => {
       "This tour isn't available right now.",
       'error'
     );
+  });
+});
+
+describe('LiveTourRunner stacking, feedback, reload and access', () => {
+  const Dock: React.FC = () => (
+    <div data-role="dock" data-testid="dock">
+      <button {...tourAttr('dock.open-tools')}>Tools</button>
+    </div>
+  );
+  const mount = () =>
+    render(
+      <>
+        <Dock />
+        <Fixture />
+        <LiveTourRunner />
+      </>
+    );
+  const launch = async (set: GuidedLearningSet, draft = false) => {
+    (draft ? h.loadDraft : h.loadTour).mockResolvedValue(set);
+    const view = mount();
+    act(() => requestStartTour({ setId: set.id, draft }));
+    await frames();
+    return view;
+  };
+  const dim = () => {
+    const path = screen.getByTestId('tour-spotlight').querySelector('path');
+    if (!path) throw new Error('no dim path');
+    return path;
+  };
+  const saved = () => {
+    const raw = sessionStorage.getItem(SAVED_TOUR_KEY);
+    return raw ? (JSON.parse(raw) as unknown) : null;
+  };
+  const stubAnimate = () => {
+    const animate = vi.fn(() => ({ cancel: vi.fn() }) as unknown as Animation);
+    HTMLElement.prototype.animate = animate;
+    return animate;
+  };
+
+  afterEach(() => {
+    delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
+  });
+
+  it('dims above the dock and keeps its own layers in order', () => {
+    expect(Z_INDEX.tour).toBeGreaterThan(Z_INDEX.dock);
+    expect(Z_INDEX.tour).toBeGreaterThan(Z_INDEX.annotationChromeLift);
+    expect(Z_INDEX.tour).toBeGreaterThan(Z_INDEX.popover);
+    expect(Z_INDEX.tourLift).toBeGreaterThan(Z_INDEX.tour);
+    expect(Z_INDEX.tourCallout).toBeGreaterThan(Z_INDEX.tourLift);
+    expect(Z_INDEX.tourCursor).toBeGreaterThan(Z_INDEX.tourCallout);
+    expect(Z_INDEX.toast).toBeGreaterThan(Z_INDEX.tourCursor);
+  });
+
+  it('lifts the dock above the dim only while a step targets it', async () => {
+    await launch(
+      makeSet([
+        { anchor: 'dock.open-tools', action: 'observe' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    const dock = screen.getByTestId('dock');
+    expect(dock.style.zIndex).toBe(String(Z_INDEX.tourLift));
+    expect(screen.getByTestId('tour-spotlight').style.zIndex).toBe(
+      String(Z_INDEX.tour)
+    );
+    expect(screen.getByTestId('tour-callout').style.zIndex).toBe(
+      String(Z_INDEX.tourCallout)
+    );
+    // The ring draws above the lifted dock.
+    const ring = screen.getByTestId('tour-spotlight-ring').closest('svg');
+    expect(ring?.style.zIndex).toBe(String(Z_INDEX.tourCallout));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames();
+    expect(progress()).toBe('2 / 2');
+    expect(dock.style.zIndex).toBe('');
+  });
+
+  it('drops the dock back when the tour ends', async () => {
+    await launch(makeSet([{ anchor: 'dock.open-tools', action: 'observe' }]));
+    const dock = screen.getByTestId('dock');
+    expect(dock.style.zIndex).toBe(String(Z_INDEX.tourLift));
+    fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
+    expect(dock.style.zIndex).toBe('');
+  });
+
+  it('shakes the callout and hints early on a click outside the cutout', async () => {
+    const animate = stubAnimate();
+    await launch(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));
+    await frames();
+    expect(screen.queryByTestId('gl-cursor')).not.toBeInTheDocument();
+    fireEvent.click(dim());
+    await frames();
+    const callout = screen.getByTestId('tour-callout');
+    const shakes = animate.mock.calls.filter(
+      (_, i) => animate.mock.contexts[i] === callout
+    );
+    expect(shakes).toHaveLength(1);
+    const keyframes = (shakes[0] as unknown[])[0] as Keyframe[];
+    expect(keyframes.some((k) => String(k.transform).includes('-8px'))).toBe(
+      true
+    );
+    expect(screen.getByTestId('gl-cursor')).toBeInTheDocument();
+  });
+
+  it('flashes instead of shaking under reduced motion', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }))
+    );
+    const animate = stubAnimate();
+    await launch(makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]));
+    fireEvent.click(dim());
+    const keyframes = (animate.mock.calls[0] as unknown[])[0] as Keyframe[];
+    expect(keyframes.every((k) => k.transform === undefined)).toBe(true);
+    expect(keyframes.some((k) => k.boxShadow)).toBe(true);
+  });
+
+  it('does not shake on a click through the cutout', async () => {
+    const animate = stubAnimate();
+    await launch(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'click' },
+        { anchor: 'dock.open-tools', action: 'observe' },
+      ])
+    );
+    fireEvent.click(screen.getByText('Boards'));
+    await frames();
+    expect(progress()).toBe('2 / 2');
+    expect(animate).not.toHaveBeenCalled();
+  });
+
+  it('saves the run and offers to resume it after a reload', async () => {
+    const set = makeSet(
+      [
+        { anchor: 'sidebar.boards', action: 'observe' },
+        { anchor: 'widget.settings-opener', action: 'observe' },
+      ],
+      ['dice']
+    );
+    const first = await launch(set);
+    expect(saved()).toEqual({ setId: 'set-1', index: 0, addedIds: ['w1'] });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames();
+    expect(saved()).toEqual({ setId: 'set-1', index: 1, addedIds: ['w1'] });
+
+    first.unmount();
+    mount();
+    expect(screen.getByText('Pick up your tour?')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Resume tour' }));
+    await frames();
+    expect(progress()).toBe('2 / 2');
+    expect(h.actions.addWidget).toHaveBeenCalledTimes(1);
+
+    // The resumed run still knows which widget it added.
+    fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove them' }));
+    expect(h.actions.removeWidgets).toHaveBeenCalledWith(['w1']);
+    expect(saved()).toBeNull();
+  });
+
+  it('resumes a Studio draft run from the draft', async () => {
+    h.loadDraft.mockReset();
+    const set = makeSet([
+      { anchor: 'sidebar.boards', action: 'observe' },
+      { anchor: 'dock.open-tools', action: 'observe' },
+    ]);
+    const first = await launch(set, true);
+    expect(saved()).toEqual({
+      setId: 'set-1',
+      index: 0,
+      addedIds: [],
+      draft: true,
+    });
+    first.unmount();
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Resume tour' }));
+    await frames();
+    expect(h.loadDraft).toHaveBeenCalledTimes(2);
+    expect(h.loadTour).not.toHaveBeenCalled();
+    expect(progress()).toBe('1 / 2');
+  });
+
+  it('removes the added widgets instead of resuming', async () => {
+    const first = await launch(
+      makeSet([{ anchor: 'sidebar.boards', action: 'observe' }], ['dice'])
+    );
+    first.unmount();
+    mount();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Remove added widgets' })
+    );
+    expect(h.actions.removeWidgets).toHaveBeenCalledWith(['w1']);
+    expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
+    expect(saved()).toBeNull();
+  });
+
+  it('offers End tour when the run added nothing, and clears it', async () => {
+    const first = await launch(
+      makeSet([{ anchor: 'sidebar.boards', action: 'observe' }])
+    );
+    first.unmount();
+    mount();
+    expect(
+      screen.queryByRole('button', { name: 'Remove added widgets' })
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'End tour' }));
+    expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
+    expect(saved()).toBeNull();
+  });
+
+  it('clears the saved run when the tour finishes', async () => {
+    await launch(makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]));
+    expect(saved()).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(saved()).toBeNull();
+  });
+
+  it('runs without storage', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    await launch(makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]));
+    expect(progress()).toBe('1 / 1');
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
+  });
+
+  it('ignores a corrupt saved run', () => {
+    sessionStorage.setItem(SAVED_TOUR_KEY, '{"setId":7}');
+    mount();
+    expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
+  });
+
+  it('announces each step politely', async () => {
+    await launch(
+      withSteps(
+        makeSet([
+          { anchor: 'sidebar.boards', action: 'observe' },
+          { anchor: 'dock.open-tools', action: 'click' },
+        ]),
+        [{ text: 'Your **boards** live here.' }, {}]
+      )
+    );
+    const announcer = screen.getByTestId('tour-announcer');
+    expect(announcer).toHaveAttribute('aria-live', 'polite');
+    expect(announcer.textContent).toBe('1 / 2. Step 1. Your boards live here.');
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await frames();
+    expect(screen.getByTestId('tour-announcer').textContent).toBe(
+      '2 / 2. Step 2'
+    );
+  });
+
+  it('focuses the callout on observe steps, not on click steps', async () => {
+    await launch(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'observe' },
+        { anchor: 'dock.open-tools', action: 'click' },
+      ])
+    );
+    expect(document.activeElement).toBe(screen.getByTestId('tour-callout'));
+    const next = screen.getByRole('button', { name: 'Next' });
+    fireEvent.click(next);
+    next.blur();
+    await frames();
+    expect(progress()).toBe('2 / 2');
+    expect(document.activeElement).not.toBe(screen.getByTestId('tour-callout'));
   });
 });

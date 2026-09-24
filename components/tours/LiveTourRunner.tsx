@@ -68,11 +68,25 @@ import {
   waitFor,
 } from './autopilot';
 import { TourSpotlight } from './TourSpotlight';
+import {
+  clearSavedTour,
+  readSavedTour,
+  writeSavedTour,
+  type SavedTour,
+} from './tourResume';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 
 const TourMiniPlayer = lazy(() => import('./TourMiniPlayer'));
 
 type Phase = 'welcome' | 'practice-offer' | 'running' | 'teardown';
+
+interface LaunchOptions {
+  /** Widgets a reloaded run had already added, so teardown can still remove them. */
+  claimIds?: readonly string[];
+  skipWelcome?: boolean;
+  /** Runs the Studio draft instead of the published snapshot. */
+  draft?: boolean;
+}
 
 interface ActiveTour {
   set: GuidedLearningSet;
@@ -84,6 +98,7 @@ interface ActiveTour {
   addedTypes: WidgetType[];
   /** The exact widgets the tour added; teardown removes only these. */
   claims: TourWidgetClaims;
+  draft?: boolean;
 }
 
 interface Point {
@@ -115,6 +130,33 @@ const VIEWPORT_GUTTER = 16;
 const nextFrame = () =>
   new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
+const SHAKE: Keyframe[] = [
+  { transform: 'translateX(0)' },
+  { transform: 'translateX(-8px)' },
+  { transform: 'translateX(8px)' },
+  { transform: 'translateX(-5px)' },
+  { transform: 'translateX(5px)' },
+  { transform: 'translateX(0)' },
+];
+// Reduced motion gets a still ring flash in place of the shake.
+const FLASH: Keyframe[] = [
+  { boxShadow: '0 0 0 0 rgb(255 255 255 / 0)' },
+  { boxShadow: '0 0 0 4px rgb(255 255 255 / 0.85)' },
+  { boxShadow: '0 0 0 0 rgb(255 255 255 / 0)' },
+];
+
+/** Claims keyed by type for widgets a reloaded run added that are still on the board. */
+const claimsFromIds = (
+  widgets: readonly { id: string; type: WidgetType }[],
+  ids: readonly string[] = []
+): TourWidgetClaims => {
+  const claims: TourWidgetClaims = {};
+  for (const w of widgets) {
+    if (ids.includes(w.id) && !claims[w.type]) claims[w.type] = w.id;
+  }
+  return claims;
+};
+
 /** Runs a Guided Learning set's live-tour steps against the real app. */
 export const LiveTourRunner: React.FC = () => {
   const { t } = useTranslation();
@@ -136,6 +178,10 @@ export const LiveTourRunner: React.FC = () => {
   const cueSeq = useRef(0);
   const startingRef = useRef(false);
   const reducedMotion = usePrefersReducedMotion();
+  const [resumeOffer, setResumeOffer] = useState<SavedTour | null>(
+    readSavedTour
+  );
+  const calloutRef = useRef<HTMLDivElement | null>(null);
 
   // Async setup reads the newest dashboard actions, not the ones captured when it started.
   const latest = useRef({ dashboard, canAccessFeature, t });
@@ -152,6 +198,31 @@ export const LiveTourRunner: React.FC = () => {
     if (claims !== tour.claims) setTour({ ...tour, claims });
   }
   const added = tour ? tourWidgetIds(widgets, tour.claims) : [];
+
+  // A running tour survives a reload as {setId, index, addedIds}.
+  const saved: SavedTour | null =
+    tour?.phase === 'running'
+      ? {
+          setId: tour.set.id,
+          index: tour.index,
+          addedIds: added,
+          ...(tour.draft ? { draft: true } : {}),
+        }
+      : null;
+  const savedKey = saved ? JSON.stringify(saved) : null;
+  const savedRun = useRef(saved);
+  savedRun.current = saved;
+  const wroteSaved = useRef(false);
+  const ended = tour === null;
+  useEffect(() => {
+    if (savedKey && savedRun.current) {
+      writeSavedTour(savedRun.current);
+      wroteSaved.current = true;
+    } else if (ended && wroteSaved.current) {
+      clearSavedTour();
+      wroteSaved.current = false;
+    }
+  }, [savedKey, ended]);
   const step =
     tour?.phase === 'running' ? (tour.steps[tour.index] ?? null) : null;
   const anchor = useAnchorElement(
@@ -160,13 +231,29 @@ export const LiveTourRunner: React.FC = () => {
     attempt
   );
 
+  // A step aimed at the dock lifts the dock above the dim.
+  const liftEl =
+    anchor.status === 'found'
+      ? (anchor.element?.closest<HTMLElement>('[data-role="dock"]') ?? null)
+      : null;
+  useEffect(() => {
+    if (!liftEl) return;
+    const prev = liftEl.style.zIndex;
+    liftEl.style.zIndex = String(Z_INDEX.tourLift);
+    return () => {
+      liftEl.style.zIndex = prev;
+    };
+  }, [liftEl]);
+
   const runSetup = (
     set: GuidedLearningSet,
     steps: GuidedLearningStep[],
-    from = 0
+    from = 0,
+    opts: LaunchOptions = {}
   ) => {
     const { dashboard: d } = latest.current;
     const current = d.activeDashboard?.widgets ?? [];
+    const claims = claimsFromIds(current, opts.claimIds);
     const missing = missingSetupWidgets(set, current);
     const beforeIds = new Set(current.map((w) => w.id));
     missing.forEach((type) => d.addWidget(type));
@@ -182,7 +269,8 @@ export const LiveTourRunner: React.FC = () => {
       index: Math.min(Math.max(from, 0), steps.length - 1),
       beforeIds,
       addedTypes: missing,
-      claims: {},
+      claims,
+      draft: opts.draft,
     });
   };
 
@@ -191,7 +279,8 @@ export const LiveTourRunner: React.FC = () => {
     set: GuidedLearningSet,
     steps: GuidedLearningStep[],
     from: number,
-    phase: 'welcome' | null = null
+    phase: 'welcome' | null = null,
+    opts: LaunchOptions = {}
   ) => {
     const pending = (p: Phase): ActiveTour => ({
       set,
@@ -201,60 +290,92 @@ export const LiveTourRunner: React.FC = () => {
       beforeIds: new Set(),
       addedTypes: [],
       claims: {},
+      draft: opts.draft,
     });
     if (phase === 'welcome') setTour(pending('welcome'));
     else if (latest.current.dashboard.isActiveBoardReadOnly)
       setTour(pending('practice-offer'));
-    else runSetup(set, steps, from);
+    else runSetup(set, steps, from, opts);
   };
   const beginRef = useRef(begin);
   beginRef.current = begin;
 
-  useEffect(() => {
-    const onStart = (e: Event) => {
-      const req = (e as CustomEvent<TourStartRequest>).detail;
-      const { canAccessFeature: can, dashboard: d, t: tr } = latest.current;
-      if (
-        !req?.setId ||
-        !can('gl-live-tours') ||
-        startingRef.current ||
-        isTourRunning()
-      )
-        return;
-      startingRef.current = true;
-      void (async () => {
-        try {
-          const set = req.draft
-            ? await loadBuildingSet(req.setId)
-            : await loadRunnableTour(req.setId);
-          const steps = set ? liveTourStepsOf(set) : [];
-          if (!set || steps.length === 0) {
-            d.addToast(tr('tours.unavailable'), 'error');
-            return;
-          }
-          // The welcome opens a tour from the start, not a run from a chosen step.
-          const from = req.fromStep ?? 0;
-          beginRef.current(
-            set,
-            steps,
-            from,
-            from === 0 && tourWelcome(set) !== null ? 'welcome' : null
-          );
-        } catch (err) {
-          console.error('LiveTourRunner: could not load tour', err);
+  const launch = (req: TourStartRequest, opts: LaunchOptions = {}) => {
+    const { canAccessFeature: can, dashboard: d, t: tr } = latest.current;
+    if (
+      !req?.setId ||
+      !can('gl-live-tours') ||
+      startingRef.current ||
+      isTourRunning()
+    )
+      return;
+    startingRef.current = true;
+    setResumeOffer(null);
+    void (async () => {
+      try {
+        const set = req.draft
+          ? await loadBuildingSet(req.setId)
+          : await loadRunnableTour(req.setId);
+        const steps = set ? liveTourStepsOf(set) : [];
+        if (!set || steps.length === 0) {
           d.addToast(tr('tours.unavailable'), 'error');
-        } finally {
-          startingRef.current = false;
+          return;
         }
-      })();
-    };
+        // The welcome opens a tour from the start, not a run from a chosen step.
+        const from = req.fromStep ?? 0;
+        beginRef.current(
+          set,
+          steps,
+          from,
+          from === 0 && !opts.skipWelcome && tourWelcome(set) !== null
+            ? 'welcome'
+            : null,
+          { ...opts, draft: req.draft }
+        );
+      } catch (err) {
+        console.error('LiveTourRunner: could not load tour', err);
+        d.addToast(tr('tours.unavailable'), 'error');
+      } finally {
+        startingRef.current = false;
+      }
+    })();
+  };
+  const launchRef = useRef(launch);
+  launchRef.current = launch;
+
+  useEffect(() => {
+    const onStart = (e: Event) =>
+      launchRef.current((e as CustomEvent<TourStartRequest>).detail);
     window.addEventListener(TOUR_START_EVENT, onStart);
     return () => window.removeEventListener(TOUR_START_EVENT, onStart);
   }, []);
 
+  const resumeTour = () => {
+    if (!resumeOffer) return;
+    const { setId, index, addedIds, draft } = resumeOffer;
+    launch(
+      { setId, fromStep: index, draft },
+      { claimIds: addedIds, skipWelcome: true }
+    );
+  };
+  const dismissResume = (removeAdded: boolean) => {
+    if (!resumeOffer) return;
+    if (removeAdded) {
+      const onBoard = new Set(
+        (latest.current.dashboard.activeDashboard?.widgets ?? []).map(
+          (w) => w.id
+        )
+      );
+      const ids = resumeOffer.addedIds.filter((id) => onBoard.has(id));
+      if (ids.length > 0) removeWidgets(ids);
+    }
+    clearSavedTour();
+    setResumeOffer(null);
+  };
+
   const startOnPracticeBoard = async () => {
     if (!tour) return;
-    const { set, steps, index } = tour;
+    const { set, steps, index, draft } = tour;
     const id = await latest.current.dashboard.createNewDashboard(
       latest.current.t('tours.practiceBoardName')
     );
@@ -277,7 +398,7 @@ export const LiveTourRunner: React.FC = () => {
       setTour(null);
       return;
     }
-    runSetup(set, steps, index);
+    runSetup(set, steps, index, { draft });
   };
 
   const finish = () => {
@@ -323,14 +444,19 @@ export const LiveTourRunner: React.FC = () => {
   }, [anchor.element, step?.tour?.action, stepIndex]);
 
   const running = tour?.phase === 'running';
-  const escapable = running || tour?.phase === 'welcome';
+  const offeringResume =
+    !tour &&
+    resumeOffer !== null &&
+    !!activeDashboard &&
+    canAccessFeature('gl-live-tours');
+  const escapable = running || tour?.phase === 'welcome' || offeringResume;
   const active = tour !== null;
   useEffect(() => {
     setTourRunning(active);
     return () => setTourRunning(false);
   }, [active]);
   const finishRef = useRef(finish);
-  finishRef.current = finish;
+  finishRef.current = tour ? finish : () => dismissResume(false);
   useEffect(() => {
     if (!escapable) return;
     const onKey = (e: KeyboardEvent) => {
@@ -510,6 +636,26 @@ export const LiveTourRunner: React.FC = () => {
   // "Show me" replays the demo once.
   const showMe = () => playCursor();
 
+  // A click on the dim shakes the callout and brings the hint early.
+  const misclick = () => {
+    const el = calloutRef.current;
+    if (el && typeof el.animate === 'function') {
+      el.animate(reducedMotion ? FLASH : SHAKE, {
+        duration: reducedMotion ? 600 : 400,
+        easing: 'ease-in-out',
+      });
+    }
+    if (hintOn) playCursor();
+  };
+
+  // Observe and plain steps take focus so keyboard and screen reader users land on them.
+  const takesFocus =
+    running && !!step && (!step.tour || step.tour.action !== 'click');
+  useEffect(() => {
+    if (!takesFocus) return;
+    calloutRef.current?.focus({ preventScroll: true });
+  }, [takesFocus, stepIndex]);
+
   const canRead = !!step && (!!step.narration?.url || speechAvailable());
   useReadAloud({
     enabled: readAloud && canRead,
@@ -519,6 +665,7 @@ export const LiveTourRunner: React.FC = () => {
 
   const boxObserver = useRef<ResizeObserver | null>(null);
   const measureBox = useCallback((el: HTMLDivElement | null) => {
+    calloutRef.current = el;
     boxObserver.current?.disconnect();
     boxObserver.current = null;
     if (!el) return;
@@ -535,9 +682,9 @@ export const LiveTourRunner: React.FC = () => {
     boxObserver.current.observe(el);
   }, []);
 
-  if (!tour || typeof document === 'undefined') return null;
-
-  const total = tour.steps.length;
+  if (typeof document === 'undefined' || (!tour && !offeringResume)) {
+    return null;
+  }
 
   const dialog = (
     title: string,
@@ -549,6 +696,7 @@ export const LiveTourRunner: React.FC = () => {
       aria-modal="true"
       aria-labelledby="tour-dialog-title"
       className="fixed inset-0 flex items-center justify-center bg-slate-950/55 p-4"
+      style={{ zIndex: Z_INDEX.tourCallout }}
     >
       <div className="w-full max-w-sm rounded-2xl bg-slate-900/95 p-5 text-white shadow-2xl ring-1 ring-white/15 backdrop-blur-xl">
         <h2 id="tour-dialog-title" className="text-base font-bold">
@@ -570,9 +718,29 @@ export const LiveTourRunner: React.FC = () => {
     'rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
 
   let content: React.ReactNode = null;
+  let announcement = '';
 
-  if (tour.phase === 'welcome') {
-    const { set, steps, index } = tour;
+  if (!tour) {
+    const hasAdded =
+      !!resumeOffer && widgets.some((w) => resumeOffer.addedIds.includes(w.id));
+    content = dialog(
+      t('tours.resumeTitle'),
+      t('tours.resumeBody'),
+      <>
+        <button
+          type="button"
+          className={secondaryBtn}
+          onClick={() => dismissResume(hasAdded)}
+        >
+          {hasAdded ? t('tours.removeAddedWidgets') : t('tours.endTour')}
+        </button>
+        <button type="button" className={primaryBtn} onClick={resumeTour}>
+          {t('tours.resumeTour')}
+        </button>
+      </>
+    );
+  } else if (tour.phase === 'welcome') {
+    const { set, steps, index, draft } = tour;
     content = dialog(
       set.title.trim() || t('tours.welcomeTitle'),
       tourWelcome(set) ?? '',
@@ -587,7 +755,7 @@ export const LiveTourRunner: React.FC = () => {
         <button
           type="button"
           className={primaryBtn}
-          onClick={() => begin(set, steps, index)}
+          onClick={() => begin(set, steps, index, null, { draft })}
         >
           {t('tours.startTour')}
         </button>
@@ -639,6 +807,17 @@ export const LiveTourRunner: React.FC = () => {
       </>
     );
   } else if (step) {
+    const total = tour.steps.length;
+    const title = step.label?.trim()
+      ? step.label
+      : t('tours.stepFallbackTitle');
+    announcement = [
+      t('tours.progress', { current: tour.index + 1, total }),
+      title,
+      step.text?.replace(/\*\*/g, '') ?? '',
+    ]
+      .filter(Boolean)
+      .join('. ');
     const isMissing = anchor.status === 'missing';
     const autoStatus =
       !guided || !(found || plain)
@@ -665,18 +844,22 @@ export const LiveTourRunner: React.FC = () => {
         : null;
     content = (
       <>
-        {(anchor.status === 'found' || plain) && <TourSpotlight rect={rect} />}
+        {(anchor.status === 'found' || plain) && (
+          <TourSpotlight rect={rect} onMisclick={misclick} />
+        )}
         <div
           key={tour.index}
           ref={measureBox}
           role="dialog"
           aria-modal="false"
           aria-labelledby="tour-step-title"
+          tabIndex={-1}
           data-tour-ignore=""
           data-testid="tour-callout"
           data-plain={plain ? '' : undefined}
-          className="fixed flex flex-col gap-2 rounded-2xl bg-slate-900/90 px-4 py-3 text-white shadow-2xl ring-1 ring-black/40 border border-white/20 backdrop-blur-xl leading-relaxed"
+          className="fixed flex flex-col gap-2 rounded-2xl bg-slate-900/90 px-4 py-3 text-white shadow-2xl ring-1 ring-black/40 border border-white/20 backdrop-blur-xl leading-relaxed focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
           style={{
+            zIndex: Z_INDEX.tourCallout,
             ...(placement
               ? {
                   left: placement.left,
@@ -698,7 +881,7 @@ export const LiveTourRunner: React.FC = () => {
               id="tour-step-title"
               className="font-bold tracking-tight text-white"
             >
-              {step.label?.trim() ? step.label : t('tours.stepFallbackTitle')}
+              {title}
             </div>
             <div className="-mr-1 flex shrink-0 items-center gap-0.5">
               {canRead && (
@@ -856,7 +1039,10 @@ export const LiveTourRunner: React.FC = () => {
           </div>
         </div>
         {cueShown && (
-          <div className="fixed inset-0" style={{ pointerEvents: 'none' }}>
+          <div
+            className="fixed inset-0"
+            style={{ pointerEvents: 'none', zIndex: Z_INDEX.tourCursor }}
+          >
             <AnimatedCursor
               key={cueShown.key}
               from={cueShown.from}
@@ -885,13 +1071,21 @@ export const LiveTourRunner: React.FC = () => {
     );
   }
 
+  // No box of its own, so each layer stacks on its own z-index around a lifted dock.
   return createPortal(
     <div
       data-tour-ignore=""
       data-testid="live-tour"
-      className="pointer-events-none fixed inset-0 [&>*]:pointer-events-auto [&>svg]:pointer-events-none"
-      style={{ zIndex: Z_INDEX.tour }}
+      className="contents pointer-events-none [&>*]:pointer-events-auto [&>svg]:pointer-events-none"
     >
+      <div
+        aria-live="polite"
+        aria-atomic="true"
+        data-testid="tour-announcer"
+        className="sr-only"
+      >
+        {announcement}
+      </div>
       {content}
     </div>,
     document.body

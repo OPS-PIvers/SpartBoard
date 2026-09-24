@@ -3416,7 +3416,12 @@
     "autoFallback": "Cliquez ici pour continuer",
     "welcomeTitle": "Bienvenue",
     "notNow": "Pas maintenant",
-    "startTour": "Commencer la visite"
+    "startTour": "Commencer la visite",
+    "resumeTitle": "Reprendre la visite ?",
+    "resumeBody": "La page s'est rechargée en pleine visite. Reprendre à l'étape où vous étiez ?",
+    "resumeTour": "Reprendre la visite",
+    "removeAddedWidgets": "Retirer les widgets ajoutés",
+    "endTour": "Terminer la visite"
   },
   "glPlayer": {
     "watch": "Regarder",

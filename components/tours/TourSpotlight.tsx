@@ -1,9 +1,12 @@
 import React, { useSyncExternalStore } from 'react';
+import { Z_INDEX } from '@/config/zIndex';
 
 interface TourSpotlightProps {
   rect: { x: number; y: number; width: number; height: number } | null;
   padding?: number;
   radius?: number;
+  /** A click on the dim, outside the cutout. */
+  onMisclick?: () => void;
 }
 
 const round = (n: number) => Math.round(n * 10) / 10;
@@ -61,6 +64,7 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
   rect,
   padding = 6,
   radius = 10,
+  onMisclick,
 }) => {
   // Re-render on resize so the dim keeps covering the whole viewport.
   const [vw, vh] = useSyncExternalStore(onResize, viewportKey, noViewport)
@@ -76,34 +80,47 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
     d += ` M${x + r},${y} H${x + w - r} A${r},${r} 0 0,1 ${x + w},${y + r} V${y + h - r} A${r},${r} 0 0,1 ${x + w - r},${y + h} H${x + r} A${r},${r} 0 0,1 ${x},${y + h - r} V${y + r} A${r},${r} 0 0,1 ${x + r},${y} Z`;
   }
   return (
-    <svg
-      data-testid="tour-spotlight"
-      aria-hidden="true"
-      className="fixed inset-0 pointer-events-none"
-      width={vw}
-      height={vh}
-    >
-      <path
-        d={d}
-        fillRule="evenodd"
-        className="fill-slate-950/55 motion-safe:transition-[d] motion-safe:duration-300"
-        style={{ pointerEvents: 'auto' }}
-        onWheel={(e) =>
-          passWheelThrough(e.nativeEvent, e.currentTarget.ownerSVGElement)
-        }
-      />
-      {rect && (
-        <rect
-          data-testid="tour-spotlight-ring"
-          x={rect.x - padding}
-          y={rect.y - padding}
-          width={rect.width + padding * 2}
-          height={rect.height + padding * 2}
-          rx={radius}
-          className="fill-none stroke-white"
-          strokeWidth={2}
+    <>
+      <svg
+        data-testid="tour-spotlight"
+        aria-hidden="true"
+        className="fixed inset-0 pointer-events-none"
+        style={{ zIndex: Z_INDEX.tour }}
+        width={vw}
+        height={vh}
+      >
+        <path
+          d={d}
+          fillRule="evenodd"
+          className="fill-slate-950/55 motion-safe:transition-[d] motion-safe:duration-300"
+          style={{ pointerEvents: 'auto' }}
+          onClick={onMisclick}
+          onWheel={(e) =>
+            passWheelThrough(e.nativeEvent, e.currentTarget.ownerSVGElement)
+          }
         />
+      </svg>
+      {rect && (
+        // The ring sits above a lifted dock so the target stays outlined.
+        <svg
+          aria-hidden="true"
+          className="fixed inset-0 pointer-events-none"
+          style={{ zIndex: Z_INDEX.tourCallout }}
+          width={vw}
+          height={vh}
+        >
+          <rect
+            data-testid="tour-spotlight-ring"
+            x={rect.x - padding}
+            y={rect.y - padding}
+            width={rect.width + padding * 2}
+            height={rect.height + padding * 2}
+            rx={radius}
+            className="fill-none stroke-white"
+            strokeWidth={2}
+          />
+        </svg>
       )}
-    </svg>
+    </>
   );
 };

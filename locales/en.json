@@ -4573,7 +4573,12 @@
     "autoFallback": "Click here to continue",
     "welcomeTitle": "Welcome",
     "notNow": "Not now",
-    "startTour": "Start tour"
+    "startTour": "Start tour",
+    "resumeTitle": "Pick up your tour?",
+    "resumeBody": "The page reloaded partway through a tour. Carry on from the step you were on?",
+    "resumeTour": "Resume tour",
+    "removeAddedWidgets": "Remove added widgets",
+    "endTour": "End tour"
   },
   "glPlayer": {
     "watch": "Watch",

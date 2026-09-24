@@ -3416,7 +3416,12 @@
     "autoFallback": "Hier klicken, um fortzufahren",
     "welcomeTitle": "Willkommen",
     "notNow": "Nicht jetzt",
-    "startTour": "Tour starten"
+    "startTour": "Tour starten",
+    "resumeTitle": "Tour fortsetzen?",
+    "resumeBody": "Die Seite wurde mitten in einer Tour neu geladen. Beim aktuellen Schritt weitermachen?",
+    "resumeTour": "Tour fortsetzen",
+    "removeAddedWidgets": "Hinzugefügte Widgets entfernen",
+    "endTour": "Tour beenden"
   },
   "glPlayer": {
     "watch": "Ansehen",
