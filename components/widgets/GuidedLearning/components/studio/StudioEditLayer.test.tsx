@@ -435,6 +435,18 @@ describe('Studio edit layer', () => {
     expect(frames.pending()).toBe(0);
   });
 
+  it('closes an open drag when the edit layer unmounts mid-gesture', () => {
+    click([18, 18]);
+    down([18, 18]);
+    moveTo([28, 22], { ctrlKey: true });
+    frames.step();
+    expect(editor().gestureOpen).toBe(true);
+    press('b');
+    expect(screen.queryByTestId('gl-studio-edit-layer')).toBeNull();
+    expect(editor().gestureOpen).toBe(false);
+    expect(editor().canUndo).toBe(true);
+  });
+
   it('zooms the canvas around the pointer with Ctrl+wheel and fits with 0', () => {
     const root = document.querySelector('[data-gl-studio-canvas]');
     if (!root) throw new Error('no canvas');

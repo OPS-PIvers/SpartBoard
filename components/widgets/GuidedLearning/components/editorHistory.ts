@@ -6,7 +6,6 @@ import type {
   GuidedLearningWatchPace,
 } from '@/types';
 import type { GuidedLearningMediaKind } from '@/utils/guidedLearningMedia';
-import { slideMediaRef } from '../utils/slideMedia';
 
 /** The undoable part of the editor: everything that is saved with the set. */
 export interface EditorDocument {
@@ -266,26 +265,4 @@ export function pendingMediaDeletions(
   state: EditorHistoryState
 ): MediaDeletionRef[] {
   return [...state.retiredMedia, ...state.past.flatMap((e) => e.media)];
-}
-
-/** True when a slide or step in `doc` still uses the file, e.g. a duplicated slide sharing its image. */
-export function isMediaReferenced(
-  doc: EditorDocument,
-  ref: MediaDeletionRef
-): boolean {
-  const slideUses = doc.imageUrls.some((url) => {
-    const used = slideMediaRef(url);
-    if (!used) return false;
-    return 'storagePath' in used
-      ? used.storagePath === ref.storagePath
-      : used.driveFileId === ref.driveFileId;
-  });
-  if (slideUses) return true;
-  if (!ref.storagePath) return false;
-  return doc.steps.some(
-    (s) =>
-      s.narration?.storagePath === ref.storagePath ||
-      s.audioStoragePath === ref.storagePath ||
-      s.videoStoragePath === ref.storagePath
-  );
 }

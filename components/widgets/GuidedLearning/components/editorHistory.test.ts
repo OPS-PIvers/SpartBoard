@@ -486,6 +486,15 @@ describe('slide and step reordering', () => {
     expect(result.current.canUndo).toBe(false);
   });
 
+  it('drops a confirmed reorder when slides were added after it was made', () => {
+    const { result } = renderEditor();
+    const reorder = result.current.reorderImages;
+    act(() => result.current.duplicateSlide(0));
+    act(() => reorder([2, 0, 1]));
+    expect(result.current.imageUrls).toHaveLength(4);
+    expect(result.current.imageUrls[3]).toBe('c.png');
+  });
+
   it('ignores a slide order of the wrong length', () => {
     const { result } = renderEditor();
     act(() => result.current.reorderImages([1, 0]));

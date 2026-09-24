@@ -146,11 +146,22 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
   const pendingRef = useRef<Move | null>(null);
   useEffect(() => {
     const frame = frameRef;
+    const open = gestureRef;
     return () => {
       if (frame.current !== null) cancelAnimationFrame(frame.current);
       frame.current = null;
+      // Unmounting mid-drag (Blur, Play) must still close the gesture, or autosave stays frozen.
+      const gesture = open.current;
+      open.current = null;
+      if (
+        gesture &&
+        (gesture.kind === 'resize' ||
+          gesture.kind === 'vertex' ||
+          (gesture.kind !== 'draw' && gesture.active))
+      )
+        endGesture();
     };
-  }, []);
+  }, [endGesture]);
 
   const slideSteps = steps.filter((s) => s.imageIndex === imageIndex);
   const selected = slideSteps.find((s) => s.id === selectedStepId) ?? null;

@@ -682,7 +682,8 @@ export function useGuidedLearningEditorState({
 
   const reorderImages = useCallback(
     (order: number[], moveStepsOf?: number) => {
-      if (order.length !== imageUrls.length) return;
+      // Read live: a confirmed reorder can land after more slides were added.
+      if (order.length !== historyRef.current.present.imageUrls.length) return;
       const newIndexOf = new Map(order.map((oldIndex, i) => [oldIndex, i]));
       const followed =
         moveStepsOf === undefined ? undefined : newIndexOf.get(moveStepsOf);
@@ -699,7 +700,7 @@ export function useGuidedLearningEditorState({
       });
       setCurrentImageIndex((prev) => newIndexOf.get(prev) ?? prev);
     },
-    [imageUrls.length, applyDoc]
+    [applyDoc]
   );
 
   const slideMoveReordersSteps = useCallback(
