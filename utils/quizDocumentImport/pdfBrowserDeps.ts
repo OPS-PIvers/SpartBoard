@@ -7,6 +7,7 @@
 
 import type { OcrLine, OcrPage } from './pdfLayout';
 import type { PdfReaderDeps, PdfTextItem } from './pdfReader';
+import { picturesOnPage } from './pdfPictures';
 
 /** pdf.js viewport scale is relative to 72 dpi; 200 dpi is what OCR wants. */
 const OCR_SCALE = 200 / 72;
@@ -22,7 +23,7 @@ async function loadPdfDocument(file: Blob) {
   ).toString();
   const task = pdfjs.getDocument({ data: bytes, wasmUrl: '/pdfjs-wasm/' });
   const doc = await task.promise;
-  return { doc, task };
+  return { doc, task, ops: pdfjs.OPS };
 }
 
 /** Paint one page and hand tesseract a PNG; both are loaded on demand. */
@@ -78,7 +79,7 @@ async function ocrPage(
  * the text pass and any OCR pass, so a scanned page isn't parsed twice.
  */
 export async function browserPdfDeps(file: Blob): Promise<PdfReaderDeps> {
-  const { doc, task } = await loadPdfDocument(file);
+  const { doc, task, ops } = await loadPdfDocument(file);
   return {
     loadPdf: () =>
       Promise.resolve({
@@ -106,9 +107,20 @@ export async function browserPdfDeps(file: Blob): Promise<PdfReaderDeps> {
                   ...(typeof candidate.width === 'number'
                     ? { width: candidate.width }
                     : {}),
+                  ...(typeof candidate.height === 'number'
+                    ? { height: candidate.height }
+                    : {}),
                 });
               }
               return { items };
+            },
+            getPictures: async (items) => {
+              const viewport = page.getViewport({ scale: 1 });
+              const list = await page.getOperatorList();
+              return {
+                viewport,
+                pictures: picturesOnPage(list, ops, viewport, items),
+              };
             },
           };
         },
