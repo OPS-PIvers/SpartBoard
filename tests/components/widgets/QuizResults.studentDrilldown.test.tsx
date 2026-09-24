@@ -13,6 +13,7 @@ vi.mock('@/context/useDashboard', () => ({
     rosters: [],
   }),
 }));
+const features = vi.hoisted(() => new Set<string>());
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     canAccessQuizMediaResponse: () => false,
@@ -22,7 +23,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1' },
     orgId: null,
     isExternalUser: false,
-    canAccessFeature: () => false,
+    canAccessFeature: (id: string) => features.has(id),
     updateAccountPreferences: vi.fn().mockResolvedValue(undefined),
   }),
 }));
@@ -167,7 +168,8 @@ describe('QuizResults — student drill-down', () => {
     expect(p.getByText('Capital of France?')).toBeInTheDocument();
     expect(p.getByText('Incorrect')).toBeInTheDocument();
     expect(p.getByText('Rome')).toBeInTheDocument();
-    expect(p.getByText('Correct answer: Paris')).toBeInTheDocument();
+    expect(p.getByText('Correct answer')).toBeInTheDocument();
+    expect(p.getByText('Paris')).toBeInTheDocument();
     expect(p.getByText('Ungraded')).toBeInTheDocument();
     expect(p.getByText('0/2')).toBeInTheDocument();
 
@@ -254,6 +256,39 @@ describe('QuizResults — student drill-down', () => {
     expect(
       screen.getByRole('checkbox', { name: 'Select PIN 1111' })
     ).toBeChecked();
+  });
+
+  it('lists answer groups as plain names with no jump while the tools flag is off', () => {
+    renderResults(undefined, /question results/i);
+    fireEvent.click(screen.getByRole('button', { name: /Capital of France/ }));
+    const incorrect = screen.getByTestId('drilldown-column-incorrect');
+    expect(within(incorrect).getByText('PIN 1111').tagName).toBe('SPAN');
+    expect(
+      within(incorrect).queryByRole('button', { name: 'PIN 1111' })
+    ).toBeNull();
+  });
+
+  it('opens a student from item analysis when the tools flag is on', () => {
+    features.add('quiz-results-tools');
+    try {
+      renderResults(undefined, /question results/i);
+      fireEvent.click(
+        screen.getByRole('button', { name: /Capital of France/ })
+      );
+      const incorrect = screen.getByTestId('drilldown-column-incorrect');
+      fireEvent.click(
+        within(incorrect).getByRole('button', { name: 'PIN 1111' })
+      );
+      const nameButton = screen.getByRole('button', { name: /PIN 1111/ });
+      expect(nameButton).toHaveAttribute('aria-expanded', 'true');
+      expect(nameButton).toHaveFocus();
+      expect(screen.getByRole('button', { name: /PIN 2222/ })).toHaveAttribute(
+        'aria-expanded',
+        'false'
+      );
+    } finally {
+      features.clear();
+    }
   });
 
   it('offers no group action without per-student publishing', () => {
