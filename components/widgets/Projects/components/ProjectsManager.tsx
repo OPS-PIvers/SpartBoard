@@ -468,8 +468,8 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
     ];
     if (run) {
       secondary.splice(1, 0, {
-        id: 'add-groups',
-        label: 'Add groups',
+        id: 'manage-groups',
+        label: 'Manage groups',
         icon: Users,
         onClick: () => onSetupGroups(project.id),
       });
@@ -556,8 +556,8 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
         onClick: () => setEditingId(project.id),
       });
       secondary.push({
-        id: 'add-groups',
-        label: 'Add groups',
+        id: 'manage-groups',
+        label: 'Manage groups',
         icon: Users,
         onClick: () => onSetupGroups(project.id),
       });

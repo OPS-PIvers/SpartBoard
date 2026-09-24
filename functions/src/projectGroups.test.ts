@@ -26,13 +26,21 @@ import * as CryptoJS from 'crypto-js';
 const h = vi.hoisted(() => ({
   hmacSecret: 'test-hmac-secret' as string,
   docStore: new Map<string, any>(),
-  writes: [] as Array<{ type: 'set' | 'update'; path: string; data: any }>,
+  writes: [] as Array<{
+    type: 'set' | 'update' | 'delete';
+    path: string;
+    data?: any;
+  }>,
+  recursiveDeletes: [] as string[],
 }));
 
 vi.mock('./functionsInit', () => ({}));
 
 vi.mock('./secrets', () => ({
   STUDENT_PSEUDONYM_HMAC_SECRET: { value: () => h.hmacSecret },
+  CLASSLINK_CLIENT_ID: { value: () => '' },
+  CLASSLINK_CLIENT_SECRET: { value: () => '' },
+  CLASSLINK_TENANT_URL: { value: () => '' },
 }));
 
 vi.mock('firebase-functions/v2/https', () => {
@@ -58,6 +66,7 @@ vi.mock('firebase-admin', () => {
       id: path.split('/').pop(),
       exists: data !== undefined,
       data: () => data,
+      get: (field: string) => data?.[field],
     };
   };
   const docRef = (path: string): any => ({
@@ -68,16 +77,36 @@ vi.mock('firebase-admin', () => {
   const collRef = (path: string): any => ({
     doc: (id: string) => docRef(`${path}/${id}`),
   });
+  // The org lookup behind the test-class gate: domain '@school.org' → 'org-1'.
+  const domainsQuery = (domain: string): any => ({
+    where: (_f: string, _op: string, value: string) =>
+      value === 'verified' ? domainsQuery(domain) : domainsQuery(value),
+    limit: () => domainsQuery(domain),
+    get: async () =>
+      domain === '@school.org'
+        ? {
+            empty: false,
+            docs: [{ ref: { parent: { parent: { id: 'org-1' } } } }],
+          }
+        : { empty: true, docs: [] },
+  });
   const db: any = {
     collection: (name: string) => collRef(name),
+    doc: (path: string) => docRef(path),
+    collectionGroup: () => domainsQuery(''),
     getAll: async (...refs: any[]) => refs.map((r) => snapFor(r._path)),
     batch: () => ({
       set: (ref: any, data: any) =>
         h.writes.push({ type: 'set', path: ref._path, data }),
       update: (ref: any, data: any) =>
         h.writes.push({ type: 'update', path: ref._path, data }),
+      delete: (ref: any) => h.writes.push({ type: 'delete', path: ref._path }),
       commit: async () => {
         for (const w of h.writes) {
+          if (w.type === 'delete') {
+            h.docStore.delete(w.path);
+            continue;
+          }
           h.docStore.set(
             w.path,
             w.type === 'set'
@@ -87,6 +116,14 @@ vi.mock('firebase-admin', () => {
         }
       },
     }),
+    recursiveDelete: async (ref: any) => {
+      h.recursiveDeletes.push(ref._path);
+      for (const key of [...h.docStore.keys()]) {
+        if (key === ref._path || key.startsWith(`${ref._path}/`)) {
+          h.docStore.delete(key);
+        }
+      }
+    },
   };
   return { firestore: () => db };
 });
@@ -102,6 +139,13 @@ const call = (data: unknown, auth: unknown = { uid: TEACHER, token: {} }) =>
     data,
     auth,
   });
+
+const TEST_CLASS_PATH = 'organizations/org-1/testClasses/mock-class';
+const ADMIN_AUTH = { uid: TEACHER, token: { email: 'paul@school.org' } };
+const expectedTestUid = (email: string) =>
+  CryptoJS.HmacSHA256(`sid:test:${email}`, h.hmacSecret).toString(
+    CryptoJS.enc.Hex
+  );
 
 const expectedUid = (sourcedId: string) =>
   CryptoJS.HmacSHA256(`sid:${sourcedId}`, h.hmacSecret).toString(
@@ -120,6 +164,7 @@ const groupEntry = (overrides: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   h.docStore.clear();
   h.writes.length = 0;
+  h.recursiveDeletes.length = 0;
   h.hmacSecret = 'test-hmac-secret';
   h.docStore.set(RUN_PATH, {
     id: RUN_ID,
@@ -311,5 +356,174 @@ describe('commitProjectGroupsV1 writes', () => {
     await expect(
       call({ runId: RUN_ID, groups: [groupEntry()] })
     ).rejects.toMatchObject({ code: 'internal' });
+  });
+});
+
+describe('commitProjectGroupsV1 test-class members', () => {
+  const testGroup = (overrides: Record<string, unknown> = {}) =>
+    groupEntry({
+      classId: 'mock-class',
+      classLinkSourcedIds: [],
+      testEmails: ['Kid.One@school.org', 'kid.two@school.org'],
+      ...overrides,
+    });
+
+  beforeEach(() => {
+    h.docStore.set(TEST_CLASS_PATH, {
+      memberEmails: ['kid.one@school.org', 'kid.two@school.org'],
+    });
+    h.docStore.set('organizations/org-1/members/paul@school.org', {
+      roleId: 'domain_admin',
+    });
+  });
+
+  it('mints the uid a test-class sign-in carries', async () => {
+    const result = await call(
+      { runId: RUN_ID, groups: [testGroup()] },
+      ADMIN_AUTH
+    );
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([
+      expectedTestUid('kid.one@school.org'),
+      expectedTestUid('kid.two@school.org'),
+    ]);
+    expect(result.membersResolved).toBe(2);
+    expect(result.classIds).toEqual(['mock-class']);
+  });
+
+  it('drops an email that is not in the named test class', async () => {
+    await call(
+      {
+        runId: RUN_ID,
+        groups: [testGroup({ testEmails: ['kid.one@school.org', 'x@y.org'] })],
+      },
+      ADMIN_AUTH
+    );
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([
+      expectedTestUid('kid.one@school.org'),
+    ]);
+  });
+
+  it('places no test students for a caller who does not administer test classes', async () => {
+    h.docStore.delete('organizations/org-1/members/paul@school.org');
+    const result = await call(
+      { runId: RUN_ID, groups: [testGroup()] },
+      ADMIN_AUTH
+    );
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([]);
+    expect(result.membersResolved).toBe(0);
+  });
+
+  it('counts test emails toward the member ceiling', async () => {
+    const testEmails = Array.from({ length: 21 }, (_, i) => `k${i}@school.org`);
+    const classLinkSourcedIds = Array.from({ length: 20 }, (_, i) => `S${i}`);
+    await expect(
+      call(
+        {
+          runId: RUN_ID,
+          groups: [testGroup({ testEmails, classLinkSourcedIds })],
+        },
+        ADMIN_AUTH
+      )
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+  });
+});
+
+describe('commitProjectGroupsV1 edits and deletes', () => {
+  const seedGroup = (id: string, memberUids: string[]) =>
+    h.docStore.set(`${RUN_PATH}/groups/${id}`, {
+      id,
+      name: id,
+      classId: 'class-a',
+      memberUids,
+      order: 0,
+      stepStates: { 'step-1': 'done' },
+      needsSupport: false,
+      workLinks: [],
+      updatedAt: 1,
+    });
+
+  it('keeps a stored member the client could not name', async () => {
+    seedGroup('g1', ['unnamed-uid']);
+    await call({
+      runId: RUN_ID,
+      groups: [
+        groupEntry({
+          classLinkSourcedIds: ['SID-1'],
+          keepMemberUids: ['unnamed-uid'],
+        }),
+      ],
+    });
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([
+      'unnamed-uid',
+      expectedUid('SID-1'),
+    ]);
+  });
+
+  it('drops a kept uid that is not already on the group', async () => {
+    seedGroup('g1', ['unnamed-uid']);
+    await call({
+      runId: RUN_ID,
+      groups: [
+        groupEntry({
+          classLinkSourcedIds: [],
+          keepMemberUids: ['unnamed-uid', 'someone-else'],
+        }),
+      ],
+    });
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([
+      'unnamed-uid',
+    ]);
+  });
+
+  it('never keeps a uid on a brand-new group', async () => {
+    await call({
+      runId: RUN_ID,
+      groups: [
+        groupEntry({ classLinkSourcedIds: [], keepMemberUids: ['forged'] }),
+      ],
+    });
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([]);
+  });
+
+  it('deletes a group with its grade and subcollections', async () => {
+    seedGroup('g1', ['u1']);
+    seedGroup('g2', ['u2']);
+    h.docStore.set(`${RUN_PATH}/groups/g1/uploads/up1`, { id: 'up1' });
+    h.docStore.set(`${RUN_PATH}/grades/g1`, { groupId: 'g1' });
+
+    const result = await call({
+      runId: RUN_ID,
+      groups: [],
+      deleteGroupIds: ['g1'],
+    });
+
+    expect(result.groupsDeleted).toBe(1);
+    expect(h.recursiveDeletes).toEqual([`${RUN_PATH}/groups/g1`]);
+    expect(h.docStore.has(`${RUN_PATH}/groups/g1`)).toBe(false);
+    expect(h.docStore.has(`${RUN_PATH}/groups/g1/uploads/up1`)).toBe(false);
+    expect(h.docStore.has(`${RUN_PATH}/grades/g1`)).toBe(false);
+    expect(h.docStore.has(`${RUN_PATH}/groups/g2`)).toBe(true);
+  });
+
+  it('refuses a delete from someone other than the run teacher', async () => {
+    seedGroup('g1', ['u1']);
+    await expect(
+      call(
+        { runId: RUN_ID, groups: [], deleteGroupIds: ['g1'] },
+        { uid: 'teacher-2', token: {} }
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(h.docStore.has(`${RUN_PATH}/groups/g1`)).toBe(true);
+  });
+
+  it.each([
+    [{ runId: RUN_ID, groups: [], deleteGroupIds: ['a/b'] }],
+    [{ runId: RUN_ID, groups: [], deleteGroupIds: 'g1' }],
+    [{ runId: RUN_ID, groups: [groupEntry()], deleteGroupIds: ['g1'] }],
+    [{ runId: RUN_ID, groups: [], deleteGroupIds: [] }],
+  ])('rejects %j', async (payload) => {
+    await expect(call(payload)).rejects.toMatchObject({
+      code: 'invalid-argument',
+    });
   });
 });
