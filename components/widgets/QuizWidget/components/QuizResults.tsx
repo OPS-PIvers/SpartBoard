@@ -834,7 +834,9 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     );
     if (!ok) return false;
     // Each reopen is its own small batch, so run them side by side.
-    const outcomes = await Promise.allSettled(done.map(onReopenStudent));
+    const outcomes = await Promise.allSettled(
+      done.map((key) => onReopenStudent(key))
+    );
     const failed = outcomes.filter((o) => {
       if (o.status === 'fulfilled') return false;
       logError('QuizResults.reopenStudent', o.reason);
