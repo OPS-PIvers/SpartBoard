@@ -1,5 +1,11 @@
+import {
+  isDestructiveAnchor,
+  isTourAnchorId,
+  parseTourAnchorRef,
+} from '@/config/tourAnchors';
 import type {
   GuidedLearningSet,
+  GuidedLearningTourBinding,
   GuidedLearningStep,
   WidgetData,
   WidgetType,
@@ -13,6 +19,19 @@ export type TourStep = GuidedLearningStep & {
 export const tourStepsOf = (set: GuidedLearningSet): TourStep[] =>
   set.steps.filter((s): s is TourStep => !!s.tour);
 
+/** Every step a live tour plays, anchored or plain, or none when nothing is anchored. */
+export const liveTourStepsOf = (
+  set: Pick<GuidedLearningSet, 'steps'>
+): GuidedLearningStep[] => (set.steps.some((s) => !!s.tour) ? set.steps : []);
+
+/** The set's welcome message when it is switched on and not blank. */
+export const tourWelcome = (
+  set: Pick<GuidedLearningSet, 'welcomeEnabled' | 'welcomeMessage'>
+): string | null => {
+  const message = set.welcomeMessage?.trim();
+  return set.welcomeEnabled && message ? message : null;
+};
+
 /** Widget types the tour needs that the board does not have yet. */
 export const missingSetupWidgets = (
   set: Pick<GuidedLearningSet, 'tourSetup'>,
@@ -24,18 +43,44 @@ export const missingSetupWidgets = (
   );
 };
 
-/** Widgets that appeared after setup started and are of a type the tour added. */
-export const addedWidgetIds = (
+/** The widget instance the tour added for each type, keyed by type. */
+export type TourWidgetClaims = Partial<Record<WidgetType, string>>;
+
+/** Claims the first new widget of each added type once; later same-type widgets are the teacher's. */
+export const claimTourWidgets = (
   widgets: readonly Pick<WidgetData, 'id' | 'type'>[],
   beforeIds: ReadonlySet<string>,
-  addedTypes: readonly WidgetType[]
-): string[] =>
-  widgets
-    .filter((w) => !beforeIds.has(w.id) && addedTypes.includes(w.type))
-    .map((w) => w.id);
+  addedTypes: readonly WidgetType[],
+  claims: TourWidgetClaims = {}
+): TourWidgetClaims => {
+  let next = claims;
+  for (const type of addedTypes) {
+    if (next[type]) continue;
+    const w = widgets.find((x) => x.type === type && !beforeIds.has(x.id));
+    if (w) next = { ...next, [type]: w.id };
+  }
+  return next;
+};
+
+/** Claimed widget ids still on the board: exactly what teardown may remove. */
+export const tourWidgetIds = (
+  widgets: readonly Pick<WidgetData, 'id'>[],
+  claims: TourWidgetClaims
+): string[] => {
+  const ids = new Set(Object.values(claims));
+  return widgets.filter((w) => ids.has(w.id)).map((w) => w.id);
+};
 
 /** Whether a tour step has a recorded slide to show when its anchor is missing. */
 export const hasStepSlide = (
   set: Pick<GuidedLearningSet, 'imageUrls'>,
   step: Pick<GuidedLearningStep, 'imageIndex'>
 ): boolean => !!set.imageUrls[step.imageIndex ?? 0];
+
+/** Whether autopilot must leave this step's click to the teacher; fallback-only steps default to yes. */
+export const teacherMustClick = (
+  binding: Pick<GuidedLearningTourBinding, 'anchor' | 'teacherMustClick'>
+): boolean =>
+  binding.teacherMustClick ??
+  (!isTourAnchorId(parseTourAnchorRef(binding.anchor).id) ||
+    isDestructiveAnchor(binding.anchor));

@@ -1,5 +1,24 @@
 import type { GuidedLearningMode, GuidedLearningPublicStep } from '@/types';
 import type { PlaybackMode } from '../../types/stage';
+import { extractYouTubeId } from '@/utils/youtube';
+
+const VIDEO_FILE = /\.(mp4|webm|ogv|ogg|mov|m4v)$/i;
+const STORAGE_HOSTS = [
+  'firebasestorage.googleapis.com',
+  'storage.googleapis.com',
+];
+
+/** Whether the player can hear a video end: YouTube, an uploaded file or a video file URL. */
+export function observableVideoUrl(url: string): boolean {
+  if (extractYouTubeId(url)) return true;
+  try {
+    const u = new URL(url);
+    if (STORAGE_HOSTS.includes(u.hostname)) return true;
+    return VIDEO_FILE.test(decodeURIComponent(u.pathname));
+  } catch {
+    return false;
+  }
+}
 
 /** Try mode waits this long before the hint cursor shows the target. */
 export const TRY_HINT_MS = 5000;
@@ -16,6 +35,16 @@ export function hasStepTarget(step: GuidedLearningPublicStep | null): boolean {
   if (t === 'audio' || t === 'video' || t === 'question') return false;
   if (t === 'text-popover' && !step.region) return false;
   return true;
+}
+
+/** Whether a step plays media whose end, not the step clock, advances Watch. */
+export function holdsForMedia(step: GuidedLearningPublicStep | null): boolean {
+  if (!step) return false;
+  if (step.interactionType === 'audio') return Boolean(step.audioUrl);
+  if (step.interactionType === 'video') {
+    return Boolean(step.videoUrl) && observableVideoUrl(step.videoUrl ?? '');
+  }
+  return false;
 }
 
 /** Point on the gentle quadratic curve from `a` to `b` at t (control bowed up-left). */

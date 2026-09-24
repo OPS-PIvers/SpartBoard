@@ -18,7 +18,14 @@
  * Reference: components/widgets/QuizWidget/components/QuizManager.tsx.
  */
 
-import React, { useCallback, useMemo, useState, lazy, Suspense } from 'react';
+import React, {
+  useCallback,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  lazy,
+  Suspense,
+} from 'react';
 import {
   Plus,
   Play,
@@ -45,10 +52,11 @@ import {
 import type {
   AssignmentMode,
   GuidedLearningAssignment,
+  GuidedLearningBuildingSetIndex,
   GuidedLearningSet,
   GuidedLearningSetMetadata,
 } from '@/types';
-import { pickThumbnailUrl } from '@/utils/guidedLearningMedia';
+import { thumbnailUrl } from '@/utils/guidedLearningMedia';
 import { HELP_CENTER_SOURCE, isHelpCenterSet } from '../utils/helpCenterSets';
 import { LibraryShell } from '@/components/common/library/LibraryShell';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
@@ -57,6 +65,7 @@ import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
+import { AuthContext } from '@/context/AuthContextValue';
 import { useDialog } from '@/context/useDialog';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
@@ -73,6 +82,7 @@ import {
   ROOT_FOLDER_COUNT_KEY,
 } from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
+import { useTranslation } from 'react-i18next';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import type {
   LibraryBadge,
@@ -86,10 +96,12 @@ import {
   requestRecordTour,
   requestStartTour,
 } from '@/components/tours/tourState';
+import { useLiveToursEnabled } from '@/components/tours/useTourOffers';
 import {
-  setHasLiveTour,
-  useLiveToursEnabled,
-} from '@/components/tours/useTourOffers';
+  getToursVersion,
+  isTourRunnable,
+  watchTours,
+} from '@/components/tours/publishedTours';
 
 // Lazy so the preview player chunk loads only when a teacher hits Play preview.
 const LazyGuidedLearningPlayer = lazy(() =>
@@ -118,8 +130,8 @@ interface LibraryEntry {
   order?: number;
   /** Personal-only: the drive file id needed to load/delete the set. */
   driveFileId?: string;
-  /** Building-only: the hydrated building set so callers can pass it through. */
-  buildingSet?: GuidedLearningSet;
+  /** Building-only: the index entry; the full set is fetched when opened. */
+  buildingEntry?: GuidedLearningBuildingSetIndex;
   /** Building-only: owned by the Help Center, so only the Help Center filter lists it. */
   helpCenter?: boolean;
   /** Personal-only: current folder assignment (`null` = root). */
@@ -134,13 +146,16 @@ export interface GuidedLearningManagerProps {
   /** Personal set metadata (Drive-backed). */
   sets: GuidedLearningSetMetadata[];
   /** Admin-authored building sets (Firestore-backed). */
-  buildingSets: GuidedLearningSet[];
+  buildingSets: GuidedLearningBuildingSetIndex[];
   /** Teacher's per-assignment archive. */
   assignments: GuidedLearningAssignment[];
 
   loading: boolean;
   buildingLoading: boolean;
   assignmentsLoading: boolean;
+  /** Closed assignments past the loaded pages may exist. */
+  hasOlderAssignments?: boolean;
+  onShowOlderAssignments?: () => void;
   isDriveConnected: boolean;
   isAdmin: boolean;
 
@@ -148,29 +163,29 @@ export interface GuidedLearningManagerProps {
   onPlay: (
     setId: string,
     driveFileId?: string,
-    buildingSet?: GuidedLearningSet
+    buildingEntry?: GuidedLearningBuildingSetIndex
   ) => void;
   onEdit: (
     setId: string,
     driveFileId?: string,
-    buildingSet?: GuidedLearningSet
+    buildingEntry?: GuidedLearningBuildingSetIndex
   ) => void;
   onAssign: (
     setId: string,
     driveFileId?: string,
-    buildingSet?: GuidedLearningSet
+    buildingEntry?: GuidedLearningBuildingSetIndex
   ) => void;
   /** Phase 5 — warm the set-data cache when a card is selected. */
   onPrefetchSet?: (
     setId: string,
     driveFileId?: string,
-    buildingSet?: GuidedLearningSet
+    buildingEntry?: GuidedLearningBuildingSetIndex
   ) => void;
   /** Phase 5 — cached, toast-free loader backing the inline preview player. */
   loadSetForPreview?: (
     setId: string,
     driveFileId?: string,
-    buildingSet?: GuidedLearningSet
+    buildingEntry?: GuidedLearningBuildingSetIndex
   ) => Promise<GuidedLearningSet | null>;
   onDeletePersonal: (
     setId: string,
@@ -208,7 +223,7 @@ export interface GuidedLearningManagerProps {
   onExport?: (
     setId: string,
     driveFileId?: string,
-    buildingSet?: GuidedLearningSet
+    buildingEntry?: GuidedLearningBuildingSetIndex
   ) => void;
   /** Opens the .gl.json import wizard (header secondary action). */
   onImport?: () => void;
@@ -216,8 +231,8 @@ export interface GuidedLearningManagerProps {
   importFocusCounter?: number;
   onCreateNewPersonal: () => void;
   onCreateNewBuilding: () => void;
-  /** Admin-only — opens the standalone AI authoring dialog for building sets. */
-  onOpenAIAuthoring: () => void;
+  /** Admin-only: opens AI authoring for a new set in the library being viewed. */
+  onOpenAIAuthoring: (library: 'personal' | 'building') => void;
   /**
    * Persist new personal-set ordering. Writes `order` to the metadata doc; the
    * Drive blob is untouched. Rejecting reverts the optimistic reorder.
@@ -326,7 +341,7 @@ const LIBRARY_GET_ID = (e: LibraryEntry): string => e.id;
 // affordance is admin-gated (handled at the component level).
 const buildLibraryEntries = (
   sets: GuidedLearningSetMetadata[],
-  buildingSets: GuidedLearningSet[]
+  buildingSets: GuidedLearningBuildingSetIndex[]
 ): LibraryEntry[] => {
   const personal: LibraryEntry[] = sets.map((meta) => ({
     id: `personal:${meta.id}`,
@@ -335,7 +350,7 @@ const buildLibraryEntries = (
     description: meta.description,
     stepCount: meta.stepCount,
     mode: meta.mode,
-    imageUrl: meta.imageUrl,
+    imageUrl: thumbnailUrl(meta.imageUrl),
     updatedAt: meta.updatedAt,
     createdAt: meta.createdAt,
     order: meta.order,
@@ -343,18 +358,21 @@ const buildLibraryEntries = (
     folderId: meta.folderId ?? null,
   }));
 
-  const building: LibraryEntry[] = buildingSets.map((set) => ({
-    id: `building:${set.id}`,
+  const building: LibraryEntry[] = buildingSets.map((entry) => ({
+    id: `building:${entry.id}`,
     source: 'building',
-    title: set.title,
-    description: set.description,
-    stepCount: set.steps.length,
-    mode: set.mode,
-    imageUrl: pickThumbnailUrl(set),
-    updatedAt: set.updatedAt,
-    createdAt: set.createdAt,
-    buildingSet: set,
-    helpCenter: isHelpCenterSet(set),
+    title: entry.title,
+    description: entry.description ?? undefined,
+    stepCount: entry.stepCount,
+    mode: entry.mode,
+    imageUrl: thumbnailUrl(entry.thumbnail),
+    updatedAt: entry.updatedAt,
+    createdAt: entry.createdAt,
+    ...(entry.order !== null && entry.order !== undefined
+      ? { order: entry.order }
+      : {}),
+    buildingEntry: entry,
+    helpCenter: isHelpCenterSet(entry),
   }));
 
   return [...personal, ...building];
@@ -399,6 +417,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   loading,
   buildingLoading,
   assignmentsLoading,
+  hasOlderAssignments = false,
+  onShowOlderAssignments,
   isDriveConnected,
   isAdmin,
   onPlay,
@@ -430,9 +450,29 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onAssignmentUnpublishScores,
   assignmentMode = 'submissions',
 }) => {
+  const { t } = useTranslation();
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
   const liveTours = useLiveToursEnabled();
+  // Only a published snapshot runs from the library; the shared watchers read each tour once per page.
+  const liveTourKey = liveTours
+    ? buildingSets
+        .filter((e) => e.hasLiveTour)
+        .map((e) => e.id)
+        .join(',')
+    : '';
+  const watchLiveTours = useCallback(
+    (onChange: () => void) =>
+      liveTourKey
+        ? watchTours(liveTourKey.split(','), onChange)
+        : () => undefined,
+    [liveTourKey]
+  );
+  useSyncExternalStore(watchLiveTours, getToursVersion, getToursVersion);
+  // Same gate as the Studio's AI button.
+  const aiAuthoring =
+    React.useContext(AuthContext)?.canAccessFeature('gemini-functions') ??
+    false;
   const [tab, setTab] = React.useState<LibraryTab>('library');
 
   // ─── Bulk selection (Step 8) ────────────────────────────────────────────
@@ -716,8 +756,15 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     ...(isAdmin && liveTours
       ? [{ label: 'Record a tour', icon: Circle, onClick: requestRecordTour }]
       : []),
-    ...(isAdmin && isBuildingFiltered
-      ? [{ label: 'AI', icon: Sparkles, onClick: onOpenAIAuthoring }]
+    ...(isAdmin && aiAuthoring
+      ? [
+          {
+            label: 'AI',
+            icon: Sparkles,
+            onClick: () =>
+              onOpenAIAuthoring(isBuildingFiltered ? 'building' : 'personal'),
+          },
+        ]
       : []),
     ...(onImport
       ? [
@@ -776,7 +823,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
               ? entry.id.slice('personal:'.length)
               : entry.id.slice('building:'.length),
             entry.driveFileId,
-            entry.buildingSet
+            entry.buildingEntry
           );
         },
       });
@@ -787,13 +834,24 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         ? entry.id.slice('personal:'.length)
         : entry.id.slice('building:'.length);
 
-    if (liveTours && entry.buildingSet && setHasLiveTour(entry.buildingSet)) {
-      secondary.push({
-        id: 'run-live',
-        label: 'Run live on my board',
-        icon: Footprints,
-        onClick: () => requestStartTour({ setId: rawId }),
-      });
+    if (liveTours && entry.buildingEntry?.hasLiveTour) {
+      const runnable = isTourRunnable(rawId);
+      if (runnable === true) {
+        secondary.push({
+          id: 'run-live',
+          label: t('glStudio.runLive'),
+          icon: Footprints,
+          onClick: () => requestStartTour({ setId: rawId }),
+        });
+      } else if (runnable === false && canEdit) {
+        // Authors can try an unpublished tour; teachers never see it.
+        secondary.push({
+          id: 'run-live',
+          label: t('glStudio.runLiveDraft'),
+          icon: Footprints,
+          onClick: () => requestStartTour({ setId: rawId, draft: true }),
+        });
+      }
     }
 
     const recentSessionId = recentSessionIds[rawId];
@@ -806,12 +864,12 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       });
     }
 
-    if (onExport && (entry.driveFileId || entry.buildingSet)) {
+    if (onExport && (entry.driveFileId || entry.buildingEntry)) {
       secondary.push({
         id: 'export',
         label: 'Export (.gl.json)',
         icon: Download,
-        onClick: () => onExport(rawId, entry.driveFileId, entry.buildingSet),
+        onClick: () => onExport(rawId, entry.driveFileId, entry.buildingEntry),
       });
     }
 
@@ -888,6 +946,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         alt=""
         aria-hidden="true"
         className="h-full w-full object-cover"
+        loading="lazy"
+        decoding="async"
       />
     ) : (
       <BookOpen
@@ -910,12 +970,13 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         secondaryPrimaryAction={{
           label: 'Play',
           icon: Play,
-          onClick: () => onPlay(rawId, entry.driveFileId, entry.buildingSet),
+          onClick: () => onPlay(rawId, entry.driveFileId, entry.buildingEntry),
         }}
         primaryAction={{
           label: primaryActionLabel,
           icon: Link2,
-          onClick: () => onAssign(rawId, entry.driveFileId, entry.buildingSet),
+          onClick: () =>
+            onAssign(rawId, entry.driveFileId, entry.buildingEntry),
         }}
         secondaryActions={secondary}
         // Phase 5 follow-up — single-click opens preview pane, double-
@@ -925,14 +986,14 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         onClick={() => {
           setPreviewEntryId(entry.id);
           // Warm the set-data cache so Play / preview are instant.
-          onPrefetchSet?.(rawId, entry.driveFileId, entry.buildingSet);
+          onPrefetchSet?.(rawId, entry.driveFileId, entry.buildingEntry);
         }}
         onDoubleClick={
           canEdit
             ? () => {
                 // Close the preview so it can't show pre-edit content after save.
                 setPreviewEntryId(null);
-                onEdit(rawId, entry.driveFileId, entry.buildingSet);
+                onEdit(rawId, entry.driveFileId, entry.buildingEntry);
               }
             : undefined
         }
@@ -1243,7 +1304,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
                   target.source === 'personal'
                     ? target.id.slice('personal:'.length)
                     : target.id.slice('building:'.length);
-                onEdit(id, target.driveFileId, target.buildingSet);
+                onEdit(id, target.driveFileId, target.buildingEntry);
               }}
               canEdit={livePreviewEntry.source === 'building' ? isAdmin : true}
             />
@@ -1268,26 +1329,42 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       );
     }
     const list = mode === 'active' ? activeAssignments : archivedAssignments;
+    // Open assignments always load in full, so only the archive pages.
+    const showOlderButton =
+      mode === 'archive' && hasOlderAssignments && onShowOlderAssignments ? (
+        <button
+          type="button"
+          onClick={onShowOlderAssignments}
+          className="self-center rounded-lg px-3 py-1.5 font-semibold text-brand-blue-primary hover:bg-slate-100"
+          style={{ fontSize: 'min(12px, 4cqmin)' }}
+        >
+          {t('glAssignments.showOlder')}
+        </button>
+      ) : null;
     if (list.length === 0) {
       return (
-        <ScaledEmptyState
-          icon={mode === 'active' ? Play : ArchiveIcon}
-          title={
-            mode === 'active'
-              ? 'No live assignments'
-              : 'No archived assignments'
-          }
-          subtitle={
-            mode === 'active'
-              ? 'Assign a set from the Library tab to get started.'
-              : 'Archived assignments will appear here.'
-          }
-        />
+        <div className="flex flex-col">
+          <ScaledEmptyState
+            icon={mode === 'active' ? Play : ArchiveIcon}
+            title={
+              mode === 'active'
+                ? 'No live assignments'
+                : 'No archived assignments'
+            }
+            subtitle={
+              mode === 'active'
+                ? 'Assign a set from the Library tab to get started.'
+                : 'Archived assignments will appear here.'
+            }
+          />
+          {showOlderButton}
+        </div>
       );
     }
     return (
       <div className="flex flex-col">
         {list.map((a) => renderAssignmentCard(a, mode))}
+        {showOlderButton}
       </div>
     );
   };
@@ -1323,6 +1400,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         alt=""
         aria-hidden="true"
         className="h-full w-full object-cover"
+        loading="lazy"
+        decoding="async"
       />
     ) : (
       <BookOpen
@@ -1500,7 +1579,7 @@ const GuidedLearningPreviewPane: React.FC<{
   loadSet?: (
     setId: string,
     driveFileId?: string,
-    buildingSet?: GuidedLearningSet
+    buildingEntry?: GuidedLearningBuildingSetIndex
   ) => Promise<GuidedLearningSet | null>;
 }> = ({ entry, onClose, onEdit, canEdit, loadSet }) => {
   const { canAccessFeature } = useAuth();
@@ -1525,7 +1604,7 @@ const GuidedLearningPreviewPane: React.FC<{
     requestIdRef.current = token;
     setPreviewState('loading');
     setPreviewStale(false);
-    void loadSet(rawId, entry.driveFileId, entry.buildingSet).then((data) => {
+    void loadSet(rawId, entry.driveFileId, entry.buildingEntry).then((data) => {
       // Ignore stale results from rapid selection changes.
       if (token !== requestIdRef.current) return;
       if (data) {
@@ -1632,6 +1711,7 @@ const GuidedLearningPreviewPane: React.FC<{
                 alt=""
                 className="w-full rounded-lg border border-slate-200 bg-slate-100 object-cover"
                 loading="lazy"
+                decoding="async"
               />
             ) : (
               <div

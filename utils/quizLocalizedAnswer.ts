@@ -58,6 +58,13 @@ function convert(
     const [from, to] = pick(q.choices, loc.choices);
     return mapValue(value, from, to);
   }
+  if (q.type === 'MA') {
+    const [from, to] = pick(q.choices, loc.choices);
+    return value
+      .split('|')
+      .map((item) => mapValue(item, from, to))
+      .join('|');
+  }
   if (q.type === 'Ordering') {
     const [from, to] = pick(q.orderingItems, loc.orderingItems);
     return value

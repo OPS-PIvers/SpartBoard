@@ -128,9 +128,11 @@ export async function embedSetImages(
       `${stepMediaCount} step${stepMediaCount === 1 ? ' uses' : 's use'} uploaded audio/video that stays linked online.`
     );
   }
-  // imagePaths are importer-specific Storage paths — meaningless in a file.
+  // File refs and thumbnails belong to the exporter's storage — meaningless in a file.
   const exported: GuidedLearningSet = { ...set, imageUrls };
   delete exported.imagePaths;
+  delete exported.driveFileIds;
+  delete exported.slideThumbnails;
   return { set: exported, warnings };
 }
 
@@ -200,6 +202,8 @@ export function prepareImportedSet(
   };
   delete prepared.isBuilding;
   delete prepared.helpCenter;
+  delete prepared.driveFileIds;
+  delete prepared.slideThumbnails;
   return prepared;
 }
 

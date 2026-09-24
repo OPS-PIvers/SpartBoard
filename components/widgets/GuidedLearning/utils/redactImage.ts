@@ -112,7 +112,7 @@ export function redactPixels(
   }
 }
 
-/** Decodes a slide, redacts the rects at natural size and returns a PNG. */
+/** Decodes a slide, redacts the rects at natural size and returns a WebP (PNG where WebP can't encode). */
 export async function redactImage(
   blob: Blob,
   rects: readonly RedactRect[],
@@ -133,7 +133,8 @@ export async function redactImage(
       canvas.toBlob(
         (out) =>
           out ? resolve(out) : reject(new Error('Could not encode the image.')),
-        'image/png'
+        'image/webp',
+        0.85
       )
     );
   } finally {

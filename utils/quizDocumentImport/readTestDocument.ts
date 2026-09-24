@@ -11,6 +11,22 @@ import type { ExtractedQuiz } from './types';
 import { documentKind } from './fileKind';
 import { browserPdfDeps } from './pdfBrowserDeps';
 import { browserPdfCropper } from './pdfCropBrowser';
+import { readPdf } from './pdfReader';
+import { MAX_DOCUMENT_PAGES } from './limits';
+import type { DocLine } from './types';
+
+/** Text layer only: a scanned key isn't worth OCR on top of the AI read. */
+async function pdfTextLines(file: Blob): Promise<DocLine[]> {
+  const { loadPdf } = await browserPdfDeps(file);
+  const { lines } = await readPdf(
+    file,
+    { loadPdf },
+    {
+      maxPages: MAX_DOCUMENT_PAGES,
+    }
+  );
+  return lines;
+}
 
 export const AI_READER_FELL_BACK =
   'The document was read the simple way because the smarter reader wasn’t available. Check the questions and answers below.';
@@ -18,6 +34,10 @@ export const AI_READER_FELL_BACK =
 export interface ReadTestDocumentOptions {
   /** Supplied only when the teacher has AI access; absent means browser-only. */
   aiExtract?: AiExtractFn;
+  /** False when a teacher with AI access switched it off for this read. */
+  useAi?: boolean;
+  /** Lets the read produce choose-all-that-apply questions. */
+  multiAnswer?: boolean;
 }
 
 export async function readTestDocument(
@@ -32,27 +52,35 @@ export async function readTestDocument(
     readQuizDocument(file, {
       fileName,
       ...(kind === 'pdf' ? { pdf: await browserPdfDeps(file) } : {}),
+      ...(options.multiAnswer ? { multiAnswer: true } : {}),
     });
 
   // Rich text and LMS exports go straight to the plain reader: the callable
   // takes a PDF or a Word file, and both of those already state their own
   // structure — an export even states its own answers.
-  if (!options.aiExtract || kind === 'rtf' || kind === 'cartridge') {
-    return inBrowser();
+  if (!options.aiExtract) return inBrowser();
+  // Only a teacher who could have had AI is told which reader ran.
+  if (options.useAi === false || kind === 'rtf' || kind === 'cartridge') {
+    const extracted = await inBrowser();
+    return { ...extracted, readBy: 'plain' };
   }
 
   try {
-    return await readQuizDocumentWithAi(file, {
+    const extracted = await readQuizDocumentWithAi(file, {
       fileName,
       extract: options.aiExtract,
       cropper: browserPdfCropper,
+      readPdfLines: pdfTextLines,
+      ...(options.multiAnswer ? { multiAnswer: true } : {}),
     });
+    return { ...extracted, readBy: 'ai' };
   } catch (err) {
     // Half a quiz to fix beats an error screen mid-import.
     console.warn('[quizImport] AI reader unavailable', err);
     const extracted = await inBrowser();
     return {
       ...extracted,
+      readBy: 'plain',
       warnings: [AI_READER_FELL_BACK, ...extracted.warnings],
     };
   }

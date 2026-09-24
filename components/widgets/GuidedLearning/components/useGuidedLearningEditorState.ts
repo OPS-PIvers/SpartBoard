@@ -1,4 +1,11 @@
-import { useCallback, useMemo, useReducer, useRef, useState } from 'react';
+import {
+  useCallback,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import {
   GuidedLearningSet,
   GuidedLearningMode,
@@ -9,19 +16,26 @@ import {
   GuidedLearningVideoTrim,
   GuidedLearningWatchPace,
   LibraryFolder,
+  WidgetType,
 } from '@/types';
+import type { StepRecapture } from './recorder/recordingHandoff';
 import type { EditorHistoryApi } from '../types/stage';
 import { useAuth } from '@/context/useAuth';
-import { useStorage } from '@/hooks/useStorage';
+import {
+  useStorage,
+  type GuidedLearningImageUpload,
+  type GuidedLearningMediaHome,
+} from '@/hooks/useStorage';
 import {
   isGuidedLearningSetV2,
   stepUsesSpotlight,
 } from '../utils/setMigration';
-import { slideMediaRef } from '../utils/slideMedia';
+import { fileRefsIn, slideMediaRef } from '../utils/slideMedia';
 import { narrationDeletionRef } from '../utils/narration';
 import {
   getMediaKind,
   prepareImageForUpload,
+  slideFileIssue,
   validateSlideFile,
   videoExtensionForMime,
   type GuidedLearningMediaKind,
@@ -30,10 +44,28 @@ import {
   documentFromSet,
   editorHistoryReducer,
   initialHistory,
+  isLatestEdit,
   pendingMediaDeletions,
   type EditorDocument,
   type MediaDeletionRef,
 } from './editorHistory';
+import {
+  playOrderInsertIndex,
+  remapStepSlides,
+  stepsFollowSlide,
+} from './studio/timelineOrder';
+import {
+  readStepClipboard,
+  subscribeStepClipboard,
+  writeStepClipboard,
+} from './studio/stepClipboard';
+import { settleAiDraft } from './studio/aiDraftReview';
+
+/** Deletes the files the editor removed, each only if nothing else still uses it. */
+export type MediaRelease = (files: {
+  storagePaths: string[];
+  driveFileIds: string[];
+}) => Promise<void>;
 
 /** Live progress for the slide-upload pipeline (null when idle). */
 export interface SlideUploadProgress {
@@ -44,6 +76,19 @@ export interface SlideUploadProgress {
   /** 0–100 within the current file; null when the backend can't report. */
   percent: number | null;
 }
+
+/** A slide that couldn't be added, as data the Studio translates into a toast. */
+export type SlideUploadIssue =
+  | { code: 'unsupported'; fileName: string }
+  | {
+      code: 'tooLarge';
+      fileName: string;
+      kind: GuidedLearningMediaKind;
+      maxMb: number;
+    }
+  | { code: 'uploadFailed'; fileName: string }
+  | { code: 'noClipboardImage' }
+  | { code: 'clipboardBlocked' };
 
 /** Canvas container size + per-slide-URL natural dims, written by the canvas as slides render. */
 export interface GuidedLearningCanvasMeasurements {
@@ -58,6 +103,10 @@ interface UseGuidedLearningEditorStateProps {
   folders?: LibraryFolder[];
   folderId?: string | null;
   onFolderChange?: (folderId: string | null) => void;
+  /** Studio: new steps go after the slide's last step, and the canvas follows the selected step. */
+  setWideTimeline?: boolean;
+  /** Called with each batch of slides that couldn't be added. */
+  onUploadIssues?: (issues: SlideUploadIssue[]) => void;
 }
 
 export interface GuidedLearningEditorController extends EditorHistoryApi {
@@ -80,10 +129,17 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   /** Watch-mode pacing; undefined = standard. */
   watchPace: GuidedLearningWatchPace | undefined;
   setWatchPace: (next: GuidedLearningWatchPace | undefined) => void;
+  /** Live tours: widget types the tour adds; each change is one undo entry. */
+  tourSetupWidgets: WidgetType[];
+  setTourSetupWidgets: (next: WidgetType[]) => void;
+  /** Swaps in a re-recorded click as one undo entry; a slide other steps share is kept. */
+  recaptureStep: (capture: StepRecapture) => boolean;
   // Slides (images, GIFs, and uploaded/recorded videos)
   imageUrls: string[];
   imageKinds: GuidedLearningMediaKind[];
   videoTrims: (GuidedLearningVideoTrim | null)[];
+  /** Slide URL → 400px thumbnail URL, for slides uploaded to Storage. */
+  slideThumbnails: Record<string, string>;
   /** Set/clear the playback-range trim for a video slide. */
   setVideoTrim: (index: number, trim: GuidedLearningVideoTrim | null) => void;
   currentImageIndex: number;
@@ -91,6 +147,8 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   uploading: boolean;
   uploadProgress: SlideUploadProgress | null;
   uploadFromFiles: (files: File[]) => Promise<void>;
+  /** The author closed mid-upload: stop, and delete whatever finishes uploading. */
+  abandonUploads: () => void;
   uploadFromClipboard: () => Promise<void>;
   /** Add an editor-captured blob (screen snap / recording) as a new slide. */
   addCapturedMedia: (
@@ -98,12 +156,15 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
     kind: GuidedLearningMediaKind,
     baseName: string
   ) => Promise<void>;
-  deleteImage: (index: number) => void;
+  /** `tag` marks the edit so `undoIfLatest` can target it. */
+  deleteImage: (index: number, tag?: object) => void;
   /** Uploads a redacted copy over a slide and queues the old image for deletion on close. */
   replaceSlideImage: (index: number, blob: Blob) => Promise<boolean>;
   moveImage: (fromIndex: number, direction: -1 | 1) => void;
-  /** Reorder slides; `order[i]` is the old index of the slide now at `i`. */
-  reorderImages: (order: number[]) => void;
+  /** Reorder slides; `order[i]` is the old index of the slide now at `i`. `moveStepsOf` (an old index) takes that slide's steps along in play order. */
+  reorderImages: (order: number[], moveStepsOf?: number) => void;
+  /** Whether taking slide `moved` (an old index) along in `order` would change play order. */
+  slideMoveReordersSteps: (order: number[], moved: number) => boolean;
   imageError: string;
   // Steps
   steps: GuidedLearningStep[];
@@ -118,8 +179,25 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
     yPct: number,
     region?: GuidedLearningRegion
   ) => void;
-  updateStep: (updated: GuidedLearningStep) => void;
-  deleteStep: (id: string) => void;
+  /** Typing coalesces per step (or per `field`); `field: false` makes the edit its own undo entry. */
+  updateStep: (updated: GuidedLearningStep, field?: string | false) => void;
+  deleteStep: (id: string, tag?: object) => void;
+  /** Undoes the tagged edit only if nothing was edited or undone since; returns whether it did. */
+  undoIfLatest: (tag: object) => boolean;
+  /** Copies the step, with a new id, to just after it and selects the copy; one undo entry. */
+  duplicateStep: (id: string) => void;
+  /** Copies the slide and its steps to just after it, sharing the media file; one undo entry. */
+  duplicateSlide: (index: number) => void;
+  /** Inserts a drafted set's slides and steps after the current slide; one undo entry. Returns slides added. */
+  appendDraftedSet: (drafted: GuidedLearningSet, tag?: object) => number;
+  /** Where this set's new slide files go: Storage for building and Help Center sets, Drive for personal. */
+  mediaHome: GuidedLearningMediaHome;
+  /** Puts these steps, in play order, on the clipboard shared by every set in this browser session. */
+  copySteps: (ids: string[]) => number;
+  /** Pastes clipboard steps, with new ids, onto `slide` (default: the current slide); one undo entry. */
+  pasteSteps: (slide?: number) => number;
+  /** Steps waiting on the clipboard. */
+  clipboardStepCount: number;
   /** Apply a new ordering of the entire steps array (e.g. from drag-reorder). */
   reorderSteps: (next: GuidedLearningStep[]) => void;
   /** Uploads a recorded narration take for this editing session. */
@@ -146,12 +224,13 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   notifyCanvasMeasured: () => void;
   /** True once in-editor spotlight radii use v2 image-relative semantics. */
   spotlightRadiiV2: boolean;
-  markSpotlightRadiiV2: () => void;
-  /** Deletes every queued file whose edit is still in effect; call after a closing save. */
-  flushMediaDeletions: (
-    deleteFile: (storagePath: string) => Promise<void>,
-    deleteDriveFile: (fileId: string) => Promise<void>
-  ) => Promise<void>;
+  markSpotlightRadiiV2: (
+    convert: (steps: GuidedLearningStep[]) => GuidedLearningStep[] | null
+  ) => void;
+  /** Releases every queued file whose edit is still in effect and the set no longer uses; call after a closing save. */
+  flushMediaDeletions: (release: MediaRelease) => Promise<void>;
+  /** A drag or other gesture is open between beginGesture and endGesture. */
+  gestureOpen?: boolean;
 }
 
 // A set with no spotlight has no radius to convert, so it needs no load-time measuring.
@@ -167,13 +246,18 @@ export function useGuidedLearningEditorState({
   folders,
   folderId,
   onFolderChange,
+  setWideTimeline = false,
+  onUploadIssues,
 }: UseGuidedLearningEditorStateProps): GuidedLearningEditorController {
   const { user } = useAuth();
+  const onUploadIssuesRef = useRef(onUploadIssues);
+  onUploadIssuesRef.current = onUploadIssues;
   const {
     uploading,
-    uploadHotspotImage,
     uploadGuidedLearningMedia,
     uploadGuidedLearningImage,
+    deleteFile: deleteStorageFile,
+    deleteDriveFile: deleteDriveSlide,
   } = useStorage();
 
   const [history, dispatch] = useReducer(
@@ -196,11 +280,15 @@ export function useGuidedLearningEditorState({
     welcomeEnabled,
     welcomeMessage,
     watchPace,
+    tourSetupWidgets,
   } = history.present;
 
   const applyDoc = useCallback(
-    (update: (doc: EditorDocument) => EditorDocument, coalesceKey?: string) =>
-      dispatch({ type: 'apply', update, coalesceKey, at: Date.now() }),
+    (
+      update: (doc: EditorDocument) => EditorDocument,
+      coalesceKey?: string,
+      tag?: object
+    ) => dispatch({ type: 'apply', update, coalesceKey, at: Date.now(), tag }),
     []
   );
   const setField = useCallback(
@@ -247,6 +335,10 @@ export function useGuidedLearningEditorState({
     (next: GuidedLearningWatchPace | undefined) => setField('watchPace', next),
     [setField]
   );
+  const setTourSetupWidgets = useCallback(
+    (next: WidgetType[]) => setField('tourSetupWidgets', next),
+    [setField]
+  );
   const setSteps = useCallback<
     React.Dispatch<React.SetStateAction<GuidedLearningStep[]>>
   >(
@@ -259,6 +351,8 @@ export function useGuidedLearningEditorState({
   );
 
   const [rawImageIndex, setCurrentImageIndex] = useState(0);
+  const rawImageIndexRef = useRef(rawImageIndex);
+  rawImageIndexRef.current = rawImageIndex;
   // Undo can remove the slide being shown, so clamp on read.
   const currentImageIndex = Math.max(
     0,
@@ -273,6 +367,14 @@ export function useGuidedLearningEditorState({
   const [spotlightRadiiV2, setSpotlightRadiiV2] = useState<boolean>(() =>
     startsOnV2Radii(existingSet)
   );
+  // Outside undo history: an undone slide keeps its entry, and saves drop entries for absent slides.
+  const [slideThumbnails, setSlideThumbnails] = useState<
+    Record<string, string>
+  >(() => existingSet?.slideThumbnails ?? {});
+  const slideThumbnailsRef = useRef(slideThumbnails);
+  slideThumbnailsRef.current = slideThumbnails;
+  const mediaHome: GuidedLearningMediaHome =
+    existingSet?.isBuilding || existingSet?.helpCenter ? 'storage' : 'drive';
 
   // Reset all draft state when the underlying set identity changes (parent
   // swapped to a different set). Uses the "adjust state while rendering"
@@ -290,6 +392,7 @@ export function useGuidedLearningEditorState({
     setAddingStep(false);
     setUploadProgress(null);
     setSpotlightRadiiV2(startsOnV2Radii(existingSet));
+    setSlideThumbnails(existingSet?.slideThumbnails ?? {});
   }
 
   // Render-synced mirror of imageUrls.length so the sequential upload loop
@@ -314,6 +417,47 @@ export function useGuidedLearningEditorState({
     [applyDoc]
   );
 
+  const abandonedRef = useRef(false);
+  const abandonUploads = useCallback(() => {
+    abandonedRef.current = true;
+  }, []);
+  // True when the upload landed after the author closed; its file is deleted.
+  const discardIfAbandoned = useCallback(
+    (url: string): boolean => {
+      if (!abandonedRef.current) return false;
+      const ref = slideMediaRef(url);
+      const deletion = !ref
+        ? null
+        : 'storagePath' in ref
+          ? deleteStorageFile(ref.storagePath)
+          : deleteDriveSlide(ref.driveFileId);
+      void deletion?.catch(() => undefined);
+      return true;
+    },
+    [deleteStorageFile, deleteDriveSlide]
+  );
+
+  // Prepared (WebP, 2560 cap) and sent to this set's media home; null when it landed after close.
+  const uploadSlideImage = useCallback(
+    async (uid: string, file: File): Promise<string | null> => {
+      const prepared = await prepareImageForUpload(file);
+      const upload: GuidedLearningImageUpload = await uploadGuidedLearningImage(
+        uid,
+        prepared,
+        prepared.name.replace(/[^\w.-]+/g, '_'),
+        mediaHome
+      );
+      const { url, thumbnailUrl: thumb } = upload;
+      if (discardIfAbandoned(url)) {
+        if (thumb) discardIfAbandoned(thumb);
+        return null;
+      }
+      if (thumb) setSlideThumbnails((prev) => ({ ...prev, [url]: thumb }));
+      return url;
+    },
+    [uploadGuidedLearningImage, mediaHome, discardIfAbandoned]
+  );
+
   /**
    * Validate, compress, and upload a batch of slide files (images, GIFs,
    * MP4/WebM videos). Files upload sequentially so the progress indicator
@@ -326,14 +470,18 @@ export function useGuidedLearningEditorState({
       setImageError('');
 
       const errors: string[] = [];
+      const issues: SlideUploadIssue[] = [];
       const accepted = files.filter((file) => {
         const error = validateSlideFile(file);
+        const issue = slideFileIssue(file);
         if (error) errors.push(error);
+        if (issue) issues.push({ ...issue, fileName: file.name });
         return !error;
       });
 
       try {
         for (let i = 0; i < accepted.length; i++) {
+          if (abandonedRef.current) break;
           const file = accepted[i];
           const kind = getMediaKind(file) ?? 'image';
           setUploadProgress({
@@ -353,13 +501,14 @@ export function useGuidedLearningEditorState({
                     prev ? { ...prev, percent } : prev
                   )
               );
-              appendSlides([url], ['video']);
+              if (!discardIfAbandoned(url)) appendSlides([url], ['video']);
             } else {
-              const prepared = await prepareImageForUpload(file);
-              const url = await uploadHotspotImage(user.uid, prepared);
-              appendSlides([url], ['image']);
+              const url = await uploadSlideImage(user.uid, file);
+              if (url) appendSlides([url], ['image']);
             }
           } catch (err) {
+            console.error('[GuidedLearningEditor] Slide upload failed:', err);
+            issues.push({ code: 'uploadFailed', fileName: file.name });
             errors.push(
               err instanceof Error
                 ? `"${file.name}": ${err.message}`
@@ -371,8 +520,15 @@ export function useGuidedLearningEditorState({
         setUploadProgress(null);
       }
       if (errors.length > 0) setImageError(errors.join(' '));
+      if (issues.length > 0) onUploadIssuesRef.current?.(issues);
     },
-    [user, uploadHotspotImage, uploadGuidedLearningMedia, appendSlides]
+    [
+      user,
+      uploadSlideImage,
+      uploadGuidedLearningMedia,
+      appendSlides,
+      discardIfAbandoned,
+    ]
   );
 
   const uploadFromClipboard = useCallback(async () => {
@@ -389,10 +545,12 @@ export function useGuidedLearningEditorState({
         }
       }
       setImageError('No image found in clipboard.');
+      onUploadIssuesRef.current?.([{ code: 'noClipboardImage' }]);
     } catch {
       setImageError(
         'Could not read clipboard. Try Ctrl+V with the editor focused, or use Add media instead.'
       );
+      onUploadIssuesRef.current?.([{ code: 'clipboardBlocked' }]);
     }
   }, [uploadFromFiles]);
 
@@ -414,32 +572,52 @@ export function useGuidedLearningEditorState({
 
   const setVideoTrim = useCallback(
     (index: number, trim: GuidedLearningVideoTrim | null) => {
-      applyDoc((doc) => ({
-        ...doc,
-        videoTrims: doc.videoTrims.map((existing, i) =>
-          i === index ? trim : existing
-        ),
-      }));
+      // A handle drag is one undo entry.
+      applyDoc(
+        (doc) => ({
+          ...doc,
+          videoTrims: doc.videoTrims.map((existing, i) =>
+            i === index ? trim : existing
+          ),
+        }),
+        `trim:${index}`
+      );
     },
     [applyDoc]
   );
 
   const deleteImage = useCallback(
-    (deleteIndex: number) => {
+    (deleteIndex: number, tag?: object) => {
       const remaining = imageUrls.length - 1;
-      applyDoc((doc) => ({
-        ...doc,
-        imageUrls: doc.imageUrls.filter((_, index) => index !== deleteIndex),
-        imageKinds: doc.imageKinds.filter((_, index) => index !== deleteIndex),
-        videoTrims: doc.videoTrims.filter((_, index) => index !== deleteIndex),
-        steps: doc.steps
-          .filter((step) => step.imageIndex !== deleteIndex)
-          .map((step) =>
-            step.imageIndex > deleteIndex
-              ? { ...step, imageIndex: step.imageIndex - 1 }
-              : step
+      const removedUrl = historyRef.current.present.imageUrls[deleteIndex];
+      applyDoc(
+        (doc) => ({
+          ...doc,
+          imageUrls: doc.imageUrls.filter((_, index) => index !== deleteIndex),
+          imageKinds: doc.imageKinds.filter(
+            (_, index) => index !== deleteIndex
           ),
-      }));
+          videoTrims: doc.videoTrims.filter(
+            (_, index) => index !== deleteIndex
+          ),
+          steps: doc.steps
+            .filter((step) => step.imageIndex !== deleteIndex)
+            .map((step) =>
+              step.imageIndex > deleteIndex
+                ? { ...step, imageIndex: step.imageIndex - 1 }
+                : step
+            ),
+        }),
+        undefined,
+        tag
+      );
+      // Queued on the delete's history entry, so undo keeps the file until save-and-close.
+      for (const url of removedUrl
+        ? [removedUrl, slideThumbnails[removedUrl]]
+        : []) {
+        const ref = url ? slideMediaRef(url) : null;
+        if (ref) dispatch({ type: 'queueMedia', ref });
+      }
       setCurrentImageIndex((curr) => {
         if (remaining <= 0) return 0;
         if (curr === deleteIndex) return Math.min(deleteIndex, remaining - 1);
@@ -447,29 +625,94 @@ export function useGuidedLearningEditorState({
         return curr;
       });
     },
-    [imageUrls.length, applyDoc]
+    [imageUrls.length, applyDoc, slideThumbnails]
   );
 
   const replaceSlideImage = useCallback(
     async (index: number, blob: Blob): Promise<boolean> => {
       const oldUrl = historyRef.current.present.imageUrls[index];
       if (!user || !oldUrl) return false;
-      const { url } = await uploadGuidedLearningImage(
+      const ext = blob.type === 'image/webp' ? 'webp' : 'png';
+      const url = await uploadSlideImage(
         user.uid,
-        blob,
-        'redacted.png'
+        new File([blob], `redacted.${ext}`, { type: blob.type || 'image/png' })
       );
+      if (!url) return false;
       // Slides may have moved during the upload, so find the old image again.
       if (!historyRef.current.present.imageUrls.includes(oldUrl)) return false;
-      applyDoc((doc) => ({
-        ...doc,
-        imageUrls: doc.imageUrls.map((u) => (u === oldUrl ? url : u)),
-      }));
+      applyDoc((doc) => {
+        // A duplicate sharing the old image keeps it.
+        const at =
+          doc.imageUrls[index] === oldUrl
+            ? index
+            : doc.imageUrls.indexOf(oldUrl);
+        return {
+          ...doc,
+          imageUrls: doc.imageUrls.map((u, i) => (i === at ? url : u)),
+        };
+      });
       const ref = slideMediaRef(oldUrl);
       if (ref) dispatch({ type: 'queueMedia', ref });
       return true;
     },
-    [user, uploadGuidedLearningImage, applyDoc]
+    [user, uploadSlideImage, applyDoc]
+  );
+
+  const recaptureStep = useCallback(
+    (capture: StepRecapture): boolean => {
+      const doc = historyRef.current.present;
+      const step = doc.steps.find((s) => s.id === capture.stepId);
+      if (!step) return false;
+      const slide = step.imageIndex;
+      const oldUrl = doc.imageUrls[slide];
+      const replace =
+        !!oldUrl &&
+        !doc.steps.some((s) => s.id !== step.id && s.imageIndex === slide);
+      const at = replace ? slide : Math.min(slide + 1, doc.imageUrls.length);
+      const { xPct, yPct, region } = capture.placement;
+      applyDoc((d) => {
+        const insertAt = <T>(list: T[], value: T): T[] =>
+          replace
+            ? list.map((v, i) => (i === at ? value : v))
+            : [...list.slice(0, at), value, ...list.slice(at)];
+        return {
+          ...d,
+          imageUrls: insertAt(d.imageUrls, capture.url),
+          imageKinds: insertAt<GuidedLearningMediaKind>(d.imageKinds, 'image'),
+          videoTrims: insertAt<GuidedLearningVideoTrim | null>(
+            d.videoTrims,
+            null
+          ),
+          steps: d.steps.map((s) => {
+            if (s.id === capture.stepId)
+              return {
+                ...s,
+                xPct,
+                yPct,
+                region,
+                tour: capture.tour,
+                imageIndex: at,
+              };
+            return !replace && s.imageIndex >= at
+              ? { ...s, imageIndex: s.imageIndex + 1 }
+              : s;
+          }),
+        };
+      });
+      const thumb = capture.thumbnailUrl;
+      if (thumb)
+        setSlideThumbnails((prev) => ({ ...prev, [capture.url]: thumb }));
+      if (replace) {
+        for (const url of [oldUrl, slideThumbnailsRef.current[oldUrl]]) {
+          const ref = url ? slideMediaRef(url) : null;
+          if (ref) dispatch({ type: 'queueMedia', ref });
+        }
+      }
+      setSelectedStepId(capture.stepId);
+      setCurrentImageIndex(at);
+      return true;
+    },
+    [applyDoc]
   );
 
   const moveImage = useCallback(
@@ -507,24 +750,34 @@ export function useGuidedLearningEditorState({
   );
 
   const reorderImages = useCallback(
-    (order: number[]) => {
-      if (order.length !== imageUrls.length) return;
+    (order: number[], moveStepsOf?: number) => {
+      // Read live: a confirmed reorder can land after more slides were added.
+      if (order.length !== historyRef.current.present.imageUrls.length) return;
       const newIndexOf = new Map(order.map((oldIndex, i) => [oldIndex, i]));
-      applyDoc((doc) => ({
-        ...doc,
-        imageUrls: order.map((i) => doc.imageUrls[i]),
-        imageKinds: order.map((i) => doc.imageKinds[i]),
-        videoTrims: order.map((i) => doc.videoTrims[i] ?? null),
-        steps: doc.steps.map((step) => {
-          const next = newIndexOf.get(step.imageIndex);
-          return next === undefined || next === step.imageIndex
-            ? step
-            : { ...step, imageIndex: next };
-        }),
-      }));
+      const followed =
+        moveStepsOf === undefined ? undefined : newIndexOf.get(moveStepsOf);
+      applyDoc((doc) => {
+        const steps = remapStepSlides(doc.steps, order);
+        return {
+          ...doc,
+          imageUrls: order.map((i) => doc.imageUrls[i]),
+          imageKinds: order.map((i) => doc.imageKinds[i]),
+          videoTrims: order.map((i) => doc.videoTrims[i] ?? null),
+          steps:
+            followed === undefined ? steps : stepsFollowSlide(steps, followed),
+        };
+      });
       setCurrentImageIndex((prev) => newIndexOf.get(prev) ?? prev);
     },
-    [imageUrls.length, applyDoc]
+    [applyDoc]
+  );
+
+  const slideMoveReordersSteps = useCallback(
+    (order: number[], moved: number) => {
+      const remapped = remapStepSlides(historyRef.current.present.steps, order);
+      return stepsFollowSlide(remapped, order.indexOf(moved)) !== remapped;
+    },
+    []
   );
 
   const addStepAt = useCallback(
@@ -539,31 +792,50 @@ export function useGuidedLearningEditorState({
         text: '',
         ...(region ? { region } : {}),
       };
-      setSteps((prev) => [...prev, newStep]);
+      setSteps((prev) => {
+        if (!setWideTimeline) return [...prev, newStep];
+        const at = playOrderInsertIndex(prev, currentImageIndex);
+        return [...prev.slice(0, at), newStep, ...prev.slice(at)];
+      });
       setSelectedStepId(newStep.id);
       setAddingStep(false);
     },
-    [currentImageIndex, setSteps]
+    [currentImageIndex, setSteps, setWideTimeline]
   );
 
   const updateStep = useCallback(
-    (updated: GuidedLearningStep) =>
+    (updated: GuidedLearningStep, field?: string | false) =>
       applyDoc(
         (doc) => ({
           ...doc,
-          steps: doc.steps.map((s) => (s.id === updated.id ? updated : s)),
+          steps: doc.steps.map((s) =>
+            s.id === updated.id ? settleAiDraft(s, updated) : s
+          ),
         }),
-        `step:${updated.id}`
+        field === false
+          ? undefined
+          : field
+            ? `step:${updated.id}:${field}`
+            : `step:${updated.id}`
       ),
     [applyDoc]
   );
 
   const deleteStep = useCallback(
-    (id: string) => {
-      setSteps((prev) => prev.filter((s) => s.id !== id));
+    (id: string, tag?: object) => {
+      applyDoc(
+        (doc) => {
+          const next = doc.steps.filter((s) => s.id !== id);
+          return next.length === doc.steps.length
+            ? doc
+            : { ...doc, steps: next };
+        },
+        undefined,
+        tag
+      );
       if (selectedStepId === id) setSelectedStepId(null);
     },
-    [selectedStepId, setSteps]
+    [selectedStepId, applyDoc]
   );
 
   const reorderSteps = useCallback(
@@ -571,8 +843,187 @@ export function useGuidedLearningEditorState({
     [setSteps]
   );
 
+  const duplicateStep = useCallback(
+    (id: string) => {
+      const source = historyRef.current.present.steps.find((s) => s.id === id);
+      if (!source) return;
+      const copy: GuidedLearningStep = {
+        ...structuredClone(source),
+        id: crypto.randomUUID(),
+      };
+      applyDoc((doc) => {
+        const at = doc.steps.findIndex((s) => s.id === id);
+        if (at < 0) return doc;
+        return {
+          ...doc,
+          steps: [
+            ...doc.steps.slice(0, at + 1),
+            copy,
+            ...doc.steps.slice(at + 1),
+          ],
+        };
+      });
+      setSelectedStepId(copy.id);
+    },
+    [applyDoc]
+  );
+
+  const duplicateSlide = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= historyRef.current.present.imageUrls.length)
+        return;
+      const at = index + 1;
+      const insert = <T>(list: T[], value: T): T[] => [
+        ...list.slice(0, at),
+        value,
+        ...list.slice(at),
+      ];
+      // Ids are minted outside the reducer so it stays pure.
+      const newIds = new Map(
+        historyRef.current.present.steps
+          .filter((s) => s.imageIndex === index)
+          .map((s): [string, string] => [s.id, crypto.randomUUID()])
+      );
+      applyDoc((doc) => {
+        const shifted = doc.steps.map((s) =>
+          s.imageIndex > index ? { ...s, imageIndex: s.imageIndex + 1 } : s
+        );
+        const copies = doc.steps.flatMap((s) => {
+          const id = s.imageIndex === index ? newIds.get(s.id) : undefined;
+          return id ? [{ ...structuredClone(s), id, imageIndex: at }] : [];
+        });
+        // The copies play right after the original slide's last step.
+        let after = -1;
+        shifted.forEach((s, i) => {
+          if (s.imageIndex === index) after = i;
+        });
+        return {
+          ...doc,
+          imageUrls: insert(doc.imageUrls, doc.imageUrls[index]),
+          imageKinds: insert(doc.imageKinds, doc.imageKinds[index] ?? 'image'),
+          videoTrims: insert(doc.videoTrims, doc.videoTrims[index] ?? null),
+          steps: [
+            ...shifted.slice(0, after + 1),
+            ...copies,
+            ...shifted.slice(after + 1),
+          ],
+        };
+      });
+      setSelectedStepId(null);
+      setCurrentImageIndex(at);
+    },
+    [applyDoc]
+  );
+
+  const appendDraftedSet = useCallback(
+    (drafted: GuidedLearningSet, tag?: object): number => {
+      const count = drafted.imageUrls.length;
+      if (count === 0) return 0;
+      const present = historyRef.current.present;
+      const empty = present.imageUrls.length === 0;
+      const current = Math.max(
+        0,
+        Math.min(rawImageIndexRef.current, present.imageUrls.length - 1)
+      );
+      const at = empty ? 0 : current + 1;
+      const draftedDoc = documentFromSet(drafted);
+      // Fresh ids outside the reducer: AI ids like "step-1" can collide with the set's.
+      const added = drafted.steps.map((s) => ({
+        ...s,
+        id: crypto.randomUUID(),
+        aiDraft: true,
+        imageIndex: at + Math.max(0, Math.min(s.imageIndex, count - 1)),
+      }));
+      const insert = <T>(list: T[], values: T[]): T[] => [
+        ...list.slice(0, at),
+        ...values,
+        ...list.slice(at),
+      ];
+      applyDoc(
+        (doc) => {
+          const shifted = doc.steps.map((s) =>
+            s.imageIndex >= at ? { ...s, imageIndex: s.imageIndex + count } : s
+          );
+          const after = empty
+            ? shifted.length
+            : playOrderInsertIndex(shifted, current);
+          return {
+            ...doc,
+            title: doc.title.trim() ? doc.title : draftedDoc.title,
+            mode: doc.steps.length > 0 ? doc.mode : draftedDoc.mode,
+            imageUrls: insert(doc.imageUrls, draftedDoc.imageUrls),
+            imageKinds: insert(doc.imageKinds, draftedDoc.imageKinds),
+            videoTrims: insert(doc.videoTrims, draftedDoc.videoTrims),
+            steps: [
+              ...shifted.slice(0, after),
+              ...added,
+              ...shifted.slice(after),
+            ],
+          };
+        },
+        undefined,
+        tag
+      );
+      if (drafted.slideThumbnails)
+        setSlideThumbnails((prev) => ({ ...prev, ...drafted.slideThumbnails }));
+      setSelectedStepId(added[0]?.id ?? null);
+      setCurrentImageIndex(at);
+      return count;
+    },
+    [applyDoc]
+  );
+
   // Takes from earlier sessions may be shared by copies or live assignments, so only this session's are ever deleted.
   const sessionTakesRef = useRef<Set<string>>(new Set());
+
+  const copySteps = useCallback((ids: string[]) => {
+    const wanted = new Set(ids);
+    const picked = historyRef.current.present.steps.filter((s) =>
+      wanted.has(s.id)
+    );
+    if (picked.length === 0) return 0;
+    // A copied take may now live in another set, so this session never deletes it.
+    for (const s of picked) {
+      if (s.narration) sessionTakesRef.current.delete(s.narration.storagePath);
+    }
+    writeStepClipboard(structuredClone(picked));
+    return picked.length;
+  }, []);
+
+  const pasteSteps = useCallback(
+    (slide?: number) => {
+      const copied = readStepClipboard();
+      const target = slide ?? currentImageIndex;
+      if (
+        copied.length === 0 ||
+        target < 0 ||
+        target >= historyRef.current.present.imageUrls.length
+      )
+        return 0;
+      const pasted = copied.map((s) => ({
+        ...structuredClone(s),
+        id: crypto.randomUUID(),
+        imageIndex: target,
+      }));
+      setSteps((prev) => {
+        if (!setWideTimeline) return [...prev, ...pasted];
+        const at = playOrderInsertIndex(prev, target);
+        return [...prev.slice(0, at), ...pasted, ...prev.slice(at)];
+      });
+      setCurrentImageIndex(target);
+      setSelectedStepId(pasted[pasted.length - 1].id);
+      setAddingStep(false);
+      return pasted.length;
+    },
+    [currentImageIndex, setSteps, setWideTimeline]
+  );
+
+  const clipboardStepCount = useSyncExternalStore(
+    subscribeStepClipboard,
+    () => readStepClipboard().length,
+    () => 0
+  );
+
   const uploadNarrationTake = useCallback(
     async (blob: Blob, mimeType: string) => {
       if (!user) throw new Error('Not signed in');
@@ -626,15 +1077,28 @@ export function useGuidedLearningEditorState({
     []
   );
 
-  // The load-time radius conversion is not an edit: undoing past it would
-  // restore legacy radii under v2 semantics.
-  const markSpotlightRadiiV2 = useCallback(() => {
-    setSpotlightRadiiV2(true);
-    dispatch({ type: 'clearHistory' });
-  }, []);
+  // The load-time radius conversion rewrites history too, so undo never restores legacy radii under v2 semantics.
+  const markSpotlightRadiiV2 = useCallback(
+    (convert: (steps: GuidedLearningStep[]) => GuidedLearningStep[] | null) => {
+      setSpotlightRadiiV2(true);
+      dispatch({
+        type: 'rebase',
+        convert: (doc) => {
+          const steps = convert(doc.steps);
+          return steps ? { ...doc, steps } : null;
+        },
+      });
+    },
+    []
+  );
 
   const undo = useCallback(() => dispatch({ type: 'undo' }), []);
   const redo = useCallback(() => dispatch({ type: 'redo' }), []);
+  const undoIfLatest = useCallback((tag: object) => {
+    if (!isLatestEdit(historyRef.current, tag)) return false;
+    dispatch({ type: 'undoIfLatest', tag });
+    return true;
+  }, []);
   const beginGesture = useCallback(
     () => dispatch({ type: 'beginGesture' }),
     []
@@ -644,29 +1108,61 @@ export function useGuidedLearningEditorState({
     (ref: MediaDeletionRef) => dispatch({ type: 'queueMedia', ref }),
     []
   );
-  const flushMediaDeletions = useCallback(
-    async (
-      deleteFile: (storagePath: string) => Promise<void>,
-      deleteDriveFile: (fileId: string) => Promise<void>
-    ) => {
-      const pending = pendingMediaDeletions(historyRef.current).filter(
-        (ref) => !flushedMediaRef.current.has(ref)
-      );
-      for (const ref of pending) flushedMediaRef.current.add(ref);
-      await Promise.allSettled(
-        pending.flatMap((ref) => [
-          ...(ref.storagePath ? [deleteFile(ref.storagePath)] : []),
-          ...(ref.driveFileId ? [deleteDriveFile(ref.driveFileId)] : []),
-        ])
-      );
-    },
-    []
-  );
+  const flushMediaDeletions = useCallback(async (release: MediaRelease) => {
+    // A file the set still shows (a duplicated slide, a re-added image) is never released.
+    const present = historyRef.current.present;
+    const inUse = fileRefsIn([
+      present.imageUrls,
+      present.steps,
+      present.imageUrls.map((url) => slideThumbnailsRef.current[url]),
+    ]);
+    const pending = pendingMediaDeletions(historyRef.current).filter(
+      (ref) =>
+        !flushedMediaRef.current.has(ref) &&
+        !(ref.storagePath && inUse.has(ref.storagePath)) &&
+        !(ref.driveFileId && inUse.has(ref.driveFileId))
+    );
+    for (const ref of pending) flushedMediaRef.current.add(ref);
+    const storagePaths = pending.flatMap((ref) =>
+      ref.storagePath ? [ref.storagePath] : []
+    );
+    const driveFileIds = pending.flatMap((ref) =>
+      ref.driveFileId ? [ref.driveFileId] : []
+    );
+    if (storagePaths.length === 0 && driveFileIds.length === 0) return;
+    await release({
+      storagePaths: [...new Set(storagePaths)],
+      driveFileIds: [...new Set(driveFileIds)],
+    });
+  }, []);
 
   const selectedStep = useMemo(
     () => steps.find((s) => s.id === selectedStepId) ?? null,
     [steps, selectedStepId]
   );
+
+  // The canvas follows a newly selected step, or one moved to another slide; slide reorders don't count.
+  const [followed, setFollowed] = useState<{
+    id: string | null;
+    imageIndex: number;
+    urls: string[];
+  }>({ id: null, imageIndex: -1, urls: imageUrls });
+  const followId = selectedStep?.id ?? null;
+  const followIndex = selectedStep?.imageIndex ?? -1;
+  if (
+    setWideTimeline &&
+    (followId !== followed.id ||
+      followIndex !== followed.imageIndex ||
+      imageUrls !== followed.urls)
+  ) {
+    const moved =
+      followId !== followed.id ||
+      (followIndex !== followed.imageIndex && imageUrls === followed.urls);
+    setFollowed({ id: followId, imageIndex: followIndex, urls: imageUrls });
+    if (followId && moved && followIndex !== rawImageIndex) {
+      setCurrentImageIndex(followIndex);
+    }
+  }
 
   const currentImageSteps = useMemo(
     () => steps.filter((step) => step.imageIndex === currentImageIndex),
@@ -690,21 +1186,27 @@ export function useGuidedLearningEditorState({
     setWelcomeMessage,
     watchPace,
     setWatchPace,
+    tourSetupWidgets,
+    setTourSetupWidgets,
+    recaptureStep,
     imageUrls,
     imageKinds,
     videoTrims,
+    slideThumbnails,
     setVideoTrim,
     currentImageIndex,
     setCurrentImageIndex,
     uploading,
     uploadProgress,
     uploadFromFiles,
+    abandonUploads,
     uploadFromClipboard,
     addCapturedMedia,
     deleteImage,
     replaceSlideImage,
     moveImage,
     reorderImages,
+    slideMoveReordersSteps,
     imageError,
     steps,
     setSteps,
@@ -716,6 +1218,13 @@ export function useGuidedLearningEditorState({
     updateStep,
     deleteStep,
     reorderSteps,
+    duplicateStep,
+    duplicateSlide,
+    appendDraftedSet,
+    mediaHome,
+    copySteps,
+    pasteSteps,
+    clipboardStepCount,
     uploadNarrationTake,
     setStepNarration,
     folders,
@@ -730,10 +1239,12 @@ export function useGuidedLearningEditorState({
     markSpotlightRadiiV2,
     undo,
     redo,
+    undoIfLatest,
     canUndo: !history.gestureBase && history.past.length > 0,
     canRedo: !history.gestureBase && history.future.length > 0,
     beginGesture,
     endGesture,
+    gestureOpen: history.gestureBase !== null,
     queueMediaDeletion,
     flushMediaDeletions,
   };

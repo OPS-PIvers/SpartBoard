@@ -57,8 +57,10 @@ const extracted = (title: string): ExtractedQuiz => ({
 function adapter(over: Record<string, unknown> = {}) {
   return createQuizImportAdapter({
     saveQuiz: () => Promise.resolve(),
-    importFromSheet: () => Promise.resolve({} as QuizData),
-    importFromCSV: () => Promise.resolve({} as QuizData),
+    importFromSheet: () =>
+      Promise.resolve({ questions: [] } as unknown as QuizData),
+    importFromCSV: () =>
+      Promise.resolve({ questions: [] } as unknown as QuizData),
     createQuizTemplate: () => Promise.resolve(''),
     ensureDriveScope: () => Promise.resolve('token'),
     pickSheet: () => Promise.resolve(null),
@@ -87,6 +89,28 @@ describe('quiz import reader selection', () => {
     expect(result.data.title).toBe('browser');
   });
 
+  it('says which reader ran only to a teacher who has AI', async () => {
+    const plain = await adapter().parse(source);
+    expect(plain.note).toBeUndefined();
+    const ai = await adapter({ aiExtract: vi.fn() }).parse(source);
+    expect(ai.note).toBe('Read with AI.');
+    // A status line, not a warning.
+    expect(ai.warnings).not.toContain('Read with AI.');
+  });
+
+  it('reads without AI when the teacher switched it off', async () => {
+    const off = adapter({ aiExtract: vi.fn() });
+    expect(off.supportsAiReader).toBe(true);
+    const result = await off.parse({ ...source, useAi: false });
+    expect(readQuizDocumentWithAi).not.toHaveBeenCalled();
+    expect(readQuizDocument).toHaveBeenCalled();
+    expect(result.note).toBe('Read without AI.');
+  });
+
+  it('offers no AI switch to a teacher without AI', () => {
+    expect(adapter().supportsAiReader).toBeUndefined();
+  });
+
   it('uses the AI reader when one is supplied', async () => {
     const aiExtract = vi.fn();
     const result = await adapter({ aiExtract }).parse(source);
@@ -95,6 +119,8 @@ describe('quiz import reader selection', () => {
       extract: aiExtract,
       // Without a cropper the reader drops every figure silently (D13).
       cropper: browserPdfCropper,
+      // Without it a test-bank key at the back is left to the model alone.
+      readPdfLines: expect.any(Function),
     });
     expect(readQuizDocument).not.toHaveBeenCalled();
     expect(result.data.title).toBe('ai');

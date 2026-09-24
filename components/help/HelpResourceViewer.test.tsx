@@ -7,7 +7,15 @@ import { HelpResourceViewer } from './HelpResourceViewer';
 
 const h = vi.hoisted(() => ({
   canTour: true,
+  published: true,
   loadBuildingSet: vi.fn(),
+}));
+
+vi.mock('@/components/tours/publishedTours', () => ({
+  watchTours: () => () => undefined,
+  getToursVersion: () => 0,
+  isTourRunnable: () => h.published,
+  loadRunnableTour: vi.fn(),
 }));
 
 vi.mock('@/hooks/useGuidedLearning', () => ({
@@ -51,6 +59,7 @@ const set = (withTour: boolean) =>
 
 beforeEach(() => {
   h.canTour = true;
+  h.published = true;
   h.loadBuildingSet.mockReset();
 });
 
@@ -69,8 +78,9 @@ describe('HelpResourceViewer live tours', () => {
     window.removeEventListener(TOUR_START_EVENT, started);
   });
 
-  it('shows only the player for a set without a tour', async () => {
-    h.loadBuildingSet.mockResolvedValue(set(false));
+  it('shows only the player while the tour is not published', async () => {
+    h.published = false;
+    h.loadBuildingSet.mockResolvedValue(set(true));
     render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
     expect(await screen.findByText('player')).toBeInTheDocument();
     expect(

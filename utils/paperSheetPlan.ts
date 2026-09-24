@@ -111,6 +111,7 @@ const TYPE_LABELS: Record<string, string> = {
   FIB: 'Fill in the blank',
   Matching: 'Matching',
   Ordering: 'Ordering',
+  MA: 'Choose all that apply',
   'free-response': 'Free response',
 };
 

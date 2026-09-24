@@ -6,6 +6,8 @@ Rebuilds Guided Learning (GL) authoring and playback in three phases:
 2. A **player** with Watch/Try playback, an animated cursor, calmer motion, read-aloud and step analytics.
 3. A **recorder** that captures a walkthrough on a demo board once and produces both a screenshot lesson and a **live in-app tour**.
 
+A second pass (Phases 4–8: correctness, data and media, Studio authoring, live tours, player) was added on 2026-09-24; see [Second pass](#second-pass-seamless-authoring-live-tours-and-viewing-phases-48).
+
 Scope was settled in a design interview with Paul on 2026-09-22 and revised after a code review the same day. This document is the contract. Every item is self-contained: an implementer should be able to build it from the item text plus the code, without this conversation. Paul orchestrates delegation from a Claude project, so each item names its dependencies explicitly.
 
 **Code references** were taken at `dev-paul` commit `e8aac8288`. Symbol names are authoritative and line numbers are hints: if a line number is off, grep for the symbol. Do not stop to report line drift.
@@ -43,6 +45,8 @@ Out of scope: opening GL beyond admins (Paul does this himself through the exist
 | AI                 | Draft step text after a recording. Keep the `gl-author` skill writing the current schema. No AI pin placement or critique in this plan.                                                                                                                                                                                                                                                                                                   |
 | Migration          | Existing sets play unchanged. Opening a set in the Studio and saving it stamps the new schema version; the new fields are additive. No bulk migration.                                                                                                                                                                                                                                                                                    |
 | Access             | Stays admin-gated through the existing permissions doc. Nothing in this plan changes access.                                                                                                                                                                                                                                                                                                                                              |
+
+**Revised 2026-09-24:** the Playback, Analytics and Live tours rows are superseded where they conflict with the [second-pass decisions](#second-pass-decisions-settled--do-not-re-litigate): the learner Watch / Try toggle is removed, the Watch vs Try split goes with it, and Guided live tours click for the teacher.
 
 ## Constraints discovered in code (do not re-derive)
 
@@ -587,7 +591,7 @@ Done when: unit tests for `redactImage` (pixels inside a blurred rect differ fro
 
 #### P1-10 Retire the classic editor — `sonnet` _(logic)_
 
-Depends on: P1-5, P1-6, P1-9.
+Depends on: P1-5, P1-6, P1-9, and (second pass) P6-6, P6-9, P6-10; runs after Phase 7.
 
 Key files: `GL/components/GuidedLearningEditorModal.tsx` and test (delete), `GL/components/GuidedLearningEditor.tsx` (delete what nothing else imports), `GL/Widget.tsx` (remove the lazy import and the "Open classic editor" path), `tests/perf/editorPerf.test.tsx`, `GL/components/studio/GuidedLearningStudio.tsx` (remove the link).
 
@@ -943,12 +947,602 @@ Done when: with `gl-live-tours` on for admins on spartboard-dev, Paul starts eac
 
 ## Open assumptions (flag to Paul if any is wrong)
 
-1. **Watch/Try mapping:** `guided` defaults to Watch, `structured` defaults to Try, and `explore` has no toggle. Under Try, Next still works as a skip.
+1. **Superseded 2026-09-24** (the toggle is removed; see second-pass decisions). **Watch/Try mapping:** `guided` defaults to Watch, `structured` defaults to Try, and `explore` has no toggle. Under Try, Next still works as a skip.
 2. **Default click zone:** a hotspot without a `region` stays as it is today: the pin button is the only target, and hidden hotspots stay unclickable. Plain-click hotspots in the Studio also get no `region`. Only a drawn region (or the recorder) creates one. The documented "hidden but clickable" exercise therefore needs a drawn region.
 3. **Pinned callouts** are stored in image-% (they move with the image). On very different aspect ratios they are clamped into the container, which can shift them slightly. That is accepted over storing a pin per device.
-4. **Tour setup** adds missing widgets to the teacher's current board and offers to remove them at the end, rather than always using a practice board.
+4. **Narrowed 2026-09-24** (only widgets the recorded steps touched; see P7-2). **Tour setup** adds missing widgets to the teacher's current board and offers to remove them at the end, rather than always using a practice board.
 5. **The anchor CI guard** checks registry against source, not against published tours in Firestore. Published-tour breakage is caught by the P3-6 health panel, not CI. If Paul wants CI to read `building_guided_learning`, that needs a read-only credential in CI (a separate decision).
 6. **The `spart-new-widget` plugin skill** lives in Paul's `pauls-skills` repo, so P3-1 and P3-7 only update the in-repo `new-widget` skill. Mirroring the `data-tour` and `data-pii` checklist steps into the plugin is a separate follow-up Claude session.
 7. **Narration** reuses the quiz read-aloud voices and admin cap settings. GL may need its own cap if usage grows. Authors can record their own voice instead (P2-4), and a recorded take wins.
 8. **Demo mode** was dropped at P1-0 (2026-09-23); recording is real-board only, with redaction (P3-7). The original assumption follows. It was conditional on the P1-0 spike. If it proceeds, it swaps only the board and roster stores, so widgets backed by other personal data show empty states there. For anything the demo board can't show, record on the real board with auto-redaction (P3-7). Redaction covers roster names in DOM text and inputs plus `data-pii` elements, and the mandatory review step catches the rest.
 9. **Studio perf budget** is "no slower than the classic editor" on the existing scenario, measured on the same machine in the P1-10 PR, rather than absolute millisecond targets.
+
+## Second pass: seamless authoring, live tours and viewing (Phases 4–8)
+
+Settled in a second design interview with Paul on 2026-09-24, after four read-only audits (Studio authoring, player and student app, performance and data, live tours). **Code references** for this section were taken at `main` commit `bce112c`; the same line-drift rule applies. Where this section conflicts with an earlier row, decision or open assumption, this section wins, and the superseded text is marked.
+
+**Priority:** teacher authoring first. When a trade-off collides, choose the option that makes building a set smoother.
+
+**Order:** Phase 4 (correctness, unflagged) → Phase 5 (data and media) → Phase 6 (Studio authoring) → Phase 7 (live tours) → **P1-10** (retire the classic editor, now also dependent on P6-6, P6-9 and P6-10) → Phase 8 (player and student app). Perf fixes ride with whichever item already touches the file, as listed per item.
+
+**Deferred (not in this plan):** a live per-student monitoring roster for teachers, and captions or transcripts for authored media.
+
+### Second-pass decisions (settled — do not re-litigate)
+
+| Decision             | Answer                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Learner modes        | The author's `mode` is the **only** choice. The learner Watch / Try toggle is removed. **Structured** absorbs Try: clicking the highlighted target advances, Next always works, a hint cursor appears after 5s without progress, and misclicks are recorded. **Guided** is today's Watch: the cursor glides and clicks, the camera follows, and it auto-advances at reading pace × speed with the scrubber. **Explore** is unchanged. |
+| Guided start         | In the student app a guided set auto-plays after Start. On the teacher's board it starts paused. Both show a one-line visible chip that says what to do.                                                                                                                                                                                                                                                                              |
+| Media steps          | Audio and uploaded video hold the step clock until they end (like read-aloud). YouTube uses the IFrame API `ENDED` event, with a manual Next as fallback.                                                                                                                                                                                                                                                                             |
+| Finishing            | Reaching the end shows a "You're finished → Submit" card. "I'm Done" stays available, but submitting early or with unanswered questions asks first.                                                                                                                                                                                                                                                                                   |
+| Student answers      | Saved as they go to the student's **response doc** (no rules change). "Submitted" means `completedAt` is set. The completion screen waits for the write, with Retry.                                                                                                                                                                                                                                                                  |
+| Presenting           | Player keys work anywhere in the player (not just over the canvas) and include PageUp/PageDown. Callout text scales with `clamp(14px, Xcqmin, ~30px)` instead of a 14–16px cap. No separate presenter mode.                                                                                                                                                                                                                           |
+| Answer keys          | Subs and the teacher's board play in the student UI with a per-question **Reveal answer** button.                                                                                                                                                                                                                                                                                                                                     |
+| Play order           | One set-wide step timeline, draggable across slides (revisiting an earlier slide late is allowed). A new step goes after the current slide's last step; moving a slide asks "Move its steps too?"                                                                                                                                                                                                                                     |
+| Destructive edits    | Every delete shows an Undo toast, with no confirm dialogs. Undo and redo buttons in the header.                                                                                                                                                                                                                                                                                                                                       |
+| Duplicate            | Duplicate and copy/paste of steps and slides (Cmd/Ctrl+D, C, V), including between sets in the same browser session.                                                                                                                                                                                                                                                                                                                  |
+| Preview              | "Play from here" shows the student version (through `toPublicStep`) by default, with a "Show answer key" toggle.                                                                                                                                                                                                                                                                                                                      |
+| AI in the editor     | Adds slides and steps to the open set as one undoable change. From the library it creates a set in the library the teacher is viewing.                                                                                                                                                                                                                                                                                                |
+| Empty set            | The empty canvas is a start hub (upload/drop, paste, capture, record, AI, import). The whole canvas accepts dropped files. Errors are dismissible toasts.                                                                                                                                                                                                                                                                             |
+| Side panel           | Rebuilt Studio-native: Step and Slide sections, one callout-placement control, "Step" naming, all strings translated, and a Watch pace control.                                                                                                                                                                                                                                                                                       |
+| Screen size          | Laptop-first (1280px+). Tablets are usable (pinch-zoom, two-finger pan, collapsible filmstrip, visible delete buttons, header overflow). Below ~900px a non-blocking "best on a larger screen" note.                                                                                                                                                                                                                                  |
+| Classic editor       | Frozen (fixes only) and deleted by P1-10 once Phase 6 closes the gaps.                                                                                                                                                                                                                                                                                                                                                                |
+| Media home           | **Personal sets stay on Drive.** Building sets, Help Center sets and recordings go to **Firebase Storage**, which the district owns and which survives staff turnover.                                                                                                                                                                                                                                                                |
+| File cleanup         | Deleting a set (either library), deleting or replacing a slide in the editor, a weekly orphan sweep, and Drive slides of deleted personal sets. A file is deleted only when no other set references it. Deleting a set with open assignments warns, and its files wait until those assignments close.                                                                                                                                 |
+| Building sets        | Split into a lightweight metadata index (what the library listens to) and the full set (fetched on Play or Edit). Size guard before every write.                                                                                                                                                                                                                                                                                      |
+| Conflicts            | Saves check that nobody else saved since the set was loaded; on conflict, "Edited elsewhere: reload or overwrite". A set with a newer `schemaVersion` than the client opens read-only. Saves preserve unknown fields.                                                                                                                                                                                                                 |
+| Live Guided          | **Autopilot**: the cursor really clicks (full pointer-event sequence) and waits for the app to respond. A step can be marked "Teacher must click this", the default for anchors registered as destructive. Pause / Take over controls. If an auto-click doesn't produce the next anchor, it falls back to asking the teacher.                                                                                                         |
+| Live Structured      | The teacher clicks; Next always works; hint after 5s; "Show me" replays the demo once.                                                                                                                                                                                                                                                                                                                                                |
+| Tour setup           | Adds only the widget types the recorded steps touched, editable as chips in the Studio. Removal at the end targets only the instances the tour added.                                                                                                                                                                                                                                                                                 |
+| Tour publishing      | "Publish tour" snapshots the tour; launch points only ever run the published snapshot. Publishing warns (does not block) on broken anchors.                                                                                                                                                                                                                                                                                           |
+| Hidden anchors       | Hidden or zero-size matches count as missing. While missing, the runner keeps watching cheaply and continues once the teacher opens the panel. The recorder captures panel-opener clicks as their own steps.                                                                                                                                                                                                                          |
+| Tour tools           | Find on board, Run live from this step, Re-record one step, and untagged-step warnings in the Studio.                                                                                                                                                                                                                                                                                                                                 |
+| Tour health          | Field events from real runs, and three states: OK / Needs widget or panel open / Broken. An offer counts as shown only after Start or No thanks.                                                                                                                                                                                                                                                                                      |
+| Plain steps in tours | Steps without an anchor show as centred cards on the dimmed board. The welcome message opens the tour; step counts match the Studio.                                                                                                                                                                                                                                                                                                  |
+| Tour stacking        | The tour dims above the expanded dock unless a step targets the dock, which is then lifted above the dim. Misclicks shake the callout and bring the hint early.                                                                                                                                                                                                                                                                       |
+
+### Second-pass release gating
+
+| Surface | Gate                                                                                                                                            |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase 4 | None: bug fixes restoring intended behaviour.                                                                                                   |
+| Phase 5 | None: infrastructure. Must tolerate the previous client's open tabs at a `main` release (see each item).                                        |
+| Phase 6 | `gl-studio` (admin).                                                                                                                            |
+| Phase 7 | `gl-live-tours` (admin).                                                                                                                        |
+| Phase 8 | `gl-player-v2` (admin), stamped on the session as in P2-1; `playerV2: false` keeps today's behaviour except where an item says it is a bug fix. |
+
+No new flags. The PR for each item states which existing flag gates it and the admin path to open it: Admin Settings > Access > Global Settings > set to Public.
+
+**Protected files needed by this pass:** `firestore.rules` (P5-1, P7-3, P7-6), `firestore.indexes.json` (P5-1 if the index needs one), `storage.rules` (P5-2 only if building-set paths fall outside the existing GL media rule).
+
+### Phase 4 — Correctness (unflagged, first)
+
+Items touch different files and can run in parallel, except P4-1 → P4-2 (both edit `hooks/useGuidedLearning.ts` callers).
+
+#### P4-1 Personal-set saves keep folder, order, file paths and unknown fields — `sonnet` _(logic)_
+
+Depends on: none.
+
+Key files: `hooks/useGuidedLearning.ts` (`saveSet`, `saveBuildingSet`), `GL/components/useSetDraftPersistence.ts` (`buildSavedSet`), new `hooks/useGuidedLearning.test.ts`.
+
+Do:
+
+1. `saveSet` writes the metadata with `setDoc(..., { merge: true })` (or carries `folderId` and `order` forward, as `useQuiz` does), so autosave no longer moves a set to the library root or resets manual order.
+2. `buildSavedSet` starts from `...set` and overrides only the fields the editor owns, so `imagePaths`, `tourSetup` and any field a newer client added survive a save.
+
+Done when: tests prove a set in a folder stays in it across three autosaves, manual `order` survives, `imagePaths` survives an edit of an imported set, and an unknown top-level field round-trips.
+
+#### P4-2 Drive saves never duplicate, and make fewer round-trips — `sonnet` _(logic)_
+
+Depends on: P4-1.
+
+Key files: `utils/guidedLearningDriveService.ts`, `hooks/useGuidedLearning.ts` (`getDriveService`), tests.
+
+Do:
+
+1. A failed PATCH falls through to the name lookup **only on 404**. 429 and 5xx retry with backoff (3 tries); 401 surfaces a "Reconnect Google Drive" error through the existing `driveAuthErrors` helpers.
+2. Skip `getGLFolderId()` when `existingFileId` is set; cache the folder id per token; memoise the service per token.
+3. Drop pretty-printing (`JSON.stringify(set)`).
+
+Done when: tests cover 404 → create, 500 → retry then success with no new file, 401 → reconnect error, and a PATCH save making exactly one request.
+
+#### P4-3 Student answers saved as they go; honest submit — `opus` _(visual)_
+
+Depends on: none.
+
+Key files: `components/guidedLearning/GuidedLearningStudentApp.tsx`, `hooks/useGuidedLearningSession.ts` (`submitResponse`), tests.
+
+Do:
+
+1. On the first answer, create the response doc (`completedAt: null`, `score: null`, `startedAt`). On each later answer, write the full `answers` array again (the rule allows it to grow or stay the same length, `firestore.rules` `match /responses/{studentUid}`). Debounce to one write per answer.
+2. On reload, seed the player's answered steps from the response doc, so the resume offer and questions reflect saved answers.
+3. Submit sets `completedAt`. `setCompleted(true)` runs only after the write resolves; on failure show "Couldn't submit — Retry" and keep the student's place. This applies to the per-period and non-period paths.
+4. Returning-student routing (`if (... myResponse)`, around line 451) keys on `myResponse.completedAt`, not on the doc existing.
+5. Verify the create rule's `score == null` against what the client writes today, and match it.
+
+Don't touch: `firestore.rules` (no rules change is needed; if one turns out to be, raise it in `concerns`).
+
+Done when: tests cover reload mid-activity restoring answers, a failed submit showing Retry and not the completion screen, a returning student with an unsubmitted response landing back in the player, and Results showing that student as "In progress". _(visual)_ screenshots of the Retry state.
+
+#### P4-4 Results score against the session, and survive a remount — `sonnet` _(logic)_
+
+Depends on: none.
+
+Key files: `GL/components/GuidedLearningResults.tsx`, `GL/Widget.tsx` (rehydration, `handleViewAssignmentResults`).
+
+Do:
+
+1. Score against the session's frozen steps, not the teacher's current set, so editing a set after assigning never rescores.
+2. Per-student "x / y correct" divides by the number of questions in the set, not by questions answered.
+3. Rehydrate `activeSet` for `view === 'results'` as it is for the player, so maximize or refresh doesn't blank the widget.
+4. If `loadSet` returns null, clear `activeSet` and show an error state instead of scoring against the last-played set.
+
+Done when: tests cover an edit after assigning leaving scores unchanged, the denominator, results after a remount, and a deleted set's results showing the error state.
+
+#### P4-5 Studio close and history safety — `sonnet` _(logic)_
+
+Depends on: none.
+
+Key files: `hooks/useAutosave.ts` (`flush`), `GL/components/studio/GuidedLearningStudio.tsx`, `GL/components/useGuidedLearningEditorState.ts` (`markSpotlightRadiiV2`).
+
+Do:
+
+1. Closing while an upload is in flight asks first; if the author closes anyway, the upload's file is queued for deletion.
+2. A new set with a title or description but no slide warns before being discarded, rather than `flush()` reporting success because autosave is off.
+3. Flush pending edits on unmount.
+4. `markSpotlightRadiiV2` no longer clears undo history.
+
+Done when: tests cover each of the four.
+
+#### P4-6 Live tour correctness — `sonnet` _(visual)_
+
+Depends on: none.
+
+Key files: `components/tours/resolveTourAnchor.ts`, `components/tours/useAnchorElement.ts`, `components/tours/TourSpotlight.tsx`, `components/tours/tourSession.ts`, tests.
+
+Do:
+
+1. A match with an empty rect or `checkVisibility() === false` is not "found", so it falls through to the missing path and the mini-player.
+2. On first find, `scrollIntoView({ block: 'nearest' })`. Wheel events pass through the dim.
+3. `TourSpotlight` re-renders on window `resize`.
+4. Teardown removes only the widget instance ids the tour added, never a same-type widget the teacher added mid-tour.
+
+Done when: tests cover each of the four. _(visual)_ screenshot of an anchor scrolled into view.
+
+#### P4-7 Player: a dismissed step can be reopened — `haiku` _(logic)_
+
+Depends on: none.
+
+Key files: `GL/components/GuidedLearningPlayer.tsx` (`handlePinClick`).
+
+Do: in structured and guided modes, clicking the current step's pin re-activates it after the popover, banner or Escape dismissed it.
+
+Done when: a test dismisses a step and reopens it from the pin.
+
+### Phase 5 — Data and media
+
+P5-1 and P5-2 can run in parallel; P5-3 depends on both; P5-4 depends on P4-1.
+
+#### P5-1 Building sets: metadata index and size guard — `opus` _(rules + logic)_
+
+Depends on: none.
+
+Key files: `hooks/useGuidedLearning.ts` (building listener and `saveBuildingSet`), new `functions/src/glBuildingIndex.ts` and test, `functions/src/index.ts`, `firestore.rules` (protected), `GL/components/GuidedLearningManager.tsx`, `components/admin/HelpCenter/*` readers of building sets.
+
+Do:
+
+1. Keep full sets where they are (`building_guided_learning/{id}`), so an already-open previous client keeps working. Add a metadata index `building_guided_learning_index/{id}` (title, description, stepCount, mode, thumbnail, updatedAt, `hasLiveTour`, `isHelpCenter`, `folderId`, `order`), maintained **server-side** by an `onDocumentWritten` trigger on `building_guided_learning/{id}`. Clients never write it, so old clients can't leave it stale.
+2. A one-time backfill (a callable admins run once, or a script with `--project dev` first) touches every existing set.
+3. The library, the Help Center picker and the recorder list listen to the index. The full set is fetched once on Play, Edit or preview (through the existing `SetPrefetchCache`).
+4. Before writing a building set or a session, estimate the serialized size; above 900 KB, refuse with "This set is too large to save — split it or remove slides" rather than an opaque Firestore error.
+5. Rules: the index is read-only to signed-in staff and write-denied to clients.
+
+Done when: the teacher library makes no full-set reads until a set is opened; an admin's autosave causes one index update per save, not a full-doc fan-out; function tests cover create, update and delete; rules tests cover read and write denial; `releaseFirestoreRules.mjs spartboard-dev` within caps.
+
+#### P5-2 Where slides live: Storage for district content, Drive for personal sets — `sonnet` _(logic)_
+
+Depends on: none.
+
+Key files: `hooks/useStorage.ts`, `GL/components/useGuidedLearningEditorState.ts` (`uploadFromFiles`, `replaceSlideImage`), `GL/components/recorder/RecordingSession.tsx`, `GL/Widget.tsx` (import rehosting), `utils/guidedLearningMedia.ts`, `utils/redactImage.ts`.
+
+Do:
+
+1. Building, Help Center and recorded sets upload images through `uploadGuidedLearningMedia` (Storage), not `uploadHotspotImage` (public Drive), and record every path in `imagePaths`. Personal sets keep Drive and record each slide's Drive file id in a new `driveFileIds` array on the metadata.
+2. Every GL Storage upload sets `cacheControl: 'public, max-age=31536000, immutable'` (paths are timestamped).
+3. Redacted slides and imported images go through `prepareImageForUpload` (WebP 0.85, 2560 cap) instead of full-size PNG or raw bytes.
+4. Thumbnails: Drive `lh3` URLs get `=w400` in the library and filmstrip; Storage uploads also write a 400px WebP thumbnail beside the slide; library and filmstrip `<img>`s get `loading="lazy" decoding="async"`.
+5. Existing Drive slides in building sets keep working; no migration.
+
+Done when: tests cover the upload route per set kind, `cacheControl` on the uploads, redacted output being WebP, and thumbnails used in the library.
+
+#### P5-3 File cleanup that is always safe — `opus` _(logic)_
+
+Depends on: P5-1, P5-2.
+
+Key files: `functions/src/gcGuidedLearningMedia.ts` and test, new scheduled sweep in `functions/src/`, `GL/components/useGuidedLearningEditorState.ts` (`deleteImage`), `hooks/useGuidedLearning.ts` (`deleteSet`, `deleteBuildingSet`), `GL/components/GuidedLearningManager.tsx` (delete confirm), `hooks/useGuidedLearningAssignments.ts`.
+
+Do:
+
+1. **Set deletes, both libraries:** add an `onDocumentDeleted` trigger for `building_guided_learning/{id}` using the existing `gcOrphanedSlidePaths` reference check.
+2. **In-editor removals:** `deleteImage` queues the slide's file for deletion through history, as `replaceSlideImage` already does, so undo still restores it until save-and-close.
+3. **Weekly sweep:** a scheduled function lists the GL media prefix and deletes files older than 7 days that no personal or building set lists in `imagePaths` and no open tombstone holds.
+4. **Drive slides of personal sets:** on delete, the client (it holds the teacher's token; functions cannot reach the teacher's Drive) deletes each id in `driveFileIds` that none of the teacher's other sets lists.
+5. **Open assignments:** deleting a set with open assignments warns "Students in N open assignments will lose it". If confirmed, the set is deleted but its files are held by a tombstone `users/{uid}/gl_media_tombstones/{setId}` (paths, Drive ids, assignment ids). Storage files are released by the sweep once every listed assignment is closed or archived; Drive files are released by the client the next time the teacher's GL widget loads with a Drive token.
+
+Don't touch: files still referenced by another set, ever.
+
+Done when: tests cover building-set GC, a duplicate keeping shared files, undo after slide delete not deleting the file, the sweep skipping referenced and young files, the Drive reference check, and a tombstone releasing only after its assignments close.
+
+#### P5-4 Conflict and schema guards — `sonnet` _(logic)_
+
+Depends on: P4-1.
+
+Key files: `hooks/useGuidedLearning.ts`, `GL/components/useSetDraftPersistence.ts`, `GL/utils/setMigration.ts`, `GL/components/studio/GuidedLearningStudio.tsx`.
+
+Do:
+
+1. Use `updatedAt` as the revision token, since every client version already writes it. Each save runs in a transaction that checks the stored `updatedAt` equals the one the editor loaded; on mismatch, pause autosave and show "Edited elsewhere — Reload / Overwrite".
+2. A set whose `schemaVersion` is greater than `GL_SET_SCHEMA_VERSION` opens read-only with "This set was saved by a newer version — refresh to edit".
+
+Done when: tests cover a second-tab save triggering the conflict banner, Overwrite and Reload, and the read-only open.
+
+#### P5-5 Listener trimming — `sonnet` _(logic)_
+
+Depends on: P5-1.
+
+Key files: `hooks/useGuidedLearningAssignments.ts`, `GL/Widget.tsx`.
+
+Do: limit the assignments listener to open plus the most recent 50 (a "Show older" loads more), and share the personal, building-index, assignments and folders subscriptions across GL widget instances on one board (module-level ref-counted subscription).
+
+Done when: two GL widgets on one board open one listener per collection; tests cover the limit and "Show older".
+
+### Phase 6 — Studio authoring (`gl-studio`)
+
+Items that edit `GuidedLearningStudio.tsx`, `StudioPropertiesPanel.tsx` or `useGuidedLearningEditorState.ts` run one at a time in numeric order.
+
+#### P6-1 Set-wide timeline and smart insert — `opus` _(visual)_
+
+Depends on: Phase 4.
+
+Key files: `GL/components/studio/StudioTimeline*`, `GL/components/studio/timelineOrder.ts`, `GL/components/useGuidedLearningEditorState.ts` (`addStepAt`, `reorderImages`), tests.
+
+Do:
+
+1. The timeline shows every step in play order, grouped into runs of consecutive steps on the same slide (slide thumbnail per run). Steps drag anywhere, including across slides, so a late step can revisit slide 1.
+2. `addStepAt` inserts after the last step on the current slide in play order, not at the end.
+3. Reordering slides asks "Move its steps too?" (Yes: the moved slide's runs follow it in play order; No: play order unchanged).
+4. Selecting a step anywhere (timeline, panel's slide dropdown) moves the canvas to its slide.
+
+Done when: tests cover insert position, cross-slide drag, both answers to the slide-move prompt, and the canvas following a step moved to another slide. _(visual)_
+
+#### P6-2 Undo everywhere — `sonnet` _(visual)_
+
+Depends on: P6-1.
+
+Key files: `GL/components/studio/GuidedLearningStudio.tsx`, `EditorHeader` or the Studio header, `GL/components/GuidedLearningStepEditor.tsx` (until P6-6 replaces it), `StudioFilmstrip.tsx`.
+
+Do: every delete (step or slide, from a key, the panel or the filmstrip) shows an Undo toast; header undo and redo buttons bound to `canUndo`/`canRedo`; slide delete buttons visible without hover on touch (`@media (hover: none)`).
+
+Done when: tests cover the toast for each delete path and header buttons. _(visual)_
+
+#### P6-3 Duplicate and copy/paste — `sonnet` _(logic)_
+
+Depends on: P6-1.
+
+Key files: `GL/components/useGuidedLearningEditorState.ts`, `GL/components/studio/useStudioShortcuts.ts`, filmstrip and timeline menus.
+
+Do: Cmd/Ctrl+D and a menu item duplicate the selected step (new id, placed after it) or slide (with its steps, placed after it; media shared, not re-uploaded). Cmd/Ctrl+C/V copies selected steps to an in-memory plus `sessionStorage` clipboard and pastes onto the current slide, including in another set in the same browser session. Each is one undo entry.
+
+Done when: tests cover each, including paste into a second set and media not being queued for deletion when a duplicate is deleted.
+
+#### P6-4 Preview as the student sees it — `sonnet` _(visual)_
+
+Depends on: none within Phase 6.
+
+Key files: `GL/components/studio/StudioPlayMode.tsx`.
+
+Do: "Play from here" maps steps through `toPublicStep` and runs the player without `teacherMode`. A "Show answer key" toggle switches to teacher mode.
+
+Done when: a test proves a field not mirrored by `toPublicStep` is absent in preview, and questions show no key until the toggle. _(visual)_
+
+#### P6-5 Start hub and whole-canvas drop — `sonnet` _(visual)_
+
+Depends on: none within Phase 6.
+
+Key files: `GL/components/studio/StudioCanvas.tsx`, `StudioFilmstrip.tsx`, `GuidedLearningStudio.tsx`.
+
+Do: the empty canvas shows large targets — Upload or drop, Paste, Capture screen, Record a tour (admins, `gl-live-tours`), Draft with AI (`gemini-functions`), Import .gl.json. The whole canvas accepts dropped files. `imageError` and controller errors become dismissible toasts, translated.
+
+Done when: tests cover each target's gate and canvas drop. _(visual)_
+
+#### P6-6 Studio-native properties panel — `opus` _(visual)_
+
+Depends on: P6-2.
+
+Key files: `GL/components/studio/StudioPropertiesPanel.tsx`, `GL/components/GuidedLearningStepEditor.tsx` (replace inside the Studio), `StudioRegionControls.tsx`, locales.
+
+Do:
+
+1. Two sections: **Step** (interaction, text, media, question, region, callout placement, narration, tour binding) and **Slide** (image or video, trim, pulse, transition), both visible whenever a step is selected.
+2. Remove the legacy Tooltip Position and Offset controls in favour of Auto / Pinned plus canvas drag. Name steps "Step N" everywhere.
+3. Add a Watch pace control (standard / calm) to Activity settings (`setWatchPace` exists with no caller).
+4. Every string through `t()`, in all four locales.
+
+Done when: the parity checklist items in P1-10 that concern the panel are covered by Studio tests. _(visual)_
+
+#### P6-7 Draft with AI adds to the open set — `sonnet` _(logic)_
+
+Depends on: P6-1.
+
+Key files: `GL/Widget.tsx` (`handleEditorAiGenerated`, library AI entry), `GL/components/GuidedLearningAIGenerator.tsx`, `useGuidedLearningEditorState.ts`.
+
+Do: inside the Studio, generated slides and steps append to the open set (after the current slide) as one undo entry, keeping the set's id. From the library, the new set lands in the library being viewed (personal or building), not always building.
+
+Done when: tests cover append-then-undo and the library destination.
+
+#### P6-8 Recorder handoff never loses work — `opus` _(visual)_
+
+Depends on: P5-2.
+
+Key files: `GL/components/recorder/FrameReview.tsx`, `RecordingSession.tsx`, `GuidedLearningStudio.tsx`.
+
+Do:
+
+1. Frame review lets the author discard individual frames before upload.
+2. Uploads resume: a retry skips frames already uploaded.
+3. The Studio opens only after the first `saveBuildingSet` succeeds; otherwise show Retry.
+4. The Studio header shows "N AI drafts to review" with next/previous navigation until each drafted step is edited or marked reviewed.
+
+Done when: tests cover each. _(visual)_
+
+#### P6-9 Keyboard and screen-reader access — `sonnet` _(logic)_
+
+Depends on: P6-6.
+
+Key files: `GL/components/studio/useCanvasTools.ts` (`onCanvas`), `GuidedLearningStudio.tsx`, `useStudioShortcuts.ts`.
+
+Do: focus moves into the Studio dialog on open and is trapped in it; `document.body` no longer counts as "on canvas", so Tab reaches the controls; Enter on the focused canvas places a hotspot at the centre, then arrow keys nudge it; `?` opens a shortcut sheet; step-editor labels are tied to inputs.
+
+Done when: tests cover Tab order from open, keyboard placement and the shortcut sheet.
+
+#### P6-10 Laptop-first, tablet-usable — `sonnet` _(visual)_
+
+Depends on: P6-6.
+
+Key files: `GL/components/studio/useCanvasViewport.ts`, `GuidedLearningStudio.tsx`, `StudioFilmstrip.tsx`.
+
+Do: pinch-zoom and two-finger pan on the canvas; a collapsible filmstrip; header controls overflow into a menu below ~1100px; a non-blocking "Works best on a larger screen" note below ~900px; double-tap starts inline text editing.
+
+Done when: tests cover pinch and pan maths and the overflow. _(visual)_ screenshots at 1024×768 and 1280×800.
+
+#### P6-11 Drag without whole-editor renders — `sonnet` _(logic)_
+
+Depends on: P6-6.
+
+Key files: `GL/components/studio/StudioEditLayer.tsx`, `GL/components/useSetDraftPersistence.ts`, `useGuidedLearningEditorState.ts`.
+
+Do: coalesce pointer moves into `requestAnimationFrame`; while a gesture is open, skip `isDirty` and `draftToken` recomputation and commit once on `endGesture`.
+
+Done when: the P1-10 drag perf scenario shows at most one stage render per frame and one history entry.
+
+#### P6-12 Proof: build a set from scratch — Paul _(proof)_
+
+Depends on: P6-1 to P6-11.
+
+Do: on spartboard-dev, Paul builds one set from an empty Studio: uploads by drop, adds a late step on slide 1, duplicates a slide, pastes steps from another set, deletes and undoes, previews as a student, and edits on a tablet.
+
+Done when: Paul confirms nothing needed the classic editor.
+
+### Phase 7 — Live tours (`gl-live-tours`)
+
+P7-1 runs first (it rewrites the runner's mode handling). P7-2, P7-3 and P7-5 can run in parallel with each other after it.
+
+#### P7-1 Live modes: Structured and Guided autopilot — `opus` _(visual)_
+
+Depends on: P4-6.
+
+Key files: `components/tours/LiveTourRunner.tsx`, `config/tourAnchors.ts` (a `destructive` flag per anchor), `GL/components/studio/StudioTourControls.tsx`, `types.ts` (step `tour.teacherMustClick?: boolean`), tests.
+
+Do:
+
+1. Remove the runner's `watch` state and read `set.mode`.
+2. **Structured:** the teacher's real click advances (existing capture listener); a primary **Next** always shows; the hint cursor after 5s; "Show me" replays the demo once.
+3. **Guided (autopilot):** the cursor glides, then dispatches a full pointer sequence (`pointerover`, `pointerdown`, `mousedown`, `pointerup`, `mouseup`, `click`) on the anchor, waits for the next step's anchor (up to the missing-anchor timeout), then continues. Observe-only steps auto-advance at reading pace × `watchPace`.
+4. A step with `tour.teacherMustClick` (default true for anchors registered `destructive: true`, editable in `StudioTourControls`) demonstrates, then waits for the teacher's click with "Your turn".
+5. Pause and Take over controls: Take over switches the rest of the run to Structured.
+6. If an auto-click doesn't produce the next anchor, fall back to "Click here to continue" on that step.
+
+Done when: tests cover both modes, the destructive default, Take over, and the fallback. _(visual)_ a frame sequence of one autopilot step.
+
+#### P7-2 Tour setup: only what the tour touches — `sonnet` _(visual)_
+
+Depends on: P7-1.
+
+Key files: `GL/components/recorder/buildRecordedSet.ts`, `RecordingSession.tsx`, `GL/components/studio/StudioTourControls.tsx`.
+
+Do: `tourSetup.widgets` is the widget types the recorded steps touched (per-widget anchors and `data-tour-widget` ancestors), not everything on the recording board. The Studio shows "Widgets this tour adds" as editable chips.
+
+Done when: tests cover a recording on a 12-widget board adding only the touched types, and chip editing.
+
+#### P7-3 Publish tour — `opus` _(rules + visual)_
+
+Depends on: P7-1.
+
+Key files: `GL/components/studio/StudioTourControls.tsx`, new published-snapshot read in `components/tours/`, `hooks/useHelpResources.ts`, `components/tours/useTourOffers.ts`, `firestore.rules` (protected).
+
+Do:
+
+1. "Publish tour" copies the set's tour content (steps with bindings, `tourSetup`, mode, `watchPace`, welcome message) to `building_guided_learning_tours/{setId}` with `publishedAt`. Every launch point (Help "Show me live", widget `?`, first-use offers, What's New) runs only the published snapshot. Studio edits never reach teachers until republished.
+2. The Studio shows Draft / Published / "Changes not published", and publishing lists any Broken anchors from Tour Health as a warning.
+3. `useTourOffers` stops caching `hasLiveTour` for the whole page load; it reads the published snapshots.
+4. Existing tours: a one-time publish of every set with `hasLiveTour` so nothing disappears at release.
+
+Done when: tests cover edit-without-publish not reaching the runner, publish reaching it, and the warning; rules tests cover admin-only writes.
+
+#### P7-4 Anchors that appear late — `sonnet` _(logic)_
+
+Depends on: P4-6.
+
+Key files: `components/tours/useAnchorElement.ts`, `GL/components/recorder/useTourCapture.ts`.
+
+Do: while a step's anchor is missing, keep a throttled search (MutationObserver on the board root, at most every 250ms) and continue as soon as it appears; the mini-player still shows after ~3s. Once found, track position with ResizeObserver plus scroll and resize listeners instead of per-frame `getBoundingClientRect`. The recorder records a click that opens a menu or panel as its own step.
+
+Done when: tests cover an anchor appearing at 5s continuing the tour without Retry, and no per-frame layout reads while nothing moves.
+
+#### P7-5 Studio tools for tours — `sonnet` _(visual)_
+
+Depends on: P7-1.
+
+Key files: `GL/components/studio/StudioTourControls.tsx`, `GuidedLearningStudio.tsx`, `GL/components/recorder/*`, `components/tours/tourState.ts`.
+
+Do:
+
+1. **Find on board:** beside the anchor picker; runs `findTourAnchor`, flashes the element and reports Found / Not found / "Needs widget X on the board". The picker shows anchor id and widget type.
+2. **Run live from this step:** passes `fromStep`; when the run ends the Studio reopens at that step.
+3. **Re-record one step:** captures one click and replaces that step's slide, region and binding.
+4. **Untagged warnings:** steps the recorder couldn't anchor carry a warning chip with the suggested anchor id and a copy button.
+
+Done when: tests cover each. _(visual)_
+
+#### P7-6 Tour analytics and three-state health — `opus` _(rules + visual)_
+
+Depends on: P7-3.
+
+Key files: `components/tours/LiveTourRunner.tsx`, `components/tours/tourHealth.ts`, `components/admin/HelpCenter/TourHealthPanel.tsx`, `components/tours/useTourOffers.ts`, `firestore.rules` (protected).
+
+Do:
+
+1. The runner writes per-teacher run stats to `building_guided_learning_tours/{setId}/runs/{uid}` (started, furthest step, completed, exited-at-step, anchor misses by step), throttled like `useGuidedLearningProgress`, with a bounded rule like `progress/{uid}`.
+2. Tour Health shows OK / Needs widget or panel open / Broken, using `tourSetup` and per-widget scoping, plus field misses from real runs, so broken tours surface without a manual check.
+3. A first-use offer is marked shown only after Start or No thanks.
+
+Done when: tests cover the three states and the offer rule; rules tests cover the runs doc.
+
+#### P7-7 Plain steps, welcome and counts — `sonnet` _(visual)_
+
+Depends on: P7-1.
+
+Key files: `components/tours/tourSession.ts`, `LiveTourRunner.tsx`.
+
+Do: steps without an anchor show as a centred callout card on the dimmed board (intro, question, wrap-up); the welcome message opens the tour; "N / M" counts all steps, matching the Studio and Tour Health.
+
+Done when: tests cover a set mixing anchored and plain steps.
+
+#### P7-8 Stacking, feedback, reload and access — `sonnet` _(visual)_
+
+Depends on: P7-1.
+
+Key files: `config/zIndex.ts`, `components/tours/TourSpotlight.tsx`, `LiveTourRunner.tsx`.
+
+Do:
+
+1. The tour dims above the expanded dock; when the step's anchor is in the dock, the dock is lifted above the dim.
+2. A click outside the cutout shakes the callout and brings the hint early.
+3. `{setId, index, addedIds}` persists in `sessionStorage`; after a reload the teacher is offered "Resume tour / Remove added widgets".
+4. The callout has an `aria-live="polite"` region and takes focus on observe steps.
+
+Done when: tests cover each. _(visual)_
+
+#### P7-9 Proof: one tour in each mode — Paul _(proof)_
+
+Depends on: P7-1 to P7-8.
+
+Do: on spartboard-dev, Paul records one tour with a panel-opening step, publishes it, runs it in Structured and in Guided autopilot (including one "Teacher must click" step and a Take over), reloads mid-tour and resumes, and checks Tour Health.
+
+Done when: Paul confirms autopilot feels trustworthy and Health shows the run.
+
+### Phase 8 — Player and student app (`gl-player-v2`)
+
+Items that edit `GuidedLearningPlayer.tsx` or `GuidedLearningStage.tsx` run one at a time in numeric order.
+
+#### P8-1 One mode choice; guided auto-plays for students — `opus` _(visual)_
+
+Depends on: Phase 7 merged (the runner no longer reads the toggle).
+
+Key files: `GL/components/GuidedLearningPlayer.tsx`, `GL/components/player/PlaybackModeToggle.tsx` (delete), `GL/utils/progress.ts`, `hooks/useGuidedLearningProgress.ts`, `GL/components/results/EngagementView.tsx`, `components/guidedLearning/GuidedLearningStudentApp.tsx`.
+
+Do:
+
+1. Remove the Watch / Try toggle. Structured behaves as Try (click the target advances, Next always works, hint after 5s, misclicks recorded). Guided behaves as Watch.
+2. In the student app, a guided set starts playing after Start; on the teacher's board it starts paused. Both show a one-line visible chip ("Watch the steps" / "Tap the highlighted spot" / "Explore the pins"), replacing the hover-only hint and the "{mode} mode" jargon on the start screen.
+3. Stop writing `mode` and `modeSwitches` to progress docs (the rule keeps them optional, so old docs still read). Remove the Watch vs Try split from the Engagement view. Count a structured run as completed when the last step is reached, whatever its interaction type.
+
+Done when: tests cover both modes' behaviour, auto-play only in the student app, and the Engagement view reading old docs. _(visual)_
+
+#### P8-2 Media steps hold the clock — `sonnet` _(logic)_
+
+Depends on: P8-1.
+
+Key files: `GL/components/GuidedLearningPlayer.tsx` (`startTimer`), `GL/components/interactions/AudioInteraction.tsx`, `VideoInteraction.tsx`.
+
+Do: audio and uploaded video steps hold auto-advance until `ended`, as read-aloud does. YouTube uses the IFrame API `ENDED` state; if the API fails to load, the step waits for Next.
+
+Done when: tests cover a 60s clip not advancing at 5s and advancing on `ended`.
+
+#### P8-3 Finishing — `sonnet` _(visual)_
+
+Depends on: P4-3, P8-1.
+
+Key files: `GuidedLearningPlayer.tsx` (new `onReachedEnd`), `GuidedLearningStudentApp.tsx`.
+
+Do: reaching the last step shows a "You're finished → Submit" card. "I'm Done" stays visible; pressing it before the end, or with unanswered questions, asks "Submit now? N questions unanswered".
+
+Done when: tests cover the end card, early confirm and unanswered confirm. _(visual)_
+
+#### P8-4 Presenting on a projector — `sonnet` _(visual)_
+
+Depends on: P8-1.
+
+Key files: `GuidedLearningPlayer.tsx` (key listener), `GL/components/interactions/*` (text sizes).
+
+Do: scope keys to the player root; handle PageUp/PageDown; allow arrows when a footer button has focus. Replace the `min(14–16px, …)` text caps with `clamp(14px, Xcqmin, 30px)` for callout, tooltip, question and footer text.
+
+Done when: tests cover the keys; _(visual)_ screenshots at the `projector` preset.
+
+#### P8-5 Reveal answer for subs and the teacher's board — `sonnet` _(visual)_
+
+Depends on: P8-1.
+
+Key files: `GL/SubShareWidget.tsx`, `GL/Widget.tsx`, `GL/components/interactions/QuestionInteraction.tsx`.
+
+Do: subs and the teacher's board play without `teacherMode`; each question has a **Reveal answer** button that shows the key for the room.
+
+Done when: tests prove no key renders until Reveal. _(visual)_
+
+#### P8-6 Touch targets, feedback and remembered answers — `sonnet` _(visual)_
+
+Depends on: P8-5.
+
+Key files: `GL/components/GuidedLearningStage.tsx`, `GuidedLearningPlayer.tsx` (footer), `QuestionInteraction.tsx`.
+
+Do: a transparent 44px hit box around every tappable pin, button and small region in Try-style steps; a brief static miss marker plus a polite live-region message on a misclick (works under reduced motion); questions receive their prior answer ("Answer recorded — change?"); merge the structured and guided footer branches, and move speed and read-aloud into an overflow menu below a container-width breakpoint.
+
+Done when: tests cover each. _(visual)_ screenshots at 400px widget width.
+
+#### P8-7 Loading, errors and the preload window — `sonnet` _(visual)_
+
+Depends on: P8-6.
+
+Key files: `GuidedLearningStage.tsx`.
+
+Do: a shimmer while a slide loads; `onError` shows "Couldn't load this slide — Retry" (`ScaledEmptyState`); preload only the current slide ±2 and decode only the next.
+
+Done when: tests cover the error state and the preload window.
+
+#### P8-8 Cross-device resume, translation and contrast — `sonnet` _(visual)_
+
+Depends on: P8-7.
+
+Key files: `GL/components/player/useResume.ts`, `GuidedLearningStudentApp.tsx`, player and interaction strings, locales.
+
+Do: seed the resume offer from the progress doc's `furthestStepIdx` when localStorage has none; translate every hard-coded player and student-app string into all four locales; lift slate-400/500-on-dark text to meet contrast per `components/CLAUDE.md`.
+
+Done when: tests cover server-seeded resume; a grep finds no hard-coded English in the touched files.
+
+#### P8-9 Proof: a student run and a projector run — Paul _(proof)_
+
+Depends on: P8-1 to P8-8.
+
+Do: on spartboard-dev, Paul assigns a structured and a guided set, completes each as a test student on a Chromebook and an iPad (including a reload mid-activity, a failed network submit and a retry), and presents one on the projector with a clicker.
+
+Done when: Paul confirms both runs.

@@ -1,10 +1,13 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import type { GuidedLearningTourBinding } from '@/types';
+import { accessibleName, roleOf } from '@/components/tours/resolveTourAnchor';
 import { canCaptureDisplay, grabFrame } from '../../utils/displayCapture';
 import { redactImage, type RedactRect } from '../../utils/redactImage';
 import {
   rectToImagePct,
   resolveRecordedAnchor,
+  suggestAnchorId,
+  type RecordedAnchor,
   type RecordedPlacement,
 } from './resolveAnchor';
 import {
@@ -21,6 +24,8 @@ export interface RecordedStep extends RecordedPlacement {
   frameIndex: number;
   untagged: boolean;
   suggestedId?: string;
+  /** The board widget the click landed in, from its `data-tour-widget` ancestor. */
+  widgetId?: string;
 }
 
 export interface TourRecording {
@@ -95,6 +100,40 @@ const freshFrame = (video: HTMLVideoElement, since: number) =>
     video.requestVideoFrameCallback(check);
   });
 
+// Controls that open a menu, popover or panel.
+const OPENER =
+  '[aria-haspopup]:not([aria-haspopup="false"]), [aria-expanded], [aria-controls]';
+
+/** The menu or panel opener a click landed on, if any. */
+export const panelOpenerOf = (target: Element): HTMLElement | null =>
+  target.closest('[data-tour-ignore]')
+    ? null
+    : target.closest<HTMLElement>(OPENER);
+
+/** The widget instance an element belongs to, including portalled settings panels. */
+export const widgetIdOf = (el: Element): string | undefined =>
+  el.closest('[data-tour-widget]')?.getAttribute('data-tour-widget') ??
+  undefined;
+
+/** Like `resolveRecordedAnchor`, but an untagged opener inside a tagged container binds to the opener itself. */
+export function resolveCaptureTarget(target: Element): RecordedAnchor | null {
+  const resolved = resolveRecordedAnchor(target);
+  const opener = panelOpenerOf(target);
+  if (!resolved || !opener || resolved.untagged) return resolved;
+  // A tagged opener, or a tagged part of one, already names the step.
+  if (opener.contains(resolved.element)) return resolved;
+  const role = roleOf(opener);
+  const name = accessibleName(opener);
+  const fallback = role && name ? { role, name } : undefined;
+  return {
+    anchor: '',
+    fallback,
+    untagged: true,
+    suggestedId: suggestAnchorId(fallback),
+    element: opener,
+  };
+}
+
 const newId = () =>
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
@@ -105,10 +144,12 @@ interface Options {
   chromeRef: React.RefObject<HTMLElement | null>;
   /** Roster names to blur in every frame. */
   matcher: NameMatcher | null;
+  /** Called each time a captured step lands, with the count and the hook's own finish. */
+  onStep?: (count: number, finish: () => Promise<TourRecording>) => void;
 }
 
 /** Records a click-through of this tab: a frame and a tour-bound step per click. */
-export function useTourCapture({ chromeRef, matcher }: Options) {
+export function useTourCapture({ chromeRef, matcher, onStep }: Options) {
   const [status, setStatus] = useState<CaptureStatus>('idle');
   const [error, setError] = useState<CaptureError | null>(null);
   const [stepCount, setStepCount] = useState(0);
@@ -193,6 +234,7 @@ export function useTourCapture({ chromeRef, matcher }: Options) {
 
   const flush = () => {
     const rec = recording.current;
+    const before = rec.steps.length;
     while (done.current.has(seq.current.flushed)) {
       const entry = done.current.get(seq.current.flushed);
       done.current.delete(seq.current.flushed);
@@ -203,6 +245,7 @@ export function useTourCapture({ chromeRef, matcher }: Options) {
       rec.steps.push({ ...entry.step, frameIndex: rec.frames.length - 1 });
     }
     setStepCount(rec.steps.length);
+    if (rec.steps.length > before) onStep?.(rec.steps.length, finish);
   };
 
   /** Grabs a frame with the recorder hidden, blurs names and `data-pii` into it, and builds a step bound to `target`. */
@@ -211,7 +254,7 @@ export function useTourCapture({ chromeRef, matcher }: Options) {
     action: GuidedLearningTourBinding['action']
   ): Promise<Captured | null> => {
     const video = videoRef.current;
-    const resolved = resolveRecordedAnchor(target);
+    const resolved = resolveCaptureTarget(target);
     if (!video || !resolved) return null;
     const rect = resolved.element.getBoundingClientRect();
     const viewport = { w: window.innerWidth, h: window.innerHeight };
@@ -233,6 +276,7 @@ export function useTourCapture({ chromeRef, matcher }: Options) {
     const frame = await redactImage(raw, boxes, { mode: 'blur' });
     const fallback = scrubFallback(resolved.fallback, matcher);
     const suggestedId = fallback ? resolved.suggestedId : undefined;
+    const widgetId = widgetIdOf(resolved.element) ?? widgetIdOf(target);
     return {
       frame,
       boxes,
@@ -247,6 +291,7 @@ export function useTourCapture({ chromeRef, matcher }: Options) {
         frameIndex: -1,
         untagged: resolved.untagged,
         ...(suggestedId ? { suggestedId } : {}),
+        ...(widgetId ? { widgetId } : {}),
       },
     };
   };
@@ -272,6 +317,12 @@ export function useTourCapture({ chromeRef, matcher }: Options) {
     if (e.button !== 0 || !(e.target instanceof Element)) return;
     capture(e.target, 'click');
   });
+  // Keyboard-opened menus never see a pointerdown, but the opener is still its own step.
+  const onClick = useEffectEvent((e: MouseEvent) => {
+    if (e.detail !== 0 || !(e.target instanceof Element)) return;
+    const opener = panelOpenerOf(e.target);
+    if (opener) capture(opener, 'click');
+  });
   // The pill is skipped, so pressing Mark step marks what was hovered before it.
   const onPointerMove = useEffectEvent((e: PointerEvent) => {
     if (e.target instanceof Element && !e.target.closest('[data-tour-ignore]'))
@@ -293,11 +344,14 @@ export function useTourCapture({ chromeRef, matcher }: Options) {
     const down = (e: PointerEvent) => onPointerDown(e);
     const move = (e: PointerEvent) => onPointerMove(e);
     const key = (e: KeyboardEvent) => onKeyDown(e);
+    const click = (e: MouseEvent) => onClick(e);
     window.addEventListener('pointerdown', down, true);
+    window.addEventListener('click', click, true);
     window.addEventListener('pointermove', move, true);
     window.addEventListener('keydown', key, true);
     return () => {
       window.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('click', click, true);
       window.removeEventListener('pointermove', move, true);
       window.removeEventListener('keydown', key, true);
     };

@@ -4,6 +4,7 @@ import type {
   GuidedLearningStep,
   GuidedLearningVideoTrim,
   GuidedLearningWatchPace,
+  WidgetType,
 } from '@/types';
 import type { GuidedLearningMediaKind } from '@/utils/guidedLearningMedia';
 
@@ -21,6 +22,8 @@ export interface EditorDocument {
   welcomeEnabled: boolean;
   welcomeMessage: string;
   watchPace: GuidedLearningWatchPace | undefined;
+  /** Live tours: widget types the tour adds to the board before it starts. */
+  tourSetupWidgets: WidgetType[];
 }
 
 /** A file to delete once the set is saved and the editor closes. */
@@ -33,6 +36,8 @@ export interface MediaDeletionRef {
 export interface HistoryEntry {
   doc: EditorDocument;
   media: MediaDeletionRef[];
+  /** Identifies the edit that pushed this entry, for a targeted undo. */
+  tag?: object;
 }
 
 export interface EditorHistoryState {
@@ -57,13 +62,20 @@ export type EditorHistoryAction =
       /** Edits sharing a key within COALESCE_MS of each other form one entry. */
       coalesceKey?: string;
       at?: number;
+      tag?: object;
     }
   | { type: 'undo' }
+  /** Undoes only while the tagged edit is still the newest one. */
+  | { type: 'undoIfLatest'; tag: object }
   | { type: 'redo' }
   | { type: 'beginGesture' }
   | { type: 'endGesture' }
   | { type: 'queueMedia'; ref: MediaDeletionRef }
-  | { type: 'clearHistory' }
+  | {
+      type: 'rebase';
+      /** Rewrites every document in history without adding an entry; null drops that entry and older ones. */
+      convert: (doc: EditorDocument) => EditorDocument | null;
+    }
   | { type: 'reset'; doc: EditorDocument };
 
 function kindsForSet(set: GuidedLearningSet | null): GuidedLearningMediaKind[] {
@@ -92,6 +104,7 @@ export function documentFromSet(set: GuidedLearningSet | null): EditorDocument {
     welcomeEnabled: Boolean(set?.welcomeEnabled),
     welcomeMessage: set?.welcomeMessage ?? '',
     watchPace: set?.watchPace,
+    tourSetupWidgets: set?.tourSetup?.widgets ?? [],
   };
 }
 
@@ -121,6 +134,15 @@ function pushPast(
   };
 }
 
+/** True while the tagged edit is the newest undoable one and nothing was undone since. */
+export function isLatestEdit(state: EditorHistoryState, tag: object): boolean {
+  return (
+    !state.gestureBase &&
+    state.future.length === 0 &&
+    state.past[state.past.length - 1]?.tag === tag
+  );
+}
+
 export function editorHistoryReducer(
   state: EditorHistoryState,
   action: EditorHistoryAction
@@ -142,12 +164,19 @@ export function editorHistoryReducer(
       if (coalesce) return { ...state, present: next, lastCoalesce };
       return {
         ...state,
-        ...pushPast(state, { doc: state.present, media: [] }),
+        ...pushPast(state, {
+          doc: state.present,
+          media: [],
+          ...(action.tag ? { tag: action.tag } : {}),
+        }),
         present: next,
         future: [],
         lastCoalesce,
       };
     }
+    case 'undoIfLatest':
+      if (!isLatestEdit(state, action.tag)) return state;
+      return editorHistoryReducer(state, { type: 'undo' });
     case 'undo': {
       if (state.gestureBase || state.past.length === 0) return state;
       const entry = state.past[state.past.length - 1];
@@ -197,17 +226,39 @@ export function editorHistoryReducer(
         ],
       };
     }
-    case 'clearHistory':
+    case 'rebase': {
+      const present = action.convert(state.present);
+      if (!present) return state;
+      const past: HistoryEntry[] = [];
+      let dropped: HistoryEntry[] = [];
+      for (let i = state.past.length - 1; i >= 0; i--) {
+        const doc = action.convert(state.past[i].doc);
+        if (!doc) {
+          dropped = state.past.slice(0, i + 1);
+          break;
+        }
+        past.unshift({ ...state.past[i], doc });
+      }
+      const future: HistoryEntry[] = [];
+      for (const entry of state.future) {
+        const doc = action.convert(entry.doc);
+        if (!doc) break;
+        future.push({ ...entry, doc });
+      }
       return {
         ...state,
-        past: [],
-        future: [],
+        past,
+        present,
+        future,
         retiredMedia: [
           ...state.retiredMedia,
-          ...state.past.flatMap((e) => e.media),
+          ...dropped.flatMap((e) => e.media),
         ],
-        lastCoalesce: null,
+        gestureBase: state.gestureBase
+          ? (action.convert(state.gestureBase) ?? present)
+          : null,
       };
+    }
     case 'reset':
       return initialHistory(action.doc);
   }

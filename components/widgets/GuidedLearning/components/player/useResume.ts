@@ -42,16 +42,71 @@ export function writeResume(point: ResumePoint): void {
   }
 }
 
+/** A place to offer on open: this device's saved point, else the server's furthest step. */
+export interface ResumeOffer {
+  idx: number;
+  source: 'device' | 'server';
+}
+
+interface OfferState {
+  offer: ResumeOffer | null;
+  /** This device had a saved point, so the server's is never offered. */
+  hasLocal: boolean;
+  dismissed: boolean;
+  serverSeen: boolean;
+}
+
+const offerable = (idx: number | null | undefined, stepCount: number) =>
+  typeof idx === 'number' && idx > 0 && idx < stepCount;
+
 /** The saved place to offer on open, if it is past the first step and within 14 days. */
 export function useResumeOffer(
   id: string,
   stepCount: number,
-  enabled: boolean
-): [ResumePoint | null, () => void] {
-  const [offer, setOffer] = useState<ResumePoint | null>(() => {
-    if (!enabled) return null;
+  enabled: boolean,
+  serverIdx?: number | null,
+  pristine = true
+): [ResumeOffer | null, () => void] {
+  const [state, setState] = useState<OfferState>(() => {
+    if (!enabled) {
+      return {
+        offer: null,
+        hasLocal: false,
+        dismissed: false,
+        serverSeen: true,
+      };
+    }
     const p = readResume(id);
-    return p && p.idx > 0 && p.idx < stepCount ? p : null;
+    const server = offerable(serverIdx, stepCount)
+      ? (serverIdx as number)
+      : null;
+    return {
+      offer:
+        p && offerable(p.idx, stepCount)
+          ? { idx: p.idx, source: 'device' }
+          : !p && server !== null
+            ? { idx: server, source: 'server' }
+            : null,
+      hasLocal: Boolean(p),
+      dismissed: false,
+      serverSeen: typeof serverIdx === 'number',
+    };
   });
-  return [offer, () => setOffer(null)];
+  // The progress doc can land after the player opens; a learner who has moved is left alone.
+  if (!state.serverSeen && typeof serverIdx === 'number') {
+    const late =
+      !state.hasLocal &&
+      !state.dismissed &&
+      pristine &&
+      offerable(serverIdx, stepCount);
+    setState({
+      ...state,
+      serverSeen: true,
+      offer: late ? { idx: serverIdx, source: 'server' } : state.offer,
+    });
+  }
+  return [
+    state.offer,
+    () => setState((s) => ({ ...s, offer: null, dismissed: true })),
+  ];
 }

@@ -112,10 +112,12 @@ export const TooltipInteraction: React.FC<Props> = ({
         style={{
           left: placement.left,
           top: placement.top,
-          maxWidth: squeezed ? placement.width : 'min(340px, 50cqw)',
+          maxWidth: squeezed
+            ? placement.width
+            : 'var(--gl-callout-max-w, min(340px, 50cqw))',
           width: squeezed ? placement.width : 'max-content',
           padding: 'min(12px, 2.8cqmin) min(16px, 3.6cqmin)',
-          fontSize: 'min(16px, 4cqmin)',
+          fontSize: 'var(--gl-text-body, min(16px, 4cqmin))',
         }}
       >
         {editor ?? (
@@ -123,7 +125,9 @@ export const TooltipInteraction: React.FC<Props> = ({
             {step.label && (
               <div
                 className="font-bold text-white mb-1 tracking-tight"
-                style={{ fontSize: 'min(18px, 4.2cqmin)' }}
+                style={{
+                  fontSize: 'var(--gl-text-title, min(18px, 4.2cqmin))',
+                }}
               >
                 {renderStepText(step.label)}
               </div>

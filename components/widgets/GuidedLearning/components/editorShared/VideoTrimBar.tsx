@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2, Scissors } from 'lucide-react';
 import type { GuidedLearningVideoTrim } from '@/types';
 
@@ -23,6 +24,7 @@ export const VideoTrimBar: React.FC<{
   trim: GuidedLearningVideoTrim | null;
   onChange: (trim: GuidedLearningVideoTrim | null) => void;
 }> = ({ videoRef, duration, trim, onChange }) => {
+  const { t } = useTranslation();
   const trackRef = useRef<HTMLDivElement>(null);
   // Holds the in-flight drag's window listeners so they can be torn down if
   // the bar unmounts mid-drag. The editor unmounts this on slide change
@@ -47,8 +49,11 @@ export const VideoTrimBar: React.FC<{
   if (duration === null) {
     return (
       <div className="flex items-center gap-2 text-xs font-medium text-slate-500 shrink-0">
-        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        Loading video…
+        <Loader2
+          className="w-3.5 h-3.5 animate-spin motion-reduce:animate-none"
+          aria-hidden="true"
+        />
+        {t('glStudio.trimLoading')}
       </div>
     );
   }
@@ -173,8 +178,11 @@ export const VideoTrimBar: React.FC<{
   return (
     <div className="flex flex-wrap items-center gap-3 shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2.5">
       <span className="flex items-center gap-1.5 text-xs font-bold text-slate-600 shrink-0">
-        <Scissors className="w-3.5 h-3.5 text-brand-blue-primary" />
-        Trim
+        <Scissors
+          className="w-3.5 h-3.5 text-brand-blue-primary"
+          aria-hidden="true"
+        />
+        {t('glStudio.trim')}
       </span>
       <div
         ref={trackRef}
@@ -188,7 +196,7 @@ export const VideoTrimBar: React.FC<{
         <div
           role="slider"
           tabIndex={0}
-          aria-label="Trim start"
+          aria-label={t('glStudio.trimStart')}
           aria-valuemin={0}
           aria-valuemax={Math.max(end - minGap, 0)}
           aria-valuenow={start}
@@ -201,7 +209,7 @@ export const VideoTrimBar: React.FC<{
         <div
           role="slider"
           tabIndex={0}
-          aria-label="Trim end"
+          aria-label={t('glStudio.trimEnd')}
           aria-valuemin={Math.min(start + minGap, duration)}
           aria-valuemax={duration}
           aria-valuenow={end}
@@ -217,6 +225,7 @@ export const VideoTrimBar: React.FC<{
         <span className="text-slate-400"> / {formatTrimTime(duration)}</span>
       </span>
       <button
+        type="button"
         onClick={() => {
           onChange(null);
           scrubTo(0);
@@ -224,7 +233,7 @@ export const VideoTrimBar: React.FC<{
         disabled={!trim}
         className="text-xs font-bold text-slate-500 hover:text-slate-700 disabled:opacity-40 disabled:cursor-default transition-colors shrink-0"
       >
-        Reset
+        {t('glStudio.trimReset')}
       </button>
     </div>
   );

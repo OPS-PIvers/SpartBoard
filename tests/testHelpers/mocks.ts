@@ -26,6 +26,7 @@ class MockPointerEvent extends Event {
   metaKey: boolean;
   shiftKey: boolean;
   detail: number;
+  isPrimary: boolean;
 
   constructor(type: string, props: PointerEventInit = {}) {
     super(type, { bubbles: true, ...props });
@@ -39,6 +40,7 @@ class MockPointerEvent extends Event {
     this.metaKey = props.metaKey ?? false;
     this.shiftKey = props.shiftKey ?? false;
     this.detail = props.detail ?? 0;
+    this.isPrimary = props.isPrimary ?? true;
   }
 }
 

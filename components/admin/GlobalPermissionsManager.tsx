@@ -41,6 +41,7 @@ import {
   Send,
   Eye,
   ListChecks,
+  TextCursorInput,
   PlayCircle,
   Music2,
   Link2,
@@ -58,6 +59,7 @@ import {
   Footprints,
   Clapperboard,
   CalendarClock,
+  LayoutDashboard,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -203,6 +205,13 @@ const GLOBAL_FEATURES: {
       'Shows "Draft with AI" inside the question-bank editor so teachers can generate bank questions from a prompt or file. Only takes effect when Gemini Functions is also enabled for the teacher; the generated questions inherit the bank\'s learning-target tags.',
   },
   {
+    id: 'quiz-document-ai-reader',
+    label: 'AI reader for quiz document import',
+    icon: FileText,
+    description:
+      'Reads an imported test document with AI (Gemini) instead of the plain text-and-scan reader, which handles unusual layouts better and counts against the teacher\u2019s daily AI limit. Teachers who have it see a \u201CRead with AI\u201D checkbox, off by default, on each import. Only takes effect when Build a quiz from a test document and Gemini Functions are also enabled. Fail-closed: nobody gets it until this is saved and enabled.',
+  },
+  {
     id: 'paper-answer-sheets',
     label: 'Paper answer sheets (Scantron replacement)',
     icon: Printer,
@@ -271,6 +280,27 @@ const GLOBAL_FEATURES: {
     icon: Printer,
     description:
       'A Print button on quiz results prints a copy for every student in one go, each starting on its own page, to hand back. Teachers pick what each copy shows: the questions, right and wrong marks, the correct answers, the score, learning targets, written-answer feedback, and passages and pictures. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'plc-home-v2',
+    label: 'PLC Home dashboard',
+    icon: LayoutDashboard,
+    description:
+      'Replaces the PLC Home page with tiles: team results by learning target, the next meeting, your action items and recent activity, and docs. Each teacher can spotlight, reorder, add and remove tiles, and leads can set a regular meeting schedule. Adds "Assign from my library" to Assessments. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'quiz-choose-all',
+    label: 'Choose-all-that-apply quiz questions',
+    icon: ListChecks,
+    description:
+      'Adds a "Choose All That Apply" question type to the quiz editor and AI drafting, where students tick every correct option. Teachers can turn on partial credit, which takes points away for each wrong option ticked, so ticking everything earns nothing. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'quiz-fib-alternates',
+    label: 'Other accepted answers for fill in the blank',
+    icon: TextCursorInput,
+    description:
+      'Adds an "Also Accept" list under the correct answer of fill-in-the-blank quiz questions, so answers like "colour" and "color" both count. The extra answers are shown to students wherever the correct answer is revealed. Admin-only until this is saved and opened up.',
   },
   {
     id: 'settings-drawer',
@@ -1200,6 +1230,7 @@ export const GlobalPermissionsManager: React.FC = () => {
                           })
                         }
                         size="sm"
+                        label={`${feature.label} enabled`}
                       />
                     </div>
 
@@ -1248,6 +1279,7 @@ export const GlobalPermissionsManager: React.FC = () => {
                               })
                             }
                             size="xs"
+                            label={`${feature.label} daily limit`}
                           />
                         </div>
 
@@ -1442,6 +1474,7 @@ export const GlobalPermissionsManager: React.FC = () => {
                       })
                     }
                     size="md"
+                    label={`${feature.label} enabled`}
                   />
                 </div>
 
@@ -1548,6 +1581,7 @@ export const GlobalPermissionsManager: React.FC = () => {
                             (permission.config?.dailyLimitEnabled as boolean) ??
                             true
                           }
+                          label={`${feature.label} daily limit`}
                           onChange={(checked) =>
                             updatePermission(feature.id, {
                               config: {

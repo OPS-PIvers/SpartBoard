@@ -158,6 +158,37 @@ describe('users/{uid}/plc_layouts — owner-only', () => {
     );
   });
 
+  it('owner can write and read back the Home v2 spotlight and seen counts', async () => {
+    const ref = doc(asMemberA(), `users/${MEMBER_A_UID}/plc_layouts/${PLC_ID}`);
+    await assertSucceeds(
+      setDoc(ref, {
+        tiles: [{ id: 't1', kind: 'results' }],
+        heroTileId: 't1',
+        seenCounts: { a1: 12 },
+        updatedAt: 1,
+      })
+    );
+    await assertSucceeds(
+      setDoc(ref, { heroTileId: null, updatedAt: 2 }, { merge: true })
+    );
+    await assertSucceeds(getDoc(ref));
+    await assertFails(
+      getDoc(doc(asMemberB(), `users/${MEMBER_A_UID}/plc_layouts/${PLC_ID}`))
+    );
+  });
+
+  it('rejects a non-string spotlight and an oversized seenCounts map', async () => {
+    const ref = doc(asMemberA(), `users/${MEMBER_A_UID}/plc_layouts/${PLC_ID}`);
+    await assertFails(setDoc(ref, { tiles: [], heroTileId: 7, updatedAt: 1 }));
+    const seenCounts = Object.fromEntries(
+      Array.from({ length: 201 }, (_, i) => [`a${i}`, i])
+    );
+    await assertFails(setDoc(ref, { tiles: [], seenCounts, updatedAt: 1 }));
+    await assertFails(
+      setDoc(ref, { tiles: [], seenCounts: 'lots', updatedAt: 1 })
+    );
+  });
+
   it('rejects an oversized tiles list (> 50 entries)', async () => {
     // Defense-in-depth size cap. Per-tile interior validation is delegated
     // to the client parser, but the rule must still bound the doc size so

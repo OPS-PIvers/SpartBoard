@@ -59,6 +59,15 @@ export function accessibleName(el: Element): string {
 
 const ignored = (el: Element) => el.closest('[data-tour-ignore]') !== null;
 
+/** Hidden or zero-size matches don't count, so a closed panel reads as missing. */
+export function isAnchorVisible(el: Element): boolean {
+  const r = el.getBoundingClientRect();
+  if (r.width <= 0 || r.height <= 0) return false;
+  return typeof el.checkVisibility === 'function' ? el.checkVisibility() : true;
+}
+
+const usable = (el: Element) => !ignored(el) && isAnchorVisible(el);
+
 const FALLBACK_CANDIDATES = '[role], button, a[href], input, select, textarea';
 
 /** Finds a tour step's element: `data-tour` first, then role plus accessible name. */
@@ -71,9 +80,9 @@ export function findTourAnchor(
   const selector =
     `[data-tour=${quote(id)}]` +
     (widgetType ? `[data-tour-widget-type=${quote(widgetType)}]` : '');
-  const tagged = Array.from(
-    root.querySelectorAll<HTMLElement>(selector)
-  ).filter((el) => !ignored(el));
+  const tagged = id
+    ? Array.from(root.querySelectorAll<HTMLElement>(selector)).filter(usable)
+    : [];
   if (tagged.length > 0) {
     const scoped = scope.widgetIds?.length
       ? tagged.find((el) =>
@@ -88,7 +97,7 @@ export function findTourAnchor(
   if (!name) return null;
   return (
     Array.from(root.querySelectorAll<HTMLElement>(FALLBACK_CANDIDATES)).find(
-      (el) => !ignored(el) && roleOf(el) === role && accessibleName(el) === name
+      (el) => roleOf(el) === role && accessibleName(el) === name && usable(el)
     ) ?? null
   );
 }

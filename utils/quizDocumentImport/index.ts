@@ -75,6 +75,8 @@ export interface ReadDocumentOptions {
   fileName?: string;
   /** Required to read a PDF; a Word file needs none. */
   pdf?: PdfReaderDeps;
+  /** Lets the read produce choose-all-that-apply questions. */
+  multiAnswer?: boolean;
 }
 
 /**
@@ -91,13 +93,14 @@ export async function readQuizDocument(
   if (!kind) {
     throw new Error(UNREADABLE_FILE);
   }
+  const reader = { multiAnswer: options.multiAnswer === true };
   assertWithinByteLimit(file);
 
   const warnings: string[] = [];
 
   // An LMS export brings its own answers and its own pictures (see the reader).
   if (kind === 'cartridge') {
-    return readCartridge(file, titleFromFileName(fileName));
+    return readCartridge(file, titleFromFileName(fileName), undefined, reader);
   }
 
   if (kind === 'rtf') {
@@ -108,7 +111,7 @@ export async function readQuizDocument(
     );
     return {
       title: titleFromFileName(fileName),
-      questions: parseQuestionLines(lines),
+      questions: parseQuestionLines(lines, reader),
       images: [],
       warnings,
     };
@@ -116,7 +119,7 @@ export async function readQuizDocument(
 
   if (kind === 'docx') {
     const { lines, images } = await readDocx(file);
-    const questions = parseQuestionLines(lines);
+    const questions = parseQuestionLines(lines, reader);
     const used = new Set(questions.flatMap((q) => q.imageIds));
     return {
       title: titleFromFileName(fileName),
@@ -159,7 +162,7 @@ export async function readQuizDocument(
 
   return {
     title: titleFromFileName(fileName),
-    questions: parseQuestionLines(lines),
+    questions: parseQuestionLines(lines, reader),
     images: [],
     warnings,
   };

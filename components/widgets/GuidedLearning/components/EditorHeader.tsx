@@ -19,6 +19,8 @@ interface EditorHeaderProps {
   extras?: React.ReactNode;
   onOpenClassic?: () => void;
   onClose: () => void;
+  /** Tighter spacing for narrow screens. */
+  compact?: boolean;
 }
 
 /** Studio header: editable title, save state, AI drafting and close. */
@@ -34,10 +36,15 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
   extras,
   onOpenClassic,
   onClose,
+  compact = false,
 }) => {
   const { t } = useTranslation();
   return (
-    <header className="flex shrink-0 items-center gap-4 border-b border-slate-200 bg-white px-5 py-3">
+    <header
+      className={`flex shrink-0 items-center border-b border-slate-200 bg-white py-3 ${
+        compact ? 'gap-2 px-3' : 'gap-4 px-5'
+      }`}
+    >
       <div className="flex min-w-0 flex-1 flex-col">
         <input
           type="text"

@@ -21,6 +21,12 @@ const slug = (s: string) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 40);
 
+/** The registry id to tag an untagged element with, from its role and name. */
+export const suggestAnchorId = (
+  fallback: GuidedLearningTourBinding['fallback']
+): string | undefined =>
+  fallback ? `${fallback.role}.${slug(fallback.name)}` : undefined;
+
 const fallbackOf = (el: Element): RecordedAnchor['fallback'] => {
   const role = roleOf(el);
   const name = accessibleName(el);
@@ -50,9 +56,7 @@ export function resolveRecordedAnchor(target: Element): RecordedAnchor | null {
     anchor: '',
     fallback,
     untagged: true,
-    suggestedId: fallback
-      ? `${fallback.role}.${slug(fallback.name)}`
-      : undefined,
+    suggestedId: suggestAnchorId(fallback),
     element,
   };
 }

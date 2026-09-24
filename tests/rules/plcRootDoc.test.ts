@@ -858,3 +858,95 @@ describe('plcs/{plcId} — T6 orgId/buildingId immutable-after-set', () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// isUpdatingPlcMeetingCadence — lead and co-leads set the meeting schedule
+// ---------------------------------------------------------------------------
+
+describe('plcs/{plcId} update — isUpdatingPlcMeetingCadence', () => {
+  const cadence = {
+    frequency: 'weekly',
+    weekday: 4,
+    time: '15:15',
+    anchorDate: '2026-09-03',
+    overrides: { '2026-09-24': { skipped: true } },
+  };
+  const setRoleB = async (role: string) => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        members: {
+          [MEMBER_A_UID]: { uid: MEMBER_A_UID, role: 'lead', status: 'active' },
+          [MEMBER_B_UID]: { uid: MEMBER_B_UID, role, status: 'active' },
+        },
+      });
+    });
+  };
+
+  it('a co-lead can set the cadence with a server timestamp', async () => {
+    await setRoleB('coLead');
+    await assertSucceeds(
+      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
+        meetingCadence: cadence,
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  it('the lead can set the cadence', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}`), {
+        meetingCadence: cadence,
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('rejects a plain member or a viewer setting the cadence', async () => {
+    await setRoleB('member');
+    await assertFails(
+      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
+        meetingCadence: cadence,
+        updatedAt: 2,
+      })
+    );
+    await setRoleB('viewer');
+    await assertFails(
+      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
+        meetingCadence: cadence,
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('rejects a non-map cadence from a co-lead', async () => {
+    await setRoleB('coLead');
+    await assertFails(
+      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
+        meetingCadence: 'weekly',
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('rejects a co-lead smuggling a name change with the cadence', async () => {
+    await setRoleB('coLead');
+    await assertFails(
+      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}`), {
+        meetingCadence: cadence,
+        name: 'Renamed',
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('members and viewers can read the cadence; non-members cannot', async () => {
+    await setRoleB('viewer');
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        meetingCadence: cadence,
+      });
+    });
+    await assertSucceeds(getDoc(doc(asMemberB(), `plcs/${PLC_ID}`)));
+    await assertFails(getDoc(doc(asNonMember(), `plcs/${PLC_ID}`)));
+  });
+});

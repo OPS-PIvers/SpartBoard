@@ -48,10 +48,12 @@ vi.mock('react-i18next', () => ({
 }));
 
 let mockUserUid: string | null = 'uid-alice';
+let mockHomeV2 = false;
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: mockUserUid ? { uid: mockUserUid } : null,
     googleAccessToken: 'tok',
+    canAccessFeature: (id: string) => id === 'plc-home-v2' && mockHomeV2,
   }),
 }));
 
@@ -66,7 +68,7 @@ vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showPrompt, showConfirm }),
 }));
 
-const createMeeting = vi.fn(() => Promise.resolve('meeting-1'));
+const createMeeting = vi.fn((_input: unknown) => Promise.resolve('meeting-1'));
 const updateMeeting = vi.fn(() => Promise.resolve());
 const saveMeeting = vi.fn(() => Promise.resolve(['todo-1']));
 
@@ -229,6 +231,7 @@ function makeAggregate(
 
 function setDefaults(): void {
   mockUserUid = 'uid-alice';
+  mockHomeV2 = false;
   mockMembers = members;
   mockWhoIsHere = [{ uid: 'uid-alice', displayName: 'Alice' }];
   mockMeetings = [];
@@ -283,6 +286,48 @@ describe('PlcMeetingMode — live guided flow', () => {
       )
     );
     expect(createMeeting).not.toHaveBeenCalled();
+  });
+
+  it('seeds the cadence default agenda into a new meeting when Home v2 is on', async () => {
+    mockHomeV2 = true;
+    const plc = {
+      ...fakePlc,
+      meetingCadence: {
+        frequency: 'weekly' as const,
+        weekday: 4,
+        time: '15:15',
+        anchorDate: '2026-09-03',
+        defaultAgenda: 'Review data\nPlan reteach',
+      },
+    };
+    render(<PlcMeetingMode plc={plc} meetingId={null} onNavigate={noop} />);
+    pickFirstAssessment();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() =>
+      expect(createMeeting).toHaveBeenCalledWith({
+        assessmentIds: [],
+        agenda: 'Review data\nPlan reteach',
+      })
+    );
+  });
+
+  it('ignores the default agenda while Home v2 is off', async () => {
+    const plc = {
+      ...fakePlc,
+      meetingCadence: {
+        frequency: 'weekly' as const,
+        weekday: 4,
+        time: '15:15',
+        anchorDate: '2026-09-03',
+        defaultAgenda: 'Review data',
+      },
+    };
+    render(<PlcMeetingMode plc={plc} meetingId={null} onNavigate={noop} />);
+    pickFirstAssessment();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() =>
+      expect(createMeeting).toHaveBeenCalledWith({ assessmentIds: [] })
+    );
   });
 
   it('picks an assessment, advances to Review, and renders large-type pooled data with no student names', async () => {

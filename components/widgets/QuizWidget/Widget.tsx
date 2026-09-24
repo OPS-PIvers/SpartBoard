@@ -152,6 +152,7 @@ import type { StudentTargetRef } from '@/types';
 import { buildPeriodAccess } from '@/utils/periodPlan';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
+import { revealValueFor } from '@/utils/quizFibAlternates';
 
 /**
  * Session-options shape used when minting a view-only Quiz share. Typed as
@@ -218,10 +219,11 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { showConfirm } = useDialog();
   const { openPicker } = useGooglePicker();
   const canImportDocuments = useQuizDocumentImportGate();
-  // D1: the AI reader handles the layouts the browser reader can't, like a
-  // key in a table; it needs the same AI permission as every other AI feature.
+  // D1: the AI reader has its own admin-default permission, AND-ed with the AI one.
   const canUseAiReader =
-    canImportDocuments && canAccessFeature('gemini-functions');
+    canImportDocuments &&
+    canAccessFeature('quiz-document-ai-reader') &&
+    canAccessFeature('gemini-functions');
   const config = widget.config as QuizConfig;
 
   // Opens the Google Picker so the teacher selects a Sheet to import. Picking
@@ -1272,7 +1274,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     for (let i = 0; i < upTo && i < questions.length; i++) {
       const q = questions[i];
       if (!liveSession.revealedAnswers?.[q.id]) {
-        void revealAnswer(q.id, q.correctAnswer);
+        void revealAnswer(q.id, revealValueFor(q));
       }
     }
   }, [
@@ -1408,6 +1410,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       canImportDocuments,
       pickDocument,
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
+      canUseChooseAll: canAccessFeature('quiz-choose-all'),
       onDocumentImages: (images) => {
         documentImagesRef.current = images;
       },
@@ -3418,12 +3421,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             ? {
                 // The same readers the import wizard uses, so a new paper
                 // test can start from the teacher's own test paper (D17).
-                readDocument: (file: Blob, fileName: string) =>
+                readDocument: (file: Blob, fileName: string, useAi?: boolean) =>
                   readTestDocument(file, fileName, {
                     ...(canUseAiReader
                       ? { aiExtract: extractQuizFromDocument }
                       : {}),
+                    ...(useAi === false ? { useAi } : {}),
                   }),
+                canUseAi: canUseAiReader,
                 pickDocument,
               }
             : {})}
@@ -3537,12 +3542,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             ? {
                 // The same readers the import wizard uses, so a stub fills
                 // with choices and a key rather than stem text alone (D17).
-                readDocument: (file: Blob, fileName: string) =>
+                readDocument: (file: Blob, fileName: string, useAi?: boolean) =>
                   readTestDocument(file, fileName, {
                     ...(canUseAiReader
                       ? { aiExtract: extractQuizFromDocument }
                       : {}),
+                    ...(useAi === false ? { useAi } : {}),
                   }),
+                canUseAi: canUseAiReader,
               }
             : {})}
           onClose={() => setPaperOcr(null)}

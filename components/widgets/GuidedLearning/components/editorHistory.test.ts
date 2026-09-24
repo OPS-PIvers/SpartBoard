@@ -12,6 +12,18 @@ import {
 } from './editorHistory';
 import { useGuidedLearningEditorState } from './useGuidedLearningEditorState';
 
+// Adapts per-file spies to the editor's batched release callback.
+const releaseVia =
+  (
+    deleteFile: (path: string) => unknown,
+    deleteDriveFile: (id: string) => unknown
+  ) =>
+  (files: { storagePaths: string[]; driveFileIds: string[] }) => {
+    files.storagePaths.forEach((p) => deleteFile(p));
+    files.driveFileIds.forEach((id) => deleteDriveFile(id));
+    return Promise.resolve();
+  };
+
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'teacher-1' } }),
 }));
@@ -112,6 +124,29 @@ describe('editorHistoryReducer', () => {
     let s = retitle(base(), 'a', 0);
     s = editorHistoryReducer(s, { type: 'beginGesture' });
     expect(editorHistoryReducer(s, { type: 'undo' })).toBe(s);
+  });
+
+  it('undoes a tagged edit only while it is the newest and nothing was undone', () => {
+    const tag = {};
+    const tagged = editorHistoryReducer(base(), {
+      type: 'apply',
+      update: (d) => ({ ...d, title: 'deleted' }),
+      at: 0,
+      tag,
+    });
+    const undone = editorHistoryReducer(tagged, { type: 'undoIfLatest', tag });
+    expect(undone.present.title).toBe('Original');
+    const edited = retitle(tagged, 'later', 1);
+    expect(editorHistoryReducer(edited, { type: 'undoIfLatest', tag })).toBe(
+      edited
+    );
+    const afterUndo = editorHistoryReducer(edited, { type: 'undo' });
+    expect(editorHistoryReducer(afterUndo, { type: 'undoIfLatest', tag })).toBe(
+      afterUndo
+    );
+    expect(
+      editorHistoryReducer(tagged, { type: 'undoIfLatest', tag: {} })
+    ).toBe(tagged);
   });
 
   it('drops a gesture that changed nothing', () => {
@@ -273,17 +308,23 @@ describe('useGuidedLearningEditorState history', () => {
     });
     act(() => result.current.undo());
     await act(() =>
-      result.current.flushMediaDeletions(deleteFile, deleteDriveFile)
+      result.current.flushMediaDeletions(
+        releaseVia(deleteFile, deleteDriveFile)
+      )
     );
     expect(deleteFile).not.toHaveBeenCalled();
 
     act(() => result.current.redo());
     await act(() =>
-      result.current.flushMediaDeletions(deleteFile, deleteDriveFile)
+      result.current.flushMediaDeletions(
+        releaseVia(deleteFile, deleteDriveFile)
+      )
     );
     expect(deleteFile).toHaveBeenCalledWith('narration/s2.mp3');
     await act(() =>
-      result.current.flushMediaDeletions(deleteFile, deleteDriveFile)
+      result.current.flushMediaDeletions(
+        releaseVia(deleteFile, deleteDriveFile)
+      )
     );
     expect(deleteFile).toHaveBeenCalledTimes(1);
   });
@@ -297,10 +338,81 @@ describe('useGuidedLearningEditorState history', () => {
       result.current.queueMediaDeletion({ driveFileId: 'drive-1' });
     });
     await act(() =>
-      result.current.flushMediaDeletions(deleteFile, deleteDriveFile)
+      result.current.flushMediaDeletions(
+        releaseVia(deleteFile, deleteDriveFile)
+      )
     );
     expect(deleteDriveFile).toHaveBeenCalledWith('drive-1');
     expect(deleteFile).not.toHaveBeenCalled();
+  });
+
+  describe('deleting a slide', () => {
+    const storageUrl = (path: string) =>
+      `https://firebasestorage.googleapis.com/v0/b/bkt/o/${encodeURIComponent(path)}?alt=media&token=t`;
+    const SLIDE = 'users/teacher-1/hotspot_images/1-b.webp';
+    const THUMB = 'users/teacher-1/hotspot_images/thumbs/1-b.webp';
+    const slideSet = () =>
+      makeSet({
+        imageUrls: [
+          'https://lh3.googleusercontent.com/d/drive-a',
+          storageUrl(SLIDE),
+        ],
+        steps: [step('s0', 0), step('s1', 1)],
+        slideThumbnails: { [storageUrl(SLIDE)]: storageUrl(THUMB) },
+      });
+    const flush = async (
+      result: { current: ReturnType<typeof useGuidedLearningEditorState> },
+      release: Parameters<
+        ReturnType<typeof useGuidedLearningEditorState>['flushMediaDeletions']
+      >[0]
+    ) => {
+      await act(() => result.current.flushMediaDeletions(release));
+    };
+
+    it('queues the slide and its thumbnail for release after save-and-close', async () => {
+      const release = vi.fn().mockResolvedValue(undefined);
+      const { result } = renderEditor(slideSet());
+      act(() => result.current.deleteImage(1));
+      await flush(result, release);
+      expect(release).toHaveBeenCalledExactlyOnceWith({
+        storagePaths: [SLIDE, THUMB],
+        driveFileIds: [],
+      });
+    });
+
+    it('releases nothing after the delete is undone', async () => {
+      const release = vi.fn().mockResolvedValue(undefined);
+      const { result } = renderEditor(slideSet());
+      act(() => result.current.deleteImage(0));
+      act(() => result.current.undo());
+      expect(result.current.imageUrls).toHaveLength(2);
+      await flush(result, release);
+      expect(release).not.toHaveBeenCalled();
+    });
+
+    it('queues a Drive slide by its file id', async () => {
+      const release = vi.fn().mockResolvedValue(undefined);
+      const { result } = renderEditor(slideSet());
+      act(() => result.current.deleteImage(0));
+      await flush(result, release);
+      expect(release).toHaveBeenCalledWith({
+        storagePaths: [],
+        driveFileIds: ['drive-a'],
+      });
+    });
+
+    it('keeps a file the set still shows elsewhere', async () => {
+      const release = vi.fn().mockResolvedValue(undefined);
+      const set = slideSet();
+      const { result } = renderEditor({
+        ...set,
+        imageUrls: [...set.imageUrls, set.imageUrls[1]],
+        steps: [...set.steps, step('s2', 2)],
+      });
+      act(() => result.current.deleteImage(1));
+      await flush(result, release);
+      expect(release).not.toHaveBeenCalled();
+    });
   });
 
   it('forgets history and queued deletions when the set changes', async () => {
@@ -313,22 +425,46 @@ describe('useGuidedLearningEditorState history', () => {
     rerender({ existingSet: makeSet({ id: 'set-2', title: 'Other' }) });
     expect(result.current.title).toBe('Other');
     expect(result.current.canUndo).toBe(false);
-    await act(() => result.current.flushMediaDeletions(deleteFile, vi.fn()));
+    await act(() =>
+      result.current.flushMediaDeletions(releaseVia(deleteFile, vi.fn()))
+    );
     expect(deleteFile).not.toHaveBeenCalled();
   });
 
-  it('makes the load-time radius conversion not undoable', () => {
+  it('keeps undo history through the load-time radius conversion', () => {
     const { result } = renderEditor(makeSet({ schemaVersion: 1 }));
     act(() => result.current.setTitle('Edited'));
-    act(() => {
-      result.current.setSteps((prev) =>
-        prev.map((s) => ({ ...s, spotlightRadius: 5 }))
-      );
-      result.current.markSpotlightRadiiV2();
-    });
+    act(() =>
+      result.current.markSpotlightRadiiV2((steps) =>
+        steps.map((s) => ({ ...s, spotlightRadius: 5 }))
+      )
+    );
     expect(result.current.spotlightRadiiV2).toBe(true);
-    expect(result.current.canUndo).toBe(false);
+    expect(result.current.canUndo).toBe(true);
     expect(result.current.steps[0].spotlightRadius).toBe(5);
+    act(() => result.current.undo());
+    expect(result.current.title).not.toBe('Edited');
+    expect(result.current.steps[0].spotlightRadius).toBe(5);
+    act(() => result.current.redo());
+    expect(result.current.title).toBe('Edited');
+  });
+
+  it('drops only the history the conversion cannot rewrite', () => {
+    const { result } = renderEditor(makeSet({ schemaVersion: 1 }));
+    act(() => result.current.setTitle('First'));
+    act(() => result.current.setMode('guided'));
+    let calls = 0;
+    act(() =>
+      result.current.markSpotlightRadiiV2((steps) => {
+        calls += 1;
+        // present and the newest past entry convert; the oldest does not
+        return calls <= 2 ? steps : null;
+      })
+    );
+    act(() => result.current.undo());
+    expect(result.current.title).toBe('First');
+    expect(result.current.mode).not.toBe('guided');
+    expect(result.current.canUndo).toBe(false);
   });
 });
 
@@ -348,6 +484,15 @@ describe('slide and step reordering', () => {
     expect(result.current.imageUrls).toEqual(['a.png', 'b.png', 'c.png']);
     expect(result.current.steps.map((s) => s.imageIndex)).toEqual([0, 1, 2]);
     expect(result.current.canUndo).toBe(false);
+  });
+
+  it('drops a confirmed reorder when slides were added after it was made', () => {
+    const { result } = renderEditor();
+    const reorder = result.current.reorderImages;
+    act(() => result.current.duplicateSlide(0));
+    act(() => reorder([2, 0, 1]));
+    expect(result.current.imageUrls).toHaveLength(4);
+    expect(result.current.imageUrls[3]).toBe('c.png');
   });
 
   it('ignores a slide order of the wrong length', () => {

@@ -128,6 +128,7 @@ import { prepareQuizReadAloudInBackground } from '@/utils/quizReadAloudApi';
 import { readAloudTranslationLocales } from '@/config/quizReadAloud';
 import { alignToPreviousOrder } from '@/utils/quizLocalizedArrays';
 import { freshQuestionIdsByLocale } from '@/utils/quizTranslationIndex';
+import { revealValueFor } from '@/utils/quizFibAlternates';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -836,7 +837,7 @@ export function buildRevealedAnswers(
   const revealed: Record<string, string> = {};
   // First-wins, matching buildResponseGradingContext — the revealed answer must match what the student was graded against.
   for (const q of dedupeQuestionsById(quizData.questions))
-    revealed[q.id] = q.correctAnswer;
+    revealed[q.id] = revealValueFor(q);
   return revealed;
 }
 

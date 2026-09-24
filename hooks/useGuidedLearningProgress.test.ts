@@ -78,11 +78,12 @@ describe('useGuidedLearningProgress', () => {
     });
     expect(setDocMock.mock.calls[0][2]).toEqual({ merge: true });
     expect(payload(0)).toMatchObject({
-      mode: 'try',
       furthestStepIdx: 0,
       startedAt: 'SERVER_TS',
       updatedAt: 'SERVER_TS',
     });
+    expect(payload(0)).not.toHaveProperty('mode');
+    expect(payload(0)).not.toHaveProperty('modeSwitches');
 
     void act(() =>
       result.current.onStepEvent(ev({ type: 'misclick', xPct: 5, yPct: 5 }))
@@ -106,12 +107,19 @@ describe('useGuidedLearningProgress', () => {
     expect(setDocMock).not.toHaveBeenCalled();
     resolveLoad({
       exists: () => true,
-      data: () => ({ furthestStepIdx: 1, steps: { s1: { ms: 1000 } } }),
+      data: () => ({
+        mode: 'watch',
+        modeSwitches: 1,
+        furthestStepIdx: 1,
+        steps: { s1: { ms: 1000 } },
+      }),
     });
     await settle();
     void act(() => vi.advanceTimersByTime(0));
     expect(setDocMock).toHaveBeenCalledTimes(1);
     expect(payload(0)).not.toHaveProperty('startedAt');
+    expect(payload(0)).not.toHaveProperty('mode');
+    expect(payload(0)).not.toHaveProperty('modeSwitches');
     expect(payload(0)).toMatchObject({
       furthestStepIdx: 1,
       steps: { s1: { ms: 1500 } },
@@ -182,5 +190,27 @@ describe('useGuidedLearningProgress — paused period', () => {
     void act(() => vi.advanceTimersByTime(0));
     expect(setDocMock).toHaveBeenCalledTimes(1);
     expect(payload(0)).toMatchObject({ furthestStepIdx: 0 });
+  });
+});
+
+describe('useGuidedLearningProgress stored doc (P8-8)', () => {
+  it('reports the stored doc once read, for cross-device resume', async () => {
+    getDocMock.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ furthestStepIdx: 1, completed: false, steps: {} }),
+    });
+    const { result } = render();
+    expect(result.current.stored).toBeUndefined();
+    await settle();
+    expect(result.current.stored).toMatchObject({ furthestStepIdx: 1 });
+  });
+
+  it('reports null when there is no doc, and nothing when disabled', async () => {
+    const { result } = render();
+    await settle();
+    expect(result.current.stored).toBeNull();
+    const off = render(false);
+    await settle();
+    expect(off.result.current.stored).toBeUndefined();
   });
 });

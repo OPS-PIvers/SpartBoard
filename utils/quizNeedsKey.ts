@@ -6,6 +6,7 @@
  */
 
 import { isFreeResponseType, type QuizData, type QuizQuestion } from '@/types';
+import { multiAnswerCorrectOptions } from './quizMultiAnswer';
 
 /**
  * True when the question was imported without a key and nobody has supplied
@@ -16,6 +17,8 @@ import { isFreeResponseType, type QuizData, type QuizQuestion } from '@/types';
 export function questionNeedsKey(q: QuizQuestion): boolean {
   if (!q.needsKey) return false;
   if (isFreeResponseType(q.type)) return false;
+  if (q.type === 'MA')
+    return multiAnswerCorrectOptions(q.correctAnswer).length === 0;
   return !q.correctAnswer?.trim();
 }
 

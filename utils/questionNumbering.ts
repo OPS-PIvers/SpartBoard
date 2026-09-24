@@ -3,8 +3,8 @@
  * and the paper stub's OCR agree on what counts as "question 3".
  */
 
-/** `1.` / `12)` / `3 .` — a bare number carries its own punctuation. */
-const NUMBERED = /^\s*(\d{1,3})\s*[.)]\s*(.*)$/;
+/** `1.` / `12)` / `3 .` — a bare number carries its own punctuation; `____ 1.` is a test bank's answer blank. */
+const NUMBERED = /^\s*(?:_{2,}\s*)?(\d{1,3})\s*[.)]\s*(.*)$/;
 /**
  * `Question 1:` / `Q3.` / `#4` — the label already says it is a question, so
  * the punctuation after the number is optional. Singular only: "Questions 1-5

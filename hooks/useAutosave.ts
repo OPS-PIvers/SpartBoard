@@ -36,9 +36,9 @@ export interface AutosaveController {
   error: Error | null;
   /**
    * Persists now if anything is outstanding. Resolves `true` when nothing is
-   * owed any more, `false` when the write failed.
+   * owed any more, `false` when the write failed. `force` writes even while disabled.
    */
-  flush: () => Promise<boolean>;
+  flush: (options?: { force?: boolean }) => Promise<boolean>;
   /** True while a write is outstanding or the last one failed. */
   hasUnsavedWork: boolean;
 }
@@ -158,15 +158,36 @@ export const useAutosave = ({
     // once a write settles, in case the draft moved on while it was running.
   }, [enabled, outstanding, draftToken, delayMs, cycle, runSave]);
 
-  const flush = useCallback(async (): Promise<boolean> => {
-    // Wait out an in-flight write first — it may be persisting stale content.
-    if (inFlightRef.current) await inFlightRef.current;
-    if (!enabledRef.current) return true;
-    const unsaved = !sameDraft(draftTokenRef.current, savedTokenRef.current);
-    if (!unsaved && lastWriteOkRef.current) return true;
-    await runSave();
-    return lastWriteOkRef.current;
-  }, [runSave]);
+  const flush = useCallback(
+    async (options?: { force?: boolean }): Promise<boolean> => {
+      // Wait out an in-flight write first — it may be persisting stale content.
+      if (inFlightRef.current) await inFlightRef.current;
+      if (!enabledRef.current && !options?.force) return true;
+      const unsaved = !sameDraft(draftTokenRef.current, savedTokenRef.current);
+      if (!unsaved && lastWriteOkRef.current) return true;
+      await runSave();
+      return lastWriteOkRef.current;
+    },
+    [runSave]
+  );
+
+  // An editor unmounted without a close (board switch, widget removed) still writes what it owes.
+  useEffect(
+    () => () => {
+      const owed = () =>
+        enabledRef.current &&
+        !sameDraft(draftTokenRef.current, savedTokenRef.current);
+      const save = () => {
+        if (!owed()) return;
+        void Promise.resolve()
+          .then(() => onSaveRef.current())
+          .catch((err: unknown) => console.error('Autosave failed.', err));
+      };
+      if (inFlightRef.current) void inFlightRef.current.then(save);
+      else save();
+    },
+    []
+  );
 
   const hasUnsavedWork = status === 'error' || outstanding;
 

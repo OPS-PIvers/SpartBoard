@@ -1,5 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { GuidedLearningPublicStep } from '@/types';
 import { renderStepText } from '../../utils/richText';
 
@@ -11,6 +12,7 @@ export const BannerInteraction: React.FC<{
   /** Studio inline editor shown in place of the label and text. */
   editor?: React.ReactNode;
 }> = ({ step, onClose, position = 'top', editor }) => {
+  const { t } = useTranslation();
   if (!step.text && !editor) return null;
   const tone = step.bannerTone ?? 'blue';
   const toneStyles: Record<typeof tone, string> = {
@@ -48,7 +50,7 @@ export const BannerInteraction: React.FC<{
               top: 'clamp(6px, 1.8cqmin, 12px)',
               right: 'clamp(6px, 1.8cqmin, 12px)',
             }}
-            aria-label="Close overlay"
+            aria-label={t('glPlayer.closeOverlay')}
           >
             <X
               style={{

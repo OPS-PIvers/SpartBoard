@@ -1,8 +1,8 @@
-import React, { lazy, Suspense, useContext, useState } from 'react';
+import React, { lazy, Suspense, useContext, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Circle, EyeOff, ShieldCheck } from 'lucide-react';
-import type { GuidedLearningSet, WidgetType } from '@/types';
+import type { GuidedLearningSet, WidgetData } from '@/types';
 import { Z_INDEX } from '@/config/zIndex';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
@@ -16,6 +16,7 @@ import { buildNameMatcher, type NameMatcher } from './redaction';
 import { buildRecordedSet } from './buildRecordedSet';
 import { draftRecordedStepText } from './draftStepText';
 import type { TourRecording } from './useTourCapture';
+import { uploadFramesOnce, type UploadedFrame } from './recordingHandoff';
 
 const GuidedLearningStudio = lazy(() =>
   import('../studio/GuidedLearningStudio').then((m) => ({
@@ -23,13 +24,13 @@ const GuidedLearningStudio = lazy(() =>
   }))
 );
 
-export type AiDrafts = ReadonlyMap<string, { label: string; text: string }>;
+type BoardWidget = Pick<WidgetData, 'id' | 'type'>;
 
 type Phase =
   | { kind: 'intro' }
-  | { kind: 'recording'; matcher: NameMatcher | null; widgets: WidgetType[] }
-  | { kind: 'review'; recording: TourRecording; widgets: WidgetType[] }
-  | { kind: 'studio'; set: GuidedLearningSet; drafts: AiDrafts };
+  | { kind: 'recording'; matcher: NameMatcher | null; widgets: BoardWidget[] }
+  | { kind: 'review'; recording: TourRecording; widgets: BoardWidget[] }
+  | { kind: 'studio'; set: GuidedLearningSet };
 
 const newId = () =>
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -48,12 +49,16 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
   const { user } = useAuth();
   const { showConfirm } = useDialog();
   const dashboard = useContext(DashboardContext);
-  const { uploadHotspotImage } = useStorage();
+  const { uploadGuidedLearningImage } = useStorage();
   const { saveBuildingSet } = useGuidedLearning(undefined);
   const [phase, setPhase] = useState<Phase>({ kind: 'intro' });
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Per-frame uploads and the last built set survive a failed attempt, so Retry redoes only what failed.
+  const uploaded = useRef(new Map<Blob, UploadedFrame>());
+  const built = useRef<{ frames: Blob[]; set: GuidedLearningSet } | null>(null);
+  const [setId] = useState(newId);
 
   const rosters = dashboard?.rosters ?? [];
   const unloaded = rosters.filter((r) => r.loadError).length;
@@ -62,31 +67,70 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
     // Built once, before recording starts; the roster names never leave this matcher.
     const matcher = buildNameMatcher(rosters.flatMap((r) => r.students));
     const widgets = (dashboard?.activeDashboard?.widgets ?? []).map(
-      (w) => w.type
+      ({ id, type }) => ({ id, type })
     );
     setPhase({ kind: 'recording', matcher, widgets });
   };
 
+  // The Studio opens only on a saved set; a failed save keeps the recording for Retry.
+  const openAfterSave = async (set: GuidedLearningSet) => {
+    setBusy(t('glRecorder.saving'));
+    try {
+      // A guard keeps set.updatedAt, the revision the Studio then saves against.
+      await saveBuildingSet(set, { expectedUpdatedAt: undefined });
+      setPhase({ kind: 'studio', set });
+    } catch (err) {
+      console.error('[TourRecorder] Saving the recorded set failed:', err);
+      setError(t('glRecorder.saveFailed'));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const upload = async (
     recording: TourRecording,
-    widgets: WidgetType[],
+    widgets: BoardWidget[],
     frames: Blob[]
   ) => {
     if (!user) return;
     setError(null);
+    const cached = built.current;
+    if (
+      cached &&
+      cached.frames.length === frames.length &&
+      cached.frames.every((f, i) => f === frames[i])
+    ) {
+      await openAfterSave(cached.set);
+      return;
+    }
+    let next: GuidedLearningSet;
     try {
-      const imageUrls: string[] = [];
-      for (let i = 0; i < frames.length; i++) {
-        setBusy(
-          t('glRecorder.uploading', { current: i + 1, total: frames.length })
-        );
-        const file = new File([frames[i]], `tour-step-${i + 1}.png`, {
-          type: frames[i].type || 'image/png',
-        });
-        imageUrls.push(
-          await uploadHotspotImage(user.uid, await prepareImageForUpload(file))
-        );
-      }
+      const results = await uploadFramesOnce(
+        frames,
+        uploaded.current,
+        async (frame, i) => {
+          const file = new File([frame], `tour-step-${i + 1}.png`, {
+            type: frame.type || 'image/png',
+          });
+          const prepared = await prepareImageForUpload(file);
+          // Recordings are district content, so they live on Storage.
+          return uploadGuidedLearningImage(
+            user.uid,
+            prepared,
+            prepared.name,
+            'storage'
+          );
+        },
+        (current, total) =>
+          setBusy(t('glRecorder.uploading', { current, total }))
+      );
+      const imageUrls = results.map((r) => r.url);
+      const imagePaths = results.flatMap((r) =>
+        r.storagePath ? [r.storagePath] : []
+      );
+      const slideThumbnails: Record<string, string> = {};
+      for (const r of results)
+        if (r.thumbnailUrl) slideThumbnails[r.url] = r.thumbnailUrl;
       setBusy(t('glRecorder.drafting'));
       const goal = title.trim();
       const drafted = await draftRecordedStepText(
@@ -94,31 +138,32 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
         goal || undefined
       ).catch(() => []);
       const base = buildRecordedSet(recording, {
-        id: newId(),
+        id: setId,
         title: goal || t('glRecorder.untitled'),
         imageUrls,
-        widgets,
+        imagePaths,
+        slideThumbnails,
+        // Widgets opened mid-recording still resolve to a type.
+        widgets: [...widgets, ...(dashboard?.activeDashboard?.widgets ?? [])],
+        startIds: new Set(widgets.map((w) => w.id)),
       });
-      const drafts = new Map<string, { label: string; text: string }>();
       const set: GuidedLearningSet = {
         ...base,
         steps: base.steps.map((step, i) => {
           const d = drafted[i];
           if (!d || (!d.label && !d.text)) return step;
-          drafts.set(step.id, d);
-          return { ...step, label: d.label, text: d.text };
+          return { ...step, label: d.label, text: d.text, aiDraft: true };
         }),
       };
-      await saveBuildingSet(set).catch((err: unknown) =>
-        console.error('[TourRecorder] Saving the recorded set failed:', err)
-      );
-      setPhase({ kind: 'studio', set, drafts });
+      built.current = { frames, set };
+      next = set;
     } catch (err) {
       console.error('[TourRecorder] Upload failed:', err);
       setError(t('glRecorder.uploadFailed'));
-    } finally {
       setBusy(null);
+      return;
     }
+    await openAfterSave(next);
   };
 
   if (phase.kind === 'recording') {
@@ -143,7 +188,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
         recording={recording}
         busy={busy}
         error={error}
-        onUpload={(frames) => void upload(recording, widgets, frames)}
+        onUpload={(reviewed) => void upload(reviewed, widgets, reviewed.frames)}
         onDiscard={() =>
           void showConfirm(t('glRecorder.reviewDiscardConfirm'), {
             title: t('glRecorder.reviewDiscard'),
@@ -161,9 +206,8 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
         <GuidedLearningStudio
           set={phase.set}
           meta={null}
-          aiDrafts={phase.drafts}
           onClose={onEnd}
-          onSave={saveBuildingSet}
+          onSave={(next, _driveFileId, guard) => saveBuildingSet(next, guard)}
         />
       </Suspense>
     );

@@ -5,7 +5,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 
 import { GuidedLearningManager } from '@/components/widgets/GuidedLearning/components/GuidedLearningManager';
+import { AuthContext } from '@/context/AuthContextValue';
 import type { GuidedLearningSet, GuidedLearningSetMetadata } from '@/types';
+import { toBuildingIndexEntry } from '@/tests/helpers/glBuildingIndexEntry';
 
 vi.mock('@/hooks/useFolders', () => ({
   useFolders: () => ({
@@ -57,35 +59,47 @@ const buildingSets = [
   building('h-2', 'Second Help Guide', { helpCenter: true }),
 ];
 
-const renderManager = (isAdmin: boolean) =>
+const renderManager = (
+  isAdmin: boolean,
+  onOpenAIAuthoring: (library: 'personal' | 'building') => void = vi.fn()
+) =>
   render(
-    <GuidedLearningManager
-      userId="teacher-1"
-      sets={[personalSet]}
-      buildingSets={buildingSets}
-      assignments={[]}
-      loading={false}
-      buildingLoading={false}
-      assignmentsLoading={false}
-      isDriveConnected={true}
-      isAdmin={isAdmin}
-      onPlay={vi.fn()}
-      onEdit={vi.fn()}
-      onAssign={vi.fn()}
-      onDeletePersonal={vi.fn()}
-      onDeleteBuilding={vi.fn()}
-      onCreateNewPersonal={vi.fn()}
-      onCreateNewBuilding={vi.fn()}
-      onOpenAIAuthoring={vi.fn()}
-      onReorderPersonal={vi.fn()}
-      recentSessionIds={{}}
-      onViewResults={vi.fn()}
-      onAssignmentCopyLink={vi.fn()}
-      onAssignmentOpenResults={vi.fn()}
-      onAssignmentArchive={vi.fn()}
-      onAssignmentUnarchive={vi.fn()}
-      onAssignmentDelete={vi.fn()}
-    />
+    <AuthContext.Provider
+      value={
+        {
+          canAccessFeature: (id: string) => id === 'gemini-functions',
+          canSeeShareTracking: () => false,
+        } as unknown as React.ContextType<typeof AuthContext>
+      }
+    >
+      <GuidedLearningManager
+        userId="teacher-1"
+        sets={[personalSet]}
+        buildingSets={buildingSets.map(toBuildingIndexEntry)}
+        assignments={[]}
+        loading={false}
+        buildingLoading={false}
+        assignmentsLoading={false}
+        isDriveConnected={true}
+        isAdmin={isAdmin}
+        onPlay={vi.fn()}
+        onEdit={vi.fn()}
+        onAssign={vi.fn()}
+        onDeletePersonal={vi.fn()}
+        onDeleteBuilding={vi.fn()}
+        onCreateNewPersonal={vi.fn()}
+        onCreateNewBuilding={vi.fn()}
+        onOpenAIAuthoring={onOpenAIAuthoring}
+        onReorderPersonal={vi.fn()}
+        recentSessionIds={{}}
+        onViewResults={vi.fn()}
+        onAssignmentCopyLink={vi.fn()}
+        onAssignmentOpenResults={vi.fn()}
+        onAssignmentArchive={vi.fn()}
+        onAssignmentUnarchive={vi.fn()}
+        onAssignmentDelete={vi.fn()}
+      />
+    </AuthContext.Provider>
   );
 
 describe('GuidedLearningManager — Help Center activities', () => {
@@ -123,5 +137,29 @@ describe('GuidedLearningManager — Help Center activities', () => {
     });
     expect(await screen.findByText('Building Lesson')).toBeInTheDocument();
     expect(screen.queryByText('Flagged Help Guide')).not.toBeInTheDocument();
+  });
+});
+
+describe('GuidedLearningManager — AI drafts land in the library being viewed', () => {
+  it('opens AI for the personal library, then for the building library', async () => {
+    const onOpenAIAuthoring = vi.fn();
+    renderManager(true, onOpenAIAuthoring);
+    await screen.findByText('Personal Set');
+
+    fireEvent.click(screen.getByRole('button', { name: 'AI' }));
+    expect(onOpenAIAuthoring).toHaveBeenLastCalledWith('personal');
+
+    fireEvent.change(screen.getByLabelText('Source'), {
+      target: { value: 'building' },
+    });
+    await screen.findByText('Building Lesson');
+    fireEvent.click(screen.getByRole('button', { name: 'AI' }));
+    expect(onOpenAIAuthoring).toHaveBeenLastCalledWith('building');
+  });
+
+  it('offers AI only to admins', async () => {
+    renderManager(false);
+    await screen.findByText('Personal Set');
+    expect(screen.queryByRole('button', { name: 'AI' })).toBeNull();
   });
 });

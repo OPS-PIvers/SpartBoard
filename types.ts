@@ -339,8 +339,28 @@ export interface Plc {
    * switch is on.
    */
   digestOptIn?: boolean;
+  /** PLC Home v2 recurring meeting schedule; leads and co-leads edit it. */
+  meetingCadence?: PlcMeetingCadence;
   createdAt: number;
   updatedAt: number;
+}
+
+export type PlcMeetingFrequency = 'weekly' | 'biweekly' | 'monthlyNthWeekday';
+
+/** Recurring PLC meeting, on a Chicago wall clock; the next date is computed client-side. */
+export interface PlcMeetingCadence {
+  frequency: PlcMeetingFrequency;
+  /** 0 = Sunday. */
+  weekday: number;
+  /** monthlyNthWeekday: 1-4, or -1 for the last. */
+  nth?: number;
+  /** 'HH:mm'. */
+  time: string;
+  /** 'YYYY-MM-DD' of the first occurrence; sets biweekly parity. */
+  anchorDate: string;
+  defaultAgenda?: string;
+  /** Keyed by an occurrence's original 'YYYY-MM-DD'. */
+  overrides?: Record<string, { movedTo?: string; skipped?: true }>;
 }
 
 /**
@@ -3408,6 +3428,7 @@ export interface RecessGearConfig {
  * Question types supported in the quiz widget.
  * MC = Multiple Choice, FIB = Fill in the Blank,
  * Matching = Match left to right, Ordering = Place items in correct sequence,
+ * MA = choose all that apply (one or more correct options),
  * free-response = open-ended written or spoken answer (manually graded).
  * Legacy 'short'/'essay' values are normalized on read; see
  * `utils/quizQuestionNormalize.ts`.
@@ -3417,6 +3438,7 @@ export type QuizQuestionType =
   | 'FIB'
   | 'Matching'
   | 'Ordering'
+  | 'MA'
   | 'free-response';
 
 /** True iff the question type requires manual teacher grading. */
@@ -3479,11 +3501,14 @@ export interface QuizQuestion {
    * MC/FIB: the correct answer text.
    * Matching: pipe-separated pairs "term1:def1|term2:def2"
    * Ordering: pipe-separated items in correct order "item1|item2|item3"
+   * MA: pipe-separated correct options "opt1|opt2"
    * free-response: always empty string (no key — graded manually).
    */
   correctAnswer: string;
-  /** MC only: up to 4 incorrect answer choices */
+  /** MC: up to 4 incorrect answer choices. MA: the wrong options. */
   incorrectAnswers: string[];
+  /** FIB only: other answers also marked correct (e.g. "colour" beside "color"). Never sent to students. */
+  alternateAnswers?: string[];
   /**
    * Set by a document import that read the question but not its key
    * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D5). The question saves and prints
@@ -3501,7 +3526,7 @@ export interface QuizQuestion {
    */
   matchingDistractors?: string[];
   /**
-   * Per-question opt-in for partial credit on Matching/Ordering. Ignored
+   * Per-question opt-in for partial credit on Matching/Ordering/MA. Ignored
    * for MC/FIB/free-response. Defaults to false.
    */
   allowPartialCredit?: boolean;
@@ -4038,7 +4063,7 @@ export interface QuizPublicQuestion {
   type: QuizQuestion['type'];
   text: string;
   timeLimit: number;
-  /** MC only: all answer choices pre-shuffled (correct identity unknown) */
+  /** MC/MA: all answer choices pre-shuffled (correct identity unknown) */
   choices?: string[];
   /** Matching only: left-side terms (prompt side) */
   matchingLeft?: string[];
@@ -4093,7 +4118,7 @@ export interface QuestionTranslation {
   text: string;
   /** FIB only: the translated accepted answer. Teacher-private — never projected to students. */
   answer?: string;
-  /** MC: index-aligned with `[correctAnswer, ...incorrectAnswers.filter(Boolean)]`. */
+  /** MC: index-aligned with `[correctAnswer, ...incorrectAnswers.filter(Boolean)]`. MA: with `multiAnswerOptions`. */
   choices?: string[];
   /** Matching: index-aligned with the parsed pairs of `correctAnswer`. */
   matchingLeft?: string[];
@@ -7063,6 +7088,8 @@ export interface GuidedLearningStep {
   narration?: GuidedLearningNarration;
   /** Live-tour binding. Teacher-only: never mirrored to public steps. */
   tour?: GuidedLearningTourBinding;
+  /** AI-drafted text the author has not yet edited or marked reviewed. Editor-only. */
+  aiDraft?: boolean;
 }
 
 export interface GuidedLearningRegion {
@@ -7106,6 +7133,8 @@ export interface GuidedLearningTourBinding {
   fallback?: { role: string; name: string };
   /** observe = learner presses Next */
   action: 'click' | 'observe';
+  /** Guided autopilot demonstrates, then waits for the teacher; absent = the anchor's `destructive` default. */
+  teacherMustClick?: boolean;
 }
 
 /** Watch-mode pacing. 'calm' multiplies step durations by 1.3; absent = 'standard'. */
@@ -7131,6 +7160,10 @@ export interface GuidedLearningSet {
   /** Firebase Storage URLs for one or more activity images */
   imageUrls: string[];
   imagePaths?: string[];
+  /** Drive file ids of this personal set's slides; mirrored to the metadata doc. */
+  driveFileIds?: string[];
+  /** Slide URL → its 400px Storage thumbnail URL; slides without one use the full image. */
+  slideThumbnails?: Record<string, string>;
   /**
    * Per-slide media kind aligned by index with `imageUrls`. `'video'` slides
    * (uploaded MP4/WebM or screen recordings) render in a muted looping
@@ -7207,6 +7240,8 @@ export interface GuidedLearningSetMetadata {
   updatedAt: number;
   /** Storage paths of slides this set owns; read by the slide GC function on delete. */
   imagePaths?: string[];
+  /** Drive file ids of this set's slides; read by the client when the set is deleted. */
+  driveFileIds?: string[];
   /**
    * Optional manual sort order, written by the Library "Manual order" reorder
    * flow. Omitted for sets that have never been manually reordered.
@@ -7217,6 +7252,24 @@ export interface GuidedLearningSetMetadata {
    * Refers to a folder id in `/users/{userId}/guided_learning_folders/{folderId}`.
    */
   folderId?: string | null;
+}
+
+/** Library entry for a building set, written only by the glBuildingIndexMirror function. */
+export interface GuidedLearningBuildingSetIndex {
+  id: string;
+  title: string;
+  description: string | null;
+  stepCount: number;
+  mode: GuidedLearningMode;
+  /** First non-video slide URL, or '' */
+  thumbnail: string;
+  createdAt: number;
+  updatedAt: number;
+  hasLiveTour: boolean;
+  /** From the set's `helpCenter: true` flag. */
+  isHelpCenter: boolean;
+  folderId: string | null;
+  order: number | null;
 }
 
 /**
@@ -7869,6 +7922,10 @@ export interface ProjectGroupImportEntry {
   classId: string;
   order: number;
   classLinkSourcedIds: string[];
+  /** Test-class members, who have no sourcedId; the server checks each against its test class. */
+  testEmails?: string[];
+  /** Current members the client cannot name; the server keeps only uids already on the group. */
+  keepMemberUids?: string[];
 }
 
 /**
@@ -8544,6 +8601,8 @@ export interface Toast {
   action?: {
     label: string;
     onClick: () => void;
+    /** A quieter second choice beside the action, such as "No thanks". */
+    secondary?: { label: string; onClick: () => void };
   };
 }
 
@@ -8619,6 +8678,8 @@ export type GlobalFeature =
   | 'roster-groups'
   /** Importing a quiz from a test document; AND-ed with the Rollouts switch. */
   | 'quiz-document-import'
+  /** The AI reader for that import; AND-ed with `quiz-document-import` and `gemini-functions`. */
+  | 'quiz-document-ai-reader'
   /** Handing a board or a collection to a substitute, and managing live shares. */
   | 'sub-share-collections'
   /** Guided Learning player v2: calm motion, learner speed, Watch/Try; stamped on sessions. */
@@ -8632,7 +8693,13 @@ export type GlobalFeature =
   /** Per-period start/pause and windows on assignments shared by several classes. */
   | 'per-period-access'
   /** Printing quiz results to hand back: presets, bulk print, bubble-sheet reprints. */
-  | 'quiz-results-print';
+  | 'quiz-results-print'
+  /** PLC Home v2: tile dashboard with a spotlight, meeting cadence and assign-from-library. */
+  | 'plc-home-v2'
+  /** Choose-all-that-apply quiz questions in the quiz editor and AI drafting. */
+  | 'quiz-choose-all'
+  /** "Also accept" alternate answers on fill-in-the-blank quiz questions. */
+  | 'quiz-fib-alternates';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
@@ -9791,7 +9858,15 @@ export interface GuidedLearningAssignment
   targetSkippedCount?: number;
   /** Individually-targeted refs removed via the hub (M17 §5 D3). See `QuizAssignment.removedStudentRefs`. */
   removedStudentRefs?: StudentTargetRef[];
+  /** Answer keys by step id, frozen at assign so a later set edit never rescores. */
+  answerKeys?: Record<string, GuidedLearningAnswerKey>;
 }
+
+/** The scoring half of a question, stored on the teacher-only assignment doc. */
+export type GuidedLearningAnswerKey = Pick<
+  GuidedLearningQuestion,
+  'type' | 'choices' | 'correctAnswer' | 'matchingPairs' | 'sortingItems'
+>;
 
 // === Library folders (Wave 3) ===
 //
@@ -10063,7 +10138,7 @@ export type SubShareGuidedLearningStep = Omit<
  */
 export type SubShareGuidedLearningView = Omit<
   GuidedLearningSet,
-  'steps' | 'authorUid' | 'imagePaths' | 'tourSetup'
+  'steps' | 'authorUid' | 'imagePaths' | 'driveFileIds' | 'tourSetup'
 > & {
   steps: SubShareGuidedLearningStep[];
 };

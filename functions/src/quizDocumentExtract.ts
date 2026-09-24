@@ -46,13 +46,19 @@ const QUESTION_TYPES = [
   'Ordering',
   'free-response',
 ] as const;
-export type QuestionType = (typeof QUESTION_TYPES)[number];
+/** Choose all that apply; only offered when the request asks for it. */
+const MULTI_ANSWER_TYPE = 'MA';
+export type QuestionType =
+  | (typeof QUESTION_TYPES)[number]
+  | typeof MULTI_ANSWER_TYPE;
 
 export interface ExtractDocumentRequest {
   fileName: string;
   mimeType: string;
   /** The document itself, base64. Held in memory and never stored (D20). */
   bytes: Buffer;
+  /** The teacher has choose-all-that-apply, so the model may return MA. */
+  multiAnswer?: boolean;
 }
 
 export interface AiExtractedOption {
@@ -100,7 +106,11 @@ export interface ExtractDocumentDeps {
   chargeQuiz: (uid: string, email: string | null) => Promise<void>;
   /** PDFs only; a Word file has no fixed page count. */
   pdfPageCount: (bytes: Buffer) => Promise<number>;
-  extract: (bytes: Buffer, mimeType: string) => Promise<string>;
+  extract: (
+    bytes: Buffer,
+    mimeType: string,
+    multiAnswer: boolean
+  ) => Promise<string>;
   now: () => number;
 }
 
@@ -148,7 +158,7 @@ export function parseExtractDocumentRequest(
       'invalid-argument',
       'That file is too large to read. Split it and import the parts.'
     );
-  return { fileName, mimeType, bytes };
+  return { fileName, mimeType, bytes, multiAnswer: d.multiAnswer === true };
 }
 
 /**
@@ -157,7 +167,10 @@ export function parseExtractDocumentRequest(
  * `correctAnswer` is required but may be empty, which is how the model says
  * the document gave no key rather than inventing one.
  */
-export function buildDocumentResponseSchema(): Schema {
+export function buildDocumentResponseSchema(multiAnswer = false): Schema {
+  const types: string[] = multiAnswer
+    ? [...QUESTION_TYPES, MULTI_ANSWER_TYPE]
+    : [...QUESTION_TYPES];
   return {
     type: Type.OBJECT,
     required: ['title', 'questions'],
@@ -178,7 +191,7 @@ export function buildDocumentResponseSchema(): Schema {
           properties: {
             number: { type: Type.INTEGER },
             text: { type: Type.STRING },
-            type: { type: Type.STRING, enum: [...QUESTION_TYPES] },
+            type: { type: Type.STRING, enum: types },
             options: {
               type: Type.ARRAY,
               items: {
@@ -223,7 +236,13 @@ export const EXTRACT_PROMPT = [
   '',
   'correctAnswer must be the exact text of the choice the document marks as',
   'correct — from an answer key, an answer table, a bolded or highlighted or',
-  'underlined choice, or a leading asterisk. If the document does not say',
+  'underlined choice, or a leading asterisk. Answer keys are usually printed',
+  'at the end of the document, for example an "Answer Section" of lines like',
+  '"1. ANS: B PTS: 1", or a list like "1. B" under an "Answer Key" heading.',
+  'Match each key entry to its question by number and return the text of the',
+  'choice with that letter; a written answer from the key goes in',
+  'correctAnswer for a fill in the blank question. The key is not a question.',
+  'If the document does not say',
   'which answer is correct, return an empty string. An empty string is always',
   'the right answer when you are unsure; a guess would be marked wrong on a',
   'student’s paper.',
@@ -248,12 +267,29 @@ export const EXTRACT_PROMPT = [
   'the same box, and the picture is brought in once.',
 ].join('\n');
 
+const MULTI_ANSWER_PROMPT = [
+  '',
+  'Also use MA for choose all that apply: a question that asks students to',
+  'select every correct choice, or whose key or markings give more than one',
+  'correct choice. For MA, return every choice in options, and correctAnswer is',
+  'the exact text of each correct choice joined with | (for example',
+  '"Whale|Bat"), or an empty string when the document does not say.',
+].join('\n');
+
+/** The prompt, with choose-all-that-apply only when the request asks for it. */
+export function buildExtractPrompt(multiAnswer = false): string {
+  return multiAnswer
+    ? `${EXTRACT_PROMPT}\n${MULTI_ANSWER_PROMPT}`
+    : EXTRACT_PROMPT;
+}
+
 function asString(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-function coerceType(value: unknown): QuestionType {
-  return QUESTION_TYPES.includes(value as QuestionType)
+function coerceType(value: unknown, multiAnswer: boolean): QuestionType {
+  if (multiAnswer && value === MULTI_ANSWER_TYPE) return MULTI_ANSWER_TYPE;
+  return (QUESTION_TYPES as readonly unknown[]).includes(value)
     ? (value as QuestionType)
     : 'free-response';
 }
@@ -296,6 +332,21 @@ function coerceFigures(value: unknown): AiFigureBox[] {
   return figures;
 }
 
+/** Each `|` part matched to a choice (case-insensitively); '' if any part has no match. */
+function matchMultiAnswer(
+  answer: string,
+  options: readonly AiExtractedOption[]
+): string {
+  const parts = answer
+    .split('|')
+    .map((p) => p.trim().toLowerCase())
+    .filter(Boolean);
+  const hits = options.filter((o) => parts.includes(o.text.toLowerCase()));
+  const matched = new Set(hits.map((o) => o.text.toLowerCase()));
+  if (parts.length === 0 || parts.some((p) => !matched.has(p))) return '';
+  return [...new Set(hits.map((o) => o.text))].join('|');
+}
+
 /**
  * Turns whatever Gemini returned into the shape the client expects, dropping
  * anything unusable rather than trusting the schema to have been honoured.
@@ -306,7 +357,8 @@ function coerceFigures(value: unknown): AiFigureBox[] {
  */
 export function normalizeAiQuiz(
   parsed: unknown,
-  fallbackTitle: string
+  fallbackTitle: string,
+  multiAnswer = false
 ): AiExtractedQuiz {
   const root = (parsed ?? {}) as Record<string, unknown>;
   const rawQuestions = Array.isArray(root.questions) ? root.questions : [];
@@ -318,8 +370,18 @@ export function normalizeAiQuiz(
     const text = asString(q.text).trim();
     if (!text) continue;
 
-    const type = coerceType(q.type);
-    const options = type === 'MC' ? coerceOptions(q.options) : [];
+    const type = coerceType(q.type, multiAnswer);
+    const isMulti = type === MULTI_ANSWER_TYPE;
+    const options =
+      type === 'MC'
+        ? coerceOptions(q.options)
+        : isMulti
+          ? coerceOptions(q.options).map((o) => ({
+              ...o,
+              // `|` separates the stored right options, so it can't sit inside one.
+              text: o.text.replace(/\|/g, '/'),
+            }))
+          : [];
     const questionWarnings = Array.isArray(q.warnings)
       ? q.warnings.map(asString).filter(Boolean)
       : [];
@@ -339,6 +401,14 @@ export function normalizeAiQuiz(
           );
           correctAnswer = '';
         }
+      }
+    }
+    if (correctAnswer && isMulti) {
+      correctAnswer = matchMultiAnswer(correctAnswer, options);
+      if (!correctAnswer) {
+        questionWarnings.push(
+          'The answers given do not all match the choices, so they were left blank.'
+        );
       }
     }
     // A written response is graded by hand and never carries a key.
@@ -457,7 +527,11 @@ export async function extractQuizFromDocument(
   let outcome: Awaited<ReturnType<typeof withDeadline<string>>>;
   try {
     outcome = await withDeadline(
-      deps.extract(request.bytes, request.mimeType),
+      deps.extract(
+        request.bytes,
+        request.mimeType,
+        request.multiAnswer === true
+      ),
       remaining
     );
   } catch (err) {
@@ -479,7 +553,11 @@ export async function extractQuizFromDocument(
   }
 
   const fallbackTitle = request.fileName.replace(/\.[^.]+$/, '').trim();
-  const quiz = normalizeAiQuiz(parsed, fallbackTitle || 'Imported Quiz');
+  const quiz = normalizeAiQuiz(
+    parsed,
+    fallbackTitle || 'Imported Quiz',
+    request.multiAnswer === true
+  );
   if (quiz.questions.length === 0)
     throw new HttpsError(
       'not-found',
@@ -496,7 +574,11 @@ async function pdfPageCountOf(bytes: Buffer): Promise<number> {
   return doc.getPageCount();
 }
 
-async function geminiExtract(bytes: Buffer, mimeType: string): Promise<string> {
+async function geminiExtract(
+  bytes: Buffer,
+  mimeType: string,
+  multiAnswer: boolean
+): Promise<string> {
   const [{ GoogleGenAI }, ai] = await Promise.all([
     import('@google/genai'),
     import('./aiGeneration'),
@@ -509,14 +591,14 @@ async function geminiExtract(bytes: Buffer, mimeType: string): Promise<string> {
       {
         role: 'user',
         parts: [
-          { text: EXTRACT_PROMPT },
+          { text: buildExtractPrompt(multiAnswer) },
           { inlineData: { mimeType, data: bytes.toString('base64') } },
         ],
       },
     ],
     config: {
       responseMimeType: 'application/json',
-      responseSchema: buildDocumentResponseSchema(),
+      responseSchema: buildDocumentResponseSchema(multiAnswer),
     },
   });
   return result.text ?? '';

@@ -6,6 +6,7 @@ import { render, screen, within } from '@testing-library/react';
 
 import { GuidedLearningManager } from '@/components/widgets/GuidedLearning/components/GuidedLearningManager';
 import type { GuidedLearningSet, GuidedLearningSetMetadata } from '@/types';
+import { toBuildingIndexEntry } from '@/tests/helpers/glBuildingIndexEntry';
 
 vi.mock('@/hooks/useFolders', () => ({
   useFolders: () => ({
@@ -51,7 +52,7 @@ describe('GuidedLearningManager — folder sidebar item counts', () => {
       <GuidedLearningManager
         userId="teacher-1"
         sets={[personalSet]}
-        buildingSets={[buildingSet]}
+        buildingSets={[toBuildingIndexEntry(buildingSet)]}
         assignments={[]}
         loading={false}
         buildingLoading={false}

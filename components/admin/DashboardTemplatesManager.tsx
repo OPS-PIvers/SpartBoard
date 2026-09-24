@@ -469,6 +469,7 @@ export const DashboardTemplatesManager: React.FC = () => {
                             updateLocal(template.id, { enabled: checked })
                           }
                           size="sm"
+                          label={`${local.name || 'Template'} enabled`}
                         />
                       </div>
 

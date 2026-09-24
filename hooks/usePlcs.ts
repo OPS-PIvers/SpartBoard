@@ -12,6 +12,8 @@ import {
   writeBatch,
   runTransaction,
   serverTimestamp,
+  updateDoc,
+  deleteField,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
@@ -19,10 +21,15 @@ import {
   DEFAULT_PLC_FEATURE_SETTINGS,
   Plc,
   PlcFeatureSettings,
+  PlcMeetingCadence,
   PlcMember,
   PlcRole,
 } from '@/types';
 import { tsToMillis } from '@/utils/plc';
+import {
+  cadenceForWrite,
+  parseMeetingCadence,
+} from '@/utils/plcMeetingCadence';
 import { writePlcActivityEvent } from '@/utils/plcActivity';
 import { isSuperAdminActor } from '@/utils/superAdmin';
 import i18n from '@/i18n/index';
@@ -185,6 +192,11 @@ interface UsePlcsResult {
    * global `plc-digest.enabled` kill switch.
    */
   updatePlcDigestOptIn: (plcId: string, optIn: boolean) => Promise<void>;
+  /** Lead or co-lead: set (or clear, with null) the Home v2 meeting cadence. */
+  updatePlcMeetingCadence: (
+    plcId: string,
+    cadence: PlcMeetingCadence | null
+  ) => Promise<void>;
 }
 
 const VALID_PLC_ROLES: ReadonlySet<PlcRole> = new Set<PlcRole>([
@@ -387,6 +399,7 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
   // digestOptIn: opt-in weekly digest flag (Decision 2.3). Default false —
   // only the literal boolean `true` opts a PLC in.
   const digestOptIn = data.digestOptIn === true;
+  const meetingCadence = parseMeetingCadence(data.meetingCadence);
   // orgId / buildingId: optional tenancy (Decision 1.1). Absent ⇒ null.
   const orgId = typeof data.orgId === 'string' ? data.orgId : null;
   const buildingId =
@@ -407,6 +420,7 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
     sharedSheetUrl,
     digestOptIn,
     ...(features ? { features } : {}),
+    ...(meetingCadence ? { meetingCadence } : {}),
     // serverTimestamp-tolerant (Decision 1.3): accept a Firestore Timestamp
     // or a legacy numeric millis value.
     createdAt: tsToMillis(data.createdAt),
@@ -1158,6 +1172,20 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     [user]
   );
 
+  // Lead or co-lead: updateDoc replaces the whole map, so pruned overrides really go away.
+  const updatePlcMeetingCadence = useCallback(
+    async (plcId: string, cadence: PlcMeetingCadence | null) => {
+      if (!user) throw new Error(i18n.t('plc.errors.notSignedIn'));
+      await updateDoc(doc(db, PLCS_COLLECTION, plcId), {
+        meetingCadence: cadence
+          ? cadenceForWrite(cadence, Date.now())
+          : deleteField(),
+        updatedAt: serverTimestamp(),
+      });
+    },
+    [user]
+  );
+
   return useMemo(
     () => ({
       plcs,
@@ -1178,6 +1206,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       getPlcSharedSheetUrl,
       updatePlcFeatures,
       updatePlcDigestOptIn,
+      updatePlcMeetingCadence,
     }),
     [
       plcs,
@@ -1198,6 +1227,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       getPlcSharedSheetUrl,
       updatePlcFeatures,
       updatePlcDigestOptIn,
+      updatePlcMeetingCadence,
     ]
   );
 };

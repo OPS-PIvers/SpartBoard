@@ -50,6 +50,9 @@ service cloud.firestore {
     function changedOnly(keys) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
     }
+    function sameId() {
+      return request.resource.data.id == resource.data.id;
+    }
     function notAnon() {
       return request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
@@ -447,7 +450,7 @@ service cloud.firestore {
             ((isDomainAdmin(orgId) ||
               (isBuildingAdmin(orgId) &&
                manages(orgId, buildingId))) &&
-             request.resource.data.id == resource.data.id &&
+             sameId() &&
              request.resource.data.orgId == resource.data.orgId &&
              changedOnly([
                'name', 'address', 'grades', 'type', 'adminEmails'
@@ -476,7 +479,7 @@ service cloud.firestore {
         allow update: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
           request.resource.data.domain.matches('^@[a-z0-9.-]+[.][a-z]{2,}$') &&
           (isSuperAdmin() ||
-           (request.resource.data.id == resource.data.id &&
+           (sameId() &&
             request.resource.data.orgId == resource.data.orgId &&
             changedOnly([
               'domain', 'authMethod', 'role'
@@ -502,7 +505,7 @@ service cloud.firestore {
         allow update: if
           (isSuperAdmin() &&
            request.resource.data.system == resource.data.system &&
-           request.resource.data.id == resource.data.id &&
+           sameId() &&
            ((resource.data.system == true &&
              changedOnly(['perms'])) ||
             (resource.data.system != true &&
@@ -512,7 +515,7 @@ service cloud.firestore {
           (isDomainAdmin(orgId) &&
            resource.data.system != true &&
            request.resource.data.system == resource.data.system &&
-           request.resource.data.id == resource.data.id &&
+           sameId() &&
            changedOnly([
              'name', 'blurb', 'color', 'perms'
            ]));
@@ -637,7 +640,7 @@ service cloud.firestore {
                   request.auth.token.email.lower() == email.lower() &&
                   (resource == null ||
                    request.auth.token.get('email_verified', false) == true);
-      allow write: if false; // Only create via Firebase Console or Admin SDK
+      // No write rule: created only via Firebase Console or Admin SDK.
     }
 
     // Dashboards — owner-only. studentRole tokens (studentLoginV1) are denied
@@ -681,24 +684,24 @@ service cloud.firestore {
     // Only a real teacher account prints sheets, so anonymous PIN joiners are shut
     // out of their own namespace too — same posture as the session-create paths.
     match /users/{userId}/paper_batches/{batchId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId
-                         && !isStudentRoleUser()
-                         && notAnon()
-                         && notDeactivated();
+      allow read, write: if ownsUserTeacher(userId) && notAnon();
     }
 
-    // PLC Overview layout — per-user PLC dashboard bento-grid prefs. No PLC
+    // PLC Home v2 layout — per-user tile order, spotlight and seen result counts. No PLC
     // membership check needed (a non-member's doc is inert — tiles still pass the
     // PLC rule gates to read content). Per-tile enum validation is delegated to
     // usePlcOverviewLayout.ts (CEL has no .every()); blast radius is owner-only
     // and the tiles size cap below bounds doc size.
     match /users/{userId}/plc_layouts/{plcId} {
       allow read, delete: if ownsUser(userId);
-      allow write: if ownsUser(userId)
-                   && request.resource.data.keys().hasOnly(['tiles', 'updatedAt'])
-                   && request.resource.data.tiles is list
-                   && request.resource.data.tiles.size() <= 50
-                   && request.resource.data.updatedAt is int;
+      allow write: if ownsUser(userId) && plcLayoutOk(request.resource.data);
+    }
+    function plcLayoutOk(d) {
+      return d.keys().hasOnly(['tiles', 'heroTileId', 'seenCounts', 'updatedAt'])
+             && d.tiles is list && d.tiles.size() <= 50
+             && (d.get('heroTileId', null) == null || d.heroTileId is string)
+             && optMap(d, 'seenCounts') && d.get('seenCounts', {}).size() <= 200
+             && d.updatedAt is int;
     }
 
     // Per-user unread cursor for a PLC activity feed: one doc per (user, plc),
@@ -765,7 +768,7 @@ service cloud.firestore {
                     && request.resource.data.id == assignmentId;
       allow update: if ownsUser(userId)
                     && request.resource.data.teacherUid == resource.data.teacherUid
-                    && request.resource.data.id == resource.data.id;
+                    && sameId();
     }
 
     // M12 rubrics — teacher-owned reusable rubric library. Schema-locked to the
@@ -784,7 +787,7 @@ service cloud.firestore {
                     && request.resource.data.createdAt is int
                     && request.resource.data.updatedAt is int;
       allow update: if ownsUserTeacher(userId)
-                    && request.resource.data.id == resource.data.id
+                    && sameId()
                     && request.resource.data.keys().hasOnly([
                          'id', 'title', 'description', 'criteria', 'createdAt', 'updatedAt'
                        ])
@@ -988,7 +991,6 @@ service cloud.firestore {
     // would let anyone squat any courseId and mis-route students.
     match /classroom_course_links/{courseId} {
       allow read: if request.auth != null;
-      allow write: if false;
     }
 
     // Schoology LTI 1.3: server-internal OIDC handshake state, Admin SDK only.
@@ -1015,7 +1017,6 @@ service cloud.firestore {
     // would let any authed user squat any context_id.
     match /lti_course_links/{contextId} {
       allow read: if request.auth != null;
-      allow write: if false;
     }
 
     // PII-free grade-sync keys (pseudonym sub -> resourceLink). Written and read only
@@ -1097,6 +1098,30 @@ service cloud.firestore {
     match /building_guided_learning/{setId} {
       allow read: if request.auth != null;
       allow write: if isAdmin();
+    }
+
+    // Library index of building sets (P5-1), written only by the glBuildingIndexMirror
+    // function; same readers as the full sets, and no client write rule.
+    match /building_guided_learning_index/{setId} {
+      allow read: if request.auth != null;
+    }
+
+    // Published live tours (P7-3): staff read, admins publish; students never run tours.
+    match /building_guided_learning_tours/{setId} {
+      function staff() { return request.auth != null && notAnon() && !isStudentRoleUser(); }
+      allow read: if staff();
+      allow write: if isAdmin();
+      // Each teacher's latest run of the tour (P7-6): write-only, admins read.
+      match /runs/{uid} {
+        function validRun(d) {
+          return d.keys().hasOnly(['v', 'startedAt', 'furthest', 'done', 'exit', 'misses']) &&
+            d.v is int && d.startedAt is int && d.done is bool && optInt(d, 'exit') &&
+            d.furthest is int && d.furthest >= 0 && d.furthest <= 500 &&
+            d.misses is list && d.misses.size() <= 50;
+        }
+        allow read: if isAdmin();
+        allow create, update: if staff() && uid == request.auth.uid && validRun(request.resource.data);
+      }
     }
 
     // Admin backgrounds - authenticated users can read based on access level, only admins can write
@@ -1581,7 +1606,7 @@ service cloud.firestore {
       // revoke-without-delete and toggle-after-publish.
       allow update: if request.auth != null &&
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin()) &&
-        request.resource.data.id == resource.data.id &&
+        sameId() &&
         request.resource.data.sessionId == resource.data.sessionId &&
         request.resource.data.originalAuthor == resource.data.originalAuthor &&
         request.resource.data.createdAt == resource.data.createdAt;
@@ -1726,7 +1751,7 @@ service cloud.firestore {
              'updatedAt', 'updatedBy', 'behavior', 'stimuli',
              'paperSheetStimuli', 'translations'
            ])
-        && request.resource.data.id == resource.data.id
+        && sameId()
         && request.resource.data.participants == resource.data.participants
         && request.resource.data.version == resource.data.version + 1
         && request.resource.data.updatedBy == request.auth.uid
@@ -1803,7 +1828,7 @@ service cloud.firestore {
              'stimuli', 'targets', 'language', 'questionCount', 'targetIds',
              'targetCounts', 'createdAt', 'updatedAt'
            ])
-        && request.resource.data.id == resource.data.id
+        && sameId()
         && request.resource.data.ownerUid == resource.data.ownerUid
         && request.resource.data.version == resource.data.version + 1
         && request.resource.data.plcIds is list
@@ -1866,7 +1891,7 @@ service cloud.firestore {
              'participants', 'plcId', 'createdAt',
              'updatedAt', 'updatedBy', 'behavior'
            ])
-        && request.resource.data.id == resource.data.id
+        && sameId()
         && request.resource.data.participants == resource.data.participants
         && request.resource.data.version == resource.data.version + 1
         && request.resource.data.updatedBy == request.auth.uid
@@ -2114,6 +2139,14 @@ service cloud.firestore {
     // features, not lead-only). Closed to digestOptIn + updatedAt, must be bool.
     // The email is sent server-side by plcWeeklyDigest, gated by the global
     // plc-digest.enabled kill switch (default OFF).
+    // Lead or co-lead setting the PLC Home meeting cadence (a map or null) and nothing else.
+    function isUpdatingPlcMeetingCadence() {
+      return isPlcMembershipManager(resource.data)
+        && changedOnly(['meetingCadence', 'updatedAt'])
+        && optMap(request.resource.data, 'meetingCadence')
+        && plcUpdatedAtOk();
+    }
+
     function isUpdatingPlcDigestOptIn() {
       return (request.auth.uid in resource.data.memberUids)
         && changedOnly(['digestOptIn', 'updatedAt'])
@@ -2417,7 +2450,8 @@ service cloud.firestore {
       // (orgId/buildingId) is immutable-after-set. The update branches are MUTUALLY
       // EXCLUSIVE, each a disjoint shape: broad sitting-lead update; isAcceptingPlcInvite;
       // isLeavingPlc; isTransferringPlcLead / isChangingMemberRole; isSettingPlcSharedSheetUrl
-      // / isUpdatingPlcFeatures / isUpdatingPlcDigestOptIn; isAdminManagingPlc (the only
+      // / isUpdatingPlcFeatures / isUpdatingPlcDigestOptIn / isUpdatingPlcMeetingCadence;
+      // isAdminManagingPlc (the only
       // non-member branch).
       allow update: if request.auth != null && (
         (
@@ -2438,6 +2472,7 @@ service cloud.firestore {
         || isSettingPlcSharedSheetUrl()
         || isUpdatingPlcFeatures()
         || isUpdatingPlcDigestOptIn()
+        || isUpdatingPlcMeetingCadence()
         || isAdminManagingPlc()
         || isAdminEditingPlcMembers()
       );
@@ -2493,7 +2528,7 @@ service cloud.firestore {
           && plcMember(plcId)
           // Identity fields immutable; mutable: status (mirrored on pause/
           // deactivate/reopen) + legacy fields. Shape closed via hasOnly([...]).
-          && request.resource.data.id == resource.data.id
+          && sameId()
           && request.resource.data.ownerUid == resource.data.ownerUid
           && request.resource.data.createdAt == resource.data.createdAt
           && assignmentId == request.resource.data.id
@@ -2596,7 +2631,7 @@ service cloud.firestore {
                'createdBy', 'createdAt', 'updatedAt', 'deletedAt',
                'sourceQuizId', 'dirtyAt', 'folderId'
              ])
-          && request.resource.data.id == resource.data.id
+          && sameId()
           && request.resource.data.createdBy == resource.data.createdBy
           && request.resource.data.createdAt == resource.data.createdAt
           && request.resource.data.kind == resource.data.kind
@@ -2681,7 +2716,7 @@ service cloud.firestore {
                'assessmentIds', 'agenda', 'decisions', 'actionItems',
                'notesBody', 'status', 'createdBy', 'updatedAt', 'deletedAt'
              ])
-          && request.resource.data.id == resource.data.id
+          && sameId()
           && request.resource.data.createdBy == resource.data.createdBy
           && request.resource.data.heldAt == resource.data.heldAt
           && request.resource.data.facilitatorUid == resource.data.facilitatorUid
@@ -2765,7 +2800,7 @@ service cloud.firestore {
              ])
           && plcQuizRunSettingsOk()
           && optBool(request.resource.data, 'archived')
-          && request.resource.data.id == resource.data.id
+          && sameId()
           && request.resource.data.syncGroupId == resource.data.syncGroupId
           && request.resource.data.sharedBy == resource.data.sharedBy
           && request.resource.data.sharedByEmail == resource.data.sharedByEmail
@@ -2862,7 +2897,7 @@ service cloud.firestore {
                'sharedBy', 'sharedByEmail', 'sharedByName',
                'sharedAt', 'updatedAt', 'deletedAt'
              ])
-          && request.resource.data.id == resource.data.id
+          && sameId()
           && request.resource.data.syncGroupId == resource.data.syncGroupId
           && request.resource.data.sharedBy == resource.data.sharedBy
           && request.resource.data.sharedByEmail == resource.data.sharedByEmail
@@ -2947,7 +2982,7 @@ service cloud.firestore {
                'sharedBy', 'sharedByEmail', 'sharedByName',
                'sharedAt', 'updatedAt', 'deletedAt'
              ])
-          && request.resource.data.id == resource.data.id
+          && sameId()
           && request.resource.data.syncGroupId == resource.data.syncGroupId
           && request.resource.data.sharedBy == resource.data.sharedBy
           && request.resource.data.sharedByEmail == resource.data.sharedByEmail
@@ -3003,7 +3038,7 @@ service cloud.firestore {
                'sharedBy', 'sharedByEmail', 'sharedByName',
                'sharedAt', 'deletedAt'
              ])
-          && request.resource.data.id == resource.data.id
+          && sameId()
           && request.resource.data.sharedBy == resource.data.sharedBy
           && request.resource.data.sharedByEmail == resource.data.sharedByEmail
           && request.resource.data.sharedByName == resource.data.sharedByName
@@ -3066,7 +3101,7 @@ service cloud.firestore {
                'sharedBy', 'sharedByEmail', 'sharedByName',
                'sharedAt', 'updatedAt'
              ])
-          && request.resource.data.id == resource.data.id
+          && sameId()
           && request.resource.data.quizId == resource.data.quizId
           && request.resource.data.syncGroupId == resource.data.syncGroupId
           && request.resource.data.sharedBy == resource.data.sharedBy
@@ -3150,7 +3185,7 @@ service cloud.firestore {
                'lastEditedBy', 'lastEditedAt',
                'version', 'deletedAt', 'yState'
              ])
-          && request.resource.data.id == resource.data.id
+          && sameId()
           && request.resource.data.createdBy == resource.data.createdBy
           && request.resource.data.createdAt == resource.data.createdAt
           && request.resource.data.lastEditedBy == request.auth.uid
@@ -3250,7 +3285,7 @@ service cloud.firestore {
                'createdBy', 'createdByName', 'createdAt', 'updatedAt',
                'deletedAt'
              ])
-          && request.resource.data.id == resource.data.id
+          && sameId()
           && request.resource.data.createdBy == resource.data.createdBy
           && request.resource.data.createdAt == resource.data.createdAt
           && request.resource.data.title is string
@@ -3399,7 +3434,7 @@ service cloud.firestore {
                'authorUid', 'authorName', 'body', 'mentions',
                'createdAt', 'editedAt', 'deletedAt'
              ])
-          && request.resource.data.id == resource.data.id
+          && sameId()
           && request.resource.data.targetType == resource.data.targetType
           && request.resource.data.targetId == resource.data.targetId
           && request.resource.data.authorUid == resource.data.authorUid
@@ -4379,7 +4414,7 @@ service cloud.firestore {
         notAnon() &&
         resource.data.teacherUid == request.auth.uid &&
         subMonitorStampUnchanged() &&
-        request.resource.data.id == resource.data.id &&
+        sameId() &&
         request.resource.data.activityId == resource.data.activityId &&
         request.resource.data.teacherUid == resource.data.teacherUid &&
         request.resource.data.createdAt == resource.data.createdAt;
@@ -4759,9 +4794,9 @@ service cloud.firestore {
             d.furthestStepIdx is int && d.furthestStepIdx >= 0 && d.furthestStepIdx <= 500 &&
             d.steps is map && d.steps.size() <= 200 &&
             d.startedAt is timestamp &&
-            (!('mode' in d) || d.mode in ['watch', 'try']) &&
+            d.get('mode', 'try') in ['watch', 'try'] &&
             optInt(d, 'modeSwitches') && optBool(d, 'completed') &&
-            (!('updatedAt' in d) || d.updatedAt is timestamp);
+            d.get('updatedAt', d.startedAt) is timestamp;
         }
         allow get: if request.auth != null &&
           (uid == request.auth.uid || glIsTeacher() || isSubMonitor(glSession()));
@@ -4794,9 +4829,7 @@ service cloud.firestore {
         allow create: if request.auth != null &&
           request.resource.data.keys().hasOnly(['viewedAt']) &&
           request.resource.data.viewedAt is timestamp &&
-          exists(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)) &&
           glSessionMode() == 'view-only';
-        allow update, delete: if false;
       }
     }
 
@@ -5244,6 +5277,10 @@ service cloud.firestore {
     match /users/{userId}/guided_learning_assignments/{id} {
       allow read, write: if ownsUser(userId);
     }
+    // Files of a deleted GL set, held until its open assignments close (P5-3).
+    match /users/{userId}/gl_media_tombstones/{setId} {
+      allow read, write: if ownsUser(userId);
+    }
 
     // === Library folders (Wave 3) ===
     // Per-teacher folder tree per library widget (Quiz/VA/GL/MiniApp); folders
@@ -5454,7 +5491,7 @@ service cloud.firestore {
                     && request.resource.data.createdAt is int
                     && request.resource.data.updatedAt is int;
       allow update: if ownsUserTeacher(userId)
-                    && request.resource.data.id == resource.data.id
+                    && sameId()
                     && request.resource.data.steps is list
                     && request.resource.data.steps.size() <= 32
                     && request.resource.data.updatedAt is int;
@@ -5529,7 +5566,7 @@ service cloud.firestore {
       allow update: if pjTeacher()
                     && resource.data.teacherUid == request.auth.uid
                     && request.resource.data.teacherUid == resource.data.teacherUid
-                    && request.resource.data.id == resource.data.id
+                    && sameId()
                     && request.resource.data.classIds is list
                     && request.resource.data.approvalStepIds is list
                     && request.resource.data.steps is list

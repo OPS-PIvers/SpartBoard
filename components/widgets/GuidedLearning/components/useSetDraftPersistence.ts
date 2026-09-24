@@ -14,6 +14,10 @@ import {
   stepUsesSpotlight,
 } from '../utils/setMigration';
 import { calculateImageFootprint, toImageOffset } from '../utils/imageUtils';
+import {
+  GuidedLearningSaveConflictError,
+  type GuidedLearningSaveGuard,
+} from '../utils/saveConflict';
 import type { GuidedLearningEditorController } from './useGuidedLearningEditorState';
 
 function arraysEqual(a: string[], b: string[]): boolean {
@@ -111,7 +115,8 @@ function stepsEqual(a: GuidedLearningStep[], b: GuidedLearningStep[]): boolean {
       (sa.bannerTone ?? 'blue') !== (sb.bannerTone ?? 'blue') ||
       (sa.autoAdvanceDuration ?? 0) !== (sb.autoAdvanceDuration ?? 0) ||
       !!sa.hideStepNumber !== !!sb.hideStepNumber ||
-      !!sa.hotspotAlwaysHidden !== !!sb.hotspotAlwaysHidden
+      !!sa.hotspotAlwaysHidden !== !!sb.hotspotAlwaysHidden ||
+      !!sa.aiDraft !== !!sb.aiDraft
     ) {
       return false;
     }
@@ -148,10 +153,28 @@ interface UseSetDraftPersistenceArgs {
   isOpen: boolean;
   set: GuidedLearningSet | null;
   editorState: GuidedLearningEditorController;
-  onSave: (set: GuidedLearningSet, driveFileId?: string) => Promise<void>;
+  onSave: (
+    set: GuidedLearningSet,
+    driveFileId?: string,
+    guard?: GuidedLearningSaveGuard
+  ) => Promise<void>;
   driveFileId?: string;
+  /** Stored revision the editor opened on; personal sets pass the metadata doc's. */
+  loadedUpdatedAt?: number;
   onClose: () => void;
 }
+
+/** Thrown by a save of a set a newer client wrote. */
+export class GuidedLearningReadOnlyError extends Error {
+  constructor() {
+    super('This set was saved by a newer version. Refresh to edit it.');
+    this.name = 'GuidedLearningReadOnlyError';
+  }
+}
+
+/** True when a newer client wrote the set, so this one must not save it. */
+export const isNewerSchema = (set: GuidedLearningSet | null): boolean =>
+  (set?.schemaVersion ?? 1) > GL_SET_SCHEMA_VERSION;
 
 export interface SetDraftPersistence {
   saving: boolean;
@@ -166,6 +189,12 @@ export interface SetDraftPersistence {
   buildSavedSet: () => GuidedLearningSet | null;
   /** Close, deleting queued media when the latest draft is saved. */
   closeEditor: () => void;
+  /** Set when a save found someone else's newer save; autosave should pause. */
+  conflict: GuidedLearningSaveConflictError | null;
+  /** Makes the next save skip the revision check. */
+  armOverwrite: () => void;
+  /** A newer client wrote this set, so every save is refused. */
+  readOnly: boolean;
 }
 
 /** Dirty tracking, legacy radius conversion, save payload and close flush for a GL editor. */
@@ -175,10 +204,19 @@ export function useSetDraftPersistence({
   editorState,
   onSave,
   driveFileId,
+  loadedUpdatedAt,
   onClose,
 }: UseSetDraftPersistenceArgs): SetDraftPersistence {
-  const { deleteFile, deleteDriveFile } = useStorage();
+  const { releaseGuidedLearningFiles } = useStorage();
   const [saving, setSaving] = useState(false);
+  const [conflict, setConflict] =
+    useState<GuidedLearningSaveConflictError | null>(null);
+  // Stored revision the next save must find; advances with each save that lands.
+  const revisionRef = useRef<number | undefined>(
+    loadedUpdatedAt ?? set?.updatedAt
+  );
+  const overwriteRef = useRef(false);
+  const readOnly = isNewerSchema(set);
 
   // Snapshot originals when `set` identity changes
   const originalTitle = set?.title ?? '';
@@ -214,13 +252,22 @@ export function useSetDraftPersistence({
   );
 
   const originalWatchPace = set?.watchPace;
+  const originalTourSetup = useMemo(() => set?.tourSetup?.widgets ?? [], [set]);
 
   const [prevSet, setPrevSet] = useState<GuidedLearningSet | null>(set);
   if (set !== prevSet) {
     setPrevSet(set);
     setSaving(false);
     setOriginalSteps(set ? structuredClone(set.steps) : []);
+    setConflict(null);
+    revisionRef.current = loadedUpdatedAt ?? set?.updatedAt;
+    overwriteRef.current = false;
   }
+
+  // Mid-drag, dirty tracking and the autosave token hold the pre-gesture draft until endGesture.
+  const trackedRef = useRef(editorState);
+  if (!editorState.gestureOpen) trackedRef.current = editorState;
+  const tracked = trackedRef.current;
 
   // Without a slide the editor cannot save at all, so that comes first.
   const incompleteNotice = useMemo(() => {
@@ -231,32 +278,34 @@ export function useSetDraftPersistence({
 
   const isDirty = useMemo(() => {
     return (
-      editorState.title !== originalTitle ||
-      editorState.description !== originalDescription ||
-      editorState.mode !== originalMode ||
-      editorState.hotspotPulse !== originalHotspotPulse ||
-      editorState.imageTransition !== originalImageTransition ||
-      editorState.welcomeEnabled !== originalWelcomeEnabled ||
-      editorState.welcomeMessage !== originalWelcomeMessage ||
-      !arraysEqual(editorState.imageUrls, originalImageUrls) ||
-      !arraysEqual(editorState.imageKinds, originalImageKinds) ||
-      !trimsEqual(editorState.videoTrims, originalVideoTrims) ||
-      !stepsEqual(editorState.steps, originalSteps) ||
-      editorState.watchPace !== originalWatchPace
+      tracked.title !== originalTitle ||
+      tracked.description !== originalDescription ||
+      tracked.mode !== originalMode ||
+      tracked.hotspotPulse !== originalHotspotPulse ||
+      tracked.imageTransition !== originalImageTransition ||
+      tracked.welcomeEnabled !== originalWelcomeEnabled ||
+      tracked.welcomeMessage !== originalWelcomeMessage ||
+      !arraysEqual(tracked.imageUrls, originalImageUrls) ||
+      !arraysEqual(tracked.imageKinds, originalImageKinds) ||
+      !trimsEqual(tracked.videoTrims, originalVideoTrims) ||
+      !stepsEqual(tracked.steps, originalSteps) ||
+      tracked.watchPace !== originalWatchPace ||
+      !arraysEqual(tracked.tourSetupWidgets, originalTourSetup)
     );
   }, [
-    editorState.title,
-    editorState.description,
-    editorState.mode,
-    editorState.hotspotPulse,
-    editorState.imageTransition,
-    editorState.welcomeEnabled,
-    editorState.welcomeMessage,
-    editorState.imageUrls,
-    editorState.imageKinds,
-    editorState.videoTrims,
-    editorState.steps,
-    editorState.watchPace,
+    tracked.title,
+    tracked.description,
+    tracked.mode,
+    tracked.hotspotPulse,
+    tracked.imageTransition,
+    tracked.welcomeEnabled,
+    tracked.welcomeMessage,
+    tracked.imageUrls,
+    tracked.imageKinds,
+    tracked.videoTrims,
+    tracked.steps,
+    tracked.watchPace,
+    tracked.tourSetupWidgets,
     originalTitle,
     originalDescription,
     originalMode,
@@ -269,6 +318,7 @@ export function useSetDraftPersistence({
     originalVideoTrims,
     originalSteps,
     originalWatchPace,
+    originalTourSetup,
   ]);
 
   // One-time v1→v2 radius conversion at editor load: convert every spotlight
@@ -278,7 +328,6 @@ export function useSetDraftPersistence({
   // and an unmeasurable set stays legacy on save.
   const {
     steps: draftSteps,
-    setSteps,
     imageUrls,
     imageKinds,
     canvasMeasurementsRef,
@@ -339,9 +388,10 @@ export function useSetDraftPersistence({
         measurements
       );
       if (!convertedDraft || !convertedOriginal) return;
-      setSteps(convertedDraft);
       setOriginalSteps(convertedOriginal);
-      markSpotlightRadiiV2();
+      markSpotlightRadiiV2((steps) =>
+        convertLegacySpotlightRadii(steps, measurements)
+      );
     })();
     return () => {
       cancelled = true;
@@ -356,39 +406,40 @@ export function useSetDraftPersistence({
     imageUrls,
     imageKinds,
     canvasMeasurementsRef,
-    setSteps,
     markSpotlightRadiiV2,
   ]);
 
   // New identity on every draft edit — the autosave quiet period restarts on it.
   const draftToken = useMemo(
     () => [
-      editorState.title,
-      editorState.description,
-      editorState.mode,
-      editorState.hotspotPulse,
-      editorState.imageTransition,
-      editorState.welcomeEnabled,
-      editorState.welcomeMessage,
-      editorState.imageUrls,
-      editorState.imageKinds,
-      editorState.videoTrims,
-      editorState.steps,
-      editorState.watchPace,
+      tracked.title,
+      tracked.description,
+      tracked.mode,
+      tracked.hotspotPulse,
+      tracked.imageTransition,
+      tracked.welcomeEnabled,
+      tracked.welcomeMessage,
+      tracked.imageUrls,
+      tracked.imageKinds,
+      tracked.videoTrims,
+      tracked.steps,
+      tracked.watchPace,
+      tracked.tourSetupWidgets,
     ],
     [
-      editorState.title,
-      editorState.description,
-      editorState.mode,
-      editorState.hotspotPulse,
-      editorState.imageTransition,
-      editorState.welcomeEnabled,
-      editorState.welcomeMessage,
-      editorState.imageUrls,
-      editorState.imageKinds,
-      editorState.videoTrims,
-      editorState.steps,
-      editorState.watchPace,
+      tracked.title,
+      tracked.description,
+      tracked.mode,
+      tracked.hotspotPulse,
+      tracked.imageTransition,
+      tracked.welcomeEnabled,
+      tracked.welcomeMessage,
+      tracked.imageUrls,
+      tracked.imageKinds,
+      tracked.videoTrims,
+      tracked.steps,
+      tracked.watchPace,
+      tracked.tourSetupWidgets,
     ]
   );
   const draftTokenRef = useRef(draftToken);
@@ -407,13 +458,37 @@ export function useSetDraftPersistence({
       editorState.spotlightRadiiV2 || !steps.some(stepUsesSpotlight)
         ? GL_SET_SCHEMA_VERSION
         : set.schemaVersion;
-    const now = Date.now();
+    // Editor-owned optional fields are dropped here and re-added below only when set.
+    const {
+      schemaVersion: _schemaVersion,
+      description: _description,
+      imageKinds: _imageKinds,
+      videoTrims: _videoTrims,
+      hotspotPulse: _hotspotPulse,
+      imageTransition: _imageTransition,
+      welcomeEnabled: _welcomeEnabled,
+      welcomeMessage: _welcomeMessage,
+      watchPace: _watchPace,
+      hasLiveTour: _hasLiveTour,
+      slideThumbnails: _slideThumbnails,
+      tourSetup: _tourSetup,
+      ...carried
+    } = set;
+    const thumbs = editorState.slideThumbnails ?? set.slideThumbnails ?? {};
+    const slideThumbnails = Object.fromEntries(
+      editorState.imageUrls.flatMap((url) =>
+        thumbs[url] ? [[url, thumbs[url]] as const] : []
+      )
+    );
     return {
+      // Carries imagePaths, helpCenter and fields a newer client added.
+      ...carried,
       id: set.id,
       ...(schemaVersion !== undefined ? { schemaVersion } : {}),
       title: editorState.title.trim(),
       description: editorState.description.trim() || undefined,
       imageUrls: editorState.imageUrls,
+      ...(Object.keys(slideThumbnails).length > 0 ? { slideThumbnails } : {}),
       // Only persist kinds when at least one slide is a video — keeps
       // image-only (and legacy) sets free of the new field.
       ...(editorState.imageKinds.some((k) => k === 'video')
@@ -426,11 +501,8 @@ export function useSetDraftPersistence({
         : {}),
       steps,
       mode: editorState.mode,
-      createdAt: set.createdAt,
-      updatedAt: now,
-      isBuilding: set.isBuilding,
-      ...(set.helpCenter ? { helpCenter: true } : {}),
-      authorUid: set.authorUid,
+      // The loaded revision; persistDraft stamps the next one.
+      updatedAt: revisionRef.current ?? set.updatedAt,
       // Only persist a hotspotPulse value when it differs from the default
       // ('consistent') — keeps untouched legacy sets clean of new fields.
       ...(editorState.hotspotPulse !== 'consistent'
@@ -450,33 +522,66 @@ export function useSetDraftPersistence({
           }
         : {}),
       ...(editorState.watchPace ? { watchPace: editorState.watchPace } : {}),
-      // The classic editor has no tour controls, so tour setup rides through.
-      ...(set.tourSetup ? { tourSetup: set.tourSetup } : {}),
+      ...(set.tourSetup || editorState.tourSetupWidgets.length > 0
+        ? {
+            tourSetup: {
+              ...set.tourSetup,
+              widgets: editorState.tourSetupWidgets,
+            },
+          }
+        : {}),
       // Launch points read this instead of loading every step.
       ...(set.isBuilding ? { hasLiveTour: steps.some((s) => !!s.tour) } : {}),
     };
   };
 
   const persistDraft = async () => {
+    if (readOnly) throw new GuidedLearningReadOnlyError();
     const builtSet = buildSavedSet();
     if (!builtSet) return;
     const token = draftTokenRef.current;
+    const base = revisionRef.current;
+    // Strictly newer than the base, so a same-millisecond save still moves the revision.
+    const updatedAt = Math.max(Date.now(), (base ?? 0) + 1);
+    const guard: GuidedLearningSaveGuard = {
+      expectedUpdatedAt: overwriteRef.current ? undefined : base,
+    };
     setSaving(true);
     try {
-      await onSave(builtSet, driveFileId);
+      await onSave({ ...builtSet, updatedAt }, driveFileId, guard);
+      revisionRef.current = updatedAt;
+      overwriteRef.current = false;
+      setConflict(null);
       savedTokenRef.current = token;
+    } catch (err) {
+      if (err instanceof GuidedLearningSaveConflictError) setConflict(err);
+      throw err;
     } finally {
       setSaving(false);
     }
   };
 
+  const armOverwrite = useCallback(() => {
+    overwriteRef.current = true;
+  }, []);
+
   const { flushMediaDeletions } = editorState;
+  const setId = set?.id;
+  const building = set?.isBuilding === true || set?.helpCenter === true;
   const closeEditor = useCallback(() => {
-    if (savedTokenRef.current === draftTokenRef.current) {
-      void flushMediaDeletions(deleteFile, deleteDriveFile);
+    if (setId && savedTokenRef.current === draftTokenRef.current) {
+      void flushMediaDeletions((files) =>
+        releaseGuidedLearningFiles(setId, building, files)
+      );
     }
     onClose();
-  }, [flushMediaDeletions, deleteFile, deleteDriveFile, onClose]);
+  }, [
+    flushMediaDeletions,
+    releaseGuidedLearningFiles,
+    setId,
+    building,
+    onClose,
+  ]);
 
   return {
     saving,
@@ -486,5 +591,8 @@ export function useSetDraftPersistence({
     persistDraft,
     buildSavedSet,
     closeEditor,
+    conflict,
+    armOverwrite,
+    readOnly,
   };
 }

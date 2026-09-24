@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { LEARNER_SPEEDS, type LearnerSpeed } from '../../utils/motion';
+import { TouchHitBox } from './TouchHitBox';
 
 interface Props {
   speed: LearnerSpeed;
@@ -30,16 +31,17 @@ export const SpeedControl: React.FC<Props> = ({ speed, onChange }) => {
           aria-pressed={s === speed}
           aria-label={t('glPlayer.speedOption', { speed: LABELS[s] })}
           onClick={() => onChange(s)}
-          className={`rounded-full font-bold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 ${
+          className={`relative rounded-full font-bold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 ${
             s === speed
               ? 'bg-white text-slate-900'
               : 'text-slate-200 hover:bg-white/15'
           }`}
           style={{
             padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-            fontSize: 'min(12px, 3.2cqmin)',
+            fontSize: 'var(--gl-text-small, min(12px, 3.2cqmin))',
           }}
         >
+          <TouchHitBox width="100%" />
           {LABELS[s]}
         </button>
       ))}

@@ -105,6 +105,7 @@ export const WidgetPermissionCardBody: React.FC<
               checked={permission.enabled}
               onChange={(checked) => updatePermission({ enabled: checked })}
               size="sm"
+              label={`${tool.label} enabled`}
             />
           </div>
 
@@ -258,6 +259,7 @@ export const WidgetPermissionCardBody: React.FC<
           checked={permission.enabled}
           onChange={(checked) => updatePermission({ enabled: checked })}
           size="md"
+          label={`${tool.label} enabled`}
         />
       </div>
 

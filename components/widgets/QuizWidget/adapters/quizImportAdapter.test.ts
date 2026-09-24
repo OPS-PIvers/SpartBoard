@@ -153,6 +153,53 @@ describe('createQuizImportAdapter — drive.file token threading', () => {
     });
   });
 
+  describe('choose-all-that-apply rows from a sheet or CSV', () => {
+    const WITH_MA: QuizData = {
+      ...SAMPLE_QUIZ,
+      questions: [
+        ...SAMPLE_QUIZ.questions,
+        {
+          id: 'q2',
+          text: 'Which are prime?',
+          type: 'MA',
+          timeLimit: 30,
+          correctAnswer: '2|3',
+          incorrectAnswers: ['4'],
+        },
+      ],
+    };
+
+    it('leaves them out with a note when the feature is off', async () => {
+      const deps = makeDeps({
+        importFromCSV: vi.fn().mockResolvedValue(WITH_MA),
+        importFromSheet: vi.fn().mockResolvedValue(WITH_MA),
+      });
+      const adapter = createQuizImportAdapter(deps);
+
+      for (const source of [
+        { kind: 'csv' as const, text: 'a,b,c' },
+        { kind: 'sheet' as const, url: PICKED_SHEET_URL },
+      ]) {
+        const result = await adapter.parse(source);
+        expect(result.data.questions.map((q) => q.type)).toEqual(['MC']);
+        expect(result.warnings).toHaveLength(1);
+      }
+    });
+
+    it('keeps them when the feature is on', async () => {
+      const deps = makeDeps({
+        importFromCSV: vi.fn().mockResolvedValue(WITH_MA),
+        canUseChooseAll: true,
+      });
+      const result = await createQuizImportAdapter(deps).parse({
+        kind: 'csv',
+        text: 'a,b,c',
+      });
+      expect(result.data.questions.map((q) => q.type)).toEqual(['MC', 'MA']);
+      expect(result.warnings).toEqual([]);
+    });
+  });
+
   describe('templateHelper.createTemplate', () => {
     it('threads the fresh ensureDriveScope token into createQuizTemplate', async () => {
       const deps = makeDeps();

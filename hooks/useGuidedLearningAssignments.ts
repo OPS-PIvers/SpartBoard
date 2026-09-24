@@ -12,23 +12,30 @@
  * and delete them (plus the session + responses) permanently.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   collection,
   deleteDoc,
   deleteField,
   doc,
   getDoc,
+  limit,
   onSnapshot,
   orderBy,
   query,
   setDoc,
   updateDoc,
+  where,
   writeBatch,
+  type QuerySnapshot,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
+import {
+  type SharedSource,
+  useSharedSubscription,
+} from './useSharedSubscription';
 import { isAnswerCorrect } from './useGuidedLearningSession';
 import {
   GL_CONTENT_COLLECTION,
@@ -109,12 +116,17 @@ export interface CreateAssignmentInput {
   dueAt?: number;
   /** Per-period gate mirrored from the session for the hub. */
   periodGate?: Pick<GuidedLearningSession, 'accessMode' | 'periodAccess'>;
+  answerKeys?: GuidedLearningAssignment['answerKeys'];
 }
 
 export interface UseGuidedLearningAssignmentsResult {
   assignments: GuidedLearningAssignment[];
   loading: boolean;
   error: string | null;
+  /** True when closed assignments older than the loaded pages may exist. */
+  hasOlder: boolean;
+  /** Loads the next page of closed assignments. */
+  showOlder: () => void;
   /** Persist a new assignment entry (usually right after createSession). */
   createAssignment: (
     input: CreateAssignmentInput
@@ -155,54 +167,112 @@ export interface UseGuidedLearningAssignmentsResult {
   unpublishAssignmentScores: (assignmentId: string) => Promise<void>;
 }
 
+/** Closed assignments listed before "Show older"; open ones are always listed in full. */
+export const GL_ASSIGNMENTS_PAGE_SIZE = 50;
+
+interface AssignmentsState {
+  open: GuidedLearningAssignment[];
+  recent: GuidedLearningAssignment[];
+  recentLimit: number;
+  openLoaded: boolean;
+  recentLoaded: boolean;
+  error: string | null;
+}
+
+// Per teacher: raises the recent listener's limit by one page.
+const olderLoaders = new Map<string, () => void>();
+
+const toAssignments = (snap: QuerySnapshot): GuidedLearningAssignment[] =>
+  snap.docs.map((d) => ({ ...d.data(), id: d.id }) as GuidedLearningAssignment);
+
+const assignmentsSource: SharedSource<AssignmentsState> = {
+  id: 'gl-assignments',
+  initial: {
+    open: [],
+    recent: [],
+    recentLimit: GL_ASSIGNMENTS_PAGE_SIZE,
+    openLoaded: false,
+    recentLoaded: false,
+    error: null,
+  },
+  start: (userId, update) => {
+    const ref = collection(db, 'users', userId, GL_ASSIGNMENTS_COLLECTION);
+    const onError = (err: unknown) => {
+      console.error('[useGuidedLearningAssignments] Firestore error:', err);
+      update((prev) => ({
+        ...prev,
+        openLoaded: true,
+        recentLoaded: true,
+        error: 'Failed to load guided learning assignments',
+      }));
+    };
+    // Equality-only, so no composite index; open assignments are never capped.
+    const openUnsub = onSnapshot(
+      query(ref, where('status', '==', 'active')),
+      (snap) =>
+        update((prev) => ({
+          ...prev,
+          open: toAssignments(snap),
+          openLoaded: true,
+        })),
+      onError
+    );
+    let recentLimit = GL_ASSIGNMENTS_PAGE_SIZE;
+    let recentUnsub = (): void => undefined;
+    const listenRecent = () => {
+      const pageLimit = recentLimit;
+      recentUnsub();
+      recentUnsub = onSnapshot(
+        query(ref, orderBy('createdAt', 'desc'), limit(pageLimit)),
+        (snap) =>
+          update((prev) => ({
+            ...prev,
+            recent: toAssignments(snap),
+            recentLimit: pageLimit,
+            recentLoaded: true,
+          })),
+        onError
+      );
+    };
+    listenRecent();
+    olderLoaders.set(userId, () => {
+      recentLimit += GL_ASSIGNMENTS_PAGE_SIZE;
+      listenRecent();
+    });
+    return () => {
+      olderLoaders.delete(userId);
+      openUnsub();
+      recentUnsub();
+    };
+  },
+};
+
+/** Open and recent listeners overlap; keep the fresher copy of each doc, newest first. */
+export const mergeAssignments = (
+  open: GuidedLearningAssignment[],
+  recent: GuidedLearningAssignment[]
+): GuidedLearningAssignment[] => {
+  const byId = new Map<string, GuidedLearningAssignment>();
+  for (const a of [...recent, ...open]) {
+    const prev = byId.get(a.id);
+    if (!prev || a.updatedAt >= prev.updatedAt) byId.set(a.id, a);
+  }
+  return [...byId.values()].sort((x, y) => y.createdAt - x.createdAt);
+};
+
 export const useGuidedLearningAssignments = (
   userId: string | undefined
 ): UseGuidedLearningAssignmentsResult => {
-  const [assignments, setAssignments] = useState<GuidedLearningAssignment[]>(
-    []
+  const shared = useSharedSubscription(assignmentsSource, userId ?? null);
+  const assignments = useMemo(
+    () => mergeAssignments(shared.open, shared.recent),
+    [shared.open, shared.recent]
   );
-  const [loading, setLoading] = useState<boolean>(!!userId);
-  const [error, setError] = useState<string | null>(null);
-
-  // Adjust state during render when userId transitions — avoids the
-  // "set-state-in-effect" anti-pattern while still clearing stale data on
-  // sign-out.
-  const [prevUserId, setPrevUserId] = useState(userId);
-  if (userId !== prevUserId) {
-    setPrevUserId(userId);
-    if (!userId) {
-      setAssignments([]);
-      setLoading(false);
-      setError(null);
-    } else {
-      setLoading(true);
-    }
-  }
-
-  useEffect(() => {
-    if (!userId) return;
-
-    const q = query(
-      collection(db, 'users', userId, GL_ASSIGNMENTS_COLLECTION),
-      orderBy('createdAt', 'desc')
-    );
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setAssignments(
-          snap.docs.map(
-            (d) => ({ ...d.data(), id: d.id }) as GuidedLearningAssignment
-          )
-        );
-        setLoading(false);
-      },
-      (err) => {
-        console.error('[useGuidedLearningAssignments] Firestore error:', err);
-        setError('Failed to load guided learning assignments');
-        setLoading(false);
-      }
-    );
-    return unsub;
+  const loading = userId ? !(shared.openLoaded && shared.recentLoaded) : false;
+  const error = userId ? shared.error : null;
+  const hasOlder = !!userId && shared.recent.length >= shared.recentLimit;
+  const showOlder = useCallback(() => {
+    if (userId) olderLoaders.get(userId)?.();
   }, [userId]);
 
   const createAssignment = useCallback<
@@ -237,6 +307,9 @@ export const useGuidedLearningAssignments = (
         ...(input.openAt !== undefined ? { openAt: input.openAt } : {}),
         ...(input.closeAt !== undefined ? { closeAt: input.closeAt } : {}),
         ...(input.dueAt !== undefined ? { dueAt: input.dueAt } : {}),
+        ...(input.answerKeys && Object.keys(input.answerKeys).length > 0
+          ? { answerKeys: input.answerKeys }
+          : {}),
         ...(input.periodGate?.periodAccess
           ? {
               accessMode: input.periodGate.accessMode,
@@ -440,6 +513,8 @@ export const useGuidedLearningAssignments = (
       const updates: ResponseUpdate[] = [];
       for (const d of responseDocs) {
         const data = d.data() as GuidedLearningResponse;
+        // Answers saved mid-activity aren't a submission until completedAt is set.
+        if (typeof data.completedAt !== 'number') continue;
         const answers = Array.isArray(data.answers) ? data.answers : [];
         let correctCount = 0;
         // Track which stepIds have already contributed to the score so a
@@ -553,6 +628,8 @@ export const useGuidedLearningAssignments = (
     assignments,
     loading,
     error,
+    hasOlder,
+    showOlder,
     createAssignment,
     archiveAssignment,
     unarchiveAssignment,

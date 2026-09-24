@@ -10,6 +10,12 @@ import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { formatQuizAnswerText } from '@/utils/assignmentExportShared';
 import { isQuestionExcused, readSlotGrade } from '@/utils/mediaGrading';
 import { paperChoiceOrder } from '@/utils/paperSheetPlan';
+import {
+  multiAnswerCorrectOptions,
+  multiAnswerOptions,
+  parseMultiAnswer,
+} from '@/utils/quizMultiAnswer';
+import { seededShuffle } from '@/utils/quizShuffle';
 import { sanitizeQuizResponse } from '@/utils/security';
 import {
   gradeQuestionForResponse,
@@ -17,6 +23,10 @@ import {
 } from '@/utils/quizQuestionStats';
 import type { StudentOutcome } from '@/utils/quizQuestionDrilldown';
 import { htmlToPlainText } from '@/utils/writtenAnnotations';
+import {
+  formatRevealedAnswer,
+  revealValueFor,
+} from '@/utils/quizFibAlternates';
 
 /** One question as one student saw it, graded live. */
 export interface StudentQuestionLine {
@@ -34,7 +44,7 @@ export interface StudentQuestionLine {
   correctAnswerText: string | null;
   /** Written or recorded: graded by the teacher in the grader. */
   manual: boolean;
-  /** MC: every option in the order it prints, with the student's pick and the key. */
+  /** MC/MA: every option in the order it prints, with the student's picks and the key. */
   options?: StudentOptionLine[];
   /** Matching: one row per prompt the key lists. */
   pairs?: StudentMatchPair[];
@@ -128,6 +138,24 @@ function mcOptions(
   }));
 }
 
+/** MA options in one fixed shuffle, each marked picked and/or in the key. */
+function multiAnswerOptionLines(
+  q: QuizQuestion,
+  answer: string
+): StudentOptionLine[] {
+  const picked = new Set(parseMultiAnswer(answer).map(normalizeAnswer));
+  const key = new Set(
+    multiAnswerCorrectOptions(q.correctAnswer).map(normalizeAnswer)
+  );
+  return seededShuffle(multiAnswerOptions(q), `results-print:${q.id}`).map(
+    (text) => ({
+      text,
+      picked: picked.has(normalizeAnswer(text)),
+      correct: key.has(normalizeAnswer(text)),
+    })
+  );
+}
+
 const splitPair = (pair: string): [string, string] => {
   const sep = pair.indexOf(':');
   return sep < 0 ? [pair, ''] : [pair.slice(0, sep), pair.slice(sep + 1)];
@@ -213,12 +241,16 @@ export function computeStudentDrilldown(
       type: q.type,
       manual,
       correctAnswerText: hasKey
-        ? formatQuizAnswerText(q, { answer: q.correctAnswer })
+        ? q.type === 'FIB'
+          ? formatRevealedAnswer(revealValueFor(q))
+          : formatQuizAnswerText(q, { answer: q.correctAnswer })
         : null,
     };
     if (q.stimulusIds?.length) base.stimulusIds = [...q.stimulusIds];
     if (q.type === 'MC') {
       base.options = mcOptions(q, answer, options.choiceOrder?.[q.id]);
+    } else if (q.type === 'MA') {
+      base.options = multiAnswerOptionLines(q, answer);
     } else if (q.type === 'Matching') {
       base.pairs = matchPairs(q, answer);
     } else if (q.type === 'Ordering') {

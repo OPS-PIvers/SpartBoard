@@ -28,6 +28,7 @@ import { FolderSelectField } from '@/components/common/library/FolderSelectField
 import { SortableList } from '@/components/common/SortableList';
 import { Toggle } from '@/components/common/Toggle';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
+import { RubricBuilderPanel } from '@/components/widgets/QuizWidget/components/RubricBuilderPanel';
 import { MAX_STEPS, parseStepLines } from '../projectSteps';
 
 /** ms epoch <-> `<input type="datetime-local">` value (local time, no seconds). */
@@ -65,6 +66,7 @@ interface ProjectEditorModalProps {
   project: ProjectDefinition | null;
   rubrics: Rubric[];
   folders: LibraryFolder[];
+  teacherUid: string;
   onSave: (next: ProjectDefinition) => Promise<void>;
   onClose: () => void;
 }
@@ -74,6 +76,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
   project,
   rubrics,
   folders,
+  teacherUid,
   onSave,
   onClose,
 }) => {
@@ -82,6 +85,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [saving, setSaving] = useState(false);
+  const [rubricBuilderOpen, setRubricBuilderOpen] = useState(false);
 
   // Re-seed while rendering when a different project opens; an effect would
   // paint the previous project's fields first.
@@ -92,6 +96,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
     setSelectedStepId(project?.steps[0]?.id ?? null);
     setBulkOpen(false);
     setBulkText('');
+    setRubricBuilderOpen(false);
   }
 
   const isDirty = useMemo(() => {
@@ -102,6 +107,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
       draft.dueAt !== project.dueAt ||
       (draft.folderId ?? null) !== (project.folderId ?? null) ||
       draft.rubric?.id !== project.rubric?.id ||
+      draft.rubric?.updatedAt !== project.rubric?.updatedAt ||
       !stepsEqual(draft.steps, project.steps)
     );
   }, [draft, project]);
@@ -154,6 +160,26 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
     setBulkOpen(false);
     setBulkText('');
   };
+
+  // A snapshot, not a reference: editing the library rubric later must not
+  // silently rescore work already graded.
+  const setRubric = (rubric: Rubric | undefined): void => {
+    const next = { ...draft };
+    if (rubric) {
+      next.rubric = rubric;
+      next.rubricMaxPoints = rubricMaxPoints(rubric);
+    } else {
+      delete next.rubric;
+      delete next.rubricMaxPoints;
+    }
+    setDraft(next);
+  };
+
+  // The attached snapshot stays pickable even if its library copy is gone.
+  const rubricOptions =
+    draft.rubric && !rubrics.some((r) => r.id === draft.rubric?.id)
+      ? [draft.rubric, ...rubrics]
+      : rubrics;
 
   const selectedStep =
     draft.steps.find((step) => step.id === selectedStepId) ?? null;
@@ -216,32 +242,32 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
               <ScrollText className="mr-1 inline h-3 w-3" aria-hidden />
               Rubric
             </label>
-            <select
-              id="project-editor-rubric"
-              value={draft.rubric?.id ?? ''}
-              onChange={(e) => {
-                const picked = rubrics.find((r) => r.id === e.target.value);
-                const next = { ...draft };
-                if (picked) {
-                  // A snapshot, not a reference: editing the library rubric
-                  // later must not silently rescore work already graded.
-                  next.rubric = picked;
-                  next.rubricMaxPoints = rubricMaxPoints(picked);
-                } else {
-                  delete next.rubric;
-                  delete next.rubricMaxPoints;
+            <div className="flex gap-2">
+              <select
+                id="project-editor-rubric"
+                value={draft.rubric?.id ?? ''}
+                onChange={(e) =>
+                  setRubric(rubrics.find((r) => r.id === e.target.value))
                 }
-                setDraft(next);
-              }}
-              className={inputClass}
-            >
-              <option value="">No rubric</option>
-              {rubrics.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.title}
-                </option>
-              ))}
-            </select>
+                className={inputClass}
+              >
+                <option value="">No rubric</option>
+                {rubricOptions.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {(r.id === draft.rubric?.id
+                      ? draft.rubric.title
+                      : r.title) || 'Untitled rubric'}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setRubricBuilderOpen(true)}
+                className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
+              >
+                {draft.rubric ? 'Edit' : 'New'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -505,6 +531,26 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
       contextRatio={50}
       contextPane={contextPane}
       detailPane={detailPane}
+      overlay={
+        rubricBuilderOpen && (
+          <RubricBuilderPanel
+            key={draft.id}
+            questionId={draft.id}
+            existingSnapshot={draft.rubric}
+            attachLabel="Use for project"
+            onAttach={(rubric) => {
+              setRubric(rubric);
+              setRubricBuilderOpen(false);
+            }}
+            onDetach={() => {
+              setRubric(undefined);
+              setRubricBuilderOpen(false);
+            }}
+            onClose={() => setRubricBuilderOpen(false)}
+            teacherUid={teacherUid}
+          />
+        )
+      }
     />
   );
 };

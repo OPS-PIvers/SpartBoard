@@ -11,8 +11,21 @@
 
 import type { QuizQuestionType } from '@/types';
 import { matchQuestionOpening } from '@/utils/questionNumbering';
-import { findAnswerKey } from './answerKey';
-import type { DocLine, ExtractedOption, ExtractedQuestion } from './types';
+import {
+  INLINE_TEST_BANK_ANSWER,
+  TEST_BANK_FIELD_LINE,
+  answerBeforeFields,
+  applyKeyAnswer,
+  findAnswerKey,
+} from './answerKey';
+import {
+  SELECT_ALL_WORDING,
+  multiAnswerKey,
+  type DocLine,
+  type ExtractedOption,
+  type ExtractedQuestion,
+  type ReaderOptions,
+} from './types';
 
 /** `A.` / `b)` / `(C)` opening an option, optionally starred as the answer. */
 const OPTION = /^\s*(\*\s*)?\(?([A-Fa-f])[.)]\s*(.*)$/;
@@ -50,8 +63,21 @@ const followsInSequence = (options: OptionDraft[], letter: string): boolean => {
   return letter === expected;
 };
 
-function typeFor(options: OptionDraft[]): QuizQuestionType {
+function typeFor(
+  options: OptionDraft[],
+  stem: string,
+  multi: boolean
+): QuizQuestionType {
   if (options.length === 0) return 'free-response';
+  if (!multi) return 'MC';
+  const marked = options.filter((o) => o.marked).length;
+  // Some but not all marked reads as several answers; all marked is formatting.
+  if (
+    SELECT_ALL_WORDING.test(stem) ||
+    (marked > 1 && marked < options.length)
+  ) {
+    return 'MA';
+  }
   return 'MC';
 }
 
@@ -60,48 +86,29 @@ interface Draft {
   textParts: string[];
   options: OptionDraft[];
   imageIds: string[];
+  /** A test bank's `ANS:` line printed under the question. */
+  inlineAnswer?: string;
 }
 
 function finish(
   draft: Draft,
-  keyLetter: string | undefined
+  keyAnswer: string | undefined,
+  multi: boolean
 ): ExtractedQuestion {
   const warnings: string[] = [];
   const text = tidy(draft.textParts.join(' '));
-  const type = typeFor(draft.options);
+  const type = typeFor(draft.options, text, multi);
   const options: ExtractedOption[] = draft.options.map((o) => ({
     letter: o.letter,
     text: o.text,
   }));
 
-  if (type === 'free-response') {
-    warnings.push(
-      'No answer choices were found, so this came in as a written-response question.'
-    );
-    // The document answered it, so it had choices the reader missed — that is
-    // a layout the teacher can fix, not a written-response question.
-    if (keyLetter) {
-      warnings.push(
-        `The answer key says ${keyLetter} for this question, so its answer choices were probably missed.`
-      );
-    }
-  }
-
   let correctAnswer = '';
   if (type === 'MC') {
     const marked = draft.options.filter((o) => o.marked);
-    if (keyLetter) {
-      const hit = draft.options.find((o) => o.letter === keyLetter);
-      if (hit) {
-        correctAnswer = hit.text;
-      } else {
-        warnings.push(
-          `The answer key says ${keyLetter}, but this question has no option ${keyLetter}.`
-        );
-      }
-    } else if (marked.length === 1) {
+    if (marked.length === 1) {
       correctAnswer = marked[0].text;
-    } else if (marked.length > 1) {
+    } else if (marked.length > 1 && !keyAnswer && !draft.inlineAnswer) {
       warnings.push(
         'More than one answer choice is marked, so the answer was left blank.'
       );
@@ -109,11 +116,20 @@ function finish(
     if (draft.options.length === 1) {
       warnings.push('Only one answer choice was found.');
     }
+  } else if (type === 'MA') {
+    const marked = draft.options.filter((o) => o.marked);
+    if (marked.length > 0 && marked.length < draft.options.length) {
+      correctAnswer = multiAnswerKey(marked.map((o) => o.text));
+    } else if (marked.length > 0 && !keyAnswer && !draft.inlineAnswer) {
+      warnings.push(
+        'Every answer choice is marked, so the answers were left blank.'
+      );
+    }
   }
 
   if (!text) warnings.push('No question text was found.');
 
-  return {
+  const question: ExtractedQuestion = {
     number: draft.number,
     text,
     type,
@@ -121,6 +137,19 @@ function finish(
     correctAnswer,
     imageIds: draft.imageIds,
     warnings,
+  };
+  // The key at the back wins over an answer printed under the question.
+  const answer = keyAnswer ?? draft.inlineAnswer;
+  const keyed = answer
+    ? applyKeyAnswer(question, answer, 'document', multi)
+    : question;
+  if (keyed.type !== 'free-response') return keyed;
+  return {
+    ...keyed,
+    warnings: [
+      'No answer choices were found, so this came in as a written-response question.',
+      ...keyed.warnings,
+    ],
   };
 }
 
@@ -130,9 +159,11 @@ function finish(
  * Numbers must ascend, so a "2." inside a sentence cannot restart the count.
  */
 export function parseQuestionLines(
-  lines: readonly DocLine[]
+  lines: readonly DocLine[],
+  options: ReaderOptions = {}
 ): ExtractedQuestion[] {
-  const { letterByNumber, keyLineIndexes } = findAnswerKey(lines);
+  const multi = options.multiAnswer === true;
+  const { answerByNumber, keyLineIndexes } = findAnswerKey(lines, options);
 
   const drafts: Draft[] = [];
   let current: Draft | null = null;
@@ -166,6 +197,15 @@ export function parseQuestionLines(
 
     if (!current) return;
 
+    const inline = INLINE_TEST_BANK_ANSWER.exec(text);
+    if (inline) {
+      const answer = answerBeforeFields(inline[1]);
+      if (answer) current.inlineAnswer = answer;
+      lastOption = null;
+      return;
+    }
+    if (TEST_BANK_FIELD_LINE.test(text)) return;
+
     const option = matchOption(line);
     if (option && followsInSequence(current.options, option.letter)) {
       lastOption = {
@@ -188,7 +228,7 @@ export function parseQuestionLines(
     current.imageIds.push(...(line.imageIds ?? []));
   });
 
-  return drafts.map((d) => finish(d, letterByNumber.get(d.number)));
+  return drafts.map((d) => finish(d, answerByNumber.get(d.number), multi));
 }
 
 /** True/False written as two options — kept as MC, which is how Quiz stores it. */

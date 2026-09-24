@@ -13,6 +13,7 @@ import {
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet, GuidedLearningStep } from '@/types';
 import { mockStageLayout, rect } from '@/tests/utils/mockStageLayout';
+import { manualFrames } from '@/tests/utils/manualFrames';
 import { GuidedLearningStudio } from '@/components/widgets/GuidedLearning/components/studio/GuidedLearningStudio';
 
 // The classic editor on editorPerf.test.tsx's gl.* scenarios with these stable mocks: commits, median ms of 3 runs.
@@ -190,11 +191,13 @@ describe('Guided Learning Studio performance', () => {
     await settle();
     const mount = rec.record('studio.mount');
 
-    const timeline = screen.getByRole('region', { name: 'Steps on slide 1' });
+    const timeline = screen.getByRole('region', { name: 'Play order' });
     fireEvent.click(within(timeline).getByRole('button', { name: 'Step 1' }));
     await settle();
 
-    const textField = screen.getByPlaceholderText('Enter the text to display…');
+    const textField = screen.getByPlaceholderText(
+      'What should students do here?'
+    );
     rec.start();
     for (let i = 1; i <= TYPED_TEXT.length; i++) {
       fireEvent.change(textField, {
@@ -222,10 +225,10 @@ describe('Guided Learning Studio performance', () => {
     await settle();
     const add = rec.record('studio.addStep');
 
-    const slide11 = screen.getByRole('region', { name: 'Steps on slide 11' });
+    const playOrder = screen.getByRole('region', { name: 'Play order' });
     expect(
-      within(slide11).getAllByRole('button', { name: /^Step \d+$/ })
-    ).toHaveLength(3);
+      within(playOrder).getAllByRole('button', { name: /^Step \d+$/ })
+    ).toHaveLength(31);
     expect(mount.commits).toBeLessThanOrEqual(CLASSIC.mount.commits);
     expect(type25.commits).toBeLessThanOrEqual(CLASSIC.type25.commits);
     // The stage commits again as each slide's media mounts, and twice as the transition ends.
@@ -235,7 +238,7 @@ describe('Guided Learning Studio performance', () => {
     expect(add.commits).toBeLessThanOrEqual(CLASSIC.addStep.commits);
   }, 30000);
 
-  it('drags a region across 60 moves with at most one stage render per move and one history entry', async () => {
+  it('drags a region across 60 moves with at most one stage render per frame and one history entry', async () => {
     const rec = createRecorder();
     const region: GuidedLearningStep = {
       id: 'region-1',
@@ -256,30 +259,44 @@ describe('Guided Learning Studio performance', () => {
     mountStudio(set, rec.onRender);
     await settle();
 
-    const timeline = screen.getByRole('region', { name: 'Steps on slide 1' });
+    const timeline = screen.getByRole('region', { name: 'Play order' });
     fireEvent.click(within(timeline).getByRole('button', { name: 'Step 1' }));
     const layer = screen.getByTestId('gl-studio-edit-layer');
     fireEvent.pointerDown(layer, { button: 0, pointerId: 1, ...at(30, 30) });
 
+    // Two pointer moves land in each frame, as on a 120Hz pointer and 60Hz display.
+    const frames = manualFrames();
     rec.start();
-    const perMove: number[] = [];
-    for (let i = 1; i <= 60; i++) {
-      stageRenders.count = 0;
-      fireEvent.pointerMove(layer, {
+    const perFrame: number[] = [];
+    try {
+      for (let i = 1; i <= 60; i++) {
+        if (i % 2 === 1) stageRenders.count = 0;
+        fireEvent.pointerMove(layer, {
+          pointerId: 1,
+          ctrlKey: true,
+          ...at(30 + i * 0.5, 30 + i * 0.25),
+        });
+        if (i % 2 === 0) {
+          frames.step();
+          perFrame.push(stageRenders.count);
+        }
+      }
+      fireEvent.pointerUp(layer, {
         pointerId: 1,
         ctrlKey: true,
-        ...at(30 + i * 0.5, 30 + i * 0.25),
+        ...at(60, 45),
       });
-      perMove.push(stageRenders.count);
+      expect(frames.pending()).toBe(0);
+    } finally {
+      frames.restore();
     }
-    fireEvent.pointerUp(layer, { pointerId: 1, ctrlKey: true, ...at(60, 45) });
     await settle();
     const drag = rec.record('studio.dragRegion60');
 
-    // The first move also flips the autosave status to unsaved, once.
-    expect(perMove[0]).toBeLessThanOrEqual(2);
-    expect(Math.max(...perMove.slice(1))).toBeLessThanOrEqual(1);
-    expect(drag.commits).toBeLessThanOrEqual(62);
+    expect(perFrame).toHaveLength(30);
+    expect(Math.max(...perFrame)).toBeLessThanOrEqual(1);
+    // One commit per frame, plus the release and the autosave status it flips.
+    expect(drag.commits).toBeLessThanOrEqual(33);
 
     const left = () => screen.getByTestId('gl-studio-selection').style.left;
     const moved = left();

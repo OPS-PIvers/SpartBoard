@@ -10,8 +10,9 @@
  *  5. Submit responses and show completion screen
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { signInAnonymously } from 'firebase/auth';
+import { Trans, useTranslation } from 'react-i18next';
 import {
   ArrowRight,
   BookOpen,
@@ -32,6 +33,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import { useDialog } from '@/context/useDialog';
 import { useGuidedLearningSessionStudent } from '@/hooks/useGuidedLearningSession';
 import { useGuidedLearningProgress } from '@/hooks/useGuidedLearningProgress';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
@@ -46,31 +48,56 @@ import {
 } from './GuidedLearningPeriodLockedScreen';
 
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
+
+type ResponseAnswers = GuidedLearningResponse['answers'];
+
+/** Saved answers overlaid with this visit's, so a write never drops one. */
+// eslint-disable-next-line react-refresh/only-export-components
+export function mergeAnswers(
+  saved: ResponseAnswers,
+  local: ResponseAnswers
+): ResponseAnswers {
+  const localIds = new Set(local.map((a) => a.stepId));
+  return [...saved.filter((a) => !localIds.has(a.stepId)), ...local];
+}
+
 // Clearance above the Player's bottom nav footer (max 61px tall).
 const NAV_FOOTER_CLEARANCE_PX = 68;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const FullPageLoader: React.FC<{ message?: string }> = ({
-  message = 'Loading…',
-}) => (
-  <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-3">
-    <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
-    <p className="text-slate-400 text-sm">{message}</p>
-  </div>
-);
+const FullPageLoader: React.FC<{ message?: string }> = ({ message }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-3">
+      <Loader2
+        className="w-10 h-10 text-indigo-400 animate-spin"
+        aria-hidden="true"
+      />
+      <p className="text-slate-300 text-sm">
+        {message ?? t('glStudent.loading')}
+      </p>
+    </div>
+  );
+};
 
-const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
-  <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 p-6 text-center">
-    <AlertCircle className="w-12 h-12 text-red-400" />
-    <p className="text-white font-semibold text-lg">Oops</p>
-    <p className="text-slate-400 text-sm max-w-sm">{message}</p>
-  </div>
-);
+const ErrorScreen: React.FC<{ message: string }> = ({ message }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 p-6 text-center">
+      <AlertCircle className="w-12 h-12 text-red-400" aria-hidden="true" />
+      <p className="text-white font-semibold text-lg">
+        {t('glStudent.error.title')}
+      </p>
+      <p className="text-slate-300 text-sm max-w-sm">{message}</p>
+    </div>
+  );
+};
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
 export const GuidedLearningStudentApp: React.FC = () => {
+  const { t } = useTranslation();
   const [authReady, setAuthReady] = useState(false);
   const [authFailed, setAuthFailed] = useState(false);
   const [anonymousUid, setAnonymousUid] = useState<string | null>(null);
@@ -122,10 +149,7 @@ export const GuidedLearningStudentApp: React.FC = () => {
   }, []);
 
   if (!authReady) return <FullPageLoader />;
-  if (authFailed)
-    return (
-      <ErrorScreen message="Unable to connect. Please refresh and try again." />
-    );
+  if (authFailed) return <ErrorScreen message={t('glStudent.error.connect')} />;
   if (!anonymousUid) return <FullPageLoader />;
 
   return (
@@ -155,6 +179,7 @@ const StudentExperience: React.FC<{
     contentPending = false,
     takeSeat,
   } = useGuidedLearningSessionStudent(sessionId, anonymousUid);
+  const { t } = useTranslation();
   const isViewOnly = session?.assignmentMode === 'view-only';
 
   // View tracking — log each pageview of a view-only Share link as an
@@ -175,10 +200,26 @@ const StudentExperience: React.FC<{
   }, [isViewOnly, sessionId, anonymousUid]);
 
   const [pin, setPin] = useState('');
+  // Phase 5A: post-PIN class-period picker. When the session has multiple
+  // periods configured, the student chooses one before the experience
+  // begins; the value is persisted on their response doc.
+  const [classPeriod, setClassPeriod] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [score, setScore] = useState<number | null>(null);
-  const [answers, setAnswers] = useState<GuidedLearningResponse['answers']>([]);
+  const [answers, setAnswers] = useState<ResponseAnswers>([]);
+  // Latest answers for queued writes; set in handlers and the response listener.
+  const answersRef = useRef<ResponseAnswers>([]);
+  // True once the response doc exists, so later writes update instead of create.
+  const responseCreatedRef = useRef(false);
+  const seededRef = useRef(false);
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
+  const [submitting, setSubmitting] = useState(false);
+  const [submitFailed, setSubmitFailed] = useState(false);
+  // v2: the learner has moved on from the last step; the end card shows until dismissed.
+  const [reachedEnd, setReachedEnd] = useState(false);
+  const [endCardOpen, setEndCardOpen] = useState(false);
+  const { showConfirm } = useDialog();
   // Realtime listener on /guided_learning_sessions/{id}/responses/{uid}
   // so a returning student gets their published score + per-step
   // `isCorrect` flags, and a teacher unpublish (which clears
@@ -221,9 +262,28 @@ const StudentExperience: React.FC<{
         // submission yet" path — not an error. Clearing `myResponseError`
         // here lets a transient listener failure self-heal once the
         // backend recovers.
-        setMyResponse(
-          snap.exists() ? (snap.data() as GuidedLearningResponse) : null
-        );
+        const data = snap.exists()
+          ? (snap.data() as GuidedLearningResponse)
+          : null;
+        if (data) responseCreatedRef.current = true;
+        // A reload mid-activity picks up the answers already saved.
+        if (
+          data &&
+          !seededRef.current &&
+          typeof data.completedAt !== 'number'
+        ) {
+          seededRef.current = true;
+          const merged = mergeAnswers(
+            Array.isArray(data.answers) ? data.answers : [],
+            answersRef.current
+          );
+          answersRef.current = merged;
+          setAnswers(merged);
+          if (data.pin) setPin((p) => p || (data.pin ?? ''));
+          if (data.classPeriod)
+            setClassPeriod((c) => c ?? data.classPeriod ?? null);
+        }
+        setMyResponse(data);
         setMyResponseError(null);
         setMyResponseLoading(false);
       },
@@ -247,10 +307,6 @@ const StudentExperience: React.FC<{
   // internal state (currentIdx, activeStepId, image index, etc.) fully
   // resets to a fresh experience without needing reload.
   const [replayKey, setReplayKey] = useState(0);
-  // Phase 5A: post-PIN class-period picker. When the session has multiple
-  // periods configured, the student chooses one before the experience
-  // begins; the value is persisted on their response doc.
-  const [classPeriod, setClassPeriod] = useState<string | null>(null);
   // M17 C3-gl: this student's accommodation override, read from their own
   // pointer doc (`/student_assignments/{auth.uid}/items/{sessionId}`) — never
   // a session-side map (spec §5 C3). Absent for class-wide (non-individually-
@@ -300,97 +356,126 @@ const StudentExperience: React.FC<{
   const [seatError, setSeatError] = useState<string | null>(null);
   const [seating, setSeating] = useState(false);
 
-  const handleAnswer = useCallback(
-    (stepId: string, answer: string | string[], isCorrect: boolean | null) => {
-      setAnswers((prev) => {
-        const existing = prev.find((a) => a.stepId === stepId);
-        if (existing)
-          return prev.map((a) =>
-            a.stepId === stepId ? { stepId, answer, isCorrect } : a
-          );
-        return [...prev, { stepId, answer, isCorrect }];
-      });
-    },
-    []
-  );
+  // Writes run one at a time, each carrying the latest answers.
+  const saveResponse = (completedAt: number | null): Promise<void> => {
+    const trimmedPin = pin.trim() || undefined;
+    const run = async () => {
+      const response: GuidedLearningResponse = {
+        sessionId,
+        studentAnonymousId: anonymousUid,
+        pin: trimmedPin,
+        answers: answersRef.current,
+        startedAt: startedAt.current,
+        completedAt,
+        score: null,
+        ...(classPeriod ? { classPeriod } : {}),
+        ...(periodKeys[0] ? { classId: periodKeys[0] } : {}),
+      };
+      if (responseCreatedRef.current) {
+        await submitResponse(response, { exists: true });
+      } else {
+        await submitResponse(response);
+      }
+      responseCreatedRef.current = true;
+    };
+    const write = saveChainRef.current.then(run);
+    saveChainRef.current = write.catch(() => undefined);
+    return write;
+  };
 
-  const handleComplete = useCallback(async () => {
-    if (!session) return;
+  const isPermissionDenied = (err: unknown) =>
+    (err as { code?: string } | null)?.code === 'permission-denied';
+
+  const handleAnswer = (
+    stepId: string,
+    answer: string | string[],
+    isCorrect: boolean | null
+  ) => {
+    const next = mergeAnswers(answersRef.current, [
+      { stepId, answer, isCorrect },
+    ]);
+    answersRef.current = next;
+    setAnswers(next);
+    if (isViewOnly || periodPaused) return;
+    saveResponse(null).catch((err: unknown) => {
+      // Unsaved answers still go out with the next write or the submit.
+      if (perPeriod && isPermissionDenied(err)) setFrozenGate(gateKey);
+      else logError('GuidedLearningStudentApp.saveAnswer', err, { sessionId });
+    });
+  };
+
+  const handleComplete = async () => {
+    if (!session || submitting) return;
     // In the student app the answer key is not available client-side.
     // Score is computed on the teacher/results side from raw answers + answer key.
-    const computedScore: number | null = null;
-
-    // Per-period: the rules refuse the write while the period is shut, so finish only once it lands.
-    if (perPeriod) {
-      if (periodPaused) return;
-      try {
-        await submitResponse({
-          sessionId,
-          studentAnonymousId: anonymousUid,
-          pin: pin.trim() || undefined,
-          answers,
-          startedAt: startedAt.current,
-          completedAt: Date.now(),
-          score: computedScore,
-          ...(classPeriod ? { classPeriod } : {}),
-          ...(periodKeys[0] ? { classId: periodKeys[0] } : {}),
-        });
-      } catch (err) {
-        if ((err as { code?: string }).code === 'permission-denied') {
-          setFrozenGate(gateKey);
-          return;
-        }
-        console.error('[GuidedLearningStudentApp] Submit error:', err);
-      }
-      setScore(computedScore);
+    // View-only shares never persist a response.
+    if (isViewOnly) {
+      setScore(null);
       setCompleted(true);
       return;
     }
+    // Per-period: the rules refuse the write while the period is shut.
+    if (perPeriod && periodPaused) return;
+    setSubmitting(true);
+    setSubmitFailed(false);
+    try {
+      await saveResponse(Date.now());
+      setScore(null);
+      setCompleted(true);
+    } catch (err) {
+      if (perPeriod && isPermissionDenied(err)) {
+        setFrozenGate(gateKey);
+      } else {
+        logError('GuidedLearningStudentApp.submit', err, { sessionId });
+        setSubmitFailed(true);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-    setScore(computedScore);
-    setCompleted(true);
-
-    // View-only shares never persist a response — the Firestore rule rejects
-    // the write defense-in-depth, but skip it client-side too so the console
-    // stays clean.
-    if (isViewOnly) return;
-
-    const response: GuidedLearningResponse = {
-      sessionId,
-      studentAnonymousId: anonymousUid,
-      pin: pin.trim() || undefined,
-      answers,
-      startedAt: startedAt.current,
-      completedAt: Date.now(),
-      score: computedScore,
-      ...(classPeriod ? { classPeriod } : {}),
-    };
-
-    await submitResponse(response).catch((err) => {
-      console.error('[GuidedLearningStudentApp] Submit error:', err);
-    });
-  }, [
-    session,
-    answers,
-    pin,
-    anonymousUid,
-    sessionId,
-    submitResponse,
-    classPeriod,
-    isViewOnly,
-    perPeriod,
-    periodPaused,
-    periodKeys,
-    gateKey,
-  ]);
-
-  const { onStepEvent } = useGuidedLearningProgress({
+  const { onStepEvent, stored: storedProgress } = useGuidedLearningProgress({
     sessionId,
     uid: anonymousUid,
     enabled: session?.playerV2 === true && !pointer?.excluded,
     stepIds: session?.publicSteps.map((s) => s.id) ?? [],
     ...(perPeriod ? { paused: periodHold } : {}),
   });
+
+  // Reached-end lives in memory; after a reload the progress doc stands in for it.
+  const stepCount = session?.publicSteps.length ?? 0;
+  const progressAtEnd =
+    replayKey === 0 &&
+    stepCount > 0 &&
+    !!storedProgress &&
+    (storedProgress.completed ||
+      storedProgress.furthestStepIdx >= stepCount - 1);
+
+  // v2 asks first when the student submits early or with questions unanswered.
+  const handleDone = async () => {
+    if (!session || submitting) return;
+    if (session.playerV2 === true && !submitFailed) {
+      const answered = new Set(answersRef.current.map((a) => a.stepId));
+      const unanswered = session.publicSteps.filter(
+        (s) => s.interactionType === 'question' && !answered.has(s.id)
+      ).length;
+      const early = session.mode !== 'explore' && !reachedEnd && !progressAtEnd;
+      if (unanswered > 0 || early) {
+        const ok = await showConfirm(
+          unanswered > 0
+            ? t('glStudent.confirmSubmit.unanswered', { count: unanswered })
+            : t('glStudent.confirmSubmit.early'),
+          {
+            title: t('glStudent.confirmSubmit.title'),
+            confirmLabel: t('glStudent.confirmSubmit.submit'),
+            cancelLabel: t('glStudent.confirmSubmit.keepGoing'),
+          }
+        );
+        if (!ok) return;
+      }
+    }
+    await handleComplete();
+  };
 
   const handleStart = async () => {
     // Auto-select the single period if there's exactly one so the
@@ -409,14 +494,12 @@ const StudentExperience: React.FC<{
       try {
         const seated = await takeSeat(pickedPeriod, claimClassIds);
         if (!seated) {
-          setSeatError(
-            "You're not in a class this activity was assigned to. Ask your teacher."
-          );
+          setSeatError(t('glStudent.error.notInClass'));
           return;
         }
       } catch (err) {
         logError('GuidedLearningStudentApp.seat', err, { sessionId });
-        setSeatError("Couldn't join your class. Please try again.");
+        setSeatError(t('glStudent.error.joinFailed'));
         return;
       } finally {
         setSeating(false);
@@ -427,7 +510,7 @@ const StudentExperience: React.FC<{
 
   if (loading) return <FullPageLoader />;
   if (error) return <ErrorScreen message={error} />;
-  if (!session) return <ErrorScreen message="Session not found." />;
+  if (!session) return <ErrorScreen message={t('glStudent.error.notFound')} />;
   // Teacher skipped this student for this assignment.
   if (pointer?.excluded) return <AssignmentExcludedNotice />;
 
@@ -437,18 +520,27 @@ const StudentExperience: React.FC<{
   // prompt instead. `completed` short-circuits so a just-submitted
   // student isn't blocked by a stale error.
   if (!completed && !isViewOnly && myResponseError && !myResponse) {
-    return (
-      <ErrorScreen message="Couldn't load your submission status. Please refresh and try again." />
-    );
+    return <ErrorScreen message={t('glStudent.error.statusFailed')} />;
   }
 
-  // Returning student case — a response already exists in Firestore. Show
+  // Until the first response snapshot lands, a save could not tell a create from an update.
+  if (!completed && shouldSubscribeResponse && myResponseLoading) {
+    return <FullPageLoader />;
+  }
+
+  // Returning student who submitted (completedAt set). Show
   // either the published review or a "wait for teacher" placeholder
   // rather than dropping them back onto the start screen (which would
   // imply they could submit again). `completed` short-circuits this
   // branch so the just-submitted screen still wins immediately after
   // `handleComplete` flips the local state.
-  if (!completed && !isViewOnly && !myResponseLoading && myResponse) {
+  if (
+    !completed &&
+    !isViewOnly &&
+    !myResponseLoading &&
+    myResponse &&
+    typeof myResponse.completedAt === 'number'
+  ) {
     const visibility = session.scoreVisibility ?? 'none';
     if (visibility !== 'none') {
       return (
@@ -482,9 +574,12 @@ const StudentExperience: React.FC<{
           // fresh state at step 0 / image 0. Keep `started` true so the
           // user goes straight to the player rather than back through
           // the start screen.
+          answersRef.current = [];
           setAnswers([]);
           setScore(null);
           setCompleted(false);
+          setReachedEnd(false);
+          setEndCardOpen(false);
           setReplayKey((k) => k + 1);
           startedAt.current = Date.now();
         }}
@@ -494,9 +589,7 @@ const StudentExperience: React.FC<{
 
   // Assessment mode refuses a join without a school sign-in, whose self-picked period no rule can check.
   if (perPeriod && session.accessMode === 'assessment' && !isStudentRole) {
-    return (
-      <ErrorScreen message="This activity needs your school sign-in. Sign in with your school account to join." />
-    );
+    return <ErrorScreen message={t('glStudent.error.needsSignIn')} />;
   }
 
   if (!started) {
@@ -530,7 +623,7 @@ const StudentExperience: React.FC<{
         />
       );
     }
-    return <FullPageLoader message="Loading activity…" />;
+    return <FullPageLoader message={t('glStudent.loadingActivity')} />;
   }
 
   // Convert session to a GuidedLearningSet-like object for GuidedLearningPlayer
@@ -561,16 +654,33 @@ const StudentExperience: React.FC<{
             setForPlayer as Parameters<typeof GuidedLearningPlayer>[0]['set']
           }
           onAnswer={handleAnswer}
+          initialAnsweredStepIds={answers.map((a) => a.stepId)}
+          initialAnswers={answers}
+          resumeServerIdx={
+            replayKey === 0 ? storedProgress?.furthestStepIdx : undefined
+          }
           teacherMode={false}
           timeMultiplier={timeMultiplier}
           playerV2={session.playerV2 === true}
           onStepEvent={onStepEvent}
+          autoPlay
+          held={periodPaused || endCardOpen}
+          onReachedEnd={() => {
+            setReachedEnd(true);
+            setEndCardOpen(true);
+          }}
         />
+        {endCardOpen && !periodPaused && session.playerV2 === true && (
+          <FinishedCard
+            submitting={submitting}
+            onSubmit={() => void handleDone()}
+            onBack={() => setEndCardOpen(false)}
+          />
+        )}
         {periodPaused && <GuidedLearningPeriodPausedOverlay />}
-        <button
-          onClick={handleComplete}
+        <div
           hidden={periodPaused}
-          className="absolute right-3 z-40 px-4 py-2 bg-emerald-600/95 hover:bg-emerald-500 text-white text-sm rounded-xl transition-colors font-medium shadow-xl border border-emerald-400/30 backdrop-blur-sm"
+          className="absolute right-3 z-40 flex flex-col items-end gap-2"
           style={{
             // Explore mode renders no nav footer, so only safe-area clearance is needed.
             bottom:
@@ -579,14 +689,90 @@ const StudentExperience: React.FC<{
                 : `calc(max(env(safe-area-inset-bottom, 0px), 0.75rem) + ${NAV_FOOTER_CLEARANCE_PX}px)`,
           }}
         >
-          I&apos;m Done
-        </button>
+          {submitFailed && !submitting && (
+            <p
+              role="alert"
+              className="flex items-center gap-1.5 rounded-lg bg-slate-900/95 border border-red-400/40 px-3 py-1.5 text-sm text-red-200 shadow-xl"
+            >
+              <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+              {t('glStudent.submitFailed')}
+            </p>
+          )}
+          <button
+            onClick={() => void handleDone()}
+            disabled={submitting}
+            className="px-4 py-2 bg-emerald-600/95 hover:bg-emerald-500 disabled:opacity-70 text-white text-sm rounded-xl transition-colors font-medium shadow-xl border border-emerald-400/30 backdrop-blur-sm"
+          >
+            {submitting
+              ? t('glStudent.submitting')
+              : submitFailed
+                ? t('glStudent.retry')
+                : t('glStudent.done')}
+          </button>
+        </div>
       </div>
     </div>
   );
 };
 
 // ─── Sub-screens ──────────────────────────────────────────────────────────────
+
+const FinishedCard: React.FC<{
+  submitting: boolean;
+  onSubmit: () => void;
+  onBack: () => void;
+}> = ({ submitting, onSubmit, onBack }) => {
+  const { t } = useTranslation();
+  const submitRef = useRef<HTMLButtonElement>(null);
+  // Focus is a DOM side effect: the card takes it so keys stop reaching the player.
+  useEffect(() => {
+    submitRef.current?.focus();
+  }, []);
+  return (
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/60 p-4">
+      <div
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby="gl-finished-title"
+        className="w-full max-w-sm rounded-2xl border border-white/15 bg-slate-900/95 p-6 text-center shadow-2xl backdrop-blur-md"
+      >
+        <CheckCircle2
+          className="mx-auto mb-3 h-10 w-10 text-emerald-400"
+          aria-hidden="true"
+        />
+        <h2 id="gl-finished-title" className="text-xl font-bold text-white">
+          {t('glStudent.finished.title')}
+        </h2>
+        <p className="mt-1 text-sm text-slate-300">
+          {t('glStudent.finished.body')}
+        </p>
+        <div className="mt-5 flex flex-col gap-2">
+          <button
+            ref={submitRef}
+            type="button"
+            onClick={onSubmit}
+            disabled={submitting}
+            className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+          >
+            {submitting
+              ? t('glStudent.submitting')
+              : t('glStudent.finished.submit')}
+            {!submitting && (
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-xl px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+          >
+            {t('glStudent.finished.back')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const StartScreen: React.FC<{
   session: GuidedLearningSession;
@@ -615,6 +801,7 @@ const StartScreen: React.FC<{
   error = null,
   busy = false,
 }) => {
+  const { t } = useTranslation();
   const periods = session.periodNames ?? [];
   const needsPeriodPicker =
     !isViewOnly && periods.length > 1 && !selectedPeriod;
@@ -624,12 +811,15 @@ const StartScreen: React.FC<{
       <div className="h-screen overflow-y-auto bg-slate-950">
         <div className="min-h-full flex items-center justify-center p-6">
           <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-            <ClipboardList className="w-8 h-8 text-indigo-400 mx-auto mb-3" />
+            <ClipboardList
+              className="w-8 h-8 text-indigo-400 mx-auto mb-3"
+              aria-hidden="true"
+            />
             <h1 className="text-white font-bold text-xl mb-1">
-              Select Your Class
+              {t('glStudent.start.selectClass')}
             </h1>
-            <p className="text-slate-400 text-sm mb-5">
-              Which class period are you in?
+            <p className="text-slate-300 text-sm mb-5">
+              {t('glStudent.start.whichPeriod')}
             </p>
             <div className="space-y-2 mb-5 text-left">
               {periods.map((p) => (
@@ -642,8 +832,8 @@ const StartScreen: React.FC<{
                 </button>
               ))}
             </div>
-            <p className="text-xxs text-slate-500">
-              Pick one to continue. You can enter your PIN after this step.
+            <p className="text-xxs text-slate-300">
+              {t('glStudent.start.pickOne')}
             </p>
           </div>
         </div>
@@ -664,7 +854,10 @@ const StartScreen: React.FC<{
         <div
           className={`bg-slate-900 border border-white/10 rounded-2xl p-8 ${showWelcome ? 'max-w-md' : 'max-w-sm'} w-full text-center shadow-2xl`}
         >
-          <BookOpen className="w-10 h-10 text-indigo-400 mx-auto mb-3" />
+          <BookOpen
+            className="w-10 h-10 text-indigo-400 mx-auto mb-3"
+            aria-hidden="true"
+          />
           <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
           {showWelcome ? (
             <div className="mt-3 mb-6 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left">
@@ -673,27 +866,42 @@ const StartScreen: React.FC<{
               </p>
             </div>
           ) : (
-            <p className="text-slate-400 text-sm mb-6 capitalize">
-              {session.mode} mode
+            <p
+              className={`text-slate-300 text-sm mb-6 ${session.playerV2 ? '' : 'capitalize'}`}
+            >
+              {session.playerV2 ? (
+                <span
+                  data-testid="gl-start-mode-chip"
+                  className="inline-block rounded-full bg-white/10 border border-white/15 px-2.5 py-0.5 text-slate-200 font-semibold"
+                >
+                  {t(`glPlayer.modeChip.${session.mode}`)}
+                </span>
+              ) : (
+                t(`glStudent.start.legacyMode.${session.mode}`)
+              )}
               {/* A per-period session's steps stay hidden until the period opens. */}
               {session.stepsInContent && session.publicSteps.length === 0
                 ? null
-                : ` · ${session.publicSteps.length} steps`}
+                : ` · ${t('glStudent.start.steps', {
+                    count: session.publicSteps.length,
+                  })}`}
             </p>
           )}
 
           {!isViewOnly && selectedPeriod && periods.length > 1 && (
             <div className="mb-4 flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2">
-              <span className="text-xs text-slate-400">Class</span>
+              <span className="text-xs text-slate-300">
+                {t('glStudent.start.class')}
+              </span>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-white">
                   {selectedPeriod}
                 </span>
                 <button
                   onClick={() => onPeriodChange(null)}
-                  className="text-xxs text-slate-500 hover:text-slate-300"
+                  className="text-xxs text-slate-300 hover:text-white"
                 >
-                  Change
+                  {t('glStudent.start.change')}
                 </button>
               </div>
             </div>
@@ -701,14 +909,21 @@ const StartScreen: React.FC<{
 
           {!isViewOnly && (
             <div className="mb-6">
-              <label className="block text-slate-400 text-xs mb-1.5 text-left">
-                Your PIN <span className="text-slate-600">(optional)</span>
+              <label
+                htmlFor="gl-student-pin"
+                className="block text-slate-300 text-xs mb-1.5 text-left"
+              >
+                {t('glStudent.start.pin')}{' '}
+                <span className="text-slate-300">
+                  {t('glStudent.start.optional')}
+                </span>
               </label>
               <input
+                id="gl-student-pin"
                 type="text"
                 value={pin}
                 onChange={(e) => onPinChange(e.target.value)}
-                placeholder="Enter your class PIN"
+                placeholder={t('glStudent.start.pinPlaceholder')}
                 className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm text-center tracking-widest"
                 maxLength={10}
               />
@@ -731,8 +946,10 @@ const StartScreen: React.FC<{
               isViewOnly && !showWelcome ? 'mt-2' : ''
             }`}
           >
-            {showWelcome ? 'Get started' : 'Start'}
-            <ArrowRight className="w-4 h-4" />
+            {showWelcome
+              ? t('glStudent.start.getStarted')
+              : t('glStudent.start.start')}
+            <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -760,6 +977,7 @@ const CompletionScreen: React.FC<{
    */
   onReplay: () => void;
 }> = ({ session, score, isViewOnly, visibility, onReplay }) => {
+  const { t } = useTranslation();
   // View-only completion is purely informational — there's no "score",
   // no "you finished an assignment" framing, just "you reached the end
   // of this resource". Suppress the gamified Trophy / Complete! styling
@@ -769,19 +987,22 @@ const CompletionScreen: React.FC<{
       <div className="h-screen overflow-y-auto bg-slate-950">
         <div className="min-h-full flex items-center justify-center p-6">
           <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-            <BookOpen className="w-10 h-10 text-indigo-400 mx-auto mb-3" />
+            <BookOpen
+              className="w-10 h-10 text-indigo-400 mx-auto mb-3"
+              aria-hidden="true"
+            />
             <h1 className="text-white font-bold text-xl mb-1">
               {session.title}
             </h1>
-            <p className="text-slate-400 text-sm mb-6">
-              You&apos;ve reached the end of this activity.
+            <p className="text-slate-300 text-sm mb-6">
+              {t('glStudent.complete.reachedEnd')}
             </p>
             <button
               onClick={onReplay}
               className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
             >
-              <RefreshCw className="w-4 h-4" />
-              Replay from beginning
+              <RefreshCw className="w-4 h-4" aria-hidden="true" />
+              {t('glStudent.complete.replay')}
             </button>
           </div>
         </div>
@@ -803,15 +1024,18 @@ const CompletionScreen: React.FC<{
       <div className="h-screen overflow-y-auto bg-slate-950">
         <div className="min-h-full flex items-center justify-center p-6">
           <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-            <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
+            <CheckCircle2
+              className="w-10 h-10 text-emerald-400 mx-auto mb-3"
+              aria-hidden="true"
+            />
             <h1 className="text-white font-bold text-xl mb-1">
               {session.title}
             </h1>
             <p className="text-slate-300 text-sm mb-4">
-              Your responses have been submitted.
+              {t('glStudent.complete.submitted')}
             </p>
-            <p className="text-slate-500 text-xs">
-              Ask your teacher to see your results.
+            <p className="text-slate-300 text-xs">
+              {t('glStudent.complete.askTeacher')}
             </p>
           </div>
         </div>
@@ -823,20 +1047,29 @@ const CompletionScreen: React.FC<{
     <div className="h-screen overflow-y-auto bg-slate-950">
       <div className="min-h-full flex items-center justify-center p-6">
         <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-          <Trophy className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
+          <Trophy
+            className="w-12 h-12 text-yellow-400 mx-auto mb-3"
+            aria-hidden="true"
+          />
           <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
-          <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto my-4" />
+          <CheckCircle2
+            className="w-8 h-8 text-emerald-400 mx-auto my-4"
+            aria-hidden="true"
+          />
           <p className="text-emerald-400 font-semibold text-lg mb-1">
-            Complete!
+            {t('glStudent.complete.complete')}
           </p>
           {score !== null && (
             <p className="text-slate-300 text-sm mb-4">
-              You scored <span className="text-white font-bold">{score}%</span>{' '}
-              on the comprehension questions.
+              <Trans
+                i18nKey="glStudent.complete.scored"
+                values={{ score }}
+                components={{ b: <span className="text-white font-bold" /> }}
+              />
             </p>
           )}
-          <p className="text-slate-500 text-xs">
-            Your responses have been submitted.
+          <p className="text-slate-300 text-xs">
+            {t('glStudent.complete.submitted')}
           </p>
         </div>
       </div>
@@ -869,6 +1102,7 @@ export const PublishedGLReview: React.FC<{
   myResponse: GuidedLearningResponse;
   visibility: NonNullable<GuidedLearningSession['scoreVisibility']>;
 }> = ({ session, myResponse, visibility }) => {
+  const { t } = useTranslation();
   const showResponses =
     visibility === 'score-and-responses' ||
     visibility === 'score-responses-and-answers';
@@ -897,15 +1131,23 @@ export const PublishedGLReview: React.FC<{
       <div className="min-h-full flex items-start justify-center p-6">
         <div className="w-full max-w-md flex flex-col gap-4">
           <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 text-center shadow-2xl">
-            <Trophy className="w-10 h-10 text-yellow-400 mx-auto mb-2" />
+            <Trophy
+              className="w-10 h-10 text-yellow-400 mx-auto mb-2"
+              aria-hidden="true"
+            />
             <h1 className="text-white font-bold text-xl mb-1">
               {session.title}
             </h1>
-            <p className="text-slate-400 text-xs mb-4">Your results</p>
+            <p className="text-slate-300 text-xs mb-4">
+              {t('glStudent.review.title')}
+            </p>
             <p className="text-5xl font-black text-white mb-1">{score}%</p>
             {totalGradable > 0 && (
-              <p className="text-slate-400 text-sm">
-                {correctCount} of {totalGradable} correct
+              <p className="text-slate-300 text-sm">
+                {t('glStudent.review.correctOf', {
+                  correct: correctCount,
+                  total: totalGradable,
+                })}
               </p>
             )}
           </div>
@@ -927,34 +1169,40 @@ export const PublishedGLReview: React.FC<{
                     >
                       <div className="flex items-start gap-2">
                         {isCorrect ? (
-                          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                          <CheckCircle2
+                            className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5"
+                            aria-label={t('glStudent.review.correct')}
+                          />
                         ) : (
-                          <XCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+                          <XCircle
+                            className="w-5 h-5 text-rose-400 shrink-0 mt-0.5"
+                            aria-label={t('glStudent.review.incorrect')}
+                          />
                         )}
                         <div className="flex-1 min-w-0">
                           <p className="text-white text-sm font-semibold mb-1">
-                            Step {idx + 1}
+                            {t('glPlayer.outline.step', { n: idx + 1 })}
                             {step.label ? ` · ${step.label}` : ''}
                           </p>
                           {step.question?.text && (
-                            <p className="text-slate-400 text-xs mb-2">
+                            <p className="text-slate-300 text-xs mb-2">
                               {step.question.text}
                             </p>
                           )}
                           <p className="text-slate-200 text-sm">
-                            <span className="text-slate-500">
-                              Your answer:{' '}
+                            <span className="text-slate-300">
+                              {t('glStudent.review.yourAnswer')}{' '}
                             </span>
                             {studentAnswer || (
-                              <span className="italic text-slate-500">
-                                No answer
+                              <span className="italic text-slate-300">
+                                {t('glStudent.review.noAnswer')}
                               </span>
                             )}
                           </p>
                           {showAnswers && !isCorrect && canonical && (
                             <p className="text-slate-200 text-sm mt-1 whitespace-pre-line">
-                              <span className="text-slate-500">
-                                Correct answer:{' '}
+                              <span className="text-slate-300">
+                                {t('glStudent.review.correctAnswer')}{' '}
                               </span>
                               {canonical}
                             </p>

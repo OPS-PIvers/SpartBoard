@@ -52,7 +52,7 @@ const Centered: React.FC<{
 
 /** `/project/:runId` — a group's own view of one project (§6, D30); rules enforce the limits. */
 export const ProjectStudentPage: React.FC = () => {
-  const { pseudonymUid, signOut } = useStudentAuth();
+  const { pseudonymUid, classIds, signOut } = useStudentAuth();
   const runId = useMemo(() => parseProjectRunId(window.location.pathname), []);
 
   const {
@@ -66,7 +66,7 @@ export const ProjectStudentPage: React.FC = () => {
     setNeedsSupport,
     addWorkLink,
     removeWorkLink,
-  } = useStudentProjectRun(runId, pseudonymUid);
+  } = useStudentProjectRun(runId, pseudonymUid, classIds);
 
   const {
     uploads,

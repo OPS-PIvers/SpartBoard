@@ -43,6 +43,7 @@ const DEFAULT_AI_TYPE_COUNTS: Record<QuizGenType, number> = {
   FIB: 0,
   Matching: 0,
   Ordering: 0,
+  MA: 0,
 };
 
 const blankQuestion = (): QuizQuestion => ({
@@ -271,7 +272,7 @@ export function useQuizEditorState({
   const addIncorrect = useCallback((id: string) => {
     setQuestions((prev) =>
       prev.map((q) =>
-        q.id === id && q.incorrectAnswers.length < 4
+        q.id === id && q.incorrectAnswers.length < (q.type === 'MA' ? 6 : 4)
           ? { ...q, incorrectAnswers: [...q.incorrectAnswers, ''] }
           : q
       )
@@ -544,7 +545,8 @@ export function useQuizEditorState({
       aiTypeCounts.MC +
       aiTypeCounts.FIB +
       aiTypeCounts.Matching +
-      aiTypeCounts.Ordering,
+      aiTypeCounts.Ordering +
+      aiTypeCounts.MA,
     [aiTypeCounts]
   );
 
@@ -574,6 +576,7 @@ export function useQuizEditorState({
       FIB: aiTypeCounts.FIB,
       Matching: aiTypeCounts.Matching,
       Ordering: aiTypeCounts.Ordering,
+      ...(aiTypeCounts.MA > 0 ? { MA: aiTypeCounts.MA } : {}),
     };
     let result: Awaited<ReturnType<typeof generateQuiz>>;
     try {
@@ -596,6 +599,7 @@ export function useQuizEditorState({
         'FIB',
         'Matching',
         'Ordering',
+        'MA',
       ];
       const generated: QuizQuestion[] = result.questions.map(
         (q: GeneratedQuestion) => {
@@ -609,7 +613,8 @@ export function useQuizEditorState({
             timeLimit: q.timeLimit ?? 30,
             type,
             correctAnswer: q.correctAnswer ?? '',
-            incorrectAnswers: type === 'MC' ? (q.incorrectAnswers ?? []) : [],
+            incorrectAnswers:
+              type === 'MC' || type === 'MA' ? (q.incorrectAnswers ?? []) : [],
             ...(targets ? { targets } : {}),
           };
         }

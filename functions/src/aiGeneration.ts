@@ -47,7 +47,7 @@ interface AIData {
   typeCounts?: Partial<Record<QuizGenType, number>>;
 }
 
-type QuizGenType = 'MC' | 'FIB' | 'Matching' | 'Ordering';
+type QuizGenType = 'MC' | 'FIB' | 'Matching' | 'Ordering' | 'MA';
 
 const DEFAULT_ADVANCED_MODEL = 'gemini-3.7-flash';
 const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
@@ -1001,7 +1001,9 @@ Output JSON ONLY in this exact shape:
       // shape we want to enforce. Other generators stay on plain JSON mode
       // because they have looser, type-specific shapes.
       const responseSchema =
-        genType === 'quiz' ? buildQuizResponseSchema() : undefined;
+        genType === 'quiz'
+          ? buildQuizResponseSchema(Number(data?.typeCounts?.MA) >= 1)
+          : undefined;
 
       const result = await ai.models.generateContent({
         model,
@@ -1154,6 +1156,7 @@ const QUIZ_QUESTION_TYPES: QuizGenType[] = [
   'FIB',
   'Matching',
   'Ordering',
+  'MA',
 ];
 
 const VIDEO_TYPE_LABEL: Record<VideoQuestionType, string> = {
@@ -1167,6 +1170,7 @@ const QUIZ_TYPE_LABEL: Record<QuizGenType, string> = {
   FIB: 'Fill in the Blank',
   Matching: 'Matching pairs',
   Ordering: 'Sequence ordering',
+  MA: 'Multi-Answer (select multiple)',
 };
 
 interface NormalizedCounts<T extends string> {
@@ -1279,7 +1283,12 @@ Per-type shape (the "type" field decides which fields are required):
 - "MC": "correctAnswer" is the one correct option. "incorrectAnswers" MUST contain exactly 3 plausible-but-wrong distractor strings.
 - "FIB": "correctAnswer" is the single canonical accepted answer (short word or phrase). "incorrectAnswers" MUST be an empty array.
 - "Matching": "correctAnswer" is a pipe-separated list of "term:definition" pairs, e.g. "Mars:fourth planet|Venus:second planet|Earth:third planet". Provide 3–6 pairs. "incorrectAnswers" MUST be an empty array.
-- "Ordering": "correctAnswer" is a pipe-separated list of items in their correct sequence, e.g. "First|Second|Third|Fourth". Provide 3–6 items. "incorrectAnswers" MUST be an empty array.
+- "Ordering": "correctAnswer" is a pipe-separated list of items in their correct sequence, e.g. "First|Second|Third|Fourth". Provide 3–6 items. "incorrectAnswers" MUST be an empty array.${
+    counts.MA > 0
+      ? `
+- "MA": "correctAnswer" is a pipe-separated list of the correct selections, e.g. "option1|option2". "incorrectAnswers" contains 2–4 distractor options shown alongside.`
+      : ''
+  }
 
 Other rules:
 1. "timeLimit" should be 20–60 seconds depending on complexity (integer).
@@ -1332,7 +1341,7 @@ function buildVideoActivityResponseSchema(): Schema {
   };
 }
 
-function buildQuizResponseSchema(): Schema {
+function buildQuizResponseSchema(includeMultiAnswer = false): Schema {
   return {
     type: Type.OBJECT,
     required: ['title', 'questions'],
@@ -1353,7 +1362,9 @@ function buildQuizResponseSchema(): Schema {
             text: { type: Type.STRING },
             type: {
               type: Type.STRING,
-              enum: ['MC', 'FIB', 'Matching', 'Ordering'],
+              enum: includeMultiAnswer
+                ? ['MC', 'FIB', 'Matching', 'Ordering', 'MA']
+                : ['MC', 'FIB', 'Matching', 'Ordering'],
             },
             correctAnswer: { type: Type.STRING },
             incorrectAnswers: {
@@ -1499,7 +1510,7 @@ interface ValidatedQuizQuestion {
  */
 export function validateAndBucketQuizQuestions(
   raw: unknown,
-  counts: Record<QuizGenType, number>
+  counts: Partial<Record<QuizGenType, number>>
 ): ValidatedQuizQuestion[] {
   if (!Array.isArray(raw)) return [];
   const accepted: ValidatedQuizQuestion[] = [];
@@ -1508,6 +1519,7 @@ export function validateAndBucketQuizQuestions(
     FIB: 0,
     Matching: 0,
     Ordering: 0,
+    MA: 0,
   };
 
   for (const item of raw) {
@@ -1518,11 +1530,12 @@ export function validateAndBucketQuizQuestions(
       type !== 'MC' &&
       type !== 'FIB' &&
       type !== 'Matching' &&
-      type !== 'Ordering'
+      type !== 'Ordering' &&
+      type !== 'MA'
     ) {
       continue;
     }
-    if (filled[type] >= counts[type]) continue;
+    if (filled[type] >= (counts[type] ?? 0)) continue;
     const text = typeof q.text === 'string' ? q.text.trim() : '';
     if (!text) continue;
     const correctAnswer =
@@ -1545,6 +1558,12 @@ export function validateAndBucketQuizQuestions(
     if (type === 'Ordering' && !isValidOrderingList(correctAnswer, 3)) {
       continue;
     }
+    // Same floors as the video MA: at least 2 right and 2 wrong options.
+    if (type === 'MA' && !isValidOrderingList(correctAnswer, 2)) continue;
+    if (type === 'MA' && incorrectAnswers.some((a) => a.includes('|'))) {
+      continue;
+    }
+    if (type === 'MA' && incorrectAnswers.length < 2) continue;
     const timeLimitRaw =
       typeof q.timeLimit === 'number' ? Math.floor(q.timeLimit) : 30;
     const timeLimit =
@@ -1554,7 +1573,7 @@ export function validateAndBucketQuizQuestions(
       text,
       type,
       correctAnswer,
-      incorrectAnswers: type === 'MC' ? incorrectAnswers : [],
+      incorrectAnswers: type === 'MC' || type === 'MA' ? incorrectAnswers : [],
       timeLimit,
     });
     filled[type] += 1;

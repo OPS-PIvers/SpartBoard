@@ -42,7 +42,13 @@ vi.mock('firebase/firestore', () => ({
   addDoc: vi.fn(() => Promise.resolve()),
   collection: vi.fn(),
   doc: vi.fn(),
-  onSnapshot: vi.fn(() => () => undefined),
+  // No saved response: the student app waits for this first snapshot before showing the player.
+  onSnapshot: vi.fn(
+    (_ref: unknown, next: (snap: { exists: () => boolean }) => void) => {
+      next({ exists: () => false });
+      return () => undefined;
+    }
+  ),
   serverTimestamp: vi.fn(),
 }));
 
@@ -72,7 +78,11 @@ vi.mock('@/hooks/useGuidedLearningProgress', () => ({
 vi.mock(
   '@/components/widgets/GuidedLearning/components/GuidedLearningPlayer',
   () => ({
-    GuidedLearningPlayer: () => <div data-testid="gl-player">Player</div>,
+    GuidedLearningPlayer: (props: { held?: boolean }) => (
+      <div data-testid="gl-player" data-held={String(props.held)}>
+        Player
+      </div>
+    ),
   })
 );
 
@@ -231,7 +241,10 @@ describe('GuidedLearningStudentApp — per-period access', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(
       'Paused for your class'
     );
-    expect(screen.getByTestId('gl-player')).toBeInTheDocument();
+    expect(screen.getByTestId('gl-player')).toHaveAttribute(
+      'data-held',
+      'true'
+    );
     expect(screen.getByText(/I.m Done/)).not.toBeVisible();
     expect(progressOpts).toHaveBeenLastCalledWith(
       expect.objectContaining({ paused: true })
@@ -240,6 +253,10 @@ describe('GuidedLearningStudentApp — per-period access', () => {
     hookState.session = perPeriod({});
     rerender(<GuidedLearningStudentApp />);
     await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+    expect(screen.getByTestId('gl-player')).toHaveAttribute(
+      'data-held',
+      'false'
+    );
   });
 
   it('submits with the seated class, and freezes instead of finishing when refused', async () => {

@@ -123,6 +123,26 @@ describe('buildResultsPrintHtml — key and marks', () => {
     expect(all.textContent).toContain('Accepted answer: blue');
   });
 
+  it('prints MA options as checkboxes, marking each pick and every key option', () => {
+    const ma = q('q1', 'MA', 'Paris|Lyon', {
+      text: 'Cities in France?',
+      incorrectAnswers: ['Rome'],
+    });
+    const html = render(
+      buildResultsPrintHtml(
+        job([student({ r: response({ q1: 'Paris|Rome' }) }, [ma])]),
+        opts({ keyMode: 'all' })
+      )
+    );
+    const rows = Array.from(html.querySelectorAll('li.opt')).map((li) =>
+      li.textContent?.replace(/\s+/g, ' ').trim()
+    );
+    expect(rows).toHaveLength(3);
+    expect(rows).toContain('☑ Paris ✓ Correct answer');
+    expect(rows).toContain('☑ Rome ✗');
+    expect(rows).toContain('☐ Lyon Correct answer');
+  });
+
   it('prints responses only with no marks, score or key', () => {
     const html = buildResultsPrintHtml(
       job([student()]),

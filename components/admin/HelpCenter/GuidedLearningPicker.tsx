@@ -1,8 +1,11 @@
 import React, { lazy, Suspense, useState } from 'react';
 import { Check, Loader2, Pencil, Plus, Search } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
-import { useGuidedLearning } from '@/hooks/useGuidedLearning';
-import type { GuidedLearningSet } from '@/types';
+import { loadBuildingSet, useGuidedLearning } from '@/hooks/useGuidedLearning';
+import type {
+  GuidedLearningBuildingSetIndex,
+  GuidedLearningSet,
+} from '@/types';
 import { isHelpCenterSet } from '@/components/widgets/GuidedLearning/utils/helpCenterSets';
 
 const GuidedLearningStudio = lazy(() =>
@@ -60,6 +63,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
     useGuidedLearning(user?.uid);
   const [search, setSearch] = useState('');
   const [copyingId, setCopyingId] = useState<string | null>(null);
+  const [openingEditor, setOpeningEditor] = useState(false);
   // Held once, so a snapshot after an autosave doesn't hand the editor a new set.
   const [editing, setEditing] = useState<GuidedLearningSet | null>(null);
 
@@ -72,6 +76,20 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
   const openEditor = (set: GuidedLearningSet) => {
     setEditing(set);
     onEditingChange(true);
+  };
+
+  // The picker lists index entries; the full set is fetched only to edit it.
+  const handleEditSelected = async (setId: string): Promise<void> => {
+    setOpeningEditor(true);
+    try {
+      const full = await loadBuildingSet(setId);
+      if (full) openEditor({ ...full, isBuilding: true });
+      else onError('This activity was deleted. Pick another one.');
+    } catch (err) {
+      onError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setOpeningEditor(false);
+    }
   };
 
   const closeEditor = () => {
@@ -128,7 +146,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
     }
   };
 
-  const renderBuilding = (set: GuidedLearningSet) => (
+  const renderBuilding = (set: GuidedLearningBuildingSetIndex) => (
     <li key={set.id}>
       <button
         type="button"
@@ -163,10 +181,18 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
           {selected && (
             <button
               type="button"
-              onClick={() => openEditor({ ...selected, isBuilding: true })}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 hover:bg-slate-100"
+              disabled={openingEditor}
+              onClick={() => void handleEditSelected(selected.id)}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50"
             >
-              <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+              {openingEditor ? (
+                <Loader2
+                  className="w-3.5 h-3.5 animate-spin"
+                  aria-hidden="true"
+                />
+              ) : (
+                <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+              )}
               Edit activity
             </button>
           )}

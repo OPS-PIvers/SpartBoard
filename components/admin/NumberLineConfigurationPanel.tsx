@@ -303,6 +303,7 @@ export const NumberLineConfigurationPanel: React.FC<
             onChange={(checked) =>
               handleUpdateBuilding({ showArrows: checked })
             }
+            label="Show Arrows on Ends"
           />
         </div>
 

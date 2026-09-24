@@ -1245,6 +1245,7 @@ export const AnnouncementsManager: React.FC = () => {
                     onChange={(checked) =>
                       setForm((f) => ({ ...f, maximized: checked }))
                     }
+                    label="Maximize (full screen)"
                   />
                   <span className="text-sm font-medium text-slate-700">
                     Maximize (full screen)
@@ -1395,6 +1396,7 @@ export const AnnouncementsManager: React.FC = () => {
                     onChange={(v) =>
                       setForm((f) => ({ ...f, autoDeactivateEnabled: v }))
                     }
+                    label="Auto-deactivate at end date/time"
                   />
                   <div>
                     <div className="text-sm font-medium text-slate-700">
@@ -1553,6 +1555,7 @@ export const AnnouncementsManager: React.FC = () => {
                     <Toggle
                       checked={form.targetBuildings.includes(b.id)}
                       onChange={() => toggleBuilding(b.id)}
+                      label={`Target ${b.name}`}
                     />
                     <div>
                       <div className="text-sm font-medium text-slate-700">

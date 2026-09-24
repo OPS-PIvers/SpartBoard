@@ -213,4 +213,43 @@ describe('toPublicQuestion', () => {
         ?.es
     ).toEqual({ text: 't' });
   });
+
+  it('projects every choose-all option as choices, with locales in the same permutation (MA)', () => {
+    const ma: QuizQuestion = {
+      id: 'q-ma',
+      timeLimit: 0,
+      type: 'MA',
+      text: 'Pick the primes',
+      correctAnswer: '2|3',
+      incorrectAnswers: ['4', '', '6'],
+      allowPartialCredit: true,
+    };
+    const es = { text: 't', choices: ['dos', 'tres', 'cuatro', 'seis'] };
+    const projected = toPublicQuestion(ma, { es });
+    const english = ['2', '3', '4', '6'];
+    const permutation = (projected.choices ?? []).map((c) =>
+      english.indexOf(c)
+    );
+    expect(permutation.slice().sort()).toEqual([0, 1, 2, 3]);
+    expect(projected.localized?.es.choices).toEqual(
+      permutation.map((i) => es.choices[i])
+    );
+    expect(projected).not.toHaveProperty('correctAnswer');
+    expect(projected).not.toHaveProperty('allowPartialCredit');
+  });
+
+  it('drops translated choose-all options that carry the `|` delimiter', () => {
+    const ma: QuizQuestion = {
+      id: 'q-ma',
+      timeLimit: 0,
+      type: 'MA',
+      text: 'x',
+      correctAnswer: 'a|b',
+      incorrectAnswers: ['c'],
+    };
+    const projected = toPublicQuestion(ma, {
+      es: { text: 't', choices: ['a|x', 'b', 'c'] },
+    });
+    expect(projected.localized?.es.choices).toBeUndefined();
+  });
 });

@@ -541,6 +541,7 @@ export const EmbedConfigEditor: React.FC<{
         <Toggle
           checked={config.autoplay ?? false}
           onChange={(v) => onChange({ ...config, autoplay: v })}
+          label="Auto-play video"
         />
         <div>
           <div className="text-sm font-medium text-slate-700">

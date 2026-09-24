@@ -17,6 +17,18 @@ import {
 import { narrationSourceText, narrationTextHash } from '../../utils/narration';
 import { StudioNarration, StudioNarrationBatch } from './StudioNarration';
 
+// Adapts per-file spies to the editor's batched release callback.
+const releaseVia =
+  (
+    deleteFile: (path: string) => unknown,
+    deleteDriveFile: (id: string) => unknown
+  ) =>
+  (files: { storagePaths: string[]; driveFileIds: string[] }) => {
+    files.storagePaths.forEach((p) => deleteFile(p));
+    files.driveFileIds.forEach((id) => deleteDriveFile(id));
+    return Promise.resolve();
+  };
+
 const storage = vi.hoisted(() => ({
   uploading: false,
   uploadHotspotImage: vi.fn(),
@@ -125,7 +137,7 @@ const ctl = () => {
 };
 const flushWith = async () => {
   const deleteFile = vi.fn().mockResolvedValue(undefined);
-  await ctl().flushMediaDeletions(deleteFile, vi.fn());
+  await ctl().flushMediaDeletions(releaseVia(deleteFile, vi.fn()));
   return deleteFile;
 };
 

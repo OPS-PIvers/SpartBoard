@@ -1,7 +1,7 @@
 /** The student page's view of one run (§6); separate from `useProjectRun`, which is teacher-only. */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { collection, doc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type {
   ProjectGroup,
@@ -36,7 +36,8 @@ interface UseStudentProjectRunResult {
 
 export function useStudentProjectRun(
   runId: string | null,
-  uid: string | null
+  uid: string | null,
+  classIds: readonly string[]
 ): UseStudentProjectRunResult {
   const [run, setRun] = useState<ProjectRun | null>(null);
   const [groups, setGroups] = useState<ProjectGroup[]>([]);
@@ -75,10 +76,19 @@ export function useStudentProjectRun(
     );
   }, [runId]);
 
+  // The group read rule gates each doc on its classId, so an unfiltered listing is always denied.
+  const classIdsKey = useMemo(
+    () => Array.from(new Set(classIds)).sort().slice(0, 30).join('|'),
+    [classIds]
+  );
+
   useEffect(() => {
-    if (!runId) return undefined;
+    if (!runId || !classIdsKey) return undefined;
     return onSnapshot(
-      collection(db, RUNS_COLLECTION, runId, 'groups'),
+      query(
+        collection(db, RUNS_COLLECTION, runId, 'groups'),
+        where('classId', 'in', classIdsKey.split('|'))
+      ),
       (snapshot) =>
         setGroups(
           snapshot.docs.map((snapshotDoc) => ({
@@ -91,7 +101,7 @@ export function useStudentProjectRun(
         setError('Group progress could not be loaded.');
       }
     );
-  }, [runId]);
+  }, [classIdsKey, runId]);
 
   const myGroup = useMemo(
     () =>

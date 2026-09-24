@@ -231,6 +231,13 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // AI reading of an imported test document; also requires quiz-document-import
+  // and gemini-functions. Fail-closed, so nobody gets it until it is saved.
+  'quiz-document-ai-reader': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Print/scan paper answer sheets. Admin-only until opened up; the Rollouts
   // switch (admin_settings/paper_answer_sheets) must also be on.
   'paper-answer-sheets': {
@@ -293,6 +300,24 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
   },
   // Printable quiz results for handing back. Admin-only until Paul has printed a class set.
   'quiz-results-print': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // PLC Home v2 tile dashboard. Admin-only until Paul has run a PLC on it in prod.
+  'plc-home-v2': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Choose-all-that-apply quiz questions. Admin-only until Paul has run one with a class.
+  'quiz-choose-all': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Alternate accepted answers on fill-in-the-blank quiz questions. Admin-only until Paul has tried it.
+  'quiz-fib-alternates': {
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

@@ -33,6 +33,7 @@ import {
 export { RUNS_COLLECTION, runIdFor };
 
 interface CommitProjectGroupsResult {
+  groupsDeleted: number;
   groupsWritten: number;
   groupsCreated: number;
   membersResolved: number;
@@ -70,7 +71,8 @@ interface UseProjectRunResult {
     clearFields?: (keyof ProjectRun)[]
   ) => Promise<void>;
   importGroups: (
-    groups: ProjectGroupImportEntry[]
+    groups: ProjectGroupImportEntry[],
+    deleteGroupIds?: string[]
   ) => Promise<CommitProjectGroupsResult>;
 }
 
@@ -268,13 +270,21 @@ export function useProjectRun(
   );
 
   const importGroups = useCallback(
-    async (entries: ProjectGroupImportEntry[]) => {
+    async (entries: ProjectGroupImportEntry[], deleteGroupIds?: string[]) => {
       if (!runId) throw new Error('No project is running.');
       const callable = httpsCallable<
-        { runId: string; groups: ProjectGroupImportEntry[] },
+        {
+          runId: string;
+          groups: ProjectGroupImportEntry[];
+          deleteGroupIds?: string[];
+        },
         CommitProjectGroupsResult
       >(functions, 'commitProjectGroupsV1');
-      const result = await callable({ runId, groups: entries });
+      const result = await callable({
+        runId,
+        groups: entries,
+        ...(deleteGroupIds?.length ? { deleteGroupIds } : {}),
+      });
       return result.data;
     },
     [runId]

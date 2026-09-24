@@ -117,6 +117,32 @@ describe('aiQuizToExtracted', () => {
     expect(quiz.questions[0].options).toEqual([]);
   });
 
+  it('keeps a choose-all question and its options only while choose-all is on', () => {
+    const ma = aiQuiz({
+      questions: [
+        {
+          number: 1,
+          text: 'Which are mammals?',
+          type: 'MA',
+          options: [
+            { letter: 'A', text: 'Whale' },
+            { letter: 'B', text: 'Shark' },
+            { letter: 'C', text: 'Bat' },
+          ],
+          correctAnswer: 'Whale|Bat',
+          warnings: [],
+        },
+      ],
+    });
+    const on = aiQuizToExtracted(ma, 'Fallback', { multiAnswer: true });
+    expect(on.questions[0].type).toBe('MA');
+    expect(on.questions[0].options).toHaveLength(3);
+    expect(on.questions[0].correctAnswer).toBe('Whale|Bat');
+    expect(aiQuizToExtracted(ma, 'Fallback').questions[0].type).toBe(
+      'free-response'
+    );
+  });
+
   it('numbers a question the model left unnumbered', () => {
     const quiz = aiQuizToExtracted(
       aiQuiz({
@@ -334,5 +360,55 @@ describe('PDF figures (D13)', () => {
     // the worse trade.
     expect(quiz.questions).toHaveLength(1);
     expect(quiz.warnings.join(' ')).toContain('couldn’t be brought in');
+  });
+});
+
+describe('the key at the back of the document', () => {
+  const pdf = () => new Blob(['%PDF'], { type: 'application/pdf' });
+  const unanswered = () =>
+    aiQuiz({
+      questions: [{ ...aiQuiz().questions[0], correctAnswer: '' }],
+    });
+
+  it('fills an answer the model left blank from a test-bank section', async () => {
+    const quiz = await readQuizDocumentWithAi(pdf(), {
+      fileName: 'test.pdf',
+      extract: () => Promise.resolve(unanswered()),
+      readPdfLines: () =>
+        Promise.resolve([
+          { text: 'Answer Section' },
+          { text: 'MULTIPLE CHOICE' },
+          { text: '1. ANS: B PTS: 1' },
+        ]),
+    });
+    expect(quiz.questions[0].correctAnswer).toBe('Rome');
+  });
+
+  it('keeps the model’s answers when the text layer cannot be read', async () => {
+    const quiz = await readQuizDocumentWithAi(pdf(), {
+      fileName: 'test.pdf',
+      extract: () => Promise.resolve(aiQuiz()),
+      readPdfLines: () => Promise.reject(new Error('no text layer')),
+    });
+    expect(quiz.questions[0].correctAnswer).toBe('Paris');
+    expect(quiz.warnings).toEqual([]);
+  });
+
+  it('reads a Word file’s key from the lines it already opened', async () => {
+    vi.mocked(readDocx).mockResolvedValueOnce({
+      lines: [
+        { text: '1. What is the capital of France?' },
+        { text: 'a. Paris' },
+        { text: 'b. Rome' },
+        { text: 'Answer Key' },
+        { text: '1. A' },
+      ],
+      images: [],
+    });
+    const quiz = await readQuizDocumentWithAi(docxFile(), {
+      fileName: 'test.docx',
+      extract: () => Promise.resolve(unanswered()),
+    });
+    expect(quiz.questions[0].correctAnswer).toBe('Paris');
   });
 });

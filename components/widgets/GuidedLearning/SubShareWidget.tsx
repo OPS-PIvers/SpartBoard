@@ -118,7 +118,8 @@ export const SubShareGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           <Suspense fallback={<LazySpinner />}>
             <GuidedLearningPlayer
               set={set as GuidedLearningSet}
-              teacherMode
+              teacherMode={!canAccessFeature('gl-player-v2')}
+              revealAnswers
               playerV2={canAccessFeature('gl-player-v2')}
             />
           </Suspense>

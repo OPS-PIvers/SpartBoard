@@ -16,6 +16,16 @@ import {
 } from 'lucide-react';
 import { QuizData, QuizQuestion } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
+import {
+  encodeMultiAnswer,
+  multiAnswerCorrectOptions,
+  multiAnswerOptions,
+  parseMultiAnswer,
+} from '@/utils/quizMultiAnswer';
+import {
+  formatRevealedAnswer,
+  revealValueFor,
+} from '@/utils/quizFibAlternates';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { resolveStimuli } from '@/utils/quizStimuli';
 import { StimulusRenderer } from '@/components/quiz/QuizStimulusView';
@@ -80,6 +90,8 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
 
   // Shuffle once per question
   const shuffledOptions = useMemo(() => {
+    if (question?.type === 'MA')
+      return fisherYatesShuffle(multiAnswerOptions(question));
     if (question?.type !== 'MC') return [];
     const all = [
       question.correctAnswer,
@@ -190,13 +202,15 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
               className={`font-black rounded-md px-2 py-0.5 uppercase tracking-widest ${
                 question.type === 'MC'
                   ? 'bg-blue-100 text-blue-700'
-                  : question.type === 'FIB'
-                    ? 'bg-amber-100 text-amber-700'
-                    : question.type === 'Matching'
-                      ? 'bg-purple-100 text-purple-700'
-                      : question.type === 'free-response'
-                        ? 'bg-rose-100 text-rose-700'
-                        : 'bg-teal-100 text-teal-700'
+                  : question.type === 'MA'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : question.type === 'FIB'
+                      ? 'bg-amber-100 text-amber-700'
+                      : question.type === 'Matching'
+                        ? 'bg-purple-100 text-purple-700'
+                        : question.type === 'free-response'
+                          ? 'bg-rose-100 text-rose-700'
+                          : 'bg-teal-100 text-teal-700'
               }`}
               style={{ fontSize: 'min(10px, 3cqmin)' }}
             >
@@ -235,6 +249,17 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
                   setSelectedAnswer(ans);
                   setShowAnswer(true);
                 }}
+              />
+            )}
+
+            {question.type === 'MA' && (
+              <MultiAnswerArea
+                options={shuffledOptions}
+                selectedAnswer={selectedAnswer ?? ''}
+                question={question}
+                showAnswer={showAnswer}
+                onChange={setSelectedAnswer}
+                onReveal={() => setShowAnswer(true)}
               />
             )}
 
@@ -286,7 +311,9 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
                 className="text-emerald-700 font-bold"
                 style={{ fontSize: 'min(14px, 4.5cqmin)' }}
               >
-                {question.correctAnswer}
+                {question.type === 'MA'
+                  ? multiAnswerCorrectOptions(question.correctAnswer).join(', ')
+                  : formatRevealedAnswer(revealValueFor(question))}
               </p>
             </div>
           )}
@@ -426,6 +453,136 @@ const MCAnswerArea: React.FC<{
     })}
   </div>
 );
+
+const MultiAnswerArea: React.FC<{
+  options: string[];
+  selectedAnswer: string;
+  question: QuizQuestion;
+  showAnswer: boolean;
+  onChange: (encoded: string) => void;
+  onReveal: () => void;
+}> = ({
+  options,
+  selectedAnswer,
+  question,
+  showAnswer,
+  onChange,
+  onReveal,
+}) => {
+  const selected = new Set(parseMultiAnswer(selectedAnswer));
+  const correct = new Set(multiAnswerCorrectOptions(question.correctAnswer));
+  const toggle = (opt: string) => {
+    const next = new Set(selected);
+    if (next.has(opt)) next.delete(opt);
+    else next.add(opt);
+    onChange(encodeMultiAnswer(next, options));
+  };
+  const result = showAnswer ? gradeAnswer(question, selectedAnswer) : null;
+  return (
+    <div className="flex flex-col" style={{ gap: 'min(10px, 2.5cqmin)' }}>
+      <p
+        className="text-brand-blue-primary font-black uppercase tracking-widest"
+        style={{ fontSize: 'min(10px, 3cqmin)' }}
+      >
+        Choose all that apply
+      </p>
+      {options.map((opt) => {
+        const isSelected = selected.has(opt);
+        const isCorrect = correct.has(opt);
+        let variantClasses = isSelected
+          ? 'bg-brand-blue-lighter border-brand-blue-primary text-brand-blue-dark'
+          : 'bg-brand-gray-lightest/50 border-brand-blue-primary/10 text-brand-blue-dark hover:bg-brand-blue-lighter/50 hover:border-brand-blue-primary/30';
+        if (showAnswer) {
+          if (isCorrect)
+            variantClasses =
+              'bg-emerald-50 border-emerald-500/40 text-emerald-800';
+          else if (isSelected)
+            variantClasses =
+              'bg-brand-red-lighter/40 border-brand-red-primary/30 text-brand-red-dark';
+          else
+            variantClasses =
+              'bg-brand-gray-lightest/30 border-transparent text-brand-gray-primary opacity-40';
+        }
+        return (
+          <button
+            key={opt}
+            role="checkbox"
+            aria-checked={isSelected}
+            onClick={() => !showAnswer && toggle(opt)}
+            className={`w-full text-left rounded-2xl border-2 transition-all font-bold ${variantClasses}`}
+            style={{
+              padding: 'min(12px, 3cqmin) min(16px, 4cqmin)',
+              fontSize: 'min(14px, 4.5cqmin)',
+            }}
+          >
+            <div
+              className="flex items-center"
+              style={{ gap: 'min(12px, 3cqmin)' }}
+            >
+              <span
+                aria-hidden
+                className={`shrink-0 rounded border-2 flex items-center justify-center ${
+                  isSelected
+                    ? 'bg-brand-blue-primary border-brand-blue-primary text-white'
+                    : 'border-brand-blue-primary/30'
+                }`}
+                style={{
+                  width: 'min(18px, 4.5cqmin)',
+                  height: 'min(18px, 4.5cqmin)',
+                  fontSize: 'min(12px, 3cqmin)',
+                }}
+              >
+                {isSelected ? '✓' : ''}
+              </span>
+              <div className="flex-1 min-w-0">{opt}</div>
+              {showAnswer && isCorrect && (
+                <CheckCircle2
+                  className="shrink-0 text-emerald-600"
+                  aria-label="Correct option"
+                  style={{
+                    width: 'min(20px, 5cqmin)',
+                    height: 'min(20px, 5cqmin)',
+                  }}
+                />
+              )}
+              {showAnswer && isSelected && !isCorrect && (
+                <XCircle
+                  className="shrink-0 text-brand-red-primary"
+                  aria-label="Incorrect option"
+                  style={{
+                    width: 'min(20px, 5cqmin)',
+                    height: 'min(20px, 5cqmin)',
+                  }}
+                />
+              )}
+            </div>
+          </button>
+        );
+      })}
+      {!showAnswer ? (
+        <button
+          onClick={onReveal}
+          className="flex items-center gap-2 text-brand-blue-primary font-black uppercase tracking-widest hover:underline"
+          style={{ fontSize: 'min(10px, 3cqmin)' }}
+        >
+          <Eye className="w-3.5 h-3.5" />
+          Check Answer
+        </button>
+      ) : (
+        result &&
+        selected.size > 0 && (
+          <p
+            className="text-brand-blue-dark font-bold"
+            style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+          >
+            Score: {Math.round(result.pointsEarned * 100) / 100} of{' '}
+            {result.pointsMax}
+          </p>
+        )
+      )}
+    </div>
+  );
+};
 
 const FIBAnswerArea: React.FC<{
   correctAnswer: string;

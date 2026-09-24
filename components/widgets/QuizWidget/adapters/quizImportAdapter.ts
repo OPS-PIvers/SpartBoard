@@ -28,6 +28,7 @@ import {
   documentKind,
   extractedToQuizData,
   readAnswerKeyFile,
+  readByLabel,
   rowWarnings,
   type AiExtractFn,
   type ExtractedImage,
@@ -116,6 +117,8 @@ export interface QuizImportAdapterDeps {
    * the browser reader still runs, because half a quiz to fix beats an error.
    */
   aiExtract?: AiExtractFn;
+  /** Choose-all-that-apply is on for this teacher, so reads may produce it. */
+  canUseChooseAll?: boolean;
 }
 
 const DRIVE_ACCESS_ERROR =
@@ -206,6 +209,7 @@ const QUESTION_TYPES: ReadonlyArray<QuizQuestion['type']> = [
   'FIB',
   'Matching',
   'Ordering',
+  'MA',
 ];
 
 function coerceGeneratedQuestion(q: GeneratedQuestion): QuizQuestion {
@@ -230,6 +234,7 @@ const BADGE_COLORS: Record<string, string> = {
   FIB: 'bg-amber-100 text-amber-700 border-amber-200',
   Matching: 'bg-purple-100 text-purple-700 border-purple-200',
   Ordering: 'bg-teal-100 text-teal-700 border-teal-200',
+  MA: 'bg-indigo-100 text-indigo-700 border-indigo-200',
 };
 
 function renderQuizPreview(data: QuizData): React.ReactNode {
@@ -319,14 +324,18 @@ function renderQuizPreview(data: QuizData): React.ReactNode {
 /** The AI reader when the teacher has it, the browser reader otherwise (D1). */
 
 /** A key file is numbers and letters, which the plain reader handles (D8). */
-async function readKeyFile(keyFile: {
-  file: Blob;
-  fileName: string;
-}): Promise<Map<number, string>> {
+async function readKeyFile(
+  keyFile: {
+    file: Blob;
+    fileName: string;
+  },
+  multiAnswer: boolean
+): Promise<Map<number, string>> {
   const isPdf = documentKind(keyFile.file, keyFile.fileName) === 'pdf';
   return readAnswerKeyFile(keyFile.file, {
     fileName: keyFile.fileName,
     ...(isPdf ? { pdf: await browserPdfDeps(keyFile.file) } : {}),
+    ...(multiAnswer ? { multiAnswer } : {}),
   });
 }
 
@@ -337,10 +346,16 @@ async function readKeyFile(keyFile: {
  */
 async function withAnswerKey(
   quiz: ExtractedQuiz,
-  keyFile: { file: Blob; fileName: string }
+  keyFile: { file: Blob; fileName: string },
+  multiAnswer: boolean
 ): Promise<ExtractedQuiz> {
   try {
-    return applyAnswerKey(quiz, await readKeyFile(keyFile));
+    return applyAnswerKey(
+      quiz,
+      await readKeyFile(keyFile, multiAnswer),
+      'file',
+      { multiAnswer }
+    );
   } catch (err) {
     console.warn('[quizImport] could not read the answer key', err);
     return {
@@ -353,11 +368,35 @@ async function withAnswerKey(
   }
 }
 
+// Choose-all rows need the quiz-choose-all feature; without it they are left out with a note.
+function withoutChooseAll(
+  data: QuizData,
+  allowed: boolean
+): { data: QuizData; warnings: string[] } {
+  if (allowed) return { data, warnings: [] };
+  const questions = data.questions.filter((q) => q.type !== 'MA');
+  const dropped = data.questions.length - questions.length;
+  if (dropped === 0) return { data, warnings: [] };
+  return {
+    data: { ...data, questions },
+    warnings: [
+      dropped === 1
+        ? '1 choose-all-that-apply question was left out because that question type isn’t available yet.'
+        : `${dropped} choose-all-that-apply questions were left out because that question type isn’t available yet.`,
+    ],
+  };
+}
+
 export function createQuizImportAdapter(
   deps: QuizImportAdapterDeps
 ): ImportAdapter<QuizData> {
-  const readDocument = (file: Blob, fileName: string) =>
-    readTestDocument(file, fileName, { aiExtract: deps.aiExtract });
+  const multiAnswer = deps.canUseChooseAll === true;
+  const readDocument = (file: Blob, fileName: string, useAi?: boolean) =>
+    readTestDocument(file, fileName, {
+      aiExtract: deps.aiExtract,
+      ...(useAi === false ? { useAi } : {}),
+      ...(multiAnswer ? { multiAnswer } : {}),
+    });
   return {
     widgetLabel: deps.widgetLabel ?? 'Quiz',
     supportedSources: deps.canImportDocuments
@@ -365,6 +404,9 @@ export function createQuizImportAdapter(
       : ['sheet', 'csv'],
     pickSheet: deps.pickSheet,
     ...(deps.canImportDocuments ? { supportsKeyFile: true } : {}),
+    ...(deps.canImportDocuments && deps.aiExtract
+      ? { supportsAiReader: true }
+      : {}),
     ...(deps.canImportDocuments && deps.pickDocument
       ? { pickDocument: deps.pickDocument }
       : {}),
@@ -420,11 +462,11 @@ export function createQuizImportAdapter(
           PLACEHOLDER_TITLE,
           token
         );
-        return { data, warnings: [] };
+        return withoutChooseAll(data, multiAnswer);
       }
       if (source.kind === 'csv') {
         const data = await deps.importFromCSV(source.text, PLACEHOLDER_TITLE);
-        return { data, warnings: [] };
+        return withoutChooseAll(data, multiAnswer);
       }
       if (source.kind === 'document') {
         // D18's budget covers the import, not each file, so the two are
@@ -432,9 +474,13 @@ export function createQuizImportAdapter(
         if (source.keyFile) {
           assertWithinByteLimit(source.file, source.keyFile.file);
         }
-        const read = await readDocument(source.file, source.fileName);
+        const read = await readDocument(
+          source.file,
+          source.fileName,
+          source.useAi
+        );
         const extracted = source.keyFile
-          ? await withAnswerKey(read, source.keyFile)
+          ? await withAnswerKey(read, source.keyFile, multiAnswer)
           : read;
         deps.onDocumentImages?.(extracted.images);
         return {
@@ -442,6 +488,7 @@ export function createQuizImportAdapter(
           // Row notes ride the wizard's own warnings list, numbered so they
           // line up with the review rows (D10).
           warnings: [...extracted.warnings, ...rowWarnings(extracted)],
+          ...(extracted.readBy ? { note: readByLabel(extracted.readBy) } : {}),
         };
       }
       throw new Error(

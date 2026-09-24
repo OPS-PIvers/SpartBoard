@@ -116,7 +116,7 @@ const PlcMeetingLiveFlow: React.FC<{
   onNavigate: (section: PlcSectionId) => void;
 }> = ({ plc, onNavigate }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { addToast } = useDashboard();
   const { showConfirm } = useDialog();
   const { createMeeting, updateMeeting, saveMeeting } = usePlcActions();
@@ -192,7 +192,13 @@ const PlcMeetingLiveFlow: React.FC<{
   const ensureMeetingDoc = useCallback(async (): Promise<string | null> => {
     if (meetingDocId) return meetingDocId;
     try {
-      const id = await createMeeting({ assessmentIds: [] });
+      const agenda = canAccessFeature('plc-home-v2')
+        ? plc.meetingCadence?.defaultAgenda?.trim()
+        : undefined;
+      const id = await createMeeting({
+        assessmentIds: [],
+        ...(agenda ? { agenda } : {}),
+      });
       setMeetingDocId(id);
       return id;
     } catch (err) {
@@ -205,7 +211,15 @@ const PlcMeetingLiveFlow: React.FC<{
       );
       return null;
     }
-  }, [meetingDocId, createMeeting, plc.id, addToast, t]);
+  }, [
+    meetingDocId,
+    createMeeting,
+    canAccessFeature,
+    plc.meetingCadence,
+    plc.id,
+    addToast,
+    t,
+  ]);
 
   const toggleSelected = useCallback((assessmentId: string) => {
     setSelectedIds((prev) => {

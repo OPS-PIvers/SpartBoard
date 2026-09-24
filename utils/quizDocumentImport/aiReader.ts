@@ -8,13 +8,16 @@
 
 import { readDocx } from './docxReader';
 import { parseQuestionLines } from './parseQuestions';
+import { applyAnswerKey, findAnswerKey } from './answerKey';
 import { UNREADABLE_FILE, documentKind, titleFromFileName } from './fileKind';
 import { assertWithinByteLimit } from './limits';
 import type {
+  DocLine,
   ExtractedImage,
   ExtractedOption,
   ExtractedQuestion,
   ExtractedQuiz,
+  ReaderOptions,
 } from './types';
 import {
   cropPdfFigures,
@@ -45,6 +48,8 @@ export type AiExtractFn = (input: {
   mimeType: string;
   /** The document, base64, no data-URL prefix. */
   data: string;
+  /** Ask for choose-all-that-apply questions; omitted keeps the old types. */
+  multiAnswer?: boolean;
 }) => Promise<AiExtractedQuiz>;
 
 const DOCX_MIME =
@@ -83,16 +88,19 @@ function toOption(raw: { letter?: unknown; text?: unknown }): ExtractedOption {
 /** Maps one AI question onto the shared shape; pictures are grafted separately. */
 function toExtractedQuestion(
   raw: AiExtractedQuiz['questions'][number],
-  index: number
+  index: number,
+  multi: boolean
 ): ExtractedQuestion {
-  const type: QuizQuestionType = QUESTION_TYPES.has(raw.type)
-    ? raw.type
-    : 'free-response';
+  const type: QuizQuestionType =
+    QUESTION_TYPES.has(raw.type) || (multi && raw.type === 'MA')
+      ? raw.type
+      : 'free-response';
   return {
     number: Number.isInteger(raw.number) ? raw.number : index + 1,
     text: typeof raw.text === 'string' ? raw.text : '',
     type,
-    options: type === 'MC' ? (raw.options ?? []).map(toOption) : [],
+    options:
+      type === 'MC' || type === 'MA' ? (raw.options ?? []).map(toOption) : [],
     correctAnswer:
       typeof raw.correctAnswer === 'string' ? raw.correctAnswer : '',
     imageIds: [],
@@ -102,12 +110,14 @@ function toExtractedQuestion(
 
 export function aiQuizToExtracted(
   ai: AiExtractedQuiz,
-  fallbackTitle: string
+  fallbackTitle: string,
+  options: ReaderOptions = {}
 ): ExtractedQuiz {
   const questions = Array.isArray(ai.questions) ? ai.questions : [];
+  const multi = options.multiAnswer === true;
   return {
     title: (ai.title || '').trim() || fallbackTitle,
-    questions: questions.map(toExtractedQuestion),
+    questions: questions.map((q, i) => toExtractedQuestion(q, i, multi)),
     images: [],
     warnings: Array.isArray(ai.warnings) ? ai.warnings.filter(Boolean) : [],
   };
@@ -201,6 +211,44 @@ export interface AiReadOptions {
   extract: AiExtractFn;
   /** Crops a PDF's figures out of the page (D13); omitted skips them. */
   cropper?: (file: Blob) => Promise<PdfCropperDeps>;
+  /** A PDF's text layer, read to check the model against the key at the back. */
+  readPdfLines?: (file: Blob) => Promise<DocLine[]>;
+  /** Lets the read produce choose-all-that-apply questions. */
+  multiAnswer?: boolean;
+}
+
+/**
+ * The key printed at the back of the document, read the plain way. The model
+ * often leaves a test-bank answer section unmatched, and a letter-to-choice
+ * lookup is exactly what code does better, so the key found here wins.
+ */
+function withDocumentKey(
+  quiz: ExtractedQuiz,
+  lines: readonly DocLine[],
+  reader: ReaderOptions
+): ExtractedQuiz {
+  return applyAnswerKey(
+    quiz,
+    findAnswerKey(lines, reader).answerByNumber,
+    'document',
+    reader
+  );
+}
+
+async function withPdfKey(
+  quiz: ExtractedQuiz,
+  file: Blob,
+  readLines: AiReadOptions['readPdfLines'],
+  reader: ReaderOptions
+): Promise<ExtractedQuiz> {
+  if (!readLines) return quiz;
+  try {
+    return withDocumentKey(quiz, await readLines(file), reader);
+  } catch (err) {
+    // The model's answers stand; a text layer that won't open costs nothing more.
+    console.warn('[quizDocumentImport] could not read the answer key', err);
+    return quiz;
+  }
 }
 
 /**
@@ -220,18 +268,27 @@ export async function readQuizDocumentWithAi(
   }
   assertWithinByteLimit(file);
 
+  const reader: ReaderOptions = { multiAnswer: options.multiAnswer === true };
   const ai = await options.extract({
     fileName,
     mimeType: kind === 'pdf' ? 'application/pdf' : DOCX_MIME,
     data: await blobToBase64(file),
+    ...(reader.multiAnswer ? { multiAnswer: true } : {}),
   });
-  const quiz = aiQuizToExtracted(ai, titleFromFileName(fileName));
+  const quiz = aiQuizToExtracted(ai, titleFromFileName(fileName), reader);
 
-  if (kind !== 'docx') return attachPdfFigures(quiz, ai, file, options.cropper);
+  if (kind !== 'docx') {
+    const withFigures = await attachPdfFigures(quiz, ai, file, options.cropper);
+    return withPdfKey(withFigures, file, options.readPdfLines, reader);
+  }
 
   try {
     const { lines, images } = await readDocx(file);
-    return graftDocxImages(quiz, parseQuestionLines(lines), images);
+    return withDocumentKey(
+      graftDocxImages(quiz, parseQuestionLines(lines, reader), images),
+      lines,
+      reader
+    );
   } catch (err) {
     // The questions are already read; losing the pictures is worth a note,
     // not an error that throws the import away.

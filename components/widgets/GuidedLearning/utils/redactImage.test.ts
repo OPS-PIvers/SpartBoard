@@ -70,7 +70,7 @@ describe('redactPixels', () => {
 describe('redactImage', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('draws at natural size, redacts and encodes a PNG', async () => {
+  it('draws at natural size, redacts and encodes a WebP', async () => {
     const source = noise(100, 80);
     let painted: PixelBuffer | null = null;
     const close = vi.fn();
@@ -96,7 +96,12 @@ describe('redactImage', () => {
 
     const out = await redactImage(new Blob(['src']), [RECT], { mode: 'blur' });
 
-    expect(out.type).toBe('image/png');
+    expect(out.type).toBe('image/webp');
+    expect(toBlob).toHaveBeenCalledWith(
+      expect.any(Function),
+      'image/webp',
+      0.85
+    );
     expect(ctx.getImageData).toHaveBeenCalledWith(0, 0, 100, 80);
     expect(painted).not.toBeNull();
     const result = painted as unknown as PixelBuffer;

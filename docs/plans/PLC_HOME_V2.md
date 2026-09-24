@@ -1,6 +1,6 @@
 # PLC Home v2: A Tile Dashboard With a Spotlight — Implementation Plan
 
-**Date**: 2026-09-22 · **Branch**: `dev-paul` · **Status**: Revised after a review pass the same day. Decisions in §2 were settled in two design interviews on 2026-09-22 (the second one cut team layouts, the admin defaults panel, Recharts and five catalog tiles, and fixed the layout storage and "new results" signal). No code has been written. File paths and line numbers were read at `bc36f57e6`; re-verify before relying on them.
+**Date**: 2026-09-22 · **Branch**: `dev-paul` · **Status**: Revised after a review pass the same day. Decisions in §2 were settled in two design interviews on 2026-09-22 (the second one cut team layouts, the admin defaults panel, Recharts and five catalog tiles, and fixed the layout storage and "new results" signal). **Implemented 2026-09-24** in `dev-paul`, all five build-order slices (#3373, #3376, #3377 and the catalog PR), behind `plc-home-v2`. Still owed: the §7 removals when the flag opens to Public. File paths and line numbers below were read at `bc36f57e6`.
 
 The PLC Home page should read as a dashboard a teacher never has to puzzle over: the team's
 results, its next meeting, what they owe and what changed, laid out as visual tiles. Home is for
@@ -361,7 +361,8 @@ hero; rules tests for `plc_layouts` owner writes and `meetingCadence` lead/co-le
 
 ## 10. Open questions
 
-None blocking. To confirm during build:
+None blocking. Resolved during build: the run date is `opensAt ?? dueAt ?? createdAt` (`assessmentRunDate`).
 
-- Which `PlcCommonAssessment` field is the right "run date" for ordering targets (§4.1).
+Still open:
+
 - The exact label and icon set for the catalog picker (copy review with `design:ux-copy`).

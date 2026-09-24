@@ -77,7 +77,16 @@ export { adminAnalytics } from './adminAnalyticsEndpoint';
 export {
   gcGuidedLearningMedia,
   gcBuildingGuidedLearningMedia,
+  releaseGuidedLearningMediaV1,
 } from './gcGuidedLearningMedia';
+export { gcGuidedLearningMediaSweep } from './glMediaSweep';
+// Guided Learning building-set library index (server-written) + admin backfill.
+export {
+  glBuildingIndexMirror,
+  rebuildGlBuildingIndexV1,
+} from './glBuildingIndex';
+// Published live-tour snapshots: set deletes and the one-time publish of existing tours.
+export { glTourSnapshots } from './glTours';
 
 // ── Student identity (ClassLink-via-Google SSO) + PIN→SSO unification ───────
 export {

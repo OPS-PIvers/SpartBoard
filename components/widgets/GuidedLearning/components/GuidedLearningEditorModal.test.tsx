@@ -245,12 +245,10 @@ describe('GuidedLearningEditorModal save payload', () => {
     // hotspotPulse, imageTransition, welcome*) must NOT appear at all.
     expect(Object.keys(saved).sort()).toEqual(
       [
-        'authorUid',
         'createdAt',
         'description',
         'id',
         'imageUrls',
-        'isBuilding',
         'mode',
         'schemaVersion',
         'steps',
