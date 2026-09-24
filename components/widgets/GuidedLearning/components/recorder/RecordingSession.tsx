@@ -2,7 +2,7 @@ import React, { lazy, Suspense, useContext, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Circle, EyeOff, ShieldCheck } from 'lucide-react';
-import type { GuidedLearningSet, WidgetType } from '@/types';
+import type { GuidedLearningSet, WidgetData } from '@/types';
 import { Z_INDEX } from '@/config/zIndex';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
@@ -24,10 +24,12 @@ const GuidedLearningStudio = lazy(() =>
   }))
 );
 
+type BoardWidget = Pick<WidgetData, 'id' | 'type'>;
+
 type Phase =
   | { kind: 'intro' }
-  | { kind: 'recording'; matcher: NameMatcher | null; widgets: WidgetType[] }
-  | { kind: 'review'; recording: TourRecording; widgets: WidgetType[] }
+  | { kind: 'recording'; matcher: NameMatcher | null; widgets: BoardWidget[] }
+  | { kind: 'review'; recording: TourRecording; widgets: BoardWidget[] }
   | { kind: 'studio'; set: GuidedLearningSet };
 
 const newId = () =>
@@ -65,7 +67,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
     // Built once, before recording starts; the roster names never leave this matcher.
     const matcher = buildNameMatcher(rosters.flatMap((r) => r.students));
     const widgets = (dashboard?.activeDashboard?.widgets ?? []).map(
-      (w) => w.type
+      ({ id, type }) => ({ id, type })
     );
     setPhase({ kind: 'recording', matcher, widgets });
   };
@@ -87,7 +89,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
 
   const upload = async (
     recording: TourRecording,
-    widgets: WidgetType[],
+    widgets: BoardWidget[],
     frames: Blob[]
   ) => {
     if (!user) return;
@@ -141,7 +143,9 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
         imageUrls,
         imagePaths,
         slideThumbnails,
-        widgets,
+        // Widgets opened mid-recording still resolve to a type.
+        widgets: [...widgets, ...(dashboard?.activeDashboard?.widgets ?? [])],
+        startIds: new Set(widgets.map((w) => w.id)),
       });
       const set: GuidedLearningSet = {
         ...base,

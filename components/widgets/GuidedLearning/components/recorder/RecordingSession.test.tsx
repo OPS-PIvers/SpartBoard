@@ -72,7 +72,23 @@ const dashboard = {
     },
     { id: 'r2', name: 'Period 2', students: [], loadError: 'Drive failed' },
   ],
-  activeDashboard: { widgets: [{ type: 'clock' }, { type: 'timer' }] },
+  // A 12-widget board; the recording only touches the Timer.
+  activeDashboard: {
+    widgets: [
+      'clock',
+      'time-tool',
+      'dice',
+      'poll',
+      'text',
+      'checklist',
+      'random',
+      'drawing',
+      'qr',
+      'embed',
+      'weather',
+      'schedule',
+    ].map((type) => ({ id: `w-${type}`, type })),
+  },
 } as unknown as DashboardContextValue;
 
 const readText = (blob: Blob) =>
@@ -117,9 +133,13 @@ beforeEach(() => {
       xPct: 50,
       yPct: 50,
       region: { shape: 'rect', wPct: 10, hPct: 10 },
-      tour: { anchor: 'sidebar.boards', action: 'click' },
+      tour: {
+        anchor: i === 0 ? 'sidebar.boards' : 'widget.settings-opener',
+        action: 'click',
+      },
       frameIndex: i,
       untagged: false,
+      ...(i === 1 ? { widgetId: 'w-time-tool' } : {}),
     })),
   };
 });
@@ -183,7 +203,7 @@ describe('RecordingSession', () => {
         'https://storage.example/tour-step-2.png':
           'https://storage.example/thumbs/tour-step-2.png',
       },
-      tourSetup: { widgets: ['clock', 'timer'] },
+      tourSetup: { widgets: ['time-tool'] },
     });
     expect(saved.steps[0]).toMatchObject({
       label: 'Clock widget',

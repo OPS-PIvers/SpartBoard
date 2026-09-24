@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { panelOpenerOf, resolveCaptureTarget } from './useTourCapture';
+import {
+  panelOpenerOf,
+  resolveCaptureTarget,
+  widgetIdOf,
+} from './useTourCapture';
 
 const dom = (html: string) => {
   const root = document.createElement('div');
@@ -63,5 +67,16 @@ describe('resolveCaptureTarget', () => {
   it('does not treat aria-haspopup="false" as an opener', () => {
     const root = dom('<button aria-haspopup="false" id="t">Go</button>');
     expect(panelOpenerOf(pick(root, '#t'))).toBeNull();
+  });
+});
+
+describe('widgetIdOf', () => {
+  it('finds the widget a click landed in, or none outside widgets', () => {
+    const root = dom(
+      '<div data-tour="widget.window" data-tour-widget="w-7"><button id="in">Start</button></div><div data-tour="settings.root" data-tour-widget="w-8"><input id="setting" /></div><button id="out">Menu</button>'
+    );
+    expect(widgetIdOf(pick(root, '#in'))).toBe('w-7');
+    expect(widgetIdOf(pick(root, '#setting'))).toBe('w-8');
+    expect(widgetIdOf(pick(root, '#out'))).toBeUndefined();
   });
 });

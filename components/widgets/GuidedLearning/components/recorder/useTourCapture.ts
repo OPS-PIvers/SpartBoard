@@ -23,6 +23,8 @@ export interface RecordedStep extends RecordedPlacement {
   frameIndex: number;
   untagged: boolean;
   suggestedId?: string;
+  /** The board widget the click landed in, from its `data-tour-widget` ancestor. */
+  widgetId?: string;
 }
 
 export interface TourRecording {
@@ -106,6 +108,11 @@ export const panelOpenerOf = (target: Element): HTMLElement | null =>
   target.closest('[data-tour-ignore]')
     ? null
     : target.closest<HTMLElement>(OPENER);
+
+/** The widget instance an element belongs to, including portalled settings panels. */
+export const widgetIdOf = (el: Element): string | undefined =>
+  el.closest('[data-tour-widget]')?.getAttribute('data-tour-widget') ??
+  undefined;
 
 const slug = (s: string) =>
   s
@@ -271,6 +278,7 @@ export function useTourCapture({ chromeRef, matcher }: Options) {
     const frame = await redactImage(raw, boxes, { mode: 'blur' });
     const fallback = scrubFallback(resolved.fallback, matcher);
     const suggestedId = fallback ? resolved.suggestedId : undefined;
+    const widgetId = widgetIdOf(resolved.element) ?? widgetIdOf(target);
     return {
       frame,
       boxes,
@@ -285,6 +293,7 @@ export function useTourCapture({ chromeRef, matcher }: Options) {
         frameIndex: -1,
         untagged: resolved.untagged,
         ...(suggestedId ? { suggestedId } : {}),
+        ...(widgetId ? { widgetId } : {}),
       },
     };
   };
