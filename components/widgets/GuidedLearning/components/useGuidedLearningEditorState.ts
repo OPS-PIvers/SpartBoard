@@ -171,7 +171,8 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
     yPct: number,
     region?: GuidedLearningRegion
   ) => void;
-  updateStep: (updated: GuidedLearningStep) => void;
+  /** Typing coalesces per step (or per `field`); `field: false` makes the edit its own undo entry. */
+  updateStep: (updated: GuidedLearningStep, field?: string | false) => void;
   deleteStep: (id: string, tag?: object) => void;
   /** Undoes the tagged edit only if nothing was edited or undone since; returns whether it did. */
   undoIfLatest: (tag: object) => boolean;
@@ -550,12 +551,16 @@ export function useGuidedLearningEditorState({
 
   const setVideoTrim = useCallback(
     (index: number, trim: GuidedLearningVideoTrim | null) => {
-      applyDoc((doc) => ({
-        ...doc,
-        videoTrims: doc.videoTrims.map((existing, i) =>
-          i === index ? trim : existing
-        ),
-      }));
+      // A handle drag is one undo entry.
+      applyDoc(
+        (doc) => ({
+          ...doc,
+          videoTrims: doc.videoTrims.map((existing, i) =>
+            i === index ? trim : existing
+          ),
+        }),
+        `trim:${index}`
+      );
     },
     [applyDoc]
   );
@@ -720,13 +725,17 @@ export function useGuidedLearningEditorState({
   );
 
   const updateStep = useCallback(
-    (updated: GuidedLearningStep) =>
+    (updated: GuidedLearningStep, field?: string | false) =>
       applyDoc(
         (doc) => ({
           ...doc,
           steps: doc.steps.map((s) => (s.id === updated.id ? updated : s)),
         }),
-        `step:${updated.id}`
+        field === false
+          ? undefined
+          : field
+            ? `step:${updated.id}:${field}`
+            : `step:${updated.id}`
       ),
     [applyDoc]
   );

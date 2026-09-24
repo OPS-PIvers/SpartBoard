@@ -273,6 +273,16 @@ export function clearCalloutPin(step: GuidedLearningStep): GuidedLearningStep {
   return next;
 }
 
+/** Back to automatic placement, dropping the classic editor's side and offset too. */
+export function resetCalloutPlacement(
+  step: GuidedLearningStep
+): GuidedLearningStep {
+  const next = clearCalloutPin(step);
+  delete next.tooltipPosition;
+  delete next.tooltipOffset;
+  return next;
+}
+
 export function setCalloutPin(
   step: GuidedLearningStep,
   p: PctPoint

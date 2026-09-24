@@ -73,12 +73,9 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
   };
 
   return (
-    <div
-      className="flex flex-col gap-3 border-b border-slate-200 p-4"
-      data-testid="gl-studio-tour-controls"
-    >
+    <div className="flex flex-col gap-3" data-testid="gl-studio-tour-controls">
       <div>
-        <h3 className="text-xs font-bold text-slate-600">
+        <h3 className="text-xxs font-bold uppercase tracking-wider text-slate-500">
           {t('glStudio.tourTitle')}
         </h3>
         <p className="mt-0.5 text-xs text-slate-500">

@@ -3,18 +3,26 @@ import { useTranslation } from 'react-i18next';
 import { RotateCcw } from 'lucide-react';
 import type { GuidedLearningStep } from '@/types';
 import {
-  clearCalloutPin,
   convertShape,
+  resetCalloutPlacement,
   setCorner,
   type StudioShape,
 } from './regionEdits';
+import {
+  ChoiceGroup,
+  fieldLabelClass,
+  hintClass,
+  quietButtonClass,
+} from './panelControls';
 
 interface StudioRegionControlsProps {
   step: GuidedLearningStep;
-  onChange: (step: GuidedLearningStep) => void;
+  /** `field` names a continuous edit so it coalesces; false makes its own undo entry. */
+  onChange: (step: GuidedLearningStep, field?: string | false) => void;
 }
 
 const SHAPES: readonly StudioShape[] = ['point', 'rect', 'ellipse', 'polygon'];
+const LEGACY_SIDES = ['above', 'below', 'left', 'right'] as const;
 
 /** Target shape, rect corner radius and callout placement for the selected step. */
 export const StudioRegionControls: React.FC<StudioRegionControlsProps> = ({
@@ -23,38 +31,34 @@ export const StudioRegionControls: React.FC<StudioRegionControlsProps> = ({
 }) => {
   const { t } = useTranslation();
   const current: StudioShape = step.region?.shape ?? 'point';
+  const legacySide = LEGACY_SIDES.find((s) => s === step.tooltipPosition);
+  const legacy = !!legacySide || step.tooltipOffset !== undefined;
+  const placement = step.calloutPin
+    ? t('glStudio.calloutPinned')
+    : legacySide
+      ? t('glStudio.calloutPrefers', {
+          side: t(`glStudio.calloutSide_${legacySide}`),
+        })
+      : t('glStudio.calloutAuto');
   return (
     <div
-      className="flex flex-col gap-4 border-b border-slate-200 p-4"
+      className="flex flex-col gap-4"
       data-testid="gl-studio-region-controls"
     >
-      <fieldset className="flex flex-col gap-1.5">
-        <legend className="mb-1.5 text-xs font-bold text-slate-600">
-          {t('glStudio.targetShape')}
-        </legend>
-        <div className="grid grid-cols-4 gap-1">
-          {SHAPES.map((s) => (
-            <button
-              key={s}
-              type="button"
-              aria-pressed={current === s}
-              onClick={() => onChange(convertShape(step, s))}
-              className={`rounded-md border px-2 py-1.5 text-xs font-bold transition-colors ${
-                current === s
-                  ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
-                  : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
-              }`}
-            >
-              {t(`glStudio.shape_${s}`)}
-            </button>
-          ))}
-        </div>
-      </fieldset>
+      <ChoiceGroup
+        legend={t('glStudio.targetShape')}
+        value={current}
+        options={SHAPES.map((s) => ({
+          value: s,
+          label: t(`glStudio.shape_${s}`),
+        }))}
+        onChange={(s) => onChange(convertShape(step, s), false)}
+      />
       {step.region?.shape === 'rect' && (
-        <label className="flex flex-col gap-1.5 text-xs font-bold text-slate-600">
+        <label className={`flex flex-col gap-1.5 ${fieldLabelClass}`}>
           <span className="flex justify-between">
             {t('glStudio.cornerRadius')}
-            <span className="tabular-nums text-slate-500">
+            <span className="font-normal tabular-nums text-slate-600">
               {Math.round(step.region.cornerPct ?? 0)}%
             </span>
           </span>
@@ -64,25 +68,25 @@ export const StudioRegionControls: React.FC<StudioRegionControlsProps> = ({
             max={50}
             step={1}
             value={step.region.cornerPct ?? 0}
-            onChange={(e) => onChange(setCorner(step, Number(e.target.value)))}
+            onChange={(e) =>
+              onChange(setCorner(step, Number(e.target.value)), 'corner')
+            }
             className="accent-brand-blue-primary"
           />
         </label>
       )}
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-bold text-slate-600">
-          {t('glStudio.calloutPosition')}
-          <span className="ml-1.5 font-normal text-slate-500">
-            {step.calloutPin
-              ? t('glStudio.calloutPinned')
-              : t('glStudio.calloutAuto')}
-          </span>
-        </span>
-        {step.calloutPin && (
+      <div
+        className="flex flex-col gap-1.5"
+        data-testid="gl-studio-callout-placement"
+      >
+        <span className={fieldLabelClass}>{t('glStudio.calloutPosition')}</span>
+        <p className="text-sm text-slate-800">{placement}</p>
+        <p className={hintClass}>{t('glStudio.calloutDragHint')}</p>
+        {(!!step.calloutPin || legacy) && (
           <button
             type="button"
-            onClick={() => onChange(clearCalloutPin(step))}
-            className="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs font-bold text-slate-600 hover:border-slate-400"
+            onClick={() => onChange(resetCalloutPlacement(step), false)}
+            className={quietButtonClass}
           >
             <RotateCcw className="h-3 w-3" aria-hidden="true" />
             {t('glStudio.resetCallout')}

@@ -358,13 +358,14 @@ const StudioSession: React.FC<
   const deleteStepWithUndo = useCallback(
     (id: string) => {
       const tag = {};
+      const n = steps.findIndex((s) => s.id === id) + 1;
       deleteStep(id, tag);
-      addToast?.(t('glStudio.stepDeleted'), 'info', {
+      addToast?.(t('glStudio.stepDeleted', { n }), 'info', {
         label: t('glStudio.undo'),
         onClick: toastUndoFor(tag),
       });
     },
-    [deleteStep, addToast, t, toastUndoFor]
+    [steps, deleteStep, addToast, t, toastUndoFor]
   );
   const deleteSlideWithUndo = useCallback(
     (index: number) => {

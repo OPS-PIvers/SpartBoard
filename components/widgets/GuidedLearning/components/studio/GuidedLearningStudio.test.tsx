@@ -220,7 +220,7 @@ describe('GuidedLearningStudio', () => {
         pressKey('Delete');
       });
       expect(addToast).toHaveBeenCalledWith(
-        'Step deleted.',
+        'Step 1 deleted.',
         'info',
         expect.objectContaining({ label: 'Undo' })
       );
@@ -234,7 +234,7 @@ describe('GuidedLearningStudio', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Delete step' }));
       expect(showConfirm).not.toHaveBeenCalled();
       expect(addToast).toHaveBeenCalledWith(
-        'Step deleted.',
+        'Step 1 deleted.',
         'info',
         expect.objectContaining({ label: 'Undo' })
       );

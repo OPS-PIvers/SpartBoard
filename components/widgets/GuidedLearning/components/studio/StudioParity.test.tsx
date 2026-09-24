@@ -120,8 +120,10 @@ const selectFirstStep = () => {
   fireEvent.click(within(timeline).getByRole('button', { name: 'Step 1' }));
 };
 
-const setInteraction = (from: string, to: string) =>
-  fireEvent.change(screen.getByDisplayValue(from), { target: { value: to } });
+const setInteraction = (to: string) =>
+  fireEvent.change(screen.getByRole('combobox', { name: 'Interaction' }), {
+    target: { value: to },
+  });
 
 const gif = (name = 'shot.gif') =>
   new File(['gif'], name, { type: 'image/gif' });
@@ -186,7 +188,12 @@ describe('Guided Learning Studio parity with the classic editor', () => {
           steps: [],
         }),
       });
-      expect(screen.getByText('Slide 1 video')).toBeInTheDocument();
+      const slide = screen.getByTestId('gl-studio-slide-section');
+      expect(
+        within(slide).getByRole('heading', { name: 'Slide 1' })
+      ).toBeInTheDocument();
+      expect(within(slide).getByText('Video')).toBeInTheDocument();
+      expect(within(slide).getByText('Trim')).toBeInTheDocument();
       const video = document.querySelector('main video');
       if (video) fireEvent(video, new Event('loadedmetadata'));
       expect(
@@ -201,18 +208,13 @@ describe('Guided Learning Studio parity with the classic editor', () => {
     }
   });
 
-  it('saves the welcome message once the welcome chip is on', async () => {
+  it('saves the welcome message once the welcome screen is on', async () => {
     const { onSave, onClose } = renderStudio();
+    expect(screen.queryByLabelText('Welcome message')).toBeNull();
     fireEvent.click(
-      screen.getByRole('button', { name: 'Welcome screen: Off' })
+      screen.getByRole('checkbox', { name: /Show a welcome screen/ })
     );
-    const popover = screen.getByRole('dialog', {
-      name: 'Welcome screen settings',
-    });
-    fireEvent.click(
-      within(popover).getByRole('checkbox', { name: /Show welcome screen/ })
-    );
-    fireEvent.change(within(popover).getByRole('textbox'), {
+    fireEvent.change(screen.getByLabelText('Welcome message'), {
       target: { value: 'Welcome to the timer tour.' },
     });
     const saved = await closeAndGetSaved(onSave, onClose);
@@ -220,14 +222,20 @@ describe('Guided Learning Studio parity with the classic editor', () => {
     expect(saved.welcomeMessage).toBe('Welcome to the timer tour.');
   });
 
-  it('saves the hotspot pulse and image transition chosen on the chips', async () => {
+  it('saves the hotspot pulse and image transition chosen in the Slide section', async () => {
     const { onSave, onClose } = renderStudio();
-    fireEvent.click(screen.getByRole('button', { name: 'Pulse: Consistent' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: /^Reminder/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Transition: None' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: /^Fade/ }));
+    const pulse = screen.getByTestId('gl-studio-pulse');
+    const transition = screen.getByTestId('gl-studio-transition');
     expect(
-      screen.getByRole('button', { name: 'Pulse: Reminder' })
+      within(pulse).getByRole('button', { name: 'Consistent' })
+    ).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(within(pulse).getByRole('button', { name: 'Reminder' }));
+    fireEvent.click(within(transition).getByRole('button', { name: 'Fade' }));
+    expect(
+      within(pulse).getByRole('button', { name: 'Reminder' })
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      within(pulse).getByText('Markers shake briefly every few seconds.')
     ).toBeInTheDocument();
     const saved = await closeAndGetSaved(onSave, onClose);
     expect(saved.hotspotPulse).toBe('reminder');
@@ -289,38 +297,113 @@ describe('Guided Learning Studio parity with the classic editor', () => {
     expect(saved.imageUrls).toEqual([SLIDE_1]);
   });
 
-  it('offers every question type on a question step and saves the choice', async () => {
+  it('offers every question type on a question step', () => {
+    renderStudio();
+    selectFirstStep();
+    setInteraction('question');
+    const group = screen.getByRole('group', { name: 'Question type' });
+    expect(
+      within(group)
+        .getAllByRole('button')
+        .map((b) => b.textContent)
+    ).toEqual(['Multiple choice', 'Matching', 'Sorting']);
+    fireEvent.click(within(group).getByRole('button', { name: 'Sorting' }));
+    expect(
+      screen.getByRole('group', { name: 'Items in the correct order' })
+    ).toBeInTheDocument();
+    fireEvent.click(within(group).getByRole('button', { name: 'Matching' }));
+    expect(
+      screen.getByRole('group', { name: 'Matching pairs' })
+    ).toBeInTheDocument();
+  });
+
+  it('saves a multiple-choice question with its correct answer', async () => {
     const { onSave, onClose } = renderStudio();
     selectFirstStep();
-    setInteraction('Tooltip', 'question');
-    const questionType = screen.getByDisplayValue('Multiple Choice');
-    expect(
-      within(questionType)
-        .getAllByRole('option')
-        .map((o) => o.textContent)
-    ).toEqual(['Multiple Choice', 'Matching', 'Sorting']);
-    fireEvent.change(questionType, { target: { value: 'sorting' } });
-    expect(screen.getByText('Items in correct order')).toBeInTheDocument();
-    fireEvent.change(screen.getByDisplayValue('Sorting'), {
-      target: { value: 'matching' },
+    setInteraction('question');
+    fireEvent.change(screen.getByLabelText('Question'), {
+      target: { value: 'Which button starts the timer?' },
     });
-    expect(screen.getByText('Matching Pairs')).toBeInTheDocument();
+    expect(screen.getByText('Pick the correct answer.')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Choice 1' }), {
+      target: { value: 'Start' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Choice 2' }), {
+      target: { value: 'Reset' },
+    });
+    fireEvent.click(
+      screen.getByRole('radio', { name: 'Mark choice 1 as correct' })
+    );
+    expect(screen.queryByText('Pick the correct answer.')).toBeNull();
+    expect(screen.getByText('Correct')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove choice 4' }));
     const saved = await closeAndGetSaved(onSave, onClose);
-    expect(saved.steps[0].interactionType).toBe('question');
-    expect(saved.steps[0].question?.type).toBe('matching');
+    expect(saved.steps[0].question).toEqual({
+      type: 'multiple-choice',
+      text: 'Which button starts the timer?',
+      choices: ['Start', 'Reset', ''],
+      correctAnswer: 'Start',
+    });
+  });
+
+  it('saves a matching question with its pairs', async () => {
+    const { onSave, onClose } = renderStudio();
+    selectFirstStep();
+    setInteraction('question');
+    fireEvent.click(screen.getByRole('button', { name: 'Matching' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Term 1' }), {
+      target: { value: 'Start' },
+    });
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Match for term 1' }),
+      { target: { value: 'Begins the countdown' } }
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Add pair' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Term 3' }), {
+      target: { value: 'Reset' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Remove pair 2' }));
+    const saved = await closeAndGetSaved(onSave, onClose);
+    expect(saved.steps[0].question).toMatchObject({
+      type: 'matching',
+      matchingPairs: [
+        { left: 'Start', right: 'Begins the countdown' },
+        { left: 'Reset', right: '' },
+      ],
+    });
+  });
+
+  it('saves a sorting question with its items in order', async () => {
+    const { onSave, onClose } = renderStudio();
+    selectFirstStep();
+    setInteraction('question');
+    fireEvent.click(screen.getByRole('button', { name: 'Sorting' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Item 1' }), {
+      target: { value: 'Open the timer' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Item 3' }), {
+      target: { value: 'Press Start' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Remove item 2' }));
+    const saved = await closeAndGetSaved(onSave, onClose);
+    expect(saved.steps[0].question).toMatchObject({
+      type: 'sorting',
+      sortingItems: ['Open the timer', 'Press Start'],
+    });
   });
 
   it('saves audio and video URLs entered on a step', async () => {
     const { onSave, onClose } = renderStudio();
     selectFirstStep();
-    setInteraction('Tooltip', 'audio');
+    setInteraction('audio');
     fireEvent.change(
-      screen.getByPlaceholderText('Paste an audio URL (.mp3, .wav, .ogg)…'),
+      screen.getByPlaceholderText('Paste an audio link (.mp3, .wav, .ogg)'),
       { target: { value: 'https://example.com/clip.mp3' } }
     );
-    setInteraction('Audio', 'video');
+    setInteraction('video');
     fireEvent.change(
-      screen.getByPlaceholderText('Paste a YouTube or direct video URL…'),
+      screen.getByPlaceholderText('Paste a YouTube or video link'),
       { target: { value: 'https://youtu.be/abc123' } }
     );
     const saved = await closeAndGetSaved(onSave, onClose);
@@ -328,6 +411,40 @@ describe('Guided Learning Studio parity with the classic editor', () => {
       interactionType: 'video',
       audioUrl: 'https://example.com/clip.mp3',
       videoUrl: 'https://youtu.be/abc123',
+    });
+  });
+
+  it('uploads a video file as step media and saves its storage path', async () => {
+    storage.uploadGuidedLearningMedia.mockResolvedValue({
+      url: 'https://storage.example.com/step.mp4',
+      storagePath: 'users/test-user/gl/step.mp4',
+    });
+    const { onSave, onClose } = renderStudio();
+    selectFirstStep();
+    setInteraction('video');
+    expect(
+      screen.getByRole('button', { name: 'Upload a video (MP4, WebM, MOV)' })
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId('gl-studio-step-media-input'), {
+      target: {
+        files: [new File(['v'], 'my clip.mp4', { type: 'video/mp4' })],
+      },
+    });
+    await waitFor(() =>
+      expect(
+        screen.getByDisplayValue('https://storage.example.com/step.mp4')
+      ).toBeInTheDocument()
+    );
+    expect(storage.uploadGuidedLearningMedia).toHaveBeenCalledWith(
+      'test-user',
+      expect.any(File),
+      'my_clip.mp4',
+      expect.any(Function)
+    );
+    const saved = await closeAndGetSaved(onSave, onClose);
+    expect(saved.steps[0]).toMatchObject({
+      videoUrl: 'https://storage.example.com/step.mp4',
+      videoStoragePath: 'users/test-user/gl/step.mp4',
     });
   });
 

@@ -9,7 +9,6 @@ import {
   regionPath,
   regionRect,
 } from '../../utils/regionGeometry';
-import { INTERACTION_TYPES } from '../editorShared/setOptions';
 import {
   RESIZE_HANDLES,
   clearCalloutPin,
@@ -542,9 +541,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
           scale={scale.screenPerPx}
           label={t('glStudio.hoverChip', {
             n: hoverIndex + 1,
-            type:
-              INTERACTION_TYPES.find((x) => x.value === hover.interactionType)
-                ?.label ?? hover.interactionType,
+            type: t(`glStudio.interaction_${hover.interactionType}`),
           })}
         />
       )}

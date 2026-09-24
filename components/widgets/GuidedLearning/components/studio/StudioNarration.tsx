@@ -216,7 +216,7 @@ export const StudioNarration: React.FC<StudioNarrationProps> = ({
     <section
       aria-labelledby="gl-narration-heading"
       data-testid="gl-studio-narration"
-      className="flex flex-col gap-2 border-b border-slate-200 p-4"
+      className="flex flex-col gap-2"
     >
       <h3
         id="gl-narration-heading"
