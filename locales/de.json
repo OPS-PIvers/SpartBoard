@@ -2568,6 +2568,8 @@
     "stepCount_other": "{{count}} Schritte",
     "redo": "Wiederholen",
     "slideDeleted": "Folie {{n}} gelöscht.",
+    "aiSlidesAdded_one": "1 Folie aus KI hinzugefügt.",
+    "aiSlidesAdded_other": "{{count}} Folien aus KI hinzugefügt.",
     "stepDeleted": "Schritt {{n}} gelöscht.",
     "titleLabel": "Titel der Aktivität",
     "titlePlaceholder": "Aktivität ohne Titel",

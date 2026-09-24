@@ -218,8 +218,8 @@ export interface GuidedLearningManagerProps {
   importFocusCounter?: number;
   onCreateNewPersonal: () => void;
   onCreateNewBuilding: () => void;
-  /** Admin-only — opens the standalone AI authoring dialog for building sets. */
-  onOpenAIAuthoring: () => void;
+  /** Admin-only: opens AI authoring for a new set in the library being viewed. */
+  onOpenAIAuthoring: (library: 'personal' | 'building') => void;
   /**
    * Persist new personal-set ordering. Writes `order` to the metadata doc; the
    * Drive blob is untouched. Rejecting reverts the optimistic reorder.
@@ -724,8 +724,15 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     ...(isAdmin && liveTours
       ? [{ label: 'Record a tour', icon: Circle, onClick: requestRecordTour }]
       : []),
-    ...(isAdmin && isBuildingFiltered
-      ? [{ label: 'AI', icon: Sparkles, onClick: onOpenAIAuthoring }]
+    ...(isAdmin
+      ? [
+          {
+            label: 'AI',
+            icon: Sparkles,
+            onClick: () =>
+              onOpenAIAuthoring(isBuildingFiltered ? 'building' : 'personal'),
+          },
+        ]
       : []),
     ...(onImport
       ? [

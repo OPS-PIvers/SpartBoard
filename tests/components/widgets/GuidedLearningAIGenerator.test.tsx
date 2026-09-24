@@ -121,7 +121,11 @@ describe('GuidedLearningAIGenerator — generate', () => {
     const onGenerated = vi.fn<(set: GuidedLearningSet) => void>();
     const onClose = vi.fn();
     render(
-      <GuidedLearningAIGenerator onClose={onClose} onGenerated={onGenerated} />
+      <GuidedLearningAIGenerator
+        mediaHome="storage"
+        onClose={onClose}
+        onGenerated={onGenerated}
+      />
     );
 
     await seedOneImage();
@@ -135,11 +139,40 @@ describe('GuidedLearningAIGenerator — generate', () => {
       expect(onGenerated).toHaveBeenCalledTimes(1);
     });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    // Generated sets are building sets, so their slides go to Storage.
     expect(storageUpload.mock.calls[0][3]).toBe('storage');
+    expect(onGenerated.mock.calls[0][0].isBuilding).toBe(true);
     expect(onGenerated.mock.calls[0][0].slideThumbnails).toEqual({
       'https://example/img.png': 'https://example/thumb.webp',
     });
+  });
+});
+
+describe('GuidedLearningAIGenerator — media home', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    generateGuidedLearningMock.mockResolvedValue({
+      suggestedTitle: 'Drafted',
+      suggestedMode: 'structured',
+      steps: [],
+    });
+  });
+
+  it('uploads to Drive for a personal set and drafts a personal set', async () => {
+    const onGenerated = vi.fn<(set: GuidedLearningSet) => void>();
+    render(
+      <GuidedLearningAIGenerator
+        mediaHome="drive"
+        onClose={vi.fn()}
+        onGenerated={onGenerated}
+      />
+    );
+    await seedOneImage();
+    expect(storageUpload.mock.calls[0][3]).toBe('drive');
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /draft with ai/i }));
+    });
+    await waitFor(() => expect(onGenerated).toHaveBeenCalledTimes(1));
+    expect(onGenerated.mock.calls[0][0].isBuilding).toBeUndefined();
   });
 });
 

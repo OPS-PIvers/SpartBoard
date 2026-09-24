@@ -2568,6 +2568,8 @@
     "stepCount_other": "{{count}} pasos",
     "redo": "Rehacer",
     "slideDeleted": "Diapositiva {{n}} eliminada.",
+    "aiSlidesAdded_one": "Se añadió 1 diapositiva con IA.",
+    "aiSlidesAdded_other": "Se añadieron {{count}} diapositivas con IA.",
     "stepDeleted": "Paso {{n}} eliminado.",
     "titleLabel": "Título de la actividad",
     "titlePlaceholder": "Actividad sin título",

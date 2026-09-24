@@ -22,7 +22,7 @@ const NEW_URL = 'https://lh3.googleusercontent.com/d/new-slide';
 
 const auth = vi.hoisted(() => ({
   user: { uid: 'test-user' },
-  isAdmin: true,
+  isAdmin: true as boolean,
   canAccessFeature: (id: string) => id === 'gemini-functions',
 }));
 const storage = vi.hoisted(() => ({
@@ -149,14 +149,21 @@ afterEach(() => {
 });
 
 describe('Guided Learning Studio parity with the classic editor', () => {
-  it('opens the AI generator from the header only when onAiGenerated is given', () => {
-    renderStudio({ onAiGenerated: vi.fn() });
+  it('opens the AI generator from the header only for admins', () => {
+    renderStudio();
     fireEvent.click(screen.getByRole('button', { name: 'Draft with AI' }));
     expect(screen.getByTestId('ai-generator')).toBeInTheDocument();
     cleanup();
     restore?.();
-    renderStudio();
-    expect(screen.queryByRole('button', { name: 'Draft with AI' })).toBeNull();
+    auth.isAdmin = false;
+    try {
+      renderStudio();
+      expect(
+        screen.queryByRole('button', { name: 'Draft with AI' })
+      ).toBeNull();
+    } finally {
+      auth.isAdmin = true;
+    }
   });
 
   it.each([

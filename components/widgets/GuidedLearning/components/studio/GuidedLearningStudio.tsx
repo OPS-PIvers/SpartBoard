@@ -80,7 +80,6 @@ export interface GuidedLearningStudioProps {
     driveFileId?: string,
     guard?: GuidedLearningSaveGuard
   ) => Promise<void>;
-  onAiGenerated?: (set: GuidedLearningSet) => void;
   /** Close the Studio and open the classic editor on this (latest) draft. */
   onOpenClassic?: (latest: GuidedLearningSet) => void;
   folders?: LibraryFolder[];
@@ -134,7 +133,6 @@ const StudioSession: React.FC<
   meta,
   onClose,
   onSave,
-  onAiGenerated,
   onOpenClassic,
   folders,
   folderId,
@@ -312,6 +310,7 @@ const StudioSession: React.FC<
     deleteImage,
     duplicateStep,
     duplicateSlide,
+    appendDraftedSet,
     copySteps,
     pasteSteps,
     currentImageIndex,
@@ -377,6 +376,20 @@ const StudioSession: React.FC<
       });
     },
     [deleteImage, addToast, t, toastUndoFor]
+  );
+  // The draft joins this set as one undoable edit; the set keeps its id.
+  const appendDrafted = useCallback(
+    (drafted: GuidedLearningSet) => {
+      setShowAiGen(false);
+      const tag = {};
+      const count = appendDraftedSet(drafted, tag);
+      if (count === 0) return;
+      addToast?.(t('glStudio.aiSlidesAdded', { count }), 'success', {
+        label: t('glStudio.undo'),
+        onClick: toastUndoFor(tag),
+      });
+    },
+    [appendDraftedSet, addToast, t, toastUndoFor]
   );
   const deleteSelected = useCallback(() => {
     if (selectedStepId) deleteStepWithUndo(selectedStepId);
@@ -541,7 +554,7 @@ const StudioSession: React.FC<
   }, [pasteListening]);
 
   const canUseAi =
-    !!onAiGenerated && isAdmin === true && canAccessFeature('gemini-functions');
+    !readOnly && isAdmin === true && canAccessFeature('gemini-functions');
   const canRecordTour = isAdmin === true && canAccessFeature('gl-live-tours');
 
   const canvasDrop = useFileDrop(
@@ -815,11 +828,9 @@ const StudioSession: React.FC<
       )}
       {showAiGen && canUseAi && (
         <GuidedLearningAIGenerator
+          mediaHome={editorState.mediaHome}
           onClose={() => setShowAiGen(false)}
-          onGenerated={(generated) => {
-            setShowAiGen(false);
-            onAiGenerated?.(generated);
-          }}
+          onGenerated={appendDrafted}
         />
       )}
       {folderPickerEnabled && folderPickerOpen && (

@@ -242,6 +242,7 @@ export const GuidedLearningEditorModal: React.FC<
         overlay={
           showAiGen && canUseAi ? (
             <GuidedLearningAIGenerator
+              mediaHome="storage"
               onClose={() => setShowAiGen(false)}
               onGenerated={(generated) => {
                 setShowAiGen(false);

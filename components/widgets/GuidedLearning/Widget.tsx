@@ -252,7 +252,10 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const [classicEditor, setClassicEditor] = useState(false);
 
   const { folders: glFolders } = useFolders(user?.uid, 'guided_learning');
-  const [showAIGen, setShowAIGen] = useState(false);
+  // The library a library-launched AI draft lands in; null when closed.
+  const [aiLibrary, setAiLibrary] = useState<'personal' | 'building' | null>(
+    null
+  );
   // Shared rapid-click guards (personal sets + admin building sets).
   // See `hooks/useBusyIdSet.ts`.
   const personalDuplicateBusy = useBusyIdSet();
@@ -544,6 +547,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     setClassicEditor(false);
   };
 
+  // Classic editor only; the Studio appends drafts to the open set.
   const handleEditorAiGenerated = (generated: GuidedLearningSet) => {
     setEditingSet({ ...generated, isBuilding: true });
     setEditingMeta(null);
@@ -1344,7 +1348,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   }}
                   onCreateNewPersonal={handleCreateNew}
                   onCreateNewBuilding={handleCreateNewBuilding}
-                  onOpenAIAuthoring={() => setShowAIGen(true)}
+                  onOpenAIAuthoring={setAiLibrary}
                   onReorderPersonal={handleReorderPersonal}
                   recentSessionIds={recentSessionIds}
                   onViewResults={(sessionId) => {
@@ -1521,14 +1525,15 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                 );
               })()}
 
-            {showAIGen && (
+            {aiLibrary && (
               <Suspense fallback={<LazyOverlaySpinner />}>
                 <GuidedLearningAIGenerator
-                  onClose={() => setShowAIGen(false)}
+                  mediaHome={aiLibrary === 'building' ? 'storage' : 'drive'}
+                  onClose={() => setAiLibrary(null)}
                   onGenerated={(set) => {
-                    setEditingSet({ ...set, isBuilding: true });
+                    setEditingSet(set);
                     setEditingMeta(null);
-                    setShowAIGen(false);
+                    setAiLibrary(null);
                   }}
                 />
               </Suspense>
@@ -1548,7 +1553,6 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               onFolderChange={handleEditorFolderChange}
               onClose={closeEditor}
               onSave={handleSave}
-              onAiGenerated={handleEditorAiGenerated}
               onImport={
                 isDriveConnected
                   ? () => {

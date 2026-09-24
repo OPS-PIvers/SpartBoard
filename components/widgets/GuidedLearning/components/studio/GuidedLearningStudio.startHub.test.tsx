@@ -60,7 +60,38 @@ vi.mock('@/context/useDialog', () => ({
 }));
 
 vi.mock('../GuidedLearningAIGenerator', () => ({
-  GuidedLearningAIGenerator: () => <div data-testid="ai-generator" />,
+  GuidedLearningAIGenerator: (props: {
+    mediaHome: string;
+    onGenerated: (set: GuidedLearningSet) => void;
+  }) => (
+    <div data-testid="ai-generator" data-media-home={props.mediaHome}>
+      <button
+        type="button"
+        onClick={() =>
+          props.onGenerated({
+            id: 'drafted-id',
+            title: 'Drafted title',
+            imageUrls: ['https://example.com/ai-1.png'],
+            steps: [
+              {
+                id: 'step-1',
+                xPct: 50,
+                yPct: 50,
+                imageIndex: 0,
+                interactionType: 'text-popover',
+                text: 'Drafted step',
+              },
+            ],
+            mode: 'structured',
+            createdAt: 1,
+            updatedAt: 1,
+          })
+        }
+      >
+        Use draft
+      </button>
+    </div>
+  ),
 }));
 vi.mock('../ScreenCaptureModal', () => ({
   ScreenCaptureModal: ({ mode }: { mode: string }) => (
@@ -155,7 +186,7 @@ afterEach(() => {
 
 describe('Studio start hub', () => {
   it('shows the always-available targets on an empty set, and nothing gated without its flag', () => {
-    renderStudio(emptySet(), { onAiGenerated: vi.fn() });
+    renderStudio(emptySet());
     expect(screen.getByTestId('gl-studio-hub')).toBeInTheDocument();
     expect(target('upload')).toHaveTextContent('Upload or drop');
     expect(target('paste')).toBeEnabled();
@@ -203,27 +234,75 @@ describe('Studio start hub', () => {
   });
 
   describe('Draft with AI', () => {
-    it('needs admin, gemini-functions and an AI handler', () => {
+    it('needs admin and gemini-functions', () => {
       auth.features = new Set(['gemini-functions']);
       auth.isAdmin = false;
-      const first = renderStudio(emptySet(), { onAiGenerated: vi.fn() });
+      const first = renderStudio(emptySet());
       expect(target('ai')).toBeNull();
       first.unmount();
 
       auth.isAdmin = true;
       auth.features = new Set(['gl-live-tours']);
-      const second = renderStudio(emptySet(), { onAiGenerated: vi.fn() });
+      const second = renderStudio(emptySet());
       expect(target('ai')).toBeNull();
       second.unmount();
 
       auth.features = new Set(['gemini-functions']);
-      const third = renderStudio(emptySet());
-      expect(target('ai')).toBeNull();
-      third.unmount();
-
-      renderStudio(emptySet(), { onAiGenerated: vi.fn() });
+      renderStudio(emptySet());
       fireEvent.click(target('ai') as HTMLElement);
       expect(screen.getByTestId('ai-generator')).toBeInTheDocument();
+    });
+
+    it('fills the open set in place from the hub, as one undoable edit', () => {
+      auth.features = new Set(['gemini-functions']);
+      const onSave = vi.fn().mockResolvedValue(undefined);
+      renderStudio(emptySet(), { onSave });
+      fireEvent.click(target('ai') as HTMLElement);
+      // A personal set's drafted slides go to Drive, like its other slides.
+      expect(screen.getByTestId('ai-generator')).toHaveAttribute(
+        'data-media-home',
+        'drive'
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Use draft' }));
+      expect(screen.queryByTestId('ai-generator')).toBeNull();
+      expect(screen.queryByTestId('gl-studio-hub')).toBeNull();
+      expect(onClose).not.toHaveBeenCalled();
+      expect(addToast).toHaveBeenCalledWith(
+        'Added 1 slide from AI.',
+        'success',
+        expect.objectContaining({ label: 'Undo' })
+      );
+      const undoToast = addToast.mock.calls.at(-1)?.[2] as {
+        onClick: () => void;
+      };
+      act(() => undoToast.onClick());
+      expect(screen.getByTestId('gl-studio-hub')).toBeInTheDocument();
+    });
+
+    it('saves the draft under the open set id', async () => {
+      auth.features = new Set(['gemini-functions']);
+      const onSave = vi.fn().mockResolvedValue(undefined);
+      renderStudio(emptySet(), { onSave });
+      fireEvent.click(target('ai') as HTMLElement);
+      fireEvent.click(screen.getByRole('button', { name: 'Use draft' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Close editor' }));
+      await waitFor(() => expect(onSave).toHaveBeenCalled());
+      const saved = onSave.mock.calls.at(-1)?.[0] as GuidedLearningSet;
+      expect(saved.id).toBe('set-new');
+      expect(saved.title).toBe('Drafted title');
+      expect(saved.imageUrls).toEqual(['https://example.com/ai-1.png']);
+      expect(saved.steps).toHaveLength(1);
+      expect(saved.steps[0].id).not.toBe('step-1');
+    });
+
+    it('drafts onto Storage for a building set', () => {
+      auth.features = new Set(['gemini-functions']);
+      renderStudio({ ...emptySet(), isBuilding: true });
+      fireEvent.click(target('ai') as HTMLElement);
+      expect(screen.getByTestId('ai-generator')).toHaveAttribute(
+        'data-media-home',
+        'storage'
+      );
     });
   });
 

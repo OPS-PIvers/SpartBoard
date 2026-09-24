@@ -3699,6 +3699,8 @@
     "stepCount_other": "{{count}} steps",
     "redo": "Redo",
     "slideDeleted": "Slide {{n}} deleted.",
+    "aiSlidesAdded_one": "Added 1 slide from AI.",
+    "aiSlidesAdded_other": "Added {{count}} slides from AI.",
     "stepDeleted": "Step {{n}} deleted.",
     "titleLabel": "Activity title",
     "titlePlaceholder": "Untitled activity",

@@ -58,7 +58,10 @@ const buildingSets = [
   building('h-2', 'Second Help Guide', { helpCenter: true }),
 ];
 
-const renderManager = (isAdmin: boolean) =>
+const renderManager = (
+  isAdmin: boolean,
+  onOpenAIAuthoring: (library: 'personal' | 'building') => void = vi.fn()
+) =>
   render(
     <GuidedLearningManager
       userId="teacher-1"
@@ -77,7 +80,7 @@ const renderManager = (isAdmin: boolean) =>
       onDeleteBuilding={vi.fn()}
       onCreateNewPersonal={vi.fn()}
       onCreateNewBuilding={vi.fn()}
-      onOpenAIAuthoring={vi.fn()}
+      onOpenAIAuthoring={onOpenAIAuthoring}
       onReorderPersonal={vi.fn()}
       recentSessionIds={{}}
       onViewResults={vi.fn()}
@@ -124,5 +127,29 @@ describe('GuidedLearningManager — Help Center activities', () => {
     });
     expect(await screen.findByText('Building Lesson')).toBeInTheDocument();
     expect(screen.queryByText('Flagged Help Guide')).not.toBeInTheDocument();
+  });
+});
+
+describe('GuidedLearningManager — AI drafts land in the library being viewed', () => {
+  it('opens AI for the personal library, then for the building library', async () => {
+    const onOpenAIAuthoring = vi.fn();
+    renderManager(true, onOpenAIAuthoring);
+    await screen.findByText('Personal Set');
+
+    fireEvent.click(screen.getByRole('button', { name: 'AI' }));
+    expect(onOpenAIAuthoring).toHaveBeenLastCalledWith('personal');
+
+    fireEvent.change(screen.getByLabelText('Source'), {
+      target: { value: 'building' },
+    });
+    await screen.findByText('Building Lesson');
+    fireEvent.click(screen.getByRole('button', { name: 'AI' }));
+    expect(onOpenAIAuthoring).toHaveBeenLastCalledWith('building');
+  });
+
+  it('offers AI only to admins', async () => {
+    renderManager(false);
+    await screen.findByText('Personal Set');
+    expect(screen.queryByRole('button', { name: 'AI' })).toBeNull();
   });
 });

@@ -180,6 +180,10 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   duplicateStep: (id: string) => void;
   /** Copies the slide and its steps to just after it, sharing the media file; one undo entry. */
   duplicateSlide: (index: number) => void;
+  /** Inserts a drafted set's slides and steps after the current slide; one undo entry. Returns slides added. */
+  appendDraftedSet: (drafted: GuidedLearningSet, tag?: object) => number;
+  /** Where this set's new slide files go: Storage for building and Help Center sets, Drive for personal. */
+  mediaHome: GuidedLearningMediaHome;
   /** Puts these steps, in play order, on the clipboard shared by every set in this browser session. */
   copySteps: (ids: string[]) => number;
   /** Pastes clipboard steps, with new ids, onto `slide` (default: the current slide); one undo entry. */
@@ -332,6 +336,8 @@ export function useGuidedLearningEditorState({
   );
 
   const [rawImageIndex, setCurrentImageIndex] = useState(0);
+  const rawImageIndexRef = useRef(rawImageIndex);
+  rawImageIndexRef.current = rawImageIndex;
   // Undo can remove the slide being shown, so clamp on read.
   const currentImageIndex = Math.max(
     0,
@@ -834,6 +840,63 @@ export function useGuidedLearningEditorState({
     [applyDoc]
   );
 
+  const appendDraftedSet = useCallback(
+    (drafted: GuidedLearningSet, tag?: object): number => {
+      const count = drafted.imageUrls.length;
+      if (count === 0) return 0;
+      const present = historyRef.current.present;
+      const empty = present.imageUrls.length === 0;
+      const current = Math.max(
+        0,
+        Math.min(rawImageIndexRef.current, present.imageUrls.length - 1)
+      );
+      const at = empty ? 0 : current + 1;
+      const draftedDoc = documentFromSet(drafted);
+      // Fresh ids outside the reducer: AI ids like "step-1" can collide with the set's.
+      const added = drafted.steps.map((s) => ({
+        ...s,
+        id: crypto.randomUUID(),
+        imageIndex: at + Math.max(0, Math.min(s.imageIndex, count - 1)),
+      }));
+      const insert = <T>(list: T[], values: T[]): T[] => [
+        ...list.slice(0, at),
+        ...values,
+        ...list.slice(at),
+      ];
+      applyDoc(
+        (doc) => {
+          const shifted = doc.steps.map((s) =>
+            s.imageIndex >= at ? { ...s, imageIndex: s.imageIndex + count } : s
+          );
+          const after = empty
+            ? shifted.length
+            : playOrderInsertIndex(shifted, current);
+          return {
+            ...doc,
+            title: doc.title.trim() ? doc.title : draftedDoc.title,
+            mode: doc.steps.length > 0 ? doc.mode : draftedDoc.mode,
+            imageUrls: insert(doc.imageUrls, draftedDoc.imageUrls),
+            imageKinds: insert(doc.imageKinds, draftedDoc.imageKinds),
+            videoTrims: insert(doc.videoTrims, draftedDoc.videoTrims),
+            steps: [
+              ...shifted.slice(0, after),
+              ...added,
+              ...shifted.slice(after),
+            ],
+          };
+        },
+        undefined,
+        tag
+      );
+      if (drafted.slideThumbnails)
+        setSlideThumbnails((prev) => ({ ...prev, ...drafted.slideThumbnails }));
+      setSelectedStepId(added[0]?.id ?? null);
+      setCurrentImageIndex(at);
+      return count;
+    },
+    [applyDoc]
+  );
+
   // Takes from earlier sessions may be shared by copies or live assignments, so only this session's are ever deleted.
   const sessionTakesRef = useRef<Set<string>>(new Set());
 
@@ -1078,6 +1141,8 @@ export function useGuidedLearningEditorState({
     reorderSteps,
     duplicateStep,
     duplicateSlide,
+    appendDraftedSet,
+    mediaHome,
     copySteps,
     pasteSteps,
     clipboardStepCount,

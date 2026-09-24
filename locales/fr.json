@@ -2568,6 +2568,8 @@
     "stepCount_other": "{{count}} étapes",
     "redo": "Rétablir",
     "slideDeleted": "Diapositive {{n}} supprimée.",
+    "aiSlidesAdded_one": "1 diapositive ajoutée par l’IA.",
+    "aiSlidesAdded_other": "{{count}} diapositives ajoutées par l’IA.",
     "stepDeleted": "Étape {{n}} supprimée.",
     "titleLabel": "Titre de l’activité",
     "titlePlaceholder": "Activité sans titre",
