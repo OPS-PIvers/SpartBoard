@@ -222,6 +222,8 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   ) => void;
   /** Releases every queued file whose edit is still in effect and the set no longer uses; call after a closing save. */
   flushMediaDeletions: (release: MediaRelease) => Promise<void>;
+  /** A drag or other gesture is open between beginGesture and endGesture. */
+  gestureOpen?: boolean;
 }
 
 // A set with no spotlight has no radius to convert, so it needs no load-time measuring.
@@ -1169,6 +1171,7 @@ export function useGuidedLearningEditorState({
     canRedo: !history.gestureBase && history.future.length > 0,
     beginGesture,
     endGesture,
+    gestureOpen: history.gestureBase !== null,
     queueMediaDeletion,
     flushMediaDeletions,
   };

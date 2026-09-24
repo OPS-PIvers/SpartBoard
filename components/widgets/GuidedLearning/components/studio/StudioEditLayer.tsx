@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RotateCcw } from 'lucide-react';
 import type { GuidedLearningRegion, GuidedLearningStep } from '@/types';
@@ -72,7 +72,13 @@ interface StudioEditLayerProps {
 }
 
 type Gesture =
-  | { kind: 'draw'; start: PctPoint; client: Client; drawing: boolean }
+  | {
+      kind: 'draw';
+      start: PctPoint;
+      client: Client;
+      drawing: boolean;
+      box: PctBox | null;
+    }
   | {
       kind: 'move';
       step: GuidedLearningStep;
@@ -92,6 +98,14 @@ type Gesture =
       active: boolean;
     };
 type Client = { x: number; y: number };
+/** The fields of a pointer move that the edit layer reads. */
+type Move = {
+  clientX: number;
+  clientY: number;
+  shiftKey: boolean;
+  ctrlKey: boolean;
+  metaKey: boolean;
+};
 
 const NO_GUIDES: SnapGuides = { x: null, y: null };
 
@@ -127,6 +141,16 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
   const [pointer, setPointer] = useState<PctPoint | null>(null);
   const [drawBox, setDrawBox] = useState<PctBox | null>(null);
   const [guides, setGuides] = useState<SnapGuides>(NO_GUIDES);
+  // Pointer moves coalesce to one applied move per animation frame.
+  const frameRef = useRef<number | null>(null);
+  const pendingRef = useRef<Move | null>(null);
+  useEffect(() => {
+    const frame = frameRef;
+    return () => {
+      if (frame.current !== null) cancelAnimationFrame(frame.current);
+      frame.current = null;
+    };
+  }, []);
 
   const slideSteps = steps.filter((s) => s.imageIndex === imageIndex);
   const selected = slideSteps.find((s) => s.id === selectedStepId) ?? null;
@@ -168,11 +192,12 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
   const inRect = (r: DOMRect, c: Client) =>
     c.x >= r.left && c.x <= r.right && c.y >= r.top && c.y <= r.bottom;
 
-  const snapOn = (e: React.PointerEvent) => !(e.ctrlKey || e.metaKey);
+  const snapOn = (e: Move) => !(e.ctrlKey || e.metaKey);
   const targets = () => snapTargets(slideSteps, selected?.id ?? null);
 
   // A second finger means a pinch: drop the open gesture, keeping any move made so far.
   const cancelGesture = () => {
+    flushMove();
     const gesture = gestureRef.current;
     gestureRef.current = null;
     setGuides(NO_GUIDES);
@@ -219,6 +244,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
         start: clampPct(p),
         client,
         drawing: false,
+        box: null,
       };
       return;
     }
@@ -326,7 +352,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
     };
   };
 
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+  const applyMove = (e: Move) => {
     const client = { x: e.clientX, y: e.clientY };
     const p = g.clientToImagePct(client.x, client.y);
     const gesture = gestureRef.current;
@@ -349,9 +375,13 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
         const end = snap
           ? snapPoint(p, targets(), limit)
           : { ...p, guides: NO_GUIDES };
-        setDrawBox(
-          dragBox(gesture.start, clampPct(end), e.shiftKey, scale.pxPerPct)
+        gesture.box = dragBox(
+          gesture.start,
+          clampPct(end),
+          e.shiftKey,
+          scale.pxPerPct
         );
+        setDrawBox(gesture.box);
         setGuides(end.guides);
         return;
       }
@@ -417,17 +447,47 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
     }
   };
 
+  const dropMove = () => {
+    if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+    frameRef.current = null;
+    const move = pendingRef.current;
+    pendingRef.current = null;
+    return move;
+  };
+  // Applies the latest pending move now, so an ending gesture never loses its last position.
+  const flushMove = () => {
+    const move = dropMove();
+    if (move) applyMove(move);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    pendingRef.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      shiftKey: e.shiftKey,
+      ctrlKey: e.ctrlKey,
+      metaKey: e.metaKey,
+    };
+    if (frameRef.current !== null) return;
+    // At most one render stale; the gesture itself lives in refs.
+    frameRef.current = requestAnimationFrame(() => {
+      frameRef.current = null;
+      flushMove();
+    });
+  };
+
   const finish = (
     e: React.PointerEvent<HTMLDivElement>,
     cancelled: boolean
   ) => {
+    flushMove();
     const gesture = gestureRef.current;
     gestureRef.current = null;
     setGuides(NO_GUIDES);
     if (!gesture) return;
     const client = { x: e.clientX, y: e.clientY };
     if (gesture.kind === 'draw') {
-      const box = drawBox;
+      const box = gesture.box;
       setDrawBox(null);
       if (cancelled) return;
       if (!gesture.drawing || !box) {
@@ -497,7 +557,10 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
       onPointerMove={onPointerMove}
       onPointerUp={(e) => finish(e, false)}
       onPointerCancel={(e) => finish(e, true)}
-      onPointerLeave={() => setHoverId(null)}
+      onPointerLeave={() => {
+        if (!gestureRef.current) dropMove();
+        setHoverId(null);
+      }}
       onDoubleClick={onDoubleClick}
     >
       <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">

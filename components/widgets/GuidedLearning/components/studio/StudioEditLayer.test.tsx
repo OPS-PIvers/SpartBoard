@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { Profiler, useEffect } from 'react';
 import {
   act,
   cleanup,
@@ -9,6 +9,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet, GuidedLearningStep } from '@/types';
 import { mockStageLayout, rect } from '@/tests/utils/mockStageLayout';
+import { manualFrames } from '@/tests/utils/manualFrames';
 import {
   useGuidedLearningEditorState,
   type GuidedLearningEditorController,
@@ -30,6 +31,17 @@ vi.mock('@/hooks/useStorage', () => ({
     deleteDriveFile: vi.fn(),
   }),
 }));
+
+const stageRenders = vi.hoisted(() => ({ count: 0 }));
+vi.mock('../GuidedLearningStage', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../GuidedLearningStage')>();
+  const Counted: typeof real.GuidedLearningStage = (props) => (
+    <Profiler id="gl-stage" onRender={() => stageRenders.count++}>
+      <real.GuidedLearningStage {...props} />
+    </Profiler>
+  );
+  return { ...real, GuidedLearningStage: Counted };
+});
 
 const BOARD = presetById('board');
 // The stage is 720×520 at the page origin showing a same-aspect image, so 1% = 7.2px × 5.2px.
@@ -158,7 +170,9 @@ const press = (key: string, init: KeyboardEventInit = {}) =>
   fireEvent.keyDown(window, { key, ...init });
 
 let restore: (() => void) | null = null;
+let frames: ReturnType<typeof manualFrames>;
 beforeEach(() => {
+  frames = manualFrames();
   const handle = mockStageLayout({
     container: { w: 720, h: 520 },
     image: { w: 1440, h: 1040 },
@@ -170,6 +184,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  frames.restore();
   restore?.();
   restore = null;
   latest.current = null;
@@ -330,6 +345,7 @@ describe('Studio edit layer', () => {
     down([70, 68]);
     // 0.4% left puts poly-1's right edge at 79.6, within snapping range of pin-1 at 80.
     moveTo([69.6, 68]);
+    frames.step();
     expect(screen.getByTestId('gl-studio-guide-x')).toBeInTheDocument();
     up([69.6, 68]);
     expect(stepById('poly-1').xPct).toBeCloseTo(70);
@@ -343,6 +359,80 @@ describe('Studio edit layer', () => {
     expect(editor().selectedStepId).toBe('rect-2');
     press('Tab', { shiftKey: true });
     expect(editor().selectedStepId).toBe('rect-1');
+  });
+
+  it('applies only the latest pointer move once per animation frame', () => {
+    click([18, 18]);
+    down([18, 18]);
+    moveTo([20, 19], { ctrlKey: true });
+    moveTo([24, 20], { ctrlKey: true });
+    moveTo([28, 22], { ctrlKey: true });
+    expect(frames.pending()).toBe(1);
+    expect(stepById('rect-1')).toEqual(STEPS[0]);
+    frames.step();
+    expect(stepById('rect-1').xPct).toBeCloseTo(35);
+    expect(stepById('rect-1').yPct).toBeCloseTo(29);
+    up([28, 22], { ctrlKey: true });
+    act(() => editor().undo());
+    expect(stepById('rect-1')).toEqual(STEPS[0]);
+  });
+
+  it('renders the stage at most once per frame across a 60-move drag, as one undo step', () => {
+    click([18, 18]);
+    // Hovering first lets the newly selected callout settle before frames are counted.
+    moveTo([38, 38]);
+    frames.step();
+    fireEvent.pointerLeave(layer());
+    down([18, 18]);
+    const perFrame: number[] = [];
+    for (let i = 1; i <= 60; i++) {
+      if (i % 3 === 1) stageRenders.count = 0;
+      moveTo([18 + i * 0.2, 18 + i * 0.1], { ctrlKey: true });
+      if (i % 3 === 0) {
+        frames.step();
+        perFrame.push(stageRenders.count);
+      }
+    }
+    up([30, 24], { ctrlKey: true });
+    expect(perFrame).toHaveLength(20);
+    expect(Math.max(...perFrame)).toBe(1);
+    expect(stepById('rect-1').xPct).toBeCloseTo(37);
+    act(() => editor().undo());
+    expect(stepById('rect-1')).toEqual(STEPS[0]);
+    expect(editor().canUndo).toBe(false);
+  });
+
+  it('flushes a move still waiting for its frame on pointerup', () => {
+    click([18, 18]);
+    down([18, 18]);
+    moveTo([23, 20], { ctrlKey: true });
+    moveTo([28, 22], { ctrlKey: true });
+    up([28, 22], { ctrlKey: true });
+    expect(frames.pending()).toBe(0);
+    expect(stepById('rect-1').xPct).toBeCloseTo(35);
+    expect(editor().canUndo).toBe(true);
+    act(() => editor().undo());
+    expect(stepById('rect-1')).toEqual(STEPS[0]);
+    expect(editor().canUndo).toBe(false);
+  });
+
+  it('keeps the last drawn box when pointerup lands before its frame', () => {
+    press('r');
+    down([50, 40]);
+    moveTo([60, 55], { ctrlKey: true });
+    up([60, 55], { ctrlKey: true });
+    const added = editor().steps[4];
+    expect(added.region?.wPct).toBeCloseTo(10);
+    expect(added.region?.hPct).toBeCloseTo(15);
+  });
+
+  it('cancels a pending frame on unmount', () => {
+    click([18, 18]);
+    down([18, 18]);
+    moveTo([28, 22], { ctrlKey: true });
+    expect(frames.pending()).toBe(1);
+    cleanup();
+    expect(frames.pending()).toBe(0);
   });
 
   it('zooms the canvas around the pointer with Ctrl+wheel and fits with 0', () => {
@@ -404,6 +494,7 @@ describe('Studio canvas on touch', () => {
     click([18, 18]);
     fireEvent.pointerDown(layer(), touch(1, [18, 18]));
     fireEvent.pointerMove(layer(), { ...touch(1, [28, 22]), ctrlKey: true });
+    frames.step();
     expect(stepById('rect-1').xPct).toBeCloseTo(35);
     fireEvent.pointerDown(layer(), touch(2, [60, 60]));
     fireEvent.pointerMove(layer(), touch(2, [70, 70]));

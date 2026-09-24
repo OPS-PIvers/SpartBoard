@@ -3,6 +3,14 @@ import { useEffect, useState, type RefObject } from 'react';
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
 
+/** False when CSS hides `el` or an ancestor below `root` with `display: none`, e.g. a `lg:hidden` control. */
+function displayed(el: HTMLElement, root: HTMLElement): boolean {
+  for (let n: HTMLElement | null = el; n && n !== root; n = n.parentElement) {
+    if (getComputedStyle(n).display === 'none') return false;
+  }
+  return true;
+}
+
 /** Tabbable elements inside `root`, in DOM order, skipping inert, hidden and invisible ones. */
 export function tabbables(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
@@ -11,7 +19,8 @@ export function tabbables(root: HTMLElement): HTMLElement[] {
       !el.closest('[inert], [hidden], [aria-hidden="true"]') &&
       !(el instanceof HTMLInputElement && el.type === 'file') &&
       !el.classList.contains('hidden') &&
-      getComputedStyle(el).visibility !== 'hidden'
+      getComputedStyle(el).visibility !== 'hidden' &&
+      displayed(el, root)
   );
 }
 

@@ -263,6 +263,11 @@ export function useSetDraftPersistence({
     overwriteRef.current = false;
   }
 
+  // Mid-drag, dirty tracking and the autosave token hold the pre-gesture draft until endGesture.
+  const trackedRef = useRef(editorState);
+  if (!editorState.gestureOpen) trackedRef.current = editorState;
+  const tracked = trackedRef.current;
+
   // Without a slide the editor cannot save at all, so that comes first.
   const incompleteNotice = useMemo(() => {
     if (editorState.imageUrls.length === 0) return 'Add at least one slide';
@@ -272,32 +277,32 @@ export function useSetDraftPersistence({
 
   const isDirty = useMemo(() => {
     return (
-      editorState.title !== originalTitle ||
-      editorState.description !== originalDescription ||
-      editorState.mode !== originalMode ||
-      editorState.hotspotPulse !== originalHotspotPulse ||
-      editorState.imageTransition !== originalImageTransition ||
-      editorState.welcomeEnabled !== originalWelcomeEnabled ||
-      editorState.welcomeMessage !== originalWelcomeMessage ||
-      !arraysEqual(editorState.imageUrls, originalImageUrls) ||
-      !arraysEqual(editorState.imageKinds, originalImageKinds) ||
-      !trimsEqual(editorState.videoTrims, originalVideoTrims) ||
-      !stepsEqual(editorState.steps, originalSteps) ||
-      editorState.watchPace !== originalWatchPace
+      tracked.title !== originalTitle ||
+      tracked.description !== originalDescription ||
+      tracked.mode !== originalMode ||
+      tracked.hotspotPulse !== originalHotspotPulse ||
+      tracked.imageTransition !== originalImageTransition ||
+      tracked.welcomeEnabled !== originalWelcomeEnabled ||
+      tracked.welcomeMessage !== originalWelcomeMessage ||
+      !arraysEqual(tracked.imageUrls, originalImageUrls) ||
+      !arraysEqual(tracked.imageKinds, originalImageKinds) ||
+      !trimsEqual(tracked.videoTrims, originalVideoTrims) ||
+      !stepsEqual(tracked.steps, originalSteps) ||
+      tracked.watchPace !== originalWatchPace
     );
   }, [
-    editorState.title,
-    editorState.description,
-    editorState.mode,
-    editorState.hotspotPulse,
-    editorState.imageTransition,
-    editorState.welcomeEnabled,
-    editorState.welcomeMessage,
-    editorState.imageUrls,
-    editorState.imageKinds,
-    editorState.videoTrims,
-    editorState.steps,
-    editorState.watchPace,
+    tracked.title,
+    tracked.description,
+    tracked.mode,
+    tracked.hotspotPulse,
+    tracked.imageTransition,
+    tracked.welcomeEnabled,
+    tracked.welcomeMessage,
+    tracked.imageUrls,
+    tracked.imageKinds,
+    tracked.videoTrims,
+    tracked.steps,
+    tracked.watchPace,
     originalTitle,
     originalDescription,
     originalMode,
@@ -403,32 +408,32 @@ export function useSetDraftPersistence({
   // New identity on every draft edit — the autosave quiet period restarts on it.
   const draftToken = useMemo(
     () => [
-      editorState.title,
-      editorState.description,
-      editorState.mode,
-      editorState.hotspotPulse,
-      editorState.imageTransition,
-      editorState.welcomeEnabled,
-      editorState.welcomeMessage,
-      editorState.imageUrls,
-      editorState.imageKinds,
-      editorState.videoTrims,
-      editorState.steps,
-      editorState.watchPace,
+      tracked.title,
+      tracked.description,
+      tracked.mode,
+      tracked.hotspotPulse,
+      tracked.imageTransition,
+      tracked.welcomeEnabled,
+      tracked.welcomeMessage,
+      tracked.imageUrls,
+      tracked.imageKinds,
+      tracked.videoTrims,
+      tracked.steps,
+      tracked.watchPace,
     ],
     [
-      editorState.title,
-      editorState.description,
-      editorState.mode,
-      editorState.hotspotPulse,
-      editorState.imageTransition,
-      editorState.welcomeEnabled,
-      editorState.welcomeMessage,
-      editorState.imageUrls,
-      editorState.imageKinds,
-      editorState.videoTrims,
-      editorState.steps,
-      editorState.watchPace,
+      tracked.title,
+      tracked.description,
+      tracked.mode,
+      tracked.hotspotPulse,
+      tracked.imageTransition,
+      tracked.welcomeEnabled,
+      tracked.welcomeMessage,
+      tracked.imageUrls,
+      tracked.imageKinds,
+      tracked.videoTrims,
+      tracked.steps,
+      tracked.watchPace,
     ]
   );
   const draftTokenRef = useRef(draftToken);
