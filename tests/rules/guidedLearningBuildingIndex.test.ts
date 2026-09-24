@@ -100,6 +100,19 @@ describe('building_guided_learning_index reads', () => {
     await assertSucceeds(getDoc(doc(asAnonStudent(), `${INDEX}/s1`)));
   });
 
+  it('lets clients read the _meta marker but never write it', async () => {
+    await testEnv.withSecurityRulesDisabled((ctx) =>
+      setDoc(doc(ctx.firestore(), `${INDEX}/_meta`), { backfilledAt: 1 })
+    );
+    await assertSucceeds(getDoc(doc(asTeacher(), `${INDEX}/_meta`)));
+    await assertFails(
+      setDoc(doc(asAdmin(), `${INDEX}/_meta`), { backfilledAt: 2 })
+    );
+    await assertFails(
+      setDoc(doc(asAdmin(), `${INDEX}/_lock`), { startedAt: 1 })
+    );
+  });
+
   it('denies signed-out reads', async () => {
     await assertFails(getDoc(doc(asSignedOut(), `${INDEX}/s1`)));
     await assertFails(getDocs(collection(asSignedOut(), INDEX)));

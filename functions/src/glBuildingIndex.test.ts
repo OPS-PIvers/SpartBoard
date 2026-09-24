@@ -34,24 +34,57 @@ const h = vi.hoisted(() => {
       listDocuments: () => Promise.resolve(docs()),
     };
   };
+  // Transactions run one at a time, as Firestore's contention retries would make them.
+  let txQueue: Promise<unknown> = Promise.resolve();
   const db = {
     collection,
-    runTransaction: async <T>(
+    batch: () => {
+      const ops: (() => void)[] = [];
+      const b = {
+        set: (r: { path: string }, d: DocData) => {
+          ops.push(() => void store.set(r.path, d));
+          return b;
+        },
+        delete: (r: { path: string }) => {
+          ops.push(() => void store.delete(r.path));
+          return b;
+        },
+        commit: () => Promise.resolve(ops.forEach((op) => op())),
+      };
+      return b;
+    },
+    runTransaction: <T>(
       fn: (tx: {
         get: (r: { path: string }) => Promise<unknown>;
         set: (r: { path: string }, d: DocData) => void;
         delete: (r: { path: string }) => void;
       }) => Promise<T>
-    ) =>
-      fn({
-        get: (r) =>
-          Promise.resolve({
-            exists: store.has(r.path),
-            data: () => store.get(r.path),
-          }),
-        set: (r, d) => void store.set(r.path, d),
-        delete: (r) => void store.delete(r.path),
-      }),
+    ): Promise<T> => {
+      const run = txQueue.then(() => runTx(fn));
+      txQueue = run.catch(() => undefined);
+      return run;
+    },
+  };
+  const runTx = <T>(
+    fn: (tx: {
+      get: (r: { path: string }) => Promise<unknown>;
+      set: (r: { path: string }, d: DocData) => void;
+      delete: (r: { path: string }) => void;
+    }) => Promise<T>
+  ) =>
+    fn({
+      get: (r) => {
+        const data = store.get(r.path);
+        return Promise.resolve({
+          exists: data !== undefined,
+          data: () => data,
+          get: (field: string) => data?.[field],
+        });
+      },
+      set: (r, d) => void store.set(r.path, d),
+      delete: (r) => void store.delete(r.path),
+    });
+  Object.assign(db, {
     bulkWriter: () => ({
       set: (r: { path: string }, d: DocData) =>
         Promise.resolve(void store.set(r.path, d)),
@@ -59,7 +92,7 @@ const h = vi.hoisted(() => {
         Promise.resolve(void store.delete(r.path)),
       close: () => Promise.resolve(),
     }),
-  };
+  });
   return { store, db };
 });
 
@@ -93,11 +126,21 @@ vi.mock('firebase-functions/logger', () => ({
   debug: vi.fn(),
 }));
 
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+import * as logger from 'firebase-functions/logger';
 import {
   buildGlBuildingIndexEntry,
+  claimGlBuildingIndexRebuild,
   glBuildingIndexMirror,
+  GL_INDEX_LOCK_STALE_MS,
   rebuildGlBuildingIndexV1,
 } from './glBuildingIndex';
+import type * as adminNs from 'firebase-admin';
+
+const cases = JSON.parse(
+  readFileSync(resolve(__dirname, 'glBuildingIndex.cases.json'), 'utf8')
+) as { name: string; id: string; set: unknown; expected: unknown }[];
 
 type TriggerHandler = (event: { params: { setId: string } }) => Promise<void>;
 type CallableHandler = (request: {
@@ -124,11 +167,27 @@ const fullSet = (over: DocData = {}): DocData => ({
 const index = (id: string) =>
   h.store.get(`building_guided_learning_index/${id}`);
 
+const META = 'building_guided_learning_index/_meta';
+const LOCK = 'building_guided_learning_index/_lock';
+const autoRebuilds = () =>
+  vi
+    .mocked(logger.info)
+    .mock.calls.filter(([msg]) => String(msg).includes('automatic backfill'))
+    .length;
+
 beforeEach(() => {
   h.store.clear();
+  vi.mocked(logger.info).mockClear();
 });
 
 describe('buildGlBuildingIndexEntry', () => {
+  it.each(cases.map((c) => [c.name, c] as const))(
+    'matches the shared case: %s',
+    (_name, c) => {
+      expect(buildGlBuildingIndexEntry(c.id, c.set)).toEqual(c.expected);
+    }
+  );
+
   it('keeps only library metadata, never steps or media paths', () => {
     expect(buildGlBuildingIndexEntry('s1', fullSet())).toEqual({
       id: 's1',
@@ -185,6 +244,10 @@ describe('buildGlBuildingIndexEntry', () => {
 });
 
 describe('glBuildingIndexMirror trigger', () => {
+  beforeEach(() => {
+    h.store.set(META, { backfilledAt: 1 });
+  });
+
   it('creates the index entry when a set is created', async () => {
     h.store.set('building_guided_learning/s1', fullSet());
     await trigger({ params: { setId: 's1' } });
@@ -225,6 +288,51 @@ describe('glBuildingIndexMirror trigger', () => {
     await trigger({ params: { setId: 's1' } });
     expect(index('s1')).toMatchObject({ title: 'Newest', updatedAt: 999 });
   });
+
+  it('does not rebuild once the index is backfilled', async () => {
+    h.store.set('building_guided_learning/s1', fullSet());
+    await trigger({ params: { setId: 's1' } });
+    expect(autoRebuilds()).toBe(0);
+  });
+});
+
+describe('automatic backfill from the trigger', () => {
+  it('rebuilds once when _meta is missing, even for concurrent triggers', async () => {
+    for (const id of ['a', 'b', 'c']) {
+      h.store.set(`building_guided_learning/${id}`, fullSet({ id }));
+    }
+    await Promise.all(
+      ['a', 'b', 'c'].map((setId) => trigger({ params: { setId } }))
+    );
+    expect(autoRebuilds()).toBe(1);
+    expect(typeof h.store.get(META)?.backfilledAt).toBe('number');
+    expect(h.store.has(LOCK)).toBe(false);
+    expect(index('a')).toBeDefined();
+    expect(index('c')).toBeDefined();
+
+    await trigger({ params: { setId: 'a' } });
+    expect(autoRebuilds()).toBe(1);
+  });
+
+  it('respects a fresh lock and reclaims a stale one', async () => {
+    const db = h.db as unknown as adminNs.firestore.Firestore;
+    const now = 1_000_000_000;
+    h.store.set(LOCK, { startedAt: now - 60_000 });
+    expect(await claimGlBuildingIndexRebuild(db, now)).toBe(false);
+    h.store.set(LOCK, { startedAt: now - GL_INDEX_LOCK_STALE_MS - 1 });
+    expect(await claimGlBuildingIndexRebuild(db, now)).toBe(true);
+    expect(h.store.get(LOCK)).toEqual({ startedAt: now });
+    h.store.set(META, { backfilledAt: now });
+    h.store.delete(LOCK);
+    expect(await claimGlBuildingIndexRebuild(db, now)).toBe(false);
+  });
+
+  it('ignores writes to a set with a control-doc id', async () => {
+    h.store.set(META, { backfilledAt: 1 });
+    h.store.set('building_guided_learning/_meta', fullSet());
+    await trigger({ params: { setId: '_meta' } });
+    expect(h.store.get(META)).toEqual({ backfilledAt: 1 });
+  });
 });
 
 describe('rebuildGlBuildingIndexV1 backfill', () => {
@@ -260,10 +368,13 @@ describe('rebuildGlBuildingIndexV1 backfill', () => {
       h.store.set(`building_guided_learning/${id}`, fullSet({ id }));
     }
     h.store.set('building_guided_learning_index/gone', { id: 'gone' });
+    h.store.set(LOCK, { startedAt: 1 });
 
     const result = await backfill({ auth: admin });
 
     expect(result).toEqual({ written: 205, removed: 1, failed: 0 });
+    expect(typeof h.store.get(META)?.backfilledAt).toBe('number');
+    expect(h.store.has(LOCK)).toBe(false);
     expect(index('s000')).toMatchObject({ title: 'Photosynthesis' });
     expect(index('s204')).toMatchObject({ stepCount: 2 });
     expect(index('gone')).toBeUndefined();

@@ -94,21 +94,70 @@ export async function syncGlBuildingIndexEntry(
   });
 }
 
+// Control docs in the index collection; never library entries.
+export const GL_INDEX_META_ID = '_meta';
+export const GL_INDEX_LOCK_ID = '_lock';
+const CONTROL_IDS = new Set([GL_INDEX_META_ID, GL_INDEX_LOCK_ID]);
+export const GL_INDEX_LOCK_STALE_MS = 10 * 60 * 1000;
+
+// Claims the one-time rebuild; a lock older than 10 minutes is treated as abandoned.
+export async function claimGlBuildingIndexRebuild(
+  db: admin.firestore.Firestore,
+  now: number = Date.now()
+): Promise<boolean> {
+  const index = db.collection(GL_BUILDING_INDEX_COLLECTION);
+  const metaRef = index.doc(GL_INDEX_META_ID);
+  const lockRef = index.doc(GL_INDEX_LOCK_ID);
+  return db.runTransaction(async (tx) => {
+    const [meta, lock] = await Promise.all([tx.get(metaRef), tx.get(lockRef)]);
+    if (meta.exists) return false;
+    const startedAt: unknown = lock.exists ? lock.get('startedAt') : undefined;
+    if (
+      typeof startedAt === 'number' &&
+      now - startedAt < GL_INDEX_LOCK_STALE_MS
+    ) {
+      return false;
+    }
+    tx.set(lockRef, { startedAt: now });
+    return true;
+  });
+}
+
+// Runs the full rebuild once per project, the first time any set is written without a _meta marker.
+export async function ensureGlBuildingIndexBackfilled(
+  db: admin.firestore.Firestore
+): Promise<boolean> {
+  const meta = await db
+    .collection(GL_BUILDING_INDEX_COLLECTION)
+    .doc(GL_INDEX_META_ID)
+    .get();
+  if (meta.exists) return false;
+  if (!(await claimGlBuildingIndexRebuild(db))) return false;
+  const result = await rebuildGlBuildingIndex(db);
+  logger.info('[glBuildingIndex] automatic backfill', result);
+  return true;
+}
+
 export const glBuildingIndexMirror = onDocumentWritten(
   {
     document: `${GL_BUILDING_COLLECTION}/{setId}`,
-    memory: '256MiB',
+    memory: '512MiB',
+    timeoutSeconds: 540,
     maxInstances: 10,
   },
   async (event) => {
     const { setId } = event.params;
-    await syncGlBuildingIndexEntry(admin.firestore(), setId);
+    if (CONTROL_IDS.has(setId)) return;
+    const db = admin.firestore();
+    await syncGlBuildingIndexEntry(db, setId);
+    await ensureGlBuildingIndexBackfilled(db);
   }
 );
 
 export async function rebuildGlBuildingIndex(
   db: admin.firestore.Firestore
 ): Promise<{ written: number; removed: number; failed: number }> {
+  const index = db.collection(GL_BUILDING_INDEX_COLLECTION);
   const writer = db.bulkWriter();
   const seen = new Set<string>();
   let written = 0;
@@ -129,32 +178,35 @@ export async function rebuildGlBuildingIndex(
     const page = await q.get();
     for (const doc of page.docs) {
       seen.add(doc.id);
+      if (CONTROL_IDS.has(doc.id)) continue;
       const entry = buildGlBuildingIndexEntry(doc.id, doc.data());
       if (!entry) continue;
       ops.push(
-        writer
-          .set(db.collection(GL_BUILDING_INDEX_COLLECTION).doc(doc.id), entry)
-          .then(() => {
-            written++;
-          }, onFail(doc.id))
+        writer.set(index.doc(doc.id), entry).then(() => {
+          written++;
+        }, onFail(doc.id))
       );
     }
     if (page.docs.length < BACKFILL_PAGE) break;
     cursor = page.docs[page.docs.length - 1];
   }
-  const indexRefs = await db
-    .collection(GL_BUILDING_INDEX_COLLECTION)
-    .listDocuments();
-  for (const ref of indexRefs) {
-    if (seen.has(ref.id)) continue;
-    ops.push(
-      writer.delete(ref).then(() => {
-        removed++;
-      }, onFail(ref.id))
-    );
-  }
   await writer.close();
   await Promise.all(ops);
+  // Re-check unseen entries against the live set, so a set created mid-rebuild keeps its entry.
+  for (const ref of await index.listDocuments()) {
+    if (seen.has(ref.id) || CONTROL_IDS.has(ref.id)) continue;
+    try {
+      if ((await syncGlBuildingIndexEntry(db, ref.id)) === 'removed') {
+        removed++;
+      }
+    } catch (err) {
+      onFail(ref.id)(err);
+    }
+  }
+  const batch = db.batch();
+  batch.set(index.doc(GL_INDEX_META_ID), { backfilledAt: Date.now() });
+  batch.delete(index.doc(GL_INDEX_LOCK_ID));
+  await batch.commit();
   return { written, removed, failed };
 }
 

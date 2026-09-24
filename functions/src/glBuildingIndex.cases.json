@@ -1,0 +1,82 @@
+[
+  {
+    "name": "a full set keeps only library metadata",
+    "id": "s1",
+    "set": {
+      "id": "s1",
+      "title": "Photosynthesis",
+      "description": "Leaves",
+      "imageUrls": ["https://v/clip.mp4", "https://i/slide.png"],
+      "imageKinds": ["video", "image"],
+      "imagePaths": ["a/b.png"],
+      "steps": [{ "id": "x" }, { "id": "y", "tour": { "anchor": "dock" } }],
+      "mode": "guided",
+      "createdAt": 100,
+      "updatedAt": 200,
+      "isBuilding": true
+    },
+    "expected": {
+      "id": "s1",
+      "title": "Photosynthesis",
+      "description": "Leaves",
+      "stepCount": 2,
+      "mode": "guided",
+      "thumbnail": "https://i/slide.png",
+      "createdAt": 100,
+      "updatedAt": 200,
+      "hasLiveTour": true,
+      "isHelpCenter": false,
+      "folderId": null,
+      "order": null
+    }
+  },
+  {
+    "name": "helpCenter flag, stamped hasLiveTour, folder and order",
+    "id": "h1",
+    "set": {
+      "title": "Help",
+      "imageUrls": [],
+      "steps": [{ "id": "a", "tour": { "anchor": "dock" } }],
+      "mode": "explore",
+      "createdAt": 5,
+      "updatedAt": 6,
+      "helpCenter": true,
+      "hasLiveTour": false,
+      "folderId": "f1",
+      "order": 3
+    },
+    "expected": {
+      "id": "h1",
+      "title": "Help",
+      "description": null,
+      "stepCount": 1,
+      "mode": "explore",
+      "thumbnail": "",
+      "createdAt": 5,
+      "updatedAt": 6,
+      "hasLiveTour": false,
+      "isHelpCenter": true,
+      "folderId": "f1",
+      "order": 3
+    }
+  },
+  {
+    "name": "malformed fields fall back to defaults",
+    "id": "m1",
+    "set": { "mode": "weird", "helpCenter": "yes", "updatedAt": 9 },
+    "expected": {
+      "id": "m1",
+      "title": "",
+      "description": null,
+      "stepCount": 0,
+      "mode": "structured",
+      "thumbnail": "",
+      "createdAt": 9,
+      "updatedAt": 9,
+      "hasLiveTour": false,
+      "isHelpCenter": false,
+      "folderId": null,
+      "order": null
+    }
+  }
+]

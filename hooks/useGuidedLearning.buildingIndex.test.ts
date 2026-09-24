@@ -5,9 +5,12 @@ import type {
   GuidedLearningSet,
 } from '@/types';
 
+type Emit = (docs: { id: string; data: unknown }[]) => void;
+
 const fs = vi.hoisted(() => ({
   listened: [] as string[],
-  emit: null as null | ((docs: unknown[]) => void),
+  emit: {} as Record<string, Emit>,
+  emitMeta: null as null | ((exists: boolean) => void),
   getDoc: vi.fn(),
   setDoc: vi.fn(() => Promise.resolve()),
 }));
@@ -17,13 +20,13 @@ vi.mock('firebase/firestore', () => ({
   doc: (_db: unknown, ...segments: string[]) => segments.join('/'),
   query: (path: string) => path,
   orderBy: () => null,
-  onSnapshot: (
-    path: string,
-    next: (snap: { docs: { data: () => unknown }[] }) => void
-  ) => {
+  onSnapshot: (path: string, next: (snap: unknown) => void) => {
     fs.listened.push(path);
-    if (path === 'building_guided_learning_index') {
-      fs.emit = (docs) => next({ docs: docs.map((d) => ({ data: () => d })) });
+    if (path === 'building_guided_learning_index/_meta') {
+      fs.emitMeta = (exists) => next({ exists: () => exists });
+    } else {
+      fs.emit[path] = (docs) =>
+        next({ docs: docs.map((d) => ({ id: d.id, data: () => d.data })) });
     }
     return () => undefined;
   },
@@ -74,21 +77,54 @@ const fullSet = (over: Partial<GuidedLearningSet> = {}): GuidedLearningSet => ({
 
 beforeEach(() => {
   fs.listened = [];
-  fs.emit = null;
+  fs.emit = {};
+  fs.emitMeta = null;
   fs.getDoc.mockReset();
   fs.setDoc.mockClear();
 });
 
 describe('useGuidedLearning building-set index', () => {
-  it('lists building sets from the index and reads no full set', async () => {
+  it('lists building sets from the index once backfilled, skipping control docs', async () => {
     const { result } = renderHook(() => useGuidedLearning(undefined));
-    expect(fs.listened).toEqual(['building_guided_learning_index']);
+    expect(fs.listened).toEqual(['building_guided_learning_index/_meta']);
 
-    act(() => fs.emit?.([entry]));
+    act(() => fs.emitMeta?.(true));
+    expect(fs.listened).toContain('building_guided_learning_index');
+    expect(fs.listened).not.toContain('building_guided_learning');
+    act(() =>
+      fs.emit['building_guided_learning_index']([
+        { id: 'b-1', data: entry },
+        { id: '_meta', data: { backfilledAt: 1 } },
+        { id: '_lock', data: { startedAt: 1 } },
+      ])
+    );
 
     await waitFor(() => expect(result.current.buildingLoading).toBe(false));
     expect(result.current.buildingSets).toEqual([entry]);
     expect(fs.getDoc).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the full sets before the index is backfilled, then switches', async () => {
+    const { result } = renderHook(() => useGuidedLearning(undefined));
+    act(() => fs.emitMeta?.(false));
+    expect(fs.listened).toContain('building_guided_learning');
+    expect(fs.listened).not.toContain('building_guided_learning_index');
+    act(() =>
+      fs.emit['building_guided_learning']([
+        { id: 'b-1', data: fullSet({ steps: [{ id: 's' }] as never }) },
+      ])
+    );
+    await waitFor(() => expect(result.current.buildingLoading).toBe(false));
+    expect(result.current.buildingSets).toEqual([
+      expect.objectContaining({ id: 'b-1', title: 'Cells', stepCount: 1 }),
+    ]);
+
+    act(() => fs.emitMeta?.(true));
+    expect(fs.listened).toContain('building_guided_learning_index');
+    act(() =>
+      fs.emit['building_guided_learning_index']([{ id: 'b-1', data: entry }])
+    );
+    expect(result.current.buildingSets).toEqual([entry]);
   });
 
   it('saves only the full set; the index is left to the server', async () => {

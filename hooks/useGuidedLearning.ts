@@ -31,6 +31,11 @@ import {
   GuidedLearningSetMetadata,
 } from '@/types';
 import { assertGuidedLearningDocFits } from '@/utils/firestoreDocSize';
+import {
+  BUILDING_INDEX_CONTROL_IDS,
+  BUILDING_INDEX_META_ID,
+  buildBuildingIndexEntry,
+} from '@/components/widgets/GuidedLearning/utils/buildingIndexEntry';
 import { pickThumbnailUrl } from '@/utils/guidedLearningMedia';
 import { GuidedLearningDriveService } from '@/utils/guidedLearningDriveService';
 import {
@@ -147,19 +152,41 @@ export const useGuidedLearning = (
     return unsub;
   }, [userId]);
 
-  // Listens to the slim index; full sets are fetched only when opened.
+  // Null until the index's _meta marker is read; false means not backfilled yet.
+  const [indexReady, setIndexReady] = useState<boolean | null>(null);
+  useEffect(
+    () =>
+      onSnapshot(
+        doc(db, BUILDING_GL_INDEX_COLLECTION, BUILDING_INDEX_META_ID),
+        (snap) => setIndexReady(snap.exists()),
+        (err) => {
+          console.error('[useGuidedLearning] Index marker error:', err);
+          setIndexReady(false);
+        }
+      ),
+    []
+  );
+
+  // Listens to the slim index once backfilled, else derives entries from the full sets.
   useEffect(() => {
+    if (indexReady === null) return;
     const q = query(
-      collection(db, BUILDING_GL_INDEX_COLLECTION),
+      collection(
+        db,
+        indexReady ? BUILDING_GL_INDEX_COLLECTION : BUILDING_GL_COLLECTION
+      ),
       orderBy('createdAt', 'desc')
     );
 
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const list = snap.docs.map(
-          (d) => d.data() as GuidedLearningBuildingSetIndex
-        );
+        const list = snap.docs.flatMap((d) => {
+          if (BUILDING_INDEX_CONTROL_IDS.has(d.id)) return [];
+          if (indexReady) return [d.data() as GuidedLearningBuildingSetIndex];
+          const entry = buildBuildingIndexEntry(d.id, d.data());
+          return entry ? [entry] : [];
+        });
         setBuildingSets(list);
         setBuildingLoading(false);
       },
@@ -170,7 +197,7 @@ export const useGuidedLearning = (
     );
 
     return unsub;
-  }, []);
+  }, [indexReady]);
 
   // One service per token, so its folder cache survives across saves.
   const driveService = useMemo((): GuidedLearningDriveLike | null => {
