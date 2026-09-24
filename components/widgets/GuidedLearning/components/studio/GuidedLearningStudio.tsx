@@ -42,6 +42,14 @@ import {
   requestStartTour,
 } from '@/components/tours/tourState';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
+import {
+  decrementOpenModalCount,
+  incrementOpenModalCount,
+} from '@/components/common/modalStore';
+import {
+  acquireBodyScrollLock,
+  releaseBodyScrollLock,
+} from '@/components/common/bodyScrollLock';
 import { EditorHeader } from '../EditorHeader';
 import { GuidedLearningAIGenerator } from '../GuidedLearningAIGenerator';
 import {
@@ -644,6 +652,16 @@ const StudioSession: React.FC<
     if (hasFiles) return;
     if (pasteSteps() > 0) e.preventDefault();
   });
+  // Empty deps: counts as an open modal for its whole lifetime (peeking included) so the widget toolbar and dashboard Escape stand down.
+  useEffect(() => {
+    acquireBodyScrollLock();
+    incrementOpenModalCount();
+    return () => {
+      decrementOpenModalCount();
+      releaseBodyScrollLock();
+    };
+  }, []);
+
   const pasteListening = shortcutsEnabled && !playing;
   useEffect(() => {
     if (!pasteListening) return;
