@@ -1217,6 +1217,7 @@
       "questionsHeading": "Preguntas, las más falladas primero",
       "noQuestions": "Aún sin resultados. Cuando un docente aplique esta evaluación y publique las calificaciones, las preguntas reunidas aparecerán aquí.",
       "incorrectPercent": "{{percent}} % incorrectas",
+      "averagePointsPercent": "{{percent}} % de los puntos",
       "notScored": "Sin calificar",
       "gradedOfAnswered": "{{served}} presentadas · {{graded}} calificadas · {{answered}} respondidas",
       "choiceDistribution": "Distribución de respuestas",

@@ -238,7 +238,7 @@ describe('recomputeOnePlcAssessment', () => {
     const agg = stub.get('plcs/plc-1/aggregates/grp-1');
     expect(agg).toMatchObject({
       assessmentId: 'grp-1',
-      schemaVersion: 4,
+      schemaVersion: 5,
       title: 'Unit 4 CFA',
       kind: 'quiz',
       teacherCount: 2,
@@ -413,7 +413,7 @@ describe('runRecomputePlcAssessments', () => {
     });
     const counts = await runRecomputePlcAssessments(stub.db as unknown as Db);
     expect(counts).toEqual({ scanned: 1, recomputed: 1, failed: 0 });
-    expect(stub.get('plcs/plc-1/aggregates/grp-1')?.schemaVersion).toBe(4);
+    expect(stub.get('plcs/plc-1/aggregates/grp-1')?.schemaVersion).toBe(5);
     expect(stub.has('plcs/plc-1/aggregates/_migration')).toBe(true);
   });
 

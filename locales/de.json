@@ -1217,6 +1217,7 @@
       "questionsHeading": "Fragen, am häufigsten falsch zuerst",
       "noQuestions": "Noch keine Ergebnisse. Sobald eine Lehrkraft diese Bewertung durchführt und Punkte veröffentlicht, erscheinen die gebündelten Fragen hier.",
       "incorrectPercent": "{{percent}} % falsch",
+      "averagePointsPercent": "{{percent}} % der Punkte",
       "notScored": "Nicht bewertet",
       "gradedOfAnswered": "{{served}} vorgelegt · {{graded}} bewertet · {{answered}} beantwortet",
       "choiceDistribution": "Antwortverteilung",

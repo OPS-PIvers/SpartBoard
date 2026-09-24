@@ -1217,6 +1217,7 @@
       "questionsHeading": "Questions, les plus ratées d’abord",
       "noQuestions": "Pas encore de résultats. Dès qu’un(e) enseignant(e) fait passer cette évaluation et publie les notes, les questions regroupées apparaissent ici.",
       "incorrectPercent": "{{percent}} % d’erreurs",
+      "averagePointsPercent": "{{percent}} % des points",
       "notScored": "Non notée",
       "gradedOfAnswered": "{{served}} présentées · {{graded}} notées · {{answered}} répondues",
       "choiceDistribution": "Répartition des réponses",
