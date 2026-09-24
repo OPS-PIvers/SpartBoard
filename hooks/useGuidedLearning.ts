@@ -5,7 +5,7 @@
  * - Admin building sets: full data in Firestore /building_guided_learning
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   collection,
   deleteField,
@@ -158,18 +158,23 @@ export const useGuidedLearning = (
     return unsub;
   }, []);
 
-  const getDriveService = useCallback((): GuidedLearningDriveLike => {
+  // One service per token, so its folder cache survives across saves.
+  const driveService = useMemo((): GuidedLearningDriveLike | null => {
     if (isAuthBypass) {
-      if (!userId) throw new Error('Not authenticated');
-      return new MockGuidedLearningDriveService(userId);
+      return userId ? new MockGuidedLearningDriveService(userId) : null;
     }
-    if (!googleAccessToken) {
-      throw new Error(
-        'Not connected to Google Drive. Please sign in again to grant access.'
-      );
-    }
-    return new GuidedLearningDriveService(googleAccessToken);
+    return googleAccessToken
+      ? new GuidedLearningDriveService(googleAccessToken)
+      : null;
   }, [googleAccessToken, userId]);
+
+  const getDriveService = useCallback((): GuidedLearningDriveLike => {
+    if (driveService) return driveService;
+    if (isAuthBypass) throw new Error('Not authenticated');
+    throw new Error(
+      'Not connected to Google Drive. Please sign in again to grant access.'
+    );
+  }, [driveService]);
 
   const saveSet = useCallback(
     async (

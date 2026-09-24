@@ -8,6 +8,7 @@ const DELETE = Symbol('deleteField');
 const store = vi.hoisted(() => ({
   docs: new Map<string, Record<string, unknown>>(),
   driveSaves: [] as { set: unknown; existingFileId?: string }[],
+  driveInstances: 0,
 }));
 
 vi.mock('firebase/firestore', () => ({
@@ -51,6 +52,9 @@ vi.mock('./useGoogleDrive', () => ({
 
 vi.mock('@/utils/guidedLearningDriveService', () => ({
   GuidedLearningDriveService: class {
+    constructor() {
+      store.driveInstances += 1;
+    }
     saveSet(set: unknown, existingFileId?: string) {
       store.driveSaves.push({ set, existingFileId });
       return Promise.resolve(existingFileId ?? 'drive-file-1');
@@ -84,6 +88,7 @@ const buildSet = (
 beforeEach(() => {
   store.docs.clear();
   store.driveSaves = [];
+  store.driveInstances = 0;
 });
 
 describe('useGuidedLearning.saveSet', () => {
@@ -143,5 +148,16 @@ describe('useGuidedLearning.saveSet', () => {
       futureField: { kept: true },
     });
     expect(store.docs.get(META_PATH)?.imagePaths).toEqual(['gl/a.png']);
+  });
+
+  it('reuses one Drive service per token across saves', async () => {
+    const { result, rerender } = renderHook(() => useGuidedLearning('u1'));
+    for (let i = 0; i < 3; i++) {
+      await act(async () => {
+        await result.current.saveSet(buildSet(), 'drive-file-1');
+      });
+      rerender();
+    }
+    expect(store.driveInstances).toBe(1);
   });
 });
