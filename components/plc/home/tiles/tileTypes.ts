@@ -76,4 +76,6 @@ export interface PlcHomeTileProps {
   hero: boolean;
   /** Header controls Home supplies (spotlight, Customize remove). */
   controls?: ReactNode;
+  /** Saves this tile's options (perTeacher's assessment). */
+  onOptionsChange?: (options: PlcHomeTileOptions) => void;
 }

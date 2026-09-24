@@ -19,7 +19,7 @@ import {
 import { usePlcAssignmentIndex } from '@/hooks/usePlcAssignmentIndex';
 import { usePlcLearningTargets } from '@/hooks/useLearningTargets';
 import { DEFAULT_MASTERY_CUTOFFS } from '@/utils/learningTargets';
-import { masteryBandFor, type MasteryBand } from '@/utils/quizTargetStats';
+import { masteryBandFor } from '@/utils/quizTargetStats';
 import {
   buildCommonAssessmentBanner,
   type CommonAssessmentBannerModel,
@@ -27,6 +27,7 @@ import {
 } from '@/components/plc/home/cards/commonAssessmentBannerSelectors';
 import { TileEmpty, TileFrame } from './TileFrame';
 import {
+  MASTERY_BAR_CLASS,
   isLiveAssignment,
   latestTargetMastery,
   type ResultsRollup,
@@ -36,12 +37,6 @@ import type { PlcHomeTileProps } from './tileTypes';
 
 /** Newest index entries Home reads; an older still-active one can be missed (plan §6). */
 const HOME_ASSIGNMENT_INDEX_LIMIT = 25;
-
-const MASTERY_BAR_CLASS: Record<MasteryBand, string> = {
-  proficient: 'bg-emerald-500',
-  approaching: 'bg-amber-400',
-  beginning: 'bg-brand-red-light',
-};
 
 const COMPACT_ROWS = 3;
 const HERO_ASSIGNMENTS = 5;

@@ -12,6 +12,13 @@ import {
   type AssessmentWeakQuestion,
 } from '@/components/plc/sharedData/sharedDataSelectors';
 import { schoolYearStart } from '@/utils/plcHomeTime';
+import type { MasteryBand } from '@/utils/quizTargetStats';
+
+export const MASTERY_BAR_CLASS: Record<MasteryBand, string> = {
+  proficient: 'bg-emerald-500',
+  approaching: 'bg-amber-400',
+  beginning: 'bg-brand-red-light',
+};
 
 /** A change smaller than this many points draws no trend marker (D19). */
 export const TREND_THRESHOLD_POINTS = 5;

@@ -184,14 +184,32 @@ export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({ plc, onNavigate }) => {
     });
   };
 
+  // Tiles hidden here (per-teacher while the PLC hides it) stay saved for when it returns.
+  const hiddenTiles = () => {
+    const shown = new Set(tiles.map((tile) => tile.id));
+    return effectiveTiles(layout).filter((tile) => !shown.has(tile.id));
+  };
+
   const finishCustomize = () => {
     if (!draft) return;
     const heroTileId =
       layout.heroTileId && draft.some((tile) => tile.id === layout.heroTileId)
         ? layout.heroTileId
         : null;
-    persist({ tiles: draft, heroTileId });
+    persist({ tiles: [...draft, ...hiddenTiles()], heroTileId });
     setDraft(null);
+  };
+
+  const setTileOptions = (
+    tileId: string,
+    options: PlcHomeTileInstance['options']
+  ) => {
+    persist({
+      tiles: effectiveTiles(layout).map((tile) =>
+        tile.id === tileId ? { ...tile, options } : tile
+      ),
+      heroTileId: layout.heroTileId,
+    });
   };
 
   const heroId = customizing
@@ -203,10 +221,12 @@ export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({ plc, onNavigate }) => {
   const toggleSpotlight = (tile: PlcHomeTileInstance, isHero: boolean) => {
     if (isHero) {
       setAutoHeroDismissed(true);
-      if (layout.heroTileId !== null) persist({ tiles, heroTileId: null });
+      if (layout.heroTileId !== null) {
+        persist({ tiles: effectiveTiles(layout), heroTileId: null });
+      }
       return;
     }
-    persist({ tiles, heroTileId: tile.id });
+    persist({ tiles: effectiveTiles(layout), heroTileId: tile.id });
   };
 
   const ctx: PlcHomeTileContext = {
@@ -256,7 +276,15 @@ export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({ plc, onNavigate }) => {
         )}
       </button>
     );
-    return <Component tile={tile} ctx={ctx} hero={hero} controls={spotlight} />;
+    return (
+      <Component
+        tile={tile}
+        ctx={ctx}
+        hero={hero}
+        controls={spotlight}
+        onOptionsChange={(options) => setTileOptions(tile.id, options)}
+      />
+    );
   };
 
   return (
