@@ -666,11 +666,13 @@ export function gradeGroupAnswer(
   };
 }
 
-/** Written answers and partial-credit Matching/Ordering report points; MC and MA stay right/wrong. */
+/** Written answers and partial-credit MA/Matching/Ordering report points; the rest stay right/wrong. */
 export function questionScoring(question: GroupQuestion): QuestionScoring {
   if (question.type === 'free-response') return 'points';
   if (
-    (question.type === 'Matching' || question.type === 'Ordering') &&
+    (question.type === 'MA' ||
+      question.type === 'Matching' ||
+      question.type === 'Ordering') &&
     question.allowPartialCredit
   )
     return 'points';

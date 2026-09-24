@@ -734,6 +734,40 @@ describe('computeAssessmentAggregate', () => {
         correctPercent: 0,
       });
     });
+
+    it('scores partial-credit choose-all by points', () => {
+      const ma: GroupQuestion = {
+        id: 'ma1',
+        text: 'Pick all primes.',
+        type: 'MA',
+        points: 2,
+        choices: ['2', '3', '5', '4'],
+        correctAnswer: '2|3|5',
+        allowPartialCredit: true,
+        rubricCriterionIds: [],
+        targets: [],
+      };
+      const row = compute(
+        [
+          session(
+            's-a',
+            'teacherA',
+            [
+              response([answer('ma1', '2|3')]),
+              response([answer('ma1', '2|3|5')]),
+            ],
+            [{ id: 'ma1', type: 'MA', text: 'Pick all primes.' }]
+          ),
+        ],
+        [ma]
+      ).perQuestion[0];
+      expect(row).toMatchObject({
+        scoring: 'points',
+        graded: 2,
+        correct: 1,
+        correctPercent: 83,
+      });
+    });
   });
 });
 
