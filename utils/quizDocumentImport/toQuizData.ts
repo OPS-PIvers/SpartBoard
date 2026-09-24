@@ -27,6 +27,7 @@ function unkeyedOrdering(q: ExtractedQuestion): QuizQuestion {
     incorrectAnswers: [],
     ...(q.points !== undefined ? { points: q.points } : {}),
     ...(q.sourceLabel ? { sourceLabel: q.sourceLabel } : {}),
+    ...(q.imageIds.length > 0 ? { stimulusIds: [...q.imageIds] } : {}),
   };
 }
 

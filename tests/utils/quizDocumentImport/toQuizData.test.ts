@@ -187,11 +187,14 @@ describe('extractedToQuizData — reliability fields (R9, R23, R25)', () => {
             { letter: 'B', text: 'first' },
           ],
           correctAnswer: '',
+          imageIds: ['img-1'],
         }),
       ],
     });
     const data = extractedToQuizData(extracted);
     expect(data.questions[0].type).toBe('free-response');
+    // Its picture still comes in.
+    expect(data.questions[0].stimulusIds).toContain('img-1');
     expect(data.questions[0].text).toBe(
       'Put them in order. A. second / B. first'
     );
