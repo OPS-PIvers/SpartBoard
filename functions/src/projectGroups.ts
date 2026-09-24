@@ -2,7 +2,13 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import './functionsInit';
 import { STUDENT_PSEUDONYM_HMAC_SECRET } from './secrets';
-import { ALLOWED_ORIGINS, computeStudentUid } from './classlinkShared';
+import {
+  ALLOWED_ORIGINS,
+  computeStudentUid,
+  normalizeEmailDomain,
+  resolveOrgIdForDomain,
+} from './classlinkShared';
+import { isTestClassAuthority } from './studentAssignmentTargets';
 
 // Projects widget group import: client posts sourcedIds, server applies the HMAC (D8).
 
@@ -16,6 +22,7 @@ interface CommitProjectGroupEntry {
   classId: string;
   order: number;
   classLinkSourcedIds: string[];
+  testEmails: string[];
 }
 
 const asString = (v: unknown): string => (typeof v === 'string' ? v : '');
@@ -71,7 +78,15 @@ function parseGroups(raw: unknown): CommitProjectGroupEntry[] {
           (s): s is string => typeof s === 'string' && s.length > 0
         )
       : [];
-    if (sourcedIds.length > MAX_MEMBERS_PER_GROUP) {
+    const testEmails = Array.isArray(e.testEmails)
+      ? e.testEmails
+          .filter(
+            (s): s is string =>
+              typeof s === 'string' && s.includes('@') && s.length <= 320
+          )
+          .map((s) => s.trim().toLowerCase())
+      : [];
+    if (sourcedIds.length + testEmails.length > MAX_MEMBERS_PER_GROUP) {
       throw new HttpsError(
         'invalid-argument',
         `groups[${index}] exceeds ${MAX_MEMBERS_PER_GROUP} members.`
@@ -83,8 +98,49 @@ function parseGroups(raw: unknown): CommitProjectGroupEntry[] {
       classId,
       order: typeof e.order === 'number' ? e.order : index,
       classLinkSourcedIds: Array.from(new Set(sourcedIds)),
+      testEmails: Array.from(new Set(testEmails)),
     };
   });
+}
+
+/**
+ * Test-class emails the caller may place, keyed by test class id. Same gate as
+ * assignment targeting: roster docs are client-writable, so a forged
+ * `testClassId` must not reach test students the caller does not administer.
+ */
+async function allowedTestEmails(
+  db: admin.firestore.Firestore,
+  callerEmail: string,
+  groups: CommitProjectGroupEntry[]
+): Promise<Map<string, Set<string>>> {
+  const allowed = new Map<string, Set<string>>();
+  const classIds = Array.from(
+    new Set(groups.filter((g) => g.testEmails.length > 0).map((g) => g.classId))
+  ).filter(isDocumentId);
+  if (classIds.length === 0 || !callerEmail) return allowed;
+  const domain = normalizeEmailDomain(callerEmail);
+  const orgId = domain ? await resolveOrgIdForDomain(db, domain) : null;
+  if (!orgId || !(await isTestClassAuthority(db, callerEmail, orgId))) {
+    return allowed;
+  }
+  const snaps = await Promise.all(
+    classIds.map((id) =>
+      db.doc(`organizations/${orgId}/testClasses/${id}`).get()
+    )
+  );
+  snaps.forEach((snap, i) => {
+    const members: unknown = snap.exists ? snap.get('memberEmails') : null;
+    if (!Array.isArray(members)) return;
+    allowed.set(
+      classIds[i],
+      new Set(
+        members
+          .filter((m): m is string => typeof m === 'string')
+          .map((m) => m.toLowerCase())
+      )
+    );
+  });
+  return allowed;
 }
 
 /** Teacher-only. Writes only the groups it was handed, never deleting others (D9). */
@@ -145,13 +201,26 @@ export const commitProjectGroupsV1 = onCall(
       existing.filter((snap) => snap.exists).map((snap) => snap.id)
     );
 
+    const testMembers = await allowedTestEmails(
+      db,
+      asString(request.auth.token.email).toLowerCase(),
+      groups
+    );
+
     const batch = db.batch();
     let membersResolved = 0;
 
     for (const group of groups) {
-      const memberUids = group.classLinkSourcedIds.map((sourcedId) =>
-        computeStudentUid(sourcedId, hmacSecret)
-      );
+      const inTestClass = testMembers.get(group.classId);
+      const memberUids = [
+        ...group.classLinkSourcedIds.map((sourcedId) =>
+          computeStudentUid(sourcedId, hmacSecret)
+        ),
+        // Matches the uid studentLoginV1 mints for a test-class sign-in.
+        ...group.testEmails
+          .filter((email) => inTestClass?.has(email))
+          .map((email) => computeStudentUid(`test:${email}`, hmacSecret)),
+      ];
       membersResolved += memberUids.length;
       const ref = runRef.collection('groups').doc(group.id);
       if (alreadyTracked.has(group.id)) {

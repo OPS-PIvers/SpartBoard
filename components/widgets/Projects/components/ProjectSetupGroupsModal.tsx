@@ -62,6 +62,9 @@ export const ProjectSetupGroupsModal: React.FC<
 
   const roster = rosters.find((r) => r.id === rosterId);
   const classId = projectClassIdFor(roster) ?? '';
+  const isTestRoster = Boolean(
+    roster && !roster.classlinkClassId && roster.testClassId
+  );
   const usingPush = Boolean(
     pendingImport && pendingImport.rosterId === rosterId
   );
@@ -75,6 +78,11 @@ export const ProjectSetupGroupsModal: React.FC<
   const resolved = useMemo(() => {
     if (!pendingImport || !usingPush) return [];
     const byId = new Map(roster?.students.map((s) => [s.id, s]) ?? []);
+    // Test-class students sign in by email, so the email is their identity.
+    const testEmailOf = (s: { classLinkSourcedId?: string; email?: string }) =>
+      isTestRoster && !s.classLinkSourcedId && s.email?.trim()
+        ? s.email.trim().toLowerCase()
+        : null;
     return pendingImport.groups.map((group, index) => {
       const students = group.studentIds
         .map((id) => byId.get(id))
@@ -86,12 +94,22 @@ export const ProjectSetupGroupsModal: React.FC<
         sourcedIds: students
           .map((s) => s.classLinkSourcedId)
           .filter((id): id is string => Boolean(id)),
+        testEmails: students
+          .map(testEmailOf)
+          .filter((email): email is string => Boolean(email)),
         unresolvable: students
-          .filter((s) => !s.classLinkSourcedId)
+          .filter((s) => !s.classLinkSourcedId && !testEmailOf(s))
           .map((s) => `${s.firstName} ${s.lastName}`.trim()),
       };
     });
-  }, [carryNames, groupsInClass, pendingImport, roster?.students, usingPush]);
+  }, [
+    carryNames,
+    groupsInClass,
+    isTestRoster,
+    pendingImport,
+    roster?.students,
+    usingPush,
+  ]);
 
   const unresolvable = resolved.flatMap((g) => g.unresolvable);
   const count = usingPush ? resolved.length : manualCount;
@@ -106,6 +124,9 @@ export const ProjectSetupGroupsModal: React.FC<
           classId,
           order: groupsInClass + group.order,
           classLinkSourcedIds: group.sourcedIds,
+          ...(group.testEmails.length > 0
+            ? { testEmails: group.testEmails }
+            : {}),
         }))
       : Array.from({ length: manualCount }, (_, index) => ({
           id: crypto.randomUUID(),
@@ -190,7 +211,7 @@ export const ProjectSetupGroupsModal: React.FC<
           )}
         </div>
 
-        {roster && !roster.classlinkClassId && (
+        {roster && !roster.classlinkClassId && !roster.testClassId && (
           <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
             {roster.name} is a hand-built roster, so students here have no
             district account to sign in with. These groups track as a board you
@@ -211,8 +232,10 @@ export const ProjectSetupGroupsModal: React.FC<
                 >
                   <span className="font-semibold">{group.name}</span>
                   <span className="text-xs text-slate-500">
-                    {group.sourcedIds.length} student
-                    {group.sourcedIds.length === 1 ? '' : 's'}
+                    {group.sourcedIds.length + group.testEmails.length} student
+                    {group.sourcedIds.length + group.testEmails.length === 1
+                      ? ''
+                      : 's'}
                   </span>
                 </li>
               ))}

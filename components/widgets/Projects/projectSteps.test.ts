@@ -161,6 +161,13 @@ describe('projectClassIdFor', () => {
     expect(projectClassIdFor({ id: 'roster-1' })).toBe('local:roster-1');
   });
 
+  // A test-class sign-in carries the slug as its class claim.
+  it('uses the test class when the roster came from one', () => {
+    expect(
+      projectClassIdFor({ id: 'roster-1', testClassId: 'mock-class' })
+    ).toBe('mock-class');
+  });
+
   it('treats a blank ClassLink id as no ClassLink class', () => {
     expect(projectClassIdFor({ id: 'roster-1', classlinkClassId: '  ' })).toBe(
       'local:roster-1'

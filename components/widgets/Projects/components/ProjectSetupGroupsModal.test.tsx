@@ -99,6 +99,35 @@ describe('ProjectSetupGroupsModal', () => {
     expect(entries[1].classLinkSourcedIds).toEqual([]);
   });
 
+  it('files a test-class push under the test class, members by email', async () => {
+    const testRoster = {
+      id: 'roster-3',
+      name: 'Mock class',
+      testClassId: 'mock-class',
+      students: [
+        { id: 't1', firstName: 'Kid', lastName: 'One', email: 'Kid.One@x.org' },
+        { id: 't2', firstName: 'Kid', lastName: 'Two' },
+      ],
+    } as unknown as ClassRoster;
+    const onCommit = renderModal({
+      rosters: [testRoster],
+      pendingImport: {
+        rosterId: 'roster-3',
+        at: 1,
+        groups: [{ name: 'Team A', studentIds: ['t1', 't2'] }],
+      },
+    });
+    expect(screen.queryByText(/hand-built roster/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Kid Two/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Add 1 group' }));
+
+    await waitFor(() => expect(onCommit).toHaveBeenCalledOnce());
+    const [entry] = committed(onCommit);
+    expect(entry.classId).toBe('mock-class');
+    expect(entry.classLinkSourcedIds).toEqual([]);
+    expect(entry.testEmails).toEqual(['kid.one@x.org']);
+  });
+
   it('names a student with no district account rather than dropping them silently', () => {
     renderModal({ pendingImport: pending });
     expect(screen.getByText(/Cy N/)).toBeInTheDocument();

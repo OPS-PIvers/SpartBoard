@@ -85,14 +85,19 @@ export function sortGroupsForBoard<
   });
 }
 
-/** D6 — no ClassLink class means `local:<rosterId>`, which no student claim matches. */
+/** D6 — no ClassLink or test class means `local:<rosterId>`, which no student claim matches. */
 export function projectClassIdFor(
-  roster: { id: string; classlinkClassId?: string } | undefined
+  roster:
+    | { id: string; classlinkClassId?: string; testClassId?: string }
+    | undefined
 ): string | null {
   if (!roster) return null;
   // Empty string, not just undefined: that is the shape a hand-built roster has.
   const classlink = roster.classlinkClassId?.trim() ?? '';
-  return classlink.length > 0 ? classlink : `local:${roster.id}`;
+  if (classlink.length > 0) return classlink;
+  // A test-class student's sign-in claim carries the test class slug.
+  const testClass = roster.testClassId?.trim() ?? '';
+  return testClass.length > 0 ? testClass : `local:${roster.id}`;
 }
 
 /** D14 — the board renders only the groups in the active roster's class. */

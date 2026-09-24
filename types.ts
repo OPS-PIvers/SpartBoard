@@ -7915,6 +7915,8 @@ export interface ProjectGroupImportEntry {
   classId: string;
   order: number;
   classLinkSourcedIds: string[];
+  /** Test-class members, who have no sourcedId; the server checks each against its test class. */
+  testEmails?: string[];
 }
 
 /**

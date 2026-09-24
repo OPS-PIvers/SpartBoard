@@ -33,6 +33,9 @@ vi.mock('./functionsInit', () => ({}));
 
 vi.mock('./secrets', () => ({
   STUDENT_PSEUDONYM_HMAC_SECRET: { value: () => h.hmacSecret },
+  CLASSLINK_CLIENT_ID: { value: () => '' },
+  CLASSLINK_CLIENT_SECRET: { value: () => '' },
+  CLASSLINK_TENANT_URL: { value: () => '' },
 }));
 
 vi.mock('firebase-functions/v2/https', () => {
@@ -58,6 +61,7 @@ vi.mock('firebase-admin', () => {
       id: path.split('/').pop(),
       exists: data !== undefined,
       data: () => data,
+      get: (field: string) => data?.[field],
     };
   };
   const docRef = (path: string): any => ({
@@ -68,8 +72,23 @@ vi.mock('firebase-admin', () => {
   const collRef = (path: string): any => ({
     doc: (id: string) => docRef(`${path}/${id}`),
   });
+  // The org lookup behind the test-class gate: domain '@school.org' → 'org-1'.
+  const domainsQuery = (domain: string): any => ({
+    where: (_f: string, _op: string, value: string) =>
+      value === 'verified' ? domainsQuery(domain) : domainsQuery(value),
+    limit: () => domainsQuery(domain),
+    get: async () =>
+      domain === '@school.org'
+        ? {
+            empty: false,
+            docs: [{ ref: { parent: { parent: { id: 'org-1' } } } }],
+          }
+        : { empty: true, docs: [] },
+  });
   const db: any = {
     collection: (name: string) => collRef(name),
+    doc: (path: string) => docRef(path),
+    collectionGroup: () => domainsQuery(''),
     getAll: async (...refs: any[]) => refs.map((r) => snapFor(r._path)),
     batch: () => ({
       set: (ref: any, data: any) =>
@@ -102,6 +121,13 @@ const call = (data: unknown, auth: unknown = { uid: TEACHER, token: {} }) =>
     data,
     auth,
   });
+
+const TEST_CLASS_PATH = 'organizations/org-1/testClasses/mock-class';
+const ADMIN_AUTH = { uid: TEACHER, token: { email: 'paul@school.org' } };
+const expectedTestUid = (email: string) =>
+  CryptoJS.HmacSHA256(`sid:test:${email}`, h.hmacSecret).toString(
+    CryptoJS.enc.Hex
+  );
 
 const expectedUid = (sourcedId: string) =>
   CryptoJS.HmacSHA256(`sid:${sourcedId}`, h.hmacSecret).toString(
@@ -311,5 +337,74 @@ describe('commitProjectGroupsV1 writes', () => {
     await expect(
       call({ runId: RUN_ID, groups: [groupEntry()] })
     ).rejects.toMatchObject({ code: 'internal' });
+  });
+});
+
+describe('commitProjectGroupsV1 test-class members', () => {
+  const testGroup = (overrides: Record<string, unknown> = {}) =>
+    groupEntry({
+      classId: 'mock-class',
+      classLinkSourcedIds: [],
+      testEmails: ['Kid.One@school.org', 'kid.two@school.org'],
+      ...overrides,
+    });
+
+  beforeEach(() => {
+    h.docStore.set(TEST_CLASS_PATH, {
+      memberEmails: ['kid.one@school.org', 'kid.two@school.org'],
+    });
+    h.docStore.set('organizations/org-1/members/paul@school.org', {
+      roleId: 'domain_admin',
+    });
+  });
+
+  it('mints the uid a test-class sign-in carries', async () => {
+    const result = await call(
+      { runId: RUN_ID, groups: [testGroup()] },
+      ADMIN_AUTH
+    );
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([
+      expectedTestUid('kid.one@school.org'),
+      expectedTestUid('kid.two@school.org'),
+    ]);
+    expect(result.membersResolved).toBe(2);
+    expect(result.classIds).toEqual(['mock-class']);
+  });
+
+  it('drops an email that is not in the named test class', async () => {
+    await call(
+      {
+        runId: RUN_ID,
+        groups: [testGroup({ testEmails: ['kid.one@school.org', 'x@y.org'] })],
+      },
+      ADMIN_AUTH
+    );
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([
+      expectedTestUid('kid.one@school.org'),
+    ]);
+  });
+
+  it('places no test students for a caller who does not administer test classes', async () => {
+    h.docStore.delete('organizations/org-1/members/paul@school.org');
+    const result = await call(
+      { runId: RUN_ID, groups: [testGroup()] },
+      ADMIN_AUTH
+    );
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).memberUids).toEqual([]);
+    expect(result.membersResolved).toBe(0);
+  });
+
+  it('counts test emails toward the member ceiling', async () => {
+    const testEmails = Array.from({ length: 21 }, (_, i) => `k${i}@school.org`);
+    const classLinkSourcedIds = Array.from({ length: 20 }, (_, i) => `S${i}`);
+    await expect(
+      call(
+        {
+          runId: RUN_ID,
+          groups: [testGroup({ testEmails, classLinkSourcedIds })],
+        },
+        ADMIN_AUTH
+      )
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
   });
 });
