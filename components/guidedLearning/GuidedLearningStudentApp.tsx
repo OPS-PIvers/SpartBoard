@@ -33,6 +33,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import { useDialog } from '@/context/useDialog';
 import { useGuidedLearningSessionStudent } from '@/hooks/useGuidedLearningSession';
 import { useGuidedLearningProgress } from '@/hooks/useGuidedLearningProgress';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
@@ -206,6 +207,10 @@ const StudentExperience: React.FC<{
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
   const [submitting, setSubmitting] = useState(false);
   const [submitFailed, setSubmitFailed] = useState(false);
+  // v2: the learner has moved on from the last step; the end card shows until dismissed.
+  const [reachedEnd, setReachedEnd] = useState(false);
+  const [endCardOpen, setEndCardOpen] = useState(false);
+  const { showConfirm } = useDialog();
   // Realtime listener on /guided_learning_sessions/{id}/responses/{uid}
   // so a returning student gets their published score + per-step
   // `isCorrect` flags, and a teacher unpublish (which clears
@@ -420,6 +425,32 @@ const StudentExperience: React.FC<{
     }
   };
 
+  // v2 asks first when the student submits early or with questions unanswered.
+  const handleDone = async () => {
+    if (!session || submitting) return;
+    if (session.playerV2 === true && !submitFailed) {
+      const answered = new Set(answersRef.current.map((a) => a.stepId));
+      const unanswered = session.publicSteps.filter(
+        (s) => s.interactionType === 'question' && !answered.has(s.id)
+      ).length;
+      const early = session.mode !== 'explore' && !reachedEnd;
+      if (unanswered > 0 || early) {
+        const ok = await showConfirm(
+          unanswered > 0
+            ? t('glStudent.confirmSubmit.unanswered', { count: unanswered })
+            : t('glStudent.confirmSubmit.early'),
+          {
+            title: t('glStudent.confirmSubmit.title'),
+            confirmLabel: t('glStudent.confirmSubmit.submit'),
+            cancelLabel: t('glStudent.confirmSubmit.keepGoing'),
+          }
+        );
+        if (!ok) return;
+      }
+    }
+    await handleComplete();
+  };
+
   const { onStepEvent } = useGuidedLearningProgress({
     sessionId,
     uid: anonymousUid,
@@ -533,6 +564,8 @@ const StudentExperience: React.FC<{
           setAnswers([]);
           setScore(null);
           setCompleted(false);
+          setReachedEnd(false);
+          setEndCardOpen(false);
           setReplayKey((k) => k + 1);
           startedAt.current = Date.now();
         }}
@@ -615,7 +648,18 @@ const StudentExperience: React.FC<{
           playerV2={session.playerV2 === true}
           onStepEvent={onStepEvent}
           autoPlay
+          onReachedEnd={() => {
+            setReachedEnd(true);
+            setEndCardOpen(true);
+          }}
         />
+        {endCardOpen && !periodPaused && session.playerV2 === true && (
+          <FinishedCard
+            submitting={submitting}
+            onSubmit={() => void handleDone()}
+            onBack={() => setEndCardOpen(false)}
+          />
+        )}
         {periodPaused && <GuidedLearningPeriodPausedOverlay />}
         <div
           hidden={periodPaused}
@@ -638,7 +682,7 @@ const StudentExperience: React.FC<{
             </p>
           )}
           <button
-            onClick={() => void handleComplete()}
+            onClick={() => void handleDone()}
             disabled={submitting}
             className="px-4 py-2 bg-emerald-600/95 hover:bg-emerald-500 disabled:opacity-70 text-white text-sm rounded-xl transition-colors font-medium shadow-xl border border-emerald-400/30 backdrop-blur-sm"
           >
@@ -655,6 +699,57 @@ const StudentExperience: React.FC<{
 };
 
 // ─── Sub-screens ──────────────────────────────────────────────────────────────
+
+const FinishedCard: React.FC<{
+  submitting: boolean;
+  onSubmit: () => void;
+  onBack: () => void;
+}> = ({ submitting, onSubmit, onBack }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/60 p-4">
+      <div
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby="gl-finished-title"
+        className="w-full max-w-sm rounded-2xl border border-white/15 bg-slate-900/95 p-6 text-center shadow-2xl backdrop-blur-md"
+      >
+        <CheckCircle2
+          className="mx-auto mb-3 h-10 w-10 text-emerald-400"
+          aria-hidden="true"
+        />
+        <h2 id="gl-finished-title" className="text-xl font-bold text-white">
+          {t('glStudent.finished.title')}
+        </h2>
+        <p className="mt-1 text-sm text-slate-300">
+          {t('glStudent.finished.body')}
+        </p>
+        <div className="mt-5 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={submitting}
+            className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+          >
+            {submitting
+              ? t('glStudent.submitting')
+              : t('glStudent.finished.submit')}
+            {!submitting && (
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-xl px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+          >
+            {t('glStudent.finished.back')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const StartScreen: React.FC<{
   session: GuidedLearningSession;

@@ -3494,7 +3494,21 @@
   "glStudent": {
     "submitting": "Envoi…",
     "submitFailed": "Impossible d'envoyer. Vos réponses sont toujours là.",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "finished": {
+      "title": "Vous avez terminé",
+      "body": "Envoyez votre travail quand vous êtes prêt.",
+      "submit": "Envoyer",
+      "back": "Retour"
+    },
+    "confirmSubmit": {
+      "title": "Envoyer maintenant ?",
+      "unanswered_one": "{{count}} question sans réponse.",
+      "unanswered_other": "{{count}} questions sans réponse.",
+      "early": "Vous n'êtes pas encore arrivé à la fin.",
+      "submit": "Envoyer",
+      "keepGoing": "Continuer"
+    }
   },
   "glResults": {
     "loadFailedTitle": "Impossible d'ouvrir ces résultats",

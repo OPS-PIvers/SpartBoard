@@ -335,3 +335,36 @@ describe('GuidedLearningPlayer Watch / Try', () => {
     expect(slider).toHaveAttribute('aria-valuenow', '2');
   });
 });
+
+describe('GuidedLearningPlayer reaching the end', () => {
+  it('finishes when Next is pressed on the last step (v2)', () => {
+    const onReachedEnd = vi.fn();
+    renderPlayer(makeSet('structured'), { onReachedEnd });
+    const next = () => screen.getByRole('button', { name: /next step/i });
+    fireEvent.click(next());
+    expect(onReachedEnd).not.toHaveBeenCalled();
+    expect(next()).toBeEnabled();
+    fireEvent.click(next());
+    expect(onReachedEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('finishes when a guided run auto-advances off the last step', () => {
+    vi.useFakeTimers();
+    const onReachedEnd = vi.fn();
+    renderPlayer(
+      { ...makeSet('guided'), steps: [{ ...target, cursor: { hide: true } }] },
+      { autoPlay: true, onReachedEnd }
+    );
+    tick(3100);
+    expect(onReachedEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('never finishes from the player in v1', () => {
+    const onReachedEnd = vi.fn();
+    renderPlayer(makeSet('structured'), { onReachedEnd, playerV2: false });
+    const next = screen.getByRole('button', { name: /next step/i });
+    fireEvent.click(next);
+    expect(next).toBeDisabled();
+    expect(onReachedEnd).not.toHaveBeenCalled();
+  });
+});

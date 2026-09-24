@@ -3494,7 +3494,21 @@
   "glStudent": {
     "submitting": "Wird gesendet…",
     "submitFailed": "Senden fehlgeschlagen. Deine Antworten sind noch da.",
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "finished": {
+      "title": "Du bist fertig",
+      "body": "Gib deine Arbeit ab, wenn du bereit bist.",
+      "submit": "Abgeben",
+      "back": "Zurück"
+    },
+    "confirmSubmit": {
+      "title": "Jetzt abgeben?",
+      "unanswered_one": "{{count}} Frage unbeantwortet.",
+      "unanswered_other": "{{count}} Fragen unbeantwortet.",
+      "early": "Du bist noch nicht am Ende.",
+      "submit": "Abgeben",
+      "keepGoing": "Weitermachen"
+    }
   },
   "glResults": {
     "loadFailedTitle": "Diese Ergebnisse konnten nicht geöffnet werden",

@@ -3494,7 +3494,21 @@
   "glStudent": {
     "submitting": "Enviando…",
     "submitFailed": "No se pudo enviar. Tus respuestas siguen aquí.",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "finished": {
+      "title": "Has terminado",
+      "body": "Envía tu trabajo cuando estés listo.",
+      "submit": "Enviar",
+      "back": "Volver"
+    },
+    "confirmSubmit": {
+      "title": "¿Enviar ahora?",
+      "unanswered_one": "{{count}} pregunta sin responder.",
+      "unanswered_other": "{{count}} preguntas sin responder.",
+      "early": "Todavía no has llegado al final.",
+      "submit": "Enviar",
+      "keepGoing": "Seguir"
+    }
   },
   "glResults": {
     "loadFailedTitle": "No se pudieron abrir estos resultados",

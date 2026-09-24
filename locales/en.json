@@ -4651,7 +4651,21 @@
   "glStudent": {
     "submitting": "Submitting…",
     "submitFailed": "Couldn't submit. Your answers are still here.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "finished": {
+      "title": "You're finished",
+      "body": "Submit your work when you're ready.",
+      "submit": "Submit",
+      "back": "Go back"
+    },
+    "confirmSubmit": {
+      "title": "Submit now?",
+      "unanswered_one": "{{count}} question unanswered.",
+      "unanswered_other": "{{count}} questions unanswered.",
+      "early": "You haven't reached the end yet.",
+      "submit": "Submit",
+      "keepGoing": "Keep going"
+    }
   },
   "glResults": {
     "loadFailedTitle": "Couldn't open these results",

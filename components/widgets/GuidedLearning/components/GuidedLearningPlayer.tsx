@@ -80,6 +80,8 @@ interface Props {
   initialAnsweredStepIds?: readonly string[];
   /** v2 guided sets start playing on mount (the student app, after Start). */
   autoPlay?: boolean;
+  /** v2: moving on from the last step (timer, target, Next or Continue) finishes the run. */
+  onReachedEnd?: () => void;
 }
 
 export const GuidedLearningPlayer: React.FC<Props> = ({
@@ -93,6 +95,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   startStepId,
   initialAnsweredStepIds,
   autoPlay = false,
+  onReachedEnd,
 }) => {
   const { t } = useTranslation();
   const mode: GuidedLearningMode = set.mode;
@@ -365,6 +368,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     setDoneIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
   }, []);
 
+  // A ref, so a new parent callback never restarts the step timer.
+  const onReachedEndRef = useRef(onReachedEnd);
+  // eslint-disable-next-line react-hooks/refs
+  onReachedEndRef.current = onReachedEnd;
   const goNext = useCallback(() => {
     if (steps.length === 0) return;
     // Already on the final step — nothing to advance to. Bail out instead of
@@ -373,7 +380,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     // and ArrowRight can all reach this once the last step is done).
     const leaving = steps[currentIdx];
     if (leaving) markDone(leaving.id);
-    if (currentIdx >= steps.length - 1) return;
+    if (currentIdx >= steps.length - 1) {
+      if (playerV2) onReachedEndRef.current?.();
+      return;
+    }
     // New step starts with a fresh in-step timer/progress (dot-jump semantics).
     progressRef.current = 0;
     setProgress(0);
@@ -382,7 +392,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       setActiveStepId(steps[next]?.id ?? null);
       return next;
     });
-  }, [steps, currentIdx, markDone]);
+  }, [steps, currentIdx, markDone, playerV2]);
 
   const goNextRef = useRef(goNext);
   // eslint-disable-next-line react-hooks/refs
@@ -636,6 +646,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       ? 'guided'
       : 'structured';
 
+  // v2 with a finish handler: Next on the last step finishes.
+  const nextDisabled =
+    currentIdx === steps.length - 1 && !(playerV2 && onReachedEnd);
+
   const jumpTo = (i: number) => {
     progressRef.current = 0;
     setProgress(0);
@@ -888,7 +902,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
               )}
               <button
                 onClick={goNext}
-                disabled={currentIdx === steps.length - 1}
+                disabled={nextDisabled}
                 aria-label="Next step"
                 className="flex items-center justify-center rounded-full bg-white/10 border border-white/15 hover:bg-white/20 disabled:opacity-40 text-white transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
                 style={{
@@ -992,7 +1006,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
               )}
               <button
                 onClick={goNext}
-                disabled={currentIdx === steps.length - 1}
+                disabled={nextDisabled}
                 aria-label="Next step"
                 className="flex items-center justify-center rounded-full bg-white/10 border border-white/15 hover:bg-white/20 disabled:opacity-40 text-white transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
                 style={{
