@@ -33,6 +33,7 @@ import { narrationDeletionRef } from '../utils/narration';
 import {
   getMediaKind,
   prepareImageForUpload,
+  slideFileIssue,
   validateSlideFile,
   videoExtensionForMime,
   type GuidedLearningMediaKind,
@@ -73,6 +74,19 @@ export interface SlideUploadProgress {
   percent: number | null;
 }
 
+/** A slide that couldn't be added, as data the Studio translates into a toast. */
+export type SlideUploadIssue =
+  | { code: 'unsupported'; fileName: string }
+  | {
+      code: 'tooLarge';
+      fileName: string;
+      kind: GuidedLearningMediaKind;
+      maxMb: number;
+    }
+  | { code: 'uploadFailed'; fileName: string }
+  | { code: 'noClipboardImage' }
+  | { code: 'clipboardBlocked' };
+
 /** Canvas container size + per-slide-URL natural dims, written by the canvas as slides render. */
 export interface GuidedLearningCanvasMeasurements {
   containerWidth: number;
@@ -88,6 +102,8 @@ interface UseGuidedLearningEditorStateProps {
   onFolderChange?: (folderId: string | null) => void;
   /** Studio: new steps go after the slide's last step, and the canvas follows the selected step. */
   setWideTimeline?: boolean;
+  /** Called with each batch of slides that couldn't be added. */
+  onUploadIssues?: (issues: SlideUploadIssue[]) => void;
 }
 
 export interface GuidedLearningEditorController extends EditorHistoryApi {
@@ -216,8 +232,11 @@ export function useGuidedLearningEditorState({
   folderId,
   onFolderChange,
   setWideTimeline = false,
+  onUploadIssues,
 }: UseGuidedLearningEditorStateProps): GuidedLearningEditorController {
   const { user } = useAuth();
+  const onUploadIssuesRef = useRef(onUploadIssues);
+  onUploadIssuesRef.current = onUploadIssues;
   const {
     uploading,
     uploadGuidedLearningMedia,
@@ -429,9 +448,12 @@ export function useGuidedLearningEditorState({
       setImageError('');
 
       const errors: string[] = [];
+      const issues: SlideUploadIssue[] = [];
       const accepted = files.filter((file) => {
         const error = validateSlideFile(file);
+        const issue = slideFileIssue(file);
         if (error) errors.push(error);
+        if (issue) issues.push({ ...issue, fileName: file.name });
         return !error;
       });
 
@@ -463,6 +485,8 @@ export function useGuidedLearningEditorState({
               if (url) appendSlides([url], ['image']);
             }
           } catch (err) {
+            console.error('[GuidedLearningEditor] Slide upload failed:', err);
+            issues.push({ code: 'uploadFailed', fileName: file.name });
             errors.push(
               err instanceof Error
                 ? `"${file.name}": ${err.message}`
@@ -474,6 +498,7 @@ export function useGuidedLearningEditorState({
         setUploadProgress(null);
       }
       if (errors.length > 0) setImageError(errors.join(' '));
+      if (issues.length > 0) onUploadIssuesRef.current?.(issues);
     },
     [
       user,
@@ -498,10 +523,12 @@ export function useGuidedLearningEditorState({
         }
       }
       setImageError('No image found in clipboard.');
+      onUploadIssuesRef.current?.([{ code: 'noClipboardImage' }]);
     } catch {
       setImageError(
         'Could not read clipboard. Try Ctrl+V with the editor focused, or use Add media instead.'
       );
+      onUploadIssuesRef.current?.([{ code: 'clipboardBlocked' }]);
     }
   }, [uploadFromFiles]);
 

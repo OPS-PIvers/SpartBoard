@@ -1549,6 +1549,14 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               onClose={closeEditor}
               onSave={handleSave}
               onAiGenerated={handleEditorAiGenerated}
+              onImport={
+                isDriveConnected
+                  ? () => {
+                      importWizardClosedRef.current = false;
+                      setShowImportWizard(true);
+                    }
+                  : undefined
+              }
               onOpenClassic={(latest) => {
                 setEditingSet(latest);
                 setClassicEditor(true);

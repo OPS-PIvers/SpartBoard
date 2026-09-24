@@ -31,6 +31,7 @@ import type { GuidedLearningEditorController } from '../useGuidedLearningEditorS
 import { useDialog } from '@/context/useDialog';
 import { StudioMenu } from './StudioMenu';
 import { modShortcutLabel } from './useStudioShortcuts';
+import { useFileDrop } from './useFileDrop';
 
 interface SlideItem {
   id: string;
@@ -206,7 +207,6 @@ type FilmstripState = Pick<
   | 'uploadFromFiles'
   | 'uploadFromClipboard'
   | 'addCapturedMedia'
-  | 'imageError'
 >;
 
 interface FilmstripBodyProps extends FilmstripState {
@@ -240,14 +240,12 @@ const FilmstripBody = React.memo(function FilmstripBody({
   uploadFromFiles,
   uploadFromClipboard,
   addCapturedMedia,
-  imageError,
   stepCounts,
 }: FilmstripBodyProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [captureMode, setCaptureMode] = useState<CaptureMode | null>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const dragDepthRef = useRef(0);
+  const drop = useFileDrop((files) => void uploadFromFiles(files));
 
   // Slide URLs can repeat, so items are keyed by position and reordered by index.
   const slides = useMemo<SlideItem[]>(
@@ -331,27 +329,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
     <nav
       aria-label={t('glStudio.slides')}
       className="relative flex min-h-0 flex-col border-r border-slate-200 bg-white"
-      onDragEnter={(e) => {
-        if (!e.dataTransfer.types.includes('Files')) return;
-        e.preventDefault();
-        dragDepthRef.current += 1;
-        setDragActive(true);
-      }}
-      onDragLeave={(e) => {
-        e.preventDefault();
-        dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-        if (dragDepthRef.current === 0) setDragActive(false);
-      }}
-      onDragOver={(e) => {
-        if (e.dataTransfer.types.includes('Files')) e.preventDefault();
-      }}
-      onDrop={(e) => {
-        e.preventDefault();
-        dragDepthRef.current = 0;
-        setDragActive(false);
-        const files = Array.from(e.dataTransfer.files ?? []);
-        if (files.length > 0) void uploadFromFiles(files);
-      }}
+      {...drop.handlers}
     >
       <div className="flex shrink-0 items-baseline justify-between px-3 pb-2 pt-3">
         <h2 className="text-xxs font-bold uppercase tracking-wider text-slate-500">
@@ -388,9 +366,6 @@ const FilmstripBody = React.memo(function FilmstripBody({
             </span>
           </p>
         )}
-        {imageError && (
-          <p className="mt-2 text-xxs font-medium text-red-600">{imageError}</p>
-        )}
       </div>
       <div className="flex shrink-0 flex-col gap-1.5 border-t border-slate-200 p-3">
         <input
@@ -422,7 +397,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
           {t('glStudio.paste')}
         </button>
       </div>
-      {dragActive && (
+      {drop.active && (
         <div className="pointer-events-none absolute inset-1 flex items-center justify-center rounded-xl border-2 border-dashed border-brand-blue-primary bg-brand-blue-primary/10 p-3 text-center text-xs font-bold text-brand-blue-primary">
           {t('glStudio.dropToAdd')}
         </div>
@@ -492,7 +467,6 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({
       uploadFromFiles={state.uploadFromFiles}
       uploadFromClipboard={state.uploadFromClipboard}
       addCapturedMedia={state.addCapturedMedia}
-      imageError={state.imageError}
       stepCounts={stepCounts}
     />
   );

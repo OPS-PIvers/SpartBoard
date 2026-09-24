@@ -19,6 +19,7 @@ import {
   Play,
   Redo2,
   Undo2,
+  Upload,
 } from 'lucide-react';
 import type {
   GuidedLearningSet,
@@ -30,11 +31,18 @@ import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { useAutosave } from '@/hooks/useAutosave';
-import { requestStartTour } from '@/components/tours/tourState';
+import {
+  requestRecordTour,
+  requestStartTour,
+} from '@/components/tours/tourState';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { EditorHeader } from '../EditorHeader';
 import { GuidedLearningAIGenerator } from '../GuidedLearningAIGenerator';
-import { useGuidedLearningEditorState } from '../useGuidedLearningEditorState';
+import {
+  useGuidedLearningEditorState,
+  type SlideUploadIssue,
+} from '../useGuidedLearningEditorState';
+import { ScreenCaptureModal } from '../ScreenCaptureModal';
 import { useSetDraftPersistence } from '../useSetDraftPersistence';
 import type {
   GuidedLearningLatestSet,
@@ -42,6 +50,9 @@ import type {
 } from '../../utils/saveConflict';
 import type { DevicePreset } from '../../types/stage';
 import { StudioCanvas } from './StudioCanvas';
+import { StudioStartHub } from './StudioStartHub';
+import { useFileDrop } from './useFileDrop';
+import { uploadIssueMessage } from './uploadIssueMessage';
 import { useCanvasTools } from './useCanvasTools';
 import { StudioPlayMode } from './StudioPlayMode';
 import { StudioFilmstrip } from './StudioFilmstrip';
@@ -57,6 +68,8 @@ import {
 } from './useStudioShortcuts';
 import { stepClipboardIsLatest } from './stepClipboard';
 import { SetTooLargeError } from '@/utils/firestoreDocSize';
+
+const MAX_ISSUE_TOASTS = 3;
 
 export interface GuidedLearningStudioProps {
   set: GuidedLearningSet;
@@ -77,6 +90,8 @@ export interface GuidedLearningStudioProps {
   initialStepId?: string;
   /** Recorder-drafted step text, flagged in the properties panel until edited. */
   aiDrafts?: ReadonlyMap<string, { label: string; text: string }>;
+  /** Closes the Studio and opens the .gl.json import; offered on an empty set. */
+  onImport?: () => void;
 }
 
 /** Full-screen Guided Learning editor whose canvas is the real player stage. */
@@ -126,6 +141,7 @@ const StudioSession: React.FC<
   onFolderChange,
   initialStepId,
   aiDrafts,
+  onImport,
   loadedUpdatedAt,
   onReloaded,
 }) => {
@@ -138,6 +154,19 @@ const StudioSession: React.FC<
   // Below 1024px the properties column is a drawer.
   const [propertiesOpen, setPropertiesOpen] = useState(false);
   const canvasRef = useRef<HTMLElement>(null);
+  const [capturing, setCapturing] = useState(false);
+
+  const toastUploadIssues = useCallback(
+    (issues: SlideUploadIssue[]) => {
+      const shown = issues.slice(0, MAX_ISSUE_TOASTS);
+      for (const issue of shown)
+        addToast?.(uploadIssueMessage(t, issue), 'error');
+      const rest = issues.length - shown.length;
+      if (rest > 0)
+        addToast?.(t('glStudio.uploadMoreIssues', { count: rest }), 'error');
+    },
+    [addToast, t]
+  );
 
   const editorState = useGuidedLearningEditorState({
     existingSet: set,
@@ -146,6 +175,7 @@ const StudioSession: React.FC<
     folderId,
     onFolderChange,
     setWideTimeline: true,
+    onUploadIssues: toastUploadIssues,
   });
   const {
     draftToken,
@@ -209,7 +239,8 @@ const StudioSession: React.FC<
     setResolving(false);
   }, [armOverwrite, autosave]);
 
-  const requestClose = useCallback(async () => {
+  // Resolves true once the Studio has closed.
+  const requestClose = useCallback(async (): Promise<boolean> => {
     const { uploading, imageUrls, title, description, abandonUploads } =
       editorState;
     if (uploading) {
@@ -219,11 +250,11 @@ const StudioSession: React.FC<
         confirmLabel: t('glStudio.closeAnyway'),
         cancelLabel: t('glStudio.keepEditing'),
       });
-      if (!closeAnyway) return;
+      if (!closeAnyway) return false;
       abandonUploads();
-      if (imageUrls.length > 0 && !(await flushOrConfirm(true))) return;
+      if (imageUrls.length > 0 && !(await flushOrConfirm(true))) return false;
       closeEditor();
-      return;
+      return true;
     }
     if (imageUrls.length === 0 && (title.trim() || description.trim())) {
       const discard = await showConfirm(t('glStudio.emptySetBody'), {
@@ -233,10 +264,22 @@ const StudioSession: React.FC<
         cancelLabel: t('glStudio.keepEditing'),
       });
       if (discard) closeEditor();
-      return;
+      return discard;
     }
-    if (await flushOrConfirm()) closeEditor();
+    if (!(await flushOrConfirm())) return false;
+    closeEditor();
+    return true;
   }, [editorState, showConfirm, t, flushOrConfirm, closeEditor]);
+
+  // Hub targets that happen outside the Studio close it first.
+  const leaveThen = useCallback(
+    (next: () => void) => {
+      void requestClose().then((closed) => {
+        if (closed) next();
+      });
+    },
+    [requestClose]
+  );
 
   // The runner loads the saved set, so an unsaved draft never starts.
   const runLive = useCallback(async () => {
@@ -278,6 +321,7 @@ const StudioSession: React.FC<
     undoIfLatest,
     canUndo,
     canRedo,
+    clipboardStepCount,
   } = editorState;
   const canRunLive =
     !!set.isBuilding &&
@@ -497,6 +541,18 @@ const StudioSession: React.FC<
 
   const canUseAi =
     !!onAiGenerated && isAdmin === true && canAccessFeature('gemini-functions');
+  const canRecordTour = isAdmin === true && canAccessFeature('gl-live-tours');
+
+  const canvasDrop = useFileDrop(
+    (files) => void editorState.uploadFromFiles(files),
+    !playing && !readOnly
+  );
+  const pasteBlocked =
+    typeof navigator === 'undefined' || !navigator.clipboard?.read
+      ? t('glStudio.hubPasteUnsupported')
+      : clipboardStepCount > 0 && stepClipboardIsLatest()
+        ? t('glStudio.hubPasteStepsWaiting')
+        : null;
 
   const folderButtonRef = useRef<HTMLButtonElement>(null);
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
@@ -672,7 +728,12 @@ const StudioSession: React.FC<
           onDeleteSlide={deleteSlideWithUndo}
         />
         <div className="flex min-h-0 min-w-0 flex-col">
-          <main ref={canvasRef} className="min-h-0 flex-1 p-6">
+          <main
+            ref={canvasRef}
+            data-testid="gl-studio-canvas-drop"
+            className="relative min-h-0 flex-1 p-6"
+            {...canvasDrop.handlers}
+          >
             {playing ? (
               <StudioPlayMode
                 set={playing.set}
@@ -684,6 +745,19 @@ const StudioSession: React.FC<
                 }}
                 onExit={exitPlay}
               />
+            ) : imageUrls.length === 0 ? (
+              <StudioStartHub
+                onFiles={(files) => void editorState.uploadFromFiles(files)}
+                onPaste={() => void editorState.uploadFromClipboard()}
+                pasteBlocked={pasteBlocked}
+                onCapture={() => setCapturing(true)}
+                uploadProgress={editorState.uploadProgress}
+                onRecordTour={
+                  canRecordTour ? () => leaveThen(requestRecordTour) : undefined
+                }
+                onDraftWithAi={canUseAi ? () => setShowAiGen(true) : undefined}
+                onImport={onImport ? () => leaveThen(onImport) : undefined}
+              />
             ) : (
               <StudioCanvas
                 state={editorState}
@@ -691,6 +765,15 @@ const StudioSession: React.FC<
                 setId={set.id}
                 preset={preset}
               />
+            )}
+            {canvasDrop.active && (
+              <div
+                data-testid="gl-studio-drop-overlay"
+                className="pointer-events-none absolute inset-3 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-blue-primary bg-white/85 text-sm font-bold text-brand-blue-primary"
+              >
+                <Upload className="h-6 w-6" aria-hidden="true" />
+                {t('glStudio.dropToAdd')}
+              </div>
             )}
           </main>
           <StudioTimeline state={editorState} onCopyStep={copyStepWithToast} />
@@ -722,6 +805,13 @@ const StudioSession: React.FC<
           />
         </aside>
       </div>
+      {capturing && (
+        <ScreenCaptureModal
+          mode="snap"
+          onAddMedia={editorState.addCapturedMedia}
+          onClose={() => setCapturing(false)}
+        />
+      )}
       {showAiGen && canUseAi && (
         <GuidedLearningAIGenerator
           onClose={() => setShowAiGen(false)}
