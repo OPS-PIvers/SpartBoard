@@ -681,24 +681,24 @@ service cloud.firestore {
     // Only a real teacher account prints sheets, so anonymous PIN joiners are shut
     // out of their own namespace too — same posture as the session-create paths.
     match /users/{userId}/paper_batches/{batchId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId
-                         && !isStudentRoleUser()
-                         && notAnon()
-                         && notDeactivated();
+      allow read, write: if ownsUserTeacher(userId) && notAnon();
     }
 
-    // PLC Overview layout — per-user PLC dashboard bento-grid prefs. No PLC
+    // PLC Home v2 layout — per-user tile order, spotlight and seen result counts. No PLC
     // membership check needed (a non-member's doc is inert — tiles still pass the
     // PLC rule gates to read content). Per-tile enum validation is delegated to
     // usePlcOverviewLayout.ts (CEL has no .every()); blast radius is owner-only
     // and the tiles size cap below bounds doc size.
     match /users/{userId}/plc_layouts/{plcId} {
       allow read, delete: if ownsUser(userId);
-      allow write: if ownsUser(userId)
-                   && request.resource.data.keys().hasOnly(['tiles', 'updatedAt'])
-                   && request.resource.data.tiles is list
-                   && request.resource.data.tiles.size() <= 50
-                   && request.resource.data.updatedAt is int;
+      allow write: if ownsUser(userId) && plcLayoutOk(request.resource.data);
+    }
+    function plcLayoutOk(d) {
+      return d.keys().hasOnly(['tiles', 'heroTileId', 'seenCounts', 'updatedAt'])
+             && d.tiles is list && d.tiles.size() <= 50
+             && (d.get('heroTileId', null) == null || d.heroTileId is string)
+             && optMap(d, 'seenCounts') && d.get('seenCounts', {}).size() <= 200
+             && d.updatedAt is int;
     }
 
     // Per-user unread cursor for a PLC activity feed: one doc per (user, plc),

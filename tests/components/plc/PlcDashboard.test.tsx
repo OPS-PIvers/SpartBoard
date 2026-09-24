@@ -81,8 +81,12 @@ interface MockAuth {
   user: { uid: string; displayName: string; email: string } | null;
 }
 const mockUseAuth = vi.fn<() => MockAuth>();
+let mockHomeV2 = false;
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => mockUseAuth(),
+  useAuth: () => ({
+    canAccessFeature: (id: string) => id === 'plc-home-v2' && mockHomeV2,
+    ...mockUseAuth(),
+  }),
 }));
 
 // Rail sentinel: one button per visible section so we can drive a section
@@ -116,6 +120,9 @@ vi.mock('@/components/plc/PlcDashboardRail', () => ({
 // active section can be asserted without booting any Firestore hooks.
 vi.mock('@/components/plc/home/PlcHome', () => ({
   PlcHome: () => <div data-testid="section-home">Home body</div>,
+}));
+vi.mock('@/components/plc/home/PlcHomeV2', () => ({
+  PlcHomeV2: () => <div data-testid="section-home-v2">Home v2 body</div>,
 }));
 // The Docs section now renders the combined Notes & Docs surface (T4).
 vi.mock('@/components/plc/bodies/NotesDocsBody', () => ({
@@ -190,6 +197,7 @@ const fakePlc: Plc = {
 };
 
 function setUser(uid: string | null) {
+  mockHomeV2 = false;
   mockUseAuth.mockReturnValue({
     user: uid ? { uid, displayName: 'Test', email: 'test@school.edu' } : null,
   });
@@ -230,6 +238,15 @@ describe('PlcDashboard (Wave 1 — pathname-driven render/smoke)', () => {
     // but home isn't a body there — getAllByTestId guards against ambiguity).
     expect(screen.getAllByTestId('section-home').length).toBeGreaterThan(0);
     expect(screen.queryByTestId('section-settings')).not.toBeInTheDocument();
+  });
+
+  it('renders Home v2 in place of the old Home behind the plc-home-v2 flag', () => {
+    mockHomeV2 = true;
+    render(
+      <PlcDashboard plc={fakePlc} activeSection="home" onClose={vi.fn()} />
+    );
+    expect(screen.getAllByTestId('section-home-v2').length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('section-home')).not.toBeInTheDocument();
   });
 
   it('renders the section named by the activeSection prop (deep-link)', () => {

@@ -17,7 +17,7 @@
 import React, { useEffect } from 'react';
 import { render, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { collection, onSnapshot, writeBatch } from 'firebase/firestore';
+import { collection, doc, onSnapshot, writeBatch } from 'firebase/firestore';
 
 import { PlcProvider } from '@/context/PlcContext';
 import {
@@ -67,8 +67,10 @@ vi.mock('@/config/firebase', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'u-self', displayName: 'Self', email: 'self@x.edu' },
+    canAccessFeature: (id: string) => id === 'plc-home-v2' && mockHomeV2,
   }),
 }));
+let mockHomeV2 = false;
 
 // usePlcs is mounted by the provider only for its membership mutators. Mock it
 // to no-op resolvers — none of these tests exercise membership writes.
@@ -85,6 +87,7 @@ vi.mock('@/hooks/usePlcs', () => ({
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 
 const mockCollection = collection as Mock;
+const mockDoc = doc as Mock;
 const mockOnSnapshot = onSnapshot as Mock;
 
 // ---------------------------------------------------------------------------
@@ -144,6 +147,7 @@ function fakeSnap(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockHomeV2 = false;
   listeners = [];
   renderCounts.clear();
   // collection(db, ...segments) → a path-bearing ref so onSnapshot can record
@@ -256,6 +260,68 @@ describe('PlcProvider — listener dedup', () => {
     expect(subscriptionCount('docs')).toBe(0);
     expect(subscriptionCount('quizzes')).toBe(0);
     expect(subscriptionCount('video_activities')).toBe(0);
+  });
+});
+
+describe('PlcProvider — Home v2 slice gating', () => {
+  it('keeps notes, docs and meetings closed on the old Home', () => {
+    render(
+      <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="home">
+        <div />
+      </PlcProvider>
+    );
+    expect(subscriptionCount('notes')).toBe(0);
+    expect(subscriptionCount('docs')).toBe(0);
+    expect(subscriptionCount('meetings')).toBe(0);
+  });
+
+  it('opens the starter tiles slices, with meetings bounded to the newest few', () => {
+    mockHomeV2 = true;
+    mockDoc.mockImplementation((_db: unknown, ...segs: string[]) => ({
+      __path: segs.join('/'),
+    }));
+    render(
+      <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="home">
+        <div />
+      </PlcProvider>
+    );
+    // Nothing extra opens until the member's layout doc answers.
+    expect(subscriptionCount('notes')).toBe(0);
+    const layout = listeners.find((l) => l.path.includes('plc_layouts'));
+    act(() => layout?.onNext({ exists: () => false }));
+    expect(subscriptionCount('notes')).toBe(1);
+    expect(subscriptionCount('docs')).toBe(1);
+    expect(subscriptionCount('meetings')).toBe(1);
+    type Q = { __query?: { __path?: string }; constraints?: unknown[] };
+    const meetingsQuery = mockOnSnapshot.mock.calls
+      .map((call) => call[0] as Q)
+      .find((q) => q.__query?.__path?.endsWith('/meetings'));
+    expect(meetingsQuery?.constraints).toContainEqual({ __limit: 5 });
+  });
+
+  it('opens only what the saved tiles need', () => {
+    mockHomeV2 = true;
+    mockDoc.mockImplementation((_db: unknown, ...segs: string[]) => ({
+      __path: segs.join('/'),
+    }));
+    render(
+      <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="home">
+        <div />
+      </PlcProvider>
+    );
+    const layout = listeners.find((l) => l.path.includes('plc_layouts'));
+    act(() =>
+      layout?.onNext({
+        exists: () => true,
+        data: () => ({
+          tiles: [{ id: 't1', kind: 'actionsActivity' }],
+          updatedAt: 1,
+        }),
+      })
+    );
+    expect(subscriptionCount('notes')).toBe(1);
+    expect(subscriptionCount('docs')).toBe(0);
+    expect(subscriptionCount('meetings')).toBe(0);
   });
 });
 

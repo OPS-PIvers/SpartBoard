@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   collection,
   doc,
+  limit as limitTo,
   onSnapshot,
   orderBy,
   query,
@@ -81,8 +82,10 @@ function parseEntry(
  * (e.g. while the dashboard is closed).
  */
 export const usePlcAssignmentIndex = (
-  plcId: string | null
+  plcId: string | null,
+  options?: { limit?: number }
 ): UsePlcAssignmentIndexResult => {
+  const max = options?.limit;
   const { user } = useAuth();
   const [entries, setEntries] = useState<PlcAssignmentIndexEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,7 +121,9 @@ export const usePlcAssignmentIndex = (
       ASSIGNMENT_INDEX_SUBCOLLECTION
     );
     const unsub = onSnapshot(
-      query(ref, orderBy('createdAt', 'desc')),
+      max
+        ? query(ref, orderBy('createdAt', 'desc'), limitTo(max))
+        : query(ref, orderBy('createdAt', 'desc')),
       (snap) => {
         const list: PlcAssignmentIndexEntry[] = [];
         snap.forEach((d) => {
@@ -136,7 +141,7 @@ export const usePlcAssignmentIndex = (
       }
     );
     return () => unsub();
-  }, [plcId, user]);
+  }, [plcId, user, max]);
 
   return useMemo(
     () => ({ entries, loading, error }),

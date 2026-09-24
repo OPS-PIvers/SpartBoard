@@ -86,7 +86,7 @@ interface MockAuth {
 }
 const mockUseAuth = vi.fn<() => MockAuth>();
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => mockUseAuth(),
+  useAuth: () => ({ canAccessFeature: () => false, ...mockUseAuth() }),
 }));
 
 // PlcProvider pass-through sentinel: records the props it was mounted with and

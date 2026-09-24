@@ -62,6 +62,10 @@ import type {
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
 import { filterWhoIsHere } from '@/hooks/usePlcPresence';
 import type { PlcSectionId } from '@/components/plc/sections';
+import {
+  EMPTY_PLC_HOME_LAYOUT,
+  type PlcHomeLayout,
+} from '@/components/plc/home/tiles/homeLayout';
 
 /**
  * One subcollection's async state. Every heavy slice in the store wears this
@@ -159,6 +163,8 @@ export interface PlcStoreState {
    * 50 events, newest-first). Powers the unread badge + Home digest.
    */
   activity: PlcActivityEntry[];
+  /** The member's own Home v2 layout doc; listened to only on Home behind the flag. */
+  homeLayout: PlcSlice<PlcHomeLayout>;
 }
 
 /**
@@ -507,6 +513,11 @@ export function usePlcMeetingsData(): PlcSlice<PlcMeeting[]> {
   return usePlcSelector((s) => s.meetings) ?? EMPTY_MEETINGS_SLICE;
 }
 
+/** The member's Home v2 layout (tiles, spotlight, seen counts). */
+export function usePlcHomeLayout(): PlcSlice<PlcHomeLayout> {
+  return usePlcSelector((s) => s.homeLayout) ?? EMPTY_HOME_LAYOUT_SLICE;
+}
+
 /**
  * The full live presence list (every member's doc, including stale ones),
  * ordered newest-heartbeat-first. Mirrored from the provider's always-on
@@ -789,6 +800,12 @@ const EMPTY_AGGREGATES_SLICE: PlcSlice<PlcAssessmentAggregate[]> = {
 };
 const EMPTY_MEETINGS_SLICE: PlcSlice<PlcMeeting[]> = {
   data: [],
+  loading: false,
+  error: null,
+  enabled: false,
+};
+const EMPTY_HOME_LAYOUT_SLICE: PlcSlice<PlcHomeLayout> = {
+  data: EMPTY_PLC_HOME_LAYOUT,
   loading: false,
   error: null,
   enabled: false,
