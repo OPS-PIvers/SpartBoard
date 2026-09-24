@@ -33,6 +33,7 @@ export interface RubricBuilderPanelProps {
   onDetach: () => void;
   onClose: () => void;
   teacherUid: string;
+  attachLabel?: string;
 }
 
 const labelClass =
@@ -175,6 +176,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   onDetach,
   onClose,
   teacherUid,
+  attachLabel = 'Attach to question',
 }) => {
   const { rubrics, saveRubric, shareRubric, importSharedRubric } =
     useRubrics(teacherUid);
@@ -356,13 +358,19 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
     }
   };
 
+  const savedInLibrary = rubrics.find((r) => r.id === draft.id);
+
   const handleAttach = () => {
     if (errors.length > 0) return;
+    // A new rubric joins the library so other widgets can reuse it; saving first keeps the snapshot from reading as stale.
+    if (!savedInLibrary) {
+      saveRubric({ ...draft, updatedAt: Date.now() }).catch((err: unknown) =>
+        console.error('[RubricBuilderPanel] library save failed:', err)
+      );
+    }
     const attached: Rubric = { ...draft, updatedAt: Date.now() };
     onAttach(attached, attached.id);
   };
-
-  const savedInLibrary = rubrics.find((r) => r.id === draft.id);
   // Sharing copies the saved library doc, so a draft that has diverged from it
   // would silently share the stale version.
   const draftDivergedFromLibrary =
@@ -846,7 +854,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
             disabled={errors.length > 0}
             className="flex-1 px-3 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-40"
           >
-            Attach to question
+            {attachLabel}
           </button>
         </div>
         {existingSnapshot && (
