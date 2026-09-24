@@ -833,15 +833,13 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       { title: 'Reopen for selected students', confirmLabel: 'Reopen' }
     );
     if (!ok) return false;
-    let failed = 0;
-    for (const key of done) {
-      try {
-        await onReopenStudent(key);
-      } catch (err) {
-        logError('QuizResults.reopenStudent', err);
-        failed += 1;
-      }
-    }
+    // Each reopen is its own small batch, so run them side by side.
+    const outcomes = await Promise.allSettled(done.map(onReopenStudent));
+    const failed = outcomes.filter((o) => {
+      if (o.status === 'fulfilled') return false;
+      logError('QuizResults.reopenStudent', o.reason);
+      return true;
+    }).length;
     const reopened = done.length - failed;
     if (failed > 0) {
       addToast(
