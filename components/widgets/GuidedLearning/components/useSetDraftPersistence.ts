@@ -419,8 +419,15 @@ export function useSetDraftPersistence({
       welcomeMessage: _welcomeMessage,
       watchPace: _watchPace,
       hasLiveTour: _hasLiveTour,
+      slideThumbnails: _slideThumbnails,
       ...carried
     } = set;
+    const thumbs = editorState.slideThumbnails ?? set.slideThumbnails ?? {};
+    const slideThumbnails = Object.fromEntries(
+      editorState.imageUrls.flatMap((url) =>
+        thumbs[url] ? [[url, thumbs[url]] as const] : []
+      )
+    );
     return {
       // Carries imagePaths, tourSetup, helpCenter and fields a newer client added.
       ...carried,
@@ -429,6 +436,7 @@ export function useSetDraftPersistence({
       title: editorState.title.trim(),
       description: editorState.description.trim() || undefined,
       imageUrls: editorState.imageUrls,
+      ...(Object.keys(slideThumbnails).length > 0 ? { slideThumbnails } : {}),
       // Only persist kinds when at least one slide is a video — keeps
       // image-only (and legacy) sets free of the new field.
       ...(editorState.imageKinds.some((k) => k === 'video')

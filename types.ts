@@ -7131,6 +7131,10 @@ export interface GuidedLearningSet {
   /** Firebase Storage URLs for one or more activity images */
   imageUrls: string[];
   imagePaths?: string[];
+  /** Drive file ids of this personal set's slides; mirrored to the metadata doc. */
+  driveFileIds?: string[];
+  /** Slide URL → its 400px Storage thumbnail URL; slides without one use the full image. */
+  slideThumbnails?: Record<string, string>;
   /**
    * Per-slide media kind aligned by index with `imageUrls`. `'video'` slides
    * (uploaded MP4/WebM or screen recordings) render in a muted looping
@@ -7207,6 +7211,8 @@ export interface GuidedLearningSetMetadata {
   updatedAt: number;
   /** Storage paths of slides this set owns; read by the slide GC function on delete. */
   imagePaths?: string[];
+  /** Drive file ids of this set's slides; read by the client when the set is deleted. */
+  driveFileIds?: string[];
   /**
    * Optional manual sort order, written by the Library "Manual order" reorder
    * flow. Omitted for sets that have never been manually reordered.
@@ -10071,7 +10077,7 @@ export type SubShareGuidedLearningStep = Omit<
  */
 export type SubShareGuidedLearningView = Omit<
   GuidedLearningSet,
-  'steps' | 'authorUid' | 'imagePaths' | 'tourSetup'
+  'steps' | 'authorUid' | 'imagePaths' | 'driveFileIds' | 'tourSetup'
 > & {
   steps: SubShareGuidedLearningStep[];
 };

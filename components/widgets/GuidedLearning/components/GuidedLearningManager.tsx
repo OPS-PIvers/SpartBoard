@@ -48,7 +48,7 @@ import type {
   GuidedLearningSet,
   GuidedLearningSetMetadata,
 } from '@/types';
-import { pickThumbnailUrl } from '@/utils/guidedLearningMedia';
+import { pickThumbnailUrl, thumbnailUrl } from '@/utils/guidedLearningMedia';
 import { HELP_CENTER_SOURCE, isHelpCenterSet } from '../utils/helpCenterSets';
 import { LibraryShell } from '@/components/common/library/LibraryShell';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
@@ -335,7 +335,7 @@ const buildLibraryEntries = (
     description: meta.description,
     stepCount: meta.stepCount,
     mode: meta.mode,
-    imageUrl: meta.imageUrl,
+    imageUrl: thumbnailUrl(meta.imageUrl),
     updatedAt: meta.updatedAt,
     createdAt: meta.createdAt,
     order: meta.order,
@@ -888,6 +888,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         alt=""
         aria-hidden="true"
         className="h-full w-full object-cover"
+        loading="lazy"
+        decoding="async"
       />
     ) : (
       <BookOpen
@@ -1323,6 +1325,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         alt=""
         aria-hidden="true"
         className="h-full w-full object-cover"
+        loading="lazy"
+        decoding="async"
       />
     ) : (
       <BookOpen
@@ -1632,6 +1636,7 @@ const GuidedLearningPreviewPane: React.FC<{
                 alt=""
                 className="w-full rounded-lg border border-slate-200 bg-slate-100 object-cover"
                 loading="lazy"
+                decoding="async"
               />
             ) : (
               <div

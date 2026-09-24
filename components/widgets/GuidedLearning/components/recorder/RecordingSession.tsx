@@ -48,7 +48,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
   const { user } = useAuth();
   const { showConfirm } = useDialog();
   const dashboard = useContext(DashboardContext);
-  const { uploadHotspotImage } = useStorage();
+  const { uploadGuidedLearningImage } = useStorage();
   const { saveBuildingSet } = useGuidedLearning(undefined);
   const [phase, setPhase] = useState<Phase>({ kind: 'intro' });
   const [title, setTitle] = useState('');
@@ -76,6 +76,8 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
     setError(null);
     try {
       const imageUrls: string[] = [];
+      const imagePaths: string[] = [];
+      const slideThumbnails: Record<string, string> = {};
       for (let i = 0; i < frames.length; i++) {
         setBusy(
           t('glRecorder.uploading', { current: i + 1, total: frames.length })
@@ -83,9 +85,18 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
         const file = new File([frames[i]], `tour-step-${i + 1}.png`, {
           type: frames[i].type || 'image/png',
         });
-        imageUrls.push(
-          await uploadHotspotImage(user.uid, await prepareImageForUpload(file))
+        const prepared = await prepareImageForUpload(file);
+        // Recordings are district content, so they live on Storage.
+        const uploaded = await uploadGuidedLearningImage(
+          user.uid,
+          prepared,
+          prepared.name,
+          'storage'
         );
+        imageUrls.push(uploaded.url);
+        if (uploaded.storagePath) imagePaths.push(uploaded.storagePath);
+        if (uploaded.thumbnailUrl)
+          slideThumbnails[uploaded.url] = uploaded.thumbnailUrl;
       }
       setBusy(t('glRecorder.drafting'));
       const goal = title.trim();
@@ -97,6 +108,8 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
         id: newId(),
         title: goal || t('glRecorder.untitled'),
         imageUrls,
+        imagePaths,
+        slideThumbnails,
         widgets,
       });
       const drafts = new Map<string, { label: string; text: string }>();

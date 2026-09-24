@@ -29,6 +29,7 @@ import {
   MockGuidedLearningDriveService,
 } from '@/utils/mockGuidedLearningDriveService';
 import { normalizeGuidedLearningSet } from '@/components/widgets/GuidedLearning/utils/setMigration';
+import { withSlideFileRefs } from '@/components/widgets/GuidedLearning/utils/slideMedia';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
 
@@ -183,10 +184,9 @@ export const useGuidedLearning = (
     ): Promise<GuidedLearningSetMetadata> => {
       if (!userId) throw new Error('Not authenticated');
       const drive = getDriveService();
-      const updatedSet: GuidedLearningSet = normalizeGuidedLearningSet({
-        ...set,
-        updatedAt: Date.now(),
-      });
+      const updatedSet: GuidedLearningSet = withSlideFileRefs(
+        normalizeGuidedLearningSet({ ...set, updatedAt: Date.now() })
+      );
 
       const driveFileId = await drive.saveSet(updatedSet, existingDriveFileId);
 
@@ -201,9 +201,10 @@ export const useGuidedLearning = (
         createdAt: set.createdAt,
         updatedAt: updatedSet.updatedAt,
       };
-      // Mirrored so the Storage GC function can see which slides a set owns.
-      const imagePaths = (updatedSet.imagePaths ?? []).filter(Boolean);
-      if (imagePaths.length > 0) metadata.imagePaths = imagePaths;
+      // Mirrored so file cleanup can see which slides a set owns.
+      if (updatedSet.imagePaths) metadata.imagePaths = updatedSet.imagePaths;
+      if (updatedSet.driveFileIds)
+        metadata.driveFileIds = updatedSet.driveFileIds;
 
       // Merge keeps library-owned fields (folderId, order) the editor never sees.
       await setDoc(
@@ -212,6 +213,7 @@ export const useGuidedLearning = (
           ...metadata,
           description: metadata.description ?? deleteField(),
           imagePaths: metadata.imagePaths ?? deleteField(),
+          driveFileIds: metadata.driveFileIds ?? deleteField(),
         },
         { merge: true }
       );
@@ -267,16 +269,18 @@ export const useGuidedLearning = (
       const drive = getDriveService();
       const sourceData = await loadSetData(source.driveFileId);
       const now = Date.now();
-      const fresh: GuidedLearningSet = normalizeGuidedLearningSet({
-        ...sourceData,
-        id: crypto.randomUUID(),
-        title: suggestDuplicateTitle(sourceData.title || source.title),
-        createdAt: now,
-        updatedAt: now,
-        // Storage image refs are shared — see hook header doc. If
-        // teachers report stale images after a delete, switch this to a
-        // deep copy via the storage-clone helper.
-      });
+      const fresh: GuidedLearningSet = withSlideFileRefs(
+        normalizeGuidedLearningSet({
+          ...sourceData,
+          id: crypto.randomUUID(),
+          title: suggestDuplicateTitle(sourceData.title || source.title),
+          createdAt: now,
+          updatedAt: now,
+          // Storage image refs are shared — see hook header doc. If
+          // teachers report stale images after a delete, switch this to a
+          // deep copy via the storage-clone helper.
+        })
+      );
       let createdDriveFileId: string | undefined;
       try {
         createdDriveFileId = await drive.saveSet(fresh);
@@ -290,6 +294,9 @@ export const useGuidedLearning = (
           driveFileId: createdDriveFileId,
           createdAt: fresh.createdAt,
           updatedAt: fresh.updatedAt,
+          // Listed on the copy too, so cleanup keeps files the two share.
+          ...(fresh.imagePaths ? { imagePaths: fresh.imagePaths } : {}),
+          ...(fresh.driveFileIds ? { driveFileIds: fresh.driveFileIds } : {}),
           // Preserve folder placement on duplicate.
           ...(source.folderId !== undefined
             ? { folderId: source.folderId }
@@ -321,7 +328,7 @@ export const useGuidedLearning = (
     async (set: GuidedLearningSet): Promise<void> => {
       if (!isAdmin) throw new Error('Admin access required');
       const updatedSet: GuidedLearningSet = {
-        ...normalizeGuidedLearningSet(set),
+        ...withSlideFileRefs(normalizeGuidedLearningSet(set)),
         isBuilding: true,
         updatedAt: Date.now(),
       };

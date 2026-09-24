@@ -68,7 +68,10 @@ import {
   prepareImportedSet,
   rehostImportedSetImages,
 } from './utils/glTransfer';
-import { pickThumbnailUrl } from '@/utils/guidedLearningMedia';
+import {
+  pickThumbnailUrl,
+  prepareImageForUpload,
+} from '@/utils/guidedLearningMedia';
 import { SetPrefetchCache } from './utils/setPrefetchCache';
 import {
   answerKeysForSteps,
@@ -1107,10 +1110,15 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         // Image slides go to Drive (the app's primary media store); video stays in Storage.
         const result = await rehostImportedSetImages(
           set,
-          (blob, fileName) =>
-            blob.type.startsWith('image/')
-              ? uploadGuidedLearningImage(uid, blob, fileName)
-              : uploadGuidedLearningMedia(uid, blob, fileName),
+          async (blob, fileName) => {
+            if (!blob.type.startsWith('image/')) {
+              return uploadGuidedLearningMedia(uid, blob, fileName);
+            }
+            const prepared = await prepareImageForUpload(
+              new File([blob], fileName, { type: blob.type })
+            );
+            return uploadGuidedLearningImage(uid, prepared, prepared.name);
+          },
           (storagePath, driveFileId) => {
             partial.imagePaths = [...(partial.imagePaths ?? []), storagePath];
             if (driveFileId) driveFileIds.push(driveFileId);

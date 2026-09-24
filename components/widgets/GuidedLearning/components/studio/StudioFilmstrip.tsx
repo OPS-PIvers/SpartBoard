@@ -14,6 +14,7 @@ import {
 } from '@/components/common/SortableList';
 import {
   GL_MEDIA_ACCEPT,
+  thumbnailUrl,
   type GuidedLearningMediaKind,
 } from '@/utils/guidedLearningMedia';
 import { CaptureMenuButton } from '../editorShared/CaptureMenuButton';
@@ -24,6 +25,7 @@ interface SlideItem {
   id: string;
   index: number;
   url: string;
+  thumb: string;
   kind: GuidedLearningMediaKind;
 }
 
@@ -82,8 +84,10 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
           />
         ) : (
           <img
-            src={slide.url}
+            src={slide.thumb}
             alt=""
+            loading="lazy"
+            decoding="async"
             draggable={false}
             className="pointer-events-none h-full w-full object-contain"
           />
@@ -149,6 +153,7 @@ type FilmstripState = Pick<
   GuidedLearningEditorController,
   | 'imageUrls'
   | 'imageKinds'
+  | 'slideThumbnails'
   | 'currentImageIndex'
   | 'setCurrentImageIndex'
   | 'reorderImages'
@@ -177,6 +182,7 @@ const sameProps = (a: FilmstripBodyProps, b: FilmstripBodyProps) =>
 const FilmstripBody = React.memo(function FilmstripBody({
   imageUrls,
   imageKinds,
+  slideThumbnails,
   currentImageIndex,
   setCurrentImageIndex,
   reorderImages,
@@ -202,9 +208,10 @@ const FilmstripBody = React.memo(function FilmstripBody({
         id: `slide-${index}`,
         index,
         url,
+        thumb: thumbnailUrl(url, slideThumbnails),
         kind: imageKinds[index] ?? 'image',
       })),
-    [imageUrls, imageKinds]
+    [imageUrls, imageKinds, slideThumbnails]
   );
   const currentSlide = useMemo(
     () => ({ index: currentImageIndex, counts: stepCounts }),
@@ -386,6 +393,7 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({ state }) => {
     <FilmstripBody
       imageUrls={imageUrls}
       imageKinds={state.imageKinds}
+      slideThumbnails={state.slideThumbnails}
       currentImageIndex={state.currentImageIndex}
       setCurrentImageIndex={state.setCurrentImageIndex}
       reorderImages={state.reorderImages}

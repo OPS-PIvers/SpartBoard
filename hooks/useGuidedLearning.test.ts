@@ -161,3 +161,52 @@ describe('useGuidedLearning.saveSet', () => {
     expect(store.driveInstances).toBe(1);
   });
 });
+
+describe('useGuidedLearning.saveSet file refs', () => {
+  const DRIVE_A = 'https://lh3.googleusercontent.com/d/drive-a';
+  const STORAGE_B =
+    'https://firebasestorage.googleapis.com/v0/b/bkt/o/users%2Fu1%2Fhotspot_images%2F2-b.webp?alt=media&token=t';
+  const THUMB_B =
+    'https://firebasestorage.googleapis.com/v0/b/bkt/o/users%2Fu1%2Fhotspot_images%2Fthumbs%2F2-b.webp?alt=media&token=u';
+
+  it('records each Drive slide id and every Storage path, thumbnails included', async () => {
+    const { result } = renderHook(() => useGuidedLearning('u1'));
+    await act(async () => {
+      await result.current.saveSet(
+        buildSet({
+          imageUrls: [DRIVE_A, STORAGE_B],
+          slideThumbnails: { [STORAGE_B]: THUMB_B, 'gone-url': 'gone-thumb' },
+        }),
+        'drive-file-1'
+      );
+    });
+    const meta = store.docs.get(META_PATH);
+    expect(meta?.driveFileIds).toEqual(['drive-a']);
+    expect(meta?.imagePaths).toEqual([
+      'users/u1/hotspot_images/2-b.webp',
+      'users/u1/hotspot_images/thumbs/2-b.webp',
+    ]);
+    expect(store.driveSaves[0].set).toMatchObject({
+      driveFileIds: ['drive-a'],
+      slideThumbnails: { [STORAGE_B]: THUMB_B },
+    });
+    expect(meta?.imageUrl).toBe(`${DRIVE_A}=w400`);
+  });
+
+  it('keeps driveFileIds across autosaves and clears them once no Drive slide is left', async () => {
+    const { result } = renderHook(() => useGuidedLearning('u1'));
+    for (let i = 0; i < 2; i++) {
+      await act(async () => {
+        await result.current.saveSet(
+          buildSet({ imageUrls: [DRIVE_A], title: `T${i}` }),
+          'drive-file-1'
+        );
+      });
+      expect(store.docs.get(META_PATH)?.driveFileIds).toEqual(['drive-a']);
+    }
+    await act(async () => {
+      await result.current.saveSet(buildSet(), 'drive-file-1');
+    });
+    expect(store.docs.get(META_PATH)).not.toHaveProperty('driveFileIds');
+  });
+});

@@ -109,4 +109,19 @@ describe('useSetDraftPersistence.buildSavedSet', () => {
     expect(saved?.description).toBeUndefined();
     expect(saved).not.toHaveProperty('hotspotPulse');
   });
+
+  it('carries driveFileIds and saves only thumbnails of slides still in the set', () => {
+    const set = buildSet({ driveFileIds: ['drive-a'] });
+    const saved = build(set, {
+      imageUrls: ['https://example.com/a.png', 'https://example.com/new.png'],
+      slideThumbnails: {
+        'https://example.com/b.png': 'https://example.com/b-thumb.webp',
+        'https://example.com/new.png': 'https://example.com/new-thumb.webp',
+      },
+    });
+    expect(saved?.driveFileIds).toEqual(['drive-a']);
+    expect(saved?.slideThumbnails).toEqual({
+      'https://example.com/new.png': 'https://example.com/new-thumb.webp',
+    });
+  });
 });

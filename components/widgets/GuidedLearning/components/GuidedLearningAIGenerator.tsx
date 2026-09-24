@@ -40,6 +40,7 @@ import {
   PickedDriveImage,
 } from '@/components/common/DriveImagePicker';
 import { blobToBase64 } from '@/utils/fileEncoding';
+import { prepareImageForUpload } from '@/utils/guidedLearningMedia';
 import { Z_INDEX } from '@/config/zIndex';
 
 interface Props {
@@ -50,6 +51,7 @@ interface Props {
 interface GeneratorImage {
   id: string;
   url: string;
+  thumbnailUrl?: string;
   base64: string;
   mimeType: string;
   fileName: string;
@@ -186,7 +188,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
   onGenerated,
 }) => {
   const { user, canAccessFeature } = useAuth();
-  const { uploading, uploadHotspotImage } = useStorage();
+  const { uploading, uploadGuidedLearningImage } = useStorage();
   const [images, setImages] = useState<GeneratorImage[]>([]);
   const [prompt, setPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -236,13 +238,22 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
       try {
         const uploads = await Promise.all(
           accepted.map(async (file) => {
-            const [url, base64] = await Promise.all([
-              uploadHotspotImage(user.uid, file),
+            // Generated sets are building sets, so slides live on Storage.
+            const [{ url, thumbnailUrl }, base64] = await Promise.all([
+              prepareImageForUpload(file).then((prepared) =>
+                uploadGuidedLearningImage(
+                  user.uid,
+                  prepared,
+                  prepared.name.replace(/[^\w.-]+/g, '_'),
+                  'storage'
+                )
+              ),
               blobToBase64(file),
             ]);
             return {
               id: crypto.randomUUID(),
               url,
+              thumbnailUrl,
               base64,
               mimeType: file.type || 'image/png',
               fileName: file.name || 'pasted-image',
@@ -261,7 +272,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         setUploadingImages(false);
       }
     },
-    [user, uploadHotspotImage, images.length]
+    [user, uploadGuidedLearningImage, images.length]
   );
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -354,11 +365,17 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         caption: img.caption.trim() || undefined,
       }));
       const result = await generateGuidedLearning(aiImages, fullPrompt);
+      const thumbs = snapshot.flatMap((img) =>
+        img.thumbnailUrl ? [[img.url, img.thumbnailUrl] as const] : []
+      );
       const set: GuidedLearningSet = {
         id: crypto.randomUUID(),
         schemaVersion: GL_SET_SCHEMA_VERSION,
         title: result.suggestedTitle,
         imageUrls: snapshot.map((img) => img.url),
+        ...(thumbs.length > 0
+          ? { slideThumbnails: Object.fromEntries(thumbs) }
+          : {}),
         steps: result.steps,
         mode: result.suggestedMode,
         createdAt: Date.now(),
