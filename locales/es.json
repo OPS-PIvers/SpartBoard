@@ -2617,6 +2617,7 @@
     "closeProperties": "Cerrar propiedades",
     "backToEditing": "Volver a editar",
     "playFromHere": "Reproducir desde aquí",
+    "showAnswerKey": "Mostrar clave de respuestas",
     "runLive": "Ejecutar en mi tablero",
     "runLiveHint": "Guarda, cierra el Studio y ejecuta este recorrido en tu tablero",
     "runLiveFailed": "No se pudo guardar el recorrido, así que no se inició.",

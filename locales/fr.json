@@ -2617,6 +2617,7 @@
     "closeProperties": "Fermer les propriétés",
     "backToEditing": "Retour à l’édition",
     "playFromHere": "Lire à partir d’ici",
+    "showAnswerKey": "Afficher le corrigé",
     "runLive": "Lancer sur mon tableau",
     "runLiveHint": "Enregistre, ferme le Studio et lance cette visite sur votre tableau",
     "runLiveFailed": "La visite n’a pas pu être enregistrée, elle n’a donc pas démarré.",

@@ -2617,6 +2617,7 @@
     "closeProperties": "Eigenschaften schließen",
     "backToEditing": "Zurück zur Bearbeitung",
     "playFromHere": "Ab hier abspielen",
+    "showAnswerKey": "Lösungen anzeigen",
     "runLive": "Live auf meiner Tafel starten",
     "runLiveHint": "Speichert, schließt das Studio und startet diese Tour auf deiner Tafel",
     "runLiveFailed": "Die Tour konnte nicht gespeichert werden und wurde nicht gestartet.",

@@ -3748,6 +3748,7 @@
     "closeProperties": "Close properties",
     "backToEditing": "Back to editing",
     "playFromHere": "Play from here",
+    "showAnswerKey": "Show answer key",
     "runLive": "Run live on my board",
     "runLiveHint": "Saves, closes the Studio and runs this tour on your board",
     "runLiveFailed": "Couldn't save the tour, so it didn't start.",
