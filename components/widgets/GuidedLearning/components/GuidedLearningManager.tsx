@@ -348,7 +348,7 @@ const buildLibraryEntries = (
     description: entry.description ?? undefined,
     stepCount: entry.stepCount,
     mode: entry.mode,
-    imageUrl: entry.thumbnail,
+    imageUrl: thumbnailUrl(entry.thumbnail),
     updatedAt: entry.updatedAt,
     createdAt: entry.createdAt,
     ...(entry.order !== null && entry.order !== undefined

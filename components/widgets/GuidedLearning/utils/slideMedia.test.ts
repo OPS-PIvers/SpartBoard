@@ -14,6 +14,7 @@ describe('withSlideFileRefs', () => {
         'https://lh3.googleusercontent.com/d/drive-a',
       ],
       imagePaths: ['', 'users/u/hotspot_images/0-old.webp'],
+      driveFileIds: [] as string[],
     });
     expect(out.imagePaths).toEqual([
       'users/u/hotspot_images/0-old.webp',

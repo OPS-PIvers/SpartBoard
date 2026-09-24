@@ -30,13 +30,24 @@ export interface GlBuildingIndexEntry {
 const num = (v: unknown, fallback: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : fallback;
 
-// First non-video slide, matching the client's pickThumbnailUrl.
+// The 400px thumbnail written beside a Storage slide, when there is one.
+function storedThumbnail(
+  data: Record<string, unknown>,
+  url: string
+): string | null {
+  const thumbs = data.slideThumbnails;
+  if (!thumbs || typeof thumbs !== 'object') return null;
+  const thumb = (thumbs as Record<string, unknown>)[url];
+  return typeof thumb === 'string' ? thumb : null;
+}
+
+// First non-video slide (its stored thumbnail if any), matching the client builder.
 function pickThumbnail(data: Record<string, unknown>): string {
   const urls = Array.isArray(data.imageUrls) ? data.imageUrls : [];
   const kinds = Array.isArray(data.imageKinds) ? data.imageKinds : [];
   for (let i = 0; i < urls.length; i++) {
     if ((kinds[i] ?? 'image') !== 'video' && typeof urls[i] === 'string') {
-      return urls[i] as string;
+      return storedThumbnail(data, urls[i] as string) ?? (urls[i] as string);
     }
   }
   return '';

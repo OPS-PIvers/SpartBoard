@@ -9,7 +9,17 @@
       "imageUrls": ["https://v/clip.mp4", "https://i/slide.png"],
       "imageKinds": ["video", "image"],
       "imagePaths": ["a/b.png"],
-      "steps": [{ "id": "x" }, { "id": "y", "tour": { "anchor": "dock" } }],
+      "steps": [
+        {
+          "id": "x"
+        },
+        {
+          "id": "y",
+          "tour": {
+            "anchor": "dock"
+          }
+        }
+      ],
       "mode": "guided",
       "createdAt": 100,
       "updatedAt": 200,
@@ -36,7 +46,14 @@
     "set": {
       "title": "Help",
       "imageUrls": [],
-      "steps": [{ "id": "a", "tour": { "anchor": "dock" } }],
+      "steps": [
+        {
+          "id": "a",
+          "tour": {
+            "anchor": "dock"
+          }
+        }
+      ],
       "mode": "explore",
       "createdAt": 5,
       "updatedAt": 6,
@@ -63,7 +80,11 @@
   {
     "name": "malformed fields fall back to defaults",
     "id": "m1",
-    "set": { "mode": "weird", "helpCenter": "yes", "updatedAt": 9 },
+    "set": {
+      "mode": "weird",
+      "helpCenter": "yes",
+      "updatedAt": 9
+    },
     "expected": {
       "id": "m1",
       "title": "",
@@ -74,6 +95,50 @@
       "createdAt": 9,
       "updatedAt": 9,
       "hasLiveTour": false,
+      "isHelpCenter": false,
+      "folderId": null,
+      "order": null
+    }
+  },
+  {
+    "name": "a stored slide thumbnail is used for the library",
+    "id": "s1",
+    "set": {
+      "id": "s1",
+      "title": "Photosynthesis",
+      "description": "Leaves",
+      "imageUrls": ["https://v/clip.mp4", "https://i/slide.png"],
+      "imageKinds": ["video", "image"],
+      "imagePaths": ["a/b.png"],
+      "steps": [
+        {
+          "id": "x"
+        },
+        {
+          "id": "y",
+          "tour": {
+            "anchor": "dock"
+          }
+        }
+      ],
+      "mode": "guided",
+      "createdAt": 100,
+      "updatedAt": 200,
+      "isBuilding": true,
+      "slideThumbnails": {
+        "https://i/slide.png": "https://i/thumbs/slide.webp"
+      }
+    },
+    "expected": {
+      "id": "s1",
+      "title": "Photosynthesis",
+      "description": "Leaves",
+      "stepCount": 2,
+      "mode": "guided",
+      "thumbnail": "https://i/thumbs/slide.webp",
+      "createdAt": 100,
+      "updatedAt": 200,
+      "hasLiveTour": true,
       "isHelpCenter": false,
       "folderId": null,
       "order": null

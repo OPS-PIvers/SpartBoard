@@ -1,6 +1,7 @@
 // The library shows small thumbnails: Storage thumbs for district sets, sized Drive URLs for personal ones.
 
 import React from 'react';
+import { buildBuildingIndexEntry } from '@/components/widgets/GuidedLearning/utils/buildingIndexEntry';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
@@ -57,7 +58,7 @@ describe('GuidedLearningManager — thumbnails', () => {
       <GuidedLearningManager
         userId="teacher-1"
         sets={[personalSet]}
-        buildingSets={[buildingSet]}
+        buildingSets={[buildBuildingIndexEntry(buildingSet.id, buildingSet)!]}
         assignments={[]}
         loading={false}
         buildingLoading={false}

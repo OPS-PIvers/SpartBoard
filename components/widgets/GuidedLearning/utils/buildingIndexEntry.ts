@@ -15,13 +15,24 @@ const MODES = new Set<string>(['structured', 'guided', 'explore']);
 const num = (v: unknown, fallback: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : fallback;
 
+// The 400px thumbnail written beside a Storage slide, when there is one.
+function storedThumbnail(
+  d: Record<string, unknown>,
+  url: string
+): string | null {
+  const thumbs = d.slideThumbnails;
+  if (!thumbs || typeof thumbs !== 'object') return null;
+  const thumb = (thumbs as Record<string, unknown>)[url];
+  return typeof thumb === 'string' ? thumb : null;
+}
+
 function pickThumbnail(d: Record<string, unknown>): string {
   const urls = Array.isArray(d.imageUrls) ? (d.imageUrls as unknown[]) : [];
   const kinds = Array.isArray(d.imageKinds) ? (d.imageKinds as unknown[]) : [];
   for (let i = 0; i < urls.length; i++) {
     const url = urls[i];
     if ((kinds[i] ?? 'image') !== 'video' && typeof url === 'string') {
-      return url;
+      return storedThumbnail(d, url) ?? url;
     }
   }
   return '';
