@@ -34,9 +34,6 @@ import {
   Eye,
   EyeOff,
   MinusCircle,
-  Clock,
-  CircleSlash,
-  Circle,
   Printer,
   UserCheck,
 } from 'lucide-react';
@@ -99,18 +96,14 @@ import {
 } from './results/StudentResultsControl';
 import { StudentResultsBulkBar } from './results/StudentResultsBulkBar';
 import { DrilldownNameList } from './results/DrilldownNameList';
+import { StudentAnswerLine } from './results/StudentAnswerLine';
 import {
   computeQuestionStats,
   makeQuestionGradeFn,
   type QuestionStat,
 } from '@/utils/quizQuestionStats';
+import { computeStudentDrilldown } from '@/utils/quizStudentDrilldown';
 import {
-  computeStudentDrilldown,
-  showsMissedKey,
-  type StudentQuestionLine,
-} from '@/utils/quizStudentDrilldown';
-import {
-  MARK_LABEL,
   printStudentReport,
   type StudentReportTarget,
 } from '@/utils/quizStudentReportPrint';
@@ -162,7 +155,6 @@ import type {
   LocalizedFibAnswers,
 } from '@/utils/quizFibAnswers';
 import { QuizTargetResults } from './QuizTargetResults';
-import { formatExportPoints } from '@/utils/assignmentExportShared';
 
 /**
  * Export-error banner state. Generic errors render as a plain message; a
@@ -3035,95 +3027,6 @@ const QuestionsScreen: React.FC<{
   );
 };
 
-const MARK_STYLE: Record<
-  StudentQuestionLine['mark'],
-  { icon: typeof CheckCircle2; className: string }
-> = {
-  correct: { icon: CheckCircle2, className: 'text-emerald-700' },
-  partial: { icon: MinusCircle, className: 'text-amber-700' },
-  incorrect: { icon: XCircle, className: 'text-brand-red-primary' },
-  ungraded: { icon: Clock, className: 'text-amber-700' },
-  excused: { icon: CircleSlash, className: 'text-brand-gray-primary' },
-  noAnswer: { icon: Circle, className: 'text-brand-gray-primary' },
-};
-
-const StudentQuestionLineView: React.FC<{
-  line: StudentQuestionLine;
-  onOpenGrader?: () => void;
-}> = ({ line, onOpenGrader }) => {
-  const { icon: MarkIcon, className } = MARK_STYLE[line.mark];
-  const body = (
-    <>
-      <span className="flex items-center" style={{ gap: 'min(6px, 1.5cqmin)' }}>
-        <span
-          className="font-sans font-semibold text-brand-blue-primary tabular-nums shrink-0"
-          style={SMALL_TEXT}
-        >
-          Q{line.number}
-        </span>
-        <span
-          className="font-sans text-brand-gray-dark truncate flex-1 min-w-0"
-          style={{ fontSize: 'min(12px, 4cqmin)' }}
-        >
-          {line.text}
-        </span>
-        <span
-          className={`flex items-center font-sans font-semibold shrink-0 ${className}`}
-          style={{ ...SMALL_TEXT, gap: 'min(4px, 1cqmin)' }}
-        >
-          <MarkIcon aria-hidden style={SMALL_ICON} />
-          {MARK_LABEL[line.mark]}
-        </span>
-        {line.mark !== 'excused' && (
-          <span
-            className="font-sans text-brand-gray-primary tabular-nums shrink-0"
-            style={SMALL_TEXT}
-          >
-            {formatExportPoints(line.pointsEarned)}/
-            {formatExportPoints(line.pointsMax)}
-          </span>
-        )}
-      </span>
-      <span
-        className={`block font-sans whitespace-pre-wrap break-words ${line.answerText ? 'text-brand-gray-darkest' : 'text-brand-gray-primary italic'}`}
-        style={{
-          fontSize: 'min(12px, 4cqmin)',
-          marginTop: 'min(2px, 0.5cqmin)',
-        }}
-      >
-        {line.answerText || 'No answer'}
-      </span>
-      {showsMissedKey(line) && (
-        <span
-          className="block font-sans text-brand-gray-primary whitespace-pre-wrap break-words"
-          style={SMALL_TEXT}
-        >
-          Correct answer: {line.correctAnswerText}
-        </span>
-      )}
-    </>
-  );
-  return (
-    <li
-      className="border-t border-brand-gray-lightest"
-      style={{ paddingTop: 'min(6px, 1.5cqmin)' }}
-    >
-      {onOpenGrader ? (
-        <button
-          type="button"
-          onClick={onOpenGrader}
-          title="Open in the grader"
-          className="block w-full text-left rounded hover:bg-brand-gray-lightest/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
-        >
-          {body}
-        </button>
-      ) : (
-        body
-      )}
-    </li>
-  );
-};
-
 /** One student's served learning targets, as the printed report lists them. */
 function studentReportTargets(
   targetStats: QuizTargetStats,
@@ -3228,7 +3131,7 @@ const StudentDrilldownPanel: React.FC<{
           No questions served to this student yet.
         </p>
       ) : (
-        <ul className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
+        <ul className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
           {drilldown.lines.map((line) => {
             const question = questionById.get(line.questionId);
             const gradable =
@@ -3237,7 +3140,7 @@ const StudentDrilldownPanel: React.FC<{
               !!question &&
               canGradeQuestion(question);
             return (
-              <StudentQuestionLineView
+              <StudentAnswerLine
                 key={line.questionId}
                 line={line}
                 onOpenGrader={

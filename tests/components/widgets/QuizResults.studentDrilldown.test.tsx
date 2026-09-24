@@ -168,7 +168,8 @@ describe('QuizResults — student drill-down', () => {
     expect(p.getByText('Capital of France?')).toBeInTheDocument();
     expect(p.getByText('Incorrect')).toBeInTheDocument();
     expect(p.getByText('Rome')).toBeInTheDocument();
-    expect(p.getByText('Correct answer: Paris')).toBeInTheDocument();
+    expect(p.getByText('Correct answer')).toBeInTheDocument();
+    expect(p.getByText('Paris')).toBeInTheDocument();
     expect(p.getByText('Ungraded')).toBeInTheDocument();
     expect(p.getByText('0/2')).toBeInTheDocument();
 
