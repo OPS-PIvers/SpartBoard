@@ -1050,6 +1050,8 @@ export interface PlcAssessmentAggregate {
     questionId: string;
     /** Question prompt snapshot, for rendering without a content join. */
     text: string;
+    /** `points`: `correctPercent` is the average % of points, not a right/wrong split (schema 5+). */
+    scoring?: 'points' | 'binary';
     /** Percent correct (0-100) across all teachers' students. */
     correctPercent: number;
     /** Point value of the question. */
@@ -1061,6 +1063,9 @@ export interface PlcAssessmentAggregate {
     /** Answers carrying a published `isCorrect` flag (schema 2+). */
     graded?: number;
     correct?: number;
+    /** Points summed over graded answers (schema 5+). */
+    pointsEarned?: number;
+    pointsPossible?: number;
     /** Completed attempts in which this question was served (schema 3+). */
     servedCount?: number;
     /** MC only; empty for other types (schema 2+). */

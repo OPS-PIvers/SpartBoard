@@ -77,12 +77,17 @@ function parsePerQuestion(
   return {
     questionId: rec.questionId,
     text: rec.text,
+    ...(rec.scoring === 'points' || rec.scoring === 'binary'
+      ? { scoring: rec.scoring }
+      : {}),
     correctPercent: rec.correctPercent,
     points: rec.points,
     ...optionalNumber('incorrectPercent', rec.incorrectPercent),
     ...optionalNumber('answered', rec.answered),
     ...optionalNumber('graded', rec.graded),
     ...optionalNumber('correct', rec.correct),
+    ...optionalNumber('pointsEarned', rec.pointsEarned),
+    ...optionalNumber('pointsPossible', rec.pointsPossible),
     ...optionalNumber('servedCount', rec.servedCount),
     ...(choiceDistribution ? { choiceDistribution } : {}),
   };
