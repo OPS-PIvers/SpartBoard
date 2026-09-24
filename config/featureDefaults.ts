@@ -322,6 +322,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Full-screen toggle on large pop-ups. Admin-only until Paul has tried it on a Chromebook.
+  'modal-fullscreen': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /**

@@ -42,6 +42,7 @@ import {
   Eye,
   ListChecks,
   TextCursorInput,
+  Maximize2,
   PlayCircle,
   Music2,
   Link2,
@@ -301,6 +302,13 @@ const GLOBAL_FEATURES: {
     icon: TextCursorInput,
     description:
       'Adds an "Also Accept" list under the correct answer of fill-in-the-blank quiz questions, so answers like "colour" and "color" both count. The extra answers are shown to students wherever the correct answer is revealed. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'modal-fullscreen',
+    label: 'Full screen for large pop-ups',
+    icon: Maximize2,
+    description:
+      'Adds a "View full screen" button to large pop-ups such as the quiz editor, the free-response grader and other editors, so they fill the whole screen on small Chromebooks. Esc returns to the normal size. Admin-only until this is saved and opened up.',
   },
   {
     id: 'settings-drawer',
