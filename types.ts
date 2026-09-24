@@ -2391,7 +2391,7 @@ export interface TalkingToolCategory {
 /**
  * Per-building surface-color defaults for the Talking Tool widget. Only
  * `cardColor`/`cardOpacity` are exposed — `fontFamily`/`fontColor` are
- * currently dead controls at the user level (see TalkingToolAppearanceSettings)
+ * never read by the face (see TalkingTool/settings.schema.ts styleKeys)
  * so seeding them would replicate the ConceptWeb/GraphicOrganizer anti-pattern.
  */
 export interface BuildingTalkingToolDefaults {
@@ -3386,8 +3386,8 @@ export interface SmartNotebookConfig {
   activeNotebookId: string | null;
   storageLimitMb?: number;
   /**
-   * Appearance fields, surfaced via the shared `TypographySettings` /
-   * `SurfaceColorSettings` primitives in `SmartNotebookAppearanceSettings`.
+   * Appearance fields, surfaced as `styleKeys` in
+   * `components/widgets/SmartNotebook/settings.schema.ts`.
    * These are user-level only and are intentionally NOT admin-configurable
    * per building: the widget renders imported SMART pages as image/SVG and
    * has no themed text/surface chrome to apply them to, so there is no
@@ -7115,6 +7115,12 @@ export interface GuidedLearningStep {
   region?: GuidedLearningRegion;
   /** Absent = auto placement. Present = callout box centre pinned in image-%. */
   calloutPin?: GuidedLearningCalloutPin;
+  /** Callout width, % of stage width (10-95). Absent = auto width. */
+  calloutWidthPct?: number;
+  /** Callout text and padding scale, 0.75-2. Absent = 1. */
+  calloutScale?: number;
+  /** Callout colour preset. Absent = 'dark'. */
+  calloutTone?: GuidedLearningCalloutTone;
   /** Watch-mode demonstration override; absent = cursor goes to region centre. */
   cursor?: GuidedLearningStepCursor;
   /** Narration track: generated TTS or the author's recorded voice. */
@@ -7140,6 +7146,9 @@ export interface GuidedLearningCalloutPin {
   xPct: number;
   yPct: number;
 }
+
+/** Callout colour presets; stored as an enum, never a free colour. */
+export type GuidedLearningCalloutTone = 'dark' | 'light' | 'accent';
 
 export interface GuidedLearningStepCursor {
   hide?: boolean;
@@ -7344,6 +7353,9 @@ export interface GuidedLearningPublicStep {
   autoAdvanceDuration?: number;
   region?: GuidedLearningRegion;
   calloutPin?: GuidedLearningCalloutPin;
+  calloutWidthPct?: number;
+  calloutScale?: number;
+  calloutTone?: GuidedLearningCalloutTone;
   cursor?: GuidedLearningStepCursor;
   narration?: GuidedLearningPublicNarration;
 }

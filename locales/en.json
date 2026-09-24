@@ -1563,6 +1563,14 @@
       "centrallyManaged": "Centrally managed",
       "managedHelp": "Your district administrator configures the embedded URL for all classrooms."
     },
+    "catalyst": {
+      "centrallyManaged": "Admin managed",
+      "managedHelp": "Catalyst routines and categories are managed for all classrooms by your district administrator."
+    },
+    "miniApp": {
+      "apps": "Apps",
+      "manageHelp": "Manage apps in the main view."
+    },
     "first-5": {
       "automaticContent": "Automatic content",
       "automaticHelp": "This widget shows today’s First 5 content for your selected building and updates each weekday at 6:00 AM.",
@@ -1852,6 +1860,27 @@
     "guided-learning": {
       "goToLibrary": "Go to library",
       "settingsHelp": "Use the main widget panel to create, edit, and assign guided learning sets. Settings are configured per-set inside the editor."
+    },
+    "projects": {
+      "library": "Project library",
+      "libraryHelp": "Build projects, set up groups and grade them from the main widget panel. Each project's steps and rubric live in its own editor.",
+      "goToLibrary": "Go to library",
+      "rolloutOff": "Projects is switched off for this district. An admin turns it on under Admin Settings, Rollouts.",
+      "groupRows": "Group rows",
+      "groupRowsHelp": "These style the project board, the group rows you project."
+    },
+    "activity-wall": {
+      "walls": "Walls",
+      "wallsManaged": "Walls are managed from the widget face.",
+      "wallsHelp": "Use the Library button to pick, create, edit, duplicate, or delete a wall. Each wall carries its own layout, appearance, and posting rules."
+    },
+    "talking-tool": {
+      "globalContent": "Global content settings",
+      "globalContentHelp": "Talking stems and categories are configured by an admin via Feature Permissions."
+    },
+    "stickers": {
+      "stickerBook": "Sticker book",
+      "stickerBookHelp": "Upload, favorite, and reorder stickers on the widget itself."
     },
     "countdown": {
       "title": "Event title",
@@ -3831,6 +3860,9 @@
     "cornerRadius": "Corner radius",
     "calloutPosition": "Callout position",
     "calloutPinned": "Placed by you",
+    "calloutToneDark": "Dark",
+    "calloutToneLight": "Light",
+    "calloutToneAccent": "Accent",
     "calloutAuto": "Automatic",
     "inlineLabel": "Callout title",
     "inlineLabelPlaceholder": "Title (optional)",

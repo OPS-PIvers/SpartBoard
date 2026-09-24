@@ -17,6 +17,8 @@ import {
   type DashboardContextValue,
 } from '@/context/DashboardContextValue';
 import { GuidedLearningStudio } from './GuidedLearningStudio';
+import { getOpenModalCount } from '@/components/common/modalStore';
+import { getBodyScrollLockCount } from '@/components/common/bodyScrollLock';
 import {
   GuidedLearningSaveConflictError,
   type GuidedLearningSaveGuard,
@@ -162,6 +164,26 @@ describe('GuidedLearningStudio', () => {
     expect(frame()).toHaveAttribute('data-preset', 'board');
     expect(frame().style.width).toBe('720px');
     expect(frame().style.height).toBe('520px');
+  });
+
+  it('counts as an open modal while mounted so the widget toolbar and dashboard Escape stand down', () => {
+    const modals = getOpenModalCount();
+    const locks = getBodyScrollLockCount();
+    const { unmount, rerender, onClose, onSave } = renderStudio();
+    expect(getOpenModalCount()).toBe(modals + 1);
+    expect(getBodyScrollLockCount()).toBe(locks + 1);
+    rerender(
+      <GuidedLearningStudio
+        set={buildSet()}
+        meta={null}
+        onClose={onClose}
+        onSave={onSave}
+      />
+    );
+    expect(getOpenModalCount()).toBe(modals + 1);
+    unmount();
+    expect(getOpenModalCount()).toBe(modals);
+    expect(getBodyScrollLockCount()).toBe(locks);
   });
 
   it('sizes the frame to the chosen preset in true pixels and remembers it', () => {

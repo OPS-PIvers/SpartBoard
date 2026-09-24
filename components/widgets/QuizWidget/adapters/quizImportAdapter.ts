@@ -23,20 +23,14 @@ import type { ImportAdapter } from '@/components/common/library';
 import type { QuizData, QuizQuestion } from '@/types';
 import { generateQuiz, type GeneratedQuestion } from '@/utils/ai';
 import {
-  applyAnswerKey,
-  assertWithinByteLimit,
-  documentKind,
   extractedToQuizData,
   reviewExtrasFor,
-  readAnswerKeyFile,
   readByLabel,
   rowWarnings,
   type AiExtractFn,
   type ExtractedImage,
-  type ExtractedQuiz,
 } from '@/utils/quizDocumentImport';
-import { browserPdfDeps } from '@/utils/quizDocumentImport/pdfBrowserDeps';
-import { readTestDocument } from '@/utils/quizDocumentImport/readTestDocument';
+import { readTestAndKey } from '@/utils/quizDocumentImport/readTestAndKey';
 import { QuizDocumentReview } from '../components/QuizDocumentReview';
 import { QuizDriveService } from '@/utils/quizDriveService';
 
@@ -324,53 +318,6 @@ function renderQuizPreview(data: QuizData): React.ReactNode {
 
 /* ─── Adapter factory ─────────────────────────────────────────────────────── */
 
-/** The AI reader when the teacher has it, the browser reader otherwise (D1). */
-
-/** A key file is numbers and letters, which the plain reader handles (D8). */
-async function readKeyFile(
-  keyFile: {
-    file: Blob;
-    fileName: string;
-  },
-  multiAnswer: boolean
-): Promise<Map<number, string>> {
-  const isPdf = documentKind(keyFile.file, keyFile.fileName) === 'pdf';
-  return readAnswerKeyFile(keyFile.file, {
-    fileName: keyFile.fileName,
-    ...(isPdf ? { pdf: await browserPdfDeps(keyFile.file) } : {}),
-    ...(multiAnswer ? { multiAnswer } : {}),
-  });
-}
-
-/**
- * Applies the attached key, or says it couldn't be read. The questions are
- * already in hand by then, so a key that won't open is a note on the review
- * table rather than an error that throws the whole read away.
- */
-async function withAnswerKey(
-  quiz: ExtractedQuiz,
-  keyFile: { file: Blob; fileName: string },
-  multiAnswer: boolean
-): Promise<ExtractedQuiz> {
-  try {
-    return applyAnswerKey(
-      quiz,
-      await readKeyFile(keyFile, multiAnswer),
-      'file',
-      { multiAnswer }
-    );
-  } catch (err) {
-    console.warn('[quizImport] could not read the answer key', err);
-    return {
-      ...quiz,
-      warnings: [
-        ...quiz.warnings,
-        'The answer key file couldn’t be read, so the answers below are only the ones printed on the test.',
-      ],
-    };
-  }
-}
-
 // Choose-all rows need the quiz-choose-all feature; without it they are left out with a note.
 function withoutChooseAll(
   data: QuizData,
@@ -394,12 +341,6 @@ export function createQuizImportAdapter(
   deps: QuizImportAdapterDeps
 ): ImportAdapter<QuizData> {
   const multiAnswer = deps.canUseChooseAll === true;
-  const readDocument = (file: Blob, fileName: string, useAi?: boolean) =>
-    readTestDocument(file, fileName, {
-      aiExtract: deps.aiExtract,
-      ...(useAi === false ? { useAi } : {}),
-      ...(multiAnswer ? { multiAnswer } : {}),
-    });
   return {
     widgetLabel: deps.widgetLabel ?? 'Quiz',
     supportedSources: deps.canImportDocuments
@@ -472,19 +413,19 @@ export function createQuizImportAdapter(
         return withoutChooseAll(data, multiAnswer);
       }
       if (source.kind === 'document') {
-        // D18's budget covers the import, not each file, so the two are
-        // weighed together before either is opened.
-        if (source.keyFile) {
-          assertWithinByteLimit(source.file, source.keyFile.file);
-        }
-        const read = await readDocument(
-          source.file,
-          source.fileName,
-          source.useAi
+        const extracted = await readTestAndKey(
+          {
+            file: source.file,
+            fileName: source.fileName,
+            ...(source.pages ? { pages: source.pages } : {}),
+          },
+          {
+            aiExtract: deps.aiExtract,
+            key: source.keyFile,
+            ...(source.useAi === false ? { useAi: false } : {}),
+            ...(multiAnswer ? { multiAnswer } : {}),
+          }
         );
-        const extracted = source.keyFile
-          ? await withAnswerKey(read, source.keyFile, multiAnswer)
-          : read;
         deps.onDocumentImages?.(extracted.images);
         return {
           data: extractedToQuizData(extracted),

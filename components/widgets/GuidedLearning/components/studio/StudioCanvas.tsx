@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { GuidedLearningPublicStep } from '@/types';
 import { GuidedLearningStage } from '../GuidedLearningStage';
+import { PROJECTOR_TEXT_VARS } from '../../utils/projectorTextVars';
 import { DeviceFrame } from './DeviceFrame';
 import { draftSetForStage } from './draftSet';
 import { StudioEditLayer, type DrawShape } from './StudioEditLayer';
@@ -31,6 +32,8 @@ interface StudioCanvasProps {
   tools: CanvasTools;
   setId: string;
   preset: DevicePreset;
+  /** Apply the v2 player's text sizes, matching how sessions will play. */
+  playerV2?: boolean;
 }
 
 const TOOL_ICONS: Record<DrawShape, typeof Square> = {
@@ -45,6 +48,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   tools,
   setId,
   preset,
+  playerV2 = false,
 }) => {
   const { t } = useTranslation();
   const {
@@ -253,24 +257,29 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
         style={{ transform: viewTransform(view), transformOrigin: '0 0' }}
       >
         <DeviceFrame preset={preset}>
-          <GuidedLearningStage
-            set={set}
-            steps={steps as unknown as GuidedLearningPublicStep[]}
-            imageIndex={currentImageIndex}
-            activeStepId={shownStepId}
-            authorMode="explore"
-            answeredStepIds={NO_ANSWERS}
-            teacherMode
-            zoomScale={zoomScale}
-            forceOverlay
-            editingStepId={editingStepId}
-            renderCalloutEditor={renderCalloutEditor}
-            renderEditLayer={renderEditLayer}
-            onGeometry={onGeometry}
-            onPinClick={setSelectedStepId}
-            onAdvance={noop}
-            onDismiss={noop}
-          />
+          <div
+            className="contents"
+            style={playerV2 ? PROJECTOR_TEXT_VARS : undefined}
+          >
+            <GuidedLearningStage
+              set={set}
+              steps={steps as unknown as GuidedLearningPublicStep[]}
+              imageIndex={currentImageIndex}
+              activeStepId={shownStepId}
+              authorMode="explore"
+              answeredStepIds={NO_ANSWERS}
+              teacherMode
+              zoomScale={zoomScale}
+              forceOverlay
+              editingStepId={editingStepId}
+              renderCalloutEditor={renderCalloutEditor}
+              renderEditLayer={renderEditLayer}
+              onGeometry={onGeometry}
+              onPinClick={setSelectedStepId}
+              onAdvance={noop}
+              onDismiss={noop}
+            />
+          </div>
         </DeviceFrame>
       </div>
 

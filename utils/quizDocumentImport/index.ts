@@ -24,6 +24,7 @@ import { UNREADABLE_FILE, documentKind, titleFromFileName } from './fileKind';
 export * from './types';
 export {
   documentKind,
+  isHeicFile,
   titleFromFileName,
   UNREADABLE_FILE,
   type DocumentKind,
@@ -99,6 +100,8 @@ export interface ReadDocumentOptions {
   pdfCropper?: (file: Blob) => Promise<PdfCropperDeps>;
   /** Lets the read produce choose-all-that-apply questions. */
   multiAnswer?: boolean;
+  /** Photos of the test, one per page in order; `file` is the first (R30). */
+  pages?: readonly Blob[];
 }
 
 /**
@@ -116,7 +119,9 @@ export async function readQuizDocument(
     throw new Error(UNREADABLE_FILE);
   }
   const reader = { multiAnswer: options.multiAnswer === true };
-  assertWithinByteLimit(file);
+  const pages =
+    kind === 'image' && options.pages?.length ? options.pages : [file];
+  assertWithinByteLimit(...pages);
 
   const warnings: string[] = [];
 
@@ -157,6 +162,25 @@ export async function readQuizDocument(
 
   if (!options.pdf) {
     throw new Error('Reading a PDF needs the PDF reader to be available.');
+  }
+
+  if (kind === 'image') {
+    // Each photo is a page with no text layer, so every one goes to OCR.
+    assertWithinPageLimit(pages.length);
+    const { lines } = await readPdf(file, options.pdf, {
+      maxPages: MAX_DOCUMENT_PAGES,
+    });
+    warnings.push(
+      'The photos were read by eye, so check the questions and answers below.'
+    );
+    const { questions, texts } = parseDocument(lines, reader);
+    return {
+      title: titleFromFileName(fileName),
+      questions,
+      images: [],
+      ...(texts.length > 0 ? { texts } : {}),
+      warnings,
+    };
   }
 
   // The page limit is the document's own page count, checked inside the

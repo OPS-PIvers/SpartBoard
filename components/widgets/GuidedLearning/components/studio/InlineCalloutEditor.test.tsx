@@ -195,6 +195,17 @@ describe('inline callout editing', () => {
     expect(screen.getByTestId('gl-inline-editor')).toBeInTheDocument();
   });
 
+  it('leaves Enter in the text to the textarea instead of the canvas Enter shortcuts', () => {
+    mount();
+    openEditor();
+    const ev = fireEvent.keyDown(textField(), { key: 'Enter' });
+    expect(ev).toBe(true);
+    expect(latest.current?.steps).toHaveLength(1);
+    expect(screen.getByTestId('gl-inline-editor')).toBeInTheDocument();
+    fireEvent.change(textField(), { target: { value: 'a\n\nb' } });
+    expect(step().text).toBe('a\n\nb');
+  });
+
   it('wraps the selection in ** with Ctrl+B', () => {
     mount();
     openEditor();

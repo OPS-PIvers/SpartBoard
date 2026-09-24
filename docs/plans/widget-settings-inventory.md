@@ -1840,3 +1840,14 @@ find-a-setting filter.
 | Blending Board         | `blending-board`        | 12   | current work                                    | yes  |
 | First 5                | `first-5`               | 12   | current work                                    | yes  |
 | Custom Widget          | `custom-widget`         | 12   | current work                                    | yes  |
+| Catalyst               | `catalyst`              | 13   | current work                                    | yes  |
+| Catalyst Guide         | `catalyst-instruction`  | 13   | current work                                    | yes  |
+| Catalyst Visual        | `catalyst-visual`       | 13   | current work                                    | yes  |
+| Smart Notebook         | `smartNotebook`         | 13   | current work                                    | yes  |
+| Mini App               | `miniApp`               | 13   | current work                                    | yes  |
+| Traffic Light          | `traffic`               | 13   | current work                                    | yes  |
+| Classes                | `classes`               | 13   | current work                                    | yes  |
+| Projects               | `projects`              | 14   | current work                                    | yes  |
+| Activity Wall          | `activity-wall`         | 14   | current work                                    | yes  |
+| Talking Tool           | `talking-tool`          | 14   | current work                                    | yes  |
+| Sticker Book           | `stickers`              | 14   | current work                                    | yes  |

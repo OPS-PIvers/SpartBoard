@@ -30,6 +30,16 @@ let sheetImages: {
 
 /** Nulled in the one test that checks what happens with no Drive connected. */
 let driveConnected = true;
+vi.mock('@/utils/quizDocumentImport/uploadIntake', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/utils/quizDocumentImport/uploadIntake')
+  >('@/utils/quizDocumentImport/uploadIntake');
+  return {
+    ...actual,
+    looksLikeAnswerKey: (_file: Blob, name: string) =>
+      Promise.resolve(actual.looksLikeKeyName(name)),
+  };
+});
 vi.mock('@/hooks/useGoogleDrive', () => ({
   useGoogleDrive: () => ({ driveService: driveConnected ? drive : null }),
 }));
@@ -351,20 +361,22 @@ describe('PaperPrintModal', () => {
       return { ...rest, onCreateQuiz, readDocument };
     };
 
-    const dropTestPaper = () => {
+    const dropTestPaper = async () => {
       const file = new File([new Uint8Array(4)], 'unit3.pdf', {
         type: 'application/pdf',
       });
-      fireEvent.drop(screen.getByRole('button', { name: /Drop the test/i }), {
+      fireEvent.drop(screen.getByTestId('test-zone'), {
         dataTransfer: { files: [file], types: ['Files'] },
       });
+      await screen.findByText('unit3.pdf');
+      fireEvent.click(screen.getByRole('button', { name: 'Read the test' }));
     };
 
     it('reads the paper, sizes the sheet to it and names the test', async () => {
       const { readDocument } = newPaperTest(
         extracted([question(1), question(2), question(3)])
       );
-      dropTestPaper();
+      await dropTestPaper();
       await waitFor(() => expect(readDocument).toHaveBeenCalled());
       expect(await screen.findByText(/3 questions read/)).toBeInTheDocument();
       expect(screen.getByLabelText('Questions')).toHaveValue(3);
@@ -376,7 +388,7 @@ describe('PaperPrintModal', () => {
       const { onCreateQuiz, print } = newPaperTest(
         extracted([question(1), question(2)])
       );
-      dropTestPaper();
+      await dropTestPaper();
       await screen.findByText(/2 questions read/);
       selectWholeClass();
       fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
@@ -396,7 +408,7 @@ describe('PaperPrintModal', () => {
       const { onCreateQuiz, onSaveBatch, print } = newPaperTest(
         extracted([question(1)])
       );
-      dropTestPaper();
+      await dropTestPaper();
       await screen.findByText(/1 question read/);
       selectWholeClass();
       fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
@@ -417,7 +429,7 @@ describe('PaperPrintModal', () => {
       newPaperTest(
         extracted([question(1), question(2, { correctAnswer: '' })])
       );
-      dropTestPaper();
+      await dropTestPaper();
       expect(
         await screen.findByText(/1 question came in without an answer/)
       ).toBeInTheDocument();
@@ -434,7 +446,7 @@ describe('PaperPrintModal', () => {
           ['The document was read the simple way.']
         )
       );
-      dropTestPaper();
+      await dropTestPaper();
       expect(
         await screen.findByText('Question 1: Only one answer choice was found.')
       ).toBeInTheDocument();
@@ -445,7 +457,7 @@ describe('PaperPrintModal', () => {
 
     it('keeps a plain stub when the paper is put back', async () => {
       const { onCreateQuiz, print } = newPaperTest(extracted([question(1)]));
-      dropTestPaper();
+      await dropTestPaper();
       await screen.findByText(/1 question read/);
       fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
       selectWholeClass();
@@ -463,16 +475,14 @@ describe('PaperPrintModal', () => {
         onCreateQuiz,
         readDocument: () => Promise.reject(new Error('PDF exploded')),
       });
-      dropTestPaper();
+      await dropTestPaper();
       await waitFor(() => expect(onError).toHaveBeenCalledWith('PDF exploded'));
-      expect(
-        screen.getByRole('button', { name: /Drop the test/i })
-      ).toBeInTheDocument();
+      expect(screen.getByTestId('test-zone')).toBeInTheDocument();
     });
 
     it('says so when the paper held no numbered questions', async () => {
       const { onError } = newPaperTest(extracted([]));
-      dropTestPaper();
+      await dropTestPaper();
       await waitFor(() =>
         expect(onError).toHaveBeenCalledWith(
           expect.stringContaining('No numbered questions')
@@ -485,9 +495,7 @@ describe('PaperPrintModal', () => {
         quiz: quiz({ title: '', questions: [] }),
         onCreateQuiz: vi.fn().mockResolvedValue(undefined),
       });
-      expect(
-        screen.queryByRole('button', { name: /Drop the test/i })
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId('test-zone')).not.toBeInTheDocument();
     });
   });
 

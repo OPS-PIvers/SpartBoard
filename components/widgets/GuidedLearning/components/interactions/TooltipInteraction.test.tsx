@@ -83,6 +83,22 @@ describe('TooltipInteraction', () => {
     expect(screen.getByTestId('gl-callout-arrow')).toBeInTheDocument();
   });
 
+  it('keeps line breaks and blank lines while still wrapping at the max width', () => {
+    render(
+      <TooltipInteraction
+        step={{ ...baseStep, text: 'a\n\nb' }}
+        containerWidth={800}
+        containerHeight={400}
+      />
+    );
+    const body = screen.getByText(
+      (_, el) => el?.textContent === 'a\n\nb' && el.children.length === 0
+    );
+    expect(body).toHaveClass('whitespace-pre-wrap');
+    expect(card().style.width).toBe('max-content');
+    expect(card().style.maxWidth).not.toBe('');
+  });
+
   it('marks the card for Studio hit-testing and renders rich text', () => {
     render(
       <TooltipInteraction
@@ -93,5 +109,92 @@ describe('TooltipInteraction', () => {
     );
     expect(card().getAttribute('data-gl-callout')).toBe('s1');
     expect(card().querySelector('strong')?.textContent).toBe('menu');
+  });
+});
+
+describe('TooltipInteraction callout style', () => {
+  it('renders the default dark card at auto width and scale 1', () => {
+    render(
+      <TooltipInteraction
+        step={{ ...baseStep, xPct: 50, yPct: 80 }}
+        containerWidth={800}
+        containerHeight={400}
+      />
+    );
+    expect(card().style.width).toBe('max-content');
+    expect(card().style.getPropertyValue('--gl-callout-scale')).toBe('1');
+    expect(card().className).toContain('bg-slate-900/90');
+  });
+
+  it('uses the authored width as % of the stage, clamped and capped to fit', () => {
+    render(
+      <TooltipInteraction
+        step={{ ...baseStep, xPct: 50, yPct: 80, calloutWidthPct: 40 }}
+        containerWidth={800}
+        containerHeight={400}
+      />
+    );
+    expect(card().style.width).toBe('320px');
+  });
+
+  it('caps an out-of-range width at 95% and never wider than the stage', () => {
+    render(
+      <TooltipInteraction
+        step={{ ...baseStep, xPct: 50, yPct: 80, calloutWidthPct: 400 }}
+        containerWidth={200}
+        containerHeight={400}
+      />
+    );
+    expect(card().style.width).toBe(`${200 - 24}px`);
+  });
+
+  it('clamps the scale and applies the tone to card and line', () => {
+    render(
+      <TooltipInteraction
+        step={{
+          ...baseStep,
+          xPct: 50,
+          yPct: 80,
+          calloutScale: 9,
+          calloutTone: 'light',
+        }}
+        containerWidth={800}
+        containerHeight={400}
+      />
+    );
+    expect(card().style.getPropertyValue('--gl-callout-scale')).toBe('2');
+    expect(card().className).toContain('bg-white');
+    expect(
+      screen.getByTestId('gl-callout-arrow-line').getAttribute('stroke')
+    ).toBe('rgb(15,23,42)');
+  });
+
+  it('ignores an unknown tone', () => {
+    render(
+      <TooltipInteraction
+        step={{
+          ...baseStep,
+          xPct: 50,
+          yPct: 80,
+          calloutTone: 'neon' as unknown as 'dark',
+        }}
+        containerWidth={800}
+        containerHeight={400}
+      />
+    );
+    expect(card().className).toContain('bg-slate-900/90');
+  });
+
+  it('draws a curved leader, not a straight segment', () => {
+    render(
+      <TooltipInteraction
+        step={{ ...baseStep, xPct: 50, yPct: 80 }}
+        containerWidth={800}
+        containerHeight={400}
+      />
+    );
+    expect(
+      screen.getByTestId('gl-callout-arrow-line').getAttribute('d')
+    ).toMatch(/^M [\d.-]+ [\d.-]+ C /);
   });
 });
