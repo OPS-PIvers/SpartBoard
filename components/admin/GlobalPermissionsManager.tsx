@@ -41,6 +41,7 @@ import {
   Send,
   Eye,
   ListChecks,
+  TextCursorInput,
   PlayCircle,
   Music2,
   Link2,
@@ -293,6 +294,13 @@ const GLOBAL_FEATURES: {
     icon: ListChecks,
     description:
       'Adds a "Choose All That Apply" question type to the quiz editor and AI drafting, where students tick every correct option. Teachers can turn on partial credit, which takes points away for each wrong option ticked, so ticking everything earns nothing. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'quiz-fib-alternates',
+    label: 'Other accepted answers for fill in the blank',
+    icon: TextCursorInput,
+    description:
+      'Adds an "Also Accept" list under the correct answer of fill-in-the-blank quiz questions, so answers like "colour" and "color" both count. The extra answers are shown to students wherever the correct answer is revealed. Admin-only until this is saved and opened up.',
   },
   {
     id: 'settings-drawer',

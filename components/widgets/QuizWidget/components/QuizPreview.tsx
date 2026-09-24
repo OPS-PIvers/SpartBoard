@@ -22,6 +22,10 @@ import {
   multiAnswerOptions,
   parseMultiAnswer,
 } from '@/utils/quizMultiAnswer';
+import {
+  formatRevealedAnswer,
+  revealValueFor,
+} from '@/utils/quizFibAlternates';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { resolveStimuli } from '@/utils/quizStimuli';
 import { StimulusRenderer } from '@/components/quiz/QuizStimulusView';
@@ -309,7 +313,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
               >
                 {question.type === 'MA'
                   ? multiAnswerCorrectOptions(question.correctAnswer).join(', ')
-                  : question.correctAnswer}
+                  : formatRevealedAnswer(revealValueFor(question))}
               </p>
             </div>
           )}

@@ -152,6 +152,7 @@ import type { StudentTargetRef } from '@/types';
 import { buildPeriodAccess } from '@/utils/periodPlan';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
+import { revealValueFor } from '@/utils/quizFibAlternates';
 
 /**
  * Session-options shape used when minting a view-only Quiz share. Typed as
@@ -1273,7 +1274,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     for (let i = 0; i < upTo && i < questions.length; i++) {
       const q = questions[i];
       if (!liveSession.revealedAnswers?.[q.id]) {
-        void revealAnswer(q.id, q.correctAnswer);
+        void revealAnswer(q.id, revealValueFor(q));
       }
     }
   }, [

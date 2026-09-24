@@ -580,6 +580,16 @@ describe('gradeGroupAnswer', () => {
     });
   });
 
+  it('accepts FIB alternate answers from the synced key', () => {
+    const fib = q({
+      type: 'FIB',
+      correctAnswer: 'color',
+      alternateAnswers: ['colour'],
+    });
+    expect(gradeGroupAnswer(fib, 'Colour', undefined).isCorrect).toBe(true);
+    expect(gradeGroupAnswer(fib, 'colr', undefined).isCorrect).toBe(false);
+  });
+
   it('grades matching strictly or partially', () => {
     const m = q({ type: 'Matching', correctAnswer: 'a:1|b:2' });
     expect(gradeGroupAnswer(m, 'a:1|b:3', undefined).pointsEarned).toBe(0);

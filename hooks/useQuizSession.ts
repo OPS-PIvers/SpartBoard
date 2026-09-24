@@ -699,7 +699,10 @@ export function gradeAnswer(
     const isCorrect =
       correct === given ||
       (question.type === 'FIB' &&
-        (acceptedAnswers ?? []).some((a) => normalizeAnswer(a) === given));
+        given !== '' &&
+        [...(question.alternateAnswers ?? []), ...(acceptedAnswers ?? [])].some(
+          (a) => normalizeAnswer(a) === given
+        ));
     return {
       isCorrect,
       pointsEarned: isCorrect ? max : 0,

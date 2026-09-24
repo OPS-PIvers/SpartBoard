@@ -164,6 +164,10 @@ import {
   toDisplayAnswer,
 } from '@/utils/quizLocalizedAnswer';
 import { encodeMultiAnswer, parseMultiAnswer } from '@/utils/quizMultiAnswer';
+import {
+  formatRevealedAnswer,
+  splitRevealedAnswer,
+} from '@/utils/quizFibAlternates';
 import { isValidDraw, orderServedQuestions } from '@/utils/questionBanks';
 import { chooseServedDraw } from '@/utils/quizBankDraw';
 import { groupQuestionsByTargets } from '@/utils/quizTargetStats';
@@ -5282,6 +5286,7 @@ function formatAnswerForDisplay(
   if (type === 'Ordering' || type === 'MA') {
     return raw.split('|').join(', ');
   }
+  if (type === 'FIB') return formatRevealedAnswer(raw);
   return raw;
 }
 
@@ -5290,7 +5295,9 @@ function revealedForDisplay(
   type: QuizPublicQuestion['type'] | undefined,
   revealed: string
 ): string {
-  return type === 'MA' ? formatAnswerForDisplay(revealed, type) : revealed;
+  return type === 'MA' || type === 'FIB'
+    ? formatAnswerForDisplay(revealed, type)
+    : revealed;
 }
 
 /** Client-side verdict against a revealed key; Matching and MA compare as sets. */
@@ -5307,6 +5314,12 @@ function revealMatches(
     return (
       givenParts.length === correctSet.size &&
       givenParts.every((p) => correctSet.has(p))
+    );
+  }
+  if (type === 'FIB') {
+    const typed = normalizeAnswer(given);
+    return splitRevealedAnswer(revealed).some(
+      (a) => normalizeAnswer(a) === typed
     );
   }
   return normalizeAnswer(given) === normalizeAnswer(revealed);

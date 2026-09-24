@@ -183,6 +183,7 @@ const ANSWER_FIELDS = [
   'incorrectAnswers',
   'matchingDistractors',
   'acceptableVariants',
+  'alternateAnswers',
   'rubric',
   'revealedAnswers',
   'localizedFibAnswers',
