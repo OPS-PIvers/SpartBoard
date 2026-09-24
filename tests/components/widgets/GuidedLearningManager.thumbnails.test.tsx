@@ -52,13 +52,16 @@ const buildingSet: GuidedLearningSet = {
   isBuilding: true,
 };
 
+const buildingEntry = buildBuildingIndexEntry(buildingSet.id, buildingSet);
+if (!buildingEntry) throw new Error('fixture must build an index entry');
+
 describe('GuidedLearningManager — thumbnails', () => {
   it('uses thumbnail URLs and lazy, async-decoded images', async () => {
     const { container } = render(
       <GuidedLearningManager
         userId="teacher-1"
         sets={[personalSet]}
-        buildingSets={[buildBuildingIndexEntry(buildingSet.id, buildingSet)!]}
+        buildingSets={[buildingEntry]}
         assignments={[]}
         loading={false}
         buildingLoading={false}
