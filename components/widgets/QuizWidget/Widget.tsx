@@ -116,6 +116,7 @@ import { QuizLiveMonitor } from './components/QuizLiveMonitor';
 import { PaperPrintModal } from './components/PaperPrintModal';
 import { PaperImportModal } from './components/PaperImportModal';
 import { PaperQuestionTextModal } from './components/PaperQuestionTextModal';
+import { AnswerKeyFillModal } from './components/AnswerKeyFill';
 import { httpsCallable } from 'firebase/functions';
 import type {
   ImportPaperResponsesResult,
@@ -564,6 +565,10 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     batches: PaperBatch[];
   } | null>(null);
   const [paperOcr, setPaperOcr] = useState<{
+    quiz: QuizData;
+    meta: QuizMetadata;
+  } | null>(null);
+  const [answerKeyFill, setAnswerKeyFill] = useState<{
     quiz: QuizData;
     meta: QuizMetadata;
   } | null>(null);
@@ -1745,6 +1750,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               }
             : undefined
         }
+        onAddAnswerKey={
+          canImportDocuments
+            ? async (meta) => {
+                const data = await loadQuiz(meta);
+                if (data) setAnswerKeyFill({ quiz: data, meta });
+              }
+            : undefined
+        }
         onReadPaperQuestions={
           paperSheets.enabled
             ? async (meta) => {
@@ -2881,6 +2894,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               }
             : undefined
         }
+        {...(canImportDocuments
+          ? {
+              answerKeyFill: {
+                onPickFromDrive: pickScanFromDrive,
+                onError: (message: string) => addToast(message, 'error'),
+              },
+            }
+          : {})}
         onClose={() => {
           setEditingQuiz(null);
           setEditingMeta(null);
@@ -3530,6 +3551,30 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }
           onPickFromDrive={pickScanFromDrive}
           onClose={() => setPaperImport(null)}
+          onError={(message) => addToast(message, 'error')}
+        />
+      )}
+      {answerKeyFill && (
+        <AnswerKeyFillModal
+          quiz={answerKeyFill.quiz}
+          onApply={async (result) => {
+            await saveQuiz(
+              {
+                ...answerKeyFill.quiz,
+                questions: result.questions,
+                updatedAt: Date.now(),
+              },
+              answerKeyFill.meta.driveFileId
+            );
+            addToast(
+              result.filled.length === 1
+                ? '1 answer filled in.'
+                : `${result.filled.length} answers filled in.`,
+              'success'
+            );
+          }}
+          onPickFromDrive={pickScanFromDrive}
+          onClose={() => setAnswerKeyFill(null)}
           onError={(message) => addToast(message, 'error')}
         />
       )}

@@ -336,3 +336,47 @@ describe('PaperQuestionTextModal with the shared readers', () => {
     expect(screen.queryByLabelText(/Read with AI/)).not.toBeInTheDocument();
   });
 });
+
+describe('PaperQuestionTextModal with only an answer key (R17)', () => {
+  const chooseKey = async () => {
+    const file = new File([new Uint8Array(4)], 'key.pdf', {
+      type: 'application/pdf',
+    });
+    fireEvent.change(screen.getByLabelText('Upload answer key'), {
+      target: { files: [file] },
+    });
+    await screen.findByText('key.pdf');
+  };
+
+  it('fills the stub rows from the key and names what it skipped', async () => {
+    const readKey = vi.fn(() =>
+      Promise.resolve([
+        { item: 1, answer: 'C' },
+        { item: 2, answer: 'E' },
+      ])
+    );
+    const { onSave, onClose } = setup([], {
+      readDocument: vi.fn(),
+      readKey,
+    });
+    await chooseKey();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Read the answer key' })
+    );
+    const list = await screen.findByRole('list', {
+      name: 'Answers to fill in',
+    });
+    expect(list).toHaveTextContent('1.C');
+    expect(
+      screen.getByText(/key says E, question has 4 choices/)
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Fill 1 answer' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+    expect(onSave.mock.calls[0][0].questions[0]).toMatchObject({
+      correctAnswer: 'C',
+      incorrectAnswers: ['A', 'B', 'D'],
+    });
+    expect(onSave.mock.calls[0][0].questions[1]).toBe(stub.questions[1]);
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+});
