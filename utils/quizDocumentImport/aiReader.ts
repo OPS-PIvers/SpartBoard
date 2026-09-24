@@ -118,11 +118,7 @@ function toExtractedQuestion(
 const PRINTED_LABEL =
   /^(?:q(?:uestion)?\.?\s*)?(\d{1,3})\s*([A-Da-d])?\s*[.):]?$/i;
 
-/**
- * Printed numbers from the AI's `section` and `label` (R29), else its
- * `number`. When neither reads for every question, none gets a ref and
- * matching falls back to position.
- */
+/** Printed numbers from each question's AI `label` (R29), else its `number`. */
 export function withPrintedRefs(
   questions: readonly ExtractedQuestion[],
   raws: readonly AiExtractedQuiz['questions'][number][]
@@ -135,15 +131,15 @@ export function withPrintedRefs(
       ? PRINTED_LABEL.exec(String(r.number))
       : null
   );
-  const labels = fromLabel.every(Boolean) ? fromLabel : fromNumber;
-  if (labels.some((m) => !m)) return [...questions];
+  const labels = fromLabel.map((m, i) => m ?? fromNumber[i]);
   const sectionNames: string[] = [];
-  const refs: QuestionRef[] = raws.map((raw, i) => {
+  const refs: Array<QuestionRef | undefined> = raws.map((raw, i) => {
     const name = typeof raw.section === 'string' ? raw.section.trim() : '';
     if (!sectionNames.includes(name)) sectionNames.push(name);
     const printed =
       /\b(?:section|part)\s+(\d{1,2})\b/i.exec(name) ?? /(\d{1,2})/.exec(name);
-    const m = labels[i] as RegExpExecArray;
+    const m = labels[i];
+    if (!m) return undefined;
     return {
       section: sectionNames.indexOf(name) + 1,
       ...(name ? { sectionName: name } : {}),
@@ -152,10 +148,12 @@ export function withPrintedRefs(
       ...(m[2] ? { part: m[2].toUpperCase() } : {}),
     };
   });
-  const keys = refs.map((r) => `${r.item}${r.part ?? ''}`);
-  const restarted = new Set(keys).size !== keys.length;
+  const keys = refs.map((r) => (r ? `${r.item}${r.part ?? ''}` : ''));
+  const printedKeys = keys.filter(Boolean);
+  const restarted = new Set(printedKeys).size !== printedKeys.length;
   return questions.map((q, i) => {
     const r = refs[i];
+    if (!r) return q;
     const label = restarted
       ? `${r.sectionNumber ?? r.section}·${keys[i]}`
       : keys[i];
@@ -199,11 +197,14 @@ export function graftDocxImages(
   // When one reader skipped a question, printed refs line the two up instead.
   const refKey = (q: ExtractedQuestion): string | number =>
     q.ref ? `${q.ref.section}:${q.ref.item}${q.ref.part ?? ''}` : q.number;
-  const useRefs =
-    quiz.questions.length !== anchored.length &&
-    quiz.questions.every((q) => q.ref) &&
-    anchored.every((q) => q.ref);
-  const keyOf = (q: ExtractedQuestion) => (useRefs ? refKey(q) : q.number);
+  const countsDiffer = quiz.questions.length !== anchored.length;
+  const allRefs =
+    quiz.questions.every((q) => q.ref) && anchored.every((q) => q.ref);
+  // Without every ref, a printed number still beats position.
+  const printedKey = (q: ExtractedQuestion): string | number =>
+    q.ref ? `${q.ref.item}${q.ref.part ?? ''}` : q.number;
+  const keyOf = (q: ExtractedQuestion) =>
+    !countsDiffer ? q.number : allRefs ? refKey(q) : printedKey(q);
   const byNumber = new Map(anchored.map((q) => [keyOf(q), q.imageIds]));
   const questions = quiz.questions.map((q) => {
     const imageIds = byNumber.get(keyOf(q));

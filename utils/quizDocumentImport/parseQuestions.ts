@@ -18,7 +18,7 @@ import {
   findAnswerKey,
   isHeading,
 } from './answerKey';
-import { mergeAnswerKey } from './mergeKey';
+import { keyedQuestionIndexes, mergeAnswerKey } from './mergeKey';
 import {
   SELECT_ALL_WORDING,
   lineSegments,
@@ -809,9 +809,12 @@ export function parseDocument(
     return `${d.section.printed ?? d.section.ordinal}·${item}`;
   };
 
-  const keyedItems = new Set(keyItems.map((k) => k.item));
-  const finished = drafts.map((d, i) =>
-    finish(d, i + 1, labelOf(d), keyedItems.has(d.item), multi)
+  const unkeyed = drafts.map((d, i) =>
+    finish(d, i + 1, labelOf(d), false, multi)
+  );
+  const keyed = keyedQuestionIndexes(unkeyed, keyItems);
+  const finished = unkeyed.map((q, i) =>
+    keyed.has(i) ? finish(drafts[i], i + 1, labelOf(drafts[i]), true, multi) : q
   );
   const merged = mergeAnswerKey(
     { title: '', questions: finished, images: [], warnings: [] },

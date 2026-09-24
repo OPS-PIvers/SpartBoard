@@ -228,6 +228,24 @@ Section 2
 1. B`);
     expect(questions.map((q) => q.correctAnswer)).toEqual(['First', 'Down']);
   });
+
+  it('keeps the marking warning on a restarted item the key doesn’t cover', () => {
+    const { questions } = read(`Section 1
+1. Pick one.
+a. First
+b. Second
+Section 2
+1. Pick again.
+*a. Up
+*b. Down
+Answer Key
+1. A`);
+    expect(questions[0].correctAnswer).toBe('First');
+    expect(questions[1].correctAnswer).toBe('');
+    expect(questions[1].warnings).toContain(
+      'More than one answer choice is marked, so the answer was left blank.'
+    );
+  });
 });
 
 describe('mergeAnswerKey', () => {

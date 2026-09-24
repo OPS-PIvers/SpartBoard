@@ -86,6 +86,19 @@ function matcherFor(
   return byPosition;
 }
 
+/** Indexes of the questions some answer-bearing key entry resolves to. */
+export function keyedQuestionIndexes(
+  questions: readonly ExtractedQuestion[],
+  items: readonly KeyItem[]
+): Set<number> {
+  const match = matcherFor(questions, items);
+  return new Set(
+    items.flatMap((item, index) =>
+      item.answer || item.ordering?.length ? match(item, index) : []
+    )
+  );
+}
+
 const comparable = (text: string): string =>
   text
     .toLowerCase()
