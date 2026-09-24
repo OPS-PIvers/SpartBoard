@@ -6,7 +6,7 @@
  * create step never learn which one ran.
  */
 
-import { parseQuestionLines } from './parseQuestions';
+import { parseDocument } from './parseQuestions';
 import { readDocx } from './docxReader';
 import { readRtf } from './rtfReader';
 import { readCartridge } from './cartridgeReader';
@@ -27,6 +27,7 @@ export {
   type DocumentKind,
 } from './fileKind';
 export {
+  parseDocument,
   parseQuestionLines,
   isTrueFalse,
   splitAtColumnMarkers,
@@ -50,7 +51,12 @@ export {
   stripRunningLines,
   type OcrPage,
 } from './pdfLayout';
-export { extractedToQuizData, rowWarnings } from './toQuizData';
+export {
+  extractedToQuizData,
+  rowWarnings,
+  reviewExtrasFor,
+  type ReviewExtras,
+} from './toQuizData';
 export {
   cropPdfFigures,
   pixelRect,
@@ -121,21 +127,24 @@ export async function readQuizDocument(
     warnings.push(
       'Pictures in a rich text file aren’t brought in — add them to the questions that need them in the editor.'
     );
+    const { questions, texts } = parseDocument(lines, reader);
     return {
       title: titleFromFileName(fileName),
-      questions: parseQuestionLines(lines, reader),
+      questions,
       images: [],
+      ...(texts.length > 0 ? { texts } : {}),
       warnings,
     };
   }
 
   if (kind === 'docx') {
     const { lines, images } = await readDocx(file);
-    const questions = parseQuestionLines(lines, reader);
+    const { questions, texts } = parseDocument(lines, reader);
     const used = new Set(questions.flatMap((q) => q.imageIds));
     return {
       title: titleFromFileName(fileName),
       questions,
+      ...(texts.length > 0 ? { texts } : {}),
       // A picture nothing points at would upload to Drive unused.
       images: images.filter((img) => used.has(img.id)),
       warnings,
@@ -172,10 +181,12 @@ export async function readQuizDocument(
     'Pictures in a PDF aren’t brought in — add them to the questions that need them in the editor.'
   );
 
+  const { questions, texts } = parseDocument(lines, reader);
   return {
     title: titleFromFileName(fileName),
-    questions: parseQuestionLines(lines, reader),
+    questions,
     images: [],
+    ...(texts.length > 0 ? { texts } : {}),
     warnings,
   };
 }

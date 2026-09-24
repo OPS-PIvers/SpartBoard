@@ -27,6 +27,7 @@ import {
   assertWithinByteLimit,
   documentKind,
   extractedToQuizData,
+  reviewExtrasFor,
   readAnswerKeyFile,
   readByLabel,
   rowWarnings,
@@ -91,6 +92,8 @@ export interface QuizImportAdapterDeps {
    * are both on (D21). False keeps the import wizard exactly as it was.
    */
   canImportDocuments?: boolean;
+  /** Offer the test's learning-target lines as targets in review (R20, R22). */
+  canSuggestTargets?: boolean;
   /**
    * Uploads a read document's pictures to the teacher's Drive and links them
    * to the questions that use them (D13). Called at save, not at read, so a
@@ -524,6 +527,9 @@ export function createQuizImportAdapter(
               data,
               onChange,
               images: deps.documentImages?.() ?? [],
+              ...(deps.canSuggestTargets
+                ? { suggestedTargets: reviewExtrasFor(data)?.suggestedTargets }
+                : {}),
             }),
         }
       : {}),

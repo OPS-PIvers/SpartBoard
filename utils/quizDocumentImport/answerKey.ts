@@ -68,7 +68,7 @@ const STRONG_HEADING =
 const WEAK_HEADING =
   /^\s*(?:answers?|keys?|solutions?|(?:question|item|no\.?|#|number)\s*[|:]?\s*(?:answer|key))\s*(?:[:\-–—(|].{0,40})?$/i;
 
-const isHeading = (text: string): boolean =>
+export const isHeading = (text: string): boolean =>
   !/^\s*\d/.test(text) &&
   (STRONG_HEADING.test(text) || WEAK_HEADING.test(text));
 

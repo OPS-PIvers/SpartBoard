@@ -1408,6 +1408,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       // A question bank has no review table of its own, so the test-document
       // tile is offered on the quiz import only.
       canImportDocuments,
+      canSuggestTargets: canAccessFeature('quiz-import-suggested-targets'),
       pickDocument,
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
       canUseChooseAll: canAccessFeature('quiz-choose-all'),

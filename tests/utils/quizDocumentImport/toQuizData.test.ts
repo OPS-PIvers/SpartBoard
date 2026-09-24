@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   extractedToQuizData,
+  reviewExtrasFor,
   rowWarnings,
 } from '@/utils/quizDocumentImport/toQuizData';
 import type {
@@ -143,5 +144,106 @@ describe('rowWarnings', () => {
 
   it('is empty when nothing needs saying', () => {
     expect(rowWarnings(quiz())).toEqual([]);
+  });
+});
+
+describe('extractedToQuizData — reliability fields (R9, R23, R25)', () => {
+  it('carries the printed label and points', () => {
+    const data = extractedToQuizData(
+      quiz({ questions: [question({ sourceLabel: '2·3', points: 2 })] })
+    );
+    expect(data.questions[0].sourceLabel).toBe('2·3');
+    expect(data.questions[0].points).toBe(2);
+  });
+
+  it('keeps a keyed ordering item as Ordering', () => {
+    const data = extractedToQuizData(
+      quiz({
+        questions: [
+          question({
+            type: 'Ordering',
+            options: [
+              { letter: 'A', text: 'second' },
+              { letter: 'B', text: 'first' },
+            ],
+            correctAnswer: 'first|second',
+          }),
+        ],
+      })
+    );
+    expect(data.questions[0].type).toBe('Ordering');
+    expect(data.questions[0].correctAnswer).toBe('first|second');
+    expect(data.questions[0].needsKey).toBeUndefined();
+  });
+
+  it('lists an unkeyed ordering item as a written question and says so', () => {
+    const extracted = quiz({
+      questions: [
+        question({
+          text: 'Put them in order.',
+          type: 'Ordering',
+          options: [
+            { letter: 'A', text: 'second' },
+            { letter: 'B', text: 'first' },
+          ],
+          correctAnswer: '',
+        }),
+      ],
+    });
+    const data = extractedToQuizData(extracted);
+    expect(data.questions[0].type).toBe('free-response');
+    expect(data.questions[0].text).toBe(
+      'Put them in order. A. second / B. first'
+    );
+    expect(rowWarnings(extracted).join(' ')).toMatch(/ordering question/i);
+  });
+
+  it('turns shared text into one passage both questions point at', () => {
+    const data = extractedToQuizData(
+      quiz({
+        texts: [{ id: 'text-1', text: 'A long passage.', label: 'Passage 1' }],
+        questions: [
+          question({ sharedTextId: 'text-1' }),
+          question({ number: 2, sharedTextId: 'text-1' }),
+        ],
+      })
+    );
+    expect(data.stimuli).toHaveLength(1);
+    expect(data.stimuli?.[0]).toMatchObject({
+      type: 'text',
+      url: '',
+      text: 'A long passage.',
+      readAloudSource: 'text',
+    });
+    const id = data.stimuli?.[0].id;
+    expect(data.questions.map((q) => q.stimulusIds)).toEqual([[id], [id]]);
+  });
+
+  it('leaves suggested-untick rows out of the quiz but in the review list', () => {
+    const data = extractedToQuizData(
+      quiz({
+        questions: [
+          question(),
+          question({ number: 2, suggestUntick: 'A survey item.' }),
+        ],
+      })
+    );
+    expect(data.questions).toHaveLength(1);
+    const extras = reviewExtrasFor(data);
+    expect(extras?.allQuestions).toHaveLength(2);
+    expect([...(extras?.untick.values() ?? [])]).toEqual(['A survey item.']);
+  });
+
+  it('maps learning-target lines by quiz question id', () => {
+    const data = extractedToQuizData(
+      quiz({
+        questions: [
+          question({ suggestedTarget: { code: 'ELT 1.1', label: 'I can x.' } }),
+        ],
+      })
+    );
+    expect(
+      reviewExtrasFor(data)?.suggestedTargets.get(data.questions[0].id)
+    ).toEqual({ code: 'ELT 1.1', label: 'I can x.' });
   });
 });

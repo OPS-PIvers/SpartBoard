@@ -120,7 +120,8 @@ B. In Nevada`)
     const [q] = parseQuestionLines(
       lines(`1. Which is true?
 A. First
-C. Not second`)
+C. Not second
+2. Next?`)
     );
     // `C.` cannot follow `A.`, so it continues the option above it.
     expect(q.options).toHaveLength(1);

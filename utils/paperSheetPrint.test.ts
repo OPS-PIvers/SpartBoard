@@ -109,6 +109,28 @@ describe('buildPaperSheetsHtml', () => {
     expect(letters).toEqual([...'ABCD', ...'ABCD', ...'ABCD']);
   });
 
+  it("prints the test's own number beside the bubble number, inside the number cell", () => {
+    const plain = buildPaperSheetsHtml(job({ questionCount: 12 }));
+    const labels = Array.from<string | undefined>({ length: 12 });
+    labels[11] = '2·3';
+    const html = buildPaperSheetsHtml(
+      job({ questionCount: 12, rowLabels: labels })
+    );
+    expect(html).toMatch(
+      /<div class="num labelled"[^>]*><span>12<\/span><span class="num-src">\(2·3\)<\/span><\/div>/
+    );
+    expect(html.match(/class="num labelled"/g)).toHaveLength(1);
+    const bubbles = (h: string) =>
+      [...h.matchAll(/<div class="bub"[^>]*>/g)].map((m) => m[0]);
+    expect(bubbles(html)).toEqual(bubbles(plain));
+  });
+
+  it('prints nothing extra beside the numbers of an unlabeled quiz', () => {
+    const html = buildPaperSheetsHtml(job({ questionCount: 12 }));
+    expect(html).not.toContain('num-src');
+    expect(html).not.toContain('num labelled');
+  });
+
   it('stops at the choice count rather than always printing A-E', () => {
     const html = buildPaperSheetsHtml(
       job({ questionCount: 1, choiceCount: 3 })

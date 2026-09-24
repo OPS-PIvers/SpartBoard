@@ -7,14 +7,45 @@
  * Assign stays shut until a teacher fills them in.
  */
 
-import type { QuizData, QuizQuestion } from '@/types';
+import type { QuizData, QuizQuestion, QuizStimulus } from '@/types';
 import {
   multiAnswerPart,
   type ExtractedQuestion,
   type ExtractedQuiz,
+  type SuggestedTarget,
 } from './types';
 
+/** An ordering item the key never put in order can't be stored as Ordering, so it is listed. */
+function unkeyedOrdering(q: ExtractedQuestion): QuizQuestion {
+  const items = q.options.map((o) => `${o.letter}. ${o.text}`).join(' / ');
+  return {
+    id: crypto.randomUUID(),
+    timeLimit: 0,
+    text: `${q.text} ${items}`.trim(),
+    type: 'free-response',
+    correctAnswer: '',
+    incorrectAnswers: [],
+    ...(q.points !== undefined ? { points: q.points } : {}),
+    ...(q.sourceLabel ? { sourceLabel: q.sourceLabel } : {}),
+  };
+}
+
 function toQuizQuestion(q: ExtractedQuestion): QuizQuestion {
+  if (q.type === 'Ordering') {
+    const order = q.correctAnswer.trim();
+    if (!order) return unkeyedOrdering(q);
+    return {
+      id: crypto.randomUUID(),
+      timeLimit: 0,
+      text: q.text,
+      type: 'Ordering',
+      correctAnswer: order,
+      incorrectAnswers: [],
+      ...(q.points !== undefined ? { points: q.points } : {}),
+      ...(q.sourceLabel ? { sourceLabel: q.sourceLabel } : {}),
+      ...(q.imageIds.length > 0 ? { stimulusIds: [...q.imageIds] } : {}),
+    };
+  }
   const isMulti = q.type === 'MA';
   const optionTexts = q.options.map((o) =>
     isMulti ? multiAnswerPart(o.text) : o.text
@@ -38,6 +69,8 @@ function toQuizQuestion(q: ExtractedQuestion): QuizQuestion {
     correctAnswer: isWritten ? '' : answer,
     incorrectAnswers: isWritten ? [] : incorrectAnswers,
     ...(!isWritten && !answer ? { needsKey: true } : {}),
+    ...(q.points !== undefined ? { points: q.points } : {}),
+    ...(q.sourceLabel ? { sourceLabel: q.sourceLabel } : {}),
     // The reader's own image ids. `attachDocumentImages` swaps them for real
     // stimulus ids at save; nothing persists a quiz before that runs.
     ...(q.imageIds.length > 0 ? { stimulusIds: [...q.imageIds] } : {}),
@@ -50,23 +83,80 @@ function toQuizQuestion(q: ExtractedQuestion): QuizQuestion {
  */
 export function rowWarnings(extracted: ExtractedQuiz): string[] {
   return extracted.questions.flatMap((q) =>
-    q.warnings.map((w) => `Question ${q.number}: ${w}`)
+    [
+      ...q.warnings,
+      ...(q.type === 'Ordering' && !q.correctAnswer.trim()
+        ? [
+            'This looks like an ordering question, but no order was given, so it came in as a written question with the items listed.',
+          ]
+        : []),
+      ...(q.suggestUntick ? [`${q.suggestUntick} It starts unticked.`] : []),
+    ].map((w) => `Question ${q.number}: ${w}`)
   );
 }
 
-/** Build a quiz from a read document. */
+/** What the review table needs beyond the quiz itself, keyed by the quiz it came with. */
+export interface ReviewExtras {
+  /** Every question read, including rows that start unticked. */
+  allQuestions: QuizQuestion[];
+  /** Question ids that start unticked (R9), with the reason. */
+  untick: ReadonlyMap<string, string>;
+  /** Learning-target lines by question id (R20). */
+  suggestedTargets: ReadonlyMap<string, SuggestedTarget>;
+}
+
+const reviewExtras = new WeakMap<QuizData, ReviewExtras>();
+
+/** The review extras for a quiz `extractedToQuizData` built, if any. */
+export const reviewExtrasFor = (data: QuizData): ReviewExtras | undefined =>
+  reviewExtras.get(data);
+
+/**
+ * Build a quiz from a read document. Rows the reader suggests unticking are
+ * left out of the quiz and kept in `reviewExtrasFor`, so review shows them unticked.
+ */
 export function extractedToQuizData(
   extracted: ExtractedQuiz,
   options: { title?: string; now?: number } = {}
 ): QuizData {
   const now = options.now ?? Date.now();
-  const questions = extracted.questions.map(toQuizQuestion);
+  const stimulusIdByText = new Map<string, string>();
+  const stimuli: QuizStimulus[] = (extracted.texts ?? []).map((t) => {
+    const id = crypto.randomUUID();
+    stimulusIdByText.set(t.id, id);
+    return {
+      id,
+      type: 'text',
+      url: '',
+      text: t.text,
+      label: t.label,
+      readAloudSource: 'text',
+    };
+  });
 
-  return {
+  const untick = new Map<string, string>();
+  const suggestedTargets = new Map<string, SuggestedTarget>();
+  const allQuestions = extracted.questions.map((q) => {
+    const built = toQuizQuestion(q);
+    const shared = q.sharedTextId
+      ? stimulusIdByText.get(q.sharedTextId)
+      : undefined;
+    const question = shared
+      ? { ...built, stimulusIds: [shared, ...(built.stimulusIds ?? [])] }
+      : built;
+    if (q.suggestUntick) untick.set(question.id, q.suggestUntick);
+    if (q.suggestedTarget) suggestedTargets.set(question.id, q.suggestedTarget);
+    return question;
+  });
+
+  const data: QuizData = {
     id: crypto.randomUUID(),
     title: (options.title ?? extracted.title).trim() || 'Imported Quiz',
-    questions,
+    questions: allQuestions.filter((q) => !untick.has(q.id)),
+    ...(stimuli.length > 0 ? { stimuli } : {}),
     createdAt: now,
     updatedAt: now,
   };
+  reviewExtras.set(data, { allQuestions, untick, suggestedTargets });
+  return data;
 }

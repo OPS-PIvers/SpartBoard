@@ -295,4 +295,33 @@ describe('QuizEditorModal isDirty (behavior compare)', () => {
     fireEvent.click(enforceToggle);
     expect(dirtyAttr()).toBe('false');
   });
+
+  it('shows the printed number in the list and edits it in the question form', () => {
+    const labelled: QuizData = {
+      ...fakeQuiz,
+      questions: [{ ...fakeQuiz.questions[0], sourceLabel: '2·3' }],
+    };
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={labelled}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+    const context = within(screen.getByTestId('context-pane'));
+    expect(context.getByText('· printed 2·3')).toBeTruthy();
+
+    const field = within(screen.getByTestId('detail-pane')).getByLabelText(
+      'Printed number'
+    );
+    expect((field as HTMLInputElement).value).toBe('2·3');
+
+    fireEvent.change(field, { target: { value: '' } });
+    expect(dirtyAttr()).toBe('true');
+    expect(context.queryByText(/printed/)).toBeNull();
+
+    fireEvent.change(field, { target: { value: '2·3' } });
+    expect(dirtyAttr()).toBe('false');
+  });
 });

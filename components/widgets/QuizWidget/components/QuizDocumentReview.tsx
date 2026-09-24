@@ -23,6 +23,7 @@ import {
   multiAnswerOptions,
 } from '@/utils/quizMultiAnswer';
 import { withTargetTag } from '@/utils/quizDocumentImport/suggestedTargets';
+import { reviewExtrasFor } from '@/utils/quizDocumentImport/toQuizData';
 import {
   spillMessage,
   spillWarnings,
@@ -78,16 +79,26 @@ const ReviewTable: React.FC<
   // The full set read from the document. Unticking removes a question from
   // what gets created, so the master list has to outlive that or a row could
   // never be ticked back on. The preview step mounts once per read.
+  // Rows the reader suggests leaving out (a survey item) arrive unticked (R9).
+  const [extras] = useState(() => reviewExtrasFor(data));
   const [allQuestions, setAllQuestions] = useState<QuizQuestion[]>(
-    data.questions
+    extras?.allQuestions ?? data.questions
   );
-  const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set());
+  const [excluded, setExcluded] = useState<ReadonlySet<string>>(
+    () => new Set(extras?.untick.keys())
+  );
   const [onlyFlagged, setOnlyFlagged] = useState(false);
   // The choice order is fixed when the read lands. Deriving it from the
   // current answer would reshuffle the radio list under the teacher's cursor
   // the moment they pick a different one.
   const [choiceOrder] = useState<ReadonlyMap<string, string[]>>(
-    () => new Map(data.questions.map((q) => [q.id, choicesOf(q)]))
+    () => new Map(allQuestions.map((q) => [q.id, choicesOf(q)]))
+  );
+  /** Shared passages by stimulus id, for the link shown on each row (R25). */
+  const passages = new Map(
+    (data.stimuli ?? [])
+      .filter((st) => st.type === 'text')
+      .map((st) => [st.id, st.label])
   );
   // An object URL is a browser resource, not derived state: made once for
   // the thumbnails and released when the review step goes away.
@@ -262,6 +273,11 @@ const ReviewTable: React.FC<
                     <span className="font-mono text-xs font-bold text-slate-400">
                       {index + 1}
                     </span>
+                    {q.sourceLabel && (
+                      <span className="font-mono text-xxs text-slate-400">
+                        printed {q.sourceLabel}
+                      </span>
+                    )}
                     <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-slate-600">
                       {TYPE_LABEL[q.type]}
                     </span>
@@ -277,6 +293,26 @@ const ReviewTable: React.FC<
                       </span>
                     )}
                   </div>
+
+                  {extras?.untick.has(q.id) && !included && (
+                    <p className="text-xs text-slate-500">
+                      {extras.untick.get(q.id)} Tick it to include it.
+                    </p>
+                  )}
+
+                  {(q.stimulusIds ?? [])
+                    .filter((id) => passages.has(id))
+                    .map((id) => {
+                      const alsoOn = sharedWith(id, q.id);
+                      return (
+                        <p key={id} className="text-xs text-slate-500">
+                          Uses {passages.get(id)}
+                          {alsoOn.length > 0
+                            ? `, shared with ${alsoOn.join(', ')}`
+                            : ''}
+                        </p>
+                      );
+                    })}
 
                   <textarea
                     value={q.text}

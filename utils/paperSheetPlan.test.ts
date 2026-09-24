@@ -56,6 +56,16 @@ describe('analyzePaperQuiz', () => {
     expect(result.exclusions).toEqual([]);
   });
 
+  it('carries the printed number onto its row, and adds nothing when unset', () => {
+    const result = analyzePaperQuiz(
+      quiz({
+        questions: [mc({ id: 'a' }), mc({ id: 'b', sourceLabel: '2·3' })],
+      })
+    );
+    expect(result.rows[0]).not.toHaveProperty('sourceLabel');
+    expect(result.rows[1].sourceLabel).toBe('2·3');
+  });
+
   it('treats a two-choice question as the True/False case', () => {
     const result = analyzePaperQuiz(
       quiz({

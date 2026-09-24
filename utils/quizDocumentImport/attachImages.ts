@@ -8,7 +8,7 @@
  * out of the wizard leaves nothing behind in their Drive.
  */
 
-import type { QuizData, QuizStimulus } from '@/types';
+import type { QuizData, QuizQuestion, QuizStimulus } from '@/types';
 import type { ExtractedImage } from './types';
 
 /** Puts one picture somewhere students can open it, and takes it back. */
@@ -30,12 +30,35 @@ function referencedImageIds(quiz: QuizData): Set<string> {
   return ids;
 }
 
+/** Stimuli already on the quiz (a shared passage), which no upload replaces. */
+const existingIds = (quiz: QuizData): Set<string> =>
+  new Set((quiz.stimuli ?? []).map((s) => s.id));
+
+/** Keeps only pointers in `keep`, dropping a passage whose questions were all unticked. */
+function pruneStimuli(quiz: QuizData, keep: ReadonlySet<string>): QuizData {
+  const questions = quiz.questions.map((q): QuizQuestion => {
+    const ids = (q.stimulusIds ?? []).filter((id) => keep.has(id));
+    if (ids.length === 0) {
+      const { stimulusIds: _drop, ...rest } = q;
+      return rest;
+    }
+    return { ...q, stimulusIds: ids };
+  });
+  const used = new Set(questions.flatMap((q) => q.stimulusIds ?? []));
+  const stimuli = (quiz.stimuli ?? []).filter(
+    (s) => s.type !== 'text' || used.has(s.id)
+  );
+  const { stimuli: _old, ...rest } = quiz;
+  return {
+    ...rest,
+    questions,
+    ...(stimuli.length > 0 ? { stimuli } : {}),
+  };
+}
+
 /** Drops pointers to pictures that are not becoming stimuli. */
 function withoutStimulusIds(quiz: QuizData): QuizData {
-  return {
-    ...quiz,
-    questions: quiz.questions.map(({ stimulusIds: _drop, ...q }) => q),
-  };
+  return pruneStimuli(quiz, existingIds(quiz));
 }
 
 /**
@@ -81,20 +104,19 @@ export async function attachDocumentImages(
     throw error;
   }
 
-  return {
+  const keep = existingIds(quiz);
+  const withUploads: QuizData = {
     ...quiz,
     stimuli: [...(quiz.stimuli ?? []), ...stimuli],
-    questions: quiz.questions.map((q) => {
-      // A pointer with no upload behind it would dangle, so only the ids
-      // that actually became stimuli survive.
-      const ids = (q.stimulusIds ?? [])
-        .map((id) => stimulusIdByImageId.get(id))
-        .filter((id): id is string => id !== undefined);
-      if (ids.length === 0) {
-        const { stimulusIds: _drop, ...rest } = q;
-        return rest;
-      }
-      return { ...q, stimulusIds: ids };
-    }),
+    questions: quiz.questions.map((q) => ({
+      ...q,
+      stimulusIds: (q.stimulusIds ?? []).map(
+        (id) => stimulusIdByImageId.get(id) ?? id
+      ),
+    })),
   };
+  // A pointer with no upload behind it would dangle, so only the ids
+  // that actually became stimuli survive.
+  for (const id of stimulusIdByImageId.values()) keep.add(id);
+  return pruneStimuli(withUploads, keep);
 }
