@@ -102,6 +102,23 @@ describe('parsePlcAggregate — tolerant parsing', () => {
     expect(parsed?.ranAt).toBe(1718764800000);
   });
 
+  it('parses schema 5 score bands and drops a malformed set', () => {
+    const bands = [
+      { min: 90, max: 100, count: 3 },
+      { min: 0, max: 59, count: 1 },
+    ];
+    expect(
+      parsePlcAggregate('a', validAggregateData({ scoreDistribution: bands }))
+        ?.scoreDistribution
+    ).toEqual(bands);
+    const bad = parsePlcAggregate(
+      'a',
+      validAggregateData({ scoreDistribution: [{ min: 90, count: 'x' }] })
+    );
+    expect(bad).not.toBeNull();
+    expect(bad?.scoreDistribution).toBeUndefined();
+  });
+
   it('prefers the doc id over a (conflicting) stored assessmentId', () => {
     const parsed = parsePlcAggregate(
       'canonical-id',

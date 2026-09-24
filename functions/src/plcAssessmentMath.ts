@@ -1,7 +1,30 @@
 // Pure math for the PLC pooled-assessment aggregate (docs/plans/PLC_ASSESSMENT_DATA.md §5.3).
 // Local mirrors of the root `types.ts` shapes; functions cannot import across the repo root.
 
-export const AGGREGATE_SCHEMA_VERSION = 5;
+export const AGGREGATE_SCHEMA_VERSION = 6;
+
+/** Lower bounds of the pooled score bands; mirrors `SCORE_DISTRIBUTION_BANDS` in utils/scoreColor.ts. */
+export const SCORE_BAND_MINS = [90, 80, 60, 0] as const;
+
+export interface AggregateScoreBand {
+  min: number;
+  max: number;
+  count: number;
+}
+
+/** Pooled per-band student counts; never per-student rows. */
+export function bucketScores(scores: number[]): AggregateScoreBand[] {
+  const bands = SCORE_BAND_MINS.map((min, i) => ({
+    min,
+    max: i === 0 ? 100 : SCORE_BAND_MINS[i - 1] - 1,
+    count: 0,
+  }));
+  for (const score of scores) {
+    const band = bands.find((b) => score >= b.min) ?? bands[bands.length - 1];
+    band.count++;
+  }
+  return bands;
+}
 
 export type LearningTargetKind = 'standard' | 'plc' | 'personal';
 
@@ -162,6 +185,8 @@ export interface AggregatePayload {
   teamAveragePercent: number;
   /** Completed responses that carried a numeric score. */
   scoredStudentCount: number;
+  /** Scored students pooled into percent bands (schema 6+). */
+  scoreDistribution: AggregateScoreBand[];
   sessionCount: number;
   /** Every linked session, including ones with no completed responses. */
   linkedSessionCount: number;
@@ -771,6 +796,7 @@ export function computeAssessmentAggregate(
   let studentCount = 0;
   let scoreSum = 0;
   let scoreCount = 0;
+  const scores: number[] = [];
   let anyPositional = false;
   let anyMismatch = false;
 
@@ -861,6 +887,7 @@ export function computeAssessmentAggregate(
       if (score !== null) {
         scoreSum += score;
         scoreCount++;
+        scores.push(score);
         teacher.scoreSum += score;
         teacher.scoreCount++;
       }
@@ -1042,6 +1069,7 @@ export function computeAssessmentAggregate(
     studentCount,
     teamAveragePercent: scoreCount > 0 ? Math.round(scoreSum / scoreCount) : 0,
     scoredStudentCount: scoreCount,
+    scoreDistribution: bucketScores(scores),
     sessionCount: sessionIds.length,
     linkedSessionCount,
     publishedSessionCount,
