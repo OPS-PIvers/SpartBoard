@@ -15,6 +15,20 @@ type CalloutStyleFields = Pick<
   'calloutWidthPct' | 'calloutScale' | 'calloutTone'
 >;
 
+/** True when the step draws a tooltip or popover the style fields apply to. */
+export function stepHasCallout(
+  step: Pick<GuidedLearningStep, 'interactionType' | 'showOverlay'>
+): boolean {
+  if (step.interactionType === 'tooltip') return true;
+  if (step.interactionType === 'text-popover') return true;
+  return (
+    (step.interactionType === 'pan-zoom' ||
+      step.interactionType === 'spotlight' ||
+      step.interactionType === 'pan-zoom-spotlight') &&
+    (step.showOverlay === 'tooltip' || step.showOverlay === 'popover')
+  );
+}
+
 const isNum = (v: unknown): v is number =>
   typeof v === 'number' && Number.isFinite(v);
 
@@ -50,12 +64,16 @@ export function calloutToneOf(
   return isCalloutTone(step.calloutTone) ? step.calloutTone : 'dark';
 }
 
-/** True when a step carries any schema-v4 callout field. */
-export function stepUsesCalloutStyle(step: CalloutStyleFields): boolean {
+/** True when a callout step renders any schema-v4 field; leftovers on other types and 'dark' don't count. */
+export function stepUsesCalloutStyle(
+  step: CalloutStyleFields &
+    Pick<GuidedLearningStep, 'interactionType' | 'showOverlay'>
+): boolean {
   return (
-    step.calloutWidthPct !== undefined ||
-    step.calloutScale !== undefined ||
-    step.calloutTone !== undefined
+    stepHasCallout(step) &&
+    (step.calloutWidthPct !== undefined ||
+      step.calloutScale !== undefined ||
+      (step.calloutTone !== undefined && step.calloutTone !== 'dark'))
   );
 }
 

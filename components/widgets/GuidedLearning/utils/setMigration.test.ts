@@ -50,6 +50,29 @@ describe('requiredSchemaVersion', () => {
     ).toBe(3);
   });
 
+  it('ignores leftovers on non-callout steps and an explicit dark tone', () => {
+    expect(
+      requiredSchemaVersion({
+        steps: [
+          step({ interactionType: 'question', calloutScale: 2 }),
+          step({ interactionType: 'pan-zoom', calloutWidthPct: 30 }),
+          step({ calloutTone: 'dark' }),
+        ],
+      })
+    ).toBe(3);
+    expect(
+      requiredSchemaVersion({
+        steps: [
+          step({
+            interactionType: 'spotlight',
+            showOverlay: 'popover',
+            calloutWidthPct: 30,
+          }),
+        ],
+      })
+    ).toBe(4);
+  });
+
   it.each([
     { calloutWidthPct: 40 },
     { calloutScale: 1.25 },
