@@ -3231,5 +3231,8 @@
   },
   "glData": {
     "setTooLarge": "Dieses Set ist zu groß zum Speichern – teile es auf oder entferne Folien."
+  },
+  "glAssignments": {
+    "showOlder": "Ältere anzeigen"
   }
 }

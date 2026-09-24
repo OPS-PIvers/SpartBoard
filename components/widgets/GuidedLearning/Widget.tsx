@@ -222,6 +222,8 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const {
     assignments,
     loading: assignmentsLoading,
+    hasOlder: hasOlderAssignments,
+    showOlder: showOlderAssignments,
     createAssignment,
     archiveAssignment,
     unarchiveAssignment,
@@ -1261,6 +1263,8 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   loading={loading}
                   buildingLoading={buildingLoading}
                   assignmentsLoading={assignmentsLoading}
+                  hasOlderAssignments={hasOlderAssignments}
+                  onShowOlderAssignments={showOlderAssignments}
                   isDriveConnected={isDriveConnected}
                   isAdmin={isAdmin ?? false}
                   onPlay={(setId, driveFileId, buildingEntry) => {

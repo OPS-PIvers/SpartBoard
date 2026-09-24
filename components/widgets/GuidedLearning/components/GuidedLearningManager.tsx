@@ -74,6 +74,7 @@ import {
   ROOT_FOLDER_COUNT_KEY,
 } from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
+import { useTranslation } from 'react-i18next';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import type {
   LibraryBadge,
@@ -139,6 +140,9 @@ export interface GuidedLearningManagerProps {
   loading: boolean;
   buildingLoading: boolean;
   assignmentsLoading: boolean;
+  /** Closed assignments past the loaded pages may exist. */
+  hasOlderAssignments?: boolean;
+  onShowOlderAssignments?: () => void;
   isDriveConnected: boolean;
   isAdmin: boolean;
 
@@ -400,6 +404,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   loading,
   buildingLoading,
   assignmentsLoading,
+  hasOlderAssignments = false,
+  onShowOlderAssignments,
   isDriveConnected,
   isAdmin,
   onPlay,
@@ -431,6 +437,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onAssignmentUnpublishScores,
   assignmentMode = 'submissions',
 }) => {
+  const { t } = useTranslation();
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
   const liveTours = useLiveToursEnabled();
@@ -1272,26 +1279,42 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       );
     }
     const list = mode === 'active' ? activeAssignments : archivedAssignments;
+    // Open assignments always load in full, so only the archive pages.
+    const showOlderButton =
+      mode === 'archive' && hasOlderAssignments && onShowOlderAssignments ? (
+        <button
+          type="button"
+          onClick={onShowOlderAssignments}
+          className="self-center rounded-lg px-3 py-1.5 font-semibold text-brand-blue-primary hover:bg-slate-100"
+          style={{ fontSize: 'min(12px, 4cqmin)' }}
+        >
+          {t('glAssignments.showOlder')}
+        </button>
+      ) : null;
     if (list.length === 0) {
       return (
-        <ScaledEmptyState
-          icon={mode === 'active' ? Play : ArchiveIcon}
-          title={
-            mode === 'active'
-              ? 'No live assignments'
-              : 'No archived assignments'
-          }
-          subtitle={
-            mode === 'active'
-              ? 'Assign a set from the Library tab to get started.'
-              : 'Archived assignments will appear here.'
-          }
-        />
+        <div className="flex flex-col">
+          <ScaledEmptyState
+            icon={mode === 'active' ? Play : ArchiveIcon}
+            title={
+              mode === 'active'
+                ? 'No live assignments'
+                : 'No archived assignments'
+            }
+            subtitle={
+              mode === 'active'
+                ? 'Assign a set from the Library tab to get started.'
+                : 'Archived assignments will appear here.'
+            }
+          />
+          {showOlderButton}
+        </div>
       );
     }
     return (
       <div className="flex flex-col">
         {list.map((a) => renderAssignmentCard(a, mode))}
+        {showOlderButton}
       </div>
     );
   };

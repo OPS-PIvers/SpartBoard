@@ -8,7 +8,7 @@
  * re-homed when a folder is deleted.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   collection,
   doc,
@@ -24,6 +24,10 @@ import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { collectDescendantIds } from '@/utils/folderTree';
 import type { LibraryFolder } from '@/types';
+import {
+  type SharedSource,
+  useSharedSubscription,
+} from './useSharedSubscription';
 
 export type DeleteFolderMode = 'move-to-parent' | 'delete-all';
 
@@ -81,6 +85,38 @@ export interface UseFoldersResult {
   moveItem: (itemId: string, folderId: string | null) => Promise<void>;
 }
 
+interface FoldersState {
+  folders: LibraryFolder[];
+  loading: boolean;
+  error: string | null;
+}
+
+const foldersSource: SharedSource<FoldersState> = {
+  id: 'library-folders',
+  initial: { folders: [], loading: true, error: null },
+  start: (folderKey, update) =>
+    onSnapshot(
+      query(collection(db, folderKey), orderBy('order', 'asc')),
+      (snap) =>
+        update(() => ({
+          folders: snap.docs.map((d) => ({
+            ...(d.data() as Omit<LibraryFolder, 'id'>),
+            id: d.id,
+          })),
+          loading: false,
+          error: null,
+        })),
+      (err) => {
+        logError('useFolderTree.onSnapshot', err, { folderKey });
+        update((prev) => ({
+          ...prev,
+          loading: false,
+          error: 'Failed to load folders',
+        }));
+      }
+    ),
+};
+
 export function useFolderTree(config: FolderTreeConfig): UseFoldersResult {
   const { folderPath, itemPaths, logContext } = config;
   const folderKey = folderPath?.join('/') ?? null;
@@ -91,48 +127,11 @@ export function useFolderTree(config: FolderTreeConfig): UseFoldersResult {
     [itemsKey]
   );
 
-  const [folders, setFolders] = useState<LibraryFolder[]>([]);
-  const [loading, setLoading] = useState<boolean>(!!folderKey);
-  const [error, setError] = useState<string | null>(null);
-
-  // Adjust state when the folder key transitions — avoids the
-  // "set-state-in-effect" anti-pattern while still clearing stale data.
-  const [prevFolderKey, setPrevFolderKey] = useState(folderKey);
-  if (folderKey !== prevFolderKey) {
-    setPrevFolderKey(folderKey);
-    if (!folderKey) {
-      setFolders([]);
-      setLoading(false);
-      setError(null);
-    } else {
-      setLoading(true);
-    }
-  }
-
-  useEffect(() => {
-    if (!folderKey) return;
-
-    const q = query(collection(db, folderKey), orderBy('order', 'asc'));
-
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const list: LibraryFolder[] = snap.docs.map((d) => {
-          const data = d.data() as Omit<LibraryFolder, 'id'>;
-          return { ...data, id: d.id };
-        });
-        setFolders(list);
-        setLoading(false);
-      },
-      (err) => {
-        logError('useFolderTree.onSnapshot', err, { folderKey, ...logContext });
-        setError('Failed to load folders');
-        setLoading(false);
-      }
-    );
-
-    return unsub;
-  }, [folderKey, logContext]);
+  // One listener per folder path, however many widgets or panels read it.
+  const shared = useSharedSubscription(foldersSource, folderKey);
+  const folders = shared.folders;
+  const loading = folderKey ? shared.loading : false;
+  const error = folderKey ? shared.error : null;
 
   const createFolder = useCallback(
     async (name: string, parentId: string | null): Promise<string> => {

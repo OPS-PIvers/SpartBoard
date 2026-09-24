@@ -3231,5 +3231,8 @@
   },
   "glData": {
     "setTooLarge": "Cet ensemble est trop volumineux pour être enregistré : divisez-le ou supprimez des diapositives."
+  },
+  "glAssignments": {
+    "showOlder": "Afficher les plus anciennes"
   }
 }

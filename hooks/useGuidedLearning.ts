@@ -6,7 +6,7 @@
  *   the library lists the server-written /building_guided_learning_index.
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   collection,
   deleteField,
@@ -51,10 +51,101 @@ import {
   type GuidedLearningSaveGuard,
   isStaleRevision,
 } from '@/components/widgets/GuidedLearning/utils/saveConflict';
+import {
+  readShared,
+  type SharedSource,
+  useSharedSubscription,
+} from './useSharedSubscription';
 
 const GL_COLLECTION = 'guided_learning';
 const BUILDING_GL_COLLECTION = 'building_guided_learning';
 const BUILDING_GL_INDEX_COLLECTION = 'building_guided_learning_index';
+
+interface PersonalSetsState {
+  sets: GuidedLearningSetMetadata[];
+  loading: boolean;
+  error: string | null;
+}
+
+const personalSetsSource: SharedSource<PersonalSetsState> = {
+  id: 'gl-personal-sets',
+  initial: { sets: [], loading: true, error: null },
+  start: (userId, update) =>
+    onSnapshot(
+      query(
+        collection(db, 'users', userId, GL_COLLECTION),
+        orderBy('createdAt', 'desc')
+      ),
+      (snap) =>
+        update(() => ({
+          sets: snap.docs.map((d) => d.data() as GuidedLearningSetMetadata),
+          loading: false,
+          error: null,
+        })),
+      (err) => {
+        console.error('[useGuidedLearning] Firestore error:', err);
+        update((prev) => ({
+          ...prev,
+          loading: false,
+          error: 'Failed to load guided learning sets',
+        }));
+      }
+    ),
+};
+
+interface BuildingIndexState {
+  buildingSets: GuidedLearningBuildingSetIndex[];
+  loading: boolean;
+}
+
+// Listens to the slim index once its _meta marker exists, else derives entries from the full sets.
+const buildingIndexSource: SharedSource<BuildingIndexState> = {
+  id: 'gl-building-index',
+  initial: { buildingSets: [], loading: true },
+  start: (_param, update) => {
+    let listUnsub: (() => void) | null = null;
+    let indexReady: boolean | null = null;
+    const listen = (ready: boolean) => {
+      if (ready === indexReady) return;
+      indexReady = ready;
+      listUnsub?.();
+      listUnsub = onSnapshot(
+        query(
+          collection(
+            db,
+            ready ? BUILDING_GL_INDEX_COLLECTION : BUILDING_GL_COLLECTION
+          ),
+          orderBy('createdAt', 'desc')
+        ),
+        (snap) => {
+          const buildingSets = snap.docs.flatMap((d) => {
+            if (BUILDING_INDEX_CONTROL_IDS.has(d.id)) return [];
+            if (ready) return [d.data() as GuidedLearningBuildingSetIndex];
+            const entry = buildBuildingIndexEntry(d.id, d.data());
+            return entry ? [entry] : [];
+          });
+          update(() => ({ buildingSets, loading: false }));
+        },
+        (err) => {
+          console.error('[useGuidedLearning] Building sets error:', err);
+          update((prev) => ({ ...prev, loading: false }));
+        }
+      );
+    };
+    const metaUnsub = onSnapshot(
+      doc(db, BUILDING_GL_INDEX_COLLECTION, BUILDING_INDEX_META_ID),
+      (snap) => listen(snap.exists()),
+      (err) => {
+        console.error('[useGuidedLearning] Index marker error:', err);
+        listen(false);
+      }
+    );
+    return () => {
+      metaUnsub();
+      listUnsub?.();
+    };
+  },
+};
 
 export interface UseGuidedLearningResult {
   sets: GuidedLearningSetMetadata[];
@@ -101,103 +192,14 @@ export const useGuidedLearning = (
 ): UseGuidedLearningResult => {
   const { googleAccessToken, isAdmin } = useAuth();
   const { isConnected } = useGoogleDrive();
-  const [sets, setSets] = useState<GuidedLearningSetMetadata[]>([]);
-  const [buildingSets, setBuildingSets] = useState<
-    GuidedLearningBuildingSetIndex[]
-  >([]);
-  const [loading, setLoading] = useState(!!userId);
-  const [buildingLoading, setBuildingLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [prevUserId, setPrevUserId] = useState(userId);
-  // Latest metadata snapshot, read by saveSet to return folderId and order.
-  const setsRef = useRef<GuidedLearningSetMetadata[]>([]);
-
-  // Adjusting-state-while-rendering: synchronously reset on userId transitions.
-  if (prevUserId !== userId) {
-    setPrevUserId(userId);
-    if (!userId) {
-      setSets([]);
-      setLoading(false);
-    } else {
-      setLoading(true);
-    }
-  }
-
-  // Real-time listener for personal set metadata
-  useEffect(() => {
-    if (!userId) return;
-
-    const q = query(
-      collection(db, 'users', userId, GL_COLLECTION),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const list: GuidedLearningSetMetadata[] = snap.docs.map(
-          (d) => d.data() as GuidedLearningSetMetadata
-        );
-        setsRef.current = list;
-        setSets(list);
-        setLoading(false);
-      },
-      (err) => {
-        console.error('[useGuidedLearning] Firestore error:', err);
-        setError('Failed to load guided learning sets');
-        setLoading(false);
-      }
-    );
-
-    return unsub;
-  }, [userId]);
-
-  // Null until the index's _meta marker is read; false means not backfilled yet.
-  const [indexReady, setIndexReady] = useState<boolean | null>(null);
-  useEffect(
-    () =>
-      onSnapshot(
-        doc(db, BUILDING_GL_INDEX_COLLECTION, BUILDING_INDEX_META_ID),
-        (snap) => setIndexReady(snap.exists()),
-        (err) => {
-          console.error('[useGuidedLearning] Index marker error:', err);
-          setIndexReady(false);
-        }
-      ),
-    []
-  );
-
-  // Listens to the slim index once backfilled, else derives entries from the full sets.
-  useEffect(() => {
-    if (indexReady === null) return;
-    const q = query(
-      collection(
-        db,
-        indexReady ? BUILDING_GL_INDEX_COLLECTION : BUILDING_GL_COLLECTION
-      ),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const list = snap.docs.flatMap((d) => {
-          if (BUILDING_INDEX_CONTROL_IDS.has(d.id)) return [];
-          if (indexReady) return [d.data() as GuidedLearningBuildingSetIndex];
-          const entry = buildBuildingIndexEntry(d.id, d.data());
-          return entry ? [entry] : [];
-        });
-        setBuildingSets(list);
-        setBuildingLoading(false);
-      },
-      (err) => {
-        console.error('[useGuidedLearning] Building sets error:', err);
-        setBuildingLoading(false);
-      }
-    );
-
-    return unsub;
-  }, [indexReady]);
+  // Shared across every GL widget on the board: one listener per collection.
+  const personal = useSharedSubscription(personalSetsSource, userId ?? null);
+  const building = useSharedSubscription(buildingIndexSource, 'all');
+  const sets = personal.sets;
+  const loading = userId ? personal.loading : false;
+  const error = personal.error;
+  const buildingSets = building.buildingSets;
+  const buildingLoading = building.loading;
 
   // One service per token, so its folder cache survives across saves.
   const driveService = useMemo((): GuidedLearningDriveLike | null => {
@@ -288,7 +290,9 @@ export const useGuidedLearning = (
         await setDoc(metaRef, metaWrite, { merge: true });
       }
 
-      const existing = setsRef.current.find((m) => m.id === set.id);
+      const existing = readShared(personalSetsSource, userId)?.sets.find(
+        (m) => m.id === set.id
+      );
       return {
         ...metadata,
         ...(existing?.folderId !== undefined

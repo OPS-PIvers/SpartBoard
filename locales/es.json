@@ -3231,5 +3231,8 @@
   },
   "glData": {
     "setTooLarge": "Este conjunto es demasiado grande para guardarse: divídelo o quita diapositivas."
+  },
+  "glAssignments": {
+    "showOlder": "Mostrar anteriores"
   }
 }

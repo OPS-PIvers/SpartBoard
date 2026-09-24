@@ -4388,5 +4388,8 @@
   },
   "glData": {
     "setTooLarge": "This set is too large to save — split it or remove slides."
+  },
+  "glAssignments": {
+    "showOlder": "Show older"
   }
 }
