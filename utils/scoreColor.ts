@@ -47,3 +47,19 @@ export function scoreTone(score: number): ScoreTone {
 export function scoreColorClasses(score: number): ScoreColorClasses {
   return TONE_CLASSES[scoreTone(score)];
 }
+
+export interface ScoreDistributionBand {
+  label: string;
+  min: number;
+  max: number;
+  /** Solid fill for the band's bar. */
+  color: string;
+}
+
+/** Percent bands shared by the quiz results and PLC score-distribution charts. */
+export const SCORE_DISTRIBUTION_BANDS: readonly ScoreDistributionBand[] = [
+  { label: '90–100%', min: 90, max: 100, color: 'bg-emerald-500' },
+  { label: '80–89%', min: 80, max: 89, color: 'bg-brand-blue-light' },
+  { label: '60–79%', min: 60, max: 79, color: 'bg-amber-400' },
+  { label: '0–59%', min: 0, max: 59, color: 'bg-brand-red-light' },
+];

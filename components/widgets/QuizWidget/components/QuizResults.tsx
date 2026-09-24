@@ -81,7 +81,10 @@ import {
   LaunchedBySubTag,
 } from '@/components/common/sessionViews';
 import type { OverflowMenuItem } from '@/components/common/sessionViews';
-import { scoreColorClasses } from '@/utils/scoreColor';
+import {
+  SCORE_DISTRIBUTION_BANDS,
+  scoreColorClasses,
+} from '@/utils/scoreColor';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { FreeResponseGrader } from './FreeResponseGrader';
 import {
@@ -2247,13 +2250,6 @@ const DrillRow: React.FC<{
   </button>
 );
 
-const DISTRIBUTION_BUCKETS = [
-  { label: '90–100%', min: 90, max: 100, color: 'bg-emerald-500' },
-  { label: '80–89%', min: 80, max: 89, color: 'bg-brand-blue-light' },
-  { label: '60–79%', min: 60, max: 79, color: 'bg-amber-400' },
-  { label: '0–59%', min: 0, max: 59, color: 'bg-brand-red-light' },
-];
-
 const ScoreDistribution: React.FC<{
   completed: QuizResponse[];
   questions: QuizQuestion[];
@@ -2279,7 +2275,7 @@ const ScoreDistribution: React.FC<{
       >
         Score distribution
       </p>
-      {DISTRIBUTION_BUCKETS.map((b) => {
+      {SCORE_DISTRIBUTION_BANDS.map((b) => {
         const count = completedScores.filter(
           (s) => s >= b.min && s <= b.max
         ).length;
