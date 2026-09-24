@@ -75,7 +75,7 @@ const hasRealName = (response: QuizResponse, name: string) =>
 
 type BooleanOption = Exclude<
   keyof QuizResultsPrintOptions,
-  'keyMode' | 'layout'
+  'keyMode' | 'layout' | 'questionScope'
 >;
 
 const TOGGLES: { key: BooleanOption; label: string }[] = [
