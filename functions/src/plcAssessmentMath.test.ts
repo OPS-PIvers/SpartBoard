@@ -248,6 +248,7 @@ describe('computeAssessmentAggregate', () => {
     expect(agg.teamAveragePercent).toBe(50);
     expect(agg.sessionCount).toBe(2);
     expect(agg.computedFromSessionIds).toEqual(['s-a', 's-b']);
+    expect(agg.contributorUids).toEqual(['teacherA', 'teacherB']);
     expect(agg.alignment).toBe('byId');
     expect(agg.alignmentWarning).toBeUndefined();
 
@@ -557,6 +558,7 @@ describe('computeAssessmentAggregate', () => {
     expect(agg.perQuestion).toHaveLength(3);
     expect(agg.perQuestion[0].incorrectPercent).toBeNull();
     expect(agg.perTeacher).toEqual([]);
+    expect(agg.contributorUids).toEqual([]);
   });
 
   describe('point-scored questions', () => {

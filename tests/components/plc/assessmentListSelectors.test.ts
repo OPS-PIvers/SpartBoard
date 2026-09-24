@@ -36,7 +36,7 @@ function makeAggregate(
     linkedSessionCount: 2,
     publishedSessionCount: 2,
     perQuestion: [],
-    perTeacher: [],
+    contributorUids: [],
     ranAt: 5_000,
     ...overrides,
   };
@@ -163,22 +163,7 @@ describe('buildAssessmentRows', () => {
       aggregates: [
         makeAggregate({
           teacherCount: 3,
-          perTeacher: [
-            {
-              teacherUid: 'u1',
-              teacherName: 'A',
-              classCount: 1,
-              averagePercent: 70,
-              studentCount: 10,
-            },
-            {
-              teacherUid: 'outsider',
-              teacherName: '',
-              classCount: 1,
-              averagePercent: 70,
-              studentCount: 10,
-            },
-          ],
+          contributorUids: ['u1', 'outsider'],
         }),
       ],
       libraryEntries: [],

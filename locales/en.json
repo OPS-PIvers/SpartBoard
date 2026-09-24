@@ -530,10 +530,6 @@
         "title": "Weekly email digest",
         "optInDescription": "Send every member one weekly email summarizing what happened in the PLC. Off by default; any member can change this.",
         "saveFailed": "Failed to update digest setting"
-      },
-      "showPerTeacher": {
-        "title": "Per-teacher breakdown",
-        "description": "Show each teacher’s average on pooled assessment results. Off by default so the team looks at the combined data first."
       }
     },
     "overview": {
@@ -881,12 +877,9 @@
       "untitledAssessment": "Untitled assessment",
       "untitledQuestion": "Untitled question",
       "common": "Common",
-      "you": "(you)",
       "teamAverage": "Team average",
       "teacherStudentCount": "{{teachers}} teachers · {{students}} students",
-      "classCount": "{{count}} cls",
       "weakestQuestions": "Weakest questions",
-      "byClass": "By teacher / class",
       "whoRanIt": "Who has run it",
       "ranOf": "({{ran}} of {{total}})",
       "hasRun": "has run it",
@@ -1222,13 +1215,6 @@
       "gradedOfAnswered": "{{served}} served · {{graded}} graded · {{answered}} answered",
       "choiceDistribution": "Answer distribution",
       "choiceCount": "{{count}} · {{percent}}%",
-      "perTeacherHeading": "By teacher",
-      "teacher": "Teacher",
-      "classes": "Classes",
-      "studentsColumn": "Students",
-      "average": "Average",
-      "unknownTeacher": "Teacher",
-      "nonMemberTeacher": "Not a PLC member",
       "sortQuestions": "Sort questions",
       "sortQuizOrder": "Quiz order",
       "sortMostMissed": "Most missed",

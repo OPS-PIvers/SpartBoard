@@ -256,9 +256,13 @@ describe('PlcHomeV2', () => {
     );
   });
 
-  it('offers per-teacher averages only when the PLC shows per-teacher results', () => {
+  it('never offers per-teacher averages, even on a PLC that had them on', () => {
     mockLayout = { ...EMPTY_PLC_HOME_LAYOUT, exists: true, tiles: [] };
-    const { unmount } = render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} />);
+    const legacy = {
+      ...plc,
+      features: { showPerTeacher: true },
+    } as unknown as Plc;
+    render(<PlcHomeV2 plc={legacy} onNavigate={vi.fn()} />);
     fireEvent.click(
       screen.getByRole('button', { name: 'Customize to add tiles' })
     );
@@ -269,100 +273,6 @@ describe('PlcHomeV2', () => {
     expect(
       screen.queryByRole('button', { name: /^Per-teacher averages/ })
     ).toBeNull();
-    unmount();
-
-    const shown = {
-      ...plc,
-      features: { showPerTeacher: true },
-    } as unknown as Plc;
-    render(<PlcHomeV2 plc={shown} onNavigate={vi.fn()} />);
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Customize to add tiles' })
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Add tile' }));
-    expect(
-      screen.getByRole('button', { name: /^Per-teacher averages/ })
-    ).toBeInTheDocument();
-  });
-
-  it('keeps a hidden per-teacher tile saved and saves its chosen assessment', () => {
-    mockLayout = {
-      ...EMPTY_PLC_HOME_LAYOUT,
-      exists: true,
-      tiles: [
-        { id: 't1', kind: 'participation' },
-        { id: 't2', kind: 'perTeacher' },
-      ],
-    };
-    const { unmount } = render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} />);
-    expect(
-      screen.queryByRole('region', { name: 'Per-teacher averages' })
-    ).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Customize' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-    expect(saveHomeLayout).toHaveBeenLastCalledWith(
-      'uid-a',
-      'plc-1',
-      expect.objectContaining({
-        tiles: [
-          { id: 't1', kind: 'participation' },
-          { id: 't2', kind: 'perTeacher' },
-        ],
-      })
-    );
-    unmount();
-
-    mockAssessments = [
-      {
-        id: 'as-1',
-        title: 'Unit 1',
-        kind: 'quiz',
-        syncGroupId: 'g1',
-        opensAt: Date.now(),
-        status: 'active',
-        createdBy: 'uid-a',
-        createdAt: 0,
-        updatedAt: 0,
-      },
-    ];
-    mockAggregates = [
-      {
-        assessmentId: 'as-1',
-        schemaVersion: 3,
-        teacherCount: 1,
-        studentCount: 20,
-        teamAveragePercent: 70,
-        perQuestion: [],
-        perTeacher: [
-          {
-            teacherUid: 'uid-b',
-            teacherName: 'Bo Kim',
-            classCount: 1,
-            averagePercent: 70,
-            studentCount: 20,
-          },
-        ],
-        ranAt: 1,
-      },
-    ];
-    const shown = {
-      ...plc,
-      features: { showPerTeacher: true },
-    } as unknown as Plc;
-    render(<PlcHomeV2 plc={shown} onNavigate={vi.fn()} />);
-    expect(screen.getByText('Bo Kim')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Choose assessment' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Unit 1' }));
-    expect(saveHomeLayout).toHaveBeenLastCalledWith(
-      'uid-a',
-      'plc-1',
-      expect.objectContaining({
-        tiles: [
-          { id: 't1', kind: 'participation' },
-          { id: 't2', kind: 'perTeacher', options: { assessmentId: 'as-1' } },
-        ],
-      })
-    );
   });
 
   it('spotlights Results when scored counts rose since the last visit, and records them', () => {
@@ -387,7 +297,7 @@ describe('PlcHomeV2', () => {
         scoredStudentCount: 30,
         teamAveragePercent: 70,
         perQuestion: [],
-        perTeacher: [],
+        contributorUids: [],
         ranAt: 1,
       },
     ];

@@ -85,7 +85,7 @@ export function teacherPoolSize(
   aggregate: PlcAssessmentAggregate | null | undefined
 ): number {
   const pool = new Set(memberUids);
-  for (const row of aggregate?.perTeacher ?? []) pool.add(row.teacherUid);
+  for (const uid of aggregate?.contributorUids ?? []) pool.add(uid);
   return pool.size;
 }
 

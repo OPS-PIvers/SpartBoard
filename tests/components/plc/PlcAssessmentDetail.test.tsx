@@ -1,7 +1,7 @@
 /**
  * PlcAssessmentDetail renders the pooled view from a fixture aggregate:
  * quiz-order questions with a most-missed toggle, % correct bars, the score chart, "Not scored yet" when nothing is published,
- * the per-teacher table gated by `showPerTeacher`, and the alignment note.
+ * no per-teacher breakdown, and the alignment note.
  */
 
 import React from 'react';
@@ -200,22 +200,7 @@ function makeAggregate(
         lowSample: false,
       },
     ],
-    perTeacher: [
-      {
-        teacherUid: 'uid-alice',
-        teacherName: 'Alice',
-        classCount: 2,
-        averagePercent: 78,
-        studentCount: 22,
-      },
-      {
-        teacherUid: 'uid-bob',
-        teacherName: 'Bob',
-        classCount: 1,
-        averagePercent: 64,
-        studentCount: 18,
-      },
-    ],
+    contributorUids: ['uid-alice', 'uid-bob'],
     ranAt: 5_000_000,
     ...overrides,
   };
@@ -252,34 +237,19 @@ function setDefaults() {
 describe('PlcAssessmentDetail', () => {
   beforeEach(setDefaults);
 
-  it('widens the teacher total for a linked non-member and labels the row', () => {
+  it('widens the teacher total for a linked non-member', () => {
     mockAggregatesSlice = {
       ...mockAggregatesSlice,
       data: [
         makeAggregate({
           teacherCount: 3,
-          perTeacher: [
-            ...makeAggregate().perTeacher,
-            {
-              teacherUid: 'uid-outsider',
-              teacherName: '',
-              classCount: 1,
-              averagePercent: 50,
-              studentCount: 20,
-            },
-          ],
+          contributorUids: ['uid-alice', 'uid-bob', 'uid-outsider'],
         }),
       ],
     };
-    render(
-      <PlcAssessmentDetail
-        plc={makePlc({ features: { showPerTeacher: true } as Plc['features'] })}
-        assessmentId="a1"
-      />
-    );
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
 
     expect(screen.getByText('3 of 4')).toBeInTheDocument();
-    expect(screen.getByText('Not a PLC member')).toBeInTheDocument();
   });
 
   it('renders the header stats and the questions in quiz order', () => {
@@ -433,23 +403,11 @@ describe('PlcAssessmentDetail', () => {
     expect(screen.queryByText('72%')).toBeNull();
   });
 
-  it('hides the per-teacher table unless showPerTeacher is on', () => {
-    const { rerender } = render(
-      <PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />
-    );
+  it('never shows a per-teacher breakdown', () => {
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
     expect(screen.queryByTestId('per-teacher-table')).toBeNull();
     expect(screen.queryByText('Alice')).toBeNull();
-
-    rerender(
-      <PlcAssessmentDetail
-        plc={makePlc({ features: { showPerTeacher: true } as Plc['features'] })}
-        assessmentId="a1"
-      />
-    );
-    const table = screen.getByTestId('per-teacher-table');
-    expect(within(table).getByText('Alice')).toBeInTheDocument();
-    expect(within(table).getByText('78%')).toBeInTheDocument();
-    expect(within(table).getByText('Bob')).toBeInTheDocument();
+    expect(screen.queryByText('By teacher')).toBeNull();
   });
 
   it('surfaces the alignment warning as a note', () => {

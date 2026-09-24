@@ -530,10 +530,6 @@
         "title": "Wöchentliche E-Mail-Zusammenfassung",
         "optInDescription": "Sendet jedem Mitglied eine wöchentliche E-Mail mit einer Zusammenfassung der Aktivitäten in der PLG. Standardmäßig deaktiviert; jedes Mitglied kann dies ändern.",
         "saveFailed": "Zusammenfassungseinstellung konnte nicht aktualisiert werden"
-      },
-      "showPerTeacher": {
-        "title": "Aufschlüsselung nach Lehrkraft",
-        "description": "Zeigt den Durchschnitt jeder Lehrkraft in gebündelten Bewertungsergebnissen. Standardmäßig aus, damit das Team zuerst auf die Gesamtdaten schaut."
       }
     },
     "overview": {
@@ -881,12 +877,9 @@
       "untitledAssessment": "Bewertung ohne Titel",
       "untitledQuestion": "Frage ohne Titel",
       "common": "Gemeinsam",
-      "you": "(du)",
       "teamAverage": "Team-Durchschnitt",
       "teacherStudentCount": "{{teachers}} Lehrkräfte · {{students}} Schüler:innen",
-      "classCount": "{{count}} Kl.",
       "weakestQuestions": "Schwächste Fragen",
-      "byClass": "Nach Lehrkraft / Klasse",
       "whoRanIt": "Wer hat sie durchgeführt",
       "ranOf": "({{ran}} von {{total}})",
       "hasRun": "hat sie durchgeführt",
@@ -1222,13 +1215,6 @@
       "gradedOfAnswered": "{{served}} vorgelegt · {{graded}} bewertet · {{answered}} beantwortet",
       "choiceDistribution": "Antwortverteilung",
       "choiceCount": "{{count}} · {{percent}} %",
-      "perTeacherHeading": "Nach Lehrkraft",
-      "teacher": "Lehrkraft",
-      "classes": "Klassen",
-      "studentsColumn": "Schüler:innen",
-      "average": "Durchschnitt",
-      "unknownTeacher": "Lehrkraft",
-      "nonMemberTeacher": "Kein PLG-Mitglied",
       "sortQuestions": "Fragen sortieren",
       "sortQuizOrder": "Quiz-Reihenfolge",
       "sortMostMissed": "Am häufigsten falsch",

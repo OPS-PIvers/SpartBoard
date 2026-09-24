@@ -146,14 +146,8 @@ const PlcMeetingLiveFlow: React.FC<{
   );
 
   const cards = useMemo(
-    () =>
-      buildAssessmentCards(
-        aggregates,
-        assessments,
-        teamMembers,
-        user?.uid ?? null
-      ),
-    [aggregates, assessments, teamMembers, user?.uid]
+    () => buildAssessmentCards(aggregates, assessments, teamMembers),
+    [aggregates, assessments, teamMembers]
   );
   const cardById = useMemo(() => {
     const map = new Map<string, AssessmentDataCard>();

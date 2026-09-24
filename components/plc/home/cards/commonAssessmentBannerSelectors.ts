@@ -9,7 +9,7 @@
  *
  * All inputs are the already-parsed provider shapes (`PlcCommonAssessment`,
  * `PlcAssessmentAggregate`, `PlcMeeting`). Everything here is anonymized: the
- * progress count comes from `aggregate.perTeacher` (teacher rollups only — no
+ * progress count comes from `aggregate.contributorUids` (teacher uids only — no
  * student names / per-student rows), so the banner is FERPA-safe.
  *
  * Kept separate from the component so the (non-trivial) selection + progress +
@@ -40,7 +40,7 @@ export interface CommonAssessmentBannerModel {
   assessment: PlcCommonAssessment;
   /** Its anonymized aggregate, if the rollup exists yet (null = not run yet). */
   aggregate: PlcAssessmentAggregate | null;
-  /** Distinct teachers who have contributed results (from `perTeacher`). */
+  /** Distinct teachers who have contributed results (from `contributorUids`). */
   ranCount: number;
   /**
    * Teachers the assessment is expected across. We use the team size (member
@@ -141,7 +141,7 @@ export function buildCommonAssessmentBanner(params: {
   if (!assessment) return null;
 
   const aggregate = aggregatesById.get(assessment.id) ?? null;
-  const ranCount = aggregate ? aggregate.perTeacher.length : 0;
+  const ranCount = aggregate ? aggregate.contributorUids.length : 0;
   // Prefer the live team size; fall back to ranCount so we never show
   // "3 of 0". `memberCount` of 0 (provider not hydrated) degrades gracefully.
   const expectedCount = memberCount > 0 ? memberCount : ranCount;

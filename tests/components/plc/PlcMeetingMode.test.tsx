@@ -208,22 +208,7 @@ function makeAggregate(
         points: 1,
       },
     ],
-    perTeacher: [
-      {
-        teacherUid: 'uid-alice',
-        teacherName: 'Alice',
-        classCount: 2,
-        averagePercent: 78,
-        studentCount: 22,
-      },
-      {
-        teacherUid: 'uid-bob',
-        teacherName: 'Bob',
-        classCount: 1,
-        averagePercent: 64,
-        studentCount: 18,
-      },
-    ],
+    contributorUids: ['uid-alice', 'uid-bob'],
     ranAt: 5_000_000,
     ...overrides,
   };

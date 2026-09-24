@@ -227,51 +227,6 @@ export const PlcMeetingReviewCard: React.FC<PlcMeetingReviewCardProps> = ({
           )}
         </div>
 
-        {/* Per-class compare — anonymized per-teacher rollup */}
-        {card.perClass.length > 0 && (
-          <div>
-            <h4 className="text-sm font-bold uppercase tracking-wider text-slate-600 mb-3">
-              {t('plcDashboard.meeting.byClass', {
-                defaultValue: 'By teacher / class',
-              })}
-            </h4>
-            <ul className="space-y-2">
-              {card.perClass.map((row) => (
-                <li
-                  key={row.teacherUid}
-                  className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5"
-                >
-                  <span className="text-base text-slate-700 truncate min-w-0">
-                    {row.teacherName}
-                    {row.isYou && (
-                      <span className="ml-2 text-xs font-semibold text-brand-blue-primary">
-                        {t('plcDashboard.meeting.you', {
-                          defaultValue: '(you)',
-                        })}
-                      </span>
-                    )}
-                  </span>
-                  <span className="flex items-center gap-3 shrink-0">
-                    <span className="text-xs text-slate-500">
-                      {t('plcDashboard.meeting.classCount', {
-                        defaultValue: '{{count}} cls',
-                        count: row.classCount,
-                      })}
-                    </span>
-                    <span
-                      className={`text-lg font-bold tabular-nums ${scoreToneClass(
-                        row.averagePercent
-                      )}`}
-                    >
-                      {row.averagePercent}%
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
         {/* Who has run it — roster cross-reference */}
         {card.whoRan.length > 0 && (
           <div>
