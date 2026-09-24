@@ -32,16 +32,6 @@ const clampScale = (n: number): number => round(clampCalloutScale(n), 3);
 
 const OVERLAY_TYPES = new Set(['pan-zoom', 'pan-zoom-spotlight', 'spotlight']);
 
-/** Steps whose tooltip or popover the Studio can select, resize and restyle; banners are out of scope. */
-export function hasEditableCallout(step: GuidedLearningStep): boolean {
-  if (step.interactionType === 'tooltip') return true;
-  if (step.interactionType === 'text-popover') return true;
-  return (
-    OVERLAY_TYPES.has(step.interactionType) &&
-    (step.showOverlay === 'tooltip' || step.showOverlay === 'popover')
-  );
-}
-
 /** Tooltips draw a line to their target; popovers don't. */
 export function isTooltipCallout(step: GuidedLearningStep): boolean {
   return (

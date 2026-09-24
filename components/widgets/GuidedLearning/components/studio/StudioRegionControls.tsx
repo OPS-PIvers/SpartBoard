@@ -8,8 +8,7 @@ import {
   setCorner,
   type StudioShape,
 } from './regionEdits';
-import { CALLOUT_TONE_STYLES } from '../../utils/calloutStyle';
-import { hasEditableCallout } from './calloutHandles';
+import { CALLOUT_TONE_STYLES, stepHasCallout } from '../../utils/calloutStyle';
 import {
   ChoiceGroup,
   fieldLabelClass,
@@ -45,7 +44,7 @@ export const StudioRegionControls: React.FC<StudioRegionControlsProps> = ({
           side: t(`glStudio.calloutSide_${legacySide}`),
         })
       : t('glStudio.calloutAuto');
-  const styled = calloutEditing && hasEditableCallout(step);
+  const styled = calloutEditing && stepHasCallout(step);
   const sized =
     step.calloutWidthPct !== undefined || step.calloutScale !== undefined;
   const summary = [

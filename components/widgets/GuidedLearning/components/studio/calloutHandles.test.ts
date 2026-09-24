@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { GuidedLearningStep } from '@/types';
 import {
-  hasEditableCallout,
   isTooltipCallout,
   leaderEnd,
   resizeCalloutSide,
   scaleCalloutCorner,
   withCalloutSize,
 } from './calloutHandles';
+import { stepHasCallout } from '../../utils/calloutStyle';
 
 const BOX = { x: 600, y: 400, w: 100, h: 60 };
 const step = (over: Partial<GuidedLearningStep>): GuidedLearningStep => ({
@@ -80,23 +80,21 @@ describe('callout handle maths', () => {
   });
 
   it('covers tooltips and popovers, including overlays, but not banners', () => {
-    expect(hasEditableCallout(step({}))).toBe(true);
-    expect(hasEditableCallout(step({ interactionType: 'text-popover' }))).toBe(
+    expect(stepHasCallout(step({}))).toBe(true);
+    expect(stepHasCallout(step({ interactionType: 'text-popover' }))).toBe(
       true
     );
     expect(
-      hasEditableCallout(
+      stepHasCallout(
         step({ interactionType: 'pan-zoom', showOverlay: 'popover' })
       )
     ).toBe(true);
     expect(
-      hasEditableCallout(
+      stepHasCallout(
         step({ interactionType: 'spotlight', showOverlay: 'banner' })
       )
     ).toBe(false);
-    expect(hasEditableCallout(step({ interactionType: 'question' }))).toBe(
-      false
-    );
+    expect(stepHasCallout(step({ interactionType: 'question' }))).toBe(false);
     expect(
       isTooltipCallout(
         step({ interactionType: 'spotlight', showOverlay: 'tooltip' })

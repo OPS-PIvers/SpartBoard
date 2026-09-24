@@ -32,10 +32,10 @@ import {
   type SnapGuides,
 } from './snapping';
 import { findCallout, screenScale } from './canvasScale';
+import { stepHasCallout } from '../../utils/calloutStyle';
 import {
   CALLOUT_HANDLES,
   clientRectToContainer,
-  hasEditableCallout,
   isTooltipCallout,
   leaderEnd,
   resizeCalloutSide,
@@ -235,9 +235,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
 
   // The selected callout's box in container px, kept current as it wraps, moves or restyles.
   const measureId =
-    calloutEditing && selected && hasEditableCallout(selected)
-      ? selected.id
-      : null;
+    calloutEditing && selected && stepHasCallout(selected) ? selected.id : null;
   const calloutKind = selected
     ? `${selected.interactionType}:${selected.showOverlay ?? ''}`
     : '';

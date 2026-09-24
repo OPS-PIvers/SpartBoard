@@ -15,12 +15,12 @@ import {
   CALLOUT_SCALE_STEP,
   CALLOUT_WIDTH_STEP,
   clientRectToContainer,
-  hasEditableCallout,
   scaleCalloutCorner,
   withCalloutSize,
 } from './calloutHandles';
 import { safeLinkUrl, wrapSelection } from './inlineText';
 import type { RedactMode, RedactRect } from '../../utils/redactImage';
+import { stepHasCallout } from '../../utils/calloutStyle';
 
 /** Arrow nudge in image-%. */
 export const NUDGE_PCT = 0.25;
@@ -101,7 +101,7 @@ export function useCanvasTools(
     calloutEditing &&
     calloutFocused &&
     selected !== null &&
-    hasEditableCallout(selected);
+    stepHasCallout(selected);
   const slideUrl = imageUrls[currentImageIndex] ?? '';
   const canBlur = slideUrl !== '' && imageKinds[currentImageIndex] !== 'video';
   const onGeometry = useCallback(
