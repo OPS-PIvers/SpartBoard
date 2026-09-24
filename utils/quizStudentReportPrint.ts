@@ -47,7 +47,7 @@ const BAND_LABEL: Record<string, string> = {
 };
 
 const STYLES = `
-  @page { size: letter; margin: 16mm 18mm; }
+  @page { size: letter; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 10.5pt; }
   h1 { font-size: 15pt; margin: 0 0 1mm; }
@@ -119,6 +119,7 @@ export function printStudentReport(
       title: `${job.quizTitle} — ${job.studentName}`,
       styles: STYLES,
       body: buildStudentReportHtml(job),
+      marginMm: { vertical: 16, horizontal: 18 },
     },
     openWindow
   );

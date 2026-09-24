@@ -344,6 +344,12 @@ describe('paperChoiceOrder', () => {
     });
     expect(batch.choiceOrder?.q1).toEqual(['Red', 'Green', 'Blue']);
   });
+
+  it('keeps placeholder letters in A-B-C order so each bubble means its own letter', () => {
+    expect(
+      paperChoiceOrder('batch-1', question('q1', 'C', ['A', 'B', 'D']))
+    ).toEqual(['A', 'B', 'C', 'D']);
+  });
 });
 
 describe('buildPaperStubQuiz', () => {

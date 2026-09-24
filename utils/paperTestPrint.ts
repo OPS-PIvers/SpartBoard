@@ -11,6 +11,7 @@ import {
   type OpenWindow,
 } from './printHtmlDocument';
 import { CHOICE_LETTERS } from './paperSheetLayout';
+import { isPlaceholderLetterChoices } from './paperSheetPlan';
 import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
 
 export interface PaperTestQuestion {
@@ -27,7 +28,7 @@ export interface PaperTestJob {
 }
 
 const STYLES = `
-  @page { size: 215.9mm 279.4mm; margin: 18mm 20mm; }
+  @page { size: 215.9mm 279.4mm; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 11pt; }
   .brand { display: flex; align-items: center; gap: 3mm; margin-bottom: 5mm; }
@@ -45,13 +46,16 @@ const STYLES = `
 `;
 
 function questionHtml(q: PaperTestQuestion): string {
-  const choices = q.choices
-    .map(
-      (c, i) =>
-        `<li><span class="letter">${CHOICE_LETTERS[i]}.</span><span class="text">${escapeHtml(c)}</span></li>`
-    )
-    .join('');
-  return `<li><span class="num">${q.row}.</span><div><div class="text">${escapeHtml(q.text)}</div><ol class="c">${choices}</ol></div></li>`;
+  // A stub's options are just the bubble letters, which say nothing to a student.
+  const choices = isPlaceholderLetterChoices(q.choices)
+    ? ''
+    : `<ol class="c">${q.choices
+        .map(
+          (c, i) =>
+            `<li><span class="letter">${CHOICE_LETTERS[i]}.</span><span class="text">${escapeHtml(c)}</span></li>`
+        )
+        .join('')}</ol>`;
+  return `<li><span class="num">${q.row}.</span><div><div class="text">${escapeHtml(q.text)}</div>${choices}</div></li>`;
 }
 
 /** The document `printPaperTest` would write. Exported for tests. */
@@ -71,6 +75,7 @@ export function printPaperTest(
       title: `${job.quizTitle} — test`,
       styles: STYLES,
       body: buildPaperTestHtml(job),
+      marginMm: { vertical: 18, horizontal: 20 },
     },
     openWindow
   );

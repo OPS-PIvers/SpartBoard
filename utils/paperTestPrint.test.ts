@@ -30,6 +30,21 @@ describe('buildPaperTestHtml', () => {
     expect(html).toContain('SpartBoard Responses');
   });
 
+  it('prints only the question when its options are placeholder letters', () => {
+    const html = buildPaperTestHtml({
+      quizTitle: 'Vocab',
+      questions: [
+        { row: 1, text: 'Define pariah.', choices: ['B', 'C', 'D', 'A'] },
+        { row: 2, text: 'Pick one', choices: ['A', 'Paris'] },
+      ],
+    });
+    expect(html).toContain('Define pariah.');
+    const letters = [...html.matchAll(/class="letter">([A-E])\./g)].map(
+      (m) => m[1]
+    );
+    expect(letters).toEqual(['A', 'B']);
+  });
+
   it('escapes question and choice text', () => {
     const html = buildPaperTestHtml({
       quizTitle: '<b>',
@@ -54,6 +69,20 @@ describe('printPaperTest', () => {
     expect(doc.write.mock.calls[0][0]).toContain('Unit 3 Test — test');
     expect(doc.write.mock.calls[0][0]).toContain('Capital of France?');
     expect(win.print).toHaveBeenCalledOnce();
+  });
+
+  it('draws its own page margins so the browser prints no URL footer', () => {
+    const doc = { open: vi.fn(), write: vi.fn(), close: vi.fn() };
+    const win = {
+      document: doc,
+      focus: vi.fn(),
+      print: vi.fn(),
+      close: vi.fn(),
+    };
+    printPaperTest(job, () => win as unknown as Window);
+    const written = doc.write.mock.calls[0][0] as string;
+    expect(written).toContain('@page { margin: 0; }');
+    expect(written).toContain('<table class="page-margins">');
   });
 
   it('reports a blocked pop-up and prints nothing for an empty test', () => {
