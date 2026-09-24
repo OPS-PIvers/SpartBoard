@@ -8592,6 +8592,8 @@ export interface Toast {
   action?: {
     label: string;
     onClick: () => void;
+    /** A quieter second choice beside the action, such as "No thanks". */
+    secondary?: { label: string; onClick: () => void };
   };
 }
 

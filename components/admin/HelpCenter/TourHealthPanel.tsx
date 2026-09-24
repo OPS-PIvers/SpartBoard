@@ -1,19 +1,29 @@
 import React, { lazy, Suspense, useContext, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
-  AlertTriangle,
   CheckCircle2,
   Circle,
   Loader2,
+  OctagonAlert,
+  PanelTopOpen,
   Radar,
 } from 'lucide-react';
 import type { GuidedLearningSet } from '@/types';
 import { loadBuildingSet, useGuidedLearning } from '@/hooks/useGuidedLearning';
 import { AuthContext } from '@/context/AuthContextValue';
+import { TOOLS } from '@/config/tools';
 import { requestRecordTour } from '@/components/tours/tourState';
+import { loadPublishedTour } from '@/components/tours/publishedTours';
+import { loadTourRuns } from '@/components/tours/tourRuns';
 import {
   checkAnchorsLive,
+  fieldStatsOf,
+  stepVerdict,
   tourHealthOf,
-  type AnchorProblem,
+  worstState,
+  type StepHealthReason,
+  type TourFieldStats,
+  type TourHealthState,
 } from '@/components/tours/tourHealth';
 
 const GuidedLearningStudio = lazy(() =>
@@ -22,17 +32,75 @@ const GuidedLearningStudio = lazy(() =>
   )
 );
 
-const PROBLEM_TEXT: Record<AnchorProblem, string> = {
-  'unknown-anchor': 'Not in the anchor registry',
-  'needs-widget-type': 'Missing its widget type',
-  'unexpected-widget-type': 'Has a widget type this anchor does not take',
-  'unknown-widget-type': 'Names a widget type that does not exist',
+interface LoadedTour {
+  /** The saved set, which the Studio edits. */
+  draft: GuidedLearningSet;
+  /** What teachers run: the published snapshot, or the saved set before its first publish. */
+  runs: GuidedLearningSet;
+  published: boolean;
+  field: TourFieldStats | null;
+}
+
+const STATE_KEY: Record<TourHealthState, string> = {
+  ok: 'tourHealth.state.ok',
+  'needs-open': 'tourHealth.state.needsOpen',
+  broken: 'tourHealth.state.broken',
 };
 
-const OK_TEXT = 'Registered';
+const REASON_KEY: Record<StepHealthReason, string> = {
+  'unknown-anchor': 'tourHealth.reason.unknownAnchor',
+  'needs-widget-type': 'tourHealth.reason.needsWidgetType',
+  'unexpected-widget-type': 'tourHealth.reason.unexpectedWidgetType',
+  'unknown-widget-type': 'tourHealth.reason.unknownWidgetType',
+  'field-misses': 'tourHealth.reason.fieldMisses',
+  'not-on-screen': 'tourHealth.reason.notOnScreen',
+  'needs-widget': 'tourHealth.reason.needsWidget',
+  'widget-not-added': 'tourHealth.reason.widgetNotAdded',
+  'needs-panel': 'tourHealth.reason.needsPanel',
+};
 
-/** Admin list of live-tour steps whose anchors are unregistered or not on screen. */
+const StateIcon: React.FC<{ state: TourHealthState }> = ({ state }) =>
+  state === 'ok' ? (
+    <CheckCircle2
+      className="w-3.5 h-3.5 shrink-0 text-emerald-600"
+      aria-hidden="true"
+    />
+  ) : state === 'needs-open' ? (
+    <PanelTopOpen
+      className="w-3.5 h-3.5 shrink-0 text-amber-600"
+      aria-hidden="true"
+    />
+  ) : (
+    <OctagonAlert
+      className="w-3.5 h-3.5 shrink-0 text-red-600"
+      aria-hidden="true"
+    />
+  );
+
+const widgetNames = (set: GuidedLearningSet): string =>
+  (set.tourSetup?.widgets ?? [])
+    .map((type) => TOOLS.find((tool) => tool.type === type)?.label ?? type)
+    .join(', ');
+
+async function loadTour(id: string): Promise<LoadedTour | null> {
+  const [draft, published, runs] = await Promise.all([
+    loadBuildingSet(id).catch(() => null),
+    loadPublishedTour(id).catch(() => null),
+    loadTourRuns(id).catch(() => null),
+  ]);
+  if (!draft) return null;
+  const version = published?.publishedAt ?? draft.updatedAt;
+  return {
+    draft,
+    runs: published?.set ?? draft,
+    published: !!published,
+    field: runs ? fieldStatsOf(runs, version) : null,
+  };
+}
+
+/** Admin view of every live tour's health: OK, needs a widget or panel open, or broken. */
 const TourHealthPanel: React.FC = () => {
+  const { t } = useTranslation();
   const { buildingSets, buildingLoading, saveBuildingSet } =
     useGuidedLearning(undefined);
   const [live, setLive] = useState<Map<string, boolean> | null>(null);
@@ -45,26 +113,24 @@ const TourHealthPanel: React.FC = () => {
   const canRecord =
     useContext(AuthContext)?.canAccessFeature('gl-live-tours') ?? false;
 
-  // The index says which sets have tours; only those full sets are fetched.
+  // The index says which sets have tours; only those are fetched, with their snapshot and runs.
   const tourKey = buildingSets
     .filter((entry) => entry.hasLiveTour)
     .map((entry) => `${entry.id}@${entry.updatedAt}`)
     .join(',');
   const [loaded, setLoaded] = useState<{
     key: string;
-    sets: GuidedLearningSet[];
+    tours: LoadedTour[];
   } | null>(null);
   useEffect(() => {
     if (buildingLoading) return;
     let cancelled = false;
     const ids = tourKey ? tourKey.split(',').map((k) => k.split('@')[0]) : [];
-    void Promise.all(
-      ids.map((id) => loadBuildingSet(id).catch(() => null))
-    ).then((sets) => {
+    void Promise.all(ids.map(loadTour)).then((tours) => {
       if (!cancelled) {
         setLoaded({
           key: tourKey,
-          sets: sets.filter((s): s is GuidedLearningSet => !!s),
+          tours: tours.filter((x): x is LoadedTour => !!x),
         });
       }
     });
@@ -73,8 +139,8 @@ const TourHealthPanel: React.FC = () => {
     };
   }, [tourKey, buildingLoading]);
 
-  const tours = (loaded?.sets ?? [])
-    .map((set) => ({ set, steps: tourHealthOf(set) }))
+  const tours = (loaded?.tours ?? [])
+    .map((tour) => ({ ...tour, steps: tourHealthOf(tour.runs) }))
     .filter((tour) => tour.steps.length > 0);
 
   const checkLive = () =>
@@ -86,7 +152,7 @@ const TourHealthPanel: React.FC = () => {
     return (
       <p className="flex items-center gap-2 text-sm text-slate-500">
         <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-        Loading tours...
+        {t('tourHealth.loading')}
       </p>
     );
   }
@@ -94,10 +160,7 @@ const TourHealthPanel: React.FC = () => {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-slate-500">
-          Checks every live-tour step against the anchor registry. Check live
-          looks for each anchor on the board behind this window as it is now.
-        </p>
+        <p className="text-sm text-slate-500">{t('tourHealth.intro')}</p>
         <div className="flex shrink-0 items-center gap-2">
           {canRecord && (
             <button
@@ -106,7 +169,7 @@ const TourHealthPanel: React.FC = () => {
               className="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:bg-slate-50"
             >
               <Circle className="w-3.5 h-3.5 fill-current" aria-hidden="true" />
-              Record a tour
+              {t('tourHealth.recordTour')}
             </button>
           )}
           <button
@@ -116,102 +179,128 @@ const TourHealthPanel: React.FC = () => {
             className="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
             <Radar className="w-4 h-4" aria-hidden="true" />
-            Check live
+            {t('tourHealth.checkLive')}
           </button>
         </div>
       </div>
 
       {tours.length === 0 && (
-        <p className="text-sm text-slate-500">
-          No Guided Learning set has live-tour steps yet.
-        </p>
+        <p className="text-sm text-slate-500">{t('tourHealth.empty')}</p>
       )}
 
-      {tours.map(({ set, steps }) => {
-        const broken = steps.filter(
-          (h) => h.problem !== null || live?.get(h.step.id) === false
-        ).length;
+      {tours.map(({ draft, runs: set, published, field, steps }) => {
+        const title = set.title || t('tourHealth.untitledSet');
+        const verdicts = steps.map((h) =>
+          stepVerdict(h, set.tourSetup, field, live?.get(h.step.id))
+        );
+        const state = worstState(verdicts.map((v) => v.state));
         return (
           <section
-            key={set.id}
-            aria-label={set.title}
+            key={draft.id}
+            aria-label={title}
             className="border border-slate-200 rounded-lg bg-white"
           >
-            <header className="flex items-center justify-between gap-3 px-3 py-2 border-b border-slate-100">
-              <h4 className="text-sm font-semibold text-slate-900">
-                {set.title || 'Untitled set'}
-              </h4>
-              <span className="flex items-center gap-1 text-xs font-semibold text-slate-600">
-                {broken === 0 ? (
-                  <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
-                ) : (
-                  <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
-                )}
-                {broken === 0
-                  ? 'No broken anchors'
-                  : `${broken} broken ${broken === 1 ? 'anchor' : 'anchors'}`}
+            <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2 border-b border-slate-100">
+              <div className="min-w-0">
+                <h4 className="text-sm font-semibold text-slate-900">
+                  {title}
+                </h4>
+                <p className="text-xs text-slate-500">
+                  {published
+                    ? t('tourHealth.published')
+                    : t('tourHealth.notPublished')}
+                  {' · '}
+                  {field
+                    ? t('tourHealth.runSummary', {
+                        runs: field.runs,
+                        done: field.done,
+                      })
+                    : t('tourHealth.runsUnavailable')}
+                </p>
+              </div>
+              <span
+                data-testid="tour-state"
+                className="flex items-center gap-1 text-xs font-semibold text-slate-700"
+              >
+                <StateIcon state={state} />
+                {t(STATE_KEY[state])}
               </span>
             </header>
             <table className="w-full text-left text-xs">
               <thead className="text-slate-500">
                 <tr>
-                  <th className="px-3 py-1.5 font-semibold">Step</th>
-                  <th className="px-3 py-1.5 font-semibold">Anchor</th>
-                  <th className="px-3 py-1.5 font-semibold">Registry</th>
-                  <th className="px-3 py-1.5 font-semibold">On screen</th>
+                  <th className="px-3 py-1.5 font-semibold">
+                    {t('tourHealth.colStep')}
+                  </th>
+                  <th className="px-3 py-1.5 font-semibold">
+                    {t('tourHealth.colAnchor')}
+                  </th>
+                  <th className="px-3 py-1.5 font-semibold">
+                    {t('tourHealth.colStatus')}
+                  </th>
+                  <th className="px-3 py-1.5 font-semibold">
+                    {t('tourHealth.colOnScreen')}
+                  </th>
                   <th className="px-3 py-1.5">
-                    <span className="sr-only">Actions</span>
+                    <span className="sr-only">
+                      {t('tourHealth.colActions')}
+                    </span>
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {steps.map(({ step, number, problem }) => {
+                {steps.map(({ step, number }, i) => {
+                  const { state: stepState, reason } = verdicts[i];
                   const found = live?.get(step.id);
+                  const stepTitle = step.label?.trim()
+                    ? step.label
+                    : t('tourHealth.untitledStep');
                   return (
                     <tr key={step.id} className="border-t border-slate-100">
                       <td className="px-3 py-1.5 text-slate-700">
-                        {number}.{' '}
-                        {step.label?.trim() ? step.label : 'Untitled step'}
+                        {number}. {stepTitle}
                       </td>
                       <td className="px-3 py-1.5 font-mono text-slate-600">
                         {step.tour.anchor}
                       </td>
                       <td className="px-3 py-1.5 text-slate-700">
-                        <span className="flex items-center gap-1">
-                          {problem ? (
-                            <AlertTriangle
-                              className="w-3.5 h-3.5 text-amber-600"
-                              aria-hidden="true"
-                            />
-                          ) : (
-                            <CheckCircle2
-                              className="w-3.5 h-3.5 text-emerald-600"
-                              aria-hidden="true"
-                            />
-                          )}
-                          {problem ? PROBLEM_TEXT[problem] : OK_TEXT}
+                        <span className="flex items-center gap-1 font-semibold">
+                          <StateIcon state={stepState} />
+                          {t(STATE_KEY[stepState])}
                         </span>
+                        {reason && (
+                          <span className="block text-slate-500">
+                            {t(REASON_KEY[reason], {
+                              misses: field?.misses.get(step.id) ?? 0,
+                              runs: field?.runs ?? 0,
+                              widgets: widgetNames(set),
+                            })}
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-1.5 text-slate-700">
                         {found === undefined
-                          ? 'Not checked'
+                          ? t('tourHealth.notChecked')
                           : found
-                            ? 'Found'
-                            : 'Not found'}
+                            ? t('tourHealth.found')
+                            : t('tourHealth.notFound')}
                       </td>
                       <td className="px-3 py-1.5 text-right">
                         <button
                           type="button"
                           onClick={() =>
                             setStudio({
-                              set: { ...set, isBuilding: true },
+                              set: { ...draft, isBuilding: true },
                               stepId: step.id,
                             })
                           }
-                          aria-label={`Open in Studio: step ${number} of ${set.title || 'Untitled set'}`}
+                          aria-label={t('tourHealth.openInStudioLabel', {
+                            number,
+                            title,
+                          })}
                           className="rounded-md px-2 py-1 font-semibold text-brand-blue-primary hover:bg-slate-100"
                         >
-                          Open in Studio
+                          {t('tourHealth.openInStudio')}
                         </button>
                       </td>
                     </tr>

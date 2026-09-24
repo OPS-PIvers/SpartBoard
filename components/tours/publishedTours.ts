@@ -29,6 +29,14 @@ export async function publishTour(
   await setDoc(tourRef(set.id), data);
 }
 
+/** The published snapshot itself, or null when the set was never published. */
+export async function loadPublishedTour(
+  setId: string
+): Promise<PublishedTour | null> {
+  const snap = await getDoc(tourRef(setId));
+  return snap.exists() ? parsePublishedTour(setId, snap.data()) : null;
+}
+
 /** The set a launch point may run: its published snapshot, or the saved set until the one-time publish ran. */
 export async function loadRunnableTour(
   setId: string

@@ -1108,8 +1108,16 @@ service cloud.firestore {
 
     // Published live tours (P7-3): staff read, admins publish; students never run tours.
     match /building_guided_learning_tours/{setId} {
-      allow read: if request.auth != null && notAnon() && !isStudentRoleUser();
+      function staff() { return request.auth != null && notAnon() && !isStudentRoleUser(); }
+      allow read: if staff();
       allow write: if isAdmin();
+      // Each teacher's latest run of the tour (P7-6): write-only, admins read.
+      match /runs/{uid} {
+        allow read: if isAdmin();
+        allow create, update: if staff() && uid == request.auth.uid &&
+          request.resource.data.keys().hasOnly(['v', 'startedAt', 'furthest', 'done', 'exit', 'misses']) &&
+          request.resource.data.furthest is int && request.resource.data.misses.size() <= 50;
+      }
     }
 
     // Admin backgrounds - authenticated users can read based on access level, only admins can write
@@ -4782,9 +4790,9 @@ service cloud.firestore {
             d.furthestStepIdx is int && d.furthestStepIdx >= 0 && d.furthestStepIdx <= 500 &&
             d.steps is map && d.steps.size() <= 200 &&
             d.startedAt is timestamp &&
-            (!('mode' in d) || d.mode in ['watch', 'try']) &&
+            d.get('mode', 'try') in ['watch', 'try'] &&
             optInt(d, 'modeSwitches') && optBool(d, 'completed') &&
-            (!('updatedAt' in d) || d.updatedAt is timestamp);
+            d.get('updatedAt', d.startedAt) is timestamp;
         }
         allow get: if request.auth != null &&
           (uid == request.auth.uid || glIsTeacher() || isSubMonitor(glSession()));
@@ -4817,9 +4825,7 @@ service cloud.firestore {
         allow create: if request.auth != null &&
           request.resource.data.keys().hasOnly(['viewedAt']) &&
           request.resource.data.viewedAt is timestamp &&
-          exists(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)) &&
           glSessionMode() == 'view-only';
-        allow update, delete: if false;
       }
     }
 

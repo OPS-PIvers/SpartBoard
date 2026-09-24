@@ -10,6 +10,16 @@ const h = vi.hoisted(() => ({
   sets: [] as GuidedLearningSet[],
   saveBuildingSet: vi.fn(),
   loadBuildingSet: vi.fn(),
+  published: new Map<string, unknown>(),
+  runs: new Map<string, unknown[]>(),
+}));
+
+vi.mock('@/components/tours/publishedTours', () => ({
+  loadPublishedTour: (id: string) =>
+    Promise.resolve(h.published.get(id) ?? null),
+}));
+vi.mock('@/components/tours/tourRuns', () => ({
+  loadTourRuns: (id: string) => Promise.resolve(h.runs.get(id) ?? []),
 }));
 
 // The panel lists index entries and fetches only the sets marked as tours.
@@ -47,6 +57,7 @@ vi.mock(
 const tourSet = {
   id: 'set-1',
   title: 'Clock tour',
+  updatedAt: 5,
   imageUrls: [],
   steps: [
     { id: 'intro', label: 'Welcome' },
@@ -72,6 +83,8 @@ const plainSet = {
 
 beforeEach(() => {
   h.sets = [tourSet, plainSet];
+  h.published.clear();
+  h.runs.clear();
   h.loadBuildingSet.mockReset();
   h.loadBuildingSet.mockImplementation((id: string) =>
     Promise.resolve(h.sets.find((set) => set.id === id) ?? null)
@@ -96,9 +109,14 @@ describe('TourHealthPanel', () => {
     ).not.toBeInTheDocument();
     expect(h.loadBuildingSet).toHaveBeenCalledTimes(1);
     expect(h.loadBuildingSet).toHaveBeenCalledWith('set-1');
-    expect(within(section).getByText('1 broken anchor')).toBeInTheDocument();
+    expect(within(section).getByTestId('tour-state')).toHaveTextContent(
+      'Broken'
+    );
+    expect(
+      within(section).getByText(/Not published: showing the saved set/)
+    ).toBeInTheDocument();
     const rows = within(section).getAllByRole('row');
-    expect(within(rows[1]).getByText('Registered')).toBeInTheDocument();
+    expect(within(rows[1]).getByText('OK')).toBeInTheDocument();
     expect(
       within(rows[2]).getByText('Not in the anchor registry')
     ).toBeInTheDocument();
@@ -117,6 +135,85 @@ describe('TourHealthPanel', () => {
     const rows = within(section).getAllByRole('row');
     expect(within(rows[1]).getByText('Found')).toBeInTheDocument();
     expect(within(rows[2]).getByText('Not found')).toBeInTheDocument();
+  });
+
+  it('reads the published snapshot and counts misses from its runs only', async () => {
+    const snapshotSet = {
+      ...tourSet,
+      steps: [
+        {
+          id: 'a',
+          label: 'Open boards',
+          tour: { anchor: 'sidebar.boards', action: 'click' },
+        },
+        {
+          id: 'c',
+          label: 'Open the menu',
+          tour: { anchor: 'sidebar.open-menu', action: 'click' },
+        },
+      ],
+    };
+    h.published.set('set-1', {
+      set: snapshotSet,
+      publishedAt: 9,
+      publishedBy: 'admin',
+    });
+    h.runs.set('set-1', [
+      { v: 9, startedAt: 1, furthest: 1, done: true, misses: [] },
+      { v: 9, startedAt: 2, furthest: 1, done: false, exit: 1, misses: ['c'] },
+      // A run of an older version: its miss no longer counts.
+      { v: 5, startedAt: 0, furthest: 0, done: false, misses: ['a'] },
+    ]);
+    render(<TourHealthPanel />);
+    const section = await screen.findByRole('region', { name: 'Clock tour' });
+    expect(
+      within(section).getByText(
+        'Published · Real runs of this version: 2 · Finished: 1'
+      )
+    ).toBeInTheDocument();
+    // The draft's retired anchor isn't in the snapshot teachers run.
+    expect(within(section).queryByText('sidebar.retired')).toBeNull();
+    const rows = within(section).getAllByRole('row');
+    expect(rows).toHaveLength(3);
+    expect(within(rows[1]).getByText('OK')).toBeInTheDocument();
+    expect(within(rows[2]).getByText('Broken')).toBeInTheDocument();
+    expect(
+      within(rows[2]).getByText('Not found in 1 of 2 real runs')
+    ).toBeInTheDocument();
+  });
+
+  it('shows the three states, with a closed panel as needs-open', async () => {
+    h.sets = [
+      {
+        ...tourSet,
+        tourSetup: { widgets: ['clock'] },
+        steps: [
+          { id: 'o', tour: { anchor: 'sidebar.open-menu', action: 'click' } },
+          { id: 'm', tour: { anchor: 'sidebar.boards', action: 'click' } },
+          { id: 'w', tour: { anchor: 'widget.title', action: 'observe' } },
+        ],
+      } as unknown as GuidedLearningSet,
+    ];
+    render(
+      <>
+        <button data-tour="sidebar.open-menu">Menu</button>
+        <TourHealthPanel />
+      </>
+    );
+    const section = await screen.findByRole('region', { name: 'Clock tour' });
+    expect(within(section).getByTestId('tour-state')).toHaveTextContent('OK');
+    fireEvent.click(screen.getByRole('button', { name: 'Check live' }));
+    const rows = within(section).getAllByRole('row');
+    expect(within(rows[1]).getByText('OK')).toBeInTheDocument();
+    expect(
+      within(rows[2]).getByText('Needs its menu or panel open')
+    ).toBeInTheDocument();
+    expect(
+      within(rows[3]).getByText('Needs Clock on the board')
+    ).toBeInTheDocument();
+    expect(within(section).getByTestId('tour-state')).toHaveTextContent(
+      'Needs widget or panel open'
+    );
   });
 
   it('opens the set in the Studio at the step', async () => {

@@ -3406,6 +3406,7 @@
     "liveHint": "¿Quieres probarlo en tu propio tablero? El recorrido te señala cada botón paso a paso.",
     "offer": "¿Un recorrido de 1 minuto por {{widget}}?",
     "offerStart": "Empezar",
+    "offerNoThanks": "No, gracias",
     "showMe": "Muéstramelo",
     "pause": "Pausar",
     "resume": "Reanudar",
@@ -3491,5 +3492,44 @@
   },
   "glAssignments": {
     "showOlder": "Mostrar anteriores"
+  },
+  "tourHealth": {
+    "loading": "Cargando recorridos...",
+    "intro": "Comprueba la versión publicada de cada recorrido, la que usan los docentes, con el registro de anclas y los recorridos reales. «Comprobar en vivo» busca cada ancla en la pizarra detrás de esta ventana tal como está ahora.",
+    "recordTour": "Grabar un recorrido",
+    "checkLive": "Comprobar en vivo",
+    "empty": "Ningún conjunto de Guided Learning tiene pasos de recorrido en vivo todavía.",
+    "untitledSet": "Conjunto sin título",
+    "untitledStep": "Paso sin título",
+    "published": "Publicado",
+    "notPublished": "Sin publicar: se muestra el conjunto guardado",
+    "runSummary": "Recorridos reales de esta versión: {{runs}} · Terminados: {{done}}",
+    "runsUnavailable": "No se pudieron cargar los recorridos reales",
+    "colStep": "Paso",
+    "colAnchor": "Ancla",
+    "colStatus": "Estado",
+    "colOnScreen": "En pantalla",
+    "colActions": "Acciones",
+    "state": {
+      "ok": "Correcto",
+      "needsOpen": "Necesita un widget o panel abierto",
+      "broken": "Roto"
+    },
+    "reason": {
+      "unknownAnchor": "No está en el registro de anclas",
+      "needsWidgetType": "Le falta el tipo de widget",
+      "unexpectedWidgetType": "Tiene un tipo de widget que esta ancla no admite",
+      "unknownWidgetType": "Nombra un tipo de widget que no existe",
+      "fieldMisses": "No se encontró en {{misses}} de {{runs}} recorridos reales",
+      "notOnScreen": "No está en la pizarra ahora",
+      "needsWidget": "Necesita {{widgets}} en la pizarra",
+      "widgetNotAdded": "Necesita un widget que el recorrido no añade",
+      "needsPanel": "Necesita su menú o panel abierto"
+    },
+    "notChecked": "Sin comprobar",
+    "found": "Encontrado",
+    "notFound": "No encontrado",
+    "openInStudio": "Abrir en Studio",
+    "openInStudioLabel": "Abrir en Studio: paso {{number}} de {{title}}"
   }
 }

@@ -4563,6 +4563,7 @@
     "liveHint": "Want to try it on your own board? The tour points at each button as you go.",
     "offer": "Take a 1-minute tour of {{widget}}?",
     "offerStart": "Start",
+    "offerNoThanks": "No thanks",
     "showMe": "Show me",
     "pause": "Pause",
     "resume": "Resume",
@@ -4648,5 +4649,44 @@
   },
   "glAssignments": {
     "showOlder": "Show older"
+  },
+  "tourHealth": {
+    "loading": "Loading tours...",
+    "intro": "Checks the published version of each tour, the one teachers run, against the anchor registry and real runs. Check live looks for each anchor on the board behind this window as it is now.",
+    "recordTour": "Record a tour",
+    "checkLive": "Check live",
+    "empty": "No Guided Learning set has live-tour steps yet.",
+    "untitledSet": "Untitled set",
+    "untitledStep": "Untitled step",
+    "published": "Published",
+    "notPublished": "Not published: showing the saved set",
+    "runSummary": "Real runs of this version: {{runs}} · Finished: {{done}}",
+    "runsUnavailable": "Real runs could not be loaded",
+    "colStep": "Step",
+    "colAnchor": "Anchor",
+    "colStatus": "Status",
+    "colOnScreen": "On screen",
+    "colActions": "Actions",
+    "state": {
+      "ok": "OK",
+      "needsOpen": "Needs widget or panel open",
+      "broken": "Broken"
+    },
+    "reason": {
+      "unknownAnchor": "Not in the anchor registry",
+      "needsWidgetType": "Missing its widget type",
+      "unexpectedWidgetType": "Has a widget type this anchor does not take",
+      "unknownWidgetType": "Names a widget type that does not exist",
+      "fieldMisses": "Not found in {{misses}} of {{runs}} real runs",
+      "notOnScreen": "Not on the board right now",
+      "needsWidget": "Needs {{widgets}} on the board",
+      "widgetNotAdded": "Needs a widget the tour does not add",
+      "needsPanel": "Needs its menu or panel open"
+    },
+    "notChecked": "Not checked",
+    "found": "Found",
+    "notFound": "Not found",
+    "openInStudio": "Open in Studio",
+    "openInStudioLabel": "Open in Studio: step {{number}} of {{title}}"
   }
 }

@@ -109,10 +109,17 @@ export function useFirstUseTourOffers(): void {
       for (const setId of ids) {
         if (!(await checkLiveTour(setId))) continue;
         if (isTourRunning() || wasOffered(type)) return;
-        markOffered(type);
+        // Shown counts only once the teacher answers; an ignored offer comes back.
         addToast(t('tours.offer', { widget: widgetLabel(type) }), 'info', {
           label: t('tours.offerStart'),
-          onClick: () => requestStartTour({ setId }),
+          onClick: () => {
+            markOffered(type);
+            requestStartTour({ setId });
+          },
+          secondary: {
+            label: t('tours.offerNoThanks'),
+            onClick: () => markOffered(type),
+          },
         });
         return;
       }

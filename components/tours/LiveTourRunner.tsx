@@ -75,6 +75,7 @@ import {
   type SavedTour,
 } from './tourResume';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
+import { startTourRunLog, type TourRunLog } from './tourRuns';
 
 const TourMiniPlayer = lazy(() => import('./TourMiniPlayer'));
 
@@ -160,7 +161,7 @@ const claimsFromIds = (
 /** Runs a Guided Learning set's live-tour steps against the real app. */
 export const LiveTourRunner: React.FC = () => {
   const { t } = useTranslation();
-  const { canAccessFeature } = useAuth();
+  const { canAccessFeature, user } = useAuth();
   const dashboard = useDashboard();
   const { activeDashboard, removeWidgets } = dashboard;
   const [tour, setTour] = useState<ActiveTour | null>(null);
@@ -182,10 +183,11 @@ export const LiveTourRunner: React.FC = () => {
     readSavedTour
   );
   const calloutRef = useRef<HTMLDivElement | null>(null);
+  const runLog = useRef<TourRunLog | null>(null);
 
   // Async setup reads the newest dashboard actions, not the ones captured when it started.
-  const latest = useRef({ dashboard, canAccessFeature, t });
-  latest.current = { dashboard, canAccessFeature, t };
+  const latest = useRef({ dashboard, canAccessFeature, t, uid: user?.uid });
+  latest.current = { dashboard, canAccessFeature, t, uid: user?.uid };
 
   const widgets = activeDashboard?.widgets ?? [];
   if (tour) {
@@ -257,6 +259,14 @@ export const LiveTourRunner: React.FC = () => {
     const missing = missingSetupWidgets(set, current);
     const beforeIds = new Set(current.map((w) => w.id));
     missing.forEach((type) => d.addWidget(type));
+    const index = Math.min(Math.max(from, 0), steps.length - 1);
+    runLog.current?.end({ done: false });
+    // Studio test runs of a draft are not field data.
+    const uid = latest.current.uid;
+    runLog.current =
+      uid && !opts.draft
+        ? startTourRunLog(set.id, uid, { v: set.updatedAt, furthest: index })
+        : null;
     setAttempt(0);
     setPaused(false);
     setTakenOver(false);
@@ -266,7 +276,7 @@ export const LiveTourRunner: React.FC = () => {
       set,
       steps,
       phase: 'running',
-      index: Math.min(Math.max(from, 0), steps.length - 1),
+      index,
       beforeIds,
       addedTypes: missing,
       claims,
@@ -401,8 +411,19 @@ export const LiveTourRunner: React.FC = () => {
     runSetup(set, steps, index, { draft });
   };
 
-  const finish = () => {
+  // A step left while its anchor was still missing counts as a field miss.
+  const noteMiss = () => {
+    if (step?.tour && anchor.status === 'missing')
+      runLog.current?.miss(step.id);
+  };
+
+  const finish = (done = false) => {
     if (!tour) return;
+    if (tour.phase === 'running') {
+      noteMiss();
+      runLog.current?.end(done ? { done } : { done, exit: tour.index });
+      runLog.current = null;
+    }
     if (added.length > 0) {
       setTour({ ...tour, phase: 'teardown' });
       return;
@@ -415,9 +436,11 @@ export const LiveTourRunner: React.FC = () => {
     autoWait.current?.abort();
     setAuto(null);
     if (index >= tour.steps.length) {
-      finish();
+      finish(true);
       return;
     }
+    noteMiss();
+    runLog.current?.update({ furthest: index });
     setAttempt(0);
     setTour({ ...tour, index: Math.max(index, 0) });
   };
@@ -456,7 +479,7 @@ export const LiveTourRunner: React.FC = () => {
     return () => setTourRunning(false);
   }, [active]);
   const finishRef = useRef(finish);
-  finishRef.current = tour ? finish : () => dismissResume(false);
+  finishRef.current = tour ? () => finish() : () => dismissResume(false);
   useEffect(() => {
     if (!escapable) return;
     const onKey = (e: KeyboardEvent) => {
@@ -617,6 +640,16 @@ export const LiveTourRunner: React.FC = () => {
   }, [autoRunning, observeMs, stepIndex, attempt]);
 
   useEffect(() => () => autoWait.current?.abort(), []);
+
+  // Run stats reach Firestore when the page hides or the runner unmounts mid-run.
+  useEffect(() => {
+    const flush = () => runLog.current?.flush();
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, []);
 
   const stopDemo = () => {
     if (autoStage !== 'demo') return;
@@ -902,7 +935,7 @@ export const LiveTourRunner: React.FC = () => {
               )}
               <button
                 type="button"
-                onClick={finish}
+                onClick={() => finish()}
                 aria-label={t('tours.exit')}
                 title={t('tours.exit')}
                 className={iconBtn}

@@ -352,6 +352,35 @@ describe('first-use tour offer', () => {
     expect(h.addToast).toHaveBeenCalledTimes(1);
   });
 
+  it('marks the offer shown only after Start or No thanks', async () => {
+    h.helpItems = [guide('a', 'live', ['clock'])];
+    render(<TourOfferWatcher />);
+    const readd = async () => {
+      act(() => {
+        h.board.widgets = [];
+        h.emit();
+      });
+      addWidget('clock');
+    };
+    addWidget('clock');
+    await waitFor(() => expect(h.addToast).toHaveBeenCalledTimes(1));
+    // Ignored: nothing is stored, so the offer comes back next time.
+    expect(localStorage.getItem('spart_tour_offered_clock')).toBeNull();
+    await readd();
+    await waitFor(() => expect(h.addToast).toHaveBeenCalledTimes(2));
+    const action = h.addToast.mock.calls[1][2] as {
+      secondary: { label: string; onClick: () => void };
+    };
+    expect(action.secondary.label).toBe('No thanks');
+    action.secondary.onClick();
+    expect(localStorage.getItem('spart_tour_offered_clock')).toBe('1');
+    await readd();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(h.addToast).toHaveBeenCalledTimes(2);
+  });
+
   it('stays quiet for types without a live tour, board switches and running tours', async () => {
     h.helpItems = [
       guide('a', 'live', ['clock']),

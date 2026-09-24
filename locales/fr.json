@@ -3406,6 +3406,7 @@
     "liveHint": "Vous voulez essayer sur votre propre tableau ? La visite vous montre chaque bouton au fur et à mesure.",
     "offer": "Une visite d'une minute de {{widget}} ?",
     "offerStart": "Commencer",
+    "offerNoThanks": "Non merci",
     "showMe": "Montrez-moi",
     "pause": "Pause",
     "resume": "Reprendre",
@@ -3491,5 +3492,44 @@
   },
   "glAssignments": {
     "showOlder": "Afficher les plus anciennes"
+  },
+  "tourHealth": {
+    "loading": "Chargement des visites...",
+    "intro": "Vérifie la version publiée de chaque visite, celle que lancent les enseignants, par rapport au registre des ancres et aux passages réels. « Vérifier en direct » cherche chaque ancre sur le tableau derrière cette fenêtre, tel qu'il est maintenant.",
+    "recordTour": "Enregistrer une visite",
+    "checkLive": "Vérifier en direct",
+    "empty": "Aucun ensemble Guided Learning n'a encore d'étapes de visite en direct.",
+    "untitledSet": "Ensemble sans titre",
+    "untitledStep": "Étape sans titre",
+    "published": "Publiée",
+    "notPublished": "Non publiée : affiche l'ensemble enregistré",
+    "runSummary": "Passages réels de cette version : {{runs}} · Terminés : {{done}}",
+    "runsUnavailable": "Impossible de charger les passages réels",
+    "colStep": "Étape",
+    "colAnchor": "Ancre",
+    "colStatus": "État",
+    "colOnScreen": "À l’écran",
+    "colActions": "Actions",
+    "state": {
+      "ok": "OK",
+      "needsOpen": "Widget ou panneau à ouvrir",
+      "broken": "Cassée"
+    },
+    "reason": {
+      "unknownAnchor": "Absente du registre des ancres",
+      "needsWidgetType": "Type de widget manquant",
+      "unexpectedWidgetType": "A un type de widget que cette ancre n'accepte pas",
+      "unknownWidgetType": "Nomme un type de widget qui n'existe pas",
+      "fieldMisses": "Introuvable dans {{misses}} passages réels sur {{runs}}",
+      "notOnScreen": "Pas sur le tableau en ce moment",
+      "needsWidget": "Nécessite {{widgets}} sur le tableau",
+      "widgetNotAdded": "Nécessite un widget que la visite n'ajoute pas",
+      "needsPanel": "Nécessite son menu ou panneau ouvert"
+    },
+    "notChecked": "Non vérifié",
+    "found": "Trouvée",
+    "notFound": "Introuvable",
+    "openInStudio": "Ouvrir dans Studio",
+    "openInStudioLabel": "Ouvrir dans Studio : étape {{number}} de {{title}}"
   }
 }

@@ -57,11 +57,26 @@ const h = vi.hoisted(() => {
     canAccess: vi.fn(() => true),
     loadTour: vi.fn(),
     loadDraft: vi.fn(),
+    user: null as { uid: string } | null,
+    runLog: {
+      update: vi.fn(),
+      miss: vi.fn(),
+      end: vi.fn(),
+      flush: vi.fn(),
+    },
+    startRunLog: vi.fn(),
   };
 });
 
+vi.mock('./tourRuns', () => ({
+  startTourRunLog: (...args: unknown[]) => {
+    h.startRunLog(...args);
+    return h.runLog;
+  },
+}));
+
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ canAccessFeature: h.canAccess }),
+  useAuth: () => ({ canAccessFeature: h.canAccess, user: h.user }),
 }));
 
 vi.mock('@/context/useDashboard', () => ({
@@ -189,6 +204,9 @@ beforeEach(() => {
   vi.useFakeTimers();
   h.reset();
   h.canAccess.mockReturnValue(true);
+  h.user = null;
+  h.startRunLog.mockClear();
+  Object.values(h.runLog).forEach((fn) => fn.mockClear());
   sessionStorage.clear();
 });
 
@@ -1363,5 +1381,92 @@ describe('LiveTourRunner stacking, feedback, reload and access', () => {
     await frames();
     expect(progress()).toBe('2 / 2');
     expect(document.activeElement).not.toBe(screen.getByTestId('tour-callout'));
+  });
+});
+
+describe('LiveTourRunner run stats', () => {
+  beforeEach(() => {
+    h.user = { uid: 'teacher-1' };
+  });
+
+  const published = (steps: Binding[]) => ({
+    ...makeSet(steps),
+    updatedAt: 42,
+  });
+
+  it('logs a published run from the snapshot version and marks it done at the end', async () => {
+    await start(
+      published([
+        { anchor: 'sidebar.boards', action: 'observe' },
+        { anchor: 'dock.item:dice', action: 'observe' },
+      ])
+    );
+    expect(h.startRunLog).toHaveBeenCalledWith('set-1', 'teacher-1', {
+      v: 42,
+      furthest: 0,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(h.runLog.update).toHaveBeenCalledWith({ furthest: 1 });
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(h.runLog.end).toHaveBeenCalledWith({ done: true });
+    expect(h.runLog.miss).not.toHaveBeenCalled();
+  });
+
+  it('records a missed anchor and the step the teacher left from', async () => {
+    await start(
+      published([
+        { anchor: 'sidebar.classes', action: 'click' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    await frames(ANCHOR_SEARCH_MS + 100);
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(h.runLog.miss).toHaveBeenCalledWith('s0');
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(h.runLog.end).toHaveBeenCalledWith({ done: false, exit: 1 });
+    expect(h.runLog.miss).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not count a late anchor as a miss', async () => {
+    await start(published([{ anchor: 'sidebar.classes', action: 'observe' }]));
+    await frames(ANCHOR_SEARCH_MS + 100);
+    const late = document.createElement('button');
+    late.setAttribute('data-tour', 'sidebar.classes');
+    document.body.appendChild(late);
+    await frames(500);
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(h.runLog.miss).not.toHaveBeenCalled();
+    late.remove();
+  });
+
+  it('logs nothing without a signed-in user', async () => {
+    h.user = null;
+    await start(published([{ anchor: 'sidebar.boards', action: 'observe' }]));
+    expect(progress()).toBe('1 / 1');
+    expect(h.startRunLog).not.toHaveBeenCalled();
+  });
+
+  it('logs nothing for a Studio draft run', async () => {
+    h.loadDraft.mockResolvedValue(
+      published([{ anchor: 'sidebar.boards', action: 'observe' }])
+    );
+    render(
+      <>
+        <Fixture />
+        <LiveTourRunner />
+      </>
+    );
+    act(() => {
+      requestStartTour({ setId: 'set-1', draft: true });
+    });
+    await frames();
+    expect(progress()).toBe('1 / 1');
+    expect(h.startRunLog).not.toHaveBeenCalled();
+  });
+
+  it('flushes pending stats when the page hides', async () => {
+    await start(published([{ anchor: 'sidebar.boards', action: 'observe' }]));
+    window.dispatchEvent(new Event('pagehide'));
+    expect(h.runLog.flush).toHaveBeenCalled();
   });
 });

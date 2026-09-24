@@ -8,20 +8,30 @@ export interface TourAnchorDef {
   perWidgetType?: true;
   /** Autopilot never clicks it for the teacher by default. */
   destructive?: true;
+  /** Shown only once a menu, the dock or another panel is open. */
+  panel?: true;
 }
 
 export const TOUR_ANCHORS = {
   'dock.open-tools': { label: 'Open Tools button in the collapsed dock' },
-  'dock.item': { label: 'Widget button in the dock', perWidgetType: true },
-  'dock.more-widgets': { label: 'More button that opens the widget library' },
-  'library.root': { label: 'Widget library window' },
-  'library.search': { label: 'Widget library search box' },
+  'dock.item': {
+    label: 'Widget button in the dock',
+    perWidgetType: true,
+    panel: true,
+  },
+  'dock.more-widgets': {
+    label: 'More button that opens the widget library',
+    panel: true,
+  },
+  'library.root': { label: 'Widget library window', panel: true },
+  'library.search': { label: 'Widget library search box', panel: true },
   'library.item': {
     label: 'Widget tile in the widget library',
     perWidgetType: true,
+    panel: true,
   },
-  'library.edit': { label: 'Edit button in the widget library' },
-  'library.close': { label: 'Close button in the widget library' },
+  'library.edit': { label: 'Edit button in the widget library', panel: true },
+  'library.close': { label: 'Close button in the widget library', panel: true },
 
   'widget.window': { label: 'Widget window', perWidget: true },
   'widget.toolbar': { label: 'Widget toolbar', perWidget: true },
@@ -63,14 +73,20 @@ export const TOUR_ANCHORS = {
     label: 'Clear board button in the top bar',
     destructive: true,
   },
-  'sidebar.close-menu': { label: 'Close menu button' },
-  'sidebar.boards': { label: 'Boards item in the menu' },
-  'sidebar.backgrounds': { label: 'Backgrounds item in the menu' },
-  'sidebar.assignments': { label: 'Assignments item in the menu' },
-  'sidebar.classes': { label: 'My Classes item in the menu' },
-  'sidebar.profile-settings': { label: 'Profile & Settings item in the menu' },
-  'sidebar.quick-access': { label: 'Quick Access item in the menu' },
-  'sidebar.whats-new': { label: "What's New item in the menu" },
+  'sidebar.close-menu': { label: 'Close menu button', panel: true },
+  'sidebar.boards': { label: 'Boards item in the menu', panel: true },
+  'sidebar.backgrounds': { label: 'Backgrounds item in the menu', panel: true },
+  'sidebar.assignments': { label: 'Assignments item in the menu', panel: true },
+  'sidebar.classes': { label: 'My Classes item in the menu', panel: true },
+  'sidebar.profile-settings': {
+    label: 'Profile & Settings item in the menu',
+    panel: true,
+  },
+  'sidebar.quick-access': {
+    label: 'Quick Access item in the menu',
+    panel: true,
+  },
+  'sidebar.whats-new': { label: "What's New item in the menu", panel: true },
 
   'board-nav.select-board': { label: 'Board name button that opens boards' },
   'board-nav.previous': { label: 'Previous board button' },
@@ -79,8 +95,9 @@ export const TOUR_ANCHORS = {
   'board-nav.new-board': {
     label: 'New Board item in the boards menu',
     destructive: true,
+    panel: true,
   },
-  'board-nav.manage-boards': { label: 'Manage all boards item' },
+  'board-nav.manage-boards': { label: 'Manage all boards item', panel: true },
 
   'board-actions.zoom': { label: 'Zoom level button' },
   'board-actions.zoom-reset': { label: 'Reset zoom button' },
