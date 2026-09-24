@@ -211,6 +211,46 @@ describe('buildResultsPrintHtml — key and marks', () => {
   });
 });
 
+describe('buildResultsPrintHtml — full or missed-only report', () => {
+  const questions = [
+    mc,
+    q('q2', 'FIB', 'blue', { text: 'Colour of the sky?' }),
+    q('q3', 'FIB', 'green', { text: 'Colour of grass?' }),
+  ];
+  const s = student({ r: response({ q1: 'Rome', q2: 'blue' }) }, questions);
+
+  it('prints every question in the full report', () => {
+    const html = render(
+      buildResultsPrintHtml(job([s]), applyPreset('full-report'))
+    );
+    expect(html.querySelectorAll('ol.q > li')).toHaveLength(3);
+    expect(html.textContent).toContain('Accepted answer: blue');
+    expect(html.textContent).not.toContain('Questions to review');
+  });
+
+  it('prints the score, then only missed and unanswered questions', () => {
+    const html = render(
+      buildResultsPrintHtml(job([s]), applyPreset('missed-only'))
+    );
+    expect(html.querySelector('.score')?.textContent).toContain('1 / 3');
+    expect(html.textContent).toContain('Questions to review');
+    const printed = Array.from(html.querySelectorAll('ol.q .text')).map(
+      (el) => el.textContent
+    );
+    expect(printed).toEqual(['Capital of France?', 'Colour of grass?']);
+    expect(html.textContent).toContain('Paris');
+  });
+
+  it('says so when nothing was missed', () => {
+    const perfect = student({ r: response({ q1: 'Paris' }) });
+    const html = render(
+      buildResultsPrintHtml(job([perfect]), applyPreset('missed-only'))
+    );
+    expect(html.textContent).toContain('No missed questions.');
+    expect(html.querySelector('ol.q')).toBeNull();
+  });
+});
+
 describe('buildResultsPrintHtml — written answers', () => {
   const written = q('w', 'free-response', '', {
     points: 4,

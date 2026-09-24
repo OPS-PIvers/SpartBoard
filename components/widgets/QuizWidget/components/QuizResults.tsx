@@ -99,6 +99,7 @@ import {
 } from './results/StudentResultsControl';
 import { StudentResultsBulkBar } from './results/StudentResultsBulkBar';
 import { DrilldownNameList } from './results/DrilldownNameList';
+import { buildQuizResultsCsv, downloadCsv } from '@/utils/quizResultsCsv';
 import { StudentAnswerLine } from './results/StudentAnswerLine';
 import {
   computeQuestionStats,
@@ -226,6 +227,8 @@ interface QuizResultsProps {
    * (`getResponseDocKey(r)`), same key used by `onDeleteResponse`.
    */
   onUnlockResultsForStudent?: (responseKey: string) => Promise<void>;
+  /** Sends one submitted student back into the live quiz with their answers kept. */
+  onReopenStudent?: (responseKey: string) => Promise<void>;
   /**
    * Called after the 404 stale-sheet recovery replaces a missing PLC sheet
    * with a fresh one. Lets the parent widget persist the new URL onto the
@@ -336,6 +339,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   session,
   onDeleteResponse,
   onUnlockResultsForStudent,
+  onReopenStudent,
   onPlcSheetUrlReplaced,
   initialExportUrl,
   plcSheetUrl: assignmentPlcSheetUrl,
@@ -754,19 +758,21 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     [hideNames, maskedNameByResponseKey]
   );
 
+  const resultsTools = canAccessFeature('quiz-results-tools');
   // Group actions feed the Students screen's bulk bar (D20).
   const handleSelectStudents = useMemo(
     () =>
       selection && studentResultsActions && !plcView
         ? (keys: string[]) => {
-            selection.addToSelection(keys);
+            // With the tools on, the bar acts on exactly this group.
+            if (resultsTools) selection.setSelection(keys);
+            else selection.addToSelection(keys);
             setScreen('students');
           }
         : undefined,
-    [selection, studentResultsActions, plcView]
+    [selection, studentResultsActions, plcView, resultsTools]
   );
 
-  const resultsTools = canAccessFeature('quiz-results-tools');
   // The Students screen's open row, lifted so item analysis can jump to a student.
   const [expandedStudentKey, setExpandedStudentKey] = useState<string | null>(
     null
@@ -785,7 +791,72 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   );
 
   // Printing to hand back (docs/plans/QUIZ_RESULTS_PRINT.md); never for PLC teammates (D7).
-  const canPrintResults = canAccessFeature('quiz-results-print') && !plcView;
+  const canPrintResults =
+    (canAccessFeature('quiz-results-print') || resultsTools) && !plcView;
+
+  const handleExportStudents = (keys: string[]) => {
+    const wanted = new Set(keys);
+    const rows = responses.filter((r) => wanted.has(getResponseDocKey(r)));
+    try {
+      downloadCsv(
+        buildQuizResultsCsv(rows, quiz.questions, {
+          pinToName: exportPinToName,
+          byStudentUid,
+          teacherName: config.teacherName,
+          fibGrading,
+          timeAway: canAccessFeature('tab-away-timer'),
+        }),
+        `${quiz.title} results`
+      );
+      addToast(
+        `Exported ${rows.length} student${rows.length === 1 ? '' : 's'}.`,
+        'success'
+      );
+    } catch (err) {
+      logError('QuizResults.exportStudents', err);
+      addToast('Could not export the selected students.', 'error');
+    }
+  };
+
+  const handleReopenStudents = async (keys: string[]): Promise<boolean> => {
+    if (!onReopenStudent) return false;
+    const wanted = new Set(keys);
+    const done = responses
+      .filter(
+        (r) => wanted.has(getResponseDocKey(r)) && r.status === 'completed'
+      )
+      .map((r) => getResponseDocKey(r) as string);
+    if (done.length === 0) return false;
+    const label = `${done.length} student${done.length === 1 ? '' : 's'}`;
+    const ok = await showConfirm(
+      `Reopen the quiz for ${label}? They keep their answers, can change them and submit again. Their score is cleared until they do.`,
+      { title: 'Reopen for selected students', confirmLabel: 'Reopen' }
+    );
+    if (!ok) return false;
+    // Each reopen is its own small batch, so run them side by side.
+    const outcomes = await Promise.allSettled(
+      done.map((key) => onReopenStudent(key))
+    );
+    const failed = outcomes.filter((o) => {
+      if (o.status === 'fulfilled') return false;
+      logError('QuizResults.reopenStudent', o.reason);
+      return true;
+    }).length;
+    const reopened = done.length - failed;
+    if (failed > 0) {
+      addToast(
+        `Reopened for ${reopened} of ${done.length}. Try the rest again.`,
+        'error'
+      );
+      return false;
+    }
+    addToast(`Reopened for ${label}.`, 'success');
+    return true;
+  };
+  const reopenBlockedReason =
+    session?.status === 'ended'
+      ? 'This assignment has ended. Reopen the assignment first.'
+      : null;
   const [printSelection, setPrintSelection] = useState<
     readonly string[] | null | undefined
   >(undefined);
@@ -1986,6 +2057,15 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               studentResultsActions={studentResultsActions}
               onPrintStudents={canPrintResults ? openPrint : undefined}
               showStudentFeedback={resultsTools}
+              onExportStudents={
+                resultsTools && !plcView ? handleExportStudents : undefined
+              }
+              onReopenStudents={
+                resultsTools && !plcView && onReopenStudent
+                  ? handleReopenStudents
+                  : undefined
+              }
+              reopenBlockedReason={reopenBlockedReason}
               expandedKey={expandedStudentKey}
               onExpandedKeyChange={setExpandedStudentKey}
               focusKey={focusStudentKey}
@@ -2171,6 +2251,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           periodOrder={printPeriodOrder}
           sessionLive={!!session && session.status !== 'ended'}
           sheetsAvailable={paperSheetsEnabled}
+          reportChoice={resultsTools}
           teacherUid={user?.uid ?? null}
           onClose={() => setPrintSelection(undefined)}
           onError={(message) => addToast(message, 'error')}
@@ -3217,6 +3298,9 @@ const StudentsScreen: React.FC<{
   onPrintStudents?: (responseKeys: string[]) => void;
   /** Show written-answer comments and rubric levels in the open row. */
   showStudentFeedback: boolean;
+  onExportStudents?: (responseKeys: string[]) => void;
+  onReopenStudents?: (responseKeys: string[]) => Promise<boolean>;
+  reopenBlockedReason?: string | null;
   expandedKey: string | null;
   onExpandedKeyChange: (key: string | null) => void;
   /** A row to scroll to and focus once, after a jump from item analysis. */
@@ -3241,6 +3325,9 @@ const StudentsScreen: React.FC<{
   studentResultsActions,
   onPrintStudents,
   showStudentFeedback,
+  onExportStudents,
+  onReopenStudents,
+  reopenBlockedReason,
   expandedKey,
   onExpandedKeyChange,
   focusKey,
@@ -3315,6 +3402,9 @@ const StudentsScreen: React.FC<{
             resolveName={resolveCopyName}
             addToast={addToast}
             onPrint={onPrintStudents}
+            onExport={onExportStudents}
+            onReopen={onReopenStudents}
+            reopenBlockedReason={reopenBlockedReason}
           />
           <label
             className="flex items-center font-sans text-brand-gray-primary cursor-pointer self-start"
