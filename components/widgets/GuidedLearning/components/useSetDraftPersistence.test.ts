@@ -77,7 +77,10 @@ describe('useSetDraftPersistence.buildSavedSet', () => {
       ...buildSet(),
       futureField: { nested: [1, 2] },
     } as GuidedLearningSet;
-    const saved = build(set, { title: 'Edited' }) as Record<string, unknown>;
+    const saved = build(set, { title: 'Edited' }) as unknown as Record<
+      string,
+      unknown
+    >;
     expect(saved.futureField).toEqual({ nested: [1, 2] });
   });
 
