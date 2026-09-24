@@ -490,6 +490,47 @@ describe('buildDocumentResponseSchema', () => {
   });
 });
 
+describe('printed section and label (R29)', () => {
+  const raw = (extra: Record<string, unknown>) => ({
+    questions: [
+      {
+        number: 1,
+        text: 'Pick one.',
+        type: 'MC',
+        options: [
+          { letter: 'A', text: 'x' },
+          { letter: 'B', text: 'y' },
+        ],
+        correctAnswer: '',
+        warnings: [],
+        ...extra,
+      },
+    ],
+  });
+
+  it('declares both as optional, so either side can deploy first', () => {
+    const question = buildDocumentResponseSchema().properties?.questions?.items;
+    expect(question?.properties?.section?.type).toBeDefined();
+    expect(question?.properties?.label?.type).toBeDefined();
+    expect(question?.required).not.toContain('section');
+    expect(question?.required).not.toContain('label');
+  });
+
+  it('passes them through as printed and drops empty ones', () => {
+    const quiz = normalizeAiQuiz(
+      raw({ section: ' Section 2 ', label: '5A' }),
+      'fallback'
+    );
+    expect(quiz.questions[0]).toMatchObject({
+      section: 'Section 2',
+      label: '5A',
+    });
+    const bare = normalizeAiQuiz(raw({ section: '', label: 3 }), 'fallback');
+    expect(bare.questions[0]).not.toHaveProperty('section');
+    expect(bare.questions[0]).not.toHaveProperty('label');
+  });
+});
+
 describe('choose all that apply', () => {
   const maQuestion = (correctAnswer: string) => ({
     questions: [

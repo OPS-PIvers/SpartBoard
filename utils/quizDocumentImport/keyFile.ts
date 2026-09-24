@@ -12,7 +12,7 @@
  * the reader cannot.
  */
 
-import { keyFromLines } from './answerKey';
+import { readKeyItems } from './keyForms';
 import { documentKind } from './fileKind';
 import { readDocx } from './docxReader';
 import { readRtf } from './rtfReader';
@@ -27,17 +27,20 @@ export interface ReadKeyFileOptions {
   multiAnswer?: boolean;
 }
 
-export { keyFromLines, applyAnswerKey } from './answerKey';
+import type { KeyItem } from './types';
+
+export { keyFromLines } from './answerKey';
+export { applyAnswerKey, mergeAnswerKey } from './mergeKey';
 
 /**
- * Reads a key file into answers by question number. Always read in the
- * browser: a page of numbers and letters is what the plain reader is good at,
- * and it costs the teacher no AI allowance.
+ * Reads a key file into its entries, for `mergeAnswerKey`. Always read in the
+ * browser: a key is what the plain reader is good at, and it costs the
+ * teacher no AI allowance.
  */
 export async function readAnswerKeyFile(
   file: Blob,
   options: ReadKeyFileOptions = {}
-): Promise<Map<number, string>> {
+): Promise<KeyItem[]> {
   const fileName = options.fileName ?? (file as File).name ?? '';
   const kind = documentKind(file, fileName);
   const reader = { multiAnswer: options.multiAnswer === true };
@@ -50,11 +53,11 @@ export async function readAnswerKeyFile(
 
   if (kind === 'docx') {
     const { lines } = await readDocx(file);
-    return keyFromLines(lines, reader);
+    return readKeyItems(lines, reader);
   }
   if (kind === 'rtf') {
     const { lines } = await readRtf(file);
-    return keyFromLines(lines, reader);
+    return readKeyItems(lines, reader);
   }
   if (kind === 'cartridge') {
     throw new Error(
@@ -67,5 +70,5 @@ export async function readAnswerKeyFile(
   const { lines } = await readPdf(file, options.pdf, {
     maxPages: MAX_DOCUMENT_PAGES,
   });
-  return keyFromLines(lines, reader);
+  return readKeyItems(lines, reader);
 }

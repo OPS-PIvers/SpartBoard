@@ -69,10 +69,36 @@ export interface QuestionRef {
   section: number;
   /** The section heading as printed, e.g. "Section 2". */
   sectionName?: string;
+  /** The number the heading printed, e.g. 2 for "Section 2". */
+  sectionNumber?: number;
   /** The item number as printed within its section. */
   item: number;
   /** 'A' / 'B' for a Part A / Part B item. */
   part?: string;
+}
+
+/** A key's section: its place among the key's sections, and the number it printed. */
+export interface KeySection {
+  ordinal: number;
+  printed?: number;
+}
+
+/** One answer a key gives, before it is matched to a question (R10–R12). */
+export interface KeyItem {
+  item: number;
+  section?: KeySection;
+  part?: string;
+  /** A letter, `A, C`, True/False, or written text; '' when the key gives none. */
+  answer: string;
+  /** An ordering answer: the items' text in the right order. */
+  ordering?: string[];
+  points?: number;
+  /** The points are the whole item's, to split between its parts. */
+  pointsForItem?: boolean;
+  /** The key scores this with a rubric rather than one answer. */
+  rubric?: boolean;
+  /** The key says the item isn't scored. */
+  notScored?: boolean;
 }
 
 /** A learning target the test printed ("ELT 1.1 - I can …"), offered in review (R9, R20). */
@@ -114,6 +140,19 @@ export interface ExtractedQuestion {
   warnings: string[];
 }
 
+/** What a key merge did, for the review banner (R13, R19). */
+export interface KeySummary {
+  source: 'document' | 'file';
+  /** Key entries that gave an answer. */
+  entries: number;
+  /** Entries that found their question. */
+  matched: number;
+  /** Printed labels of entries with no question, e.g. `2·3`. */
+  unmatchedLabels: string[];
+  /** Questions where a key file overruled the test's own answer. */
+  conflicts: number;
+}
+
 export interface ExtractedQuiz {
   /** Defaults to the document's name (D11). */
   title: string;
@@ -123,6 +162,8 @@ export interface ExtractedQuiz {
   texts?: ExtractedText[];
   /** Notes about the document as a whole. */
   warnings: string[];
+  /** The last key merged onto these questions; a key file's wins. */
+  keySummary?: KeySummary;
   /** Which reader ran; set only for a teacher who has AI access. */
   readBy?: 'ai' | 'plain';
 }

@@ -39,9 +39,17 @@ export { findAnswerKey } from './answerKey';
 export {
   keyFromLines,
   applyAnswerKey,
+  mergeAnswerKey,
   readAnswerKeyFile,
   type ReadKeyFileOptions,
 } from './keyFile';
+export { keyItemLabel } from './mergeKey';
+export { readKeyItems } from './keyForms';
+export {
+  fillSavedQuizKey,
+  type SavedKeyFill,
+  type SavedKeySkip,
+} from './savedQuizKey';
 export { readDocx } from './docxReader';
 export { readRtf, parseRtf } from './rtfReader';
 export { readCartridge } from './cartridgeReader';
@@ -136,24 +144,38 @@ export async function readQuizDocument(
     warnings.push(
       'Pictures in a rich text file aren’t brought in — add them to the questions that need them in the editor.'
     );
-    const { questions, texts } = parseDocument(lines, reader);
+    const {
+      questions,
+      texts,
+      warnings: keyWarnings,
+      keySummary,
+    } = parseDocument(lines, reader);
+    warnings.push(...keyWarnings);
     return {
       title: titleFromFileName(fileName),
       questions,
       images: [],
       ...(texts.length > 0 ? { texts } : {}),
+      ...(keySummary ? { keySummary } : {}),
       warnings,
     };
   }
 
   if (kind === 'docx') {
     const { lines, images } = await readDocx(file);
-    const { questions, texts } = parseDocument(lines, reader);
+    const {
+      questions,
+      texts,
+      warnings: keyWarnings,
+      keySummary,
+    } = parseDocument(lines, reader);
+    warnings.push(...keyWarnings);
     const used = new Set(questions.flatMap((q) => q.imageIds));
     return {
       title: titleFromFileName(fileName),
       questions,
       ...(texts.length > 0 ? { texts } : {}),
+      ...(keySummary ? { keySummary } : {}),
       // A picture nothing points at would upload to Drive unused.
       images: images.filter((img) => used.has(img.id)),
       warnings,
@@ -204,8 +226,17 @@ export async function readQuizDocument(
     );
   }
 
-  const { questions, texts } = parseDocument(lines, reader);
-  const withTexts = texts.length > 0 ? { texts } : {};
+  const {
+    questions,
+    texts,
+    warnings: keyWarnings,
+    keySummary,
+  } = parseDocument(lines, reader);
+  warnings.push(...keyWarnings);
+  const withTexts = {
+    ...(texts.length > 0 ? { texts } : {}),
+    ...(keySummary ? { keySummary } : {}),
+  };
   if (!options.pdfCropper) {
     // D15: without a cropper the browser reader leaves a PDF's pictures behind.
     warnings.push(

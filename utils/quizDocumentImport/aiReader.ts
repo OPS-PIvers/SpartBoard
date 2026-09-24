@@ -8,7 +8,8 @@
 
 import { readDocx } from './docxReader';
 import { parseQuestionLines } from './parseQuestions';
-import { applyAnswerKey, findAnswerKey } from './answerKey';
+import { findAnswerKey } from './answerKey';
+import { mergeAnswerKey } from './mergeKey';
 import { UNREADABLE_FILE, documentKind, titleFromFileName } from './fileKind';
 import { assertWithinByteLimit } from './limits';
 import type {
@@ -17,6 +18,7 @@ import type {
   ExtractedOption,
   ExtractedQuestion,
   ExtractedQuiz,
+  QuestionRef,
   ReaderOptions,
 } from './types';
 import {
@@ -32,6 +34,10 @@ export interface AiExtractedQuiz {
   title: string;
   questions: {
     number: number;
+    /** The section heading as printed (R29); absent from an older function. */
+    section?: string;
+    /** The number as printed, e.g. "3" or "5A" (R29). */
+    label?: string;
     text: string;
     type: QuizQuestionType;
     options: { letter: string; text: string }[];
@@ -96,7 +102,7 @@ function toExtractedQuestion(
       ? raw.type
       : 'free-response';
   return {
-    number: Number.isInteger(raw.number) ? raw.number : index + 1,
+    number: index + 1,
     text: typeof raw.text === 'string' ? raw.text : '',
     type,
     options:
@@ -108,6 +114,57 @@ function toExtractedQuestion(
   };
 }
 
+/** "3", "5A", "21.", "Q5", "Question 5)" */
+const PRINTED_LABEL =
+  /^(?:q(?:uestion)?\.?\s*)?(\d{1,3})\s*([A-Da-d])?\s*[.):]?$/i;
+
+/** Printed numbers from each question's AI `label` (R29), else its `number`. */
+export function withPrintedRefs(
+  questions: readonly ExtractedQuestion[],
+  raws: readonly AiExtractedQuiz['questions'][number][]
+): ExtractedQuestion[] {
+  const fromLabel = raws.map((r) =>
+    PRINTED_LABEL.exec(typeof r.label === 'string' ? r.label.trim() : '')
+  );
+  const fromNumber = raws.map((r) =>
+    Number.isInteger(r.number) && r.number > 0
+      ? PRINTED_LABEL.exec(String(r.number))
+      : null
+  );
+  const labels = fromLabel.map((m, i) => m ?? fromNumber[i]);
+  const sectionNames: string[] = [];
+  const refs: Array<QuestionRef | undefined> = raws.map((raw, i) => {
+    const name = typeof raw.section === 'string' ? raw.section.trim() : '';
+    if (!sectionNames.includes(name)) sectionNames.push(name);
+    const printed =
+      /\b(?:section|part)\s+(\d{1,2})\b/i.exec(name) ?? /(\d{1,2})/.exec(name);
+    const m = labels[i];
+    if (!m) return undefined;
+    return {
+      section: sectionNames.indexOf(name) + 1,
+      ...(name ? { sectionName: name } : {}),
+      ...(printed ? { sectionNumber: Number(printed[1]) } : {}),
+      item: Number(m[1]),
+      ...(m[2] ? { part: m[2].toUpperCase() } : {}),
+    };
+  });
+  const keys = refs.map((r) => (r ? `${r.item}${r.part ?? ''}` : ''));
+  const printedKeys = keys.filter(Boolean);
+  const restarted = new Set(printedKeys).size !== printedKeys.length;
+  return questions.map((q, i) => {
+    const r = refs[i];
+    if (!r) return q;
+    const label = restarted
+      ? `${r.sectionNumber ?? r.section}·${keys[i]}`
+      : keys[i];
+    return {
+      ...q,
+      ref: r,
+      ...(label !== String(q.number) ? { sourceLabel: label } : {}),
+    };
+  });
+}
+
 export function aiQuizToExtracted(
   ai: AiExtractedQuiz,
   fallbackTitle: string,
@@ -117,7 +174,10 @@ export function aiQuizToExtracted(
   const multi = options.multiAnswer === true;
   return {
     title: (ai.title || '').trim() || fallbackTitle,
-    questions: questions.map((q, i) => toExtractedQuestion(q, i, multi)),
+    questions: withPrintedRefs(
+      questions.map((q, i) => toExtractedQuestion(q, i, multi)),
+      questions
+    ),
     images: [],
     warnings: Array.isArray(ai.warnings) ? ai.warnings.filter(Boolean) : [],
   };
@@ -134,9 +194,20 @@ export function graftDocxImages(
   anchored: readonly ExtractedQuestion[],
   images: readonly ExtractedImage[]
 ): ExtractedQuiz {
-  const byNumber = new Map(anchored.map((q) => [q.number, q.imageIds]));
+  // When one reader skipped a question, printed refs line the two up instead.
+  const refKey = (q: ExtractedQuestion): string | number =>
+    q.ref ? `${q.ref.section}:${q.ref.item}${q.ref.part ?? ''}` : q.number;
+  const countsDiffer = quiz.questions.length !== anchored.length;
+  const allRefs =
+    quiz.questions.every((q) => q.ref) && anchored.every((q) => q.ref);
+  // Without every ref, a printed number still beats position.
+  const printedKey = (q: ExtractedQuestion): string | number =>
+    q.ref ? `${q.ref.item}${q.ref.part ?? ''}` : q.number;
+  const keyOf = (q: ExtractedQuestion) =>
+    !countsDiffer ? q.number : allRefs ? refKey(q) : printedKey(q);
+  const byNumber = new Map(anchored.map((q) => [keyOf(q), q.imageIds]));
   const questions = quiz.questions.map((q) => {
-    const imageIds = byNumber.get(q.number);
+    const imageIds = byNumber.get(keyOf(q));
     return imageIds && imageIds.length > 0
       ? { ...q, imageIds: [...imageIds] }
       : q;
@@ -227,9 +298,9 @@ function withDocumentKey(
   lines: readonly DocLine[],
   reader: ReaderOptions
 ): ExtractedQuiz {
-  return applyAnswerKey(
+  return mergeAnswerKey(
     quiz,
-    findAnswerKey(lines, reader).answerByNumber,
+    findAnswerKey(lines, reader).items,
     'document',
     reader
   );

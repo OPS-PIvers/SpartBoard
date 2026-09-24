@@ -189,7 +189,7 @@ describe('the separate answer key file (D8)', () => {
   });
 
   it('fills the answer the key names', async () => {
-    vi.mocked(readAnswerKeyFile).mockResolvedValue(new Map([[1, 'B']]));
+    vi.mocked(readAnswerKeyFile).mockResolvedValue([{ item: 1, answer: 'B' }]);
 
     const result = await adapter().parse({ ...source, keyFile });
 
