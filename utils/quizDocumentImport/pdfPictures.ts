@@ -5,8 +5,13 @@
  */
 
 import { matchQuestionOpening } from '@/utils/questionNumbering';
-import { figureKey, type FigureBox } from './pdfFigures';
-import type { DocLine } from './types';
+import {
+  cropPdfFigures,
+  figureKey,
+  type FigureBox,
+  type PdfCropperDeps,
+} from './pdfFigures';
+import type { DocLine, ExtractedImage, ExtractedQuestion } from './types';
 
 /** The `OPS` codes this module reads; pass pdf.js's own `OPS` object. */
 export interface PdfPictureOps {
@@ -354,28 +359,51 @@ export const pictureLine = (box: FigureBox): DocLine => ({
   imageIds: [figureKey(box)],
 });
 
+/** A line wholly inside a picture is one of its labels. */
+const insidePicture = (l: PositionedLine, picture: PageBox): boolean =>
+  l.left !== undefined &&
+  l.right !== undefined &&
+  l.left >= picture.x &&
+  l.right <= right(picture) &&
+  l.top >= picture.y &&
+  l.top <= bottom(picture);
+
 /**
  * One page's lines with a picture line put where the picture sits: after the
  * last line in reading order that starts above it. Lines beside the picture
- * in another column don't count when the lines say where they sit.
+ * in another column don't count, and labels inside it leave the text.
  */
 export function placePictureLines(
   page: number,
   lines: readonly PositionedLine[],
   pictures: readonly PageBox[]
 ): DocLine[] {
-  const out: DocLine[] = lines.map((l) => l.line);
-  const sorted = [...pictures].sort((a, b) => b.y - a.y || b.x - a.x);
-  for (const picture of sorted) {
+  const insertAt = pictures.map((picture) => {
     const overlaps = (l: PositionedLine) =>
       l.left === undefined ||
       l.right === undefined ||
       (l.left <= right(picture) && l.right >= picture.x);
-    let insertAt = 0;
+    let at = 0;
     lines.forEach((l, index) => {
-      if (l.top < picture.y && overlaps(l)) insertAt = index + 1;
+      if (l.top < picture.y && overlaps(l)) at = index + 1;
     });
-    out.splice(insertAt, 0, pictureLine({ page, ...picture }));
+    return at;
+  });
+  const order = pictures
+    .map((picture, i) => ({ picture, at: insertAt[i] }))
+    .sort((p, q) => p.at - q.at || p.picture.y - q.picture.y);
+
+  const out: DocLine[] = [];
+  let next = 0;
+  for (let index = 0; index <= lines.length; index += 1) {
+    while (next < order.length && order[next].at === index) {
+      out.push(pictureLine({ page, ...order[next].picture }));
+      next += 1;
+    }
+    const l = lines[index];
+    if (l && !pictures.some((picture) => insidePicture(l, picture))) {
+      out.push(l.line);
+    }
   }
   return out;
 }
@@ -479,4 +507,46 @@ export function resolvePictureIds<Q extends { imageIds: string[] }>(
       ),
     ],
   }));
+}
+
+export const PDF_PICTURES_FAILED =
+  'Pictures in this PDF couldn’t be brought in — add them in the editor.';
+
+/**
+ * Crops the pictures the questions point at and swaps their keys for image
+ * ids. Opening the PDF for cropping failing costs the pictures, not the read.
+ */
+export async function attachPdfPictures(
+  file: Blob,
+  questions: readonly ExtractedQuestion[],
+  pictures: readonly FigureBox[],
+  makeCropper: (file: Blob) => Promise<PdfCropperDeps>
+): Promise<{
+  questions: ExtractedQuestion[];
+  images: ExtractedImage[];
+  warnings: string[];
+}> {
+  const used = usedPictureBoxes(pictures, questions);
+  if (used.length === 0) {
+    return {
+      questions: resolvePictureIds(questions, new Map()),
+      images: [],
+      warnings: [],
+    };
+  }
+  try {
+    const cropped = await cropPdfFigures(used, await makeCropper(file));
+    return {
+      questions: resolvePictureIds(questions, cropped.idByBox),
+      images: cropped.images,
+      warnings: cropped.warnings,
+    };
+  } catch (err) {
+    console.warn('[quizDocumentImport] could not crop the PDF', err);
+    return {
+      questions: resolvePictureIds(questions, new Map()),
+      images: [],
+      warnings: [PDF_PICTURES_FAILED],
+    };
+  }
 }

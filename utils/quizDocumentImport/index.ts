@@ -11,6 +11,8 @@ import { readDocx } from './docxReader';
 import { readRtf } from './rtfReader';
 import { readCartridge } from './cartridgeReader';
 import { readPdf, type PdfReaderDeps } from './pdfReader';
+import type { PdfCropperDeps } from './pdfFigures';
+import { attachPdfPictures } from './pdfPictures';
 import {
   MAX_DOCUMENT_PAGES,
   assertWithinByteLimit,
@@ -87,6 +89,8 @@ export interface ReadDocumentOptions {
   fileName?: string;
   /** Required to read a PDF; a Word file needs none. */
   pdf?: PdfReaderDeps;
+  /** Crops a PDF's pictures out of the page; omitted leaves them behind (D15). */
+  pdfCropper?: (file: Blob) => Promise<PdfCropperDeps>;
   /** Lets the read produce choose-all-that-apply questions. */
   multiAnswer?: boolean;
 }
@@ -150,10 +154,10 @@ export async function readQuizDocument(
   // reader the moment the file opens. Counting the pages that produced lines
   // would undercount: a page whose text layer is empty and that OCR could not
   // recover never reaches `lines` at all.
-  const { lines, pageCount, scannedPages, usedOcr } = await readPdf(
+  const { lines, pageCount, scannedPages, usedOcr, pictures } = await readPdf(
     file,
     options.pdf,
-    { maxPages: MAX_DOCUMENT_PAGES }
+    { maxPages: MAX_DOCUMENT_PAGES, pictures: Boolean(options.pdfCropper) }
   );
   assertWithinPageLimit(pageCount);
 
@@ -167,15 +171,30 @@ export async function readQuizDocument(
     );
   }
 
-  // D15: the browser reader takes pictures out of Word files only.
-  warnings.push(
-    'Pictures in a PDF aren’t brought in — add them to the questions that need them in the editor.'
-  );
+  const questions = parseQuestionLines(lines, reader);
+  if (!options.pdfCropper) {
+    // D15: without a cropper the browser reader leaves a PDF's pictures behind.
+    warnings.push(
+      'Pictures in a PDF aren’t brought in — add them to the questions that need them in the editor.'
+    );
+    return {
+      title: titleFromFileName(fileName),
+      questions,
+      images: [],
+      warnings,
+    };
+  }
 
+  const attached = await attachPdfPictures(
+    file,
+    questions,
+    pictures,
+    options.pdfCropper
+  );
   return {
     title: titleFromFileName(fileName),
-    questions: parseQuestionLines(lines, reader),
-    images: [],
-    warnings,
+    questions: attached.questions,
+    images: attached.images,
+    warnings: [...warnings, ...attached.warnings],
   };
 }

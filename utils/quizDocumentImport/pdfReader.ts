@@ -18,7 +18,16 @@ import {
   type OcrPage,
   type PageLines,
 } from './pdfLayout';
-import type { DocLine } from './types';
+import type { FigureBox } from './pdfFigures';
+import {
+  dropRepeatedEdgePictures,
+  placePictureLines,
+  sharePicturesAcrossRanges,
+  type PageBox,
+  type PdfViewportLike,
+  type PositionedLine,
+} from './pdfPictures';
+import { lineSegments, type DocLine } from './types';
 
 /** Below this many characters a page is treated as having no text layer. */
 const MIN_TEXT_LAYER_CHARS = 16;
@@ -30,12 +39,18 @@ export interface PdfTextItem {
   hasEOL?: boolean;
   /** Advance width in points, as pdf.js reports it. */
   width?: number;
+  /** Glyph height in points, as pdf.js reports it. */
+  height?: number;
 }
 
 export interface PdfPageLike {
   getTextContent: () => Promise<{ items: PdfTextItem[] }>;
   /** Page height in points; places the header and footer zones (R4). */
   height?: number;
+  /** The page's pictures and its viewport; absent means pictures are skipped. */
+  getPictures?: (
+    items: readonly PdfTextItem[]
+  ) => Promise<{ pictures: PageBox[]; viewport: PdfViewportLike }>;
 }
 
 export interface PdfDocumentLike {
@@ -58,11 +73,40 @@ export interface PdfContent {
   scannedPages: number[];
   /** True once any page needed OCR. */
   usedOcr: boolean;
+  /** Pictures placed among `lines`; their `figureKey`s are the lines' image ids. */
+  pictures: FigureBox[];
 }
 
 export interface ReadPdfOptions {
   /** Refuse a longer document before any page is read. */
   maxPages?: number;
+  /** Find each text page's pictures and place them among its lines. */
+  pictures?: boolean;
+}
+
+/** A laid-out line's baseline and horizontal span as fractions of the viewport. */
+function positionLine(line: DocLine, viewport: PdfViewportLike): PositionedLine {
+  const [a, b, c, d, e, f] = viewport.transform;
+  const at = (x: number, y: number) => ({
+    x: (a * x + c * y + e) / viewport.width,
+    y: (b * x + d * y + f) / viewport.height,
+  });
+  const segments = lineSegments(line);
+  const x0 = segments[0]?.x;
+  const last = segments[segments.length - 1];
+  const x1 = last?.xEnd ?? last?.x;
+  const y = line.y ?? 0;
+  const start = at(x0 ?? 0, y);
+  if (x0 === undefined || x1 === undefined || x1 <= x0) {
+    return { line, top: start.y };
+  }
+  const end = at(x1, y);
+  return {
+    line,
+    top: start.y,
+    left: Math.min(start.x, end.x),
+    right: Math.max(start.x, end.x),
+  };
 }
 
 const toLayoutItem = (item: PdfTextItem): LayoutItem => ({
@@ -95,6 +139,10 @@ export async function readPdf(
   const plainOcr = new Map<number, DocLine[]>();
   const scannedPages: number[] = [];
   let usedOcr = false;
+  const picturesByPage = new Map<
+    number,
+    { pictures: PageBox[]; viewport: PdfViewportLike }
+  >();
 
   try {
     // The page count is known as soon as the document opens, so an over-long
@@ -110,6 +158,14 @@ export async function readPdf(
       const charCount = pageLines.map((l) => l.text).join('').length;
 
       if (charCount >= MIN_TEXT_LAYER_CHARS) {
+        if (options.pictures && page.getPictures) {
+          try {
+            picturesByPage.set(n, await page.getPictures(content.items));
+          } catch (err) {
+            // A page whose drawing won't read still gives its text.
+            console.warn('[quizDocumentImport] could not find pictures', err);
+          }
+        }
         pages.push({
           page: n,
           lines: pageLines,
@@ -142,21 +198,46 @@ export async function readPdf(
   }
 
   const laidOut = new Map(stripRunningLines(pages).map((p) => [p.page, p]));
+  const pictureNumbers = [...picturesByPage.keys()];
+  const kept = new Map(
+    dropRepeatedEdgePictures(
+      pictureNumbers.map((n) => picturesByPage.get(n)?.pictures ?? [])
+    ).map((boxes, i) => [pictureNumbers[i], boxes])
+  );
   const lines: DocLine[] = [];
+  const pictures: FigureBox[] = [];
   for (let n = 1; n <= pageCount; n += 1) {
     const page = laidOut.get(n);
     if (page) {
-      for (const line of page.lines) {
-        lines.push({
-          text: line.text,
-          segments: line.segments,
-          page: n,
-          y: line.y,
-        });
+      const pageLines: DocLine[] = page.lines.map((line) => ({
+        text: line.text,
+        segments: line.segments,
+        page: n,
+        y: line.y,
+      }));
+      const onPage = kept.get(n) ?? [];
+      const viewport = picturesByPage.get(n)?.viewport;
+      if (viewport && onPage.length > 0) {
+        lines.push(
+          ...placePictureLines(
+            n,
+            pageLines.map((line) => positionLine(line, viewport)),
+            onPage
+          )
+        );
+        pictures.push(...onPage.map((box) => ({ page: n, ...box })));
+      } else {
+        lines.push(...pageLines);
       }
     }
     lines.push(...(plainOcr.get(n) ?? []));
   }
 
-  return { lines, pageCount, scannedPages, usedOcr };
+  return {
+    lines: pictures.length > 0 ? sharePicturesAcrossRanges(lines) : lines,
+    pageCount,
+    scannedPages,
+    usedOcr,
+    pictures,
+  };
 }
