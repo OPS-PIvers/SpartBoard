@@ -1,6 +1,6 @@
 # Quiz: reliable test and answer-key import
 
-Grilled and settled 2026-09-24. Four stacked PRs to dev-paul, in the order below. Builds on `QUIZ_DOCUMENT_IMPORT.md` (D1–D21), which it amends where noted.
+Grilled and settled 2026-09-24; revised the same day after a second grilling (R23–R32). Six stacked PRs to dev-paul, in the order below. Builds on `QUIZ_DOCUMENT_IMPORT.md` (D1–D21), which it amends where noted.
 
 ## Goal
 
@@ -17,17 +17,23 @@ The browser reader was run on three real files Paul supplied (not committed; pub
 - **Great Minds answer guide (separate key file).** `readAnswerKeyFile` finds **0 entries**. The key is `ITEM n | stem … Correct Answer: c <text>` inside a 3–4-column table (Stem and Answer Key | Distractor Analysis | Scoring Rules). The Distractor Analysis column repeats "d Correct Answer: …" for the right choice. The guide also has multi-answer items ("Correct Answers: a, b"), an ordering answer (1–4 with text), a sorting answer (Literal:/Figurative:), point values ("4 POINTS") and free-response rubrics.
 - **Word/Doc test with the options in a table** (`a | d` / `b | e` / `c`). `readDocx` emits one line per table cell, row by row (a, d, b, e, c). `followsInSequence` rejects D after A, so D becomes a continuation of A. A tab between options (`a. X⇥d. Y`) is flattened to one space and merges the same way.
 - **Key spill.** Any line after the last question that isn't a new, higher-numbered question is appended to the last option. That covers every key `findAnswerKey` misses: 1–2 unheaded entries, entries with extras (`1. B 2pts`, `1. B (p. 4)`), and the Great Minds form.
+- **Word auto-numbering.** `docxReader` reads only `w:t` text. A test whose `1.` and `a.` come from Word's automatic list numbering (`w:numPr` → `word/numbering.xml`) has no numbers or letters in its lines, so no question opens at all. (Found in code review, not in Paul's three files; it is the default layout of a teacher-typed Word test.)
 - **Where the UI stands.** A separate-key slot exists only in `ImportWizard` behind "Add a separate answer key (optional)". `PaperPrintModal` and `PaperQuestionTextModal` have none. `PaperQuestionTextModal` accepts images, which the importer then rejects (`documentKind` → `UNREADABLE_FILE`). The AI reader is off by default (`aiReaderOff = true`), so teachers get the browser reader.
 
 ## Decisions
 
 ### Engine
 
-- **R1.** The browser reader is the reader to make reliable; nothing here depends on AI. The AI reader stays opt-in with no prompt changes. Its output goes through the same post-processing (R10 key merge, R8 spill guards, R6 grid check, R19 review warnings).
-- **R2.** Layout-aware lines. `DocLine` gains `segments: {text, x?, emphasized?}[]`. A segment boundary is a column gap: a DOCX tab or table cell, or a PDF x-gap wider than ~1.5× the line's median glyph width. A Word table row becomes **one** line with one segment per cell (it is no longer one line per cell). `text` stays as the joined string, so current consumers keep working. Emphasis moves from per-paragraph to per-run, so a split keeps bold on the right option.
+- **R1.** The browser reader is the reader to make reliable; nothing here depends on AI. The AI reader stays opt-in. Its only change is R29's optional `section` and `label` fields. Its output goes through the same post-processing (R10 key merge, R8 spill guards, R6 grid check, R19 review warnings).
+- **R2.** Layout-aware lines. `DocLine` gains `segments: {text, x?, emphasized?}[]`. A segment boundary is a column gap:
+  - DOCX: a tab or a table cell. A Word table row becomes **one** line with one segment per cell, where today it is one line per cell. A cell holding several paragraphs is one segment, its paragraphs joined by a space. A `gridSpan` cell is one segment; a `vMerge` continuation cell is an empty segment. A nested table is flattened into its parent cell's segment.
+  - RTF: `\tab`, `\cell` and `\nestcell` are segment breaks and `\row` ends the line. Today `\cell` starts a new line, so RTF moves to the same one-row-per-line shape as DOCX.
+  - PDF: an x-gap wider than ~1.5× the line's median glyph width.
+  - `text` stays the segments joined by a single space, so current consumers keep working. The key reader's number-cell-then-answer-cell path (`NUMBER_ONLY` + next line in `answerKey.ts`) is kept for PDFs and replaced for DOCX/RTF by reading the row's two segments. Its existing test keeps passing.
+  - Emphasis moves from per-paragraph to per-run, so a split keeps bold on the right option.
 - **R3.** OCR produces the same segments. `pdfBrowserDeps` `recognizePage` returns Tesseract words with bounding boxes (not a flat string), and the PDF line grouper builds segments from them. Scanned PDFs and photos go through the same layout code as the text layer.
 - **R4.** Page structure, before parsing:
-  - **Headers/footers.** A line whose digit-normalized text recurs in the top or bottom ~10% of at least half the pages (minimum 3 pages) is dropped.
+  - **Headers/footers.** A line whose digit-normalized text recurs in the top or bottom ~10% of at least half the pages (minimum 3 pages) is dropped. On a 2-page document the line must recur on both pages and contain a page number or a `©`/`(c)`. DOCX and RTF headers and footers are already skipped by their readers.
   - **Two-column pages.** A page is read left column, then right, when a vertical gutter separates two text bands that each span ≥60% of the page's text height and the right band contains question openers. Short option grids (Bio test options at x≈302) never meet that test.
   - **Column bands for tables.** Segment start-x values cluster into bands per page. Key readers use the bands (R11–R12) to keep one table column from bleeding into another.
 
@@ -35,13 +41,13 @@ The browser reader was run on three real files Paul supplied (not committed; pub
 
 - **R5.** An option marker (`a.` `(b)` `C)`) opens a new option mid-line only when it starts a segment, i.e. it follows a column gap. "Vitamin A. is…" inside one segment never splits.
 - **R6.** A question's options are collected in any letter order, then sorted A→F. The set must be contiguous from A with no duplicates. Otherwise the row gets "Answer choices may be out of place — check them", and the letters as read are kept rather than guessed at. The `followsInSequence` in-order requirement goes away for letters seen inside the same question block.
-- **R7.** Sections. A section heading (`Section 2`, `Part II`, a short standalone heading such as "Multiple Choice" or "Short Answer…", or an all-caps line), or a question number dropping back to 1 after ≥2 questions, starts a new section. Questions are numbered 1→N straight through the quiz. Each question keeps `ref: {section, item, part?}` for key matching. Sections that contain no numbered questions (Fluency read-aloud) contribute nothing.
+- **R7.** Sections. A section heading (`Section 2`, `Part II`, a short standalone heading such as "Multiple Choice" or "Short Answer…", or an all-caps line), or a question number dropping back to 1 after ≥2 questions, starts a new section. Questions are numbered 1→N straight through the quiz. Each question keeps `ref: {section, item, part?}` for key matching, and its printed label is kept (R23). Sections that contain no numbered questions (Fluency read-aloud) contribute nothing.
 - **R8.** Spill guards.
   - A section heading, a key heading, or a line that parses as a key entry never continues an option or stem. It ends the question.
   - After the last question, nothing is appended to it except lines that are plainly its continuation: an option wrap at the option's indent or segment position.
   - Recurring headers/footers are already gone (R4).
 - **R9.** Item shapes.
-  - **Part A / Part B** within one number become two questions, "5A" and "5B", each with its own options and key. Text before "Part A" (e.g. "Read paragraph 8." plus the quoted passage) goes on both. A review note says "Part B credit doesn't depend on Part A here."
+  - **Part A / Part B** within one number become two questions, "5A" and "5B", each with its own options and key. The text before "Part A" is shared as R25 says. A review note says "Part B credit doesn't depend on Part A here."
   - **Ordering.** A stem like "Number the events… / put … in order / sequence" with lettered items becomes `Ordering` (`correctAnswer` = `item1|item2|…` from the key).
   - **Sorting.** "Draw a line to sort / sort into categories" becomes free-response. The cell text is listed cleanly as `Literal: … / Figurative: …` columns, with a note to rebuild it.
   - **Learning-target lines.** A line matching `^<code>?\s*[-–:]?\s*I can …` (code like `ELT 1.1`, `ELT-1.6`, `LT3`) is removed from the stem. It becomes `suggestedTarget: {code?, label}` on that question and every following question, until the next target line or section heading (R20).
@@ -74,13 +80,15 @@ The browser reader was run on three real files Paul supplied (not committed; pub
 - **R14.** One shared `TestAndKeyUploader` component replaces the pickers in `ImportWizard` (document source), `PaperPrintModal` ("Import questions") and `PaperQuestionTextModal`.
   - Two equal drop zones side by side: **Test questions** and **Answer key (optional)**. Each also offers "Choose from Drive".
   - They stack on narrow widths.
-- **R15.** Accepted types, test zone: PDF, DOCX, RTF, Google Doc, .imscc, and photos (JPG/PNG/HEIC), read by OCR through R3. Key zone: PDF, DOCX, RTF, Google Doc, and photos. The 25 MB combined cap and 20-page cap (D18) are unchanged; a photo counts as one page.
+- **R15.** Accepted types, test zone: PDF, DOCX, RTF, Google Doc, .imscc, and photos (JPG/PNG/HEIC), read by OCR through R3. Key zone: PDF, DOCX, RTF, Google Doc, and photos. The 25 MB combined cap and 20-page cap (D18) are unchanged; a photo counts as one page. Multi-photo and HEIC handling: R30.
 - **R16.** Auto-assign. A file dropped on a zone goes to that zone. When two files are dropped together, the one that looks like a key goes to Key and the other to Test, and a **Swap** button appears. A file looks like a key when its name matches `key|answer|scoring|guide`, or ≥50% of its lines parse as key entries, or it has ≥3 `Correct Answer` labels.
 - **R17.** Key-only fill. The uploader's key zone can be used alone:
   - in `PaperQuestionTextModal`, to fill answers on existing stub rows;
   - from a saved quiz that has `needsKey` questions, via "Add answer key" in the editor, next to the needs-key count.
 
-  Answers map by R10, flattened to sequential order for a saved quiz, which has no section refs. They go through the same review summary before anything is written.
+  - from the quiz library row menu of a quiz with `needsKeyCount > 0`, because the disabled Assign button sends the teacher to that row (R31).
+
+  On a saved quiz, keys match by `sourceLabel` where the question has one (R23), else by sequential order. Only `needsKey` questions are filled (R26). Answers go through the same review summary before anything is written.
 
 ### Review
 
@@ -94,33 +102,94 @@ The browser reader was run on three real files Paul supplied (not committed; pub
     3. Else "Create target", with a destination menu listing **My targets** and each PLC list the teacher can edit (`plcCanEditContent`; viewers are excluded). When only My targets is available the menu is skipped.
   - Creation uses `addTargets` + `save` from `usePersonalLearningTargets` / `usePlcLearningTargets`. Tags use `tagFromTarget`. The tags ride into `QuizQuestion.targets` on create.
 
+### Printed numbering, shared text and saved quizzes
+
+- **R23.** Printed labels. `QuizQuestion` gains optional `sourceLabel?: string`, the number as the test printed it (`2·3` for Section 2 item 3, `5A`). It is set only when it differs from the question's position in the quiz, so a plain 1→N test stores nothing.
+  - It is shown in the review table, on the editor's question row (as "Q12 · printed 2·3"), and beside the bubble number on paper response sheets. A student with the publisher's test and SpartBoard's sheet can then find the right row.
+  - Grading, scanning and results never read it; they stay keyed on id and position.
+  - It is carried on duplicate, PLC share and sync as an ordinary question field. Editing it is a plain text field in the editor.
+- **R24.** Word auto-numbering. `docxReader` resolves each paragraph's `w:numPr` (`numId` + `ilvl`) against `word/numbering.xml`: `abstractNum` levels with `numFmt` (decimal, lowerLetter, upperLetter, lowerRoman, upperRoman), `lvlText` (`%1.`, `(%1)`, `%1)`), `start`, `lvlOverride/startOverride`, and restart-on-higher-level. A running counter per `numId` and level renders the prefix, e.g. `3.` or `b)`. The prefix is written as the first segment of the line and into `text`, so the parser sees exactly what the teacher sees. A paragraph style's own `numPr` (`w:pStyle` → `styles.xml`) counts too. Bullet formats and `numFmt="none"` add nothing.
+- **R25.** Shared lead-in text. On a Part A/B pair, or on any run of questions under one "Read … and answer questions n–m" instruction, the text before the first part is handled as follows:
+  - If it is a short instruction (one sentence and ≤150 characters, e.g. "Read paragraph 8."), it goes into each stem.
+  - Otherwise it becomes one `text` stimulus (D16, `readAloudSource: 'text'`) linked through `stimulusIds` to every question it covers. The instruction sentence stays in the stems.
+  - The review table shows the link, as it does for a shared picture (D14).
+- **R26.** Key fill on a saved quiz fills `needsKey` questions only. On such a question every option still sits in `incorrectAnswers` in printed order (`toQuizData`), so letter n is `incorrectAnswers[n]`. A question that already has an answer is never overwritten; it is listed as "already answered — skipped". So is a letter past the question's option count, as "key says E, question has 4 choices". A key answer for an MA question moves every keyed option into `correctAnswer`.
+
+### AI reader, test files and photos
+
+- **R27.** A private regression corpus. Real files never enter git.
+  - Paul's files go in a gitignored `tests/fixtures/private-quiz-import/`.
+  - `pnpm run test:import-corpus` reads each file with the browser reader. It compares question count, options per question, keyed count, sections and flagged-row count against a committed `tests/fixtures/quiz-import-corpus.expected.json`, which holds file hashes and counts only, never content.
+  - A missing file is skipped with a note, so the script passes on any machine. CI does not run it.
+  - Each PR that touches the reader runs it locally before merging, and the PR says so. New files Paul shares are added the same way, which also covers the threshold tuning under Open.
+- **R28.** The Ordering, sorting and Part A/B shapes from R9 each get a synthetic fixture _and_ an entry in the corpus expectations.
+- **R29.** AI response schema. `functions/src/quizDocumentExtract.ts` adds optional `section` (as printed, e.g. "Section 2") and `label` (as printed, e.g. "3", "5A") to each question, plus one prompt line: "give each question its printed number and section heading exactly as printed". The client derives `ref` and `sourceLabel` from them. When they are missing (an old function version mid-deploy, or a document with neither), it falls back to sequential numbering, so client and function can deploy in either order.
+- **R30.** Photos (amends R15).
+  - A zone takes either one document or several images, not both. Images are the pages of one document, ordered by natural filename sort. They show as thumbnails the teacher can drag to reorder. Each image is one page against the 20-page cap (D18).
+  - HEIC/HEIF is decoded by a wasm decoder (e.g. `heic-to`), lazy-loaded only when a HEIC file is dropped, then converted to PNG before OCR. The PR records the lazy chunk's size. If decoding fails, the zone says "Couldn't open this iPhone photo. Export it as JPEG and try again."
+  - Photos go through `paperScanRaster`'s image path, so orientation and scale match the paper-scan code.
+- **R31.** "Add answer key" appears in two places: next to the needs-key count in the editor, and in the library row menu when `needsKeyCount > 0`. Both open the uploader with only the key zone.
+- **R32.** A single file dropped on **Test questions** that passes the R16 key test gets an inline note: "This looks like an answer key. Move it to Answer key?" with a one-click move. It is never moved silently.
+
 ### Rollout
 
-- **R21.** The parser, reader and key fixes (R2–R13, R18) are bug fixes and ship ungated. The uploader and key-only fill (R14–R17) and the banner (R19) ride the existing `admin_settings/quiz_document_import` switch and `quiz-document-import` permission (D21). There is no new flag for them.
+- **R21.** The parser, reader and key fixes (R2–R13, R18, R24–R26, R29) are bug fixes and ship with no new gate, behind the importer's existing D21 gate. `sourceLabel` (R23) needs no gate of its own: only an import writes it, and the import is gated. The uploader, key-only fill and photos (R14–R17, R30–R32) and the banner (R19) ride the existing `admin_settings/quiz_document_import` switch and `quiz-document-import` permission (D21). There is no new flag for them.
 - **R22.** Suggested targets gets a new `GlobalFeature` `quiz-import-suggested-targets`: `defaultAccessLevel: 'admin'`, `defaultEnabled: true`, `missingDocPublic: false`. Chips and "Add all" are gated with `canAccessFeature`. Admins always pass. Paul opens it at Admin Settings > Access > Global Settings > set to Public after testing in prod.
 
-## PR 1 — Layout-aware readers, parser and key reader
+## PR map
 
-- `types.ts` (quizDocumentImport): `DocLine.segments`; `ExtractedQuestion.ref`, `points?`, `suggestedTarget?`, `suggestUntick?`.
-- `docxReader.ts`: per-run emphasis; tabs → segment breaks; a table row becomes one line with one segment per cell.
+| PR  | Carries                                            | Depends on |
+| --- | -------------------------------------------------- | ---------- |
+| 1a  | R2, R3, R4, R24                                    | —          |
+| 1b  | R5–R9, R23, R25, R28                               | 1a         |
+| 1c  | R10–R13, R26 (key mapping only), R29               | 1b         |
+| 2   | R14–R17, R30–R32                                   | 1c         |
+| 3   | R18–R20, R22                                       | 1c         |
+| 4   | PDF pictures (replaces D15 for the browser reader) | 1a         |
+
+R27's corpus script lands in 1a and is run before each later PR merges. Each PR is checked on spartboard-dev before the next one stacks on it.
+
+## PR 1a — Layout-aware readers
+
+- `types.ts` (quizDocumentImport): `DocLine.segments`.
+- `docxReader.ts`: per-run emphasis. Tabs become segment breaks. A table row becomes one line with one segment per cell, including multi-paragraph, spanned, merged and nested cells. Auto-numbering is rendered from `numbering.xml` and `styles.xml` (R24). Text boxes (`w:txbxContent`) are read in document order at their anchor paragraph.
+- `rtfReader.ts`: `\tab`, `\cell`, `\nestcell` → segments; `\row` ends the line (R2).
 - `pdfReader.ts`: segments from x-gaps; header/footer strip; two-column reading; column bands (R2, R4).
-- `pdfBrowserDeps.ts`: Tesseract word boxes → segments (R3). Verify the tesseract.js v7 output option that returns words/blocks.
-- `parseQuestions.ts`: gap-aware option split, collect-and-sort (R5, R6), sections and `ref` (R7), spill guards (R8), Part A/B, Ordering, sorting, target lines, ungraded (R9).
-- `answerKey.ts` / `keyFile.ts`: looser entries, item blocks, header-aware tables, band-restricted reading, points, section-aware matching, key-file-wins merge (R10–R13). `aiReader.ts` routes AI output through the same merge.
-- `toQuizData.ts`: points, Ordering encoding, `suggestUntick` → unticked rows.
-- **Fixtures** (`tests/utils/quizDocumentImport/fixtures/`), all synthetic with neutral content. Paul's files are never committed.
-  - PDF fixtures are arrays of positioned `PdfTextItem`s that copy the measured geometry: ExamView a/d · b/e · c grid at x≈108/320; Great Minds sections, Part A/B, footer and three-band answer guide; a two-column page.
-  - DOCX fixtures are built with JSZip: options in a table, options separated by tabs, and a 4-column `Question # | Answer | Vocabulary word | Notes` key table.
-  - Also: an unheaded 2-entry key and `1. B 2pts` entries at the end of a test (spill cases), and a key file that disagrees with an in-test key.
-- Tests: every failure listed under "What fails today" gets a named regression test. Existing suites keep passing.
+- `pdfBrowserDeps.ts`: Tesseract word boxes → segments (R3). `recognizePage` returns positioned words. Verify the tesseract.js v7 output option that returns words/blocks (`recognize(image, lang, {}, { blocks: true })`) before building on it.
+- Invariant: for every existing fixture that has no table, no tab and no auto-numbering, the joined `text` is byte-identical to today's, so every existing suite passes unchanged. The AI reader's DOCX input is not touched.
+- `scripts/` + `package.json`: `test:import-corpus` and the gitignore entry (R27).
+- Tests: DOCX auto-numbered test (decimal questions, lowerLetter options, a restart, a `startOverride`, a style-defined list); a table row with a two-paragraph cell and a `gridSpan`; RTF two-column options; the header/footer strip on 2- and 3-page fixtures; the two-column page; OCR word boxes → segments from a recorded Tesseract result.
+
+## PR 1b — Parser
+
+- `types.ts`: `ExtractedQuestion.ref`, `sourceLabel?`, `points?`, `suggestedTarget?`, `suggestUntick?`, `sharedTextId?`; `QuizQuestion.sourceLabel?` (root `types.ts`).
+- `parseQuestions.ts`: gap-aware option split, collect-and-sort (R5, R6), sections, `ref` and `sourceLabel` (R7, R23), spill guards (R8), Part A/B, Ordering, sorting, target lines, ungraded (R9), shared lead-in text as a `text` stimulus (R25).
+- `toQuizData.ts`: `sourceLabel`, points, Ordering encoding, `suggestUntick` → unticked rows, `text` stimuli from R25.
+- `sourceLabel` display in `QuizDocumentReview`, the editor question row, and the paper sheet renderer (`utils/paperSheetPlan.ts` and its print component).
+- Tests: every parser failure listed under "What fails today" gets a named regression test; the sheet shows `2·3` beside bubble 12 and nothing for an unlabeled quiz.
+
+## PR 1c — Key reader and merge
+
+- `answerKey.ts` / `keyFile.ts`: looser entries, item blocks, header-aware tables, band-restricted reading, points, section-aware matching, key-file-wins merge (R10–R13). Segment-aware table reading for DOCX/RTF (R2).
+- `aiReader.ts` routes AI output through the same merge. `functions/src/quizDocumentExtract.ts` gains the optional `section`/`label` schema fields and prompt line (R29), and the client maps them to `ref`/`sourceLabel` with the sequential fallback.
+- The saved-quiz letter→option mapping used by R17 (R26) as a pure function, so PR 2 only wires UI.
+- Tests: every key failure listed under "What fails today" gets a named regression test. Also: an AI response with and without `section`/`label`; R26 skipping answered rows and out-of-range letters.
+
+## Fixtures (all of PR 1)
+
+`tests/utils/quizDocumentImport/fixtures/`, all synthetic with neutral content. Paul's files are never committed (R27).
+
+- PDF fixtures are arrays of positioned `PdfTextItem`s that copy the measured geometry: ExamView a/d · b/e · c grid at x≈108/320; Great Minds sections, Part A/B, footer and three-band answer guide; a two-column page.
+- DOCX fixtures are built with JSZip: options in a table, options separated by tabs, auto-numbered lists with a `numbering.xml`, and a 4-column `Question # | Answer | Vocabulary word | Notes` key table.
+- Also: an unheaded 2-entry key and `1. B 2pts` entries at the end of a test (spill cases), and a key file that disagrees with an in-test key.
 
 ## PR 2 — Shared test + key uploader
 
-- `TestAndKeyUploader` (R14), wired into `ImportWizard`, `PaperPrintModal` and `PaperQuestionTextModal`. It replaces the "Add a separate answer key" button and the single pickers. Drive picking goes into both zones.
-- Photo support in both zones via OCR (R15). `documentKind` learns images; the `PaperQuestionTextModal` image dead end goes away.
+- `TestAndKeyUploader` (R14, R32), wired into `ImportWizard`, `PaperPrintModal` and `PaperQuestionTextModal`. It replaces the "Add a separate answer key" button and the single pickers. Drive picking goes into both zones.
+- Photo support in both zones via OCR (R15, R30): multi-image pages with reorder, and the lazy HEIC decoder. `documentKind` learns images; the `PaperQuestionTextModal` image dead end goes away.
 - Auto-assign and Swap (R16).
-- Key-only fill in `PaperQuestionTextModal` and the editor's "Add answer key" for `needsKey` quizzes (R17).
-- Tests: uploader drop/assign/swap, accepted types, key-only fill on a stub and on a saved quiz, and the gate off keeping today's pickers.
+- Key-only fill in `PaperQuestionTextModal`, the editor's "Add answer key" and the library row menu for `needsKey` quizzes (R17, R26, R31).
+- Tests: uploader drop/assign/swap, the looks-like-a-key note, accepted types, image ordering and reorder, a HEIC decode failure message, key-only fill on a stub and on a saved quiz (including a `sourceLabel` match and a skipped answered row), the library row entry hidden at `needsKeyCount` 0, and the gate off keeping today's pickers.
 
 ## PR 3 — Review summary and suggested targets
 
@@ -141,9 +210,9 @@ The browser reader was run on three real files Paul supplied (not committed; pub
 - Enforcing "Part A must be correct to earn Part B" scoring.
 - Importing rubrics or sample answers from the key.
 - AI prompt changes.
-- Turning quoted passages into `text` stimuli (they stay in the stem as today).
+- Turning a passage into a `text` stimulus outside R25's shared lead-ins. A passage inside one question's stem stays there, as today.
+- Answer keys read from photos of a _handwritten_ key. Printed keys in photos are read by OCR (R15).
 
 ## Open
 
-- Tune the thresholds in R4 (gutter span, header/footer page share) and R16 (key-likelihood) against more real files once PR 1 lands; Paul will share more.
-- Whether "Add answer key" for saved quizzes (R17) should also live in the quiz library row menu, not just the editor.
+- Tune the thresholds in R4 (gutter span, header/footer page share), R16 (key-likelihood), R18 (spill length) and R25 (short-instruction cutoff) against more real files once PR 1a–1c land. Paul will share more, and each new file joins the R27 corpus.
