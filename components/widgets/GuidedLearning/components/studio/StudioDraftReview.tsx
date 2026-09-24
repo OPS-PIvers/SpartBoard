@@ -8,6 +8,8 @@ interface StudioDraftReviewProps {
   steps: readonly GuidedLearningStep[];
   selectedIndex: number;
   onSelect: (index: number) => void;
+  /** Shows only the count; the group keeps the full phrase as its name. */
+  compact?: boolean;
 }
 
 /** Header count of AI-drafted steps still to review, with previous and next. */
@@ -15,6 +17,7 @@ export const StudioDraftReview: React.FC<StudioDraftReviewProps> = ({
   steps,
   selectedIndex,
   onSelect,
+  compact = false,
 }) => {
   const { t } = useTranslation();
   const count = steps.filter((s) => s.aiDraft).length;
@@ -34,7 +37,7 @@ export const StudioDraftReview: React.FC<StudioDraftReviewProps> = ({
     >
       <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
       <span className="px-1 text-xs font-bold">
-        {t('glStudio.aiDraftsToReview', { count })}
+        {compact ? count : t('glStudio.aiDraftsToReview', { count })}
       </span>
       <button
         type="button"

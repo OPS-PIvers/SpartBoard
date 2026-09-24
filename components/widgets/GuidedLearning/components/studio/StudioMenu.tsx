@@ -23,7 +23,14 @@ export const StudioMenu: React.FC<{
   items: StudioMenuItem[];
   triggerClassName: string;
   testId?: string;
-}> = ({ label, items, triggerClassName, testId }) => {
+  iconClassName?: string;
+}> = ({
+  label,
+  items,
+  triggerClassName,
+  testId,
+  iconClassName = 'h-3.5 w-3.5',
+}) => {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -78,7 +85,7 @@ export const StudioMenu: React.FC<{
         onClick={() => setOpen((v) => !v)}
         className={triggerClassName}
       >
-        <MoreHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+        <MoreHorizontal className={iconClassName} aria-hidden="true" />
       </button>
       {open &&
         pos &&

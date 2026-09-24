@@ -33,6 +33,7 @@ import {
 } from './snapping';
 import { findCallout, screenScale } from './canvasScale';
 import { useDeviceFrame } from './deviceFrameContext';
+import { isDoubleTap, type Tap } from './touchGestures';
 
 export type DrawShape = GuidedLearningRegion['shape'];
 
@@ -121,6 +122,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
   const lastClickRef = useRef<{ x: number; y: number; at: number } | null>(
     null
   );
+  const lastTapRef = useRef<Tap | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [pointer, setPointer] = useState<PctPoint | null>(null);
   const [drawBox, setDrawBox] = useState<PctBox | null>(null);
@@ -169,7 +171,26 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
   const snapOn = (e: React.PointerEvent) => !(e.ctrlKey || e.metaKey);
   const targets = () => snapTargets(slideSteps, selected?.id ?? null);
 
+  // A second finger means a pinch: drop the open gesture, keeping any move made so far.
+  const cancelGesture = () => {
+    const gesture = gestureRef.current;
+    gestureRef.current = null;
+    setGuides(NO_GUIDES);
+    setDrawBox(null);
+    if (!gesture || gesture.kind === 'draw') return;
+    if (
+      gesture.kind === 'resize' ||
+      gesture.kind === 'vertex' ||
+      gesture.active
+    )
+      endGesture();
+  };
+
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'touch' && e.isPrimary === false) {
+      cancelGesture();
+      return;
+    }
     if (e.button !== 0) return;
     const client = { x: e.clientX, y: e.clientY };
     const p = g.clientToImagePct(client.x, client.y);
@@ -429,8 +450,18 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
       gesture.kind === 'resize' || gesture.kind === 'vertex' || gesture.active;
     if (moved) {
       endGesture();
-    } else {
-      lastClickRef.current = { ...client, at: e.timeStamp };
+      return;
+    }
+    lastClickRef.current = { ...client, at: e.timeStamp };
+    // Touch has no reliable dblclick, so a double tap on the callout opens it for typing.
+    if (e.pointerType !== 'mouse' && gesture.kind === 'callout' && !cancelled) {
+      const tap = { ...client, at: e.timeStamp };
+      if (isDoubleTap(lastTapRef.current, tap)) {
+        lastTapRef.current = null;
+        onEditCallout(gesture.step.id);
+      } else {
+        lastTapRef.current = tap;
+      }
     }
   };
 

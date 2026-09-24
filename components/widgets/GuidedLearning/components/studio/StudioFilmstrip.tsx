@@ -13,6 +13,8 @@ import {
   Copy,
   Film,
   Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
   Trash2,
   Upload,
 } from 'lucide-react';
@@ -213,6 +215,8 @@ interface FilmstripBodyProps extends FilmstripState {
   stepCounts: number[];
   /** `order[i]` is the old index of the slide now at `i`; `moved` is the dragged slide's old index. */
   onReorderSlides: (order: number[], moved: number) => void;
+  collapsed: boolean;
+  onToggleCollapsed?: () => void;
 }
 
 const sameProps = (a: FilmstripBodyProps, b: FilmstripBodyProps) =>
@@ -241,6 +245,8 @@ const FilmstripBody = React.memo(function FilmstripBody({
   uploadFromClipboard,
   addCapturedMedia,
   stepCounts,
+  collapsed,
+  onToggleCollapsed,
 }: FilmstripBodyProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -325,20 +331,82 @@ const FilmstripBody = React.memo(function FilmstripBody({
     e.target.value = '';
   };
 
+  const dropOverlay = drop.active && (
+    <div className="pointer-events-none absolute inset-1 flex items-center justify-center rounded-xl border-2 border-dashed border-brand-blue-primary bg-brand-blue-primary/10 p-3 text-center text-xs font-bold text-brand-blue-primary">
+      {t('glStudio.dropToAdd')}
+    </div>
+  );
+
+  if (collapsed) {
+    return (
+      <nav
+        aria-label={t('glStudio.slides')}
+        data-testid="gl-studio-filmstrip"
+        data-collapsed="true"
+        className="relative flex min-h-0 flex-col items-center gap-2 border-r border-slate-200 bg-white py-3"
+        {...drop.handlers}
+      >
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          aria-expanded={false}
+          aria-label={t('glStudio.showSlides')}
+          title={t('glStudio.showSlides')}
+          data-testid="gl-studio-filmstrip-toggle"
+          className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+        >
+          <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
+        </button>
+        {imageUrls.length > 0 && (
+          <span className="text-center text-xxs font-bold tabular-nums text-slate-600">
+            {t('glStudio.slidePosition', {
+              n: currentImageIndex + 1,
+              total: imageUrls.length,
+            })}
+          </span>
+        )}
+        {uploadProgress && (
+          <Loader2
+            role="img"
+            className="h-4 w-4 animate-spin text-brand-blue-primary"
+            aria-label={t('glStudio.uploadingFile', {
+              name: uploadProgress.fileName,
+              current: uploadProgress.current,
+              total: uploadProgress.total,
+            })}
+          />
+        )}
+        {dropOverlay}
+      </nav>
+    );
+  }
+
   return (
     <nav
       aria-label={t('glStudio.slides')}
+      data-testid="gl-studio-filmstrip"
       className="relative flex min-h-0 flex-col border-r border-slate-200 bg-white"
       {...drop.handlers}
     >
-      <div className="flex shrink-0 items-baseline justify-between px-3 pb-2 pt-3">
+      <div className="flex shrink-0 items-center gap-2 py-2 pl-3 pr-1.5">
         <h2 className="text-xxs font-bold uppercase tracking-wider text-slate-500">
           {t('glStudio.slides')}
         </h2>
-        {imageUrls.length > 1 && (
-          <span className="text-xxs text-slate-400">
-            {t('glStudio.dragToReorder')}
-          </span>
+        <span className="min-w-0 flex-1 truncate text-right text-xxs text-slate-400">
+          {imageUrls.length > 1 && t('glStudio.dragToReorder')}
+        </span>
+        {onToggleCollapsed && (
+          <button
+            type="button"
+            onClick={onToggleCollapsed}
+            aria-expanded
+            aria-label={t('glStudio.hideSlides')}
+            title={t('glStudio.hideSlides')}
+            data-testid="gl-studio-filmstrip-toggle"
+            className="shrink-0 rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+          >
+            <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
+          </button>
         )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 custom-scrollbar">
@@ -397,11 +465,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
           {t('glStudio.paste')}
         </button>
       </div>
-      {drop.active && (
-        <div className="pointer-events-none absolute inset-1 flex items-center justify-center rounded-xl border-2 border-dashed border-brand-blue-primary bg-brand-blue-primary/10 p-3 text-center text-xs font-bold text-brand-blue-primary">
-          {t('glStudio.dropToAdd')}
-        </div>
-      )}
+      {dropOverlay}
       {captureMode && (
         <ScreenCaptureModal
           mode={captureMode}
@@ -417,12 +481,17 @@ interface StudioFilmstripProps {
   state: GuidedLearningEditorController;
   /** Deletes a slide; the Studio passes one that offers Undo. */
   onDeleteSlide?: (index: number) => void;
+  /** Folded to a narrow rail that shows only the current slide. */
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }
 
 /** Left column: slide thumbnails to pick, reorder, add and delete. */
 export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({
   state,
   onDeleteSlide,
+  collapsed = false,
+  onToggleCollapsed,
 }) => {
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
@@ -468,6 +537,8 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({
       uploadFromClipboard={state.uploadFromClipboard}
       addCapturedMedia={state.addCapturedMedia}
       stepCounts={stepCounts}
+      collapsed={collapsed}
+      onToggleCollapsed={onToggleCollapsed}
     />
   );
 };

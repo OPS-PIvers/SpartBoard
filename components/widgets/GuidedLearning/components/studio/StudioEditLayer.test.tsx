@@ -362,3 +362,101 @@ describe('Studio edit layer', () => {
     expect(screen.getByTestId('gl-studio-zoom').textContent).toBe('100%');
   });
 });
+
+describe('Studio canvas on touch', () => {
+  const touch = (id: number, p: Pt, primary = id === 1) => ({
+    pointerId: id,
+    pointerType: 'touch',
+    isPrimary: primary,
+    button: 0,
+    ...at(...p),
+  });
+  const zoomText = () => screen.getByTestId('gl-studio-zoom').textContent;
+  const transform = () =>
+    screen.getByTestId('gl-studio-viewport').style.transform;
+
+  it('drags a step with one finger as with a mouse', () => {
+    click([18, 18]);
+    fireEvent.pointerDown(layer(), touch(1, [18, 18]));
+    fireEvent.pointerMove(layer(), { ...touch(1, [23, 20]), ctrlKey: true });
+    fireEvent.pointerMove(layer(), { ...touch(1, [28, 22]), ctrlKey: true });
+    fireEvent.pointerUp(layer(), { ...touch(1, [28, 22]), ctrlKey: true });
+    expect(stepById('rect-1').xPct).toBeCloseTo(35);
+    expect(zoomText()).toBe('100%');
+  });
+
+  it('pinch-zooms without moving the step under the first finger', () => {
+    click([18, 18]);
+    const before = stepById('rect-1');
+    fireEvent.pointerDown(layer(), touch(1, [18, 18]));
+    fireEvent.pointerDown(layer(), touch(2, [48, 18]));
+    fireEvent.pointerMove(layer(), touch(1, [8, 18]));
+    fireEvent.pointerMove(layer(), touch(2, [58, 18]));
+    expect(zoomText()).not.toBe('100%');
+    fireEvent.pointerUp(layer(), touch(2, [58, 18]));
+    fireEvent.pointerMove(layer(), touch(1, [4, 30]));
+    fireEvent.pointerUp(layer(), touch(1, [4, 30]));
+    expect(stepById('rect-1')).toEqual(before);
+    expect(editor().canUndo).toBe(false);
+  });
+
+  it('a second finger ends a drag already under way as one undo step', () => {
+    click([18, 18]);
+    fireEvent.pointerDown(layer(), touch(1, [18, 18]));
+    fireEvent.pointerMove(layer(), { ...touch(1, [28, 22]), ctrlKey: true });
+    expect(stepById('rect-1').xPct).toBeCloseTo(35);
+    fireEvent.pointerDown(layer(), touch(2, [60, 60]));
+    fireEvent.pointerMove(layer(), touch(2, [70, 70]));
+    fireEvent.pointerUp(layer(), touch(2, [70, 70]));
+    fireEvent.pointerUp(layer(), touch(1, [28, 22]));
+    // A later hover must not keep dragging the step.
+    moveTo([60, 60]);
+    expect(stepById('rect-1').xPct).toBeCloseTo(35);
+    act(() => editor().undo());
+    expect(stepById('rect-1')).toEqual(STEPS[0]);
+  });
+
+  it('pans with two fingers at a steady spread', () => {
+    fireEvent.pointerDown(layer(), touch(1, [40, 40]));
+    fireEvent.pointerDown(layer(), touch(2, [60, 40]));
+    fireEvent.pointerMove(layer(), touch(1, [45, 45]));
+    fireEvent.pointerMove(layer(), touch(2, [65, 45]));
+    expect(zoomText()).toBe('100%');
+    expect(transform()).toBe(`translate(${5 * 7.2}px, ${5 * 5.2}px) scale(1)`);
+    fireEvent.pointerUp(layer(), touch(1, [45, 45]));
+    fireEvent.pointerUp(layer(), touch(2, [65, 45]));
+    expect(editor().steps).toHaveLength(STEPS.length);
+  });
+
+  it('never adds a step when a pinch starts in draw mode', () => {
+    press('r');
+    fireEvent.pointerDown(layer(), touch(1, [50, 40]));
+    fireEvent.pointerMove(layer(), touch(1, [55, 45]));
+    fireEvent.pointerDown(layer(), touch(2, [70, 60]));
+    fireEvent.pointerMove(layer(), touch(2, [80, 70]));
+    fireEvent.pointerUp(layer(), touch(1, [55, 45]));
+    fireEvent.pointerUp(layer(), touch(2, [80, 70]));
+    expect(editor().steps).toHaveLength(STEPS.length);
+  });
+
+  it('opens the callout for typing on a double tap', () => {
+    click([18, 18]);
+    const tap = () => {
+      const t = {
+        pointerId: 1,
+        pointerType: 'touch',
+        button: 0,
+        clientX: 620,
+        clientY: 420,
+      };
+      fireEvent.pointerDown(layer(), t);
+      fireEvent.pointerUp(layer(), t);
+    };
+    const root = document.querySelector('[data-gl-studio-canvas]');
+    tap();
+    expect(root).not.toHaveAttribute('data-editing-step');
+    tap();
+    expect(root).toHaveAttribute('data-editing-step', 'rect-1');
+    expect(stepById('rect-1').calloutPin).toBeUndefined();
+  });
+});

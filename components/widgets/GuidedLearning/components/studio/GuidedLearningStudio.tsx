@@ -13,14 +13,18 @@ import {
   AlertTriangle,
   Folder as FolderIcon,
   Footprints,
+  History,
   Inbox,
   Keyboard,
+  Laptop,
   Lock,
   PanelRight,
   Play,
   Redo2,
+  Sparkles,
   Undo2,
   Upload,
+  X,
 } from 'lucide-react';
 import type {
   GuidedLearningSet,
@@ -74,9 +78,29 @@ import {
   useReturnFocusOnClose,
   useStudioFocusTrap,
 } from './useStudioFocusTrap';
+import { StudioMenu, type StudioMenuItem } from './StudioMenu';
+import {
+  COMPACT_HEADER_QUERY,
+  SMALL_SCREEN_QUERY,
+  useMediaQuery,
+} from './useMediaQuery';
 import { SetTooLargeError } from '@/utils/firestoreDocSize';
 
 const MAX_ISSUE_TOASTS = 3;
+const SMALL_SCREEN_NOTE_KEY = 'gl-studio-small-screen-note-dismissed';
+
+const readNoteDismissed = (): boolean => {
+  try {
+    return localStorage.getItem(SMALL_SCREEN_NOTE_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
+const isSmallScreen = (): boolean =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia(SMALL_SCREEN_QUERY).matches;
 
 export interface GuidedLearningStudioProps {
   set: GuidedLearningSet;
@@ -160,6 +184,20 @@ const StudioSession: React.FC<
   const rootRef = useRef<HTMLDivElement>(null);
   const [capturing, setCapturing] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const compact = useMediaQuery(COMPACT_HEADER_QUERY);
+  const smallScreen = useMediaQuery(SMALL_SCREEN_QUERY);
+  const [noteDismissed, setNoteDismissed] = useState(readNoteDismissed);
+  const dismissNote = () => {
+    setNoteDismissed(true);
+    try {
+      localStorage.setItem(SMALL_SCREEN_NOTE_KEY, '1');
+    } catch {
+      // Private windows can refuse storage; the note stays hidden for this session.
+    }
+  };
+  // Tablets start with the filmstrip folded so the canvas gets the width.
+  const [filmstripCollapsed, setFilmstripCollapsed] = useState(isSmallScreen);
+  const moreRef = useRef<HTMLDivElement>(null);
 
   const toastUploadIssues = useCallback(
     (issues: SlideUploadIssue[]) => {
@@ -597,6 +635,58 @@ const StudioSession: React.FC<
 
   const stepCount = steps.length;
 
+  // Below ~1100px the less-used header actions fold into one menu.
+  const overflowItems: StudioMenuItem[] = compact
+    ? [
+        ...(canRunLive && !playing
+          ? [
+              {
+                id: 'run-live',
+                label: t('glStudio.runLive'),
+                icon: Footprints,
+                onSelect: () => void runLive(),
+              },
+            ]
+          : []),
+        ...(canUseAi
+          ? [
+              {
+                id: 'draft-ai',
+                label: t('glStudio.draftWithAi'),
+                icon: Sparkles,
+                onSelect: () => setShowAiGen(true),
+              },
+            ]
+          : []),
+        ...(folderPickerEnabled
+          ? [
+              {
+                id: 'folder',
+                label: folderLabel,
+                icon: folderId == null ? Inbox : FolderIcon,
+                onSelect: () => setFolderPickerOpen(true),
+              },
+            ]
+          : []),
+        {
+          id: 'shortcuts',
+          label: t('glStudio.shortcutsOpen'),
+          icon: Keyboard,
+          onSelect: () => setShortcutsOpen(true),
+        },
+        ...(onOpenClassic
+          ? [
+              {
+                id: 'classic',
+                label: t('glStudio.openClassicEditor'),
+                icon: History,
+                onSelect: () => void openClassic(),
+              },
+            ]
+          : []),
+      ]
+    : [];
+
   return createPortal(
     <div
       ref={rootRef}
@@ -624,9 +714,14 @@ const StudioSession: React.FC<
         }
         autosaveStatus={autosave.status}
         onRetrySave={() => void autosave.flush()}
-        onDraftWithAi={canUseAi ? () => setShowAiGen(true) : undefined}
-        onOpenClassic={onOpenClassic ? () => void openClassic() : undefined}
+        onDraftWithAi={
+          canUseAi && !compact ? () => setShowAiGen(true) : undefined
+        }
+        onOpenClassic={
+          onOpenClassic && !compact ? () => void openClassic() : undefined
+        }
         onClose={() => void requestClose()}
+        compact={compact}
         extras={
           <>
             {!playing && (
@@ -634,6 +729,7 @@ const StudioSession: React.FC<
                 steps={steps}
                 selectedIndex={selectedIndex}
                 onSelect={selectStepAt}
+                compact={compact}
               />
             )}
             {!playing && (
@@ -674,7 +770,7 @@ const StudioSession: React.FC<
                 {t('glStudio.playFromHere')}
               </button>
             )}
-            {canRunLive && !playing && (
+            {canRunLive && !playing && !compact && (
               <button
                 type="button"
                 onClick={() => void runLive()}
@@ -685,18 +781,24 @@ const StudioSession: React.FC<
                 {t('glStudio.runLive')}
               </button>
             )}
-            <DevicePresetPicker preset={preset} onChange={choosePreset} />
-            <button
-              type="button"
-              onClick={() => setShortcutsOpen(true)}
-              aria-label={t('glStudio.shortcutsOpen')}
-              title={t('glStudio.shortcutsOpen')}
-              aria-haspopup="dialog"
-              data-testid="gl-studio-shortcuts-button"
-              className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
-            >
-              <Keyboard className="h-5 w-5" aria-hidden="true" />
-            </button>
+            <DevicePresetPicker
+              preset={preset}
+              onChange={choosePreset}
+              compact={compact}
+            />
+            {!compact && (
+              <button
+                type="button"
+                onClick={() => setShortcutsOpen(true)}
+                aria-label={t('glStudio.shortcutsOpen')}
+                title={t('glStudio.shortcutsOpen')}
+                aria-haspopup="dialog"
+                data-testid="gl-studio-shortcuts-button"
+                className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              >
+                <Keyboard className="h-5 w-5" aria-hidden="true" />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setPropertiesOpen((v) => !v)}
@@ -707,7 +809,18 @@ const StudioSession: React.FC<
               <PanelRight className="h-4 w-4" aria-hidden="true" />
               {t('glStudio.properties')}
             </button>
-            {folderPickerEnabled && (
+            {compact && (
+              <div ref={moreRef}>
+                <StudioMenu
+                  label={t('glStudio.moreActions')}
+                  items={overflowItems}
+                  testId="gl-studio-more"
+                  iconClassName="h-5 w-5"
+                  triggerClassName="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                />
+              </div>
+            )}
+            {folderPickerEnabled && !compact && (
               <button
                 ref={folderButtonRef}
                 type="button"
@@ -767,14 +880,41 @@ const StudioSession: React.FC<
           {t('glStudio.newerVersion')}
         </p>
       )}
+      {smallScreen && !noteDismissed && (
+        <div
+          data-testid="gl-studio-small-screen-note"
+          className="flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600"
+        >
+          <Laptop
+            className="h-4 w-4 shrink-0 text-slate-500"
+            aria-hidden="true"
+          />
+          <p className="min-w-0 flex-1">{t('glStudio.smallScreenNote')}</p>
+          <button
+            type="button"
+            onClick={dismissNote}
+            aria-label={t('glStudio.dismissSmallScreenNote')}
+            title={t('glStudio.dismissSmallScreenNote')}
+            className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      )}
       <div
         // Read-only sets can still be played from the header.
         inert={readOnly && !playing}
-        className="relative grid min-h-0 flex-1 grid-cols-[200px_minmax(0,1fr)] lg:grid-cols-[200px_minmax(0,1fr)_360px]"
+        className={`relative grid min-h-0 flex-1 ${
+          filmstripCollapsed
+            ? 'grid-cols-[52px_minmax(0,1fr)] lg:grid-cols-[52px_minmax(0,1fr)_360px]'
+            : 'grid-cols-[200px_minmax(0,1fr)] lg:grid-cols-[200px_minmax(0,1fr)_360px]'
+        }`}
       >
         <StudioFilmstrip
           state={editorState}
           onDeleteSlide={deleteSlideWithUndo}
+          collapsed={filmstripCollapsed}
+          onToggleCollapsed={() => setFilmstripCollapsed((v) => !v)}
         />
         <div className="flex min-h-0 min-w-0 flex-col">
           <main
@@ -873,7 +1013,7 @@ const StudioSession: React.FC<
       {folderPickerEnabled && folderPickerOpen && (
         <FolderPickerPopover
           variant="popover"
-          anchorRef={folderButtonRef}
+          anchorRef={compact ? moreRef : folderButtonRef}
           folders={folders ?? []}
           selectedFolderId={folderId ?? null}
           onSelect={(next) => onFolderChange?.(next)}

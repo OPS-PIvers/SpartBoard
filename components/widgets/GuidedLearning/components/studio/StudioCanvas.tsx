@@ -239,7 +239,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       role="application"
       aria-label={t('glStudio.canvasLabel')}
       aria-describedby="gl-studio-canvas-keys"
-      className={`relative h-full w-full overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary ${
+      className={`relative h-full w-full touch-none overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary ${
         panning ? 'cursor-grabbing' : spaceHeld ? 'cursor-grab' : ''
       }`}
       {...panHandlers}

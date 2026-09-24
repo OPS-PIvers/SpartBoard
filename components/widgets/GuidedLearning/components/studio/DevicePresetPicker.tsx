@@ -12,6 +12,8 @@ import {
 interface DevicePresetPickerProps {
   preset: DevicePreset;
   onChange: (next: DevicePreset) => void;
+  /** Hides the visible label on narrow headers; the select keeps its name. */
+  compact?: boolean;
 }
 
 // Commits on blur or Enter so a partly typed size is never clamped mid-keystroke.
@@ -47,6 +49,7 @@ const SizeField: React.FC<{
 export const DevicePresetPicker: React.FC<DevicePresetPickerProps> = ({
   preset,
   onChange,
+  compact = false,
 }) => {
   const { t } = useTranslation();
   const options: DevicePreset['id'][] = [
@@ -56,7 +59,9 @@ export const DevicePresetPicker: React.FC<DevicePresetPickerProps> = ({
   return (
     <div className="flex items-center gap-2">
       <label className="flex items-center gap-2 text-xs font-bold text-slate-500">
-        {t('glStudio.previewSize')}
+        <span className={compact ? 'sr-only' : 'max-[1439px]:sr-only'}>
+          {t('glStudio.previewSize')}
+        </span>
         <select
           value={preset.id}
           onChange={(e) => {
