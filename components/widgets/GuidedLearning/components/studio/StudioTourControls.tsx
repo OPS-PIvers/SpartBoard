@@ -10,6 +10,7 @@ import {
   type TourAnchorId,
 } from '@/config/tourAnchors';
 import { TOOLS } from '@/config/tools';
+import { teacherMustClick } from '@/components/tours/tourSession';
 
 interface StudioTourControlsProps {
   step: GuidedLearningStep;
@@ -149,6 +150,26 @@ export const StudioTourControls: React.FC<StudioTourControlsProps> = ({
             ))}
           </div>
         </fieldset>
+      )}
+      {tour?.action === 'click' && (
+        <label className="flex items-start gap-2 text-xs text-slate-600">
+          <input
+            type="checkbox"
+            checked={teacherMustClick(tour)}
+            onChange={(e) =>
+              bind({ ...tour, teacherMustClick: e.target.checked })
+            }
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 accent-brand-blue-primary"
+          />
+          <span className="flex flex-col gap-0.5">
+            <span className="font-bold">
+              {t('glStudio.tourTeacherMustClick')}
+            </span>
+            <span className="text-slate-500">
+              {t('glStudio.tourTeacherMustClickHint')}
+            </span>
+          </span>
+        </label>
       )}
     </div>
   );

@@ -78,4 +78,25 @@ describe('StudioTourControls', () => {
     fireEvent.change(anchorSelect(), { target: { value: 'widget.close' } });
     expect(last().tour).toEqual({ anchor: 'widget.close', action: 'click' });
   });
+
+  it('defaults "Teacher must click this" on for destructive buttons and lets it be edited', () => {
+    const { last } = renderControls();
+    const mustClick = () =>
+      screen.queryByRole('checkbox', { name: /Teacher must click this/ });
+    fireEvent.change(anchorSelect(), { target: { value: 'sidebar.boards' } });
+    expect(mustClick()).not.toBeChecked();
+    fireEvent.change(anchorSelect(), { target: { value: 'widget.close' } });
+    expect(mustClick()).toBeChecked();
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: /Teacher must click this/ })
+    );
+    expect(last().tour).toEqual({
+      anchor: 'widget.close',
+      action: 'click',
+      teacherMustClick: false,
+    });
+    expect(mustClick()).not.toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Show it, then Next' }));
+    expect(mustClick()).toBeNull();
+  });
 });

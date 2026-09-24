@@ -2643,6 +2643,8 @@
     "tourAction": "Quand la visite atteint cette étape",
     "tourAction_click": "Attendre le clic",
     "tourAction_observe": "Le montrer, puis Suivant",
+    "tourTeacherMustClick": "L'enseignant doit cliquer ici",
+    "tourTeacherMustClickHint": "Les visites guidées montrent le clic, puis attendent que l'enseignant le fasse.",
     "tourGroup_dock": "Dock",
     "tourGroup_library": "Bibliothèque de widgets",
     "tourGroup_widget": "Fenêtre du widget",
@@ -3378,7 +3380,14 @@
     "liveHint": "Vous voulez essayer sur votre propre tableau ? La visite vous montre chaque bouton au fur et à mesure.",
     "offer": "Une visite d'une minute de {{widget}} ?",
     "offerStart": "Commencer",
-    "showMe": "Montrez-moi"
+    "showMe": "Montrez-moi",
+    "pause": "Pause",
+    "resume": "Reprendre",
+    "takeOver": "Prendre la main",
+    "autoPlaying": "Chaque étape est jouée pour vous",
+    "autoPaused": "En pause. Cliquez sur la zone en surbrillance ou sur Reprendre.",
+    "yourTurn": "À vous : cliquez sur la zone en surbrillance",
+    "autoFallback": "Cliquez ici pour continuer"
   },
   "glPlayer": {
     "watch": "Regarder",

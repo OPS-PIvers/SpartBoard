@@ -2643,6 +2643,8 @@
     "tourAction": "Cuando el recorrido llegue a este paso",
     "tourAction_click": "Esperar el clic",
     "tourAction_observe": "Mostrarlo y luego Siguiente",
+    "tourTeacherMustClick": "El docente debe hacer clic aquí",
+    "tourTeacherMustClickHint": "Los recorridos guiados muestran el clic y esperan a que el docente lo haga.",
     "tourGroup_dock": "Dock",
     "tourGroup_library": "Biblioteca de widgets",
     "tourGroup_widget": "Ventana del widget",
@@ -3378,7 +3380,14 @@
     "liveHint": "¿Quieres probarlo en tu propio tablero? El recorrido te señala cada botón paso a paso.",
     "offer": "¿Un recorrido de 1 minuto por {{widget}}?",
     "offerStart": "Empezar",
-    "showMe": "Muéstramelo"
+    "showMe": "Muéstramelo",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "takeOver": "Tomar el control",
+    "autoPlaying": "Reproduciendo cada paso por usted",
+    "autoPaused": "En pausa. Haga clic en el punto resaltado o pulse Reanudar.",
+    "yourTurn": "Su turno: haga clic en el punto resaltado",
+    "autoFallback": "Haga clic aquí para continuar"
   },
   "glPlayer": {
     "watch": "Ver",

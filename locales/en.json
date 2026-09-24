@@ -3774,6 +3774,8 @@
     "tourAction": "When the tour reaches this step",
     "tourAction_click": "Wait for the click",
     "tourAction_observe": "Show it, then Next",
+    "tourTeacherMustClick": "Teacher must click this",
+    "tourTeacherMustClickHint": "Guided tours show the click, then wait for the teacher to do it.",
     "tourGroup_dock": "Dock",
     "tourGroup_library": "Widget library",
     "tourGroup_widget": "Widget window",
@@ -4535,7 +4537,14 @@
     "liveHint": "Want to try it on your own board? The tour points at each button as you go.",
     "offer": "Take a 1-minute tour of {{widget}}?",
     "offerStart": "Start",
-    "showMe": "Show me"
+    "showMe": "Show me",
+    "pause": "Pause",
+    "resume": "Resume",
+    "takeOver": "Take over",
+    "autoPlaying": "Playing each step for you",
+    "autoPaused": "Paused. Click the highlighted spot, or press Resume.",
+    "yourTurn": "Your turn: click the highlighted spot",
+    "autoFallback": "Click here to continue"
   },
   "glPlayer": {
     "watch": "Watch",

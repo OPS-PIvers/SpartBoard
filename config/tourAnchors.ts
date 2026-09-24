@@ -6,6 +6,8 @@ export interface TourAnchorDef {
   perWidget?: true;
   /** One element per widget type, scoped by `data-tour-widget-type`. */
   perWidgetType?: true;
+  /** Autopilot never clicks it for the teacher by default. */
+  destructive?: true;
 }
 
 export const TOUR_ANCHORS = {
@@ -32,7 +34,11 @@ export const TOUR_ANCHORS = {
   'widget.annotate': { label: 'Annotate widget button', perWidget: true },
   'widget.duplicate': { label: 'Duplicate widget button', perWidget: true },
   'widget.snap-layout': { label: 'Snap layout button', perWidget: true },
-  'widget.close': { label: 'Close widget button', perWidget: true },
+  'widget.close': {
+    label: 'Close widget button',
+    perWidget: true,
+    destructive: true,
+  },
   'widget.more-actions': {
     label: 'More actions button on a maximized widget',
     perWidget: true,
@@ -53,7 +59,10 @@ export const TOUR_ANCHORS = {
   'sidebar.admin-settings': { label: 'Admin settings button in the top bar' },
   'sidebar.fullscreen': { label: 'Fullscreen button in the top bar' },
   'sidebar.annotate': { label: 'Annotate screen button in the top bar' },
-  'sidebar.clear-board': { label: 'Clear board button in the top bar' },
+  'sidebar.clear-board': {
+    label: 'Clear board button in the top bar',
+    destructive: true,
+  },
   'sidebar.close-menu': { label: 'Close menu button' },
   'sidebar.boards': { label: 'Boards item in the menu' },
   'sidebar.backgrounds': { label: 'Backgrounds item in the menu' },
@@ -67,7 +76,10 @@ export const TOUR_ANCHORS = {
   'board-nav.previous': { label: 'Previous board button' },
   'board-nav.next': { label: 'Next board button' },
   'board-nav.select-collection': { label: 'Collection picker button' },
-  'board-nav.new-board': { label: 'New Board item in the boards menu' },
+  'board-nav.new-board': {
+    label: 'New Board item in the boards menu',
+    destructive: true,
+  },
   'board-nav.manage-boards': { label: 'Manage all boards item' },
 
   'board-actions.zoom': { label: 'Zoom level button' },
@@ -101,4 +113,12 @@ export const parseTourAnchorRef = (
   return sep === -1
     ? { id: ref }
     : { id: ref.slice(0, sep), widgetType: ref.slice(sep + 1) };
+};
+
+/** Whether a step's anchor ref points at an anchor registered as destructive. */
+export const isDestructiveAnchor = (ref: string): boolean => {
+  const { id } = parseTourAnchorRef(ref);
+  if (!isTourAnchorId(id)) return false;
+  const def: TourAnchorDef = TOUR_ANCHORS[id];
+  return !!def.destructive;
 };

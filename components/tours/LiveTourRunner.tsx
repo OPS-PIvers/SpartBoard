@@ -11,7 +11,10 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
   ChevronLeft,
+  Hand,
   MousePointerClick,
+  Pause,
+  Play,
   Volume2,
   VolumeX,
   X,
@@ -48,12 +51,20 @@ import {
   claimTourWidgets,
   hasStepSlide,
   missingSetupWidgets,
+  teacherMustClick,
   tourStepsOf,
   tourWidgetIds,
   type TourStep,
   type TourWidgetClaims,
 } from './tourSession';
-import { useAnchorElement } from './useAnchorElement';
+import { ANCHOR_SEARCH_MS, useAnchorElement } from './useAnchorElement';
+import { findTourAnchor } from './resolveTourAnchor';
+import {
+  autoLeadMs,
+  autoObserveMs,
+  dispatchAutoClick,
+  waitFor,
+} from './autopilot';
 import { TourSpotlight } from './TourSpotlight';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 
@@ -83,7 +94,12 @@ interface CursorCue {
   attempt: number;
   from: Point;
   to: Point;
+  /** Autopilot's glide, which clicks when it lands. */
+  auto: boolean;
 }
+
+/** Where autopilot is on the current step. */
+type AutoStage = 'demo' | 'waiting' | 'yourTurn' | 'fallback';
 
 const BOARD_WAIT_MS = 2000;
 const CALLOUT_WIDTH = 320;
@@ -103,7 +119,13 @@ export const LiveTourRunner: React.FC = () => {
   const [tour, setTour] = useState<ActiveTour | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [box, setBox] = useState({ w: CALLOUT_WIDTH, h: 140 });
-  const [watch, setWatch] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [takenOver, setTakenOver] = useState(false);
+  const [auto, setAuto] = useState<{ key: string; stage: AutoStage } | null>(
+    null
+  );
+  const autoClicking = useRef(false);
+  const autoWait = useRef<AbortController | null>(null);
   const [readAloud, setReadAloud] = useState(false);
   const [cue, setCue] = useState<CursorCue | null>(null);
   const cueSeq = useRef(0);
@@ -140,7 +162,9 @@ export const LiveTourRunner: React.FC = () => {
     const beforeIds = new Set(current.map((w) => w.id));
     missing.forEach((type) => d.addWidget(type));
     setAttempt(0);
-    setWatch(false);
+    setPaused(false);
+    setTakenOver(false);
+    setAuto(null);
     setCue(null);
     setTour({
       set,
@@ -237,6 +261,8 @@ export const LiveTourRunner: React.FC = () => {
 
   const goTo = (index: number) => {
     if (!tour) return;
+    autoWait.current?.abort();
+    setAuto(null);
     if (index >= tour.steps.length) {
       finish();
       return;
@@ -255,6 +281,8 @@ export const LiveTourRunner: React.FC = () => {
     if (!el || step?.tour.action !== 'click') return;
     let raf = 0;
     const onClick = () => {
+      // Autopilot's own click waits for the next anchor instead.
+      if (autoClicking.current) return;
       raf = requestAnimationFrame(() => advanceRef.current(stepIndex + 1));
     };
     el.addEventListener('click', onClick, true);
@@ -319,14 +347,21 @@ export const LiveTourRunner: React.FC = () => {
   const center = rect
     ? { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
     : null;
+  const isClick = step?.tour.action === 'click';
   const cursorAllowed =
-    running &&
-    center !== null &&
-    step?.tour.action === 'click' &&
-    !step.cursor?.hide;
+    running && center !== null && isClick && !step.cursor?.hide;
+  // Guided runs on autopilot until paused or taken over; everything else is Structured.
+  const guided = tour?.set.mode === 'guided' && !takenOver;
+  const autopilot = guided && !paused;
+  const stepKey = `${stepIndex}:${attempt}`;
+  const autoStage = auto?.key === stepKey ? auto.stage : null;
+  const found = running && anchor.status === 'found';
+  const autoRunning = autopilot && found;
+  const waitingOnTeacher = autoStage === 'yourTurn' || autoStage === 'fallback';
+  const hintOn = cursorAllowed && (!autopilot || waitingOnTeacher);
 
   // The demo cursor glides from the callout to the anchor.
-  const playCursor = () => {
+  const playCursor = (isAuto = false) => {
     if (!tour || !center || !cursorAllowed) return;
     const from = placement
       ? { x: placement.left + box.w / 2, y: placement.top + box.h / 2 }
@@ -338,24 +373,107 @@ export const LiveTourRunner: React.FC = () => {
       attempt,
       from,
       to: center,
+      auto: isAuto,
     });
   };
-  const cursorCue = useEffectEvent(playCursor);
-  // Watch shows the move at once; Try waits 5s before hinting.
+  const cursorCue = useEffectEvent(() => playCursor());
+  const cueRef = useRef(cue);
+  cueRef.current = cue;
+  // A glide cut short when the anchor vanished never lands, so start the step over.
+  if (autoStage === 'demo' && !found) setAuto(null);
+  // Structured hints after 5s without progress.
   useEffect(() => {
-    if (!cursorAllowed) return;
-    if (watch) {
-      cursorCue();
-      return;
-    }
+    if (!hintOn) return;
     const id = setTimeout(() => cursorCue(), TRY_HINT_MS);
     return () => clearTimeout(id);
-  }, [cursorAllowed, watch, stepIndex, attempt]);
+  }, [hintOn, stepIndex, attempt]);
 
-  const showMe = () => {
-    if (watch) playCursor();
-    else setWatch(true);
+  const latestAdded = useRef(added);
+  latestAdded.current = added;
+
+  // Autopilot clicks the anchor, then waits for the app to show the next step's anchor.
+  const autoClick = () => {
+    const el = anchor.element;
+    if (!tour || !step || !el || !autopilot) {
+      setAuto(null);
+      return;
+    }
+    if (teacherMustClick(step.tour)) {
+      setAuto({ key: stepKey, stage: 'yourTurn' });
+      return;
+    }
+    const index = tour.index;
+    const next = tour.steps[index + 1];
+    setAuto({ key: stepKey, stage: 'waiting' });
+    autoClicking.current = true;
+    try {
+      dispatchAutoClick(el);
+    } finally {
+      autoClicking.current = false;
+    }
+    if (!next) {
+      requestAnimationFrame(() => advanceRef.current(index + 1));
+      return;
+    }
+    autoWait.current?.abort();
+    const ctrl = new AbortController();
+    autoWait.current = ctrl;
+    void waitFor(
+      () => !!findTourAnchor(next.tour, { widgetIds: latestAdded.current }),
+      ANCHOR_SEARCH_MS,
+      ctrl.signal
+    ).then((ok) => {
+      if (ctrl.signal.aborted) return;
+      if (ok) advanceRef.current(index + 1);
+      else setAuto({ key: stepKey, stage: 'fallback' });
+    });
   };
+  const autoClickRef = useRef(autoClick);
+  autoClickRef.current = autoClick;
+
+  const startAutoDemo = useEffectEvent(() => {
+    setAuto({ key: stepKey, stage: 'demo' });
+    if (cursorAllowed) playCursor(true);
+    else autoClickRef.current();
+  });
+  useEffect(() => {
+    if (!autoRunning || !isClick || autoStage !== null || !step) return;
+    const id = setTimeout(
+      () => startAutoDemo(),
+      autoLeadMs(step, tour?.set.watchPace)
+    );
+    return () => clearTimeout(id);
+  }, [autoRunning, isClick, autoStage, stepKey, step, tour?.set.watchPace]);
+
+  // Observe steps move on at reading pace.
+  const observeMs =
+    step && !isClick ? autoObserveMs(step, tour?.set.watchPace) : 0;
+  useEffect(() => {
+    if (!autoRunning || observeMs <= 0) return;
+    const index = stepIndex;
+    const id = setTimeout(() => advanceRef.current(index + 1), observeMs);
+    return () => clearTimeout(id);
+  }, [autoRunning, observeMs, stepIndex, attempt]);
+
+  useEffect(() => () => autoWait.current?.abort(), []);
+
+  const stopDemo = () => {
+    if (autoStage !== 'demo') return;
+    setAuto(null);
+    setCue(null);
+  };
+  const pause = () => {
+    setPaused(true);
+    stopDemo();
+  };
+  const takeOver = () => {
+    setTakenOver(true);
+    setPaused(false);
+    stopDemo();
+  };
+
+  // "Show me" replays the demo once.
+  const showMe = () => playCursor();
 
   const canRead = !!step && (!!step.narration?.url || speechAvailable());
   useReadAloud({
@@ -463,7 +581,16 @@ export const LiveTourRunner: React.FC = () => {
     );
   } else if (step) {
     const isMissing = anchor.status === 'missing';
-    const isObserve = step.tour.action === 'observe';
+    const autoStatus =
+      !guided || !found
+        ? null
+        : autoStage === 'yourTurn'
+          ? t('tours.yourTurn')
+          : autoStage === 'fallback'
+            ? t('tours.autoFallback')
+            : paused
+              ? t('tours.autoPaused')
+              : t('tours.autoPlaying');
     const preview = isMissing && hasStepSlide(tour.set, step);
     const width = Math.min(
       preview ? PREVIEW_WIDTH : CALLOUT_WIDTH,
@@ -566,6 +693,50 @@ export const LiveTourRunner: React.FC = () => {
               {t('tours.looking')}
             </p>
           )}
+          {autoStatus && (
+            <p
+              role="status"
+              data-testid="tour-auto-status"
+              className={`flex items-center gap-1.5 self-start rounded-full px-2.5 py-1 text-xs font-semibold ${
+                waitingOnTeacher
+                  ? 'bg-white text-slate-900'
+                  : 'bg-white/10 text-slate-200'
+              }`}
+            >
+              {waitingOnTeacher ? (
+                <MousePointerClick className="h-3.5 w-3.5" aria-hidden="true" />
+              ) : paused ? (
+                <Pause className="h-3.5 w-3.5" aria-hidden="true" />
+              ) : (
+                <Play className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
+              {autoStatus}
+            </p>
+          )}
+          {guided && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={paused ? () => setPaused(false) : pause}
+                className={`${secondaryBtn} flex items-center gap-1`}
+              >
+                {paused ? (
+                  <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                ) : (
+                  <Pause className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+                {paused ? t('tours.resume') : t('tours.pause')}
+              </button>
+              <button
+                type="button"
+                onClick={takeOver}
+                className={`${secondaryBtn} flex items-center gap-1`}
+              >
+                <Hand className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('tours.takeOver')}
+              </button>
+            </div>
+          )}
           <div className="mt-1 flex items-center justify-between gap-2">
             <span className="text-xs font-semibold text-slate-300">
               {t('tours.progress', { current: tour.index + 1, total })}
@@ -574,14 +745,18 @@ export const LiveTourRunner: React.FC = () => {
               {tour.index > 0 && (
                 <button
                   type="button"
-                  onClick={() => goTo(tour.index - 1)}
+                  onClick={() => {
+                    // Autopilot never replays a click the teacher went back to see.
+                    if (guided) setPaused(true);
+                    goTo(tour.index - 1);
+                  }}
                   className={`${secondaryBtn} flex items-center gap-1`}
                 >
                   <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
                   {t('tours.back')}
                 </button>
               )}
-              {cursorAllowed && (
+              {hintOn && (
                 <button
                   type="button"
                   onClick={showMe}
@@ -603,23 +778,13 @@ export const LiveTourRunner: React.FC = () => {
                   {t('tours.retry')}
                 </button>
               )}
-              {isObserve && !isMissing ? (
-                <button
-                  type="button"
-                  onClick={() => goTo(tour.index + 1)}
-                  className={primaryBtn}
-                >
-                  {tour.index + 1 === total ? t('tours.done') : t('tours.next')}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => goTo(tour.index + 1)}
-                  className={secondaryBtn}
-                >
-                  {t('tours.skip')}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => goTo(tour.index + 1)}
+                className={primaryBtn}
+              >
+                {tour.index + 1 === total ? t('tours.done') : t('tours.next')}
+              </button>
             </div>
           </div>
         </div>
@@ -637,6 +802,15 @@ export const LiveTourRunner: React.FC = () => {
                 { speed: 1, reducedMotion }
               )}
               ripple
+              onDone={
+                cueShown.auto
+                  ? () => {
+                      if (cueRef.current?.key === cueShown.key) {
+                        autoClickRef.current();
+                      }
+                    }
+                  : undefined
+              }
             />
           </div>
         )}

@@ -1,5 +1,7 @@
+import { isDestructiveAnchor } from '@/config/tourAnchors';
 import type {
   GuidedLearningSet,
+  GuidedLearningTourBinding,
   GuidedLearningStep,
   WidgetData,
   WidgetType,
@@ -57,3 +59,8 @@ export const hasStepSlide = (
   set: Pick<GuidedLearningSet, 'imageUrls'>,
   step: Pick<GuidedLearningStep, 'imageIndex'>
 ): boolean => !!set.imageUrls[step.imageIndex ?? 0];
+
+/** Whether autopilot must leave this step's click to the teacher. */
+export const teacherMustClick = (
+  binding: Pick<GuidedLearningTourBinding, 'anchor' | 'teacherMustClick'>
+): boolean => binding.teacherMustClick ?? isDestructiveAnchor(binding.anchor);

@@ -2643,6 +2643,8 @@
     "tourAction": "Wenn die Tour diesen Schritt erreicht",
     "tourAction_click": "Auf den Klick warten",
     "tourAction_observe": "Zeigen, dann Weiter",
+    "tourTeacherMustClick": "Lehrkraft muss selbst klicken",
+    "tourTeacherMustClickHint": "Geführte Touren zeigen den Klick und warten dann, bis die Lehrkraft ihn ausführt.",
     "tourGroup_dock": "Dock",
     "tourGroup_library": "Widget-Bibliothek",
     "tourGroup_widget": "Widget-Fenster",
@@ -3378,7 +3380,14 @@
     "liveHint": "Willst du es auf deiner eigenen Tafel ausprobieren? Die Tour zeigt dir jeden Knopf Schritt für Schritt.",
     "offer": "Kurze Tour durch {{widget}} (1 Minute)?",
     "offerStart": "Starten",
-    "showMe": "Zeig es mir"
+    "showMe": "Zeig es mir",
+    "pause": "Pause",
+    "resume": "Fortsetzen",
+    "takeOver": "Selbst übernehmen",
+    "autoPlaying": "Jeder Schritt wird für Sie abgespielt",
+    "autoPaused": "Pausiert. Klicken Sie auf die markierte Stelle oder auf Fortsetzen.",
+    "yourTurn": "Sie sind dran: Klicken Sie auf die markierte Stelle",
+    "autoFallback": "Hier klicken, um fortzufahren"
   },
   "glPlayer": {
     "watch": "Ansehen",
