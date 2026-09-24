@@ -373,10 +373,14 @@ describe('createQuizImportAdapter — test document source', () => {
     const file = new Blob([new Uint8Array([1])], { type: 'application/pdf' });
     await adapter.parse({ kind: 'document', file, fileName: 'Unit 3 Test' });
     expect(browserPdfDeps).toHaveBeenCalledWith(file);
-    expect(readQuizDocument).toHaveBeenCalledWith(file, {
-      fileName: 'Unit 3 Test',
-      pdf: { pdf: 'deps' },
-    });
+    expect(readQuizDocument).toHaveBeenCalledWith(
+      file,
+      expect.objectContaining({
+        fileName: 'Unit 3 Test',
+        pdf: { pdf: 'deps' },
+        pdfCropper: expect.any(Function) as unknown,
+      })
+    );
   });
 
   it('shows the document-wide notes and the per-row ones together', async () => {
