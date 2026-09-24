@@ -19,14 +19,27 @@ import { GuidedLearningStudio } from './GuidedLearningStudio';
 const OLD_URL = 'https://lh3.googleusercontent.com/d/old-id';
 const NEW_URL = 'https://lh3.googleusercontent.com/d/new-id';
 
-const storage = vi.hoisted(() => ({
-  uploading: false,
-  uploadHotspotImage: vi.fn(),
-  uploadGuidedLearningMedia: vi.fn(),
-  uploadGuidedLearningImage: vi.fn(),
-  deleteFile: vi.fn(),
-  deleteDriveFile: vi.fn(),
-}));
+const storage = vi.hoisted(() => {
+  const s = {
+    uploading: false,
+    uploadHotspotImage: vi.fn(),
+    uploadGuidedLearningMedia: vi.fn(),
+    uploadGuidedLearningImage: vi.fn(),
+    deleteFile: vi.fn(),
+    deleteDriveFile: vi.fn(),
+    // The editor's close flush releases in one batch; forwarded to the per-file spies.
+    releaseGuidedLearningFiles: (
+      _setId: string,
+      _building: boolean,
+      files: { storagePaths: string[]; driveFileIds: string[] }
+    ) => {
+      files.storagePaths.forEach((p) => void s.deleteFile(p));
+      files.driveFileIds.forEach((id) => void s.deleteDriveFile(id));
+      return Promise.resolve();
+    },
+  };
+  return s;
+});
 const drive = vi.hoisted(() => ({ downloadFile: vi.fn() }));
 const redact = vi.hoisted(() =>
   vi.fn<typeof import('../../utils/redactImage').redactImage>()

@@ -7,10 +7,14 @@ import {
   deleteObject,
 } from 'firebase/storage';
 import { doc, setDoc } from 'firebase/firestore';
-import { storage, db } from '@/config/firebase';
+import { storage, db, auth } from '@/config/firebase';
 import { useGoogleDrive } from './useGoogleDrive';
-import { PdfItem } from '@/types';
+import type { GuidedLearningSet, PdfItem } from '@/types';
 import { makeSlideThumbnail } from '@/utils/guidedLearningMedia';
+import {
+  releaseDriveFiles,
+  releaseStorageFiles,
+} from '@/utils/guidedLearningFileRelease';
 
 export const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
 
@@ -131,9 +135,10 @@ export const useStorage = () => {
     setUploading(true);
     try {
       const storageRef = ref(storage, path);
-      // Paths are timestamped, so slides can be cached as immutable.
+      // Timestamped paths cache as immutable; the marker lets the weekly GL sweep consider the file.
       const task = uploadBytesResumable(storageRef, blob, {
         cacheControl: 'public, max-age=31536000, immutable',
+        customMetadata: { glMedia: '1' },
       });
       await new Promise<void>((resolve, reject) => {
         task.on(
@@ -223,6 +228,32 @@ export const useStorage = () => {
   const deleteDriveFile = async (fileId: string): Promise<void> => {
     if (!driveService) return;
     await driveService.deleteFile(fileId);
+  };
+
+  // Files a GL editor removed: Storage through the server's reference check, Drive after the teacher's own.
+  const releaseGuidedLearningFiles = async (
+    setId: string,
+    building: boolean,
+    files: { storagePaths: string[]; driveFileIds: string[] }
+  ): Promise<void> => {
+    const uid = auth.currentUser?.uid;
+    await Promise.all([
+      releaseStorageFiles(setId, building, files.storagePaths),
+      uid && driveService && files.driveFileIds.length > 0
+        ? releaseDriveFiles(
+            {
+              uid,
+              candidates: files.driveFileIds,
+              excludeSetId: setId,
+              loadSet: async (id) =>
+                JSON.parse(
+                  await (await driveService.downloadFile(id)).text()
+                ) as GuidedLearningSet,
+            },
+            (id) => driveService.deleteFile(id)
+          )
+        : null,
+    ]);
   };
 
   const uploadHotspotImage = async (
@@ -481,6 +512,7 @@ export const useStorage = () => {
     uploadGuidedLearningMedia,
     uploadGuidedLearningImage,
     deleteDriveFile,
+    releaseGuidedLearningFiles,
     uploadBackgroundImage,
     uploadSticker,
     uploadDisplayImage,

@@ -23,6 +23,34 @@ describe('withSlideFileRefs', () => {
     expect(out.driveFileIds).toEqual(['drive-a']);
   });
 
+  it('lists step audio, video and recorded narration, but not the TTS cache', () => {
+    const out = withSlideFileRefs({
+      imageUrls: [],
+      imagePaths: [] as string[],
+      steps: [
+        { audioStoragePath: 'users/u/hotspot_images/a.mp3' },
+        { videoUrl: storageUrl('users/u/hotspot_images/v.mp4') },
+        {
+          narration: {
+            url: storageUrl('quiz_tts_cache/n.mp3'),
+            storagePath: 'quiz_tts_cache/n.mp3',
+          },
+        },
+        {
+          narration: {
+            url: storageUrl('users/u/hotspot_images/take.webm'),
+            storagePath: 'users/u/hotspot_images/take.webm',
+          },
+        },
+      ],
+    });
+    expect(out.imagePaths).toEqual([
+      'users/u/hotspot_images/a.mp3',
+      'users/u/hotspot_images/v.mp4',
+      'users/u/hotspot_images/take.webm',
+    ]);
+  });
+
   it('omits empty fields rather than writing empty arrays', () => {
     const out = withSlideFileRefs({
       imageUrls: ['https://example.com/a.png'],

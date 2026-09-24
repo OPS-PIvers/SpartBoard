@@ -222,6 +222,8 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const {
     assignments,
     loading: assignmentsLoading,
+    hasOlder: hasOlderAssignments,
+    showOlder: showOlderAssignments,
     createAssignment,
     archiveAssignment,
     unarchiveAssignment,
@@ -566,10 +568,26 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       }
     : undefined;
 
+  // Deleting a set students are still working on asks first; its files wait for those assignments.
+  const openAssignmentIdsFor = (setId: string) =>
+    assignments
+      .filter((a) => a.setId === setId && a.status === 'active')
+      .map((a) => a.id);
+  const confirmDeleteWithOpen = async (title: string, count: number) =>
+    count === 0 ||
+    showConfirm(t('glData.deleteWithOpenAssignments', { count }), {
+      title: t('glData.deleteSetTitle', { title }),
+      variant: 'danger',
+      confirmLabel: t('glData.deleteConfirm'),
+    });
+
   const handleDelete = async (setId: string, driveFileId: string) => {
+    const openIds = openAssignmentIdsFor(setId);
+    const title = sets.find((s) => s.id === setId)?.title ?? '';
+    if (!(await confirmDeleteWithOpen(title, openIds.length))) return;
     prefetchCacheRef.current.invalidate(setId);
     try {
-      await deleteSet(setId, driveFileId);
+      await deleteSet(setId, driveFileId, openIds);
       addToast('Set deleted.', 'success');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to delete';
@@ -578,6 +596,9 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   };
 
   const handleDeleteBuilding = async (setId: string) => {
+    const title = buildingSets.find((s) => s.id === setId)?.title ?? '';
+    const openCount = openAssignmentIdsFor(setId).length;
+    if (!(await confirmDeleteWithOpen(title, openCount))) return;
     prefetchCacheRef.current.invalidate(setId);
     try {
       await deleteBuildingSet(setId);
@@ -1261,6 +1282,8 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   loading={loading}
                   buildingLoading={buildingLoading}
                   assignmentsLoading={assignmentsLoading}
+                  hasOlderAssignments={hasOlderAssignments}
+                  onShowOlderAssignments={showOlderAssignments}
                   isDriveConnected={isDriveConnected}
                   isAdmin={isAdmin ?? false}
                   onPlay={(setId, driveFileId, buildingEntry) => {

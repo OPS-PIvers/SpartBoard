@@ -5248,6 +5248,10 @@ service cloud.firestore {
     match /users/{userId}/guided_learning_assignments/{id} {
       allow read, write: if ownsUser(userId);
     }
+    // Files of a deleted GL set, held until its open assignments close (P5-3).
+    match /users/{userId}/gl_media_tombstones/{setId} {
+      allow read, write: if ownsUser(userId);
+    }
 
     // === Library folders (Wave 3) ===
     // Per-teacher folder tree per library widget (Quiz/VA/GL/MiniApp); folders

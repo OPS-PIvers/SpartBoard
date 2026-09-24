@@ -34,6 +34,15 @@ vi.mock('@/hooks/useStorage', () => ({
     uploadGuidedLearningMedia: vi.fn(),
     deleteFile: storage.deleteFile,
     deleteDriveFile: storage.deleteDriveFile,
+    releaseGuidedLearningFiles: (
+      _setId: string,
+      _building: boolean,
+      files: { storagePaths: string[]; driveFileIds: string[] }
+    ) => {
+      files.storagePaths.forEach((p) => void storage.deleteFile(p));
+      files.driveFileIds.forEach((id) => void storage.deleteDriveFile(id));
+      return Promise.resolve();
+    },
   }),
 }));
 

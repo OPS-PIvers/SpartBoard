@@ -77,7 +77,9 @@ export { adminAnalytics } from './adminAnalyticsEndpoint';
 export {
   gcGuidedLearningMedia,
   gcBuildingGuidedLearningMedia,
+  releaseGuidedLearningMediaV1,
 } from './gcGuidedLearningMedia';
+export { gcGuidedLearningMediaSweep } from './glMediaSweep';
 // Guided Learning building-set library index (server-written) + admin backfill.
 export {
   glBuildingIndexMirror,

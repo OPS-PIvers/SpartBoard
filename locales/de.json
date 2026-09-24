@@ -3230,6 +3230,13 @@
     "backToLibrary": "Zurück zur Bibliothek"
   },
   "glData": {
-    "setTooLarge": "Dieses Set ist zu groß zum Speichern – teile es auf oder entferne Folien."
+    "setTooLarge": "Dieses Set ist zu groß zum Speichern – teile es auf oder entferne Folien.",
+    "deleteSetTitle": "„{{title}}“ löschen?",
+    "deleteWithOpenAssignments_one": "Schüler in {{count}} offenen Aufgabe verlieren den Zugriff.",
+    "deleteWithOpenAssignments_other": "Schüler in {{count}} offenen Aufgaben verlieren den Zugriff.",
+    "deleteConfirm": "Löschen"
+  },
+  "glAssignments": {
+    "showOlder": "Ältere anzeigen"
   }
 }

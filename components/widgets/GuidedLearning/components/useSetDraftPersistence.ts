@@ -206,7 +206,7 @@ export function useSetDraftPersistence({
   loadedUpdatedAt,
   onClose,
 }: UseSetDraftPersistenceArgs): SetDraftPersistence {
-  const { deleteFile, deleteDriveFile } = useStorage();
+  const { releaseGuidedLearningFiles } = useStorage();
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] =
     useState<GuidedLearningSaveConflictError | null>(null);
@@ -545,12 +545,22 @@ export function useSetDraftPersistence({
   }, []);
 
   const { flushMediaDeletions } = editorState;
+  const setId = set?.id;
+  const building = set?.isBuilding === true || set?.helpCenter === true;
   const closeEditor = useCallback(() => {
-    if (savedTokenRef.current === draftTokenRef.current) {
-      void flushMediaDeletions(deleteFile, deleteDriveFile);
+    if (setId && savedTokenRef.current === draftTokenRef.current) {
+      void flushMediaDeletions((files) =>
+        releaseGuidedLearningFiles(setId, building, files)
+      );
     }
     onClose();
-  }, [flushMediaDeletions, deleteFile, deleteDriveFile, onClose]);
+  }, [
+    flushMediaDeletions,
+    releaseGuidedLearningFiles,
+    setId,
+    building,
+    onClose,
+  ]);
 
   return {
     saving,

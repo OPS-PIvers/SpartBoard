@@ -3230,6 +3230,13 @@
     "backToLibrary": "Volver a la biblioteca"
   },
   "glData": {
-    "setTooLarge": "Este conjunto es demasiado grande para guardarse: divídelo o quita diapositivas."
+    "setTooLarge": "Este conjunto es demasiado grande para guardarse: divídelo o quita diapositivas.",
+    "deleteSetTitle": "¿Eliminar «{{title}}»?",
+    "deleteWithOpenAssignments_one": "Los estudiantes de {{count}} tarea abierta lo perderán.",
+    "deleteWithOpenAssignments_other": "Los estudiantes de {{count}} tareas abiertas lo perderán.",
+    "deleteConfirm": "Eliminar"
+  },
+  "glAssignments": {
+    "showOlder": "Mostrar anteriores"
   }
 }

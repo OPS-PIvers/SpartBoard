@@ -99,6 +99,18 @@ vi.mock('@/utils/guidedLearningDriveService', () => ({
   },
 }));
 
+const release = vi.hoisted(() => ({
+  calls: [] as string[],
+  writeTombstone: vi.fn(),
+  releaseDriveFiles: vi.fn(),
+  releaseClosedTombstones: vi.fn(),
+}));
+vi.mock('@/utils/guidedLearningFileRelease', () => ({
+  writeTombstone: release.writeTombstone,
+  releaseDriveFiles: release.releaseDriveFiles,
+  releaseClosedTombstones: release.releaseClosedTombstones,
+}));
+
 import { useGuidedLearning } from './useGuidedLearning';
 import { GuidedLearningSaveConflictError } from '@/components/widgets/GuidedLearning/utils/saveConflict';
 
@@ -118,6 +130,13 @@ const buildSet = (
 });
 
 beforeEach(() => {
+  release.calls = [];
+  release.writeTombstone.mockReset().mockImplementation(() => {
+    release.calls.push('tombstone');
+    return Promise.resolve();
+  });
+  release.releaseDriveFiles.mockReset().mockResolvedValue(true);
+  release.releaseClosedTombstones.mockReset().mockResolvedValue(0);
   store.docs.clear();
   store.driveSaves = [];
   store.driveFiles.clear();
@@ -228,7 +247,7 @@ describe('useGuidedLearning.saveSet file refs', () => {
     expect(meta?.imageUrl).toBe(`${DRIVE_A}=w400`);
   });
 
-  it('keeps driveFileIds across autosaves and clears them once no Drive slide is left', async () => {
+  it('keeps driveFileIds across autosaves and empties them once no Drive slide is left', async () => {
     const { result } = renderHook(() => useGuidedLearning('u1'));
     for (let i = 0; i < 2; i++) {
       await act(async () => {
@@ -242,7 +261,8 @@ describe('useGuidedLearning.saveSet file refs', () => {
     await act(async () => {
       await result.current.saveSet(buildSet(), 'drive-file-1');
     });
-    expect(store.docs.get(META_PATH)).not.toHaveProperty('driveFileIds');
+    // Empty, not absent: absent marks a set saved before Drive ids were recorded.
+    expect(store.docs.get(META_PATH)?.driveFileIds).toEqual([]);
   });
 });
 
@@ -356,5 +376,58 @@ describe('useGuidedLearning revision guard', () => {
       updatedAt: 200,
       folderId: 'folder-a',
     });
+  });
+});
+
+describe('useGuidedLearning.deleteSet file cleanup', () => {
+  const seed = () =>
+    store.docs.set(META_PATH, {
+      id: 'set-1',
+      driveFileId: 'json-1',
+      imagePaths: ['users/u1/hotspot_images/1.webp'],
+      driveFileIds: ['drive-a', 'drive-b'],
+    });
+
+  it('holds the files in a tombstone, written before the set is deleted, when assignments are open', async () => {
+    seed();
+    const { deleteDoc } = await import('firebase/firestore');
+    (deleteDoc as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      () => {
+        release.calls.push('delete');
+        return Promise.resolve();
+      }
+    );
+    const { result } = renderHook(() => useGuidedLearning('u1'));
+    await act(async () => {
+      await result.current.deleteSet('set-1', 'json-1', ['as-1']);
+    });
+    expect(release.writeTombstone).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({
+        setId: 'set-1',
+        storagePaths: ['users/u1/hotspot_images/1.webp'],
+        driveFileIds: ['drive-a', 'drive-b'],
+        assignmentIds: ['as-1'],
+      })
+    );
+    expect(release.calls).toEqual(['tombstone', 'delete']);
+    expect(release.releaseDriveFiles).not.toHaveBeenCalled();
+  });
+
+  it('releases the set’s Drive slides through the reference check when nothing is open', async () => {
+    seed();
+    const { result } = renderHook(() => useGuidedLearning('u1'));
+    await act(async () => {
+      await result.current.deleteSet('set-1', 'json-1');
+    });
+    expect(release.writeTombstone).not.toHaveBeenCalled();
+    expect(release.releaseDriveFiles).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uid: 'u1',
+        candidates: ['drive-a', 'drive-b'],
+        excludeSetId: 'set-1',
+      }),
+      expect.any(Function)
+    );
   });
 });
