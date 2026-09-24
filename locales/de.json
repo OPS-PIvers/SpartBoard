@@ -3445,11 +3445,11 @@
     "endTour": "Tour beenden"
   },
   "glPlayer": {
-    "watch": "Ansehen",
-    "tryIt": "Mitklicken",
-    "watchHint": "Jeden Schritt vorgespielt bekommen",
-    "tryHint": "Jede Stelle im Bild selbst anklicken",
-    "playbackMode": "Wiedergabemodus",
+    "modeChip": {
+      "guided": "Sieh dir die Schritte an",
+      "structured": "Tippe auf die markierte Stelle",
+      "explore": "Erkunde die Markierungen"
+    },
     "playbackSpeed": "Wiedergabegeschwindigkeit",
     "speedOption": "{{speed}} Geschwindigkeit",
     "position": "Position in der Anleitung",
@@ -3478,8 +3478,6 @@
     "viewers_other": "{{count}} Personen",
     "views_one": "{{count}} Aufruf",
     "views_other": "{{count}} Aufrufe",
-    "watch": "Ansehen",
-    "try": "Mitklicken",
     "finished": "{{completed}} von {{viewers}} fertig",
     "funnelTitle": "Wie weit sie gekommen sind",
     "reached": "{{reached}} von {{total}}",

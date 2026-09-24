@@ -3445,11 +3445,11 @@
     "endTour": "Terminer la visite"
   },
   "glPlayer": {
-    "watch": "Regarder",
-    "tryIt": "Cliquer soi-même",
-    "watchHint": "Regarder chaque étape jouée pour vous",
-    "tryHint": "Cliquez vous-même sur chaque zone de l’image",
-    "playbackMode": "Mode de lecture",
+    "modeChip": {
+      "guided": "Regarde les étapes",
+      "structured": "Touche la zone en surbrillance",
+      "explore": "Explore les repères"
+    },
     "playbackSpeed": "Vitesse de lecture",
     "speedOption": "vitesse {{speed}}",
     "position": "Position dans le parcours",
@@ -3478,8 +3478,6 @@
     "viewers_other": "{{count}} personnes",
     "views_one": "{{count}} vue",
     "views_other": "{{count}} vues",
-    "watch": "Regarder",
-    "try": "Cliquer soi-même",
     "finished": "{{completed}} sur {{viewers}} ont terminé",
     "funnelTitle": "Jusqu’où ils sont allés",
     "reached": "{{reached}} sur {{total}}",

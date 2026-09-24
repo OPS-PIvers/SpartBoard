@@ -614,6 +614,7 @@ const StudentExperience: React.FC<{
           timeMultiplier={timeMultiplier}
           playerV2={session.playerV2 === true}
           onStepEvent={onStepEvent}
+          autoPlay
         />
         {periodPaused && <GuidedLearningPeriodPausedOverlay />}
         <div
@@ -682,6 +683,7 @@ const StartScreen: React.FC<{
   error = null,
   busy = false,
 }) => {
+  const { t } = useTranslation();
   const periods = session.periodNames ?? [];
   const needsPeriodPicker =
     !isViewOnly && periods.length > 1 && !selectedPeriod;
@@ -740,8 +742,19 @@ const StartScreen: React.FC<{
               </p>
             </div>
           ) : (
-            <p className="text-slate-400 text-sm mb-6 capitalize">
-              {session.mode} mode
+            <p
+              className={`text-slate-400 text-sm mb-6 ${session.playerV2 ? '' : 'capitalize'}`}
+            >
+              {session.playerV2 ? (
+                <span
+                  data-testid="gl-start-mode-chip"
+                  className="inline-block rounded-full bg-white/10 border border-white/15 px-2.5 py-0.5 text-slate-200 font-semibold"
+                >
+                  {t(`glPlayer.modeChip.${session.mode}`)}
+                </span>
+              ) : (
+                `${session.mode} mode`
+              )}
               {/* A per-period session's steps stay hidden until the period opens. */}
               {session.stepsInContent && session.publicSteps.length === 0
                 ? null

@@ -4602,11 +4602,11 @@
     "endTour": "End tour"
   },
   "glPlayer": {
-    "watch": "Watch",
-    "tryIt": "Click along",
-    "watchHint": "Watch each step played for you",
-    "tryHint": "Click each spot on the picture yourself",
-    "playbackMode": "Playback mode",
+    "modeChip": {
+      "guided": "Watch the steps",
+      "structured": "Tap the highlighted spot",
+      "explore": "Explore the pins"
+    },
     "playbackSpeed": "Playback speed",
     "speedOption": "{{speed}} speed",
     "position": "Walkthrough position",
@@ -4635,8 +4635,6 @@
     "viewers_other": "{{count}} viewers",
     "views_one": "{{count}} view",
     "views_other": "{{count}} views",
-    "watch": "Watch",
-    "try": "Click along",
     "finished": "{{completed}} of {{viewers}} finished",
     "funnelTitle": "How far viewers got",
     "reached": "{{reached}} of {{total}}",

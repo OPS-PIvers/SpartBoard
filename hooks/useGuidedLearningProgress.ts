@@ -25,9 +25,10 @@ interface Options {
   paused?: boolean;
 }
 
+// Legacy mode fields stay on old docs but are never written.
 function toPayload(p: GuidedLearningProgress) {
-  const { mode, ...rest } = p;
-  return mode ? { ...rest, mode } : rest;
+  const { mode: _mode, modeSwitches: _switches, ...rest } = p;
+  return rest;
 }
 
 export function useGuidedLearningProgress({

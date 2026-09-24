@@ -29,7 +29,6 @@ import {
 } from './GuidedLearningStage';
 import { SpeedControl } from './player/SpeedControl';
 import { useLearnerSpeed } from './player/useLearnerSpeed';
-import { PlaybackModeToggle } from './player/PlaybackModeToggle';
 import { WatchScrubber } from './player/WatchScrubber';
 import { TRY_HINT_MS, defaultPlayback, hasStepTarget } from './player/playback';
 import { StepOutline } from './player/StepOutline';
@@ -73,6 +72,8 @@ interface Props {
   startStepId?: string;
   /** Questions already answered on an earlier visit (read on mount). */
   initialAnsweredStepIds?: readonly string[];
+  /** v2 guided sets start playing on mount (the student app, after Start). */
+  autoPlay?: boolean;
 }
 
 export const GuidedLearningPlayer: React.FC<Props> = ({
@@ -85,6 +86,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   onStepEvent,
   startStepId,
   initialAnsweredStepIds,
+  autoPlay = false,
 }) => {
   const { t } = useTranslation();
   const mode: GuidedLearningMode = set.mode;
@@ -105,7 +107,9 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   const [exploreImageIndex, setExploreImageIndex] = useState(
     steps[startIdx]?.imageIndex ?? 0
   );
-  const [playing, setPlaying] = useState(false);
+  const [playing, setPlaying] = useState(
+    autoPlay && playerV2 && mode === 'guided'
+  );
   const [progress, setProgress] = useState(0); // 0-1 for guided auto-advance
   const [answeredSteps, setAnsweredSteps] = useState<Set<string>>(
     () => new Set(initialAnsweredStepIds)
@@ -128,16 +132,13 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   // eslint-disable-next-line react-hooks/refs
   answeredStepsRef.current = answeredSteps;
 
-  // Learner's Watch/Try choice (v2); the author's mode picks the default.
-  const [playback, setPlayback] = useState<PlaybackMode>(() =>
-    defaultPlayback(mode)
-  );
+  // The author's mode is the only choice: guided plays as Watch, structured as Try.
+  const playback: PlaybackMode = defaultPlayback(mode);
 
   // Track previous mode to reset step index when mode changes (adjusting state while rendering)
   const [prevMode, setPrevMode] = useState(mode);
   if (prevMode !== mode) {
     setPrevMode(mode);
-    setPlayback(defaultPlayback(mode));
     if (mode !== 'explore' && steps.length > 0) {
       setCurrentIdx(0);
       setActiveStepId(steps[0].id);
@@ -408,15 +409,6 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     if (hint) emitStepEvent('hint', currentStep.id);
   };
 
-  const choosePlayback = (next: PlaybackMode) => {
-    if (next === playback) return;
-    setPlayback(next);
-    // Switching keeps the step on screen; the choice only changes what comes next.
-    setRun((r) => ({ ...r, cursorDone: true, hinted: false, misclicks: 0 }));
-    setPlaying(next === 'watch');
-    if (currentStep) setActiveStepId(currentStep.id);
-  };
-
   // Guided mode: auto-advance timer (no setState calls — setProgress only from interval cb)
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -456,8 +448,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     }, interval);
   }, [currentStep, answeredStepsRef, goNext]);
 
-  // Watch holds the step's clock until the cursor has landed.
-  const timerRuns = autoAdvance && playing && !watchGlide;
+  // Watch holds the step's clock until the cursor has landed and the resume question is answered.
+  const timerRuns = autoAdvance && playing && !watchGlide && !resumeOffer;
   useEffect(() => {
     if (timerRuns) {
       startTimer();
@@ -548,9 +540,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     });
   }, [v2Playback, resumeOffer, set.id, currentIdx, playback]);
 
-  const resumeAt = (idx: number, next: PlaybackMode) => {
+  const resumeAt = (idx: number) => {
     dismissResume();
-    setPlayback(next);
     jumpTo(Math.min(Math.max(idx, 0), steps.length - 1));
   };
 
@@ -680,17 +671,32 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           {set.title}
         </span>
 
+        {playerV2 && (
+          <span
+            data-testid="gl-mode-chip"
+            className="rounded-full bg-white/10 border border-white/15 text-slate-200 font-semibold whitespace-nowrap flex-shrink-0"
+            style={{
+              padding: 'min(3px, 0.8cqmin) min(10px, 2.4cqmin)',
+              fontSize: 'min(12px, 3.2cqmin)',
+            }}
+          >
+            {t(`glPlayer.modeChip.${mode}`)}
+          </span>
+        )}
+
         {mode === 'explore' && (
           <div
             className="flex items-center flex-wrap"
             style={{ gap: 'min(8px, 2cqmin)' }}
           >
-            <span
-              className="text-slate-400 font-medium"
-              style={{ fontSize: 'min(11px, 3cqmin)' }}
-            >
-              Click any pin to explore
-            </span>
+            {!playerV2 && (
+              <span
+                className="text-slate-400 font-medium"
+                style={{ fontSize: 'min(11px, 3cqmin)' }}
+              >
+                Click any pin to explore
+              </span>
+            )}
             {set.imageUrls.length > 1 && (
               <div
                 className="flex items-center flex-wrap"
@@ -757,7 +763,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         {resumeOffer && (
           <ResumePrompt
             stepNumber={resumeOffer.idx + 1}
-            onResume={() => resumeAt(resumeOffer.idx, resumeOffer.mode)}
+            onResume={() => resumeAt(resumeOffer.idx)}
             onStartOver={dismissResume}
           />
         )}
@@ -775,9 +781,6 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
             padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
           }}
         >
-          {v2Playback && (
-            <PlaybackModeToggle mode={playback} onChange={choosePlayback} />
-          )}
           {footerKind === 'structured' ? (
             <>
               <button

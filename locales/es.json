@@ -3445,11 +3445,11 @@
     "endTour": "Terminar recorrido"
   },
   "glPlayer": {
-    "watch": "Ver",
-    "tryIt": "Haz clic tú",
-    "watchHint": "Ver cada paso reproducido para ti",
-    "tryHint": "Haz clic tú en cada punto de la imagen",
-    "playbackMode": "Modo de reproducción",
+    "modeChip": {
+      "guided": "Mira los pasos",
+      "structured": "Toca el punto resaltado",
+      "explore": "Explora los marcadores"
+    },
     "playbackSpeed": "Velocidad de reproducción",
     "speedOption": "velocidad {{speed}}",
     "position": "Posición en el recorrido",
@@ -3478,8 +3478,6 @@
     "viewers_other": "{{count}} personas",
     "views_one": "{{count}} visita",
     "views_other": "{{count}} visitas",
-    "watch": "Ver",
-    "try": "Haz clic tú",
     "finished": "{{completed}} de {{viewers}} terminaron",
     "funnelTitle": "Hasta dónde llegaron",
     "reached": "{{reached}} de {{total}}",

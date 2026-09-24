@@ -120,3 +120,27 @@ describe('GuidedLearningStudentApp progress writer', () => {
     expect(playerProps.current?.onStepEvent).toBe(stepHandler);
   });
 });
+
+describe('GuidedLearningStudentApp mode chip and auto-play', () => {
+  it('says what to do instead of the mode name, and asks the player to auto-play', async () => {
+    mockSession.current = { ...baseSession, playerV2: true };
+    const { findByText, getByTestId, queryByText } = render(
+      <GuidedLearningStudentApp />
+    );
+    const start = await findByText(/start/i);
+    expect(getByTestId('gl-start-mode-chip')).toHaveTextContent(
+      'Watch the steps'
+    );
+    expect(queryByText(/guided mode/i)).toBeNull();
+    start.click();
+    await waitFor(() => expect(playerProps.current).not.toBeNull());
+    expect(playerProps.current?.autoPlay).toBe(true);
+  });
+
+  it('keeps the mode name on the start screen without Player v2', async () => {
+    mockSession.current = { ...baseSession, mode: 'structured' };
+    const { findByText, queryByTestId } = render(<GuidedLearningStudentApp />);
+    expect(await findByText(/structured mode/i)).toBeInTheDocument();
+    expect(queryByTestId('gl-start-mode-chip')).toBeNull();
+  });
+});

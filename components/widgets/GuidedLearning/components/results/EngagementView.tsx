@@ -53,39 +53,17 @@ export const EngagementView: React.FC<Props> = ({ set, summary, failed }) => {
     }
     return (
       <div className="flex flex-col" style={{ gap: 'min(16px, 3.5cqmin)' }}>
-        <div className="grid grid-cols-2" style={{ gap: 'min(8px, 2cqmin)' }}>
-          {(['watch', 'try'] as const).map((mode) => {
-            const { viewers, completed } = summary.split[mode];
-            return (
-              <div
-                key={mode}
-                className="bg-white/5 rounded-xl"
-                style={{ padding: 'min(12px, 2.5cqmin)' }}
-                data-testid={`engagement-${mode}`}
-              >
-                <div
-                  className="text-white font-semibold"
-                  style={{ fontSize: 'min(14px, 5.5cqmin)' }}
-                >
-                  {t(`glEngagement.${mode}`)}
-                </div>
-                <div
-                  className="text-slate-300 tabular-nums"
-                  style={{
-                    fontSize: 'min(12px, 4.5cqmin)',
-                    marginTop: 'min(2px, 0.5cqmin)',
-                  }}
-                >
-                  {t('glEngagement.viewers', { count: viewers })}
-                  {viewers > 0 && (
-                    <>
-                      {' · '}
-                      {t('glEngagement.finished', { completed, viewers })}
-                    </>
-                  )}
-                </div>
-              </div>
-            );
+        <div
+          className="bg-white/5 rounded-xl text-white font-semibold tabular-nums"
+          style={{
+            padding: 'min(12px, 2.5cqmin)',
+            fontSize: 'min(14px, 5.5cqmin)',
+          }}
+          data-testid="engagement-finished"
+        >
+          {t('glEngagement.finished', {
+            completed: summary.completed,
+            viewers: summary.viewers,
           })}
         </div>
         <div>

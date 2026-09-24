@@ -72,6 +72,12 @@ const fixtureDocs = [
     completed: false,
     steps: { a: { ms: 2000, misclicks: 0, hinted: false } },
   },
+  // Written after the Watch / Try toggle was removed: no mode fields.
+  {
+    furthestStepIdx: 1,
+    completed: true,
+    steps: { a: { ms: 2000, misclicks: 0, hinted: false } },
+  },
 ];
 
 const push = (docs: unknown[]) =>
@@ -83,29 +89,27 @@ beforeEach(() => {
 });
 
 describe('GuidedLearningEngagement', () => {
-  it('renders the funnel, mode split and heatmap from progress docs', () => {
+  it('renders the funnel, finished count and heatmap from old and new progress docs', () => {
     render(<GuidedLearningEngagement set={set} sessionId="s1" />);
     push(fixtureDocs);
 
-    expect(screen.getByText(/2 viewers/)).toBeInTheDocument();
-    expect(
-      within(screen.getByTestId('engagement-try')).getByText(/1 of 1 finished/)
-    ).toBeInTheDocument();
-    expect(
-      within(screen.getByTestId('engagement-watch')).getByText(
-        /0 of 1 finished/
-      )
-    ).toBeInTheDocument();
+    expect(screen.getByText(/3 viewers/)).toBeInTheDocument();
+    expect(screen.getByTestId('engagement-finished')).toHaveTextContent(
+      '2 of 3 finished'
+    );
+    expect(screen.queryByTestId('engagement-watch')).toBeNull();
+    expect(screen.queryByTestId('engagement-try')).toBeNull();
+    expect(screen.queryByText('Click along')).toBeNull();
 
     const items = screen.getAllByRole('listitem');
     expect(items).toHaveLength(3);
     expect(items[0]).toHaveTextContent('1. Open the menu');
-    expect(items[0]).toHaveTextContent('2 of 2 · Median 3 s');
+    expect(items[0]).toHaveTextContent('3 of 3 · Median 2 s');
     expect(items[1]).toHaveTextContent('2. Step 2');
-    expect(items[1]).toHaveTextContent('1 of 2');
+    expect(items[1]).toHaveTextContent('2 of 3');
     expect(items[2]).toHaveTextContent('Median 1 min 05 s');
     const bars = screen.getAllByTestId('funnel-bar');
-    expect(bars.map((b) => b.style.width)).toEqual(['100%', '50%', '50%']);
+    expect(bars.map((b) => b.style.width)).toEqual(['100%', '67%', '33%']);
 
     const slide0 = screen.getByTestId('heatmap-slide-0');
     expect(within(slide0).getByText('2 missed clicks')).toBeInTheDocument();
