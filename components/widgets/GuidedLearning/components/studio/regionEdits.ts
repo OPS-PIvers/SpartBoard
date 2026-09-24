@@ -282,11 +282,13 @@ export function clearCalloutPin(step: GuidedLearningStep): GuidedLearningStep {
   return next;
 }
 
-/** Back to automatic placement, dropping the classic editor's side and offset too. */
+/** Back to automatic placement, dropping the classic editor's side and offset too; size only when asked. */
 export function resetCalloutPlacement(
-  step: GuidedLearningStep
+  step: GuidedLearningStep,
+  clearSize = false
 ): GuidedLearningStep {
-  const next = clearCalloutSize(clearCalloutPin(step));
+  const pinless = clearCalloutPin(step);
+  const next = clearSize ? clearCalloutSize(pinless) : pinless;
   delete next.tooltipPosition;
   delete next.tooltipOffset;
   return next;

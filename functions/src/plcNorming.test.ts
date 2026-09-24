@@ -43,6 +43,7 @@ import {
   cleanupNormingForMembers,
   cleanupNormingForPlc,
   cleanupNormingForResponse,
+  cleanupNormingSourcesForSession,
   departedMemberUids,
   extractNormingContent,
   normingSourceId,
@@ -490,6 +491,37 @@ describe('cleanup', () => {
     });
     const deleted: string[] = [];
     await cleanupNormingForResponse(cleanupDeps(stub, deleted), SESSION, KEY);
+    expect(stub.has(`plcs/${PLC}/norming/audio`)).toBe(false);
+    expect(stub.has(`plcs/${PLC}/norming/text`)).toBe(true);
+    expect(stub.has('plc_norming_sources/sa')).toBe(false);
+    expect(stub.has('plc_norming_sources/st')).toBe(false);
+    expect(deleted).toEqual(['plc_norming_media/plc-1/audio.m4a']);
+  });
+
+  it('drops audio copies when the session is deleted before its responses', async () => {
+    const stub = makeStubFirestore({
+      [`plcs/${PLC}/norming/audio`]: {
+        kind: 'audio',
+        audioPath: 'plc_norming_media/plc-1/audio.m4a',
+      },
+      [`plcs/${PLC}/norming/text`]: { kind: 'text' },
+      'plc_norming_sources/sa': {
+        sessionId: SESSION,
+        responseKey: KEY,
+        plcId: PLC,
+        normingId: 'audio',
+        questionId: 'q1',
+      },
+      'plc_norming_sources/st': {
+        sessionId: SESSION,
+        responseKey: 'other-key',
+        plcId: PLC,
+        normingId: 'text',
+        questionId: 'q2',
+      },
+    });
+    const deleted: string[] = [];
+    await cleanupNormingSourcesForSession(cleanupDeps(stub, deleted), SESSION);
     expect(stub.has(`plcs/${PLC}/norming/audio`)).toBe(false);
     expect(stub.has(`plcs/${PLC}/norming/text`)).toBe(true);
     expect(stub.has('plc_norming_sources/sa')).toBe(false);

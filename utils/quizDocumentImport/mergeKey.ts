@@ -112,12 +112,13 @@ function applyOrdering(
   q: ExtractedQuestion,
   ordering: readonly string[]
 ): ExtractedQuestion {
-  if (q.type !== 'Ordering') {
-    return note(
-      q,
-      `The answer key gives an order for this question (${ordering.join(', ')}), but it didn’t come in as an ordering question.`
-    );
-  }
+  const notOrdering = note(
+    q,
+    `The answer key gives an order for this question (${ordering.join(', ')}), but it didn’t come in as an ordering question.`
+  );
+  // An unanswered choice question the key puts in order becomes an ordering item.
+  const promotable = q.type === 'MC' && !q.correctAnswer.trim();
+  if (q.type !== 'Ordering' && !promotable) return notOrdering;
   const left = [...q.options];
   const ordered: string[] = [];
   for (const text of ordering) {
@@ -131,12 +132,13 @@ function applyOrdering(
     left.splice(at, 1);
   }
   if (left.length > 0 || ordered.length !== ordering.length) {
+    if (promotable) return notOrdering;
     return note(
       q,
       'The answer key’s order doesn’t match this question’s items, so put them in order in the editor.'
     );
   }
-  return { ...q, correctAnswer: ordered.join('|') };
+  return { ...q, type: 'Ordering', correctAnswer: ordered.join('|') };
 }
 
 /** The printed name of a key entry, for a note. */
