@@ -28,7 +28,14 @@ import {
   hasNewResults,
   resolveHero,
 } from './tiles/homeLayout';
-import { pickInProgressMeeting } from './tiles/meetingSelectors';
+import {
+  completedMeetingDateKeys,
+  pickInProgressMeeting,
+} from './tiles/meetingSelectors';
+import {
+  isMeetingDayActive,
+  nextMeetingOccurrence,
+} from '@/utils/plcMeetingCadence';
 import { getPlcHomeTileDef } from './tiles/registry';
 import type {
   PlcHomeSignals,
@@ -128,6 +135,17 @@ export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({ plc, onNavigate }) => {
     () => pickInProgressMeeting(meetings) !== null,
     [meetings]
   );
+  const meetingDayActive = useMemo(
+    () =>
+      isMeetingDayActive({
+        occurrence: plc.meetingCadence
+          ? nextMeetingOccurrence(plc.meetingCadence, now)
+          : null,
+        completedMeetingDates: completedMeetingDateKeys(meetings),
+        now,
+      }),
+    [plc.meetingCadence, meetings, now]
+  );
   const [autoHeroDismissed, setAutoHeroDismissed] = useState(false);
   const signals = useMemo<PlcHomeSignals>(
     () =>
@@ -135,10 +153,16 @@ export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({ plc, onNavigate }) => {
         ? QUIET_SIGNALS
         : {
             meetingInProgress,
-            meetingDayActive: false,
+            meetingDayActive,
             newResults: hasNewResults(currentCounts, frozenSeen),
           },
-    [autoHeroDismissed, meetingInProgress, currentCounts, frozenSeen]
+    [
+      autoHeroDismissed,
+      meetingInProgress,
+      meetingDayActive,
+      currentCounts,
+      frozenSeen,
+    ]
   );
 
   const [draft, setDraft] = useState<PlcHomeTileInstance[] | null>(null);

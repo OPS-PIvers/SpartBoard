@@ -66,6 +66,7 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'uid-alice' },
     googleAccessToken: null,
+    canAccessFeature: () => false,
   }),
 }));
 

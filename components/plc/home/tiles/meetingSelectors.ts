@@ -1,6 +1,7 @@
 // Meeting tile selectors over the bounded Home meetings slice.
 
 import type { PlcMeeting } from '@/types';
+import { zonedDateKey } from '@/utils/plcHomeTime';
 
 export { pickInProgressMeeting } from '@/components/plc/home/cards/commonAssessmentBannerSelectors';
 
@@ -14,4 +15,13 @@ export function pickLastCompletedMeeting(
     if (!best || m.heldAt > best.heldAt) best = m;
   }
   return best;
+}
+
+/** Chicago dates of completed meetings, for the meeting-day hero (D26). */
+export function completedMeetingDateKeys(
+  meetings: readonly PlcMeeting[]
+): string[] {
+  return meetings
+    .filter((m) => m.deletedAt == null && m.status === 'completed')
+    .map((m) => zonedDateKey(m.heldAt));
 }

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { PlcHomeV2 } from '@/components/plc/home/PlcHomeV2';
 import type {
@@ -11,6 +11,7 @@ import type {
   PlcCommonAssessment,
   PlcMeeting,
 } from '@/types';
+import { zonedTimeToEpoch } from '@/utils/plcHomeTime';
 import {
   EMPTY_PLC_HOME_LAYOUT,
   type PlcHomeLayout,
@@ -86,6 +87,13 @@ vi.mock('@/context/usePlcContext', () => ({
     { uid: 'uid-b', displayName: 'Bo Kim', section: 'assessments' },
   ],
   usePlcActions: () => ({ updateNote: vi.fn() }),
+}));
+
+const updatePlcMeetingCadence = vi.fn((_plcId: string, _cadence: unknown) =>
+  Promise.resolve()
+);
+vi.mock('@/hooks/usePlcs', () => ({
+  usePlcs: () => ({ updatePlcMeetingCadence }),
 }));
 
 vi.mock('@/hooks/usePlcUnread', () => ({
@@ -289,5 +297,62 @@ describe('PlcHomeV2', () => {
       { a1: 30 },
       null
     );
+  });
+});
+
+describe('PlcHomeV2 meeting cadence', () => {
+  const cadencePlc = {
+    ...plc,
+    meetingCadence: {
+      frequency: 'weekly',
+      weekday: 4,
+      time: '15:15',
+      anchorDate: '2026-09-03',
+    },
+  } as unknown as Plc;
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(zonedTimeToEpoch(2026, 9, 24, 10));
+    mockMeetings = [];
+    mockLayout = EMPTY_PLC_HOME_LAYOUT;
+    mockAggregates = [];
+    mockAssessments = [];
+    updatePlcMeetingCadence.mockClear();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('makes Meeting the hero on meeting day and shows the next occurrence', () => {
+    render(<PlcHomeV2 plc={cadencePlc} onNavigate={vi.fn()} />);
+    const hero = document.querySelector('[data-hero="true"]');
+    expect(hero?.getAttribute('aria-label')).toBe('Meeting');
+    expect(screen.getByText(/Next: .*Sep 24.* · today/)).toBeInTheDocument();
+  });
+
+  it('drops the meeting-day hero once today has a completed meeting', () => {
+    mockMeetings = [
+      { ...meeting('completed'), heldAt: zonedTimeToEpoch(2026, 9, 24, 8) },
+    ];
+    render(<PlcHomeV2 plc={cadencePlc} onNavigate={vi.fn()} />);
+    expect(document.querySelector('[data-hero="true"]')).toBeNull();
+  });
+
+  it('lets the lead skip just the next meeting', () => {
+    render(<PlcHomeV2 plc={cadencePlc} onNavigate={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    expect(updatePlcMeetingCadence).toHaveBeenCalledWith(
+      'plc-1',
+      expect.objectContaining({
+        overrides: { '2026-09-24': { skipped: true } },
+      })
+    );
+  });
+
+  it('hides Move and Skip from members', () => {
+    const memberView = { ...cadencePlc, leadUid: 'uid-b' } as Plc;
+    render(<PlcHomeV2 plc={memberView} onNavigate={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Skip' })).toBeNull();
   });
 });
