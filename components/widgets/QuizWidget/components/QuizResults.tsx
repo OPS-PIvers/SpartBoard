@@ -34,9 +34,6 @@ import {
   Eye,
   EyeOff,
   MinusCircle,
-  Clock,
-  CircleSlash,
-  Circle,
   Printer,
   UserCheck,
 } from 'lucide-react';
@@ -101,18 +98,15 @@ import {
   StudentResultsControl,
 } from './results/StudentResultsControl';
 import { StudentResultsBulkBar } from './results/StudentResultsBulkBar';
+import { DrilldownNameList } from './results/DrilldownNameList';
+import { StudentAnswerLine } from './results/StudentAnswerLine';
 import {
   computeQuestionStats,
   makeQuestionGradeFn,
   type QuestionStat,
 } from '@/utils/quizQuestionStats';
+import { computeStudentDrilldown } from '@/utils/quizStudentDrilldown';
 import {
-  computeStudentDrilldown,
-  showsMissedKey,
-  type StudentQuestionLine,
-} from '@/utils/quizStudentDrilldown';
-import {
-  MARK_LABEL,
   printStudentReport,
   type StudentReportTarget,
 } from '@/utils/quizStudentReportPrint';
@@ -164,7 +158,6 @@ import type {
   LocalizedFibAnswers,
 } from '@/utils/quizFibAnswers';
 import { QuizTargetResults } from './QuizTargetResults';
-import { formatExportPoints } from '@/utils/assignmentExportShared';
 
 /**
  * Export-error banner state. Generic errors render as a plain message; a
@@ -771,6 +764,24 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           }
         : undefined,
     [selection, studentResultsActions, plcView]
+  );
+
+  const resultsTools = canAccessFeature('quiz-results-tools');
+  // The Students screen's open row, lifted so item analysis can jump to a student.
+  const [expandedStudentKey, setExpandedStudentKey] = useState<string | null>(
+    null
+  );
+  const [focusStudentKey, setFocusStudentKey] = useState<string | null>(null);
+  const handleOpenStudent = useMemo(
+    () =>
+      resultsTools && !plcView
+        ? (responseKey: string) => {
+            setExpandedStudentKey(responseKey);
+            setFocusStudentKey(responseKey);
+            setScreen('students');
+          }
+        : undefined,
+    [resultsTools, plcView]
   );
 
   // Printing to hand back (docs/plans/QUIZ_RESULTS_PRINT.md); never for PLC teammates (D7).
@@ -1941,6 +1952,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               formatStudentName={formatStudentName}
               showStudentNames={!plcView}
               onSelectStudents={handleSelectStudents}
+              onOpenStudent={handleOpenStudent}
             />
           )}
           {effectiveScreen === 'targets' && hasTargetResults && (
@@ -1973,6 +1985,11 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               fibGrading={fibGrading}
               studentResultsActions={studentResultsActions}
               onPrintStudents={canPrintResults ? openPrint : undefined}
+              showStudentFeedback={resultsTools}
+              expandedKey={expandedStudentKey}
+              onExpandedKeyChange={setExpandedStudentKey}
+              focusKey={focusStudentKey}
+              onFocused={() => setFocusStudentKey(null)}
             />
           )}
         </div>
@@ -2333,29 +2350,6 @@ const SMALL_ICON = {
   height: 'min(12px, 3.8cqmin)',
 } as const;
 
-const NameChips: React.FC<{
-  students: DrilldownStudent[];
-  formatStudentName: (student: DrilldownStudent) => string;
-}> = ({ students, formatStudentName }) => (
-  <ul
-    className="flex flex-wrap"
-    style={{ gap: 'min(4px, 1cqmin)', marginTop: 'min(4px, 1cqmin)' }}
-  >
-    {students.map((s) => (
-      <li
-        key={s.responseKey}
-        className="rounded-full bg-brand-gray-lightest text-brand-gray-darkest font-sans"
-        style={{
-          fontSize: 'min(10px, 3.5cqmin)',
-          padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
-        }}
-      >
-        {formatStudentName(s)}
-      </li>
-    ))}
-  </ul>
-);
-
 const SelectStudentsButton: React.FC<{
   students: DrilldownStudent[];
   onSelect: (keys: string[]) => void;
@@ -2389,6 +2383,7 @@ const DistributionRow: React.FC<{
   showStudentNames: boolean;
   formatStudentName: (student: DrilldownStudent) => string;
   onSelectStudents?: (keys: string[]) => void;
+  onOpenStudent?: (responseKey: string) => void;
 }> = ({
   label,
   count,
@@ -2402,6 +2397,7 @@ const DistributionRow: React.FC<{
   showStudentNames,
   formatStudentName,
   onSelectStudents,
+  onOpenStudent,
 }) => {
   const pct = pctOf(count, total);
   const canOpen = showStudentNames && students.length > 0;
@@ -2469,9 +2465,10 @@ const DistributionRow: React.FC<{
       )}
       {canOpen && isOpen && (
         <div role="group" aria-label={studentsLabel}>
-          <NameChips
+          <DrilldownNameList
             students={students}
             formatStudentName={formatStudentName}
+            onOpenStudent={onOpenStudent}
           />
           {onSelectStudents && (
             <SelectStudentsButton
@@ -2488,11 +2485,27 @@ const DistributionRow: React.FC<{
 const OUTCOME_COLUMNS: {
   key: 'correct' | 'partial' | 'incorrect';
   label: string;
+  icon: typeof CheckCircle2;
   className: string;
 }[] = [
-  { key: 'correct', label: 'Correct', className: 'text-emerald-700' },
-  { key: 'partial', label: 'Partial', className: 'text-amber-700' },
-  { key: 'incorrect', label: 'Incorrect', className: 'text-brand-red-primary' },
+  {
+    key: 'correct',
+    label: 'Correct',
+    icon: CheckCircle2,
+    className: 'text-emerald-700',
+  },
+  {
+    key: 'partial',
+    label: 'Partial',
+    icon: MinusCircle,
+    className: 'text-amber-700',
+  },
+  {
+    key: 'incorrect',
+    label: 'Incorrect',
+    icon: XCircle,
+    className: 'text-brand-red-primary',
+  },
 ];
 
 const OUTCOME_STRIPS: {
@@ -2510,13 +2523,16 @@ const QuestionDrilldownPanel: React.FC<{
   showStudentNames: boolean;
   formatStudentName: (student: DrilldownStudent) => string;
   onSelectStudents?: (keys: string[]) => void;
+  onOpenStudent?: (responseKey: string) => void;
 }> = ({
   id,
   drilldown,
   showStudentNames,
   formatStudentName,
   onSelectStudents,
+  onOpenStudent,
 }) => {
+  const openStudent = showStudentNames ? onOpenStudent : undefined;
   const selectStudents = showStudentNames ? onSelectStudents : undefined;
   const [openRows, setOpenRows] = useState<Set<string>>(() => new Set());
   const toggleRow = (key: string) =>
@@ -2538,6 +2554,7 @@ const QuestionDrilldownPanel: React.FC<{
     showStudentNames,
     formatStudentName,
     onSelectStudents: selectStudents,
+    onOpenStudent: openStudent,
   });
 
   return (
@@ -2616,18 +2633,25 @@ const QuestionDrilldownPanel: React.FC<{
         >
           {columns.map((c) => {
             const list = outcomes[c.key];
+            const Marker = c.icon;
             return (
               <div key={c.key} data-testid={`drilldown-column-${c.key}`}>
                 <p
-                  className={`font-sans font-semibold ${c.className}`}
-                  style={SMALL_TEXT}
+                  className="flex items-center font-sans font-semibold text-brand-gray-dark"
+                  style={{ ...SMALL_TEXT, gap: 'min(4px, 1cqmin)' }}
                 >
+                  <Marker
+                    aria-hidden
+                    className={`shrink-0 ${c.className}`}
+                    style={SMALL_ICON}
+                  />
                   {`${c.label} · ${list.length} (${pctOf(list.length, servedCount)}%)`}
                 </p>
                 {showStudentNames && list.length > 0 && (
-                  <NameChips
+                  <DrilldownNameList
                     students={list}
                     formatStudentName={formatStudentName}
+                    onOpenStudent={openStudent}
                   />
                 )}
                 {selectStudents && list.length > 0 && (
@@ -2646,8 +2670,8 @@ const QuestionDrilldownPanel: React.FC<{
         <div
           key={s.key}
           data-testid={`drilldown-strip-${s.key}`}
-          className="bg-brand-gray-lightest/60 rounded"
-          style={{ padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)' }}
+          className="border-t border-brand-gray-lightest"
+          style={{ paddingTop: 'min(6px, 1.5cqmin)' }}
         >
           <p
             className="font-sans font-semibold text-brand-gray-dark"
@@ -2656,9 +2680,10 @@ const QuestionDrilldownPanel: React.FC<{
             {`${s.label} · ${outcomes[s.key].length}`}
           </p>
           {showStudentNames && (
-            <NameChips
+            <DrilldownNameList
               students={outcomes[s.key]}
               formatStudentName={formatStudentName}
+              onOpenStudent={openStudent}
             />
           )}
           {selectStudents && (
@@ -2683,6 +2708,7 @@ const QuestionsScreen: React.FC<{
   /** False in the PLC view: counts and percentages only (D24). */
   showStudentNames: boolean;
   onSelectStudents?: (keys: string[]) => void;
+  onOpenStudent?: (responseKey: string) => void;
 }> = ({
   questions,
   responses,
@@ -2691,6 +2717,7 @@ const QuestionsScreen: React.FC<{
   formatStudentName,
   showStudentNames,
   onSelectStudents,
+  onOpenStudent,
 }) => {
   const { t } = useTranslation();
   const [sortBy, setSortBy] = useState<QuestionSort>('order');
@@ -2988,101 +3015,13 @@ const QuestionsScreen: React.FC<{
                 showStudentNames={showStudentNames}
                 formatStudentName={formatStudentName}
                 onSelectStudents={onSelectStudents}
+                onOpenStudent={onOpenStudent}
               />
             )}
           </div>
         );
       })}
     </div>
-  );
-};
-
-const MARK_STYLE: Record<
-  StudentQuestionLine['mark'],
-  { icon: typeof CheckCircle2; className: string }
-> = {
-  correct: { icon: CheckCircle2, className: 'text-emerald-700' },
-  partial: { icon: MinusCircle, className: 'text-amber-700' },
-  incorrect: { icon: XCircle, className: 'text-brand-red-primary' },
-  ungraded: { icon: Clock, className: 'text-amber-700' },
-  excused: { icon: CircleSlash, className: 'text-brand-gray-primary' },
-  noAnswer: { icon: Circle, className: 'text-brand-gray-primary' },
-};
-
-const StudentQuestionLineView: React.FC<{
-  line: StudentQuestionLine;
-  onOpenGrader?: () => void;
-}> = ({ line, onOpenGrader }) => {
-  const { icon: MarkIcon, className } = MARK_STYLE[line.mark];
-  const body = (
-    <>
-      <span className="flex items-center" style={{ gap: 'min(6px, 1.5cqmin)' }}>
-        <span
-          className="font-sans font-semibold text-brand-blue-primary tabular-nums shrink-0"
-          style={SMALL_TEXT}
-        >
-          Q{line.number}
-        </span>
-        <span
-          className="font-sans text-brand-gray-dark truncate flex-1 min-w-0"
-          style={{ fontSize: 'min(12px, 4cqmin)' }}
-        >
-          {line.text}
-        </span>
-        <span
-          className={`flex items-center font-sans font-semibold shrink-0 ${className}`}
-          style={{ ...SMALL_TEXT, gap: 'min(4px, 1cqmin)' }}
-        >
-          <MarkIcon aria-hidden style={SMALL_ICON} />
-          {MARK_LABEL[line.mark]}
-        </span>
-        {line.mark !== 'excused' && (
-          <span
-            className="font-sans text-brand-gray-primary tabular-nums shrink-0"
-            style={SMALL_TEXT}
-          >
-            {formatExportPoints(line.pointsEarned)}/
-            {formatExportPoints(line.pointsMax)}
-          </span>
-        )}
-      </span>
-      <span
-        className={`block font-sans whitespace-pre-wrap break-words ${line.answerText ? 'text-brand-gray-darkest' : 'text-brand-gray-primary italic'}`}
-        style={{
-          fontSize: 'min(12px, 4cqmin)',
-          marginTop: 'min(2px, 0.5cqmin)',
-        }}
-      >
-        {line.answerText || 'No answer'}
-      </span>
-      {showsMissedKey(line) && (
-        <span
-          className="block font-sans text-brand-gray-primary whitespace-pre-wrap break-words"
-          style={SMALL_TEXT}
-        >
-          Correct answer: {line.correctAnswerText}
-        </span>
-      )}
-    </>
-  );
-  return (
-    <li
-      className="border-t border-brand-gray-lightest"
-      style={{ paddingTop: 'min(6px, 1.5cqmin)' }}
-    >
-      {onOpenGrader ? (
-        <button
-          type="button"
-          onClick={onOpenGrader}
-          title="Open in the grader"
-          className="block w-full text-left rounded hover:bg-brand-gray-lightest/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
-        >
-          {body}
-        </button>
-      ) : (
-        body
-      )}
-    </li>
   );
 };
 
@@ -3122,6 +3061,7 @@ const StudentDrilldownPanel: React.FC<{
   addToast: (message: string, type?: import('@/types').Toast['type']) => void;
   /** Opens the print modal; absent keeps the one-checkbox report. */
   onPrintStudents?: (responseKeys: string[]) => void;
+  showFeedback: boolean;
 }> = ({
   id,
   quizTitle,
@@ -3135,6 +3075,7 @@ const StudentDrilldownPanel: React.FC<{
   resultsControl,
   addToast,
   onPrintStudents,
+  showFeedback,
 }) => {
   const [includeAnswers, setIncludeAnswers] = useState(true);
   const drilldown = useMemo(
@@ -3190,7 +3131,7 @@ const StudentDrilldownPanel: React.FC<{
           No questions served to this student yet.
         </p>
       ) : (
-        <ul className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
+        <ul className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
           {drilldown.lines.map((line) => {
             const question = questionById.get(line.questionId);
             const gradable =
@@ -3199,9 +3140,10 @@ const StudentDrilldownPanel: React.FC<{
               !!question &&
               canGradeQuestion(question);
             return (
-              <StudentQuestionLineView
+              <StudentAnswerLine
                 key={line.questionId}
                 line={line}
+                showFeedback={showFeedback}
                 onOpenGrader={
                   gradable
                     ? () =>
@@ -3273,6 +3215,13 @@ const StudentsScreen: React.FC<{
   fibGrading?: FibGradingContext | null;
   studentResultsActions?: StudentResultsActions;
   onPrintStudents?: (responseKeys: string[]) => void;
+  /** Show written-answer comments and rubric levels in the open row. */
+  showStudentFeedback: boolean;
+  expandedKey: string | null;
+  onExpandedKeyChange: (key: string | null) => void;
+  /** A row to scroll to and focus once, after a jump from item analysis. */
+  focusKey: string | null;
+  onFocused: () => void;
 }> = ({
   quizTitle,
   responses,
@@ -3291,6 +3240,11 @@ const StudentsScreen: React.FC<{
   fibGrading = null,
   studentResultsActions,
   onPrintStudents,
+  showStudentFeedback,
+  expandedKey,
+  onExpandedKeyChange,
+  focusKey,
+  onFocused,
 }) => {
   const selection = useStudentResultsSelection();
   const resultsActions = selection ? studentResultsActions : undefined;
@@ -3307,7 +3261,6 @@ const StudentsScreen: React.FC<{
     useState<ResponseDocKey | null>(null);
   const [deletingKey, setDeletingKey] = useState<ResponseDocKey | null>(null);
   const [unlockingKey, setUnlockingKey] = useState<ResponseDocKey | null>(null);
-  const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const maxPoints = quizMaxPoints(questions);
   const gamified = isGamificationActive(session);
 
@@ -3440,7 +3393,18 @@ const StudentsScreen: React.FC<{
           const isExpanded = expandedKey === rowKey;
           const panelId = `quiz-results-student-${rowKey}`;
           const toggleExpanded = () =>
-            setExpandedKey((k) => (k === rowKey ? null : rowKey));
+            onExpandedKeyChange(isExpanded ? null : rowKey);
+          const focusRef =
+            focusKey === rowKey
+              ? (el: HTMLButtonElement | null) => {
+                  if (!el) return;
+                  el.focus({ preventScroll: true });
+                  el.closest('[data-student-row]')?.scrollIntoView?.({
+                    block: 'start',
+                  });
+                  onFocused();
+                }
+              : undefined;
           const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
           if (isConfirming) {
@@ -3508,7 +3472,8 @@ const StudentsScreen: React.FC<{
           return (
             <div
               key={rowKey}
-              className={`rounded-lg border bg-white ${isExpanded ? 'border-brand-blue-light' : 'border-brand-gray-lightest'}`}
+              data-student-row
+              className={`rounded-lg border bg-white scroll-mt-12 ${isExpanded ? 'border-brand-blue-light' : 'border-brand-gray-lightest'}`}
               style={{ padding: 'min(7px, 1.8cqmin) min(10px, 2.5cqmin)' }}
             >
               {/* Mouse clicks anywhere on the header expand; the name button is the keyboard path. */}
@@ -3533,6 +3498,7 @@ const StudentsScreen: React.FC<{
                     />
                   )}
                   <button
+                    ref={focusRef}
                     type="button"
                     onClick={(e) => {
                       stop(e);
@@ -3765,6 +3731,7 @@ const StudentsScreen: React.FC<{
                   onOpenGrader={onOpenGrader}
                   addToast={addToast}
                   onPrintStudents={onPrintStudents}
+                  showFeedback={showStudentFeedback}
                   resultsControl={
                     resultsActions ? (
                       <StudentResultsControl

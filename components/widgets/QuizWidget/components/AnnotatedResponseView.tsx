@@ -60,6 +60,8 @@ const COLORS: { id: Color; label: string; swatch: string }[] = [
   { id: 'blue', label: 'Blue highlight', swatch: 'bg-sky-300' },
 ];
 
+const preventEdit = (e: React.SyntheticEvent) => e.preventDefault();
+
 // Module-level monotonic counter so back-to-back highlight actions
 // inside the same millisecond can't collide on `id`. `useId()` makes
 // the prefix unique across React component instances, but two
@@ -781,6 +783,13 @@ const EditView: React.FC<EditProps> = ({
       <article
         ref={articleRef}
         className="rich-text-content rounded-xl border border-slate-200 bg-white p-6 text-base leading-relaxed text-slate-800 max-w-none min-w-0 break-words cursor-text select-text"
+        // The response is evidence: selectable for highlighting, never editable.
+        contentEditable={false}
+        onBeforeInput={preventEdit}
+        onPaste={preventEdit}
+        onCut={preventEdit}
+        onDrop={preventEdit}
+        onDragStart={preventEdit}
         onMouseUp={handleMouseUp}
         onClick={handleArticleClick}
       >
@@ -929,7 +938,11 @@ const AnchoredAnnotationEditor: React.FC<{
       onClick={(e) => e.stopPropagation()}
       onMouseUp={(e) => e.stopPropagation()}
     >
-      <span id={labelId} className="sr-only">
+      {/* Visible so typing here never reads as editing the response. */}
+      <span
+        id={labelId}
+        className="text-xxs font-bold uppercase tracking-wider text-violet-700"
+      >
         {isPending ? 'Choose highlight color' : 'Edit annotation'}
       </span>
       <div className="flex items-center justify-between">
@@ -998,12 +1011,13 @@ const AnchoredAnnotationEditor: React.FC<{
           }
         }}
         rows={3}
+        aria-label="Comment on this highlight"
         placeholder={
           isPending
             ? 'Margin comment (optional) — pick a color to commit'
             : 'Margin comment (optional)'
         }
-        className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-400 resize-none"
+        className="w-full px-2 py-1.5 bg-violet-50/60 border border-violet-200 rounded text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-400 resize-none"
       />
     </div>
   );
