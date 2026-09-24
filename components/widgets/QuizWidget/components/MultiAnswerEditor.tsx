@@ -106,3 +106,21 @@ export const MultiAnswerEditor: React.FC<MultiAnswerEditorProps> = ({
     </div>
   );
 };
+
+/** FIB: other answers also marked correct. */
+export const AlternateAnswersEditor: React.FC<{
+  alternates: string[];
+  onChange: (next: string[]) => void;
+}> = ({ alternates, onChange }) => (
+  <div className="mt-3">
+    <OptionList
+      label="Also Accept (optional)"
+      labelClassName="block font-bold text-slate-600 mb-1 text-xs uppercase tracking-wider"
+      itemLabel="Accepted answer"
+      items={alternates}
+      minItems={0}
+      inputClassName={inputClass}
+      onItemsChange={onChange}
+    />
+  </div>
+);

@@ -3,6 +3,7 @@ import { ArrowRight, Loader2, Play } from 'lucide-react';
 import { QuizSession, QuizQuestion } from '@/types';
 import { resolveStimuli } from '@/utils/quizStimuli';
 import { CollapsibleStimuli } from '@/components/quiz/QuizStimulusView';
+import { formatRevealedAnswer } from '@/utils/quizFibAlternates';
 
 interface CurrentQuestionCardProps {
   session: QuizSession;
@@ -184,7 +185,7 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
           <span className="font-semibold">
             {currentQ.type === 'MA'
               ? session.revealedAnswers[currentQ.id].split('|').join(', ')
-              : session.revealedAnswers[currentQ.id]}
+              : formatRevealedAnswer(session.revealedAnswers[currentQ.id])}
           </span>
         </p>
       )}

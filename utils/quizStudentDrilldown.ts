@@ -23,6 +23,10 @@ import {
 } from '@/utils/quizQuestionStats';
 import type { StudentOutcome } from '@/utils/quizQuestionDrilldown';
 import { htmlToPlainText } from '@/utils/writtenAnnotations';
+import {
+  formatRevealedAnswer,
+  revealValueFor,
+} from '@/utils/quizFibAlternates';
 
 /** One question as one student saw it, graded live. */
 export interface StudentQuestionLine {
@@ -237,7 +241,9 @@ export function computeStudentDrilldown(
       type: q.type,
       manual,
       correctAnswerText: hasKey
-        ? formatQuizAnswerText(q, { answer: q.correctAnswer })
+        ? q.type === 'FIB'
+          ? formatRevealedAnswer(revealValueFor(q))
+          : formatQuizAnswerText(q, { answer: q.correctAnswer })
         : null,
     };
     if (q.stimulusIds?.length) base.stimulusIds = [...q.stimulusIds];

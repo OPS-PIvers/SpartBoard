@@ -3507,6 +3507,8 @@ export interface QuizQuestion {
   correctAnswer: string;
   /** MC: up to 4 incorrect answer choices. MA: the wrong options. */
   incorrectAnswers: string[];
+  /** FIB only: other answers also marked correct (e.g. "colour" beside "color"). Never sent to students. */
+  alternateAnswers?: string[];
   /**
    * Set by a document import that read the question but not its key
    * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D5). The question saves and prints
@@ -8695,7 +8697,9 @@ export type GlobalFeature =
   /** PLC Home v2: tile dashboard with a spotlight, meeting cadence and assign-from-library. */
   | 'plc-home-v2'
   /** Choose-all-that-apply quiz questions in the quiz editor and AI drafting. */
-  | 'quiz-choose-all';
+  | 'quiz-choose-all'
+  /** "Also accept" alternate answers on fill-in-the-blank quiz questions. */
+  | 'quiz-fib-alternates';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

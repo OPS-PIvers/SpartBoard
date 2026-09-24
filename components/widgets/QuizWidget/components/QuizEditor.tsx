@@ -54,7 +54,7 @@ import {
 import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
 import { WordLimitFields } from './WordLimitFields';
-import { MultiAnswerEditor } from './MultiAnswerEditor';
+import { AlternateAnswersEditor, MultiAnswerEditor } from './MultiAnswerEditor';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
@@ -893,6 +893,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   type: nextType,
                   incorrectAnswers:
                     nextType === 'MC' || nextType === 'MA' ? ['', ''] : [],
+                  alternateAnswers: undefined,
                   correctAnswer: '',
                   matchingDistractors: undefined,
                   // Reset written-specific fields when switching off written types
@@ -1158,6 +1159,18 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 question. Fill it in before you assign the quiz.
               </p>
             )}
+            {q.type === 'FIB' &&
+              ((q.alternateAnswers?.length ?? 0) > 0 ||
+                canAccessFeature('quiz-fib-alternates')) && (
+                <AlternateAnswersEditor
+                  alternates={q.alternateAnswers ?? []}
+                  onChange={(next) =>
+                    updateQuestion(q.id, {
+                      alternateAnswers: next.length > 0 ? next : undefined,
+                    })
+                  }
+                />
+              )}
           </div>
         )}
 

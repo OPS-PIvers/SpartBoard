@@ -26,6 +26,8 @@ export interface GroupQuestion {
   choices: string[];
   /** Known only when the synced group carries the answer key. */
   correctAnswer: string | null;
+  /** FIB only: other accepted answers from the synced key. */
+  alternateAnswers?: string[];
   allowPartialCredit: boolean;
   /** Rubric criterion ids on the synced question; empty when no rubric. */
   rubricCriterionIds: string[];
@@ -280,6 +282,13 @@ function parseSyncedQuestion(raw: unknown): GroupQuestion | null {
     points: asFiniteNumber(r.points) ?? 1,
     choices,
     correctAnswer: correctAnswer.length > 0 ? correctAnswer : null,
+    ...(type === 'FIB'
+      ? {
+          alternateAnswers: asStringArray(r.alternateAnswers).filter(
+            (a) => a.trim().length > 0
+          ),
+        }
+      : {}),
     allowPartialCredit: r.allowPartialCredit === true,
     rubricCriterionIds: parseRubricCriterionIds(r.rubricSnapshot),
     targets: parseTargets(r.targets),
@@ -638,7 +647,10 @@ export function gradeGroupAnswer(
   const isCorrect =
     correct === given ||
     (question.type === 'FIB' &&
-      (acceptedAnswers ?? []).some((a) => normalizeAnswer(a) === given));
+      given !== '' &&
+      [...(question.alternateAnswers ?? []), ...(acceptedAnswers ?? [])].some(
+        (a) => normalizeAnswer(a) === given
+      ));
   return {
     isCorrect,
     pointsEarned: isCorrect ? max : 0,
