@@ -187,6 +187,14 @@ export { recomputePlcAssessments } from './recomputePlcAssessments';
 // exposes teacher emails/displayNames. Decision 1.1 hardening. ──────────────
 export { mirrorPlcIndex } from './mirrorPlcIndex';
 
+// PLC norming flags: anonymized answer copies for norming (docs/plans/PLC_NORMING_FLAGS.md).
+export {
+  setPlcNormingFlagV1,
+  cleanupPlcNormingOnMembership,
+  cleanupPlcNormingOnResponseDelete,
+  cleanupPlcNormingOnSessionDelete,
+} from './plcNorming';
+
 // ── One-shot PLC migration (arrays→members map, orgId inference, aggregates
 // skeleton). Admin-only callable; see functions/src/migratePlcs.ts. ─────────
 export { migratePlcs } from './migratePlcs';

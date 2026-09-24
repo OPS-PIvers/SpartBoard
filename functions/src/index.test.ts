@@ -3248,6 +3248,10 @@ describe('index barrel — deployed export set', () => {
     'recomputePlcAssessments',
     'migratePlcs',
     'mirrorPlcIndex',
+    'setPlcNormingFlagV1',
+    'cleanupPlcNormingOnMembership',
+    'cleanupPlcNormingOnResponseDelete',
+    'cleanupPlcNormingOnSessionDelete',
     // Dev-only prod → dev materials sync
     'syncMyMaterialsFromProdV1',
     // Guided Learning Storage slide GC

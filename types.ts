@@ -273,6 +273,32 @@ export interface PlcMember {
   status: 'active' | 'removed';
 }
 
+export type PlcNormingLevel = 'high' | 'medium' | 'low' | 'review';
+
+export type PlcNormingLevelLabels = Partial<
+  Record<Exclude<PlcNormingLevel, 'review'>, string>
+>;
+
+/** Anonymized copy of a flagged answer, written only by `setPlcNormingFlagV1`. */
+export interface PlcNormingCopy {
+  id: string;
+  assessmentId: string;
+  questionId: string;
+  questionIndex: number;
+  questionText: string;
+  level: PlcNormingLevel;
+  kind: 'text' | 'audio';
+  answerText?: string;
+  truncated?: boolean;
+  audioPath?: string;
+  mimeType?: string;
+  durationMs?: number;
+  flaggedByUid: string;
+  flaggedByName: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface Plc {
   id: string;
   name: string;
@@ -341,6 +367,8 @@ export interface Plc {
   digestOptIn?: boolean;
   /** PLC Home v2 recurring meeting schedule; leads and co-leads edit it. */
   meetingCadence?: PlcMeetingCadence;
+  /** Lead-set names for the High/Medium/Low norming levels; Review is fixed. */
+  normingLevelLabels?: PlcNormingLevelLabels;
   createdAt: number;
   updatedAt: number;
 }
@@ -8696,6 +8724,8 @@ export type GlobalFeature =
   | 'quiz-results-print'
   /** PLC Home v2: tile dashboard with a spotlight, meeting cadence and assign-from-library. */
   | 'plc-home-v2'
+  /** Flag free-response answers so an anonymized copy appears on the PLC page for norming. */
+  | 'plc-norming-flags'
   /** Choose-all-that-apply quiz questions in the quiz editor and AI drafting. */
   | 'quiz-choose-all'
   /** "Also accept" alternate answers on fill-in-the-blank quiz questions. */

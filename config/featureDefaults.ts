@@ -310,6 +310,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // PLC norming flags: anonymized answer copies on the PLC page. Admin-only until Paul has tried it.
+  'plc-norming-flags': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Choose-all-that-apply quiz questions. Admin-only until Paul has run one with a class.
   'quiz-choose-all': {
     defaultAccessLevel: 'admin',

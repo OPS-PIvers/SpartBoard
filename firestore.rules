@@ -2147,6 +2147,14 @@ service cloud.firestore {
         && plcUpdatedAtOk();
     }
 
+    // Lead or co-lead renaming norming levels; value shape is left to the client parser.
+    function isUpdatingPlcNormingLabels() {
+      return isPlcMembershipManager(resource.data)
+        && changedOnly(['normingLevelLabels', 'updatedAt'])
+        && request.resource.data.get('normingLevelLabels', {}).keys().hasOnly(['high', 'medium', 'low'])
+        && plcUpdatedAtOk();
+    }
+
     function isUpdatingPlcDigestOptIn() {
       return (request.auth.uid in resource.data.memberUids)
         && changedOnly(['digestOptIn', 'updatedAt'])
@@ -2386,6 +2394,13 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Private flag -> answer pointer; only the flagging teacher reads it, only the server writes.
+    match /plc_norming_sources/{sourceId} {
+      allow read: if request.auth != null
+        && resource.data.flaggedByUid == request.auth.uid;
+      allow write: if false;
+    }
+
     match /plcs/{plcId} {
       // Members + same-org admins only. The root doc carries member PII
       // (emails/names), so it's NOT exposed to same-org peers — discovery reads
@@ -2473,6 +2488,7 @@ service cloud.firestore {
         || isUpdatingPlcFeatures()
         || isUpdatingPlcDigestOptIn()
         || isUpdatingPlcMeetingCadence()
+        || isUpdatingPlcNormingLabels()
         || isAdminManagingPlc()
         || isAdminEditingPlcMembers()
       );
@@ -2554,6 +2570,12 @@ service cloud.firestore {
       // (aggregatePlcAssessment + migratePlcs via Admin SDK). Members read (gated
       // on members map OR memberUids); never create/update/delete, so the
       // raw-contribution PII boundary holds.
+      // Anonymized norming copies; written only by setPlcNormingFlagV1.
+      match /norming/{normingId} {
+        allow read: if request.auth != null && plcMember(plcId);
+        allow write: if false;
+      }
+
       match /aggregates/{aggregateId} {
         function plcRootData() {
           return get(/databases/$(database)/documents/plcs/$(plcId)).data;
