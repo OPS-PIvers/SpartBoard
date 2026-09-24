@@ -102,7 +102,7 @@ export const ProjectGroupsManager: React.FC<ProjectGroupsManagerProps> = ({
       onClose={onClose}
       title={`Groups — ${projectTitle}`}
       maxWidth="max-w-5xl"
-      contentClassName="flex min-h-0 flex-col"
+      contentClassName="flex min-h-0 flex-col px-6 pb-5"
     >
       <div className="flex min-h-0 flex-1 flex-col gap-3 py-2">
         {roster ? (
@@ -444,11 +444,11 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
                     onChange={(e) => renameGroup(group.id, e.target.value)}
                     aria-label={`Name of ${name}`}
                     maxLength={60}
-                    className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1.5 py-1 text-sm font-bold text-slate-800 hover:border-slate-300 focus:border-brand-blue-primary focus:bg-white focus:outline-none"
+                    className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm font-bold text-slate-800 hover:border-slate-300 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
                   />
                   <span className="shrink-0 text-xs text-slate-500">
-                    {group.members.length}
-                    <span className="sr-only"> students</span>
+                    {group.members.length} student
+                    {group.members.length === 1 ? '' : 's'}
                   </span>
                   <button
                     type="button"
