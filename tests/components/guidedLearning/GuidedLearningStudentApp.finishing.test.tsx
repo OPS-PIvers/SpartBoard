@@ -189,6 +189,16 @@ describe('GuidedLearningStudentApp finishing (player v2)', () => {
     expect(submitted()).toBe(true);
   });
 
+  it('moves focus into the end card and holds the player while it is open', async () => {
+    await startPlayer();
+    expect(playerProps.current?.held).toBe(false);
+    reachEnd();
+    expect(screen.getByRole('button', { name: 'Submit' })).toHaveFocus();
+    expect(playerProps.current?.held).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
+    expect(playerProps.current?.held).toBe(false);
+  });
+
   it('closes the end card with Go back and keeps the student in the player', async () => {
     await startPlayer();
     reachEnd();

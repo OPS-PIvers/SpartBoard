@@ -664,6 +664,7 @@ const StudentExperience: React.FC<{
           playerV2={session.playerV2 === true}
           onStepEvent={onStepEvent}
           autoPlay
+          held={periodPaused || endCardOpen}
           onReachedEnd={() => {
             setReachedEnd(true);
             setEndCardOpen(true);
@@ -722,6 +723,11 @@ const FinishedCard: React.FC<{
   onBack: () => void;
 }> = ({ submitting, onSubmit, onBack }) => {
   const { t } = useTranslation();
+  const submitRef = useRef<HTMLButtonElement>(null);
+  // Focus is a DOM side effect: the card takes it so keys stop reaching the player.
+  useEffect(() => {
+    submitRef.current?.focus();
+  }, []);
   return (
     <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/60 p-4">
       <div
@@ -742,6 +748,7 @@ const FinishedCard: React.FC<{
         </p>
         <div className="mt-5 flex flex-col gap-2">
           <button
+            ref={submitRef}
             type="button"
             onClick={onSubmit}
             disabled={submitting}

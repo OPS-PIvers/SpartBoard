@@ -7,12 +7,17 @@ interface Props {
   step: GuidedLearningPublicStep;
   autoPlay?: boolean;
   onEnded?: () => void;
+  /** Pauses playback while set, and resumes what it paused when cleared. */
+  paused?: boolean;
+  onError?: () => void;
 }
 
 export const AudioInteraction: React.FC<Props> = ({
   step,
   autoPlay,
   onEnded,
+  paused = false,
+  onError,
 }) => {
   const { t } = useTranslation();
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -27,6 +32,22 @@ export const AudioInteraction: React.FC<Props> = ({
       });
     }
   }, [autoPlay]);
+
+  // Pausing the element is external-system sync; only a clip this paused resumes.
+  const heldPlayingRef = useRef(false);
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (paused) {
+      heldPlayingRef.current = heldPlayingRef.current || !el.paused;
+      el.pause();
+    } else if (heldPlayingRef.current) {
+      heldPlayingRef.current = false;
+      void el.play().catch(() => {
+        /* resume blocked; user can press play */
+      });
+    }
+  }, [paused]);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
@@ -65,6 +86,7 @@ export const AudioInteraction: React.FC<Props> = ({
             setPlaying(false);
             onEnded?.();
           }}
+          onError={onError}
           onTimeUpdate={(e) => setProgress(e.currentTarget.currentTime)}
           onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
         />

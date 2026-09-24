@@ -125,6 +125,10 @@ export interface GuidedLearningStageRuntimeProps {
   priorAnswers?: ReadonlyMap<string, string | string[]>;
   /** Player v2: a shimmer while the slide loads, Retry on error, and a ±2 preload window. */
   slideLoading?: boolean;
+  /** Player v2: pauses the step's audio or video while the player is held. */
+  mediaPaused?: boolean;
+  /** Player v2: the step's audio or video failed to load or play. */
+  onMediaError?: () => void;
 }
 
 export const GuidedLearningStage: React.FC<
@@ -157,6 +161,8 @@ export const GuidedLearningStage: React.FC<
   touchTargets = false,
   priorAnswers,
   slideLoading = false,
+  mediaPaused = false,
+  onMediaError,
 }) => {
   const { t } = useTranslation();
   // Hotspot pulse style — 'consistent' (default) preserves the legacy ping
@@ -729,7 +735,13 @@ export const GuidedLearningStage: React.FC<
         >
           {dialogTitle}
           <div className="pointer-events-auto">
-            <AudioInteraction step={activeStep} autoPlay onEnded={advance} />
+            <AudioInteraction
+              step={activeStep}
+              autoPlay
+              onEnded={advance}
+              paused={mediaPaused}
+              onError={onMediaError}
+            />
           </div>
         </div>
       );
@@ -749,6 +761,8 @@ export const GuidedLearningStage: React.FC<
             onClose={dismiss}
             onEnded={advance}
             youtubeApi={youtubeEndEvents}
+            paused={mediaPaused}
+            onError={onMediaError}
           />
         </div>
       );

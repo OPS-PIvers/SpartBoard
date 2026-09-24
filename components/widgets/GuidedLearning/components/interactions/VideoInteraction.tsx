@@ -15,6 +15,9 @@ interface Props {
   onEnded?: () => void;
   /** Embed YouTube through the IFrame API so its ENDED state calls onEnded. */
   youtubeApi?: boolean;
+  /** Pauses playback while set, and resumes what it paused when cleared. */
+  paused?: boolean;
+  onError?: () => void;
 }
 
 export const VideoInteraction: React.FC<Props> = ({
@@ -22,6 +25,8 @@ export const VideoInteraction: React.FC<Props> = ({
   onClose,
   onEnded,
   youtubeApi = false,
+  paused = false,
+  onError,
 }) => {
   const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -31,6 +36,11 @@ export const VideoInteraction: React.FC<Props> = ({
   const onEndedRef = useRef(onEnded);
   // eslint-disable-next-line react-hooks/refs
   onEndedRef.current = onEnded;
+  const onErrorRef = useRef(onError);
+  // eslint-disable-next-line react-hooks/refs
+  onErrorRef.current = onError;
+  const ytPlayerRef = useRef<YTPlayer | null>(null);
+  const heldPlayingRef = useRef(false);
 
   // If the API never loads, nothing fires and the step waits for Next.
   const apiVideoId = youtubeApi ? youtubeId : null;
@@ -54,11 +64,14 @@ export const VideoInteraction: React.FC<Props> = ({
           onStateChange: (e) => {
             if (e.data === YT_PLAYER_STATE.ENDED) onEndedRef.current?.();
           },
+          onError: () => onErrorRef.current?.(),
         },
       });
+      ytPlayerRef.current = player;
     });
     return () => {
       cancelled = true;
+      ytPlayerRef.current = null;
       try {
         player?.destroy();
       } catch {
@@ -67,6 +80,26 @@ export const VideoInteraction: React.FC<Props> = ({
       if (host) host.innerHTML = '';
     };
   }, [apiVideoId]);
+
+  // Pausing the element or YouTube player is external-system sync.
+  useEffect(() => {
+    const el = videoRef.current;
+    const yt = ytPlayerRef.current;
+    try {
+      if (paused) {
+        heldPlayingRef.current =
+          heldPlayingRef.current || (el ? !el.paused : yt !== null);
+        el?.pause();
+        yt?.pauseVideo();
+      } else if (heldPlayingRef.current) {
+        heldPlayingRef.current = false;
+        if (el) void el.play().catch(() => undefined);
+        yt?.playVideo();
+      }
+    } catch {
+      // The YouTube player may not be ready yet.
+    }
+  }, [paused]);
 
   if (!url) return null;
 
@@ -134,6 +167,7 @@ export const VideoInteraction: React.FC<Props> = ({
             autoPlay
             className="w-full aspect-video"
             onEnded={onEnded}
+            onError={onError}
           />
         )}
       </div>

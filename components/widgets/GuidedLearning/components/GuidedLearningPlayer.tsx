@@ -138,6 +138,8 @@ interface Props {
   onReachedEnd?: () => void;
   /** v2 subs and teacher's board: the student UI, with a Reveal answer button per question. */
   revealAnswers?: boolean;
+  /** v2: the host covers the player (period paused, finishing card); clock, media, voice and keys stop. */
+  held?: boolean;
 }
 
 export const GuidedLearningPlayer: React.FC<Props> = ({
@@ -155,6 +157,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   autoPlay = false,
   onReachedEnd,
   revealAnswers = false,
+  held = false,
 }) => {
   const { t } = useTranslation();
   const mode: GuidedLearningMode = set.mode;
@@ -288,6 +291,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   const isWatch = v2Playback && playback === 'watch';
   const isTry = v2Playback && playback === 'try';
   const autoAdvance = v2Playback ? isWatch : mode === 'guided';
+  const isHeld = playerV2 && held;
 
   const [run, setRun] = useState<StepRun>({
     idx: currentIdx,
@@ -356,7 +360,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     goNextRef.current();
   };
   const { speaking } = useReadAloud({
-    enabled: readAloud && readAloudAvailable && !resumeOffer,
+    enabled: readAloud && readAloudAvailable && !resumeOffer && !isHeld,
     step: currentStep,
     stepKey: currentStep && !watchGlide ? `${stepRun.seq}` : null,
     onDone: handleVoiceDone,
@@ -369,6 +373,17 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   // eslint-disable-next-line react-hooks/refs
   mediaHeldRef.current =
     v2Playback && holdsForMedia(currentStep) && !stepRun.mediaEnded;
+  // v2: a dismissed or failed clip lets the step clock run again.
+  const releaseMedia = () => {
+    if (!v2Playback) return;
+    setRun((r) => (r.seq === stepRun.seq ? { ...r, mediaEnded: true } : r));
+  };
+  const dismissActive = () => {
+    if (activeStepId !== null && activeStepId === currentStep?.id) {
+      releaseMedia();
+    }
+    setActiveStepId(null);
+  };
 
   // Step events: ms counts from the step's enter.
   const enteredAtRef = useRef(0);
@@ -380,11 +395,17 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         : mode === 'guided'
           ? 'watch'
           : 'try';
+  // The run whose 'complete' was already sent, so finishing never sends it twice.
+  const completedSeqRef = useRef<number | null>(null);
+  const seqRef = useRef(stepRun.seq);
+  // eslint-disable-next-line react-hooks/refs
+  seqRef.current = stepRun.seq;
   const emitStepEvent = (
     type: StepEvent['type'],
     stepId: string,
     at?: PctPoint
   ) => {
+    if (type === 'complete') completedSeqRef.current = stepRun.seq;
     onStepEvent?.({
       stepId,
       type,
@@ -475,7 +496,12 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     const leaving = steps[currentIdx];
     if (leaving) markDone(leaving.id);
     if (currentIdx >= steps.length - 1) {
-      if (playerV2) onReachedEndRef.current?.();
+      if (playerV2) {
+        if (leaving && completedSeqRef.current !== seqRef.current) {
+          emitRef.current('complete', leaving.id);
+        }
+        onReachedEndRef.current?.();
+      }
       return;
     }
     // New step starts with a fresh in-step timer/progress (dot-jump semantics).
@@ -543,6 +569,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
       progressRef.current += interval / duration;
       setProgress(Math.min(progressRef.current, 1));
       if (progressRef.current >= 1) {
+        // Held media keeps the clock ticking at the end until it ends or is released.
+        if (mediaHeldRef.current) return;
         if (timerRef.current) clearInterval(timerRef.current);
         // Don't auto-advance if it's a question that hasn't been answered.
         // Read from the ref (not the state closure) so answering a question
@@ -554,7 +582,6 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         ) {
           return;
         }
-        if (mediaHeldRef.current) return;
         // Read-aloud: the step lasts until the voice finishes too.
         if (speakingRef.current) {
           voiceHeldRef.current = true;
@@ -567,7 +594,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   }, [currentStep, answeredStepsRef, goNext]);
 
   // Watch holds the step's clock until the cursor has landed and the resume question is answered.
-  const timerRuns = autoAdvance && playing && !watchGlide && !resumeOffer;
+  const timerRuns =
+    autoAdvance && playing && !watchGlide && !resumeOffer && !isHeld;
   useEffect(() => {
     if (timerRuns) {
       startTimer();
@@ -581,7 +609,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   }, [timerRuns, currentIdx, startTimer]);
 
   const handleKeyDown = useEffectEvent((event: KeyboardEvent) => {
-    if (event.defaultPrevented) return;
+    if (event.defaultPrevented || isHeld) return;
     // v2 listens anywhere in the player; v1 only over the canvas.
     const scope = playerV2 ? rootRef.current : containerRef.current;
     const activeElement = document.activeElement;
@@ -599,6 +627,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     const footerButton =
       playerV2 &&
       navKey &&
+      Boolean(scope && target && scope.contains(target)) &&
       Boolean(target?.closest('[data-gl-footer]')) &&
       !target?.closest('[role="dialog"]');
     if (
@@ -614,7 +643,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     }
 
     if (event.key === 'Escape') {
-      setActiveStepId(null);
+      dismissActive();
       return;
     }
 
@@ -762,18 +791,21 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   // Media end only advances while guided playback runs; a question's Continue always does.
   const handleStageAdvance = () => {
     const type = activeStep?.interactionType;
+    // v2: nothing under the resume question or a host hold moves the step.
+    const blocked = resumeOffer !== null || isHeld;
     if (type === 'audio' || type === 'video') {
       if (v2Playback) {
-        setRun((r) => (r.seq === stepRun.seq ? { ...r, mediaEnded: true } : r));
-        if (autoAdvance && playing && currentStep) {
+        releaseMedia();
+        if (autoAdvance && playing && currentStep && !blocked) {
           emitStepEvent('complete', currentStep.id);
         }
       }
-      if (autoAdvance && playing) goNext();
+      if (autoAdvance && playing && !blocked) goNext();
       return;
     }
-    if (mode !== 'explore') goNext();
-    else setActiveStepId(null);
+    if (mode !== 'explore') {
+      if (!blocked) goNext();
+    } else setActiveStepId(null);
   };
 
   return (
@@ -892,7 +924,9 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           }}
           onAnswer={handleAnswer}
           onAdvance={handleStageAdvance}
-          onDismiss={() => setActiveStepId(null)}
+          onDismiss={dismissActive}
+          onMediaError={releaseMedia}
+          mediaPaused={isHeld}
           onResetZoom={() => setZoomScale(1)}
           motionSpeed={playerV2 ? speed : undefined}
           cursor={cursorCue}
@@ -905,7 +939,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           revealKeys={revealKeys}
           touchTargets={playerV2}
           slideLoading={playerV2}
-          priorAnswers={playerV2 ? answerMap : undefined}
+          priorAnswers={playerV2 && !teacherMode ? answerMap : undefined}
         />
         {resumeOffer && (
           <ResumePrompt
