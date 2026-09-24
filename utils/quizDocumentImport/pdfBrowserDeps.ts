@@ -5,6 +5,7 @@
  * testable without a real PDF, the same split `utils/paperScanRaster.ts` uses.
  */
 
+import type { OcrLine, OcrPage } from './pdfLayout';
 import type { PdfReaderDeps, PdfTextItem } from './pdfReader';
 
 /** pdf.js viewport scale is relative to 72 dpi; 200 dpi is what OCR wants. */
@@ -28,7 +29,7 @@ async function loadPdfDocument(file: Blob) {
 async function ocrPage(
   doc: LoadedPdf['doc'],
   pageNumber: number
-): Promise<string> {
+): Promise<OcrPage> {
   const page = await doc.getPage(pageNumber);
   const viewport = page.getViewport({ scale: OCR_SCALE });
   const canvas = document.createElement('canvas');
@@ -43,11 +44,29 @@ async function ocrPage(
       viewport,
     }).promise;
     const { default: Tesseract } = await import('tesseract.js');
-    const result = await Tesseract.recognize(
-      canvas.toDataURL('image/png'),
-      'eng'
-    );
-    return result.data.text;
+    const worker = await Tesseract.createWorker('eng');
+    try {
+      // `blocks` is off by default; it carries the word boxes the layout needs (R3).
+      const result = await worker.recognize(
+        canvas.toDataURL('image/png'),
+        {},
+        { blocks: true }
+      );
+      const lines: OcrLine[] = [];
+      for (const block of result.data.blocks ?? []) {
+        for (const paragraph of block.paragraphs) {
+          for (const line of paragraph.lines) {
+            lines.push({
+              bbox: line.bbox,
+              words: line.words.map((w) => ({ text: w.text, bbox: w.bbox })),
+            });
+          }
+        }
+      }
+      return { lines, height: canvas.height, scale: OCR_SCALE };
+    } finally {
+      await worker.terminate();
+    }
   } finally {
     canvas.width = 0;
     canvas.height = 0;
@@ -67,6 +86,7 @@ export async function browserPdfDeps(file: Blob): Promise<PdfReaderDeps> {
         getPage: async (n) => {
           const page = await doc.getPage(n);
           return {
+            height: page.getViewport({ scale: 1 }).height,
             getTextContent: async () => {
               const content = await page.getTextContent();
               // pdf.js interleaves marked-content markers with the real
@@ -83,6 +103,9 @@ export async function browserPdfDeps(file: Blob): Promise<PdfReaderDeps> {
                 items.push({
                   str: candidate.str,
                   transform: candidate.transform,
+                  ...(typeof candidate.width === 'number'
+                    ? { width: candidate.width }
+                    : {}),
                 });
               }
               return { items };

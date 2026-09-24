@@ -38,6 +38,8 @@ export default mergeConfig(
         // from the default `pnpm test` / CI suite and run on demand via
         // `pnpm test:perf`.
         'tests/perf/**',
+        // The private import corpus runs on demand via `pnpm test:import-corpus`.
+        'tests/importCorpus/**',
         'functions/**',
         '.claude/worktrees/**',
         '.pnpm-store/**',

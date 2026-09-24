@@ -10,10 +10,16 @@
  */
 
 import { assertWithinPageLimit } from './limits';
+import {
+  layoutPage,
+  ocrItems,
+  stripRunningLines,
+  type LayoutItem,
+  type OcrPage,
+  type PageLines,
+} from './pdfLayout';
 import type { DocLine } from './types';
 
-/** Fragments within this many points of each other sit on the same line. */
-const LINE_TOLERANCE_PT = 3;
 /** Below this many characters a page is treated as having no text layer. */
 const MIN_TEXT_LAYER_CHARS = 16;
 
@@ -22,10 +28,14 @@ export interface PdfTextItem {
   /** pdf.js transform: [a, b, c, d, x, y]. */
   transform: number[];
   hasEOL?: boolean;
+  /** Advance width in points, as pdf.js reports it. */
+  width?: number;
 }
 
 export interface PdfPageLike {
   getTextContent: () => Promise<{ items: PdfTextItem[] }>;
+  /** Page height in points; places the header and footer zones (R4). */
+  height?: number;
 }
 
 export interface PdfDocumentLike {
@@ -36,8 +46,8 @@ export interface PdfDocumentLike {
 
 export interface PdfReaderDeps {
   loadPdf: (file: Blob) => Promise<PdfDocumentLike>;
-  /** OCR for a page with no text layer; omitted means "skip those pages". */
-  recognizePage?: (pageNumber: number) => Promise<string>;
+  /** OCR for a page with no text layer: positioned words, or plain text. */
+  recognizePage?: (pageNumber: number) => Promise<OcrPage | string>;
 }
 
 export interface PdfContent {
@@ -55,35 +65,17 @@ export interface ReadPdfOptions {
   maxPages?: number;
 }
 
+const toLayoutItem = (item: PdfTextItem): LayoutItem => ({
+  str: item.str,
+  x: item.transform[4],
+  y: item.transform[5],
+  ...(item.width !== undefined ? { width: item.width } : {}),
+  fontSize: Math.hypot(item.transform[2] ?? 0, item.transform[3] ?? 0),
+});
+
 /** Group positioned fragments back into lines, top-to-bottom. */
 export function groupItemsIntoLines(items: readonly PdfTextItem[]): string[] {
-  const rows: Array<{ y: number; parts: Array<{ x: number; str: string }> }> =
-    [];
-  for (const item of items) {
-    if (!item.str) continue;
-    const x = item.transform[4];
-    const y = item.transform[5];
-    const row = rows.find((r) => Math.abs(r.y - y) <= LINE_TOLERANCE_PT);
-    if (row) {
-      row.parts.push({ x, str: item.str });
-    } else {
-      rows.push({ y, parts: [{ x, str: item.str }] });
-    }
-  }
-  return (
-    rows
-      // A PDF's y axis runs up the page, so descending y is reading order.
-      .sort((a, b) => b.y - a.y)
-      .map((row) =>
-        row.parts
-          .sort((a, b) => a.x - b.x)
-          .map((p) => p.str)
-          .join('')
-          .replace(/\s+/g, ' ')
-          .trim()
-      )
-      .filter((line) => line.length > 0)
-  );
+  return layoutPage(items.map(toLayoutItem)).map((l) => l.text);
 }
 
 /**
@@ -98,7 +90,9 @@ export async function readPdf(
 ): Promise<PdfContent> {
   const pdf = await deps.loadPdf(file);
   const pageCount = pdf.numPages;
-  const lines: DocLine[] = [];
+  const pages: PageLines[] = [];
+  /** Plain-text OCR has no positions, so it skips the layout passes. */
+  const plainOcr = new Map<number, DocLine[]>();
   const scannedPages: number[] = [];
   let usedOcr = false;
 
@@ -112,11 +106,15 @@ export async function readPdf(
     for (let n = 1; n <= pageCount; n += 1) {
       const page = await pdf.getPage(n);
       const content = await page.getTextContent();
-      const pageLines = groupItemsIntoLines(content.items);
-      const charCount = pageLines.join('').length;
+      const pageLines = layoutPage(content.items.map(toLayoutItem));
+      const charCount = pageLines.map((l) => l.text).join('').length;
 
       if (charCount >= MIN_TEXT_LAYER_CHARS) {
-        for (const text of pageLines) lines.push({ text, page: n });
+        pages.push({
+          page: n,
+          lines: pageLines,
+          ...(page.height !== undefined ? { height: page.height } : {}),
+        });
         continue;
       }
 
@@ -124,13 +122,40 @@ export async function readPdf(
       if (!deps.recognizePage) continue;
       usedOcr = true;
       const recognized = await deps.recognizePage(n);
-      for (const raw of recognized.split(/\r?\n/)) {
-        const text = raw.replace(/\s+/g, ' ').trim();
-        if (text) lines.push({ text, page: n });
+      if (typeof recognized === 'string') {
+        const lines: DocLine[] = [];
+        for (const raw of recognized.split(/\r?\n/)) {
+          const text = raw.replace(/\s+/g, ' ').trim();
+          if (text) lines.push({ text, page: n });
+        }
+        plainOcr.set(n, lines);
+        continue;
       }
+      pages.push({
+        page: n,
+        lines: layoutPage(ocrItems(recognized)),
+        height: recognized.height / recognized.scale,
+      });
     }
   } finally {
     await pdf.destroy?.();
+  }
+
+  const laidOut = new Map(stripRunningLines(pages).map((p) => [p.page, p]));
+  const lines: DocLine[] = [];
+  for (let n = 1; n <= pageCount; n += 1) {
+    const page = laidOut.get(n);
+    if (page) {
+      for (const line of page.lines) {
+        lines.push({
+          text: line.text,
+          segments: line.segments,
+          page: n,
+          y: line.y,
+        });
+      }
+    }
+    lines.push(...(plainOcr.get(n) ?? []));
   }
 
   return { lines, pageCount, scannedPages, usedOcr };
