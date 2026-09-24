@@ -8,7 +8,7 @@ import {
   type PaperGrid,
 } from './paperSheetLayout';
 import { analyzePaperQuiz } from './paperSheetPlan';
-import type { SheetFill } from './paperSheetPrint';
+import type { PaperSheetQuestionText, SheetFill } from './paperSheetPrint';
 
 /** A paper response mapped back onto the sheet it was bubbled on. */
 export interface SheetReprint {
@@ -17,6 +17,8 @@ export interface SheetReprint {
   questionCount: number;
   choiceCount: number;
   columnsPerPage: PaperGrid;
+  /** Question text per row, when the batch printed it beside the bubbles. */
+  questionTexts?: PaperSheetQuestionText[];
   pageCount: number;
   /** Bubble the student filled per row; null for a passed or unclear row. */
   filled: (number | null)[];
@@ -76,6 +78,14 @@ export function planSheetReprint(
     questionCount: rows.length,
     choiceCount: batch.choiceCount,
     columnsPerPage,
+    ...(columnsPerPage === 'questions'
+      ? {
+          questionTexts: rows.map((row) => ({
+            text: questions.get(row.questionId)?.text ?? '',
+            choices: batch.choiceOrder?.[row.questionId] ?? [],
+          })),
+        }
+      : {}),
     pageCount: Math.max(
       batch.pagesPerSheet || 0,
       pageCountForQuestions(rows.length, columnsPerPage)

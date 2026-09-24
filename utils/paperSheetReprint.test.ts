@@ -128,6 +128,41 @@ describe('planSheetReprint', () => {
     );
     expect(plan).toMatchObject({ columnsPerPage: 1, pageCount: 2 });
   });
+
+  it('carries the question text onto a reprint of a question-text sheet', () => {
+    const order = { q1: ['Oslo', 'Paris', 'Rome', 'Bern'] };
+    const plan = planSheetReprint(
+      response([{ questionId: 'q1', answer: 'Paris' }]),
+      batch({ sheetLayout: 'questions', choiceOrder: order }),
+      quiz(questions)
+    );
+    if (!plan) throw new Error('expected a reprint plan');
+    expect(plan.columnsPerPage).toBe('questions');
+    expect(plan.questionTexts?.[0]).toEqual({
+      text: 'q1',
+      choices: order.q1,
+    });
+    const html = buildFilledSheetHtml(
+      {
+        seat: 7,
+        student: null,
+        displayName: 'Sam',
+        className: '',
+        isKeySheet: false,
+      },
+      {
+        batchId: 'batch-1',
+        quizTitle: 'T',
+        questionCount: plan.questionCount,
+        choiceCount: 4,
+        columnsPerPage: plan.columnsPerPage,
+        questionTexts: plan.questionTexts,
+      },
+      plan.pageCount,
+      sheetFillFor(plan, { markAnswers: true, keyMode: 'all' })
+    );
+    expect(html).toContain('>Paris</div>');
+  });
 });
 
 describe('sheetFillFor', () => {

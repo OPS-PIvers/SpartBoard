@@ -493,7 +493,12 @@ export function buildFilledSheetHtml(
   sheet: PaperSheetPlan,
   job: Pick<
     PaperPrintJob,
-    'batchId' | 'quizTitle' | 'questionCount' | 'choiceCount' | 'columnsPerPage'
+    | 'batchId'
+    | 'quizTitle'
+    | 'questionCount'
+    | 'choiceCount'
+    | 'columnsPerPage'
+    | 'questionTexts'
   >,
   pageCount: number,
   fill: SheetFill
