@@ -17,8 +17,9 @@ import {
   pageCountForQuestions,
   questionRowRectMm,
   questionSlotOnPage,
+  questionTextRectMm,
   questionsPerPage,
-  type PaperColumns,
+  type PaperGrid,
   type RectMm,
 } from './paperSheetLayout';
 import { READER_THRESHOLDS } from './paperSheetReader';
@@ -32,7 +33,7 @@ const onPage = (r: RectMm): boolean =>
   r.x + r.w <= PAGE_WIDTH_MM &&
   r.y + r.h <= PAGE_HEIGHT_MM;
 
-const allBubbles = (columns: PaperColumns = 2): RectMm[] => {
+const allBubbles = (columns: PaperGrid = 2): RectMm[] => {
   const rects: RectMm[] = [];
   for (let q = 0; q < questionsPerPage(columns); q += 1) {
     for (let c = 0; c < MAX_CHOICE_COUNT; c += 1)
@@ -173,6 +174,68 @@ describe('paperSheetLayout, single column', () => {
     ];
     for (const win of windows) {
       expect(overlaps(STIMULUS_RECT_MM, win)).toBe(false);
+    }
+  });
+});
+
+describe('question-text layout', () => {
+  const pad = (r: RectMm, by: number): RectMm => ({
+    x: r.x - by,
+    y: r.y - by,
+    w: r.w + by * 2,
+    h: r.h + by * 2,
+  });
+  const texts = Array.from({ length: questionsPerPage('questions') }, (_, q) =>
+    questionTextRectMm(q)
+  );
+
+  it('fits eight tall rows above the footer', () => {
+    expect(questionsPerPage('questions')).toBe(8);
+    expect(pageCountForQuestions(30, 'questions')).toBe(4);
+    for (const r of [...allBubbles('questions'), ...texts]) {
+      expect(onPage(r)).toBe(true);
+      expect(overlaps(r, FOOTER_RECT_MM)).toBe(false);
+      expect(overlaps(r, HEADER_RECT_MM)).toBe(false);
+    }
+  });
+
+  it('keeps question text 4 mm clear of every bubble and row crop', () => {
+    for (const text of texts) {
+      for (const bubble of allBubbles('questions')) {
+        expect(overlaps(pad(text, 4), bubble)).toBe(false);
+      }
+      for (let q = 0; q < texts.length; q += 1) {
+        expect(
+          overlaps(
+            text,
+            pad(questionRowRectMm(q, MAX_CHOICE_COUNT, 'questions'), 2)
+          )
+        ).toBe(false);
+      }
+    }
+  });
+
+  it('keeps question text off the marker grid, registration marks and corner windows', () => {
+    const f = READER_THRESHOLDS.registrationSearchFraction;
+    const w = PAGE_WIDTH_MM * f;
+    const h = PAGE_HEIGHT_MM * f;
+    const windows: RectMm[] = [
+      { x: 0, y: 0, w, h },
+      { x: PAGE_WIDTH_MM - w, y: 0, w, h },
+      { x: 0, y: PAGE_HEIGHT_MM - h, w, h },
+      { x: PAGE_WIDTH_MM - w, y: PAGE_HEIGHT_MM - h, w, h },
+    ];
+    for (const text of texts) {
+      for (const win of windows) expect(overlaps(text, win)).toBe(false);
+      for (const reg of registrationRects()) {
+        expect(overlaps(text, reg)).toBe(false);
+      }
+      for (let i = 0; i < MARKER_CELL_COUNT; i += 1) {
+        expect(overlaps(text, markerCellRectMm(i))).toBe(false);
+      }
+    }
+    for (const bubble of allBubbles('questions')) {
+      for (const win of windows) expect(overlaps(bubble, win)).toBe(false);
     }
   });
 });

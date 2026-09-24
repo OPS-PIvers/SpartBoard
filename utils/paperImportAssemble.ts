@@ -4,7 +4,7 @@
  */
 
 import type { PaperBatch, PaperSeatAssignment } from '@/types';
-import { questionsPerPage } from './paperSheetLayout';
+import { paperGridOf, questionsPerPage } from './paperSheetLayout';
 import { paperBatchTag } from './paperSheetMarker';
 import type { PageReadResult, RowDoubt, RowRead } from './paperSheetReader';
 
@@ -86,7 +86,7 @@ export function assemblePaperScan(
   pages: readonly ScannedPage[]
 ): AssembleResult {
   const tag = paperBatchTag(batch.id);
-  const perPage = questionsPerPage(batch.columnsPerPage);
+  const perPage = questionsPerPage(paperGridOf(batch));
   const unreadablePages: number[] = [];
   const foreignPages: number[] = [];
   const unknownPages: number[] = [];

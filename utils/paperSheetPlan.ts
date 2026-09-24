@@ -218,6 +218,8 @@ export interface PaperBatchInput {
   choiceOrder?: Readonly<Record<string, readonly string[]>>;
   /** Answer columns each page prints; absent = 2 (D1). */
   columnsPerPage?: PaperColumns;
+  /** Print each row's question text beside its bubbles; overrides `columnsPerPage`. */
+  sheetLayout?: 'questions';
   createdAt: number;
 }
 
@@ -312,7 +314,11 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
     spareSeats,
     ...(keySheetSeat !== undefined ? { keySheetSeat } : {}),
     ...(Object.keys(choiceOrder).length > 0 ? { choiceOrder } : {}),
-    pagesPerSheet: pageCountForQuestions(input.questionCount, columnsPerPage),
+    pagesPerSheet: pageCountForQuestions(
+      input.questionCount,
+      input.sheetLayout ?? columnsPerPage
+    ),
+    ...(input.sheetLayout ? { sheetLayout: input.sheetLayout } : {}),
     // Written only when it is not the default, so a batch printed without sheet
     // stimuli is the same document it was before this field existed.
     ...(columnsPerPage === DEFAULT_COLUMNS_PER_PAGE ? {} : { columnsPerPage }),

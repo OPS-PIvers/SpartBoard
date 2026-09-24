@@ -3,9 +3,9 @@ import { normalizeAnswer } from '@/hooks/useQuizSession';
 import { selectRepresentativeAnswers } from './answerTakeOrdering';
 import {
   CHOICE_LETTERS,
-  DEFAULT_COLUMNS_PER_PAGE,
   pageCountForQuestions,
-  type PaperColumns,
+  paperGridOf,
+  type PaperGrid,
 } from './paperSheetLayout';
 import { analyzePaperQuiz } from './paperSheetPlan';
 import type { SheetFill } from './paperSheetPrint';
@@ -16,7 +16,7 @@ export interface SheetReprint {
   seat: number;
   questionCount: number;
   choiceCount: number;
-  columnsPerPage: PaperColumns;
+  columnsPerPage: PaperGrid;
   pageCount: number;
   /** Bubble the student filled per row; null for a passed or unclear row. */
   filled: (number | null)[];
@@ -55,7 +55,7 @@ export function planSheetReprint(
   const rows = analyzePaperQuiz(quiz).rows;
   const questions = new Map(quiz.questions.map((q) => [q.id, q]));
   const answers = selectRepresentativeAnswers(response.answers ?? []);
-  const columnsPerPage = batch.columnsPerPage ?? DEFAULT_COLUMNS_PER_PAGE;
+  const columnsPerPage = paperGridOf(batch);
   const filled: (number | null)[] = [];
   const correct: (number | null)[] = [];
   const unclear: boolean[] = [];

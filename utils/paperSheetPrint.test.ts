@@ -184,6 +184,34 @@ describe('buildPaperSheetsHtml', () => {
     );
   });
 
+  it('prints each question and its options beside the bubbles on the question-text grid', () => {
+    const questionTexts = Array.from({ length: 10 }, (_, i) => ({
+      text: `Question <${i + 1}>`,
+      choices:
+        i === 1 ? ['B', 'A', 'C', 'D'] : ['Paris', 'Lyon', 'Nice', 'Lille'],
+    }));
+    const html = buildPaperSheetsHtml(
+      job({ columnsPerPage: 'questions', questionTexts })
+    );
+    const rendered = pages(html);
+    expect(rendered).toHaveLength(2);
+    expect(rendered[0].match(/class="qt"/g)).toHaveLength(8);
+    expect(rendered[1].match(/class="qt"/g)).toHaveLength(2);
+    expect(rendered[0]).toContain('Question &lt;1&gt;');
+    expect(rendered[0]).toContain('<b>A.</b> Paris');
+    // Placeholder letters say nothing to a student, so row 2 prints its stem only.
+    const row2 = rendered[0].split('class="qt"')[2].split('class="num"')[0];
+    expect(row2).not.toContain('qt-opt');
+    expect(rendered[1]).toContain('Question &lt;9&gt;');
+  });
+
+  it('prints no question text on the ordinary grids', () => {
+    const html = buildPaperSheetsHtml(
+      job({ questionTexts: [{ text: 'Hidden', choices: ['x', 'y'] }] })
+    );
+    expect(html).not.toContain('class="qt"');
+  });
+
   it('prints two columns byte for byte as before when the job says nothing', () => {
     expect(buildPaperSheetsHtml(job({ questionCount: 40 }))).toEqual(
       buildPaperSheetsHtml(job({ questionCount: 40, columnsPerPage: 2 }))

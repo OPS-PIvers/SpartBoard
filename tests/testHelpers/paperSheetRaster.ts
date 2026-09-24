@@ -15,7 +15,8 @@ import {
   STIMULUS_RECT_MM,
   bubbleRectMm,
   markerCellRectMm,
-  type PaperColumns,
+  questionTextRectMm,
+  type PaperGrid,
   type RectMm,
 } from '@/utils/paperSheetLayout';
 import {
@@ -45,7 +46,9 @@ export interface SyntheticSheetOptions {
   questionCount: number;
   choiceCount: number;
   /** Answer columns the sheet was printed with; defaults to two. */
-  columnsPerPage?: PaperColumns;
+  columnsPerPage?: PaperGrid;
+  /** Paint solid text-like lines in every row's question-text box (`'questions'` grid). */
+  questionText?: boolean;
   /** Artwork stacked from the top of the stimulus band. */
   stimuli?: SyntheticStimulus[];
   marks?: SyntheticMark[];
@@ -168,6 +171,15 @@ export function paintSyntheticSheet(opts: SyntheticSheetOptions): RasterPage {
       fillDisc(rect, radius, 1, radius - 0.3);
       if (opts.printedLetters) {
         fillDisc(rect, radius - 0.4, 1, 0, letterTone);
+      }
+    }
+  }
+  if (opts.questionText && columns === 'questions') {
+    for (let row = 0; row < rows; row += 1) {
+      const box = questionTextRectMm(row);
+      // Lines of black glyph ink, 2.4 mm tall on a 3.6 mm pitch, filling the box.
+      for (let y = box.y; y + 2.4 <= box.y + box.h; y += 3.6) {
+        fillRect({ x: box.x, y, w: box.w, h: 2.4 }, 0.55);
       }
     }
   }

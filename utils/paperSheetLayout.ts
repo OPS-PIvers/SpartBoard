@@ -5,9 +5,9 @@
  * halves can never drift. See docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md §4-§5.
  */
 
-import type { PaperColumns } from '@/types';
+import type { PaperBatch, PaperColumns, PaperGrid } from '@/types';
 
-export type { PaperColumns };
+export type { PaperColumns, PaperGrid };
 
 /** US Letter portrait. Every constant below is millimetres on this page. */
 export const PAGE_WIDTH_MM = 215.9;
@@ -71,11 +71,37 @@ export const QUESTIONS_PER_PAGE = ROWS_PER_COLUMN * COLUMNS_PER_PAGE;
 /** Batches printed before sheet stimuli existed carry no count and are two-column. */
 export const DEFAULT_COLUMNS_PER_PAGE: PaperColumns = COLUMNS_PER_PAGE;
 
-/** Per-page capacity at a given column count. */
+/** Tall rows of the question-text layout: bubbles left, the question's text beside them. */
+export const QUESTION_ROW_PITCH_MM = 24;
+export const QUESTION_ROWS_PER_PAGE = 8;
+/** Left edge of the question text, clear of bubble E and the reader's row crop. */
+export const QUESTION_TEXT_X_MM = 80;
+/** Stops short of the bottom-right corner search window. */
+export const QUESTION_TEXT_W_MM = 100;
+export const QUESTION_TEXT_H_MM = 22;
+
+/** The grid a batch printed in. */
+export function paperGridOf(
+  batch: Pick<PaperBatch, 'columnsPerPage' | 'sheetLayout'>
+): PaperGrid {
+  return batch.sheetLayout === 'questions'
+    ? 'questions'
+    : (batch.columnsPerPage ?? DEFAULT_COLUMNS_PER_PAGE);
+}
+
+const rowsPerColumn = (grid: PaperGrid): number =>
+  grid === 'questions' ? QUESTION_ROWS_PER_PAGE : ROWS_PER_COLUMN;
+
+const rowPitchMm = (grid: PaperGrid): number =>
+  grid === 'questions' ? QUESTION_ROW_PITCH_MM : ROW_PITCH_MM;
+
+/** Per-page capacity of a grid. */
 export function questionsPerPage(
-  columns: PaperColumns = DEFAULT_COLUMNS_PER_PAGE
+  columns: PaperGrid = DEFAULT_COLUMNS_PER_PAGE
 ): number {
-  return ROWS_PER_COLUMN * columns;
+  return columns === 'questions'
+    ? QUESTION_ROWS_PER_PAGE
+    : ROWS_PER_COLUMN * columns;
 }
 
 /**
@@ -127,7 +153,7 @@ export function markerCellRectMm(index: number): RectMm {
 /** Column/row a page-local question index occupies; columns fill top to bottom. */
 export function questionSlotOnPage(
   indexOnPage: number,
-  columns: PaperColumns = DEFAULT_COLUMNS_PER_PAGE
+  columns: PaperGrid = DEFAULT_COLUMNS_PER_PAGE
 ): {
   column: number;
   row: number;
@@ -135,9 +161,10 @@ export function questionSlotOnPage(
   if (indexOnPage < 0 || indexOnPage >= questionsPerPage(columns)) {
     throw new RangeError(`question slot ${indexOnPage} out of range`);
   }
+  const rows = rowsPerColumn(columns);
   return {
-    column: Math.floor(indexOnPage / ROWS_PER_COLUMN),
-    row: indexOnPage % ROWS_PER_COLUMN,
+    column: Math.floor(indexOnPage / rows),
+    row: indexOnPage % rows,
   };
 }
 
@@ -145,7 +172,7 @@ export function questionSlotOnPage(
 export function bubbleRectMm(
   indexOnPage: number,
   choiceIndex: number,
-  columns: PaperColumns = DEFAULT_COLUMNS_PER_PAGE
+  columns: PaperGrid = DEFAULT_COLUMNS_PER_PAGE
 ): RectMm {
   if (choiceIndex < 0 || choiceIndex >= MAX_CHOICE_COUNT) {
     throw new RangeError(`choice ${choiceIndex} out of range`);
@@ -153,7 +180,7 @@ export function bubbleRectMm(
   const { column, row } = questionSlotOnPage(indexOnPage, columns);
   return {
     x: COLUMN_X_MM[column] + NUMBER_WIDTH_MM + choiceIndex * BUBBLE_PITCH_MM,
-    y: GRID_TOP_MM + row * ROW_PITCH_MM,
+    y: GRID_TOP_MM + row * rowPitchMm(columns),
     w: BUBBLE_DIAMETER_MM,
     h: BUBBLE_DIAMETER_MM,
   };
@@ -163,7 +190,7 @@ export function bubbleRectMm(
 export function questionRowRectMm(
   indexOnPage: number,
   choiceCount: number,
-  columns: PaperColumns = DEFAULT_COLUMNS_PER_PAGE
+  columns: PaperGrid = DEFAULT_COLUMNS_PER_PAGE
 ): RectMm {
   const { column, row } = questionSlotOnPage(indexOnPage, columns);
   const choices = Math.min(
@@ -172,7 +199,7 @@ export function questionRowRectMm(
   );
   return {
     x: COLUMN_X_MM[column],
-    y: GRID_TOP_MM + row * ROW_PITCH_MM,
+    y: GRID_TOP_MM + row * rowPitchMm(columns),
     w: NUMBER_WIDTH_MM + (choices - 1) * BUBBLE_PITCH_MM + BUBBLE_DIAMETER_MM,
     h: BUBBLE_DIAMETER_MM,
   };
@@ -181,7 +208,23 @@ export function questionRowRectMm(
 /** Pages needed for `questionCount` questions; always at least one. */
 export function pageCountForQuestions(
   questionCount: number,
-  columns: PaperColumns = DEFAULT_COLUMNS_PER_PAGE
+  columns: PaperGrid = DEFAULT_COLUMNS_PER_PAGE
 ): number {
   return Math.max(1, Math.ceil(questionCount / questionsPerPage(columns)));
+}
+
+/** Top of row `row` on the page. */
+export function rowTopMm(row: number, columns: PaperGrid): number {
+  return GRID_TOP_MM + row * rowPitchMm(columns);
+}
+
+/** Box a question's text prints in, beside its bubbles, on the question-text layout. */
+export function questionTextRectMm(indexOnPage: number): RectMm {
+  const { row } = questionSlotOnPage(indexOnPage, 'questions');
+  return {
+    x: QUESTION_TEXT_X_MM,
+    y: rowTopMm(row, 'questions'),
+    w: QUESTION_TEXT_W_MM,
+    h: QUESTION_TEXT_H_MM,
+  };
 }

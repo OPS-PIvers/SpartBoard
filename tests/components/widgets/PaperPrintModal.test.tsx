@@ -491,6 +491,48 @@ describe('PaperPrintModal', () => {
     });
   });
 
+  it('prints each question beside its bubbles when asked, on the tall-row layout', async () => {
+    const tenQuestions = quiz({
+      questions: Array.from({ length: 10 }, (_, i) => mc(`q${i}`)),
+    });
+    const { print, onSaveBatch } = setup({ quiz: tenQuestions });
+    selectWholeClass();
+    fireEvent.change(screen.getByLabelText(/Blank spare sheets/i), {
+      target: { value: '0' },
+    });
+    expect(screen.getByText(/2 sheets · 2 pages/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Include question text')).not.toBeChecked();
+    fireEvent.click(screen.getByLabelText('Include question text'));
+    expect(screen.getByText(/2 sheets · 4 pages/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    const batch = onSaveBatch.mock.calls[0][0];
+    expect(batch.sheetLayout).toBe('questions');
+    expect(batch.pagesPerSheet).toBe(2);
+    const job = print.mock.calls[0][0];
+    expect(job.columnsPerPage).toBe('questions');
+    expect(job.questionTexts?.[0]).toEqual({
+      text: 'Question q0',
+      choices: batch.choiceOrder?.q0,
+    });
+    expect(job.questionTexts).toHaveLength(10);
+  });
+
+  it('offers no question text on a new paper test', () => {
+    render(
+      <PaperPrintModal
+        quiz={quiz({ questions: [] })}
+        rosters={[roster]}
+        onSaveBatch={vi.fn()}
+        onClose={vi.fn()}
+        onError={vi.fn()}
+        print={vi.fn() as never}
+      />
+    );
+    expect(screen.queryByLabelText('Include question text')).toBeNull();
+  });
+
   it('defaults the answer key sheet on for a new paper test and off otherwise', () => {
     const { unmount } = render(
       <PaperPrintModal
