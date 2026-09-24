@@ -558,7 +558,10 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     if (mode === 'explore') {
       setExploreImageIndex(step.imageIndex ?? 0);
       setActiveStepId((prev) => (prev === step.id ? null : step.id));
+      return;
     }
+    // Structured/guided: the current step's pin reopens a dismissed step.
+    if (step.id === currentStep?.id) setActiveStepId(step.id);
   };
 
   const handleAnswer = (

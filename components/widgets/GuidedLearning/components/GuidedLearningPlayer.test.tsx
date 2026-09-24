@@ -625,6 +625,51 @@ describe('GuidedLearningPlayer', () => {
     expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
   });
 
+  it.each(['structured', 'guided'] as const)(
+    'reopens a dismissed %s step from its pin',
+    (mode) => {
+      const set: GuidedLearningSet = {
+        id: `set-reopen-${mode}`,
+        title: 'Reopen Test',
+        imageUrls: ['https://example.com/image.png'],
+        steps: [
+          {
+            id: 'step-1',
+            xPct: 10,
+            yPct: 80,
+            imageIndex: 0,
+            interactionType: 'tooltip',
+            text: 'One',
+          },
+          {
+            id: 'step-2',
+            xPct: 30,
+            yPct: 30,
+            imageIndex: 0,
+            interactionType: 'tooltip',
+            text: 'Two',
+          },
+        ],
+        mode,
+        createdAt: 0,
+        updatedAt: 0,
+      };
+
+      const { container } = render(<GuidedLearningPlayer set={set} />);
+      fireEvent.load(screen.getByAltText('Reopen Test'));
+      expect(screen.getByTestId('tooltip-coords')).toBeInTheDocument();
+
+      const stage = container.querySelector('[data-gl-stage]');
+      if (!(stage instanceof HTMLElement)) throw new Error('Expected stage');
+      stage.focus();
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(screen.queryByTestId('tooltip-coords')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /^step 1$/i }));
+      expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('30,80');
+    }
+  );
+
   it('navigates structured mode via the footer prev/next buttons', () => {
     const set: GuidedLearningSet = {
       id: 'set-footer-nav',
