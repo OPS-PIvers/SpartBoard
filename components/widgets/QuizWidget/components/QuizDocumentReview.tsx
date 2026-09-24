@@ -30,6 +30,8 @@ import {
   type SpillWarning,
 } from '@/utils/quizDocumentImport/spillWarnings';
 import type { SuggestedTarget } from '@/utils/quizDocumentImport/suggestedTargets';
+import { QuizImportKeySummary } from './QuizImportKeySummary';
+import type { KeySummaryCounts } from '@/utils/quizDocumentImport/keySummary';
 import {
   WithSuggestedTargets,
   type SuggestedTargetsSlots,
@@ -46,6 +48,8 @@ interface Props {
   images?: readonly ExtractedImage[];
   /** Target lines the reader found, by question id; pass only when the suggested-targets flag is on. */
   suggestedTargets?: ReadonlyMap<string, SuggestedTarget>;
+  /** How the answer key matched the questions (R19). */
+  keySummary?: KeySummaryCounts;
 }
 
 const TYPE_LABEL: Record<QuizQuestionType, string> = {
@@ -75,7 +79,7 @@ const SpillNote: React.FC<{ warning?: SpillWarning }> = ({ warning }) =>
 
 const ReviewTable: React.FC<
   Omit<Props, 'suggestedTargets'> & { targetSlots?: SuggestedTargetsSlots }
-> = ({ data, onChange, images = [], targetSlots }) => {
+> = ({ data, onChange, images = [], targetSlots, keySummary }) => {
   // The full set read from the document. Unticking removes a question from
   // what gets created, so the master list has to outlive that or a row could
   // never be ticked back on. The preview step mounts once per read.
@@ -221,6 +225,12 @@ const ReviewTable: React.FC<
           </p>
         )}
       </div>
+
+      <QuizImportKeySummary
+        summary={keySummary}
+        questionCount={allQuestions.length}
+        untickedCount={extras?.untick.size ?? 0}
+      />
 
       {flaggedCount > 0 && (
         <label className="flex items-center gap-1.5 text-xs text-slate-600">
