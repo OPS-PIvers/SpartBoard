@@ -135,6 +135,20 @@ describe('appendDraftedSet', () => {
     expect(result.current.currentImageIndex).toBe(0);
   });
 
+  it('marks appended steps as AI drafts to review, and editing one clears it', () => {
+    const { result } = render(openSet());
+    act(() => {
+      result.current.appendDraftedSet(drafted());
+    });
+    const flagged = result.current.steps.filter((s) => s.aiDraft);
+    expect(flagged).toHaveLength(3);
+    expect(
+      result.current.steps.filter((s) => !s.aiDraft).map((s) => s.id)
+    ).toEqual(['a1', 'b1', 'c1', 'a2']);
+    act(() => result.current.updateStep({ ...flagged[0], text: 'Reviewed' }));
+    expect(result.current.steps.filter((s) => s.aiDraft)).toHaveLength(2);
+  });
+
   it('adds nothing for a draft with no slides', () => {
     const { result } = render(openSet());
     let added = -1;

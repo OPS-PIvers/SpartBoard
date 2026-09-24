@@ -14,6 +14,7 @@ import {
   Folder as FolderIcon,
   Footprints,
   Inbox,
+  Keyboard,
   Lock,
   PanelRight,
   Play,
@@ -68,6 +69,11 @@ import {
   type StudioShortcut,
 } from './useStudioShortcuts';
 import { stepClipboardIsLatest } from './stepClipboard';
+import { StudioShortcutSheet } from './StudioShortcutSheet';
+import {
+  useReturnFocusOnClose,
+  useStudioFocusTrap,
+} from './useStudioFocusTrap';
 import { SetTooLargeError } from '@/utils/firestoreDocSize';
 
 const MAX_ISSUE_TOASTS = 3;
@@ -96,6 +102,7 @@ export interface GuidedLearningStudioProps {
 export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = (
   props
 ) => {
+  useReturnFocusOnClose();
   const [reloaded, setReloaded] = useState<{
     from: GuidedLearningSet;
     latest: GuidedLearningLatestSet;
@@ -150,7 +157,9 @@ const StudioSession: React.FC<
   // Below 1024px the properties column is a drawer.
   const [propertiesOpen, setPropertiesOpen] = useState(false);
   const canvasRef = useRef<HTMLElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const [capturing, setCapturing] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   const toastUploadIssues = useCallback(
     (issues: SlideUploadIssue[]) => {
@@ -442,6 +451,9 @@ const StudioSession: React.FC<
   const editKeymap = useMemo<StudioShortcut[]>(
     () => [
       { id: 'play', key: ' ', shift: true, run: startPlay },
+      // Shift+/ on most layouts, a plain key on some.
+      { id: 'help', key: '?', shift: true, run: () => setShortcutsOpen(true) },
+      { id: 'help-plain', key: '?', run: () => setShortcutsOpen(true) },
       { id: 'undo', key: 'z', mod: true, run: undo },
       { id: 'redo', key: 'z', mod: true, shift: true, run: redo },
       { id: 'redo-y', key: 'y', mod: true, run: redo },
@@ -527,7 +539,12 @@ const StudioSession: React.FC<
     ],
     [exitPlay]
   );
-  const shortcutsEnabled = !showAiGen && !currentDialog && !readOnly;
+  const shortcutsEnabled =
+    !showAiGen && !currentDialog && !readOnly && !shortcutsOpen;
+  useStudioFocusTrap(
+    rootRef,
+    !showAiGen && !currentDialog && !capturing && !shortcutsOpen
+  );
   useStudioShortcuts(playing ? playKeymap : editKeymap, {
     // An open dialog owns the keyboard, Escape included; a read-only set takes no edits.
     enabled: shortcutsEnabled,
@@ -582,11 +599,13 @@ const StudioSession: React.FC<
 
   return createPortal(
     <div
+      ref={rootRef}
       role="dialog"
       aria-modal="true"
       aria-label={t('glStudio.dialogLabel')}
+      tabIndex={-1}
       data-testid="gl-studio"
-      className="fixed inset-0 flex flex-col bg-slate-100"
+      className="fixed inset-0 flex flex-col bg-slate-100 focus:outline-none"
       style={{ zIndex: Z_INDEX.modalContent }}
     >
       <EditorHeader
@@ -667,6 +686,17 @@ const StudioSession: React.FC<
               </button>
             )}
             <DevicePresetPicker preset={preset} onChange={choosePreset} />
+            <button
+              type="button"
+              onClick={() => setShortcutsOpen(true)}
+              aria-label={t('glStudio.shortcutsOpen')}
+              title={t('glStudio.shortcutsOpen')}
+              aria-haspopup="dialog"
+              data-testid="gl-studio-shortcuts-button"
+              className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            >
+              <Keyboard className="h-5 w-5" aria-hidden="true" />
+            </button>
             <button
               type="button"
               onClick={() => setPropertiesOpen((v) => !v)}
@@ -836,6 +866,9 @@ const StudioSession: React.FC<
           onClose={() => setShowAiGen(false)}
           onGenerated={appendDrafted}
         />
+      )}
+      {shortcutsOpen && (
+        <StudioShortcutSheet onClose={() => setShortcutsOpen(false)} />
       )}
       {folderPickerEnabled && folderPickerOpen && (
         <FolderPickerPopover

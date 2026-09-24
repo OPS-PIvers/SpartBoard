@@ -859,6 +859,7 @@ export function useGuidedLearningEditorState({
       const added = drafted.steps.map((s) => ({
         ...s,
         id: crypto.randomUUID(),
+        aiDraft: true,
         imageIndex: at + Math.max(0, Math.min(s.imageIndex, count - 1)),
       }));
       const insert = <T>(list: T[], values: T[]): T[] => [

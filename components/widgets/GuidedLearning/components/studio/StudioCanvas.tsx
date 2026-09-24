@@ -234,11 +234,19 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       ref={attachRoot}
       data-gl-studio-canvas=""
       data-editing-step={editingStepId ?? undefined}
-      className={`relative h-full w-full overflow-hidden ${
+      // Focusable so Enter, arrows and Tab can place, nudge and cycle steps.
+      tabIndex={0}
+      role="application"
+      aria-label={t('glStudio.canvasLabel')}
+      aria-describedby="gl-studio-canvas-keys"
+      className={`relative h-full w-full overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary ${
         panning ? 'cursor-grabbing' : spaceHeld ? 'cursor-grab' : ''
       }`}
       {...panHandlers}
     >
+      <p id="gl-studio-canvas-keys" className="sr-only">
+        {t('glStudio.canvasKeysHint')}
+      </p>
       <div
         data-testid="gl-studio-viewport"
         className="h-full w-full"

@@ -41,11 +41,13 @@ export function matchesShortcut(
 }
 
 /** A mod shortcut as the author's keyboard labels it: ⌘D on Apple devices, Ctrl+D elsewhere. */
-export function modShortcutLabel(key: string): string {
+export function modShortcutLabel(key: string, shift = false): string {
   const apple =
     typeof navigator !== 'undefined' &&
     /Mac|iPhone|iPad/.test(navigator.userAgent);
-  return apple ? `⌘${key.toUpperCase()}` : `Ctrl+${key.toUpperCase()}`;
+  const k = key.toUpperCase();
+  if (apple) return `${shift ? '⇧' : ''}⌘${k}`;
+  return `Ctrl+${shift ? 'Shift+' : ''}${k}`;
 }
 
 /** True while the page has a text selection, so Ctrl/⌘+C keeps its native meaning. */

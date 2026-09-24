@@ -233,6 +233,8 @@ describe('Studio duplicate and copy/paste', () => {
     selectFirstStep();
     const range = document.createRange();
     range.selectNodeContents(screen.getByText('Play order'));
+    // Focusing the Studio on open leaves a collapsed range, which addRange won't replace.
+    window.getSelection()?.removeAllRanges();
     window.getSelection()?.addRange(range);
     const event = new KeyboardEvent('keydown', {
       key: 'c',
