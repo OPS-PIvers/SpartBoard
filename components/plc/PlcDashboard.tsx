@@ -9,6 +9,7 @@ import { buildPlcPath, spaNavigate, spaReplace } from '@/utils/plcPath';
 import { PlcDashboardRail, type PlcRailItem } from './PlcDashboardRail';
 import { getVisiblePlcSections, type PlcSectionId } from './sections';
 import { PlcHome } from './home/PlcHome';
+import { PlcHomeV2 } from './home/PlcHomeV2';
 import { NotesDocsBody } from './bodies/NotesDocsBody';
 import { PlcResourcesBody } from './resources/PlcResourcesBody';
 import { PlcAssessmentsBody } from './bodies/PlcAssessmentsBody';
@@ -56,7 +57,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   // On mobile, deep-linking straight to a section (anything but `home`) should
   // open that section, not the drill-in menu; landing on home shows the menu.
   const [showMobileMenu, setShowMobileMenu] = useState(
@@ -121,7 +122,11 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
   const renderSection = (id: PlcSectionId): React.ReactNode => {
     switch (id) {
       case 'home':
-        return <PlcHome plc={plc} onNavigate={handleNavigateSection} />;
+        return canAccessFeature('plc-home-v2') ? (
+          <PlcHomeV2 plc={plc} onNavigate={handleNavigateSection} />
+        ) : (
+          <PlcHome plc={plc} onNavigate={handleNavigateSection} />
+        );
       // Unified Assessments section (Decision 4.5): hosts the quiz +
       // video-activity bodies under one section with a type filter. The legacy
       // `/plc/:id/quizzes` and `/plc/:id/videoActivities` deep links resolve to

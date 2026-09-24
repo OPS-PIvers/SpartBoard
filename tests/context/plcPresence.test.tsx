@@ -69,6 +69,7 @@ vi.mock('@/config/firebase', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'u-self', displayName: 'Self', email: 'self@x.edu' },
+    canAccessFeature: () => false,
   }),
 }));
 
