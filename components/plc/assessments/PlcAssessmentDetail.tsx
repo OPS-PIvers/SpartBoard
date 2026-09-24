@@ -78,6 +78,12 @@ function scoreToneClass(percent: number): string {
   return 'text-brand-red-primary';
 }
 
+function scoreBarClass(percent: number): string {
+  if (percent >= 80) return 'bg-emerald-500';
+  if (percent >= 60) return 'bg-amber-500';
+  return 'bg-brand-red-primary';
+}
+
 const QuestionRow: React.FC<{ question: PerQuestion; index: number }> = ({
   question,
   index,
@@ -86,6 +92,7 @@ const QuestionRow: React.FC<{ question: PerQuestion; index: number }> = ({
   const [open, setOpen] = useState(false);
   const scored = typeof question.incorrectPercent === 'number';
   const incorrect = question.incorrectPercent ?? 0;
+  const byPoints = scored && question.scoring === 'points';
   const distribution = question.choiceDistribution ?? [];
   const canExpand = distribution.length > 0;
   const answered = question.answered ?? 0;
@@ -110,7 +117,16 @@ const QuestionRow: React.FC<{ question: PerQuestion; index: number }> = ({
               })}
           </span>
           <span className="flex items-center gap-2 shrink-0">
-            {scored ? (
+            {byPoints ? (
+              <span
+                className={`text-sm font-bold ${scoreToneClass(question.correctPercent)}`}
+              >
+                {t('plcDashboard.assessmentDetail.averagePointsPercent', {
+                  defaultValue: '{{percent}}% of points',
+                  percent: question.correctPercent,
+                })}
+              </span>
+            ) : scored ? (
               <span
                 className={`text-sm font-bold ${incorrectToneClass(incorrect)}`}
               >
@@ -136,9 +152,9 @@ const QuestionRow: React.FC<{ question: PerQuestion; index: number }> = ({
         </div>
         <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
           <div
-            className={`h-full rounded-full ${scored ? incorrectBarClass(incorrect) : 'bg-slate-300'}`}
+            className={`h-full rounded-full ${byPoints ? scoreBarClass(question.correctPercent) : scored ? incorrectBarClass(incorrect) : 'bg-slate-300'}`}
             style={{
-              width: `${scored ? Math.min(100, Math.max(0, incorrect)) : 0}%`,
+              width: `${scored ? Math.min(100, Math.max(0, byPoints ? question.correctPercent : incorrect)) : 0}%`,
             }}
           />
         </div>

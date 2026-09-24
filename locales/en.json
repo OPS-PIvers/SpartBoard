@@ -1217,6 +1217,7 @@
       "questionsHeading": "Questions, most missed first",
       "noQuestions": "No results yet. Once a teacher runs this assessment and publishes scores, the pooled questions appear here.",
       "incorrectPercent": "{{percent}}% incorrect",
+      "averagePointsPercent": "{{percent}}% of points",
       "notScored": "Not scored",
       "gradedOfAnswered": "{{served}} served · {{graded}} graded · {{answered}} answered",
       "choiceDistribution": "Answer distribution",

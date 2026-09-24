@@ -24,14 +24,14 @@ describe('VideoActivityBehaviorSettingsPanel', () => {
     expect(screen.getByText('Self-paced')).toBeInTheDocument();
   });
 
-  it('renders the toggle group (Tab Switch Detection is visible)', () => {
+  it('renders the toggle group (Focus mode is visible)', () => {
     render(
       <VideoActivityBehaviorSettingsPanel
         value={defaultValue}
         onChange={vi.fn()}
       />
     );
-    expect(screen.getByText('Tab Switch Detection')).toBeInTheDocument();
+    expect(screen.getByText('Focus mode')).toBeInTheDocument();
   });
 
   it('does NOT render the Block Copy & Paste toggle (Quiz-only feature)', () => {
@@ -88,8 +88,8 @@ describe('VideoActivityBehaviorSettingsPanel', () => {
       <VideoActivityBehaviorSettingsPanel value={value} onChange={onChange} />
     );
 
-    // Tab Switch Detection toggle is on — toggle it off.
-    const tabSwitchLabel = screen.getByText('Tab Switch Detection');
+    // Focus mode toggle is on — toggle it off.
+    const tabSwitchLabel = screen.getByText('Focus mode');
     const row = tabSwitchLabel.closest('div');
     const switchEl = row?.querySelector('[role="switch"]');
     expect(switchEl).not.toBeNull();

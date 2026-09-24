@@ -1508,16 +1508,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       }
       secondaries.push({
         id: 'deactivate',
-        label: 'Make Inactive',
+        label: 'End',
         icon: PowerOff,
         destructive: true,
         onClick: async () => {
           const ok = await showConfirm(
-            'Make assignment inactive? The join URL will stop working. Responses are preserved.',
+            'End this assignment? The join URL will stop working. Responses are preserved.',
             {
-              title: 'Make Inactive',
+              title: 'End Assignment',
               variant: 'warning',
-              confirmLabel: 'Make Inactive',
+              confirmLabel: 'End',
             }
           );
           if (ok) await (onArchiveDeactivate ?? noop)(a);

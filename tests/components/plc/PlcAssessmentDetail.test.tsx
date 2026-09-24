@@ -300,6 +300,34 @@ describe('PlcAssessmentDetail', () => {
     expect(within(rows[2]).getByText('Not scored')).toBeInTheDocument();
   });
 
+  it('shows a rubric question as the average percent of points', () => {
+    const base = makeAggregate();
+    mockAggregatesSlice = {
+      ...mockAggregatesSlice,
+      data: [
+        makeAggregate({
+          perQuestion: [
+            {
+              ...base.perQuestion[2],
+              scoring: 'points',
+              correctPercent: 75,
+              incorrectPercent: 25,
+              graded: 38,
+              pointsEarned: 142.5,
+              pointsPossible: 190,
+            },
+          ],
+        }),
+      ],
+    };
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
+
+    const row = screen.getByTestId('question-row');
+    expect(within(row).getByText('75% of points')).toBeInTheDocument();
+    expect(within(row).queryByText(/incorrect/)).not.toBeInTheDocument();
+    expect(row).toHaveTextContent('38 graded');
+  });
+
   it('toggles the choice distribution for MC questions', () => {
     render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
     const easy = screen.getAllByTestId('question-row')[1];

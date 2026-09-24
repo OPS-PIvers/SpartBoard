@@ -204,7 +204,7 @@ export interface AssignmentSettingsToggleGroupProps {
    */
   excludeSections?: AssignmentSettingsSection[];
   /**
-   * Show the "Block Copy & Paste" toggle directly under Tab Switch Detection
+   * Show the "Block Copy & Paste" toggle directly under Focus mode
    * in the integrity section. Quiz opts in (it has free-text answer fields a
    * student could paste into); Video Activity has no text inputs and leaves
    * this off. Defaults to false.
@@ -213,7 +213,7 @@ export interface AssignmentSettingsToggleGroupProps {
   /** Quiz-only: expose the learning-target grouping toggle in Answer Feedback. */
   showLearningTargetsToggle?: boolean;
   /**
-   * Optional content rendered directly under the Tab Switch Detection row
+   * Optional content rendered directly under the Focus mode row
    * (still inside the integrity section). Quiz uses this for the M17 B4
    * during-taking auto-submit threshold control; VA leaves it unset.
    */
@@ -278,10 +278,10 @@ export const AssignmentSettingsToggleGroup: React.FC<
             />
           )}
           <ToggleRow
-            label="Tab Switch Detection"
+            label="Focus mode"
             checked={options.tabWarningsEnabled ?? true}
             onChange={(v) => update('tabWarningsEnabled', v)}
-            hint="Warn students who leave the assignment tab"
+            hint="Students can leave the tab, but it's detected and logged"
           />
           {afterTabWarningsSlot}
           {showCopyPasteToggle && (

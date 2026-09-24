@@ -169,6 +169,39 @@ describe('parsePlcAggregate — tolerant parsing', () => {
     expect(parsed?.perStandard?.[0]?.targetId).toBe('std-1');
     expect(parsed?.linkedSessionCount).toBe(2);
   });
+
+  it('parses schema 5 point scoring and drops an unknown scoring value', () => {
+    const parsed = parsePlcAggregate(
+      'a',
+      validAggregateData({
+        schemaVersion: 5,
+        perQuestion: [
+          {
+            questionId: 'q1',
+            text: 'Q1',
+            scoring: 'points',
+            correctPercent: 75,
+            points: 4,
+            pointsEarned: 12,
+            pointsPossible: 16,
+          },
+          {
+            questionId: 'q2',
+            text: 'Q2',
+            scoring: 'odd',
+            correctPercent: 50,
+            points: 1,
+          },
+        ],
+      })
+    );
+    expect(parsed?.perQuestion[0]).toMatchObject({
+      scoring: 'points',
+      pointsEarned: 12,
+      pointsPossible: 16,
+    });
+    expect(parsed?.perQuestion[1]?.scoring).toBeUndefined();
+  });
 });
 
 describe('parsePlcAggregate — rejection of malformed docs', () => {

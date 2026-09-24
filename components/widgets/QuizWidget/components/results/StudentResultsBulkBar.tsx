@@ -160,6 +160,7 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
         type="button"
         onClick={() => void run('clear')}
         disabled={busy !== null}
+        title="Remove these students' overrides so they see what the class sees."
         className={buttonCls}
         style={buttonStyle}
       >
