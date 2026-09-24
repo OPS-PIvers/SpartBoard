@@ -27,13 +27,14 @@ const LIBRARY_RUBRIC: Rubric = {
 const showConfirm = vi.fn();
 const shareRubric = vi.fn();
 const importSharedRubric = vi.fn();
+const saveRubric = vi.fn();
 
 vi.mock('@/hooks/useRubrics', () => ({
   useRubrics: () => ({
     rubrics: [LIBRARY_RUBRIC],
     loading: false,
     error: null,
-    saveRubric: vi.fn().mockResolvedValue(undefined),
+    saveRubric,
     deleteRubric: vi.fn(),
     shareRubric,
     importSharedRubric,
@@ -297,5 +298,47 @@ describe('RubricBuilderPanel — link sharing', () => {
     await waitFor(() =>
       expect(screen.getByText('Shared rubric not found')).toBeInTheDocument()
     );
+  });
+});
+
+describe('RubricBuilderPanel — attaching', () => {
+  beforeEach(() => {
+    saveRubric.mockReset();
+    saveRubric.mockResolvedValue(undefined);
+  });
+
+  const attach = (existingSnapshot: Rubric, onAttach = vi.fn()) => {
+    render(
+      <RubricBuilderPanel
+        questionId="q1"
+        existingSnapshot={existingSnapshot}
+        onAttach={onAttach}
+        onDetach={vi.fn()}
+        onClose={vi.fn()}
+        teacherUid="uid-test"
+        attachLabel="Use for project"
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Use for project' }));
+    return onAttach;
+  };
+
+  it('adds a rubric that is not in the library yet', () => {
+    const fresh = { ...LIBRARY_RUBRIC, id: 'rub-new', title: 'New one' };
+    const onAttach = attach(fresh);
+    expect(saveRubric).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'rub-new', title: 'New one' })
+    );
+    const [attached] = onAttach.mock.calls[0] as [Rubric];
+    expect(attached.id).toBe('rub-new');
+    expect(attached.updatedAt).toBeGreaterThanOrEqual(
+      (saveRubric.mock.calls[0][0] as Rubric).updatedAt
+    );
+  });
+
+  it('leaves an existing library rubric untouched', () => {
+    const onAttach = attach(LIBRARY_RUBRIC);
+    expect(saveRubric).not.toHaveBeenCalled();
+    expect(onAttach).toHaveBeenCalledOnce();
   });
 });

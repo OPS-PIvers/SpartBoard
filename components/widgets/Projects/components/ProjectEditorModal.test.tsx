@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import type { ProjectDefinition } from '@/types';
+import type { ProjectDefinition, Rubric } from '@/types';
 import { ProjectEditorModal } from './ProjectEditorModal';
 
 vi.mock('@/context/useDialog', () => ({
@@ -9,6 +9,35 @@ vi.mock('@/context/useDialog', () => ({
     showAlert: vi.fn(),
   }),
 }));
+
+vi.mock('@/hooks/useRubrics', () => ({
+  useRubrics: () => ({
+    rubrics: [],
+    loading: false,
+    error: null,
+    saveRubric: vi.fn().mockResolvedValue(undefined),
+    deleteRubric: vi.fn(),
+    shareRubric: vi.fn(),
+    importSharedRubric: vi.fn(),
+  }),
+}));
+
+const RUBRIC: Rubric = {
+  id: 'rub-1',
+  title: 'Poster rubric',
+  criteria: [
+    {
+      id: 'c1',
+      name: 'Accuracy',
+      levels: [
+        { id: 'l1', label: 'Below', points: 1 },
+        { id: 'l2', label: 'Meets', points: 4 },
+      ],
+    },
+  ],
+  createdAt: 1,
+  updatedAt: 2,
+};
 
 const project = (
   overrides: Partial<ProjectDefinition> = {}
@@ -26,14 +55,16 @@ const project = (
 
 const renderEditor = (
   overrides: Partial<ProjectDefinition> = {},
-  onSave = vi.fn().mockResolvedValue(undefined)
+  onSave = vi.fn().mockResolvedValue(undefined),
+  rubrics: Rubric[] = []
 ) => {
   render(
     <ProjectEditorModal
       isOpen
       project={project(overrides)}
-      rubrics={[]}
+      rubrics={rubrics}
       folders={[]}
+      teacherUid="teacher-1"
       onSave={onSave}
       onClose={vi.fn()}
     />
@@ -107,5 +138,53 @@ describe('ProjectEditorModal', () => {
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
     const saved = onSave.mock.calls[0][0] as ProjectDefinition;
     expect(saved.steps[0].requiresApproval).toBe(true);
+  });
+
+  it('picks a rubric from the library', async () => {
+    const onSave = renderEditor({}, undefined, [RUBRIC]);
+    fireEvent.change(screen.getByLabelText('Rubric'), {
+      target: { value: 'rub-1' },
+    });
+    closeEditor();
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+    const saved = onSave.mock.calls[0][0] as ProjectDefinition;
+    expect(saved.rubric?.id).toBe('rub-1');
+    expect(saved.rubricMaxPoints).toBe(4);
+  });
+
+  it('keeps an attached rubric that is missing from the library', () => {
+    renderEditor({ rubric: RUBRIC, rubricMaxPoints: 4 });
+    const select = screen.getByLabelText<HTMLSelectElement>('Rubric');
+    expect(select.value).toBe('rub-1');
+    expect(
+      screen.getByRole('option', { name: 'Poster rubric' })
+    ).toBeInTheDocument();
+  });
+
+  it('builds a new rubric in the rubric builder', async () => {
+    const onSave = renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'New' }));
+    fireEvent.change(
+      screen.getByLabelText('Title', { selector: '#rubric-title' }),
+      { target: { value: 'Group work' } }
+    );
+    fireEvent.change(screen.getByLabelText('Criterion 1 name'), {
+      target: { value: 'Teamwork' },
+    });
+    fireEvent.change(screen.getByLabelText('Criterion 1 level 1 label'), {
+      target: { value: 'Below' },
+    });
+    fireEvent.change(screen.getByLabelText('Criterion 1 level 2 label'), {
+      target: { value: 'Meets' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Use for project' }));
+    expect(
+      screen.queryByRole('complementary', { name: 'Rubric builder' })
+    ).not.toBeInTheDocument();
+    closeEditor();
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+    const saved = onSave.mock.calls[0][0] as ProjectDefinition;
+    expect(saved.rubric?.title).toBe('Group work');
+    expect(saved.rubric?.criteria[0].name).toBe('Teamwork');
   });
 });

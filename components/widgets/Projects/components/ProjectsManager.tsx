@@ -879,6 +879,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
           project={editingProject}
           rubrics={rubrics}
           folders={folderState.folders}
+          teacherUid={userId ?? ''}
           onSave={handleSaveProject}
           onClose={() => setEditingId(null)}
         />
