@@ -4625,7 +4625,12 @@
       "startOver": "Start over"
     },
     "live": "Step {{current}} of {{total}}: {{text}}",
-    "readAloud": "Read aloud"
+    "readAloud": "Read aloud",
+    "reveal": {
+      "show": "Reveal answer",
+      "hide": "Hide answer",
+      "title": "Answer"
+    }
   },
   "glEngagement": {
     "title": "Engagement",

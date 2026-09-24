@@ -3468,7 +3468,12 @@
       "startOver": "Von vorn beginnen"
     },
     "live": "Schritt {{current}} von {{total}}: {{text}}",
-    "readAloud": "Vorlesen"
+    "readAloud": "Vorlesen",
+    "reveal": {
+      "show": "Antwort zeigen",
+      "hide": "Antwort verbergen",
+      "title": "Antwort"
+    }
   },
   "glEngagement": {
     "title": "Beteiligung",

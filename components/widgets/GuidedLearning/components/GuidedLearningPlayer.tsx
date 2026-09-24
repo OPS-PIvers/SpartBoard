@@ -4,6 +4,7 @@ import React, {
   useEffectEvent,
   useRef,
   useCallback,
+  useMemo,
 } from 'react';
 import {
   Play,
@@ -17,10 +18,13 @@ import {
 import { useTranslation } from 'react-i18next';
 import {
   GuidedLearningSet,
+  GuidedLearningStep,
   GuidedLearningPublicStep,
   GuidedLearningMode,
   StudentOverride,
 } from '@/types';
+import { toPublicStep } from '@/hooks/useGuidedLearningSession';
+import type { QuestionAnswerKey } from './interactions/QuestionInteraction';
 import { isGuidedLearningSetV2 } from '../utils/setMigration';
 import { stepDurationMs } from '../utils/motion';
 import {
@@ -44,6 +48,22 @@ import { spokenStepText } from '../utils/stepText';
 import type { PctPoint, PlaybackMode, StepEvent } from '../types/stage';
 
 const nowMs = (): number => performance.now();
+
+/** Each question step's key, read from the author's copy. */
+function answerKeysOf(
+  steps: readonly GuidedLearningStep[]
+): ReadonlyMap<string, QuestionAnswerKey> {
+  const keys = new Map<string, QuestionAnswerKey>();
+  for (const s of steps) {
+    if (s.interactionType !== 'question' || !s.question) continue;
+    keys.set(s.id, {
+      correctAnswer: s.question.correctAnswer,
+      matchingPairs: s.question.matchingPairs,
+      sortingItems: s.question.sortingItems,
+    });
+  }
+  return keys;
+}
 
 /** Step keys in v2: arrows plus a presentation clicker's PageUp/PageDown. */
 const NAV_KEYS_V2 = ['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown'];
@@ -95,6 +115,8 @@ interface Props {
   autoPlay?: boolean;
   /** v2: moving on from the last step (timer, target, Next or Continue) finishes the run. */
   onReachedEnd?: () => void;
+  /** v2 subs and teacher's board: the student UI, with a Reveal answer button per question. */
+  revealAnswers?: boolean;
 }
 
 export const GuidedLearningPlayer: React.FC<Props> = ({
@@ -109,6 +131,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   initialAnsweredStepIds,
   autoPlay = false,
   onReachedEnd,
+  revealAnswers = false,
 }) => {
   const { t } = useTranslation();
   const mode: GuidedLearningMode = set.mode;
@@ -117,7 +140,18 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   // narrow to GuidedLearningPublicStep[] here so interaction components never
   // accidentally read answer-key fields from steps. Answer keys are accessed
   // through set.steps.find() only when teacherMode is true (see GuidedLearningStage).
-  const steps = set.steps as unknown as GuidedLearningPublicStep[];
+  // Reveal mode plays the student mirror; the keys stay behind Reveal answer.
+  const revealMode = playerV2 && revealAnswers && !teacherMode;
+  const publicSteps = useMemo(
+    () => (revealMode ? set.steps.map(toPublicStep) : null),
+    [revealMode, set.steps]
+  );
+  const revealKeys = useMemo(
+    () => (revealMode ? answerKeysOf(set.steps) : undefined),
+    [revealMode, set.steps]
+  );
+  const steps =
+    publicSteps ?? (set.steps as unknown as GuidedLearningPublicStep[]);
   const startIdx = Math.max(
     0,
     steps.findIndex((s) => s.id === startStepId)
@@ -817,6 +851,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           misclickCount={stepRun.misclicks}
           accessibleOverlays={playerV2}
           youtubeEndEvents={playerV2}
+          revealKeys={revealKeys}
         />
         {resumeOffer && (
           <ResumePrompt

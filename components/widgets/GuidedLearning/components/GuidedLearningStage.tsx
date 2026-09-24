@@ -16,7 +16,10 @@ import { TooltipInteraction } from './interactions/TooltipInteraction';
 import { AudioInteraction } from './interactions/AudioInteraction';
 import { VideoInteraction } from './interactions/VideoInteraction';
 import { SpotlightInteraction } from './interactions/SpotlightInteraction';
-import { QuestionInteraction } from './interactions/QuestionInteraction';
+import {
+  QuestionInteraction,
+  type QuestionAnswerKey,
+} from './interactions/QuestionInteraction';
 import { BannerInteraction } from './interactions/BannerInteraction';
 import {
   calculateImageFootprint,
@@ -109,6 +112,8 @@ export interface GuidedLearningStageRuntimeProps {
   accessibleOverlays?: boolean;
   /** Player v2: YouTube steps load through the IFrame API so their end is heard. */
   youtubeEndEvents?: boolean;
+  /** Answer keys by step id, behind each question's Reveal answer button. */
+  revealKeys?: ReadonlyMap<string, QuestionAnswerKey>;
 }
 
 export const GuidedLearningStage: React.FC<
@@ -137,6 +142,7 @@ export const GuidedLearningStage: React.FC<
   misclickCount = 0,
   accessibleOverlays = false,
   youtubeEndEvents = false,
+  revealKeys,
 }) => {
   // Hotspot pulse style — 'consistent' (default) preserves the legacy ping
   // ring; 'reminder' adds a periodic wiggle on the marker itself; 'off'
@@ -666,6 +672,7 @@ export const GuidedLearningStage: React.FC<
             correctMatchingPairs={origStep?.question?.matchingPairs}
             correctSortingItems={origStep?.question?.sortingItems}
             studentMode={!teacherMode}
+            revealKey={revealKeys?.get(activeStep.id)}
           />
         </div>
       );

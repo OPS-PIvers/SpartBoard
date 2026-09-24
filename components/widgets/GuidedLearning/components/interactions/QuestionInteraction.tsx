@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CheckCircle2, XCircle, ArrowRight, BookOpen } from 'lucide-react';
 import { GuidedLearningPublicStep } from '@/types';
 import { playableQuestion } from '../../utils/playableQuestion';
+
+/** A question's answer key, shown only after Reveal answer is pressed. */
+export interface QuestionAnswerKey {
+  correctAnswer?: string;
+  matchingPairs?: { left: string; right: string }[];
+  sortingItems?: string[];
+}
 
 interface Props {
   step: GuidedLearningPublicStep;
@@ -13,6 +21,8 @@ interface Props {
   correctMatchingPairs?: { left: string; right: string }[];
   correctSortingItems?: string[];
   studentMode?: boolean;
+  /** Subs and the teacher's board: a Reveal answer button shows this key for the room. */
+  revealKey?: QuestionAnswerKey;
 }
 
 export const QuestionInteraction: React.FC<Props> = ({
@@ -23,8 +33,13 @@ export const QuestionInteraction: React.FC<Props> = ({
   correctMatchingPairs,
   correctSortingItems,
   studentMode = false,
+  revealKey,
 }) => {
+  const { t } = useTranslation();
   const q = step.question;
+  // Keyed by step, since one instance can serve consecutive questions.
+  const [revealedStepId, setRevealedStepId] = useState<string | null>(null);
+  const revealed = revealedStepId === step.id;
   // The teacher's Play passes the author's copy, so build the columns from either shape once.
   const [shown] = useState(() =>
     q ? playableQuestion(q, correctSortingItems) : undefined
@@ -364,6 +379,67 @@ export const QuestionInteraction: React.FC<Props> = ({
                 }}
               />
             </button>
+          </div>
+        )}
+        {revealKey && (
+          <div
+            className="border-t border-white/10 text-left"
+            style={{
+              marginTop: 'min(14px, 3.5cqmin)',
+              paddingTop: 'min(10px, 2.5cqmin)',
+            }}
+          >
+            <button
+              type="button"
+              aria-expanded={revealed}
+              onClick={() => setRevealedStepId(revealed ? null : step.id)}
+              className="rounded-lg border border-white/15 bg-white/5 text-slate-200 font-semibold hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90"
+              style={{
+                padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                fontSize: 'var(--gl-text-small, min(12px, 3cqmin))',
+              }}
+            >
+              {revealed ? t('glPlayer.reveal.hide') : t('glPlayer.reveal.show')}
+            </button>
+            {revealed && (
+              <div
+                role="region"
+                aria-label={t('glPlayer.reveal.title')}
+                data-testid="gl-answer-key"
+                className="rounded-xl bg-emerald-500/15 border border-emerald-400/40 text-white"
+                style={{
+                  marginTop: 'min(8px, 2cqmin)',
+                  padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
+                  fontSize: 'var(--gl-text-body, min(13px, 3.5cqmin))',
+                }}
+              >
+                <p
+                  className="font-bold text-emerald-200"
+                  style={{ marginBottom: 'min(4px, 1cqmin)' }}
+                >
+                  {t('glPlayer.reveal.title')}
+                </p>
+                {q.type === 'multiple-choice' && (
+                  <p>{revealKey.correctAnswer}</p>
+                )}
+                {q.type === 'matching' && (
+                  <ul>
+                    {(revealKey.matchingPairs ?? []).map((p) => (
+                      <li key={p.left}>
+                        {p.left} → {p.right}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {q.type === 'sorting' && (
+                  <ol className="list-decimal list-inside">
+                    {(revealKey.sortingItems ?? []).map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

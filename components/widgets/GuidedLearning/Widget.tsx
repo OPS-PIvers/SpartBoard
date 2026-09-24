@@ -1415,7 +1415,8 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                       } as GuidedLearningConfig,
                     })
                   }
-                  teacherMode
+                  teacherMode={!playerV2}
+                  revealAnswers
                   playerV2={playerV2}
                 />
               </Suspense>

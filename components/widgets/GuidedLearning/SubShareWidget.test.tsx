@@ -16,8 +16,9 @@ vi.mock('firebase/firestore', () => ({
 }));
 vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
+const auth = vi.hoisted(() => ({ playerV2: false }));
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ canAccessFeature: () => false }),
+  useAuth: () => ({ canAccessFeature: () => auth.playerV2 }),
 }));
 
 // The player is the teacher's own component; this suite is about which set a
@@ -26,17 +27,20 @@ vi.mock('./components/GuidedLearningPlayer', () => ({
   GuidedLearningPlayer: ({
     set,
     teacherMode,
+    revealAnswers,
     onAnswer,
     onStepEvent,
   }: {
     set: { title: string };
     teacherMode?: boolean;
+    revealAnswers?: boolean;
     onAnswer?: unknown;
     onStepEvent?: unknown;
   }) => (
     <div
       data-testid="gl-player"
       data-teacher={teacherMode ? 'yes' : 'no'}
+      data-reveal={revealAnswers ? 'yes' : 'no'}
       data-records={onAnswer || onStepEvent ? 'yes' : 'no'}
     >
       {set.title}
@@ -85,6 +89,7 @@ const bundled = (title: string) => () =>
 const nothingBundled = () => Promise.resolve({ payload: null, denied: false });
 
 beforeEach(() => {
+  auth.playerV2 = false;
   getDoc.mockReset();
   getDoc.mockResolvedValue({ exists: () => false });
 });
@@ -114,6 +119,22 @@ describe('SubShareGuidedLearningWidget', () => {
 
     const player = await screen.findByTestId('gl-player');
     expect(player).toHaveAttribute('data-teacher', 'yes');
+    expect(player).toHaveAttribute('data-records', 'no');
+  });
+
+  // Player v2: the student UI, with the key behind each question's Reveal answer.
+  it('plays without teacher mode and with Reveal answer under player v2', async () => {
+    auth.playerV2 = true;
+    render(
+      <SubShareGuidedLearningWidget
+        widget={widget({ playerSetId: 'set-1' })}
+      />,
+      { wrapper: inShare(bundled('Plant cell')) }
+    );
+
+    const player = await screen.findByTestId('gl-player');
+    expect(player).toHaveAttribute('data-teacher', 'no');
+    expect(player).toHaveAttribute('data-reveal', 'yes');
     expect(player).toHaveAttribute('data-records', 'no');
   });
 
