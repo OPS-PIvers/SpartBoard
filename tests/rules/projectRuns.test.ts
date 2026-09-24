@@ -244,6 +244,54 @@ describe('run document', () => {
   });
 });
 
+describe('the student project page groups query', () => {
+  const groupsIn = (db: ReturnType<typeof asStudent>, classIds: string[]) =>
+    getDocs(
+      query(
+        collection(db, `project_runs/${RUN_ID}/groups`),
+        where('classId', 'in', classIds)
+      )
+    );
+
+  it('lets a student in the class list its groups by classId', async () => {
+    await seed();
+    await assertSucceeds(
+      groupsIn(asStudent(MEMBER_UID, [OTHER_CLASS_ID, CLASS_ID]), [
+        OTHER_CLASS_ID,
+        CLASS_ID,
+      ])
+    );
+  });
+
+  it('refuses an unfiltered listing to a student', async () => {
+    await seed();
+    await assertFails(
+      getDocs(
+        collection(
+          asStudent(MEMBER_UID, [CLASS_ID]),
+          `project_runs/${RUN_ID}/groups`
+        )
+      )
+    );
+  });
+
+  it('refuses a class the student does not hold', async () => {
+    await seed();
+    await assertFails(
+      groupsIn(asStudent(OUTSIDER_UID, [OTHER_CLASS_ID]), [CLASS_ID])
+    );
+  });
+
+  it('lets the run teacher list every group', async () => {
+    await seed();
+    await assertSucceeds(
+      getDocs(
+        collection(asTeacher(TEACHER_UID), `project_runs/${RUN_ID}/groups`)
+      )
+    );
+  });
+});
+
 describe('group document', () => {
   it('lets a member move a non-approval step to done', async () => {
     await seed();
