@@ -23,6 +23,7 @@ import {
   VideoActivitySession,
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
+import { TabExitsPopover } from '@/components/common/TabExitsPopover';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
 import { QuizDriveService } from '@/utils/quizDriveService';
@@ -102,6 +103,7 @@ export const Results: React.FC<ResultsProps> = ({
 }) => {
   const { ensureGoogleScope, user, orgId, canAccessFeature, isExternalUser } =
     useAuth();
+  const tabAwayTimerOn = canAccessFeature('tab-away-timer');
   const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
   // Use the multi-class variant — `session.classId` is a transitional
@@ -762,6 +764,14 @@ export const Results: React.FC<ResultsProps> = ({
                     r.answers
                   );
                   const correct = countCorrectAnswers(r, questions);
+                  const warnings = r.tabSwitchWarnings ?? 0;
+                  // `formatStudentName` returns '' on roster miss and legacy rows may carry '' for `r.name`.
+                  const displayName =
+                    [
+                      formatStudentName(byStudentUid.get(r.studentUid)),
+                      r.name,
+                      r.pin,
+                    ].find((s) => typeof s === 'string' && s.length > 0) ?? '';
                   return (
                     <SessionRow
                       key={r._responseKey ?? r.studentUid ?? r.pin}
@@ -821,12 +831,7 @@ export const Results: React.FC<ResultsProps> = ({
                         className="font-bold text-slate-800 truncate"
                         style={{ fontSize: 'min(13px, 4cqmin)' }}
                       >
-                        {/* `formatStudentName` returns '' on roster miss and legacy rows may carry '' for `r.name`; pick the first non-empty string so the falsy-fallthrough intent is explicit (no `||` chain that ESLint would flag). */}
-                        {[
-                          formatStudentName(byStudentUid.get(r.studentUid)),
-                          r.name,
-                          r.pin,
-                        ].find((s) => typeof s === 'string' && s.length > 0)}
+                        {displayName}
                       </p>
                       <div
                         className="flex items-center"
@@ -845,6 +850,24 @@ export const Results: React.FC<ResultsProps> = ({
                         >
                           {correct}/{questions.length} correct
                         </span>
+                        {tabAwayTimerOn &&
+                          warnings > 0 &&
+                          session.sessionOptions?.tabWarningsEnabled !==
+                            false && (
+                            <TabExitsPopover
+                              exits={r.tabExits}
+                              warnings={warnings}
+                              studentName={displayName}
+                              completed={r.completedAt !== null}
+                              sessionEnded={session.status === 'ended'}
+                            >
+                              <SessionBadge
+                                tone="danger"
+                                icon={AlertTriangle}
+                                label={`${warnings}`}
+                              />
+                            </TabExitsPopover>
+                          )}
                       </div>
                     </SessionRow>
                   );

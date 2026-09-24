@@ -1,6 +1,6 @@
 # Tab-Away Timer — Implementation Plan
 
-**Date**: 2026-09-23 · **Branch**: `dev-paul` · **Status**: Draft. The decisions in §2 were settled in a design interview on 2026-09-23, and no code has been written yet. File paths and line numbers were checked against `dev-paul` at `658d140a4` on 2026-09-23, so re-verify them before relying on them.
+**Date**: 2026-09-23 · **Branch**: `dev-paul` · **Status**: Implemented in `dev-paul` (#3347, #3348, #3350, #3352, plus the Video Activity results popover) behind the admin-default `tab-away-timer` flag. Open: a real-Chromebook test of short limits (§4), and the changelog entry when the flag goes public (§5).
 
 Add a visible clock to the "TAB SWITCH DETECTED" overlay that students see when
 they leave a quiz or video activity. Teachers can make the quiz auto-submit when
