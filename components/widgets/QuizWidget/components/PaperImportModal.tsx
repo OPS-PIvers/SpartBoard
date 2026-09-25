@@ -5,7 +5,8 @@
  * locally, then review: the answer key first (mandatory, plan Q19), then the
  * doubtful rows with their crops, spares to assign, and anything that could
  * not be read. Clean sheets need no attention. Nothing leaves the browser but
- * seat numbers, PINs and letters.
+ * seat numbers, PINs, letters and, on `layoutVersion: 2` batches, the
+ * handwritten box crops (handwritten plan D20, D21).
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -27,14 +28,24 @@ import type {
   ClassRoster,
   PaperBatch,
   PaperPendingReview,
+  PaperPendingWritten,
   PaperSeatAssignment,
   QuestionTargetTag,
   QuizAssignment,
   QuizData,
 } from '@/types';
-import { indexedDbCropStore, type CropStore } from '@/utils/paperCropStore';
+import {
+  createCropUploader,
+  indexedDbCropStore,
+  writtenCropKey,
+  type CropStore,
+  type CropUploader,
+  type CropUploadStatus,
+  type WrittenCrop,
+} from '@/utils/paperCropStore';
 import {
   assemblePaperScan,
+  sheetRowOf,
   type AssembledSheet,
   type AssembleResult,
   type ScannedPage,
@@ -44,11 +55,13 @@ import {
   buildImportPayload,
   findStudent,
   keySheetChoices,
+  paperImportRequestFields,
   sheetRowQuestionIds,
   type ImportPaperCollision,
   type ImportPaperResponsesResult,
   type ImportPaperSheetPayload,
 } from '@/utils/paperImportPlan';
+import type { PaperImportQuota } from '@/utils/paperImportQuota';
 import {
   applyTargetsToQuiz,
   fromPendingReview,
@@ -56,21 +69,40 @@ import {
   targetsFromQuiz,
   toPendingReview,
 } from '@/utils/paperReviewState';
-import { rasterizeScan, type RasterizedPage } from '@/utils/paperScanRaster';
 import {
-  CHOICE_LETTERS,
-  paperGridOf,
-  questionsPerPage,
-} from '@/utils/paperSheetLayout';
+  cropWrittenBlob,
+  rasterizeScan,
+  type RasterizedPage,
+} from '@/utils/paperScanRaster';
+import { CHOICE_LETTERS, paperGridOf } from '@/utils/paperSheetLayout';
 import { readPaperPage } from '@/utils/paperSheetReader';
+import { paperCropStoragePath } from '@/utils/paperWritten';
 import { overAnsweredSections, sessionSectionsFor } from '@/utils/quizSections';
 
 const IMPORT_CHUNK = 200;
 /** Debounce for parking the review on the batch doc (plan Q26). */
 const SAVE_DELAY_MS = 600;
 
+/** Callable request fields beyond the sheets: `{ layoutVersion: 2, scanId }` on a v2 batch. */
+export interface PaperImportRequestExtra {
+  layoutVersion?: 2;
+  scanId?: string;
+}
+
+/** Handwritten-answer additions to the import result (handwritten plan §3.6); absent on v1. */
+export interface PaperImportWrittenResult {
+  keptWritten?: { seat: number; questionId: string }[];
+  jobsCreated?: number;
+  pagesQueued?: number;
+  pagesOverQuota?: number;
+}
+
+type ImportResult = ImportPaperResponsesResult & PaperImportWrittenResult;
+
 interface PaperImportModalProps {
   quiz: QuizData;
+  /** Owner of the crop uploads; handwriting is not uploaded without it. */
+  uid?: string;
   batches: PaperBatch[];
   rosters: ClassRoster[];
   /** Administrations of this quiz the scan may attach to (plan Q24). */
@@ -80,8 +112,15 @@ interface PaperImportModalProps {
   onImport: (
     batchId: string,
     assignmentId: string,
-    sheets: ImportPaperSheetPayload[]
-  ) => Promise<ImportPaperResponsesResult>;
+    sheets: ImportPaperSheetPayload[],
+    extra: PaperImportRequestExtra
+  ) => Promise<ImportResult>;
+  /** Upload one handwriting crop; Storage is create-only (handwritten plan §3.5). */
+  onUploadCrop?: (path: string, blob: Blob) => Promise<void>;
+  /** A crop another device uploaded, as a displayable URL; null when unavailable. */
+  loadRemoteCrop?: (path: string) => Promise<string | null>;
+  /** Read-only transcription quota, shown before import (D25). */
+  checkQuota?: () => Promise<PaperImportQuota>;
   /** Persist the quiz after the key sheet fills in its answers. */
   onSaveQuiz: (quiz: QuizData) => Promise<void>;
   /** Park the review on the batch so a closed tab never means rescanning; null clears it. */
@@ -96,6 +135,7 @@ interface PaperImportModalProps {
   /** Test seams. */
   rasterize?: (file: Blob) => AsyncGenerator<RasterizedPage>;
   readPage?: typeof readPaperPage;
+  cropWritten?: typeof cropWrittenBlob;
   cropStore?: CropStore;
 }
 
@@ -108,6 +148,29 @@ const NEW_ADMINISTRATION = '__new__';
 // Keyed by seat and question, not scan position, so a resumed review
 // still finds the crops parked for it.
 const cropKey = (seat: number, question: number) => `${seat}:${question}`;
+
+const newScanId = () =>
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID().replace(/-/g, '')
+    : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+
+const objectUrl = (blob: Blob): string =>
+  typeof URL.createObjectURL === 'function' ? URL.createObjectURL(blob) : '';
+
+const revokeAll = (urls: ReadonlyMap<string, string>) => {
+  if (typeof URL.revokeObjectURL !== 'function') return;
+  for (const url of urls.values()) {
+    if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+  }
+};
+
+type CropMime = 'image/webp' | 'image/png';
+
+const cropMimeOf = (blob: Blob): CropMime =>
+  blob.type === 'image/png' ? 'image/png' : 'image/webp';
+
+const plural = (n: number, one: string, many = `${one}s`) =>
+  `${n} ${n === 1 ? one : many}`;
 
 const formatDate = (ms: number) =>
   new Date(ms).toLocaleDateString(undefined, {
@@ -128,11 +191,15 @@ const sheetLabel = (
 
 export const PaperImportModal: React.FC<PaperImportModalProps> = ({
   quiz,
+  uid,
   batches,
   rosters,
   assignments,
   onCreateAssignment,
   onImport,
+  onUploadCrop,
+  loadRemoteCrop,
+  checkQuota,
   onSaveQuiz,
   onSavePending,
   onPickFromDrive,
@@ -140,6 +207,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
   onError,
   rasterize = rasterizeScan,
   readPage = readPaperPage,
+  cropWritten = cropWrittenBlob,
   cropStore = indexedDbCropStore,
 }) => {
   const [step, setStep] = useState<Step>('setup');
@@ -160,17 +228,43 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
   const [picking, setPicking] = useState(false);
   // The batch list is loaded once, so a discarded review is remembered here.
   const [discarded, setDiscarded] = useState<Set<string>>(new Set());
-  const [result, setResult] = useState<ImportPaperResponsesResult | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
   const [replaceSeats, setReplaceSeats] = useState<Set<number>>(new Set());
   const [lastPayload, setLastPayload] = useState<ImportPaperSheetPayload[]>([]);
   const [importedAssignmentId, setImportedAssignmentId] = useState('');
+  const [scanId, setScanId] = useState('');
+  const [cropMime, setCropMime] = useState<Map<string, CropMime>>(new Map());
+  // Blob URLs for this scan's crops, or URLs another device's upload came back as.
+  const [thumbs, setThumbs] = useState<Map<string, string>>(new Map());
+  const [uploads, setUploads] = useState<Map<string, CropUploadStatus>>(
+    new Map()
+  );
+  const [quota, setQuota] = useState<PaperImportQuota | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const uploaderRef = useRef<CropUploader | null>(null);
+  const thumbsRef = useRef(thumbs);
+  thumbsRef.current = thumbs;
+
+  useEffect(() => () => revokeAll(thumbsRef.current), []);
 
   const batch = useMemo(
     () => batches.find((b) => b.id === batchId) ?? null,
     [batches, batchId]
   );
-  const rowIds = useMemo(() => sheetRowQuestionIds(quiz), [quiz]);
+  const rowIds = useMemo(
+    () => sheetRowQuestionIds(quiz, batch ?? undefined),
+    [quiz, batch]
+  );
+  const isV2 = batch?.layoutVersion === 2;
+  const writtenLabels = useMemo(() => {
+    const out = new Map<string, string>();
+    for (const map of batch?.pageMaps ?? []) {
+      for (const item of map.items) {
+        if (item.kind === 'written') out.set(item.questionId, item.label);
+      }
+    }
+    return out;
+  }, [batch]);
   const quizSections = useMemo(() => sessionSectionsFor(quiz), [quiz]);
   const resumable =
     batch?.pendingReview &&
@@ -179,25 +273,45 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       ? batch.pendingReview
       : null;
 
+  const pendingWritten = useMemo((): PaperPendingWritten | null => {
+    if (!isV2 || !scanId || !assembled) return null;
+    return {
+      scanId,
+      boxes: assembled.sheets.flatMap((s) =>
+        (s.written ?? []).map((w) => ({
+          seat: s.seat,
+          questionId: w.questionId,
+          page: w.page,
+          state: w.state,
+          uploaded:
+            uploads.get(writtenCropKey(s.seat, w.questionId)) === 'done',
+          ...(cropMime.has(writtenCropKey(s.seat, w.questionId))
+            ? { mimeType: cropMime.get(writtenCropKey(s.seat, w.questionId)) }
+            : {}),
+        }))
+      ),
+    };
+  }, [isV2, scanId, assembled, uploads, cropMime]);
+
   // Park the review whenever it changes (Q26). Firestore is the external
   // system here; the debounce keeps clicking through rows cheap.
   useEffect(() => {
     if (step !== 'review' || !assembled || !onSavePending || !batchId) return;
     const timer = window.setTimeout(() => {
+      const review = toPendingReview(
+        {
+          assembled,
+          assignmentId: assignmentId === NEW_ADMINISTRATION ? '' : assignmentId,
+          key,
+          keyConfirmed,
+          spareAssignments,
+          targets,
+        },
+        Date.now()
+      );
       void onSavePending(
         batchId,
-        toPendingReview(
-          {
-            assembled,
-            assignmentId:
-              assignmentId === NEW_ADMINISTRATION ? '' : assignmentId,
-            key,
-            keyConfirmed,
-            spareAssignments,
-            targets,
-          },
-          Date.now()
-        )
+        pendingWritten ? { ...review, written: pendingWritten } : review
       ).catch(() => undefined);
     }, SAVE_DELAY_MS);
     return () => window.clearTimeout(timer);
@@ -209,14 +323,153 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     keyConfirmed,
     spareAssignments,
     targets,
+    pendingWritten,
     onSavePending,
     batchId,
   ]);
 
+  const refreshQuota = async (forBatch: PaperBatch) => {
+    setQuota(null);
+    if (forBatch.layoutVersion !== 2 || !checkQuota) return;
+    try {
+      setQuota(await checkQuota());
+    } catch {
+      setQuota(null);
+    }
+  };
+
+  // Starts the background upload of every handwriting crop (D21); a crop is keyed by seat and question.
+  const beginWritten = (
+    next: AssembleResult,
+    blobs: Map<string, Blob>,
+    nextScanId: string,
+    uploaded: ReadonlySet<string>,
+    mimes: ReadonlyMap<string, CropMime>,
+    resumed: boolean
+  ): CropUploader => {
+    revokeAll(thumbsRef.current);
+    setThumbs(new Map([...blobs].map(([k, blob]) => [k, objectUrl(blob)])));
+    const nextMime = new Map(mimes);
+    for (const [k, blob] of blobs) nextMime.set(k, cropMimeOf(blob));
+    setCropMime(nextMime);
+    setScanId(nextScanId);
+    setUploads(new Map());
+    const upload =
+      onUploadCrop && uid
+        ? onUploadCrop
+        : () => Promise.reject(new Error('Sign in to upload handwriting.'));
+    const uploader: CropUploader = createCropUploader(upload, (k, status) => {
+      if (uploaderRef.current !== uploader) return;
+      setUploads((prev) => new Map(prev).set(k, status));
+    });
+    uploaderRef.current = uploader;
+    for (const sheet of next.sheets) {
+      if (sheet.isBlank) continue;
+      for (const w of sheet.written ?? []) {
+        const k = writtenCropKey(sheet.seat, w.questionId);
+        const blob = blobs.get(k);
+        if (uploaded.has(k)) uploader.markDone(k);
+        else if (blob && uid) {
+          uploader.enqueue({
+            key: k,
+            path: paperCropStoragePath(
+              uid,
+              nextScanId,
+              sheet.seat,
+              w.questionId
+            ),
+            blob,
+            mayExist: resumed,
+          });
+        }
+      }
+    }
+    return uploader;
+  };
+
+  const loadRemoteThumbs = async (
+    owner: CropUploader,
+    forScanId: string,
+    boxes: PaperPendingWritten['boxes'],
+    local: ReadonlyMap<string, Blob>
+  ) => {
+    if (!loadRemoteCrop || !uid) return;
+    const wanted = boxes.filter(
+      (b) => b.uploaded && !local.has(writtenCropKey(b.seat, b.questionId))
+    );
+    for (let i = 0; i < wanted.length; i += 6) {
+      const part = await Promise.all(
+        wanted.slice(i, i + 6).map(async (b) => {
+          const url = await loadRemoteCrop(
+            paperCropStoragePath(uid, forScanId, b.seat, b.questionId)
+          ).catch(() => null);
+          return [writtenCropKey(b.seat, b.questionId), url] as const;
+        })
+      );
+      // A newer scan or resume owns the review now; its thumbnails share these keys.
+      if (uploaderRef.current !== owner) return;
+      setThumbs((prev) => {
+        const next = new Map(prev);
+        for (const [k, url] of part) if (url) next.set(k, url);
+        return next;
+      });
+    }
+  };
+
   const handleResume = async () => {
     if (!resumable || !batch) return;
     const state = fromPendingReview(resumable);
-    setAssembled(state.assembled);
+    const pw = batch.layoutVersion === 2 ? resumable.written : undefined;
+    let restored = state.assembled;
+    if (pw) {
+      // The compact review keeps written states apart from the sheets, so put them back.
+      restored = {
+        ...restored,
+        sheets: restored.sheets.map((s) => ({
+          ...s,
+          written: pw.boxes
+            .filter((b) => b.seat === s.seat)
+            .map((b) => ({
+              questionId: b.questionId,
+              label: writtenLabels.get(b.questionId) ?? '',
+              page: b.page,
+              state: b.state,
+              inkMm2: 0,
+              scanIndex: -1,
+            })),
+        })),
+      };
+      const local = await cropStore.loadWritten(batch.id);
+      const blobs = new Map<string, Blob>();
+      if (local?.scanId === pw.scanId) {
+        for (const c of local.crops) {
+          if (c.blob) blobs.set(writtenCropKey(c.seat, c.questionId), c.blob);
+        }
+      }
+      const uploaded = new Set(
+        pw.boxes
+          .filter((b) => b.uploaded)
+          .map((b) => writtenCropKey(b.seat, b.questionId))
+      );
+      const mimes = new Map(
+        pw.boxes.flatMap((b) =>
+          b.mimeType
+            ? [[writtenCropKey(b.seat, b.questionId), b.mimeType] as const]
+            : []
+        )
+      );
+      const owner = beginWritten(
+        restored,
+        blobs,
+        pw.scanId,
+        uploaded,
+        mimes,
+        true
+      );
+      void loadRemoteThumbs(owner, pw.scanId, pw.boxes, blobs);
+    }
+    void refreshQuota(batch);
+    setAssembled(restored);
     setAssignmentId(state.assignmentId || NEW_ADMINISTRATION);
     setKey(state.key);
     setKeyConfirmed(state.keyConfirmed);
@@ -240,6 +493,9 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     setStep('reading');
     const pages: ScannedPage[] = [];
     const nextCrops = new Map<string, string>();
+    const blobs = new Map<string, Blob>();
+    const grid = paperGridOf(batch);
+    const byMap = batch.layoutVersion === 2;
     try {
       let scanIndex = 0;
       for await (const page of rasterize(file)) {
@@ -247,17 +503,29 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         const read = readPage(page.page, {
           questionCount: batch.questionCount,
           choiceCount: batch.choiceCount,
-          columnsPerPage: paperGridOf(batch),
+          columnsPerPage: grid,
+          ...(byMap && batch.pageMaps ? { pageMaps: batch.pageMaps } : {}),
         });
         if (read.status === 'ok') {
-          const first =
-            (read.marker.page - 1) * questionsPerPage(paperGridOf(batch));
           for (const row of read.rows) {
             if (row.doubt) {
               nextCrops.set(
-                cropKey(read.marker.seat, first + row.indexOnPage),
+                cropKey(read.marker.seat, sheetRowOf(read, row, grid)),
                 page.crop(row.crop)
               );
+            }
+          }
+          // Blank boxes are cropped too: they are archived as the record of an empty answer (D22).
+          if (byMap && read.marker.seat !== batch.keySheetSeat) {
+            for (const box of read.written) {
+              const blob = await cropWritten(
+                page.page,
+                read.mmToPx,
+                box.boxMm
+              ).catch(() => null);
+              const k = writtenCropKey(read.marker.seat, box.questionId);
+              if (blob) blobs.set(k, blob);
+              else blobs.delete(k);
             }
           }
         }
@@ -267,10 +535,29 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       const next = assemblePaperScan(batch, pages);
       setAssembled(next);
       setCrops(nextCrops);
-      setKey(next.keySheet ? keySheetChoices(next.keySheet, quiz) : {});
+      setKey(next.keySheet ? keySheetChoices(next.keySheet, quiz, batch) : {});
       setKeyConfirmed(false);
       setSpareAssignments({});
       void cropStore.save(batch.id, nextCrops);
+      if (byMap) {
+        const nextScanId = newScanId();
+        const written: WrittenCrop[] = next.sheets.flatMap((s) =>
+          (s.written ?? []).map((w) => ({
+            seat: s.seat,
+            questionId: w.questionId,
+            page: w.page,
+            state: w.state,
+            blob: blobs.get(writtenCropKey(s.seat, w.questionId)) ?? null,
+          }))
+        );
+        void cropStore.saveWritten(batch.id, {
+          scanId: nextScanId,
+          crops: written,
+        });
+        beginWritten(next, blobs, nextScanId, new Set(), new Map(), false);
+      }
+      void refreshQuota(batch);
+      setProgress('');
       setStep('review');
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Could not read the scan.');
@@ -333,20 +620,79 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
   const runImport = async (
     sheets: ImportPaperSheetPayload[],
     targetAssignmentId: string
-  ) => {
+  ): Promise<ImportResult> => {
+    const extra: PaperImportRequestExtra = batch
+      ? paperImportRequestFields(batch, scanId)
+      : {};
     const written: number[] = [];
     const collisions: ImportPaperCollision[] = [];
+    const keptWritten: { seat: number; questionId: string }[] = [];
+    let jobsCreated = 0;
+    let pagesQueued = 0;
+    let pagesOverQuota = 0;
     for (let i = 0; i < sheets.length; i += IMPORT_CHUNK) {
       const part = await onImport(
         batchId,
         targetAssignmentId,
-        sheets.slice(i, i + IMPORT_CHUNK)
+        sheets.slice(i, i + IMPORT_CHUNK),
+        extra
       );
       written.push(...part.written);
       collisions.push(...part.collisions);
+      keptWritten.push(...(part.keptWritten ?? []));
+      jobsCreated += part.jobsCreated ?? 0;
+      pagesQueued += part.pagesQueued ?? 0;
+      pagesOverQuota += part.pagesOverQuota ?? 0;
     }
-    return { written, collisions };
+    return {
+      written,
+      collisions,
+      keptWritten,
+      jobsCreated,
+      pagesQueued,
+      pagesOverQuota,
+    };
   };
+
+  const buildPayload = (b: PaperBatch, sheets: readonly AssembledSheet[]) => {
+    const built = buildImportPayload({
+      batch: b,
+      quiz,
+      rosters,
+      sheets,
+      spareAssignments,
+      ...(b.layoutVersion === 2 && uid && scanId
+        ? { scan: { uid, scanId } }
+        : {}),
+    });
+    return {
+      ...built,
+      payload: built.payload.map((sheet) =>
+        sheet.written
+          ? {
+              ...sheet,
+              written: sheet.written.map((w) => ({
+                ...w,
+                mimeType:
+                  cropMime.get(writtenCropKey(sheet.seat, w.questionId)) ??
+                  'image/webp',
+              })),
+            }
+          : sheet
+      ),
+    };
+  };
+
+  // Every crop the payload points at must exist in Storage before the worker looks for it.
+  const unuploaded = (payload: readonly ImportPaperSheetPayload[]) =>
+    payload.flatMap((sheet) =>
+      (sheet.written ?? []).filter(
+        (w) =>
+          uploaderRef.current?.status(
+            writtenCropKey(sheet.seat, w.questionId)
+          ) !== 'done'
+      )
+    ).length;
 
   const applyTags = (tags: QuestionTargetTag[], mode: 'add' | 'replace') => {
     if (!picker) return;
@@ -378,8 +724,21 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
 
   const handleImport = async () => {
     if (!batch || !assembled) return;
+    setProgress('');
     setStep('importing');
     try {
+      const { payload } = buildPayload(batch, assembled.sheets);
+      if (isV2) {
+        setProgress('Uploading handwriting…');
+        await uploaderRef.current?.whenIdle();
+        const missing = unuploaded(payload);
+        if (missing > 0) {
+          throw new Error(
+            `${plural(missing, 'handwriting crop')} did not upload. Retry before importing.`
+          );
+        }
+      }
+      setProgress('');
       // Key first (Q19): grading reads the quiz, so the key must land before
       // any response that will be graded against it. Tags ride the same save.
       const now = Date.now();
@@ -387,13 +746,6 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       if (assembled.keySheet) nextQuiz = applyKeyToQuiz(quiz, batch, key, now);
       nextQuiz = applyTargetsToQuiz(nextQuiz, targets, now);
       if (nextQuiz !== quiz) await onSaveQuiz(nextQuiz);
-      const { payload } = buildImportPayload({
-        batch,
-        quiz,
-        rosters,
-        sheets: assembled.sheets,
-        spareAssignments,
-      });
       const target =
         assignmentId === NEW_ADMINISTRATION
           ? await onCreateAssignment()
@@ -411,6 +763,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
 
   const handleReplace = async () => {
     if (!result || replaceSeats.size === 0) return;
+    setProgress('');
     setStep('importing');
     try {
       const retry = lastPayload
@@ -420,6 +773,14 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       setResult({
         written: [...result.written, ...part.written],
         collisions: result.collisions.filter((c) => !replaceSeats.has(c.seat)),
+        keptWritten: [
+          ...(result.keptWritten ?? []),
+          ...(part.keptWritten ?? []),
+        ],
+        jobsCreated: (result.jobsCreated ?? 0) + (part.jobsCreated ?? 0),
+        pagesQueued: (result.pagesQueued ?? 0) + (part.pagesQueued ?? 0),
+        pagesOverQuota:
+          (result.pagesOverQuota ?? 0) + (part.pagesOverQuota ?? 0),
       });
       setReplaceSeats(new Set());
       setStep('done');
@@ -437,8 +798,22 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       rosters,
       sheets: assembled.sheets,
       spareAssignments,
+      ...(isV2 && uid && scanId ? { scan: { uid, scanId } } : {}),
     });
+    const writtenKeys = payload.flatMap((s) =>
+      (s.written ?? []).map((w) => writtenCropKey(s.seat, w.questionId))
+    );
+    // One transcription call per page with ink (D24), so quota counts pages.
+    const inkPages = new Set(
+      payload.flatMap((s) =>
+        (s.written ?? [])
+          .filter((w) => w.state === 'ink')
+          .map((w) => `${s.seat}:${w.page}`)
+      )
+    ).size;
     return {
+      writtenKeys,
+      inkPages,
       ready: payload.length,
       blank: skipped.filter((s) => s.reason === 'blank').length,
       unassigned: skipped.filter((s) => s.reason === 'unassigned-spare').length,
@@ -449,7 +824,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         0
       ),
     };
-  }, [assembled, batch, quiz, rosters, spareAssignments]);
+  }, [assembled, batch, quiz, rosters, spareAssignments, isV2, uid, scanId]);
 
   const header = (
     <div className="flex items-start justify-between border-b border-slate-100 px-5 pb-3 pt-5">
@@ -841,6 +1216,119 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     );
   };
 
+  const writtenLabelOf = (questionId: string, label?: string) =>
+    label !== undefined && label.length > 0
+      ? label
+      : (writtenLabels.get(questionId) ?? '');
+
+  const renderWritten = () => {
+    if (!isV2 || !assembled || !summary) return null;
+    const sheets = assembled.sheets.filter(
+      (s) => !s.isBlank && (s.written?.length ?? 0) > 0
+    );
+    if (sheets.length === 0) return null;
+    const keys = summary.writtenKeys;
+    const done = keys.filter((k) => uploads.get(k) === 'done').length;
+    const failed = keys.filter((k) => uploads.get(k) === 'failed').length;
+    const missing = keys.filter((k) => !uploads.has(k)).length;
+    const over = quota
+      ? quota.disabled
+        ? summary.inkPages
+        : Math.max(0, summary.inkPages - quota.remaining)
+      : 0;
+    return (
+      <section
+        className="rounded-xl border border-slate-200 p-3"
+        aria-label="Written answers"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-bold text-slate-900">Written answers</p>
+          <span className="text-xs text-slate-500">
+            {done === keys.length
+              ? 'Uploaded'
+              : `Uploading ${done} of ${keys.length}`}
+          </span>
+        </div>
+        <p className="mt-0.5 text-xs text-slate-600">
+          {plural(summary.inkPages, 'page')} to transcribe
+        </p>
+        {quota?.disabled ? (
+          <p className="mt-1 text-xs text-amber-800">
+            Transcription is off, so written answers import without typed text.
+          </p>
+        ) : (
+          over > 0 && (
+            <p className="mt-1 text-xs text-amber-800">
+              {`${plural(over, 'page')} over today's transcription limit will be transcribed later.`}
+            </p>
+          )
+        )}
+        {failed > 0 && (
+          <p className="mt-1 flex items-center gap-2 text-xs text-amber-800">
+            {plural(failed, 'crop')} failed to upload.
+            <button
+              type="button"
+              onClick={() => uploaderRef.current?.retryFailed()}
+              className="rounded px-2 py-0.5 font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
+            >
+              Retry
+            </button>
+          </p>
+        )}
+        {missing > 0 && (
+          <p className="mt-1 text-xs text-amber-800">
+            {`${plural(missing, 'crop')} did not upload from the computer that read the scan. Scan the stack again to import.`}
+          </p>
+        )}
+        <ul className="mt-2 space-y-2">
+          {sheets.map((sheet) => (
+            <li key={sheet.seat}>
+              <p className="text-xs font-semibold text-slate-700">
+                {sheetLabel(sheet, rosters)}
+              </p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {(sheet.written ?? []).map((w) => {
+                  const k = writtenCropKey(sheet.seat, w.questionId);
+                  const url = thumbs.get(k);
+                  const label = writtenLabelOf(w.questionId, w.label);
+                  const blank = w.state === 'blank';
+                  return (
+                    <figure
+                      key={w.questionId}
+                      className={`w-28 rounded-lg border bg-white p-1 ${
+                        blank
+                          ? 'border-dashed border-slate-300'
+                          : 'border-slate-200'
+                      }`}
+                    >
+                      {url ? (
+                        <img
+                          src={url}
+                          alt={`Handwritten answer, question ${label}`}
+                          className="h-16 w-full object-contain"
+                        />
+                      ) : (
+                        <div className="h-16 w-full rounded bg-slate-50" />
+                      )}
+                      <figcaption className="mt-0.5 flex justify-between text-xs text-slate-600">
+                        <span>{label}.</span>
+                        {blank && (
+                          <span className="font-semibold text-slate-500">
+                            Blank
+                          </span>
+                        )}
+                      </figcaption>
+                    </figure>
+                  );
+                })}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  };
+
   const renderReview = () => {
     if (!assembled || !summary) return null;
     const problems = [
@@ -886,6 +1374,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         {renderKey()}
         {renderTargets()}
         {assembled.sheets.map(renderSheet)}
+        {renderWritten()}
         {problems.length > 0 && (
           <section className="rounded-xl border border-amber-200 bg-amber-50 p-3">
             <p className="text-sm font-bold text-amber-900">Pages set aside</p>
@@ -919,8 +1408,42 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             <p className="mt-1 text-xs text-slate-500">
               Grade and publish them in Results.
             </p>
+            {(result.pagesQueued ?? 0) > 0 && (
+              <p className="mt-1 text-xs text-slate-600">
+                {plural(result.pagesQueued ?? 0, 'page')} of handwriting queued
+                to transcribe.
+              </p>
+            )}
+            {(result.pagesOverQuota ?? 0) > 0 && (
+              <p className="mt-1 text-xs text-amber-800">
+                {`${plural(result.pagesOverQuota ?? 0, 'page')} over today's limit will be transcribed later.`}
+              </p>
+            )}
           </div>
         </div>
+        {(result.keptWritten?.length ?? 0) > 0 && (
+          <section className="rounded-xl border border-slate-200 p-3">
+            <p className="text-sm font-bold text-slate-900">
+              {plural(result.keptWritten?.length ?? 0, 'written answer')} kept
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Already graded or edited, so the new scan did not replace them.
+            </p>
+            <ul className="mt-2 space-y-0.5 text-sm text-slate-700">
+              {(result.keptWritten ?? []).map((kept) => {
+                const sheet = assembled?.sheets.find(
+                  (s) => s.seat === kept.seat
+                );
+                return (
+                  <li key={`${kept.seat}:${kept.questionId}`}>
+                    {sheet ? sheetLabel(sheet, rosters) : `Seat ${kept.seat}`}
+                    {` · question ${writtenLabelOf(kept.questionId)}`}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
         {result.collisions.length > 0 && (
           <section className="rounded-xl border border-amber-200 bg-amber-50 p-3">
             <p className="text-sm font-bold text-amber-900">
@@ -981,6 +1504,14 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     );
   };
 
+  const uploadBlocked =
+    isV2 &&
+    !!summary &&
+    summary.writtenKeys.some((k) => {
+      const status = uploads.get(k);
+      return status === undefined || status === 'failed';
+    });
+
   const footer =
     step === 'review' ? (
       <div className="flex justify-end gap-2">
@@ -994,7 +1525,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         <button
           type="button"
           onClick={() => void handleImport()}
-          disabled={!canImport || summary?.ready === 0}
+          disabled={!canImport || summary?.ready === 0 || uploadBlocked}
           className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
         >
           Import {summary?.ready ?? 0} sheet{summary?.ready === 1 ? '' : 's'}
@@ -1026,7 +1557,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       {(step === 'reading' || step === 'importing') && (
         <div className="flex items-center gap-3 px-5 py-8 text-sm text-slate-600">
           <Loader2 className="h-5 w-5 animate-spin" />
-          {step === 'reading' ? progress || 'Reading…' : 'Importing…'}
+          {progress || (step === 'reading' ? 'Reading…' : 'Importing…')}
         </div>
       )}
       {step === 'review' && renderReview()}

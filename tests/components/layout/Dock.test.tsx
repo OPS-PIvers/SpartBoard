@@ -1,18 +1,4 @@
-/**
- * Regression test for: Dock render loop uses canAccessWidget for InternalToolType
- *
- * Bug: The dock item render loop called `canAccessWidget(tool.type as WidgetType)`
- * for ALL tools, including InternalToolType tools like `record`, `magic`, and `remote`.
- * The correct check for those is `canAccessTool(type)` which routes them to
- * `canAccessFeature(...)`.
- *
- * Consequence: A FeaturePermission record for `record` with `enabled: false` would
- * suppress the Record button via the wrong widget permission check, even if
- * `canAccessFeature('screen-recording')` returns true (the correct gate).
- *
- * Fix: Replace `canAccessWidget(tool.type as WidgetType)` with `canAccessTool(tool.type)`
- * at the top of the dock items render loop.
- */
+// Record / Magic / Remote read their Widgets-page doc, falling back to the retired global flag when none exists.
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -243,6 +229,7 @@ type MockDockItem =
 function setupMocks({
   canAccessWidget = vi.fn().mockReturnValue(true),
   canAccessFeature = vi.fn().mockReturnValue(true),
+  featurePermissions = [] as { widgetType: string }[],
   dockItems = [] as MockDockItem[],
   addWidget = vi.fn(),
   annotationActive = false,
@@ -250,6 +237,7 @@ function setupMocks({
 }: {
   canAccessWidget?: ReturnType<typeof vi.fn>;
   canAccessFeature?: ReturnType<typeof vi.fn>;
+  featurePermissions?: { widgetType: string }[];
   dockItems?: MockDockItem[];
   addWidget?: ReturnType<typeof vi.fn>;
   annotationActive?: boolean;
@@ -290,7 +278,7 @@ function setupMocks({
     user: { uid: 'test-uid', email: 'test@test.com' },
     userGradeLevels: [],
     selectedBuildings: [],
-    featurePermissions: [],
+    featurePermissions,
     dockPosition: 'bottom',
   } as unknown as ReturnType<typeof useAuth>);
 
@@ -352,49 +340,31 @@ describe('Dock – InternalToolType permission gate', () => {
     vi.clearAllMocks();
   });
 
-  it('shows the Record button when canAccessFeature("screen-recording") is true, even when canAccessWidget returns false for "record"', () => {
-    /**
-     * Regression: Before the fix, the dock render loop called
-     * `canAccessWidget(tool.type as WidgetType)` for ALL tools including
-     * InternalToolType tools like `record`. When an admin created a
-     * FeaturePermission record with widgetType='record' and enabled=false,
-     * `canAccessWidget('record')` returned false — hiding the button even
-     * though `canAccessFeature('screen-recording')` returned true.
-     *
-     * After the fix, `canAccessTool(tool.type)` is called instead, which
-     * correctly routes 'record' → canAccessFeature('screen-recording').
-     */
-    const canAccessWidget = vi.fn().mockImplementation((type: string) => {
-      // Simulate a FeaturePermission record for 'record' with enabled: false
-      if (type === 'record') return false;
-      return true;
-    });
-    const canAccessFeature = vi.fn().mockImplementation((feature: string) => {
-      // screen-recording is accessible
-      if (feature === 'screen-recording') return true;
-      return false;
-    });
+  it('uses the Widgets-page doc for Record once one exists', () => {
+    const canAccessWidget = vi
+      .fn()
+      .mockImplementation((type: string) => type !== 'record');
+    const canAccessFeature = vi.fn().mockReturnValue(true);
 
     setupMocks({
       canAccessWidget,
       canAccessFeature,
+      featurePermissions: [{ widgetType: 'record' }],
       dockItems: [{ type: 'tool', toolType: 'record' }],
     });
 
     render(<Dock />);
     expandDock();
 
-    // The Record dock item should be visible because the correct gate
-    // (canAccessFeature('screen-recording')) returns true.
-    expect(screen.getByTestId('dock-item-record')).toBeInTheDocument();
+    expect(screen.queryByTestId('dock-item-record')).not.toBeInTheDocument();
+    expect(canAccessFeature).not.toHaveBeenCalledWith('screen-recording');
   });
 
-  it('hides the Record button when canAccessFeature("screen-recording") is false', () => {
+  it('falls back to the screen-recording flag when Record has no Widgets-page doc', () => {
     const canAccessWidget = vi.fn().mockReturnValue(true);
-    const canAccessFeature = vi.fn().mockImplementation((feature: string) => {
-      if (feature === 'screen-recording') return false;
-      return true;
-    });
+    const canAccessFeature = vi
+      .fn()
+      .mockImplementation((feature: string) => feature !== 'screen-recording');
 
     setupMocks({
       canAccessWidget,
@@ -405,9 +375,24 @@ describe('Dock – InternalToolType permission gate', () => {
     render(<Dock />);
     expandDock();
 
-    // When canAccessFeature('screen-recording') is false, the Record button
-    // should NOT appear regardless of canAccessWidget.
     expect(screen.queryByTestId('dock-item-record')).not.toBeInTheDocument();
+  });
+
+  it('shows Record when its Widgets-page doc grants access', () => {
+    const canAccessWidget = vi.fn().mockReturnValue(true);
+    const canAccessFeature = vi.fn().mockReturnValue(false);
+
+    setupMocks({
+      canAccessWidget,
+      canAccessFeature,
+      featurePermissions: [{ widgetType: 'record' }],
+      dockItems: [{ type: 'tool', toolType: 'record' }],
+    });
+
+    render(<Dock />);
+    expandDock();
+
+    expect(screen.getByTestId('dock-item-record')).toBeInTheDocument();
   });
 
   it('shows a regular widget button when canAccessWidget returns true', () => {

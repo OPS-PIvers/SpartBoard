@@ -7,7 +7,8 @@ import {
   cleanup,
 } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { GlobalPermissionsManager } from './GlobalPermissionsManager';
+import { FeaturesPanel } from './FeaturesPanel';
+import { AccessSearchProvider } from './AccessSearchProvider';
 
 // Minimal lucide-react stub — avoids loading the full ~25,000-line bundle.
 vi.mock('lucide-react', () => {
@@ -30,7 +31,7 @@ vi.mock('lucide-react', () => {
   });
 });
 
-vi.mock('@/config/firebase', () => ({ db: {} }));
+vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
 
 const existingPermission = {
   featureId: 'live-session',
@@ -47,11 +48,13 @@ vi.mock('firebase/firestore', () => ({
   setDoc: vi.fn(),
   addDoc: vi.fn(),
   serverTimestamp: vi.fn(),
-  getDocs: vi.fn(() => ({
-    forEach: (cb: (doc: { data: () => unknown }) => void) => {
-      cb({ data: () => existingPermission });
-    },
-  })),
+  getDocs: vi.fn(() =>
+    Promise.resolve({
+      forEach: (cb: (doc: { data: () => unknown }) => void) => {
+        cb({ data: () => existingPermission });
+      },
+    })
+  ),
 }));
 
 vi.mock('@/context/useAuth', () => ({
@@ -72,19 +75,24 @@ vi.mock('@/hooks/useStorage', () => ({
 
 vi.mock('@/hooks/useIsMobile', () => ({ useIsMobile: () => false }));
 
-describe('GlobalPermissionsManager', () => {
+describe('FeaturesPanel', () => {
   afterEach(() => {
     cleanup();
   });
 
   // A pre-existing legacy mixed-case entry must not produce a duplicate on re-add.
   it('does not re-add a beta user whose email differs only by case from an existing entry', async () => {
-    render(<GlobalPermissionsManager />);
+    render(<FeaturesPanel />);
 
     await waitFor(() => {
       expect(screen.getByText('Live Sessions')).toBeInTheDocument();
     });
 
+    fireEvent.click(
+      document.querySelector(
+        '[aria-controls="access-row-live-session"]'
+      ) as Element
+    );
     expect(screen.getByText('Teacher@School.ORG')).toBeInTheDocument();
 
     const input = screen.getByPlaceholderText('user@example.com');
@@ -93,5 +101,42 @@ describe('GlobalPermissionsManager', () => {
 
     // Still exactly one chip for this user — no duplicate was added.
     expect(screen.getAllByText(/teacher@school\.org/i)).toHaveLength(1);
+  });
+
+  it('filters rows by search and links to the tab that matches', async () => {
+    const goToTab = vi.fn();
+    render(
+      <AccessSearchProvider goToTab={goToTab}>
+        <FeaturesPanel />
+      </AccessSearchProvider>
+    );
+    await waitFor(() => {
+      expect(screen.getByText('Live Sessions')).toBeInTheDocument();
+    });
+
+    const search = screen.getByTestId('access-search-features');
+    fireEvent.change(search, { target: { value: 'classroom' } });
+    expect(screen.queryByText('Live Sessions')).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Google Classroom integration')
+    ).toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: 'stickers' } });
+    fireEvent.click(screen.getByRole('button', { name: /Found on Widgets/ }));
+    expect(goToTab).toHaveBeenCalledWith('widgets');
+
+    fireEvent.change(search, { target: { value: 'read aloud' } });
+    fireEvent.click(screen.getByRole('button', { name: /Found on Previews/ }));
+    expect(goToTab).toHaveBeenCalledWith('previews');
+  });
+
+  it('groups features into category sections with a Gemini models card', async () => {
+    render(<FeaturesPanel />);
+    await waitFor(() => {
+      expect(screen.getByText('Live Sessions')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Sharing & sessions')).toBeInTheDocument();
+    expect(screen.getByText('Gemini models')).toBeInTheDocument();
+    expect(screen.queryByText('Custom Logo')).toBeNull();
   });
 });

@@ -57,6 +57,7 @@
         "free-response",
         "free-response"
       ],
+      "picturesOn": ["8", "11", "12", "13", "16"],
       "chooseCounts": [null, null, 2]
     },
     "ba1391212f9b0a58554dbf97409546daa489010761bec46b9a9ef35e6e6b9010": {

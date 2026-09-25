@@ -116,9 +116,15 @@ export function headersHaveAnswerColumns(headers: string[]): boolean {
 /** Readable answer text for a quiz answer; Matching/Ordering/MA unpacked from their pipe encoding. */
 export function formatQuizAnswerText(
   question: Pick<QuizQuestion, 'type'>,
-  answer: Pick<QuizResponseAnswer, 'answer' | 'artifacts' | 'unresponded'>
+  answer: Pick<
+    QuizResponseAnswer,
+    'answer' | 'artifacts' | 'unresponded' | 'paperTranscript'
+  >
 ): string {
   if (answer.unresponded) return '';
+  if (answer.paperTranscript === 'pending' && !answer.answer?.trim()) {
+    return '(transcribing)';
+  }
   const raw = answer.answer ?? '';
   let text = raw;
   if (raw && question.type === 'Matching') {
@@ -142,6 +148,8 @@ export function formatQuizAnswerText(
   const parts = [text.trim()];
   for (const art of answer.artifacts ?? []) {
     if (art.kind === 'text') parts.push(art.text?.trim() ?? '');
+    // Handwriting crops stay in the teacher's own views; the transcript is `answer`.
+    else if (art.kind === 'handwriting') continue;
     else parts.push(`[${art.kind}]`);
   }
   const joined = parts.filter(Boolean).join(' ');

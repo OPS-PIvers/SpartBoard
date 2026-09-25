@@ -11,8 +11,6 @@ import { useProjectLibrary } from '@/hooks/useProjectLibrary';
 import { useProjectRun } from '@/hooks/useProjectRun';
 import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
 import { useInSubShare } from '@/hooks/useShareContent';
-import { useProjectsBuildingDefaults } from '@/hooks/useProjectsBuildingDefaults';
-import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { ProjectsManager } from './components/ProjectsManager';
@@ -143,8 +141,6 @@ const SetupGroupsHost: React.FC<{
   const config = widget.config as ProjectsConfig;
   const { user } = useAuth();
   const { updateWidget, addToast, rosters, activeRosterId } = useDashboard();
-  const buildingId = useWidgetBuildingId(widget);
-  const buildingDefaults = useProjectsBuildingDefaults(buildingId);
   const { projects } = useProjectLibrary(user?.uid);
   const { groups, ensureRun, importGroups } = useProjectRun(
     user?.uid,
@@ -158,9 +154,7 @@ const SetupGroupsHost: React.FC<{
   const handleCommit = async (
     entries: ProjectGroupImportEntry[]
   ): Promise<{ groupsWritten: number; membersResolved: number }> => {
-    await ensureRun(project, {
-      showStatusToStudents: buildingDefaults.defaultShowStatusToStudents,
-    });
+    await ensureRun(project);
     const result = await importGroups(
       entries,
       undefined,
@@ -206,8 +200,6 @@ const GroupsManagerHost: React.FC<{
   const config = widget.config as ProjectsConfig;
   const { user, orgId } = useAuth();
   const { rosters, activeRosterId, addToast } = useDashboard();
-  const buildingId = useWidgetBuildingId(widget);
-  const buildingDefaults = useProjectsBuildingDefaults(buildingId);
   const { projects } = useProjectLibrary(user?.uid);
   const { run, groups, loading, ensureRun, importGroups } = useProjectRun(
     user?.uid,
@@ -226,9 +218,7 @@ const GroupsManagerHost: React.FC<{
     if (!run) {
       if (!project)
         throw new Error('This project is no longer in your library.');
-      await ensureRun(project, {
-        showStatusToStudents: buildingDefaults.defaultShowStatusToStudents,
-      });
+      await ensureRun(project);
     }
     await importGroups(
       entries,

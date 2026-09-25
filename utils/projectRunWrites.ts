@@ -9,12 +9,10 @@ import {
   doc,
   setDoc,
   updateDoc,
-  writeBatch,
   type Firestore,
 } from 'firebase/firestore';
 import type {
   ProjectDefinition,
-  ProjectGroup,
   ProjectGroupEvent,
   ProjectRun,
   ProjectStepState,
@@ -124,26 +122,6 @@ export async function removeWorkLinkWrite(
     },
     { merge: true }
   );
-}
-
-/** D39 — writes the run flag and every group's `peerVisible` (what the rule reads) in one batch. */
-export async function setPeerVisibility(
-  db: Firestore,
-  runId: string,
-  groups: Pick<ProjectGroup, 'id'>[],
-  value: boolean
-): Promise<void> {
-  const now = Date.now();
-  const batch = writeBatch(db);
-  batch.update(doc(db, RUNS_COLLECTION, runId), {
-    showStatusToStudents: value,
-    updatedAt: now,
-  });
-  // 32 groups max per run, well inside a batch's 500 writes.
-  for (const group of groups) {
-    batch.update(groupRef(db, runId, group.id), { peerVisible: value });
-  }
-  await batch.commit();
 }
 
 /** Opening and closing a run is the whole In Progress ↔ Archive lifecycle (R2). */

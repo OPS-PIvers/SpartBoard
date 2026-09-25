@@ -19,6 +19,7 @@ import { Modal } from '@/components/common/Modal';
 import {
   NO_STUDENT_SIGN_IN_WARNING,
   defaultGroupColor,
+  resolveGroupColor,
   projectClassIdFor,
   rosterHasStudentSignIn,
 } from '../projectSteps';
@@ -97,7 +98,7 @@ export const ProjectSetupGroupsModal: React.FC<
         name: carryNames ? group.name : `Group ${groupsInClass + index + 1}`,
         order: index,
         // D33 — the Group Maker's color comes along; otherwise one is dealt by order.
-        color: group.color ?? defaultGroupColor(groupsInClass + index),
+        color: resolveGroupColor(group.color, groupsInClass + index),
         sourcedIds: students
           .map((s) => s.classLinkSourcedId)
           .filter((id): id is string => Boolean(id)),

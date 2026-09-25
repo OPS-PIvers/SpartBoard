@@ -699,6 +699,12 @@ service cloud.firestore {
       allow read, write: if ownsUserTeacher(userId) && notAnon();
     }
 
+    // Handwriting transcription jobs: owner reads; the import callable and worker write.
+    match /users/{userId}/paper_transcription_jobs/{jobId} {
+      allow read: if ownsUserTeacher(userId) && notAnon();
+      allow write: if false;
+    }
+
     // PLC Home v2 layout — per-user tile order, spotlight and seen result counts. No PLC
     // membership check needed (a non-member's doc is inert — tiles still pass the
     // PLC rule gates to read content). Per-tile enum validation is delegated to
@@ -4050,6 +4056,12 @@ service cloud.firestore {
           allow delete: if request.auth != null &&
             (authUid() == sessionTeacherUid() || isAdmin());
         }
+
+        // Handwritten paper answers: AI transcript internals. Session teacher reads; only the server writes.
+        match /paperPrivate/{questionId} {
+          allow read: if request.auth != null && authUid() == sessionTeacherUid();
+          allow write: if false;
+        }
       }
 
       // Question content for per-period sessions, readable by a student only
@@ -5638,8 +5650,7 @@ service cloud.firestore {
                     && isList('approvalStepIds')
                     && isList('steps')
                     && incoming().steps.size() <= 32
-                    && isBool('acceptingUpdates')
-                    && isBool('showStatusToStudents');
+                    && isBool('acceptingUpdates');
       allow update: if pjTeacher()
                     && existing().teacherUid == authUid()
                     && unchanged('teacherUid')
@@ -5690,14 +5701,10 @@ service cloud.firestore {
                              && before.get(sid, '') != 'done')));
         }
 
-        // D39: a member always; a classmate only while the teacher's
-        // denormalized `peerVisible` is on. Both are provable from the two
-        // student query shapes (memberUids array-contains, classId in +
-        // peerVisible ==).
+        // A student reads only their own group, never a classmate's; the
+        // member branch is provable from the memberUids array-contains query.
         allow read: if request.auth != null
                     && (authUid() in existing().get('memberUids', [])
-                        || (studentRoleCanAccessClass(existing().get('classId', ''))
-                            && existing().get('peerVisible', false) == true)
                         || pjIsRunTeacher());
         allow update: if request.auth != null
                       && (pjIsRunTeacher()

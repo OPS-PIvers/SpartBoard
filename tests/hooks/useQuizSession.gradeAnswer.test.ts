@@ -448,3 +448,48 @@ describe('gradeAnswer — MA (choose all that apply)', () => {
     });
   });
 });
+
+describe('gradeAnswer — paper transcripts', () => {
+  it('a pending transcript is awaiting-grade, never a scored 0', () => {
+    const r = gradeAnswer(q(), '', undefined, undefined, 'pending');
+    expect(r.state).toBe('awaiting-grade');
+    expect(r.pointsEarned).toBe(0);
+    expect(isWrittenAnswerAwaitingGrade(q(), '', undefined, 'pending')).toBe(
+      true
+    );
+  });
+
+  it('a blank transcript is a genuine 0', () => {
+    const r = gradeAnswer(q(), '', undefined, undefined, 'blank');
+    expect(r.state).toBe('not-attempted');
+    expect(r.pointsEarned).toBe(0);
+  });
+
+  it('a done transcript grades like a typed answer', () => {
+    expect(
+      gradeAnswer(q(), '<p>Plants</p>', undefined, undefined, 'done').state
+    ).toBe('awaiting-grade');
+    expect(gradeAnswer(q(), '', undefined, undefined, 'done').state).toBe(
+      'not-attempted'
+    );
+  });
+
+  it('a teacher grade on a pending transcript stands', () => {
+    const r = gradeAnswer(
+      q(),
+      '',
+      grade({ pointsAwarded: 7 }),
+      undefined,
+      'pending'
+    );
+    expect(r.state).toBe('scored');
+    expect(r.pointsEarned).toBe(7);
+  });
+
+  it('pending does not change auto-graded types', () => {
+    const mc = q({ type: 'MC', correctAnswer: 'A', incorrectAnswers: ['B'] });
+    expect(gradeAnswer(mc, '', undefined, undefined, 'pending').state).toBe(
+      'not-attempted'
+    );
+  });
+});

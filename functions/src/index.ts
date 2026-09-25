@@ -56,6 +56,21 @@ export { sweepActivityWallArchives } from './sweepActivityWallArchives';
 export { archiveQuizMediaArtifact } from './quizMediaArchive';
 export { sweepStuckQuizArchives } from './sweepStuckQuizArchives';
 export { getQuizArtifactPlaybackUrl } from './getQuizArtifactPlaybackUrl';
+// Handwritten paper answers: per-page transcription worker, retry and sweeps.
+export {
+  transcribePaperWrittenPageV1,
+  retryPaperTranscriptionV1,
+} from './paperTranscriptionWorker';
+export {
+  sweepPaperTranscriptionJobs,
+  sweepPaperWrittenCrops,
+} from './paperTranscriptionSweep';
+export {
+  getPaperWrittenCropV1,
+  updatePaperTranscriptV1,
+  applyPaperNewerScanV1,
+  transcribePaperBlankV1,
+} from './paperWrittenCallables';
 
 // ── Quiz read-aloud (Cloud Text-to-Speech; docs/plans/QUIZ_READ_ALOUD.md) ──
 export { prepareQuizReadAloudV1, synthesizeQuizAudioV1 } from './quizReadAloud';

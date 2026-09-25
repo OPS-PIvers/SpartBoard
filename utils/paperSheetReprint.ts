@@ -1,4 +1,4 @@
-import type { PaperBatch, QuizData, QuizResponse } from '@/types';
+import type { PaperBatch, PaperPageMap, QuizData, QuizResponse } from '@/types';
 import { normalizeAnswer } from '@/hooks/useQuizSession';
 import { selectRepresentativeAnswers } from './answerTakeOrdering';
 import {
@@ -7,8 +7,13 @@ import {
   paperGridOf,
   type PaperGrid,
 } from './paperSheetLayout';
+import { mcItemsOf } from './paperPageMap';
 import { analyzePaperQuiz } from './paperSheetPlan';
-import type { PaperSheetQuestionText, SheetFill } from './paperSheetPrint';
+import type {
+  PaperSheetQuestionText,
+  SheetFill,
+  SheetWrittenFill,
+} from './paperSheetPrint';
 
 /** A paper response mapped back onto the sheet it was bubbled on. */
 export interface SheetReprint {
@@ -20,6 +25,10 @@ export interface SheetReprint {
   /** Question text per row, when the batch printed it beside the bubbles. */
   questionTexts?: PaperSheetQuestionText[];
   pageCount: number;
+  /** The batch's page maps (layoutVersion 2); the reprint then draws every page from them (D42). */
+  pageMaps?: PaperPageMap[];
+  /** Stem per written question id, for the headers above its box. */
+  writtenTexts?: Record<string, string>;
   /** Bubble the student filled per row; null for a passed or unclear row. */
   filled: (number | null)[];
   /** The key's bubble per row; null when the quiz has no key for it. */
@@ -47,6 +56,20 @@ function bubbleFor(
   return letter < 0 ? null : letter;
 }
 
+function writtenTextsOf(
+  pageMaps: readonly PaperPageMap[],
+  questions: ReadonlyMap<string, { text: string }>
+): Record<string, string> {
+  const texts: Record<string, string> = {};
+  for (const map of pageMaps) {
+    for (const item of map.items) {
+      const text = questions.get(item.questionId)?.text;
+      if (item.kind === 'written' && text) texts[item.questionId] = text;
+    }
+  }
+  return texts;
+}
+
 /** Redraws a paper response from its batch; no scan needed (D22). Null for online work. */
 export function planSheetReprint(
   response: QuizResponse,
@@ -54,7 +77,17 @@ export function planSheetReprint(
   quiz: QuizData
 ): SheetReprint | null {
   if (!response.paperBatchId || response.paperSeat === undefined) return null;
-  const rows = analyzePaperQuiz(quiz).rows;
+  const pageMaps =
+    batch.layoutVersion === 2 && batch.pageMaps?.length
+      ? batch.pageMaps
+      : undefined;
+  // A v2 batch reads its MC rows off the map, in sheet-row order; older batches recompute them.
+  const rows = pageMaps
+    ? pageMaps
+        .flatMap(mcItemsOf)
+        .sort((a, b) => a.sheetRow - b.sheetRow)
+        .map((item) => ({ questionId: item.questionId }))
+    : analyzePaperQuiz(quiz).rows;
   const questions = new Map(quiz.questions.map((q) => [q.id, q]));
   const answers = selectRepresentativeAnswers(response.answers ?? []);
   const columnsPerPage = paperGridOf(batch);
@@ -86,10 +119,15 @@ export function planSheetReprint(
           })),
         }
       : {}),
-    pageCount: Math.max(
-      batch.pagesPerSheet || 0,
-      pageCountForQuestions(rows.length, columnsPerPage)
-    ),
+    pageCount: pageMaps
+      ? pageMaps.length
+      : Math.max(
+          batch.pagesPerSheet || 0,
+          pageCountForQuestions(rows.length, columnsPerPage)
+        ),
+    ...(pageMaps
+      ? { pageMaps, writtenTexts: writtenTextsOf(pageMaps, questions) }
+      : {}),
     filled,
     correct,
     unclear,
@@ -100,6 +138,8 @@ export interface SheetReprintMarks {
   markAnswers: boolean;
   keyMode: 'off' | 'missed' | 'all';
   score?: string;
+  /** Crop, points and comment per written question id (D42). */
+  written?: Readonly<Record<string, SheetWrittenFill>>;
 }
 
 /** The marks D23 draws: solid pick, margin ✓/✗ or "?", a ringed key per the key mode. */
@@ -122,5 +162,6 @@ export function sheetFillFor(
       return f !== null && right(i) ? 'correct' : 'incorrect';
     }),
     ...(options.score ? { score: options.score } : {}),
+    ...(options.written ? { written: options.written } : {}),
   };
 }

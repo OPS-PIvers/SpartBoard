@@ -685,6 +685,37 @@ describe('formatQuizAnswerText', () => {
     ).toBe('[audio]');
   });
 
+  it('exports a handwritten transcript without the crop, and marks pending', () => {
+    const crop = {
+      id: 'hw_scan1_q1',
+      slot: 'primary' as const,
+      kind: 'handwriting' as const,
+      uploadState: 'uploaded' as const,
+    };
+    expect(
+      formatQuizAnswerText(
+        { type: 'free-response' },
+        {
+          answer: 'Plants need light.',
+          paperTranscript: 'done',
+          artifacts: [crop],
+        }
+      )
+    ).toBe('Plants need light.');
+    expect(
+      formatQuizAnswerText(
+        { type: 'free-response' },
+        { answer: '', paperTranscript: 'pending', artifacts: [crop] }
+      )
+    ).toBe('(transcribing)');
+    expect(
+      formatQuizAnswerText(
+        { type: 'free-response' },
+        { answer: '', paperTranscript: 'blank', artifacts: [crop] }
+      )
+    ).toBe('');
+  });
+
   it('is blank for an unresponded answer', () => {
     expect(
       formatQuizAnswerText(

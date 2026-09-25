@@ -18,8 +18,7 @@ import {
   ALL_GRADE_LEVELS,
 } from '@/config/widgetGradeLevels';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
-import { LayoutGrid, List, Filter, ChevronDown } from 'lucide-react';
-import { useIsMobile } from '@/hooks/useIsMobile';
+import { Filter, ChevronDown } from 'lucide-react';
 import { Toast } from '@/components/common/Toast';
 
 import { GenericConfigurationModal } from '@/components/admin/GenericConfigurationModal';
@@ -40,13 +39,22 @@ import { BloomsTaxonomyConfigurationModal } from '@/components/admin/BloomsTaxon
 import { QuizConfigurationModal } from '@/components/admin/QuizConfigurationModal';
 import { StickerGlobalConfig } from '@/types';
 import { useDialog } from '@/context/useDialog';
+import { useAccessSearch } from '@/components/admin/access/accessSearchContext';
+import {
+  AccessSearchEmpty,
+  AdminSearchField,
+} from '@/components/admin/access/AdminSearchField';
+import {
+  matchesSearch,
+  widgetSearchFields,
+  widgetSubFeatures,
+} from '@/components/admin/access/accessSearch';
+import { AccessFeatureRow } from '@/components/admin/access/AccessFeatureRow';
+import { useGlobalPermissionsEditor } from '@/components/admin/access/useGlobalPermissionsEditor';
 
 export const FeaturePermissionsManager: React.FC = () => {
   const { showConfirm } = useDialog();
-  const isMobile = useIsMobile();
   const buildings = useAdminBuildings();
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
-  const effectiveViewMode = isMobile ? 'grid' : viewMode;
   const [showFilters, setShowFilters] = useState(false);
   const [permissions, setPermissions] = useState<
     Map<WidgetType | InternalToolType, FeaturePermission>
@@ -76,6 +84,8 @@ export const FeaturePermissionsManager: React.FC = () => {
     'all' | AccessLevel
   >('all');
   const [filterBuilding, setFilterBuilding] = useState<string>('all');
+  const { query } = useAccessSearch();
+  const globalEditor = useGlobalPermissionsEditor();
 
   const showMessage = useCallback((type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -321,7 +331,7 @@ export const FeaturePermissionsManager: React.FC = () => {
             return false;
         }
       }
-      return true;
+      return matchesSearch(query, widgetSearchFields(tool, perm.displayName));
     });
   }, [
     permissions,
@@ -329,6 +339,7 @@ export const FeaturePermissionsManager: React.FC = () => {
     filterAvailability,
     filterBuilding,
     buildings,
+    query,
   ]);
 
   const btnClass = (active: boolean) =>
@@ -400,6 +411,13 @@ export const FeaturePermissionsManager: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      {globalEditor.message && (
+        <Toast
+          message={globalEditor.message.text}
+          type={globalEditor.message.type}
+          onClose={() => globalEditor.setMessage(null)}
+        />
+      )}
       {/* Message Toast */}
       {message && (
         <Toast
@@ -408,6 +426,8 @@ export const FeaturePermissionsManager: React.FC = () => {
           onClose={() => setMessage(null)}
         />
       )}
+
+      <AdminSearchField tab="widgets" placeholder="Search widgets" />
 
       {/* Filters */}
       <div className="bg-slate-50 border border-slate-200 rounded-xl mb-2">
@@ -443,36 +463,6 @@ export const FeaturePermissionsManager: React.FC = () => {
             <div className="w-px h-5 bg-slate-200" />
             {renderBuildingFilter()}
           </div>
-
-          {/* View Mode Toggle - hidden on mobile */}
-          <div className="ml-auto hidden md:flex bg-white p-0.5 rounded-lg border border-slate-200">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-md transition-all ${
-                viewMode === 'grid'
-                  ? 'bg-slate-100 text-brand-blue-primary shadow-sm'
-                  : 'text-slate-400 hover:text-slate-600'
-              }`}
-              title="Grid View"
-              aria-label="Grid view"
-              aria-pressed={viewMode === 'grid'}
-            >
-              <LayoutGrid size={16} />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-md transition-all ${
-                viewMode === 'list'
-                  ? 'bg-slate-100 text-brand-blue-primary shadow-sm'
-                  : 'text-slate-400 hover:text-slate-600'
-              }`}
-              title="List View"
-              aria-label="List view"
-              aria-pressed={viewMode === 'list'}
-            >
-              <List size={16} />
-            </button>
-          </div>
         </div>
 
         {/* Mobile: collapsible filter content */}
@@ -491,18 +481,12 @@ export const FeaturePermissionsManager: React.FC = () => {
       {/* Widget Permission Cards */}
       <>
         {filteredTools.length === 0 && (
-          <div className="py-12 text-center text-slate-400">
-            <Filter className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="font-medium">No widgets match the current filters.</p>
-          </div>
+          <AccessSearchEmpty
+            tab="widgets"
+            fallback="No widgets match the current filters."
+          />
         )}
-        <div
-          className={
-            effectiveViewMode === 'grid'
-              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
-              : 'space-y-3'
-          }
-        >
+        <div className="space-y-2">
           {filteredTools.map((tool) => {
             const permission = getPermission(tool.type);
             const isSaving = saving.has(tool.type);
@@ -513,11 +497,31 @@ export const FeaturePermissionsManager: React.FC = () => {
               currentLevels.includes(l)
             );
 
+            const subIds = widgetSubFeatures(tool.type);
             return (
               <WidgetPermissionCardBody
                 key={tool.type}
-                variant={effectiveViewMode === 'list' ? 'list' : 'grid'}
                 tool={tool}
+                subFeatureCount={subIds.length}
+                subFeatures={
+                  subIds.length > 0
+                    ? subIds.map((id) => (
+                        <AccessFeatureRow
+                          key={id}
+                          featureId={id}
+                          permission={globalEditor.getPermission(id)}
+                          isSaved={globalEditor.isSaved(id)}
+                          isSaving={globalEditor.saving.has(id)}
+                          hasUnsaved={globalEditor.unsavedChanges.has(id)}
+                          onUpdate={(updates) =>
+                            globalEditor.updatePermission(id, updates)
+                          }
+                          onSave={() => void globalEditor.savePermission(id)}
+                          showMessage={showMessage}
+                        />
+                      ))
+                    : undefined
+                }
                 permission={permission}
                 currentLevels={currentLevels}
                 isAllSelected={isAllSelected}

@@ -25,8 +25,8 @@ import {
 import { useAuth } from '@/context/useAuth';
 import { FeaturePermissionsManager } from './FeaturePermissionsManager';
 import { BackgroundManager } from './BackgroundManager';
-import { GlobalPermissionsManager } from './GlobalPermissionsManager';
-import { RolloutSwitchesPanel } from './RolloutSwitchesPanel';
+import { FeaturesPanel } from './access/FeaturesPanel';
+import { PreviewsPanel } from './access/PreviewsPanel';
 import { AnnouncementsManager } from './Announcements';
 import { OrganizationPanel } from './Organization/OrganizationPanel';
 import { AnalyticsManager } from './Analytics/AnalyticsManager';
@@ -37,6 +37,7 @@ import { PlcResourcesManager } from './PlcResourcesManager/PlcResourcesManager';
 import { HelpCenterManager } from './HelpCenter/HelpCenterManager';
 import { StandardsPanel } from './StandardsPanel';
 import { SubjectsPanel } from './SubjectsPanel';
+import { AccessSearchProvider } from './access/AccessSearchProvider';
 
 interface AdminSettingsProps {
   onClose: () => void;
@@ -51,22 +52,22 @@ const TAB_GROUPS = [
     label: 'Access',
     tabs: [
       {
-        id: 'features',
-        label: 'Feature Permissions',
+        id: 'widgets',
+        label: 'Widgets',
         icon: Shield,
         component: FeaturePermissionsManager,
       },
       {
-        id: 'global',
-        label: 'Global Settings',
+        id: 'features',
+        label: 'Features',
         icon: Zap,
-        component: GlobalPermissionsManager,
+        component: FeaturesPanel,
       },
       {
-        id: 'rollouts',
-        label: 'Rollouts',
+        id: 'previews',
+        label: 'Previews',
         icon: FlaskConical,
-        component: RolloutSwitchesPanel,
+        component: PreviewsPanel,
       },
     ],
   },
@@ -121,6 +122,8 @@ const TAB_GROUPS = [
         label: 'Organization',
         icon: Building2,
         component: OrganizationPanel,
+        // Fills the viewport and scrolls its own column.
+        fillHeight: true,
       },
       {
         id: 'sub-presets',
@@ -169,11 +172,26 @@ interface TabConfig {
   label: string;
   icon: typeof Shield;
   component: React.FC;
+  fillHeight?: boolean;
 }
 
 const TABS: readonly TabConfig[] = TAB_GROUPS.flatMap<TabConfig>(
   (group) => group.tabs
 );
+
+const LAST_TAB_KEY = 'spart.adminSettings.lastTab';
+
+/** Reopen on the last-used tab (plan D15), falling back to Widgets. */
+const readLastTab = (): TabId => {
+  try {
+    const stored = window.localStorage.getItem(LAST_TAB_KEY);
+    const match = TABS.find((t) => t.id === stored);
+    if (match) return match.id;
+  } catch {
+    // Storage can be blocked; use the default.
+  }
+  return 'widgets';
+};
 
 // One nav entry in the dark vertical rail (desktop). Collapses to icon-only
 // when the rail is narrow (md → lg): the label is hidden and the icon centers,
@@ -206,10 +224,20 @@ const RailTab: React.FC<{
 
 export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
   const { isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabId>('features');
+  const [activeTab, setActiveTabState] = useState<TabId>(readLastTab);
+  const setActiveTab = (tab: TabId) => {
+    setActiveTabState(tab);
+    try {
+      window.localStorage.setItem(LAST_TAB_KEY, tab);
+    } catch {
+      // Storage can be blocked; the tab still switches.
+    }
+  };
   // Mobile only: the drill-in list (true) vs. the selected panel (false).
   // The desktop rail is always visible, so this flag is inert there.
   const [showMobileMenu, setShowMobileMenu] = useState(true);
+  const activeTabFills =
+    TABS.find((t) => t.id === activeTab)?.fillHeight === true;
 
   // Close modal on Escape key press. Guard: if Escape originates from an input
   // inside a DraggableWindow and reaches this listener (e.g. the widget's own
@@ -365,26 +393,28 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
             </div>
 
             {/* Tab panels (desktop always; mobile when a panel is selected) */}
-            <div
-              className={`${!showMobileMenu ? 'block' : 'hidden md:block'} p-4 md:p-6 h-full`}
-            >
-              {TABS.map((tab) => {
-                const TabComponent = tab.component;
-                return (
-                  activeTab === tab.id && (
-                    <div
-                      key={tab.id}
-                      id={`panel-${tab.id}`}
-                      role="tabpanel"
-                      aria-label={tab.label}
-                      className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
-                    >
-                      <TabComponent />
-                    </div>
-                  )
-                );
-              })}
-            </div>
+            <AccessSearchProvider goToTab={setActiveTab}>
+              <div
+                className={`${!showMobileMenu ? 'block' : 'hidden md:block'} p-4 md:p-6 ${activeTabFills ? 'h-full' : ''}`}
+              >
+                {TABS.map((tab) => {
+                  const TabComponent = tab.component;
+                  return (
+                    activeTab === tab.id && (
+                      <div
+                        key={tab.id}
+                        id={`panel-${tab.id}`}
+                        role="tabpanel"
+                        aria-label={tab.label}
+                        className={`animate-in fade-in slide-in-from-bottom-2 duration-300 ${tab.fillHeight ? 'h-full' : ''}`}
+                      >
+                        <TabComponent />
+                      </div>
+                    )
+                  );
+                })}
+              </div>
+            </AccessSearchProvider>
           </div>
         </div>
       </div>

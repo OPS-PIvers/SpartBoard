@@ -3568,6 +3568,8 @@ export interface QuizQuestion {
   maxWords?: number;
   /** Free Response only. When set, Submit is disabled outside the word range. */
   enforceWordLimit?: boolean;
+  /** Free Response only. Size of the lined box on paper answer sheets. */
+  paperBoxSize?: PaperBoxSize;
   /**
    * Free Response only (M12 rubrics). Id of the rubric in the teacher's
    * `/users/{teacherUid}/rubrics` library that produced `rubricSnapshot`.
@@ -4477,6 +4479,8 @@ export interface QuizSession
    * for publishes made before that move.
    */
   scoreVisibility?: QuizScoreVisibility;
+  /** Copied from Publish Scores when paper written answers exist; cleared on unpublish. */
+  writtenReturnMode?: WrittenReturnMode;
   /**
    * Mirror of QuizAssignment.protection so the student app — which only reads
    * /quiz_sessions — can decide whether to mount watermark + tab-warning UI.
@@ -4580,7 +4584,13 @@ export type UnrespondedReason =
 /** Which response slot an artifact fills: the answer itself, or a supporting addendum. */
 export type ArtifactSlot = 'primary' | 'addendum';
 /** Full peer-mode union; only `'audio'` (and inline `'text'`) ships today. */
-export type ArtifactKind = 'text' | 'audio' | 'video' | 'whiteboard';
+export type ArtifactKind =
+  | 'text'
+  | 'audio'
+  | 'video'
+  | 'whiteboard'
+  /** A cropped paper answer box, uploaded by the teacher at import. */
+  | 'handwriting';
 /** Upload is its own axis, separate from the student-intent `status` on the answer. */
 export type ArtifactUploadState = 'pending' | 'uploaded' | 'failed';
 
@@ -4657,6 +4667,69 @@ export interface QuizResponseAnswer {
    * routing. Absent means English; the key is omitted, never written undefined.
    */
   locale?: string;
+  /** Paper written answers: the scan that produced this answer. */
+  paperScanId?: string;
+  /** Paper written answers: public transcription state; failures read as `'pending'`. */
+  paperTranscript?: PaperTranscriptState;
+}
+
+/** Size of a handwritten answer box on a paper sheet; S/M/L are line counts, full is a page. */
+export type PaperBoxSize = 'S' | 'M' | 'L' | 'full';
+
+/** Public transcription state on a paper written answer. */
+export type PaperTranscriptState = 'pending' | 'done' | 'blank';
+
+/** Teacher-side transcription state, kept in the private subdoc. */
+export type PaperPrivateStatus =
+  | 'pending'
+  | 'done'
+  | 'failed'
+  | 'blank'
+  | 'over-quota';
+
+/** `quiz_sessions/{sid}/responses/{key}/paperPrivate/{questionId}`: teacher-only AI internals. */
+export interface PaperPrivateAnswer {
+  scanId: string;
+  status: PaperPrivateStatus;
+  /** Model output, plain text. */
+  rawTranscript?: string;
+  /** Offsets into `rawTranscript`. */
+  uncertainSpans?: { start: number; end: number }[];
+  illegibleCount?: number;
+  attempts: number;
+  lastError?: string;
+  charged: boolean;
+  editedBy?: string;
+  editedAt?: number;
+  /** A rescan whose box was not applied because this answer was graded or edited (D28). */
+  newerScan?: { scanId: string; page: number; state: 'ink' | 'blank' };
+  updatedAt: number;
+}
+
+/** How a student sees a handwritten answer once responses are published. */
+export type WrittenReturnMode = 'handwriting' | 'typed' | 'both';
+
+export type PaperTranscriptionJobStatus =
+  | 'queued'
+  | 'running'
+  | 'done'
+  | 'failed'
+  | 'over-quota'
+  | 'superseded';
+
+/** `users/{uid}/paper_transcription_jobs/{scanId}_{seat}_{page}_{attempt}`: one page to transcribe. */
+export interface PaperTranscriptionJob {
+  sessionId: string;
+  responseKey: string;
+  scanId: string;
+  page: number;
+  boxes: { questionId: string; storagePath: string }[];
+  status: PaperTranscriptionJobStatus;
+  attempt: number;
+  leaseUntil?: number;
+  charged: boolean;
+  createdAt: number;
+  updatedAt: number;
 }
 
 /**
@@ -4682,7 +4755,9 @@ export type ArtifactArchiveStatus =
   | 'lost'
   | 'deleting'
   | 'deleted'
-  | 'delete-failed';
+  | 'delete-failed'
+  /** A paper answer crop held in Storage until the teacher connects Drive. */
+  | 'awaiting-drive';
 
 /** Server-owned archival record for one artifact; see {@link QuizResponse.artifactArchive}. */
 export interface ArtifactArchiveEntry {
@@ -4704,6 +4779,8 @@ export interface ArtifactArchiveEntry {
   deleteAttemptedAt?: number;
   /** Drive copy an archive created after a delete claimed the artifact; still owed a delete. */
   orphanedDriveFileId?: string;
+  /** When a crop first went `'awaiting-drive'`; drives the 60-day hold. */
+  awaitingDriveSince?: number;
 }
 
 /**
@@ -5028,6 +5105,45 @@ export type PaperColumns = 1 | 2;
 /** Row geometry a page is printed in: 1 or 2 answer columns, or tall rows carrying each question's text. */
 export type PaperGrid = PaperColumns | 'questions';
 
+export interface PaperPointMm {
+  x: number;
+  y: number;
+}
+
+export interface PaperRectMm {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** One printed thing on a v2 page: an MC bubble row or a handwritten answer box. */
+export type PaperPageItem =
+  | {
+      kind: 'mc';
+      questionId: string;
+      /** Index across the whole sheet, 0..questionCount-1. */
+      sheetRow: number;
+      /** Printed question number (position in the quiz). */
+      label: string;
+      originMm: PaperPointMm;
+    }
+  | {
+      kind: 'written';
+      questionId: string;
+      label: string;
+      headerMm: PaperRectMm;
+      boxMm: PaperRectMm;
+      lines: number;
+    };
+
+/** Positions of everything on one physical page; `page` is 1-based and absolute. */
+export interface PaperPageMap {
+  page: number;
+  grid: PaperGrid;
+  items: PaperPageItem[];
+}
+
 export interface PaperBatch {
   id: string;
   /** Quiz these sheets were printed for. Deleted with the quiz. */
@@ -5060,6 +5176,10 @@ export interface PaperBatch {
   columnsPerPage?: PaperColumns;
   /** Set when each row printed with its question text beside the bubbles; overrides `columnsPerPage`. */
   sheetLayout?: 'questions';
+  /** Present iff `pageMaps` is: every reader and planner then reads positions from the maps. */
+  layoutVersion?: 2;
+  /** One per physical page of a student sheet; `pagesPerSheet` equals its length when present. */
+  pageMaps?: PaperPageMap[];
   createdAt: number;
   /** A review the teacher left unfinished, resumable from any device (plan Q26). */
   pendingReview?: PaperPendingReview;
@@ -5129,6 +5249,23 @@ export interface PaperPendingReview {
   spareAssignments: Record<number, PaperSeatAssignment>;
   /** Learning targets tagged during review, per question id (plan Q27). */
   targets: Record<string, QuestionTargetTag[]>;
+  /** Handwritten boxes read from a `layoutVersion: 2` scan; their crops sit in Storage under `scanId`. */
+  written?: PaperPendingWritten;
+}
+
+export interface PaperPendingWrittenBox {
+  seat: number;
+  questionId: string;
+  page: number;
+  state: 'ink' | 'blank';
+  uploaded: boolean;
+  /** The crop's upload type; absent when the crop could not be made. */
+  mimeType?: 'image/webp' | 'image/png';
+}
+
+export interface PaperPendingWritten {
+  scanId: string;
+  boxes: PaperPendingWrittenBox[];
 }
 
 /**
@@ -5700,6 +5837,10 @@ export interface QuizAssignment
   status: QuizAssignmentStatus;
   /** Set by `importPaperResponsesV1`; publish then writes student pointers (plan Q34). */
   hasPaperResponses?: boolean;
+  /** Set by import when any paper sheet carried a written answer box. */
+  hasPaperWritten?: boolean;
+  /** D37 mode last chosen in Publish Scores; mirrored on the session and cleared on unpublish. */
+  writtenReturnMode?: WrittenReturnMode;
   createdAt: number;
   updatedAt: number;
   /**
@@ -6090,6 +6231,7 @@ export type VideoActivityQuestion = Omit<
   | 'maxWords'
   | 'minWords'
   | 'enforceWordLimit'
+  | 'paperBoxSize'
 > & {
   type: VideoActivityQuestionType;
   /** Seconds into the video when this question should trigger. */
@@ -7932,8 +8074,8 @@ export interface ProjectRun {
    * which CEL cannot do — see the student step-write gate in `project_runs`.
    */
   approvalStepIds: string[];
-  /** D39 — mirrored onto every group as `peerVisible`, which is what the rules read. */
-  showStatusToStudents: boolean;
+  /** Retired: students only ever see their own group. Old runs keep it until backfilled. */
+  showStatusToStudents?: boolean;
   acceptingUpdates: boolean;
   /** D42 — absent on runs made before the field existed. */
   createdAt?: number;
@@ -7951,8 +8093,6 @@ export interface ProjectGroup {
   /** D33 — a `SCOREBOARD_COLORS` class; absent on groups made before colors. */
   color?: string;
   stepStates: Record<string, ProjectStepState>;
-  /** D39 — denormalized `run.showStatusToStudents`; classmates may read the doc only when true. */
-  peerVisible?: boolean;
   /** Legacy (D40): links now live on `private/work`; read only as a fallback until backfilled. */
   workLinks?: ProjectWorkLink[];
   /** Populated once the teacher's session archives uploads to Drive (D20). */
@@ -8064,14 +8204,7 @@ export interface ProjectsPendingImport {
   groups: { name: string; studentIds: string[]; color?: string }[];
 }
 
-export interface BuildingProjectsDefaults {
-  buildingId: string;
-  /** Seeds `ProjectRun.showStatusToStudents` on a new project (D30). */
-  defaultShowStatusToStudents?: boolean;
-}
-
 export interface ProjectsGlobalConfig {
-  buildingDefaults?: Record<string, BuildingProjectsDefaults>;
   dockDefaults?: Record<string, boolean>;
 }
 
@@ -8797,11 +8930,11 @@ export type GlobalFeature =
   | 'quiz-translation'
   /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
   | 'question-bank-ai'
-  /** Paper answer sheets; only meaningful while the Rollouts switch is on. */
+  /** Paper answer sheets; only meaningful while the district switch is on. */
   | 'paper-answer-sheets'
-  /** Saved class groups inside board widgets; AND-ed with the Rollouts switch. */
+  /** Saved class groups inside board widgets; AND-ed with the district switch. */
   | 'roster-groups'
-  /** Importing a quiz from a test document; AND-ed with the Rollouts switch. */
+  /** Importing a quiz from a test document; AND-ed with the district switch. */
   | 'quiz-document-import'
   /** The AI reader for that import; AND-ed with `quiz-document-import` and `gemini-functions`. */
   | 'quiz-document-ai-reader'
@@ -8842,7 +8975,9 @@ export type GlobalFeature =
   /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas; AND-ed with `gl-studio`. */
   | 'gl-callout-editing'
   /** PLC notes as an always-editable rich text editor with a formatting toolbar (still stored as Markdown). */
-  | 'plc-notes-rich-editor';
+  | 'plc-notes-rich-editor'
+  /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
+  | 'paper-handwritten-responses';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

@@ -70,8 +70,11 @@ export const GroupRow: React.FC<GroupRowProps> = ({
   const color = groupColorOf(group);
   const nameChip = (
     <span
-      className="relative inline-flex min-w-0 max-w-full items-center overflow-hidden rounded-md"
-      style={{ padding: 'min(2px, 0.5cqmin) min(7px, 1.6cqmin)' }}
+      className="relative inline-flex min-w-0 items-center overflow-hidden rounded-md"
+      style={{
+        padding: 'min(2px, 0.5cqmin) min(7px, 1.6cqmin)',
+        maxWidth: 'min(220px, 36cqw)',
+      }}
     >
       <span aria-hidden className={`absolute inset-0 opacity-20 ${color}`} />
       <span
@@ -92,7 +95,7 @@ export const GroupRow: React.FC<GroupRowProps> = ({
       <tr>
         <th
           scope="row"
-          className="sticky left-0 z-[1] text-left align-middle font-normal"
+          className="sticky left-0 z-[1] w-px whitespace-nowrap text-left align-middle font-normal"
           style={{ ...stickyStyle, padding: NAME_PAD }}
         >
           <span
@@ -112,7 +115,7 @@ export const GroupRow: React.FC<GroupRowProps> = ({
               onClick={onToggleExpand}
               aria-expanded={expanded}
               title={expanded ? 'Hide details' : 'Show members and work'}
-              className="flex w-full min-w-0 items-center rounded-md text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+              className="flex min-w-0 items-center rounded-md text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
               style={{ gap: 'min(3px, 0.8cqmin)' }}
             >
               {nameChip}
@@ -140,11 +143,30 @@ export const GroupRow: React.FC<GroupRowProps> = ({
               >
                 {steps.map((step) => {
                   const state = stepStateOf(group, step.id);
-                  return (
+                  const key = cellKey(group.id, step.id);
+                  const label = `${group.name}, ${step.title}, ${STEP_STATE_LABELS[state]}`;
+                  return readOnly ? (
                     <span
                       key={step.id}
+                      role="img"
+                      aria-label={label}
                       title={`${step.title}: ${STEP_STATE_LABELS[state]}`}
                       className={`flex-1 ${STATE_STYLES[state].tone}`}
+                    />
+                  ) : (
+                    <button
+                      key={step.id}
+                      type="button"
+                      data-project-cell={key}
+                      onClick={(e) =>
+                        onOpenCell(group.id, step.id, e.currentTarget)
+                      }
+                      disabled={busyKeys.has(key)}
+                      aria-label={label}
+                      aria-haspopup="menu"
+                      aria-expanded={openCellKey === key}
+                      title={`${step.title}: ${STEP_STATE_LABELS[state]}`}
+                      className={`flex-1 min-w-0 ${STATE_STYLES[state].tone} transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary disabled:opacity-50`}
                     />
                   );
                 })}

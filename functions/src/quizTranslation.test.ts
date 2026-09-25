@@ -766,13 +766,13 @@ describe('assertQuizTranslationFeature', () => {
   const run = (docs: Record<string, Doc>, email?: string, uid = 'uid-1') =>
     assertQuizTranslationFeature(makeDb(docs), email, uid);
 
-  it('absent doc: denies everyone, admins included (missingDocPublic: false)', async () => {
+  it('absent doc: denies teachers but passes admins (preview flag)', async () => {
     await expect(run({}, 'teacher@x.org')).rejects.toMatchObject({
       code: 'permission-denied',
     });
     await expect(
       run({ 'admins/boss@x.org': {} }, 'Boss@X.org')
-    ).rejects.toMatchObject({ code: 'permission-denied' });
+    ).resolves.toBeUndefined();
   });
 
   it('disabled: denied even for an admin', async () => {

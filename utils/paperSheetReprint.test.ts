@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { PaperBatch, QuizData, QuizQuestion, QuizResponse } from '@/types';
-import { bubbleRectMm, QUESTIONS_PER_PAGE } from './paperSheetLayout';
+import { planPaperPages } from './paperPageMap';
+import {
+  bubbleRectAtOriginMm,
+  bubbleRectMm,
+  QUESTIONS_PER_PAGE,
+} from './paperSheetLayout';
 import { buildFilledSheetHtml } from './paperSheetPrint';
 import { planSheetReprint, sheetFillFor } from './paperSheetReprint';
 
@@ -252,5 +257,156 @@ describe('buildFilledSheetHtml', () => {
     expect(pages[1]).toContain(
       `class="bub filled" style="left:${r.x.toFixed(3)}mm;top:${r.y.toFixed(3)}mm`
     );
+  });
+});
+
+describe('reprint of a batch with written boxes (layoutVersion 2)', () => {
+  const plan = planPaperPages({
+    entries: [
+      { kind: 'mc', questionId: 'q1', label: '1' },
+      { kind: 'written', questionId: 'w', label: '2', size: 'M' },
+      { kind: 'mc', questionId: 'q2', label: '3' },
+      { kind: 'mc', questionId: 'q3', label: '4' },
+    ],
+    grid: 2,
+    stems: true,
+  });
+  if (!plan.ok) throw new Error('plan refused');
+  const v2 = batch({
+    layoutVersion: 2,
+    pageMaps: plan.pageMaps,
+    pagesPerSheet: plan.pageMaps.length,
+    choiceOrder: {
+      q1: ['Rome', 'Paris', 'Oslo', 'Bern'],
+      q2: ['Red', 'Blue', 'Green', 'Pink'],
+      q3: ['One', 'Two', 'Three', 'Four'],
+    },
+  });
+
+  it('places each filled bubble at its row on the map', () => {
+    const reprint = planSheetReprint(
+      response([
+        { questionId: 'q1', answer: 'Oslo' },
+        { questionId: 'q3', answer: 'Four' },
+      ]),
+      v2,
+      quiz(questions)
+    );
+    if (!reprint) throw new Error('expected a reprint plan');
+    expect(reprint).toMatchObject({
+      questionCount: 3,
+      filled: [2, null, 3],
+      pageCount: 1,
+      writtenTexts: { w: 'w' },
+    });
+    const html = buildFilledSheetHtml(
+      {
+        seat: 7,
+        student: null,
+        displayName: 'Sam',
+        className: '',
+        isKeySheet: false,
+      },
+      {
+        batchId: 'batch-1',
+        quizTitle: 'T',
+        questionCount: reprint.questionCount,
+        choiceCount: 4,
+        columnsPerPage: reprint.columnsPerPage,
+        pageMaps: reprint.pageMaps,
+        writtenTexts: reprint.writtenTexts,
+      },
+      reprint.pageCount,
+      sheetFillFor(reprint, { markAnswers: true, keyMode: 'off' })
+    );
+    const origins = plan.pageMaps[0].items.flatMap((i) =>
+      i.kind === 'mc' ? [i.originMm] : []
+    );
+    const at = (row: number, choice: number) => {
+      const r = bubbleRectAtOriginMm(origins[row], choice, 2);
+      return `${r.x.toFixed(3)},${r.y.toFixed(3)}`;
+    };
+    const filled = [
+      ...html.matchAll(
+        /class="bub filled[^"]*" style="left:([\d.]+)mm;top:([\d.]+)mm/g
+      ),
+    ].map((m) => `${m[1]},${m[2]}`);
+    expect(filled).toEqual([at(0, 2), at(2, 3)]);
+    expect(html).toContain('wr-rule');
+    expect(html).not.toContain('class="cell"');
+  });
+
+  const sheetFor = (
+    written?: Parameters<typeof sheetFillFor>[1]['written']
+  ) => {
+    const reprint = planSheetReprint(
+      response([{ questionId: 'q1', answer: 'Oslo' }]),
+      v2,
+      quiz(questions)
+    );
+    if (!reprint) throw new Error('expected a reprint plan');
+    return buildFilledSheetHtml(
+      {
+        seat: 7,
+        student: null,
+        displayName: 'Sam',
+        className: '',
+        isKeySheet: false,
+      },
+      {
+        batchId: 'batch-1',
+        quizTitle: 'T',
+        questionCount: reprint.questionCount,
+        choiceCount: 4,
+        columnsPerPage: reprint.columnsPerPage,
+        pageMaps: reprint.pageMaps,
+        writtenTexts: reprint.writtenTexts,
+      },
+      reprint.pageCount,
+      sheetFillFor(reprint, {
+        markAnswers: true,
+        keyMode: 'off',
+        ...(written ? { written } : {}),
+      })
+    );
+  };
+
+  it('draws the crop in the written box with points and the comment, and no rule lines', () => {
+    const html = sheetFor({
+      w: {
+        crop: 'data:image/webp;base64,AAA',
+        points: '3/4',
+        comment: 'Cite the text.',
+      },
+    });
+    const box = plan.pageMaps[0].items.find((i) => i.kind === 'written');
+    if (box?.kind !== 'written') throw new Error('expected a written box');
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    const img = div.querySelector<HTMLImageElement>('img.wr-crop');
+    expect(img?.getAttribute('src')).toBe('data:image/webp;base64,AAA');
+    expect(img?.getAttribute('alt')).toBe('Handwritten answer, question 2');
+    expect(parseFloat(img?.style.left ?? '')).toBeCloseTo(box.boxMm.x, 3);
+    expect(parseFloat(img?.style.top ?? '')).toBeCloseTo(box.boxMm.y, 3);
+    expect(div.querySelector('.wr-pts')?.textContent).toBe('3/4');
+    expect(div.querySelector('.wr-comment')?.textContent).toBe(
+      'Cite the text.'
+    );
+    expect(html).not.toContain('wr-rule');
+    expect(html).not.toContain('class="cell"');
+    expect(html).not.toContain('class="reg"');
+  });
+
+  it('prints a visible placeholder when the crop failed, and a loading one before it arrives', () => {
+    expect(sheetFor({ w: { crop: null } })).toContain(
+      'Handwriting unavailable'
+    );
+    expect(sheetFor({ w: {} })).toContain('Loading handwriting');
+  });
+
+  it('keeps the rule lines when the reprint carries no written fill', () => {
+    const html = sheetFor();
+    expect(html).toContain('wr-rule');
+    expect(html).not.toContain('wr-crop');
   });
 });

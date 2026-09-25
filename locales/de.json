@@ -2282,6 +2282,16 @@
         "notSelfPaced": "Spoken answers need self-paced mode."
       }
     },
+    "paperReview": {
+      "handwriting": "Deine Handschrift",
+      "cropAlt": "Deine handschriftliche Antwort, Frage {{number}}",
+      "loading": "Handschrift wird geladen",
+      "unavailable": "Handschrift nicht verfügbar",
+      "reload": "Erneut versuchen",
+      "transcribing": "Wird transkribiert",
+      "blank": "Leer",
+      "comments": "Kommentare der Lehrkraft"
+    },
     "grading": {
       "title": "Freie Antworten bewerten",
       "close": "Close",
@@ -2299,7 +2309,11 @@
         "scored": "Graded",
         "awaiting-grade": "Ungraded",
         "not-attempted": "No answer",
-        "excused": "Excused"
+        "excused": "Excused",
+        "paper-pending": "Wird transkribiert",
+        "paper-failed": "Fehlgeschlagen",
+        "paper-over-quota": "Tageslimit",
+        "paper-blank": "Leer"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -2440,7 +2454,41 @@
       "tabSwitches_other": "{{count}} Tabwechsel",
       "tabSwitchesTitle_one": "{{count}} Tabwechsel-Warnung während der Prüfung",
       "tabSwitchesTitle_other": "{{count}} Tabwechsel-Warnungen während der Prüfung",
-      "noAnswersOnQuestion": "Noch keine Antworten auf diese Frage."
+      "noAnswersOnQuestion": "Noch keine Antworten auf diese Frage.",
+      "paper": {
+        "badge": "Papier",
+        "handwriting": "Handschrift",
+        "cropAlt": "Handschriftliche Antwort, Frage {{number}}",
+        "zoomIn": "Vergrößern",
+        "zoomOut": "Verkleinern",
+        "zoomFit": "Einpassen",
+        "loading": "Handschrift wird geladen",
+        "unavailable": "Handschrift nicht verfügbar",
+        "reload": "Erneut versuchen",
+        "checkTranscript": "Transkript prüfen",
+        "retry": "Wiederholen",
+        "transcribeBlank": "Nicht leer? Transkribieren",
+        "useNewScan": "Neuen Scan verwenden",
+        "awaitingDrive": "Noch nicht in Drive",
+        "connectDrive": "Drive verbinden",
+        "edit": "Transkript bearbeiten",
+        "save": "Transkript speichern",
+        "cancel": "Abbrechen",
+        "transcriptLabel": "Transkript",
+        "confirmRewrite": "Bearbeiten entfernt die Markierungen dieser Antwort. Fortfahren?",
+        "state": {
+          "pending": "Wird transkribiert",
+          "failed": "Fehlgeschlagen",
+          "over-quota": "Tageslimit",
+          "blank": "Leer",
+          "edited": "Bearbeitet"
+        },
+        "errors": {
+          "superseded": "Ein neuerer Scan hat diese Antwort ersetzt.",
+          "actionFailed": "Das hat nicht geklappt. Bitte erneut versuchen.",
+          "busy": "Die Transkription läuft. Bitte gleich erneut versuchen."
+        }
+      }
     },
     "results": {
       "gradeButton": "Freie Antworten bewerten"

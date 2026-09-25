@@ -257,6 +257,54 @@ describe('extractNormingContent', () => {
       extractNormingContent(session, gone, SESSION, KEY, 'q1', 'primary')
     ).toThrow();
   });
+
+  it('copies a handwritten transcript as text with no crop reference', () => {
+    const crop = {
+      id: 'hw_scan1_q1',
+      kind: 'handwriting',
+      slot: 'primary',
+      storagePath: 'paper_crops/t/scan1/q1.png',
+    };
+    const out = extractNormingContent(
+      session,
+      {
+        answers: [
+          {
+            questionId: 'q1',
+            answer: '<p>Plants need light.</p>',
+            paperScanId: 'scan1',
+            paperTranscript: 'done',
+            artifacts: [crop],
+          },
+        ],
+      },
+      SESSION,
+      KEY,
+      'q1',
+      'primary'
+    );
+    expect(out).toEqual({
+      kind: 'text',
+      questionIndex: 1,
+      questionText: 'Explain photosynthesis.',
+      answerText: '<p>Plants need light.</p>',
+      truncated: false,
+    });
+    expect(JSON.stringify(out)).not.toMatch(/hw_scan1|paper_crops|scan1/);
+    const pending = {
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          paperTranscript: 'pending',
+          artifacts: [crop],
+        },
+      ],
+    };
+    expect(() =>
+      extractNormingContent(session, pending, SESSION, KEY, 'q1', 'primary')
+    ).toThrow('still being transcribed');
+  });
 });
 
 describe('setPlcNormingFlag', () => {

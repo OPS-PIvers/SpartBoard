@@ -419,7 +419,7 @@ Every new widget needs at least a stub admin config. See the
 
 At minimum, register in `FeatureConfigurationPanel.tsx`'s `BUILDING_CONFIG_PANELS`
 map — even if the panel is initially empty — so the gear button in Admin
-Settings → Feature Permissions renders something instead of the
+Settings → Widgets renders something instead of the
 "No global settings available" placeholder.
 
 For widgets with meaningful building-level defaults (fonts, preloaded content,

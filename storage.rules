@@ -283,6 +283,17 @@ service firebase.storage {
         );
     }
 
+    // Handwritten paper answer crops: the owning teacher uploads once per scan; only the server reads or deletes.
+    match /paper_written_crops/{uid}/{scanId}/{seat}/{fileName} {
+      allow create: if request.auth != null &&
+        request.auth.uid == uid &&
+        resource == null &&
+        request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+        request.auth.token.get('studentRole', false) != true &&
+        request.resource.size <= 2 * 1024 * 1024 &&
+        request.resource.contentType in ['image/webp', 'image/png'];
+    }
+
     // PLC norming audio copies: members read, only setPlcNormingFlagV1 writes.
     match /plc_norming_media/{plcId}/{fileName} {
       allow read: if request.auth != null

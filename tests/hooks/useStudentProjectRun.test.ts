@@ -1,4 +1,4 @@
-// D39: the student page reads its own group by membership and classmates' only while the run shows them.
+// A student reads only their own group, by membership, whatever the run doc says.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
@@ -69,7 +69,7 @@ describe('useStudentProjectRun groups listeners', () => {
   });
 
   it('reads the caller’s own group by membership, never an unfiltered listing', () => {
-    renderHook(() => useStudentProjectRun(RUN_ID, 'student-1', ['class-a']));
+    renderHook(() => useStudentProjectRun(RUN_ID, 'student-1'));
     expect(groupQueries()).toEqual([
       [{ field: 'memberUids', op: 'array-contains', value: 'student-1' }],
     ]);
@@ -80,70 +80,16 @@ describe('useStudentProjectRun groups listeners', () => {
     );
   });
 
-  it('asks for classmates only while the run shows them, and only peerVisible ones', () => {
-    renderHook(() =>
-      useStudentProjectRun(RUN_ID, 'student-1', ['class-b', 'class-a'])
-    );
-    emitRun({ showStatusToStudents: false });
-    expect(groupQueries()).toHaveLength(1);
-
+  it('never asks for classmates, even on a run that once showed them', () => {
+    renderHook(() => useStudentProjectRun(RUN_ID, 'student-1'));
     emitRun({ showStatusToStudents: true });
-    expect(groupQueries()).toContainEqual([
-      { field: 'classId', op: 'in', value: ['class-a', 'class-b'] },
-      { field: 'peerVisible', op: '==', value: true },
+    expect(groupQueries()).toEqual([
+      [{ field: 'memberUids', op: 'array-contains', value: 'student-1' }],
     ]);
   });
 
-  it('merges own and peer groups without duplicates', () => {
-    const { result } = renderHook(() =>
-      useStudentProjectRun(RUN_ID, 'student-1', ['class-a'])
-    );
-    emitRun({ showStatusToStudents: true });
-
-    const own = listenerFor((t) => t.constraints?.[0]?.field === 'memberUids');
-    const peers = listenerFor((t) => t.constraints?.[0]?.field === 'classId');
-    const mine = {
-      name: 'Mine',
-      classId: 'class-a',
-      memberUids: ['student-1'],
-    };
-    act(() => own?.next({ docs: [groupDoc('g1', mine)] }));
-    act(() =>
-      peers?.next({
-        docs: [
-          groupDoc('g1', mine),
-          groupDoc('g2', {
-            name: 'Theirs',
-            classId: 'class-a',
-            memberUids: [],
-          }),
-        ],
-      })
-    );
-
-    expect(result.current.myGroup?.id).toBe('g1');
-    expect(result.current.groups.map((g) => g.id).sort()).toEqual(['g1', 'g2']);
-  });
-
-  it('drops classmates the moment the teacher hides them', () => {
-    const { result } = renderHook(() =>
-      useStudentProjectRun(RUN_ID, 'student-1', ['class-a'])
-    );
-    emitRun({ showStatusToStudents: true });
-    const peers = listenerFor((t) => t.constraints?.[0]?.field === 'classId');
-    act(() =>
-      peers?.next({
-        docs: [groupDoc('g2', { name: 'Theirs', classId: 'class-a' })],
-      })
-    );
-    expect(result.current.groups).toHaveLength(1);
-
-    emitRun({ showStatusToStudents: false });
-    expect(result.current.groups).toEqual([]);
-  });
-
   it('reads work links from private/work once the own group is known', () => {
-    renderHook(() => useStudentProjectRun(RUN_ID, 'student-1', ['class-a']));
+    renderHook(() => useStudentProjectRun(RUN_ID, 'student-1'));
     const own = listenerFor((t) => t.constraints?.[0]?.field === 'memberUids');
     act(() =>
       own?.next({
@@ -161,7 +107,7 @@ describe('useStudentProjectRun groups listeners', () => {
 
   it('falls back to the legacy group-doc links until private/work exists', () => {
     const { result } = renderHook(() =>
-      useStudentProjectRun(RUN_ID, 'student-1', ['class-a'])
+      useStudentProjectRun(RUN_ID, 'student-1')
     );
     const own = listenerFor((t) => t.constraints?.[0]?.field === 'memberUids');
     const legacy = {

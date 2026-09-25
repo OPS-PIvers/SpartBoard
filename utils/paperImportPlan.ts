@@ -9,14 +9,26 @@
 
 import type { ClassRoster, PaperBatch, QuizData, Student } from '@/types';
 import type { AssembledSheet } from './paperImportAssemble';
+import { mcItemsOf } from './paperPageMap';
 import { CHOICE_LETTERS } from './paperSheetLayout';
 import { analyzePaperQuiz } from './paperSheetPlan';
+import { paperCropStoragePath } from './paperWritten';
 
 /** Client mirror of the function's `ImportPaperAnswer`. */
 export interface ImportPaperAnswerPayload {
   questionId: string;
   answer: string;
   unresponded?: 'passed' | 'paper-unclear';
+}
+
+/** Client mirror of `PaperWrittenPayloadBox` (functions/src/paperWrittenTypes.ts), payload v2. */
+export interface ImportPaperWrittenPayload {
+  questionId: string;
+  page: number;
+  state: 'ink' | 'blank';
+  storagePath: string;
+  /** The uploaded crop's type; the modal fills it from the encoded blob. */
+  mimeType?: 'image/webp' | 'image/png';
 }
 
 /** Client mirror of the function's `ImportPaperSheet`. */
@@ -26,7 +38,17 @@ export interface ImportPaperSheetPayload {
   pin: string;
   classPeriod: string;
   answers: ImportPaperAnswerPayload[];
+  /** Handwritten boxes on a page-map batch, blank ones included (D22); written questions never appear in `answers`. */
+  written?: ImportPaperWrittenPayload[];
   replaceExisting?: boolean;
+}
+
+/** Request fields a page-map batch's import must carry (D30); none for older batches. */
+export function paperImportRequestFields(
+  batch: Pick<PaperBatch, 'layoutVersion'>,
+  scanId: string
+): { layoutVersion: 2; scanId: string } | Record<string, never> {
+  return batch.layoutVersion === 2 ? { layoutVersion: 2, scanId } : {};
 }
 
 export interface ImportPaperCollision {
@@ -57,8 +79,21 @@ export function answerTextFor(
   return batch.choiceOrder?.[questionId]?.[choice] ?? CHOICE_LETTERS[choice];
 }
 
-/** Question ids in sheet-row order, so row i of the sheet is `rowIds[i]`. */
-export function sheetRowQuestionIds(quiz: QuizData): string[] {
+/**
+ * Question ids in sheet-row order, so row i of the sheet is `rowIds[i]`. A
+ * page-map batch answers from its maps, which recorded what actually printed.
+ */
+export function sheetRowQuestionIds(
+  quiz: QuizData,
+  batch?: Pick<PaperBatch, 'layoutVersion' | 'pageMaps'>
+): string[] {
+  if (batch?.layoutVersion === 2 && batch.pageMaps) {
+    const ids: string[] = [];
+    for (const map of batch.pageMaps) {
+      for (const item of mcItemsOf(map)) ids[item.sheetRow] = item.questionId;
+    }
+    return ids;
+  }
   return analyzePaperQuiz(quiz).rows.map((r) => r.questionId);
 }
 
@@ -85,6 +120,8 @@ export interface BuildImportInput {
   spareAssignments: Readonly<
     Record<number, { rosterId: string; studentId: string }>
   >;
+  /** Importing teacher and this scan's id; page-map batches need it to name each crop's Storage path. */
+  scan?: { uid: string; scanId: string };
 }
 
 export interface BuildImportResult {
@@ -98,7 +135,7 @@ export interface BuildImportResult {
  * reader doubted the row and the teacher left it (plan Q20/Q22).
  */
 export function buildImportPayload(input: BuildImportInput): BuildImportResult {
-  const rowIds = sheetRowQuestionIds(input.quiz);
+  const rowIds = sheetRowQuestionIds(input.quiz, input.batch);
   const payload: ImportPaperSheetPayload[] = [];
   const skipped: SkippedSheet[] = [];
 
@@ -133,12 +170,28 @@ export function buildImportPayload(input: BuildImportInput): BuildImportResult {
         unresponded: read?.doubt ? 'paper-unclear' : 'passed',
       };
     });
+    const scan = input.scan;
+    const written =
+      scan && sheet.written
+        ? sheet.written.map((w) => ({
+            questionId: w.questionId,
+            page: w.page,
+            state: w.state,
+            storagePath: paperCropStoragePath(
+              scan.uid,
+              scan.scanId,
+              sheet.seat,
+              w.questionId
+            ),
+          }))
+        : null;
     payload.push({
       seat: sheet.seat,
       rosterId: ref.rosterId,
       pin: found.student.pin,
       classPeriod: found.roster.name,
       answers,
+      ...(written ? { written } : {}),
     });
   }
 
@@ -148,9 +201,10 @@ export function buildImportPayload(input: BuildImportInput): BuildImportResult {
 /** Choice index bubbled on the key sheet per question id; null where blank or doubtful. */
 export function keySheetChoices(
   keySheet: AssembledSheet,
-  quiz: QuizData
+  quiz: QuizData,
+  batch?: Pick<PaperBatch, 'layoutVersion' | 'pageMaps'>
 ): Record<string, number | null> {
-  const rowIds = sheetRowQuestionIds(quiz);
+  const rowIds = sheetRowQuestionIds(quiz, batch);
   const byQuestion = new Map(keySheet.answers.map((a) => [a.question, a]));
   const out: Record<string, number | null> = {};
   rowIds.forEach((id, i) => {

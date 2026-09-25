@@ -10,6 +10,7 @@
  */
 
 import type { DocLine, DocSegment } from './types';
+import type { RtfPicture, RtfPictureKind } from './rtfPictures';
 
 /** Groups whose contents are never document text. */
 const IGNORED_DESTINATIONS = new Set([
@@ -21,7 +22,6 @@ const IGNORED_DESTINATIONS = new Set([
   'rsidtbl',
   'generator',
   'info',
-  'pict',
   'object',
   'themedata',
   'colorschememapping',
@@ -43,7 +43,6 @@ const IGNORED_DESTINATIONS = new Set([
   'annotation',
   'field',
   'nonshppict',
-  'shppict',
   'upr',
 ]);
 
@@ -77,6 +76,16 @@ const CP1252_HIGH: Record<number, string> = {
   0x9e: 'ž',
   0x9f: 'Ÿ',
 };
+
+/** The byte each Windows-1252 character came from, to undo the decode for `in` data. */
+const CP1252_BYTE = new Map(
+  Object.entries(CP1252_HIGH).map(([byte, char]) => [
+    char.charCodeAt(0),
+    Number(byte),
+  ])
+);
+const rawByte = (code: number): number =>
+  code < 0x100 ? code : (CP1252_BYTE.get(code) ?? 0x3f);
 
 /** WHATWG labels for the double-byte codepages `\ansicpg` can name. */
 const DBCS_LABELS: Record<number, string> = {
@@ -127,23 +136,100 @@ const isAlpha = (c: string): boolean =>
 const isDigit = (c: string): boolean => c >= '0' && c <= '9';
 const isOff = (param: number | null): boolean => param === 0;
 
+/** The `\pict` control word naming the picture's format. */
+const PICTURE_KINDS: Record<string, RtfPictureKind> = {
+  pngblip: 'png',
+  jpegblip: 'jpeg',
+  wmetafile: 'wmf',
+  emfblip: 'emf',
+  macpict: 'other',
+  pmmetafile: 'other',
+  dibitmap: 'other',
+  wbitmap: 'other',
+};
+
+const HEX_VALUE = (() => {
+  const table = new Int8Array(128).fill(-1);
+  for (let d = 0; d < 10; d += 1) table[48 + d] = d;
+  for (let d = 0; d < 6; d += 1) {
+    table[65 + d] = 10 + d;
+    table[97 + d] = 10 + d;
+  }
+  return table;
+})();
+
+/** A picture's hex text as bytes, skipping the line breaks RTF wraps it with. */
+function hexBytes(chunks: readonly string[]): Uint8Array {
+  const total = chunks.reduce((n, c) => n + c.length, 0);
+  const out = new Uint8Array(Math.ceil(total / 2));
+  let length = 0;
+  let high = -1;
+  for (const chunk of chunks) {
+    for (let i = 0; i < chunk.length; i += 1) {
+      const code = chunk.charCodeAt(i);
+      const value = code < 128 ? HEX_VALUE[code] : -1;
+      if (value < 0) continue;
+      if (high < 0) high = value;
+      else {
+        out[length] = (high << 4) | value;
+        length += 1;
+        high = -1;
+      }
+    }
+  }
+  return out.subarray(0, length);
+}
+
 /** The text of an RTF file, one `DocLine` per paragraph or table row. */
 export function parseRtf(rtf: string): DocLine[] {
+  return parseRtfDocument(rtf).lines;
+}
+
+/** The lines of an RTF file and the pictures anchored to them (E11). */
+export function parseRtfDocument(rtf: string): {
+  lines: DocLine[];
+  pictures: RtfPicture[];
+} {
   const lines: DocLine[] = [];
+  const pictures: RtfPicture[] = [];
   let segments: DocSegment[] = [{ text: '' }];
+  let lineImageIds: string[] = [];
   /** Set by `\intbl`, cleared by `\pard` and `\row`. */
   let inTable = false;
+  /** The `\pict` group being read, closed at its own depth. */
+  let pict: {
+    depth: number;
+    kind: RtfPictureKind;
+    hex: string[];
+    binary: number[];
+  } | null = null;
 
   const endLine = (): void => {
     const text = segments.map((s) => s.text).join(' ');
     const emphasized = segments.some((s) => s.emphasized);
-    if (text.trim())
+    if (text.trim() || lineImageIds.length > 0)
       lines.push({
         text,
         ...(segments.length > 1 ? { segments } : {}),
         ...(emphasized ? { emphasized: true } : {}),
+        ...(lineImageIds.length > 0 ? { imageIds: lineImageIds } : {}),
       });
     segments = [{ text: '' }];
+    lineImageIds = [];
+  };
+
+  const closePicture = (): void => {
+    if (!pict) return;
+    const bytes =
+      pict.binary.length > 0
+        ? Uint8Array.from(pict.binary)
+        : hexBytes(pict.hex);
+    if (bytes.length > 0) {
+      const id = `rtf-img-${pictures.length + 1}`;
+      pictures.push({ id, kind: pict.kind, bytes });
+      lineImageIds.push(id);
+    }
+    pict = null;
   };
 
   let state: State = {
@@ -189,6 +275,7 @@ export function parseRtf(rtf: string): DocLine[] {
 
     if (char === '}') {
       if (skipDepth > 0 && depth === skipDepth) skipDepth = 0;
+      if (pict && depth === pict.depth) closePicture();
       const restored = stack.pop();
       if (restored) state = restored;
       depth -= 1;
@@ -251,6 +338,17 @@ export function parseRtf(rtf: string): DocLine[] {
       const wasGroupStart = atGroupStart;
       atGroupStart = false;
 
+      if (skipDepth === 0 && wasGroupStart && !pict && word === 'pict') {
+        pict = { depth, kind: 'other', hex: [], binary: [] };
+        pendingStar = false;
+        continue;
+      }
+      // Word's `{\*\shppict` holds the real picture; its `\nonshppict` twin is skipped.
+      if (skipDepth === 0 && wasGroupStart && word === 'shppict') {
+        pendingStar = false;
+        continue;
+      }
+
       // `{\*\foo` and `{\fonttbl` alike: the whole group goes.
       if (
         skipDepth === 0 &&
@@ -262,6 +360,16 @@ export function parseRtf(rtf: string): DocLine[] {
         continue;
       }
       pendingStar = false;
+
+      if (pict && skipDepth === 0) {
+        if (word in PICTURE_KINDS) pict.kind = PICTURE_KINDS[word];
+        else if (word === 'bin' && param && param > 0) {
+          for (let b = 0; b < param && i + b < rtf.length; b += 1)
+            pict.binary.push(rawByte(rtf.charCodeAt(i + b)));
+          i += param;
+        }
+        continue;
+      }
 
       if (word === 'bin' && param && param > 0) {
         i += param;
@@ -359,6 +467,21 @@ export function parseRtf(rtf: string): DocLine[] {
       continue;
     }
 
+    if (pict && skipDepth === 0) {
+      let end = i;
+      while (
+        end < rtf.length &&
+        rtf[end] !== '\\' &&
+        rtf[end] !== '{' &&
+        rtf[end] !== '}'
+      )
+        end += 1;
+      pict.hex.push(rtf.slice(i, end));
+      i = end;
+      atGroupStart = false;
+      continue;
+    }
+
     i += 1;
     if (char === '\r' || char === '\n') continue;
     atGroupStart = false;
@@ -366,7 +489,7 @@ export function parseRtf(rtf: string): DocLine[] {
   }
 
   endLine();
-  return lines;
+  return { lines, pictures };
 }
 
 /** RTF's own bytes are ASCII; anything else it writes as a `\'hh` escape. */
@@ -381,12 +504,14 @@ function blobText(file: Blob): Promise<string> {
   });
 }
 
-export async function readRtf(file: Blob): Promise<{ lines: DocLine[] }> {
+export async function readRtf(
+  file: Blob
+): Promise<{ lines: DocLine[]; pictures: RtfPicture[] }> {
   const raw = await blobText(file);
   if (!raw.trimStart().startsWith('{\\rtf')) {
     throw new Error(
       "This file couldn't be read as a rich text file. Try saving it again as .rtf."
     );
   }
-  return { lines: parseRtf(raw) };
+  return parseRtfDocument(raw);
 }

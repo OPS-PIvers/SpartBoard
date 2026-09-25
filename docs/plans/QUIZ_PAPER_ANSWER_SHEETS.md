@@ -38,16 +38,16 @@ These shaped the decisions and are easy to re-derive wrongly later:
 
 ### 2.1 Scope and identity
 
-| #   | Decision         | Choice                                                                                                                                                                                   |
-| --- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Q1  | Import scope     | **Match an existing quiz, or key a stub from a bubbled ANSWER KEY sheet.** Question text is never recovered from an answer sheet.                                                        |
-| Q2  | Student identity | **Pre-printed per-student sheets.** Identity is decoded from a printed marker, never read from student marks. Unassigned spares cover walk-ins.                                          |
-| Q3  | Result storage   | **Real `QuizResponse` docs**, written by a new Cloud Function so the student-ownership rules at `firestore.rules:3366` stay untouched.                                                   |
-| Q4  | Processing       | **In the browser.** The scan is rasterized and read locally; nothing is uploaded to Storage and no retention obligation is created.                                                      |
-| Q5  | Question types   | **MC and True/False only.** Other types are excluded from the sheet, and the teacher is told at print time exactly which questions will not be scored from paper.                        |
-| Q6  | Marker format    | **A custom bit-grid, not QR.** The same pixel-sampling code that reads bubbles reads the marker — no decoder dependency, no third-party call, and cells can be sized for reliability.    |
-| Q7  | Marker payload   | **Batch id, seat number, page number, checksum.** Never a student id, roster id or quiz id — those are UUIDs, and the batch record already holds them.                                   |
-| Q8  | Rollout          | **Admin feature permission, ships disabled**, following `admin_settings/classlink_sync` and `admin_settings/plc_note_collab`. One field is the kill switch; no deploy needed to disable. |
+| #   | Decision         | Choice                                                                                                                                                                                                                 |
+| --- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Q1  | Import scope     | **Match an existing quiz, or key a stub from a bubbled ANSWER KEY sheet.** Question text is never recovered from an answer sheet.                                                                                      |
+| Q2  | Student identity | **Pre-printed per-student sheets.** Identity is decoded from a printed marker, never read from student marks. Unassigned spares cover walk-ins.                                                                        |
+| Q3  | Result storage   | **Real `QuizResponse` docs**, written by a new Cloud Function so the student-ownership rules at `firestore.rules:3366` stay untouched.                                                                                 |
+| Q4  | Processing       | **In the browser.** The scan is rasterized and read locally; nothing is uploaded to Storage and no retention obligation is created. Reversed for written-answer boxes only: see `QUIZ_PAPER_HANDWRITTEN_RESPONSES.md`. |
+| Q5  | Question types   | **MC and True/False only.** Other types are excluded from the sheet, and the teacher is told at print time exactly which questions will not be scored from paper.                                                      |
+| Q6  | Marker format    | **A custom bit-grid, not QR.** The same pixel-sampling code that reads bubbles reads the marker — no decoder dependency, no third-party call, and cells can be sized for reliability.                                  |
+| Q7  | Marker payload   | **Batch id, seat number, page number, checksum.** Never a student id, roster id or quiz id — those are UUIDs, and the batch record already holds them.                                                                 |
+| Q8  | Rollout          | **Admin feature permission, ships disabled**, following `admin_settings/classlink_sync` and `admin_settings/plc_note_collab`. One field is the kill switch; no deploy needed to disable.                               |
 
 ### 2.2 Printing
 
@@ -218,7 +218,7 @@ Increment 3 landed together in one PR:
 ## 10. Out of scope (v1)
 
 - Reading question text to **create** a quiz (only enrichment of an existing stub, §8.3).
-- Capturing written-response regions as image artifacts — it would require uploading student handwriting, contradicting Q4.
+- Capturing written-response regions as image artifacts. Now planned in `QUIZ_PAPER_HANDWRITTEN_RESPONSES.md`, which reverses Q4 for written boxes only.
 - Matching and Ordering questions on paper.
 - Per-question choice counts on a single sheet (Q14).
 - Any student-side view for `pin-` keyed paper responses (Q32).

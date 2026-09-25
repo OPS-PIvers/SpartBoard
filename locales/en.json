@@ -3395,6 +3395,16 @@
         "notSelfPaced": "Spoken answers need self-paced mode."
       }
     },
+    "paperReview": {
+      "handwriting": "Your handwriting",
+      "cropAlt": "Your handwritten answer, question {{number}}",
+      "loading": "Loading handwriting",
+      "unavailable": "Handwriting unavailable",
+      "reload": "Try again",
+      "transcribing": "Transcribing",
+      "blank": "Blank",
+      "comments": "Teacher comments"
+    },
     "grading": {
       "title": "Grade Free Response",
       "close": "Close",
@@ -3412,7 +3422,11 @@
         "scored": "Graded",
         "awaiting-grade": "Ungraded",
         "not-attempted": "No answer",
-        "excused": "Excused"
+        "excused": "Excused",
+        "paper-pending": "Transcribing",
+        "paper-failed": "Failed",
+        "paper-over-quota": "Daily limit",
+        "paper-blank": "Blank"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -3557,7 +3571,41 @@
       "collapseList": "Hide student list",
       "expandList": "Show student list",
       "gradedCount": "{{graded}}/{{total}} graded",
-      "gradedCountLabel": "{{graded}} of {{total}} graded"
+      "gradedCountLabel": "{{graded}} of {{total}} graded",
+      "paper": {
+        "badge": "Paper",
+        "handwriting": "Handwriting",
+        "cropAlt": "Handwritten answer, question {{number}}",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out",
+        "zoomFit": "Fit",
+        "loading": "Loading handwriting",
+        "unavailable": "Handwriting unavailable",
+        "reload": "Try again",
+        "checkTranscript": "Check transcript",
+        "retry": "Retry",
+        "transcribeBlank": "Not blank? Transcribe",
+        "useNewScan": "Use new scan",
+        "awaitingDrive": "Not in Drive yet",
+        "connectDrive": "Connect Drive",
+        "edit": "Edit transcript",
+        "save": "Save transcript",
+        "cancel": "Cancel",
+        "transcriptLabel": "Transcript",
+        "confirmRewrite": "Editing clears this answer's highlights. Continue?",
+        "state": {
+          "pending": "Transcribing",
+          "failed": "Failed",
+          "over-quota": "Daily limit",
+          "blank": "Blank",
+          "edited": "Edited"
+        },
+        "errors": {
+          "superseded": "A newer scan replaced this answer.",
+          "actionFailed": "That didn't work. Try again.",
+          "busy": "Transcription is running. Try again shortly."
+        }
+      }
     },
     "results": {
       "gradeButton": "Grade Free Response"

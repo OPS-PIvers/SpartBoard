@@ -23,21 +23,27 @@ import {
   MIN_CHOICE_COUNT,
   NUMBER_WIDTH_MM,
   BUBBLE_PITCH_MM,
+  WRITTEN_LINE_PITCH_MM,
   PAGE_HEIGHT_MM,
   PAGE_WIDTH_MM,
   REGISTRATION_MARK_CENTERS_MM,
   REGISTRATION_MARK_SIZE_MM,
   ROWS_PER_COLUMN,
+  QUESTION_CHOICE_TEXT_GAP_MM,
+  QUESTION_STEM_H_MM,
+  QUESTION_STEM_W_MM,
+  QUESTION_STEM_X_MM,
+  bubbleRectAtOriginMm,
   bubbleRectMm,
   markerCellRectMm,
+  mcRowOriginMm,
   pageCountForQuestions,
   questionSlotOnPage,
-  questionChoiceTextRectMm,
-  questionStemRectMm,
   questionsPerPage,
-  rowTopMm,
   type PaperGrid,
+  type PointMm,
 } from './paperSheetLayout';
+import { isStimulusFreePage, mcItemsOf, writtenRuleYsMm } from './paperPageMap';
 import { isPlaceholderLetterChoices } from './paperSheetPlan';
 import { encodePaperMarker, paperBatchTag } from './paperSheetMarker';
 import type { PaperSheetPlan } from './paperSheetPlan';
@@ -52,7 +58,7 @@ import {
   type OpenWindow,
 } from './printHtmlDocument';
 import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
-import type { PaperSheetStimulus } from '@/types';
+import type { PaperPageItem, PaperPageMap, PaperSheetStimulus } from '@/types';
 
 export interface PaperPrintJob {
   batchId: string;
@@ -88,6 +94,10 @@ export interface PaperPrintJob {
    * caller that owns their object URLs knows when it may free them.
    */
   onImagesReady?: () => void;
+  /** Page layout of a batch with written boxes (layoutVersion 2); every page then prints and reads by map. */
+  pageMaps?: readonly PaperPageMap[];
+  /** Stem per written question id, printed in its header when the header has room. */
+  writtenTexts?: Readonly<Record<string, string>>;
 }
 
 /** What a question-text row prints beside its bubbles. */
@@ -107,9 +117,24 @@ export interface SheetFill {
   marks: readonly ('correct' | 'incorrect' | 'unclear' | null)[];
   /** Printed in the header box when set. */
   score?: string;
+  /** Written boxes by question id; a box without an entry prints its rule lines (D42). */
+  written?: Readonly<Record<string, SheetWrittenFill>>;
+}
+
+/** What a reprint draws in one written box. */
+export interface SheetWrittenFill {
+  /** Image URL of the handwriting; null when it failed to load, absent while loading. */
+  crop?: string | null;
+  /** Printed at the right of the box's header, e.g. "3/4". */
+  points?: string;
+  /** The teacher's comment, in a strip along the bottom of the box. */
+  comment?: string;
 }
 
 const mm = (n: number): string => `${n.toFixed(3)}mm`;
+
+/** Rule line weight in a written box; drawn at the letter grey so the reader's cut drops it. */
+export const WRITTEN_RULE_MM = 0.3;
 
 /** `BUBBLE_LETTER_GREY` as a CSS colour, so the print and the reader's floor share one number. */
 const letterGrey = (): string =>
@@ -128,13 +153,15 @@ function markerHtml(
   batchId: string,
   seat: number,
   page: number,
-  isKeySheet: boolean
+  isKeySheet: boolean,
+  readByMap: boolean
 ): string {
   const bits = encodePaperMarker({
     batchTag: paperBatchTag(batchId),
     seat,
     page,
     isKeySheet,
+    ...(readByMap ? { readByMap: true as const } : {}),
   });
   const cells: string[] = [];
   for (let i = 0; i < MARKER_CELL_COUNT; i += 1) {
@@ -166,6 +193,9 @@ function footerHtml(): string {
 function stimuliHtml(job: PaperPrintJob, page: number): string {
   // Two columns of answers leave no band to print into, whatever the job says.
   if (!job.sheetStimuli?.length || job.columnsPerPage !== 1) return '';
+  const map = job.pageMaps?.[page - 1];
+  // A box wider than the left column takes the band, so the stimulus waits for the next page (D10).
+  if (map && isStimulusFreePage(map)) return '';
   const parts: string[] = [];
   for (const item of layoutSheetStimuli(job.sheetStimuli, page).items) {
     const src = job.stimulusImageSrc?.[item.stimulus.id];
@@ -249,20 +279,25 @@ function columnLegendsHtml(
 }
 
 /** The stem above a question's bubbles, and each choice's text beside its own bubble. */
-function questionTextHtml(
-  indexOnPage: number,
-  q: PaperSheetQuestionText
-): string {
-  const stem = questionStemRectMm(indexOnPage);
+function questionTextHtml(origin: PointMm, q: PaperSheetQuestionText): string {
   const parts = [
-    `<div class="qt-stem" style="left:${mm(stem.x)};top:${mm(stem.y)};width:${mm(
-      stem.w
-    )};height:${mm(stem.h)}">${escapeHtml(q.text)}</div>`,
+    `<div class="qt-stem" style="left:${mm(QUESTION_STEM_X_MM)};top:${mm(
+      origin.y
+    )};width:${mm(QUESTION_STEM_W_MM)};height:${mm(QUESTION_STEM_H_MM)}">${escapeHtml(
+      q.text
+    )}</div>`,
   ];
   // A stub's options are just the bubble letters, which say nothing to a student.
   if (!isPlaceholderLetterChoices(q.choices)) {
     q.choices.slice(0, MAX_CHOICE_COUNT).forEach((choice, i) => {
-      const r = questionChoiceTextRectMm(indexOnPage, i);
+      const b = bubbleRectAtOriginMm(origin, i, 'questions');
+      const x = b.x + b.w + QUESTION_CHOICE_TEXT_GAP_MM;
+      const r = {
+        x,
+        y: b.y,
+        w: QUESTION_STEM_X_MM + QUESTION_STEM_W_MM - x,
+        h: b.h,
+      };
       parts.push(
         `<div class="qt-choice" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(
           r.w
@@ -274,6 +309,65 @@ function questionTextHtml(
 }
 
 const MARK_GLYPH = { correct: '✓', incorrect: '✗', unclear: '?' } as const;
+
+/** One MC row: number, optional question text, bubbles and its reprint mark. */
+function mcRowHtml(
+  origin: PointMm,
+  index: number,
+  printedNumber: string,
+  choiceCount: number,
+  columnsPerPage: PaperGrid,
+  fill?: SheetFill,
+  questionTexts?: readonly PaperSheetQuestionText[],
+  rowLabels?: readonly (string | undefined)[]
+): string {
+  const parts: string[] = [];
+  const label = rowLabels?.[index];
+  // The label shrinks and clips inside the fixed number cell so bubbles never move.
+  const numberHtml = label
+    ? `<span>${escapeHtml(printedNumber)}</span><span class="num-src">(${escapeHtml(label)})</span>`
+    : escapeHtml(printedNumber);
+  parts.push(
+    `<div class="${columnsPerPage === 'questions' ? 'num qnum' : 'num'}${
+      label ? ' labelled' : ''
+    }" style="left:${mm(origin.x)};top:${mm(origin.y)};width:${mm(
+      NUMBER_WIDTH_MM - 2
+    )}">${numberHtml}</div>`
+  );
+  const text = questionTexts?.[index];
+  if (columnsPerPage === 'questions' && text) {
+    parts.push(questionTextHtml(origin, text));
+  }
+  for (let choice = 0; choice < choiceCount; choice += 1) {
+    const r = bubbleRectAtOriginMm(origin, choice, columnsPerPage);
+    const cls = fill
+      ? `bub${fill.filled[index] === choice ? ' filled' : ''}${
+          fill.key[index] === choice ? ' key' : ''
+        }`
+      : 'bub';
+    parts.push(
+      `<div class="${cls}" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(r.w)};height:${mm(
+        r.h
+      )}">${CHOICE_LETTERS[choice]}</div>`
+    );
+  }
+  const mark = fill?.marks[index];
+  if (mark) {
+    const r = bubbleRectAtOriginMm(origin, choiceCount - 1, columnsPerPage);
+    // Beside the number on the question-text grid, where choice text fills the row.
+    const left =
+      columnsPerPage === 'questions'
+        ? COLUMN_X_MM[0] - BUBBLE_PITCH_MM
+        : r.x + BUBBLE_PITCH_MM;
+    const top = columnsPerPage === 'questions' ? origin.y : r.y;
+    parts.push(
+      `<div class="rowmark" style="left:${mm(left)};top:${mm(top)}">${
+        MARK_GLYPH[mark]
+      }</div>`
+    );
+  }
+  return parts.join('');
+}
 
 function answerRowsHtml(
   page: number,
@@ -291,56 +385,171 @@ function answerRowsHtml(
   let columns = 0;
 
   for (let i = 0; i < onThisPage; i += 1) {
-    const { column, row } = questionSlotOnPage(i, columnsPerPage);
+    const { column } = questionSlotOnPage(i, columnsPerPage);
     columns = Math.max(columns, column + 1);
     const index = first + i;
-    const label = rowLabels?.[index];
-    // The label shrinks and clips inside the fixed number cell so bubbles never move.
-    const numberHtml = label
-      ? `<span>${index + 1}</span><span class="num-src">(${escapeHtml(label)})</span>`
-      : `${index + 1}`;
     parts.push(
-      `<div class="${columnsPerPage === 'questions' ? 'num qnum' : 'num'}${
-        label ? ' labelled' : ''
-      }" style="left:${mm(COLUMN_X_MM[column])};top:${mm(
-        rowTopMm(row, columnsPerPage)
-      )};width:${mm(NUMBER_WIDTH_MM - 2)}">${numberHtml}</div>`
+      mcRowHtml(
+        mcRowOriginMm(i, columnsPerPage),
+        index,
+        String(index + 1),
+        choiceCount,
+        columnsPerPage,
+        fill,
+        questionTexts,
+        rowLabels
+      )
     );
-    const text = questionTexts?.[index];
-    if (columnsPerPage === 'questions' && text) {
-      parts.push(questionTextHtml(i, text));
-    }
-    for (let choice = 0; choice < choiceCount; choice += 1) {
-      const r = bubbleRectMm(i, choice, columnsPerPage);
-      const cls = fill
-        ? `bub${fill.filled[index] === choice ? ' filled' : ''}${
-            fill.key[index] === choice ? ' key' : ''
-          }`
-        : 'bub';
+  }
+  return { html: parts.join(''), columns };
+}
+
+type WrittenPageItem = Extract<PaperPageItem, { kind: 'written' }>;
+
+/** Header width a reprint keeps for a written question's points. */
+const WRITTEN_POINTS_MM = 14;
+
+/** Line height of a written header's stem, as `.qt-stem` sets it. */
+const STEM_LINE_MM = 3.6;
+
+/** Header lines a written header can hold at the stem's line height. */
+const headerStemLines = (h: number): number => Math.floor(h / STEM_LINE_MM);
+
+/** A written question: number and stem in its header, then ruled lines to write on (D9, D12). */
+function writtenItemHtml(
+  item: WrittenPageItem,
+  grid: PaperGrid,
+  isKeySheet: boolean,
+  stem?: string,
+  fill?: SheetWrittenFill
+): string {
+  const h = item.headerMm;
+  const pointsW = fill?.points ? WRITTEN_POINTS_MM : 0;
+  const numberCls = grid === 'questions' ? 'num qnum' : 'num wr-num';
+  const parts = [
+    `<div class="${numberCls}" style="left:${mm(h.x)};top:${mm(h.y)};width:${mm(
+      NUMBER_WIDTH_MM - 2
+    )}">${escapeHtml(item.label)}</div>`,
+  ];
+  const lines = headerStemLines(h.h);
+  if (stem?.trim() && lines >= 2) {
+    const shown = Math.min(lines, 3);
+    const x = grid === 'questions' ? QUESTION_STEM_X_MM : h.x + NUMBER_WIDTH_MM;
+    parts.push(
+      `<div class="qt-stem wr-stem" style="left:${mm(x)};top:${mm(h.y)};width:${mm(
+        h.x + h.w - x - pointsW
+      )};height:${mm(shown * STEM_LINE_MM)};-webkit-line-clamp:${shown}">${escapeHtml(
+        stem
+      )}</div>`
+    );
+  }
+  const b = item.boxMm;
+  const box = `left:${mm(b.x)};top:${mm(b.y)};width:${mm(b.w)};height:${mm(b.h)}`;
+  // The key never carries handwriting, so its boxes print as a band nobody writes in (D16).
+  if (isKeySheet) {
+    parts.push(`<div class="wr-key" style="${box}">Graded by teacher</div>`);
+    return parts.join('');
+  }
+  if (fill) {
+    if (fill.points) {
       parts.push(
-        `<div class="${cls}" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(r.w)};height:${mm(
-          r.h
-        )}">${CHOICE_LETTERS[choice]}</div>`
+        `<div class="wr-pts" style="left:${mm(h.x + h.w - pointsW)};top:${mm(h.y)};width:${mm(
+          pointsW
+        )}">${escapeHtml(fill.points)}</div>`
       );
     }
-    const mark = fill?.marks[index];
-    if (mark) {
-      const r = bubbleRectMm(i, choiceCount - 1, columnsPerPage);
-      // Beside the number on the question-text grid, where choice text fills the row.
-      const left =
-        columnsPerPage === 'questions'
-          ? COLUMN_X_MM[0] - BUBBLE_PITCH_MM
-          : r.x + BUBBLE_PITCH_MM;
-      const top =
-        columnsPerPage === 'questions' ? rowTopMm(row, columnsPerPage) : r.y;
+    const comment = fill.comment?.trim();
+    const stripH = comment ? WRITTEN_LINE_PITCH_MM : 0;
+    const cropBox = `left:${mm(b.x)};top:${mm(b.y)};width:${mm(b.w)};height:${mm(
+      b.h - stripH
+    )}`;
+    parts.push(
+      fill.crop
+        ? `<img class="wr-crop" style="${cropBox}" src="${escapeHtml(
+            fill.crop
+          )}" alt="${escapeHtml(`Handwritten answer, question ${item.label}`)}">`
+        : `<div class="wr-missing" style="${cropBox}">${
+            fill.crop === undefined
+              ? 'Loading handwriting'
+              : 'Handwriting unavailable'
+          }</div>`
+    );
+    if (comment) {
       parts.push(
-        `<div class="rowmark" style="left:${mm(left)};top:${mm(top)}">${
-          MARK_GLYPH[mark]
-        }</div>`
+        `<div class="wr-comment" style="left:${mm(b.x)};top:${mm(
+          b.y + b.h - stripH
+        )};width:${mm(b.w)};height:${mm(stripH)}">${escapeHtml(comment)}</div>`
+      );
+    }
+    return parts.join('');
+  }
+  for (const y of writtenRuleYsMm(item)) {
+    parts.push(
+      `<div class="wr-rule" style="left:${mm(b.x)};top:${mm(
+        y - WRITTEN_RULE_MM
+      )};width:${mm(b.w)}"></div>`
+    );
+  }
+  return parts.join('');
+}
+
+/** "A B C D E" over each column that starts at the grid top, as the arithmetic layout prints. */
+function mapLegendsHtml(map: PaperPageMap, choiceCount: number): string {
+  if (map.grid === 'questions') return '';
+  const xs = new Set<number>();
+  for (const item of mcItemsOf(map)) {
+    if (item.originMm.y === GRID_TOP_MM) xs.add(item.originMm.x);
+  }
+  const parts: string[] = [];
+  for (const x of xs) {
+    for (let choice = 0; choice < choiceCount; choice += 1) {
+      const r = bubbleRectAtOriginMm({ x, y: GRID_TOP_MM }, choice, map.grid);
+      parts.push(
+        `<div class="legend" style="left:${mm(r.x)};top:${mm(
+          GRID_TOP_MM - 5
+        )};width:${mm(r.w)}">${CHOICE_LETTERS[choice]}</div>`
       );
     }
   }
-  return { html: parts.join(''), columns };
+  return parts.join('');
+}
+
+/** Everything a map page prints between its header and footer. */
+function mapPageBodyHtml(
+  map: PaperPageMap,
+  job: PaperPrintJob,
+  sheet: PaperSheetPlan,
+  choiceCount: number,
+  fill?: SheetFill
+): string {
+  const parts = [mapLegendsHtml(map, choiceCount)];
+  for (const item of map.items) {
+    if (item.kind === 'mc') {
+      parts.push(
+        mcRowHtml(
+          item.originMm,
+          item.sheetRow,
+          item.label,
+          choiceCount,
+          map.grid,
+          fill,
+          job.questionTexts,
+          job.rowLabels
+        )
+      );
+    } else {
+      parts.push(
+        writtenItemHtml(
+          item,
+          map.grid,
+          sheet.isKeySheet,
+          job.writtenTexts?.[item.questionId],
+          fill?.written?.[item.questionId]
+        )
+      );
+    }
+  }
+  return parts.join('');
 }
 
 /**
@@ -361,22 +570,30 @@ function sheetPagesHtml(
   const columnsPerPage = job.columnsPerPage ?? DEFAULT_COLUMNS_PER_PAGE;
   const pages: string[] = [];
   for (let page = 1; page <= pageCount; page += 1) {
-    const rows = answerRowsHtml(
-      page,
-      job.questionCount,
-      choiceCount,
-      columnsPerPage,
-      fill,
-      job.questionTexts,
-      job.rowLabels
-    );
+    const map = job.pageMaps?.[page - 1];
+    let body: string;
+    if (map) {
+      body = mapPageBodyHtml(map, job, sheet, choiceCount, fill);
+    } else {
+      const rows = answerRowsHtml(
+        page,
+        job.questionCount,
+        choiceCount,
+        columnsPerPage,
+        fill,
+        job.questionTexts,
+        job.rowLabels
+      );
+      body = `${columnLegendsHtml(choiceCount, rows.columns, columnsPerPage)}${rows.html}`;
+    }
     const scanMarks = fill
       ? ''
       : `${registrationMarksHtml()}${markerHtml(
           job.batchId,
           sheet.seat,
           page,
-          sheet.isKeySheet
+          sheet.isKeySheet,
+          !!job.pageMaps
         )}`;
     pages.push(
       `<div class="sheet">${scanMarks}${headerHtml(
@@ -386,11 +603,7 @@ function sheetPagesHtml(
         pageCount,
         job.printedForTeacherName,
         fill?.score
-      )}${columnLegendsHtml(
-        choiceCount,
-        rows.columns,
-        columnsPerPage
-      )}${rows.html}${stimuliHtml(job, page)}${footerHtml()}</div>`
+      )}${body}${stimuliHtml(job, page)}${footerHtml()}</div>`
     );
   }
   return pages.join('');
@@ -407,7 +620,17 @@ const SHEET_STYLES = `
     color: #000;
   }
   .sheet:last-child { page-break-after: auto; }
-  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap, .qt-stem, .qt-choice { position: absolute; }
+  .reg, .cell, .hdr, .num, .bub, .legend, .foot, .stim, .stim-cap, .qt-stem, .qt-choice, .wr-rule, .wr-key { position: absolute; }
+  .wr-rule { height: ${WRITTEN_RULE_MM}mm; background: ${letterGrey()}; }
+  .wr-key {
+    background: #e5e5e5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10pt;
+    font-weight: 700;
+    color: #333;
+  }
   .qt-stem {
     font-size: 9pt;
     line-height: 3.6mm;
@@ -480,6 +703,7 @@ const SHEET_STYLES = `
     color: #444;
   }
   .num.qnum { font-size: 9pt; font-weight: 700; line-height: 3.6mm; }
+  .num.wr-num { line-height: 3.6mm; }
   .legend { font-size: 7pt; text-align: center; color: #444; }
   .bub {
     border: 0.35mm solid #000;
@@ -511,6 +735,11 @@ export const SHEET_REPRINT_STYLES = `
   .hdr-score { font-size: 11pt; font-weight: 700; }
   .bub.filled { background: #000; color: #fff; }
   .bub.key { outline: 0.9mm double #000; outline-offset: 0.3mm; }
+  .wr-crop, .wr-missing, .wr-pts, .wr-comment { position: absolute; }
+  .wr-crop { object-fit: contain; object-position: left top; }
+  .wr-missing { border: 0.3mm dashed #666; display: flex; align-items: center; justify-content: center; font-size: 10pt; font-style: italic; color: #333; }
+  .wr-pts { font-size: 10pt; font-weight: 700; text-align: right; line-height: 3.6mm; }
+  .wr-comment { border-top: 0.3mm solid #000; font-size: 8.5pt; line-height: 3.4mm; padding-top: 0.4mm; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 `;
 
 /** One graded sheet's pages, for a reprint. */
@@ -524,6 +753,8 @@ export function buildFilledSheetHtml(
     | 'choiceCount'
     | 'columnsPerPage'
     | 'questionTexts'
+    | 'pageMaps'
+    | 'writtenTexts'
   >,
   pageCount: number,
   fill: SheetFill
@@ -558,9 +789,8 @@ export function printPaperSheets(
 
 /** The document `printPaperSheets` would write. Exported for tests and preview. */
 export function buildPaperSheetsHtml(job: PaperPrintJob): string {
-  const pageCount = pageCountForQuestions(
-    job.questionCount,
-    job.columnsPerPage
-  );
+  const pageCount = job.pageMaps
+    ? job.pageMaps.length
+    : pageCountForQuestions(job.questionCount, job.columnsPerPage);
   return job.sheets.map((s) => sheetPagesHtml(s, job, pageCount)).join('');
 }

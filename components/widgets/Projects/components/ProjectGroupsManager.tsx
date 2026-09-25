@@ -18,11 +18,12 @@ import type {
   Student,
 } from '@/types';
 import { Modal } from '@/components/common/Modal';
-import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import {
   NO_STUDENT_SIGN_IN_WARNING,
+  PROJECT_GROUP_COLORS,
+  resolveGroupColor,
   defaultGroupColor,
   groupsForClass,
   projectClassIdFor,
@@ -224,7 +225,7 @@ const GroupColorPicker: React.FC<{
           }}
           className="absolute left-0 top-7 z-20 grid w-44 grid-cols-6 gap-1.5 rounded-xl border border-slate-200 bg-white p-2 shadow-lg"
         >
-          {SCOREBOARD_COLORS.map((option) => (
+          {PROJECT_GROUP_COLORS.map((option) => (
             <button
               key={option}
               type="button"
@@ -518,7 +519,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
                 <div className="flex items-center gap-1.5">
                   <GroupColorPicker
                     name={name}
-                    color={group.color ?? defaultGroupColor(index)}
+                    color={resolveGroupColor(group.color, index)}
                     onPick={(color) => recolorGroup(group.id, color)}
                   />
                   <input

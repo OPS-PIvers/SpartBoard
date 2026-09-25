@@ -17,7 +17,7 @@ import {
   QuizTranslation,
   isFreeResponseType,
 } from '@/types';
-import { gradeAnswer } from '@/hooks/useQuizSession';
+import { gradeAnswer, paperTranscriptFor } from '@/hooks/useQuizSession';
 import { APP_NAME } from '@/config/constants';
 import { authError } from './driveAuthErrors';
 import {
@@ -58,7 +58,8 @@ export function makeQuizGradeFn(fibGrading?: FibGradingContext | null) {
       question,
       studentAnswer,
       manualGrade,
-      response ? fibAnswersForResponse(fibGrading, response, question.id) : []
+      response ? fibAnswersForResponse(fibGrading, response, question.id) : [],
+      paperTranscriptFor(response, question.id)
     );
     return response ? applyMediaSlots(question, response, base) : base;
   };

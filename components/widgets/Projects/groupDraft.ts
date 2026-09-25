@@ -1,7 +1,7 @@
 /** Pure edit model behind the group manager: a draft of one class's groups and the commit it becomes. */
 
 import type { ProjectGroup, ProjectGroupImportEntry, Student } from '@/types';
-import { defaultGroupColor } from './projectSteps';
+import { resolveGroupColor } from './projectSteps';
 
 /** A group member: a roster student, or a stored uid the client has not (yet) named. */
 export interface DraftMember {
@@ -168,7 +168,7 @@ export function buildGroupCommit(
       name,
       classId,
       order,
-      color: group.color ?? defaultGroupColor(order),
+      color: resolveGroupColor(group.color, order),
       classLinkSourcedIds: sourcedIds,
       ...(testEmails.length > 0 ? { testEmails } : {}),
       ...(keepMemberUids.length > 0 ? { keepMemberUids } : {}),

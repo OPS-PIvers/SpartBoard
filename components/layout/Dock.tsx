@@ -92,6 +92,7 @@ import {
   isDockItemVisible as isDockItemVisibleHelper,
 } from './dock/folderPermissions';
 import { tourAttr } from '@/config/tourAnchors';
+import { LEGACY_TOOL_FEATURES } from '@/config/featureDefaults';
 import {
   TOUR_DOCK_EVENT,
   type TourDockRequest,
@@ -675,12 +676,15 @@ export const Dock: React.FC = () => {
 
   const canAccessTool = useCallback(
     (type: WidgetType | InternalToolType) => {
-      if (type === 'record') return canAccessFeature('screen-recording');
-      if (type === 'magic') return canAccessFeature('magic-layout');
-      if (type === 'remote') return canAccessFeature('remote-control');
+      const legacy =
+        type in LEGACY_TOOL_FEATURES
+          ? LEGACY_TOOL_FEATURES[type as InternalToolType]
+          : undefined;
+      if (legacy && !featurePermissions.some((p) => p.widgetType === type))
+        return canAccessFeature(legacy);
       return canAccessWidget(type as WidgetType);
     },
-    [canAccessFeature, canAccessWidget]
+    [canAccessFeature, canAccessWidget, featurePermissions]
   );
 
   // Shared with the render loop's own per-entry gate below, so reorderDockItemsPreservingHidden can't drift from what actually renders.
@@ -1157,14 +1161,7 @@ export const Dock: React.FC = () => {
                           item.toolType === 'record' ||
                           item.toolType === 'magic'
                         ) {
-                          if (
-                            !canAccessFeature(
-                              item.toolType === 'record'
-                                ? 'screen-recording'
-                                : 'magic-layout'
-                            )
-                          )
-                            return null;
+                          if (!canAccessTool(item.toolType)) return null;
 
                           return (
                             <ToolDockItem
@@ -1288,7 +1285,7 @@ export const Dock: React.FC = () => {
 
                         // Handle "remote" as a tool with special popover logic
                         if (item.toolType === 'remote') {
-                          if (!canAccessFeature('remote-control')) return null;
+                          if (!canAccessTool('remote')) return null;
                           return (
                             <ToolDockItem
                               key={tool.type}

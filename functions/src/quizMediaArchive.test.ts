@@ -76,12 +76,15 @@ vi.mock('./secrets', () => {
 import {
   archiveQuizArtifactCore,
   isQuizMediaResponseGranted,
+  isGlobalFeatureGranted,
   isLostArchiveError,
   buildArchiveFileName,
   computeHasStuckArchive,
   countCommittedTakes,
   exceedsTakeLimit,
   hasQuizMediaStoragePrefix,
+  hasPaperCropStoragePrefix,
+  isNeedsConsentError,
   parseRefKey,
   questionLabelFor,
   resolveFailedArchiveStatus,
@@ -91,6 +94,7 @@ import {
   type ArchiveDeps,
 } from './quizMediaArchive';
 import { resolveOrgIdForDomain } from './classlinkShared';
+import { HttpsError } from 'firebase-functions/v2/https';
 
 const SESSION_ID = 'sess-1';
 const RESPONSE_KEY = 'resp-1';
@@ -1252,5 +1256,325 @@ describe('transcodeBufferToM4a packaging guard', () => {
     } finally {
       ffmpegState.path = '/usr/bin/ffmpeg';
     }
+  });
+});
+
+describe('isGlobalFeatureGranted with no saved doc', () => {
+  const db = (adminEmails: string[]) =>
+    ({
+      collection: (name: string) => ({
+        doc: (id: string) => ({
+          get: () =>
+            Promise.resolve({
+              exists: name === 'admins' && adminEmails.includes(id),
+              data: () => undefined,
+            }),
+        }),
+      }),
+    }) as unknown as Parameters<typeof isGlobalFeatureGranted>[0];
+
+  it('passes an admin on a preview flag', async () => {
+    await expect(
+      isGlobalFeatureGranted(
+        db(['boss@x.org']),
+        'quiz-read-aloud',
+        'Boss@X.org',
+        'u'
+      )
+    ).resolves.toBe(true);
+  });
+
+  it('denies a teacher on a preview flag', async () => {
+    await expect(
+      isGlobalFeatureGranted(db([]), 'quiz-read-aloud', 'teacher@x.org', 'u')
+    ).resolves.toBe(false);
+  });
+
+  it('denies an admin on a fail-closed feature', async () => {
+    await expect(
+      isGlobalFeatureGranted(
+        db(['boss@x.org']),
+        'quiz-media-response',
+        'boss@x.org',
+        'u'
+      )
+    ).resolves.toBe(false);
+  });
+});
+
+describe('handwriting crops', () => {
+  const SCAN_ID = 'scan-7';
+  const CROP_PATH = `paper_written_crops/${TEACHER_UID}/${SCAN_ID}/3/${QUESTION_ID}.webp`;
+
+  function cropSeed(
+    artifact: Record<string, unknown> = {},
+    answer: Record<string, unknown> = {}
+  ): SeedOptions {
+    return {
+      session: {
+        teacherUid: TEACHER_UID,
+        quizTitle: 'Unit 3 Essay',
+        publicQuestions: [{ id: 'q0' }, { id: QUESTION_ID }],
+      },
+      response: {
+        studentUid: 'pseudonym-1',
+        pin: '12',
+        answers: [
+          {
+            questionId: QUESTION_ID,
+            paperScanId: SCAN_ID,
+            ...answer,
+            artifacts: [
+              {
+                id: ARTIFACT_ID,
+                slot: 'primary',
+                kind: 'handwriting',
+                storagePath: CROP_PATH,
+                mimeType: 'image/webp',
+                uploadState: 'uploaded',
+                ...artifact,
+              },
+            ],
+          },
+        ],
+      },
+    };
+  }
+
+  function cropDeps(db: unknown, overrides: Partial<ArchiveDeps> = {}) {
+    return makeDeps(db, {
+      statObject: vi.fn(() =>
+        Promise.resolve({ size: 40_000, contentType: 'image/webp' })
+      ),
+      isFeatureGranted: vi.fn(() => Promise.resolve(false)),
+      ...overrides,
+    });
+  }
+
+  const archiveAs = (deps: ArchiveDeps, callerUid: string | null) =>
+    archiveQuizArtifactCore(
+      {
+        sessionId: SESSION_ID,
+        responseKey: RESPONSE_KEY,
+        questionId: QUESTION_ID,
+        artifactId: ARTIFACT_ID,
+        callerUid,
+      },
+      deps
+    );
+
+  it('accepts only crop paths under the session teacher', () => {
+    expect(hasPaperCropStoragePrefix(CROP_PATH, TEACHER_UID, QUESTION_ID)).toBe(
+      true
+    );
+    expect(
+      hasPaperCropStoragePrefix(
+        `paper_written_crops/${TEACHER_UID}/${SCAN_ID}/3/${QUESTION_ID}.png`,
+        TEACHER_UID,
+        QUESTION_ID
+      )
+    ).toBe(true);
+    expect(hasPaperCropStoragePrefix(CROP_PATH, 'other', QUESTION_ID)).toBe(
+      false
+    );
+    expect(hasPaperCropStoragePrefix(CROP_PATH, TEACHER_UID, 'q9')).toBe(false);
+    expect(
+      hasPaperCropStoragePrefix(
+        `paper_written_crops/${TEACHER_UID}/../3/${QUESTION_ID}.webp`,
+        TEACHER_UID,
+        QUESTION_ID
+      )
+    ).toBe(false);
+    expect(
+      hasPaperCropStoragePrefix(
+        `paper_written_crops/${TEACHER_UID}/${SCAN_ID}/0/${QUESTION_ID}.webp`,
+        TEACHER_UID,
+        QUESTION_ID
+      )
+    ).toBe(false);
+    expect(hasPaperCropStoragePrefix(GOOD_PATH, TEACHER_UID, QUESTION_ID)).toBe(
+      false
+    );
+  });
+
+  it('archives without ffmpeg, the media gate or the take limit', async () => {
+    const seed = cropSeed();
+    seed.session!.publicQuestions = [
+      { id: 'q0' },
+      { id: QUESTION_ID, recording: { takeLimit: 0 } },
+    ];
+    const { db, response } = makeStubDb(seed);
+    const deps = cropDeps(db);
+    const result = await archiveAs(deps, null);
+
+    expect(result).toEqual({
+      archiveStatus: 'archived',
+      driveFileId: 'drive-1',
+    });
+    expect(deps.transcodeToM4a).not.toHaveBeenCalled();
+    expect(deps.isFeatureGranted).not.toHaveBeenCalled();
+    expect(deps.uploadToDrive).toHaveBeenCalledWith(
+      'token',
+      Buffer.from('source'),
+      'image/webp',
+      'Nguyen_Ava__Q2.webp',
+      'Quiz Responses/Unit 3 Essay'
+    );
+    expect(deps.deleteObject).toHaveBeenCalledWith(CROP_PATH);
+    const entry = (response!.artifactArchive as Bag)[ARTIFACT_ID] as Bag;
+    expect(entry.archiveStatus).toBe('archived');
+  });
+
+  it('lets the session teacher trigger the archive', async () => {
+    const { db } = makeStubDb(cropSeed());
+    const result = await archiveAs(cropDeps(db), TEACHER_UID);
+    expect(result.archiveStatus).toBe('archived');
+  });
+
+  it('denies the student and other callers', async () => {
+    for (const caller of ['pseudonym-1', 'someone-else']) {
+      const { db } = makeStubDb(cropSeed());
+      const deps = cropDeps(db);
+      await expect(archiveAs(deps, caller)).rejects.toMatchObject({
+        code: 'permission-denied',
+      });
+      expect(deps.uploadToDrive).not.toHaveBeenCalled();
+    }
+  });
+
+  it('still denies a teacher caller on an audio take', async () => {
+    const { db } = makeStubDb(baseSeed());
+    const deps = makeDeps(db);
+    await expect(archiveAs(deps, TEACHER_UID)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
+
+  it('rejects a crop path outside the teacher prefix', async () => {
+    const { db } = makeStubDb(
+      cropSeed({
+        storagePath: `paper_written_crops/other/${SCAN_ID}/3/${QUESTION_ID}.webp`,
+      })
+    );
+    const deps = cropDeps(db);
+    await expect(archiveAs(deps, null)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    expect(deps.downloadObject).not.toHaveBeenCalled();
+  });
+
+  it('refuses a crop from a superseded scan', async () => {
+    const { db } = makeStubDb(cropSeed({}, { paperScanId: 'scan-8' }));
+    const deps = cropDeps(db);
+    await expect(archiveAs(deps, null)).rejects.toMatchObject({
+      code: 'failed-precondition',
+    });
+    expect(deps.uploadToDrive).not.toHaveBeenCalled();
+  });
+
+  it('rejects an oversized crop', async () => {
+    const { db, response } = makeStubDb(cropSeed());
+    const deps = cropDeps(db, {
+      statObject: vi.fn(() =>
+        Promise.resolve({ size: 3 * 1024 * 1024, contentType: 'image/webp' })
+      ),
+    });
+    await expect(archiveAs(deps, null)).rejects.toMatchObject({
+      code: 'invalid-argument',
+    });
+    const entry = (response!.artifactArchive as Bag)[ARTIFACT_ID] as Bag;
+    expect(entry.archiveStatus).toBe('failed');
+  });
+
+  it('holds the crop as awaiting-drive when the teacher has no Drive grant', async () => {
+    const { db, response } = makeStubDb(cropSeed());
+    const deps = cropDeps(db, {
+      getAccessToken: vi.fn(() =>
+        Promise.reject(
+          new HttpsError('failed-precondition', 'needs-consent: none', {
+            reason: 'needs-consent',
+          })
+        )
+      ),
+    });
+    const result = await archiveAs(deps, null);
+
+    expect(result).toEqual({ archiveStatus: 'awaiting-drive' });
+    expect(deps.downloadObject).not.toHaveBeenCalled();
+    expect(deps.deleteObject).not.toHaveBeenCalled();
+    const entry = (response!.artifactArchive as Bag)[ARTIFACT_ID] as Bag;
+    expect(entry.archiveStatus).toBe('awaiting-drive');
+    expect(entry.awaitingDriveSince).toBe(1_700_000_000_000);
+    expect(entry.attemptCount).toBeUndefined();
+    expect(response!.hasStuckArchive).toBe(false);
+  });
+
+  it('keeps the first awaiting date and archives once Drive is connected', async () => {
+    const { db, response } = makeStubDb(cropSeed());
+    let now = 1_700_000_000_000;
+    const noDrive = () =>
+      Promise.reject(new Error('needs-consent: no refresh token stored.'));
+    const deps = cropDeps(db, {
+      getAccessToken: vi.fn(noDrive),
+      now: () => now,
+    });
+    await archiveAs(deps, null);
+    now += 86_400_000;
+    await archiveAs(deps, null);
+    let entry = (response!.artifactArchive as Bag)[ARTIFACT_ID] as Bag;
+    expect(entry.awaitingDriveSince).toBe(1_700_000_000_000);
+
+    deps.getAccessToken = vi.fn(() => Promise.resolve('token'));
+    const result = await archiveAs(deps, TEACHER_UID);
+    expect(result.archiveStatus).toBe('archived');
+    entry = (response!.artifactArchive as Bag)[ARTIFACT_ID] as Bag;
+    expect(entry.awaitingDriveSince).toBeUndefined();
+  });
+
+  it('still fails an audio take whose teacher has no Drive grant', async () => {
+    const { db, response } = makeStubDb(baseSeed());
+    const deps = makeDeps(db, {
+      getAccessToken: vi.fn(() =>
+        Promise.reject(new Error('needs-consent: no refresh token stored.'))
+      ),
+    });
+    await expect(call(deps)).rejects.toBeDefined();
+    const entry = (response!.artifactArchive as Bag)[ARTIFACT_ID] as Bag;
+    expect(entry.archiveStatus).toBe('failed');
+  });
+
+  it('recognizes needs-consent by details or message', () => {
+    expect(
+      isNeedsConsentError(
+        new HttpsError('failed-precondition', 'x', { reason: 'needs-consent' })
+      )
+    ).toBe(true);
+    expect(isNeedsConsentError(new Error('needs-consent: gone'))).toBe(true);
+    expect(isNeedsConsentError(new Error('Drive 503'))).toBe(false);
+  });
+
+  it('cleans up a pending crop transit object under the teacher prefix', async () => {
+    const seed = cropSeed();
+    seed.response!.artifactArchive = {
+      [ARTIFACT_ID]: {
+        archiveStatus: 'archived',
+        driveFileId: 'drive-1',
+        storageCleanupPending: true,
+      },
+    };
+    const { db, response } = makeStubDb(seed);
+    const deps = cropDeps(db);
+    await retryStorageCleanup(
+      {
+        sessionId: SESSION_ID,
+        responseKey: RESPONSE_KEY,
+        questionId: QUESTION_ID,
+        artifactId: ARTIFACT_ID,
+      },
+      deps
+    );
+    expect(deps.deleteObject).toHaveBeenCalledWith(CROP_PATH);
+    const entry = (response!.artifactArchive as Bag)[ARTIFACT_ID] as Bag;
+    expect(entry.storageCleanupPending).toBeUndefined();
   });
 });

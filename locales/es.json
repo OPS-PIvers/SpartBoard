@@ -2282,6 +2282,16 @@
         "notSelfPaced": "Spoken answers need self-paced mode."
       }
     },
+    "paperReview": {
+      "handwriting": "Tu letra",
+      "cropAlt": "Tu respuesta escrita a mano, pregunta {{number}}",
+      "loading": "Cargando escritura",
+      "unavailable": "Escritura no disponible",
+      "reload": "Reintentar",
+      "transcribing": "Transcribiendo",
+      "blank": "En blanco",
+      "comments": "Comentarios del maestro"
+    },
     "grading": {
       "title": "Calificar respuestas libres",
       "close": "Close",
@@ -2299,7 +2309,11 @@
         "scored": "Graded",
         "awaiting-grade": "Ungraded",
         "not-attempted": "No answer",
-        "excused": "Excused"
+        "excused": "Excused",
+        "paper-pending": "Transcribiendo",
+        "paper-failed": "Error",
+        "paper-over-quota": "Límite diario",
+        "paper-blank": "En blanco"
       },
       "points": "Points awarded",
       "comment": "Overall comment (optional)",
@@ -2440,7 +2454,41 @@
       "tabSwitches_other": "{{count}} cambios de pestaña",
       "tabSwitchesTitle_one": "{{count}} aviso de cambio de pestaña durante la evaluación",
       "tabSwitchesTitle_other": "{{count}} avisos de cambio de pestaña durante la evaluación",
-      "noAnswersOnQuestion": "Aún no hay respuestas para esta pregunta."
+      "noAnswersOnQuestion": "Aún no hay respuestas para esta pregunta.",
+      "paper": {
+        "badge": "Papel",
+        "handwriting": "Escritura a mano",
+        "cropAlt": "Respuesta escrita a mano, pregunta {{number}}",
+        "zoomIn": "Acercar",
+        "zoomOut": "Alejar",
+        "zoomFit": "Ajustar",
+        "loading": "Cargando escritura",
+        "unavailable": "Escritura no disponible",
+        "reload": "Reintentar",
+        "checkTranscript": "Revisar transcripción",
+        "retry": "Reintentar",
+        "transcribeBlank": "¿No está en blanco? Transcribir",
+        "useNewScan": "Usar nuevo escaneo",
+        "awaitingDrive": "Aún no está en Drive",
+        "connectDrive": "Conectar Drive",
+        "edit": "Editar transcripción",
+        "save": "Guardar transcripción",
+        "cancel": "Cancelar",
+        "transcriptLabel": "Transcripción",
+        "confirmRewrite": "Editar borra los resaltados de esta respuesta. ¿Continuar?",
+        "state": {
+          "pending": "Transcribiendo",
+          "failed": "Error",
+          "over-quota": "Límite diario",
+          "blank": "En blanco",
+          "edited": "Editada"
+        },
+        "errors": {
+          "superseded": "Un escaneo más reciente reemplazó esta respuesta.",
+          "actionFailed": "No funcionó. Inténtalo de nuevo.",
+          "busy": "La transcripción está en curso. Inténtalo en un momento."
+        }
+      }
     },
     "results": {
       "gradeButton": "Calificar respuestas libres"

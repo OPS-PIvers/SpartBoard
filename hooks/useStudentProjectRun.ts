@@ -29,8 +29,6 @@ const groupsFrom = (docs: { id: string; data: () => unknown }[]): GroupDocs =>
 
 interface UseStudentProjectRunResult {
   run: ProjectRun | null;
-  /** The caller's own group, plus classmates' groups while the run shows them (D39). */
-  groups: ProjectGroup[];
   /** The caller's own group, the only one they may write to. */
   myGroup: ProjectGroup | null;
   /** D40 — `private/work`, or the legacy group-doc field until it is backfilled. */
@@ -46,12 +44,10 @@ interface UseStudentProjectRunResult {
 
 export function useStudentProjectRun(
   runId: string | null,
-  uid: string | null,
-  classIds: readonly string[]
+  uid: string | null
 ): UseStudentProjectRunResult {
   const [run, setRun] = useState<ProjectRun | null>(null);
   const [ownGroups, setOwnGroups] = useState<GroupDocs>([]);
-  const [peerGroups, setPeerGroups] = useState<GroupDocs>([]);
   const [grade, setGrade] = useState<ProjectGroupGrade | null>(null);
   const [loading, setLoading] = useState(Boolean(runId));
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +57,6 @@ export function useStudentProjectRun(
     setPreviousRunId(runId);
     setRun(null);
     setOwnGroups([]);
-    setPeerGroups([]);
     setGrade(null);
     setLoading(Boolean(runId));
     setError(null);
@@ -88,8 +83,7 @@ export function useStudentProjectRun(
     );
   }, [runId]);
 
-  // D39 — the read rule admits a member, or a classmate only while `peerVisible`
-  // is on, so each query below matches exactly one of those shapes.
+  // A student reads only their own group; the rules admit no other query shape.
   useEffect(() => {
     if (!runId || !uid) return undefined;
     return onSnapshot(
@@ -104,36 +98,6 @@ export function useStudentProjectRun(
       }
     );
   }, [runId, uid]);
-
-  const classIdsKey = useMemo(
-    () => Array.from(new Set(classIds)).sort().slice(0, 30).join('|'),
-    [classIds]
-  );
-  const showPeers = run?.showStatusToStudents === true;
-
-  useEffect(() => {
-    if (!runId || !classIdsKey || !showPeers) return undefined;
-    return onSnapshot(
-      query(
-        collection(db, RUNS_COLLECTION, runId, 'groups'),
-        where('classId', 'in', classIdsKey.split('|')),
-        where('peerVisible', '==', true)
-      ),
-      (snapshot) => setPeerGroups(groupsFrom(snapshot.docs)),
-      // Peers are optional context; losing them never blocks the student's own group.
-      (snapshotError) => {
-        logError('useStudentProjectRun.peerGroups', snapshotError, { runId });
-        setPeerGroups([]);
-      }
-    );
-  }, [classIdsKey, runId, showPeers]);
-
-  const groups = useMemo(() => {
-    const byId = new Map<string, ProjectGroup>();
-    if (showPeers) for (const group of peerGroups) byId.set(group.id, group);
-    for (const group of ownGroups) byId.set(group.id, group);
-    return Array.from(byId.values());
-  }, [ownGroups, peerGroups, showPeers]);
 
   const myGroup = useMemo(
     () =>
@@ -227,7 +191,6 @@ export function useStudentProjectRun(
 
   return {
     run,
-    groups,
     myGroup,
     workLinks: work.workLinks,
     grade,

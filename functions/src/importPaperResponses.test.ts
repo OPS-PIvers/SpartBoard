@@ -5,7 +5,10 @@ vi.mock('firebase-admin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: Object.assign(vi.fn(), {
-    FieldValue: { serverTimestamp: () => 'SERVER_TS' },
+    FieldValue: {
+      serverTimestamp: () => 'SERVER_TS',
+      delete: () => 'DELETE_FIELD',
+    },
   }),
 }));
 
@@ -41,6 +44,24 @@ type Db = Parameters<typeof handleImportPaperResponses>[0];
 
 function makeDb(docs: Record<string, Doc>) {
   const committed: string[][] = [];
+  const apply = (
+    staged: Array<{ path: string; data: Doc; merge: boolean; create?: boolean }>
+  ) => {
+    for (const s of staged) {
+      if (s.create && docs[s.path] !== undefined)
+        throw new Error(`already exists: ${s.path}`);
+    }
+    for (const s of staged) {
+      docs[s.path] = s.merge
+        ? Object.fromEntries(
+            Object.entries({ ...docs[s.path], ...s.data }).filter(
+              ([, v]) => v !== 'DELETE_FIELD'
+            )
+          )
+        : s.data;
+    }
+    committed.push(staged.map((s) => s.path));
+  };
   const refFor = (path: string) => ({
     path,
     get: () =>
@@ -48,6 +69,10 @@ function makeDb(docs: Record<string, Doc>) {
         exists: docs[path] !== undefined,
         data: () => docs[path],
       }),
+    set: (data: Doc, opts?: { merge?: boolean }) => {
+      apply([{ path, data, merge: opts?.merge === true }]);
+      return Promise.resolve();
+    },
   });
   // Only the `where(field, '>', '')` shape the publish path uses: direct
   // children of the collection carrying a non-empty string at `field`.
@@ -86,13 +111,34 @@ function makeDb(docs: Record<string, Doc>) {
           staged.push({ path: ref.path, data, merge: opts?.merge === true });
         },
         commit: () => {
-          for (const s of staged) {
-            docs[s.path] = s.merge ? { ...docs[s.path], ...s.data } : s.data;
-          }
-          committed.push(staged.map((s) => s.path));
+          apply(staged);
           return Promise.resolve();
         },
       };
+    },
+    runTransaction: async (
+      fn: (tx: unknown) => Promise<unknown>
+    ): Promise<unknown> => {
+      const staged: Array<{
+        path: string;
+        data: Doc;
+        merge: boolean;
+        create?: boolean;
+      }> = [];
+      type Ref = ReturnType<typeof refFor>;
+      const tx = {
+        get: (ref: Ref) => ref.get(),
+        getAll: (...refs: Ref[]) => Promise.all(refs.map((r) => r.get())),
+        set: (ref: Ref, data: Doc, opts?: { merge?: boolean }) => {
+          staged.push({ path: ref.path, data, merge: opts?.merge === true });
+        },
+        create: (ref: Ref, data: Doc) => {
+          staged.push({ path: ref.path, data, merge: false, create: true });
+        },
+      };
+      const result = await fn(tx);
+      if (staged.length > 0) apply(staged);
+      return result;
     },
   } as unknown as Db;
   return { db, docs, committed };
@@ -584,5 +630,459 @@ describe('handlePublishPaperResults', () => {
     await expect(
       handlePublishPaperResults(makeDb(withResponses()).db, teacher, {}, NOW)
     ).rejects.toMatchObject({ code: 'invalid-argument' });
+  });
+});
+
+describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', () => {
+  const SCAN = 'scan-1';
+  const RESP = `quiz_sessions/${ASSIGNMENT}/responses/pin-period_1-0001`;
+  const JOBS = `users/${UID}/paper_transcription_jobs`;
+  const v2Docs = (): Record<string, Doc> => {
+    const docs = baseDocs();
+    docs[`quiz_sessions/${ASSIGNMENT}`] = {
+      teacherUid: UID,
+      publicQuestions: [{ id: 'q1' }, { id: 'q2' }, { id: 'q3' }, { id: 'q4' }],
+    };
+    docs[`users/${UID}/paper_batches/${BATCH}`] = {
+      ...docs[`users/${UID}/paper_batches/${BATCH}`],
+      layoutVersion: 2,
+      pagesPerSheet: 2,
+      pageMaps: [
+        {
+          page: 1,
+          grid: 2,
+          items: [
+            { kind: 'mc', questionId: 'q1', sheetRow: 0, label: '1' },
+            { kind: 'written', questionId: 'q2', label: '2' },
+          ],
+        },
+        {
+          page: 2,
+          grid: 2,
+          items: [
+            { kind: 'mc', questionId: 'q3', sheetRow: 1, label: '3' },
+            { kind: 'written', questionId: 'q4', label: '4' },
+          ],
+        },
+      ],
+    };
+    return docs;
+  };
+  const v2Sheet = (seat: number, over: Doc = {}) => ({
+    seat,
+    rosterId: 'r1',
+    pin: String(seat).padStart(4, '0'),
+    classPeriod: 'Period 1',
+    answers: [
+      { questionId: 'q1', answer: 'B' },
+      { questionId: 'q3', answer: 'C' },
+    ],
+    written: [
+      { questionId: 'q2', page: 1, state: 'ink', storagePath: 'ignored' },
+      { questionId: 'q4', page: 2, state: 'blank', storagePath: 'ignored' },
+    ],
+    ...over,
+  });
+  const callV2 = (
+    docs: Record<string, Doc>,
+    sheets: unknown[],
+    extra: Doc = {},
+    caller: ImportPaperCaller = teacher
+  ) => {
+    const { db, committed } = makeDb(docs);
+    return handleImportPaperResponses(
+      db,
+      caller,
+      {
+        batchId: BATCH,
+        assignmentId: ASSIGNMENT,
+        layoutVersion: 2,
+        scanId: SCAN,
+        sheets,
+        ...extra,
+      },
+      NOW
+    ).then((result) => ({ result, docs, committed }));
+  };
+  const crop = (scan: string, seat: number, q: string) =>
+    `paper_written_crops/${UID}/${scan}/${seat}/${q}.webp`;
+
+  it('writes written answers, private subdocs and one queued job per page', async () => {
+    const { result, docs } = await callV2(v2Docs(), [v2Sheet(1)]);
+    expect(result).toEqual({
+      written: [1],
+      collisions: [],
+      keptWritten: [],
+      jobsCreated: 2,
+      pagesQueued: 1,
+      pagesOverQuota: 0,
+    });
+    const answers = docs[RESP].answers as Doc[];
+    expect(answers.map((a) => a.questionId)).toEqual(['q1', 'q3', 'q2', 'q4']);
+    expect(answers[0]).toEqual({
+      questionId: 'q1',
+      answer: 'B',
+      answeredAt: NOW,
+      status: 'submitted',
+    });
+    expect(answers[2]).toEqual({
+      questionId: 'q2',
+      answer: '',
+      answeredAt: NOW,
+      status: 'submitted',
+      paperScanId: SCAN,
+      paperTranscript: 'pending',
+      artifacts: [
+        {
+          id: `hw_${SCAN}_q2`,
+          slot: 'primary',
+          kind: 'handwriting',
+          storagePath: crop(SCAN, 1, 'q2'),
+          mimeType: 'image/webp',
+          uploadState: 'uploaded',
+        },
+      ],
+    });
+    expect(answers[3]).toMatchObject({ paperTranscript: 'blank', answer: '' });
+    expect(docs[`${RESP}/paperPrivate/q2`]).toEqual({
+      scanId: SCAN,
+      status: 'pending',
+      attempts: 0,
+      charged: false,
+      updatedAt: NOW,
+    });
+    expect(docs[`${RESP}/paperPrivate/q4`]).toMatchObject({ status: 'blank' });
+    expect(docs[`${JOBS}/${SCAN}_1_1_0`]).toEqual({
+      sessionId: ASSIGNMENT,
+      responseKey: 'pin-period_1-0001',
+      scanId: SCAN,
+      page: 1,
+      boxes: [{ questionId: 'q2', storagePath: crop(SCAN, 1, 'q2') }],
+      status: 'queued',
+      attempt: 0,
+      charged: false,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    expect(docs[`${JOBS}/${SCAN}_1_2_0`]).toMatchObject({
+      boxes: [{ questionId: 'q4', storagePath: crop(SCAN, 1, 'q4') }],
+      status: 'queued',
+    });
+    expect(docs[`users/${UID}/quiz_assignments/${ASSIGNMENT}`]).toMatchObject({
+      hasPaperResponses: true,
+      hasPaperWritten: true,
+    });
+    expect(Object.keys(docs).some((k) => k.startsWith('ai_usage/'))).toBe(
+      false
+    );
+  });
+
+  it('keeps the client crop type only from the allowlist', async () => {
+    const png = v2Sheet(1, {
+      written: [
+        { questionId: 'q2', page: 1, state: 'ink', mimeType: 'image/png' },
+      ],
+    });
+    const { docs } = await callV2(v2Docs(), [png]);
+    const q2 = (docs[RESP].answers as Doc[]).find((a) => a.questionId === 'q2');
+    expect((q2?.artifacts as Doc[])[0].mimeType).toBe('image/png');
+    const bad = v2Sheet(1, {
+      written: [
+        { questionId: 'q2', page: 1, state: 'ink', mimeType: 'text/html' },
+      ],
+    });
+    await expect(callV2(v2Docs(), [bad])).rejects.toMatchObject({
+      code: 'invalid-argument',
+    });
+  });
+
+  it('rejects an old client importing a v2 batch before writing anything', async () => {
+    const { db, docs, committed } = makeDb(v2Docs());
+    await expect(
+      handleImportPaperResponses(
+        db,
+        teacher,
+        { batchId: BATCH, assignmentId: ASSIGNMENT, sheets: [sheet(1)] },
+        NOW
+      )
+    ).rejects.toMatchObject({
+      code: 'failed-precondition',
+      message: 'Refresh SpartBoard to import this batch.',
+    });
+    expect(committed).toEqual([]);
+    expect(docs[RESP]).toBeUndefined();
+  });
+
+  it('rejects a v2 payload for a batch printed without page maps', async () => {
+    await expect(callV2(baseDocs(), [sheet(1)])).rejects.toMatchObject({
+      code: 'invalid-argument',
+    });
+  });
+
+  it('checks written boxes and bubble rows against the page map', async () => {
+    await expect(
+      callV2(v2Docs(), [
+        v2Sheet(1, {
+          written: [{ questionId: 'q2', page: 2, state: 'ink' }],
+        }),
+      ])
+    ).rejects.toMatchObject({ message: /not a box on that page/ });
+    await expect(
+      callV2(v2Docs(), [
+        v2Sheet(1, {
+          answers: [{ questionId: 'q2', answer: 'A' }],
+          written: [],
+        }),
+      ])
+    ).rejects.toMatchObject({ message: /not a bubble row/ });
+    await expect(
+      callV2(v2Docs(), [
+        v2Sheet(1, {
+          written: [{ questionId: 'q1', page: 1, state: 'ink' }],
+        }),
+      ])
+    ).rejects.toMatchObject({ message: /repeats a question/ });
+  });
+
+  it('merges a rescan: MC replaced, graded and edited answers kept, doc fields kept', async () => {
+    const first = await callV2(v2Docs(), [v2Sheet(1)]);
+    const docs = first.docs;
+    docs[RESP] = {
+      ...docs[RESP],
+      grading: { q2: { pointsAwarded: 2, gradedBy: UID, gradedAt: 1 } },
+      resultsOverride: { level: 'score-only' },
+      artifactArchive: { [`hw_${SCAN}_q2`]: { archiveStatus: 'archived' } },
+    };
+    docs[`${RESP}/paperPrivate/q4`] = {
+      ...docs[`${RESP}/paperPrivate/q4`],
+      editedAt: 5,
+      editedBy: UID,
+    };
+    const rescan = v2Sheet(1, {
+      answers: [
+        { questionId: 'q1', answer: 'D' },
+        { questionId: 'q3', answer: 'A' },
+      ],
+      written: [
+        { questionId: 'q2', page: 1, state: 'ink' },
+        { questionId: 'q4', page: 2, state: 'ink' },
+      ],
+    });
+    const { db } = makeDb(docs);
+    const result = await handleImportPaperResponses(
+      db,
+      teacher,
+      {
+        batchId: BATCH,
+        assignmentId: ASSIGNMENT,
+        layoutVersion: 2,
+        scanId: 'scan-2',
+        sheets: [rescan],
+      },
+      NOW + 1
+    );
+    expect(result).toMatchObject({
+      keptWritten: [
+        { seat: 1, questionId: 'q2' },
+        { seat: 1, questionId: 'q4' },
+      ],
+      jobsCreated: 0,
+      pagesQueued: 0,
+    });
+    const doc = docs[RESP];
+    expect(doc.grading).toEqual({
+      q2: { pointsAwarded: 2, gradedBy: UID, gradedAt: 1 },
+    });
+    expect(doc.resultsOverride).toEqual({ level: 'score-only' });
+    expect(doc.artifactArchive).toBeDefined();
+    expect(doc.joinedAt).toBe(NOW);
+    const byId = new Map(
+      (doc.answers as Doc[]).map((a) => [a.questionId as string, a])
+    );
+    expect(byId.get('q1')?.answer).toBe('D');
+    expect(byId.get('q3')?.answer).toBe('A');
+    expect(byId.get('q2')?.paperScanId).toBe(SCAN);
+    expect(byId.get('q4')?.paperScanId).toBe(SCAN);
+    expect(docs[`${RESP}/paperPrivate/q2`]).toMatchObject({
+      scanId: SCAN,
+      newerScan: { scanId: 'scan-2', page: 1, state: 'ink' },
+    });
+    expect(docs[`${RESP}/paperPrivate/q4`]).toMatchObject({
+      scanId: SCAN,
+      editedAt: 5,
+      newerScan: { scanId: 'scan-2', page: 2, state: 'ink' },
+    });
+    expect(Object.keys(docs).some((k) => k.startsWith(`${JOBS}/scan-2_`))).toBe(
+      false
+    );
+  });
+
+  it('replaces an ungraded, unedited written answer with the new scan', async () => {
+    const { docs } = await callV2(v2Docs(), [v2Sheet(1)]);
+    const { db } = makeDb(docs);
+    await handleImportPaperResponses(
+      db,
+      teacher,
+      {
+        batchId: BATCH,
+        assignmentId: ASSIGNMENT,
+        layoutVersion: 2,
+        scanId: 'scan-2',
+        sheets: [v2Sheet(1)],
+      },
+      NOW
+    );
+    const q2 = (docs[RESP].answers as Doc[]).filter(
+      (a) => a.questionId === 'q2'
+    );
+    expect(q2).toHaveLength(1);
+    expect(q2[0].paperScanId).toBe('scan-2');
+    expect(docs[`${RESP}/paperPrivate/q2`]).toMatchObject({
+      scanId: 'scan-2',
+      status: 'pending',
+    });
+    expect(docs[`${JOBS}/scan-2_1_1_0`]).toBeDefined();
+  });
+
+  it('is a no-op for written answers when the same scan is replayed', async () => {
+    const { docs } = await callV2(v2Docs(), [v2Sheet(1)]);
+    const { db } = makeDb(docs);
+    const again = await handleImportPaperResponses(
+      db,
+      teacher,
+      {
+        batchId: BATCH,
+        assignmentId: ASSIGNMENT,
+        layoutVersion: 2,
+        scanId: SCAN,
+        sheets: [v2Sheet(1)],
+      },
+      NOW
+    );
+    expect(again).toMatchObject({ written: [1], jobsCreated: 0 });
+    expect(
+      (docs[RESP].answers as Doc[]).filter((a) => a.questionId === 'q2')
+    ).toHaveLength(1);
+  });
+
+  it('keeps device grades and typed answers when the teacher replaces a device response', async () => {
+    const docs = baseDocs();
+    docs[`quiz_sessions/${ASSIGNMENT}/responses/pseudo-s2`] = {
+      studentUid: 'pseudo-s2',
+      submittedAt: 12345,
+      joinedAt: 100,
+      answers: [
+        { questionId: 'q1', answer: 'A', answeredAt: 1 },
+        { questionId: 'q9', answer: '<p>typed</p>', answeredAt: 1 },
+      ],
+      grading: { q9: { pointsAwarded: 3, gradedBy: UID, gradedAt: 2 } },
+      unlocked: true,
+      servedQuestionIds: ['q1'],
+      resultsLockedOut: true,
+    };
+    const { docs: after } = await call(docs, [
+      sheet(2, {
+        replaceExisting: true,
+        answers: [{ questionId: 'q1', answer: 'C' }],
+      }),
+    ]);
+    const doc = after[`quiz_sessions/${ASSIGNMENT}/responses/pseudo-s2`];
+    expect(doc.grading).toEqual({
+      q9: { pointsAwarded: 3, gradedBy: UID, gradedAt: 2 },
+    });
+    expect(doc.joinedAt).toBe(100);
+    expect(doc.paperBatchId).toBe(BATCH);
+    expect(doc).not.toHaveProperty('unlocked');
+    expect(doc).not.toHaveProperty('servedQuestionIds');
+    expect(doc).not.toHaveProperty('resultsLockedOut');
+    expect(doc.answers).toEqual([
+      { questionId: 'q9', answer: '<p>typed</p>', answeredAt: 1 },
+      { questionId: 'q1', answer: 'C', answeredAt: NOW, status: 'submitted' },
+    ]);
+  });
+
+  it('reports pages past the daily page quota, and admins are unlimited', async () => {
+    const docs = v2Docs();
+    docs[`ai_usage/${UID}_paper-handwritten-responses_2026-09-18`] = {
+      count: 299,
+    };
+    const inkBoth = (seat: number) =>
+      v2Sheet(seat, {
+        written: [
+          { questionId: 'q2', page: 1, state: 'ink' },
+          { questionId: 'q4', page: 2, state: 'ink' },
+        ],
+      });
+    const capped = await callV2(docs, [inkBoth(1)]);
+    expect(capped.result).toMatchObject({
+      jobsCreated: 2,
+      pagesQueued: 1,
+      pagesOverQuota: 1,
+    });
+    expect(capped.docs[`${JOBS}/${SCAN}_1_2_0`]).toMatchObject({
+      status: 'queued',
+    });
+
+    const adminDocs = v2Docs();
+    adminDocs[`ai_usage/${UID}_paper-handwritten-responses_2026-09-18`] = {
+      count: 300,
+    };
+    adminDocs['admins/paul@example.org'] = { roleId: 'super_admin' };
+    const admin = await callV2(
+      adminDocs,
+      [inkBoth(1)],
+      {},
+      {
+        ...teacher,
+        email: 'paul@example.org',
+      }
+    );
+    expect(admin.result).toMatchObject({ pagesQueued: 2, pagesOverQuota: 0 });
+  });
+});
+
+describe('parseImportPaperResponsesInput, layoutVersion 2', () => {
+  const base = { batchId: 'b', assignmentId: 'a' };
+  it('requires a scanId and refuses written boxes without layoutVersion 2', () => {
+    expect(() =>
+      parseImportPaperResponsesInput({
+        ...base,
+        layoutVersion: 2,
+        sheets: [sheet(1)],
+      })
+    ).toThrow(/scanId/);
+    expect(() =>
+      parseImportPaperResponsesInput({
+        ...base,
+        layoutVersion: 2,
+        scanId: 'a/b',
+        sheets: [sheet(1)],
+      })
+    ).toThrow(/scanId/);
+    expect(() =>
+      parseImportPaperResponsesInput({
+        ...base,
+        layoutVersion: 3,
+        sheets: [sheet(1)],
+      })
+    ).toThrow(/layoutVersion/);
+    expect(() =>
+      parseImportPaperResponsesInput({
+        ...base,
+        sheets: [
+          sheet(1, { written: [{ questionId: 'q9', page: 1, state: 'ink' }] }),
+        ],
+      })
+    ).toThrow(/layoutVersion 2/);
+    expect(() =>
+      parseImportPaperResponsesInput({
+        ...base,
+        layoutVersion: 2,
+        scanId: 's',
+        sheets: [
+          sheet(1, { written: [{ questionId: 'q9', page: 64, state: 'ink' }] }),
+        ],
+      })
+    ).toThrow(/page/);
   });
 });

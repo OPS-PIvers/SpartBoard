@@ -1,9 +1,7 @@
-// D39/D40: peer visibility is written to the run and every group together; work links go to private/work.
+// D40: work links go to private/work, never the group doc.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ProjectWorkLink } from '@/types';
 
-const batchUpdate = vi.fn();
-const batchCommit = vi.fn().mockResolvedValue(undefined);
 const setDocMock = vi.fn().mockResolvedValue(undefined);
 const addDocMock = vi.fn().mockResolvedValue(undefined);
 
@@ -16,12 +14,11 @@ vi.mock('firebase/firestore', () => ({
   doc: (_db: unknown, ...path: string[]) => ({ path: path.join('/') }),
   setDoc: (...args: unknown[]) => setDocMock(...args) as Promise<void>,
   updateDoc: vi.fn(),
-  writeBatch: () => ({ update: batchUpdate, commit: batchCommit }),
 }));
 
 vi.mock('@/config/firebase', () => ({ db: {} }));
 
-const { setPeerVisibility, writeWorkLink, removeWorkLinkWrite } =
+const { writeWorkLink, removeWorkLinkWrite } =
   await import('@/utils/projectRunWrites');
 
 const RUN = 'teacher-1_p-1';
@@ -30,32 +27,6 @@ const link = (id: string): ProjectWorkLink => ({
   url: `https://example.com/${id}`,
   addedByUid: 'student-1',
   addedAt: 1,
-});
-
-describe('setPeerVisibility', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('writes the run flag and every group’s peerVisible in one batch', async () => {
-    await setPeerVisibility(
-      {} as never,
-      RUN,
-      [{ id: 'g1' }, { id: 'g2' }],
-      false
-    );
-    expect(batchUpdate).toHaveBeenCalledWith(
-      { path: `project_runs/${RUN}` },
-      expect.objectContaining({ showStatusToStudents: false })
-    );
-    expect(batchUpdate).toHaveBeenCalledWith(
-      { path: `project_runs/${RUN}/groups/g1` },
-      { peerVisible: false }
-    );
-    expect(batchUpdate).toHaveBeenCalledWith(
-      { path: `project_runs/${RUN}/groups/g2` },
-      { peerVisible: false }
-    );
-    expect(batchCommit).toHaveBeenCalledOnce();
-  });
 });
 
 describe('work links (D40)', () => {

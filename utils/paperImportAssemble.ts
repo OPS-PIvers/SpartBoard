@@ -4,9 +4,19 @@
  */
 
 import type { PaperBatch, PaperSeatAssignment } from '@/types';
-import { paperGridOf, questionsPerPage } from './paperSheetLayout';
+import {
+  paperGridOf,
+  questionsPerPage,
+  type PaperGrid,
+} from './paperSheetLayout';
 import { paperBatchTag } from './paperSheetMarker';
-import type { PageReadResult, RowDoubt, RowRead } from './paperSheetReader';
+import type {
+  PageRead,
+  PageReadResult,
+  RowDoubt,
+  RowRead,
+  WrittenBoxRead,
+} from './paperSheetReader';
 
 export interface ScannedPage {
   /** Position in the scan, for the teacher to find the physical page again. */
@@ -25,6 +35,16 @@ export interface SheetAnswer {
   scanIndex: number;
 }
 
+/** A handwritten box as the sheet arrived; the crop itself travels separately (D21). */
+export interface SheetWritten {
+  questionId: string;
+  label: string;
+  page: number;
+  state: WrittenBoxRead['state'];
+  inkMm2: number;
+  scanIndex: number;
+}
+
 export type SheetKind = 'student' | 'spare' | 'key';
 
 export type SheetFlag = 'missing-page' | 'doubtful-rows' | 'duplicate-conflict';
@@ -35,9 +55,11 @@ export interface AssembledSheet {
   student: PaperSeatAssignment | null;
   /** One entry per question; questions on a missing page are absent. */
   answers: SheetAnswer[];
+  /** Handwritten boxes that arrived; present only for page-map batches (layoutVersion 2). */
+  written?: SheetWritten[];
   pagesSeen: number[];
   missingPages: number[];
-  /** No ink on any row that arrived — listed as unused, never graded (Q21). */
+  /** No ink on any row or box that arrived — listed as unused, never graded (Q21, D22). */
   isBlank: boolean;
   flags: SheetFlag[];
 }
@@ -59,6 +81,24 @@ const seatKind = (batch: PaperBatch, seat: number): SheetKind | null => {
   if (batch.spareSeats.includes(seat)) return 'spare';
   return null;
 };
+
+/** Row index across the whole sheet: the map's on v2 pages, else page arithmetic. */
+export function sheetRowOf(
+  read: Pick<PageRead, 'marker'>,
+  row: Pick<RowRead, 'indexOnPage' | 'sheetRow'>,
+  grid: PaperGrid
+): number {
+  return (
+    row.sheetRow ??
+    (read.marker.page - 1) * questionsPerPage(grid) + row.indexOnPage
+  );
+}
+
+/** Pages each student's sheet has; a page-map batch counts its maps. */
+export const sheetPageCount = (batch: PaperBatch): number =>
+  batch.layoutVersion === 2 && batch.pageMaps
+    ? batch.pageMaps.length
+    : batch.pagesPerSheet;
 
 /** Later scan wins a duplicate; the sheet is flagged if their answers disagree. */
 function mergeDuplicate(
@@ -86,13 +126,19 @@ export function assemblePaperScan(
   pages: readonly ScannedPage[]
 ): AssembleResult {
   const tag = paperBatchTag(batch.id);
-  const perPage = questionsPerPage(paperGridOf(batch));
+  const grid = paperGridOf(batch);
+  const byMap = batch.layoutVersion === 2;
+  const pageCount = sheetPageCount(batch);
   const unreadablePages: number[] = [];
   const foreignPages: number[] = [];
   const unknownPages: number[] = [];
   const bySeat = new Map<
     number,
-    { pages: Map<number, SheetAnswer[]>; conflict: boolean }
+    {
+      pages: Map<number, SheetAnswer[]>;
+      written: Map<number, SheetWritten[]>;
+      conflict: boolean;
+    }
   >();
 
   const ordered = [...pages].sort((a, b) => a.scanIndex - b.scanIndex);
@@ -106,25 +152,32 @@ export function assemblePaperScan(
       foreignPages.push(scanIndex);
       continue;
     }
-    if (
-      seatKind(batch, marker.seat) === null ||
-      marker.page > batch.pagesPerSheet
-    ) {
+    if (seatKind(batch, marker.seat) === null || marker.page > pageCount) {
       unknownPages.push(scanIndex);
       continue;
     }
     const answers: SheetAnswer[] = read.rows.map((row) => ({
-      question: (marker.page - 1) * perPage + row.indexOnPage,
+      question: sheetRowOf(read, row, grid),
       choice: row.choice,
       ...(row.doubt ? { doubt: row.doubt } : {}),
       fills: row.fills,
       crop: row.crop,
       scanIndex,
     }));
+    const written: SheetWritten[] = read.written.map((w) => ({
+      questionId: w.questionId,
+      label: w.label,
+      page: w.page,
+      state: w.state,
+      inkMm2: w.inkMm2,
+      scanIndex,
+    }));
     const entry = bySeat.get(marker.seat) ?? {
       pages: new Map<number, SheetAnswer[]>(),
+      written: new Map<number, SheetWritten[]>(),
       conflict: false,
     };
+    entry.written.set(marker.page, written);
     const prior = entry.pages.get(marker.page);
     if (prior) {
       const merged = mergeDuplicate(prior, answers);
@@ -141,13 +194,16 @@ export function assemblePaperScan(
     const kind = seatKind(batch, seat) as SheetKind;
     const pagesSeen = [...entry.pages.keys()].sort((a, b) => a - b);
     const missingPages: number[] = [];
-    for (let p = 1; p <= batch.pagesPerSheet; p += 1) {
+    for (let p = 1; p <= pageCount; p += 1) {
       if (!entry.pages.has(p)) missingPages.push(p);
     }
     const answers = pagesSeen
       .flatMap((p) => entry.pages.get(p) ?? [])
       .sort((a, b) => a.question - b.question);
-    const isBlank = answers.every((a) => a.choice === null && !a.doubt);
+    const written = pagesSeen.flatMap((p) => entry.written.get(p) ?? []);
+    const isBlank =
+      answers.every((a) => a.choice === null && !a.doubt) &&
+      written.every((w) => w.state === 'blank');
     const flags: SheetFlag[] = [];
     if (missingPages.length > 0) flags.push('missing-page');
     if (answers.some((a) => a.doubt)) flags.push('doubtful-rows');
@@ -157,6 +213,7 @@ export function assemblePaperScan(
       kind,
       student: batch.seats[seat] ?? null,
       answers,
+      ...(byMap ? { written } : {}),
       pagesSeen,
       missingPages,
       isBlank,

@@ -82,7 +82,8 @@ import { PublishScoresModal } from '@/components/common/library/PublishScoresMod
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
 import { doc, writeBatch } from 'firebase/firestore';
-import { functions, db } from '@/config/firebase';
+import { functions, db, storage } from '@/config/firebase';
+import { ref as storageRef, uploadBytes } from 'firebase/storage';
 import {
   CLASSROOM_ASSIGN_ENABLED,
   CLASSROOM_ASSIGN_ADMIN_ONLY,
@@ -115,7 +116,15 @@ import {
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { QuizLiveMonitor } from './components/QuizLiveMonitor';
 import { PaperPrintModal } from './components/PaperPrintModal';
-import { PaperImportModal } from './components/PaperImportModal';
+import {
+  PaperImportModal,
+  type PaperImportRequestExtra,
+  type PaperImportWrittenResult,
+} from './components/PaperImportModal';
+import {
+  firestoreDocData,
+  readPaperImportQuota,
+} from '@/utils/paperImportQuota';
 import { PaperQuestionTextModal } from './components/PaperQuestionTextModal';
 import { AnswerKeyFillModal } from './components/AnswerKeyFill';
 import { httpsCallable } from 'firebase/functions';
@@ -438,6 +447,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     shareAssignment,
     publishAssignmentScores,
     unpublishAssignmentScores,
+    countPendingPaperTranscripts,
     publishResultsForStudents,
     hideResultsForStudents,
     clearResultsOverride,
@@ -496,6 +506,18 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Ephemeral modal state for the per-assignment "Publish Scores" picker.
   const [publishingAssignment, setPublishingAssignment] =
     useState<QuizAssignment | null>(null);
+  // Stable per target so the modal's pending-transcript read runs once.
+  const publishWrittenReturn = useMemo(
+    () =>
+      publishingAssignment?.hasPaperWritten
+        ? {
+            initialMode: publishingAssignment.writtenReturnMode,
+            loadPendingCount: () =>
+              countPendingPaperTranscripts(publishingAssignment.id),
+          }
+        : undefined,
+    [publishingAssignment, countPendingPaperTranscripts]
+  );
   // Ephemeral modal state for the "Assign to Google Classroom" flow (flag-gated).
   // The Assign-to-Google-Classroom modal target. A minimal shape (not a full
   // QuizAssignment) so it can be set from BOTH the archive-row kebab (mapping an
@@ -549,7 +571,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Paper answer sheets. `paperPrintIsNew` distinguishes the "Paper test" door
   // (an unsaved stub the modal creates on print) from printing for a saved quiz.
   const paperSheetsRollout = usePaperAnswerSheetsSettings();
-  // Two gates: the org-wide Rollouts switch, then who may use it.
+  // Two gates: the org-wide district switch, then who may use it.
   const paperSheets = {
     enabled:
       paperSheetsRollout.enabled && canAccessFeature('paper-answer-sheets'),
@@ -3064,8 +3086,9 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           initialProtection={
             appSettings?.lastResultsProtection ?? RESULTS_PROTECTION_DEFAULTS
           }
+          writtenReturn={publishWrittenReturn}
           onClose={() => setPublishingAssignment(null)}
-          onConfirm={async (visibility, protection) => {
+          onConfirm={async (visibility, protection, writtenReturnMode) => {
             // `'none'` routes to the dedicated `unpublishAssignmentScores`
             // (no Drive lookup, no grading). Other levels resolve the
             // canonical quiz from Drive so the score computation has
@@ -3127,7 +3150,8 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 target.id,
                 data,
                 visibility,
-                protection
+                protection,
+                writtenReturnMode
               );
               addToast(
                 result.responsesUpdated > 0
@@ -3502,6 +3526,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       {paperImport && user?.uid && (
         <PaperImportModal
           quiz={paperImport.quiz}
+          uid={user.uid}
           batches={paperImport.batches}
           rosters={rosters}
           assignments={assignments.filter(
@@ -3537,18 +3562,40 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
             return id;
           }}
-          onImport={async (batchId, assignmentId, sheets) => {
+          onImport={async (batchId, assignmentId, sheets, extra) => {
             const call = httpsCallable<
               {
                 batchId: string;
                 assignmentId: string;
                 sheets: ImportPaperSheetPayload[];
-              },
-              ImportPaperResponsesResult
+              } & PaperImportRequestExtra,
+              ImportPaperResponsesResult & PaperImportWrittenResult
             >(functions, 'importPaperResponsesV1');
-            const res = await call({ batchId, assignmentId, sheets });
+            const res = await call({ batchId, assignmentId, sheets, ...extra });
             return res.data;
           }}
+          onUploadCrop={async (path, blob) => {
+            await uploadBytes(storageRef(storage, path), blob, {
+              contentType: blob.type || 'image/webp',
+            });
+          }}
+          loadRemoteCrop={async (storagePath) => {
+            const call = httpsCallable<
+              { storagePath: string },
+              { status: string; mimeType?: string; data?: string }
+            >(functions, 'getPaperWrittenCropV1');
+            const res = await call({ storagePath });
+            return res.data.status === 'ready' && res.data.data
+              ? `data:${res.data.mimeType ?? 'image/webp'};base64,${res.data.data}`
+              : null;
+          }}
+          checkQuota={() =>
+            readPaperImportQuota(firestoreDocData, {
+              uid: user.uid,
+              isAdmin: isAdmin === true,
+              nowMs: Date.now(),
+            })
+          }
           onSaveQuiz={async (data) => {
             await saveQuiz(data, paperImport.meta.driveFileId);
           }}
