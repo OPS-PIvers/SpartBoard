@@ -26,6 +26,18 @@ Out of scope: opening live tours beyond admins, live tours in the student app, a
 - **The wrong widget can be picked.** `widget.*` and `settings.*` anchors are recorded without a type, and `findTourAnchor` falls back to `tagged[0]` (`resolveTourAnchor.ts:78-83`). With two widgets on the board, "Timer settings" can land on the Clock.
 - **The callout ignores surrounding UI.** `placeCallout` knows only its target and the viewport (`LiveTourRunner.tsx:299-305`), and nothing listens for window resize. The callout never takes focus, steps aren't announced to screen readers, and Esc does nothing on the teardown and practice-offer dialogs (`LiveTourRunner.tsx:262-280`, `381-386`).
 
+## Corrections after a code re-check (2026-09-25, `f727e8917`)
+
+The Why list above came from an older read. These items are already done or differ, so do not rebuild them:
+
+- **Empty-anchor fallback is done.** `useAnchorElement` searches role + name when `anchor` is empty and is tested (`useAnchorElement.test.tsx`, "goes straight to the fallback"). PR 1 ships the toolbar only.
+- **The MutationObserver already keeps watching** after `ANCHOR_SEARCH_MS`; only `missing` is published. PR 5 adds `isUsable` (opacity, `pointer-events`, viewport) on top of `isAnchorVisible`.
+- **The type-diff `addedWidgetIds` is gone.** Teardown removes exact claimed ids (`claimTourWidgets`, `tourWidgetIds` in `tourSession.ts`). Two gaps remain for PRs 4/5: claims still match by type against the old board's `beforeIds`, so a board switch can claim the teacher's widget, and nothing watches the active board id.
+- **The live region exists** ("Step N of M"). PR 5 still owes heading focus on every step (click steps included), the dialog focus trap and Esc on teardown and practice-offer, and skipping cursor autoplay (`playCursor(true)`, the hint `cursorCue`) under reduced motion.
+- **The dim and cutout already follow resize** (`TourSpotlight`); only the runner's callout `viewport` goes stale.
+- **`addWidget(type, overrides)` already takes layout overrides** (`AddWidgetOverrides`), but returns `void` and always records history, so `addTourWidget` still needs its own path that returns the id.
+- **`widget.*` and `settings.*` anchors never carry `data-tour-widget-type`**, so no `:type` is recorded today; PR 4 must add `tourTypeAttr` (or the slot) at those call sites.
+
 ## Product decisions (settled — do not re-litigate)
 
 | #   | Decision                   | Answer                                                                                                                                                                                                                                                                                                                                                                                                        |

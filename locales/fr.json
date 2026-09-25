@@ -3288,6 +3288,8 @@
     "resume": "Reprendre",
     "markStep": "Marquer une étape",
     "markStepHint": "Ajoute une étape avec Suivant pour l'élément sous le pointeur (Alt+M)",
+    "move": "Déplacer la barre",
+    "moveHint": "Faites glisser pour la déplacer. Double-cliquez pour la remettre en haut.",
     "finish": "Terminer",
     "discard": "Abandonner",
     "recording_one": "Enregistrement · {{count}} étape",
@@ -3346,7 +3348,8 @@
     "saveFailed": "Impossible d'enregistrer la visite. L'enregistrement est conservé, tu peux donc réessayer.",
     "rerecordPrompt": "Cliquez sur ce que cette étape doit montrer",
     "rerecordSaving": "Enregistrement du nouveau clic...",
-    "rerecordFailed": "Impossible de téléverser le nouveau clic. Réessayez, ou abandonnez-le pour garder l'étape telle quelle."
+    "rerecordFailed": "Impossible de téléverser le nouveau clic. Réessayez, ou abandonnez-le pour garder l'étape telle quelle.",
+    "copyAll": "Tout copier"
   },
   "tours": {
     "unavailable": "Cette visite n'est pas disponible pour le moment.",
@@ -3614,6 +3617,29 @@
     "found": "Trouvée",
     "notFound": "Introuvable",
     "openInStudio": "Ouvrir dans Studio",
-    "openInStudioLabel": "Ouvrir dans Studio : étape {{number}} de {{title}}"
+    "openInStudioLabel": "Ouvrir dans Studio : étape {{number}} de {{title}}",
+    "unmapped": {
+      "title": "Ancres non associées",
+      "empty": "Aucune ancre non associée.",
+      "loadFailed": "Impossible de charger les ancres non associées.",
+      "copyAll": "Tout copier",
+      "copied": "Copié",
+      "noName": "Élément sans nom",
+      "pullRequest": "Pull request",
+      "rebind_one": "Réassocier {{count}} étape",
+      "rebind_other": "Réassocier {{count}} étapes",
+      "rebinding": "Réassociation...",
+      "rebindFailed": "Impossible de réassocier. Réessayez.",
+      "needsType": "Ce bouton change selon le widget, réglez donc ces étapes dans Studio.",
+      "openLabel": "Ouvrir dans Studio : {{title}}",
+      "status": {
+        "open": "Ouverte",
+        "prOpen": "PR ouverte",
+        "waitingDeploy": "En attente de déploiement",
+        "mapped": "Associée",
+        "rebound": "Réassociée",
+        "needsHuman": "Demande une personne"
+      }
+    }
   }
 }

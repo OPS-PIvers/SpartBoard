@@ -292,6 +292,12 @@ const GLOBAL_FEATURES: {
     description: 'Choose-all-that-apply questions.',
   },
   {
+    id: 'quiz-choice-editor',
+    label: 'One-list multiple choice editor',
+    icon: ListChecks,
+    description: 'Mark the correct option in one list.',
+  },
+  {
     id: 'quiz-fib-alternates',
     label: 'Other accepted answers for fill in the blank',
     icon: TextCursorInput,

@@ -74,6 +74,39 @@ describe('FrameReview', () => {
     expect(screen.getByText('button.add-a-class')).toBeInTheDocument();
   });
 
+  it('copies every untagged click in the recording as Markdown', async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.assign(navigator, { clipboard: { writeText } });
+    const rec = recording();
+    rec.steps[1] = {
+      ...rec.steps[1],
+      context: {
+        suggestedId: 'button.add-a-class',
+        role: 'button',
+        name: 'add a class',
+        widgetType: null,
+        pathname: '/',
+        nearestAnchor: null,
+        ancestors: [{ tag: 'button' }],
+        htmlExcerpt: '<button>Add a class</button>',
+      },
+    };
+    render(
+      <FrameReview recording={rec} onUpload={vi.fn()} onDiscard={vi.fn()} />
+    );
+    fireEvent.click(next());
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Copy all' }));
+      await Promise.resolve();
+    });
+    const text = (writeText.mock.calls[0] as unknown as [string])[0];
+    expect(text).toContain('## 1. button.add-a-class');
+    expect(text).toContain('<button>Add a class</button>');
+    expect(
+      await screen.findByRole('button', { name: 'Copied' })
+    ).toBeInTheDocument();
+  });
+
   it('bakes extra blur into the already-blurred frame and uploads that', async () => {
     const reblurred = new Blob(['one, blurred again']);
     h.redactImage.mockResolvedValue(reblurred);

@@ -18,6 +18,8 @@ import { draftRecordedStepText } from './draftStepText';
 import type { TourRecording } from './useTourCapture';
 import { uploadFramesOnce, type UploadedFrame } from './recordingHandoff';
 import { boardLayoutOf, type RecordedBoardWidget } from './recordedLayouts';
+import type { UnmappedQueueEntry } from '@/components/tours/anchorQueue';
+import { enqueueUnmappedAnchors } from '@/components/tours/anchorQueueStore';
 
 const GuidedLearningStudio = lazy(() =>
   import('../studio/GuidedLearningStudio').then((m) => ({
@@ -65,7 +67,12 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
   const [error, setError] = useState<string | null>(null);
   // Per-frame uploads and the last built set survive a failed attempt, so Retry redoes only what failed.
   const uploaded = useRef(new Map<Blob, UploadedFrame>());
-  const built = useRef<{ frames: Blob[]; set: GuidedLearningSet } | null>(null);
+  const built = useRef<{
+    frames: Blob[];
+    set: GuidedLearningSet;
+    queue: UnmappedQueueEntry[];
+  } | null>(null);
+  const queued = useRef(false);
   const [setId] = useState(newId);
 
   const rosters = dashboard?.rosters ?? [];
@@ -88,11 +95,21 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
   };
 
   // The Studio opens only on a saved set; a failed save keeps the recording for Retry.
-  const openAfterSave = async (set: GuidedLearningSet) => {
+  const openAfterSave = async (
+    set: GuidedLearningSet,
+    queue: UnmappedQueueEntry[]
+  ) => {
     setBusy(t('glRecorder.saving'));
     try {
       // A guard keeps set.updatedAt, the revision the Studio then saves against.
       await saveBuildingSet(set, { expectedUpdatedAt: undefined });
+      if (!queued.current && queue.length > 0) {
+        queued.current = true;
+        // The tour works without the queue, so a failure here never blocks the Studio.
+        await enqueueUnmappedAnchors(set.id, queue).catch((err: unknown) =>
+          console.error('[TourRecorder] Queueing untagged clicks failed:', err)
+        );
+      }
       setPhase({ kind: 'studio', set });
     } catch (err) {
       console.error('[TourRecorder] Saving the recorded set failed:', err);
@@ -115,10 +132,11 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
       cached.frames.length === frames.length &&
       cached.frames.every((f, i) => f === frames[i])
     ) {
-      await openAfterSave(cached.set);
+      await openAfterSave(cached.set, cached.queue);
       return;
     }
     let next: GuidedLearningSet;
+    let queue: UnmappedQueueEntry[];
     try {
       const results = await uploadFramesOnce(
         frames,
@@ -152,7 +170,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
         { ...recording, frames },
         goal || undefined
       ).catch(() => []);
-      const base = buildRecordedSet(recording, {
+      const recorded = await buildRecordedSet(recording, {
         id: setId,
         title: goal || t('glRecorder.untitled'),
         imageUrls,
@@ -164,6 +182,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
         startBoard,
         endBoard,
       });
+      const base = recorded.set;
       const set: GuidedLearningSet = {
         ...base,
         steps: base.steps.map((step, i) => {
@@ -172,15 +191,16 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
           return { ...step, label: d.label, text: d.text, aiDraft: true };
         }),
       };
-      built.current = { frames, set };
+      built.current = { frames, set, queue: recorded.queue };
       next = set;
+      queue = recorded.queue;
     } catch (err) {
       console.error('[TourRecorder] Upload failed:', err);
       setError(t('glRecorder.uploadFailed'));
       setBusy(null);
       return;
     }
-    await openAfterSave(next);
+    await openAfterSave(next, queue);
   };
 
   if (phase.kind === 'recording') {

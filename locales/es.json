@@ -3288,6 +3288,8 @@
     "resume": "Reanudar",
     "markStep": "Marcar paso",
     "markStepHint": "Añade un paso con Siguiente para lo que está bajo el puntero (Alt+M)",
+    "move": "Mover la barra",
+    "moveHint": "Arrastra para moverla. Doble clic para volver a ponerla arriba.",
     "finish": "Terminar",
     "discard": "Descartar",
     "recording_one": "Grabando · {{count}} paso",
@@ -3346,7 +3348,8 @@
     "saveFailed": "No se pudo guardar el recorrido. La grabación se conserva, así que puedes intentarlo de nuevo.",
     "rerecordPrompt": "Haz clic en lo que debe mostrar este paso",
     "rerecordSaving": "Guardando el nuevo clic...",
-    "rerecordFailed": "No se pudo subir el nuevo clic. Inténtalo de nuevo o descártalo para dejar el paso como está."
+    "rerecordFailed": "No se pudo subir el nuevo clic. Inténtalo de nuevo o descártalo para dejar el paso como está.",
+    "copyAll": "Copiar todo"
   },
   "tours": {
     "unavailable": "Este recorrido no está disponible en este momento.",
@@ -3614,6 +3617,29 @@
     "found": "Encontrado",
     "notFound": "No encontrado",
     "openInStudio": "Abrir en Studio",
-    "openInStudioLabel": "Abrir en Studio: paso {{number}} de {{title}}"
+    "openInStudioLabel": "Abrir en Studio: paso {{number}} de {{title}}",
+    "unmapped": {
+      "title": "Anclajes sin asignar",
+      "empty": "No hay anclajes sin asignar.",
+      "loadFailed": "No se pudieron cargar los anclajes sin asignar.",
+      "copyAll": "Copiar todo",
+      "copied": "Copiado",
+      "noName": "Elemento sin nombre",
+      "pullRequest": "Pull request",
+      "rebind_one": "Reasignar {{count}} paso",
+      "rebind_other": "Reasignar {{count}} pasos",
+      "rebinding": "Reasignando...",
+      "rebindFailed": "No se pudo reasignar. Inténtalo de nuevo.",
+      "needsType": "Este botón cambia según el widget, así que ajusta estos pasos en Studio.",
+      "openLabel": "Abrir en Studio: {{title}}",
+      "status": {
+        "open": "Abierto",
+        "prOpen": "PR abierto",
+        "waitingDeploy": "Esperando despliegue",
+        "mapped": "Asignado",
+        "rebound": "Reasignado",
+        "needsHuman": "Necesita una persona"
+      }
+    }
   }
 }

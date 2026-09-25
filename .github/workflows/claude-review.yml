@@ -32,14 +32,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          fetch-depth: 1
+          # The PR merge commit plus its first parent (the base head), for the diff below.
+          fetch-depth: 2
 
       # The reviewer cannot shell out for this itself: a redirect matches no
       # prefix rule, and paths outside the workspace are denied.
+      # Built locally because the API refuses diffs over 300 files (dev-paul release PRs).
       - name: Save the PR diff for the reviewer
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr diff "${{ github.event.pull_request.number }}" > pr.diff
+        run: git diff HEAD^1 HEAD > pr.diff
 
       - name: Claude review
         id: claude_review

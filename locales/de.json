@@ -2589,13 +2589,13 @@
     "tourSetupNone": "Keine",
     "tourSetupAdd": "Widget hinzufügen",
     "tourSetupRemove": "{{widget}} entfernen",
-    "tourLayoutCapture": "Board-Layout übernehmen",
+    "tourLayoutCapture": "Tafel-Layout übernehmen",
     "tourLayoutCaptureConfirm": "Übernehmen",
-    "tourLayoutConfirm": "Das Widget-Layout der Tour durch dieses Board ersetzen?",
+    "tourLayoutConfirm": "Das Widget-Layout der Tour durch diese Tafel ersetzen?",
     "tourLayoutCount_one": "Layout für 1 Widget gespeichert",
     "tourLayoutCount_other": "Layout für {{count}} Widgets gespeichert",
     "tourLayoutNone": "Kein Layout gespeichert",
-    "tourLayoutHint": "Tour-Widgets öffnen dort, wo sie auf diesem Board liegen",
+    "tourLayoutHint": "Tour-Widgets öffnen dort, wo sie auf dieser Tafel liegen",
     "tourGroup_dock": "Dock",
     "tourGroup_library": "Widget-Bibliothek",
     "tourGroup_widget": "Widget-Fenster",
@@ -3288,6 +3288,8 @@
     "resume": "Fortsetzen",
     "markStep": "Schritt markieren",
     "markStepHint": "Fügt einen Weiter-Schritt für das Element unter dem Zeiger hinzu (Alt+M)",
+    "move": "Werkzeugleiste verschieben",
+    "moveHint": "Zum Verschieben ziehen. Doppelklick setzt sie wieder nach oben.",
     "finish": "Fertig",
     "discard": "Verwerfen",
     "recording_one": "Aufnahme · {{count}} Schritt",
@@ -3346,7 +3348,8 @@
     "saveFailed": "Die Tour konnte nicht gespeichert werden. Deine Aufnahme bleibt erhalten, du kannst es also erneut versuchen.",
     "rerecordPrompt": "Klicke auf das, was dieser Schritt zeigen soll",
     "rerecordSaving": "Neuer Klick wird gespeichert...",
-    "rerecordFailed": "Der neue Klick konnte nicht hochgeladen werden. Versuche es erneut oder verwirf ihn, damit der Schritt unverändert bleibt."
+    "rerecordFailed": "Der neue Klick konnte nicht hochgeladen werden. Versuche es erneut oder verwirf ihn, damit der Schritt unverändert bleibt.",
+    "copyAll": "Alle kopieren"
   },
   "tours": {
     "unavailable": "Diese Tour ist gerade nicht verfügbar.",
@@ -3614,6 +3617,29 @@
     "found": "Gefunden",
     "notFound": "Nicht gefunden",
     "openInStudio": "Im Studio öffnen",
-    "openInStudioLabel": "Im Studio öffnen: Schritt {{number}} von {{title}}"
+    "openInStudioLabel": "Im Studio öffnen: Schritt {{number}} von {{title}}",
+    "unmapped": {
+      "title": "Nicht zugeordnete Anker",
+      "empty": "Keine nicht zugeordneten Anker.",
+      "loadFailed": "Nicht zugeordnete Anker konnten nicht geladen werden.",
+      "copyAll": "Alle kopieren",
+      "copied": "Kopiert",
+      "noName": "Element ohne Namen",
+      "pullRequest": "Pull-Request",
+      "rebind_one": "{{count}} Schritt neu verknüpfen",
+      "rebind_other": "{{count}} Schritte neu verknüpfen",
+      "rebinding": "Wird neu verknüpft...",
+      "rebindFailed": "Neu verknüpfen fehlgeschlagen. Versuche es erneut.",
+      "needsType": "Diese Schaltfläche gibt es je Widget, also die Schritte im Studio festlegen.",
+      "openLabel": "Im Studio öffnen: {{title}}",
+      "status": {
+        "open": "Offen",
+        "prOpen": "PR offen",
+        "waitingDeploy": "Wartet auf Bereitstellung",
+        "mapped": "Zugeordnet",
+        "rebound": "Neu verknüpft",
+        "needsHuman": "Braucht eine Person"
+      }
+    }
   }
 }

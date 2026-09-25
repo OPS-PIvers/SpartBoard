@@ -1,5 +1,10 @@
-import type { GuidedLearningTourBinding } from '@/types';
+import type { GuidedLearningTourBinding, WidgetType } from '@/types';
 import { accessibleName, roleOf } from '@/components/tours/resolveTourAnchor';
+import type {
+  TourAnchorAncestor,
+  UnmappedAnchorContext,
+} from '@/components/tours/anchorQueue';
+import type { NameMatcher } from './redaction';
 
 export interface RecordedAnchor {
   /** Tour anchor ref; empty when untagged, so the runner goes straight to the fallback. */
@@ -58,6 +63,136 @@ export function resolveRecordedAnchor(target: Element): RecordedAnchor | null {
     untagged: true,
     suggestedId: suggestAnchorId(fallback),
     element,
+  };
+}
+
+const MAX_ANCESTORS = 8;
+/** The queue's cap on the excerpt, in UTF-8 bytes. */
+export const MAX_EXCERPT_BYTES = 2048;
+const MAX_LABEL = 120;
+const KEEP_ATTRS = new Set(['class', 'role', 'type', 'title', 'data-testid']);
+const DROP_SUBTREES = '[data-pii], [data-tour-ignore], script, style, svg';
+const TEXT_ATTRS = new Set([
+  'aria-label',
+  'aria-valuetext',
+  'aria-description',
+  'title',
+]);
+
+const keepAttr = (name: string) =>
+  KEEP_ATTRS.has(name) ||
+  name.startsWith('aria-') ||
+  name.startsWith('data-tour');
+
+const redactNames = (text: string, matcher: NameMatcher | null): string => {
+  if (!matcher || !matcher.test(text)) return text;
+  let out = '';
+  let at = 0;
+  for (const [start, end] of matcher.ranges(text)) {
+    out += `${text.slice(at, start)}[name]`;
+    at = end;
+  }
+  return out + text.slice(at);
+};
+
+const byteLength = (s: string) => new TextEncoder().encode(s).length;
+
+/** Trims to `max` UTF-8 bytes, marking the cut. */
+const capBytes = (s: string, max: number): string => {
+  if (byteLength(s) <= max) return s;
+  let lo = 0;
+  let hi = s.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (byteLength(s.slice(0, mid)) + 3 <= max) lo = mid;
+    else hi = mid - 1;
+  }
+  return `${s.slice(0, lo)}...`;
+};
+
+/** A redacted outerHTML of `element`: whitelisted attributes, no `data-pii` subtrees, names replaced. */
+export function redactedExcerpt(
+  element: Element,
+  matcher: NameMatcher | null,
+  max = MAX_EXCERPT_BYTES
+): string {
+  const pii = !!element.closest('[data-pii]');
+  const clone = element.cloneNode(true) as Element;
+  if (pii) clone.replaceChildren();
+  clone.querySelectorAll(DROP_SUBTREES).forEach((el) => el.remove());
+  for (const el of [clone, ...Array.from(clone.querySelectorAll('*'))]) {
+    for (const attr of Array.from(el.attributes)) {
+      if (!keepAttr(attr.name) || (pii && TEXT_ATTRS.has(attr.name)))
+        el.removeAttribute(attr.name);
+      else el.setAttribute(attr.name, redactNames(attr.value, matcher));
+    }
+  }
+  const doc = clone.ownerDocument;
+  const walker = doc.createTreeWalker(clone, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = (node.textContent ?? '').replace(/\s+/g, ' ');
+    node.textContent = redactNames(text, matcher);
+  }
+  return capBytes(clone.outerHTML, max);
+}
+
+const clip = (s: string) => s.replace(/\s+/g, ' ').trim().slice(0, MAX_LABEL);
+
+/** The tag, test id, label and role of `element` and its ancestors, innermost first. */
+export function ancestorChain(
+  element: Element,
+  matcher: NameMatcher | null
+): TourAnchorAncestor[] {
+  const out: TourAnchorAncestor[] = [];
+  for (
+    let el: Element | null = element;
+    el && out.length < MAX_ANCESTORS && el.tagName !== 'BODY';
+    el = el.parentElement
+  ) {
+    const testId = el.getAttribute('data-testid');
+    const label = el.getAttribute('aria-label');
+    const role = el.getAttribute('role');
+    const pii = !!el.closest('[data-pii]');
+    out.push({
+      tag: el.tagName.toLowerCase(),
+      ...(testId ? { testId: clip(testId) } : {}),
+      ...(label && !pii
+        ? { ariaLabel: clip(redactNames(label, matcher)) }
+        : {}),
+      ...(role ? { role: clip(role) } : {}),
+    });
+  }
+  return out;
+}
+
+interface ContextOptions {
+  matcher: NameMatcher | null;
+  /** Already scrubbed of student names. */
+  fallback?: GuidedLearningTourBinding['fallback'];
+  suggestedId?: string;
+  pathname?: string;
+}
+
+/** Structural, redacted context for an untagged click, for the unmapped-anchor queue. */
+export function captureUnmappedContext(
+  element: Element,
+  { matcher, fallback, suggestedId, pathname }: ContextOptions
+): UnmappedAnchorContext {
+  const widgetType = element
+    .closest('[data-tour-widget-type]')
+    ?.getAttribute('data-tour-widget-type');
+  // Inside student work or a photo, the name itself may be personal.
+  const pii = !!element.closest('[data-pii]');
+  return {
+    suggestedId: pii ? null : (suggestedId ?? null),
+    role: fallback?.role ?? null,
+    name: pii ? null : (fallback?.name ?? null),
+    widgetType: (widgetType as WidgetType | undefined) ?? null,
+    pathname: pathname ?? window.location.pathname,
+    nearestAnchor:
+      element.closest('[data-tour]')?.getAttribute('data-tour') ?? null,
+    ancestors: ancestorChain(element, matcher),
+    htmlExcerpt: redactedExcerpt(element, matcher),
   };
 }
 

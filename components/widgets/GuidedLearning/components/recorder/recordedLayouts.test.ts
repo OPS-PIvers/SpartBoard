@@ -110,9 +110,9 @@ describe('buildRecordedSet layouts', () => {
     ...(widgetId ? { widgetId } : {}),
   });
 
-  it('saves setup layouts, and a widget-scoped anchor gets its type and slot', () => {
+  it('saves setup layouts, and a widget-scoped anchor gets its type and slot', async () => {
     const start = [at('t1', 'time-tool', 1), at('t2', 'time-tool', 2)];
-    const set = buildRecordedSet(
+    const { set } = await buildRecordedSet(
       {
         steps: [
           step('a', 'widget.settings-opener', start, 't2'),
@@ -140,8 +140,8 @@ describe('buildRecordedSet layouts', () => {
     expect(JSON.stringify(set)).not.toContain('"board"');
   });
 
-  it('records no layouts without a start board', () => {
-    const set = buildRecordedSet(
+  it('records no layouts without a start board', async () => {
+    const { set } = await buildRecordedSet(
       { steps: [step('a', 'sidebar.boards', [])] },
       {
         id: 'set',

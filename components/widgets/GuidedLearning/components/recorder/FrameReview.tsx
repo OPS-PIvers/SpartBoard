@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
+import { formatUnmappedAnchors } from '@/components/tours/anchorQueue';
 import { redactImage, type RedactRect } from '../../utils/redactImage';
 import type { TourRecording } from './useTourCapture';
 import { keepFrames } from './recordingHandoff';
@@ -115,6 +116,7 @@ export const FrameReview: React.FC<FrameReviewProps> = ({
   const [applying, setApplying] = useState(false);
   const [blurError, setBlurError] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [copiedAll, setCopiedAll] = useState(false);
   const startRef = useRef<Point | null>(null);
 
   const total = items.length;
@@ -196,6 +198,15 @@ export const FrameReview: React.FC<FrameReviewProps> = ({
 
   const copyId = (id: string) => {
     void navigator.clipboard?.writeText(id).then(() => setCopied(id));
+  };
+  // Every untagged click in the recording, not just this frame's.
+  const copyAll = () => {
+    const contexts = recording.steps.flatMap((s) =>
+      s.untagged && s.context ? [s.context] : []
+    );
+    void navigator.clipboard
+      ?.writeText(formatUnmappedAnchors(contexts))
+      .then(() => setCopiedAll(true));
   };
 
   return createPortal(
@@ -402,9 +413,19 @@ export const FrameReview: React.FC<FrameReviewProps> = ({
             aria-label={t('glRecorder.untaggedTitle')}
             className="rounded-xl border border-slate-200 p-3"
           >
-            <h3 className="text-sm font-bold text-slate-800">
-              {t('glRecorder.untaggedTitle')}
-            </h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-bold text-slate-800">
+                {t('glRecorder.untaggedTitle')}
+              </h3>
+              <button
+                type="button"
+                onClick={copyAll}
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-brand-blue-primary hover:bg-slate-100"
+              >
+                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                {copiedAll ? t('glRecorder.copied') : t('glRecorder.copyAll')}
+              </button>
+            </div>
             <p className="mb-2 text-xs text-slate-600">
               {t('glRecorder.untaggedBody')}
             </p>
