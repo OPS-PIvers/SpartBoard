@@ -6,6 +6,7 @@ import {
   QuestionTargetTag,
   QuizQuestion,
   QuizQuestionType,
+  QuizSection,
   QuizStimulus,
 } from '@/types';
 import {
@@ -90,6 +91,14 @@ export interface QuizEditorController {
   removeBankSlot: (id: string) => void;
   /** Reorder all rows (questions and slots) from the sortable list. */
   reorderEntries: (next: QuizOrderEntry[]) => void;
+  /** Section records the `section` rows of `order` point at (QUIZ_EXAMVIEW_IMPORT.md E12). */
+  sections: QuizSection[];
+  originalSections: QuizSection[];
+  /** Adds a section row above the selected row, or at the end. */
+  addSection: () => void;
+  updateSection: (id: string, patch: Partial<QuizSection>) => void;
+  /** Removes the heading; its questions stay where they are. */
+  removeSection: (id: string) => void;
   /** Append copies from the bank picker; stimuli merge by id. */
   insertQuestions: (questions: QuizQuestion[], stimuli: QuizStimulus[]) => void;
   // Multi-select (checkbox mode) for bulk actions
@@ -172,6 +181,10 @@ export function useQuizEditorState({
     [quiz]
   );
   const originalOrder = useMemo(() => (quiz ? quizOrder(quiz) : []), [quiz]);
+  const originalSections = useMemo(
+    () => (quiz?.sections ?? []).map((s) => ({ ...s })),
+    [quiz]
+  );
 
   const [title, setTitle] = useState<string>(originalTitle);
   const [language, setLanguage] = useState<string>(originalLanguage);
@@ -179,6 +192,7 @@ export function useQuizEditorState({
   const [stimuli, setStimuli] = useState<QuizStimulus[]>(originalStimuli);
   const [bankSlots, setBankSlots] = useState<QuizBankSlot[]>(originalBankSlots);
   const [order, setOrder] = useState<QuizOrderEntry[]>(originalOrder);
+  const [sections, setSections] = useState<QuizSection[]>(originalSections);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -208,6 +222,7 @@ export function useQuizEditorState({
     setStimuli(originalStimuli);
     setBankSlots(originalBankSlots);
     setOrder(originalOrder);
+    setSections(originalSections);
     setError(null);
     setSaving(false);
     setSelectedId(originalQuestions[0]?.id ?? null);
@@ -464,6 +479,44 @@ export function useQuizEditorState({
     setOrder((prev) => dropFromOrder(prev, new Set([id])));
   }, []);
 
+  // ─── Sections (QUIZ_EXAMVIEW_IMPORT.md E12) ─────────────────────────────────
+
+  const addSection = useCallback(() => {
+    const section: QuizSection = {
+      id: crypto.randomUUID(),
+      title: 'New section',
+    };
+    setSections((prev) => [...prev, section]);
+    setOrder((prev) => {
+      const at = prev.findIndex((e) => e.id === selectedIdRef.current);
+      const entry = { kind: 'section' as const, id: section.id };
+      return at === -1
+        ? [...prev, entry]
+        : [...prev.slice(0, at), entry, ...prev.slice(at)];
+    });
+  }, []);
+
+  const updateSection = useCallback(
+    (id: string, patch: Partial<QuizSection>) => {
+      setSections((prev) =>
+        prev.map((s) => {
+          if (s.id !== id) return s;
+          const next = { ...s, ...patch } as Record<string, unknown>;
+          for (const [key, value] of Object.entries(patch)) {
+            if (value === undefined) delete next[key];
+          }
+          return next as unknown as QuizSection;
+        })
+      );
+    },
+    []
+  );
+
+  const removeSection = useCallback((id: string) => {
+    setSections((prev) => prev.filter((s) => s.id !== id));
+    setOrder((prev) => dropFromOrder(prev, new Set([id])));
+  }, []);
+
   // ─── Stimuli ───────────────────────────────────────────────────────────────
 
   const addStimulus = useCallback((stimulus: QuizStimulus) => {
@@ -671,6 +724,11 @@ export function useQuizEditorState({
     updateBankSlot,
     removeBankSlot,
     reorderEntries,
+    sections,
+    originalSections,
+    addSection,
+    updateSection,
+    removeSection,
     insertQuestions,
     checkedIds,
     toggleChecked,

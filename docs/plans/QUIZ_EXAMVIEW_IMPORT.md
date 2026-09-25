@@ -167,6 +167,15 @@ This PR takes the section core of `QUIZ_STRUCTURED_ASSESSMENTS.md` D9. Structure
 - **E15. Paper.**
   - The printed test and the response sheet show "Answer any N of M" under the section heading.
   - A paper import with more than N answered in a section gets a teacher flag. The first N in item order count until the teacher changes it.
+- **As built (PR 4c).**
+  - The flag `quiz-sections` gates the Add menu's "Section" item.
+  - A section row edits its title, its directions and "Students answer [all | N] of these M questions" in place. Dragging a question past a row moves it between sections.
+  - Removing a row keeps its questions.
+  - The editor saves `order` whenever a section or a bank slot exists, and saves only the section records a row still points at.
+  - The printed test shows each section's heading, directions and "Answer any N of these M questions." above its first printed question.
+  - The paper import notes a sheet that bubbled more than N in a section ("…only 2 count, so the first 2 in order are scored").
+  - Not built: a line on the answer sheet itself. Its bubble grid is fixed in millimetres for the scanner, so the count prints on the test paper only.
+  - Not built: carrying sections into a PLC-synced copy (`synced_quizzes` is a `hasOnly` rule), or into a substitute's launch.
 - **Compatibility.** Every field is optional. The player, scoring, results and PLC handling of sections are unflagged and must reach `main` before or with any way to create a section (structured plan, "Rules and compatibility notes"). Old clients ignore the unknown `order` kind. No `firestore.rules` change is expected; the cap is enforced by the player. Verify that in the PR.
 
 ### Importer creates sections (PR 5)
