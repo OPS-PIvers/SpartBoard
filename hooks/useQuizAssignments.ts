@@ -69,11 +69,13 @@ import type {
   QuizAssignmentSyncLinkage,
   QuizData,
   QuizMetadataSyncLinkage,
+  QuizOrderEntry,
   QuizPublicQuestion,
   QuizQuestion,
   QuizResponse,
   QuizResponseAnswer,
   QuizScoreVisibility,
+  QuizSection,
   QuizSession,
   QuestionTranslation,
   QuizTranslation,
@@ -86,6 +88,7 @@ import type {
   StudentOverride,
 } from '@/types';
 import { sessionTotalQuestions } from '@/utils/quizBankDraw';
+import { sessionSectionsFor } from '@/utils/quizSections';
 import {
   QUIZ_CONTENT_COLLECTION,
   QUIZ_CONTENT_DOC,
@@ -237,6 +240,9 @@ export interface AssignmentQuizRef {
   stimuli?: QuizStimulus[];
   /** Read-aloud language snapshotted onto the session doc. */
   language?: string;
+  /** The quiz's `order` and section records, frozen onto the session as `sections`. */
+  order?: QuizOrderEntry[];
+  sections?: QuizSection[];
 }
 
 export interface UseQuizAssignmentsResult {
@@ -1314,6 +1320,14 @@ export const useQuizAssignments = (
       const sessionHasRecording = sessionPublicQuestions.some(
         (q) => !!q.recording
       );
+      const sessionSections = sessionSectionsFor(
+        {
+          questions: sessionQuestions,
+          order: quiz.order,
+          sections: quiz.sections,
+        },
+        bankSlots ?? []
+      );
 
       const session: QuizSession = {
         id: assignmentId,
@@ -1335,6 +1349,7 @@ export const useQuizAssignments = (
           : sessionQuestions.length,
         publicQuestions: sessionPublicQuestions,
         ...(hasBankSlots ? { bankSlots } : {}),
+        ...(sessionSections.length > 0 ? { sections: sessionSections } : {}),
         // Opts this session into server-side `unresponded` completeness writes;
         // sessions from older clients omit it and keep pre-feature finalize behaviour.
         completenessModel: 1,
