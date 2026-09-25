@@ -657,6 +657,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
   const shell = (
     <LibraryShell
       widgetLabel="Projects"
+      widgetType="projects"
       tab={tab}
       onTabChange={setTab}
       counts={{

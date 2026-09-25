@@ -212,6 +212,7 @@ export const WallLibraryModal: React.FC<WallLibraryModalProps> = ({
     >
       <LibraryShell
         widgetLabel="Activity Wall"
+        widgetType="activity-wall"
         tab="library"
         onTabChange={() => undefined}
         visibleTabs={['library']}
