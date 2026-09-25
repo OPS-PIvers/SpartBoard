@@ -58,7 +58,8 @@ export const PlcImportModeOptions: React.FC<{
           defaultValue: 'Synced',
         })}
         body={t('plcDashboard.quizImportModal.syncBody', {
-          defaultValue: 'Stays linked. Team edits reach your copy.',
+          defaultValue:
+            'Stays linked. Edits by anyone on the team, you included, reach everyone.',
         })}
         Icon={Cloud}
         recommendedLabel={t('plcDashboard.quizImportModal.recommendedLabel', {

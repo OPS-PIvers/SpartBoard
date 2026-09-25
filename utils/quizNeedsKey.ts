@@ -62,3 +62,9 @@ export function clearSatisfiedNeedsKey(quiz: QuizData): QuizData {
   });
   return changed ? { ...quiz, questions } : quiz;
 }
+
+/** Why a quiz can't be assigned yet, for every Assign path that reads `needsKeyCount`. */
+export const needsKeyMessage = (count: number): string =>
+  count === 1
+    ? '1 question still needs an answer. Open the quiz and fill it in before you assign.'
+    : `${count} questions still need an answer. Open the quiz and fill them in before you assign.`;

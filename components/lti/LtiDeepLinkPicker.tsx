@@ -86,6 +86,7 @@ import { quizMaxPoints } from '@/utils/quizMaxPoints';
 import { videoActivityMaxPoints } from '@/utils/videoActivityGrading';
 import { logError } from '@/utils/logError';
 import { isGoogleSession } from '@/utils/googleSession';
+import { needsKeyMessage } from '@/utils/quizNeedsKey';
 import {
   AddonShell,
   AddonHeader,
@@ -590,6 +591,10 @@ const LtiDeepLinkFlow: React.FC = () => {
     async (returnUrl: string): Promise<void> => {
       // The "Add" button is disabled until a quiz is selected — defensive guard.
       if (!selectedQuiz) return;
+      if ((selectedQuiz.needsKeyCount ?? 0) > 0) {
+        setErrorMsg(needsKeyMessage(selectedQuiz.needsKeyCount ?? 0));
+        return;
+      }
 
       // Reuse a previously-created assignment for this quiz on retry, so a failed
       // sign / POST never spawns a SECOND orphaned session + join code. The create

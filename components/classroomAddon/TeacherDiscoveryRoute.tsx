@@ -72,6 +72,7 @@ import { videoActivityMaxPoints } from '@/utils/videoActivityGrading';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { logError } from '@/utils/logError';
 import { ensureGis, requestAccessToken } from './gisOAuth';
+import { needsKeyMessage } from '@/utils/quizNeedsKey';
 import {
   ClipboardList,
   Video,
@@ -499,6 +500,10 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const attachQuiz = useCallback(async () => {
     if (!selectedQuiz) {
       append('Pick a quiz first.');
+      return;
+    }
+    if ((selectedQuiz.needsKeyCount ?? 0) > 0) {
+      setErrorMsg(needsKeyMessage(selectedQuiz.needsKeyCount ?? 0));
       return;
     }
     if (!googleAccessToken) {
