@@ -95,7 +95,7 @@ export const SectionRow: React.FC<SectionRowProps> = ({
         type="button"
         onClick={() => onRemove(section.id)}
         aria-label="Remove section"
-        title="Remove the heading; its questions stay"
+        title="Remove section"
         className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
       >
         <Trash2 className="w-3.5 h-3.5" />

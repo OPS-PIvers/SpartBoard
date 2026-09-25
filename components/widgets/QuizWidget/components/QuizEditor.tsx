@@ -87,6 +87,8 @@ interface PaneProps {
   inheritedTargets?: QuestionTargetTag[];
   /** Opens "Add answer key"; shown beside the needs-answer count when set (R31). */
   onAddAnswerKey?: () => void;
+  /** Off in the bank editor, which doesn't save sections. */
+  allowSections?: boolean;
 }
 
 const QUESTION_TYPES: {
@@ -163,6 +165,7 @@ const quizContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.titlePlaceholder === next.titlePlaceholder &&
   prev.inheritedTargets === next.inheritedTargets &&
   prev.onAddAnswerKey === next.onAddAnswerKey &&
+  prev.allowSections === next.allowSections &&
   prev.state.error === next.state.error;
 
 export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
@@ -177,10 +180,11 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
   titlePlaceholder,
   inheritedTargets,
   onAddAnswerKey,
+  allowSections = true,
 }: PaneProps) {
   const { canAccessQuizMediaResponse, canAccessFeature } = useAuth();
   const mediaResponseAllowed = canAccessQuizMediaResponse();
-  const sectionsEnabled = canAccessFeature('quiz-sections');
+  const sectionsEnabled = allowSections && canAccessFeature('quiz-sections');
   const {
     title,
     setTitle,
