@@ -3181,6 +3181,16 @@
       "barLabel": "Average score {{pct}}%"
     }
   },
+  "quizSections": {
+    "chooseLine": "Answer any {{required}} of these {{total}} questions.",
+    "start": "Start",
+    "answeredCount": "· {{answered}} of {{required}} answered",
+    "capReachedClear": "You’ve answered {{required}} of {{required}}. Clear one to answer this instead.",
+    "capReached": "You’ve answered {{required}} of {{required}}.",
+    "clearAnswer": "Clear my answer",
+    "next": "Next",
+    "submit": "Submit quiz"
+  },
   "quizReadAloud": {
     "label": "Read aloud",
     "help": "Signed-in students only.",

@@ -143,6 +143,12 @@ This PR takes the section core of `QUIZ_STRUCTURED_ASSESSMENTS.md` D9. Structure
     - A section shows an intro screen with its title and directions. With a count set, it also shows "Answer any N of these M questions."
     - Each question shows a "Section title" breadcrumb that reopens the directions.
   - Editor: "Add section" inserts a section row in the question list. The row has a title, directions and "Students answer [all | N] of these M questions". Dragging a question across the row moves it between sections.
+- **As built (PR 4a).** PR 4 ships as three stacked PRs: 4a model and player, 4b scoring and results, 4c editor and paper.
+  - A session freezes `sections` as `{ id, title, directions?, chooseCount?, questionIds }` at assignment, with bank pool ids included, so the player and scoring never read the quiz's `order`.
+  - "Chosen" is derived from the answers, never stored: a question counts once it holds a non-empty answer, and more than N keeps the first N in section order. The response doc and `firestore.rules` are unchanged.
+  - The intro is a dialog shown the first time a student reaches a section. It works the same in every session mode. The breadcrumb reopens it.
+  - "Clear my answer" (self-paced) writes an empty answer to free a place. Question shuffle stays inside each section.
+  - Not yet: a substitute's launch (`subLaunchAssignment`) rebuilds the session on the server and doesn't carry `sections`, so a sub-run quiz behaves as one run of questions.
 - **E13. Answering.**
   - Once a student has answered N questions in a section, the section's other questions show "You've answered N of N. Clear one to answer this instead." and can't be answered. Clearing an answer frees a slot.
   - Submit is allowed once N are answered.

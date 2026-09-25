@@ -2043,6 +2043,9 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 questions: assignQuestions,
                 ...(assignStimuli ? { stimuli: assignStimuli } : {}),
                 ...(data.language ? { language: data.language } : {}),
+                ...(data.sections?.length
+                  ? { order: data.order, sections: data.sections }
+                  : {}),
               },
               {
                 sessionMode: mode,
