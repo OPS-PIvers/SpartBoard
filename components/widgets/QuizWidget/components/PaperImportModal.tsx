@@ -346,7 +346,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     uploaded: ReadonlySet<string>,
     mimes: ReadonlyMap<string, CropMime>,
     resumed: boolean
-  ) => {
+  ): CropUploader => {
     revokeAll(thumbsRef.current);
     setThumbs(new Map([...blobs].map(([k, blob]) => [k, objectUrl(blob)])));
     const nextMime = new Map(mimes);
@@ -384,9 +384,11 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         }
       }
     }
+    return uploader;
   };
 
   const loadRemoteThumbs = async (
+    owner: CropUploader,
     forScanId: string,
     boxes: PaperPendingWritten['boxes'],
     local: ReadonlyMap<string, Blob>
@@ -404,7 +406,8 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           return [writtenCropKey(b.seat, b.questionId), url] as const;
         })
       );
-      if (uploaderRef.current === null) return;
+      // A newer scan or resume owns the review now; its thumbnails share these keys.
+      if (uploaderRef.current !== owner) return;
       setThumbs((prev) => {
         const next = new Map(prev);
         for (const [k, url] of part) if (url) next.set(k, url);
@@ -455,8 +458,15 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             : []
         )
       );
-      beginWritten(restored, blobs, pw.scanId, uploaded, mimes, true);
-      void loadRemoteThumbs(pw.scanId, pw.boxes, blobs);
+      const owner = beginWritten(
+        restored,
+        blobs,
+        pw.scanId,
+        uploaded,
+        mimes,
+        true
+      );
+      void loadRemoteThumbs(owner, pw.scanId, pw.boxes, blobs);
     }
     void refreshQuota(batch);
     setAssembled(restored);

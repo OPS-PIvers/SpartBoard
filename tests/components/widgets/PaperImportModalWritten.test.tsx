@@ -192,6 +192,46 @@ const reviewReady = () =>
     expect(screen.getByLabelText('Written answers')).toBeInTheDocument()
   );
 
+const remoteParked = (): PaperPendingReview => ({
+  savedAt: Date.UTC(2026, 8, 25),
+  assignmentId: '',
+  sheets: [
+    {
+      seat: 1,
+      kind: 'student',
+      student: { rosterId: 'r1', studentId: 's1' },
+      answers: [
+        { question: 0, choice: 1 },
+        { question: 1, choice: 2 },
+      ],
+      pagesSeen: [1],
+      missingPages: [],
+      isBlank: false,
+      flags: [],
+    },
+  ],
+  keySheet: null,
+  unreadablePages: [],
+  foreignPages: [],
+  unknownPages: [],
+  key: {},
+  keyConfirmed: false,
+  spareAssignments: {},
+  targets: {},
+  written: {
+    scanId: 'scanB',
+    boxes: [
+      {
+        seat: 1,
+        questionId: 's3',
+        page: 1,
+        state: 'ink',
+        uploaded: true,
+      },
+    ],
+  },
+});
+
 describe('PaperImportModal with handwritten answers', () => {
   it('uploads every crop during review, marks blanks and sends them with the import', async () => {
     const { onImport, onUploadCrop, cropWritten } = setup();
@@ -410,46 +450,40 @@ describe('PaperImportModal with handwritten answers', () => {
     });
   });
 
+  it('drops a slow remote crop once a new scan owns the review', async () => {
+    let release!: (url: string) => void;
+    const loadRemoteCrop = vi.fn(
+      () =>
+        new Promise<string | null>((resolve) => {
+          release = resolve;
+        })
+    );
+    setup({
+      batches: [{ ...batch, pendingReview: remoteParked() }],
+      loadRemoteCrop,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Resume review' }));
+    await reviewReady();
+    await waitFor(() => expect(loadRemoteCrop).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    chooseFile();
+    await waitFor(() =>
+      expect(
+        screen.getAllByAltText('Handwritten answer, question 3')
+      ).toHaveLength(2)
+    );
+    release('https://crop/stale');
+    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
+    for (const img of screen.getAllByAltText(
+      'Handwritten answer, question 3'
+    )) {
+      expect(img).not.toHaveAttribute('src', 'https://crop/stale');
+    }
+  });
+
   it('shows crops another device uploaded through the remote loader', async () => {
-    const parked: PaperPendingReview = {
-      savedAt: Date.UTC(2026, 8, 25),
-      assignmentId: '',
-      sheets: [
-        {
-          seat: 1,
-          kind: 'student',
-          student: { rosterId: 'r1', studentId: 's1' },
-          answers: [
-            { question: 0, choice: 1 },
-            { question: 1, choice: 2 },
-          ],
-          pagesSeen: [1],
-          missingPages: [],
-          isBlank: false,
-          flags: [],
-        },
-      ],
-      keySheet: null,
-      unreadablePages: [],
-      foreignPages: [],
-      unknownPages: [],
-      key: {},
-      keyConfirmed: false,
-      spareAssignments: {},
-      targets: {},
-      written: {
-        scanId: 'scanB',
-        boxes: [
-          {
-            seat: 1,
-            questionId: 's3',
-            page: 1,
-            state: 'ink',
-            uploaded: true,
-          },
-        ],
-      },
-    };
+    const parked = remoteParked();
     const loadRemoteCrop = vi.fn(() => Promise.resolve('https://crop/1'));
     setup({
       batches: [{ ...batch, pendingReview: parked }],
