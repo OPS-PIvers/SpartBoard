@@ -4311,3 +4311,12 @@ rather than "no data") is also still open.
   - `gh` is absent and `/mnt/skills/user/` does not exist again. GitHub access went through MCP, and the standards came from `.claude/skills/`.
   - Per CLAUDE.md, no full lint, type-check or test runs were made; none were needed since nothing was pushed.
   - `scheduled-tasks` still heads open PR #3322, so this log commit lands on it. It is Markdown-only, which `pr-validation.yml` ignores.
+
+## 2026-09-24
+- PRs reviewed: none. No PRs were open when this run started. The most recent ones (#3367–#3370, and #3328 from yesterday's list) were closed earlier today.
+- Comments processed: 0 total — 0 fixed, 0 explained
+- Fixes pushed: none
+- Reviews posted: 0
+- Notes:
+  - `gh` is absent again, so GitHub access went through MCP. Open PRs were listed with `state: open`, and a `state: all` listing confirmed the call works and the queue is empty.
+  - No lint, type-check or test runs were made because nothing was changed.

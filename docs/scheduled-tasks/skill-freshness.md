@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-09-22_
+_Last audited: 2026-09-24_
 _Last action: 2026-09-22 — HIGH `SpecialistSchedule` stale `Settings.tsx` reference fixed in both new-widget and admin-widget-config skills (all 4 mirror files): file-layout callout rewritten to the current schema-driven files, `featurePermissions`-read example repointed to `settingsFields.tsx`. Moved to Completed._
 
 ---
@@ -164,6 +164,15 @@ _2026-06-23 action: Fixed MEDIUM `admin-widget-config` reference to non-existent
   ```
   The actual array in `components/admin/FeaturePermissionsManager.tsx` (lines 941–953) is significantly longer and includes 7 additional types added since the skill was written: `blooms-taxonomy`, `catalyst`, `graphic-organizer`, `music`, `pdf`, `video-activity`, `work-symbols`. A developer following the example literally would insert their widget type into an outdated list and potentially misunderstand the full scope of widgets with dedicated config modals.
 - **Fix:** Update the skill's code example to match the current exclusion array, or replace the hardcoded list in the example with a comment like `// ...existing widget types with dedicated modals...` so the example is not tied to a specific snapshot.
+
+### LOW `admin-widget-config` Path A wiring snippet has invalid JSX — a trailing `;` inside the expression container
+
+- **Detected:** 2026-09-24
+- **File:** `.claude/skills/admin-widget-config/SKILL.md:49-56` (Path A wiring example)
+- **Detail:** The snippet is `{ activeModalTool?.type === 'your-widget-type' && (<YourWidgetConfigurationModal ... />); }` — a semicolon terminates the `&&` expression inside the `{...}` JSX expression container. Verified with `tsc --jsx react`: this fails to compile (`TS1005`/`TS1381`). The real code in `components/admin/FeaturePermissionsManager.tsx` (e.g. the `specialist-schedule` block) has no such semicolon and compiles fine — a developer copy-pasting the skill's snippet verbatim hits a syntax error.
+- **Fix:** Drop the trailing `;` from the snippet so it reads `{activeModalTool?.type === 'your-widget-type' && (<YourWidgetConfigurationModal ... />)}`.
+
+_2026-09-24: Weekly audit (Thursday's Audit B). Sub-agent re-verified all 5 registration/structure claims (checklist files, SpecialistSchedule gold-standard structure, admin config hierarchy, `lazyNamed()` convention, path resolution) — all still accurate. Cross-checked every candidate finding against this journal's history: the "Already cut over" schema-migration staleness and the dead `Checklist/Settings.tsx` reference are the same still-open HIGH item (#`Checklist Settings+Appearance reference`, now far more stale — 48/~57 widgets are schema-only vs. the 5 named); the `APPEARANCE_CONFIG_KEYS` gap matches the standing MEDIUM; the `BUILDING_CONFIG_PANELS` type-annotation mismatch matches the standing LOW. One genuinely new LOW found and filed above: the Path A wiring snippet's invalid trailing semicolon inside a JSX expression container. 1 new LOW, 0 resolved, all standing items reconfirmed present and unchanged in substance._
 
 ---
 
