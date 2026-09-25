@@ -1,14 +1,49 @@
 import { TOOLS } from '@/config/tools';
-import { GLOBAL_FEATURES } from '@/components/admin/globalFeatureRows';
-import { ROLLOUT_SWITCHES } from '@/config/rolloutSwitches';
+import {
+  ALL_GLOBAL_FEATURES,
+  FEATURE_DEFAULTS,
+} from '@/config/featureDefaults';
+import { ROLLOUT_SWITCHES, type RolloutSwitch } from '@/config/rolloutSwitches';
+import type { GlobalFeature } from '@/types';
 
-export type AccessTabId = 'features' | 'global' | 'rollouts';
+export type AccessTabId = 'features' | 'global' | 'previews';
 
 export const ACCESS_TAB_LABELS: Record<AccessTabId, string> = {
   features: 'Feature Permissions',
   global: 'Global Settings',
-  rollouts: 'Rollouts',
+  previews: 'Previews',
 };
+
+export const GLOBAL_SETTINGS_FEATURES = ALL_GLOBAL_FEATURES.filter(
+  (id) =>
+    FEATURE_DEFAULTS[id].stage === 'permanent' && !FEATURE_DEFAULTS[id].home
+);
+
+export const PREVIEW_FEATURES = ALL_GLOBAL_FEATURES.filter(
+  (id) => FEATURE_DEFAULTS[id].stage === 'preview'
+);
+
+export const switchForFeature = (
+  id: GlobalFeature
+): RolloutSwitch | undefined =>
+  ROLLOUT_SWITCHES.find((sw) => sw.feature === id);
+
+/** District switches with no access flag of their own. */
+export const ROLLOUT_ONLY_SWITCHES = ROLLOUT_SWITCHES.filter(
+  (sw) => !sw.feature
+);
+
+export const featureSearchFields = (id: GlobalFeature): string[] => {
+  const def = FEATURE_DEFAULTS[id];
+  const sw = switchForFeature(id);
+  return [def.label, def.description, id, sw?.title ?? '', sw?.docId ?? ''];
+};
+
+export const rolloutSearchFields = (sw: RolloutSwitch): string[] => [
+  sw.title,
+  sw.description,
+  sw.docId,
+];
 
 /** Every word of the query must appear in one of the fields, case-insensitive. */
 export const matchesSearch = (
@@ -24,8 +59,11 @@ export const matchesSearch = (
 const ROWS: Record<AccessTabId, readonly (readonly (string | undefined)[])[]> =
   {
     features: TOOLS.map((t) => [t.label, t.type, ...(t.keywords ?? [])]),
-    global: GLOBAL_FEATURES.map((f) => [f.label, f.description, f.id]),
-    rollouts: ROLLOUT_SWITCHES.map((r) => [r.title, r.description, r.docId]),
+    global: GLOBAL_SETTINGS_FEATURES.map(featureSearchFields),
+    previews: [
+      ...PREVIEW_FEATURES.map(featureSearchFields),
+      ...ROLLOUT_ONLY_SWITCHES.map(rolloutSearchFields),
+    ],
   };
 
 /** Matching row count per Access tab, from static metadata so no tab has to mount. */
@@ -34,5 +72,5 @@ export const countAccessMatches = (
 ): Record<AccessTabId, number> => ({
   features: ROWS.features.filter((f) => matchesSearch(query, f)).length,
   global: ROWS.global.filter((f) => matchesSearch(query, f)).length,
-  rollouts: ROWS.rollouts.filter((f) => matchesSearch(query, f)).length,
+  previews: ROWS.previews.filter((f) => matchesSearch(query, f)).length,
 });

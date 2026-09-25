@@ -87,3 +87,26 @@ describe('isAdminPreviewFeature', () => {
     expect([...mirrored].sort()).toEqual([...expected].sort());
   });
 });
+
+describe('feature registry', () => {
+  it('gives every permanent feature a home: a widget, a category or a page', () => {
+    const homeless = (Object.keys(FEATURE_DEFAULTS) as GlobalFeature[]).filter(
+      (id) => {
+        const def = FEATURE_DEFAULTS[id];
+        return (
+          def.stage === 'permanent' && !def.widget && !def.category && !def.home
+        );
+      }
+    );
+    expect(homeless).toEqual([]);
+  });
+
+  it('never marks a feature to retire as permanent', () => {
+    const wrong = (Object.keys(FEATURE_DEFAULTS) as GlobalFeature[]).filter(
+      (id) =>
+        FEATURE_DEFAULTS[id].afterLaunch === 'retire' &&
+        FEATURE_DEFAULTS[id].stage === 'permanent'
+    );
+    expect(wrong).toEqual([]);
+  });
+});

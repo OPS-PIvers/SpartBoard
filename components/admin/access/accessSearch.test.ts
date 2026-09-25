@@ -12,8 +12,8 @@ describe('matchesSearch', () => {
 describe('countAccessMatches', () => {
   it('counts matches on each Access tab without mounting it', () => {
     const counts = countAccessMatches('paper answer');
-    expect(counts.global).toBeGreaterThan(0);
-    expect(counts.rollouts).toBeGreaterThan(0);
+    expect(counts.global).toBe(0);
+    expect(counts.previews).toBeGreaterThan(0);
   });
 
   it('finds Record on the widget tab, not Global Settings', () => {

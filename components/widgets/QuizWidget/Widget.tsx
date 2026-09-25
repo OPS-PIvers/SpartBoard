@@ -549,7 +549,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Paper answer sheets. `paperPrintIsNew` distinguishes the "Paper test" door
   // (an unsaved stub the modal creates on print) from printing for a saved quiz.
   const paperSheetsRollout = usePaperAnswerSheetsSettings();
-  // Two gates: the org-wide Rollouts switch, then who may use it.
+  // Two gates: the org-wide district switch, then who may use it.
   const paperSheets = {
     enabled:
       paperSheetsRollout.enabled && canAccessFeature('paper-answer-sheets'),

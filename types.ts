@@ -8797,11 +8797,11 @@ export type GlobalFeature =
   | 'quiz-translation'
   /** "Draft with AI" inside the question-bank editor; AND-ed with `gemini-functions`. */
   | 'question-bank-ai'
-  /** Paper answer sheets; only meaningful while the Rollouts switch is on. */
+  /** Paper answer sheets; only meaningful while the district switch is on. */
   | 'paper-answer-sheets'
-  /** Saved class groups inside board widgets; AND-ed with the Rollouts switch. */
+  /** Saved class groups inside board widgets; AND-ed with the district switch. */
   | 'roster-groups'
-  /** Importing a quiz from a test document; AND-ed with the Rollouts switch. */
+  /** Importing a quiz from a test document; AND-ed with the district switch. */
   | 'quiz-document-import'
   /** The AI reader for that import; AND-ed with `quiz-document-import` and `gemini-functions`. */
   | 'quiz-document-ai-reader'

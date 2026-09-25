@@ -1,4 +1,5 @@
-// Org-wide rollout switches kept in `admin_settings/*`, shown on the Rollouts tab.
+import type { GlobalFeature } from '@/types';
+// Org-wide rollout switches kept in `admin_settings/*`, paired with their flag on the Previews tab.
 import {
   PAPER_ANSWER_SHEETS_SETTINGS_DOC,
   normalizePaperAnswerSheetsSettings,
@@ -32,6 +33,8 @@ export interface RolloutSwitch {
   docId: string;
   title: string;
   description: string;
+  /** The access flag this switch is ANDed with; both show on one Previews row. */
+  feature?: GlobalFeature;
   normalize: (raw: unknown) => { enabled: boolean };
 }
 
@@ -45,6 +48,7 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
   },
   {
     docId: PAPER_ANSWER_SHEETS_SETTINGS_DOC,
+    feature: 'paper-answer-sheets',
     title: 'Paper answer sheets',
     description: 'Print bubble sheets and import scans.',
     normalize: normalizePaperAnswerSheetsSettings,
@@ -57,6 +61,7 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
   },
   {
     docId: ROSTER_GROUPS_INTEGRATION_SETTINGS_DOC,
+    feature: 'roster-groups',
     title: 'Class groups in widgets',
     description: 'Target a class group from a widget.',
     normalize: normalizeRosterGroupsIntegrationSettings,
@@ -69,6 +74,7 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
   },
   {
     docId: QUIZ_DOCUMENT_IMPORT_SETTINGS_DOC,
+    feature: 'quiz-document-import',
     title: 'Build a quiz from a test document',
     description: 'Build a quiz from an uploaded test.',
     normalize: normalizeQuizDocumentImportSettings,

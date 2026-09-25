@@ -26,7 +26,7 @@ import { useAuth } from '@/context/useAuth';
 import { FeaturePermissionsManager } from './FeaturePermissionsManager';
 import { BackgroundManager } from './BackgroundManager';
 import { GlobalPermissionsManager } from './GlobalPermissionsManager';
-import { RolloutSwitchesPanel } from './RolloutSwitchesPanel';
+import { PreviewsPanel } from './access/PreviewsPanel';
 import { AnnouncementsManager } from './Announcements';
 import { OrganizationPanel } from './Organization/OrganizationPanel';
 import { AnalyticsManager } from './Analytics/AnalyticsManager';
@@ -64,10 +64,10 @@ const TAB_GROUPS = [
         component: GlobalPermissionsManager,
       },
       {
-        id: 'rollouts',
-        label: 'Rollouts',
+        id: 'previews',
+        label: 'Previews',
         icon: FlaskConical,
-        component: RolloutSwitchesPanel,
+        component: PreviewsPanel,
       },
     ],
   },

@@ -108,10 +108,10 @@ describe('GlobalPermissionsManager', () => {
     });
 
     const search = screen.getByTestId('access-search-global');
-    fireEvent.change(search, { target: { value: 'read aloud' } });
+    fireEvent.change(search, { target: { value: 'classroom' } });
     expect(screen.queryByText('Live Sessions')).not.toBeInTheDocument();
     expect(
-      screen.getByText('Quiz read-aloud (text-to-speech)')
+      screen.getByText('Google Classroom integration')
     ).toBeInTheDocument();
 
     fireEvent.change(search, { target: { value: 'stickers' } });
@@ -119,5 +119,9 @@ describe('GlobalPermissionsManager', () => {
       screen.getByRole('button', { name: /Found on Feature Permissions/ })
     );
     expect(goToTab).toHaveBeenCalledWith('features');
+
+    fireEvent.change(search, { target: { value: 'read aloud' } });
+    fireEvent.click(screen.getByRole('button', { name: /Found on Previews/ }));
+    expect(goToTab).toHaveBeenCalledWith('previews');
   });
 });

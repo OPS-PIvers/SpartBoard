@@ -43,13 +43,17 @@ import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuil
 import { MinTierSelect } from '@/components/admin/MinTierSelect';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 import { BetaUsersPanel } from '@/components/admin/BetaUsersPanel';
-import { GLOBAL_FEATURES } from '@/components/admin/globalFeatureRows';
 import { useAccessSearch } from '@/components/admin/access/accessSearchContext';
 import {
   AccessSearchEmpty,
   AdminSearchField,
 } from '@/components/admin/access/AdminSearchField';
-import { matchesSearch } from '@/components/admin/access/accessSearch';
+import {
+  GLOBAL_SETTINGS_FEATURES,
+  featureSearchFields,
+  matchesSearch,
+} from '@/components/admin/access/accessSearch';
+import { GEMINI_FEATURES } from '@/components/admin/access/useGlobalPermissionsEditor';
 import { isDeprecatedGeminiModelId } from '@/utils/geminiModelDeprecation';
 
 /**
@@ -83,14 +87,6 @@ const ASSIGNMENT_WIDGETS: {
     label: 'Guided Learning',
     Icon: BookOpen,
   },
-];
-
-const GEMINI_FEATURES: GlobalFeature[] = [
-  'gemini-functions',
-  'smart-poll',
-  'embed-mini-app',
-  'video-activity-audio-transcription',
-  'ai-file-context',
 ];
 
 // Keep in sync with DEFAULT_ADVANCED_MODEL / DEFAULT_STANDARD_MODEL in aiGeneration.ts — this picker writes to global_permissions/gemini-functions.
@@ -533,9 +529,10 @@ export const GlobalPermissionsManager: React.FC = () => {
   };
 
   const filteredFeatures = useMemo(() => {
-    const sorted = [...GLOBAL_FEATURES].sort((a, b) =>
-      a.label.localeCompare(b.label)
-    );
+    const sorted = GLOBAL_SETTINGS_FEATURES.map((id) => ({
+      id,
+      ...FEATURE_DEFAULTS[id],
+    })).sort((a, b) => a.label.localeCompare(b.label));
     return sorted.filter((feature) => {
       const defaults = FEATURE_DEFAULTS[feature.id];
       const perm = permissions.get(feature.id) ?? {
@@ -552,11 +549,7 @@ export const GlobalPermissionsManager: React.FC = () => {
         perm.accessLevel !== filterAvailability
       )
         return false;
-      return matchesSearch(query, [
-        feature.label,
-        feature.description,
-        feature.id,
-      ]);
+      return matchesSearch(query, featureSearchFields(feature.id));
     });
   }, [permissions, filterEnabled, filterAvailability, query]);
 
