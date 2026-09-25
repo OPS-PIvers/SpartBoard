@@ -61,7 +61,9 @@ const db = getFirestore();
 
 const linkList = (value) =>
   Array.isArray(value)
-    ? value.filter((l) => l && typeof l === 'object' && typeof l.id === 'string')
+    ? value.filter(
+        (l) => l && typeof l === 'object' && typeof l.id === 'string'
+      )
     : [];
 
 let batch = db.batch();
