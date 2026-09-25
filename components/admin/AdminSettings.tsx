@@ -122,6 +122,8 @@ const TAB_GROUPS = [
         label: 'Organization',
         icon: Building2,
         component: OrganizationPanel,
+        // Fills the viewport and scrolls its own column.
+        fillHeight: true,
       },
       {
         id: 'sub-presets',
@@ -170,6 +172,7 @@ interface TabConfig {
   label: string;
   icon: typeof Shield;
   component: React.FC;
+  fillHeight?: boolean;
 }
 
 const TABS: readonly TabConfig[] = TAB_GROUPS.flatMap<TabConfig>(
@@ -233,6 +236,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
   // Mobile only: the drill-in list (true) vs. the selected panel (false).
   // The desktop rail is always visible, so this flag is inert there.
   const [showMobileMenu, setShowMobileMenu] = useState(true);
+  const activeTabFills =
+    TABS.find((t) => t.id === activeTab)?.fillHeight === true;
 
   // Close modal on Escape key press. Guard: if Escape originates from an input
   // inside a DraggableWindow and reaches this listener (e.g. the widget's own
@@ -390,7 +395,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
             {/* Tab panels (desktop always; mobile when a panel is selected) */}
             <AccessSearchProvider goToTab={setActiveTab}>
               <div
-                className={`${!showMobileMenu ? 'block' : 'hidden md:block'} p-4 md:p-6 h-full`}
+                className={`${!showMobileMenu ? 'block' : 'hidden md:block'} p-4 md:p-6 ${activeTabFills ? 'h-full' : ''}`}
               >
                 {TABS.map((tab) => {
                   const TabComponent = tab.component;
@@ -401,7 +406,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                         id={`panel-${tab.id}`}
                         role="tabpanel"
                         aria-label={tab.label}
-                        className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
+                        className={`animate-in fade-in slide-in-from-bottom-2 duration-300 ${tab.fillHeight ? 'h-full' : ''}`}
                       >
                         <TabComponent />
                       </div>
