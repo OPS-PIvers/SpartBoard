@@ -37,6 +37,7 @@ export function parseChooseSections(raw: unknown): ChooseSection[] {
   });
 }
 
+// Unlike the client mirror, recordings don't count: PLC math drops `artifacts` and never scores media.
 const hasContent = (a: SectionAnswer): boolean =>
   !a.unresponded && (a.answer ?? '').replace(/<[^>]*>/g, '').trim().length > 0;
 
