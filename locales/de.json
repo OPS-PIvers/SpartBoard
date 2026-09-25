@@ -3281,6 +3281,8 @@
     "resume": "Fortsetzen",
     "markStep": "Schritt markieren",
     "markStepHint": "Fügt einen Weiter-Schritt für das Element unter dem Zeiger hinzu (Alt+M)",
+    "move": "Werkzeugleiste verschieben",
+    "moveHint": "Zum Verschieben ziehen. Doppelklick setzt sie wieder nach oben.",
     "finish": "Fertig",
     "discard": "Verwerfen",
     "recording_one": "Aufnahme · {{count}} Schritt",

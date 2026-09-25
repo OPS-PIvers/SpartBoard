@@ -3281,6 +3281,8 @@
     "resume": "Reanudar",
     "markStep": "Marcar paso",
     "markStepHint": "Añade un paso con Siguiente para lo que está bajo el puntero (Alt+M)",
+    "move": "Mover la barra",
+    "moveHint": "Arrastra para moverla. Doble clic para volver a ponerla arriba.",
     "finish": "Terminar",
     "discard": "Descartar",
     "recording_one": "Grabando · {{count}} paso",

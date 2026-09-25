@@ -3281,6 +3281,8 @@
     "resume": "Reprendre",
     "markStep": "Marquer une étape",
     "markStepHint": "Ajoute une étape avec Suivant pour l'élément sous le pointeur (Alt+M)",
+    "move": "Déplacer la barre",
+    "moveHint": "Faites glisser pour la déplacer. Double-cliquez pour la remettre en haut.",
     "finish": "Terminer",
     "discard": "Abandonner",
     "recording_one": "Enregistrement · {{count}} étape",

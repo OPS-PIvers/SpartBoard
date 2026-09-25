@@ -1,7 +1,15 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Circle, Flag, Pause, Play, Square, Trash2 } from 'lucide-react';
+import {
+  Circle,
+  Flag,
+  GripVertical,
+  Pause,
+  Play,
+  Square,
+  Trash2,
+} from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import {
   useTourCapture,
@@ -29,6 +37,45 @@ interface TourRecorderProps {
 const btn =
   'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold text-slate-100 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-50';
 
+export const RECORDER_POS_KEY = 'spart_tour_recorder_pos';
+const KEY_STEP = 20;
+
+interface Pos {
+  x: number;
+  y: number;
+}
+
+const readPos = (): Pos | null => {
+  try {
+    const raw = localStorage.getItem(RECORDER_POS_KEY);
+    const pos = raw ? (JSON.parse(raw) as Partial<Pos>) : null;
+    return pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)
+      ? { x: pos.x as number, y: pos.y as number }
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+const writePos = (pos: Pos | null) => {
+  try {
+    if (pos) localStorage.setItem(RECORDER_POS_KEY, JSON.stringify(pos));
+    else localStorage.removeItem(RECORDER_POS_KEY);
+  } catch {
+    // Storage blocked: the position just isn't remembered.
+  }
+};
+
+/** Keeps the whole pill inside the viewport. */
+const clampPos = (
+  pos: Pos,
+  size: { w: number; h: number },
+  view = { w: window.innerWidth, h: window.innerHeight }
+): Pos => ({
+  x: Math.round(Math.min(Math.max(pos.x, 0), Math.max(view.w - size.w, 0))),
+  y: Math.round(Math.min(Math.max(pos.y, 0), Math.max(view.h - size.h, 0))),
+});
+
 /** Floating recorder pill; the capture never sees it and anchor resolution skips it. */
 export const TourRecorder: React.FC<TourRecorderProps> = ({
   matcher,
@@ -38,6 +85,8 @@ export const TourRecorder: React.FC<TourRecorderProps> = ({
 }) => {
   const { t } = useTranslation();
   const pillRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<Pos | null>(readPos);
+  const drag = useRef<{ dx: number; dy: number; pointer: number } | null>(null);
   const [finishing, setFinishing] = useState(false);
   const finishingRef = useRef(false);
   const finishWith = (finish: () => Promise<TourRecording>) => {
@@ -56,6 +105,70 @@ export const TourRecorder: React.FC<TourRecorderProps> = ({
   const live = status === 'recording' || status === 'paused';
   const message = capture.error ? t(ERROR_KEYS[capture.error]) : null;
 
+  const sizeOf = () => {
+    const r = pillRef.current?.getBoundingClientRect();
+    return { w: r?.width ?? 0, h: r?.height ?? 0 };
+  };
+  const moveTo = (next: Pos, persist: boolean) => {
+    const clamped = clampPos(next, sizeOf());
+    setPos(clamped);
+    if (persist) writePos(clamped);
+  };
+
+  // A remembered spot from a larger window is pulled back on screen.
+  const placed = pos !== null;
+  useEffect(() => {
+    if (!placed) return;
+    const refit = () => setPos((p) => (p ? clampPos(p, sizeOf()) : p));
+    const raf = requestAnimationFrame(refit);
+    window.addEventListener('resize', refit);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', refit);
+    };
+  }, [placed]);
+
+  const onGripDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (e.button !== 0) return;
+    const r = pillRef.current?.getBoundingClientRect();
+    if (!r) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    drag.current = {
+      dx: e.clientX - r.left,
+      dy: e.clientY - r.top,
+      pointer: e.pointerId,
+    };
+  };
+  const onGripMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const d = drag.current;
+    if (!d || d.pointer !== e.pointerId) return;
+    moveTo({ x: e.clientX - d.dx, y: e.clientY - d.dy }, false);
+  };
+  const onGripUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const d = drag.current;
+    if (!d || d.pointer !== e.pointerId) return;
+    drag.current = null;
+    moveTo({ x: e.clientX - d.dx, y: e.clientY - d.dy }, true);
+  };
+  const onGripKey = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    const delta: Record<string, [number, number]> = {
+      ArrowLeft: [-KEY_STEP, 0],
+      ArrowRight: [KEY_STEP, 0],
+      ArrowUp: [0, -KEY_STEP],
+      ArrowDown: [0, KEY_STEP],
+    };
+    const step = delta[e.key];
+    const r = pillRef.current?.getBoundingClientRect();
+    if (!step || !r) return;
+    e.preventDefault();
+    moveTo({ x: r.left + step[0], y: r.top + step[1] }, true);
+  };
+  const resetPos = () => {
+    setPos(null);
+    writePos(null);
+  };
+
   return createPortal(
     <div
       ref={pillRef}
@@ -63,10 +176,32 @@ export const TourRecorder: React.FC<TourRecorderProps> = ({
       aria-label={t('glRecorder.label')}
       data-tour-ignore=""
       data-testid="tour-recorder"
-      className="fixed bottom-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1 rounded-2xl bg-slate-900/90 px-2 py-1.5 text-white shadow-2xl ring-1 ring-white/15 backdrop-blur-xl"
-      style={{ zIndex: Z_INDEX.tour }}
+      className={`fixed flex flex-col items-center gap-1 rounded-2xl bg-slate-900/90 px-2 py-1.5 text-white shadow-2xl ring-1 ring-white/15 backdrop-blur-xl ${
+        pos ? '' : 'left-1/2 -translate-x-1/2'
+      }`}
+      style={{
+        zIndex: Z_INDEX.tour,
+        ...(pos
+          ? { left: pos.x, top: pos.y }
+          : { top: 'calc(1rem + env(safe-area-inset-top, 0px))' }),
+      }}
     >
       <div className="flex items-center gap-1">
+        <button
+          type="button"
+          data-testid="tour-recorder-grip"
+          className="flex cursor-grab touch-none items-center self-stretch rounded-full px-1 text-slate-300 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 active:cursor-grabbing"
+          aria-label={t('glRecorder.move')}
+          title={t('glRecorder.moveHint')}
+          onPointerDown={onGripDown}
+          onPointerMove={onGripMove}
+          onPointerUp={onGripUp}
+          onPointerCancel={onGripUp}
+          onKeyDown={onGripKey}
+          onDoubleClick={resetPos}
+        >
+          <GripVertical className="h-4 w-4" aria-hidden="true" />
+        </button>
         {live ? (
           <span role="status" className="px-2 text-sm font-semibold">
             {single && status === 'recording'
