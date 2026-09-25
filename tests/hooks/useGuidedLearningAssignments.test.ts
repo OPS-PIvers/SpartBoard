@@ -53,7 +53,10 @@ vi.mock('./useGuidedLearningSession', async () => {
   const actual = await vi.importActual<
     typeof import('@/hooks/useGuidedLearningSession')
   >('@/hooks/useGuidedLearningSession');
-  return { isAnswerCorrect: actual.isAnswerCorrect };
+  return {
+    isAnswerCorrect: actual.isAnswerCorrect,
+    dedupeStepsById: actual.dedupeStepsById,
+  };
 });
 
 const TEACHER_UID = 'teacher-1';

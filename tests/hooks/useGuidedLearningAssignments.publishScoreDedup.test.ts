@@ -59,7 +59,10 @@ vi.mock('@/hooks/useGuidedLearningSession', async () => {
   const actual = await vi.importActual<
     typeof import('@/hooks/useGuidedLearningSession')
   >('@/hooks/useGuidedLearningSession');
-  return { isAnswerCorrect: actual.isAnswerCorrect };
+  return {
+    isAnswerCorrect: actual.isAnswerCorrect,
+    dedupeStepsById: actual.dedupeStepsById,
+  };
 });
 
 const TEACHER_UID = 'teacher-dedup';
@@ -334,6 +337,91 @@ describe('useGuidedLearningAssignments — publishAssignmentScores duplicate-ans
     );
     if (!responseCall) throw new Error('expected batch.update on response ref');
     expect((responseCall[1] as { score: number }).score).toBe(100);
+  });
+});
+
+describe('useGuidedLearningAssignments — publishAssignmentScores duplicate STEP definition', () => {
+  // Distinct from the "duplicate answer" suite above: here `glData.steps`
+  // itself (the canonical set, not a response's `answers` array) carries the
+  // same step id twice with a DIFFERING correctAnswer — the shape of a
+  // Drive-sync/arrayUnion race on the set doc. `createSession` serves
+  // students the FIRST occurrence via `dedupeStepsById` (first-wins), so
+  // grading at publish time must resolve the same occurrence or it silently
+  // scores the student against a question they were never served. Mirrors
+  // the bug fixed for Quiz/VA in #3327 (`buildResponseGradingContext`).
+  const batchUpdate = vi.fn();
+  const batchCommit = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockCollection.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockOnSnapshot.mockImplementation(
+      (_q: unknown, onNext: (snap: { docs: [] }) => void) => {
+        onNext({ docs: [] });
+        return () => undefined;
+      }
+    );
+    batchUpdate.mockReset();
+    batchCommit.mockReset().mockResolvedValue(undefined);
+    mockWriteBatch.mockReturnValue({
+      update: batchUpdate,
+      commit: batchCommit,
+    });
+  });
+
+  it('grades against the FIRST occurrence of a duplicated step id, matching what the student was served', async () => {
+    // s0 appears twice with different answer keys: first copy accepts 'a',
+    // the duplicate (simulating a later, divergent sync write) accepts 'b'.
+    // The student answered 'a' — correct against the served (first) copy.
+    const set = mcSet([
+      mcStep('s0', 'a', ['a', 'b']),
+      mcStep('s0', 'b', ['a', 'b']), // divergent duplicate — last in the array
+    ]);
+    const refStudent = { id: 'r-dup-step-def' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          ref: refStudent,
+          data: () => ({
+            studentAnonymousId: 'u1',
+            startedAt: 1,
+            completedAt: 2,
+            score: null,
+            answers: [{ stepId: 's0', answer: 'a', isCorrect: null }],
+          }),
+        },
+      ],
+    });
+
+    const { result } = renderHook(() =>
+      useGuidedLearningAssignments(TEACHER_UID)
+    );
+    await act(async () => {
+      await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        set,
+        'score-only'
+      );
+    });
+
+    const responseCall = batchUpdate.mock.calls.find(
+      ([ref]) => ref === refStudent
+    );
+    if (!responseCall) throw new Error('expected batch.update on response ref');
+    const patch = responseCall[1] as {
+      score: number;
+      answers: Array<{ stepId: string; isCorrect: boolean }>;
+    };
+    // Deduped to one gradable step (denom=1); graded against the FIRST
+    // occurrence's key ('a'), which the student answered correctly.
+    // Last-wins would grade against 'b' and mark this wrong (score 0).
+    expect(patch.answers[0].isCorrect).toBe(true);
+    expect(patch.score).toBe(100);
   });
 });
 
