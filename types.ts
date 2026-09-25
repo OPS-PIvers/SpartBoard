@@ -3532,6 +3532,8 @@ export interface QuizQuestion {
   incorrectAnswers: string[];
   /** FIB only: other answers also marked correct (e.g. "colour" beside "color"). Never sent to students. */
   alternateAnswers?: string[];
+  /** MC/MA: editor-only display order over `[right options..., incorrectAnswers...]`; students still get a shuffle. */
+  optionOrder?: number[];
   /**
    * Set by a document import that read the question but not its key
    * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D5). The question saves and prints
@@ -8743,6 +8745,8 @@ export type GlobalFeature =
   | 'plc-norming-flags'
   /** Choose-all-that-apply quiz questions in the quiz editor and AI drafting. */
   | 'quiz-choose-all'
+  /** Quiz multiple choice editor as one option list with a correct-answer marker per option. */
+  | 'quiz-choice-editor'
   /** "Also accept" alternate answers on fill-in-the-blank quiz questions. */
   | 'quiz-fib-alternates'
   /** "View full screen" toggle on large pop-ups (editors, graders). */
