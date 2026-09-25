@@ -125,6 +125,21 @@ describe('callout handle maths', () => {
     expect(out.x + out.w).toBeLessThanOrEqual(container.w);
   });
 
+  it('keeps both sides above the minimum when Shift holds a wide aspect', () => {
+    const wide = { x: 100, y: 100, w: 300, h: 60 };
+    const r = resizeCalloutBox(
+      wide,
+      'e',
+      { x: 0, y: 0 },
+      {
+        ...plain,
+        keepAspect: true,
+      }
+    );
+    expect(r.h).toBeGreaterThanOrEqual(CALLOUT_MIN_PX.h);
+    expect(r.w / r.h).toBeCloseTo(5);
+  });
+
   it('converts a container rect to an image-% box', () => {
     const g = {
       containerPxToImagePct: (x: number, y: number) => ({

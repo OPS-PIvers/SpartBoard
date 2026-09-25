@@ -99,6 +99,10 @@ export function resizeCalloutBox(
     } else {
       w = h * aspect;
     }
+    // The aspect can drag the other side under its floor; grow both back to it.
+    const up = Math.max(1, CALLOUT_MIN_PX.w / w, CALLOUT_MIN_PX.h / h);
+    w *= up;
+    h *= up;
   }
   w = Math.min(w, container.w);
   h = Math.min(h, container.h);
