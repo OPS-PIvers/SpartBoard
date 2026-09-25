@@ -4412,6 +4412,8 @@
     "resume": "Resume",
     "markStep": "Mark step",
     "markStepHint": "Adds a Next step for what the pointer is over (Alt+M)",
+    "move": "Move toolbar",
+    "moveHint": "Drag to move. Double-click to put it back at the top.",
     "finish": "Finish",
     "discard": "Discard",
     "recording_one": "Recording · {{count}} step",
