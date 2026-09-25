@@ -15,6 +15,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
   type RulesTestContext,
+  type TokenOptions,
 } from '@firebase/rules-unit-testing';
 import {
   collection,
@@ -62,7 +63,7 @@ const hostPort = (envValue: string | undefined, fallbackPort: number) => {
   };
 };
 
-const teacherToken = (email: string) => ({
+const teacherToken = (email: string): TokenOptions => ({
   email,
   email_verified: true,
   studentRole: false,
