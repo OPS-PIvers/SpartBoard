@@ -157,6 +157,7 @@ interface StoredAnswer {
   status?: unknown;
   unresponded?: unknown;
   takeIndex?: unknown;
+  paperTranscript?: unknown;
   artifacts?: unknown;
 }
 
@@ -232,6 +233,13 @@ export function extractNormingContent(
           ? audio.durationMs
           : null,
     };
+  }
+  if (
+    slot === 'primary' &&
+    take.paperTranscript === 'pending' &&
+    !str(take.answer).trim()
+  ) {
+    throw notAvailable('This answer is still being transcribed.');
   }
   const textArtifact = artifacts.find((a) => a?.kind === 'text' && inSlot(a));
   const raw =
