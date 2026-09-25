@@ -7,7 +7,14 @@
  */
 
 import type { PageViewport } from 'pdfjs-dist';
-import type { RasterPage, RectPx } from './paperSheetReader';
+import type { RectMm } from './paperSheetLayout';
+import {
+  cropWrittenBox,
+  type AffineMmToPx,
+  type GrayCrop,
+  type RasterPage,
+  type RectPx,
+} from './paperSheetReader';
 
 /** Dots per inch pages are rasterized at; 200 keeps a 5 mm bubble ~40 px wide. */
 export const SCAN_RASTER_DPI = 200;
@@ -15,6 +22,10 @@ export const SCAN_RASTER_DPI = 200;
 export const PDF_SCALE = SCAN_RASTER_DPI / 72;
 /** Longest edge of a review crop, in pixels. */
 export const CROP_MAX_EDGE_PX = 640;
+/** Largest handwriting crop the Storage rule accepts (1F). */
+export const WRITTEN_CROP_MAX_BYTES = 2 * 1024 * 1024;
+/** WebP quality for handwriting crops; grayscale pencil stays legible well below 1. */
+export const WRITTEN_CROP_QUALITY = 0.8;
 
 export interface RasterizedPage {
   /** 1-based page in the file. */
@@ -41,6 +52,8 @@ export interface RasterDeps {
   loadPdf: (file: Blob) => Promise<PdfDocumentLike>;
   loadImage: (file: Blob) => Promise<ImageBitmap>;
 }
+
+export type GrayEncoder = (crop: GrayCrop, quality: number) => Promise<Blob>;
 
 export interface PdfViewport {
   width: number;
@@ -130,6 +143,82 @@ async function domLoadPdf(file: Blob): Promise<PdfDocumentLike> {
     },
     destroy: () => task.destroy(),
   };
+}
+
+/** Canvas WebP encode; a browser without a WebP encoder hands back PNG, which Storage also accepts. */
+function domEncodeGray(crop: GrayCrop, quality: number): Promise<Blob> {
+  const canvas = document.createElement('canvas');
+  canvas.width = crop.width;
+  canvas.height = crop.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return Promise.reject(new Error('Canvas is unavailable.'));
+  const image = ctx.createImageData(crop.width, crop.height);
+  for (let i = 0; i < crop.data.length; i += 1) {
+    const o = i * 4;
+    image.data[o] = crop.data[i];
+    image.data[o + 1] = crop.data[i];
+    image.data[o + 2] = crop.data[i];
+    image.data[o + 3] = 255;
+  }
+  ctx.putImageData(image, 0, 0);
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        canvas.width = 0;
+        canvas.height = 0;
+        if (blob) resolve(blob);
+        else reject(new Error('Could not encode the handwriting crop.'));
+      },
+      'image/webp',
+      quality
+    );
+  });
+}
+
+/** Half-size box downsample, for the rare crop that encodes past the Storage cap. */
+function halve(crop: GrayCrop): GrayCrop {
+  const width = Math.max(1, Math.floor(crop.width / 2));
+  const height = Math.max(1, Math.floor(crop.height / 2));
+  const data = new Uint8Array(width * height);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const at = (dx: number, dy: number) =>
+        crop.data[
+          Math.min(crop.height - 1, y * 2 + dy) * crop.width +
+            Math.min(crop.width - 1, x * 2 + dx)
+        ];
+      data[y * width + x] = (at(0, 0) + at(1, 0) + at(0, 1) + at(1, 1)) >> 2;
+    }
+  }
+  return { width, height, data };
+}
+
+/** Encode a crop under `WRITTEN_CROP_MAX_BYTES`, halving its resolution until it fits. */
+export async function encodeWrittenCrop(
+  crop: GrayCrop,
+  encode: GrayEncoder = domEncodeGray
+): Promise<Blob> {
+  let current = crop;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const blob = await encode(current, WRITTEN_CROP_QUALITY);
+    if (blob.size <= WRITTEN_CROP_MAX_BYTES) return blob;
+    current = halve(current);
+  }
+  throw new Error('The handwriting crop is too large to upload.');
+}
+
+/**
+ * The handwriting in one box as an upload-ready blob (D21): deskewed, upright,
+ * grayscale, ~150 dpi. Call it for every box, blank ones too (D22), with the
+ * `mmToPx` of the read that found it.
+ */
+export function cropWrittenBlob(
+  page: RasterPage,
+  mmToPx: AffineMmToPx,
+  boxMm: RectMm,
+  encode: GrayEncoder = domEncodeGray
+): Promise<Blob> {
+  return encodeWrittenCrop(cropWrittenBox(page, mmToPx, boxMm), encode);
 }
 
 export const domRasterDeps: RasterDeps = {

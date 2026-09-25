@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   PDF_SCALE,
   SCAN_RASTER_DPI,
+  WRITTEN_CROP_MAX_BYTES,
+  cropWrittenBlob,
+  encodeWrittenCrop,
   rasterizeScan,
   type PdfDocumentLike,
   type RasterDeps,
@@ -120,5 +123,65 @@ describe('rasterizeScan', () => {
     for await (const page of rasterizeScan(untyped, deps(pdf, [])))
       pages.push(page);
     expect(pages).toHaveLength(1);
+  });
+});
+
+describe('handwriting crops', () => {
+  const gray = (width: number, height: number) => ({
+    width,
+    height,
+    data: new Uint8Array(width * height).fill(200),
+  });
+
+  it('encodes the crop once when it fits under the Storage cap', async () => {
+    const encode = vi.fn(() =>
+      Promise.resolve(new Blob(['x'], { type: 'image/webp' }))
+    );
+    const blob = await encodeWrittenCrop(gray(40, 20), encode);
+    expect(blob.type).toBe('image/webp');
+    expect(encode).toHaveBeenCalledTimes(1);
+  });
+
+  it('halves the resolution until the blob fits', async () => {
+    const sizes: number[] = [];
+    const encode = vi.fn((crop: { width: number }) => {
+      sizes.push(crop.width);
+      const bytes = crop.width >= 40 ? WRITTEN_CROP_MAX_BYTES + 1 : 10;
+      return Promise.resolve(new Blob([new Uint8Array(bytes)]));
+    });
+    const blob = await encodeWrittenCrop(gray(80, 20), encode);
+    expect(sizes).toEqual([80, 40, 20]);
+    expect(blob.size).toBe(10);
+  });
+
+  it('gives up rather than upload a crop Storage would refuse', async () => {
+    const encode = () =>
+      Promise.resolve(new Blob([new Uint8Array(WRITTEN_CROP_MAX_BYTES + 1)]));
+    await expect(encodeWrittenCrop(gray(80, 20), encode)).rejects.toThrow(
+      /too large/
+    );
+  });
+
+  it('crops at 150 dpi with a 2 mm margin before encoding', async () => {
+    let seen: { width: number; height: number } | null = null;
+    const page = {
+      width: 100,
+      height: 100,
+      data: new Uint8ClampedArray(100 * 100 * 4).fill(255),
+    };
+    await cropWrittenBlob(
+      page,
+      { a: 1, b: 0, c: 0, d: 0, e: 1, f: 0 },
+      { x: 10, y: 10, w: 20, h: 10 },
+      (crop) => {
+        seen = crop;
+        return Promise.resolve(new Blob(['x']));
+      }
+    );
+    const scale = 150 / 25.4;
+    expect(seen).toMatchObject({
+      width: Math.round(24 * scale),
+      height: Math.round(14 * scale),
+    });
   });
 });
