@@ -84,6 +84,7 @@ import {
   type MeetingStep,
 } from './PlcMeetingSteps';
 import { PlcMeetingRecordView } from './PlcMeetingRecordView';
+import { pickInProgressMeeting } from '@/components/plc/home/cards/commonAssessmentBannerSelectors';
 
 interface PlcMeetingModeProps {
   plc: Plc;
@@ -104,8 +105,46 @@ export const PlcMeetingMode: React.FC<PlcMeetingModeProps> = ({
   if (meetingId) {
     return <PlcMeetingRecordView plc={plc} meetingId={meetingId} />;
   }
-  return <PlcMeetingLiveFlow plc={plc} onNavigate={onNavigate} />;
+  return <PlcMeetingLive plc={plc} onNavigate={onNavigate} />;
 };
+
+/** Opens the live flow on the team's in-progress meeting, if one exists. */
+const PlcMeetingLive: React.FC<{
+  plc: Plc;
+  onNavigate: (section: PlcSectionId) => void;
+}> = ({ plc, onNavigate }) => {
+  const { meetings, loading } = usePlcMeetings(plc.id);
+  const [resume, setResume] = useState<PlcMeeting | null | undefined>(
+    undefined
+  );
+  // Pick the meeting to resume once, so later snapshots don't reset the flow.
+  if (resume === undefined && !loading) {
+    setResume(pickInProgressMeeting(meetings));
+  }
+  if (resume === undefined) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[240px] text-slate-400">
+        <Loader2 className="w-6 h-6 animate-spin" aria-hidden="true" />
+      </div>
+    );
+  }
+  return (
+    <PlcMeetingLiveFlow
+      key={resume?.id ?? 'new'}
+      plc={plc}
+      resume={resume}
+      onNavigate={onNavigate}
+    />
+  );
+};
+
+/** The furthest step a resumed meeting had reached. */
+function resumeStep(meeting: PlcMeeting | null): MeetingStep {
+  if (!meeting || meeting.assessmentIds.length === 0) return 'pick';
+  if (meeting.actionItems.length > 0) return 'act';
+  if (meeting.decisions.length > 0) return 'decide';
+  return 'review';
+}
 
 // ===========================================================================
 // Live guided flow
@@ -113,13 +152,15 @@ export const PlcMeetingMode: React.FC<PlcMeetingModeProps> = ({
 
 const PlcMeetingLiveFlow: React.FC<{
   plc: Plc;
+  resume: PlcMeeting | null;
   onNavigate: (section: PlcSectionId) => void;
-}> = ({ plc, onNavigate }) => {
+}> = ({ plc, resume, onNavigate }) => {
   const { t } = useTranslation();
   const { user, canAccessFeature } = useAuth();
   const { addToast } = useDashboard();
   const { showConfirm } = useDialog();
-  const { createMeeting, updateMeeting, saveMeeting } = usePlcActions();
+  const { createMeeting, updateMeeting, saveMeeting, deleteMeeting } =
+    usePlcActions();
 
   const {
     data: aggregates,
@@ -161,16 +202,30 @@ const PlcMeetingLiveFlow: React.FC<{
   }, [cards]);
 
   // --- Live working state -------------------------------------------------
-  const [step, setStep] = useState<MeetingStep>('pick');
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [decisions, setDecisions] = useState<Decision[]>([]);
-  const [actionItems, setActionItems] = useState<ActionItem[]>([]);
-  const [meetingDocId, setMeetingDocId] = useState<string | null>(null);
+  const [step, setStep] = useState<MeetingStep>(() => resumeStep(resume));
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    () => new Set(resume?.assessmentIds ?? [])
+  );
+  const [decisions, setDecisions] = useState<Decision[]>(
+    () => resume?.decisions ?? []
+  );
+  const [actionItems, setActionItems] = useState<ActionItem[]>(
+    () => resume?.actionItems ?? []
+  );
+  const [meetingDocId, setMeetingDocId] = useState<string | null>(
+    resume?.id ?? null
+  );
   const [saving, setSaving] = useState(false);
   const [savedMeetingId, setSavedMeetingId] = useState<string | null>(null);
 
   const currentIndex = MEETING_STEP_ORDER.indexOf(step);
-  const [furthestIndex, setFurthestIndex] = useState(0);
+  const [furthestIndex, setFurthestIndex] = useState(() =>
+    MEETING_STEP_ORDER.indexOf(resumeStep(resume))
+  );
+  const pastMeetingCount = useMemo(
+    () => meetings.filter((m) => m.status === 'completed').length,
+    [meetings]
+  );
 
   const selectedCards = useMemo(
     () =>
@@ -322,6 +377,13 @@ const PlcMeetingLiveFlow: React.FC<{
         actionItems,
       });
       setSavedMeetingId(id);
+      // Older drafts left in progress would keep the Home card on Resume.
+      for (const m of meetings) {
+        if (m.status !== 'in-progress' || m.id === id) continue;
+        void deleteMeeting(m.id).catch((err: unknown) =>
+          logError('PlcMeetingMode.discardDraft', err, { plcId: plc.id })
+        );
+      }
       addToast(
         t('plcDashboard.meeting.saved', {
           defaultValue:
@@ -345,6 +407,8 @@ const PlcMeetingLiveFlow: React.FC<{
     ensureMeetingDoc,
     decisions,
     saveMeeting,
+    deleteMeeting,
+    meetings,
     selectedIds,
     actionItems,
     addToast,
@@ -368,6 +432,11 @@ const PlcMeetingLiveFlow: React.FC<{
       }
     );
     if (!ok) return;
+    if (meetingDocId && !savedMeetingId) {
+      void deleteMeeting(meetingDocId).catch((err: unknown) =>
+        logError('PlcMeetingMode.discardDraft', err, { plcId: plc.id })
+      );
+    }
     setStep('pick');
     setSelectedIds(new Set());
     setDecisions([]);
@@ -375,7 +444,7 @@ const PlcMeetingLiveFlow: React.FC<{
     setMeetingDocId(null);
     setSavedMeetingId(null);
     setFurthestIndex(0);
-  }, [showConfirm, t]);
+  }, [showConfirm, meetingDocId, savedMeetingId, deleteMeeting, plc.id, t]);
 
   // --- Loading / error ----------------------------------------------------
   if (aggregatesLoading || assessmentsLoading) {
@@ -432,7 +501,7 @@ const PlcMeetingLiveFlow: React.FC<{
             <History className="w-4 h-4" aria-hidden="true" />
             {t('plcDashboard.meeting.pastMeetings', {
               defaultValue: 'Past meetings ({{count}})',
-              count: meetings.length,
+              count: pastMeetingCount,
             })}
           </button>
         </div>
