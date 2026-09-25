@@ -240,7 +240,7 @@ describe('QuickCreateBar', () => {
       screen.queryByRole('button', { name: /add a doc/i })
     ).not.toBeInTheDocument();
     // The calm read-only affordance stands in their place.
-    expect(screen.getByText(/viewer — read only/i)).toBeInTheDocument();
+    expect(screen.getByText(/^view only$/i)).toBeInTheDocument();
   });
 
   it('shows all create affordances and no read-only badge for a non-viewer member', () => {
@@ -249,6 +249,6 @@ describe('QuickCreateBar', () => {
     expect(
       screen.getByRole('button', { name: /assign quiz/i })
     ).toBeInTheDocument();
-    expect(screen.queryByText(/viewer — read only/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^view only$/i)).not.toBeInTheDocument();
   });
 });
