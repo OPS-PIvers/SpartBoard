@@ -129,6 +129,14 @@ export function flashcardsFromRows(
     DEFINITION_HEADERS.has((first[1] ?? '').toLowerCase());
   const dataRows = hasHeader ? rows.slice(1) : rows;
 
+  if (hasHeader && first != null) {
+    // Header-sniffing is lexical and can false-positive on a genuine first
+    // card — warn so a stripped real card isn't lost with no trace.
+    warnings.push(
+      `The first row ("${first[0] ?? ''}" / "${first[1] ?? ''}") looked like a column header and was not imported as a card. If that was meant to be a card, add it back manually.`
+    );
+  }
+
   let incompleteRows = 0;
   let extraColumnRows = 0;
   let truncatedTerms = 0;

@@ -63,4 +63,15 @@ describe('flashcard import', () => {
       definition: 'Answer',
     });
   });
+
+  it('warns when a genuine first card is stripped as a false-positive header', () => {
+    // "Term"/"Answer" happens to read like a header, but here it's the
+    // user's real first card, followed by a second real card.
+    const result = parseFlashcardText('Term\tAnswer\nCat\tFeline');
+
+    expect(
+      result.cards.map(({ term, definition }) => [term, definition])
+    ).toEqual([['Cat', 'Feline']]);
+    expect(result.warnings.join(' ')).toMatch(/header/i);
+  });
 });
