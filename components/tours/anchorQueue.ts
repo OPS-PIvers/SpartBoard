@@ -171,23 +171,33 @@ export function queueDisplayState(
   return inRegistry(item.anchorId, registry) ? 'mapped' : 'waiting-deploy';
 }
 
-/** The step anchor ref a rebind writes, or null when this build doesn't know the id. */
+/** The step anchor ref a rebind writes; null when this build lacks the id or a per-type anchor lacks its type. */
 export function reboundAnchorRef(
   item: Pick<TourAnchorQueueItem, 'anchorId' | 'widgetType'>,
   registry: Registry = TOUR_ANCHORS
 ): string | null {
   const id = item.anchorId;
   if (!id || !inRegistry(id, registry)) return null;
-  return registry[id].perWidgetType && item.widgetType
-    ? `${id}:${item.widgetType}`
-    : id;
+  if (!registry[id].perWidgetType) return id;
+  // A bare per-type ref would match every widget's copy and pick the first.
+  return item.widgetType ? `${id}:${item.widgetType}` : null;
 }
 
 export const canRebind = (
   item: TourAnchorQueueItem,
   registry: Registry = TOUR_ANCHORS
 ) =>
-  queueDisplayState(item, registry) === 'mapped' && item.occurrences.length > 0;
+  queueDisplayState(item, registry) === 'mapped' &&
+  item.occurrences.length > 0 &&
+  reboundAnchorRef(item, registry) !== null;
+
+/** Mapped, but only a person can pick the widget type the steps meant. */
+export const needsTypeToRebind = (
+  item: TourAnchorQueueItem,
+  registry: Registry = TOUR_ANCHORS
+) =>
+  queueDisplayState(item, registry) === 'mapped' &&
+  reboundAnchorRef(item, registry) === null;
 
 /** Writes `anchorRef` into the set's steps still unmapped under this fingerprint. */
 export function rebindSteps(

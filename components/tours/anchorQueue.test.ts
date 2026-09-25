@@ -5,6 +5,7 @@ import {
   COPY_INSTRUCTION,
   anchorFingerprint,
   canRebind,
+  needsTypeToRebind,
   fingerprintSource,
   formatUnmappedAnchors,
   isFingerprint,
@@ -133,6 +134,24 @@ describe('queueDisplayState and rebind gating', () => {
     expect(reboundAnchorRef(item({ anchorId: 'dock.item' }), registry)).toBe(
       'dock.item:time-tool'
     );
+    expect(
+      reboundAnchorRef(
+        item({ anchorId: 'dock.item', widgetType: null }),
+        registry
+      )
+    ).toBeNull();
+    expect(
+      canRebind(
+        item({ status: 'pr-open', anchorId: 'dock.item', widgetType: null }),
+        registry
+      )
+    ).toBe(false);
+    expect(
+      needsTypeToRebind(
+        item({ status: 'pr-open', anchorId: 'dock.item', widgetType: null }),
+        registry
+      )
+    ).toBe(true);
     expect(reboundAnchorRef(item({ anchorId: 'nope' }), registry)).toBeNull();
     expect(
       reboundAnchorRef(item({ anchorId: 'toString' }), registry)

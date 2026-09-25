@@ -6,6 +6,7 @@ import type { GuidedLearningSaveGuard } from '@/components/widgets/GuidedLearnin
 import { TOOLS } from '@/config/tools';
 import {
   canRebind,
+  needsTypeToRebind,
   formatUnmappedAnchors,
   queueDisplayState,
   type QueueDisplayState,
@@ -190,6 +191,11 @@ export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
                 </div>
                 {meta.length > 0 && (
                   <p className="text-slate-500">{meta.join(' · ')}</p>
+                )}
+                {needsTypeToRebind(item) && (
+                  <p className="text-amber-700">
+                    {t('tourHealth.unmapped.needsType')}
+                  </p>
                 )}
                 {state === 'needs-human' && item.reason && (
                   <p className="text-red-700">{item.reason}</p>

@@ -3621,6 +3621,7 @@
       "rebind_other": "Reasignar {{count}} pasos",
       "rebinding": "Reasignando...",
       "rebindFailed": "No se pudo reasignar. Inténtalo de nuevo.",
+      "needsType": "Este botón cambia según el widget, así que ajusta estos pasos en Studio.",
       "openLabel": "Abrir en Studio: {{title}}",
       "status": {
         "open": "Abierto",

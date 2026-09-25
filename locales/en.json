@@ -4752,6 +4752,7 @@
       "rebind_other": "Rebind {{count}} steps",
       "rebinding": "Rebinding...",
       "rebindFailed": "Couldn't rebind. Try again.",
+      "needsType": "This button differs per widget, so set these steps in Studio.",
       "openLabel": "Open in Studio: {{title}}",
       "status": {
         "open": "Open",

@@ -3621,6 +3621,7 @@
       "rebind_other": "Réassocier {{count}} étapes",
       "rebinding": "Réassociation...",
       "rebindFailed": "Impossible de réassocier. Réessayez.",
+      "needsType": "Ce bouton change selon le widget, réglez donc ces étapes dans Studio.",
       "openLabel": "Ouvrir dans Studio : {{title}}",
       "status": {
         "open": "Ouverte",

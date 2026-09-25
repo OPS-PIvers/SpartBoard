@@ -3621,6 +3621,7 @@
       "rebind_other": "{{count}} Schritte neu verknüpfen",
       "rebinding": "Wird neu verknüpft...",
       "rebindFailed": "Neu verknüpfen fehlgeschlagen. Versuche es erneut.",
+      "needsType": "Diese Schaltfläche gibt es je Widget, also die Schritte im Studio festlegen.",
       "openLabel": "Im Studio öffnen: {{title}}",
       "status": {
         "open": "Offen",
