@@ -25,7 +25,9 @@ export const SlideBackdrop: React.FC<SlideBackdropProps> = ({
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    // The previous slide's video can still be mounted for one render; skip it.
     if (kind !== 'video' || !video || !canvas) return;
+    if (video.getAttribute('src') !== url) return;
     const draw = () => {
       const w = video.videoWidth;
       const h = video.videoHeight;
