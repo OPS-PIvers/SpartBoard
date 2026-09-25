@@ -6,6 +6,7 @@
 
 import type {
   QuizData,
+  QuizOrderEntry,
   QuizResponseAnswer,
   QuizSection,
   QuizSessionBankSlot,
@@ -343,4 +344,35 @@ export function sectionQuestionCounts(
     }
   }
   return counts;
+}
+
+/** `order` and `sections` cut down to the questions kept, dropping a section left with none. */
+export function sectionsForQuestions(
+  quiz: Pick<QuizData, 'questions' | 'order' | 'sections'>
+): Pick<QuizData, 'order' | 'sections'> {
+  if (!quiz.sections?.length || !quiz.order) {
+    return { order: quiz.order, sections: quiz.sections };
+  }
+  const kept = new Set(quiz.questions.map((q) => q.id));
+  const order: QuizOrderEntry[] = [];
+  let heading: QuizOrderEntry | null = null;
+  for (const entry of quiz.order) {
+    if (entry.kind === 'section') heading = entry;
+    else if (entry.kind === 'slot' || kept.has(entry.id)) {
+      if (heading) order.push(heading);
+      heading = null;
+      order.push(entry);
+    }
+  }
+  const placed = new Set(
+    order.filter((e) => e.kind === 'section').map((e) => e.id)
+  );
+  const sections = quiz.sections.filter((s) => placed.has(s.id));
+  return {
+    order:
+      sections.length > 0 || order.some((e) => e.kind === 'slot')
+        ? order
+        : undefined,
+    sections: sections.length > 0 ? sections : undefined,
+  };
 }

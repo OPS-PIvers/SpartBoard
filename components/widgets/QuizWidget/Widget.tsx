@@ -1415,6 +1415,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       // tile is offered on the quiz import only.
       canImportDocuments,
       canSuggestTargets: canAccessFeature('quiz-import-suggested-targets'),
+      canUseSections: canAccessFeature('quiz-sections'),
       pickDocument,
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
       canUseChooseAll: canAccessFeature('quiz-choose-all'),

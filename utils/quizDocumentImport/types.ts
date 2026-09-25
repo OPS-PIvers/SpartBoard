@@ -71,6 +71,8 @@ export interface QuestionRef {
   sectionName?: string;
   /** The number the heading printed, e.g. 2 for "Section 2". */
   sectionNumber?: number;
+  /** The paragraph printed between the heading and its first question (E16). */
+  sectionDirections?: string;
   /** The item number as printed within its section. */
   item: number;
   /** 'A' / 'B' for a Part A / Part B item. */
@@ -133,6 +135,8 @@ export interface ExtractedQuestion {
   suggestUntick?: string;
   /** A shared lead-in or passage, by `ExtractedText.id` (R25). */
   sharedTextId?: string;
+  /** The section's directions as copied to the front of `text`, which a real section takes back (E16). */
+  directionsLeadIn?: string;
   text: string;
   type: QuizQuestionType;
   /** Empty for anything that isn't multiple choice. */
