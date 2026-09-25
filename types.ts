@@ -3254,10 +3254,7 @@ export interface StickerBookConfig {
   uploadedUrls?: string[];
   favorites?: string[];
   stickerOrder?: string[];
-  cardColor?: string;
-  cardOpacity?: number;
-  fontFamily?: GlobalFontFamily;
-  fontColor?: string;
+  // No appearance fields: the sticker face reads no Surface or Typography config.
 }
 
 export interface GlobalSticker {
@@ -6517,8 +6514,7 @@ export interface VideoActivityAttemptLedger {
 export interface TalkingToolConfig {
   cardColor?: string;
   cardOpacity?: number;
-  fontFamily?: GlobalFontFamily;
-  fontColor?: string;
+  // No fontFamily/fontColor: Widget.tsx reads only the surface keys.
 }
 
 export interface NextUpQueueItem {
