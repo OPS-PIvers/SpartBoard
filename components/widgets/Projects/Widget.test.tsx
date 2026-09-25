@@ -38,7 +38,6 @@ vi.mock('./components/ProjectsManager', () => ({
 }));
 
 const setStepState = vi.fn().mockResolvedValue(undefined);
-const setPeerVisibility = vi.fn().mockResolvedValue(undefined);
 const updateWidget = vi.fn();
 
 const link = {
@@ -96,7 +95,6 @@ const mockRun = (overrides: Record<string, unknown> = {}) =>
     loading: false,
     error: null,
     setStepState,
-    setPeerVisibility,
     ensureRun: vi.fn(),
     updateRun: vi.fn(),
     importGroups: vi.fn(),
@@ -229,15 +227,13 @@ describe('ProjectsWidget', () => {
     expect(screen.queryByText('Help')).not.toBeInTheDocument();
   });
 
-  it('toggles whether students see other groups from the actions menu', async () => {
+  it('offers no way to show students other groups', async () => {
     render(<ProjectsWidget widget={widget()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Project actions' }));
-    fireEvent.click(
-      await screen.findByRole('menuitem', {
-        name: /Students see other groups: on/,
-      })
-    );
-    await waitFor(() => expect(setPeerVisibility).toHaveBeenCalledWith(false));
+    await screen.findByRole('menuitem', { name: 'Manage groups' });
+    expect(
+      screen.queryByRole('menuitem', { name: /other groups/i })
+    ).not.toBeInTheDocument();
   });
 
   it('shows only the groups in the board class', () => {
@@ -371,18 +367,35 @@ describe('ProjectsWidget', () => {
   it('collapses to one bar per group and remembers it on the board (D37)', () => {
     render(<ProjectsWidget widget={widget({ boardCollapsed: true })} />);
     expect(screen.getByText('1/2')).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Group 1, Research, Done' })
-    ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Show as grid' }));
+    expect(screen.getByRole('button', { name: 'Bars' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Grid' }));
     expect(updateWidget).toHaveBeenCalledWith('projects-1', {
       config: expect.objectContaining({ boardCollapsed: false }) as object,
     });
   });
 
+  it('keeps step titles and lets the teacher set a step from the bars', () => {
+    render(<ProjectsWidget widget={widget({ boardCollapsed: true })} />);
+    expect(screen.getByText('Research')).toBeInTheDocument();
+    expect(screen.getByText('Draft')).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
+    );
+    expect(
+      screen.getByRole('menu', { name: 'Group 1: Draft' })
+    ).toBeInTheDocument();
+  });
+
   it('writes boardCollapsed when collapsing the grid', () => {
     render(<ProjectsWidget widget={widget()} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Show as bars' }));
+    expect(screen.getByRole('button', { name: 'Grid' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Bars' }));
     expect(updateWidget).toHaveBeenCalledWith('projects-1', {
       config: expect.objectContaining({ boardCollapsed: true }) as object,
     });
@@ -640,7 +653,7 @@ describe('ProjectsWidget', () => {
         screen.queryByRole('button', { name: 'Back to the project library' })
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByRole('button', { name: 'Show as bars' })
+        screen.queryByRole('group', { name: 'Board layout' })
       ).not.toBeInTheDocument();
       expect(
         screen.queryByRole('button', { name: 'Project actions' })

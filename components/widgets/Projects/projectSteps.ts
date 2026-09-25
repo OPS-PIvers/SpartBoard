@@ -5,7 +5,6 @@ import type {
   ProjectStepState,
   ProjectWorkLink,
 } from '@/types';
-import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 
 /** The hard ceiling on steps; the board draws every one (D31). */
 export const MAX_STEPS = 32;
@@ -143,16 +142,42 @@ export function makeWorkLink(
   return link;
 }
 
-/** D33 — a group's default color, dealt from the Scoreboard palette by order. */
+/** D33 — group colors, no purples; ordered so neighbouring groups contrast. */
+export const PROJECT_GROUP_COLORS = [
+  'bg-blue-500',
+  'bg-orange-500',
+  'bg-emerald-500',
+  'bg-rose-500',
+  'bg-amber-500',
+  'bg-cyan-500',
+  'bg-red-500',
+  'bg-lime-500',
+  'bg-sky-500',
+  'bg-green-500',
+  'bg-yellow-500',
+  'bg-teal-600',
+  'bg-slate-600',
+] as const;
+
+const KNOWN_GROUP_COLORS = new Set<string>(PROJECT_GROUP_COLORS);
+
+/** D33 — a group's default color, dealt from the palette by order. */
 export const defaultGroupColor = (index: number): string =>
-  SCOREBOARD_COLORS[
-    ((index % SCOREBOARD_COLORS.length) + SCOREBOARD_COLORS.length) %
-      SCOREBOARD_COLORS.length
+  PROJECT_GROUP_COLORS[
+    ((index % PROJECT_GROUP_COLORS.length) + PROJECT_GROUP_COLORS.length) %
+      PROJECT_GROUP_COLORS.length
   ];
+
+/** A stored color outside the palette (an old purple) falls back to the one dealt by order. */
+export const resolveGroupColor = (
+  color: string | undefined,
+  order: number
+): string =>
+  color && KNOWN_GROUP_COLORS.has(color) ? color : defaultGroupColor(order);
 
 /** The palette color after `color`, for the Manage groups swatch. */
 export const nextGroupColor = (color: string | undefined): string =>
-  defaultGroupColor(SCOREBOARD_COLORS.findIndex((c) => c === color) + 1);
+  defaultGroupColor(PROJECT_GROUP_COLORS.findIndex((c) => c === color) + 1);
 
 /** D43 — display names for the classes an import touches, from the teacher's rosters. */
 export function classNamesForEntries(

@@ -4,7 +4,7 @@ import type { ProjectGroup, ProjectStep, ProjectStepState } from '@/types';
 import {
   STEP_STATE_LABELS,
   completedStepCount,
-  defaultGroupColor,
+  resolveGroupColor,
   stepStateOf,
 } from '@/components/widgets/Projects/projectSteps';
 import { STATE_STYLES } from '@/components/widgets/Projects/stepVisuals';
@@ -115,7 +115,7 @@ export const ProjectOwnGroupSteps: React.FC<ProjectOwnGroupStepsProps> = ({
   onOpenStep,
   onPick,
 }) => {
-  const color = group.color ?? defaultGroupColor(group.order);
+  const color = resolveGroupColor(group.color, group.order);
   return (
     <div className="flex gap-3">
       <span

@@ -89,6 +89,12 @@ describe('groupColorOf', () => {
     );
     expect(groupColorOf({ order: 2 })).toBe(defaultGroupColor(2));
   });
+
+  it('replaces a stored purple with the color dealt by order', () => {
+    expect(groupColorOf({ color: 'bg-purple-500', order: 3 })).toBe(
+      defaultGroupColor(3)
+    );
+  });
 });
 
 describe('reviewCells', () => {

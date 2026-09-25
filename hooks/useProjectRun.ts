@@ -23,7 +23,6 @@ import { approvalStepIdsFrom } from '@/components/widgets/Projects/projectSteps'
 import {
   RUNS_COLLECTION,
   runIdFor,
-  setPeerVisibility as writePeerVisibility,
   writeStepState,
 } from '@/utils/projectRunWrites';
 
@@ -42,18 +41,13 @@ interface UseProjectRunResult {
   groups: ProjectGroup[];
   loading: boolean;
   error: string | null;
-  ensureRun: (
-    project: ProjectDefinition,
-    seed?: { showStatusToStudents?: boolean }
-  ) => Promise<ProjectRun>;
+  ensureRun: (project: ProjectDefinition) => Promise<ProjectRun>;
   setStepState: (
     groupId: string,
     stepId: string,
     state: ProjectStepState,
     actorRole: 'student' | 'teacher'
   ) => Promise<void>;
-  /** D39 — "Students see other groups": the run flag and every group's `peerVisible`. */
-  setPeerVisibility: (value: boolean) => Promise<void>;
   updateRun: (
     updates: Partial<ProjectRun>,
     clearFields?: (keyof ProjectRun)[]
@@ -130,10 +124,7 @@ export function useProjectRun(
   }, [runId]);
 
   const ensureRun = useCallback(
-    async (
-      project: ProjectDefinition,
-      seed?: { showStatusToStudents?: boolean }
-    ): Promise<ProjectRun> => {
+    async (project: ProjectDefinition): Promise<ProjectRun> => {
       if (!teacherUid) throw new Error('Sign in to start a project.');
       const id = runIdFor(teacherUid, project.id);
       const next: ProjectRun = {
@@ -144,9 +135,6 @@ export function useProjectRun(
         steps: project.steps,
         classIds: run?.classIds ?? [],
         approvalStepIds: approvalStepIdsFrom(project.steps),
-        // D30 — an existing run keeps its value; a new one takes the building default.
-        showStatusToStudents:
-          run?.showStatusToStudents ?? seed?.showStatusToStudents ?? true,
         acceptingUpdates: run?.acceptingUpdates ?? true,
         createdAt: run?.createdAt ?? Date.now(),
         updatedAt: Date.now(),
@@ -179,7 +167,6 @@ export function useProjectRun(
       run?.dueAt,
       run?.rubric,
       run?.rubricMaxPoints,
-      run?.showStatusToStudents,
       teacherUid,
     ]
   );
@@ -204,14 +191,6 @@ export function useProjectRun(
       );
     },
     [actorUid, groups, runId]
-  );
-
-  const setPeerVisibility = useCallback(
-    async (value: boolean) => {
-      if (!runId) throw new Error('No project is running.');
-      await writePeerVisibility(db, runId, groups, value);
-    },
-    [groups, runId]
   );
 
   const updateRun = useCallback(
@@ -267,7 +246,6 @@ export function useProjectRun(
     error,
     ensureRun,
     setStepState,
-    setPeerVisibility,
     updateRun,
     importGroups,
   };

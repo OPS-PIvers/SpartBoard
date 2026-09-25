@@ -6,7 +6,6 @@ import { ProjectStudentPage } from './ProjectStudentPage';
 
 const h = vi.hoisted(() => ({
   run: null as ProjectRun | null,
-  groups: [] as ProjectGroup[],
   myGroup: null as ProjectGroup | null,
   setStepState: vi.fn((..._args: unknown[]) => Promise.resolve()),
 }));
@@ -21,7 +20,6 @@ vi.mock('@/context/useStudentAuth', () => ({
 vi.mock('@/hooks/useStudentProjectRun', () => ({
   useStudentProjectRun: () => ({
     run: h.run,
-    groups: h.groups,
     myGroup: h.myGroup,
     workLinks: [],
     grade: null,
@@ -87,7 +85,6 @@ describe('ProjectStudentPage', () => {
     h.setStepState.mockClear();
     h.run = makeRun();
     h.myGroup = makeGroup({});
-    h.groups = [h.myGroup];
   });
 
   it('renders the own group row with its color and one cell per step', () => {
@@ -100,9 +97,8 @@ describe('ProjectStudentPage', () => {
 
   it('falls back to the palette color by order when the group has none', () => {
     h.myGroup = makeGroup({ color: undefined, order: 0 });
-    h.groups = [h.myGroup];
     render(<ProjectStudentPage />);
-    expect(screen.getByTestId('own-group-edge')).toHaveClass('bg-sky-500');
+    expect(screen.getByTestId('own-group-edge')).toHaveClass('bg-blue-500');
   });
 
   it('writes the picked state in one tap', () => {
@@ -138,7 +134,6 @@ describe('ProjectStudentPage', () => {
 
   it('locks a teacher-approved step', () => {
     h.myGroup = makeGroup({ stepStates: { s2: 'done' } });
-    h.groups = [h.myGroup];
     render(<ProjectStudentPage />);
     const locked = cell(/Sketch: Approved, locked/);
     expect(locked).toBeDisabled();
@@ -147,30 +142,11 @@ describe('ProjectStudentPage', () => {
     expect(h.setStepState).not.toHaveBeenCalled();
   });
 
-  it('shows other groups as read-only rows only when present', () => {
-    const { unmount } = render(<ProjectStudentPage />);
-    expect(screen.queryByText('Other groups')).not.toBeInTheDocument();
-    unmount();
-
+  it('never shows other groups, even on a run that once allowed it', () => {
     h.run = makeRun({ showStatusToStudents: true });
-    h.groups = [
-      h.myGroup as ProjectGroup,
-      makeGroup({
-        id: 'g2',
-        name: 'Team Aqua',
-        memberUids: ['ps-2'],
-        order: 1,
-        color: 'bg-indigo-500',
-        stepStates: { s1: 'done' },
-      }),
-    ];
     render(<ProjectStudentPage />);
-    const row = screen.getByTestId('peer-row-g2');
-    expect(within(row).getByText('Team Aqua')).toBeVisible();
-    expect(
-      within(row).getByRole('img', { name: 'Research: Done' })
-    ).toBeVisible();
-    expect(within(row).queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByText('Other groups')).not.toBeInTheDocument();
+    expect(screen.queryByTestId(/^peer-row-/)).not.toBeInTheDocument();
   });
 
   it('disables every cell once the run is closed', () => {

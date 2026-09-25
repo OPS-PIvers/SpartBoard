@@ -8055,8 +8055,8 @@ export interface ProjectRun {
    * which CEL cannot do — see the student step-write gate in `project_runs`.
    */
   approvalStepIds: string[];
-  /** D39 — mirrored onto every group as `peerVisible`, which is what the rules read. */
-  showStatusToStudents: boolean;
+  /** Retired: students only ever see their own group. Old runs keep it until backfilled. */
+  showStatusToStudents?: boolean;
   acceptingUpdates: boolean;
   /** D42 — absent on runs made before the field existed. */
   createdAt?: number;
@@ -8074,8 +8074,6 @@ export interface ProjectGroup {
   /** D33 — a `SCOREBOARD_COLORS` class; absent on groups made before colors. */
   color?: string;
   stepStates: Record<string, ProjectStepState>;
-  /** D39 — denormalized `run.showStatusToStudents`; classmates may read the doc only when true. */
-  peerVisible?: boolean;
   /** Legacy (D40): links now live on `private/work`; read only as a fallback until backfilled. */
   workLinks?: ProjectWorkLink[];
   /** Populated once the teacher's session archives uploads to Drive (D20). */
@@ -8187,14 +8185,7 @@ export interface ProjectsPendingImport {
   groups: { name: string; studentIds: string[]; color?: string }[];
 }
 
-export interface BuildingProjectsDefaults {
-  buildingId: string;
-  /** Seeds `ProjectRun.showStatusToStudents` on a new project (D30). */
-  defaultShowStatusToStudents?: boolean;
-}
-
 export interface ProjectsGlobalConfig {
-  buildingDefaults?: Record<string, BuildingProjectsDefaults>;
   dockDefaults?: Record<string, boolean>;
 }
 
