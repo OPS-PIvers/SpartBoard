@@ -47,7 +47,7 @@ export type PaperSheetEntry =
 export interface PlanPaperPagesInput {
   entries: readonly PaperSheetEntry[];
   grid: PaperGrid;
-  /** Written headers print the stem (quiz sheets); false prints the number only (stubs). */
+  /** Plain sheets: headers print the stem, or the number only (stubs). Question-text sheets always use the slot stem rect; stubs never print on them. */
   stems: boolean;
 }
 
