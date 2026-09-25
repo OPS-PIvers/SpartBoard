@@ -420,6 +420,9 @@ export {
   isVerifiedBetaMember as __isVerifiedBetaMember,
 };
 
+// Public Vertex client, model config and admin lookup for AI features outside this file.
+export { vertexClientOptions, getGeminiModelConfig, getCachedAdminStatus };
+
 export const generateWithAI = onCall(
   {
     memory: '512MiB',
