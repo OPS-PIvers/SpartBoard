@@ -23,6 +23,7 @@ import {
   MIN_CHOICE_COUNT,
   NUMBER_WIDTH_MM,
   BUBBLE_PITCH_MM,
+  WRITTEN_LINE_PITCH_MM,
   PAGE_HEIGHT_MM,
   PAGE_WIDTH_MM,
   REGISTRATION_MARK_CENTERS_MM,
@@ -116,6 +117,18 @@ export interface SheetFill {
   marks: readonly ('correct' | 'incorrect' | 'unclear' | null)[];
   /** Printed in the header box when set. */
   score?: string;
+  /** Written boxes by question id; a box without an entry prints its rule lines (D42). */
+  written?: Readonly<Record<string, SheetWrittenFill>>;
+}
+
+/** What a reprint draws in one written box. */
+export interface SheetWrittenFill {
+  /** Image URL of the handwriting; null when it failed to load, absent while loading. */
+  crop?: string | null;
+  /** Printed at the right of the box's header, e.g. "3/4". */
+  points?: string;
+  /** The teacher's comment, in a strip along the bottom of the box. */
+  comment?: string;
 }
 
 const mm = (n: number): string => `${n.toFixed(3)}mm`;
@@ -393,6 +406,9 @@ function answerRowsHtml(
 
 type WrittenPageItem = Extract<PaperPageItem, { kind: 'written' }>;
 
+/** Header width a reprint keeps for a written question's points. */
+const WRITTEN_POINTS_MM = 14;
+
 /** Line height of a written header's stem, as `.qt-stem` sets it. */
 const STEM_LINE_MM = 3.6;
 
@@ -404,9 +420,11 @@ function writtenItemHtml(
   item: WrittenPageItem,
   grid: PaperGrid,
   isKeySheet: boolean,
-  stem?: string
+  stem?: string,
+  fill?: SheetWrittenFill
 ): string {
   const h = item.headerMm;
+  const pointsW = fill?.points ? WRITTEN_POINTS_MM : 0;
   const numberCls = grid === 'questions' ? 'num qnum' : 'num wr-num';
   const parts = [
     `<div class="${numberCls}" style="left:${mm(h.x)};top:${mm(h.y)};width:${mm(
@@ -419,7 +437,7 @@ function writtenItemHtml(
     const x = grid === 'questions' ? QUESTION_STEM_X_MM : h.x + NUMBER_WIDTH_MM;
     parts.push(
       `<div class="qt-stem wr-stem" style="left:${mm(x)};top:${mm(h.y)};width:${mm(
-        h.x + h.w - x
+        h.x + h.w - x - pointsW
       )};height:${mm(shown * STEM_LINE_MM)};-webkit-line-clamp:${shown}">${escapeHtml(
         stem
       )}</div>`
@@ -430,6 +448,39 @@ function writtenItemHtml(
   // The key never carries handwriting, so its boxes print as a band nobody writes in (D16).
   if (isKeySheet) {
     parts.push(`<div class="wr-key" style="${box}">Graded by teacher</div>`);
+    return parts.join('');
+  }
+  if (fill) {
+    if (fill.points) {
+      parts.push(
+        `<div class="wr-pts" style="left:${mm(h.x + h.w - pointsW)};top:${mm(h.y)};width:${mm(
+          pointsW
+        )}">${escapeHtml(fill.points)}</div>`
+      );
+    }
+    const comment = fill.comment?.trim();
+    const stripH = comment ? WRITTEN_LINE_PITCH_MM : 0;
+    const cropBox = `left:${mm(b.x)};top:${mm(b.y)};width:${mm(b.w)};height:${mm(
+      b.h - stripH
+    )}`;
+    parts.push(
+      fill.crop
+        ? `<img class="wr-crop" style="${cropBox}" src="${escapeHtml(
+            fill.crop
+          )}" alt="${escapeHtml(`Handwritten answer, question ${item.label}`)}">`
+        : `<div class="wr-missing" style="${cropBox}">${
+            fill.crop === undefined
+              ? 'Loading handwriting'
+              : 'Handwriting unavailable'
+          }</div>`
+    );
+    if (comment) {
+      parts.push(
+        `<div class="wr-comment" style="left:${mm(b.x)};top:${mm(
+          b.y + b.h - stripH
+        )};width:${mm(b.w)};height:${mm(stripH)}">${escapeHtml(comment)}</div>`
+      );
+    }
     return parts.join('');
   }
   for (const y of writtenRuleYsMm(item)) {
@@ -492,7 +543,8 @@ function mapPageBodyHtml(
           item,
           map.grid,
           sheet.isKeySheet,
-          job.writtenTexts?.[item.questionId]
+          job.writtenTexts?.[item.questionId],
+          fill?.written?.[item.questionId]
         )
       );
     }
@@ -683,6 +735,11 @@ export const SHEET_REPRINT_STYLES = `
   .hdr-score { font-size: 11pt; font-weight: 700; }
   .bub.filled { background: #000; color: #fff; }
   .bub.key { outline: 0.9mm double #000; outline-offset: 0.3mm; }
+  .wr-crop, .wr-missing, .wr-pts, .wr-comment { position: absolute; }
+  .wr-crop { object-fit: contain; object-position: left top; }
+  .wr-missing { border: 0.3mm dashed #666; display: flex; align-items: center; justify-content: center; font-size: 10pt; font-style: italic; color: #333; }
+  .wr-pts { font-size: 10pt; font-weight: 700; text-align: right; line-height: 3.6mm; }
+  .wr-comment { border-top: 0.3mm solid #000; font-size: 8.5pt; line-height: 3.4mm; padding-top: 0.4mm; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 `;
 
 /** One graded sheet's pages, for a reprint. */

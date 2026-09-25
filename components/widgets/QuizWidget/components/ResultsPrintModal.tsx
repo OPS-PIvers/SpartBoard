@@ -1,11 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Printer, X } from 'lucide-react';
 import type {
   PaperBatch,
   QuizData,
   QuizQuestion,
   QuizResponse,
+  QuizResponseAnswer,
   Rubric,
+  WrittenReturnMode,
 } from '@/types';
 import { Modal } from '@/components/common/Modal';
 import { Toggle } from '@/components/common/Toggle';
@@ -13,6 +15,16 @@ import { getResponseDocKey } from '@/hooks/useQuizSession';
 import { getPaperBatch } from '@/utils/paperBatchStore';
 import { logError } from '@/utils/logError';
 import { planSheetReprint } from '@/utils/paperSheetReprint';
+import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
+import {
+  paperPrivateKey,
+  type PaperCropResolver,
+} from '@/utils/paperCropFetch';
+import {
+  DEFAULT_WRITTEN_RETURN_MODE,
+  handwritingArtifact,
+  isPaperWrittenAnswer,
+} from '@/utils/paperWritten';
 import type { QuestionGradeFn } from '@/utils/quizQuestionStats';
 import {
   applyPreset,
@@ -33,6 +45,7 @@ import {
   type ResultsKeyMode,
   type ResultsPrintLayout,
   type ResultsPrintJob,
+  type PaperWrittenPrint,
   type ResultsPrintStudent,
   type StudentReportTarget,
 } from '@/utils/quizStudentReportPrint';
@@ -63,6 +76,12 @@ export interface ResultsPrintModalProps {
   /** Leads with a Full report / Missed only choice, other settings folded away. */
   reportChoice?: boolean;
   teacherUid: string | null;
+  /** Session the responses belong to; crops are fetched by it. */
+  sessionId?: string;
+  /** The published written-answers mode; the print starts from it. */
+  writtenReturnMode?: WrittenReturnMode;
+  /** Fetches handwriting crops; without it paper written answers print typed only. */
+  resolvePaperCrop?: PaperCropResolver;
   onClose: () => void;
   onError: (message: string) => void;
 }
@@ -116,6 +135,50 @@ const LAYOUTS: { id: ResultsPrintLayout; label: string }[] = [
   { id: 'both', label: 'Both' },
 ];
 
+const WRITTEN_MODES: { id: WrittenReturnMode; label: string }[] = [
+  { id: 'handwriting', label: 'Handwriting' },
+  { id: 'typed', label: 'Typed' },
+  { id: 'both', label: 'Both' },
+];
+
+/** Parallel crop fetches, so a class set does not flood the callable. */
+const CROP_FETCH_LIMIT = 6;
+
+/** The print window and the sandboxed preview can't read this page's `blob:` URLs. */
+async function toDataUrl(url: string): Promise<string> {
+  if (!url.startsWith('blob:')) return url;
+  try {
+    const blob = await (await fetch(url)).blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error ?? new Error('read failed'));
+      reader.readAsDataURL(blob);
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+const keyOf = (r: QuizResponse) => getResponseDocKey(r) as string;
+
+type PaperAnswer = Pick<
+  QuizResponseAnswer,
+  'answer' | 'paperTranscript' | 'artifacts'
+>;
+
+/** A response's handwritten paper answers, by question id. */
+function paperAnswersOf(response: QuizResponse): Map<string, PaperAnswer> {
+  const out = new Map<string, PaperAnswer>();
+  if (!response.paperBatchId) return out;
+  for (const [questionId, entry] of selectRepresentativeAnswers(
+    response.answers ?? []
+  )) {
+    if (isPaperWrittenAnswer(entry)) out.set(questionId, entry);
+  }
+  return out;
+}
+
 const KEY_MODES: { id: ResultsKeyMode; label: string }[] = [
   { id: 'off', label: 'Off' },
   { id: 'missed', label: 'Missed only' },
@@ -138,6 +201,9 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   sheetsAvailable = false,
   reportChoice = false,
   teacherUid,
+  sessionId,
+  writtenReturnMode,
+  resolvePaperCrop,
   onClose,
   onError,
 }) => {
@@ -168,7 +234,12 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     value: QuizResultsPrintOptions[K]
   ) => update({ preset: null, options: { ...options, [key]: value } });
 
-  const keyOf = (r: QuizResponse) => getResponseDocKey(r) as string;
+  const [writtenMode, setWrittenMode] = useState<WrittenReturnMode>(
+    writtenReturnMode ?? DEFAULT_WRITTEN_RETURN_MODE
+  );
+  const cropsOn = !!resolvePaperCrop && !!sessionId;
+  const printMode: WrittenReturnMode = cropsOn ? writtenMode : 'typed';
+
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(initialSelection ?? responses.map(keyOf))
   );
@@ -277,11 +348,113 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
       ? chosen.filter((s) => s.response.paperBatchId && !s.student.sheet).length
       : 0;
 
+  // Handwritten paper answers, by response key (D41).
+  const paperByKey = useMemo(() => {
+    const out = new Map<string, Map<string, PaperAnswer>>();
+    for (const r of responses) {
+      const answers = paperAnswersOf(r);
+      if (answers.size > 0) out.set(keyOf(r), answers);
+    }
+    return out;
+  }, [responses]);
+  const hasPaperWritten = chosen.some((s) => paperByKey.has(s.student.key));
+
+  const layout = choice.options.layout;
+  const neededCrops = useMemo(() => {
+    const out: { key: string; response: QuizResponse; questionId: string }[] =
+      [];
+    if (!cropsOn) return out;
+    for (const { student, response } of students) {
+      if (!selected.has(student.key)) continue;
+      const answers = paperByKey.get(student.key);
+      if (!answers) continue;
+      const onSheet = wantsSheets && !!student.sheet?.pageMaps;
+      const onReport =
+        printMode !== 'typed' &&
+        (!wantsSheets || !student.sheet || layout === 'both');
+      if (!onSheet && !onReport) continue;
+      for (const questionId of answers.keys()) {
+        out.push({
+          key: paperPrivateKey(student.key, questionId),
+          response,
+          questionId,
+        });
+      }
+    }
+    return out;
+  }, [cropsOn, students, selected, paperByKey, wantsSheets, printMode, layout]);
+
+  const [crops, setCrops] = useState<ReadonlyMap<string, string | null>>(
+    () => new Map()
+  );
+  const requested = useRef(new Set<string>());
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (!resolvePaperCrop || !sessionId) return;
+    const queue = neededCrops.filter((c) => !requested.current.has(c.key));
+    if (queue.length === 0) return;
+    for (const c of queue) requested.current.add(c.key);
+    const worker = async () => {
+      for (let next = queue.shift(); next; next = queue.shift()) {
+        const { key, response, questionId } = next;
+        const responseKey = keyOf(response);
+        const artifact = handwritingArtifact(
+          paperByKey.get(responseKey)?.get(questionId) ?? {}
+        );
+        let value: string | null;
+        try {
+          value = await toDataUrl(
+            await resolvePaperCrop({
+              sessionId,
+              responseKey,
+              questionId,
+              artifact,
+              archive: artifact
+                ? response.artifactArchive?.[artifact.id]
+                : undefined,
+            })
+          );
+        } catch (err) {
+          logError('ResultsPrintModal.resolvePaperCrop', err);
+          value = null;
+        }
+        if (alive.current) setCrops((prev) => new Map(prev).set(key, value));
+      }
+    };
+    void Promise.all(
+      Array.from({ length: Math.min(CROP_FETCH_LIMIT, queue.length) }, worker)
+    );
+  }, [neededCrops, paperByKey, resolvePaperCrop, sessionId]);
+  const cropsLoading = neededCrops.filter((c) => !crops.has(c.key)).length;
+  const cropsFailed = neededCrops.filter(
+    (c) => crops.has(c.key) && crops.get(c.key) === null
+  ).length;
+
+  const withPaper = (student: ResultsPrintStudent): ResultsPrintStudent => {
+    const answers = paperByKey.get(student.key);
+    if (!answers) return student;
+    const paperWritten: Record<string, PaperWrittenPrint> = {};
+    for (const [questionId, answer] of answers) {
+      const key = paperPrivateKey(student.key, questionId);
+      paperWritten[questionId] = crops.has(key)
+        ? { answer, cropSrc: crops.get(key) ?? null }
+        : { answer };
+    }
+    return { ...student, paperWritten };
+  };
+
   const job = (rows: typeof chosen): ResultsPrintJob => ({
     quizTitle: quiz.title,
     stimuli: quiz.stimuli ?? [],
     periodOrder,
-    students: rows.map((s) => s.student),
+    students: rows.map((s) => withPaper(s.student)),
+    ...(hasPaperWritten ? { writtenMode: printMode } : {}),
   });
 
   // The board may be projected, so the preview wears the on-screen name (D10).
@@ -295,7 +468,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
           ...job([first]),
           students: [
             {
-              ...first.student,
+              ...withPaper(first.student),
               name: hasRealName(first.response, shown)
                 ? shown
                 : first.student.name,
@@ -424,6 +597,35 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     </div>
   );
 
+  const writtenControl = hasPaperWritten && cropsOn && (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-sm text-slate-700">Written answers</span>
+      <div
+        className="flex overflow-hidden rounded-lg border border-slate-200"
+        role="radiogroup"
+        aria-label="Written answers"
+      >
+        {WRITTEN_MODES.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            role="radio"
+            aria-checked={writtenMode === m.id}
+            onClick={() => setWrittenMode(m.id)}
+            className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
+              writtenMode === m.id
+                ? 'bg-brand-blue-primary text-white'
+                : 'bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+  const ready = batchesReady && cropsLoading === 0;
+
   return (
     <Modal
       isOpen
@@ -474,11 +676,15 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
             <button
               type="button"
               onClick={handlePrint}
-              disabled={chosen.length === 0 || !batchesReady}
+              disabled={chosen.length === 0 || !ready}
               className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Printer className="h-4 w-4" />
-              {batchesReady ? 'Print' : 'Loading paper sheets…'}
+              {!batchesReady
+                ? 'Loading paper sheets…'
+                : cropsLoading > 0
+                  ? 'Loading handwriting…'
+                  : 'Print'}
             </button>
           </div>
         </div>
@@ -553,7 +759,10 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
             </>
           )}
 
+          {writtenControl}
+
           {(ungraded > 0 ||
+            cropsFailed > 0 ||
             warnKey ||
             noName > 0 ||
             online > 0 ||
@@ -567,6 +776,11 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
               {lostSheets > 0 && (
                 <Banner>
                   {`Sheet record missing for ${plural(lostSheets)}. ${lostSheets === 1 ? 'That student gets' : 'They get'} the report.`}
+                </Banner>
+              )}
+              {cropsFailed > 0 && (
+                <Banner>
+                  {`Handwriting for ${plural(cropsFailed, 'answer')} could not load and prints as unavailable.`}
                 </Banner>
               )}
               {warnKey && (

@@ -2282,6 +2282,16 @@
         "notSelfPaced": "Spoken answers need self-paced mode."
       }
     },
+    "paperReview": {
+      "handwriting": "Ton écriture",
+      "cropAlt": "Ta réponse manuscrite, question {{number}}",
+      "loading": "Chargement de l'écriture",
+      "unavailable": "Écriture indisponible",
+      "reload": "Réessayer",
+      "transcribing": "Transcription en cours",
+      "blank": "Vide",
+      "comments": "Commentaires de l'enseignant"
+    },
     "grading": {
       "title": "Noter les réponses libres",
       "close": "Close",

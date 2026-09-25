@@ -20,11 +20,14 @@
  * the caller's `publishAssignmentScores` hook.
  */
 
-import React, { useState } from 'react';
-import { EyeOff, Gauge, Loader2, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { AlertTriangle, EyeOff, Gauge, Loader2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
-import { PUBLISH_LEVEL_OPTIONS } from './publishScoreLevels';
+import {
+  PUBLISH_LEVEL_OPTIONS,
+  WRITTEN_RETURN_OPTIONS,
+} from './publishScoreLevels';
 import {
   RESULTS_PROTECTION_DEFAULTS,
   RESULTS_TAB_WARNING_THRESHOLD_MAX,
@@ -33,7 +36,16 @@ import {
   type QuizScoreVisibility,
   type ResultsProtection,
   type VideoActivityScoreVisibility,
+  type WrittenReturnMode,
 } from '@/types';
+import { DEFAULT_WRITTEN_RETURN_MODE } from '@/utils/paperWritten';
+
+/** Quiz-only: how handwritten paper answers return to students (D37). */
+export interface PublishWrittenReturnConfig {
+  initialMode?: WrittenReturnMode;
+  /** Counts transcripts still pending so the modal can warn before publishing (D39). */
+  loadPendingCount?: () => Promise<number>;
+}
 
 /**
  * Score-visibility level. Quiz, VA, and GL all define the same
@@ -53,7 +65,8 @@ interface PublishScoresModalProps {
   onClose: () => void;
   onConfirm: (
     visibility: PublishScoresVisibility,
-    protection?: ResultsProtection
+    protection?: ResultsProtection,
+    writtenReturnMode?: WrittenReturnMode
   ) => Promise<void> | void;
   /**
    * Quiz-only opt-in: when true, render the anti-screenshot protection
@@ -67,6 +80,8 @@ interface PublishScoresModalProps {
    * the teacher's last choice is remembered across publishes.
    */
   initialProtection?: ResultsProtection;
+  /** Shown only for quiz assignments with handwritten paper answers. */
+  writtenReturn?: PublishWrittenReturnConfig;
 }
 
 export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
@@ -76,6 +91,7 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
   onConfirm,
   showProtection = false,
   initialProtection,
+  writtenReturn,
 }) => {
   // Default the picker to whatever the assignment is currently set to (or
   // 'score-only' on first publish — the calmest non-empty choice).
@@ -97,6 +113,25 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
       (initialProtection ?? RESULTS_PROTECTION_DEFAULTS).tabWarningThreshold
     )
   );
+
+  const [writtenMode, setWrittenMode] = useState<WrittenReturnMode>(
+    () => writtenReturn?.initialMode ?? DEFAULT_WRITTEN_RETURN_MODE
+  );
+  const [pendingTranscripts, setPendingTranscripts] = useState(0);
+  const loadPendingCount = writtenReturn?.loadPendingCount;
+  useEffect(() => {
+    if (!loadPendingCount) return;
+    let cancelled = false;
+    loadPendingCount().then(
+      (n) => {
+        if (!cancelled) setPendingTranscripts(n);
+      },
+      () => undefined
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [loadPendingCount]);
 
   const isPublished =
     currentVisibility !== undefined && currentVisibility !== 'none';
@@ -124,7 +159,13 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
           ...protection,
           tabWarningThreshold: clamped ?? protection.tabWarningThreshold,
         };
-        await onConfirm(visibility, finalProtection);
+        if (writtenReturn) {
+          await onConfirm(visibility, finalProtection, writtenMode);
+        } else {
+          await onConfirm(visibility, finalProtection);
+        }
+      } else if (writtenReturn) {
+        await onConfirm(visibility, undefined, writtenMode);
       } else {
         await onConfirm(visibility);
       }
@@ -248,6 +289,58 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
             );
           })}
         </div>
+
+        {writtenReturn && (
+          <fieldset className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 space-y-2">
+            <legend className="px-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+              Written answers
+            </legend>
+            <div
+              role="radiogroup"
+              aria-label="Written answers"
+              className="grid grid-cols-3 gap-2"
+              onKeyDown={(e) => {
+                if (submitting) return;
+                handleRadioGroupKeyDown(e, WRITTEN_RETURN_OPTIONS, (opt) =>
+                  setWrittenMode(opt.id)
+                );
+              }}
+            >
+              {WRITTEN_RETURN_OPTIONS.map((opt) => {
+                const isActive = writtenMode === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isActive}
+                    tabIndex={isActive ? 0 : -1}
+                    onClick={() => setWrittenMode(opt.id)}
+                    disabled={submitting}
+                    className={`rounded-lg border px-2 py-1.5 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 disabled:opacity-50 ${
+                      isActive
+                        ? 'border-brand-blue-primary bg-brand-blue-lighter/30 text-slate-900'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    {opt.title}
+                  </button>
+                );
+              })}
+            </div>
+            {pendingTranscripts > 0 && (
+              <p
+                role="status"
+                className="flex items-start gap-1.5 text-xs text-amber-800"
+              >
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                {pendingTranscripts === 1
+                  ? '1 answer still transcribing. It publishes as awaiting grade.'
+                  : `${pendingTranscripts} answers still transcribing. They publish as awaiting grade.`}
+              </p>
+            )}
+          </fieldset>
+        )}
 
         {showProtection && (
           <fieldset className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 space-y-2">
