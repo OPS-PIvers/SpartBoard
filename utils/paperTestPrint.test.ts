@@ -92,3 +92,25 @@ describe('printPaperTest', () => {
     expect(open).not.toHaveBeenCalled();
   });
 });
+
+describe('written questions on the test paper (D18)', () => {
+  it('prints a written question in place with no choices, numbered by quiz position', () => {
+    const html = buildPaperTestHtml({
+      quizTitle: 'Unit 3 Test',
+      questions: [
+        { row: '1', text: 'Capital of France?', choices: ['Lyon', 'Paris'] },
+        { row: '2', text: 'Explain why.', choices: [], written: true },
+        { row: '3', text: 'Pick one', choices: ['Red', 'Blue'] },
+      ],
+    });
+    expect(html).toContain('<span class="num">2.</span>');
+    expect(html).toContain('Answer on your answer sheet');
+    expect(html.indexOf('Explain why.')).toBeLessThan(
+      html.indexOf('Answer on your answer sheet')
+    );
+    expect(html.indexOf('Answer on your answer sheet')).toBeLessThan(
+      html.indexOf('Pick one')
+    );
+    expect(html.match(/class="letter"/g)).toHaveLength(4);
+  });
+});

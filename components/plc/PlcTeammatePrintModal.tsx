@@ -201,6 +201,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
         ...(result.batch.columnsPerPage
           ? { columnsPerPage: result.batch.columnsPerPage }
           : {}),
+        ...(result.batch.pageMaps ? { pageMaps: result.batch.pageMaps } : {}),
         // An image the owner never shared is left out rather than blocking the
         // print: the page keeps its layout and the banner says what is missing.
         ...(printableStimuli.length > 0

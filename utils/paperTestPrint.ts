@@ -15,11 +15,13 @@ import { isPlaceholderLetterChoices } from './paperSheetPlan';
 import { SPARTRON_TAGLINE, spartronLogoSvg } from './spartronLogo';
 
 export interface PaperTestQuestion {
-  /** 1-based row number printed on the answer sheet. */
-  row: number;
+  /** Number printed on the answer sheet: the row, or the quiz position on a sheet with written boxes (D11). */
+  row: number | string;
   text: string;
   /** Option text in printed letter order. */
   choices: readonly string[];
+  /** Answered in a written box on the answer sheet, not bubbled (D18). */
+  written?: boolean;
   /** A section heading printed above this question, the first of its section (E15). */
   section?: { title: string; directions?: string; chooseLine?: string };
 }
@@ -48,24 +50,27 @@ const STYLES = `
   .text { white-space: pre-wrap; }
   ol.c { list-style: none; padding: 0; margin: 1.5mm 0 0; }
   ol.c > li { display: grid; grid-template-columns: 8mm 1fr; margin-top: 0.8mm; }
+  .written { margin: 1.5mm 0 0; font-size: 10pt; font-style: italic; }
 `;
 
 function questionHtml(q: PaperTestQuestion): string {
   // A stub's options are just the bubble letters, which say nothing to a student.
-  const choices = isPlaceholderLetterChoices(q.choices)
-    ? ''
-    : `<ol class="c">${q.choices
-        .map(
-          (c, i) =>
-            `<li><span class="letter">${CHOICE_LETTERS[i]}.</span><span class="text">${escapeHtml(c)}</span></li>`
-        )
-        .join('')}</ol>`;
+  const choices = q.written
+    ? '<p class="written">Answer on your answer sheet</p>'
+    : isPlaceholderLetterChoices(q.choices)
+      ? ''
+      : `<ol class="c">${q.choices
+          .map(
+            (c, i) =>
+              `<li><span class="letter">${CHOICE_LETTERS[i]}.</span><span class="text">${escapeHtml(c)}</span></li>`
+          )
+          .join('')}</ol>`;
   const section = q.section
     ? `<li class="section"><h2>${escapeHtml(q.section.title)}</h2>${
         q.section.directions ? `<p>${escapeHtml(q.section.directions)}</p>` : ''
       }${q.section.chooseLine ? `<p><strong>${escapeHtml(q.section.chooseLine)}</strong></p>` : ''}</li>`
     : '';
-  return `${section}<li><span class="num">${q.row}.</span><div><div class="text">${escapeHtml(q.text)}</div>${choices}</div></li>`;
+  return `${section}<li><span class="num">${escapeHtml(String(q.row))}.</span><div><div class="text">${escapeHtml(q.text)}</div>${choices}</div></li>`;
 }
 
 /** The document `printPaperTest` would write. Exported for tests. */

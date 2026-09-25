@@ -25,6 +25,7 @@ import {
 } from '@/components/common/library/importer/TestAndKeyUploader';
 import type { ReadUploadedTest } from '@/utils/quizDocumentImport/readTestAndKey';
 import { Toggle } from '@/components/common/Toggle';
+import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { usePaperSheetImageSharing } from '@/hooks/usePaperSheetImageSharing';
@@ -32,8 +33,11 @@ import { usePaperSheetStimulusImages } from '@/hooks/usePaperSheetStimulusImages
 import type {
   ClassRoster,
   PaperBatch,
+  PaperBoxSize,
+  PaperPageMap,
   PaperSheetStimulus,
   QuizData,
+  QuizQuestion,
   Student,
 } from '@/types';
 import { applyQuestionFill, type QuestionFill } from '@/utils/paperQuestionOcr';
@@ -61,8 +65,19 @@ import { PaperSheetStimuliSection } from './PaperSheetStimuliSection';
 import {
   analyzePaperQuiz,
   buildPaperStubQuiz,
+  isPaperStubAnalysis,
   planPaperBatch,
 } from '@/utils/paperSheetPlan';
+import {
+  planPaperPages,
+  type PaperSheetEntry,
+  type PlanPaperPagesResult,
+} from '@/utils/paperPageMap';
+import { MAX_PAGE } from '@/utils/paperSheetMarker';
+import {
+  PAPER_BOX_SIZES,
+  PAPER_HANDWRITTEN_FEATURE,
+} from '@/utils/paperWritten';
 import { printPaperSheets } from '@/utils/paperSheetPrint';
 import { printPaperTest } from '@/utils/paperTestPrint';
 import {
@@ -134,6 +149,62 @@ interface PaperPrintModalProps {
   printTest?: typeof printPaperTest;
 }
 
+/** A stub number the teacher marked as a handwritten answer (D17). */
+interface StubWritten {
+  size: PaperBoxSize;
+  points: number;
+}
+
+const BOX_SIZE_LABELS: Record<PaperBoxSize, string> = {
+  S: 'Small',
+  M: 'Medium',
+  L: 'Large',
+  full: 'Full page',
+};
+
+/** A stub's sheet in number order; `idOf` names each number's question. */
+function stubEntries(
+  count: number,
+  written: Readonly<Record<number, StubWritten>>,
+  idOf: (n: number) => string
+): PaperSheetEntry[] {
+  return Array.from({ length: count }, (_, i) => {
+    const n = i + 1;
+    const label = String(n);
+    const w = written[n];
+    return w
+      ? { kind: 'written', questionId: idOf(n), label, size: w.size }
+      : { kind: 'mc', questionId: idOf(n), label };
+  });
+}
+
+/** Stub rows marked written become free-response, their placeholder choices dropped (D17). */
+function applyStubWritten(
+  stub: QuizData,
+  written: Readonly<Record<number, StubWritten>>
+): QuizData {
+  if (!Object.keys(written).length) return stub;
+  return {
+    ...stub,
+    questions: stub.questions.map((q, i): QuizQuestion => {
+      const w = written[i + 1];
+      if (!w) return q;
+      const { needsKey: _needsKey, ...rest } = q;
+      return {
+        ...rest,
+        type: 'free-response',
+        correctAnswer: '',
+        incorrectAnswers: [],
+        paperBoxSize: w.size,
+        points: w.points,
+      };
+    }),
+  };
+}
+
+const tooManyPagesMessage = (pageCount: number): string =>
+  `This sheet needs ${pageCount} pages. The most one sheet can print is ${MAX_PAGE}.`;
+
 const studentSort = (a: Student, b: Student): number =>
   `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`);
 
@@ -154,8 +225,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
 }) => {
   const { driveService } = useGoogleDrive();
   const { openPicker } = useGooglePicker();
-  const analysis = useMemo(() => analyzePaperQuiz(quiz), [quiz]);
-  const isStub = analysis.rows.length === 0;
+  const { canAccessFeature } = useAuth();
+  // The caller already checked the paper sheets rollout and gate; this adds the written-box flag.
+  const writtenOn = canAccessFeature(PAPER_HANDWRITTEN_FEATURE);
+  const analysis = useMemo(
+    () => analyzePaperQuiz(quiz, { written: writtenOn }),
+    [quiz, writtenOn]
+  );
+  const isStub = isPaperStubAnalysis(analysis);
   const [stubTitle, setStubTitle] = useState(quiz.title);
 
   const [selectedStudentIds, setSelectedStudentIds] = useState<
@@ -166,6 +243,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     DEFAULT_STUB_QUESTIONS
   );
   const [stubChoiceCount, setStubChoiceCount] = useState(4);
+  const [stubWritten, setStubWritten] = useState<Record<number, StubWritten>>(
+    {}
+  );
   // The test paper this stub's questions came from, when one was uploaded.
   const [readDoc, setReadDoc] = useState<{
     fileName: string;
@@ -195,7 +275,27 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     [analysis.rows, questionsById]
   );
 
-  const questionCount = isStub ? stubQuestionCount : analysis.rows.length;
+  // Numbers past the current count stay remembered but do not print.
+  const stubWrittenInRange = useMemo(() => {
+    const inRange: Record<number, StubWritten> = {};
+    for (const [n, w] of Object.entries(stubWritten)) {
+      if (Number(n) <= stubQuestionCount) inRange[Number(n)] = w;
+    }
+    return inRange;
+  }, [stubWritten, stubQuestionCount]);
+  const stubWrittenCount = Object.keys(stubWrittenInRange).length;
+  const writtenCount = isStub ? stubWrittenCount : analysis.written.length;
+  const questionCount = isStub
+    ? stubQuestionCount - stubWrittenCount
+    : analysis.rows.length;
+  /** Stem per written question, for the header above its box. */
+  const writtenTextsOf = (a: typeof analysis): Record<string, string> =>
+    Object.fromEntries(
+      a.written.flatMap((w) => {
+        const text = questionsById.get(w.questionId)?.text;
+        return text ? [[w.questionId, text]] : [];
+      })
+    );
   const unanswered = (readDoc?.questions ?? []).filter(
     (q) => !q.correctAnswer.trim()
   ).length;
@@ -211,6 +311,26 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   // Question text takes the band stimuli would print in, so the two never combine.
   const questionTextLayout =
     includeQuestionText && !isStub && sheetStimuli.length === 0;
+  const grid = questionTextLayout ? 'questions' : columnsPerPage;
+  // Only a sheet with written boxes prints by page map; every other sheet keeps today's layout.
+  const pagePlan = useMemo((): PlanPaperPagesResult | null => {
+    if (writtenCount === 0) return null;
+    return planPaperPages({
+      entries: isStub
+        ? stubEntries(stubQuestionCount, stubWrittenInRange, (n) => `stub-${n}`)
+        : analysis.entries,
+      grid,
+      stems: !isStub,
+    });
+  }, [
+    writtenCount,
+    isStub,
+    stubQuestionCount,
+    stubWrittenInRange,
+    analysis.entries,
+    grid,
+  ]);
+  const tooManyPages = pagePlan?.ok === false;
   const sheetImages = usePaperSheetStimulusImages(sheetStimuli);
   const sharing = usePaperSheetImageSharing(sheetStimuli, inPlcGroup);
   /** Set once the teacher has answered the sharing ask, either way. */
@@ -345,13 +465,16 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     0
   );
   const sheetCount = studentSheetCount + spareCount + (includeKeySheet ? 1 : 0);
-  const pagesPerSheet = pageCountForQuestions(
-    questionCount,
-    questionTextLayout ? 'questions' : columnsPerPage
-  );
+  const pagesPerSheet = pagePlan
+    ? pagePlan.ok
+      ? pagePlan.pageMaps.length
+      : pagePlan.pageCount
+    : pageCountForQuestions(questionCount, grid);
   const canPrint =
     sheetCount > 0 &&
-    questionCount > 0 &&
+    questionCount + writtenCount > 0 &&
+    analysis.writtenRefusals.length === 0 &&
+    !tooManyPages &&
     !printing &&
     !stimulusBusy &&
     !sheetImages.loading &&
@@ -406,6 +529,15 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       if (widest >= MIN_CHOICE_COUNT) {
         setStubChoiceCount(Math.min(widest, MAX_CHOICE_COUNT));
       }
+      // A number read without choices is a written answer until the teacher says otherwise (D17).
+      if (writtenOn) {
+        const prefill: Record<number, StubWritten> = {};
+        for (const q of questions) {
+          if (q.options.length === 0)
+            prefill[q.number] = { size: 'M', points: 1 };
+        }
+        setStubWritten(prefill);
+      }
       if (!stubTitle.trim() && extracted.title.trim()) {
         setStubTitle(extracted.title.trim());
       }
@@ -452,7 +584,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     const order: Record<string, string[]> = {};
     for (const q of readDoc?.questions ?? []) {
       const row = stub.questions[q.number - 1];
-      if (row && q.options.length > 0) {
+      if (row && row.type === 'MC' && q.options.length > 0) {
         order[row.id] = q.options.map((o) => o.text);
       }
     }
@@ -474,16 +606,19 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       // imported, and the teacher cannot tell that by looking at the paper.
       const printedQuiz = onCreateQuiz
         ? {
-            ...applyQuestionFill(
-              buildPaperStubQuiz({
-                quizId: quiz.id,
-                title: stubTitle,
-                questionCount,
-                choiceCount,
-                createdAt: now,
-              }),
-              documentFills(),
-              now
+            ...applyStubWritten(
+              applyQuestionFill(
+                buildPaperStubQuiz({
+                  quizId: quiz.id,
+                  title: stubTitle,
+                  questionCount: stubQuestionCount,
+                  choiceCount,
+                  createdAt: now,
+                }),
+                documentFills(),
+                now
+              ),
+              stubWrittenInRange
             ),
             ...(sheetStimuli.length > 0
               ? { paperSheetStimuli: sheetStimuli }
@@ -493,6 +628,27 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       const readChoiceOrder = onCreateQuiz
         ? documentChoiceOrder(printedQuiz)
         : {};
+      // Replanned with the real question ids; refused before anything is saved (D13).
+      let pageMaps: PaperPageMap[] | undefined;
+      if (pagePlan) {
+        const plan = planPaperPages({
+          entries: isStub
+            ? stubEntries(
+                stubQuestionCount,
+                stubWrittenInRange,
+                (n) => printedQuiz.questions[n - 1].id
+              )
+            : analysis.entries,
+          grid,
+          stems: !isStub,
+        });
+        if (!plan.ok) {
+          onError(tooManyPagesMessage(plan.pageCount));
+          return;
+        }
+        pageMaps = plan.pageMaps;
+      }
+
       const { batch, sheets } = planPaperBatch({
         batchId: crypto.randomUUID(),
         quizId: quiz.id,
@@ -507,6 +663,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           : {}),
         ...(columnsPerPage === 1 ? { columnsPerPage: 1 as const } : {}),
         ...(questionTextLayout ? { sheetLayout: 'questions' as const } : {}),
+        ...(pageMaps ? { pageMaps } : {}),
         createdAt: now,
       });
       if (onCreateQuiz) await onCreateQuiz(printedQuiz);
@@ -535,6 +692,12 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           : {}),
         ...(!isStub && analysis.rows.some((r) => r.sourceLabel)
           ? { rowLabels: analysis.rows.map((r) => r.sourceLabel) }
+          : {}),
+        ...(batch.pageMaps
+          ? {
+              pageMaps: batch.pageMaps,
+              ...(isStub ? {} : { writtenTexts: writtenTextsOf(analysis) }),
+            }
           : {}),
         ...(sheetStimuli.length > 0
           ? {
@@ -626,18 +789,33 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     if (!printedBatch) return;
     try {
       const sections = sessionSectionsFor(quiz);
-      // Paper prints only MC rows, so the choose line counts only those.
-      const printedIds = analysis.rows.map((r) => r.questionId);
+      // A sheet with written boxes numbers by quiz position and prints them in place (D11, D18).
+      const byMap = !!printedBatch.pageMaps;
+      const printed = byMap
+        ? analysis.entries.map((e) => ({
+            questionId: e.questionId,
+            row: e.label as number | string,
+            written: e.kind === 'written',
+          }))
+        : analysis.rows.map((r) => ({
+            questionId: r.questionId,
+            row: r.row as number | string,
+            written: false,
+          }));
+      // Paper prints only these, so the choose line counts only them.
+      const printedIds = printed.map((r) => r.questionId);
       const headed = new Set<string>();
       printTest({
         quizTitle: quiz.title,
-        questions: analysis.rows.flatMap((r) => {
+        questions: printed.flatMap((r) => {
           const q = questionsById.get(r.questionId);
           if (!q) return [];
-          const choices = printedBatch.choiceOrder?.[q.id] ?? [
-            q.correctAnswer,
-            ...(q.incorrectAnswers ?? []),
-          ];
+          const choices = r.written
+            ? []
+            : (printedBatch.choiceOrder?.[q.id] ?? [
+                q.correctAnswer,
+                ...(q.incorrectAnswers ?? []),
+              ]);
           // The first printed question of a section carries its heading (E15).
           const section = sectionOfQuestion(sections, q.id);
           const heading =
@@ -661,6 +839,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               row: r.row,
               text: q.text,
               choices,
+              ...(r.written ? { written: true } : {}),
               ...(heading ? { section: heading } : {}),
             },
           ];
@@ -858,12 +1037,16 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       }
       footer={
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-slate-600">
-            {sheetCount === 0
-              ? 'Pick at least one student or spare sheet.'
-              : `${sheetCount} sheet${sheetCount === 1 ? '' : 's'} · ${
-                  sheetCount * pagesPerSheet
-                } page${sheetCount * pagesPerSheet === 1 ? '' : 's'}`}
+          <p
+            className={`text-xs ${tooManyPages ? 'text-brand-red-primary' : 'text-slate-600'}`}
+          >
+            {tooManyPages
+              ? tooManyPagesMessage(pagesPerSheet)
+              : sheetCount === 0
+                ? 'Pick at least one student or spare sheet.'
+                : `${sheetCount} sheet${sheetCount === 1 ? '' : 's'} · ${
+                    sheetCount * pagesPerSheet
+                  } page${sheetCount * pagesPerSheet === 1 ? '' : 's'}`}
           </p>
           <div className="flex gap-2">
             <button
@@ -909,6 +1092,26 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                   {analysis.exclusions.length > 5 && (
                     <li>• and {analysis.exclusions.length - 5} more</li>
                   )}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {analysis.writtenRefusals.length > 0 && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-brand-red-primary" />
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-red-900">
+                  Written questions can&apos;t be in a choose section on paper
+                </p>
+                <ul className="mt-2 space-y-0.5 text-xs text-red-800">
+                  {analysis.writtenRefusals.map((ex, i) => (
+                    <li key={i} className="truncate">
+                      • {ex.label}
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -1023,7 +1226,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               />
             ) : (
               <p className="mt-1 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                {questionCount} from this quiz
+                {questionCount + writtenCount} from this quiz
               </p>
             )}
           </label>
@@ -1055,6 +1258,102 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             )}
           </label>
         </div>
+
+        {isStub && writtenOn && (
+          <div>
+            <p
+              id="paper-stub-written"
+              className="text-xs font-bold uppercase tracking-wider text-slate-500"
+            >
+              Written answers
+            </p>
+            <div
+              role="group"
+              aria-labelledby="paper-stub-written"
+              className="mt-2 flex max-h-28 flex-wrap gap-1 overflow-y-auto rounded-xl border border-slate-200 p-2 pb-3"
+            >
+              {Array.from({ length: stubQuestionCount }, (_, i) => {
+                const n = i + 1;
+                const on = !!stubWritten[n];
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    aria-pressed={on}
+                    aria-label={`Question ${n} written`}
+                    onClick={() =>
+                      setStubWritten((prev) => {
+                        const next = { ...prev };
+                        if (on) delete next[n];
+                        else next[n] = { size: 'M', points: 1 };
+                        return next;
+                      })
+                    }
+                    className={`h-7 min-w-[2rem] rounded-md border px-1.5 text-xs font-semibold transition-colors ${
+                      on
+                        ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                );
+              })}
+            </div>
+            {stubWrittenCount > 0 && (
+              <ul className="mt-2 space-y-1.5">
+                {Object.entries(stubWrittenInRange)
+                  .sort(([a], [b]) => Number(a) - Number(b))
+                  .map(([key, w]) => {
+                    const n = Number(key);
+                    const update = (patch: Partial<StubWritten>) =>
+                      setStubWritten((prev) => ({
+                        ...prev,
+                        [n]: { ...w, ...patch },
+                      }));
+                    return (
+                      <li key={n} className="flex items-center gap-2">
+                        <span className="w-8 shrink-0 text-right text-sm font-semibold text-slate-700">
+                          {n}.
+                        </span>
+                        <select
+                          aria-label={`Question ${n} box size`}
+                          value={w.size}
+                          onChange={(e) =>
+                            update({ size: e.target.value as PaperBoxSize })
+                          }
+                          className="rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                        >
+                          {PAPER_BOX_SIZES.map((size) => (
+                            <option key={size} value={size}>
+                              {BOX_SIZE_LABELS[size]}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          aria-label={`Question ${n} points`}
+                          min={0}
+                          max={100}
+                          value={w.points}
+                          onChange={(e) =>
+                            update({
+                              points: Math.max(
+                                0,
+                                Math.min(100, Number(e.target.value) || 0)
+                              ),
+                            })
+                          }
+                          className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                        />
+                        <span className="text-xs text-slate-500">pts</span>
+                      </li>
+                    );
+                  })}
+              </ul>
+            )}
+          </div>
+        )}
 
         {analysis.shortRows.length > 0 && (
           <p className="text-xs text-slate-500">

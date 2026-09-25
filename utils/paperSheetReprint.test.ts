@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { PaperBatch, QuizData, QuizQuestion, QuizResponse } from '@/types';
-import { bubbleRectMm, QUESTIONS_PER_PAGE } from './paperSheetLayout';
+import { planPaperPages } from './paperPageMap';
+import {
+  bubbleRectAtOriginMm,
+  bubbleRectMm,
+  QUESTIONS_PER_PAGE,
+} from './paperSheetLayout';
 import { buildFilledSheetHtml } from './paperSheetPrint';
 import { planSheetReprint, sheetFillFor } from './paperSheetReprint';
 
@@ -252,5 +257,82 @@ describe('buildFilledSheetHtml', () => {
     expect(pages[1]).toContain(
       `class="bub filled" style="left:${r.x.toFixed(3)}mm;top:${r.y.toFixed(3)}mm`
     );
+  });
+});
+
+describe('reprint of a batch with written boxes (layoutVersion 2)', () => {
+  const plan = planPaperPages({
+    entries: [
+      { kind: 'mc', questionId: 'q1', label: '1' },
+      { kind: 'written', questionId: 'w', label: '2', size: 'M' },
+      { kind: 'mc', questionId: 'q2', label: '3' },
+      { kind: 'mc', questionId: 'q3', label: '4' },
+    ],
+    grid: 2,
+    stems: true,
+  });
+  if (!plan.ok) throw new Error('plan refused');
+  const v2 = batch({
+    layoutVersion: 2,
+    pageMaps: plan.pageMaps,
+    pagesPerSheet: plan.pageMaps.length,
+    choiceOrder: {
+      q1: ['Rome', 'Paris', 'Oslo', 'Bern'],
+      q2: ['Red', 'Blue', 'Green', 'Pink'],
+      q3: ['One', 'Two', 'Three', 'Four'],
+    },
+  });
+
+  it('places each filled bubble at its row on the map', () => {
+    const reprint = planSheetReprint(
+      response([
+        { questionId: 'q1', answer: 'Oslo' },
+        { questionId: 'q3', answer: 'Four' },
+      ]),
+      v2,
+      quiz(questions)
+    );
+    if (!reprint) throw new Error('expected a reprint plan');
+    expect(reprint).toMatchObject({
+      questionCount: 3,
+      filled: [2, null, 3],
+      pageCount: 1,
+      writtenTexts: { w: 'w' },
+    });
+    const html = buildFilledSheetHtml(
+      {
+        seat: 7,
+        student: null,
+        displayName: 'Sam',
+        className: '',
+        isKeySheet: false,
+      },
+      {
+        batchId: 'batch-1',
+        quizTitle: 'T',
+        questionCount: reprint.questionCount,
+        choiceCount: 4,
+        columnsPerPage: reprint.columnsPerPage,
+        pageMaps: reprint.pageMaps,
+        writtenTexts: reprint.writtenTexts,
+      },
+      reprint.pageCount,
+      sheetFillFor(reprint, { markAnswers: true, keyMode: 'off' })
+    );
+    const origins = plan.pageMaps[0].items.flatMap((i) =>
+      i.kind === 'mc' ? [i.originMm] : []
+    );
+    const at = (row: number, choice: number) => {
+      const r = bubbleRectAtOriginMm(origins[row], choice, 2);
+      return `${r.x.toFixed(3)},${r.y.toFixed(3)}`;
+    };
+    const filled = [
+      ...html.matchAll(
+        /class="bub filled[^"]*" style="left:([\d.]+)mm;top:([\d.]+)mm/g
+      ),
+    ].map((m) => `${m[1]},${m[2]}`);
+    expect(filled).toEqual([at(0, 2), at(2, 3)]);
+    expect(html).toContain('wr-rule');
+    expect(html).not.toContain('class="cell"');
   });
 });

@@ -40,6 +40,11 @@ vi.mock('@/utils/quizDocumentImport/uploadIntake', async () => {
       Promise.resolve(actual.looksLikeKeyName(name)),
   };
 });
+/** Features the signed-in teacher has; empty means the written-box flag is off. */
+const features = new Set<string>();
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: (id: string) => features.has(id) }),
+}));
 vi.mock('@/hooks/useGoogleDrive', () => ({
   useGoogleDrive: () => ({ driveService: driveConnected ? drive : null }),
 }));
@@ -156,6 +161,7 @@ describe('PaperPrintModal', () => {
     sheetImages = { src: {}, failed: [], loading: false };
     pdfPageCount = 3;
     driveConnected = true;
+    features.clear();
     vi.clearAllMocks();
     // clearAllMocks keeps whatever a test set with mockResolvedValue.
     drive.listFilePermissions.mockReset();
@@ -1086,5 +1092,232 @@ describe('PaperPrintModal', () => {
         )
       );
     });
+  });
+});
+
+describe('PaperPrintModal with handwritten answers', () => {
+  beforeEach(() => {
+    sheetImages = { src: {}, failed: [], loading: false };
+    driveConnected = true;
+    features.clear();
+    features.add('paper-handwritten-responses');
+    vi.clearAllMocks();
+    drive.listFilePermissions.mockResolvedValue([]);
+  });
+
+  const fr = (id: string, over: Partial<QuizQuestion> = {}): QuizQuestion => ({
+    id,
+    timeLimit: 0,
+    text: `Explain ${id}`,
+    type: 'free-response',
+    correctAnswer: '',
+    incorrectAnswers: [],
+    ...over,
+  });
+
+  const printIt = async (print: ReturnType<typeof setup>['print']) => {
+    selectWholeClass();
+    fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
+    await waitFor(() => expect(print).toHaveBeenCalled());
+  };
+
+  it('prints free-response questions as boxes and stores the page maps on the batch', async () => {
+    const { onSaveBatch, print } = setup({
+      quiz: quiz({ questions: [mc('q1'), fr('w1'), mc('q2')] }),
+    });
+    expect(screen.getByText('3 from this quiz')).toBeInTheDocument();
+    await printIt(print);
+    const batch = onSaveBatch.mock.calls[0][0];
+    expect(batch.layoutVersion).toBe(2);
+    expect(batch.questionCount).toBe(2);
+    expect(batch.pagesPerSheet).toBe(batch.pageMaps?.length);
+    const job = print.mock.calls[0][0];
+    expect(job.pageMaps).toEqual(batch.pageMaps);
+    expect(job.writtenTexts).toEqual({ w1: 'Explain w1' });
+    const labels = batch.pageMaps?.flatMap((m) =>
+      m.items.map((i) => `${i.kind}:${i.label}`)
+    );
+    expect(labels).toEqual(['mc:1', 'written:2', 'mc:3']);
+  });
+
+  it('prints a quiz with no written questions exactly as before', async () => {
+    const { onSaveBatch, print } = setup();
+    await printIt(print);
+    const batch = onSaveBatch.mock.calls[0][0];
+    expect(batch.layoutVersion).toBeUndefined();
+    expect(batch.pageMaps).toBeUndefined();
+    expect(print.mock.calls[0][0].pageMaps).toBeUndefined();
+  });
+
+  it('keeps free-response off the sheet when the flag is off', async () => {
+    features.clear();
+    const { onSaveBatch, print } = setup({
+      quiz: quiz({ questions: [mc('q1'), fr('w1')] }),
+    });
+    expect(screen.getByText(/1 question will not be on/)).toBeInTheDocument();
+    await printIt(print);
+    expect(onSaveBatch.mock.calls[0][0].layoutVersion).toBeUndefined();
+  });
+
+  it('lists a recording question as left off the sheet', () => {
+    setup({
+      quiz: quiz({
+        questions: [mc('q1'), fr('w1', { recording: 'required' } as never)],
+      }),
+    });
+    expect(screen.getByText(/1 question will not be on/)).toBeInTheDocument();
+  });
+
+  it('refuses to print a written question inside a choose section', () => {
+    setup({
+      quiz: quiz({
+        questions: [mc('q1'), fr('w1'), fr('w2')],
+        sections: [{ id: 's1', title: 'Pick one', chooseCount: 1 }],
+        order: [
+          { kind: 'question', id: 'q1' },
+          { kind: 'section', id: 's1' },
+          { kind: 'question', id: 'w1' },
+          { kind: 'question', id: 'w2' },
+        ],
+      }),
+    });
+    selectWholeClass();
+    expect(
+      screen.getByText(/Written questions can.t be in a choose section/)
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Print$/ })).toBeDisabled();
+  });
+
+  it('prints written questions in place on the test paper, numbered like the sheet', async () => {
+    const printTest = vi.fn<(job: PaperTestJob) => void>();
+    const { print } = setup({
+      quiz: quiz({ questions: [mc('q1'), fr('w1'), mc('q2')] }),
+      printTest,
+    });
+    await printIt(print);
+    fireEvent.click(screen.getByRole('button', { name: /Print test paper/ }));
+    const job = printTest.mock.calls[0][0];
+    expect(job.questions.map((q) => [q.row, !!q.written])).toEqual([
+      ['1', false],
+      ['2', true],
+      ['3', false],
+    ]);
+    expect(job.questions[1].choices).toEqual([]);
+  });
+
+  it('turns a stub number marked written into a free-response question', async () => {
+    const onCreateQuiz = vi.fn().mockResolvedValue(undefined);
+    const { onSaveBatch, print } = setup({
+      quiz: quiz({ title: 'Pop quiz', questions: [] }),
+      onCreateQuiz,
+    });
+    fireEvent.change(screen.getByLabelText('Questions'), {
+      target: { value: '4' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Question 3 written' }));
+    fireEvent.change(screen.getByLabelText('Question 3 box size'), {
+      target: { value: 'L' },
+    });
+    fireEvent.change(screen.getByLabelText('Question 3 points'), {
+      target: { value: '4' },
+    });
+    await printIt(print);
+
+    const created = onCreateQuiz.mock.calls[0][0] as QuizData;
+    expect(created.questions.map((q) => q.type)).toEqual([
+      'MC',
+      'MC',
+      'free-response',
+      'MC',
+    ]);
+    expect(created.questions[2]).toMatchObject({
+      paperBoxSize: 'L',
+      points: 4,
+      correctAnswer: '',
+      incorrectAnswers: [],
+    });
+    const batch = onSaveBatch.mock.calls[0][0];
+    expect(batch.questionCount).toBe(3);
+    const items = batch.pageMaps?.flatMap((m) => m.items) ?? [];
+    expect(items.map((i) => `${i.kind}:${i.label}:${i.questionId}`)).toEqual(
+      created.questions.map(
+        (q, n) => `${q.type === 'MC' ? 'mc' : 'written'}:${n + 1}:${q.id}`
+      )
+    );
+    // Stubs print the number only, never a stem.
+    expect(print.mock.calls[0][0].writtenTexts).toBeUndefined();
+  });
+
+  it('pre-marks numbers the reader found without choices as written', async () => {
+    const onCreateQuiz = vi.fn().mockResolvedValue(undefined);
+    const read: ExtractedQuiz = {
+      title: 'Unit 3 Test',
+      warnings: [],
+      images: [],
+      questions: [1, 2].map((number) => ({
+        number,
+        text: `Question ${number}`,
+        type: 'MC',
+        options:
+          number === 1
+            ? [
+                { letter: 'A', text: 'First' },
+                { letter: 'B', text: 'Second' },
+              ]
+            : [],
+        correctAnswer: number === 1 ? 'First' : '',
+        imageIds: [],
+        warnings: [],
+      })),
+    };
+    const { print } = setup({
+      quiz: quiz({ title: '', questions: [] }),
+      onCreateQuiz,
+      readDocument: vi.fn(() => Promise.resolve(read)),
+    });
+    const file = new File([new Uint8Array(4)], 'unit3.pdf', {
+      type: 'application/pdf',
+    });
+    fireEvent.drop(screen.getByTestId('test-zone'), {
+      dataTransfer: { files: [file], types: ['Files'] },
+    });
+    await screen.findByText('unit3.pdf');
+    fireEvent.click(screen.getByRole('button', { name: 'Read the test' }));
+    await screen.findByText(/2 questions read/);
+    expect(
+      screen.getByRole('button', { name: 'Question 2 written' })
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByLabelText('Question 2 box size')).toHaveValue('M');
+    await printIt(print);
+    const created = onCreateQuiz.mock.calls[0][0] as QuizData;
+    expect(created.questions[1]).toMatchObject({
+      type: 'free-response',
+      text: 'Question 2',
+      paperBoxSize: 'M',
+      points: 1,
+    });
+  });
+
+  it('offers no written toggle on a stub while the flag is off', () => {
+    features.clear();
+    setup({ quiz: quiz({ title: '', questions: [] }), onCreateQuiz: vi.fn() });
+    expect(screen.queryByText('Written answers')).not.toBeInTheDocument();
+  });
+
+  it('refuses a sheet past the page limit before saving anything', () => {
+    const onCreateQuiz = vi.fn().mockResolvedValue(undefined);
+    const { onSaveBatch } = setup({
+      quiz: quiz({
+        questions: Array.from({ length: 64 }, (_, i) =>
+          fr(`w${i}`, { paperBoxSize: 'full' })
+        ),
+      }),
+      onCreateQuiz: undefined,
+    });
+    selectWholeClass();
+    expect(screen.getByText(/needs 64 pages/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Print$/ })).toBeDisabled();
+    expect(onSaveBatch).not.toHaveBeenCalled();
+    expect(onCreateQuiz).not.toHaveBeenCalled();
   });
 });
