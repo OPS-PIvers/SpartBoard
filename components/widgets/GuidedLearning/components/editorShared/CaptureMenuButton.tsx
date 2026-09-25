@@ -24,19 +24,19 @@ const CAPTURE_OPTIONS: {
   {
     value: 'snap',
     label: 'Snap screen frames',
-    desc: 'Share your screen and snap a still for each step of a workflow.',
+    desc: 'A still for each step',
     icon: Camera,
   },
   {
     value: 'record',
     label: 'Record your screen',
-    desc: 'Capture the workflow as a video slide.',
+    desc: 'One video slide',
     icon: Circle,
   },
   {
     value: 'video-file',
     label: 'Slides from a video',
-    desc: 'Extract frames from an MP4/WebM, or add the whole clip.',
+    desc: 'Frames or the whole clip',
     icon: Film,
   },
 ];

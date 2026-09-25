@@ -10,7 +10,7 @@ import { usePopoverPosition } from './usePopoverPosition';
 interface SettingChipOption<T extends string> {
   value: T;
   label: string;
-  desc: string;
+  desc?: string;
 }
 
 interface SettingChipProps<T extends string> {
@@ -59,7 +59,7 @@ export function SettingChip<T extends string>({
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        title={`${label}${current?.desc ? ` — ${current.desc}` : ''}`}
+        title={`${label}: ${currentLabel}`}
         aria-label={`${label}: ${currentLabel}`}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -124,9 +124,11 @@ export function SettingChip<T extends string>({
                   }`}
                 >
                   <span className="font-bold text-xs">{opt.label}</span>
-                  <span className="text-xxs text-slate-500 leading-snug">
-                    {opt.desc}
-                  </span>
+                  {opt.desc && (
+                    <span className="text-xxs text-slate-500 leading-snug">
+                      {opt.desc}
+                    </span>
+                  )}
                 </button>
               );
             })}
