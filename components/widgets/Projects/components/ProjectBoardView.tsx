@@ -1,13 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import type { LucideIcon } from 'lucide-react';
 import {
-  Check,
   ChevronLeft,
   ClipboardList,
-  Ellipsis,
   Eye,
   EyeOff,
-  Flag,
   Loader2,
   SquarePen,
   Users,
@@ -39,26 +35,8 @@ import {
   stepStateOf,
   studentStateOptions,
 } from '../projectSteps';
-
-/** Purposeful colour, one hue per state, each with a mark so colour is never the only cue. */
-const STATE_STYLES: Record<
-  ProjectStepState,
-  { tone: string; Mark: LucideIcon | null }
-> = {
-  notStarted: { tone: 'bg-slate-300/70', Mark: null },
-  inProgress: { tone: 'bg-brand-blue-primary text-white', Mark: Ellipsis },
-  readyForReview: { tone: 'bg-amber-400 text-amber-950', Mark: Flag },
-  done: { tone: 'bg-emerald-600 text-white', Mark: Check },
-};
-
-const StateMark: React.FC<{ state: ProjectStepState; size: string }> = ({
-  state,
-  size,
-}) => {
-  const Mark = STATE_STYLES[state].Mark;
-  if (!Mark) return null;
-  return <Mark aria-hidden style={{ width: size, height: size }} />;
-};
+import { STATE_STYLES } from '../stepVisuals';
+import { StateMark } from '../StateMark';
 
 const nextState = (
   step: ProjectStep,
