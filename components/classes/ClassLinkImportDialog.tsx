@@ -7,6 +7,7 @@ import { Modal } from '@/components/common/Modal';
 import { db } from '@/config/firebase';
 import { classLinkService } from '@/utils/classlinkService';
 import { canReadTestClasses } from '@/utils/testClassAccess';
+import { withTestSuffix } from '@/utils/testClassSuffix';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { mergeClassLinkStudents } from './mergeClassLinkStudents';
@@ -151,7 +152,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
                   const key = `${TEST_PREFIX}${d.id}`;
                   extraClasses.push({
                     sourcedId: key,
-                    title: `${data.title ?? d.id} (test)`,
+                    title: withTestSuffix(data.title ?? d.id),
                     subject: data.subject,
                   });
                   extraEmails[key] = emails;
