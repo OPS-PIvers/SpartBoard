@@ -938,11 +938,7 @@ const StageBody: React.FC<
       onClick={onTargetClick ? handleStageClick : undefined}
     >
       {currentImageUrl && (
-        <SlideBackdrop
-          url={currentImageUrl}
-          kind={slideKind}
-          video={mediaEl instanceof HTMLVideoElement ? mediaEl : null}
-        />
+        <SlideBackdrop url={currentImageUrl} media={mediaEl} />
       )}
       {/* Image with optional pan-zoom transform */}
       <div
@@ -961,6 +957,20 @@ const StageBody: React.FC<
             fresh load even when the URL is unchanged. Video slides swap
             in a muted looping <video> (keyed by URL so the element
             reloads when the slide changes). */}
+        {/* Opaque backing so transparent slides don't show the blurred backdrop. */}
+        {currentImageUrl && imgOffset && (
+          <div
+            aria-hidden="true"
+            data-testid="gl-slide-backing"
+            className="absolute bg-slate-950 pointer-events-none"
+            style={{
+              left: `${imgOffset.left}%`,
+              top: `${imgOffset.top}%`,
+              width: `${imgOffset.scaleX * 100}%`,
+              height: `${imgOffset.scaleY * 100}%`,
+            }}
+          />
+        )}
         {currentImageUrl && slideKind === 'video' && (
           <video
             key={currentImageUrl}

@@ -244,7 +244,7 @@ function combineMatching(items: ExtractedQuestion[]): ExtractedQuestion[] {
         .join('|'),
       ...(unused.length > 0 ? { matchingDistractors: unused } : {}),
       allowPartialCredit: true,
-      points: items.length,
+      points: items.reduce((sum, q) => sum + (q.points ?? 1), 0),
       imageIds: [...new Set(items.flatMap((q) => q.imageIds))],
       warnings: [...new Set(items.flatMap((q) => q.warnings))],
       examView: 'matching',

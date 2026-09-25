@@ -112,7 +112,7 @@ const romanValue = (s: string): number => {
 const columnLines = new WeakSet<DocLine>();
 
 /** Two or more spaces before an option marker: a column gap typed with the space bar (E2). */
-const SPACED_OPTION = /\s{2,}(?=(?:\([A-Fa-f]\)|[A-Fa-f][.)])(?:\s|$))/;
+const SPACED_OPTION = /(?<!\s)\s{2,}(?=(?:\([A-Fa-f]\)|[A-Fa-f][.)])(?:\s|$))/;
 const OPTION_MARKER = /^\s*(?:\(([A-Fa-f])\)|([A-Fa-f])[.)])(?:\s|$)/;
 
 /** `____`, an answer blank printed in a column of its own. */
@@ -176,6 +176,8 @@ export function splitAtColumnMarkers(lines: readonly DocLine[]): DocLine[] {
     }
     // Word and RTF print the number first on its line or after a `____` blank (E1).
     const positioned = filled.some((s) => s.x !== undefined);
+    // Only an ExamView row, led by a `____` blank, holds its number to the blank.
+    const blankFirst = /^_{2,}$/.test(filled[0].text.trim());
     const groups: DocSegment[][] = [];
     for (const segment of lineSegments(line)) {
       const text = segment.text.trim();
@@ -183,7 +185,7 @@ export function splitAtColumnMarkers(lines: readonly DocLine[]): DocLine[] {
       const last = groups[groups.length - 1];
       const question =
         matchQuestionOpening(text) !== null &&
-        (positioned || !last || isBlankGroup(last));
+        (positioned || !last || !blankFirst || isBlankGroup(last));
       const opens = isOptionText(text) || question;
       if (last && (!opens || (question && isBlankGroup(last)))) {
         last.push(segment);
@@ -285,7 +287,8 @@ interface Draft {
 /** `I.` … `VIII.` opening a statement in a stem (E3). */
 const ROMAN_STATEMENT = /^\s*\(?(VIII|VII|VI|IV|V|III|II|I)[.)](?:\s+|$)(.*)$/;
 /** Two or more spaces before the next statement's numeral. */
-const SPACED_ROMAN = /\s{2,}(?=\(?(?:VIII|VII|VI|IV|V|III|II|I)[.)](?:\s|$))/;
+const SPACED_ROMAN =
+  /(?<!\s)\s{2,}(?=\(?(?:VIII|VII|VI|IV|V|III|II|I)[.)](?:\s|$))/;
 
 /** A line's statements, split at column gaps and space runs; null when it opens none. */
 function romanStatements(line: DocLine): { n: number; text: string }[] | null {
@@ -536,8 +539,6 @@ function noteMissingChoices(
   };
 }
 
-/** A forward jump in printed numbers this big still opens a question, with a note (E1). */
-const MAX_SKIP = 5;
 /** Question numbers on a PDF page line up within this many points (E1). */
 const NUMBER_X_TOLERANCE = 12;
 /** A target's wrapped line sits closer than this under it; a new paragraph sits further. */
@@ -951,10 +952,12 @@ export function parseDocument(
         n === 1 &&
         section.questionCount >= 2 &&
         section.lastItem > 1 &&
-        (!open || open.options.length > 0);
+        (!open ||
+          open.options.length > 0 ||
+          drafts.every((d) => d.section !== section || d.options.length === 0));
       const skip = n - section.lastItem;
       const first = section.questionCount === 0;
-      if (restart || first || (skip >= 1 && skip <= MAX_SKIP)) {
+      if (restart || first || skip >= 1) {
         if (restart) startSection();
         const opened = openQuestion(n, opening.text, line);
         if (!restart && !first && skip > 1) opened.skippedFrom = n - skip;

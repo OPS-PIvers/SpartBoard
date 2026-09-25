@@ -394,3 +394,68 @@ b. Somewhat`)
     expect(questions[1].suggestUntick).toMatch(/self-reflection/i);
   });
 });
+
+describe('ordinary documents after the ExamView rules (E1–E3)', () => {
+  it('splits a tab-separated worksheet line into two questions', () => {
+    const questions = parseQuestionLines([
+      row('1. 3 + 4 = ____', '2. 5 + 6 = ____'),
+      row('3. 7 + 1 = ____', '4. 2 + 2 = ____'),
+    ]);
+    expect(questions.map((q) => q.text)).toEqual([
+      '3 + 4 = ____',
+      '5 + 6 = ____',
+      '7 + 1 = ____',
+      '2 + 2 = ____',
+    ]);
+    expect(questions.flatMap((q) => q.warnings).join(' ')).not.toMatch(
+      /numbering skips/
+    );
+  });
+
+  it('opens a question after a large gap in the numbering and says so', () => {
+    const questions = parseQuestionLines(
+      plain(`1. First?
+a. One
+b. Two
+2. Second?
+a. One
+b. Two
+10. Tenth?
+a. Yes
+b. No`)
+    );
+    expect(questions.map((q) => q.ref?.item)).toEqual([1, 2, 10]);
+    expect(questions[2].text).toBe('Tenth?');
+    expect(questions[2].options.map((o) => o.text)).toEqual(['Yes', 'No']);
+    expect(questions[2].warnings).toContain(
+      'The numbering skips from 2 to 10. Check that no question is missing.'
+    );
+  });
+
+  it('restarts at 1 after a run of short-answer questions', () => {
+    const questions = parseQuestionLines(
+      plain(`1. Name a cell part
+2. Name an organ
+3. Name a tissue
+1. What is 2+2?
+a. 3
+b. 4`)
+    );
+    expect(questions).toHaveLength(4);
+    expect(questions[0].text).toBe('Name a cell part');
+    expect(questions[3].text).toBe('What is 2+2?');
+    expect(questions[3].ref?.section).toBe(2);
+  });
+
+  it('reads long runs of spaces in linear time', () => {
+    const run = ' '.repeat(20000);
+    const started = performance.now();
+    parseQuestionLines(
+      plain(`1. Which is right?${run}x
+I. one${run}y
+a. yes${run}z
+b. no`)
+    );
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+});

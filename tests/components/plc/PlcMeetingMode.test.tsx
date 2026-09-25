@@ -385,6 +385,12 @@ describe('PlcMeetingMode — live guided flow', () => {
     mockMeetings = [
       makeMeeting({ id: 'old-draft', heldAt: 1_000, status: 'in-progress' }),
       makeMeeting({
+        id: 'bob-draft',
+        heldAt: 1_500,
+        status: 'in-progress',
+        createdBy: 'uid-bob',
+      }),
+      makeMeeting({
         id: 'live-1',
         heldAt: 2_000,
         status: 'in-progress',

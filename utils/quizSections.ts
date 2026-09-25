@@ -97,7 +97,18 @@ export function effectiveChooseCount(
 const hasContent = (answer: SectionAnswer): boolean => {
   if (answer.unresponded) return false;
   if (answer.artifacts?.some((a) => a?.uploadState !== 'failed')) return true;
-  return (answer.answer ?? '').replace(/<[^>]*>/g, '').trim().length > 0;
+  return stripTags(answer.answer ?? '').trim().length > 0;
+};
+
+// Repeats until stable so a tag split by another tag can't survive one pass.
+const stripTags = (html: string): string => {
+  let text = html;
+  let prev;
+  do {
+    prev = text;
+    text = text.replace(/<[^>]*>/g, '');
+  } while (text !== prev);
+  return text;
 };
 
 /** A question counts toward the section's N once it holds a non-empty answer. */

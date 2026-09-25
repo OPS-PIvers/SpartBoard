@@ -377,9 +377,10 @@ const PlcMeetingLiveFlow: React.FC<{
         actionItems,
       });
       setSavedMeetingId(id);
-      // Older drafts left in progress would keep the Home card on Resume.
+      // Only this user's older drafts: a teammate's may still be live.
       for (const m of meetings) {
         if (m.status !== 'in-progress' || m.id === id) continue;
+        if (m.createdBy !== user?.uid) continue;
         void deleteMeeting(m.id).catch((err: unknown) =>
           logError('PlcMeetingMode.discardDraft', err, { plcId: plc.id })
         );
@@ -409,6 +410,7 @@ const PlcMeetingLiveFlow: React.FC<{
     saveMeeting,
     deleteMeeting,
     meetings,
+    user?.uid,
     selectedIds,
     actionItems,
     addToast,
@@ -432,7 +434,8 @@ const PlcMeetingLiveFlow: React.FC<{
       }
     );
     if (!ok) return;
-    if (meetingDocId && !savedMeetingId) {
+    const draft = meetings.find((m) => m.id === meetingDocId);
+    if (meetingDocId && !savedMeetingId && draft?.createdBy === user?.uid) {
       void deleteMeeting(meetingDocId).catch((err: unknown) =>
         logError('PlcMeetingMode.discardDraft', err, { plcId: plc.id })
       );
@@ -444,7 +447,16 @@ const PlcMeetingLiveFlow: React.FC<{
     setMeetingDocId(null);
     setSavedMeetingId(null);
     setFurthestIndex(0);
-  }, [showConfirm, meetingDocId, savedMeetingId, deleteMeeting, plc.id, t]);
+  }, [
+    showConfirm,
+    meetingDocId,
+    savedMeetingId,
+    meetings,
+    user?.uid,
+    deleteMeeting,
+    plc.id,
+    t,
+  ]);
 
   // --- Loading / error ----------------------------------------------------
   if (aggregatesLoading || assessmentsLoading) {
