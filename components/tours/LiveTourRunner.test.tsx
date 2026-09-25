@@ -2042,6 +2042,46 @@ describe('LiveTourRunner robustness', () => {
     expect(h.board.widgets.map((w) => w.id)).toEqual(['teacher']);
   });
 
+  it('follows a board-navigation step to the new board instead of ending', async () => {
+    await startOn(
+      makeSet([
+        { anchor: 'board-nav.next', action: 'click' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ]),
+      <button
+        {...tourAttr('board-nav.next')}
+        onClick={() => {
+          h.board.id = 'board-2';
+          h.board.widgets = [];
+          emit();
+        }}
+      >
+        Next board
+      </button>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Next board' }));
+    await frames();
+    expect(screen.getByTestId('tour-callout')).toBeInTheDocument();
+    expect(h.actions.discardTourWidgets).not.toHaveBeenCalled();
+  });
+
+  it('stops re-opening the dock once a dock step is reported missing', async () => {
+    await startOn(
+      makeSet([{ anchor: 'dock.item:timer', action: 'observe' }]),
+      <LiveDock />
+    );
+    await frames(ANCHOR_SEARCH_MS + 500);
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent<TourDockRequest>(TOUR_DOCK_EVENT, {
+          detail: { expanded: false },
+        })
+      );
+    });
+    await frames(2000);
+    expect(dockState()).toBe('false');
+  });
+
   it('Esc on the keep-or-remove prompt keeps the widgets', async () => {
     await start(
       layoutSet(

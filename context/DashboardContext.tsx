@@ -139,6 +139,7 @@ import {
   createDashboardCanvasStore,
   DashboardActionsContext,
   DashboardCanvasStoreContext,
+  releaseTourRestore,
   type DashboardActions,
 } from './dashboardCanvasStore';
 import { ToolVisibilityContext } from './ToolVisibilityContextValue';
@@ -6159,6 +6160,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     ) => {
       if (!activeIdRef.current) return;
       if (isActiveBoardReadOnlyRef.current) return;
+      if (updates.minimized === true) releaseTourRestore(id);
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
       if (opts?.immediate) pendingImmediateWrite.current = true;

@@ -398,13 +398,20 @@ const tourPatchListeners = new Set<() => void>();
 const samePatch = (a?: TourWidgetPatch, b?: TourWidgetPatch) =>
   a === b || (!!a && !!b && a.z === b.z && a.restored === b.restored);
 
+// Widgets the teacher minimized during the tour; the tour stops un-minimizing them.
+let releasedRestores = new Set<string>();
+
 /** Replaces every tour widget patch; unchanged entries keep their identity. */
 export function setTourWidgetPatches(
   next: ReadonlyMap<string, TourWidgetPatch>
 ): void {
   const merged = new Map<string, TourWidgetPatch>();
   let changed = next.size !== tourPatches.size;
-  for (const [id, value] of next) {
+  for (const [id, raw] of next) {
+    const value =
+      raw.restored && releasedRestores.has(id)
+        ? { ...(raw.z === undefined ? {} : { z: raw.z }) }
+        : raw;
     const prev = tourPatches.get(id);
     if (prev && samePatch(prev, value)) merged.set(id, prev);
     else {
@@ -418,7 +425,15 @@ export function setTourWidgetPatches(
 }
 
 export function clearTourWidgetPatches(): void {
+  releasedRestores = new Set();
   setTourWidgetPatches(new Map());
+}
+
+/** The teacher minimized a widget the tour had restored; let it stay minimized. */
+export function releaseTourRestore(widgetId: string): void {
+  if (!tourPatches.get(widgetId)?.restored) return;
+  releasedRestores = new Set(releasedRestores).add(widgetId);
+  setTourWidgetPatches(tourPatches);
 }
 
 export const getTourWidgetPatches = (): TourPatches => tourPatches;

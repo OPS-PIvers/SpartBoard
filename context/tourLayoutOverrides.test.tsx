@@ -5,6 +5,7 @@ import {
   clearTourWidgetPatches,
   getTourLayoutOverrides,
   getTourWidgetPatches,
+  releaseTourRestore,
   setTourLayoutOverrides,
   setTourWidgetPatches,
   useTourLayoutOverride,
@@ -70,5 +71,16 @@ describe('tour widget patches', () => {
     expect(getTourWidgetPatches().get('w2')).toEqual({ restored: true });
     act(() => clearTourWidgetPatches());
     expect(result.current).toBeUndefined();
+  });
+
+  it('stops restoring a widget the teacher minimizes, until the tour ends', () => {
+    setTourWidgetPatches(new Map([['w1', { restored: true, z: 3 }]]));
+    releaseTourRestore('w1');
+    expect(getTourWidgetPatches().get('w1')).toEqual({ z: 3 });
+    setTourWidgetPatches(new Map([['w1', { restored: true, z: 3 }]]));
+    expect(getTourWidgetPatches().get('w1')).toEqual({ z: 3 });
+    clearTourWidgetPatches();
+    setTourWidgetPatches(new Map([['w1', { restored: true }]]));
+    expect(getTourWidgetPatches().get('w1')).toEqual({ restored: true });
   });
 });

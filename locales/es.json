@@ -3354,6 +3354,7 @@
   "tours": {
     "unavailable": "Este recorrido no está disponible en este momento.",
     "practiceBoardName": "Práctica del recorrido",
+    "widgetsLeftBehind": "El recorrido terminó. Sus widgets siguen en tu otro tablero.",
     "readOnlyTitle": "Este tablero es de solo lectura",
     "readOnlyBody": "El recorrido necesita añadir widgets y hacer clic en botones. ¿Quieres empezarlo en un tablero de práctica nuevo?",
     "cancel": "Cancelar",

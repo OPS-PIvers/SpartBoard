@@ -173,6 +173,8 @@ type AutoStage = 'demo' | 'waiting' | 'yourTurn' | 'fallback';
 const BOARD_WAIT_MS = 2000;
 /** How often a step re-applies its anchor's prerequisite while the anchor is missing. */
 const PREREQ_RETRY_MS = 400;
+// A board switch this soon after a step's click is that step's own navigation.
+const FOLLOW_BOARD_MS = 3000;
 const CALLOUT_WIDTH = 320;
 /** A plain step's centred card reads wider than a pointing callout. */
 const PLAIN_WIDTH = 400;
@@ -242,6 +244,7 @@ export const LiveTourRunner: React.FC = () => {
   const [cue, setCue] = useState<CursorCue | null>(null);
   const cueSeq = useRef(0);
   const startingRef = useRef(false);
+  const lastStepClickAt = useRef(0);
   const reducedMotion = usePrefersReducedMotion();
   const [resumeOffer, setResumeOffer] = useState<SavedTour | null>(
     readSavedTour
@@ -432,13 +435,18 @@ export const LiveTourRunner: React.FC = () => {
   const prereqStep = tour?.index ?? 0;
   const prereqKey = `${prereqStep}:${attempt}`;
   const [prereqDone, setPrereqDone] = useState<string | null>(null);
-  if (anchor.status === 'found' && prereqDone !== prereqKey) {
+  // Missing also ends the retries, so a step that never resolves stops fighting the teacher.
+  const prereqSettled =
+    anchor.status === 'found' || anchor.status === 'missing';
+  if (prereqSettled && prereqDone !== prereqKey) {
     setPrereqDone(prereqKey);
   }
   const needsPrereq =
     tour?.phase === 'running' &&
     !!binding &&
-    anchor.status !== 'found' &&
+    !paused &&
+    !takenOver &&
+    !prereqSettled &&
     prereqDone !== prereqKey;
   useEffect(() => {
     if (!needsPrereq) return;
@@ -721,6 +729,7 @@ export const LiveTourRunner: React.FC = () => {
     if (!el || step?.tour?.action !== 'click') return;
     let raf = 0;
     const onClick = () => {
+      lastStepClickAt.current = Date.now();
       // Autopilot's own click waits for the next anchor instead.
       if (autoClicking.current) return;
       raf = requestAnimationFrame(() => advanceRef.current(stepIndex + 1));
@@ -761,6 +770,28 @@ export const LiveTourRunner: React.FC = () => {
     !!activeDashboard &&
     activeDashboard.id !== tour.boardId;
   const endOnBoardSwitch = useEffectEvent(() => {
+    const board = latest.current.dashboard.activeDashboard;
+    // A step that teaches board navigation follows the teacher to the new board.
+    if (
+      tour?.phase === 'running' &&
+      board &&
+      Date.now() - lastStepClickAt.current < FOLLOW_BOARD_MS
+    ) {
+      setTour({
+        ...tour,
+        boardId: board.id,
+        beforeIds: new Set(board.widgets.map((w) => w.id)),
+        addedTypes: [],
+      });
+      return;
+    }
+    // Saved widgets from a tour without layouts stay on the old board; say so.
+    if (tour && Object.keys(tour.claims).length > 0) {
+      latest.current.dashboard.addToast(
+        latest.current.t('tours.widgetsLeftBehind'),
+        'info'
+      );
+    }
     if (tour?.phase === 'running') {
       noteMiss();
       runLog.current?.end({ done: false, exit: tour.index });
