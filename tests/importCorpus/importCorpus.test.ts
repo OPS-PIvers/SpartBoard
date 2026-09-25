@@ -34,6 +34,8 @@ interface TestCounts {
   flagged: number;
   /** Question types in order, so a shape change (Part A/B, Ordering) shows. */
   types: string[];
+  /** Printed numbers of questions with a picture, when any have one (E11). */
+  picturesOn?: string[];
 }
 
 interface KeyCounts {
@@ -66,7 +68,12 @@ async function countsFor(name: string, bytes: Buffer): Promise<Counts> {
   const quiz = await readQuizDocument(file, {
     fileName: name,
     ...(pdf ? { pdf } : {}),
+    // Node has no canvas; the BMP stands in for the PNG the browser would make.
+    bmpToPng: (bmp) => Promise.resolve(bmp),
   });
+  const picturesOn = quiz.questions
+    .filter((q) => q.imageIds.length > 0)
+    .map((q) => q.sourceLabel ?? String(q.number));
   const sections = new Set(
     quiz.questions.map(
       (q) => (q as { ref?: { section?: number } }).ref?.section ?? 'none'
@@ -80,6 +87,7 @@ async function countsFor(name: string, bytes: Buffer): Promise<Counts> {
     sections: sections.size,
     flagged: quiz.questions.filter((q) => q.warnings.length > 0).length,
     types: quiz.questions.map((q) => q.type),
+    ...(picturesOn.length > 0 ? { picturesOn } : {}),
   };
 }
 

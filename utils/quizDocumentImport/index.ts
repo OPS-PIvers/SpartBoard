@@ -9,6 +9,11 @@
 import { parseDocument } from './parseQuestions';
 import { readDocx } from './docxReader';
 import { readRtf } from './rtfReader';
+import {
+  browserBmpToPng,
+  rtfPictureImages,
+  type BmpToPng,
+} from './rtfPictures';
 import { readCartridge } from './cartridgeReader';
 import { readPdf, type PdfReaderDeps } from './pdfReader';
 import type { PdfCropperDeps } from './pdfFigures';
@@ -110,6 +115,8 @@ export interface ReadDocumentOptions {
   multiAnswer?: boolean;
   /** Photos of the test, one per page in order; `file` is the first (R30). */
   pages?: readonly Blob[];
+  /** Converts an RTF's bitmap pictures to PNG; defaults to the browser's canvas (E11). */
+  bmpToPng?: BmpToPng;
 }
 
 /**
@@ -139,22 +146,31 @@ export async function readQuizDocument(
   }
 
   if (kind === 'rtf') {
-    const { lines } = await readRtf(file);
-    // Rich text carries its pictures as hex blobs the reader skips (D15).
-    warnings.push(
-      'Pictures in a rich text file aren’t brought in — add them to the questions that need them in the editor.'
-    );
+    const { lines, pictures } = await readRtf(file);
     const {
-      questions,
+      questions: parsed,
       texts,
       warnings: keyWarnings,
       keySummary,
     } = parseDocument(lines, reader);
     warnings.push(...keyWarnings);
+    const used = new Set(parsed.flatMap((q) => q.imageIds));
+    const { images, unreadable } = await rtfPictureImages(
+      pictures.filter((p) => used.has(p.id)),
+      options.bmpToPng ?? browserBmpToPng
+    );
+    // A vector drawing can't be shown, so its question is named for the teacher (E11).
+    const questions = parsed.map((q) => {
+      if (!q.imageIds.some((id) => unreadable.has(id))) return q;
+      warnings.push(
+        `Question ${q.sourceLabel ?? q.number}’s picture couldn’t be read — add it in the editor.`
+      );
+      return { ...q, imageIds: q.imageIds.filter((id) => !unreadable.has(id)) };
+    });
     return {
       title: titleFromFileName(fileName),
       questions,
-      images: [],
+      images,
       ...(texts.length > 0 ? { texts } : {}),
       ...(keySummary ? { keySummary } : {}),
       warnings,
