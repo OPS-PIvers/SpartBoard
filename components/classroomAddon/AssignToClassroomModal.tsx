@@ -399,10 +399,7 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
             {autoLinked && (
               <div className="flex items-start gap-2 rounded-lg bg-brand-blue-lighter/30 border border-brand-blue-primary/20 px-3 py-2 text-sm text-brand-blue-dark">
                 <GraduationCap size={16} className="mt-0.5 shrink-0" />
-                <span>
-                  Already linked to this class — we picked the course for you.
-                  Review and assign, or change it below.
-                </span>
+                <span>Course picked from your class link.</span>
               </div>
             )}
 
@@ -509,8 +506,7 @@ export const AssignToClassroomModal: React.FC<AssignToClassroomModalProps> = ({
                 />
               </div>
               <p className="mt-1 text-xs text-slate-400">
-                Synced to the Google Classroom assignment’s due date and time
-                (your local time).
+                Matches the Classroom due date.
               </p>
             </div>
           </>

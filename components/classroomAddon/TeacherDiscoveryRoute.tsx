@@ -1030,11 +1030,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
 
   return (
     <AddonShell>
-      <AddonHeader
-        icon={Paperclip}
-        title="Attach a SpartBoard activity"
-        subtitle="Pick a quiz or video activity from your library. Students complete it right inside Classroom."
-      />
+      <AddonHeader icon={Paperclip} title="Attach a SpartBoard activity" />
 
       {existingAttachmentId ? (
         <AddonCard className="p-5">
@@ -1162,9 +1158,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   className="mb-1.5 block text-sm font-medium text-slate-700"
                 >
                   Your name{' '}
-                  <span className="font-normal text-slate-500">
-                    (optional — shown on shared PLC results)
-                  </span>
+                  <span className="font-normal text-slate-500">(optional)</span>
                 </label>
                 <input
                   id={teacherNameId}
