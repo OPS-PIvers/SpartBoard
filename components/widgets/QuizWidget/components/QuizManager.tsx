@@ -148,6 +148,7 @@ import { useQuizHandRaiseMode } from '@/hooks/useQuizHandRaiseMode';
 import { QUIZ_TRANSLATION_FEATURE } from '@/config/quizTranslation';
 import { useDialog } from '@/context/useDialog';
 import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
+import { needsKeyMessage } from '@/utils/quizNeedsKey';
 import { countRecordingSlots } from '@/utils/quizRecordingModes';
 import {
   splitDueAtToInputs,
@@ -555,10 +556,7 @@ const quizNeedsKeyCount = (quiz: QuizMetadata): number =>
   quiz.needsKeyCount ?? 0;
 
 /** Why Assign is off, named so the tooltip says what to do about it. */
-const needsKeyAssignReason = (count: number): string =>
-  count === 1
-    ? '1 question still needs an answer. Open the quiz and fill it in before you assign.'
-    : `${count} questions still need an answer. Open the quiz and fill them in before you assign.`;
+const needsKeyAssignReason = needsKeyMessage;
 
 // Title + the question-text blob written on save (see QuizMetadata.searchText)
 // so search matches question content, not just titles.
