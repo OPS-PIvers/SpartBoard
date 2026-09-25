@@ -8052,8 +8052,12 @@ export interface ProjectsConfig {
   managerTab?: 'library' | 'active' | 'archive';
   /** The project open in board view. Not a binding — the manager retargets it. */
   projectId?: string;
-  /** D27 — the teacher's show/hide status toggle on the board face. */
+  /** Legacy D27 toggle; `false` still reads as collapsed until `boardCollapsed` is written. */
   showStatus?: boolean;
+  /** D37 — board drawn as one segmented bar per group. Per board, not an appearance key. */
+  boardCollapsed?: boolean;
+  /** D32 — the run class this board shows. Per board, not an appearance key. */
+  boardClassId?: string;
   pendingImport?: ProjectsPendingImport | null;
   /** Persisted library grid/list toggle. */
   libraryViewMode?: 'grid' | 'list';

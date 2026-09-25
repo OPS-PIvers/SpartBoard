@@ -7,10 +7,8 @@ import type {
 } from '@/types';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 
-/** D26 — the board face degrades to counts past 8 groups; 32 is the hard ceiling. */
+/** The hard ceiling on steps; the board draws every one (D31). */
 export const MAX_STEPS = 32;
-export const COMFORTABLE_GROUPS = 8;
-export const COMFORTABLE_STEPS = 8;
 
 export const STEP_STATE_ORDER: ProjectStepState[] = [
   'notStarted',
@@ -101,7 +99,7 @@ export function projectClassIdFor(
   return testClass.length > 0 ? testClass : `local:${roster.id}`;
 }
 
-/** D14 — the board renders only the groups in the active roster's class. */
+/** D32 — the board renders only the groups in its picked class. */
 export function groupsForClass<T extends Pick<ProjectGroup, 'classId'>>(
   groups: T[],
   classId: string | null | undefined
