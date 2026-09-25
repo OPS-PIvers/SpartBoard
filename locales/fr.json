@@ -12,7 +12,8 @@
     "disabled": {
       "title": "La commande à distance est désactivée",
       "hint": "Activez la télécommande depuis le tableau."
-    }
+    },
+    "emptyBoard": "Ajoutez des widgets à votre tableau pour les contrôler ici."
   },
   "common": {
     "cancel": "Annuler",

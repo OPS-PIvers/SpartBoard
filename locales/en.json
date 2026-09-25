@@ -12,7 +12,8 @@
     "disabled": {
       "title": "Remote control is off",
       "hint": "Turn Remote Control on from the board."
-    }
+    },
+    "emptyBoard": "Add widgets to your board to control them here."
   },
   "common": {
     "cancel": "Cancel",

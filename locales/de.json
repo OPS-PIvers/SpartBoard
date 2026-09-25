@@ -12,7 +12,8 @@
     "disabled": {
       "title": "Fernsteuerung ist deaktiviert",
       "hint": "Aktiviere die Fernsteuerung auf der Tafel."
-    }
+    },
+    "emptyBoard": "Füge deiner Tafel Widgets hinzu, um sie hier zu steuern."
   },
   "common": {
     "cancel": "Abbrechen",

@@ -12,7 +12,8 @@
     "disabled": {
       "title": "El control remoto está desactivado",
       "hint": "Activa el control remoto desde el tablero."
-    }
+    },
+    "emptyBoard": "Añade widgets a tu tablero para controlarlos aquí."
   },
   "common": {
     "cancel": "Cancelar",
