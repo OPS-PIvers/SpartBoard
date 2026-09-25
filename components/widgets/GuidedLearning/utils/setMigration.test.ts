@@ -25,7 +25,7 @@ describe('isGuidedLearningSetV2', () => {
   it('treats v2 and above as v2', () => {
     expect(isGuidedLearningSetV2({ schemaVersion: 2 })).toBe(true);
     expect(isGuidedLearningSetV2({ schemaVersion: 3 })).toBe(true);
-    expect(GL_SET_SCHEMA_VERSION).toBe(4);
+    expect(GL_SET_SCHEMA_VERSION).toBe(5);
   });
 });
 
@@ -79,6 +79,20 @@ describe('requiredSchemaVersion', () => {
     { calloutTone: 'light' as const },
   ])('is 4 once a step sets %o', (over) => {
     expect(requiredSchemaVersion({ steps: [step(), step(over)] })).toBe(4);
+  });
+
+  it('is 5 once a callout step has a box, and ignores a box on other types', () => {
+    const calloutBox = { xPct: 10, yPct: 10, wPct: 30, hPct: 20 };
+    expect(
+      requiredSchemaVersion({
+        steps: [step({ calloutTone: 'light' }), step({ calloutBox })],
+      })
+    ).toBe(5);
+    expect(
+      requiredSchemaVersion({
+        steps: [step({ interactionType: 'question', calloutBox })],
+      })
+    ).toBe(3);
   });
 });
 

@@ -225,5 +225,27 @@
       "calloutScale": 1.25,
       "calloutTone": "light"
     }
+  },
+  {
+    "name": "a popover with an explicit callout box keeps the box",
+    "step": {
+      "id": "s10",
+      "xPct": 70,
+      "yPct": 40,
+      "imageIndex": 0,
+      "interactionType": "text-popover",
+      "text": "Save your work here.",
+      "calloutBox": { "xPct": -8, "yPct": 12, "wPct": 35, "hPct": 18 },
+      "tour": { "anchorId": "board-canvas" }
+    },
+    "expected": {
+      "id": "s10",
+      "xPct": 70,
+      "yPct": 40,
+      "imageIndex": 0,
+      "interactionType": "text-popover",
+      "text": "Save your work here.",
+      "calloutBox": { "xPct": -8, "yPct": 12, "wPct": 35, "hPct": 18 }
+    }
   }
 ]

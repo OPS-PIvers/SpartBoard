@@ -3,10 +3,12 @@ import { GuidedLearningPublicStep } from '@/types';
 import type { PxRect, Side } from '../../types/stage';
 import {
   CALLOUT_PADDING,
+  arrowBetween,
   placeCallout,
   type Point,
 } from '../../utils/calloutPlacement';
 import {
+  CALLOUT_TITLE_RATIO,
   CALLOUT_TONE_STYLES,
   calloutScaleOf,
   calloutToneOf,
@@ -15,6 +17,7 @@ import {
 import { pinSizePx } from '../../utils/regionGeometry';
 import { renderStepText } from '../../utils/richText';
 import { CalloutArrow } from './CalloutArrow';
+import { FIT_BODY_VAR, useFitCalloutText } from './useFitCalloutText';
 
 interface Props {
   step: GuidedLearningPublicStep;
@@ -28,6 +31,10 @@ interface Props {
   showAnchor?: boolean;
   /** Studio inline editor shown in place of the label and text. */
   editor?: React.ReactNode;
+  /** Explicit box in container px; overrides pin, width, scale and position, and fits the text. */
+  box?: PxRect;
+  /** Studio only: outline the box when its text overflows at the floor size. */
+  showFit?: boolean;
 }
 
 const PREFER: Record<string, Side | undefined> = {
@@ -46,8 +53,16 @@ export const TooltipInteraction: React.FC<Props> = ({
   pinned,
   showAnchor = true,
   editor,
+  box,
+  showFit = false,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
+  const fit = useFitCalloutText(
+    cardRef,
+    box,
+    `${step.label ?? ''}\u0000${step.text ?? ''}`,
+    editor !== undefined
+  );
   const [measured, setMeasured] = useState({ w: 0, h: 0 });
   // Width the card is squeezed to; natural size is only measured while unsqueezed.
   const squeezedRef = useRef(false);
@@ -88,7 +103,7 @@ export const TooltipInteraction: React.FC<Props> = ({
     h: pin,
   };
 
-  const placement = placeCallout({
+  const auto = placeCallout({
     box: { w: cardW, h: cardH },
     target: keepOut,
     container: { w: containerWidth, h: containerHeight },
@@ -96,11 +111,31 @@ export const TooltipInteraction: React.FC<Props> = ({
     pinned,
     offset: Math.max(0, step.tooltipOffset ?? 16),
   });
-  const squeezed = placement.width < cardW - 0.5;
+  // An explicit box keeps its stored size and position; only a text overflow grows it downward.
+  const boxHeight = box ? Math.max(box.h, fit?.heightPx ?? 0) : 0;
+  const boxRect: PxRect | null = box
+    ? {
+        x: box.x,
+        y: Math.max(0, Math.min(box.y, containerHeight - boxHeight)),
+        w: box.w,
+        h: boxHeight,
+      }
+    : null;
+  const placement = boxRect
+    ? {
+        left: boxRect.x,
+        top: boxRect.y,
+        width: boxRect.w,
+        side: undefined,
+        arrow: arrowBetween(boxRect, keepOut),
+      }
+    : auto;
+  const squeezed = !boxRect && placement.width < cardW - 0.5;
   // eslint-disable-next-line react-hooks/refs
   squeezedRef.current = squeezed;
 
   const tone = CALLOUT_TONE_STYLES[calloutToneOf(step)];
+  const overflowing = showFit && fit?.overflow === true;
   const cardWidth = squeezed
     ? placement.width
     : (authoredWidth ?? 'max-content');
@@ -137,24 +172,40 @@ export const TooltipInteraction: React.FC<Props> = ({
         role="note"
         data-testid="gl-tooltip-card"
         data-gl-callout={step.id}
+        data-gl-callout-overflow={overflowing || undefined}
         data-side={placement.side}
         className={`absolute flex flex-col ${
           placement.side === 'left'
             ? 'items-end text-right'
             : 'items-start text-left'
-        } ${tone.tooltipCard} rounded-2xl leading-relaxed shadow-2xl animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none`}
+        } ${tone.tooltipCard} rounded-2xl leading-relaxed shadow-2xl animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none${
+          overflowing
+            ? ' outline outline-2 outline-offset-2 outline-amber-400'
+            : ''
+        }`}
         style={
-          {
-            '--gl-callout-scale': calloutScaleOf(step),
-            left: placement.left,
-            top: placement.top,
-            maxWidth: cardMaxWidth,
-            width: cardWidth,
-            padding:
-              'calc(min(12px, 2.8cqmin) * var(--gl-callout-scale)) calc(min(16px, 3.6cqmin) * var(--gl-callout-scale))',
-            fontSize:
-              'calc(var(--gl-text-body, min(16px, 4cqmin)) * var(--gl-callout-scale))',
-          } as React.CSSProperties
+          boxRect
+            ? ({
+                [FIT_BODY_VAR]: fit ? `${fit.bodyPx}px` : undefined,
+                fontSize: `var(${FIT_BODY_VAR}, 16px)`,
+                left: boxRect.x,
+                top: boxRect.y,
+                width: boxRect.w,
+                minHeight: boxRect.h,
+                padding: '0.75em 1em',
+                overflowWrap: 'anywhere',
+              } as React.CSSProperties)
+            : ({
+                '--gl-callout-scale': calloutScaleOf(step),
+                left: placement.left,
+                top: placement.top,
+                maxWidth: cardMaxWidth,
+                width: cardWidth,
+                padding:
+                  'calc(min(12px, 2.8cqmin) * var(--gl-callout-scale)) calc(min(16px, 3.6cqmin) * var(--gl-callout-scale))',
+                fontSize:
+                  'calc(var(--gl-text-body, min(16px, 4cqmin)) * var(--gl-callout-scale))',
+              } as React.CSSProperties)
         }
       >
         {editor ?? (
@@ -163,8 +214,9 @@ export const TooltipInteraction: React.FC<Props> = ({
               <div
                 className={`font-bold ${tone.title} mb-1 tracking-tight`}
                 style={{
-                  fontSize:
-                    'calc(var(--gl-text-title, min(18px, 4.2cqmin)) * var(--gl-callout-scale))',
+                  fontSize: boxRect
+                    ? `${CALLOUT_TITLE_RATIO}em`
+                    : 'calc(var(--gl-text-title, min(18px, 4.2cqmin)) * var(--gl-callout-scale))',
                 }}
               >
                 {renderStepText(step.label)}

@@ -7119,6 +7119,8 @@ export interface GuidedLearningStep {
   calloutScale?: number;
   /** Callout colour preset. Absent = 'dark'. */
   calloutTone?: GuidedLearningCalloutTone;
+  /** Explicit callout box in image-%, top-left origin; overrides pin, width, scale and tooltip position. */
+  calloutBox?: GuidedLearningCalloutBox;
   /** Watch-mode demonstration override; absent = cursor goes to region centre. */
   cursor?: GuidedLearningStepCursor;
   /** Narration track: generated TTS or the author's recorded voice. */
@@ -7143,6 +7145,14 @@ export interface GuidedLearningRegion {
 export interface GuidedLearningCalloutPin {
   xPct: number;
   yPct: number;
+}
+
+/** All four fields are image-%; x/y may fall outside 0-100 so a box can sit in the letterbox. */
+export interface GuidedLearningCalloutBox {
+  xPct: number;
+  yPct: number;
+  wPct: number;
+  hPct: number;
 }
 
 /** Callout colour presets; stored as an enum, never a free colour. */
@@ -7384,6 +7394,7 @@ export interface GuidedLearningPublicStep {
   calloutWidthPct?: number;
   calloutScale?: number;
   calloutTone?: GuidedLearningCalloutTone;
+  calloutBox?: GuidedLearningCalloutBox;
   cursor?: GuidedLearningStepCursor;
   narration?: GuidedLearningPublicNarration;
 }

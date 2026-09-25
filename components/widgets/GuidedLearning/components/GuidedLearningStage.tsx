@@ -35,6 +35,7 @@ import { isGuidedLearningSetV2 } from '../utils/setMigration';
 import { buildStageGeometry } from '../utils/stageGeometry';
 import { pointInRegion, regionRect } from '../utils/regionGeometry';
 import { placeBanner } from '../utils/calloutPlacement';
+import { calloutBoxOf, calloutBoxRectPx } from '../utils/calloutStyle';
 import {
   CALLOUT_IN_MS,
   SLIDE_MS,
@@ -129,6 +130,8 @@ export interface GuidedLearningStageRuntimeProps {
   mediaPaused?: boolean;
   /** Player v2: the step's audio or video failed to load or play. */
   onMediaError?: () => void;
+  /** Studio: outline a callout box whose text does not fit at the floor size. */
+  showCalloutFit?: boolean;
 }
 
 export const GuidedLearningStage: React.FC<
@@ -163,6 +166,7 @@ export const GuidedLearningStage: React.FC<
   slideLoading = false,
   mediaPaused = false,
   onMediaError,
+  showCalloutFit = false,
 }) => {
   const { t } = useTranslation();
   // Hotspot pulse style — 'consistent' (default) preserves the legacy ping
@@ -555,6 +559,15 @@ export const GuidedLearningStage: React.FC<
     activeStep?.calloutPin && geometry
       ? geometry.imagePctToContainerPx(activeStep.calloutPin)
       : undefined;
+  const explicitBox = activeStep ? calloutBoxOf(activeStep) : undefined;
+  const calloutBoxPx =
+    explicitBox && geometry
+      ? calloutBoxRectPx(
+          explicitBox,
+          geometry.imagePctToContainerPx,
+          containerSize
+        )
+      : undefined;
   // What a callout must keep clear: the region, else the lit circle, else the pin.
   const calloutTarget = (spotlightPx?: number): PxRect | undefined => {
     if (!activeStep || !geometry) return undefined;
@@ -712,6 +725,8 @@ export const GuidedLearningStage: React.FC<
             containerWidth={containerSize.w}
             containerHeight={containerSize.h}
             editor={calloutEditor}
+            box={calloutBoxPx}
+            showFit={showCalloutFit}
           />
         </div>
       </div>
@@ -811,6 +826,8 @@ export const GuidedLearningStage: React.FC<
           pinned={pinnedCallout}
           showAnchor={!activeRegion}
           editor={calloutEditor}
+          box={calloutBoxPx}
+          showFit={showCalloutFit}
         />
       ) : null;
     }
@@ -833,6 +850,8 @@ export const GuidedLearningStage: React.FC<
               pinned={pinnedCallout}
               showAnchor={!activeRegion}
               editor={calloutEditor}
+              box={calloutBoxPx}
+              showFit={showCalloutFit}
             />
           );
         }
