@@ -1,4 +1,4 @@
-import React, { Profiler, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   act,
   cleanup,
@@ -18,6 +18,7 @@ import { StudioCanvas } from './StudioCanvas';
 import { useCanvasTools } from './useCanvasTools';
 import { useStudioShortcuts } from './useStudioShortcuts';
 import { presetById } from './devicePresets';
+import type { GuidedLearningStageProps as StageProps } from '../../types/stage';
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'test-user' }, isAdmin: true }),
@@ -33,14 +34,18 @@ vi.mock('@/hooks/useStorage', () => ({
 }));
 
 const stageRenders = vi.hoisted(() => ({ count: 0 }));
+// Counts the stage body itself, not the edit layer rendered inside it.
 vi.mock('../GuidedLearningStage', async (importOriginal) => {
   const real = await importOriginal<typeof import('../GuidedLearningStage')>();
-  const Counted: typeof real.GuidedLearningStage = (props) => (
-    <Profiler id="gl-stage" onRender={() => stageRenders.count++}>
-      <real.GuidedLearningStage {...props} />
-    </Profiler>
-  );
-  return { ...real, GuidedLearningStage: Counted };
+  const memo = real.GuidedLearningStage as unknown as {
+    type: (props: StageProps) => React.ReactNode;
+    compare: (a: StageProps, b: StageProps) => boolean;
+  };
+  const Counted = (props: StageProps) => {
+    stageRenders.count++;
+    return memo.type(props);
+  };
+  return { ...real, GuidedLearningStage: React.memo(Counted, memo.compare) };
 });
 
 const BOARD = presetById('board');
@@ -117,6 +122,8 @@ const buildSet = (): GuidedLearningSet => ({
 const latest: { current: GuidedLearningEditorController | null } = {
   current: null,
 };
+// Stands in for GuidedLearningStudio: it owns the editor state and the canvas tools.
+const harnessRenders = { count: 0 };
 const Harness: React.FC = () => {
   const state = useGuidedLearningEditorState({
     existingSet: buildSet(),
@@ -126,6 +133,7 @@ const Harness: React.FC = () => {
   useStudioShortcuts(tools.rows);
   useEffect(() => {
     latest.current = state;
+    harnessRenders.count++;
   });
   return (
     <StudioCanvas state={state} tools={tools} setId="set-1" preset={BOARD} />
@@ -271,21 +279,84 @@ describe('Studio edit layer', () => {
     });
     fireEvent.pointerMove(layer(), {
       pointerId: 1,
-      clientX: 630,
+      clientX: 625,
       clientY: 425,
     });
     fireEvent.pointerMove(layer(), {
       pointerId: 1,
-      clientX: 640,
+      clientX: 628,
       clientY: 430,
     });
-    fireEvent.pointerUp(layer(), { pointerId: 1, clientX: 640, clientY: 430 });
+    fireEvent.pointerUp(layer(), { pointerId: 1, clientX: 628, clientY: 430 });
     const pin = stepById('rect-1').calloutPin;
-    // The callout centre (650, 430) plus the 20×10px drag.
-    expect(pin?.xPct).toBeCloseTo(670 / 7.2);
+    // The callout centre (650, 430) plus the 8×10px drag.
+    expect(pin?.xPct).toBeCloseTo(658 / 7.2);
     expect(pin?.yPct).toBeCloseTo(440 / 5.2);
     fireEvent.click(screen.getByRole('button', { name: 'Reset to auto' }));
     expect(stepById('rect-1').calloutPin).toBeUndefined();
+  });
+
+  it('keeps the grab offset and stops the card where the player would clamp it', () => {
+    click([18, 18]);
+    fireEvent.pointerDown(layer(), {
+      button: 0,
+      pointerId: 1,
+      clientX: 620,
+      clientY: 420,
+    });
+    fireEvent.pointerMove(layer(), {
+      pointerId: 1,
+      clientX: 600,
+      clientY: 380,
+    });
+    frames.step();
+    const card = document.querySelector<HTMLElement>(
+      '[data-gl-callout="rect-1"]'
+    );
+    // The card keeps the grab offset; the document is untouched mid-drag.
+    expect(card?.style.translate).toBe('-20px -40px');
+    expect(stepById('rect-1').calloutPin).toBeUndefined();
+    // Far past the right edge: the card stops 12px inside the stage.
+    fireEvent.pointerMove(layer(), {
+      pointerId: 1,
+      clientX: 900,
+      clientY: 420,
+    });
+    frames.step();
+    const [x, y] = (card?.style.translate ?? '').split(' ').map(parseFloat);
+    expect(x).toBeCloseTo(8);
+    expect(y).toBeCloseTo(0);
+    fireEvent.pointerUp(layer(), { pointerId: 1, clientX: 900, clientY: 420 });
+    expect(card?.style.translate).toBe('');
+    expect(stepById('rect-1').calloutPin?.xPct).toBeCloseTo(658 / 7.2);
+  });
+
+  it('never opens editing from the double-click a drag ends with', () => {
+    click([18, 18]);
+    fireEvent.pointerDown(layer(), {
+      button: 0,
+      pointerId: 1,
+      clientX: 620,
+      clientY: 420,
+    });
+    fireEvent.pointerMove(layer(), {
+      pointerId: 1,
+      clientX: 610,
+      clientY: 410,
+    });
+    fireEvent.pointerUp(layer(), { pointerId: 1, clientX: 610, clientY: 410 });
+    fireEvent.doubleClick(layer(), { clientX: 610, clientY: 410 });
+    expect(
+      document
+        .querySelector('[data-gl-studio-canvas]')
+        ?.getAttribute('data-editing-step')
+    ).toBeNull();
+  });
+
+  it('cancels a native drag inside the edit layer', () => {
+    const event = new Event('dragstart', { bubbles: true, cancelable: true });
+    layer().dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
   });
 
   it('treats a 3px callout wiggle and a double-click as editing, not pinning', () => {
@@ -370,9 +441,14 @@ describe('Studio edit layer', () => {
     expect(frames.pending()).toBe(1);
     expect(stepById('rect-1')).toEqual(STEPS[0]);
     frames.step();
+    // The frame follows the draft; the document waits for pointerup.
+    const frame = screen.getByTestId('gl-studio-selection');
+    expect(parseFloat(frame.style.left)).toBeCloseTo(25 * 7.2);
+    expect(parseFloat(frame.style.top)).toBeCloseTo(19 * 5.2);
+    expect(stepById('rect-1')).toEqual(STEPS[0]);
+    up([28, 22], { ctrlKey: true });
     expect(stepById('rect-1').xPct).toBeCloseTo(35);
     expect(stepById('rect-1').yPct).toBeCloseTo(29);
-    up([28, 22], { ctrlKey: true });
     act(() => editor().undo());
     expect(stepById('rect-1')).toEqual(STEPS[0]);
   });
@@ -395,11 +471,75 @@ describe('Studio edit layer', () => {
     }
     up([30, 24], { ctrlKey: true });
     expect(perFrame).toHaveLength(20);
-    expect(Math.max(...perFrame)).toBe(1);
+    expect(Math.max(...perFrame)).toBe(0);
     expect(stepById('rect-1').xPct).toBeCloseTo(37);
     act(() => editor().undo());
     expect(stepById('rect-1')).toEqual(STEPS[0]);
     expect(editor().canUndo).toBe(false);
+  });
+
+  it('renders neither the Studio nor the stage between pointerdown and pointerup', () => {
+    click([18, 18]);
+    moveTo([38, 38]);
+    frames.step();
+    fireEvent.pointerLeave(layer());
+    const counts: number[] = [];
+    const during = (start: () => void, moves: Pt[], end: () => void) => {
+      start();
+      harnessRenders.count = 0;
+      stageRenders.count = 0;
+      for (const p of moves) {
+        moveTo(p, { ctrlKey: true });
+        frames.step();
+      }
+      counts.push(harnessRenders.count, stageRenders.count);
+      end();
+    };
+    // Region move.
+    during(
+      () => down([18, 18]),
+      [
+        [20, 19],
+        [24, 21],
+        [28, 22],
+      ],
+      () => up([28, 22], { ctrlKey: true })
+    );
+    // Region resize from the south-east handle.
+    during(
+      () => {
+        const handle = document.querySelector('[data-gl-handle="se"]');
+        if (!handle) throw new Error('no handle');
+        fireEvent.pointerDown(handle, {
+          button: 0,
+          pointerId: 1,
+          ...at(45, 39),
+        });
+      },
+      [
+        [48, 42],
+        [50, 44],
+      ],
+      () => up([50, 44], { ctrlKey: true })
+    );
+    // Callout drag.
+    during(
+      () =>
+        fireEvent.pointerDown(layer(), {
+          button: 0,
+          pointerId: 1,
+          clientX: 620,
+          clientY: 420,
+        }),
+      [
+        [80, 78],
+        [78, 76],
+      ],
+      () => up([78, 76])
+    );
+    expect(counts).toEqual([0, 0, 0, 0, 0, 0]);
+    expect(stepById('rect-1').xPct).not.toBe(25);
+    expect(stepById('rect-1').calloutPin).toBeDefined();
   });
 
   it('flushes a move still waiting for its frame on pointerup', () => {
@@ -435,16 +575,17 @@ describe('Studio edit layer', () => {
     expect(frames.pending()).toBe(0);
   });
 
-  it('closes an open drag when the edit layer unmounts mid-gesture', () => {
+  it('drops a drag cleanly when the edit layer unmounts mid-gesture', () => {
     click([18, 18]);
     down([18, 18]);
     moveTo([28, 22], { ctrlKey: true });
     frames.step();
-    expect(editor().gestureOpen).toBe(true);
+    expect(editor().gestureOpen).toBe(false);
     press('b');
     expect(screen.queryByTestId('gl-studio-edit-layer')).toBeNull();
     expect(editor().gestureOpen).toBe(false);
-    expect(editor().canUndo).toBe(true);
+    expect(stepById('rect-1')).toEqual(STEPS[0]);
+    expect(editor().canUndo).toBe(false);
   });
 
   it('zooms the canvas around the pointer with Ctrl+wheel and fits with 0', () => {
@@ -507,7 +648,7 @@ describe('Studio canvas on touch', () => {
     fireEvent.pointerDown(layer(), touch(1, [18, 18]));
     fireEvent.pointerMove(layer(), { ...touch(1, [28, 22]), ctrlKey: true });
     frames.step();
-    expect(stepById('rect-1').xPct).toBeCloseTo(35);
+    expect(stepById('rect-1').xPct).toBeCloseTo(25);
     fireEvent.pointerDown(layer(), touch(2, [60, 60]));
     fireEvent.pointerMove(layer(), touch(2, [70, 70]));
     fireEvent.pointerUp(layer(), touch(2, [70, 70]));

@@ -110,7 +110,10 @@ export const TooltipInteraction: React.FC<Props> = ({
       : 'calc(var(--gl-callout-max-w, min(340px, 50cqw)) * var(--gl-callout-scale, 1))';
 
   return (
-    <div className="absolute inset-0 pointer-events-none z-20">
+    <div
+      data-gl-overlay={step.id}
+      className="absolute inset-0 pointer-events-none z-20"
+    >
       <CalloutArrow
         from={placement.arrow.from}
         to={placement.arrow.to}

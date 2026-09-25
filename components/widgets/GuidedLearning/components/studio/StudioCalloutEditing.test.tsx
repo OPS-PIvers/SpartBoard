@@ -1,4 +1,4 @@
-import React, { Profiler, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   act,
   cleanup,
@@ -19,6 +19,7 @@ import { StudioCanvas } from './StudioCanvas';
 import { useCanvasTools } from './useCanvasTools';
 import { useStudioShortcuts } from './useStudioShortcuts';
 import { presetById } from './devicePresets';
+import type { GuidedLearningStageProps as StageProps } from '../../types/stage';
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'test-user' }, isAdmin: true }),
@@ -34,14 +35,18 @@ vi.mock('@/hooks/useStorage', () => ({
 }));
 
 const stageRenders = vi.hoisted(() => ({ count: 0 }));
+// Counts the stage body itself, not the edit layer rendered inside it.
 vi.mock('../GuidedLearningStage', async (importOriginal) => {
   const real = await importOriginal<typeof import('../GuidedLearningStage')>();
-  const Counted: typeof real.GuidedLearningStage = (props) => (
-    <Profiler id="gl-stage" onRender={() => stageRenders.count++}>
-      <real.GuidedLearningStage {...props} />
-    </Profiler>
-  );
-  return { ...real, GuidedLearningStage: Counted };
+  const memo = real.GuidedLearningStage as unknown as {
+    type: (props: StageProps) => React.ReactNode;
+    compare: (a: StageProps, b: StageProps) => boolean;
+  };
+  const Counted = (props: StageProps) => {
+    stageRenders.count++;
+    return memo.type(props);
+  };
+  return { ...real, GuidedLearningStage: React.memo(Counted, memo.compare) };
 });
 
 const BOARD = presetById('board');
@@ -256,6 +261,38 @@ describe('Studio callout editing (gl-callout-editing)', () => {
     // The region's own handles step aside while its callout is selected.
     expect(document.querySelector('[data-gl-handle]')).toBeNull();
     expect(stepById('rect-1').calloutPin).toBeUndefined();
+  });
+
+  it('moves the frame, handles and card together during a callout drag', () => {
+    selectCallout();
+    fireEvent.pointerDown(layer(), {
+      button: 0,
+      pointerId: 1,
+      clientX: 620,
+      clientY: 420,
+    });
+    fireEvent.pointerMove(layer(), {
+      pointerId: 1,
+      clientX: 600,
+      clientY: 380,
+    });
+    frames.step();
+    const card = document.querySelector<HTMLElement>(
+      '[data-gl-callout="rect-1"]'
+    );
+    expect(card?.style.translate).toBe('-20px -40px');
+    const frame = screen.getByTestId('gl-callout-selection');
+    expect(parseFloat(frame.style.left)).toBeCloseTo(580);
+    expect(parseFloat(frame.style.top)).toBeCloseTo(360);
+    const handle = screen.getByTestId('gl-callout-handle-nw');
+    expect(
+      parseFloat(handle.style.left) + parseFloat(handle.style.width) / 2
+    ).toBeCloseTo(580);
+    expect(stepById('rect-1').calloutPin).toBeUndefined();
+    fireEvent.pointerUp(layer(), { pointerId: 1, clientX: 600, clientY: 380 });
+    expect(card?.style.translate).toBe('');
+    expect(stepById('rect-1').calloutPin?.xPct).toBeCloseTo(630 / 7.2);
+    expect(stepById('rect-1').calloutPin?.yPct).toBeCloseTo(390 / 5.2);
   });
 
   it('returns to region selection on Escape or a click on the region', () => {
