@@ -17,6 +17,8 @@ import { nodePdfDeps } from './nodePdfDeps';
 
 const ROOT = resolve(__dirname, '..', 'fixtures');
 const CORPUS = join(ROOT, 'private-quiz-import');
+/** Committed synthetic layouts (R28), read alongside the private files. */
+const SYNTHETIC = join(ROOT, 'quiz-import-synthetic');
 const EXPECTED = join(ROOT, 'quiz-import-corpus.expected.json');
 const UPDATE = process.env.UPDATE_IMPORT_CORPUS === '1';
 
@@ -30,6 +32,8 @@ interface TestCounts {
   keyed: number;
   sections: number;
   flagged: number;
+  /** Question types in order, so a shape change (Part A/B, Ordering) shows. */
+  types: string[];
 }
 
 interface KeyCounts {
@@ -57,7 +61,7 @@ async function countsFor(name: string, bytes: Buffer): Promise<Counts> {
       fileName: name,
       ...(pdf ? { pdf } : {}),
     });
-    return { kind: 'key', keyEntries: key.size };
+    return { kind: 'key', keyEntries: key.length };
   }
   const quiz = await readQuizDocument(file, {
     fileName: name,
@@ -75,21 +79,26 @@ async function countsFor(name: string, bytes: Buffer): Promise<Counts> {
     keyed: quiz.questions.filter((q) => q.correctAnswer.trim()).length,
     sections: sections.size,
     flagged: quiz.questions.filter((q) => q.warnings.length > 0).length,
+    types: quiz.questions.map((q) => q.type),
   };
 }
 
 describe('private quiz import corpus', () => {
   it('matches the recorded counts for every file present', async () => {
     const expected = loadExpected();
-    const files = existsSync(CORPUS)
-      ? readdirSync(CORPUS).filter((f) => !f.startsWith('.'))
-      : [];
+    const listed = (dir: string) =>
+      existsSync(dir)
+        ? readdirSync(dir)
+            .filter((f) => !f.startsWith('.'))
+            .map((f) => ({ name: f, path: join(dir, f) }))
+        : [];
+    const files = [...listed(SYNTHETIC), ...listed(CORPUS)];
     const seen = new Set<string>();
     const recorded: Expected = { ...expected };
     const notes: string[] = [];
 
-    for (const name of files) {
-      const bytes = readFileSync(join(CORPUS, name));
+    for (const { name, path } of files) {
+      const bytes = readFileSync(path);
       const hash = createHash('sha256').update(bytes).digest('hex');
       seen.add(hash);
       const actual = await countsFor(name, bytes);

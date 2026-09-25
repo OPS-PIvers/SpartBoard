@@ -113,13 +113,12 @@ export const SchemaSettingsFallback: React.FC<SchemaSettingsFallbackProps> = ({
     );
   }
 
-  if (!schema) {
-    return (
-      <p className="text-sm text-slate-500 italic">
-        {t('widgetSettings.common.empty')}
-      </p>
-    );
-  }
+  const empty = (
+    <p className="text-sm text-slate-500 italic">
+      {t('widgetSettings.common.empty')}
+    </p>
+  );
+  if (!schema) return empty;
 
   return (
     <SchemaRenderer
@@ -127,6 +126,7 @@ export const SchemaSettingsFallback: React.FC<SchemaSettingsFallbackProps> = ({
       widget={widget}
       ctx={ctx}
       updateConfig={updateConfig}
+      emptyFallback={empty}
     />
   );
 };

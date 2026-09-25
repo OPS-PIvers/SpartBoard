@@ -426,6 +426,11 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
           ctx={ctx}
           updateConfig={updateConfig}
           defaults={defaults}
+          emptyFallback={
+            <p className="text-sm text-slate-700">
+              {t('widgetSettings.common.empty')}
+            </p>
+          }
         />
       );
     }

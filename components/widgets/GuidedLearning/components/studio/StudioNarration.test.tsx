@@ -142,6 +142,7 @@ const flushWith = async () => {
 };
 
 async function recordTake(durationMs: number) {
+  const take = `users/test-user/hotspot_images/take-${uploads + 1}.webm`;
   fireEvent.click(screen.getByRole('button', { name: /Record/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Start recording' }));
   await screen.findByRole('button', { name: /Stop/ });
@@ -153,6 +154,8 @@ async function recordTake(durationMs: number) {
   await waitFor(() =>
     expect(screen.queryByTestId('gl-narration-recorder')).toBeNull()
   );
+  // The recorder closes before the upload lands on the step.
+  await waitFor(() => expect(ctl().steps[0].narration?.storagePath).toBe(take));
 }
 
 let uploads = 0;

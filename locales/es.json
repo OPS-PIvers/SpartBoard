@@ -2696,6 +2696,9 @@
     "cornerRadius": "Radio de las esquinas",
     "calloutPosition": "Posición de la nota",
     "calloutPinned": "Colocada por ti",
+    "calloutToneDark": "Oscuro",
+    "calloutToneLight": "Claro",
+    "calloutToneAccent": "Acento",
     "calloutAuto": "Automática",
     "inlineLabel": "Título de la nota",
     "inlineLabelPlaceholder": "Título (opcional)",
@@ -2948,7 +2951,20 @@
       "needs-open-widget": "No encontrado. Abre o añade el widget al que pertenece este botón.",
       "needs-panel": "No encontrado. Abre el menú o panel donde está y vuelve a intentarlo.",
       "not-found": "No encontrado en la pizarra."
-    }
+    },
+    "calloutToolbar": "Herramientas del globo",
+    "calloutEditText": "Editar texto",
+    "calloutResetPosition": "Restablecer posición",
+    "calloutResetSize": "Restablecer tamaño",
+    "calloutToPopover": "Cambiar a cuadro de texto",
+    "calloutToTooltip": "Cambiar a información emergente",
+    "calloutColour": "Color",
+    "calloutDeleteStep": "Eliminar paso",
+    "calloutWidthPct": "Ancho {{pct}} %",
+    "calloutWidthAuto": "Ancho automático",
+    "calloutScaleX": "{{scale}}×",
+    "resetCalloutAll": "Restablecer todo",
+    "calloutSizeHint": "Haz clic en el globo para cambiar su tamaño con los controles o elegir un color."
   },
   "helpCenter": {
     "title": "Ayuda",

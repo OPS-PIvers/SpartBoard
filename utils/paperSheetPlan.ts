@@ -94,6 +94,8 @@ export interface PaperQuestionPlan {
   questionId: string;
   /** Choices this question actually has; may be fewer than the sheet prints. */
   choiceCount: number;
+  /** The imported test's own number for this question, printed small beside `row`. */
+  sourceLabel?: string;
 }
 
 export type PaperExclusionReason = 'question-type' | 'bank-slot';
@@ -153,6 +155,7 @@ export function analyzePaperQuiz(quiz: QuizData): PaperQuizAnalysis {
       row: rows.length + 1,
       questionId: question.id,
       choiceCount: questionChoiceCount(question),
+      ...(question.sourceLabel ? { sourceLabel: question.sourceLabel } : {}),
     });
   }
 

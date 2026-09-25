@@ -2696,6 +2696,9 @@
     "cornerRadius": "Eckenradius",
     "calloutPosition": "Position des Hinweises",
     "calloutPinned": "Von dir platziert",
+    "calloutToneDark": "Dunkel",
+    "calloutToneLight": "Hell",
+    "calloutToneAccent": "Akzent",
     "calloutAuto": "Automatisch",
     "inlineLabel": "Titel des Hinweises",
     "inlineLabelPlaceholder": "Titel (optional)",
@@ -2948,7 +2951,20 @@
       "needs-open-widget": "Nicht gefunden. Öffne oder füge das Widget hinzu, zu dem diese Schaltfläche gehört.",
       "needs-panel": "Nicht gefunden. Öffne das Menü oder den Bereich, in dem sie liegt, und versuche es erneut.",
       "not-found": "Nicht auf der Tafel gefunden."
-    }
+    },
+    "calloutToolbar": "Hinweis-Werkzeuge",
+    "calloutEditText": "Text bearbeiten",
+    "calloutResetPosition": "Position zurücksetzen",
+    "calloutResetSize": "Größe zurücksetzen",
+    "calloutToPopover": "In Textfeld ändern",
+    "calloutToTooltip": "In Tooltip ändern",
+    "calloutColour": "Farbe",
+    "calloutDeleteStep": "Schritt löschen",
+    "calloutWidthPct": "Breite {{pct}} %",
+    "calloutWidthAuto": "Automatische Breite",
+    "calloutScaleX": "{{scale}}×",
+    "resetCalloutAll": "Alles zurücksetzen",
+    "calloutSizeHint": "Klicke auf den Hinweis, um seine Größe mit den Griffen zu ändern oder eine Farbe zu wählen."
   },
   "helpCenter": {
     "title": "Hilfe",

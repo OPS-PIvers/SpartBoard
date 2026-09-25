@@ -16,11 +16,22 @@ import type { QuizData } from '@/types';
 import {
   applyQuestionFill,
   applyQuestionText,
+  fillStubKey,
   isPlaceholderQuestion,
   parseNumberedQuestions,
   type QuestionFill,
 } from '@/utils/paperQuestionOcr';
-import { readByLabel, type ExtractedQuiz } from '@/utils/quizDocumentImport';
+import { readByLabel } from '@/utils/quizDocumentImport';
+import { recognizeRasterPage } from '@/utils/quizDocumentImport/imageBrowserDeps';
+import type { ReadUploadedTest } from '@/utils/quizDocumentImport/readTestAndKey';
+import type { UploadedDocument } from '@/utils/quizDocumentImport/uploadIntake';
+import type { SavedKeyFill } from '@/utils/quizDocumentImport';
+import { KeyFillReview } from './AnswerKeyFill';
+import { keyFillLabel, readKeyFill, type ReadKeyFile } from './keyFillRead';
+import {
+  TestAndKeyUploader,
+  type TestAndKeySelection,
+} from '@/components/common/library/importer/TestAndKeyUploader';
 import { rasterizeScan, type RasterizedPage } from '@/utils/paperScanRaster';
 import type { RasterPage } from '@/utils/paperSheetReader';
 
@@ -36,39 +47,16 @@ interface PaperQuestionTextModalProps {
    * the document-import feature is on; without it the OCR path below runs
    * exactly as it did before.
    */
-  readDocument?: (
-    file: Blob,
-    fileName: string,
-    useAi?: boolean
-  ) => Promise<ExtractedQuiz>;
+  readDocument?: ReadUploadedTest;
   /** The teacher has AI access, so the reader can be switched off for a read. */
   canUseAi?: boolean;
   /** Test seams. */
   rasterize?: (file: Blob) => AsyncGenerator<RasterizedPage>;
   recognize?: (page: RasterPage) => Promise<string>;
+  readKey?: ReadKeyFile;
 }
 
 type Step = 'setup' | 'reading' | 'review' | 'saving';
-
-/** Paint the page onto a canvas and hand tesseract a PNG; loaded on demand. */
-async function recognizeWithTesseract(page: RasterPage): Promise<string> {
-  const canvas = document.createElement('canvas');
-  canvas.width = page.width;
-  canvas.height = page.height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Canvas is unavailable in this browser.');
-  const image = ctx.createImageData(page.width, page.height);
-  image.data.set(page.data);
-  ctx.putImageData(image, 0, 0);
-  const { default: Tesseract } = await import('tesseract.js');
-  const result = await Tesseract.recognize(
-    canvas.toDataURL('image/png'),
-    'eng'
-  );
-  canvas.width = 0;
-  canvas.height = 0;
-  return result.data.text;
-}
 
 export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   quiz,
@@ -79,7 +67,8 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   readDocument,
   canUseAi = false,
   rasterize = rasterizeScan,
-  recognize = recognizeWithTesseract,
+  recognize = recognizeRasterPage,
+  readKey,
 }) => {
   const [step, setStep] = useState<Step>('setup');
   const [progress, setProgress] = useState('');
@@ -93,6 +82,8 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   const [notes, setNotes] = useState<string[]>([]);
   const [useAi, setUseAi] = useState(false);
   const [readerNote, setReaderNote] = useState('');
+  // Set when only a key was added: the review then shows the answer fill (R17).
+  const [keyFill, setKeyFill] = useState<SavedKeyFill | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const rows = useMemo(
@@ -107,11 +98,15 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
 
   /** The shared readers, which bring back choices and a key as well (D17). */
   const readWithImporter = async (
-    file: File,
-    read: NonNullable<PaperQuestionTextModalProps['readDocument']>
+    test: UploadedDocument,
+    key: UploadedDocument | null,
+    read: ReadUploadedTest
   ) => {
     setProgress('Reading the test…');
-    const extracted = await read(file, file.name, canUseAi ? useAi : undefined);
+    const extracted = await read(test, {
+      ...(canUseAi ? { useAi } : {}),
+      key,
+    });
     const byNumber = new Map(extracted.questions.map((q) => [q.number, q]));
     const nextDrafts: Record<number, string> = {};
     const nextApply: Record<number, boolean> = {};
@@ -173,8 +168,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   const readFile = async (file: File) => {
     setStep('reading');
     try {
-      if (readDocument) await readWithImporter(file, readDocument);
-      else await readWithOcr(file);
+      await readWithOcr(file);
       setStep('review');
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Could not read the scan.');
@@ -198,6 +192,48 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   };
 
   const { dragging, dropProps } = useFileDrop((file) => void readFile(file));
+
+  /** The shared uploader's test, and optionally its key file (R14). */
+  const readSelection = async ({ test, key }: TestAndKeySelection) => {
+    if (!readDocument || (!test && !key)) return;
+    setStep('reading');
+    try {
+      if (test) {
+        setKeyFill(null);
+        await readWithImporter(test, key, readDocument);
+      } else if (key) {
+        setProgress('Reading the answer key…');
+        setKeyFill(
+          await readKeyFill(quiz.questions, key, readKey, fillStubKey)
+        );
+      }
+      setStep('review');
+    } catch (err) {
+      onError(
+        err instanceof Error
+          ? err.message
+          : test
+            ? 'Could not read the test.'
+            : 'Could not read the answer key.'
+      );
+      setStep('setup');
+    }
+  };
+
+  const saveKeyFill = async (fill: SavedKeyFill) => {
+    setStep('saving');
+    try {
+      await onSave({
+        ...quiz,
+        questions: fill.questions,
+        updatedAt: Date.now(),
+      });
+      onClose();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Could not save the quiz.');
+      setStep('review');
+    }
+  };
 
   const applyCount = Object.entries(apply).filter(
     ([row, on]) => on && drafts[Number(row)]?.trim()
@@ -255,6 +291,35 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
     </div>
   );
 
+  const renderUploaderSetup = () => (
+    <div className="space-y-4 px-5 pb-5 pt-4">
+      <p className="text-sm text-slate-700">
+        Add the test paper and the numbered questions will be read into this
+        quiz. Results then show the question a student missed, not just its
+        number. To fill in only the answers, add just the answer key.
+      </p>
+      <TestAndKeyUploader
+        allowKeyAlone
+        keyAloneLabel="Read the answer key"
+        pickFromDrive={
+          onPickFromDrive
+            ? async () => {
+                const file = await onPickFromDrive();
+                return file ? { file, fileName: file.name } : null;
+              }
+            : undefined
+        }
+        submitLabel="Read the test"
+        onSubmit={(selection) => void readSelection(selection)}
+      >
+        {canUseAi && <AiReaderToggle checked={useAi} onChange={setUseAi} />}
+      </TestAndKeyUploader>
+      <p className="text-xs text-slate-500">
+        Questions are matched by the number printed before them.
+      </p>
+    </div>
+  );
+
   const renderSetup = () => (
     <div className="space-y-4 px-5 pb-5 pt-4">
       <p className="text-sm text-slate-700">
@@ -303,9 +368,6 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
           )}
           Pick the test paper from Google Drive
         </button>
-      )}
-      {readDocument && canUseAi && (
-        <AiReaderToggle checked={useAi} onChange={setUseAi} />
       )}
       <p className="text-xs text-slate-500">
         Questions are matched by the number printed before them.
@@ -405,7 +467,25 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   );
 
   const footer =
-    step === 'review' ? (
+    step === 'review' && keyFill ? (
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => setStep('setup')}
+          className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={() => void saveKeyFill(keyFill)}
+          disabled={keyFill.filled.length === 0}
+          className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {keyFillLabel(keyFill.filled.length)}
+        </button>
+      </div>
+    ) : step === 'review' ? (
       <div className="flex justify-end gap-2">
         <button
           type="button"
@@ -435,14 +515,22 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
       customHeader={header}
       footer={footer}
     >
-      {step === 'setup' && renderSetup()}
+      {step === 'setup' &&
+        (readDocument ? renderUploaderSetup() : renderSetup())}
       {(step === 'reading' || step === 'saving') && (
         <div className="flex items-center gap-3 px-5 py-8 text-sm text-slate-600">
           <Loader2 className="h-5 w-5 animate-spin" />
           {step === 'reading' ? progress || 'Reading…' : 'Saving…'}
         </div>
       )}
-      {step === 'review' && renderReview()}
+      {step === 'review' &&
+        (keyFill ? (
+          <div className="px-5 pb-5 pt-4">
+            <KeyFillReview before={quiz.questions} result={keyFill} />
+          </div>
+        ) : (
+          renderReview()
+        ))}
     </Modal>
   );
 };

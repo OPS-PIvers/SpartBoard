@@ -352,6 +352,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Studio callout handles, toolbar and styling. Admin-only until Paul has edited sets with it in prod.
+  'gl-callout-editing': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /**

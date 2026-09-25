@@ -6,7 +6,7 @@
  * create step never learn which one ran.
  */
 
-import { parseQuestionLines } from './parseQuestions';
+import { parseDocument } from './parseQuestions';
 import { readDocx } from './docxReader';
 import { readRtf } from './rtfReader';
 import { readCartridge } from './cartridgeReader';
@@ -24,11 +24,13 @@ import { UNREADABLE_FILE, documentKind, titleFromFileName } from './fileKind';
 export * from './types';
 export {
   documentKind,
+  isHeicFile,
   titleFromFileName,
   UNREADABLE_FILE,
   type DocumentKind,
 } from './fileKind';
 export {
+  parseDocument,
   parseQuestionLines,
   isTrueFalse,
   splitAtColumnMarkers,
@@ -37,9 +39,17 @@ export { findAnswerKey } from './answerKey';
 export {
   keyFromLines,
   applyAnswerKey,
+  mergeAnswerKey,
   readAnswerKeyFile,
   type ReadKeyFileOptions,
 } from './keyFile';
+export { keyItemLabel } from './mergeKey';
+export { readKeyItems } from './keyForms';
+export {
+  fillSavedQuizKey,
+  type SavedKeyFill,
+  type SavedKeySkip,
+} from './savedQuizKey';
 export { readDocx } from './docxReader';
 export { readRtf, parseRtf } from './rtfReader';
 export { readCartridge } from './cartridgeReader';
@@ -52,7 +62,12 @@ export {
   stripRunningLines,
   type OcrPage,
 } from './pdfLayout';
-export { extractedToQuizData, rowWarnings } from './toQuizData';
+export {
+  extractedToQuizData,
+  rowWarnings,
+  reviewExtrasFor,
+  type ReviewExtras,
+} from './toQuizData';
 export {
   cropPdfFigures,
   pixelRect,
@@ -93,6 +108,8 @@ export interface ReadDocumentOptions {
   pdfCropper?: (file: Blob) => Promise<PdfCropperDeps>;
   /** Lets the read produce choose-all-that-apply questions. */
   multiAnswer?: boolean;
+  /** Photos of the test, one per page in order; `file` is the first (R30). */
+  pages?: readonly Blob[];
 }
 
 /**
@@ -110,7 +127,9 @@ export async function readQuizDocument(
     throw new Error(UNREADABLE_FILE);
   }
   const reader = { multiAnswer: options.multiAnswer === true };
-  assertWithinByteLimit(file);
+  const pages =
+    kind === 'image' && options.pages?.length ? options.pages : [file];
+  assertWithinByteLimit(...pages);
 
   const warnings: string[] = [];
 
@@ -125,21 +144,38 @@ export async function readQuizDocument(
     warnings.push(
       'Pictures in a rich text file aren’t brought in — add them to the questions that need them in the editor.'
     );
+    const {
+      questions,
+      texts,
+      warnings: keyWarnings,
+      keySummary,
+    } = parseDocument(lines, reader);
+    warnings.push(...keyWarnings);
     return {
       title: titleFromFileName(fileName),
-      questions: parseQuestionLines(lines, reader),
+      questions,
       images: [],
+      ...(texts.length > 0 ? { texts } : {}),
+      ...(keySummary ? { keySummary } : {}),
       warnings,
     };
   }
 
   if (kind === 'docx') {
     const { lines, images } = await readDocx(file);
-    const questions = parseQuestionLines(lines, reader);
+    const {
+      questions,
+      texts,
+      warnings: keyWarnings,
+      keySummary,
+    } = parseDocument(lines, reader);
+    warnings.push(...keyWarnings);
     const used = new Set(questions.flatMap((q) => q.imageIds));
     return {
       title: titleFromFileName(fileName),
       questions,
+      ...(texts.length > 0 ? { texts } : {}),
+      ...(keySummary ? { keySummary } : {}),
       // A picture nothing points at would upload to Drive unused.
       images: images.filter((img) => used.has(img.id)),
       warnings,
@@ -148,6 +184,25 @@ export async function readQuizDocument(
 
   if (!options.pdf) {
     throw new Error('Reading a PDF needs the PDF reader to be available.');
+  }
+
+  if (kind === 'image') {
+    // Each photo is a page with no text layer, so every one goes to OCR.
+    assertWithinPageLimit(pages.length);
+    const { lines } = await readPdf(file, options.pdf, {
+      maxPages: MAX_DOCUMENT_PAGES,
+    });
+    warnings.push(
+      'The photos were read by eye, so check the questions and answers below.'
+    );
+    const { questions, texts } = parseDocument(lines, reader);
+    return {
+      title: titleFromFileName(fileName),
+      questions,
+      images: [],
+      ...(texts.length > 0 ? { texts } : {}),
+      warnings,
+    };
   }
 
   // The page limit is the document's own page count, checked inside the
@@ -171,7 +226,17 @@ export async function readQuizDocument(
     );
   }
 
-  const questions = parseQuestionLines(lines, reader);
+  const {
+    questions,
+    texts,
+    warnings: keyWarnings,
+    keySummary,
+  } = parseDocument(lines, reader);
+  warnings.push(...keyWarnings);
+  const withTexts = {
+    ...(texts.length > 0 ? { texts } : {}),
+    ...(keySummary ? { keySummary } : {}),
+  };
   if (!options.pdfCropper) {
     // D15: without a cropper the browser reader leaves a PDF's pictures behind.
     warnings.push(
@@ -181,6 +246,7 @@ export async function readQuizDocument(
       title: titleFromFileName(fileName),
       questions,
       images: [],
+      ...withTexts,
       warnings,
     };
   }
@@ -195,6 +261,7 @@ export async function readQuizDocument(
     title: titleFromFileName(fileName),
     questions: attached.questions,
     images: attached.images,
+    ...withTexts,
     warnings: [...warnings, ...attached.warnings],
   };
 }

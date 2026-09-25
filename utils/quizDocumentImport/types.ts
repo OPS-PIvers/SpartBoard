@@ -63,9 +63,71 @@ export interface ExtractedImage {
   name: string;
 }
 
+/** Where a question sat in the printed test, for matching a key to it (R7). */
+export interface QuestionRef {
+  /** 1-based, counting only sections that hold questions. */
+  section: number;
+  /** The section heading as printed, e.g. "Section 2". */
+  sectionName?: string;
+  /** The number the heading printed, e.g. 2 for "Section 2". */
+  sectionNumber?: number;
+  /** The item number as printed within its section. */
+  item: number;
+  /** 'A' / 'B' for a Part A / Part B item. */
+  part?: string;
+}
+
+/** A key's section: its place among the key's sections, and the number it printed. */
+export interface KeySection {
+  ordinal: number;
+  printed?: number;
+}
+
+/** One answer a key gives, before it is matched to a question (R10–R12). */
+export interface KeyItem {
+  item: number;
+  section?: KeySection;
+  part?: string;
+  /** A letter, `A, C`, True/False, or written text; '' when the key gives none. */
+  answer: string;
+  /** An ordering answer: the items' text in the right order. */
+  ordering?: string[];
+  points?: number;
+  /** The points are the whole item's, to split between its parts. */
+  pointsForItem?: boolean;
+  /** The key scores this with a rubric rather than one answer. */
+  rubric?: boolean;
+  /** The key says the item isn't scored. */
+  notScored?: boolean;
+}
+
+/** A learning target the test printed ("ELT 1.1 - I can …"), offered in review (R9, R20). */
+export interface SuggestedTarget {
+  code?: string;
+  label: string;
+}
+
+/** Text several questions share, becoming one `text` stimulus (R25). */
+export interface ExtractedText {
+  id: string;
+  text: string;
+  label: string;
+}
+
 export interface ExtractedQuestion {
-  /** The number as printed, 1-based. */
+  /** Position in the quiz, 1-based; the printed number lives in `ref`. */
   number: number;
+  /** Where the test printed it; absent when a reader doesn't know. */
+  ref?: QuestionRef;
+  /** The printed number, set only when it differs from `number` (R23). */
+  sourceLabel?: string;
+  /** Point value, when the key or test gave one (R12). */
+  points?: number;
+  suggestedTarget?: SuggestedTarget;
+  /** Why the row should start unticked in review, e.g. a survey item (R9). */
+  suggestUntick?: string;
+  /** A shared lead-in or passage, by `ExtractedText.id` (R25). */
+  sharedTextId?: string;
   text: string;
   type: QuizQuestionType;
   /** Empty for anything that isn't multiple choice. */
@@ -78,13 +140,30 @@ export interface ExtractedQuestion {
   warnings: string[];
 }
 
+/** What a key merge did, for the review banner (R13, R19). */
+export interface KeySummary {
+  source: 'document' | 'file';
+  /** Key entries that gave an answer. */
+  entries: number;
+  /** Entries that found their question. */
+  matched: number;
+  /** Printed labels of entries with no question, e.g. `2·3`. */
+  unmatchedLabels: string[];
+  /** Questions where a key file overruled the test's own answer. */
+  conflicts: number;
+}
+
 export interface ExtractedQuiz {
   /** Defaults to the document's name (D11). */
   title: string;
   questions: ExtractedQuestion[];
   images: ExtractedImage[];
+  /** Shared passages and lead-ins (R25). */
+  texts?: ExtractedText[];
   /** Notes about the document as a whole. */
   warnings: string[];
+  /** The last key merged onto these questions; a key file's wins. */
+  keySummary?: KeySummary;
   /** Which reader ran; set only for a teacher who has AI access. */
   readBy?: 'ai' | 'plain';
 }
@@ -99,7 +178,10 @@ export const readByLabel = (readBy: ExtractedQuiz['readBy']): string =>
 
 /** True when the reader found the question but no answer for it (D5). */
 export const questionNeedsKey = (q: ExtractedQuestion): boolean =>
-  q.type !== 'free-response' && !q.correctAnswer.trim();
+  q.type !== 'free-response' &&
+  // An unkeyed ordering item comes in as a written response (see toQuizData).
+  q.type !== 'Ordering' &&
+  !q.correctAnswer.trim();
 
 /** An option as a choose-all key part; `|` separates the parts, so it can't appear inside one. */
 export const multiAnswerPart = (text: string): string =>

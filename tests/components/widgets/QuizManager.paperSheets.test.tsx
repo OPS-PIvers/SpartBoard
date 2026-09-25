@@ -164,3 +164,30 @@ describe('QuizManager — paper answer sheets', () => {
     expect(onImport).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('QuizManager — Add answer key (R31)', () => {
+  it('offers Add answer key on a quiz that still needs answers', () => {
+    const onAddAnswerKey = vi.fn();
+    renderLibrary({ quizzes: [{ ...QUIZ, needsKeyCount: 2 }], onAddAnswerKey });
+    openRowMenu();
+    fireEvent.click(screen.getByText('Add answer key'));
+    expect(onAddAnswerKey).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'quiz-1' })
+    );
+  });
+
+  it('hides it when every question has an answer', () => {
+    renderLibrary({
+      quizzes: [{ ...QUIZ, needsKeyCount: 0 }],
+      onAddAnswerKey: vi.fn(),
+    });
+    openRowMenu();
+    expect(screen.queryByText('Add answer key')).toBeNull();
+  });
+
+  it('hides it when document import is off', () => {
+    renderLibrary({ quizzes: [{ ...QUIZ, needsKeyCount: 2 }] });
+    openRowMenu();
+    expect(screen.queryByText('Add answer key')).toBeNull();
+  });
+});

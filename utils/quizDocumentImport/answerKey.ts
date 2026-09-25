@@ -18,12 +18,20 @@ import {
   multiAnswerKey,
   type DocLine,
   type ExtractedQuestion,
-  type ExtractedQuiz,
+  type KeyItem,
+  type KeySection,
   type ReaderOptions,
 } from './types';
 
+/** What may trail an entry (R11): `2pts`, `(p. 4)`, `PTS: 1`; groups 3–4 are points. */
+const ENTRY_EXTRAS = String.raw`(?:\s*(?:\(\s*(?:p|pg|page)s?\.?\s*\d{1,4}(?:\s*[-–]\s*\d{1,4})?\s*\)|(\d{1,2}(?:\.\d+)?)\s*(?:pts?|points?)\b\.?|PTS\s*:\s*(\d{1,2}(?:\.\d+)?)))*`;
+
 /** `1. B`, `1) b`, `1-B`, `1: B`, `1 B`, `1. T`, `1. True` — alone on the line. */
-const KEY_ENTRY = /(\d{1,3})\s*[.):\-–]?\s*(true|false|[a-ft])(?![a-z0-9])/gi;
+const KEY_ENTRY = new RegExp(
+  String.raw`(\d{1,3})\s*[.):\-–]?\s*(true|false|[a-ft])(?![a-z0-9])` +
+    ENTRY_EXTRAS,
+  'gi'
+);
 
 /** `1. B - producer`, `1. B. producer`: a letter, then the choice it names. */
 const LETTER_WITH_TEXT = /^\s*(\d{1,3})\s*[.):\-–]\s*([a-f])\s*[.):\-–—]\s+\S/i;
@@ -51,13 +59,16 @@ export const INLINE_TEST_BANK_ANSWER = /^\s*ANS\s*:\s*(.*)$/i;
 const TEST_BANK_FIELD =
   /(?:PTS|DIF|REF|OBJ|TOP|KEY|MSC|NAT|STA|LOC|BLM|NOT|RTN|FEEDBACK)\s*:/;
 
+/** A test bank's `PTS: 2`. */
+const TEST_BANK_POINTS = /\bPTS\s*:\s*(\d{1,2}(?:\.\d+)?)/;
+
 /** A line that is nothing but test-bank bookkeeping. */
 export const TEST_BANK_FIELD_LINE = new RegExp(
   `^\\s*${TEST_BANK_FIELD.source}`
 );
 
 /** The question-type headings a test bank's answer section is split by. */
-const TEST_BANK_SECTION =
+export const TEST_BANK_SECTION =
   /^\s*(?:multiple\s+choice|multiple\s+response|modified\s+true\s*\/\s*false|true\s*\/\s*false|yes\s*\/\s*no|completion|matching|short\s+answer|essay|problem|other|numeric\s+response)\s*$/i;
 
 /** "Answer Key", "Answer Section", "Unit 3 Test - Answer Key". */
@@ -68,7 +79,7 @@ const STRONG_HEADING =
 const WEAK_HEADING =
   /^\s*(?:answers?|keys?|solutions?|(?:question|item|no\.?|#|number)\s*[|:]?\s*(?:answer|key))\s*(?:[:\-–—(|].{0,40})?$/i;
 
-const isHeading = (text: string): boolean =>
+export const isHeading = (text: string): boolean =>
   !/^\s*\d/.test(text) &&
   (STRONG_HEADING.test(text) || WEAK_HEADING.test(text));
 
@@ -78,19 +89,119 @@ const MIN_RUN = 3;
 /** An option line, which must never be taken for a title above a key. */
 const OPTION_LIKE = /^\s*\(?[a-f][.)]\s/i;
 
-export type KeyEntry = [number, string];
+/** Number, answer, and the points printed beside it. */
+export type KeyEntry = [number, string, number?];
 
 export interface ParsedKey {
   /** Answer by question number: an uppercase letter, T/F, True/False or written text. */
   answerByNumber: Map<number, string>;
+  /** Every entry in order, with its section when the key has several (R10). */
+  items: KeyItem[];
   /** Indexes into the input that belong to the key, not to a question. */
   keyLineIndexes: Set<number>;
 }
 
 const EMPTY: ParsedKey = {
   answerByNumber: new Map(),
+  items: [],
   keyLineIndexes: new Set(),
 };
+
+/** "Section 2", "Part II" inside a key; Part A/B is never one. */
+const KEY_SECTION = /^\s*(?:section|part)\s+(\d{1,2}|[ivx]{1,4})\b[^?]{0,60}$/i;
+
+const ROMAN: Record<string, number> = { i: 1, v: 5, x: 10 };
+const romanValue = (text: string): number => {
+  let total = 0;
+  const chars = text.toLowerCase().split('');
+  chars.forEach((c, i) => {
+    const value = ROMAN[c] ?? 0;
+    total += value < (ROMAN[chars[i + 1]] ?? 0) ? -value : value;
+  });
+  return total;
+};
+
+/** A key's section heading, with the number it printed; null when the line isn't one. */
+export function keySectionHeading(text: string): { printed?: number } | null {
+  if (isHeading(text)) return null;
+  const numbered = KEY_SECTION.exec(text);
+  if (numbered) {
+    const raw = numbered[1];
+    const printed = /^\d+$/.test(raw) ? Number(raw) : romanValue(raw);
+    return printed > 0 ? { printed } : {};
+  }
+  return TEST_BANK_SECTION.test(text) ? {} : null;
+}
+
+/** An item, or a section heading met between items. */
+export type RawKeyItem = KeyItem | { heading: { printed?: number } };
+
+/**
+ * Gives key items their sections: a heading, or numbering that drops back,
+ * starts the next one. A key with one section carries none.
+ */
+export function withKeySections(raws: readonly RawKeyItem[]): KeyItem[] {
+  const items: KeyItem[] = [];
+  const headed = new Set<number>();
+  let ordinal = 0;
+  let printed: number | undefined;
+  let heading: { printed?: number } | null = null;
+  let first: KeyItem | null = null;
+  for (const raw of raws) {
+    if ('heading' in raw) {
+      heading = raw.heading;
+      continue;
+    }
+    // Only a drop back to the section's first number restarts, so a
+    // two-column key read row by row (1, 4, 2, 5 …) stays one section.
+    const restarted =
+      first !== null &&
+      (raw.item < first.item ||
+        (raw.item === first.item && (raw.part ?? '') <= (first.part ?? '')));
+    if (first === null || heading || restarted) {
+      ordinal += 1;
+      printed = heading?.printed;
+      if (heading) headed.add(ordinal);
+      heading = null;
+      first = raw;
+    }
+    items.push({
+      ...raw,
+      section: { ordinal, ...(printed ? { printed } : {}) },
+    });
+  }
+
+  // A key printed twice without a heading is one key, not two sections.
+  const sectionItems = (n: number) =>
+    items
+      .filter((k) => k.section?.ordinal === n)
+      .map((k) => `${k.item}${k.part ?? ''}=${k.answer}`)
+      .join(';');
+  const repeats = new Set<number>();
+  for (let n = 2; n <= ordinal; n += 1) {
+    if (!headed.has(n) && sectionItems(n) === sectionItems(n - 1)) {
+      repeats.add(n);
+    }
+  }
+  const kept = items.filter((k) => !repeats.has(k.section?.ordinal ?? 0));
+  const ordinals = [...new Set(kept.map((k) => k.section?.ordinal ?? 0))];
+  if (ordinals.length > 1) {
+    return kept.map((k) => ({
+      ...k,
+      section: {
+        ...(k.section as KeySection),
+        ordinal: ordinals.indexOf(k.section?.ordinal ?? 0) + 1,
+      },
+    }));
+  }
+  return kept.map(({ section: _section, ...rest }) => rest);
+}
+
+const entryItem = ([item, answer, points]: KeyEntry): KeyItem => ({
+  item,
+  answer,
+  ...(points !== undefined ? { points } : {}),
+});
 
 const tidy = (s: string): string => s.replace(/\s+/g, ' ').trim();
 
@@ -128,7 +239,12 @@ export function entriesOnLine(text: string, multi = false): KeyEntry[] {
   if (withText) return [[Number(withText[1]), withText[2].toUpperCase()]];
   const found: KeyEntry[] = [];
   for (const m of trimmed.matchAll(KEY_ENTRY)) {
-    found.push([Number(m[1]), normalizeAnswer(m[2])]);
+    const points = m[3] ?? m[4];
+    found.push([
+      Number(m[1]),
+      normalizeAnswer(m[2]),
+      ...(points ? [Number(points)] : []),
+    ] as KeyEntry);
   }
   if (found.length === 0) return [];
   // Whatever sits between entries must be separators, never words.
@@ -151,11 +267,21 @@ function findTestBankKey(
   if (first === -1) return null;
 
   const answerByNumber = new Map<number, string>();
-  let open: { number: number; parts: string[] } | null = null;
+  const raws: RawKeyItem[] = [];
+  let open: { number: number; parts: string[]; points?: number } | null = null;
   const close = () => {
-    if (open && !answerByNumber.has(open.number)) {
+    if (open) {
       const answer = normalizeAnswer(open.parts.join(' '), multi);
-      if (answer) answerByNumber.set(open.number, answer);
+      if (answer && !answerByNumber.has(open.number)) {
+        answerByNumber.set(open.number, answer);
+      }
+      if (answer || open.points !== undefined) {
+        raws.push({
+          item: open.number,
+          answer,
+          ...(open.points !== undefined ? { points: open.points } : {}),
+        });
+      }
     }
     open = null;
   };
@@ -163,14 +289,19 @@ function findTestBankKey(
   let collecting = false;
   for (let i = first; i < lines.length; i += 1) {
     const text = lines[i].text;
+    const points = TEST_BANK_POINTS.exec(text);
     const entry = TEST_BANK_ENTRY.exec(text);
     if (entry) {
       close();
       const answer = answerBeforeFields(entry[2]);
       open = { number: Number(entry[1]), parts: answer ? [answer] : [] };
+      if (points) open.points = Number(points[1]);
       // A blank `ANS:` means the written answer is on the lines below.
       collecting = !answer && !TEST_BANK_FIELD.test(entry[2]);
       continue;
+    }
+    if (open && points && open.points === undefined) {
+      open.points = Number(points[1]);
     }
     if (!open || !collecting) continue;
     if (
@@ -208,7 +339,7 @@ function findTestBankKey(
     break;
   }
 
-  return { answerByNumber, keyLineIndexes };
+  return { answerByNumber, items: withKeySections(raws), keyLineIndexes };
 }
 
 /**
@@ -260,7 +391,9 @@ export function findAnswerKey(
   const testBank = findTestBankKey(lines, multi);
   if (testBank) return testBank;
 
-  let best: { start: number; end: number; entries: KeyEntry[] } | null = null;
+  type Run = { start: number; end: number; raws: RawKeyItem[] };
+  let best: Run | null = null;
+  let last: Run | null = null;
 
   let i = 0;
   while (i < lines.length) {
@@ -272,34 +405,84 @@ export function findAnswerKey(
       i += 1;
       continue;
     }
-    const start = headed ? headingAt : i;
-    const run: KeyEntry[] = [];
+    const start = headed ? headingAt : sectionHeadingsAbove(lines, i);
+    const raws: RawKeyItem[] = [];
+    for (let n = start; n < i; n += 1) {
+      const heading = keySectionHeading(lines[n].text);
+      if (heading) raws.push({ heading });
+    }
     while (i < lines.length) {
       if (!lines[i].text.trim()) {
         i += 1;
         continue;
       }
       const more = entriesAt(lines, i, headed, asked, multi);
-      if (!more) break;
-      run.push(...more.entries);
+      if (!more) {
+        // "Section 2" between runs of entries continues the key.
+        const heading = keySectionHeading(lines[i].text);
+        const next = nextFilled(lines, i + 1);
+        if (
+          heading &&
+          next !== -1 &&
+          entriesAt(lines, next, headed, asked, multi)
+        ) {
+          raws.push({ heading });
+          i = next;
+          continue;
+        }
+        break;
+      }
+      raws.push(...more.entries.map(entryItem));
       i += more.used;
     }
-    if (headed || run.length >= MIN_RUN) {
-      best = { start, end: i, entries: run };
-    }
+    const count = raws.filter((r) => !('heading' in r)).length;
+    last = { start, end: i, raws };
+    if (headed || count >= MIN_RUN) best = last;
+  }
+
+  // One or two bare entries closing the document, repeating asked numbers (R8).
+  if (!best && last && nextFilled(lines, last.end) === -1) {
+    const asked = numbersAbove(lines, last.start);
+    const numbers = last.raws.flatMap((r) => ('heading' in r ? [] : [r.item]));
+    if (asked.size > 0 && numbers.every((n) => asked.has(n))) best = last;
   }
 
   if (!best) return EMPTY;
 
+  const items = withKeySections(best.raws);
   const answerByNumber = new Map<number, string>();
-  for (const [n, answer] of best.entries) {
+  for (const { item, answer } of items) {
     // A repeated number means the block is not a key; keep the first.
-    if (!answerByNumber.has(n)) answerByNumber.set(n, answer);
+    if (!answerByNumber.has(item)) answerByNumber.set(item, answer);
   }
 
   const keyLineIndexes = new Set<number>();
   for (let n = best.start; n < best.end; n += 1) keyLineIndexes.add(n);
-  return { answerByNumber, keyLineIndexes };
+  return { answerByNumber, items, keyLineIndexes };
+}
+
+/** The next non-blank line at or after `from`, or -1. */
+function nextFilled(lines: readonly DocLine[], from: number): number {
+  for (let n = from; n < lines.length; n += 1) {
+    if (lines[n].text.trim()) return n;
+  }
+  return -1;
+}
+
+/** The first of the key section headings directly above `index`, or `index`. */
+function sectionHeadingsAbove(
+  lines: readonly DocLine[],
+  index: number
+): number {
+  let start = index;
+  let n = index - 1;
+  while (n >= 0) {
+    const text = lines[n].text;
+    if (text.trim() && !keySectionHeading(text)) break;
+    if (text.trim()) start = n;
+    n -= 1;
+  }
+  return start;
 }
 
 /** Question numbers opened before `end`, so "Key: Vocabulary" over new questions isn't a key. */
@@ -315,7 +498,12 @@ function numbersAbove(lines: readonly DocLine[], end: number): Set<number> {
 /** Index of a key heading directly above `index` (blank lines between allowed), or -1. */
 function headingAbove(lines: readonly DocLine[], index: number): number {
   let n = index - 1;
-  while (n >= 0 && !lines[n].text.trim()) n -= 1;
+  while (
+    n >= 0 &&
+    (!lines[n].text.trim() || keySectionHeading(lines[n].text) !== null)
+  ) {
+    n -= 1;
+  }
   return n >= 0 && isHeading(lines[n].text) ? n : -1;
 }
 
@@ -323,31 +511,43 @@ function headingAbove(lines: readonly DocLine[], index: number): number {
  * Every entry in a file that is nothing but a key. A test-bank key is read the
  * same way as at the back of a test; otherwise each line stands on its own.
  */
+export function listKeyItems(
+  lines: readonly DocLine[],
+  options: ReaderOptions = {}
+): KeyItem[] {
+  const multi = options.multiAnswer === true;
+  const testBank = findTestBankKey(lines, multi);
+  if (testBank) return testBank.items;
+
+  const headed = lines.some((l) => isHeading(l.text));
+  const raws: RawKeyItem[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const text = lines[i].text;
+    const found = text.trim()
+      ? entriesAt(lines, i, headed, undefined, multi)
+      : null;
+    if (!found) {
+      const heading = text.trim() ? keySectionHeading(text) : null;
+      if (heading) raws.push({ heading });
+      i += 1;
+      continue;
+    }
+    raws.push(...found.entries.map(entryItem));
+    i += found.used;
+  }
+  return withKeySections(raws);
+}
+
+/** A key file's answers by number; the first answer for a number wins. */
 export function keyFromLines(
   lines: readonly DocLine[],
   options: ReaderOptions = {}
 ): Map<number, string> {
-  const multi = options.multiAnswer === true;
-  const testBank = findTestBankKey(lines, multi);
-  if (testBank) return testBank.answerByNumber;
-
-  const headed = lines.some((l) => isHeading(l.text));
   const byNumber = new Map<number, string>();
-  let i = 0;
-  while (i < lines.length) {
-    const found = lines[i].text.trim()
-      ? entriesAt(lines, i, headed, undefined, multi)
-      : null;
-    if (!found) {
-      i += 1;
-      continue;
-    }
-    for (const [number, answer] of found.entries) {
-      // First wins: a key printed twice is likelier a header repeat than a
-      // correction, and silently taking the later one would be invisible.
-      if (!byNumber.has(number)) byNumber.set(number, answer);
-    }
-    i += found.used;
+  for (const { item, answer } of listKeyItems(lines, options)) {
+    // A key printed twice is likelier a header repeat than a correction.
+    if (!byNumber.has(item)) byNumber.set(item, answer);
   }
   return byNumber;
 }
@@ -403,6 +603,13 @@ export function applyKeyAnswer(
     return applyLetterList(question, answer, source);
   }
 
+  if (question.type === 'MC' && !multi && LETTER_LIST.test(answer)) {
+    return note(
+      question,
+      `The answer key gives more than one answer (${answer}) for a one-answer question, so pick the answer in the editor.`
+    );
+  }
+
   if (question.type === 'MA') {
     const option = choiceFor(question, answer);
     if (!option) {
@@ -431,7 +638,7 @@ export function applyKeyAnswer(
     return note(
       next,
       source === 'file'
-        ? `The test document answered this differently (${previous}); the key file’s answer was used.`
+        ? overruled(shownAs(question, [previous]), option.letter || said)
         : `This question was marked with a different answer (${previous}); the answer key’s answer was used.`
     );
   }
@@ -467,6 +674,27 @@ export function applyKeyAnswer(
     `The key gives ${said} for this question, but it isn’t multiple choice, so it was left as read.`
   );
 }
+
+/** Answer texts as the letters the test printed, where they have one. */
+function shownAs(
+  question: ExtractedQuestion,
+  texts: readonly string[]
+): string {
+  return texts
+    .map((text) => {
+      // An AI-read option can carry an empty letter.
+      const option = question.options.find(
+        (o) =>
+          o.letter && (o.text === text || multiAnswerKey([o.text]) === text)
+      );
+      return option?.letter ?? text;
+    })
+    .join(', ');
+}
+
+/** R10: the key file wins, and the row says what it overruled. */
+const overruled = (test: string, key: string): string =>
+  `Test file said ${test}, key file said ${key} — using ${key}.`;
 
 /** Several letters key a choose-all question; an MC question becomes one. */
 function applyLetterList(
@@ -513,48 +741,10 @@ function withKeyedAnswers(
   return note(
     next,
     source === 'file'
-      ? `The test document answered this differently (${shown}); the key file’s answer was used.`
+      ? overruled(
+          shownAs(question, previous.split('|')),
+          shownAs(question, key.split('|'))
+        )
       : `This question was marked with a different answer (${shown}); the answer key’s answer was used.`
   );
-}
-
-const ordinal = (numbers: number[]): string =>
-  numbers.length === 1
-    ? `question ${numbers[0]}`
-    : `questions ${numbers.join(', ')}`;
-
-/**
- * Matches a key onto the questions by number. The key wins over an answer
- * marked on the question, because a key is what a teacher grades from.
- */
-export function applyAnswerKey(
-  quiz: ExtractedQuiz,
-  key: ReadonlyMap<number, string>,
-  source: KeySource = 'file',
-  options: ReaderOptions = {}
-): ExtractedQuiz {
-  if (key.size === 0) return quiz;
-
-  const questions = quiz.questions.map((question) => {
-    const answer = key.get(question.number);
-    return answer
-      ? applyKeyAnswer(question, answer, source, options.multiAnswer === true)
-      : question;
-  });
-
-  const numbers = new Set(quiz.questions.map((q) => q.number));
-  const unmatched = [...key.keys()]
-    .filter((n) => !numbers.has(n))
-    .sort((a, b) => a - b);
-  const warnings = [...quiz.warnings];
-  if (unmatched.length > 0) {
-    const verb = unmatched.length === 1 ? 'isn’t' : 'aren’t';
-    warnings.push(
-      source === 'file'
-        ? `The answer key has an answer for ${ordinal(unmatched)}, which ${verb} in this test.`
-        : `The answer key at the end of the document has an answer for ${ordinal(unmatched)}, which ${verb} among the questions read.`
-    );
-  }
-
-  return { ...quiz, questions, warnings };
 }

@@ -26,6 +26,14 @@ export function useFileDrop(
   onFile: (file: File) => void,
   disabled = false
 ): FileDrop {
+  return useFilesDrop((files) => onFile(files[0]), disabled);
+}
+
+/** The same zone, handing over every dropped file. */
+export function useFilesDrop(
+  onFiles: (files: File[]) => void,
+  disabled = false
+): FileDrop {
   // Entering a child fires dragleave on the parent, so count depth instead of
   // clearing on the first leave.
   const depth = useRef(0);
@@ -61,8 +69,8 @@ export function useFileDrop(
         depth.current = 0;
         setDragging(false);
         if (disabled) return;
-        const file = e.dataTransfer.files?.[0];
-        if (file) onFile(file);
+        const files = Array.from(e.dataTransfer.files ?? []);
+        if (files.length > 0) onFiles(files);
       },
     },
   };

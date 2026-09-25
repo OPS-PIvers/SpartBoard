@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   applyQuestionText,
+  fillStubKey,
   isPlaceholderQuestion,
   parseNumberedQuestions,
 } from './paperQuestionOcr';
@@ -82,5 +83,65 @@ to the Sun?
     ]);
     expect(next.updatedAt).toBe(9);
     expect(applyQuestionText(next, { 1: 'What is 3 + 4?' }, 10)).toBe(next);
+  });
+});
+
+describe('fillStubKey (R17)', () => {
+  const stubQuiz = buildPaperStubQuiz({
+    quizId: 'q',
+    title: 'Paper',
+    questionCount: 3,
+    choiceCount: 4,
+    createdAt: 0,
+    newQuestionId: (() => {
+      let n = 0;
+      return () => `q${++n}`;
+    })(),
+  });
+
+  it('puts the key letter on a bare stub row and reports what it could not place', () => {
+    const result = fillStubKey(stubQuiz.questions, [
+      { item: 1, answer: 'C' },
+      { item: 2, answer: 'E' },
+      { item: 9, answer: 'A' },
+    ]);
+    expect(result.filled).toEqual(['q1']);
+    expect(result.questions[0]).toMatchObject({
+      correctAnswer: 'C',
+      incorrectAnswers: ['A', 'B', 'D'],
+    });
+    expect(result.questions[0].needsKey).toBeUndefined();
+    // An unfilled row is handed back exactly as it was.
+    expect(result.questions[1]).toBe(stubQuiz.questions[1]);
+    expect(result.skipped.map((s) => s.reason)).toEqual([
+      'key says E, question has 4 choices',
+      'no question with this number',
+    ]);
+  });
+
+  it('fills a row the test already read, by its choice', () => {
+    const read = {
+      ...stubQuiz.questions[0],
+      text: 'Which is a planet?',
+      correctAnswer: '',
+      incorrectAnswers: ['Sun', 'Mars', 'Moon'],
+      needsKey: true,
+    };
+    const result = fillStubKey([read], [{ item: 1, answer: 'B' }]);
+    expect(result.questions[0]).toMatchObject({
+      correctAnswer: 'Mars',
+      incorrectAnswers: ['Sun', 'Moon'],
+    });
+  });
+
+  it('never overwrites a question the teacher already keyed', () => {
+    const keyed = {
+      ...stubQuiz.questions[0],
+      correctAnswer: 'Mars',
+      incorrectAnswers: ['Sun', 'Moon'],
+    };
+    const result = fillStubKey([keyed], [{ item: 1, answer: 'A' }]);
+    expect(result.filled).toEqual([]);
+    expect(result.skipped[0].reason).toBe('already answered — skipped');
   });
 });

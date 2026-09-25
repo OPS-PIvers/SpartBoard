@@ -58,6 +58,7 @@ import {
   Combine,
   Target,
   Printer,
+  KeyRound,
   ScanLine,
   ScanText,
 } from 'lucide-react';
@@ -270,6 +271,8 @@ interface QuizManagerProps {
   onImportPaperScan?: (quiz: QuizMetadata) => void;
   /** OCR the printed test paper into question text; `undefined` hides the entry. */
   onReadPaperQuestions?: (quiz: QuizMetadata) => void;
+  /** Fill missing answers from a key file; shown only on quizzes that need one (R31). */
+  onAddAnswerKey?: (quiz: QuizMetadata) => void;
   /** Start a paper-only quiz stub. Absent when the feature is off. */
   onNewPaperTest?: () => void;
   onEdit: (quiz: QuizMetadata) => void;
@@ -621,6 +624,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onPrintPaperSheets,
   onImportPaperScan,
   onReadPaperQuestions,
+  onAddAnswerKey,
   onNewPaperTest,
   onEdit,
   onPreview,
@@ -1053,6 +1057,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         icon: Edit2,
         onClick: () => onEdit(quiz),
       },
+      ...(onAddAnswerKey && quizNeedsKeyCount(quiz) > 0
+        ? [
+            {
+              id: 'add-answer-key',
+              label: 'Add answer key',
+              icon: KeyRound,
+              onClick: () => onAddAnswerKey(quiz),
+            },
+          ]
+        : []),
       // Phase 5 — Duplicate. Rendered just below Edit so the visual
       // weight of the destructive action (Delete) stays at the bottom of
       // the menu. Hidden when no `onDuplicate` is wired (view-only and

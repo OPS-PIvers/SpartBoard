@@ -48,6 +48,8 @@ interface StudioPropertiesPanelProps {
   onRerecordStep?: (stepId: string) => void;
   /** Fades the Studio while Find on board flashes a button. */
   onPeekBoard?: (peeking: boolean) => void;
+  /** `gl-callout-editing`: callout size and colour summary, and Reset all. */
+  calloutEditing?: boolean;
 }
 
 interface TourTools {
@@ -117,6 +119,7 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
   onRunFromStep,
   onRerecordStep,
   onPeekBoard,
+  calloutEditing = false,
 }) => {
   const { selectedStep } = state;
   const tools: TourTools = { onRunFromStep, onRerecordStep, onPeekBoard };
@@ -130,6 +133,7 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
           onDeleteStep={onDeleteStep}
           liveTours={liveTours}
           tools={tools}
+          calloutEditing={calloutEditing}
         />
       ) : (
         <ActivitySection
@@ -152,7 +156,8 @@ const StepSection: React.FC<{
   onDeleteStep?: (id: string) => void;
   liveTours: boolean;
   tools: TourTools;
-}> = ({ state, step, onDeleteStep, liveTours, tools }) => {
+  calloutEditing: boolean;
+}> = ({ state, step, onDeleteStep, liveTours, tools, calloutEditing }) => {
   const { t } = useTranslation();
   const { steps, imageUrls, updateStep, deleteStep } = state;
   const n = steps.findIndex((s) => s.id === step.id) + 1;
@@ -205,7 +210,11 @@ const StepSection: React.FC<{
         onChange={updateStep}
       />
       <Group title={t('glStudio.targetGroup')}>
-        <StudioRegionControls step={step} onChange={updateStep} />
+        <StudioRegionControls
+          step={step}
+          onChange={updateStep}
+          calloutEditing={calloutEditing}
+        />
       </Group>
       <Group title={t('glStudio.playbackGroup')}>
         <StudioStepPlayback step={step} onChange={updateStep} />

@@ -20,6 +20,7 @@
 import type React from 'react';
 import type { LucideIcon } from 'lucide-react';
 import type { ClassRoster } from '@/types';
+import type { UploadedDocument } from '@/utils/quizDocumentImport/uploadIntake';
 
 /* ─── Shared enums / tokens ───────────────────────────────────────────────── */
 
@@ -545,12 +546,14 @@ export type ImportSourcePayload =
       kind: 'document';
       file: Blob;
       fileName: string;
+      /** Photos of the test, one per page in order; `file` is the first. */
+      pages?: Blob[];
       /**
        * The optional answer key picked beside the test
        * (docs/plans/QUIZ_DOCUMENT_IMPORT.md D8). Absent when the teacher
        * attached none, which is the common case.
        */
-      keyFile?: { file: Blob; fileName: string };
+      keyFile?: UploadedDocument;
       /** False when the teacher switched the AI reader off for this read. */
       useAi?: boolean;
     };

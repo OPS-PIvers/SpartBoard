@@ -212,3 +212,36 @@ describe('attachDocumentImages', () => {
     ).rejects.toThrow('Drive is full.');
   });
 });
+
+describe('attachDocumentImages — shared passages (R25)', () => {
+  const passage = {
+    id: 'passage-1',
+    type: 'text' as const,
+    url: '',
+    text: 'A fox lived by the wood.',
+    label: 'Passage 1',
+    readAloudSource: 'text' as const,
+  };
+
+  it('keeps a passage pointer beside an uploaded picture', async () => {
+    const result = await attachDocumentImages(
+      quiz([question({ stimulusIds: ['passage-1', 'img-1'] })], [passage]),
+      [image('img-1')],
+      uploader()
+    );
+    expect(result.questions[0].stimulusIds?.[0]).toBe('passage-1');
+    expect(result.questions[0].stimulusIds).toHaveLength(2);
+    expect(result.stimuli).toHaveLength(2);
+  });
+
+  it('keeps a passage when there are no pictures, and drops one nothing uses', async () => {
+    const unused = { ...passage, id: 'passage-2' };
+    const result = await attachDocumentImages(
+      quiz([question({ stimulusIds: ['passage-1'] })], [passage, unused]),
+      [],
+      uploader()
+    );
+    expect(result.questions[0].stimulusIds).toEqual(['passage-1']);
+    expect(result.stimuli?.map((s) => s.id)).toEqual(['passage-1']);
+  });
+});
