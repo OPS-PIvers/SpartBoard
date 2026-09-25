@@ -20,6 +20,8 @@ import {
   type FolderPanelMode,
 } from './LibraryFolderPanelContext';
 import { SegmentedTabs } from '@/components/common/sessionViews/SegmentedTabs';
+import { TOOLS } from '@/config/tools';
+import { LIBRARY_HEADER_ACCENTS } from './libraryAccents';
 
 /**
  * Widget-width breakpoints (px) for auto-collapsing the folder panel. Below
@@ -68,7 +70,8 @@ const renderActionButton = (
   variant: 'primary' | 'secondary',
   labelsHidden: boolean,
   key?: string,
-  extraClass = ''
+  extraClass = '',
+  accented = false
 ): React.ReactElement => {
   const Icon = action.icon;
   const base =
@@ -77,7 +80,9 @@ const renderActionButton = (
   // chip; secondary is a translucent white ghost.
   const variantClass =
     variant === 'primary'
-      ? 'bg-white hover:bg-brand-blue-lighter text-brand-blue-primary'
+      ? accented
+        ? 'bg-white hover:bg-slate-100 text-[color:var(--library-accent)]'
+        : 'bg-white hover:bg-brand-blue-lighter text-brand-blue-primary'
       : 'bg-white/15 hover:bg-white/25 text-white border border-white/30';
   return (
     <button
@@ -130,6 +135,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
   folderPanelMode: folderPanelModeProp,
   onFolderPanelModeChange,
   children,
+  widgetType,
 }) => {
   // When the caller doesn't wire a controlled setting, fall back to internal
   // state so the chevron toggle still works (just won't persist across mounts).
@@ -140,11 +146,15 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
     if (onFolderPanelModeChange) onFolderPanelModeChange(next);
     else setUncontrolledMode(next);
   };
+  const widgetTool = widgetType
+    ? TOOLS.find((tool) => tool.type === widgetType)
+    : undefined;
+  const accent = widgetType ? LIBRARY_HEADER_ACCENTS[widgetType] : undefined;
   const allTabs: TabDef[] = [
     {
       key: 'library',
       label: tabLabels?.library ?? 'Library',
-      icon: BookOpen,
+      icon: widgetTool?.icon ?? BookOpen,
       count: counts?.library,
     },
     // Banks is Quiz-only: managers that never pass `counts.banks` are unchanged.
@@ -245,8 +255,14 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
         primaryAction != null ||
         (secondaryActions != null && secondaryActions.length > 0)) && (
         <div
-          className="flex items-center justify-between bg-brand-blue-primary shrink-0"
+          className={`flex items-center justify-between shrink-0 ${accent ? '' : 'bg-brand-blue-primary'}`}
           style={{
+            ...(accent
+              ? ({
+                  backgroundColor: accent,
+                  '--library-accent': accent,
+                } as React.CSSProperties)
+              : {}),
             gap: 'min(12px, 2.5cqmin)',
             paddingInline: 'min(16px, 3.5cqmin)',
             paddingBlock: 'min(8px, 1.8cqmin)',
@@ -260,6 +276,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
               labelsHidden={tabLabelsHidden}
               ariaLabel={`${widgetLabel} library tabs`}
               onDark
+              accentColor={accent}
             />
           ) : (
             <div className="min-w-0" />
@@ -286,18 +303,30 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                       'primary',
                       labelsHidden,
                       undefined,
-                      'rounded-r-none'
+                      'rounded-r-none',
+                      accent != null
                     )}
                     <OverflowMenu
                       items={primaryAction.menuItems}
                       ariaLabel="More ways to create"
                       triggerIcon={ChevronDown}
                       stretch
-                      triggerClassName="rounded-r-xl border-l border-brand-blue-lighter bg-white text-brand-blue-primary shadow-sm hover:bg-brand-blue-lighter"
+                      triggerClassName={
+                        accent
+                          ? 'rounded-r-xl border-l border-slate-200 bg-white text-[color:var(--library-accent)] shadow-sm hover:bg-slate-100'
+                          : 'rounded-r-xl border-l border-brand-blue-lighter bg-white text-brand-blue-primary shadow-sm hover:bg-brand-blue-lighter'
+                      }
                     />
                   </div>
                 ) : (
-                  renderActionButton(primaryAction, 'primary', labelsHidden)
+                  renderActionButton(
+                    primaryAction,
+                    'primary',
+                    labelsHidden,
+                    undefined,
+                    '',
+                    accent != null
+                  )
                 ))}
             </div>
           )}

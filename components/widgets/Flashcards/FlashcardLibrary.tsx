@@ -269,6 +269,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
     <>
       <LibraryShell
         widgetLabel="Flashcards"
+        widgetType="flashcards"
         tab={tab}
         onTabChange={onTabChange}
         visibleTabs={['library', 'active', 'archive']}

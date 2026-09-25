@@ -2121,6 +2121,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         plcs={plcs}
         shell={{
           widgetLabel: 'Quiz',
+          widgetType: 'quiz',
           tab: managerTab,
           onTabChange: (t) => onTabChange?.(t),
           counts: tabCounts,
@@ -2144,6 +2145,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     return (
       <LibraryShell
         widgetLabel="Quiz"
+        widgetType="quiz"
         tab={managerTab}
         onTabChange={(t) => onTabChange?.(t)}
         counts={tabCounts}
@@ -2205,6 +2207,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const shell = (
     <LibraryShell
       widgetLabel="Quiz"
+      widgetType="quiz"
       tab={managerTab}
       onTabChange={(t) => onTabChange?.(t)}
       counts={tabCounts}
