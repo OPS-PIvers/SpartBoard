@@ -483,7 +483,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
       aria-labelledby={titleId}
       data-widget-portal=""
       data-widget-id={widget.id}
-      {...tourAttr('settings.root', widget.id)}
+      {...tourAttr('settings.root', widget.id, widget.type)}
       data-placement={placement}
       data-click-outside-ignore="true"
       onKeyDown={handleKeyDown}
@@ -525,7 +525,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
             size="sm"
             shape="square"
             data-testid="settings-drawer-close"
-            {...tourAttr('settings.close', widget.id)}
+            {...tourAttr('settings.close', widget.id, widget.type)}
           />
         </div>
       </div>
@@ -542,7 +542,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
             value={query}
             onChange={(e) => setQueryAndTab(e.target.value)}
             aria-label={t('widgetSettings.common.findSetting')}
-            {...tourAttr('settings.search', widget.id)}
+            {...tourAttr('settings.search', widget.id, widget.type)}
             placeholder={t('widgetSettings.common.findSetting')}
             className="w-full pl-8 pr-8 py-1.5 text-sm text-slate-800 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
           />
@@ -585,8 +585,8 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
               aria-selected={activeTab === tab}
               onClick={() => setActiveTab(tab)}
               {...(tab === 'settings'
-                ? tourAttr('settings.tab-settings', widget.id)
-                : tourAttr('settings.tab-style', widget.id))}
+                ? tourAttr('settings.tab-settings', widget.id, widget.type)
+                : tourAttr('settings.tab-style', widget.id, widget.type))}
               className={`flex-1 py-1.5 text-xxs font-black uppercase tracking-widest rounded-lg transition-[color,background-color,box-shadow] ${
                 activeTab === tab
                   ? 'bg-white shadow-sm text-slate-800'

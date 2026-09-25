@@ -18,7 +18,12 @@ import { ScalableWidget } from '@/components/common/ScalableWidget';
 import { WidgetLayoutWrapper } from '@/components/widgets/WidgetLayout';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { useAuth } from '@/context/useAuth';
-import { useDashboardCanvasSelector } from '@/context/dashboardCanvasStore';
+import {
+  useDashboardCanvasSelector,
+  useTourLayoutOverride,
+  type TourLayoutOverride,
+} from '@/context/dashboardCanvasStore';
+import { computeWidgetPixelRect } from '@/utils/proportionalLayout';
 import { UI_CONSTANTS } from '@/config/layout';
 import {
   WIDGET_SETTINGS_COMPONENTS,
@@ -29,7 +34,10 @@ import {
 } from './WidgetRegistry';
 import { SchemaSettingsFallback } from '@/components/settings/legacy/SchemaSettingsFallback';
 import { SchemaAppearanceFallback } from '@/components/settings/legacy/SchemaAppearanceFallback';
-import { POSITION_AWARE_WIDGETS } from '@/config/widgetDefaults';
+import {
+  POSITION_AWARE_WIDGETS,
+  WIDGET_STRETCH_BEHAVIOR,
+} from '@/config/widgetDefaults';
 
 const LIVE_SESSION_UPDATE_DEBOUNCE_MS = 800; // Balance between real-time updates and reducing Firestore write costs
 
@@ -87,8 +95,22 @@ interface WidgetRendererProps {
   isActive?: boolean;
 }
 
+// A live tour's temporary layout, drawn over the saved one.
+const withTourLayout = (
+  widget: WidgetData,
+  layout: TourLayoutOverride
+): WidgetData => {
+  const rect = computeWidgetPixelRect(
+    { ...layout, aspectRatio: layout.aspectRatio ?? widget.aspectRatio },
+    window.innerWidth,
+    window.innerHeight,
+    WIDGET_STRETCH_BEHAVIOR[widget.type] ?? 'preserve-aspect'
+  );
+  return { ...widget, ...layout, ...rect };
+};
+
 const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
-  widget,
+  widget: savedWidget,
   isStudentView = false,
   studentPin,
   sessionCode,
@@ -107,6 +129,11 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   dashboardSettings,
   isActive = true,
 }) => {
+  const tourLayout = useTourLayoutOverride(savedWidget.id);
+  const widget = useMemo(
+    () => (tourLayout ? withTourLayout(savedWidget, tourLayout) : savedWidget),
+    [savedWidget, tourLayout]
+  );
   const isSpotlighted = dashboardSettings?.spotlightWidgetId === widget.id;
   const windowSize = useWindowSize(!!widget.maximized);
   const {

@@ -56,6 +56,7 @@ const editorFor = (
     steps: set.steps,
     watchPace: set.watchPace,
     tourSetupWidgets: set.tourSetup?.widgets ?? [],
+    tourSetupLayouts: set.tourSetup?.layouts ?? [],
     setSteps: vi.fn(),
     canvasMeasurementsRef: { current: null },
     canvasMeasuredTick: 0,
@@ -178,6 +179,46 @@ describe('useSetDraftPersistence tour setup', () => {
     rerender({ edits: { tourSetupWidgets: ['time-tool', 'clock'] } });
     expect(result.current.isDirty).toBe(true);
     expect(result.current.draftToken).not.toBe(idle);
+  });
+
+  const layout = {
+    slot: 0,
+    type: 'clock' as const,
+    xProp: 0.1,
+    yProp: 0.2,
+    wProp: 0.3,
+    hProp: 0.4,
+  };
+
+  it('saves captured layouts, and drops them once cleared', () => {
+    expect(build(tourSet, { tourSetupLayouts: [layout] })?.tourSetup).toEqual({
+      widgets: ['time-tool'],
+      layouts: [layout],
+    });
+    const laidOut = buildSet({
+      isBuilding: true,
+      tourSetup: { widgets: [], layouts: [layout] },
+    });
+    expect(build(laidOut, { tourSetupLayouts: [] })?.tourSetup).toEqual({
+      widgets: [],
+    });
+  });
+
+  it('counts a layout capture as a draft change', () => {
+    const { result, rerender } = renderHook(
+      ({ edits }: { edits: Partial<GuidedLearningEditorController> }) =>
+        useSetDraftPersistence({
+          isOpen: true,
+          set: tourSet,
+          editorState: editorFor(tourSet, edits),
+          onSave: vi.fn(),
+          onClose: vi.fn(),
+        }),
+      { initialProps: { edits: {} } }
+    );
+    expect(result.current.isDirty).toBe(false);
+    rerender({ edits: { tourSetupLayouts: [layout] } });
+    expect(result.current.isDirty).toBe(true);
   });
 });
 

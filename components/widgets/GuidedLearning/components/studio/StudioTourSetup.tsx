@@ -1,13 +1,21 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
-import type { InternalToolType, WidgetType } from '@/types';
+import { LayoutDashboard, X } from 'lucide-react';
+import type { InternalToolType, TourWidgetLayout, WidgetType } from '@/types';
 import { TOOLS } from '@/config/tools';
 import { useToolLabel } from '@/hooks/useToolLabel';
+import { DashboardContext } from '@/context/DashboardContextValue';
+import { DialogContext } from '@/context/DialogContextValue';
+import {
+  boardLayoutOf,
+  buildRecordedLayouts,
+} from '../recorder/recordedLayouts';
 
 interface StudioTourSetupProps {
   widgets: readonly WidgetType[];
   onChange: (widgets: WidgetType[]) => void;
+  layouts?: readonly TourWidgetLayout[];
+  onLayoutsChange?: (layouts: TourWidgetLayout[]) => void;
 }
 
 const INTERNAL_TOOLS: readonly InternalToolType[] = [
@@ -24,8 +32,27 @@ const WIDGET_TYPES = TOOLS.map((tool) => tool.type).filter(
 export const StudioTourSetup: React.FC<StudioTourSetupProps> = ({
   widgets,
   onChange,
+  layouts = [],
+  onLayoutsChange,
 }) => {
   const { t } = useTranslation();
+  const dialog = useContext(DialogContext);
+  const board = (
+    useContext(DashboardContext)?.activeDashboard?.widgets ?? []
+  ).filter((w) => !w.transient);
+  // Replaces the tour's recorded layouts with this board's, after a confirm.
+  const captureLayout = async () => {
+    if (!onLayoutsChange || board.length === 0) return;
+    const message = t('glStudio.tourLayoutConfirm');
+    const ok = dialog
+      ? await dialog.showConfirm(message, {
+          title: t('glStudio.tourLayoutCapture'),
+          confirmLabel: t('glStudio.tourLayoutCaptureConfirm'),
+        })
+      : window.confirm(message);
+    if (ok)
+      onLayoutsChange(buildRecordedLayouts(boardLayoutOf(board), []).layouts);
+  };
   const toolLabel = useToolLabel();
   const labelOf = (type: WidgetType) => toolLabel(type) || type;
   const unique = [...new Set(widgets)];
@@ -90,6 +117,25 @@ export const StudioTourSetup: React.FC<StudioTourSetupProps> = ({
           </option>
         ))}
       </select>
+      {onLayoutsChange && (
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-slate-500">
+            {layouts.length > 0
+              ? t('glStudio.tourLayoutCount', { count: layouts.length })
+              : t('glStudio.tourLayoutNone')}
+          </span>
+          <button
+            type="button"
+            onClick={() => void captureLayout()}
+            disabled={board.length === 0}
+            title={t('glStudio.tourLayoutHint')}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+          >
+            <LayoutDashboard className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('glStudio.tourLayoutCapture')}
+          </button>
+        </div>
+      )}
     </section>
   );
 };

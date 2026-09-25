@@ -17,6 +17,7 @@ import {
   type TourRecording,
 } from './useTourCapture';
 import type { NameMatcher } from './redaction';
+import type { RecordedBoardWidget } from './recordedLayouts';
 
 const ERROR_KEYS: Record<CaptureError, string> = {
   unsupported: 'glRecorder.unsupported',
@@ -32,6 +33,8 @@ interface TourRecorderProps {
   onDiscard: () => void;
   /** Re-record one step: finishes on the first captured click. */
   single?: boolean;
+  /** Reads the board's widget layouts at each captured click. */
+  snapshot?: () => RecordedBoardWidget[];
 }
 
 const btn =
@@ -82,6 +85,7 @@ export const TourRecorder: React.FC<TourRecorderProps> = ({
   onFinish,
   onDiscard,
   single = false,
+  snapshot,
 }) => {
   const { t } = useTranslation();
   const pillRef = useRef<HTMLDivElement>(null);
@@ -98,6 +102,7 @@ export const TourRecorder: React.FC<TourRecorderProps> = ({
   const capture = useTourCapture({
     chromeRef: pillRef,
     matcher,
+    snapshot,
     // Single mode finishes itself once the one click lands.
     onStep: single ? (_count, finish) => finishWith(finish) : undefined,
   });

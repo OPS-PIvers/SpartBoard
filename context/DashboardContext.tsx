@@ -19,6 +19,7 @@ import {
   GlobalStyle,
   DEFAULT_GLOBAL_STYLE,
   AddWidgetOverrides,
+  TourWidgetLayout,
   GridPosition,
   FeaturePermission,
   DrawableObject,
@@ -326,6 +327,14 @@ const stripDerivedPixels = (w: WidgetData) => {
   return rest;
 };
 
+const isSavedWidget = (w: WidgetData) => !w.transient;
+
+// Live-tour widgets stay in memory until the teacher keeps them.
+const withoutTransient = (d: Dashboard): Dashboard =>
+  d.widgets.some((w) => w.transient)
+    ? { ...d, widgets: d.widgets.filter(isSavedWidget) }
+    : d;
+
 // Ceiling on how long an edit may sit unsaved while edits keep arriving.
 const MAX_UNSAVED_EDIT_AGE_MS = 3000;
 // Ink-only edits rewrite the whole board document, so sustained drawing gets a
@@ -381,7 +390,7 @@ const UNTARGETED_DASHBOARD_FIELDS: readonly MergedDashboardField[] = [
 // Key-stable: a merged snapshot echo carries Firestore's key order, and a plain JSON.stringify would read it as an unsaved change and save again, forever.
 const serializeDashboard = (d: Dashboard): string =>
   stableStringify({
-    widgets: d.widgets.map((w) => {
+    widgets: d.widgets.filter(isSavedWidget).map((w) => {
       const { config, ...rest } = stripDerivedPixels(w);
       return {
         ...rest,
@@ -472,7 +481,9 @@ const saveRetryDelayMs = (failures: number): number =>
 const getDashboardSaveState = (d: Dashboard) => ({
   serializedData: serializeDashboard(d),
   fields: {
-    widgets: JSON.stringify(d.widgets.map(stripDerivedPixels)),
+    widgets: JSON.stringify(
+      d.widgets.filter(isSavedWidget).map(stripDerivedPixels)
+    ),
     background: d.background,
     name: d.name,
     libraryOrder: JSON.stringify(d.libraryOrder ?? []),
@@ -1665,13 +1676,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const saveDashboard = useCallback(
     async (
-      dashboard: Dashboard,
+      withTourWidgets: Dashboard,
       baseline?: SaveBaseline,
       // Teardown flushes pass this: the page is already going away, so the two
       // Drive round-trips below would run out the clock before Firestore is
       // even reached. The PII backup still fires, just unawaited.
       options?: { skipDrive?: boolean }
     ): Promise<number> => {
+      const dashboard = withoutTransient(withTourWidgets);
       // Always save to Firestore for real-time sync
       let driveFileId = dashboard.driveFileId;
       const skipDrive = options?.skipDrive === true;
@@ -1708,7 +1720,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // every save purely because the baseline still carries its roster.
       const scrubbedBaseline = baseline && {
         ...baseline,
-        widgets: scrubWidgetsPII(baseline.widgets),
+        widgets: scrubWidgetsPII(baseline.widgets.filter(isSavedWidget)),
       };
 
       const updatedAt = await saveDashboardFirestore(
@@ -1762,7 +1774,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const saveDashboards = useCallback(
-    async (dashboardsToSave: Dashboard[]) => {
+    async (withTourWidgets: Dashboard[]) => {
+      const dashboardsToSave = withTourWidgets.map(withoutTransient);
       // Must run before the scrub below — admins never get the background export further down.
       await Promise.all(dashboardsToSave.map(backupDashboardPIIToDrive));
 
@@ -1808,10 +1821,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const handleShareDashboard = useCallback(
     async (
-      dashboard: Dashboard,
+      withTourWidgets: Dashboard,
       intendedMode?: SharedBoardImportMode,
       plcId?: string
     ): Promise<string> => {
+      const dashboard = withoutTransient(withTourWidgets);
       // MANDATE: Share through Google Drive if available for non-admins.
       // Drive shares are one-time exports — they don't support live sync,
       // and we intentionally don't tag the local dashboard as `owner`.
@@ -2000,9 +2014,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             : new Set<string>();
         const migratedDashboards = sortedDashboards.map((db) => {
           const collectionsMigrated = migrateBoardForCollections(db);
+          // A crash between flagging and keeping could leave a tour widget saved.
           const widgetMigrated: Dashboard = {
             ...collectionsMigrated,
-            widgets: migrateBoardWidgets(collectionsMigrated.widgets),
+            widgets: migrateBoardWidgets(collectionsMigrated.widgets).filter(
+              isSavedWidget
+            ),
           };
           const hydrated = hydrateDashboardForViewport(
             widgetMigrated,
@@ -2527,6 +2544,22 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           widgetHistoryRef.current.delete(nextActive.id);
         }
 
+        // Unsaved tour widgets never come back from the server, so carry them over.
+        const tourWidgets = currentActive?.widgets.filter((w) => w.transient);
+        if (currentActive && tourWidgets?.length) {
+          newDashboards = newDashboards.map((db) => {
+            if (db.id !== currentActive.id) return db;
+            const tourIds = new Set(tourWidgets.map((w) => w.id));
+            return {
+              ...db,
+              widgets: [
+                ...db.widgets.filter((w) => !tourIds.has(w.id)),
+                ...tourWidgets,
+              ],
+            };
+          });
+        }
+
         setDashboards(newDashboards);
 
         // Update libraryOrder state from active dashboard if it changed on server
@@ -2890,7 +2923,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         getDashboardSaveState(active);
       lastSavedDataRef.current = initSavedData;
       lastSavedFieldsRef.current = initSavedFields;
-      lastWidgetCountRef.current = active.widgets.length;
+      lastWidgetCountRef.current = active.widgets.filter(isSavedWidget).length;
       lastSavedDashboardIdRef.current = active.id;
       // The refs now describe a different board, so any pending window from
       // the previous one is meaningless here.
@@ -2904,7 +2937,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Detect structural changes (adding/removing widgets) for more aggressive saving
     const isStructuralChange =
-      active.widgets.length !== lastWidgetCountRef.current;
+      active.widgets.filter(isSavedWidget).length !==
+      lastWidgetCountRef.current;
     // Ink-only edits rewrite the whole board document per stroke pause, so
     // they get a longer idle window than a widget edit. The unsaved-age
     // ceiling below still bounds how long a stroke can sit unwritten.
@@ -2956,7 +2990,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const savedData = currentData;
       // Capture per-field state at save time for field-granular merge decisions
       const savedFields = {
-        widgets: JSON.stringify(active.widgets),
+        widgets: JSON.stringify(active.widgets.filter(isSavedWidget)),
         background: active.background,
         name: active.name,
         // Coalesce so an absent field serializes to '[]'/'{}' like the other
@@ -2970,7 +3004,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         ) as Record<MergedDashboardField, string>,
       };
       pendingSaveCountRef.current++;
-      lastWidgetCountRef.current = active.widgets.length;
+      lastWidgetCountRef.current = active.widgets.filter(isSavedWidget).length;
       const baselineGenerationAtSave = baselineGenerationRef.current;
       saveDashboard(active, buildSaveBaseline(active.id))
         .then(() => {
@@ -3086,7 +3120,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     driveSyncTimerRef.current = setTimeout(() => {
       pendingExportDataRef.current = null;
       void driveService
-        .exportDashboard(active)
+        .exportDashboard(withoutTransient(active))
         .then((newFileId) => {
           lastExportedDataRef.current = currentData;
           // If we got a new ID (e.g. first sync), save it back to Firestore
@@ -3606,7 +3640,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // had names merged back in from Drive (mergeDashboardPII); those must
       // never reach Firestore — least of all the cross-user shared_boards
       // collection. The mirror sees only scrubbed data.
-      const scrubbed = scrubDashboardPII(d);
+      const scrubbed = scrubDashboardPII(withoutTransient(d));
 
       // Cheap dedupe based on the same fields the saveDashboard path uses.
       const payload = serializeDashboard(scrubbed);
@@ -5489,7 +5523,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       stack = createWidgetHistoryStack();
       widgetHistoryRef.current.set(id, stack);
     }
-    recordWidgetHistory(stack, active.widgets, coalesceKey);
+    recordWidgetHistory(
+      stack,
+      active.widgets.filter(isSavedWidget),
+      coalesceKey
+    );
     setWidgetHistoryVersion((v) => v + 1);
   }, []);
 
@@ -5499,7 +5537,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!id) return;
       const currentById = new Map(current.map((w) => [w.id, w]));
       // Bump version past the live one so the Firestore merge keeps the restored config.
-      const widgets = restored.map((w) => {
+      const restoredWidgets = restored.map((w) => {
         const live = currentById.get(w.id);
         if (!live || live === w) return w;
         return {
@@ -5507,6 +5545,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           version: Math.max(w.version ?? 1, live.version ?? 1) + 1,
         };
       });
+      // Tour widgets sit outside history, so undo leaves them in place.
+      const widgets = [
+        ...restoredWidgets,
+        ...current.filter((w) => w.transient),
+      ];
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
       setDashboards((prev) =>
@@ -5537,7 +5580,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const stack = widgetHistoryRef.current.get(id);
       const active = dashboardsRef.current.find((d) => d.id === id);
       if (!stack || !active) return;
-      const restored = undoWidgetHistory(stack, active.widgets);
+      const restored = undoWidgetHistory(
+        stack,
+        active.widgets.filter(isSavedWidget)
+      );
       if (restored) applyHistoryWidgets(restored, active.widgets);
     },
     [applyHistoryWidgets, isHistoryTargetActive]
@@ -5558,7 +5604,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const stack = widgetHistoryRef.current.get(id);
       const active = dashboardsRef.current.find((d) => d.id === id);
       if (!stack || !active) return;
-      const restored = redoWidgetHistory(stack, active.widgets);
+      const restored = redoWidgetHistory(
+        stack,
+        active.widgets.filter(isSavedWidget)
+      );
       if (restored) applyHistoryWidgets(restored, active.widgets);
     },
     [applyHistoryWidgets, isHistoryTargetActive]
@@ -5573,15 +5622,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const canRedo =
     widgetHistoryVersion >= 0 && (activeHistory?.redo.length ?? 0) > 0;
 
-  const addWidget = useCallback(
-    (type: WidgetType, overrides?: AddWidgetOverrides) => {
-      if (!activeId) return;
-      if (isActiveBoardReadOnlyRef.current) return;
-      lastLocalUpdateAt.current = Date.now();
-      lastUpdateWasSettingsOnly.current = false;
-      recordHistory();
-
+  // Puts a new widget on the active board and returns its id; callers guard and record history.
+  const insertWidget = useCallback(
+    (
+      type: WidgetType,
+      overrides: AddWidgetOverrides | undefined,
+      opts: { transient?: boolean; exact?: boolean } = {}
+    ): string => {
       const adminConfig = getAdminBuildingConfig(type);
+      const newWidgetId = crypto.randomUUID();
+      locallyAddedWidgetIds.current.add(newWidgetId);
 
       setDashboards((prev) =>
         prev.map((d) => {
@@ -5589,8 +5639,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           const maxZ = d.widgets.reduce((max, w) => Math.max(max, w.z), 0);
           const defaults = WIDGET_DEFAULTS[type] ?? {};
 
-          const newWidgetId = crypto.randomUUID();
-          locallyAddedWidgetIds.current.add(newWidgetId);
           // Anchor pixel defaults against the reference viewport so a widget
           // added on a 1366×768 laptop and one added on a 1920×1080 projector
           // get identical proportional bounds.
@@ -5676,21 +5724,101 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             zoom: zoomRef.current,
             pan: getPan() ?? { x: 0, y: 0 },
           };
-          const newWidget = overrodePosition
-            ? keepNewWidgetOnScreen(sizedWidget, d.widgets, stretch, camera)
-            : placeNewWidget(sizedWidget, d.widgets, stretch, camera);
+          // A recorded tour layout opens exactly where it was recorded.
+          const placed = opts.exact
+            ? hydrateWidgetPixels(sizedWidget, vpW, vpH, stretch)
+            : overrodePosition
+              ? keepNewWidgetOnScreen(sizedWidget, d.widgets, stretch, camera)
+              : placeNewWidget(sizedWidget, d.widgets, stretch, camera);
+          const newWidget = opts.transient
+            ? { ...placed, transient: true }
+            : placed;
           return { ...d, widgets: [...d.widgets, newWidget] };
         })
       );
+      return newWidgetId;
     },
-    [
-      activeId,
-      getAdminBuildingConfig,
-      materialsPreferences,
-      savedWidgetConfigs,
-      recordHistory,
-    ]
+    [activeId, getAdminBuildingConfig, materialsPreferences, savedWidgetConfigs]
   );
+
+  const addWidget = useCallback(
+    (type: WidgetType, overrides?: AddWidgetOverrides) => {
+      if (!activeId) return;
+      if (isActiveBoardReadOnlyRef.current) return;
+      lastLocalUpdateAt.current = Date.now();
+      lastUpdateWasSettingsOnly.current = false;
+      recordHistory();
+      insertWidget(type, overrides);
+    },
+    [activeId, insertWidget, recordHistory]
+  );
+
+  const addTourWidget = useCallback(
+    (
+      type: WidgetType,
+      layout?: Omit<TourWidgetLayout, 'slot' | 'type'>
+    ): string | null => {
+      if (!activeId || isActiveBoardReadOnlyRef.current) return null;
+      if (!layout) return insertWidget(type, undefined, { transient: true });
+      const { appearance, ...props } = layout;
+      return insertWidget(
+        type,
+        {
+          ...props,
+          ...(appearance
+            ? { config: appearance as AddWidgetOverrides['config'] }
+            : {}),
+        },
+        { transient: true, exact: true }
+      );
+    },
+    [activeId, insertWidget]
+  );
+
+  // Keep: the tour widgets become ordinary widgets and save with the board.
+  const commitTourWidgets = useCallback(
+    (ids: readonly string[]) => {
+      if (ids.length === 0 || isActiveBoardReadOnlyRef.current) return;
+      const idSet = new Set(ids);
+      recordHistory();
+      lastLocalUpdateAt.current = Date.now();
+      lastUpdateWasSettingsOnly.current = false;
+      setDashboards((prev) =>
+        prev.map((d) =>
+          d.widgets.some((w) => w.transient && idSet.has(w.id))
+            ? {
+                ...d,
+                widgets: d.widgets.map((w) => {
+                  if (!w.transient || !idSet.has(w.id)) return w;
+                  const { transient: _transient, ...kept } = w;
+                  return kept;
+                }),
+              }
+            : d
+        )
+      );
+    },
+    [recordHistory]
+  );
+
+  // Every board, so a board switch mid-tour cannot strand a tour widget.
+  const discardTourWidgets = useCallback((ids: readonly string[]) => {
+    if (ids.length === 0) return;
+    const idSet = new Set(ids);
+    for (const id of ids) locallyAddedWidgetIds.current.delete(id);
+    setDashboards((prev) =>
+      prev.map((d) =>
+        d.widgets.some((w) => w.transient && idSet.has(w.id))
+          ? {
+              ...d,
+              widgets: d.widgets.filter(
+                (w) => !(w.transient && idSet.has(w.id))
+              ),
+            }
+          : d
+      )
+    );
+  }, []);
 
   const addWidgets = useCallback(
     (
@@ -6997,6 +7125,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setSelectedWidgetIds,
     setGroupBuildMode,
     setZoom,
+    addTourWidget,
+    commitTourWidgets,
+    discardTourWidgets,
   };
   const liveActionsRef = useRef(liveActions);
   liveActionsRef.current = liveActions;
@@ -7031,6 +7162,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setGroupBuildMode: (active) =>
         liveActionsRef.current.setGroupBuildMode(active),
       setZoom: (value) => liveActionsRef.current.setZoom(value),
+      addTourWidget: (type, layout) =>
+        liveActionsRef.current.addTourWidget?.(type, layout) ?? null,
+      commitTourWidgets: (ids) =>
+        liveActionsRef.current.commitTourWidgets?.(ids),
+      discardTourWidgets: (ids) =>
+        liveActionsRef.current.discardTourWidgets?.(ids),
     }),
     []
   );
@@ -7110,6 +7247,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       removeWidget,
       duplicateWidget,
       removeWidgets,
+      addTourWidget,
+      commitTourWidgets,
+      discardTourWidgets,
       updateWidget,
       bringToFront,
       moveWidgetLayer,
@@ -7235,6 +7375,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       removeWidget,
       duplicateWidget,
       removeWidgets,
+      addTourWidget,
+      commitTourWidgets,
+      discardTourWidgets,
       updateWidget,
       bringToFront,
       moveWidgetLayer,

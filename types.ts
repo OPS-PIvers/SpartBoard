@@ -7175,9 +7175,33 @@ export interface GuidedLearningTourBinding {
   action: 'click' | 'observe';
   /** Guided autopilot demonstrates, then waits for the teacher; absent = the anchor's `destructive` default. */
   teacherMustClick?: boolean;
+  /** Widget-scoped anchors: which tour widget slot the anchor belongs to. */
+  slot?: number;
+  /** This step's action opens a widget, placed at this layout. */
+  spawns?: TourWidgetLayout;
+  /** Recorded moves of slotted widgets, applied when this step starts. */
+  layoutKeyframes?: TourLayoutKeyframe[];
   /** Unmapped-anchor queue fingerprint for an untagged recorded click; cleared on rebind. */
   unmapped?: string;
 }
+
+/** A widget's recorded place on the board; `slot` is its stable index within the tour. */
+export interface TourWidgetLayout {
+  slot: number;
+  type: WidgetType;
+  xProp: number;
+  yProp: number;
+  wProp: number;
+  hProp: number;
+  aspectRatio?: number;
+  /** APPEARANCE_CONFIG_KEYS only; content never travels with a tour. */
+  appearance?: Record<string, unknown>;
+}
+
+export type TourLayoutKeyframe = Pick<
+  TourWidgetLayout,
+  'slot' | 'xProp' | 'yProp' | 'wProp' | 'hProp'
+>;
 
 /** Watch-mode pacing. 'calm' multiplies step durations by 1.3; absent = 'standard'. */
 export type GuidedLearningWatchPace = 'calm' | 'standard';
@@ -7263,7 +7287,11 @@ export interface GuidedLearningSet {
   welcomeMessage?: string;
   watchPace?: GuidedLearningWatchPace;
   /** Live tour prerequisites. Teacher-only: never mirrored to sessions. */
-  tourSetup?: { widgets: WidgetType[] };
+  tourSetup?: {
+    widgets: WidgetType[];
+    /** Recorded setup widget layouts; absent = default placement. */
+    layouts?: TourWidgetLayout[];
+  };
   /** Stamped on every building-set save: true when any step has a live-tour binding. */
   hasLiveTour?: boolean;
 }
@@ -8320,6 +8348,8 @@ export interface WidgetData {
   buildingId?: string;
   /** Widgets sharing the same groupId form a group — they move and resize together */
   groupId?: string;
+  /** Added by a live tour and not yet kept: never saved or recorded in undo history. */
+  transient?: boolean;
   config: WidgetConfig;
 
   // Universal style properties

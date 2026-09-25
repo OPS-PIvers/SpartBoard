@@ -18,6 +18,7 @@ import {
   toFrameRedactions,
   type NameMatcher,
 } from './redaction';
+import type { RecordedBoardWidget } from './recordedLayouts';
 
 export interface RecordedStep extends RecordedPlacement {
   id: string;
@@ -28,6 +29,8 @@ export interface RecordedStep extends RecordedPlacement {
   suggestedId?: string;
   /** The board widget the click landed in, from its `data-tour-widget` ancestor. */
   widgetId?: string;
+  /** Widget layouts at the moment of the click. */
+  board?: RecordedBoardWidget[];
   /** Redacted structure of an untagged click, for the unmapped-anchor queue. */
   context?: UnmappedAnchorContext;
 }
@@ -150,10 +153,17 @@ interface Options {
   matcher: NameMatcher | null;
   /** Called each time a captured step lands, with the count and the hook's own finish. */
   onStep?: (count: number, finish: () => Promise<TourRecording>) => void;
+  /** Reads the board's widget layouts when a click is captured. */
+  snapshot?: () => RecordedBoardWidget[];
 }
 
 /** Records a click-through of this tab: a frame and a tour-bound step per click. */
-export function useTourCapture({ chromeRef, matcher, onStep }: Options) {
+export function useTourCapture({
+  chromeRef,
+  matcher,
+  onStep,
+  snapshot,
+}: Options) {
   const [status, setStatus] = useState<CaptureStatus>('idle');
   const [error, setError] = useState<CaptureError | null>(null);
   const [stepCount, setStepCount] = useState(0);
@@ -271,6 +281,8 @@ export function useTourCapture({ chromeRef, matcher, onStep }: Options) {
         })
       : undefined;
     const rect = resolved.element.getBoundingClientRect();
+    // Before the app reacts, so a click that moves or opens a widget is seen after it.
+    const board = snapshot?.();
     const viewport = { w: window.innerWidth, h: window.innerHeight };
     // Before and after the app reacts to the click, so a name that moves is covered in both places.
     const rects = collectRedactionRects(document.body, matcher, viewport);
@@ -304,6 +316,7 @@ export function useTourCapture({ chromeRef, matcher, onStep }: Options) {
         untagged: resolved.untagged,
         ...(suggestedId ? { suggestedId } : {}),
         ...(widgetId ? { widgetId } : {}),
+        ...(board ? { board } : {}),
         ...(context ? { context } : {}),
       },
     };

@@ -346,6 +346,8 @@ const ActivitySection: React.FC<{
           <StudioTourSetup
             widgets={state.tourSetupWidgets}
             onChange={state.setTourSetupWidgets}
+            layouts={state.tourSetupLayouts}
+            onLayoutsChange={state.setTourSetupLayouts}
           />
         </Group>
       )}
