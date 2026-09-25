@@ -154,7 +154,7 @@ export function paperWrittenView(
   }
   const state: PaperTranscriptState = privateDoc
     ? publicTranscriptState(privateDoc.status)
-    : (answer.paperTranscript ?? 'done');
+    : (answer.paperTranscript ?? 'pending');
   const wantsCrop = mode !== 'typed';
   const wantsText = mode !== 'handwriting';
 

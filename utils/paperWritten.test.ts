@@ -146,6 +146,16 @@ describe('paperWrittenView', () => {
     );
   });
 
+  it('treats a crop without a transcript state as pending', () => {
+    const view = paperWrittenView(
+      { questionId: 'q1', answer: '', answeredAt: 1, artifacts: [crop] },
+      null,
+      'both'
+    );
+    expect(view.showCrop).toBe(true);
+    expect(view.placeholder).toBe('transcribing');
+  });
+
   it('marks a missing crop unavailable', () => {
     const view = paperWrittenView(
       answer('done', '<p>x</p>', false),
