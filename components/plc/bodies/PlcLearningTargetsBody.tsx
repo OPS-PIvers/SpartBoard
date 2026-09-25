@@ -32,12 +32,6 @@ export const PlcLearningTargetsBody: React.FC<PlcLearningTargetsBodyProps> = ({
             defaultValue: 'Learning targets',
           })}
         </h3>
-        <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-          {t('plcDashboard.learningTargets.description', {
-            defaultValue:
-              'Targets the PLC tags quiz questions with. Every member sees the same list.',
-          })}
-        </p>
       </div>
       <LearningTargetsManager
         list={learningTargets.list}

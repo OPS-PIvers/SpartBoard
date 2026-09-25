@@ -320,7 +320,6 @@
     }
   },
   "plcDashboard": {
-    "subtitle": "Tableau de la Communauté",
     "home": {
       "commonAssessment": {
         "loading": "Chargement de votre évaluation commune…",
@@ -331,7 +330,7 @@
         "startMeeting": "Démarrer la réunion",
         "resumeMeeting": "Reprendre la réunion",
         "phase": {
-          "planning": "Planification — pas encore réalisée",
+          "planning": "Pas encore réalisée",
           "running": "En cours",
           "ready": "Prête à être examinée",
           "reviewing": "Examen en équipe",
@@ -452,7 +451,7 @@
     "meta": {
       "members_one": "{{count}} Membre",
       "members_other": "{{count}} Membres",
-      "youLead": "Vous dirigez cette Communauté"
+      "youLead": "Responsable"
     },
     "members": {
       "heading": "Membres",
@@ -491,7 +490,7 @@
       "pendingSince": "Invité {{when}}",
       "revoke": "Révoquer",
       "revokeAriaLabel": "Révoquer l'invitation pour {{email}}",
-      "notManager": "Seul le responsable ou un co-responsable de la Communauté peut inviter, retirer ou modifier des membres."
+      "notManager": "Seuls les responsables peuvent gérer les membres."
     },
     "completedAssignments": {
       "heading": "Résultats partagés",
@@ -813,7 +812,6 @@
       "heading": "Activité",
       "empty": "Aucune activité pour l’instant",
       "sinceLastVisit": "Depuis votre dernière visite",
-      "sinceSubtitle": "Ce qui s’est passé pendant votre absence",
       "olderHeading": "Plus tôt",
       "caughtUp": "Vous êtes à jour",
       "caughtUpSubtitle": "Aucune nouvelle activité depuis votre dernière visite.",
@@ -855,11 +853,10 @@
       "delete": "Supprimer le commentaire",
       "confirmDelete": "Supprimer ce commentaire ?",
       "confirmDeleteTitle": "Supprimer le commentaire",
-      "mentionHint": "Tapez @ pour mentionner un coéquipier",
       "postFailed": "Impossible de publier votre commentaire. Réessayez.",
       "deleteFailed": "Impossible de supprimer ce commentaire. Réessayez.",
       "loadError": "Impossible de charger les commentaires.",
-      "viewerReadOnly": "Les lecteurs peuvent lire les commentaires mais pas en publier.",
+      "viewerReadOnly": "Lecture seule.",
       "threadLabel": "Commentaires sur {{subject}}",
       "mentionNoMatch": "Aucun coéquipier correspondant",
       "mentionListLabel": "Mentionner un coéquipier"
@@ -882,9 +879,9 @@
       "hasRun": "l’a fait passer",
       "notRun": "ne l’a pas encore fait passer",
       "noQuestions": "Aucune donnée par question disponible pour l’instant.",
-      "strongAcross": "Solide partout — chaque question dépasse 80 %.",
+      "strongAcross": "Chaque question au-dessus de 80 %.",
       "updating": "mise à jour…",
-      "updatingHint": "De nouveaux résultats sont encore en cours de traitement — les chiffres se mettront à jour sous peu.",
+      "updatingHint": "Les nouveaux résultats arrivent sous peu.",
       "reviewCardLabel": "Résultats agrégés pour {{title}}",
       "discussAssessment": "En discuter",
       "discussQuestion": "Discuter de cette question dans une décision",
@@ -905,19 +902,17 @@
       },
       "pick": {
         "heading": "Que regardons-nous aujourd’hui ?",
-        "subtitle": "Choisissez la ou les évaluations communes que cette réunion examine.",
         "emptyTitle": "Aucune donnée d’évaluation pour l’instant",
         "emptySubtitle": "Lorsque l’équipe fait passer une évaluation commune en mode CAP, les résultats anonymisés apparaissent ici, prêts à être examinés ensemble.",
         "cardMeta": "{{avg}}% moy. équipe · {{teachers}} enseignants · {{students}} élèves"
       },
       "review": {
         "heading": "Que disent les données ?",
-        "subtitle": "Résultats agrégés et anonymisés. Cliquez sur une question pour capturer une décision à son sujet.",
+        "subtitle": "Cliquez sur une question pour noter une décision.",
         "none": "Aucune évaluation sélectionnée — revenez à Choisir."
       },
       "decide": {
         "heading": "Qu’avons-nous décidé ?",
-        "subtitle": "Capturez les décisions de l’équipe. Liez-en une à une carte de données d’Examiner lorsqu’elle répond à un résultat précis.",
         "addLabel": "Ajouter une décision",
         "placeholder": "ex. Réexpliquer la question 4 avec le modèle d’aire avant le contrôle.",
         "add": "Ajouter la décision",
@@ -928,7 +923,6 @@
       },
       "act": {
         "heading": "Qui fait quoi ?",
-        "subtitle": "Créez des actions. À l’enregistrement, chacune devient une tâche CAP suivie pour la personne responsable.",
         "addLabel": "Ajouter une action",
         "placeholder": "ex. Préparer un échauffement de remédiation pour la question 4",
         "assignee": "Responsable",
@@ -942,16 +936,14 @@
       },
       "save": {
         "heading": "Prêt à enregistrer ?",
-        "subtitle": "L’enregistrement écrit le compte rendu de la réunion, transforme les actions en tâches et le consigne dans le fil d’activité de l’équipe.",
         "reviewed": "Évaluations examinées",
         "decisions": "Décisions",
         "actions": "Actions → tâches",
         "attendees": "Participants",
         "whoAttended": "Qui est là maintenant",
-        "noAttendees": "Personne d’autre n’est actif pour l’instant — vous serez enregistré comme animateur.",
-        "viewerNote": "Les observateurs peuvent suivre la réunion mais ne peuvent pas enregistrer le compte rendu.",
+        "noAttendees": "Vous serez seul enregistré.",
+        "viewerNote": "Lecture seule. Vous ne pouvez pas enregistrer cette réunion.",
         "doneTitle": "Réunion enregistrée",
-        "doneSubtitle": "Les actions sont désormais des tâches suivies pour leurs responsables. Exportez le compte rendu pour vos dossiers ou commencez une nouvelle réunion.",
         "viewRecord": "Voir le compte rendu",
         "startNew": "Commencer une nouvelle réunion"
       },
@@ -986,7 +978,7 @@
     },
     "trash": {
       "heading": "Corbeille",
-      "description": "Les éléments supprimés restent ici 30 jours, puis sont supprimés définitivement.",
+      "description": "Les éléments supprimés sont effacés après 30 jours.",
       "empty": "La corbeille est vide",
       "restore": "Restaurer",
       "restored": "Restauré",
@@ -1015,7 +1007,7 @@
       "title": "Historique des versions",
       "ariaLabel": "Historique des versions de {{title}}",
       "close": "Fermer",
-      "intro": "Versions enregistrées récentes de cette évaluation partagée. La restauration republie cette version pour tout le monde — la version actuelle est également conservée dans l’historique.",
+      "intro": "La restauration met à jour la copie de tout le monde. La version actuelle reste dans l’historique.",
       "loading": "Chargement de l’historique des versions…",
       "loadError": "Impossible de charger l’historique des versions.",
       "retry": "Réessayer",
@@ -1119,7 +1111,7 @@
       "emptyTitle": "Aucune ressource pour l'instant",
       "emptySubtitle": "Votre administrateur enverra ici des quiz, documents et tableaux sélectionnés.",
       "inboxTitle": "Ressources",
-      "inboxSubtitle": "Sélectionné par votre administrateur. Cliquez sur « Utiliser » pour l'ajouter à votre CAP.",
+      "inboxSubtitle": "De votre administrateur.",
       "kind": {
         "quiz": "Quiz",
         "video-activity": "Activités vidéo",
@@ -1199,7 +1191,7 @@
       "teamAverage": "Moyenne de l’équipe",
       "notScoredYet": "Pas encore notée",
       "students": "Élèves comptés",
-      "studentsHint": "Les élèves sont comptés par enseignant(e) ; un élève présent dans les classes de deux enseignant(e)s compte deux fois.",
+      "studentsHint": "Les élèves sont comptés par enseignant(e), donc un élève présent dans les classes de deux enseignant(e)s compte deux fois.",
       "teachers": "Enseignant(e)s",
       "teachersOf": "{{count}} sur {{total}}",
       "lastComputed": "Dernière mise à jour",
@@ -1219,12 +1211,11 @@
       "scoreDistribution": "Répartition des scores",
       "bandCount": "{{count}} élèves · {{percent}} %",
       "scoredStudents": "{{count}} élèves notés",
-      "distributionPending": "Le graphique apparaît après la prochaine actualisation des résultats, d’ici quelques minutes.",
+      "distributionPending": "Le graphique se met à jour d’ici quelques minutes.",
       "distributionEmpty": "Le graphique se remplit quand les enseignants publient les scores."
     },
     "learningTargets": {
-      "heading": "Objectifs d’apprentissage",
-      "description": "Objectifs avec lesquels la CAP étiquette les questions de quiz. Tous les membres voient la même liste."
+      "heading": "Objectifs d’apprentissage"
     }
   },
   "widgetWindow": {
@@ -1904,7 +1895,6 @@
     "notFoundBody": "Cette CAP n'existe pas ou vous n'en êtes plus membre.",
     "backToBoard": "Retour à mon tableau",
     "hubTitle": "Mes CAP",
-    "hubSubtitle": "Ouvrez une communauté d'apprentissage professionnelle pour collaborer avec votre équipe.",
     "hubEmptyTitle": "Aucune CAP pour l'instant",
     "hubEmptySubtitle": "Créez une CAP depuis la barre latérale et invitez vos collègues.",
     "leadBadge": "Responsable",
@@ -1913,7 +1903,6 @@
   },
   "plcDirectory": {
     "heading": "CAP dans mon établissement",
-    "subtitle": "Équipes de votre établissement que vous pouvez demander à rejoindre.",
     "memberCount": "{{count}} membre",
     "memberCount_other": "{{count}} membres",
     "requestToJoin": "Demander à rejoindre",
@@ -3068,13 +3057,13 @@
     "noStandardsMatch": "Aucune norme ne correspond.",
     "pasteHint": "Un objectif par ligne. Code facultatif avant une barre verticale : LT1 | Je peux additionner des fractions.",
     "parsedCount": "{{count}} objectifs trouvés",
-    "csvHint": "Ligne d'en-tête avec label (obligatoire) ; facultatifs code, standards, grades (séparez les valeurs par ;) et subject.",
+    "csvHint": "Ligne d'en-tête avec label (obligatoire). Les colonnes facultatives sont code, standards, grades et subject. Séparez plusieurs valeurs par un point-virgule.",
     "csvLineError": "Ligne {{line}} : {{message}}",
     "csvUnknownStandards": "Les codes de norme inconnus seront ignorés : {{codes}}",
     "importCount": "Importer {{count}}",
     "masteryCutoffs": {
       "heading": "Seuils de maîtrise",
-      "description": "Pourcentage de bonnes réponses requis pour qu’un objectif soit considéré comme maîtrisé ou en voie de maîtrise.",
+      "description": "Pourcentage de bonnes réponses pour chaque niveau.",
       "proficient": "Maîtrisé",
       "approaching": "En voie",
       "save": "Enregistrer les seuils"
@@ -3082,7 +3071,7 @@
     "saving": "Enregistrement…",
     "saveFailed": "Échec de l’enregistrement",
     "anySubject": "Toute matière",
-    "gradesSubjectHint": "Facultatif. Laissez niveaux et matière vides pour les hériter des standards liés.",
+    "gradesSubjectHint": "Laissez vide pour reprendre les niveaux et la matière des standards liés.",
     "csvUnknownSubjects": "Les matières inconnues seront ignorées : {{subjects}}"
   },
   "settings": {
@@ -3353,15 +3342,15 @@
     "startTitle": "Enregistrer une visite en direct",
     "startWhat": "Que montre cette visite ?",
     "startWhatPlaceholder": "Ajouter un widget au tableau",
-    "startBlur": "Tu enregistres sur ton propre tableau. Les noms des élèves de tes classes, ainsi que les photos, vidéos et travaux d'élèves, sont floutés dans chaque image au moment de la capture.",
-    "startReview": "Avant tout envoi, tu vérifies chaque image et peux flouter ce qui aurait été oublié.",
-    "startTip": "Astuce : enregistre sur un tableau dont les classes viennent des classes de test, pour qu'il y ait peu de vrais noms à l'écran.",
+    "startBlur": "Les noms, photos et travaux de tes élèves sont floutés pendant l'enregistrement.",
+    "startReview": "Tu vérifies chaque image avant son envoi.",
+    "startTip": "Enregistre sur un tableau qui utilise des classes de test.",
     "startUnloaded_one": "{{count}} liste de classe ne s'est pas chargée, ses noms ne peuvent donc pas être floutés automatiquement.",
     "startUnloaded_other": "{{count}} listes de classe ne se sont pas chargées, leurs noms ne peuvent donc pas être floutés automatiquement.",
     "startContinue": "Continuer",
     "cancel": "Annuler",
     "reviewTitle": "Vérifie chaque image avant l'envoi",
-    "reviewBody": "Les zones floutées sont entourées de bleu. Fais glisser sur tout autre élément qui montre un élève, puis choisis Flouter.",
+    "reviewBody": "Fais glisser sur tout ce qui montre un élève, puis choisis Flouter.",
     "reviewFrame": "Image {{current}} sur {{total}}",
     "reviewPrev": "Image précédente",
     "reviewNext": "Image suivante",

@@ -127,11 +127,10 @@ export const PlcNormingLevelsSection: React.FC<{ plc: Plc }> = ({ plc }) => {
       <p className="mt-1 text-xs leading-relaxed text-slate-500">
         {canEdit
           ? t('plcNorming.settings.leadDescription', {
-              defaultValue:
-                'Name the levels teachers pick when they flag an answer for norming. Review always means "not sure how to grade this".',
+              defaultValue: 'Review always means "unsure how to grade."',
             })
           : t('plcNorming.settings.memberDescription', {
-              defaultValue: 'The lead and co-leads name the norming levels.',
+              defaultValue: 'Set by the lead.',
             })}
       </p>
       <p className="mt-2 text-sm font-semibold text-slate-700">{summary}</p>

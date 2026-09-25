@@ -434,15 +434,6 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         className="flex flex-col flex-1 overflow-y-auto"
         style={{ gap: 'min(12px, 3cqmin)' }}
       >
-        <p
-          className="text-slate-600"
-          style={{ fontSize: 'min(14px, 5.5cqmin)' }}
-        >
-          Add one or more images — upload, paste, or pull from Drive. Gemini
-          will analyze them together and draft a guided learning experience with
-          hotspots spanning the images you provide.
-        </p>
-
         <div className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
           <button
             type="button"
@@ -463,7 +454,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
               className="text-slate-700 font-medium block"
               style={{ fontSize: 'min(11px, 4cqmin)' }}
             >
-              Click to upload, drop here, or paste (Ctrl+V)
+              Upload, drop or paste images
             </span>
             <span
               className="text-slate-400 block"
@@ -472,7 +463,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
                 marginTop: 'min(2px, 0.5cqmin)',
               }}
             >
-              PNG, JPG, WebP — multi-select supported
+              PNG, JPG or WebP
             </span>
           </button>
           <input
@@ -526,8 +517,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
                 className="font-bold uppercase tracking-widest text-slate-500"
                 style={{ fontSize: 'min(11px, 4cqmin)' }}
               >
-                {images.length} image{images.length === 1 ? '' : 's'} — drag to
-                reorder
+                {images.length} image{images.length === 1 ? '' : 's'}
               </label>
             </div>
             <DndContext

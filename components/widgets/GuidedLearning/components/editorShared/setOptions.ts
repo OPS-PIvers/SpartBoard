@@ -20,45 +20,21 @@ export const MODE_OPTIONS: {
 export const PULSE_OPTIONS: {
   value: 'consistent' | 'reminder' | 'off';
   label: string;
-  desc: string;
+  desc?: string;
 }[] = [
-  {
-    value: 'consistent',
-    label: 'Consistent',
-    desc: 'Continuous breathing pulse so hotspots are always discoverable.',
-  },
-  {
-    value: 'reminder',
-    label: 'Reminder',
-    desc: 'A brief shake every few seconds to draw the eye occasionally.',
-  },
-  {
-    value: 'off',
-    label: 'Off',
-    desc: 'No animation — hotspots stay still.',
-  },
+  { value: 'consistent', label: 'Consistent', desc: 'Pulses constantly' },
+  { value: 'reminder', label: 'Reminder', desc: 'Shakes every few seconds' },
+  { value: 'off', label: 'Off' },
 ];
 
 export const TRANSITION_OPTIONS: {
   value: 'none' | 'slide' | 'fade';
   label: string;
-  desc: string;
+  desc?: string;
 }[] = [
-  {
-    value: 'none',
-    label: 'None',
-    desc: 'Instant swap when changing images — fastest, no animation.',
-  },
-  {
-    value: 'slide',
-    label: 'Slide',
-    desc: 'New image slides in from the right; previous image exits left.',
-  },
-  {
-    value: 'fade',
-    label: 'Fade',
-    desc: 'Cross-dissolve between the previous and new image.',
-  },
+  { value: 'none', label: 'None' },
+  { value: 'slide', label: 'Slide' },
+  { value: 'fade', label: 'Fade' },
 ];
 
 export const INTERACTION_TYPES: {

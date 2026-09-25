@@ -147,7 +147,7 @@ describe('SubLaunchPanel', () => {
     show([roster('r1', 'Period 3')]);
 
     expect(
-      screen.getByText(/Running in the teacher's account/)
+      screen.getByText(/Runs in the teacher's account/)
     ).toBeInTheDocument();
   });
 
@@ -162,7 +162,7 @@ describe('SubLaunchPanel', () => {
 
     expect(screen.getByText('Started')).toBeInTheDocument();
     expect(
-      screen.getByText(/Students will find it in their assignments/)
+      screen.getByText(/Students find it in their assignments/)
     ).toBeInTheDocument();
     expect(
       screen.queryByText(/Students join with this code/)

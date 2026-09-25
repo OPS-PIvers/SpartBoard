@@ -320,7 +320,6 @@
     }
   },
   "plcDashboard": {
-    "subtitle": "Panel de la Comunidad",
     "home": {
       "commonAssessment": {
         "loading": "Cargando tu evaluación común…",
@@ -331,7 +330,7 @@
         "startMeeting": "Iniciar reunión",
         "resumeMeeting": "Reanudar reunión",
         "phase": {
-          "planning": "Planificación: aún no realizada",
+          "planning": "Aún no realizada",
           "running": "En curso",
           "ready": "Lista para revisar",
           "reviewing": "Revisando en equipo",
@@ -452,7 +451,7 @@
     "meta": {
       "members_one": "{{count}} Miembro",
       "members_other": "{{count}} Miembros",
-      "youLead": "Tú lideras esta Comunidad"
+      "youLead": "Líder"
     },
     "members": {
       "heading": "Miembros",
@@ -491,7 +490,7 @@
       "pendingSince": "Invitado {{when}}",
       "revoke": "Revocar",
       "revokeAriaLabel": "Revocar invitación para {{email}}",
-      "notManager": "Solo el líder o un co-líder de la Comunidad puede invitar, quitar o cambiar miembros."
+      "notManager": "Solo los líderes pueden gestionar miembros."
     },
     "completedAssignments": {
       "heading": "Resultados Compartidos",
@@ -813,7 +812,6 @@
       "heading": "Actividad",
       "empty": "Aún no hay actividad",
       "sinceLastVisit": "Desde tu última visita",
-      "sinceSubtitle": "Lo que pasó mientras no estabas",
       "olderHeading": "Antes",
       "caughtUp": "Estás al día",
       "caughtUpSubtitle": "No hay actividad nueva desde tu última visita.",
@@ -855,11 +853,10 @@
       "delete": "Eliminar comentario",
       "confirmDelete": "¿Eliminar este comentario?",
       "confirmDeleteTitle": "Eliminar comentario",
-      "mentionHint": "Escribe @ para mencionar a un compañero",
       "postFailed": "No se pudo publicar tu comentario. Inténtalo de nuevo.",
       "deleteFailed": "No se pudo eliminar ese comentario. Inténtalo de nuevo.",
       "loadError": "No se pudieron cargar los comentarios.",
-      "viewerReadOnly": "Los espectadores pueden leer los comentarios, pero no publicar.",
+      "viewerReadOnly": "Solo lectura.",
       "threadLabel": "Comentarios sobre {{subject}}",
       "mentionNoMatch": "Ningún compañero coincide",
       "mentionListLabel": "Mencionar a un compañero"
@@ -882,9 +879,9 @@
       "hasRun": "la aplicó",
       "notRun": "aún no la aplicó",
       "noQuestions": "Aún no hay datos por pregunta disponibles.",
-      "strongAcross": "Sólido en todo — cada pregunta superó el 80 %.",
+      "strongAcross": "Cada pregunta por encima del 80 %.",
       "updating": "actualizando…",
-      "updatingHint": "Los nuevos resultados aún se están procesando — los datos se actualizarán en breve.",
+      "updatingHint": "Los nuevos resultados llegan en breve.",
       "reviewCardLabel": "Resultados combinados de {{title}}",
       "discussAssessment": "Comentar esto",
       "discussQuestion": "Comentar esta pregunta en una decisión",
@@ -905,19 +902,17 @@
       },
       "pick": {
         "heading": "¿Qué vamos a revisar hoy?",
-        "subtitle": "Elige la evaluación común (o evaluaciones) que revisará esta reunión.",
         "emptyTitle": "Aún no hay datos de evaluación",
         "emptySubtitle": "Cuando el equipo aplique una evaluación común en modo Comunidad, los resultados anonimizados aparecerán aquí, listos para revisarlos juntos.",
         "cardMeta": "{{avg}}% prom. del equipo · {{teachers}} docentes · {{students}} estudiantes"
       },
       "review": {
         "heading": "¿Qué dicen los datos?",
-        "subtitle": "Resultados combinados y anonimizados. Haz clic en una pregunta para capturar una decisión sobre ella.",
+        "subtitle": "Haz clic en una pregunta para anotar una decisión.",
         "none": "No hay evaluaciones seleccionadas — vuelve a Elegir."
       },
       "decide": {
         "heading": "¿Qué decidimos?",
-        "subtitle": "Captura las decisiones del equipo. Vincula una a una tarjeta de datos de Revisar cuando responda a un resultado concreto.",
         "addLabel": "Añadir una decisión",
         "placeholder": "p. ej. Reenseñar la pregunta 4 con el modelo de área antes del examen.",
         "add": "Añadir decisión",
@@ -928,7 +923,6 @@
       },
       "act": {
         "heading": "¿Quién hace qué?",
-        "subtitle": "Crea elementos de acción. Al guardar, cada uno se convierte en una tarea seguida de la Comunidad para su responsable.",
         "addLabel": "Añadir un elemento de acción",
         "placeholder": "p. ej. Crear un calentamiento de refuerzo para la pregunta 4",
         "assignee": "Responsable",
@@ -942,16 +936,14 @@
       },
       "save": {
         "heading": "¿Listo para guardar?",
-        "subtitle": "Al guardar se escribe el registro de la reunión, los elementos de acción se convierten en tareas y se registra en el feed de actividad del equipo.",
         "reviewed": "Evaluaciones revisadas",
         "decisions": "Decisiones",
         "actions": "Acciones → tareas",
         "attendees": "Asistentes",
         "whoAttended": "Quién está ahora",
-        "noAttendees": "Ahora mismo no hay nadie más activo — se te registrará como facilitador.",
-        "viewerNote": "Los observadores pueden seguir la reunión pero no guardar el registro.",
+        "noAttendees": "Solo se te registrará a ti.",
+        "viewerNote": "Solo lectura. No puedes guardar esta reunión.",
         "doneTitle": "Reunión guardada",
-        "doneSubtitle": "Los elementos de acción ahora son tareas seguidas para sus responsables. Exporta el registro para tus archivos o empieza una nueva reunión.",
         "viewRecord": "Ver registro de la reunión",
         "startNew": "Empezar una nueva reunión"
       },
@@ -986,7 +978,7 @@
     },
     "trash": {
       "heading": "Papelera",
-      "description": "Los elementos eliminados permanecen aquí 30 días y luego se eliminan de forma permanente.",
+      "description": "Los elementos eliminados se borran después de 30 días.",
       "empty": "La papelera está vacía",
       "restore": "Restaurar",
       "restored": "Restaurado",
@@ -1015,7 +1007,7 @@
       "title": "Historial de versiones",
       "ariaLabel": "Historial de versiones de {{title}}",
       "close": "Cerrar",
-      "intro": "Versiones guardadas recientes de esta evaluación compartida. Al restaurar se vuelve a publicar esa versión para todos; la versión actual también se conserva en el historial.",
+      "intro": "Al restaurar se actualiza la copia de todos. La versión actual se queda en el historial.",
       "loading": "Cargando historial de versiones…",
       "loadError": "No se pudo cargar el historial de versiones.",
       "retry": "Intentar de nuevo",
@@ -1119,7 +1111,7 @@
       "emptyTitle": "Aún no hay recursos",
       "emptySubtitle": "Tu administrador enviará aquí cuestionarios, documentos y tableros curados.",
       "inboxTitle": "Recursos",
-      "inboxSubtitle": "Curado por tu administrador. Haz clic en «Usar» para agregarlo a tu Comunidad.",
+      "inboxSubtitle": "De tu administrador.",
       "kind": {
         "quiz": "Cuestionarios",
         "video-activity": "Actividades de video",
@@ -1199,7 +1191,7 @@
       "teamAverage": "Promedio del equipo",
       "notScoredYet": "Aún sin calificar",
       "students": "Estudiantes contados",
-      "studentsHint": "Los estudiantes se cuentan por docente; quien está en las clases de dos docentes cuenta dos veces.",
+      "studentsHint": "Los estudiantes se cuentan por docente, así que quien está en las clases de dos docentes cuenta dos veces.",
       "teachers": "Docentes",
       "teachersOf": "{{count}} de {{total}}",
       "lastComputed": "Última actualización",
@@ -1219,12 +1211,11 @@
       "scoreDistribution": "Distribución de puntuaciones",
       "bandCount": "{{count}} estudiantes · {{percent}} %",
       "scoredStudents": "{{count}} estudiantes calificados",
-      "distributionPending": "El gráfico aparece tras la próxima actualización de resultados, en unos minutos.",
+      "distributionPending": "El gráfico se actualiza en unos minutos.",
       "distributionEmpty": "El gráfico se completa cuando los docentes publican las puntuaciones."
     },
     "learningTargets": {
-      "heading": "Objetivos de aprendizaje",
-      "description": "Objetivos con los que la comunidad etiqueta las preguntas de los cuestionarios. Todos los miembros ven la misma lista."
+      "heading": "Objetivos de aprendizaje"
     }
   },
   "widgetWindow": {
@@ -1904,7 +1895,6 @@
     "notFoundBody": "Esta Comunidad no existe o ya no eres miembro de ella.",
     "backToBoard": "Volver a mi tablero",
     "hubTitle": "Mis Comunidades",
-    "hubSubtitle": "Abre una Comunidad de Aprendizaje Profesional para colaborar con tu equipo.",
     "hubEmptyTitle": "Aún no hay Comunidades",
     "hubEmptySubtitle": "Crea una Comunidad desde la barra lateral e invita a tus colegas.",
     "leadBadge": "Líder",
@@ -1913,7 +1903,6 @@
   },
   "plcDirectory": {
     "heading": "Comunidades en mi edificio",
-    "subtitle": "Equipos de tu edificio a los que puedes pedir unirte.",
     "memberCount": "{{count}} miembro",
     "memberCount_other": "{{count}} miembros",
     "requestToJoin": "Pedir unirse",
@@ -3068,13 +3057,13 @@
     "noStandardsMatch": "Ningún estándar coincide.",
     "pasteHint": "Un objetivo por línea. Código opcional antes de una barra vertical: LT1 | Puedo sumar fracciones.",
     "parsedCount": "{{count}} objetivos encontrados",
-    "csvHint": "Fila de encabezado con label (obligatorio); opcionales code, standards, grades (separa valores con ;) y subject.",
+    "csvHint": "Fila de encabezado con label (obligatorio). Las columnas opcionales son code, standards, grades y subject. Separa varios valores con punto y coma.",
     "csvLineError": "Línea {{line}}: {{message}}",
     "csvUnknownStandards": "Se omitirán los códigos de estándar desconocidos: {{codes}}",
     "importCount": "Importar {{count}}",
     "masteryCutoffs": {
       "heading": "Umbrales de dominio",
-      "description": "Porcentaje de aciertos necesario para que un objetivo cuente como competente o en progreso.",
+      "description": "Porcentaje de aciertos para cada nivel.",
       "proficient": "Competente",
       "approaching": "En progreso",
       "save": "Guardar umbrales"
@@ -3082,7 +3071,7 @@
     "saving": "Guardando…",
     "saveFailed": "Error al guardar",
     "anySubject": "Cualquier materia",
-    "gradesSubjectHint": "Opcional. Deja grados y materia vacíos para heredarlos de los estándares vinculados.",
+    "gradesSubjectHint": "Déjalo vacío para usar los grados y la materia de los estándares vinculados.",
     "csvUnknownSubjects": "Las materias desconocidas se omitirán: {{subjects}}"
   },
   "settings": {
@@ -3353,15 +3342,15 @@
     "startTitle": "Grabar un recorrido en vivo",
     "startWhat": "¿Qué muestra este recorrido?",
     "startWhatPlaceholder": "Agregar un widget a tu tablero",
-    "startBlur": "Grabas en tu propio tablero. Los nombres de los estudiantes de tus clases, y las fotos, videos y trabajos de estudiantes, se difuminan en cada imagen al capturarla.",
-    "startReview": "Antes de subir nada, revisas cada imagen y puedes difuminar lo que se haya pasado por alto.",
-    "startTip": "Consejo: graba en un tablero cuyas clases vengan de clases de prueba, para que haya pocos nombres reales en pantalla.",
+    "startBlur": "Los nombres, fotos y trabajos de tus estudiantes se difuminan mientras grabas.",
+    "startReview": "Revisas cada imagen antes de que se suba.",
+    "startTip": "Graba en un tablero que use clases de prueba.",
     "startUnloaded_one": "{{count}} lista de clase no se cargó, así que sus nombres no se pueden difuminar automáticamente.",
     "startUnloaded_other": "{{count}} listas de clase no se cargaron, así que sus nombres no se pueden difuminar automáticamente.",
     "startContinue": "Continuar",
     "cancel": "Cancelar",
     "reviewTitle": "Revisa cada imagen antes de subirla",
-    "reviewBody": "Las áreas difuminadas tienen un contorno azul. Arrastra sobre cualquier otra cosa que muestre a un estudiante y elige Difuminar.",
+    "reviewBody": "Arrastra sobre cualquier cosa que muestre a un estudiante y elige Difuminar.",
     "reviewFrame": "Imagen {{current}} de {{total}}",
     "reviewPrev": "Imagen anterior",
     "reviewNext": "Imagen siguiente",

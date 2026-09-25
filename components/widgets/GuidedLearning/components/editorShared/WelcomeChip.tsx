@@ -104,21 +104,14 @@ export const WelcomeChip: React.FC<WelcomeChipProps> = ({
                 onChange={(e) => onEnabledChange(e.target.checked)}
                 className="accent-brand-blue-primary w-4 h-4 mt-0.5"
               />
-              <span>
-                <span className="font-bold text-xs">Show welcome screen</span>
-                <span className="block text-xxs font-medium text-slate-500 mt-0.5 leading-snug">
-                  Replaces the default mode/step subtitle on the student start
-                  screen with your custom message and changes the Start button
-                  to &quot;Get started&quot;.
-                </span>
-              </span>
+              <span className="font-bold text-xs">Show welcome screen</span>
             </label>
             <textarea
               value={message}
               onChange={(e) => onMessageChange(e.target.value)}
               disabled={!enabled}
               rows={3}
-              placeholder="e.g. Welcome to the Civil War tour. Click pins to explore each station."
+              placeholder="What should students know before they begin?"
               className="mt-2 w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm resize-none disabled:bg-slate-50 disabled:text-slate-400"
             />
           </div>,

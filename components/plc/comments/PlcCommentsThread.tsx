@@ -405,12 +405,7 @@ export const PlcCommentsThread: React.FC<PlcCommentsThreadProps> = ({
               />
             </div>
           )}
-          <div className="mt-1.5 flex items-center justify-between">
-            <span className="text-xxs text-slate-400">
-              {t('plcDashboard.comments.mentionHint', {
-                defaultValue: 'Type @ to mention a teammate',
-              })}
-            </span>
+          <div className="mt-1.5 flex items-center justify-end">
             <button
               type="button"
               onClick={() => void handlePost()}
@@ -424,7 +419,7 @@ export const PlcCommentsThread: React.FC<PlcCommentsThreadProps> = ({
       ) : (
         <p className="text-xxs italic text-slate-400">
           {t('plcDashboard.comments.viewerReadOnly', {
-            defaultValue: 'Viewers can read comments but not post.',
+            defaultValue: 'View only.',
           })}
         </p>
       )}

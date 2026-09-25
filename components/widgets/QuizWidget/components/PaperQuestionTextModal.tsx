@@ -294,9 +294,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   const renderUploaderSetup = () => (
     <div className="space-y-4 px-5 pb-5 pt-4">
       <p className="text-sm text-slate-700">
-        Add the test paper and the numbered questions will be read into this
-        quiz. Results then show the question a student missed, not just its
-        number. To fill in only the answers, add just the answer key.
+        Add the test paper, the answer key, or both.
       </p>
       <TestAndKeyUploader
         allowKeyAlone
@@ -314,18 +312,14 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
       >
         {canUseAi && <AiReaderToggle checked={useAi} onChange={setUseAi} />}
       </TestAndKeyUploader>
-      <p className="text-xs text-slate-500">
-        Questions are matched by the number printed before them.
-      </p>
     </div>
   );
 
   const renderSetup = () => (
     <div className="space-y-4 px-5 pb-5 pt-4">
       <p className="text-sm text-slate-700">
-        Scan or save the test paper as a PDF and the numbered questions will be
-        read into this quiz. Results then show the question a student missed,
-        not just its number. Scores are never affected.
+        Numbered questions on the test paper are read into this quiz, and scores
+        stay the same.
       </p>
       <input
         ref={fileRef}
@@ -369,17 +363,13 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
           Pick the test paper from Google Drive
         </button>
       )}
-      <p className="text-xs text-slate-500">
-        Questions are matched by the number printed before them.
-      </p>
     </div>
   );
 
   const renderReview = () => (
     <div className="space-y-3 px-5 pb-5 pt-4">
       <p className="text-sm text-slate-700">
-        Check each question before applying. Rows already holding real text are
-        left alone unless you tick them.
+        Rows that already have text stay as they are unless you tick them.
       </p>
       {readerNote && <p className="text-xs text-slate-500">{readerNote}</p>}
       {missing.length > 0 && (
@@ -450,7 +440,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
                   fills[row].options.length > 0 &&
                   !fills[row].correctAnswer?.trim() && (
                     <p className="mt-0.5 text-xs text-amber-800">
-                      No answer was marked, so this still needs one.
+                      No answer marked
                     </p>
                   )}
                 {!isPlaceholderQuestion(text) && text.trim() && (

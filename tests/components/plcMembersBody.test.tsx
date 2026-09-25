@@ -200,7 +200,7 @@ describe('MembersBody — manager gating', () => {
     ).toBeInTheDocument();
     // The "not manager" hint is hidden for a manager.
     expect(
-      screen.queryByText(/Only the PLC lead or a co-lead/)
+      screen.queryByText(/Only leads can manage members/)
     ).not.toBeInTheDocument();
   });
 
@@ -225,7 +225,7 @@ describe('MembersBody — manager gating', () => {
     render(<MembersBody plc={mapPlc()} />);
     expect(screen.queryAllByRole('combobox')).toHaveLength(0);
     expect(
-      screen.getByText(/Only the PLC lead or a co-lead/)
+      screen.getByText(/Only leads can manage members/)
     ).toBeInTheDocument();
     // The invite form (manager-only) is absent.
     expect(screen.queryByLabelText('Invite a teacher')).not.toBeInTheDocument();
@@ -236,7 +236,7 @@ describe('MembersBody — manager gating', () => {
     render(<MembersBody plc={mapPlc()} />);
     expect(screen.queryAllByRole('combobox')).toHaveLength(0);
     expect(
-      screen.getByText(/Only the PLC lead or a co-lead/)
+      screen.getByText(/Only leads can manage members/)
     ).toBeInTheDocument();
   });
 });

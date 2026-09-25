@@ -168,9 +168,8 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
           className="text-slate-300"
           style={{ fontSize: NOTE, marginTop: 'min(4px, 1cqmin)' }}
         >
-          Students will find it in their assignments. Running in the
-          teacher&apos;s account, and their results will show it was started by
-          you.
+          Students find it in their assignments. Runs in the teacher&apos;s
+          account.
         </p>
         <RunControls kind={kind} sessionId={result.sessionId} label={label} />
       </div>
@@ -193,8 +192,7 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
           className="text-slate-300"
           style={{ fontSize: NOTE, marginTop: 'min(4px, 1cqmin)' }}
         >
-          Running in the teacher&apos;s account. Their results will show it was
-          started by you.
+          Runs in the teacher&apos;s account.
         </p>
         <RunControls kind={kind} sessionId={result.sessionId} label={label} />
       </div>

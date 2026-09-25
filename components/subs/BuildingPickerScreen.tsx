@@ -59,10 +59,6 @@ export const BuildingPickerScreen: React.FC<BuildingPickerScreenProps> = ({
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
             Which building are you subbing in today?
           </h1>
-          <p className="mt-3 text-sm text-white/60">
-            Pick a building to see teachers who&apos;ve handed off a board for
-            you.
-          </p>
 
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {buildings.map((b) => (
@@ -91,10 +87,6 @@ export const BuildingPickerScreen: React.FC<BuildingPickerScreenProps> = ({
           </div>
         </div>
       </main>
-
-      <footer className="px-8 py-4 text-[11px] text-white/40 text-center">
-        Boards expire automatically. Anything you do here stays on this device.
-      </footer>
     </div>
   );
 };

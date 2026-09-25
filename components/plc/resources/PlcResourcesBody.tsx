@@ -259,8 +259,7 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
         </h2>
         <p className="text-sm text-slate-500 mt-0.5">
           {t('plcDashboard.resources.inboxSubtitle', {
-            defaultValue:
-              'Curated by your admin. Click "Use" to add to your PLC.',
+            defaultValue: 'From your admin.',
           })}
         </p>
       </div>

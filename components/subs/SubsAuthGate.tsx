@@ -59,8 +59,7 @@ export const SubsAuthGate: React.FC<Props> = ({ children }) => {
             Substitute Portal
           </h1>
           <p className="mt-3 text-sm text-white/60">
-            Sign in with your @orono.k12.mn.us Google account to find the board
-            for the classroom you&apos;re subbing in today.
+            Sign in with your @orono.k12.mn.us account.
           </p>
           <button
             type="button"

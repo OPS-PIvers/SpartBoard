@@ -320,7 +320,6 @@
     }
   },
   "plcDashboard": {
-    "subtitle": "PLC Dashboard",
     "home": {
       "commonAssessment": {
         "loading": "Loading your common assessment…",
@@ -331,7 +330,7 @@
         "startMeeting": "Start Meeting",
         "resumeMeeting": "Resume Meeting",
         "phase": {
-          "planning": "Planning — not run yet",
+          "planning": "Not run yet",
           "running": "In progress",
           "ready": "Ready to review",
           "reviewing": "Reviewing together",
@@ -452,7 +451,7 @@
     "meta": {
       "members_one": "{{count}} Member",
       "members_other": "{{count}} Members",
-      "youLead": "You lead this PLC"
+      "youLead": "Lead"
     },
     "members": {
       "heading": "Members",
@@ -491,7 +490,7 @@
       "pendingSince": "Invited {{when}}",
       "revoke": "Revoke",
       "revokeAriaLabel": "Revoke invite for {{email}}",
-      "notManager": "Only the PLC lead or a co-lead can invite, remove, or change members."
+      "notManager": "Only leads can manage members."
     },
     "completedAssignments": {
       "heading": "Shared Results",
@@ -813,7 +812,6 @@
       "heading": "Activity",
       "empty": "No activity yet",
       "sinceLastVisit": "Since you were here",
-      "sinceSubtitle": "What happened while you were away",
       "olderHeading": "Earlier",
       "caughtUp": "You’re all caught up",
       "caughtUpSubtitle": "No new activity since your last visit.",
@@ -855,11 +853,10 @@
       "delete": "Delete comment",
       "confirmDelete": "Delete this comment?",
       "confirmDeleteTitle": "Delete comment",
-      "mentionHint": "Type @ to mention a teammate",
       "postFailed": "Couldn’t post your comment. Try again.",
       "deleteFailed": "Couldn’t delete that comment. Try again.",
       "loadError": "Couldn’t load comments.",
-      "viewerReadOnly": "Viewers can read comments but not post.",
+      "viewerReadOnly": "View only.",
       "threadLabel": "Comments on {{subject}}",
       "mentionNoMatch": "No teammates match",
       "mentionListLabel": "Mention a teammate"
@@ -882,9 +879,9 @@
       "hasRun": "has run it",
       "notRun": "has not run it yet",
       "noQuestions": "No question-level data available yet.",
-      "strongAcross": "Strong across the board — every question cleared 80%.",
+      "strongAcross": "Every question above 80%.",
       "updating": "updating…",
-      "updatingHint": "New results are still rolling up — numbers refresh shortly.",
+      "updatingHint": "New results arrive shortly.",
       "reviewCardLabel": "Pooled results for {{title}}",
       "discussAssessment": "Discuss this",
       "discussQuestion": "Discuss this question in a decision",
@@ -905,19 +902,17 @@
       },
       "pick": {
         "heading": "What are we looking at today?",
-        "subtitle": "Choose the common assessment (or assessments) this meeting reviews.",
         "emptyTitle": "No assessment data yet",
         "emptySubtitle": "When the team runs a common assessment in PLC mode, the anonymized results appear here, ready to review together.",
         "cardMeta": "{{avg}}% team avg · {{teachers}} teachers · {{students}} students"
       },
       "review": {
         "heading": "What does the data say?",
-        "subtitle": "Pooled, anonymized results. Click a question to capture a decision about it.",
+        "subtitle": "Click a question to log a decision.",
         "none": "No assessments selected — go back to Pick."
       },
       "decide": {
         "heading": "What did we decide?",
-        "subtitle": "Capture the team’s decisions. Link one to a data card from Review when it responds to a specific result.",
         "addLabel": "Add a decision",
         "placeholder": "e.g. Reteach question 4 using the area model before the unit test.",
         "add": "Add decision",
@@ -928,7 +923,6 @@
       },
       "act": {
         "heading": "Who’s doing what?",
-        "subtitle": "Spin up action items. On save, each becomes a tracked PLC to-do for its assignee.",
         "addLabel": "Add an action item",
         "placeholder": "e.g. Build a reteach warm-up for question 4",
         "assignee": "Assignee",
@@ -942,16 +936,14 @@
       },
       "save": {
         "heading": "Ready to save?",
-        "subtitle": "Saving writes the meeting record, turns action items into to-dos, and logs it to the team activity feed.",
         "reviewed": "Assessments reviewed",
         "decisions": "Decisions",
         "actions": "Action items → to-dos",
         "attendees": "Attendees",
         "whoAttended": "Who’s here now",
-        "noAttendees": "No one else is active right now — you’ll be recorded as the facilitator.",
-        "viewerNote": "Viewers can follow along but can’t save the meeting record.",
+        "noAttendees": "Only you will be recorded.",
+        "viewerNote": "View only. You can’t save this meeting.",
         "doneTitle": "Meeting saved",
-        "doneSubtitle": "Action items are now tracked to-dos for their assignees. Export the record for your accountability files, or start a new meeting.",
         "viewRecord": "View meeting record",
         "startNew": "Start a new meeting"
       },
@@ -986,7 +978,7 @@
     },
     "trash": {
       "heading": "Trash",
-      "description": "Deleted items stay here for 30 days, then are removed permanently.",
+      "description": "Deleted items are removed after 30 days.",
       "empty": "Trash is empty",
       "restore": "Restore",
       "restored": "Restored",
@@ -1015,7 +1007,7 @@
       "title": "Version history",
       "ariaLabel": "Version history for {{title}}",
       "close": "Close",
-      "intro": "Recent saved versions of this shared assessment. Restoring re-publishes that version to everyone — the current version is kept in history too.",
+      "intro": "Restoring updates everyone’s copy. The current version stays in history.",
       "loading": "Loading version history…",
       "loadError": "Couldn’t load version history.",
       "retry": "Try again",
@@ -1119,7 +1111,7 @@
       "emptyTitle": "No Resources Yet",
       "emptySubtitle": "Your admin will push curated quizzes, docs, and boards here.",
       "inboxTitle": "Resources",
-      "inboxSubtitle": "Curated by your admin. Click \"Use\" to add to your PLC.",
+      "inboxSubtitle": "From your admin.",
       "kind": {
         "quiz": "Quizzes",
         "video-activity": "Video Activities",
@@ -1199,7 +1191,7 @@
       "teamAverage": "Team average",
       "notScoredYet": "Not scored yet",
       "students": "Students counted",
-      "studentsHint": "Students are counted per teacher; a student in two teachers’ classes counts twice.",
+      "studentsHint": "Students are counted per teacher, so a student in two teachers’ classes counts twice.",
       "teachers": "Teachers",
       "teachersOf": "{{count}} of {{total}}",
       "lastComputed": "Last updated",
@@ -1219,12 +1211,11 @@
       "scoreDistribution": "Score distribution",
       "bandCount": "{{count}} students · {{percent}}%",
       "scoredStudents": "{{count}} students scored",
-      "distributionPending": "The chart appears after the next results refresh, within a few minutes.",
+      "distributionPending": "Chart updates in a few minutes.",
       "distributionEmpty": "The chart fills in once teachers publish scores."
     },
     "learningTargets": {
-      "heading": "Learning targets",
-      "description": "Targets the PLC tags quiz questions with. Every member sees the same list."
+      "heading": "Learning targets"
     }
   },
   "widgetSettings": {
@@ -3063,7 +3054,6 @@
     "notFoundBody": "This PLC doesn't exist or you're no longer a member of it.",
     "backToBoard": "Back to my board",
     "hubTitle": "My PLCs",
-    "hubSubtitle": "Open a Professional Learning Community to collaborate with your team.",
     "hubEmptyTitle": "No PLCs yet",
     "hubEmptySubtitle": "Create a PLC from the sidebar and invite your colleagues.",
     "leadBadge": "Lead",
@@ -3072,7 +3062,6 @@
   },
   "plcDirectory": {
     "heading": "PLCs in my building",
-    "subtitle": "Teams in your building you can ask to join.",
     "memberCount": "{{count}} member",
     "memberCount_other": "{{count}} members",
     "requestToJoin": "Ask to join",
@@ -4231,13 +4220,13 @@
     "noStandardsMatch": "No standards match.",
     "pasteHint": "One target per line. Optional code before a pipe: LT1 | I can add fractions.",
     "parsedCount": "{{count}} targets found",
-    "csvHint": "Header row with label (required); optional code, standards, grades (separate values with ;) and subject.",
+    "csvHint": "Header row with label (required). Optional columns are code, standards, grades and subject. Separate multiple values with a semicolon.",
     "csvLineError": "Line {{line}}: {{message}}",
     "csvUnknownStandards": "Unknown standard codes will be skipped: {{codes}}",
     "importCount": "Import {{count}}",
     "masteryCutoffs": {
       "heading": "Mastery cutoffs",
-      "description": "Percent correct needed for a target to count as proficient or approaching.",
+      "description": "Percent correct for each level.",
       "proficient": "Proficient",
       "approaching": "Approaching",
       "save": "Save cutoffs"
@@ -4245,7 +4234,7 @@
     "saving": "Saving…",
     "saveFailed": "Save failed",
     "anySubject": "Any subject",
-    "gradesSubjectHint": "Optional. Leave grades and subject empty to inherit them from the linked standards.",
+    "gradesSubjectHint": "Leave blank to use the linked standards' grades and subject.",
     "csvUnknownSubjects": "Unknown subjects will be skipped: {{subjects}}"
   },
   "settings": {
@@ -4542,15 +4531,15 @@
     "startTitle": "Record a live tour",
     "startWhat": "What does this tour show?",
     "startWhatPlaceholder": "Add a widget to your board",
-    "startBlur": "You record on your own board. Student names from your classes, and student photos, video and work, are blurred in every frame as it is captured.",
-    "startReview": "Before anything uploads, you check every frame and can blur anything that was missed.",
-    "startTip": "Tip: record on a board whose classes come from test classes, so few real names are on screen.",
+    "startBlur": "Your students' names, photos and work are blurred as you record.",
+    "startReview": "You review every frame before it uploads.",
+    "startTip": "Record on a board that uses test classes.",
     "startUnloaded_one": "{{count}} class list didn't load, so its names can't be blurred automatically.",
     "startUnloaded_other": "{{count}} class lists didn't load, so their names can't be blurred automatically.",
     "startContinue": "Continue",
     "cancel": "Cancel",
     "reviewTitle": "Check every frame before it uploads",
-    "reviewBody": "Blurred areas are outlined in blue. Drag over anything else that shows a student, then choose Blur.",
+    "reviewBody": "Drag over anything that shows a student, then choose Blur.",
     "reviewFrame": "Frame {{current}} of {{total}}",
     "reviewPrev": "Previous frame",
     "reviewNext": "Next frame",

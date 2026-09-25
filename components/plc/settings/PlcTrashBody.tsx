@@ -129,8 +129,7 @@ export const PlcTrashBody: React.FC<PlcTrashBodyProps> = ({ plc }) => {
     <div className="flex flex-col gap-3">
       <p className="text-xs text-slate-500 leading-relaxed">
         {t('plcDashboard.trash.description', {
-          defaultValue:
-            'Deleted items are kept here for 30 days. Restore anything you removed by mistake.',
+          defaultValue: 'Deleted items are removed after 30 days.',
         })}
       </p>
 

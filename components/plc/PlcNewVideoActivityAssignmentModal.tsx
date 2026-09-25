@@ -442,13 +442,6 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
     return null;
   }
 
-  const visibleRosterIds = new Set(
-    rosters.filter((r) => !r.loadError).map((r) => r.id)
-  );
-  const effectivePeriodCount = options.picker.rosterIds.filter((id) =>
-    visibleRosterIds.has(id)
-  ).length;
-
   // Source behavior from the picked activity for the read-only summary.
   const behavior = getVideoActivityBehavior(pickedActivity);
   const behaviorSummary = formatVideoActivityBehaviorSummary(behavior);
@@ -545,7 +538,6 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
       plcSlot={
         <PlcNewAssignmentSharingSlot
           plcName={plc.name}
-          effectivePeriodCount={effectivePeriodCount}
           teacherName={options.teacherName}
           onTeacherNameChange={(v) =>
             setOptions((p) => ({ ...p, teacherName: v }))
