@@ -50,11 +50,9 @@ const MODE_TITLES: Record<CaptureMode, string> = {
 };
 
 const MODE_HINTS: Record<CaptureMode, string> = {
-  snap: 'Share a window or tab, walk through your workflow, and snap a frame for each step. Every snap becomes a slide.',
-  record:
-    'Share a window or tab and record the workflow. The recording is added as a single video slide.',
-  'video-file':
-    'Open a video file, scrub to a moment, and extract it as an image slide — or add the whole clip as a video slide.',
+  snap: 'Each snap becomes a slide.',
+  record: 'Adds one video slide.',
+  'video-file': 'Pick a frame, or add the whole clip.',
 };
 
 function formatDuration(totalSeconds: number): string {
@@ -365,9 +363,6 @@ export const ScreenCaptureModal: React.FC<Props> = ({
                     <MonitorUp className="w-4 h-4" />
                     Share your screen
                   </button>
-                  <p className="text-xs">
-                    Pick the window or tab with your workflow
-                  </p>
                 </>
               )}
             </div>
@@ -437,7 +432,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
                 ) : (
                   <Camera className="w-4 h-4" />
                 )}
-                Add this frame as a slide
+                Add frame
               </button>
               <button
                 onClick={() => void handleAddWholeVideo()}
@@ -445,7 +440,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
                 className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:border-slate-400 disabled:opacity-50 text-slate-700 font-bold rounded-lg text-sm transition-colors"
               >
                 <Film className="w-4 h-4" />
-                Add whole video as a slide
+                Add whole video
               </button>
               <button
                 onClick={() => fileInputRef.current?.click()}

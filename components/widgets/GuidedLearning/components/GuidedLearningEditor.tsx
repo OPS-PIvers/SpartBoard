@@ -551,8 +551,7 @@ export const GuidedLearningEditorContextPane = React.memo(
                   <ImageIcon className="w-10 h-10" />
                   <p className="font-medium">Add media to get started</p>
                   <p className="text-xs">
-                    Drag &amp; drop or paste (Ctrl+V) screenshots, GIFs, or MP4
-                    clips — or capture your screen below.
+                    Drop, paste or capture screenshots, GIFs or videos.
                   </p>
                 </div>
               )}
@@ -783,13 +782,9 @@ export const GuidedLearningEditorDetailPane = React.memo(
                   ? 'Add an image first'
                   : 'Pick a hotspot to edit'}
               </h4>
-              <p className="text-sm max-w-xs">
-                {imageUrls.length === 0
-                  ? 'Upload an image on the left, then add hotspots to make it interactive.'
-                  : currentImageSteps.length === 0
-                    ? 'No hotspots on this image yet — click "Add hotspot" then click anywhere on the image.'
-                    : 'Click a numbered hotspot on the image, or add a new one.'}
-              </p>
+              {imageUrls.length > 0 && currentImageSteps.length === 0 && (
+                <p className="text-sm max-w-xs">No hotspots on this image.</p>
+              )}
               {imageUrls.length > 0 && !addingStep && (
                 <button
                   onClick={() => {
@@ -909,7 +904,6 @@ const StepNavigator: React.FC<StepNavigatorProps> = ({
         <span className="text-xxs font-bold uppercase tracking-wider text-slate-500">
           Step order
         </span>
-        <span className="text-xxs text-slate-400">Drag to reorder</span>
       </div>
       <SortableList
         items={steps}
