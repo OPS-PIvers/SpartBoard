@@ -193,6 +193,7 @@ export const TooltipInteraction: React.FC<Props> = ({
                 width: boxRect.w,
                 minHeight: boxRect.h,
                 padding: '0.75em 1em',
+                overflowWrap: 'anywhere',
               } as React.CSSProperties)
             : ({
                 '--gl-callout-scale': calloutScaleOf(step),

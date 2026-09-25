@@ -1,4 +1,4 @@
-import { type RefObject, useLayoutEffect, useState } from 'react';
+import { type RefObject, useEffect, useLayoutEffect, useState } from 'react';
 import { type CalloutFit, fitCalloutText } from '../../utils/fitCalloutText';
 
 /** CSS variable the card reads its body font size from. */
@@ -12,6 +12,16 @@ export function useFitCalloutText(
   paused = false
 ): CalloutFit | null {
   const [fit, setFit] = useState<CalloutFit | null>(null);
+  // Bumped when a web font finishes loading, so a fit measured on the fallback font is redone.
+  const [fontsVersion, setFontsVersion] = useState(0);
+
+  useEffect(() => {
+    const fonts = typeof document !== 'undefined' ? document.fonts : undefined;
+    if (!fonts?.addEventListener) return;
+    const bump = () => setFontsVersion((v) => v + 1);
+    fonts.addEventListener('loadingdone', bump);
+    return () => fonts.removeEventListener('loadingdone', bump);
+  }, []);
   const w = box?.w ?? 0;
   const h = box?.h ?? 0;
 
@@ -54,7 +64,7 @@ export function useFitCalloutText(
         ? prev
         : next
     );
-  }, [cardRef, w, h, contentKey, paused]);
+  }, [cardRef, w, h, contentKey, paused, fontsVersion]);
 
   return w > 0 && h > 0 ? fit : null;
 }

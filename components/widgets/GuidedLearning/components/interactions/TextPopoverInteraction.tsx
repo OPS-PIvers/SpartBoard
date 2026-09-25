@@ -139,6 +139,7 @@ export const TextPopoverInteraction: React.FC<Props> = ({
                 width: explicitBox.w,
                 minHeight: boxHeight,
                 padding: '1.4em',
+                overflowWrap: 'anywhere',
               } as React.CSSProperties)
             : ({
                 '--gl-callout-scale': calloutScaleOf(step),
