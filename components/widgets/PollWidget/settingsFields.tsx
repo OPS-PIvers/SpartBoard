@@ -549,6 +549,9 @@ export const PollSettings: React.FC<{
                 <Plus className="w-3.5 h-3.5" />
               </button>
             </div>
+            <p className="text-xxs text-slate-400 font-medium mt-1.5">
+              {t('widgetSettings.poll.showingMarkerHelp')}
+            </p>
 
             {/* Question Edit */}
             <div className="mt-4">

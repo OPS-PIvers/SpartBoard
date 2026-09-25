@@ -1613,6 +1613,7 @@
       "stopToEdit": "Stop voting to add, remove, or edit questions.",
       "editQuestion": "Edit question {{count}}",
       "editQuestionShowing": "Edit question {{count}} (showing on the board)",
+      "showingMarkerHelp": "The green dot marks the question on the board.",
       "questionNumber": "Question {{count}}",
       "addQuestion": "Add question",
       "questionLimit": "A poll can hold up to {{count}} questions",
