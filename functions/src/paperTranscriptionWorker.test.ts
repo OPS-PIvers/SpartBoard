@@ -148,6 +148,7 @@ function setup(
     isAdmin: () => Promise.resolve(false),
     transcribe,
     archive,
+    cropExists: () => Promise.resolve(true),
     ...deps,
   };
   return { ...stub, deps: full, transcribe, archive };
@@ -439,6 +440,24 @@ describe('runPaperTranscriptionJob', () => {
     expect(s.get(`${JOBS}/scan1_3_1_1`)).toMatchObject({
       boxes: [{ questionId: 'q3', storagePath: crop('q3') }],
     });
+  });
+
+  it('fails only the box whose crop is missing, without calling Gemini for it', async () => {
+    const s = setup(
+      {},
+      {
+        cropExists: (path) => Promise.resolve(!path.endsWith('q1.webp')),
+      }
+    );
+    expect(await runPaperTranscriptionJob('t1', 'scan1_3_1_0', s.deps)).toBe(
+      'failed'
+    );
+    expect(s.transcribe).not.toHaveBeenCalled();
+    expect(s.get(PRIV('q1'))).toMatchObject({
+      status: 'failed',
+      lastError: 'The answer image is missing from Storage.',
+    });
+    expect(s.has(USAGE)).toBe(false);
   });
 
   it('refuses a job whose session belongs to another teacher', async () => {

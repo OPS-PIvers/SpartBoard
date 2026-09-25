@@ -65,6 +65,7 @@ export interface WorkerDeps {
     tier: PaperModelTier
   ) => Promise<PaperPageTranscript>;
   archive: (input: ArchiveArtifactRequest) => Promise<ArchiveResult>;
+  cropExists: (storagePath: string) => Promise<boolean>;
 }
 
 interface StoredAnswer {
@@ -297,6 +298,34 @@ export function findCropArtifactId(
   return typeof match?.id === 'string' ? match.id : null;
 }
 
+/** A crop missing from Storage fails its own box instead of the whole page, and never reaches Gemini. */
+async function transcribePresentCrops(
+  boxes: PaperTranscribeBox[],
+  tier: PaperModelTier,
+  deps: WorkerDeps
+): Promise<PaperPageTranscript> {
+  const exists = await Promise.all(
+    boxes.map((b) => deps.cropExists(b.storagePath))
+  );
+  const present = boxes.filter((_, i) => exists[i]);
+  const missing = boxes.filter((_, i) => !exists[i]);
+  const page =
+    present.length > 0
+      ? await deps.transcribe(present, tier)
+      : { model: '', boxes: [] };
+  return {
+    ...page,
+    boxes: [
+      ...page.boxes,
+      ...missing.map((b) => ({
+        questionId: b.questionId,
+        ok: false as const,
+        error: 'The answer image is missing from Storage.',
+      })),
+    ],
+  };
+}
+
 /** A box the import read as blank, still on this scan; it is archived but never transcribed. */
 export function isBlankBox(
   answers: readonly StoredAnswer[],
@@ -411,7 +440,7 @@ export async function runPaperTranscriptionJob(
 
   let transcript: PaperPageTranscript;
   try {
-    transcript = await deps.transcribe(live, quota.modelTier);
+    transcript = await transcribePresentCrops(live, quota.modelTier, deps);
   } catch (error) {
     console.error('[paperTranscriptionWorker] transcribe failed', jobId, error);
     await settleWithoutTranscript(
@@ -749,6 +778,14 @@ export function buildDefaultWorkerDeps(): WorkerDeps {
       transcribePaperPage(boxes, tier, transcribeDeps),
     archive: (input) =>
       archiveQuizArtifactCore({ ...input, callerUid: null }, archiveDeps),
+    cropExists: async (storagePath) => {
+      const [exists] = await admin
+        .storage()
+        .bucket()
+        .file(storagePath)
+        .exists();
+      return exists;
+    },
   };
 }
 
