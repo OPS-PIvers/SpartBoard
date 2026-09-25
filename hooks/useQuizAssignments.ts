@@ -890,7 +890,11 @@ export function gradeResponseForPublish(
   // A question left out of a choose-N section is off this student's total (E14).
   const notChosen = new Set(
     notChosenQuestionIds(
-      { answers, servedQuestionIds: baseServed ? [...baseServed] : undefined },
+      {
+        answers,
+        servedQuestionIds: baseServed ? [...baseServed] : undefined,
+        status: data.status,
+      },
       ctx.sections
     )
   );

@@ -80,6 +80,25 @@ describe('not chosen', () => {
     expect(isCountedFor(stamped, 'q2')).toBe(true);
   });
 
+  it('marks nothing mid-quiz while a section is short of N, and marks the rest once N are in', () => {
+    const inProgress = {
+      ...response([['q2', 'a']]),
+      status: 'in-progress' as const,
+    };
+    expect(notChosenQuestionIds(inProgress, [pickTwo])).toEqual([]);
+    const capped = {
+      ...response([
+        ['q2', 'a'],
+        ['q3', 'b'],
+      ]),
+      status: 'in-progress' as const,
+    };
+    expect(notChosenQuestionIds(capped, [pickTwo])).toEqual(['q4']);
+    expect(notChosenQuestionIds(response([['q2', 'a']]), [pickTwo])).toEqual([
+      'q4',
+    ]);
+  });
+
   it('leaves responses alone when no section has a count', () => {
     const r = response([]);
     expect(
