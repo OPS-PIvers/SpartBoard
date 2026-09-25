@@ -16,6 +16,10 @@
  * replaces the earlier import. A response that is NOT from this batch already
  * at that key is a collision (Q25) and is reported, never overwritten, unless
  * the teacher resolved it in review and sent `replaceExisting`.
+ *
+ * Handwritten answers (docs/plans/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md D28-D30):
+ * each seat merges per answer in its own transaction, and a `layoutVersion: 2`
+ * import adds written answers, private subdocs and one transcription job per inked page.
  */
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
@@ -27,6 +31,21 @@ import {
   pinIndexKey,
 } from './classlinkShared';
 import { withQuizSessionContent } from './quizSessionContent';
+import {
+  PAPER_PRIVATE_SUBCOLLECTION,
+  PAPER_TRANSCRIPTION_JOBS,
+  paperCropStoragePath,
+  paperTranscriptionJobId,
+  type PaperPageMap,
+  type PaperPrivateAnswer,
+  type PaperTranscriptionJob,
+  type PaperWrittenImportResult,
+  type PaperWrittenPayloadBox,
+} from './paperWrittenTypes';
+import {
+  readPaperHandwritingQuota,
+  splitPagesByQuota,
+} from './paperHandwritingQuota';
 
 /** Admin kill switch; mirrors `config/paperAnswerSheets.ts`. Absent == off. */
 export const PAPER_SETTINGS_PATH = 'admin_settings/paper_answer_sheets';
@@ -39,6 +58,14 @@ const MAX_PIN_LENGTH = 32;
 const MAX_PERIOD_LENGTH = 64;
 const WRITE_CHUNK = 400;
 const READ_CONCURRENCY = 25;
+const SEAT_TX_CONCURRENCY = 10;
+// Keeps a seat's transaction (response, private docs, jobs) far below Firestore's 500 writes.
+const MAX_WRITTEN_PER_SHEET = 100;
+const MAX_PAGE = 63;
+const SCAN_ID_PATTERN = /^[A-Za-z0-9-]{1,64}$/;
+// Mirrors storage.rules for the crop path; older Safari uploads PNG under the same name.
+const CROP_MIMES = ['image/webp', 'image/png'] as const;
+type CropMime = (typeof CROP_MIMES)[number];
 
 /** Local mirror of the `unresponded` reasons paper can emit (root `types.ts`). */
 type PaperUnresponded = 'passed' | 'paper-unclear';
@@ -56,12 +83,20 @@ export interface ImportPaperSheet {
   classPeriod: string;
   answers: ImportPaperAnswer[];
   replaceExisting?: boolean;
+  /** Payload v2 only; the storage path is re-derived server-side, never trusted. */
+  written?: ParsedWrittenBox[];
 }
+
+export type ParsedWrittenBox = Omit<PaperWrittenPayloadBox, 'storagePath'> & {
+  mimeType: CropMime;
+};
 
 export interface ImportPaperResponsesInput {
   batchId: string;
   assignmentId: string;
   sheets: ImportPaperSheet[];
+  layoutVersion?: 2;
+  scanId?: string;
 }
 
 export interface ImportPaperCollision {
@@ -72,7 +107,7 @@ export interface ImportPaperCollision {
   existingSubmittedAt: number | null;
 }
 
-export interface ImportPaperResponsesResult {
+export interface ImportPaperResponsesResult extends Partial<PaperWrittenImportResult> {
   written: number[];
   collisions: ImportPaperCollision[];
 }
@@ -81,6 +116,8 @@ export interface ImportPaperCaller {
   uid: string;
   studentRole: boolean;
   anonymous: boolean;
+  /** Lower-cased, and only when the token's email is verified; used for the admin quota check. */
+  email?: string | null;
 }
 
 function invalid(message: string): never {
@@ -117,7 +154,50 @@ function parseAnswer(raw: unknown): ImportPaperAnswer {
   return parsed;
 }
 
-function parseSheet(raw: unknown): ImportPaperSheet {
+function parseWrittenBox(raw: unknown): ParsedWrittenBox {
+  if (!isRecord(raw)) return invalid('Malformed written answer.');
+  const page = raw.page;
+  if (
+    !Number.isInteger(page) ||
+    (page as number) < 1 ||
+    (page as number) > MAX_PAGE
+  )
+    invalid('Each written answer needs a page number.');
+  if (raw.state !== 'ink' && raw.state !== 'blank')
+    invalid('Unknown written answer state.');
+  const mimeType = raw.mimeType ?? 'image/webp';
+  if (!(CROP_MIMES as readonly unknown[]).includes(mimeType))
+    invalid('Unsupported crop type.');
+  return {
+    questionId: parseId(raw.questionId, 'questionId'),
+    page: page as number,
+    state: raw.state,
+    mimeType: mimeType as CropMime,
+  };
+}
+
+function parseWritten(
+  raw: unknown,
+  v2: boolean,
+  answers: ImportPaperAnswer[]
+): ParsedWrittenBox[] | undefined {
+  if (raw === undefined) return undefined;
+  if (!v2) {
+    if (Array.isArray(raw) && raw.length === 0) return undefined;
+    return invalid('Written answers need layoutVersion 2.');
+  }
+  if (!Array.isArray(raw) || raw.length > MAX_WRITTEN_PER_SHEET)
+    invalid(`written must be an array of at most ${MAX_WRITTEN_PER_SHEET}.`);
+  const boxes = (raw as unknown[]).map(parseWrittenBox);
+  const seen = new Set(answers.map((a) => a.questionId));
+  for (const b of boxes) {
+    if (seen.has(b.questionId)) invalid('A sheet repeats a question.');
+    seen.add(b.questionId);
+  }
+  return boxes;
+}
+
+function parseSheet(raw: unknown, v2: boolean): ImportPaperSheet {
   if (!isRecord(raw)) return invalid('Malformed sheet.');
   const seat = raw.seat;
   if (!Number.isInteger(seat) || (seat as number) < 1)
@@ -132,6 +212,7 @@ function parseSheet(raw: unknown): ImportPaperSheet {
   }
   const pin = parseText(raw.pin, MAX_PIN_LENGTH, 'pin').trim();
   if (!pin) invalid('Each sheet needs a pin.');
+  const written = parseWritten(raw.written, v2, answers);
   return {
     seat: seat as number,
     rosterId: parseId(raw.rosterId, 'rosterId'),
@@ -143,6 +224,7 @@ function parseSheet(raw: unknown): ImportPaperSheet {
     ),
     answers,
     ...(raw.replaceExisting === true ? { replaceExisting: true } : {}),
+    ...(written ? { written } : {}),
   };
 }
 
@@ -150,11 +232,20 @@ export function parseImportPaperResponsesInput(
   raw: unknown
 ): ImportPaperResponsesInput {
   const data = isRecord(raw) ? raw : {};
+  if (data.layoutVersion !== undefined && data.layoutVersion !== 2)
+    invalid('Unknown layoutVersion.');
+  const v2 = data.layoutVersion === 2;
+  let scanId: string | undefined;
+  if (v2) {
+    if (typeof data.scanId !== 'string' || !SCAN_ID_PATTERN.test(data.scanId))
+      invalid('scanId is required.');
+    scanId = data.scanId;
+  }
   if (!Array.isArray(data.sheets) || data.sheets.length === 0)
     invalid('sheets must be a non-empty array.');
   if (data.sheets.length > MAX_SHEETS_PER_CALL)
     invalid(`Import at most ${MAX_SHEETS_PER_CALL} sheets per call.`);
-  const sheets = (data.sheets as unknown[]).map(parseSheet);
+  const sheets = (data.sheets as unknown[]).map((s) => parseSheet(s, v2));
   const seats = new Set<number>();
   for (const s of sheets) {
     if (seats.has(s.seat)) invalid('A seat appears twice.');
@@ -164,6 +255,7 @@ export function parseImportPaperResponsesInput(
     batchId: parseId(data.batchId, 'batchId'),
     assignmentId: parseId(data.assignmentId, 'assignmentId'),
     sheets,
+    ...(v2 ? { layoutVersion: 2 as const, scanId } : {}),
   };
 }
 
@@ -172,6 +264,29 @@ interface BatchDoc {
   seats?: Record<string, { rosterId?: unknown; studentId?: unknown }>;
   spareSeats?: unknown;
   keySheetSeat?: unknown;
+  layoutVersion?: unknown;
+  pageMaps?: unknown;
+}
+
+interface BatchMapIndex {
+  mc: Set<string>;
+  /** questionId -> the page its written box printed on. */
+  written: Map<string, number>;
+}
+
+function indexPageMaps(pageMaps: unknown): BatchMapIndex {
+  const index: BatchMapIndex = { mc: new Set(), written: new Map() };
+  if (!Array.isArray(pageMaps)) return index;
+  for (const map of pageMaps as Partial<PaperPageMap>[]) {
+    if (!isRecord(map) || !Array.isArray(map.items)) continue;
+    for (const item of map.items) {
+      if (!isRecord(item) || typeof item.questionId !== 'string') continue;
+      if (item.kind === 'mc') index.mc.add(item.questionId);
+      else if (item.kind === 'written' && typeof map.page === 'number')
+        index.written.set(item.questionId, map.page);
+    }
+  }
+  return index;
 }
 
 const seatRoster = (batch: BatchDoc, seat: number): string | null => {
@@ -229,6 +344,14 @@ export async function handleImportPaperResponses(
   if (session.teacherUid !== caller.uid)
     throw new HttpsError('permission-denied', 'Not the owner of this session.');
   const batch = (batchSnap.data() ?? {}) as BatchDoc;
+  const batchV2 = batch.layoutVersion === 2;
+  if (batchV2 && input.layoutVersion !== 2)
+    throw new HttpsError(
+      'failed-precondition',
+      'Refresh SpartBoard to import this batch.'
+    );
+  if (!batchV2 && input.layoutVersion === 2)
+    invalid('This batch was not printed with a page map.');
   if (batch.quizId !== assignmentSnap.data()?.quizId)
     throw new HttpsError(
       'failed-precondition',
@@ -240,6 +363,7 @@ export async function handleImportPaperResponses(
       .map((q: unknown) => (isRecord(q) ? q.id : undefined))
       .filter((id: unknown): id is string => typeof id === 'string')
   );
+  const mapIndex = batchV2 ? indexPageMaps(batch.pageMaps) : null;
 
   for (const sheet of input.sheets) {
     if (batch.keySheetSeat === sheet.seat)
@@ -252,6 +376,14 @@ export async function handleImportPaperResponses(
     for (const a of sheet.answers) {
       if (!questionIds.has(a.questionId))
         invalid('A sheet references a question not in this session.');
+      if (mapIndex && !mapIndex.mc.has(a.questionId))
+        invalid('A bubble answer is not a bubble row on this batch.');
+    }
+    for (const box of sheet.written ?? []) {
+      if (!questionIds.has(box.questionId))
+        invalid('A sheet references a question not in this session.');
+      if (mapIndex?.written.get(box.questionId) !== box.page)
+        invalid('A written answer is not a box on that page of this batch.');
     }
   }
 
@@ -316,76 +448,303 @@ export async function handleImportPaperResponses(
     seatByKey.set(r.responseKey, r.sheet.seat);
   }
 
-  const existingSnaps = await mapLimited(resolved, READ_CONCURRENCY, (r) =>
-    responses.doc(r.responseKey).get()
+  // Read-only quota check (D25), reported back as the page count; nothing is charged here.
+  const inkPages = resolved.flatMap(({ sheet }) =>
+    [
+      ...new Set(
+        (sheet.written ?? [])
+          .filter((b) => b.state === 'ink')
+          .map((b) => b.page)
+      ),
+    ]
+      .sort((a, b) => a - b)
+      .map((page) => `${sheet.seat}:${page}`)
+  );
+  const allowedPages = new Set<string>();
+  if (inkPages.length > 0) {
+    const isAdmin = caller.email
+      ? (await db.collection('admins').doc(caller.email).get()).exists
+      : false;
+    const quota = await readPaperHandwritingQuota(db, {
+      uid: caller.uid,
+      isAdmin,
+      nowMs: now,
+    });
+    const { allowed } = splitPagesByQuota(quota, inkPages.length);
+    inkPages.slice(0, allowed).forEach((key) => allowedPages.add(key));
+  }
+
+  const jobs = userRef.collection(PAPER_TRANSCRIPTION_JOBS);
+  const outcomes = await mapLimited(resolved, SEAT_TX_CONCURRENCY, (r) =>
+    db.runTransaction((tx) =>
+      importSeat(tx, {
+        ref: responses.doc(r.responseKey),
+        jobs,
+        resolved: r,
+        batchId: input.batchId,
+        sessionId: input.assignmentId,
+        uid: caller.uid,
+        scanId: input.scanId ?? null,
+        allowedPages,
+        now,
+      })
+    )
   );
 
   const written: number[] = [];
   const collisions: ImportPaperCollision[] = [];
-  let writes = db.batch();
-  let pending = 0;
-  for (let i = 0; i < resolved.length; i += 1) {
-    const { sheet, responseKey, studentUid, classId } = resolved[i];
-    const existing = existingSnaps[i].exists
-      ? (existingSnaps[i].data() ?? {})
-      : null;
-    if (
-      existing &&
-      existing.paperBatchId !== input.batchId &&
-      !sheet.replaceExisting
-    ) {
-      collisions.push({
-        seat: sheet.seat,
-        responseKey,
-        fromOtherBatch: typeof existing.paperBatchId === 'string',
-        existingSubmittedAt:
-          typeof existing.submittedAt === 'number'
-            ? existing.submittedAt
-            : null,
-      });
+  const keptWritten: PaperWrittenImportResult['keptWritten'] = [];
+  let jobsCreated = 0;
+  let pagesQueued = 0;
+  let pagesOverQuota = 0;
+  let anyWritten = false;
+  for (const o of outcomes) {
+    if (o.collision) {
+      collisions.push(o.collision);
       continue;
     }
-    const answers = sheet.answers.map((a) => ({
-      questionId: a.questionId,
-      answer: a.unresponded ? '' : a.answer,
-      answeredAt: now,
+    written.push(o.seat);
+    keptWritten.push(
+      ...o.kept.map((questionId) => ({ seat: o.seat, questionId }))
+    );
+    jobsCreated += o.jobs;
+    pagesQueued += o.queued;
+    pagesOverQuota += o.overQuota;
+    anyWritten ||= o.hasWritten;
+  }
+  if (written.length > 0) {
+    await userRef
+      .collection('quiz_assignments')
+      .doc(input.assignmentId)
+      .set(
+        {
+          hasPaperResponses: true,
+          ...(anyWritten ? { hasPaperWritten: true } : {}),
+        },
+        { merge: true }
+      );
+  }
+
+  if (input.layoutVersion !== 2) return { written, collisions };
+  return {
+    written,
+    collisions,
+    keptWritten,
+    jobsCreated,
+    pagesQueued,
+    pagesOverQuota,
+  };
+}
+
+interface SeatContext {
+  ref: admin.firestore.DocumentReference;
+  jobs: admin.firestore.CollectionReference;
+  resolved: {
+    sheet: ImportPaperSheet;
+    responseKey: string;
+    studentUid: string;
+    classId: string | null;
+  };
+  batchId: string;
+  sessionId: string;
+  uid: string;
+  scanId: string | null;
+  allowedPages: ReadonlySet<string>;
+  now: number;
+}
+
+interface SeatOutcome {
+  seat: number;
+  collision: ImportPaperCollision | null;
+  kept: string[];
+  jobs: number;
+  queued: number;
+  overQuota: number;
+  hasWritten: boolean;
+}
+
+type AnswerEntry = Record<string, unknown> & { questionId?: unknown };
+
+// D28: MC answers always replace; a written answer replaces only when ungraded and unedited.
+async function importSeat(
+  tx: admin.firestore.Transaction,
+  ctx: SeatContext
+): Promise<SeatOutcome> {
+  const { sheet, responseKey, studentUid, classId } = ctx.resolved;
+  const outcome: SeatOutcome = {
+    seat: sheet.seat,
+    collision: null,
+    kept: [],
+    jobs: 0,
+    queued: 0,
+    overQuota: 0,
+    hasWritten: (sheet.written ?? []).length > 0,
+  };
+  const snap = await tx.get(ctx.ref);
+  const existing = snap.exists ? (snap.data() ?? {}) : null;
+  if (
+    existing &&
+    existing.paperBatchId !== ctx.batchId &&
+    !sheet.replaceExisting
+  ) {
+    outcome.collision = {
+      seat: sheet.seat,
+      responseKey,
+      fromOtherBatch: typeof existing.paperBatchId === 'string',
+      existingSubmittedAt:
+        typeof existing.submittedAt === 'number' ? existing.submittedAt : null,
+    };
+    return outcome;
+  }
+
+  const prior: AnswerEntry[] = Array.isArray(existing?.answers)
+    ? (existing.answers as unknown[]).filter(isRecord)
+    : [];
+  const grading = isRecord(existing?.grading) ? existing.grading : {};
+  const written = sheet.written ?? [];
+  const privateRef = (questionId: string) =>
+    ctx.ref.collection(PAPER_PRIVATE_SUBCOLLECTION).doc(questionId);
+  const privateSnaps =
+    written.length > 0
+      ? await tx.getAll(...written.map((b) => privateRef(b.questionId)))
+      : [];
+
+  const replaced = new Set<string>(sheet.answers.map((a) => a.questionId));
+  const fresh: AnswerEntry[] = sheet.answers.map((a) => ({
+    questionId: a.questionId,
+    answer: a.unresponded ? '' : a.answer,
+    answeredAt: ctx.now,
+    status: 'submitted',
+    ...(a.unresponded ? { unresponded: a.unresponded } : {}),
+  }));
+  const privateWrites: Array<{
+    questionId: string;
+    data: object;
+    merge: boolean;
+  }> = [];
+  const jobBoxes = new Map<number, PaperTranscriptionJob['boxes']>();
+  const inkPages = new Set<number>();
+  const scanId = ctx.scanId;
+  written.forEach((box, i) => {
+    if (!scanId) return;
+    const priorEntries = prior.filter((e) => e.questionId === box.questionId);
+    // A replay of this same scan (a retried call) leaves its own answers and jobs alone.
+    if (priorEntries.some((e) => e.paperScanId === scanId)) return;
+    const privateData = privateSnaps[i]?.exists ? privateSnaps[i].data() : null;
+    const graded = grading[box.questionId] != null;
+    const edited = typeof privateData?.editedAt === 'number';
+    if (graded || edited) {
+      outcome.kept.push(box.questionId);
+      if (privateData)
+        privateWrites.push({
+          questionId: box.questionId,
+          data: {
+            newerScan: { scanId, page: box.page, state: box.state },
+            updatedAt: ctx.now,
+          },
+          merge: true,
+        });
+      return;
+    }
+    const storagePath = paperCropStoragePath(
+      ctx.uid,
+      scanId,
+      sheet.seat,
+      box.questionId
+    );
+    replaced.add(box.questionId);
+    fresh.push({
+      questionId: box.questionId,
+      answer: '',
+      answeredAt: ctx.now,
       status: 'submitted',
-      ...(a.unresponded ? { unresponded: a.unresponded } : {}),
-    }));
-    writes.set(responses.doc(responseKey), {
+      paperScanId: scanId,
+      paperTranscript: box.state === 'blank' ? 'blank' : 'pending',
+      artifacts: [
+        {
+          id: `hw_${scanId}_${box.questionId}`,
+          slot: 'primary',
+          kind: 'handwriting',
+          storagePath,
+          mimeType: box.mimeType,
+          uploadState: 'uploaded',
+        },
+      ],
+    });
+    const privateDoc: PaperPrivateAnswer = {
+      scanId,
+      status: box.state === 'blank' ? 'blank' : 'pending',
+      attempts: 0,
+      charged: false,
+      updatedAt: ctx.now,
+    };
+    privateWrites.push({
+      questionId: box.questionId,
+      data: privateDoc,
+      merge: false,
+    });
+    // Blank boxes ride along so the worker archives them; it skips Gemini for them.
+    const boxes = jobBoxes.get(box.page) ?? [];
+    boxes.push({ questionId: box.questionId, storagePath });
+    jobBoxes.set(box.page, boxes);
+    if (box.state === 'ink') inkPages.add(box.page);
+  });
+
+  const answers = [
+    ...prior.filter(
+      (e) => typeof e.questionId !== 'string' || !replaced.has(e.questionId)
+    ),
+    ...fresh,
+  ];
+  tx.set(
+    ctx.ref,
+    {
       studentUid,
       pin: sheet.pin,
       ...(sheet.classPeriod ? { classPeriod: sheet.classPeriod } : {}),
       ...(classId ? { classId } : {}),
-      joinedAt: now,
-      submittedAt: now,
+      joinedAt:
+        typeof existing?.joinedAt === 'number' ? existing.joinedAt : ctx.now,
+      submittedAt: ctx.now,
       status: 'completed',
       score: null,
       answers,
       completedAttempts: 1,
-      paperBatchId: input.batchId,
+      paperBatchId: ctx.batchId,
       paperSeat: sheet.seat,
       lastWriteAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    written.push(sheet.seat);
-    pending += 1;
-    if (pending >= WRITE_CHUNK) {
-      await writes.commit();
-      writes = db.batch();
-      pending = 0;
-    }
+    },
+    { merge: true }
+  );
+  for (const w of privateWrites) {
+    if (w.merge) tx.set(privateRef(w.questionId), w.data, { merge: true });
+    else tx.set(privateRef(w.questionId), w.data);
   }
-  if (written.length > 0) {
-    writes.set(
-      userRef.collection('quiz_assignments').doc(input.assignmentId),
-      { hasPaperResponses: true },
-      { merge: true }
+  for (const [page, boxes] of [...jobBoxes].sort((a, b) => a[0] - b[0])) {
+    if (!scanId) break;
+    const job: PaperTranscriptionJob = {
+      sessionId: ctx.sessionId,
+      responseKey,
+      scanId,
+      page,
+      boxes,
+      status: 'queued',
+      attempt: 0,
+      charged: false,
+      createdAt: ctx.now,
+      updatedAt: ctx.now,
+    };
+    tx.create(
+      ctx.jobs.doc(paperTranscriptionJobId(scanId, sheet.seat, page, 0)),
+      job
     );
-    pending += 1;
+    outcome.jobs += 1;
+    if (!inkPages.has(page)) continue;
+    // The quota check is advisory; the worker re-checks before any Gemini call.
+    if (ctx.allowedPages.has(`${sheet.seat}:${page}`)) outcome.queued += 1;
+    else outcome.overQuota += 1;
   }
-  if (pending > 0) await writes.commit();
-
-  return { written, collisions };
+  return outcome;
 }
 
 export interface PublishPaperResultsResult {
@@ -553,6 +912,11 @@ export const importPaperResponsesV1 = onCall(
           studentRole: request.auth.token.studentRole === true,
           anonymous:
             request.auth.token.firebase?.sign_in_provider === 'anonymous',
+          email:
+            request.auth.token.email_verified === true &&
+            typeof request.auth.token.email === 'string'
+              ? request.auth.token.email.toLowerCase()
+              : null,
         }
       : null;
     return handleImportPaperResponses(
