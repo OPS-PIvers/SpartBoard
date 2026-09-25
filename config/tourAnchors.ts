@@ -146,6 +146,22 @@ export const TOUR_ANCHORS = {
   'board-actions.zoom': { label: 'Zoom level button' },
   'board-actions.zoom-reset': { label: 'Reset zoom button' },
   'board-actions.help': { label: 'Help button' },
+
+  'projects.board-grid': {
+    label: 'Projects step grid',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.class-picker': {
+    label: 'Projects class picker',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.status-popover': {
+    label: 'Projects step status menu',
+    perWidget: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;
