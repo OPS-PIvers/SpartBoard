@@ -9,6 +9,7 @@ import {
   questionFromRows,
   rowsFromQuestion,
 } from '@/utils/quizChoiceRows';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { inputClass, labelClass } from './quizEditorFieldStyles';
 
 type ChoiceUpdates = Partial<
@@ -106,6 +107,17 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
     );
   };
 
+  // Roving tab stop for the single-answer radios; arrows in a text box stay with the text box.
+  const tabStop = Math.max(
+    0,
+    rows.findIndex((r) => r.correct)
+  );
+  const onGroupKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (multi || (e.target as HTMLElement).getAttribute('role') !== 'radio')
+      return;
+    handleRadioGroupKeyDown(e, rows, (row) => toggleCorrect(rows.indexOf(row)));
+  };
+
   const canTurnOffMulti = rows.length <= MAX_SINGLE_OPTIONS;
   const Marker = multi ? 'rounded-md' : 'rounded-full';
 
@@ -113,7 +125,12 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
     <div className="space-y-3">
       <div className="space-y-2">
         <span className={labelClass}>Answer options</span>
-        <div className="grid gap-2" role={multi ? 'group' : 'radiogroup'}>
+        <div
+          className="grid gap-2"
+          role={multi ? 'group' : 'radiogroup'}
+          aria-label="Correct answer"
+          onKeyDown={onGroupKeyDown}
+        >
           {rows.map((row, idx) => {
             const letter = LETTERS[idx] ?? String(idx + 1);
             return (
@@ -125,6 +142,7 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
                   type="button"
                   role={multi ? 'checkbox' : 'radio'}
                   aria-checked={row.correct}
+                  tabIndex={multi || idx === tabStop ? 0 : -1}
                   aria-label={`Option ${letter} is correct`}
                   onClick={() => toggleCorrect(idx)}
                   className={`shrink-0 w-7 h-7 flex items-center justify-center border-2 ${Marker} transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${

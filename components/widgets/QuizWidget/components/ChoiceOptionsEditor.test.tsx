@@ -89,3 +89,21 @@ describe('ChoiceOptionsEditor', () => {
     ).toHaveAttribute('aria-checked', 'true');
   });
 });
+
+describe('ChoiceOptionsEditor keyboard', () => {
+  it('moves the correct answer with arrow keys but leaves arrows in a text box alone', () => {
+    render(<Harness initial={base} />);
+    const first = screen.getByRole('radio', { name: 'Option A is correct' });
+    first.focus();
+    fireEvent.keyDown(first, { key: 'ArrowDown' });
+    expect(seen.q?.correctAnswer).toBe('Venus');
+    expect(
+      screen.getByRole('radio', { name: 'Option B is correct' })
+    ).toHaveFocus();
+    const input = screen.getByLabelText('Option C');
+    input.focus();
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(input).toHaveFocus();
+    expect(seen.q?.correctAnswer).toBe('Venus');
+  });
+});
