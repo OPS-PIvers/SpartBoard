@@ -255,7 +255,7 @@ export const PlcVersionHistoryPanel: React.FC<PlcVersionHistoryPanelProps> = ({
         <p className="text-xs text-slate-600 mb-3">
           {t('plcDashboard.versions.intro', {
             defaultValue:
-              'Recent saved versions of this shared assessment. Restoring re-publishes that version to everyone — the current version is kept in history too.',
+              'Restoring updates everyone’s copy. The current version stays in history.',
           })}
         </p>
 

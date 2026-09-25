@@ -267,7 +267,7 @@ describe('PlcTeammatePrintModal', () => {
     );
     pick('Bob Teacher');
     expect(
-      screen.getByText(/cannot reach Bob Teacher’s Google Drive/)
+      screen.getByText(/Can’t reach Bob Teacher’s Google Drive/)
     ).toBeInTheDocument();
     expect(screen.getByText('2 unnamed sheets')).toBeInTheDocument();
   });
@@ -284,20 +284,16 @@ describe('PlcTeammatePrintModal', () => {
     );
     pick('Bob Teacher');
     expect(
-      screen.getByText(/not in Bob Teacher’s library yet/)
+      screen.getByText(/goes into Bob Teacher’s library/)
     ).toBeInTheDocument();
     // It is an explanation, not a refusal: the unnamed-stack banner still shows.
-    expect(
-      screen.getByText(/students write their own names/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/print without student names/)).toBeInTheDocument();
   });
 
   it('flags content that came from the PLC copy rather than theirs', () => {
     open(makeContext({ contentSource: 'synced-group' }));
     pick('Bob Teacher');
-    expect(
-      screen.getByText(/come from the PLC’s shared copy/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Uses the PLC’s shared copy/)).toBeInTheDocument();
   });
 
   it('warns that a stack already exists for this teacher and quiz', () => {
@@ -315,7 +311,7 @@ describe('PlcTeammatePrintModal', () => {
     );
     pick('Bob Teacher');
     expect(
-      screen.getByText(/1 stack\(s\) for this quiz already exist/)
+      screen.getByText(/already has 1 stack\(s\) for this quiz/)
     ).toBeInTheDocument();
   });
 
@@ -425,7 +421,7 @@ describe('PlcTeammatePrintModal — printing', () => {
     createBatch.mockResolvedValue({ ...PRINTED, createdCopy: true });
     await printBobsPeriod1();
     expect(
-      await screen.findByText(/was not in Bob Teacher’s library yet/)
+      await screen.findByText(/was added to Bob Teacher’s library/)
     ).toBeInTheDocument();
   });
 
@@ -533,7 +529,7 @@ describe('PlcTeammatePrintModal — printing', () => {
       loadableUrls.add(driveImageUrl('drive-shared'));
       open(withStimuli(shared, priv), 'Amelia Ruiz');
       pick('Bob Teacher');
-      const banner = await screen.findByText(/Not shared with the PLC/);
+      const banner = await screen.findByText(/aren’t shared with the PLC/);
       expect(banner).toHaveTextContent("Amelia's map");
       expect(banner).toHaveTextContent('Ask Amelia Ruiz to share them');
       // The one the owner did share is not named as a problem.
@@ -566,7 +562,7 @@ describe('PlcTeammatePrintModal — printing', () => {
 
     it('says nothing when the quiz has no sheet images at all', async () => {
       await printBobsPeriod1();
-      expect(screen.queryByText(/Not shared with the PLC/)).toBeNull();
+      expect(screen.queryByText(/aren’t shared with the PLC/)).toBeNull();
       expect(print.mock.calls[0][0]).not.toHaveProperty('sheetStimuli');
     });
   });

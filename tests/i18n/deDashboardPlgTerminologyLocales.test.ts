@@ -52,11 +52,6 @@ const AFFECTED_KEYS: Array<{ path: string; expectedDe: string }> = [
     expectedDe:
       'Wenn das Team eine gemeinsame Bewertung im PLG-Modus durchführt, erscheinen hier die anonymisierten Ergebnisse zur gemeinsamen Durchsicht.',
   },
-  {
-    path: 'plcDashboard.meeting.act.subtitle',
-    expectedDe:
-      'Lege Aufgaben an. Beim Speichern wird jede zu einer nachverfolgten PLG-Aufgabe für die zuständige Person.',
-  },
   { path: 'plcDashboard.resources.managerTitle', expectedDe: 'PLG-Ressourcen' },
   {
     path: 'plcDashboard.resources.managerSubtitle',
@@ -109,11 +104,6 @@ const AFFECTED_KEYS: Array<{ path: string; expectedDe: string }> = [
   {
     path: 'plcDashboard.resources.useSuccess',
     expectedDe: '„{{title}}“ wurde zu dieser PLG hinzugefügt.',
-  },
-  {
-    path: 'plcDashboard.resources.inboxSubtitle',
-    expectedDe:
-      'Von deinem Admin kuratiert. Klicke auf „Verwenden“, um sie zu deiner PLG hinzuzufügen.',
   },
   {
     path: 'plcDashboard.resources.usedStatus',

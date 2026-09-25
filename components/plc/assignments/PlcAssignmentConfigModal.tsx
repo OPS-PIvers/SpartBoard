@@ -468,7 +468,7 @@ export const PlcAssignmentConfigModal: React.FC<
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               {t('plcDashboard.assignmentConfig.teacherNameLabel', {
-                defaultValue: 'Your display name (for the PLC sheet)',
+                defaultValue: 'Your name',
               })}
             </label>
             <input
@@ -609,7 +609,7 @@ export const PlcAssignmentConfigModal: React.FC<
           <div>
             <p className="text-sm font-medium text-slate-700 mb-2">
               {t('plcDashboard.assignmentConfig.classPickerLabel', {
-                defaultValue: 'Target class periods (optional)',
+                defaultValue: 'Class periods',
               })}
             </p>
             <AssignClassPicker

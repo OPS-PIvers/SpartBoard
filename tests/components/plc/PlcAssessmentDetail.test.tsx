@@ -359,7 +359,7 @@ describe('PlcAssessmentDetail', () => {
     render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
     expect(screen.queryByTestId('score-distribution')).toBeNull();
     expect(screen.getByTestId('results-summary')).toHaveTextContent(
-      'The chart appears after the next results refresh'
+      'Chart updates in a few minutes.'
     );
   });
 

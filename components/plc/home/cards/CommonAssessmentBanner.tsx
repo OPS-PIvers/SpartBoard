@@ -182,7 +182,7 @@ export const CommonAssessmentBanner: React.FC<CommonAssessmentBannerProps> = ({
     switch (phase) {
       case 'planning':
         return t('plcDashboard.home.commonAssessment.phase.planning', {
-          defaultValue: 'Planning — not run yet',
+          defaultValue: 'Not run yet',
         });
       case 'running':
         return t('plcDashboard.home.commonAssessment.phase.running', {

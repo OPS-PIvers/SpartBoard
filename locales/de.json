@@ -321,7 +321,6 @@
     }
   },
   "plcDashboard": {
-    "subtitle": "PLG-Dashboard",
     "home": {
       "commonAssessment": {
         "loading": "Gemeinsame Bewertung wird geladen…",
@@ -332,7 +331,7 @@
         "startMeeting": "Besprechung starten",
         "resumeMeeting": "Besprechung fortsetzen",
         "phase": {
-          "planning": "Planung – noch nicht durchgeführt",
+          "planning": "Noch nicht durchgeführt",
           "running": "Läuft",
           "ready": "Bereit zur Überprüfung",
           "reviewing": "Gemeinsame Überprüfung",
@@ -453,7 +452,7 @@
     "meta": {
       "members_one": "{{count}} Mitglied",
       "members_other": "{{count}} Mitglieder",
-      "youLead": "Du leitest diese PLG"
+      "youLead": "Leitung"
     },
     "members": {
       "heading": "Mitglieder",
@@ -492,7 +491,7 @@
       "pendingSince": "Eingeladen {{when}}",
       "revoke": "Widerrufen",
       "revokeAriaLabel": "Einladung für {{email}} widerrufen",
-      "notManager": "Nur die Leitung oder eine Co-Leitung der PLG kann Mitglieder einladen, entfernen oder ändern."
+      "notManager": "Nur die Leitung kann Mitglieder verwalten."
     },
     "completedAssignments": {
       "heading": "Geteilte Ergebnisse",
@@ -816,7 +815,6 @@
       "heading": "Aktivität",
       "empty": "Noch keine Aktivität",
       "sinceLastVisit": "Seit deinem letzten Besuch",
-      "sinceSubtitle": "Was passiert ist, während du weg warst",
       "olderHeading": "Früher",
       "caughtUp": "Du bist auf dem neuesten Stand",
       "caughtUpSubtitle": "Keine neue Aktivität seit deinem letzten Besuch.",
@@ -858,11 +856,10 @@
       "delete": "Kommentar löschen",
       "confirmDelete": "Diesen Kommentar löschen?",
       "confirmDeleteTitle": "Kommentar löschen",
-      "mentionHint": "Gib @ ein, um ein Teammitglied zu erwähnen",
       "postFailed": "Dein Kommentar konnte nicht gesendet werden. Versuche es erneut.",
       "deleteFailed": "Der Kommentar konnte nicht gelöscht werden. Versuche es erneut.",
       "loadError": "Kommentare konnten nicht geladen werden.",
-      "viewerReadOnly": "Betrachter können Kommentare lesen, aber nicht schreiben.",
+      "viewerReadOnly": "Nur Ansicht.",
       "threadLabel": "Kommentare zu {{subject}}",
       "mentionNoMatch": "Keine passenden Teammitglieder",
       "mentionListLabel": "Ein Teammitglied erwähnen"
@@ -885,9 +882,9 @@
       "hasRun": "hat sie durchgeführt",
       "notRun": "hat sie noch nicht durchgeführt",
       "noQuestions": "Noch keine Daten auf Fragenebene verfügbar.",
-      "strongAcross": "Durchweg stark — jede Frage über 80 %.",
+      "strongAcross": "Jede Frage über 80 %.",
       "updating": "wird aktualisiert…",
-      "updatingHint": "Neue Ergebnisse werden noch verarbeitet — die Werte aktualisieren sich gleich.",
+      "updatingHint": "Neue Ergebnisse folgen in Kürze.",
       "reviewCardLabel": "Gepoolte Ergebnisse für {{title}}",
       "discussAssessment": "Besprechen",
       "discussQuestion": "Diese Frage in einer Entscheidung besprechen",
@@ -908,19 +905,17 @@
       },
       "pick": {
         "heading": "Was schauen wir uns heute an?",
-        "subtitle": "Wähle die gemeinsame(n) Bewertung(en), die diese Besprechung durchgeht.",
         "emptyTitle": "Noch keine Bewertungsdaten",
         "emptySubtitle": "Wenn das Team eine gemeinsame Bewertung im PLG-Modus durchführt, erscheinen hier die anonymisierten Ergebnisse zur gemeinsamen Durchsicht.",
         "cardMeta": "{{avg}}% Team-Schnitt · {{teachers}} Lehrkräfte · {{students}} Schüler:innen"
       },
       "review": {
         "heading": "Was sagen die Daten?",
-        "subtitle": "Gepoolte, anonymisierte Ergebnisse. Klicke auf eine Frage, um eine Entscheidung dazu festzuhalten.",
+        "subtitle": "Klicke auf eine Frage, um eine Entscheidung festzuhalten.",
         "none": "Keine Bewertungen ausgewählt — gehe zurück zu Wählen."
       },
       "decide": {
         "heading": "Was haben wir entschieden?",
-        "subtitle": "Halte die Entscheidungen des Teams fest. Verknüpfe eine mit einer Datenkarte aus „Prüfen“, wenn sie auf ein bestimmtes Ergebnis reagiert.",
         "addLabel": "Entscheidung hinzufügen",
         "placeholder": "z. B. Frage 4 mit dem Flächenmodell vor dem Test erneut behandeln.",
         "add": "Entscheidung hinzufügen",
@@ -931,7 +926,6 @@
       },
       "act": {
         "heading": "Wer macht was?",
-        "subtitle": "Lege Aufgaben an. Beim Speichern wird jede zu einer nachverfolgten PLG-Aufgabe für die zuständige Person.",
         "addLabel": "Aufgabe hinzufügen",
         "placeholder": "z. B. Eine Wiederholungs-Aufwärmübung für Frage 4 erstellen",
         "assignee": "Zuständig",
@@ -945,16 +939,14 @@
       },
       "save": {
         "heading": "Bereit zum Speichern?",
-        "subtitle": "Beim Speichern wird das Besprechungsprotokoll geschrieben, Aufgaben werden zu To-dos und es wird im Team-Aktivitätsfeed protokolliert.",
         "reviewed": "Geprüfte Bewertungen",
         "decisions": "Entscheidungen",
         "actions": "Aufgaben → To-dos",
         "attendees": "Teilnehmende (aus Anwesenheit)",
         "whoAttended": "Wer ist gerade da",
-        "noAttendees": "Gerade ist niemand sonst aktiv — du wirst als Moderator:in erfasst.",
-        "viewerNote": "Betrachter:innen können mitverfolgen, das Protokoll aber nicht speichern.",
+        "noAttendees": "Nur du wirst erfasst.",
+        "viewerNote": "Nur Ansicht. Du kannst diese Besprechung nicht speichern.",
         "doneTitle": "Besprechung gespeichert",
-        "doneSubtitle": "Aufgaben sind jetzt nachverfolgte To-dos für die Zuständigen. Exportiere das Protokoll für deine Unterlagen oder beginne eine neue Besprechung.",
         "viewRecord": "Besprechungsprotokoll ansehen",
         "startNew": "Neue Besprechung beginnen"
       },
@@ -989,7 +981,7 @@
     },
     "trash": {
       "heading": "Papierkorb",
-      "description": "Gelöschte Elemente bleiben 30 Tage hier und werden dann endgültig entfernt.",
+      "description": "Gelöschte Elemente werden nach 30 Tagen entfernt.",
       "empty": "Der Papierkorb ist leer",
       "restore": "Wiederherstellen",
       "restored": "Wiederhergestellt",
@@ -1018,7 +1010,7 @@
       "title": "Versionsverlauf",
       "ariaLabel": "Versionsverlauf für {{title}}",
       "close": "Schließen",
-      "intro": "Aktuelle gespeicherte Versionen dieser geteilten Bewertung. Beim Wiederherstellen wird diese Version für alle erneut veröffentlicht – die aktuelle Version bleibt ebenfalls im Verlauf erhalten.",
+      "intro": "Beim Wiederherstellen wird die Kopie aller aktualisiert. Die aktuelle Version bleibt im Verlauf.",
       "loading": "Versionsverlauf wird geladen…",
       "loadError": "Versionsverlauf konnte nicht geladen werden.",
       "retry": "Erneut versuchen",
@@ -1122,7 +1114,7 @@
       "emptyTitle": "Noch keine Ressourcen",
       "emptySubtitle": "Dein Admin wird hier kuratierte Quizze, Dokumente und Tafeln bereitstellen.",
       "inboxTitle": "Ressourcen",
-      "inboxSubtitle": "Von deinem Admin kuratiert. Klicke auf „Verwenden“, um sie zu deiner PLG hinzuzufügen.",
+      "inboxSubtitle": "Von deinem Admin.",
       "kind": {
         "quiz": "Quizze",
         "video-activity": "Videoaktivitäten",
@@ -1202,7 +1194,7 @@
       "teamAverage": "Team-Durchschnitt",
       "notScoredYet": "Noch nicht bewertet",
       "students": "Gezählte Schüler:innen",
-      "studentsHint": "Schüler:innen werden pro Lehrkraft gezählt; wer in den Klassen zweier Lehrkräfte ist, zählt doppelt.",
+      "studentsHint": "Schüler:innen werden pro Lehrkraft gezählt, wer in den Klassen zweier Lehrkräfte ist, zählt also doppelt.",
       "teachers": "Lehrkräfte",
       "teachersOf": "{{count}} von {{total}}",
       "lastComputed": "Zuletzt aktualisiert",
@@ -1222,12 +1214,11 @@
       "scoreDistribution": "Punkteverteilung",
       "bandCount": "{{count}} Schüler · {{percent}} %",
       "scoredStudents": "{{count}} Schüler bewertet",
-      "distributionPending": "Das Diagramm erscheint nach der nächsten Aktualisierung der Ergebnisse, in wenigen Minuten.",
+      "distributionPending": "Das Diagramm aktualisiert sich in wenigen Minuten.",
       "distributionEmpty": "Das Diagramm füllt sich, sobald Lehrkräfte Ergebnisse veröffentlichen."
     },
     "learningTargets": {
-      "heading": "Lernziele",
-      "description": "Ziele, mit denen die PLG Quizfragen markiert. Alle Mitglieder sehen dieselbe Liste."
+      "heading": "Lernziele"
     }
   },
   "widgetWindow": {
@@ -1912,7 +1903,6 @@
     "notFoundBody": "Diese PLG existiert nicht oder Sie sind kein Mitglied mehr.",
     "backToBoard": "Zurück zu meiner Tafel",
     "hubTitle": "Meine PLGs",
-    "hubSubtitle": "Öffnen Sie eine professionelle Lerngemeinschaft, um mit Ihrem Team zusammenzuarbeiten.",
     "hubEmptyTitle": "Noch keine PLGs",
     "hubEmptySubtitle": "Erstellen Sie eine PLG in der Seitenleiste und laden Sie Ihre Kollegen ein.",
     "leadBadge": "Leitung",
@@ -1921,7 +1911,6 @@
   },
   "plcDirectory": {
     "heading": "PLGs in meinem Gebäude",
-    "subtitle": "Teams in Ihrem Gebäude, denen Sie beitreten können.",
     "memberCount": "{{count}} Mitglied",
     "memberCount_other": "{{count}} Mitglieder",
     "requestToJoin": "Beitritt anfragen",
@@ -3076,13 +3065,13 @@
     "noStandardsMatch": "Keine passenden Standards.",
     "pasteHint": "Ein Ziel pro Zeile. Optionaler Code vor einem senkrechten Strich: LT1 | Ich kann Brüche addieren.",
     "parsedCount": "{{count}} Ziele gefunden",
-    "csvHint": "Kopfzeile mit label (erforderlich); optional code, standards, grades (Werte mit ; trennen) und subject.",
+    "csvHint": "Kopfzeile mit label (erforderlich). Optionale Spalten sind code, standards, grades und subject. Mehrere Werte mit Semikolon trennen.",
     "csvLineError": "Zeile {{line}}: {{message}}",
     "csvUnknownStandards": "Unbekannte Standard-Codes werden übersprungen: {{codes}}",
     "importCount": "{{count}} importieren",
     "masteryCutoffs": {
       "heading": "Schwellenwerte",
-      "description": "Prozent richtig, damit ein Ziel als sicher oder annähernd erreicht gilt.",
+      "description": "Prozent richtig für jede Stufe.",
       "proficient": "Sicher",
       "approaching": "Annähernd",
       "save": "Schwellenwerte speichern"
@@ -3090,7 +3079,7 @@
     "saving": "Wird gespeichert…",
     "saveFailed": "Speichern fehlgeschlagen",
     "anySubject": "Beliebiges Fach",
-    "gradesSubjectHint": "Optional. Klassenstufen und Fach leer lassen, um sie von den verknüpften Standards zu übernehmen.",
+    "gradesSubjectHint": "Leer lassen, um Klassenstufen und Fach der verknüpften Standards zu übernehmen.",
     "csvUnknownSubjects": "Unbekannte Fächer werden übersprungen: {{subjects}}"
   },
   "settings": {
