@@ -272,7 +272,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
       <p className="text-sm text-slate-600">
         {t('plcDashboard.teammatePrint.pickerPrompt', {
           defaultValue:
-            'Whose classes are these sheets for? They still scan and grade their own stack — and they will see that you printed it.',
+            'Whose classes are these for? They will see that you printed them.',
         })}
       </p>
       {sortedTeammates.length === 0 ? (
@@ -326,7 +326,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
           <span>
             {t('plcDashboard.teammatePrint.copyDeferred', {
               defaultValue:
-                'This quiz is not in {{name}}’s library yet. It lands there, linked to the PLC’s shared copy, the next time they open SpartBoard — which is before they can scan this stack anyway.',
+                'This quiz goes into {{name}}’s library the next time they open SpartBoard.',
               name: context.targetName,
             })}
           </span>
@@ -340,7 +340,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
           <span>
             {t('plcDashboard.teammatePrint.noDrive', {
               defaultValue:
-                'SpartBoard cannot reach {{name}}’s Google Drive, so their students’ names are unavailable. This would print an unnamed stack — students write their own names and {{name}} assigns them while reviewing the scan.',
+                'Can’t reach {{name}}’s Google Drive, so sheets print without student names.',
               name: context.targetName,
             })}
           </span>
@@ -354,7 +354,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
           <span>
             {t('plcDashboard.teammatePrint.fromGroup', {
               defaultValue:
-                'These questions come from the PLC’s shared copy, not from {{name}}’s own. If they have edited theirs since, the sheets would not match it.',
+                'Uses the PLC’s shared copy. If {{name}} edited theirs, the sheets may not match.',
               name: context.targetName,
             })}
           </span>
@@ -372,13 +372,13 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
             {ownerName
               ? t('plcDashboard.teammatePrint.stimuliNotShared', {
                   defaultValue:
-                    'Not shared with the PLC: {{images}}. The sheet prints without them. Ask {{owner}} to share them from Print answer sheets.',
+                    '{{images}} aren’t shared with the PLC and won’t print. Ask {{owner}} to share them from Print answer sheets.',
                   images: failedStimulusNames,
                   owner: ownerName,
                 })
               : t('plcDashboard.teammatePrint.stimuliNotSharedNoOwner', {
                   defaultValue:
-                    'Not shared with the PLC: {{images}}. The sheet prints without them. Whoever added them can share them from Print answer sheets.',
+                    '{{images}} aren’t shared with the PLC and won’t print. Whoever added them can share them from Print answer sheets.',
                   images: failedStimulusNames,
                 })}
           </span>
@@ -395,7 +395,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
           <span>
             {t('plcDashboard.teammatePrint.alreadyPrinted', {
               defaultValue:
-                '{{count}} stack(s) for this quiz already exist for {{name}}. Printing again is allowed, but each student would get two sheets.',
+                '{{name}} already has {{count}} stack(s) for this quiz. Printing again gives each student a second sheet.',
               count: context.existingBatches.length,
               name: context.targetName,
             })}
@@ -540,7 +540,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
             <div>
               <p className="mb-2 text-xxs font-bold uppercase tracking-wider text-slate-500">
                 {t('plcDashboard.teammatePrint.classesHeading', {
-                  defaultValue: 'Which classes are sitting the test?',
+                  defaultValue: 'Classes',
                 })}
               </p>
               {rosterList}
@@ -610,13 +610,12 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
           <p className="mt-1 text-sm text-slate-600">
             {withdrawn
               ? t('plcDashboard.teammatePrint.removedBody', {
-                  defaultValue:
-                    'Recycle any paper that came out — those sheets can no longer be scanned.',
+                  defaultValue: 'Those sheets can no longer be scanned.',
                   name: printed.printedForTeacherName,
                 })
               : t('plcDashboard.teammatePrint.sentBody', {
                   defaultValue:
-                    'Now print the test paper. Its choices are lettered to match these sheets, so hand out this copy rather than one written by hand. {{name}} scans and grades the stack themselves.',
+                    'Now print the test paper to match these sheets.',
                   name: printed.printedForTeacherName,
                 })}
           </p>
@@ -629,8 +628,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
           <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <span>
             {t('plcDashboard.teammatePrint.copyCreated', {
-              defaultValue:
-                'This quiz was not in {{name}}’s library yet, so it was added and linked to the PLC’s shared copy for them.',
+              defaultValue: 'This quiz was added to {{name}}’s library.',
               name: printed.printedForTeacherName,
             })}
           </span>
@@ -644,7 +642,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
           <span>
             {t('plcDashboard.teammatePrint.copyPending', {
               defaultValue:
-                'This quiz was not in {{name}}’s library yet. It lands there, linked to the PLC’s shared copy, the next time they open SpartBoard — which is before they can scan this stack.',
+                'This quiz goes into {{name}}’s library the next time they open SpartBoard.',
               name: printed.printedForTeacherName,
             })}
           </span>

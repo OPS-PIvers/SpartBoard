@@ -468,7 +468,13 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
 
         <dl className="mt-4 grid grid-cols-3 gap-3">
           <div className="bg-slate-50 rounded-xl px-3 py-2.5">
-            <dt className="text-xxs font-bold uppercase tracking-wider text-slate-500">
+            <dt
+              className="text-xxs font-bold uppercase tracking-wider text-slate-500"
+              title={t('plcDashboard.assessmentDetail.studentsHint', {
+                defaultValue:
+                  'Students are counted per teacher, so a student in two teachers’ classes counts twice.',
+              })}
+            >
               {t('plcDashboard.assessmentDetail.students', {
                 defaultValue: 'Students counted',
               })}
@@ -506,12 +512,6 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
             </dd>
           </div>
         </dl>
-        <p className="text-xs text-slate-500 mt-3">
-          {t('plcDashboard.assessmentDetail.studentsHint', {
-            defaultValue:
-              'Students are counted per teacher; a student in two teachers’ classes counts twice.',
-          })}
-        </p>
 
         {aggregate?.alignmentWarning && (
           <div
@@ -586,8 +586,7 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
               <p className="text-sm text-slate-500">
                 {scored
                   ? t('plcDashboard.assessmentDetail.distributionPending', {
-                      defaultValue:
-                        'The chart appears after the next results refresh, within a few minutes.',
+                      defaultValue: 'Chart updates in a few minutes.',
                     })
                   : t('plcDashboard.assessmentDetail.distributionEmpty', {
                       defaultValue:

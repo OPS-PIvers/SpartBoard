@@ -50,11 +50,6 @@ const AFFECTED_KEYS: Array<{ path: string; expectedEs: string }> = [
       'Cuando el equipo aplique una evaluación común en modo Comunidad, los resultados anonimizados aparecerán aquí, listos para revisarlos juntos.',
   },
   {
-    path: 'plcDashboard.meeting.act.subtitle',
-    expectedEs:
-      'Crea elementos de acción. Al guardar, cada uno se convierte en una tarea seguida de la Comunidad para su responsable.',
-  },
-  {
     path: 'plcDashboard.search.ariaLabel',
     expectedEs: 'Buscar en esta Comunidad',
   },
@@ -128,11 +123,6 @@ const AFFECTED_KEYS: Array<{ path: string; expectedEs: string }> = [
   {
     path: 'plcDashboard.resources.useSuccess',
     expectedEs: '«{{title}}» se añadió a esta Comunidad.',
-  },
-  {
-    path: 'plcDashboard.resources.inboxSubtitle',
-    expectedEs:
-      'Curado por tu administrador. Haz clic en «Usar» para agregarlo a tu Comunidad.',
   },
   {
     path: 'plcDashboard.resources.usedStatus',

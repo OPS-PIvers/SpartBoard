@@ -173,12 +173,6 @@ export const PlcMeetingPickStep: React.FC<PickStepProps> = ({
             defaultValue: 'What are we looking at today?',
           })}
         </h2>
-        <p className="text-base text-slate-600 mt-1">
-          {t('plcDashboard.meeting.pick.subtitle', {
-            defaultValue:
-              'Choose the common assessment (or assessments) this meeting reviews.',
-          })}
-        </p>
       </header>
 
       {cards.length === 0 ? (
@@ -315,12 +309,6 @@ export const PlcMeetingDecideStep: React.FC<DecideStepProps> = ({
             defaultValue: 'What did we decide?',
           })}
         </h2>
-        <p className="text-base text-slate-600 mt-1">
-          {t('plcDashboard.meeting.decide.subtitle', {
-            defaultValue:
-              'Capture the team’s decisions. Link one to a data card from Review when it responds to a specific result.',
-          })}
-        </p>
       </header>
 
       {canEdit && (
@@ -493,12 +481,6 @@ export const PlcMeetingActStep: React.FC<ActStepProps> = ({
             defaultValue: 'Who’s doing what?',
           })}
         </h2>
-        <p className="text-base text-slate-600 mt-1">
-          {t('plcDashboard.meeting.act.subtitle', {
-            defaultValue:
-              'Spin up action items. On save, each becomes a tracked PLC to-do for its assignee.',
-          })}
-        </p>
       </header>
 
       {canEdit && (

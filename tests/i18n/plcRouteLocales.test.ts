@@ -29,7 +29,6 @@ const REQUIRED_PLC_ROUTE_KEYS = [
   'notFoundBody',
   'backToBoard',
   'hubTitle',
-  'hubSubtitle',
   'hubEmptyTitle',
   'hubEmptySubtitle',
   'leadBadge',
