@@ -7,7 +7,7 @@ import {
   serverTimestamp,
   setDoc,
 } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db, isAuthBypass } from '@/config/firebase';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 import { useAuth } from '@/context/useAuth';
 import { logError } from '@/utils/logError';
@@ -45,6 +45,10 @@ export const useGlobalPermissionsEditor = () => {
   }, []);
 
   useEffect(() => {
+    if (isAuthBypass) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     getDocs(collection(db, 'global_permissions'))
       .then((snapshot) => {

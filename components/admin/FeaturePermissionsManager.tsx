@@ -18,8 +18,7 @@ import {
   ALL_GRADE_LEVELS,
 } from '@/config/widgetGradeLevels';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
-import { LayoutGrid, List, Filter, ChevronDown } from 'lucide-react';
-import { useIsMobile } from '@/hooks/useIsMobile';
+import { Filter, ChevronDown } from 'lucide-react';
 import { Toast } from '@/components/common/Toast';
 
 import { GenericConfigurationModal } from '@/components/admin/GenericConfigurationModal';
@@ -45,14 +44,17 @@ import {
   AccessSearchEmpty,
   AdminSearchField,
 } from '@/components/admin/access/AdminSearchField';
-import { matchesSearch } from '@/components/admin/access/accessSearch';
+import {
+  matchesSearch,
+  widgetSearchFields,
+  widgetSubFeatures,
+} from '@/components/admin/access/accessSearch';
+import { AccessFeatureRow } from '@/components/admin/access/AccessFeatureRow';
+import { useGlobalPermissionsEditor } from '@/components/admin/access/useGlobalPermissionsEditor';
 
 export const FeaturePermissionsManager: React.FC = () => {
   const { showConfirm } = useDialog();
-  const isMobile = useIsMobile();
   const buildings = useAdminBuildings();
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
-  const effectiveViewMode = isMobile ? 'grid' : viewMode;
   const [showFilters, setShowFilters] = useState(false);
   const [permissions, setPermissions] = useState<
     Map<WidgetType | InternalToolType, FeaturePermission>
@@ -83,6 +85,7 @@ export const FeaturePermissionsManager: React.FC = () => {
   >('all');
   const [filterBuilding, setFilterBuilding] = useState<string>('all');
   const { query } = useAccessSearch();
+  const globalEditor = useGlobalPermissionsEditor();
 
   const showMessage = useCallback((type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -328,12 +331,7 @@ export const FeaturePermissionsManager: React.FC = () => {
             return false;
         }
       }
-      return matchesSearch(query, [
-        tool.label,
-        perm.displayName,
-        tool.type,
-        ...(tool.keywords ?? []),
-      ]);
+      return matchesSearch(query, widgetSearchFields(tool, perm.displayName));
     });
   }, [
     permissions,
@@ -413,6 +411,13 @@ export const FeaturePermissionsManager: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      {globalEditor.message && (
+        <Toast
+          message={globalEditor.message.text}
+          type={globalEditor.message.type}
+          onClose={() => globalEditor.setMessage(null)}
+        />
+      )}
       {/* Message Toast */}
       {message && (
         <Toast
@@ -458,36 +463,6 @@ export const FeaturePermissionsManager: React.FC = () => {
             <div className="w-px h-5 bg-slate-200" />
             {renderBuildingFilter()}
           </div>
-
-          {/* View Mode Toggle - hidden on mobile */}
-          <div className="ml-auto hidden md:flex bg-white p-0.5 rounded-lg border border-slate-200">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-md transition-all ${
-                viewMode === 'grid'
-                  ? 'bg-slate-100 text-brand-blue-primary shadow-sm'
-                  : 'text-slate-400 hover:text-slate-600'
-              }`}
-              title="Grid View"
-              aria-label="Grid view"
-              aria-pressed={viewMode === 'grid'}
-            >
-              <LayoutGrid size={16} />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-md transition-all ${
-                viewMode === 'list'
-                  ? 'bg-slate-100 text-brand-blue-primary shadow-sm'
-                  : 'text-slate-400 hover:text-slate-600'
-              }`}
-              title="List View"
-              aria-label="List view"
-              aria-pressed={viewMode === 'list'}
-            >
-              <List size={16} />
-            </button>
-          </div>
         </div>
 
         {/* Mobile: collapsible filter content */}
@@ -511,13 +486,7 @@ export const FeaturePermissionsManager: React.FC = () => {
             fallback="No widgets match the current filters."
           />
         )}
-        <div
-          className={
-            effectiveViewMode === 'grid'
-              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
-              : 'space-y-3'
-          }
-        >
+        <div className="space-y-2">
           {filteredTools.map((tool) => {
             const permission = getPermission(tool.type);
             const isSaving = saving.has(tool.type);
@@ -528,11 +497,31 @@ export const FeaturePermissionsManager: React.FC = () => {
               currentLevels.includes(l)
             );
 
+            const subIds = widgetSubFeatures(tool.type);
             return (
               <WidgetPermissionCardBody
                 key={tool.type}
-                variant={effectiveViewMode === 'list' ? 'list' : 'grid'}
                 tool={tool}
+                subFeatureCount={subIds.length}
+                subFeatures={
+                  subIds.length > 0
+                    ? subIds.map((id) => (
+                        <AccessFeatureRow
+                          key={id}
+                          featureId={id}
+                          permission={globalEditor.getPermission(id)}
+                          isSaved={globalEditor.isSaved(id)}
+                          isSaving={globalEditor.saving.has(id)}
+                          hasUnsaved={globalEditor.unsavedChanges.has(id)}
+                          onUpdate={(updates) =>
+                            globalEditor.updatePermission(id, updates)
+                          }
+                          onSave={() => void globalEditor.savePermission(id)}
+                          showMessage={showMessage}
+                        />
+                      ))
+                    : undefined
+                }
                 permission={permission}
                 currentLevels={currentLevels}
                 isAllSelected={isAllSelected}

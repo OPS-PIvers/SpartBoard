@@ -14,7 +14,7 @@ const snapshotData: Record<string, Record<string, unknown> | undefined> = {
   sub_launch_as_teacher: undefined,
 };
 
-vi.mock('@/config/firebase', () => ({ db: {} }));
+vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
 vi.mock('firebase/firestore', () => ({
   doc: (_db: unknown, collection: string, id: string) => ({
     path: `${collection}/${id}`,

@@ -1,6 +1,6 @@
 # Admin Access pages: Widgets, Features, Previews
 
-Status: 2026-09-25. Planned. Decisions settled with Paul in a grill-me session; no code yet.
+Status: 2026-09-25. Built in four PRs (below). Decisions settled with Paul in a grill-me session. Not yet done: the D3 migration script has not been run on either project.
 
 ## Problem
 
@@ -153,7 +153,11 @@ Four PRs, each independently shippable. PR 1 needs nothing from the others.
 
 ## Open follow-ups
 
-- Once PR 2 lands, the retire-list flags that are already Public in prod are candidates for the
-  first retirement PRs.
+- The retire-list flags already Public in prod are candidates for the first retirement PRs; the
+  Previews tab marks them "Ready to retire".
+- PR 2 did not check each "keep" row against prod `global_permissions`: stages follow the in-code
+  default (admin default = preview). A keep flag that is already Public shows "Ready to graduate".
+- Run `scripts/migrate-internal-tool-permissions.mjs --project prod` (dry run) and apply, then drop
+  the D3 fallback (`LEGACY_TOOL_FEATURES`) and the three retired ids one release later.
 - Whether rollout switches can eventually collapse into their flag (one gate instead of two) is
   deferred; it touches functions and rules per feature.

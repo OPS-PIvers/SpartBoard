@@ -19,15 +19,12 @@ import { useGlobalPermissionsEditor } from './useGlobalPermissionsEditor';
 
 const GEMINI_MODEL_FIELDS = ['Gemini models', 'model overrides', 'AI'];
 
-type SectionKey = FeatureCategory | 'widgets';
+type SectionKey = FeatureCategory;
 
-const SECTION_LABELS: Record<SectionKey, string> = {
-  ...FEATURE_CATEGORY_LABELS,
-  widgets: 'Widget features',
-};
+const SECTION_LABELS = FEATURE_CATEGORY_LABELS;
 
-const sectionOf = (id: GlobalFeature): SectionKey =>
-  FEATURE_DEFAULTS[id].category ?? 'widgets';
+const sectionOf = (id: GlobalFeature): SectionKey | undefined =>
+  FEATURE_DEFAULTS[id].category;
 
 /** Permanent app-wide capabilities, grouped by category (plan D10). */
 export const FeaturesPanel: React.FC = () => {

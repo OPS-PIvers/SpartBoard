@@ -14,10 +14,33 @@ export const ACCESS_TAB_LABELS: Record<AccessTabId, string> = {
   previews: 'Previews',
 };
 
-export const FEATURES_TAB_FEATURES = ALL_GLOBAL_FEATURES.filter(
-  (id) =>
-    FEATURE_DEFAULTS[id].stage === 'permanent' && !FEATURE_DEFAULTS[id].home
-);
+export const FEATURES_TAB_FEATURES = ALL_GLOBAL_FEATURES.filter((id) => {
+  const def = FEATURE_DEFAULTS[id];
+  return def.stage === 'permanent' && !def.home && !def.widget;
+});
+
+/** Permanent features a widget owns, shown as switches on its Widgets row (plan PR 4). */
+export const widgetSubFeatures = (widget: string): GlobalFeature[] =>
+  ALL_GLOBAL_FEATURES.filter(
+    (id) =>
+      FEATURE_DEFAULTS[id].stage === 'permanent' &&
+      FEATURE_DEFAULTS[id].widget === widget
+  );
+
+export const widgetSearchFields = (
+  tool: { label: string; type: string; keywords?: string[] },
+  displayName?: string
+): string[] => [
+  tool.label,
+  displayName ?? '',
+  tool.type,
+  ...(tool.keywords ?? []),
+  ...widgetSubFeatures(tool.type).flatMap((id) => [
+    FEATURE_DEFAULTS[id].label,
+    FEATURE_DEFAULTS[id].description,
+    id,
+  ]),
+];
 
 export const PREVIEW_FEATURES = ALL_GLOBAL_FEATURES.filter(
   (id) => FEATURE_DEFAULTS[id].stage === 'preview'
@@ -58,7 +81,7 @@ export const matchesSearch = (
 
 const ROWS: Record<AccessTabId, readonly (readonly (string | undefined)[])[]> =
   {
-    widgets: TOOLS.map((t) => [t.label, t.type, ...(t.keywords ?? [])]),
+    widgets: TOOLS.map((t) => widgetSearchFields(t)),
     features: [
       ...FEATURES_TAB_FEATURES.map(featureSearchFields),
       ['Gemini models', 'model overrides', 'AI'],

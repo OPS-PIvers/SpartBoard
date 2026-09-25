@@ -4,7 +4,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 
-vi.mock('@/config/firebase', () => ({ db: {} }));
+vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(() => 'col'),

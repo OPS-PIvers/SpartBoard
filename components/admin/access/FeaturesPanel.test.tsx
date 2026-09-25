@@ -31,7 +31,7 @@ vi.mock('lucide-react', () => {
   });
 });
 
-vi.mock('@/config/firebase', () => ({ db: {} }));
+vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
 
 const existingPermission = {
   featureId: 'live-session',
