@@ -20,6 +20,8 @@ import {
 
 interface NotesDocsBodyProps {
   plc: Plc;
+  /** Opens the Google Docs tab on this doc. */
+  docId?: string | null;
 }
 
 type NotesDocsTab = 'notes' | 'docs';
@@ -39,12 +41,15 @@ type NotesDocsTab = 'notes' | 'docs';
  *
  * Modal chrome — normal Tailwind sizing (no container-query units).
  */
-export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({ plc }) => {
+export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
+  plc,
+  docId = null,
+}) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addToast } = useDashboard();
   const canEdit = useCanEditPlcContent();
-  const [tab, setTab] = useState<NotesDocsTab>('notes');
+  const [tab, setTab] = useState<NotesDocsTab>(docId ? 'docs' : 'notes');
   const [rollupOpen, setRollupOpen] = useState(false);
   const [selectNoteId, setSelectNoteId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
@@ -257,7 +262,7 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({ plc }) => {
             aria-labelledby="plc-notesdocs-tab-docs"
             className="h-full bg-white border border-slate-200 rounded-2xl overflow-hidden"
           >
-            <PlcDocsBody plc={plc} />
+            <PlcDocsBody plc={plc} requestedDocId={docId} />
           </div>
         )}
       </div>

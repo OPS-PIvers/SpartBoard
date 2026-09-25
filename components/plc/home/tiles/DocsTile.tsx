@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ExternalLink, FileText, NotebookPen } from 'lucide-react';
+import { FileText, NotebookPen } from 'lucide-react';
 import {
   usePlcDocsData,
   usePlcMembers,
@@ -16,23 +16,13 @@ import type { PlcHomeTileProps } from './tileTypes';
 const COMPACT_LIMIT = 3;
 const HERO_LIMIT = 8;
 
-function isSafeHttpUrl(value: string): boolean {
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
-
 const DocRow: React.FC<{
   item: RecentDocItem;
   hero: boolean;
-  onOpenNotes: () => void;
-}> = ({ item, hero, onOpenNotes }) => {
+  onOpen: () => void;
+}> = ({ item, hero, onOpen }) => {
   const { t, i18n } = useTranslation();
   const Icon = item.kind === 'doc' ? FileText : NotebookPen;
-  const safeUrl = item.url && isSafeHttpUrl(item.url) ? item.url : null;
   const meta = hero
     ? [item.author, formatActivityRelativeTime(item.at, t, i18n.language)]
         .filter(Boolean)
@@ -50,32 +40,17 @@ const DocRow: React.FC<{
           <span className="block truncate text-xs text-slate-400">{meta}</span>
         )}
       </span>
-      {safeUrl && (
-        <ExternalLink
-          className="h-3.5 w-3.5 shrink-0 text-slate-300"
-          aria-hidden="true"
-        />
-      )}
     </>
   );
-  const rowClass =
-    'flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40';
   return (
     <li>
-      {safeUrl ? (
-        <a
-          href={safeUrl}
-          target="_blank"
-          rel="noreferrer noopener"
-          className={rowClass}
-        >
-          {body}
-        </a>
-      ) : (
-        <button type="button" onClick={onOpenNotes} className={rowClass}>
-          {body}
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+      >
+        {body}
+      </button>
     </li>
   );
 };
@@ -126,7 +101,11 @@ export const DocsTile: React.FC<PlcHomeTileProps> = ({
               key={item.id}
               item={item}
               hero={hero}
-              onOpenNotes={openNotes}
+              onOpen={
+                item.kind === 'doc'
+                  ? () => ctx.onOpenDoc(item.sourceId)
+                  : openNotes
+              }
             />
           ))}
         </ul>
