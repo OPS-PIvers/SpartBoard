@@ -27,6 +27,8 @@ export interface ImportPaperWrittenPayload {
   page: number;
   state: 'ink' | 'blank';
   storagePath: string;
+  /** The uploaded crop's type; the modal fills it from the encoded blob. */
+  mimeType?: 'image/webp' | 'image/png';
 }
 
 /** Client mirror of the function's `ImportPaperSheet`. */
