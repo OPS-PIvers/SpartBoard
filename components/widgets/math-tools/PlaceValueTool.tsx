@@ -319,6 +319,7 @@ export const PlaceValueTool: React.FC<PlaceValueToolProps> = ({
               }}
               style={{ cursor: draggingBlockId === b.id ? 'grabbing' : 'grab' }}
             >
+              <title>Right-click to decompose. Double-click to delete.</title>
               <BlockShape type={b.type} />
               {/* Invisible interaction layer */}
               <rect
@@ -329,11 +330,6 @@ export const PlaceValueTool: React.FC<PlaceValueToolProps> = ({
             </g>
           ))}
         </svg>
-        <div className="absolute bottom-2 left-0 w-full text-center pointer-events-none">
-          <p className="text-slate-400 text-xs font-bold italic drop-shadow-sm bg-white/70 inline-block px-2 rounded-full">
-            Drag to move. Right-click to decompose. Double-click to delete.
-          </p>
-        </div>
       </div>
     </div>
   );

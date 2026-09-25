@@ -353,10 +353,7 @@ export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = ({
         onChange={setPickerValue}
       />
       {!hasSsoClass && (
-        <p className="text-xs text-slate-500">
-          Choose at least one ClassLink class. Assigned sets reach students who
-          sign in with ClassLink.
-        </p>
+        <p className="text-xs text-slate-500">Choose at least one class.</p>
       )}
       <AssignTargetingSection
         rosters={rosters}

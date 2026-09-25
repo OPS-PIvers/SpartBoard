@@ -28,7 +28,7 @@ interface LabelledListProps {
   legend: string;
   /** Singular noun used for the per-item labels under the plural legend. */
   itemNoun: string;
-  hint: string;
+  hint?: string;
   addLabel: string;
   items: ActivityWallSection[];
   onChange: (items: ActivityWallSection[]) => void;
@@ -56,7 +56,7 @@ const LabelledList: React.FC<LabelledListProps> = ({
   return (
     <fieldset className="space-y-2">
       <legend className="text-sm font-bold text-slate-700">{legend}</legend>
-      <p className="text-xs text-slate-600">{hint}</p>
+      {hint && <p className="text-xs text-slate-600">{hint}</p>}
       {items.length === 0 && (
         <p className="text-xs text-slate-600">Nothing added yet.</p>
       )}
@@ -151,7 +151,6 @@ export const SectionsEditor: React.FC<SectionsEditorProps> = ({
         <LabelledList
           legend="Rows"
           itemNoun="Row"
-          hint="Rows run down the left edge of the table."
           addLabel="Add row"
           items={value.tableRows ?? []}
           onChange={(tableRows) => onChange({ tableRows })}
@@ -159,7 +158,6 @@ export const SectionsEditor: React.FC<SectionsEditorProps> = ({
         <LabelledList
           legend="Columns"
           itemNoun="Column"
-          hint="Columns run across the top of the table."
           addLabel="Add column"
           items={value.tableCols ?? []}
           onChange={(tableCols) => onChange({ tableCols })}
@@ -175,8 +173,7 @@ export const SectionsEditor: React.FC<SectionsEditorProps> = ({
         <div>
           <p className="text-sm font-bold text-slate-700">Starting view</p>
           <p className="text-xs text-slate-600">
-            Tap the map to set where students start. They can still pan
-            anywhere.
+            Tap the map to set the start view.
           </p>
         </div>
         <Suspense

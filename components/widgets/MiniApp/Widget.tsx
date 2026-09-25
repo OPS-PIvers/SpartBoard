@@ -239,13 +239,6 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                   {assignmentName}
                 </p>
               </div>
-              <p
-                className="text-slate-600 text-center"
-                style={{ fontSize: 'min(14px, 5.5cqmin)' }}
-              >
-                Share this link with your students. They&apos;ll interact with
-                the app immediately.
-              </p>
               {skippedStudentNames.length > 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                   <p className="text-xs font-bold text-amber-800">
@@ -358,18 +351,10 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                   className="text-slate-600 text-center"
                   style={{ fontSize: 'min(14px, 5.5cqmin)' }}
                 >
-                  Anyone with the link can view this app. No submissions are
-                  collected — view counts appear in the Shared archive.
+                  Anyone with the link can open it.
                 </p>
               ) : (
                 <>
-                  <p
-                    className="text-slate-600 text-center"
-                    style={{ fontSize: 'min(14px, 5.5cqmin)' }}
-                  >
-                    Name this assignment, then share the generated link with
-                    students.
-                  </p>
                   <div
                     className="bg-slate-50 border border-slate-200 rounded-xl"
                     style={{ padding: 'min(12px, 3cqmin)' }}
@@ -416,8 +401,7 @@ const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                         marginTop: 'min(8px, 2cqmin)',
                       }}
                     >
-                      Enrolled students will see this in their assignments list.
-                      Leave unselected to share the link directly.
+                      Leave empty to share by link only.
                     </p>
                   </div>
                   <AssignTargetingSection

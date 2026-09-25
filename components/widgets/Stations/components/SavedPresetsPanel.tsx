@@ -124,8 +124,7 @@ export const SavedPresetsPanel: React.FC<SavedPresetsPanelProps> = ({
             Saved Presets
           </p>
           <p className="text-xxs text-slate-400">
-            Reuse a station setup later. Stations only — student assignments
-            aren&apos;t saved.
+            Student placements aren&apos;t saved.
           </p>
         </div>
         <button

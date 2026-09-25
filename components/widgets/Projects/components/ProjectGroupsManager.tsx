@@ -380,9 +380,8 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
       {classPicker(isDirty)}
       {!hasSignIn && (
         <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          {roster.name} is a hand-built roster, so its students have no district
-          sign-in and can&apos;t be put in groups here. You can still name
-          groups and move them along the board yourself.
+          {roster.name} has no student sign-in. You can still track groups
+          yourself.
         </p>
       )}
 
@@ -410,14 +409,13 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
           </button>
         )}
         <p className="text-xs text-slate-500 sm:ml-auto">
-          Tap a student, then tap where they go. You can also drag them.
+          Tap or drag students into groups.
         </p>
       </div>
 
       {namesPending && (
         <p role="status" className="text-xs text-slate-500">
-          Loading student names. You can rename, add and delete groups
-          meanwhile.
+          Loading names…
         </p>
       )}
 

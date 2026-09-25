@@ -1415,7 +1415,7 @@
     "onboarding": {
       "title": "Erste Schritte",
       "allDone": "Alles erledigt!",
-      "footer": "Sie sind bereit – schließen Sie dieses Widget jederzeit!",
+      "footer": "Sie können dieses Widget jetzt schließen.",
       "tasks": {
         "addWidget": {
           "label": "Widget aus dem Dock hinzufügen",

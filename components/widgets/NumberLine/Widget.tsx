@@ -396,7 +396,7 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
               fontSize: 'min(12px, 6cqmin)',
             }}
           >
-            Click axis to add markers. Use settings to add jumps.
+            Click the line to add a marker.
           </div>
         </div>
       }

@@ -2711,7 +2711,7 @@
     "onboarding": {
       "title": "Getting Started",
       "allDone": "All done!",
-      "footer": "You're all set — close this widget anytime!",
+      "footer": "You can close this widget now.",
       "tasks": {
         "addWidget": {
           "label": "Add a widget from the Dock",

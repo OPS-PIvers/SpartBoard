@@ -117,7 +117,9 @@ describe('ProjectSetupGroupsModal', () => {
         groups: [{ name: 'Team A', studentIds: ['t1', 't2'] }],
       },
     });
-    expect(screen.queryByText(/hand-built roster/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/has no student sign-in/)
+    ).not.toBeInTheDocument();
     expect(screen.getByText(/Kid Two/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Add 1 group' }));
 
@@ -156,9 +158,7 @@ describe('ProjectSetupGroupsModal', () => {
     fireEvent.change(screen.getByLabelText('Class'), {
       target: { value: 'roster-2' },
     });
-    expect(
-      screen.getByText(/no district account to sign in with/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/has no student sign-in/)).toBeInTheDocument();
   });
 
   // D9 — a re-import lands alongside tracked work, never on top of it.
