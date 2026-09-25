@@ -89,6 +89,7 @@ export const STUDIO_STEP_FIELDS = [
   'calloutWidthPct',
   'calloutScale',
   'calloutTone',
+  'calloutBox',
   'cursor',
   'narration',
   'tour',

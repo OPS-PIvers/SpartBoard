@@ -46,6 +46,7 @@ const PRESENTATION_FIELDS = [
   'calloutWidthPct',
   'calloutScale',
   'calloutTone',
+  'calloutBox',
   'cursor',
 ] as const;
 

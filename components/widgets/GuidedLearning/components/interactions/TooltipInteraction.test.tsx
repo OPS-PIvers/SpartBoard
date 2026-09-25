@@ -198,3 +198,46 @@ describe('TooltipInteraction callout style', () => {
     ).toMatch(/^M [\d.-]+ [\d.-]+ C /);
   });
 });
+
+describe('TooltipInteraction explicit box', () => {
+  it('renders at the stored box and ignores pin, width and position', () => {
+    render(
+      <TooltipInteraction
+        step={{
+          ...baseStep,
+          xPct: 50,
+          yPct: 50,
+          tooltipPosition: 'right',
+          calloutWidthPct: 80,
+          calloutScale: 2,
+        }}
+        containerWidth={800}
+        containerHeight={400}
+        pinned={{ x: 400, y: 300 }}
+        box={{ x: 40, y: 30, w: 200, h: 90 }}
+      />
+    );
+    expect(card().style.left).toBe('40px');
+    expect(card().style.top).toBe('30px');
+    expect(card().style.width).toBe('200px');
+    expect(card().style.minHeight).toBe('90px');
+  });
+
+  it('draws the connector from the box edge nearest the hotspot', () => {
+    render(
+      <TooltipInteraction
+        step={{ ...baseStep, xPct: 50, yPct: 50 }}
+        containerWidth={800}
+        containerHeight={400}
+        target={{ x: 380, y: 180, w: 40, h: 40 }}
+        box={{ x: 40, y: 30, w: 200, h: 90 }}
+      />
+    );
+    const d =
+      screen
+        .getByTestId('gl-callout-arrow')
+        .querySelector('path')
+        ?.getAttribute('d') ?? '';
+    expect(d.startsWith('M 240 120')).toBe(true);
+  });
+});

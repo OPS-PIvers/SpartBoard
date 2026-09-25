@@ -56,6 +56,39 @@ function validateCalloutStyle(step, path) {
   return true;
 }
 
+// Fields an explicit calloutBox replaces; the app clears them when it writes a box.
+const BOX_REPLACED_FIELDS = [
+  'calloutPin',
+  'calloutWidthPct',
+  'calloutScale',
+  'tooltipPosition',
+  'tooltipOffset',
+];
+
+function validateCalloutBox(step, path) {
+  const box = step.calloutBox;
+  if (box === undefined) return false;
+  if (!hasCallout(step)) {
+    fail(
+      `${path}.calloutBox only applies to tooltip and text-popover steps, or a popover or tooltip showOverlay`
+    );
+  }
+  if (!isObject(box)) fail(`${path}.calloutBox must be an object`);
+  for (const key of ['xPct', 'yPct']) {
+    if (!inRange(box[key], -500, 500)) {
+      fail(`${path}.calloutBox.${key} must be a number from -500 to 500`);
+    }
+  }
+  for (const key of ['wPct', 'hPct']) {
+    if (!inRange(box[key], 1, 500)) {
+      fail(`${path}.calloutBox.${key} must be a number from 1 to 500`);
+    }
+  }
+  const replaced = BOX_REPLACED_FIELDS.find((key) => step[key] !== undefined);
+  if (replaced) fail(`${path}.${replaced}: omit it when calloutBox is set`);
+  return true;
+}
+
 function validateRegion(step, path) {
   const region = step.region;
   if (!isObject(region)) fail(`${path}.region must be an object`);
@@ -132,8 +165,8 @@ export function validateGlSet(set, { tourAnchorIds = null } = {}) {
   if (typeof set.title !== 'string' || !set.title.trim()) {
     fail('title must be a non-empty string');
   }
-  if (![2, 3, 4].includes(set.schemaVersion)) {
-    fail('schemaVersion must be 2, 3 or 4');
+  if (![2, 3, 4, 5].includes(set.schemaVersion)) {
+    fail('schemaVersion must be 2, 3, 4 or 5');
   }
   if (
     set.watchPace !== undefined &&
@@ -208,6 +241,7 @@ export function validateGlSet(set, { tourAnchorIds = null } = {}) {
   ]);
   const ids = new Set();
   let usesCalloutStyle = false;
+  let usesCalloutBox = false;
 
   set.steps.forEach((step, index) => {
     const path = `steps[${index}]`;
@@ -258,6 +292,7 @@ export function validateGlSet(set, { tourAnchorIds = null } = {}) {
       }
     }
     if (validateCalloutStyle(step, path)) usesCalloutStyle = true;
+    if (validateCalloutBox(step, path)) usesCalloutBox = true;
     if (
       step.cursor !== undefined &&
       (!isObject(step.cursor) ||
@@ -308,7 +343,13 @@ export function validateGlSet(set, { tourAnchorIds = null } = {}) {
       }
     }
   });
-  if (usesCalloutStyle && set.schemaVersion !== 4) {
+  if (usesCalloutBox && set.schemaVersion !== 5) {
+    fail('schemaVersion must be 5 when a step sets calloutBox');
+  }
+  if (!usesCalloutBox && set.schemaVersion === 5) {
+    fail('schemaVersion must be 5 only when a step sets calloutBox');
+  }
+  if (!usesCalloutBox && usesCalloutStyle && set.schemaVersion !== 4) {
     fail(
       'schemaVersion must be 4 when a step sets calloutWidthPct, calloutScale or calloutTone'
     );
