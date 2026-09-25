@@ -3568,6 +3568,8 @@ export interface QuizQuestion {
   maxWords?: number;
   /** Free Response only. When set, Submit is disabled outside the word range. */
   enforceWordLimit?: boolean;
+  /** Free Response only. Size of the lined box on paper answer sheets. */
+  paperBoxSize?: PaperBoxSize;
   /**
    * Free Response only (M12 rubrics). Id of the rubric in the teacher's
    * `/users/{teacherUid}/rubrics` library that produced `rubricSnapshot`.
@@ -4477,6 +4479,8 @@ export interface QuizSession
    * for publishes made before that move.
    */
   scoreVisibility?: QuizScoreVisibility;
+  /** Copied from Publish Scores when paper written answers exist; cleared on unpublish. */
+  writtenReturnMode?: WrittenReturnMode;
   /**
    * Mirror of QuizAssignment.protection so the student app — which only reads
    * /quiz_sessions — can decide whether to mount watermark + tab-warning UI.
@@ -4580,7 +4584,13 @@ export type UnrespondedReason =
 /** Which response slot an artifact fills: the answer itself, or a supporting addendum. */
 export type ArtifactSlot = 'primary' | 'addendum';
 /** Full peer-mode union; only `'audio'` (and inline `'text'`) ships today. */
-export type ArtifactKind = 'text' | 'audio' | 'video' | 'whiteboard';
+export type ArtifactKind =
+  | 'text'
+  | 'audio'
+  | 'video'
+  | 'whiteboard'
+  /** A cropped paper answer box, uploaded by the teacher at import. */
+  | 'handwriting';
 /** Upload is its own axis, separate from the student-intent `status` on the answer. */
 export type ArtifactUploadState = 'pending' | 'uploaded' | 'failed';
 
@@ -4657,6 +4667,67 @@ export interface QuizResponseAnswer {
    * routing. Absent means English; the key is omitted, never written undefined.
    */
   locale?: string;
+  /** Paper written answers: the scan that produced this answer. */
+  paperScanId?: string;
+  /** Paper written answers: public transcription state; failures read as `'pending'`. */
+  paperTranscript?: PaperTranscriptState;
+}
+
+/** Size of a handwritten answer box on a paper sheet; S/M/L are line counts, full is a page. */
+export type PaperBoxSize = 'S' | 'M' | 'L' | 'full';
+
+/** Public transcription state on a paper written answer. */
+export type PaperTranscriptState = 'pending' | 'done' | 'blank';
+
+/** Teacher-side transcription state, kept in the private subdoc. */
+export type PaperPrivateStatus =
+  | 'pending'
+  | 'done'
+  | 'failed'
+  | 'blank'
+  | 'over-quota';
+
+/** `quiz_sessions/{sid}/responses/{key}/paperPrivate/{questionId}`: teacher-only AI internals. */
+export interface PaperPrivateAnswer {
+  scanId: string;
+  status: PaperPrivateStatus;
+  /** Model output, plain text. */
+  rawTranscript?: string;
+  /** Offsets into `rawTranscript`. */
+  uncertainSpans?: { start: number; end: number }[];
+  illegibleCount?: number;
+  attempts: number;
+  lastError?: string;
+  charged: boolean;
+  editedBy?: string;
+  editedAt?: number;
+  updatedAt: number;
+}
+
+/** How a student sees a handwritten answer once responses are published. */
+export type WrittenReturnMode = 'handwriting' | 'typed' | 'both';
+
+export type PaperTranscriptionJobStatus =
+  | 'queued'
+  | 'running'
+  | 'done'
+  | 'failed'
+  | 'over-quota'
+  | 'superseded';
+
+/** `users/{uid}/paper_transcription_jobs/{scanId}_{seat}_{page}_{attempt}`: one page to transcribe. */
+export interface PaperTranscriptionJob {
+  sessionId: string;
+  responseKey: string;
+  scanId: string;
+  page: number;
+  boxes: { questionId: string; storagePath: string }[];
+  status: PaperTranscriptionJobStatus;
+  attempt: number;
+  leaseUntil?: number;
+  charged: boolean;
+  createdAt: number;
+  updatedAt: number;
 }
 
 /**
@@ -5028,6 +5099,45 @@ export type PaperColumns = 1 | 2;
 /** Row geometry a page is printed in: 1 or 2 answer columns, or tall rows carrying each question's text. */
 export type PaperGrid = PaperColumns | 'questions';
 
+export interface PaperPointMm {
+  x: number;
+  y: number;
+}
+
+export interface PaperRectMm {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** One printed thing on a v2 page: an MC bubble row or a handwritten answer box. */
+export type PaperPageItem =
+  | {
+      kind: 'mc';
+      questionId: string;
+      /** Index across the whole sheet, 0..questionCount-1. */
+      sheetRow: number;
+      /** Printed question number (position in the quiz). */
+      label: string;
+      originMm: PaperPointMm;
+    }
+  | {
+      kind: 'written';
+      questionId: string;
+      label: string;
+      headerMm: PaperRectMm;
+      boxMm: PaperRectMm;
+      lines: number;
+    };
+
+/** Positions of everything on one physical page; `page` is 1-based and absolute. */
+export interface PaperPageMap {
+  page: number;
+  grid: PaperGrid;
+  items: PaperPageItem[];
+}
+
 export interface PaperBatch {
   id: string;
   /** Quiz these sheets were printed for. Deleted with the quiz. */
@@ -5060,6 +5170,10 @@ export interface PaperBatch {
   columnsPerPage?: PaperColumns;
   /** Set when each row printed with its question text beside the bubbles; overrides `columnsPerPage`. */
   sheetLayout?: 'questions';
+  /** Present iff `pageMaps` is: every reader and planner then reads positions from the maps. */
+  layoutVersion?: 2;
+  /** One per physical page of a student sheet; `pagesPerSheet` equals its length when present. */
+  pageMaps?: PaperPageMap[];
   createdAt: number;
   /** A review the teacher left unfinished, resumable from any device (plan Q26). */
   pendingReview?: PaperPendingReview;
@@ -5700,6 +5814,8 @@ export interface QuizAssignment
   status: QuizAssignmentStatus;
   /** Set by `importPaperResponsesV1`; publish then writes student pointers (plan Q34). */
   hasPaperResponses?: boolean;
+  /** Set by import when any paper sheet carried a written answer box. */
+  hasPaperWritten?: boolean;
   createdAt: number;
   updatedAt: number;
   /**
@@ -6090,6 +6206,7 @@ export type VideoActivityQuestion = Omit<
   | 'maxWords'
   | 'minWords'
   | 'enforceWordLimit'
+  | 'paperBoxSize'
 > & {
   type: VideoActivityQuestionType;
   /** Seconds into the video when this question should trigger. */
@@ -8842,7 +8959,9 @@ export type GlobalFeature =
   /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas; AND-ed with `gl-studio`. */
   | 'gl-callout-editing'
   /** PLC notes as an always-editable rich text editor with a formatting toolbar (still stored as Markdown). */
-  | 'plc-notes-rich-editor';
+  | 'plc-notes-rich-editor'
+  /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
+  | 'paper-handwritten-responses';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

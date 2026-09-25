@@ -679,6 +679,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Handwritten answer boxes on paper sheets; AND-ed with the paper-answer-sheets gate.
+  'paper-handwritten-responses': {
+    label: 'Handwritten answers on paper sheets',
+    icon: TextCursorInput,
+    description:
+      'Written answer boxes on paper sheets, transcribed for grading.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */

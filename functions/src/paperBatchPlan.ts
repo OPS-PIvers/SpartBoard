@@ -7,6 +7,8 @@
  * whole stack of paper, so edit the two together or that test fails.
  */
 
+import type { PaperPageMap } from './paperWrittenTypes';
+
 /** Mirrors `PaperColumns` in `types.ts`. */
 export type PaperColumns = 1 | 2;
 
@@ -69,6 +71,8 @@ export interface PaperBatchDoc {
   choiceOrder?: Record<string, string[]>;
   pagesPerSheet: number;
   columnsPerPage?: PaperColumns;
+  layoutVersion?: 2;
+  pageMaps?: PaperPageMap[];
   createdAt: number;
 }
 
