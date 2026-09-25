@@ -97,7 +97,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
   const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
   const { user, canAccessFeature } = useAuth();
-  const richEditor = canAccessFeature('plc-notes-rich-editor');
+  const richEditorFlag = canAccessFeature('plc-notes-rich-editor');
   const currentUid = user?.uid ?? '';
   // Viewers can read notes but can't create / edit / delete (Decision 3.2).
   // Rules hard-deny viewer writes; this gates the UI to match.
@@ -223,6 +223,8 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
   // on the legacy read-only path — they have nothing to publish.
   const collabSettings = usePlcNoteCollabSettings();
   const collab = collabSettings.enabled && canEdit && !!selectedId;
+  // Its whole-body re-serialize would overwrite teammates' concurrent edits.
+  const richEditor = richEditorFlag && !collab;
 
   const titleFieldRef = useRef<HTMLInputElement>(null);
   const bodyFieldRef = useRef<HTMLTextAreaElement>(null);

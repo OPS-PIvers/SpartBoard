@@ -46,9 +46,10 @@ describe('slide letterbox', () => {
     const backdrop = screen.getByTestId('gl-slide-backdrop');
     expect(backdrop).toHaveAttribute('aria-hidden', 'true');
     expect(backdrop.closest('[data-testid="gl-panzoom-layer"]')).toBeNull();
-    const fill = backdrop.firstElementChild as HTMLElement;
-    expect(fill.style.backgroundImage).toContain(SLIDE);
-    expect(fill.style.filter).toContain('blur');
+    // A still, so an animated GIF slide is not re-blurred every frame.
+    const fill = backdrop.querySelector('canvas');
+    expect(fill).not.toBeNull();
+    expect(fill?.style.filter).toContain('blur');
     // No second <img>, so no second download and no extra node for the slide.
     expect(root.querySelectorAll('img')).toHaveLength(1);
   });

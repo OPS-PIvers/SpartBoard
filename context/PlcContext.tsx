@@ -1327,6 +1327,8 @@ function useStableActions(
       const fields: Record<string, unknown> = {
         attendeeUids,
         status: 'completed',
+        // Saving revives a draft another session discarded meanwhile.
+        deletedAt: null,
         updatedAt: serverTimestamp(),
       };
       if (input?.assessmentIds !== undefined) {

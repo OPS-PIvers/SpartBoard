@@ -589,7 +589,11 @@ export const setHelpCenterFlag = (
   setId: string,
   helpCenter: boolean
 ): Promise<void> =>
-  updateDoc(doc(db, BUILDING_GL_COLLECTION, setId), { helpCenter });
+  // New revision, so an open editor's autosave conflicts instead of undoing the move.
+  updateDoc(doc(db, BUILDING_GL_COLLECTION, setId), {
+    helpCenter,
+    updatedAt: Date.now(),
+  });
 
 // Moves building sets out of the Guided Learning library and into the Help Center only.
 export const markHelpCenterSets = async (
@@ -597,7 +601,10 @@ export const markHelpCenterSets = async (
 ): Promise<void> => {
   await Promise.all(
     setIds.map((setId) =>
-      updateDoc(doc(db, BUILDING_GL_COLLECTION, setId), { helpCenter: true })
+      updateDoc(doc(db, BUILDING_GL_COLLECTION, setId), {
+        helpCenter: true,
+        updatedAt: Date.now(),
+      })
     )
   );
 };
