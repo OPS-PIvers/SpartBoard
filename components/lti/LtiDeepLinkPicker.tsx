@@ -83,6 +83,7 @@ import {
 } from '@/utils/videoActivityBehavior';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
+import { sessionSectionsFor } from '@/utils/quizSections';
 import { videoActivityMaxPoints } from '@/utils/videoActivityGrading';
 import { logError } from '@/utils/logError';
 import { isGoogleSession } from '@/utils/googleSession';
@@ -628,7 +629,10 @@ const LtiDeepLinkFlow: React.FC = () => {
         // Gradebook scale = the quiz's total points, so a 17/20 quiz reads 17/20
         // in Schoology (not a percentage). Shared with the Results push via
         // quizMaxPoints so the line item and the push denominator can't drift.
-        const maxPoints = quizMaxPoints(quizData.questions);
+        const maxPoints = quizMaxPoints(
+          quizData.questions,
+          sessionSectionsFor(quizData)
+        );
 
         // Respect the quiz's OWN configured behavior (session mode, per-attempt
         // options, attempt limit) exactly as the normal SpartBoard assign flow
@@ -665,6 +669,9 @@ const LtiDeepLinkFlow: React.FC = () => {
             questions: quizData.questions,
             ...(quizData.stimuli ? { stimuli: quizData.stimuli } : {}),
             ...(quizData.language ? { language: quizData.language } : {}),
+            ...(quizData.sections?.length
+              ? { order: quizData.order, sections: quizData.sections }
+              : {}),
           },
           {
             className: 'Schoology',

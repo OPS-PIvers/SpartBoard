@@ -487,7 +487,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
   // Schoology (LTI AGS) push — same grade builder as the dashboard Results view.
   const pushSchoologyGrades = useCallback(async () => {
     if (!session?.ltiAttachment || !sessionId || !quizData) return;
-    const maxPoints = quizMaxPoints(questions);
+    const maxPoints = quizMaxPoints(questions, session?.sections);
     const grades = buildQuizClassroomGradeEntries(
       responses.filter((r) => r.status === 'completed'),
       questions,
@@ -530,6 +530,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     }
   }, [
     session?.ltiAttachment,
+    session?.sections,
     sessionId,
     quizData,
     questions,

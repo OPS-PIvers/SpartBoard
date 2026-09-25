@@ -68,6 +68,7 @@ import {
   formatVideoActivityBehaviorSummary,
 } from '@/utils/videoActivityBehavior';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
+import { sessionSectionsFor } from '@/utils/quizSections';
 import { videoActivityMaxPoints } from '@/utils/videoActivityGrading';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { logError } from '@/utils/logError';
@@ -540,7 +541,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     // malformed/legacy file missing `questions` — fall back to 100, matching
     // quizMaxPoints's own empty-set denominator.
     const maxPoints = Array.isArray(quizData?.questions)
-      ? quizMaxPoints(quizData.questions)
+      ? quizMaxPoints(quizData.questions, sessionSectionsFor(quizData))
       : 100;
 
     const targeting = await resolveClassTargeting();
@@ -576,6 +577,9 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         questions: quizData.questions,
         ...(quizData.stimuli ? { stimuli: quizData.stimuli } : {}),
         ...(quizData.language ? { language: quizData.language } : {}),
+        ...(quizData.sections?.length
+          ? { order: quizData.order, sections: quizData.sections }
+          : {}),
       },
       {
         className: 'Google Classroom',

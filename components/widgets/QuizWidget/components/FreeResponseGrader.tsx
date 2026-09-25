@@ -311,6 +311,8 @@ function buildQueue(
   if (!question) return [];
   const rows: QueueRow[] = [];
   for (const response of responses) {
+    // A question left out of a choose-N section is never graded (E14).
+    if (response._notChosen?.includes(question.id)) continue;
     let targets: GradeTarget[];
     if (question.recording) {
       targets = collectMediaSlots(question, response).map((slot) => ({

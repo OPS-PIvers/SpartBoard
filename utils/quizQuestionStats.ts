@@ -102,8 +102,8 @@ export function computeQuestionStats(
       const qStats = stats.get(questionId);
       const q = questionsById.get(questionId);
       if (!qStats || !q) return;
-      // A passed-over slot is not an answer.
-      if (entry.unresponded) return;
+      // A passed-over slot is not an answer, nor one left out of a choose-N section.
+      if (entry.unresponded || r._notChosen?.includes(questionId)) return;
       qStats.answered++;
 
       const slots = q.recording ? collectMediaSlots(q, r) : [];
