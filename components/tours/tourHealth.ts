@@ -21,7 +21,10 @@ export function anchorProblem(ref: string): AnchorProblem | null {
   const { id, widgetType } = parseTourAnchorRef(ref);
   if (!isTourAnchorId(id)) return 'unknown-anchor';
   const def: TourAnchorDef = TOUR_ANCHORS[id];
-  if (!def.perWidgetType) return widgetType ? 'unexpected-widget-type' : null;
+  // Per-widget anchors may name a type too; the recorder writes one and the runner matches it.
+  if (!def.perWidgetType && !(def.perWidget && widgetType)) {
+    return widgetType ? 'unexpected-widget-type' : null;
+  }
   if (!widgetType) return 'needs-widget-type';
   return TOOLS.some((tool) => tool.type === widgetType)
     ? null

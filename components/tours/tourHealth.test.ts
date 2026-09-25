@@ -17,6 +17,15 @@ describe('anchorProblem', () => {
     expect(anchorProblem('dock.item:clock')).toBeNull();
   });
 
+  it('accepts per-widget anchors with or without a widget type', () => {
+    expect(anchorProblem('widget.window')).toBeNull();
+    expect(anchorProblem('widget.settings-opener:schedule')).toBeNull();
+    expect(anchorProblem('settings.root:schedule')).toBeNull();
+    expect(anchorProblem('widget.window:not-a-widget')).toBe(
+      'unknown-widget-type'
+    );
+  });
+
   it('names each registry problem', () => {
     expect(anchorProblem('sidebar.nowhere')).toBe('unknown-anchor');
     expect(anchorProblem('dock.item')).toBe('needs-widget-type');
