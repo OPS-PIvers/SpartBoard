@@ -30,7 +30,7 @@ import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import {
   computeHasStuckArchive,
   deleteDriveFileById,
-  hasQuizMediaStoragePrefix,
+  isArtifactStoragePathValid,
   QUIZ_MEDIA_ARCHIVE_SECRETS,
   STUCK_ARCHIVE_AGE_MS,
 } from './quizMediaArchive';
@@ -60,6 +60,8 @@ export const MAX_DELETE_TARGETS = 100;
 
 export interface MediaTakeRow {
   artifactId: string;
+  /** `'audio'` or `'handwriting'` (a paper answer crop). */
+  kind: string;
   archiveStatus: string;
   driveFileId?: string;
   archivedAt?: number;
@@ -185,9 +187,9 @@ const readArchiveMap = (
 export function collectQuestionArtifacts(
   answers: unknown,
   questionId: string
-): Array<{ id: string; storagePath: string }> {
+): Array<{ id: string; kind: string; storagePath: string }> {
   if (!Array.isArray(answers)) return [];
-  const out: Array<{ id: string; storagePath: string }> = [];
+  const out: Array<{ id: string; kind: string; storagePath: string }> = [];
   for (const raw of answers as StoredAnswer[]) {
     if (raw?.questionId !== questionId) continue;
     const artifacts = Array.isArray(raw.artifacts)
@@ -197,7 +199,11 @@ export function collectQuestionArtifacts(
       const id = asString(artifact?.id);
       if (!id || out.some((a) => a.id === id)) continue;
       if (artifact?.kind === 'text') continue;
-      out.push({ id, storagePath: asString(artifact?.storagePath) });
+      out.push({
+        id,
+        kind: asString(artifact?.kind) || 'audio',
+        storagePath: asString(artifact?.storagePath),
+      });
     }
   }
   return out;
@@ -312,6 +318,7 @@ export function buildRowsForResponse(
       if (!entry && !hasStorageObject) continue;
       takes.push({
         artifactId: artifact.id,
+        kind: artifact.kind,
         archiveStatus: asString(entry?.archiveStatus) || 'syncing',
         ...(asString(entry?.driveFileId)
           ? { driveFileId: asString(entry?.driveFileId) }
@@ -838,12 +845,15 @@ export async function deleteOrgQuizMediaSets(
         });
         continue;
       }
-      const storagePath = hasQuizMediaStoragePrefix(
-        artifact.storagePath,
-        target.sessionId,
-        target.responseKey,
-        studentUid
-      )
+      const storagePath = isArtifactStoragePathValid({
+        kind: artifact.kind,
+        storagePath: artifact.storagePath,
+        sessionId: target.sessionId,
+        responseKey: target.responseKey,
+        studentUid,
+        teacherUid,
+        questionId: target.questionId,
+      })
         ? artifact.storagePath
         : '';
 
@@ -919,12 +929,15 @@ export async function finishStuckMediaDelete(
   const rawPath = artifact?.storagePath ?? '';
   const storagePath =
     (claimed || entry.storageCleanupPending === true) &&
-    hasQuizMediaStoragePrefix(
-      rawPath,
-      input.sessionId,
-      input.responseKey,
-      studentUid
-    )
+    isArtifactStoragePathValid({
+      kind: artifact?.kind,
+      storagePath: rawPath,
+      sessionId: input.sessionId,
+      responseKey: input.responseKey,
+      studentUid,
+      teacherUid,
+      questionId: input.questionId,
+    })
       ? rawPath
       : '';
 

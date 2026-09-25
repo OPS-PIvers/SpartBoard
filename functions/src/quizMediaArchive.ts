@@ -31,6 +31,8 @@ import {
   resolveOrgIdForDomain,
 } from './classlinkShared';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
+import { defaultDriveUploader } from './driveUpload';
+import { PAPER_WRITTEN_CROP_PREFIX } from './paperWrittenTypes';
 import {
   loadTargetDirectory,
   uidForRef,
@@ -73,6 +75,12 @@ export const QUIZ_MEDIA_STORAGE_ROOT = 'quiz_response_media';
 export const MAX_QUIZ_MEDIA_BYTES = 5 * 1024 * 1024;
 /** Fail-closed `GlobalFeature` id; a missing permission record means denied. */
 export const QUIZ_MEDIA_FEATURE_ID = 'quiz-media-response';
+/** Mirrors the 2 MB cap on `paper_written_crops/` in `storage.rules`. */
+export const MAX_HANDWRITING_CROP_BYTES = 2 * 1024 * 1024;
+const HANDWRITING_MIME_EXTENSIONS: Readonly<Record<string, string>> = {
+  'image/webp': '.webp',
+  'image/png': '.png',
+};
 /** Output bitrate — plenty for a 32 kbps speech source, kept fixed on purpose. */
 export const ARCHIVE_AUDIO_BITRATE = '64k';
 /**
@@ -87,9 +95,6 @@ export const STUCK_ARCHIVE_AGE_MS = 2 * 60 * 60 * 1000;
  * every hourly sweep forever (GitHub issue #2735).
  */
 export const MAX_ARCHIVE_ATTEMPTS = 5;
-const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
-const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
-const APP_DRIVE_FOLDER = 'SpartBoard';
 const QUIZ_DRIVE_FOLDER = 'Quiz Responses';
 
 type Firestore = admin.firestore.Firestore;
@@ -174,6 +179,69 @@ export function hasQuizMediaStoragePrefix(
   });
 }
 
+/** `paper_written_crops/{teacherUid}/{scanId}/{seat}/{questionId}.webp|.png`, owned by this teacher. */
+export function hasPaperCropStoragePrefix(
+  storagePath: string,
+  teacherUid: string,
+  questionId: string
+): boolean {
+  if (!teacherUid || !questionId) return false;
+  const parts = storagePath.split('/');
+  if (parts.length !== 5) return false;
+  const [root, uid, scanId, seat, file] = parts;
+  return (
+    root === PAPER_WRITTEN_CROP_PREFIX &&
+    uid === teacherUid &&
+    scanId !== '' &&
+    !scanId.startsWith('.') &&
+    /^[1-9]\d*$/.test(seat) &&
+    Object.values(HANDWRITING_MIME_EXTENSIONS).some(
+      (ext) => file === `${questionId}${ext}`
+    )
+  );
+}
+
+/** Artifact kinds that live in Storage in transit and archive to Drive. */
+export type ArchivableKind = 'audio' | 'handwriting';
+
+export function isArchivableKind(kind: unknown): kind is ArchivableKind {
+  return kind === 'audio' || kind === 'handwriting';
+}
+
+/** Kind-aware transit-path check shared by the archive, cleanup and delete paths. */
+export function isArtifactStoragePathValid(input: {
+  kind: unknown;
+  storagePath: string;
+  sessionId: string;
+  responseKey: string;
+  studentUid?: string;
+  teacherUid: string;
+  questionId: string;
+}): boolean {
+  if (input.kind === 'handwriting') {
+    return hasPaperCropStoragePrefix(
+      input.storagePath,
+      input.teacherUid,
+      input.questionId
+    );
+  }
+  return hasQuizMediaStoragePrefix(
+    input.storagePath,
+    input.sessionId,
+    input.responseKey,
+    input.studentUid
+  );
+}
+
+/** A missing or revoked Drive grant, as `refreshGoogleAccessTokenForUid` reports it. */
+export function isNeedsConsentError(error: unknown): boolean {
+  if (error instanceof HttpsError) {
+    const details = error.details as { reason?: unknown } | undefined;
+    if (details?.reason === 'needs-consent') return true;
+  }
+  return error instanceof Error && error.message.startsWith('needs-consent');
+}
+
 /** Committed takes for a question, excluding the one being archived right now. */
 export function countCommittedTakes(
   answers: readonly StoredAnswer[],
@@ -236,7 +304,8 @@ export function sanitizeDriveNameSegment(raw: string): string {
 export function buildArchiveFileName(
   name: StudentNameParts | null,
   fallbackLabel: string,
-  questionLabel: string
+  questionLabel: string,
+  extension = '.m4a'
 ): string {
   const family = sanitizeDriveNameSegment(name?.familyName ?? '');
   const given = sanitizeDriveNameSegment(name?.givenName ?? '');
@@ -244,7 +313,7 @@ export function buildArchiveFileName(
     family || given
       ? [family, given].filter(Boolean).join('_').replace(/ /g, '')
       : sanitizeDriveNameSegment(fallbackLabel) || 'Student';
-  return `${person}__${questionLabel}.m4a`;
+  return `${person}__${questionLabel}${extension}`;
 }
 
 /** 1-based position in `publicQuestions`, or the sanitized id when unknown. */
@@ -312,114 +381,8 @@ export function parseRefKey(key: string): StudentTargetRef | null {
 
 // ── Default dependency implementations ─────────────────────────────────────
 
-const getDriveHeaders = (accessToken: string) => ({
-  Authorization: `Bearer ${accessToken}`,
-  'Content-Type': 'application/json',
-});
-
-const listDriveFiles = async (
-  accessToken: string,
-  query: string
-): Promise<Array<{ id: string; name: string }>> => {
-  const url = new URL(`${DRIVE_API_URL}/files`);
-  url.searchParams.set('q', query);
-  url.searchParams.set('fields', 'files(id,name)');
-  const response = await fetch(url.toString(), {
-    headers: getDriveHeaders(accessToken),
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to list Drive files (${response.status})`);
-  }
-  const data = (await response.json()) as {
-    files?: Array<{ id: string; name: string }>;
-  };
-  return data.files ?? [];
-};
-
-const getOrCreateDriveFolder = async (
-  accessToken: string,
-  folderName: string,
-  parentId?: string
-): Promise<string> => {
-  const escaped = folderName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  let query = `name = '${escaped}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-  if (parentId) query += ` and '${parentId}' in parents`;
-  const existing = await listDriveFiles(accessToken, query);
-  if (existing[0]?.id) return existing[0].id;
-  const response = await fetch(`${DRIVE_API_URL}/files`, {
-    method: 'POST',
-    headers: getDriveHeaders(accessToken),
-    body: JSON.stringify({
-      name: folderName,
-      mimeType: 'application/vnd.google-apps.folder',
-      ...(parentId ? { parents: [parentId] } : {}),
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to create Drive folder ${folderName}`);
-  }
-  const folder = (await response.json()) as { id: string };
-  return folder.id;
-};
-
-const getDriveFolderPath = async (
-  accessToken: string,
-  folderPath: string
-): Promise<string> => {
-  let parentId = await getOrCreateDriveFolder(accessToken, APP_DRIVE_FOLDER);
-  for (const part of folderPath.split('/').filter(Boolean)) {
-    parentId = await getOrCreateDriveFolder(accessToken, part, parentId);
-  }
-  return parentId;
-};
-
-const uploadBlobToDrive = async (
-  accessToken: string,
-  bytes: Buffer,
-  mimeType: string,
-  fileName: string,
-  folderPath: string
-): Promise<{ id: string }> => {
-  const folderId = await getDriveFolderPath(accessToken, folderPath);
-  const createResponse = await fetch(`${DRIVE_API_URL}/files`, {
-    method: 'POST',
-    headers: getDriveHeaders(accessToken),
-    body: JSON.stringify({ name: fileName, parents: [folderId] }),
-  });
-  if (!createResponse.ok) {
-    throw new Error('Failed to create file metadata in Drive');
-  }
-  const driveFile = (await createResponse.json()) as { id: string };
-  const uploadResponse = await fetch(
-    `${UPLOAD_API_URL}/files/${driveFile.id}?uploadType=media`,
-    {
-      method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': mimeType,
-      },
-      body: new Uint8Array(bytes),
-    }
-  );
-  if (!uploadResponse.ok) {
-    throw new Error('Failed to upload file content to Drive');
-  }
-  return driveFile;
-};
-
 /** Permanent delete, not a trash move — this is a compliance delete. */
-export async function deleteDriveFileById(
-  accessToken: string,
-  fileId: string
-): Promise<void> {
-  const response = await fetch(
-    `${DRIVE_API_URL}/files/${encodeURIComponent(fileId)}`,
-    { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  // 404/410 means the file is already gone; the obligation is satisfied.
-  if (response.ok || response.status === 404 || response.status === 410) return;
-  throw new Error(`Drive responded ${response.status}`);
-}
+export const deleteDriveFileById = defaultDriveUploader.deleteFile;
 
 /** webm never survives to Drive; AAC in an M4A container always previews. */
 export async function transcodeBufferToM4a(input: Buffer): Promise<Buffer> {
@@ -650,6 +613,18 @@ export async function resolveStudentRealName(
   return null;
 }
 
+/** Minted token -> teacher uid, so parallel archives for one teacher share folder lookups. */
+const tokenOwners = new Map<string, string>();
+const MAX_TOKEN_OWNERS = 500;
+
+function rememberTokenOwner(accessToken: string, teacherUid: string): void {
+  if (tokenOwners.size >= MAX_TOKEN_OWNERS) {
+    const oldest = tokenOwners.keys().next().value;
+    if (oldest !== undefined) tokenOwners.delete(oldest);
+  }
+  tokenOwners.set(accessToken, teacherUid);
+}
+
 export function buildDefaultArchiveDeps(): ArchiveDeps {
   const db = admin.firestore();
   const bucket = () => admin.storage().bucket();
@@ -673,9 +648,20 @@ export function buildDefaultArchiveDeps(): ArchiveDeps {
       await bucket().file(storagePath).delete({ ignoreNotFound: true });
     },
     transcodeToM4a: transcodeBufferToM4a,
-    getAccessToken: async (teacherUid) =>
-      (await refreshGoogleAccessTokenForUid(teacherUid)).accessToken,
-    uploadToDrive: uploadBlobToDrive,
+    getAccessToken: async (teacherUid) => {
+      const { accessToken } = await refreshGoogleAccessTokenForUid(teacherUid);
+      rememberTokenOwner(accessToken, teacherUid);
+      return accessToken;
+    },
+    uploadToDrive: (accessToken, bytes, mimeType, fileName, folderPath) =>
+      defaultDriveUploader.uploadBlob(
+        accessToken,
+        bytes,
+        mimeType,
+        fileName,
+        folderPath,
+        tokenOwners.get(accessToken)
+      ),
     deleteDriveFile: deleteDriveFileById,
     resolveStudentName: (teacherUid, studentUid) =>
       resolveStudentRealName(db, teacherUid, studentUid),
@@ -695,8 +681,8 @@ export function buildDefaultArchiveDeps(): ArchiveDeps {
 // ── Archive core (shared by the callable and the sweep) ────────────────────
 
 export interface ArchiveResult {
-  /** `'syncing'` means a concurrent invocation owns this artifact right now. */
-  archiveStatus: 'archived' | 'syncing' | 'deleted';
+  /** `'syncing'`: a concurrent invocation owns it. `'awaiting-drive'`: a crop held until the teacher connects Drive. */
+  archiveStatus: 'archived' | 'syncing' | 'deleted' | 'awaiting-drive';
   driveFileId?: string;
 }
 
@@ -746,6 +732,7 @@ function toArchiveFailure(error: unknown, lost: boolean): HttpsError {
 
 type ArchiveEntryShape = {
   archiveStatus?: unknown;
+  awaitingDriveSince?: unknown;
   driveFileId?: unknown;
   archiveStartedAt?: unknown;
   attemptCount?: unknown;
@@ -796,13 +783,6 @@ export async function archiveQuizArtifactCore(
     throw new HttpsError('failed-precondition', 'Session has no teacher.');
   }
 
-  if (!(await deps.isFeatureGranted(teacherUid))) {
-    throw new HttpsError(
-      'permission-denied',
-      'Media responses are not enabled for this account.'
-    );
-  }
-
   const responseRef = sessionRef.collection('responses').doc(responseKey);
   const responseSnap = await responseRef.get();
   if (!responseSnap.exists) {
@@ -814,11 +794,18 @@ export async function archiveQuizArtifactCore(
   if (!studentUid) {
     throw new HttpsError('failed-precondition', 'Response has no studentUid.');
   }
-  if (callerUid !== null && callerUid !== studentUid) {
+  const denyCaller = (): never => {
     throw new HttpsError(
       'permission-denied',
       'You can only archive your own recordings.'
     );
+  };
+  if (
+    callerUid !== null &&
+    callerUid !== studentUid &&
+    callerUid !== teacherUid
+  ) {
+    denyCaller();
   }
 
   const answers: StoredAnswer[] = Array.isArray(response.answers)
@@ -828,18 +815,57 @@ export async function archiveQuizArtifactCore(
   if (!artifact) {
     throw new HttpsError('not-found', 'Artifact not found on this response.');
   }
-  if (artifact.kind !== 'audio') {
-    throw new HttpsError('invalid-argument', 'Only audio takes are archived.');
+  const kind = artifact.kind;
+  if (!isArchivableKind(kind)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'Only audio takes and paper answer crops are archived.'
+    );
+  }
+  // Audio is the student's own take; a paper crop is the teacher's upload.
+  const owner = kind === 'audio' ? studentUid : teacherUid;
+  if (callerUid !== null && callerUid !== owner) denyCaller();
+  // Paper crops are not gated by the media feature: nothing past import checks a flag.
+  if (kind === 'audio' && !(await deps.isFeatureGranted(teacherUid))) {
+    throw new HttpsError(
+      'permission-denied',
+      'Media responses are not enabled for this account.'
+    );
   }
   const storagePath =
     typeof artifact.storagePath === 'string' ? artifact.storagePath : '';
   if (
-    !hasQuizMediaStoragePrefix(storagePath, sessionId, responseKey, studentUid)
+    !isArtifactStoragePathValid({
+      kind,
+      storagePath,
+      sessionId,
+      responseKey,
+      studentUid,
+      teacherUid,
+      questionId,
+    })
   ) {
     throw new HttpsError(
       'permission-denied',
       'Artifact storage path is outside this response.'
     );
+  }
+
+  if (kind === 'handwriting') {
+    const answer = answers.find((a) => a?.questionId === questionId) as
+      | { paperScanId?: unknown }
+      | undefined;
+    const liveScanId = answer?.paperScanId;
+    // A superseded rescan's crop must never archive under the live answer.
+    if (
+      typeof liveScanId === 'string' &&
+      liveScanId !== storagePath.split('/')[2]
+    ) {
+      throw new HttpsError(
+        'failed-precondition',
+        'This crop belongs to an older scan of the answer.'
+      );
+    }
   }
 
   // The Drive copy is the durable one: once an id exists the file is already
@@ -873,7 +899,7 @@ export async function archiveQuizArtifactCore(
   const questionConfig = publicQuestions.find((q) => q?.id === questionId);
   const takeLimit = questionConfig?.recording?.takeLimit ?? null;
   const existingTakes = countCommittedTakes(answers, questionId, artifactId);
-  if (exceedsTakeLimit(existingTakes, takeLimit)) {
+  if (kind === 'audio' && exceedsTakeLimit(existingTakes, takeLimit)) {
     throw new HttpsError(
       'resource-exhausted',
       'This question has reached its take limit.'
@@ -976,6 +1002,42 @@ export async function archiveQuizArtifactCore(
     return outcome.lost;
   };
 
+  /** A crop with no Drive grant is held in Storage, not failed: no attempt is counted. */
+  const writeAwaitingDrive = async (): Promise<ArchiveResult> => {
+    const tombstoned = await db.runTransaction(async (tx) => {
+      const fresh = await tx.get(responseRef);
+      const archive = readArchiveMap(fresh.data());
+      const previous = archive[artifactId] ?? {};
+      if (isDeleteTombstoned(previous)) return true;
+      const since =
+        typeof previous.awaitingDriveSince === 'number'
+          ? previous.awaitingDriveSince
+          : deps.now();
+      archive[artifactId] = {
+        ...previous,
+        archiveStatus: 'awaiting-drive',
+        awaitingDriveSince: since,
+      };
+      tx.set(
+        responseRef,
+        {
+          artifactArchive: {
+            [artifactId]: {
+              archiveStatus: 'awaiting-drive',
+              awaitingDriveSince: since,
+              archiveStartedAt: admin.firestore.FieldValue.delete(),
+              archiveError: admin.firestore.FieldValue.delete(),
+            },
+          },
+          hasStuckArchive: computeHasStuckArchive(archive),
+        },
+        { merge: true }
+      );
+      return false;
+    });
+    return { archiveStatus: tombstoned ? 'deleted' : 'awaiting-drive' };
+  };
+
   try {
     const stat = await deps.statObject(storagePath);
     if (!stat) {
@@ -983,23 +1045,48 @@ export async function archiveQuizArtifactCore(
       unrecoverable = true;
       throw new HttpsError(
         'not-found',
-        'Recorded audio is no longer in Storage.'
+        kind === 'audio'
+          ? 'Recorded audio is no longer in Storage.'
+          : 'The answer crop is no longer in Storage.'
       );
     }
-    if (!Number.isFinite(stat.size) || stat.size > MAX_QUIZ_MEDIA_BYTES) {
+    const maxBytes =
+      kind === 'audio' ? MAX_QUIZ_MEDIA_BYTES : MAX_HANDWRITING_CROP_BYTES;
+    if (!Number.isFinite(stat.size) || stat.size > maxBytes) {
       throw new HttpsError(
         'invalid-argument',
-        Number.isFinite(stat.size)
-          ? 'Recording exceeds the 5 MB archive limit.'
-          : 'Recording size unknown; cannot safely archive.'
+        kind === 'audio'
+          ? Number.isFinite(stat.size)
+            ? 'Recording exceeds the 5 MB archive limit.'
+            : 'Recording size unknown; cannot safely archive.'
+          : 'Answer crop size is unknown or over the 2 MB limit.'
       );
     }
-    if (stat.contentType && !stat.contentType.startsWith('audio/')) {
+    if (
+      kind === 'audio' &&
+      stat.contentType &&
+      !stat.contentType.startsWith('audio/')
+    ) {
       throw new HttpsError('invalid-argument', 'Uploaded file is not audio.');
     }
+    const cropMimeType =
+      kind === 'handwriting'
+        ? stat.contentType ||
+          (typeof artifact.mimeType === 'string' ? artifact.mimeType : '')
+        : '';
+    const cropExtension = HANDWRITING_MIME_EXTENSIONS[cropMimeType];
+    if (kind === 'handwriting' && !cropExtension) {
+      unrecoverable = true;
+      throw new HttpsError('invalid-argument', 'Answer crop is not an image.');
+    }
+
+    // Checked before any download, so a teacher without Drive costs one token read.
+    const accessToken =
+      kind === 'handwriting' ? await deps.getAccessToken(teacherUid) : null;
 
     const sourceBytes = await deps.downloadObject(storagePath);
-    const m4aBytes = await deps.transcodeToM4a(sourceBytes);
+    const archiveBytes =
+      kind === 'audio' ? await deps.transcodeToM4a(sourceBytes) : sourceBytes;
 
     const name = await deps.resolveStudentName(teacherUid, studentUid);
     const fallbackLabel =
@@ -1009,23 +1096,26 @@ export async function archiveQuizArtifactCore(
     const fileName = buildArchiveFileName(
       name,
       fallbackLabel,
-      questionLabelFor(publicQuestions, questionId)
+      questionLabelFor(publicQuestions, questionId),
+      kind === 'audio' ? '.m4a' : cropExtension
     );
     const quizTitle =
       typeof session.quizTitle === 'string' && session.quizTitle.trim()
         ? sanitizeDriveNameSegment(session.quizTitle)
         : 'Untitled Quiz';
 
-    const accessToken = await deps.getAccessToken(teacherUid);
     const driveFile = await deps.uploadToDrive(
-      accessToken,
-      m4aBytes,
-      'audio/mp4',
+      accessToken ?? (await deps.getAccessToken(teacherUid)),
+      archiveBytes,
+      kind === 'audio' ? 'audio/mp4' : cropMimeType,
       fileName,
       `${QUIZ_DRIVE_FOLDER}/${quizTitle}`
     );
     driveFileId = driveFile.id;
   } catch (error: unknown) {
+    if (kind === 'handwriting' && !driveFileId && isNeedsConsentError(error)) {
+      return writeAwaitingDrive();
+    }
     throw toArchiveFailure(error, await writeFailure(error));
   }
 
@@ -1162,6 +1252,7 @@ async function finalizeArchivedEntry(
             archiveStartedAt: admin.firestore.FieldValue.delete(),
             lastAttemptAt: admin.firestore.FieldValue.delete(),
             archiveError: admin.firestore.FieldValue.delete(),
+            awaitingDriveSince: admin.firestore.FieldValue.delete(),
           },
         },
         hasStuckArchive: computeHasStuckArchive(archive),
@@ -1246,14 +1337,21 @@ export async function retryStorageCleanup(
   );
   const storagePath =
     typeof artifact?.storagePath === 'string' ? artifact.storagePath : '';
+  const teacherUid =
+    artifact?.kind === 'handwriting'
+      ? await loadSessionTeacherUid(db, input.sessionId)
+      : '';
   // Clearing the flag without a confirmed delete would strand the object.
   if (
-    !hasQuizMediaStoragePrefix(
+    !isArtifactStoragePathValid({
+      kind: artifact?.kind,
       storagePath,
-      input.sessionId,
-      input.responseKey,
-      studentUid
-    )
+      sessionId: input.sessionId,
+      responseKey: input.responseKey,
+      studentUid,
+      teacherUid,
+      questionId: input.questionId,
+    })
   ) {
     throw new HttpsError(
       'failed-precondition',
@@ -1281,6 +1379,15 @@ export async function retryStorageCleanup(
       { merge: true }
     );
   });
+}
+
+async function loadSessionTeacherUid(
+  db: Firestore,
+  sessionId: string
+): Promise<string> {
+  const snap = await db.collection('quiz_sessions').doc(sessionId).get();
+  const uid: unknown = snap.data()?.teacherUid;
+  return typeof uid === 'string' ? uid : '';
 }
 
 function parseArchiveRequest(raw: unknown): ArchiveArtifactRequest {

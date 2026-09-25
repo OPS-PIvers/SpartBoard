@@ -4753,7 +4753,9 @@ export type ArtifactArchiveStatus =
   | 'lost'
   | 'deleting'
   | 'deleted'
-  | 'delete-failed';
+  | 'delete-failed'
+  /** A paper answer crop held in Storage until the teacher connects Drive. */
+  | 'awaiting-drive';
 
 /** Server-owned archival record for one artifact; see {@link QuizResponse.artifactArchive}. */
 export interface ArtifactArchiveEntry {
@@ -4775,6 +4777,8 @@ export interface ArtifactArchiveEntry {
   deleteAttemptedAt?: number;
   /** Drive copy an archive created after a delete claimed the artifact; still owed a delete. */
   orphanedDriveFileId?: string;
+  /** When a crop first went `'awaiting-drive'`; drives the 60-day hold. */
+  awaitingDriveSince?: number;
 }
 
 /**
