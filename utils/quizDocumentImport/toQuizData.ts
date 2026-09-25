@@ -72,6 +72,10 @@ function toQuizQuestion(q: ExtractedQuestion): QuizQuestion {
     ...(!isWritten && !answer ? { needsKey: true } : {}),
     ...(q.points !== undefined ? { points: q.points } : {}),
     ...(q.sourceLabel ? { sourceLabel: q.sourceLabel } : {}),
+    ...(q.matchingDistractors?.length
+      ? { matchingDistractors: [...q.matchingDistractors] }
+      : {}),
+    ...(q.allowPartialCredit ? { allowPartialCredit: true } : {}),
     // The reader's own image ids. `attachDocumentImages` swaps them for real
     // stimulus ids at save; nothing persists a quiz before that runs.
     ...(q.imageIds.length > 0 ? { stimulusIds: [...q.imageIds] } : {}),
@@ -104,6 +108,8 @@ export interface ReviewExtras {
   untick: ReadonlyMap<string, string>;
   /** Learning-target lines by question id (R20). */
   suggestedTargets: ReadonlyMap<string, SuggestedTarget>;
+  /** Standard codes a test bank key listed, by question id (QUIZ_EXAMVIEW_IMPORT E10). */
+  standardCodes: ReadonlyMap<string, readonly string[]>;
   /** How the answer key matched, for the review banner (R19). */
   keySummary?: ExtractedQuiz['keySummary'];
 }
@@ -140,6 +146,7 @@ export function extractedToQuizData(
 
   const untick = new Map<string, string>();
   const suggestedTargets = new Map<string, SuggestedTarget>();
+  const standardCodes = new Map<string, readonly string[]>();
   const allQuestions = extracted.questions.map((q) => {
     const built = toQuizQuestion(q);
     const shared = q.sharedTextId
@@ -150,6 +157,8 @@ export function extractedToQuizData(
       : built;
     if (q.suggestUntick) untick.set(question.id, q.suggestUntick);
     if (q.suggestedTarget) suggestedTargets.set(question.id, q.suggestedTarget);
+    if (q.standardCodes?.length)
+      standardCodes.set(question.id, q.standardCodes);
     return question;
   });
 
@@ -169,6 +178,7 @@ export function extractedToQuizData(
     allQuestions,
     untick,
     suggestedTargets,
+    standardCodes,
     ...(extracted.keySummary ? { keySummary: extracted.keySummary } : {}),
   });
   return data;

@@ -483,7 +483,10 @@ export function createQuizImportAdapter(
               images: deps.documentImages?.() ?? [],
               keySummary: reviewExtrasFor(data)?.keySummary,
               ...(deps.canSuggestTargets
-                ? { suggestedTargets: reviewExtrasFor(data)?.suggestedTargets }
+                ? {
+                    suggestedTargets: reviewExtrasFor(data)?.suggestedTargets,
+                    standardCodes: reviewExtrasFor(data)?.standardCodes,
+                  }
                 : {}),
             }),
         }

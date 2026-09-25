@@ -113,6 +113,14 @@ Paul's Honors Bio Ecology test was run through the browser reader on dev-paul at
   - ANS printed inline under each question (ExamView's "with answers" printout)
   - a key-only file holding just the Answer Section.
 
+- **As built in PR 2.**
+  - One step, `utils/quizDocumentImport/examView.ts`, runs for the plain reader, the AI reader (E17) and a separate key file. Types are set before any key is applied. Matching sets combine, false Modified True/False items split, and heading points apply after each key merge; that step is safe to run twice.
+  - Matching pairs store the numbered item on the left and the lettered term on the right (`item:term`), so unused terms become `matchingDistractors`. A colon in an item becomes `꞉` so the stored pair still splits.
+  - Part B of a false Modified True/False item reads "If false, write the word or phrase that makes it true: <statement>". The item's points split evenly between the two parts.
+  - A key and a test that each print every number once match by number even when their headings differ (the key's `OTHER` against the test's "Graphing Problem").
+  - Key standards are chips in review with an Add button and an "Add N standards" header button, not tags applied without asking. A code that two catalog sets share counts as unmatched.
+  - When the AI reader keys a written item from its sample answer, the item goes back to free-response and the sample becomes the review note.
+
 ### RTF pictures (PR 3)
 
 - **E11.** `rtfReader.ts` reads `\pict` groups:

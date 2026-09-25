@@ -36,6 +36,7 @@ import {
   WithSuggestedTargets,
   type SuggestedTargetsSlots,
 } from './QuizImportSuggestedTargets';
+import { WithKeyStandards } from './QuizImportKeyStandards';
 
 interface Props {
   data: QuizData;
@@ -48,6 +49,8 @@ interface Props {
   images?: readonly ExtractedImage[];
   /** Target lines the reader found, by question id; pass only when the suggested-targets flag is on. */
   suggestedTargets?: ReadonlyMap<string, SuggestedTarget>;
+  /** Standard codes a test bank key listed, by question id; same flag as `suggestedTargets`. */
+  standardCodes?: ReadonlyMap<string, readonly string[]>;
   /** How the answer key matched the questions (R19). */
   keySummary?: KeySummaryCounts;
 }
@@ -78,8 +81,18 @@ const SpillNote: React.FC<{ warning?: SpillWarning }> = ({ warning }) =>
   ) : null;
 
 const ReviewTable: React.FC<
-  Omit<Props, 'suggestedTargets'> & { targetSlots?: SuggestedTargetsSlots }
-> = ({ data, onChange, images = [], targetSlots, keySummary }) => {
+  Omit<Props, 'suggestedTargets' | 'standardCodes'> & {
+    targetSlots?: SuggestedTargetsSlots;
+    standardSlots?: SuggestedTargetsSlots;
+  }
+> = ({
+  data,
+  onChange,
+  images = [],
+  targetSlots,
+  standardSlots,
+  keySummary,
+}) => {
   // The full set read from the document. Unticking removes a question from
   // what gets created, so the master list has to outlive that or a row could
   // never be ticked back on. The preview step mounts once per read.
@@ -163,10 +176,22 @@ const ReviewTable: React.FC<
       stimulusIds: (prev.stimulusIds ?? []).filter((id) => id !== imageId),
     }));
 
-  const applyTargets = (tags: ReadonlyMap<string, QuestionTargetTag>): void => {
+  const applyTargets = (
+    tags: ReadonlyMap<string, QuestionTargetTag | readonly QuestionTargetTag[]>
+  ): void => {
     const next = allQuestions.map((q) => {
-      const tag = tags.get(q.id);
-      return tag ? { ...q, targets: withTargetTag(q.targets, tag) } : q;
+      const given = tags.get(q.id);
+      if (!given) return q;
+      const list: readonly QuestionTargetTag[] = Array.isArray(given)
+        ? given
+        : [given as QuestionTargetTag];
+      return {
+        ...q,
+        targets: list.reduce<QuestionTargetTag[] | undefined>(
+          (acc, tag) => withTargetTag(acc, tag),
+          q.targets
+        ),
+      };
     });
     setAllQuestions(next);
     emit(excluded, next);
@@ -244,6 +269,7 @@ const ReviewTable: React.FC<
       )}
 
       {targetSlots?.header(allQuestions, applyTargets)}
+      {standardSlots?.header(allQuestions, applyTargets)}
 
       <ul className="max-h-[22rem] space-y-2 overflow-y-auto">
         {allQuestions.map((q, index) => {
@@ -338,6 +364,9 @@ const ReviewTable: React.FC<
                   {stemSpill && <SpillNote warning={stemSpill} />}
 
                   {targetSlots?.row(q, index + 1, (tag) =>
+                    applyTargets(new Map([[q.id, tag]]))
+                  )}
+                  {standardSlots?.row(q, index + 1, (tag) =>
                     applyTargets(new Map([[q.id, tag]]))
                   )}
 
@@ -515,12 +544,28 @@ const ReviewTable: React.FC<
 
 export const QuizDocumentReview: React.FC<Props> = ({
   suggestedTargets,
+  standardCodes,
   ...props
-}) =>
-  suggestedTargets && suggestedTargets.size > 0 ? (
+}) => {
+  const withStandards = (targetSlots?: SuggestedTargetsSlots) =>
+    standardCodes && standardCodes.size > 0 ? (
+      <WithKeyStandards codes={standardCodes}>
+        {(standardSlots) => (
+          <ReviewTable
+            {...props}
+            targetSlots={targetSlots}
+            standardSlots={standardSlots}
+          />
+        )}
+      </WithKeyStandards>
+    ) : (
+      <ReviewTable {...props} targetSlots={targetSlots} />
+    );
+  return suggestedTargets && suggestedTargets.size > 0 ? (
     <WithSuggestedTargets suggestions={suggestedTargets}>
-      {(slots) => <ReviewTable {...props} targetSlots={slots} />}
+      {(slots) => withStandards(slots)}
     </WithSuggestedTargets>
   ) : (
-    <ReviewTable {...props} />
+    withStandards()
   );
+};

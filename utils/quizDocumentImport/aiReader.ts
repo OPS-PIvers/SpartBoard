@@ -9,6 +9,11 @@
 import { readDocx } from './docxReader';
 import { parseQuestionLines } from './parseQuestions';
 import { findAnswerKey } from './answerKey';
+import {
+  applyExamViewAfterKey,
+  applyExamViewTypes,
+  isExamView,
+} from './examView';
 import { mergeAnswerKey } from './mergeKey';
 import { UNREADABLE_FILE, documentKind, titleFromFileName } from './fileKind';
 import { assertWithinByteLimit } from './limits';
@@ -291,19 +296,27 @@ export interface AiReadOptions {
 /**
  * The key printed at the back of the document, read the plain way. The model
  * often leaves a test-bank answer section unmatched, and a letter-to-choice
- * lookup is exactly what code does better, so the key found here wins.
+ * lookup is exactly what code does better, so the key found here wins. An
+ * ExamView document gets the plain reader's type, matching and points steps (E17).
  */
 function withDocumentKey(
   quiz: ExtractedQuiz,
   lines: readonly DocLine[],
   reader: ReaderOptions
 ): ExtractedQuiz {
-  return mergeAnswerKey(
-    quiz,
+  const examView = isExamView(lines);
+  const typed = examView
+    ? { ...quiz, questions: applyExamViewTypes(quiz.questions) }
+    : quiz;
+  const keyed = mergeAnswerKey(
+    typed,
     findAnswerKey(lines, reader).items,
     'document',
     reader
   );
+  return examView
+    ? { ...keyed, questions: applyExamViewAfterKey(keyed.questions) }
+    : keyed;
 }
 
 async function withPdfKey(

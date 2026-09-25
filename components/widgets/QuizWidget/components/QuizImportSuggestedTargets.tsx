@@ -24,7 +24,12 @@ import {
 export interface SuggestedTargetsSlots {
   header: (
     questions: readonly QuizQuestion[],
-    applyMany: (tags: ReadonlyMap<string, QuestionTargetTag>) => void
+    applyMany: (
+      tags: ReadonlyMap<
+        string,
+        QuestionTargetTag | readonly QuestionTargetTag[]
+      >
+    ) => void
   ) => React.ReactNode;
   row: (
     question: QuizQuestion,

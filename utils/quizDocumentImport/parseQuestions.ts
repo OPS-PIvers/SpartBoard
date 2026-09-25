@@ -14,11 +14,19 @@ import {
   TEST_BANK_FIELD_LINE,
   answerBeforeFields,
   applyKeyAnswer,
+  keyItemFields,
   entriesOnLine,
   findAnswerKey,
   isHeading,
 } from './answerKey';
-import { EXAMVIEW_TYPE_HEADING, WRITTEN_SECTION, isExamView } from './examView';
+import {
+  EXAMVIEW_TYPE_HEADING,
+  MATCHING_DIRECTIONS,
+  applyExamViewAfterKey,
+  applyExamViewTypes,
+  examViewKindOf,
+  isExamView,
+} from './examView';
 import { keyedQuestionIndexes, mergeAnswerKey } from './mergeKey';
 import {
   SELECT_ALL_WORDING,
@@ -29,6 +37,7 @@ import {
   type ExtractedOption,
   type ExtractedQuestion,
   type ExtractedText,
+  type KeyItem,
   type KeySummary,
   type QuestionRef,
   type ReaderOptions,
@@ -231,6 +240,15 @@ interface Section {
   questionCount: number;
   /** The last item number opened here. */
   lastItem: number;
+  /** ExamView's matching term list the next items answer from (E6). */
+  matching?: MatchingGroup;
+}
+
+interface MatchingGroup {
+  id: string;
+  terms: ExtractedOption[];
+  directions?: string;
+  items: number;
 }
 
 interface Draft {
@@ -246,6 +264,10 @@ interface Draft {
   imageIds: string[];
   /** A test bank's `ANS:` line printed under the question. */
   inlineAnswer?: string;
+  /** The bookkeeping printed with an inline `ANS:`, and whether written answer lines follow. */
+  inlineFields?: string[];
+  inlineCollecting?: boolean;
+  matching?: MatchingGroup;
   target?: SuggestedTarget;
   sharedTextId?: string;
   /** "Read paragraph 8." copied into this stem from a shared lead-in. */
@@ -478,14 +500,17 @@ function finish(
             'This looks like a self-reflection item rather than a graded question.',
         }
       : {}),
-    ...(examView &&
-    type === 'free-response' &&
-    WRITTEN_SECTION.test(draft.section.name ?? '')
-      ? { keepWritten: true }
+    ...(draft.matching
+      ? {
+          matchingGroup: draft.matching.id,
+          ...(draft.matching.directions
+            ? { matchingDirections: draft.matching.directions }
+            : {}),
+        }
       : {}),
   };
-  // The key at the back is merged afterwards and wins over this.
-  return draft.inlineAnswer && type !== 'Ordering'
+  // The key at the back is merged afterwards and wins over this; ExamView's goes in as a key.
+  return draft.inlineAnswer && type !== 'Ordering' && !examView
     ? applyKeyAnswer(question, draft.inlineAnswer, 'document', multi)
     : question;
 }
@@ -495,7 +520,11 @@ function noteMissingChoices(
   question: ExtractedQuestion,
   sorting: boolean
 ): ExtractedQuestion {
-  if (question.type !== 'free-response' || sorting || question.keepWritten) {
+  if (
+    question.type !== 'free-response' ||
+    sorting ||
+    question.examView === 'written'
+  ) {
     return question;
   }
   return {
@@ -770,6 +799,14 @@ export function parseDocument(
         ? { targetLine: line }
         : {}),
     };
+    const group = section.matching;
+    if (group) {
+      group.items += 1;
+      current.matching = group;
+      current.options = [...group.terms]
+        .sort((a, b) => a.letter.localeCompare(b.letter))
+        .map((t) => ({ ...t, marked: false, line, wraps: [] }));
+    }
     lastOption = null;
     drafts.push(current);
     return current;
@@ -844,21 +881,62 @@ export function parseDocument(
     const inline = INLINE_TEST_BANK_ANSWER.exec(text);
     if (inline) {
       const answer = answerBeforeFields(inline[1]);
-      if (open && answer) open.inlineAnswer = answer;
+      if (open) {
+        if (answer) open.inlineAnswer = answer;
+        open.inlineFields = [inline[1]];
+        // A blank `ANS:` means the written answer is on the lines below.
+        open.inlineCollecting =
+          !answer && !TEST_BANK_FIELD_LINE.test(inline[1].trim());
+      }
       lastOption = null;
       return;
     }
-    if (TEST_BANK_FIELD_LINE.test(text)) return;
+    if (TEST_BANK_FIELD_LINE.test(text)) {
+      if (open?.inlineFields) {
+        open.inlineFields.push(text);
+        open.inlineCollecting = false;
+      }
+      return;
+    }
+    if (open?.inlineCollecting && !matchQuestionOpening(text)) {
+      open.inlineAnswer = tidy(`${open.inlineAnswer ?? ''} ${text}`);
+      return;
+    }
 
     // A heading can't interrupt a sentence that is still running.
     const midSentence =
       open &&
       open.options.length === 0 &&
-      !/[.?!:)]\s*$/.test(open.textParts.join(' ').trim());
+      !/(?:[.?!:)]|_{3,})\s*$/.test(open.textParts.join(' ').trim());
     const heading = midSentence ? null : sectionHeading(text, examView);
     if (heading) {
       startSection(heading);
       return;
+    }
+
+    // ExamView prints a matching set's lettered terms once, above its items (E6).
+    if (examView && examViewKindOf(section.name) === 'matching') {
+      if (MATCHING_DIRECTIONS.test(text)) {
+        endQuestion();
+        section.matching = {
+          id: `m${drafts.length + 1}`,
+          terms: [],
+          directions: tidy(text),
+          items: 0,
+        };
+        return;
+      }
+      const term = matchOption(line);
+      if (term && (!open || open.matching)) {
+        let group = section.matching;
+        if (!group || group.items > 0) {
+          group = { id: `m${drafts.length + 1}`, terms: [], items: 0 };
+          section.matching = group;
+        }
+        endQuestion();
+        group.terms.push({ letter: term.letter, text: term.text });
+        return;
+      }
     }
 
     const opening = matchQuestionOpening(text);
@@ -1035,14 +1113,40 @@ export function parseDocument(
       ? finish(drafts[i], i + 1, labelOf(drafts[i]), true, multi, examView)
       : q
   );
-  const merged = mergeAnswerKey(
-    { title: '', questions: finished, images: [], warnings: [] },
-    keyItems,
+  const refKey = (r: { section: number; item: number; part?: string }) =>
+    `${r.section}:${r.item}${r.part ?? ''}`;
+  const sorting = new Set(
+    drafts
+      .filter((d) => SORTING.test(tidy(d.textParts.join(' '))))
+      .map((d) =>
+        refKey({ section: d.section.ordinal, item: d.item, part: d.part })
+      )
+  );
+  // ExamView's answers printed under each question go in like a key, once the types are set.
+  const inlineItems: KeyItem[] = examView
+    ? drafts.flatMap((d) =>
+        d.inlineAnswer || d.inlineFields
+          ? [
+              {
+                item: d.item,
+                ...(d.part ? { part: d.part } : {}),
+                answer: d.inlineAnswer ?? '',
+                ...keyItemFields((d.inlineFields ?? []).join(' ')),
+              },
+            ]
+          : []
+      )
+    : [];
+  const typed = examView ? applyExamViewTypes(finished) : finished;
+  const inlineKeyed = mergeAnswerKey(
+    { title: '', questions: typed, images: [], warnings: [] },
+    inlineItems,
     'document',
     options
   );
-  const questions = merged.questions.map((q, i) =>
-    noteMissingChoices(q, SORTING.test(tidy(drafts[i].textParts.join(' '))))
+  const merged = mergeAnswerKey(inlineKeyed, keyItems, 'document', options);
+  const questions = applyExamViewAfterKey(merged.questions).map((q) =>
+    noteMissingChoices(q, Boolean(q.ref && sorting.has(refKey(q.ref))))
   );
   const used = new Set(questions.map((q) => q.sharedTextId).filter(Boolean));
   return {

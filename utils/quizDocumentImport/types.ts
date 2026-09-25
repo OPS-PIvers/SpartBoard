@@ -99,6 +99,11 @@ export interface KeyItem {
   rubric?: boolean;
   /** The key says the item isn't scored. */
   notScored?: boolean;
+  /** A test bank's `OBJ:` and `TOP:` fields (E10). */
+  objective?: string;
+  topic?: string;
+  /** A test bank's `NAT:` and `STA:` codes (E10). */
+  standards?: string[];
 }
 
 /** A learning target the test printed ("ELT 1.1 - I can …"), offered in review (R9, R20). */
@@ -138,9 +143,31 @@ export interface ExtractedQuestion {
   imageIds: string[];
   /** Row notes for the review table; never fatal. */
   warnings: string[];
-  /** A written item whose key text is only a sample answer (ExamView E8). */
-  keepWritten?: boolean;
+  /** The ExamView section kind that decides how a key applies (QUIZ_EXAMVIEW_IMPORT E5). */
+  examView?: ExamViewKind;
+  /** ExamView matching items that share one term list (E6). */
+  matchingGroup?: string;
+  /** The matching group's directions line (E6). */
+  matchingDirections?: string;
+  /** Matching only: terms no item uses (E6). */
+  matchingDistractors?: string[];
+  /** Matching only: score each pair (E6). */
+  allowPartialCredit?: boolean;
+  /** Standard codes a test bank key lists for this item (E10). */
+  standardCodes?: string[];
+  /** Modified True/False: the key's word that makes a false statement true (E7). */
+  correction?: string;
 }
+
+/** What an ExamView section heading says its items are (E5). */
+export type ExamViewKind =
+  | 'mc'
+  | 'tf'
+  | 'modifiedTf'
+  | 'completion'
+  | 'numeric'
+  | 'matching'
+  | 'written';
 
 /** What a key merge did, for the review banner (R13, R19). */
 export interface KeySummary {

@@ -10,6 +10,7 @@
  */
 
 import { applyKeyAnswer, type KeySource } from './answerKey';
+import { applyExamViewAfterKey, objectiveTarget } from './examView';
 import type {
   ExtractedQuestion,
   ExtractedQuiz,
@@ -50,6 +51,20 @@ function matcherFor(
     ...new Set(items.flatMap((k) => (k.section ? [k.section.ordinal] : []))),
   ].sort((a, b) => a - b);
 
+  const printedItems = present.map((r) => `${r.item}${r.part ?? ''}`);
+  const keyed = items.map((k) => `${k.item}${k.part ?? ''}`);
+  const unique =
+    new Set(printedItems).size === printedItems.length &&
+    new Set(keyed).size === keyed.length;
+  const byItem: Matcher = (item) =>
+    questions.flatMap((q, i) =>
+      q.ref?.item === item.item && partMatches(item, q) ? [i] : []
+    );
+  // Numbers printed once each in both (ExamView's 1–40) match directly, whatever the headings.
+  if (unique && quizSections.length > 1 && keySections.length > 1) {
+    return byItem;
+  }
+
   if (quizSections.length > 1 && keySections.length > 1) {
     // A key's "Section 2" is the test's Section 2 by printed number, else by order.
     const sectionFor = (item: KeyItem): number | undefined => {
@@ -74,16 +89,12 @@ function matcherFor(
     };
   }
 
-  const printed = present.map((r) => `${r.item}${r.part ?? ''}`);
-  if (new Set(printed).size === printed.length) {
-    if (keySections.length > 1) {
+  if (new Set(printedItems).size === printedItems.length) {
+    if (keySections.length > 1 && !unique) {
       // A key that restarts against a test that doesn't: take the key in order.
       return (_item, index) => (index < questions.length ? [index] : []);
     }
-    return (item) =>
-      questions.flatMap((q, i) =>
-        q.ref?.item === item.item && partMatches(item, q) ? [i] : []
-      );
+    return byItem;
   }
   return byPosition;
 }
@@ -153,6 +164,28 @@ const listed = (labels: string[]): string =>
   labels.length === 1
     ? `question ${labels[0]}`
     : `questions ${labels.join(', ')}`;
+
+/** A test bank's objective as the suggested target, and its standard codes (E10). */
+function withMetadata(q: ExtractedQuestion, item: KeyItem): ExtractedQuestion {
+  let next = q;
+  const target =
+    !q.suggestedTarget &&
+    (item.objective
+      ? objectiveTarget(item.objective)
+      : item.topic
+        ? { label: item.topic }
+        : null);
+  if (target) next = { ...next, suggestedTarget: target };
+  if (item.standards?.length) {
+    next = {
+      ...next,
+      standardCodes: [
+        ...new Set([...(q.standardCodes ?? []), ...item.standards]),
+      ],
+    };
+  }
+  return next;
+}
 
 /** Points for a question, split evenly when the key gave them for the whole item. */
 function withPoints(
@@ -228,6 +261,7 @@ export function mergeAnswerKey(
           : targets.length;
         q = withPoints(q, item.points, shares);
       }
+      q = withMetadata(q, item);
       if (item.rubric) q = note(q, RUBRIC_NOTE);
       if (item.notScored && !q.suggestUntick) {
         q = { ...q, suggestUntick: NOT_SCORED_NOTE };
@@ -247,7 +281,7 @@ export function mergeAnswerKey(
   }
   return {
     ...quiz,
-    questions,
+    questions: applyExamViewAfterKey(questions),
     warnings,
     keySummary: {
       source,
