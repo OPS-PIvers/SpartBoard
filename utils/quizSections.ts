@@ -120,8 +120,10 @@ export function isSectionAnswered(
 }
 
 /**
- * The questions that count in a choose-N section: the answered ones, first N
- * in section order. More than N (an older client, a paper sheet) keeps the first N.
+ * The questions that count in a choose-N section (E14): the answered ones,
+ * first N in section order, topped up with unanswered ones in section order
+ * when fewer than N were answered. More than N (an older client, a paper
+ * sheet) keeps the first N.
  */
 export function chosenQuestionIds(
   section: QuizSessionSection,
@@ -130,8 +132,98 @@ export function chosenQuestionIds(
 ): string[] {
   const served = servedSectionQuestionIds(section, servedIds);
   const count = effectiveChooseCount(section, servedIds);
+  if (count === undefined) return served;
   const answered = served.filter((id) => isSectionAnswered(answers, id));
-  return count === undefined ? served : answered.slice(0, count);
+  const chosen = new Set(answered.slice(0, count));
+  for (const id of served) {
+    if (chosen.size >= count) break;
+    chosen.add(id);
+  }
+  return served.filter((id) => chosen.has(id));
+}
+
+/** Questions a student left out of a choose-N section: out of their total, shown as "Not chosen". */
+export function notChosenQuestionIds(
+  response: {
+    answers?: readonly SectionAnswer[];
+    servedQuestionIds?: readonly string[];
+  },
+  sections: readonly QuizSessionSection[] | undefined
+): string[] {
+  if (!sections?.some((s) => s.chooseCount)) return [];
+  const answers = response.answers ?? [];
+  return sections.flatMap((section) => {
+    const chosen = new Set(
+      chosenQuestionIds(section, answers, response.servedQuestionIds)
+    );
+    return servedSectionQuestionIds(section, response.servedQuestionIds).filter(
+      (id) => !chosen.has(id)
+    );
+  });
+}
+
+/** Stamps each response's `_notChosen` for the teacher views; never written back. */
+export function withNotChosen<
+  R extends {
+    answers?: readonly SectionAnswer[];
+    servedQuestionIds?: readonly string[];
+    _notChosen?: string[];
+  },
+>(
+  responses: readonly R[],
+  sections: readonly QuizSessionSection[] | undefined
+): R[] {
+  if (!sections?.some((s) => s.chooseCount)) return [...responses];
+  return responses.map((r) => {
+    const ids = notChosenQuestionIds(r, sections);
+    return ids.length > 0 ? { ...r, _notChosen: ids } : r;
+  });
+}
+
+/** False for a question outside the student's served set or left out of a choose-N section. */
+export function isCountedFor(
+  response: {
+    servedQuestionIds?: readonly string[];
+    _notChosen?: readonly string[];
+  },
+  questionId: string
+): boolean {
+  if (response._notChosen?.includes(questionId)) return false;
+  const served = response.servedQuestionIds;
+  return !served || served.length === 0 || served.includes(questionId);
+}
+
+/** The static max a quiz can score: a choose-N section adds only its N highest point values (E14). */
+export function sectionAwareMaxPoints(
+  questions: readonly { id: string; points?: number }[],
+  sections: readonly QuizSessionSection[] | undefined
+): number {
+  const pts = (q: { points?: number }) => q.points ?? 1;
+  const inCounted = new Map<string, QuizSessionSection>();
+  for (const s of sections ?? []) {
+    if (s.chooseCount && s.chooseCount < s.questionIds.length) {
+      for (const id of s.questionIds) inCounted.set(id, s);
+    }
+  }
+  let total = 0;
+  const bySection = new Map<string, number[]>();
+  for (const q of questions) {
+    const section = inCounted.get(q.id);
+    if (!section) {
+      total += pts(q);
+      continue;
+    }
+    bySection.set(section.id, [...(bySection.get(section.id) ?? []), pts(q)]);
+  }
+  for (const [id, values] of bySection) {
+    const count =
+      (sections ?? []).find((s) => s.id === id)?.chooseCount ?? values.length;
+    total += [...values]
+      .sort((a, b) => b - a)
+      .slice(0, count)
+      .reduce((a, b) => a + b, 0);
+  }
+  return total;
 }
 
 export interface SectionProgress {

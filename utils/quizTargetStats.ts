@@ -161,7 +161,7 @@ function countServedByQuestion(
         ? response.servedQuestionIds
         : questions.map((question) => question.id);
     for (const id of new Set(ids)) {
-      if (!questionIds.has(id)) continue;
+      if (!questionIds.has(id) || response._notChosen?.includes(id)) continue;
       served.set(id, (served.get(id) ?? 0) + 1);
     }
   }

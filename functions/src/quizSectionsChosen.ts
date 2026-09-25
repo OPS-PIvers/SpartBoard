@@ -1,0 +1,69 @@
+/**
+ * Choose-N quiz sections on the server (docs/plans/QUIZ_EXAMVIEW_IMPORT.md E14).
+ * Mirrors `utils/quizSections.ts` `notChosenQuestionIds`, which functions/
+ * can't import: the answered questions count first N in section order, topped
+ * up with unanswered ones; the rest leave the student's total.
+ */
+
+export interface ChooseSection {
+  chooseCount?: number;
+  questionIds: string[];
+}
+
+interface SectionAnswer {
+  questionId: string;
+  answer?: string;
+  unresponded?: unknown;
+}
+
+/** Tolerant parse of `session.sections`; absent or malformed yields nothing. */
+export function parseChooseSections(raw: unknown): ChooseSection[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((s): ChooseSection[] => {
+    if (typeof s !== 'object' || s === null) return [];
+    const r = s as Record<string, unknown>;
+    const ids = Array.isArray(r.questionIds)
+      ? r.questionIds.filter((id): id is string => typeof id === 'string')
+      : [];
+    const count =
+      typeof r.chooseCount === 'number' &&
+      Number.isInteger(r.chooseCount) &&
+      r.chooseCount > 0
+        ? r.chooseCount
+        : undefined;
+    return ids.length > 0
+      ? [{ questionIds: ids, ...(count ? { chooseCount: count } : {}) }]
+      : [];
+  });
+}
+
+const hasContent = (a: SectionAnswer): boolean =>
+  !a.unresponded && (a.answer ?? '').replace(/<[^>]*>/g, '').trim().length > 0;
+
+/** Question ids this student left out of a choose-N section. */
+export function notChosenIds(
+  sections: readonly ChooseSection[] | undefined,
+  answers: readonly SectionAnswer[],
+  servedIds?: readonly string[]
+): Set<string> {
+  const out = new Set<string>();
+  const served =
+    servedIds && servedIds.length > 0 ? new Set(servedIds) : undefined;
+  for (const section of sections ?? []) {
+    const ids = served
+      ? section.questionIds.filter((id) => served.has(id))
+      : section.questionIds;
+    const count = section.chooseCount;
+    if (!count || count >= ids.length) continue;
+    const answered = ids.filter((id) =>
+      answers.some((a) => a.questionId === id && hasContent(a))
+    );
+    const chosen = new Set(answered.slice(0, count));
+    for (const id of ids) {
+      if (chosen.size >= count) break;
+      chosen.add(id);
+    }
+    for (const id of ids) if (!chosen.has(id)) out.add(id);
+  }
+  return out;
+}

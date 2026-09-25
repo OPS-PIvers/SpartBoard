@@ -1607,13 +1607,13 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     return buildQuizClassroomGradeEntries(
       completed,
       quiz.questions,
-      quizMaxPoints(quiz.questions),
+      quizMaxPoints(quiz.questions, session?.sections),
       fibGrading
     );
-  }, [ltiAttachment, completed, quiz.questions, fibGrading]);
+  }, [ltiAttachment, completed, quiz.questions, fibGrading, session?.sections]);
   const handlePushSchoologyGrades = async () => {
     if (!ltiAttachment || !session?.id) return;
-    const maxPoints = quizMaxPoints(quiz.questions);
+    const maxPoints = quizMaxPoints(quiz.questions, session?.sections);
     const grades = buildQuizClassroomGradeEntries(
       completed,
       quiz.questions,
@@ -2630,12 +2630,13 @@ const OUTCOME_COLUMNS: {
 ];
 
 const OUTCOME_STRIPS: {
-  key: 'ungraded' | 'noAnswer' | 'excused';
+  key: 'ungraded' | 'noAnswer' | 'excused' | 'notChosen';
   label: string;
 }[] = [
   { key: 'ungraded', label: 'Ungraded' },
   { key: 'noAnswer', label: 'No answer' },
   { key: 'excused', label: 'Excused' },
+  { key: 'notChosen', label: 'Not chosen' },
 ];
 
 const QuestionDrilldownPanel: React.FC<{
@@ -3258,6 +3259,7 @@ const StudentDrilldownPanel: React.FC<{
             const gradable =
               line.manual &&
               line.mark !== 'noAnswer' &&
+              line.mark !== 'notChosen' &&
               !!question &&
               canGradeQuestion(question);
             return (
@@ -3388,7 +3390,7 @@ const StudentsScreen: React.FC<{
     useState<ResponseDocKey | null>(null);
   const [deletingKey, setDeletingKey] = useState<ResponseDocKey | null>(null);
   const [unlockingKey, setUnlockingKey] = useState<ResponseDocKey | null>(null);
-  const maxPoints = quizMaxPoints(questions);
+  const maxPoints = quizMaxPoints(questions, session?.sections);
   const gamified = isGamificationActive(session);
 
   // Mirror QuizLiveMonitor.handleUnlockResultsForStudent — same toast copy

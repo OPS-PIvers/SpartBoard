@@ -98,7 +98,9 @@ export type StudentOutcome =
   | 'incorrect'
   | 'ungraded'
   | 'noAnswer'
-  | 'excused';
+  | 'excused'
+  /** Left out of a choose-N section (QUIZ_EXAMVIEW_IMPORT.md E14). */
+  | 'notChosen';
 
 /** A student's identity in the drill-down; render `name` only through the screen's name formatter. */
 export interface DrilldownStudent {
@@ -149,6 +151,7 @@ function emptyOutcomes(): Record<StudentOutcome, DrilldownStudent[]> {
     ungraded: [],
     noAnswer: [],
     excused: [],
+    notChosen: [],
   };
 }
 
@@ -292,6 +295,10 @@ export function computeQuestionDrilldowns(
 
     for (const { response, student, answers } of representatives) {
       if (!isServed(response, q.id)) continue;
+      if (response._notChosen?.includes(q.id)) {
+        outcomes.notChosen.push(student);
+        continue;
+      }
       const entry = answers.get(q.id);
       // Still working toward this question: not part of the denominator yet.
       if (!entry && response.status !== 'completed') continue;
@@ -319,7 +326,8 @@ export function computeQuestionDrilldowns(
 
     for (const list of Object.values(outcomes)) list.sort(byName);
     const servedCount = (Object.keys(outcomes) as StudentOutcome[]).reduce(
-      (sum, k) => (k === 'excused' ? sum : sum + outcomes[k].length),
+      (sum, k) =>
+        k === 'excused' || k === 'notChosen' ? sum : sum + outcomes[k].length,
       0
     );
     const distribution = buildDistribution(q, answered);

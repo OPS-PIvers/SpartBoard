@@ -111,6 +111,8 @@ export interface MediaGradingResponse {
   artifactArchive?: Record<string, ArtifactArchiveEntry>;
   /** Served-subset snapshot; a question outside it leaves this student's denominator. */
   servedQuestionIds?: string[];
+  /** Questions left out of a choose-N section; they leave the denominator too. */
+  _notChosen?: string[];
 }
 
 /**
@@ -252,6 +254,7 @@ export function questionPointsFor(
 ): number {
   const served = response.servedQuestionIds;
   if (served && served.length > 0 && !served.includes(question.id)) return 0;
+  if (response._notChosen?.includes(question.id)) return 0;
   return isQuestionExcused(question, response) ? 0 : (question.points ?? 1);
 }
 

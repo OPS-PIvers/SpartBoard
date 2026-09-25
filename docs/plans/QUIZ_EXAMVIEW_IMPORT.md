@@ -158,6 +158,12 @@ This PR takes the section core of `QUIZ_STRUCTURED_ASSESSMENTS.md` D9. Structure
   - Unchosen questions show "Not chosen" in results, the drill-down, exports and print, and they never enter the grading queue.
   - Item analysis and PLC percent-correct use students who chose the question as the denominator.
   - Score is computed when results are read, as today (`gradeAnswer`), so no stored scores change.
+- **As built (PR 4b).**
+  - A student's counted questions in a choose-N section are the answered ones, first N in section order. When fewer than N were answered, unanswered ones in section order fill the rest, and those count as "No answer".
+  - A student's max is the sum of their counted questions' points. That equals E14's "N highest" whenever a section's points are equal. The static max frozen into an LMS line item uses the N highest.
+  - The teacher's response listener stamps a derived `_notChosen` on each response, the way it already stamps `_responseKey`; it is never written. Scoring, the student and question drill-downs, the grading queue, item analysis, exports and print read it. Publishing reads the session's `sections` itself.
+  - The PLC aggregate (`functions/src/plcAssessmentMath.ts`) applies the same rule from `session.sections` through `functions/src/quizSectionsChosen.ts`.
+  - Not yet: a PLC-synced quiz copy (`synced_quizzes`) carries no `sections`, since its rule is a `hasOnly` list. That comes with the editor in 4c.
 - **E15. Paper.**
   - The printed test and the response sheet show "Answer any N of M" under the section heading.
   - A paper import with more than N answered in a section gets a teacher flag. The first N in item order count until the teacher changes it.

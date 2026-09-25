@@ -71,6 +71,8 @@ export interface ExportableResponse {
   };
   /** Served-subset snapshot (Quiz); questions outside it leave this row's denominator. */
   servedQuestionIds?: string[];
+  /** Questions left out of a choose-N section (Quiz); out of the denominator, shown as "Not chosen". */
+  _notChosen?: string[];
 }
 
 /** Minimum question shape the export reads. */
@@ -219,6 +221,7 @@ export function buildResultsSheetData<
         : null;
     return questions.reduce((sum, q) => {
       if (served && !served.has(q.id)) return sum;
+      if (r._notChosen?.includes(q.id)) return sum;
       return r.grading?.[q.id]?.excused ? sum : sum + (q.points ?? 1);
     }, 0);
   };
@@ -275,6 +278,7 @@ export function buildResultsSheetData<
     for (const q of questions) {
       const ans = answerMap.get(q.id);
       if (!ans || ans.unresponded) continue; // absent OR unresponded === no cell
+      if (r._notChosen?.includes(q.id)) continue;
       grades.set(q.id, gradeFn(q, ans.answer, r));
     }
     // An `awaiting-grade` slot's 0 is a placeholder, not a score. Render the
@@ -283,11 +287,13 @@ export function buildResultsSheetData<
     // percentage as the student's final grade.
     const answerCols = questions.flatMap((q) => {
       const grade = grades.get(q.id);
-      const baseCell = !grade
-        ? ''
-        : grade.state === 'awaiting-grade'
-          ? 'Ungraded'
-          : formatExportPoints(grade.pointsEarned);
+      const baseCell = r._notChosen?.includes(q.id)
+        ? 'Not chosen'
+        : !grade
+          ? ''
+          : grade.state === 'awaiting-grade'
+            ? 'Ungraded'
+            : formatExportPoints(grade.pointsEarned);
       const cols = [baseCell];
       if (formatAnswer) {
         const ans = answerMap.get(q.id);

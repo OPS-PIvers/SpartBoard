@@ -32,6 +32,7 @@ const MARK_STYLE: Record<
   ungraded: { icon: Clock, className: 'text-amber-700' },
   excused: { icon: CircleSlash, className: 'text-brand-gray-primary' },
   noAnswer: { icon: Circle, className: 'text-brand-gray-primary' },
+  notChosen: { icon: CircleSlash, className: 'text-brand-gray-primary' },
 };
 
 const Field: React.FC<{ label: string; children: React.ReactNode }> = ({
@@ -149,7 +150,9 @@ export const StudentAnswerLine: React.FC<{
       >
         <Field label="Answer">
           {answer || (
-            <span className="italic text-brand-gray-primary">No answer</span>
+            <span className="italic text-brand-gray-primary">
+              {line.mark === 'notChosen' ? 'Not chosen' : 'No answer'}
+            </span>
           )}
         </Field>
         {showsMissedKey(line) && (

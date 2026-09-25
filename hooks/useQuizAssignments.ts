@@ -77,6 +77,7 @@ import type {
   QuizScoreVisibility,
   QuizSection,
   QuizSession,
+  QuizSessionSection,
   QuestionTranslation,
   QuizTranslation,
   QuizSessionBankSlot,
@@ -88,7 +89,7 @@ import type {
   StudentOverride,
 } from '@/types';
 import { sessionTotalQuestions } from '@/utils/quizBankDraw';
-import { sessionSectionsFor } from '@/utils/quizSections';
+import { notChosenQuestionIds, sessionSectionsFor } from '@/utils/quizSections';
 import {
   QUIZ_CONTENT_COLLECTION,
   QUIZ_CONTENT_DOC,
@@ -813,6 +814,17 @@ export interface ResponseGradingContext {
   overridesByStudentUid: Record<string, StudentOverride>;
   servedLanguageByStudentUid: Record<string, string>;
   localizedFibAnswers: Record<string, Record<string, string[]>>;
+  /** The session's sections; a choose-N section leaves unchosen questions out (E14). */
+  sections?: QuizSessionSection[];
+}
+
+/** The session's frozen sections, for publishing; absent on a quiz without them. */
+async function readSessionSections(
+  assignmentId: string
+): Promise<QuizSessionSection[] | undefined> {
+  const snap = await getDoc(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId));
+  const sections = (snap.data() as QuizSession | undefined)?.sections;
+  return sections?.length ? sections : undefined;
 }
 
 export function buildResponseGradingContext(
@@ -871,10 +883,25 @@ export function gradeResponseForPublish(
       : undefined;
   const subsetIds =
     snapshotIds ?? overridesByStudentUid[data.studentUid]?.questionIds;
-  const servedIds =
+  const baseServed =
     Array.isArray(subsetIds) && subsetIds.length > 0
       ? new Set(subsetIds)
       : null;
+  // A question left out of a choose-N section is off this student's total (E14).
+  const notChosen = new Set(
+    notChosenQuestionIds(
+      { answers, servedQuestionIds: baseServed ? [...baseServed] : undefined },
+      ctx.sections
+    )
+  );
+  const servedIds =
+    notChosen.size > 0
+      ? new Set(
+          [...(baseServed ?? questionsById.keys())].filter(
+            (id) => !notChosen.has(id)
+          )
+        )
+      : baseServed;
   // Teacher-side truth only: never the client-asserted `response.locale`.
   const servedLocale =
     overridesByStudentUid[data.studentUid]?.language ??
@@ -2913,7 +2940,10 @@ export const useQuizAssignments = (
       const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId);
 
       const assignmentSnap = await getDoc(assignmentRef);
-      const ctx = buildResponseGradingContext(quizData, assignmentSnap.data());
+      const ctx: ResponseGradingContext = {
+        ...buildResponseGradingContext(quizData, assignmentSnap.data()),
+        sections: await readSessionSections(assignmentId),
+      };
       const answerKey =
         visibility === 'score-responses-and-answers'
           ? buildRevealedAnswers(quizData)
@@ -3067,7 +3097,10 @@ export const useQuizAssignments = (
       const assignmentSnap = await getDoc(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
       );
-      const ctx = buildResponseGradingContext(quizData, assignmentSnap.data());
+      const ctx: ResponseGradingContext = {
+        ...buildResponseGradingContext(quizData, assignmentSnap.data()),
+        sections: await readSessionSections(assignmentId),
+      };
       const revealedAnswers =
         visibility === 'score-responses-and-answers'
           ? buildRevealedAnswers(quizData)

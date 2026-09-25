@@ -4762,6 +4762,11 @@ export interface QuizResponse {
    */
   _responseKey?: string;
   /**
+   * Questions left out of a choose-N section, derived at read time from the
+   * session's `sections` (utils/quizSections.ts); never persisted.
+   */
+  _notChosen?: string[];
+  /**
    * Firebase Auth UID of the student who wrote the doc — anonymous for PIN
    * joiners, the SSO uid for studentRole joiners. Used for ownership checks
    * in Firestore rules. Historically also served as the doc key; that is no

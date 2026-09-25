@@ -1,4 +1,5 @@
-import type { QuizQuestion } from '@/types';
+import type { QuizQuestion, QuizSessionSection } from '@/types';
+import { sectionAwareMaxPoints } from '@/utils/quizSections';
 
 /**
  * The gradebook denominator for a quiz: the sum of per-question points (each
@@ -23,15 +24,12 @@ import type { QuizQuestion } from '@/types';
  * score. Mirrors the identical fence in `videoActivityMaxPoints` (#2000) and
  * `buildContributionDoc` (#1777).
  */
-export function quizMaxPoints(questions: QuizQuestion[]): number {
-  const seen = new Set<string>();
-  let total = 0;
-  for (const q of questions) {
-    if (seen.has(q.id)) continue;
-    seen.add(q.id);
-    total += q.points ?? 1;
-  }
-  return total || 100;
+export function quizMaxPoints(
+  questions: QuizQuestion[],
+  /** A choose-N section adds only its N highest point values (QUIZ_EXAMVIEW_IMPORT.md E14). */
+  sections?: readonly QuizSessionSection[]
+): number {
+  return sectionAwareMaxPoints(dedupeQuestionsById(questions), sections) || 100;
 }
 
 /**
