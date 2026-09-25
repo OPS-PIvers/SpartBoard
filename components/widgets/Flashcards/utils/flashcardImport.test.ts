@@ -64,7 +64,7 @@ describe('flashcard import', () => {
     });
   });
 
-  it('warns when a genuine first card is stripped as a false-positive header', () => {
+  it('notes (does not warn) when a stripped first row might have been a real card', () => {
     // "Term"/"Answer" happens to read like a header, but here it's the
     // user's real first card, followed by a second real card.
     const result = parseFlashcardText('Term\tAnswer\nCat\tFeline');
@@ -72,6 +72,17 @@ describe('flashcard import', () => {
     expect(
       result.cards.map(({ term, definition }) => [term, definition])
     ).toEqual([['Cat', 'Feline']]);
-    expect(result.warnings.join(' ')).toMatch(/header/i);
+    // A neutral `note`, not an amber `warnings` alert — a real header row is
+    // this file's primary supported case, so stripping one must not read as
+    // something going wrong on every ordinary import.
+    expect(result.note).toMatch(/header/i);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('also notes (not warns) for a genuine header row, the common case', () => {
+    const result = parseFlashcardText('Term\tDefinition\nCat\tFeline');
+
+    expect(result.warnings).toEqual([]);
+    expect(result.note).toMatch(/header/i);
   });
 });
