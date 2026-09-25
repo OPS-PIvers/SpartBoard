@@ -573,3 +573,94 @@ describe("terminal 'lost' entries (INT-A / issue #2735)", () => {
     expect(email.text.indexOf('Pin1234')).toBeGreaterThan(lostAt);
   });
 });
+
+describe('handwriting crops', () => {
+  const cropAnswers = [
+    {
+      questionId: 'q1',
+      artifacts: [{ id: 'h1', kind: 'handwriting' }],
+    },
+  ];
+
+  it('retries a stuck crop and names it a paper answer in the email', async () => {
+    const { db, mailWrites } = makeStubDb(
+      [
+        {
+          sessionId: 's1',
+          id: 'r1',
+          data: {
+            hasStuckArchive: true,
+            pin: '7',
+            answers: cropAnswers,
+            artifactArchive: {
+              h1: { archiveStatus: 'failed', lastAttemptAt: OLD },
+            },
+          },
+        },
+      ],
+      { s1: { teacherUid: 't1', quizTitle: 'Essay' } }
+    );
+    const deps = makeDeps({
+      archiveOne: vi.fn(() => Promise.reject(new Error('Drive 503'))),
+    });
+    await runSweepStuckQuizArchives(
+      db as unknown as Parameters<typeof runSweepStuckQuizArchives>[0],
+      deps
+    );
+    expect(deps.archiveOne).toHaveBeenCalledWith({
+      sessionId: 's1',
+      responseKey: 'r1',
+      questionId: 'q1',
+      artifactId: 'h1',
+    });
+    const message = mailWrites[0]?.data.message as {
+      subject: string;
+      text: string;
+    };
+    expect(message.subject).toBe(
+      'SpartBoard: 1 paper answer could not be saved to Drive'
+    );
+    expect(message.text).toContain('the following paper answers');
+  });
+
+  it('leaves a crop awaiting Drive to its own sweep', async () => {
+    const { db } = makeStubDb(
+      [
+        {
+          sessionId: 's1',
+          id: 'r1',
+          data: {
+            hasStuckArchive: true,
+            answers: cropAnswers,
+            artifactArchive: {
+              h1: { archiveStatus: 'awaiting-drive', awaitingDriveSince: OLD },
+            },
+          },
+        },
+      ],
+      { s1: { teacherUid: 't1', quizTitle: 'Essay' } }
+    );
+    const deps = makeDeps();
+    await runSweepStuckQuizArchives(
+      db as unknown as Parameters<typeof runSweepStuckQuizArchives>[0],
+      deps
+    );
+    expect(deps.archiveOne).not.toHaveBeenCalled();
+  });
+
+  it('keeps recordings and paper answers apart in a mixed email', () => {
+    const email = buildStragglerEmail([
+      { quizTitle: 'Q', questionId: 'q1', studentLabel: 'A' },
+      {
+        kind: 'handwriting',
+        quizTitle: 'Q',
+        questionId: 'q2',
+        studentLabel: 'B',
+      },
+    ]);
+    expect(email.subject).toBe(
+      'SpartBoard: 2 student responses could not be saved to Drive'
+    );
+    expect(email.text).toContain('student recordings and paper answers');
+  });
+});

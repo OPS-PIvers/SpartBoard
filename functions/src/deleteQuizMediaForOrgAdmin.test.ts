@@ -1154,3 +1154,86 @@ describe('question prompt projection', () => {
     ).toBeUndefined();
   });
 });
+
+describe('handwriting crops', () => {
+  let db: FakeStore;
+  const CROP = 'paper_written_crops/teacher-uid/scan-1/4/q1.webp';
+  beforeEach(() => {
+    db = createFakeDb();
+    seedOrg(db);
+    db.set('quiz_sessions/s1', {
+      teacherUid: 'teacher-uid',
+      quizTitle: 'Essay',
+    });
+    db.set('quiz_sessions/s1/responses/r1', {
+      studentUid: 'pseudo-1',
+      pin: '4',
+      answers: [
+        {
+          questionId: 'q1',
+          paperScanId: 'scan-1',
+          artifacts: [
+            {
+              id: 'h1',
+              slot: 'primary',
+              kind: 'handwriting',
+              storagePath: CROP,
+              mimeType: 'image/webp',
+              uploadState: 'uploaded',
+            },
+          ],
+        },
+      ],
+      artifactArchive: {
+        h1: { archiveStatus: 'awaiting-drive', awaitingDriveSince: 5 },
+      },
+    });
+  });
+
+  it('lists a crop held in Storage with its kind', async () => {
+    const { rows } = await listOrgQuizMedia(
+      { orgId: ORG },
+      { db: asFirestore(db) }
+    );
+    expect(rows[0]?.takes).toEqual([
+      {
+        artifactId: 'h1',
+        kind: 'handwriting',
+        archiveStatus: 'awaiting-drive',
+        hasStorageObject: true,
+      },
+    ]);
+  });
+
+  it('deletes the crop under the session teacher prefix', async () => {
+    const deps = makeDeps(db);
+    const { results } = await deleteOrgQuizMediaSets(
+      {
+        orgId: ORG,
+        targets: [{ sessionId: 's1', responseKey: 'r1', questionId: 'q1' }],
+        deletedBy: 'admin-uid',
+      },
+      deps
+    );
+    expect(results[0]?.status).toBe('deleted');
+    expect(deps.deleteStorageObject).toHaveBeenCalledWith(CROP);
+    expect(deps.deleteDriveFile).not.toHaveBeenCalled();
+  });
+
+  it('never deletes a crop path under another teacher', async () => {
+    const other = 'paper_written_crops/intruder/scan-1/4/q1.webp';
+    const response = db.docs.get('quiz_sessions/s1/responses/r1') as Doc;
+    const answers = response.answers as Doc[];
+    (answers[0].artifacts as Doc[])[0].storagePath = other;
+    const deps = makeDeps(db);
+    await deleteOrgQuizMediaSets(
+      {
+        orgId: ORG,
+        targets: [{ sessionId: 's1', responseKey: 'r1', questionId: 'q1' }],
+        deletedBy: 'admin-uid',
+      },
+      deps
+    );
+    expect(deps.deleteStorageObject).not.toHaveBeenCalled();
+  });
+});

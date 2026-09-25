@@ -158,7 +158,26 @@ export function findQuestionIdForArtifact(
   return null;
 }
 
+/** The stored kind of one artifact; absent reads as audio. */
+export function findArtifactKind(
+  answers: unknown,
+  artifactId: string
+): string | null {
+  if (!Array.isArray(answers)) return null;
+  for (const answer of answers) {
+    const artifacts = (answer as { artifacts?: unknown })?.artifacts;
+    if (!Array.isArray(artifacts)) continue;
+    const match = artifacts.find(
+      (a) => (a as { id?: unknown })?.id === artifactId
+    ) as { kind?: unknown } | undefined;
+    if (match) return typeof match.kind === 'string' ? match.kind : null;
+  }
+  return null;
+}
+
 export interface StragglerItem {
+  /** `'handwriting'` for a paper answer crop; absent for a recording. */
+  kind?: 'handwriting';
   quizTitle: string;
   questionId: string;
   /** Roster name or `Pin{pin}` — resolved server-side, never a raw uid. */
@@ -184,8 +203,15 @@ export function buildStragglerEmail(items: StragglerItem[]): {
 } {
   const retrying = items.filter((i) => !i.permanent);
   const lost = items.filter((i) => i.permanent);
+  const paper = items.filter((i) => i.kind === 'handwriting').length;
+  const noun =
+    paper === 0
+      ? 'student recordings'
+      : paper === items.length
+        ? 'paper answers'
+        : 'student recordings and paper answers';
   const body: string[] = [
-    'SpartBoard could not archive the following student recordings to your Google Drive.',
+    `SpartBoard could not archive the following ${noun} to your Google Drive.`,
   ];
   if (retrying.length > 0) {
     body.push(
@@ -197,7 +223,9 @@ export function buildStragglerEmail(items: StragglerItem[]): {
   if (lost.length > 0) {
     body.push(
       '',
-      'SpartBoard has stopped retrying these; the recordings could not be saved:',
+      `SpartBoard has stopped retrying these; the ${
+        paper === items.length ? 'answers' : 'recordings'
+      } could not be saved:`,
       ...stragglerLines(lost)
     );
   }
@@ -205,8 +233,14 @@ export function buildStragglerEmail(items: StragglerItem[]): {
     '',
     'If this persists, reconnect Google Drive from the SpartBoard sidebar.'
   );
+  const subjectNoun =
+    paper === 0
+      ? 'student recording'
+      : paper === items.length
+        ? 'paper answer'
+        : 'student response';
   return {
-    subject: `SpartBoard: ${items.length} student recording${
+    subject: `SpartBoard: ${items.length} ${subjectNoun}${
       items.length === 1 ? '' : 's'
     } could not be saved to Drive`,
     text: body.join('\n'),
@@ -333,7 +367,9 @@ export async function runSweepStuckQuizArchives(
             pin
           );
           const list = stragglersByTeacher.get(session.teacherUid) ?? [];
+          const kind = findArtifactKind(data.answers, artifactId);
           list.push({
+            ...(kind === 'handwriting' ? { kind } : {}),
             quizTitle: session.quizTitle,
             questionId,
             studentLabel,
