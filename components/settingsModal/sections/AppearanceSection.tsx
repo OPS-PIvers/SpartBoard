@@ -98,10 +98,6 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
       <SettingsSectionHeader
         icon={<Palette className="w-4 h-4" />}
         title={t('sidebar.nav.globalStyle', { defaultValue: 'Appearance' })}
-        description={t('style.appearanceDescription', {
-          defaultValue:
-            'Fonts, transparency, and colors for the current board.',
-        })}
         scopeLabel={t('settings.scopeThisBoard', {
           defaultValue: 'This board',
         })}

@@ -100,7 +100,6 @@ const REQUIRED_RUBRIC_LIBRARY_KEYS = [
   'alreadySharedToast',
   'shareFailed',
   'sharePickerTitle',
-  'sharePickerPrompt',
   'sharePickerEmpty',
   'pickerMeta',
   'unshareAction',

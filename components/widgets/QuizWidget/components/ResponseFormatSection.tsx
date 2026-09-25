@@ -273,7 +273,7 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
         label={tk('takeLimitLabel')}
         ariaLabel={tk('takeLimitLabel')}
         unlimitedLabel={tk('takeLimitUnlimited')}
-        hint={tk('takeLimitHint')}
+        tooltip={tk('takeLimitHint')}
       />
     </div>
   );

@@ -1,10 +1,9 @@
 import React from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { PartnerCardFrame } from '@/components/settings/PartnerCardFrame';
-import { resolveLabel } from '../resolveLabel';
 import type { FieldProps } from '../FieldProps';
 
-// Card body: the inner control, plus an explanation and one-tap add while the partner is off the board.
+// Card body: the inner control, plus a one-tap add while the partner is off the board.
 export const PartnerWidget: React.FC<FieldProps> = ({
   field,
   ctx,
@@ -23,7 +22,6 @@ export const PartnerWidget: React.FC<FieldProps> = ({
       partner={field.partner}
       name={name}
       present={present}
-      missingHelp={resolveLabel(ctx.t, ctx.widget.type, field.missingHelp)}
       addLabel={ctx.t('widgetSettings.common.partner.add', { name })}
       onAdd={() => addWidget(field.partner)}
       id={id}

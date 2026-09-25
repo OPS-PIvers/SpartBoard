@@ -87,274 +87,245 @@ const GLOBAL_FEATURES: {
     id: 'gemini-functions',
     label: 'Gemini AI Functions',
     icon: Zap,
-    description: 'AI-powered mini-app generation, poll generation, and more.',
+    description: 'Mini-app and poll generation.',
   },
   {
     id: 'live-session',
     label: 'Live Sessions',
     icon: Cast,
-    description: 'Ability to host live sessions and sync with students.',
+    description: 'Host live sessions.',
   },
   {
     id: 'remote-control',
     label: 'Remote Control',
     icon: Smartphone,
-    description:
-      'Control your board from your phone while you move around the classroom.',
+    description: 'Control a board from a phone.',
   },
   {
     id: 'dashboard-sharing',
     label: 'Board Sharing',
     icon: Share2,
-    description: 'Generate shareable links for dashboards.',
+    description: 'Share a board by link.',
   },
   {
     id: 'dashboard-import',
     label: 'Board Importing',
     icon: Download,
-    description: 'Import dashboards from JSON strings.',
+    description: 'Import a shared board.',
   },
   {
     id: 'magic-layout',
     label: 'Magic Layout',
     icon: Wand2,
-    description: 'AI-powered automatic dashboard layout generation.',
+    description: 'AI arranges the widgets on a board.',
   },
   {
     id: 'smart-paste',
     label: 'Smart Paste',
     icon: ClipboardCheck,
-    description: 'Intelligent clipboard handling to auto-create widgets.',
+    description: 'Paste to create widgets.',
   },
   {
     id: 'smart-poll',
     label: 'Smart Polls',
     icon: BarChart,
-    description: 'AI-assisted poll question and option generation.',
+    description: 'AI writes poll questions.',
   },
   {
     id: 'embed-mini-app',
     label: 'Embed: Generate Mini App',
     icon: Wand2,
-    description:
-      'AI button inside Embed widgets that generates an interactive mini app from the embedded content.',
+    description: 'Turns an embed into a mini app.',
   },
   {
     id: 'video-activity-audio-transcription',
     label: 'Video Activity Audio Transcription',
     icon: Wand2,
-    description:
-      'Allow generating quizzes from videos that do not have captions, using Gemini AI audio transcription.',
+    description: 'Quizzes from videos without captions.',
   },
   {
     id: 'ai-file-context',
     label: 'AI File Context (Drive)',
     icon: FileUp,
-    description:
-      'Allow attaching Google Drive files as context when generating with AI.',
+    description: 'Attach Drive files to AI prompts.',
   },
   {
     id: 'share-link-tracking',
     label: 'Share-link View Tracking',
     icon: Eye,
-    description:
-      'Show "N views" on view-only Share cards in the Quiz, Video Activity, Mini App, and Guided Learning archives. Each visible card fires a Firestore aggregation query when the dashboard tab regains focus — keep this Admin-only unless you specifically want every teacher to see open counts.',
+    description: 'Shows view counts on share cards.',
   },
   {
     id: 'google-classroom',
     label: 'Google Classroom integration',
     icon: Send,
-    description:
-      'Assign quizzes/video activities to Google Classroom and push draft/final grades. Restrict with Minimum tier = Internal to keep the Google-API-backed flows staff-only.',
+    description: 'Assign to Google Classroom and sync grades.',
   },
   {
     id: 'personal-spotify',
     label: 'Personal Spotify',
     icon: Music2,
-    description:
-      'Let teachers connect their personal Spotify account in the Music widget. When off, Music shows only curated stations.',
+    description: 'Personal Spotify in the Music widget.',
   },
   {
     id: 'anonymous-join',
     label: 'Anonymous join links (no sign-in)',
     icon: Link2,
-    description:
-      "Controls which teachers can offer the no-sign-in join URL for activities. Restrict by access level, beta users, building, or minimum tier. Participants' join experience is unaffected.",
+    description: 'No-sign-in join links for activities.',
   },
   {
     id: 'quiz-media-response',
     label: 'Spoken quiz responses (audio)',
     icon: Mic,
-    description:
-      "Lets teachers add a spoken-answer question to a quiz. Students record audio, which is archived to the teacher's own Google Drive. Fail-closed: until this is saved and enabled, the recording controls and the student capture flow stay hidden everywhere. Access level, beta users, building and minimum tier all apply, and the decision is frozen onto each assignment when it is assigned — revoking access hides recording from new assignments and from any existing one the teacher re-syncs.",
+    description: "Spoken-answer questions, saved to the teacher's Drive.",
   },
   {
     id: 'quiz-read-aloud',
     label: 'Quiz read-aloud (text-to-speech)',
     icon: Volume2,
-    description:
-      'Lets teachers mark a quiz assignment, or individual signed-in students, to have questions and answer choices read aloud with a Google Cloud voice. Anonymous PIN joiners never get it. Fail-closed: until this is saved and enabled, the override checkbox, the assignment toggle and the quiz language field stay hidden. Characters are billed to the teacher who assigns; voices are set under Tools → Quiz Read-Aloud.',
+    description: 'Reads quiz questions aloud to signed-in students.',
   },
   {
     id: 'quiz-translation',
     label: 'Quiz translation (multilingual learners)',
     icon: Languages,
-    description:
-      'Lets teachers generate, review and serve AI translations of a quiz for students whose roster language is set. Fail-closed: until this is saved and enabled, the Languages tab in the quiz editor stays hidden and no translated string ever reaches a student. Translations are generated with Gemini, metered per quiz and language, and only questions the teacher has explicitly marked reviewed are served. Languages and monthly caps are set under Feature Permissions \u2192 Quiz \u2192 Languages.',
+    description: 'AI quiz translations for multilingual learners.',
   },
   {
     id: 'question-bank-ai',
     label: 'Question bank AI drafting',
     icon: Library,
     description:
-      'Shows "Draft with AI" inside the question-bank editor so teachers can generate bank questions from a prompt or file. Only takes effect when Gemini Functions is also enabled for the teacher; the generated questions inherit the bank\'s learning-target tags.',
+      'Draft question-bank items with AI. Needs Gemini AI Functions.',
   },
   {
     id: 'quiz-document-ai-reader',
     label: 'AI reader for quiz document import',
     icon: FileText,
-    description:
-      'Reads an imported test document with AI (Gemini) instead of the plain text-and-scan reader, which handles unusual layouts better and counts against the teacher\u2019s daily AI limit. Teachers who have it see a \u201CRead with AI\u201D checkbox, off by default, on each import. Only takes effect when Build a quiz from a test document and Gemini Functions are also enabled. Fail-closed: nobody gets it until this is saved and enabled.',
+    description: 'Reads imported tests with AI. Needs quiz document import.',
   },
   {
     id: 'quiz-import-suggested-targets',
     label: 'Suggested learning targets on quiz import',
     icon: Target,
-    description:
-      'When an imported test prints learning targets beside its questions (for example \u201CELT 1.1 \u2013 I can explain\u2026\u201D), the review screen offers each one as a suggested target. A suggestion that matches one of the teacher\u2019s targets or a PLC target by code or wording tags the question with it; otherwise the teacher can create it in their own list or a PLC they can edit. \u201CAdd all\u201D covers every question in one step. Only takes effect when Build a quiz from a test document is also enabled. Admin-only until this is saved and opened up.',
+    description: 'Suggests learning targets found in imported tests.',
   },
   {
     id: 'paper-answer-sheets',
     label: 'Paper answer sheets (Scantron replacement)',
     icon: Printer,
     description:
-      'Lets teachers print bubble response sheets for a quiz and import the scanned stack as graded responses. Adds "Print response sheets" and "Import responses" to the quiz menu and a "Paper test" button beside Import. Fail-closed: admin-only until this is saved and opened up, and the whole feature stays off until it is also switched on under Access → Rollouts.',
+      'Print bubble sheets and import scans. Also needs its Rollouts switch.',
   },
   {
     id: 'roster-groups',
     label: 'Class groups in widgets',
     icon: UsersRound,
     description:
-      'Lets a widget target a saved class group instead of the whole class, keeps a group together when the Randomizer builds groups, and adds "Split class into groups" to the roster editor. Group names appear only in the teacher-facing picker, never on a projected front face. Fail-closed: admin-only until this is saved and opened up, and the whole feature stays off until it is also switched on under Access → Rollouts.',
+      'Target a class group from a widget. Also needs its Rollouts switch.',
   },
   {
     id: 'quiz-document-import',
     label: 'Build a quiz from a test document',
     icon: FileText,
     description:
-      'Lets teachers make a new quiz by uploading a PDF, Word file, rich text file, Google Doc or LMS export of a test: questions, answer choices and the answer key when the file has one. Questions with no answer found are marked \u201CNeeds answer\u201D and block assigning until a teacher fills them in. Fail-closed: admin-only until this is saved and opened up, and the whole feature stays off until it is also switched on under Access \u2192 Rollouts.',
+      'Build a quiz from an uploaded test. Also needs its Rollouts switch.',
   },
   {
     id: 'sub-share-collections',
     label: 'Share a board or a collection with a sub',
     icon: UserCheck,
-    description:
-      'Lets teachers hand a substitute a board or a whole collection for a set number of days, and manage what is out: push the boards as they stand now, add a week, or end it early, which takes back the class lists the sub was given. The sub sees the boards without student names unless the teacher names them as covering. Admin-only until this is saved and opened up.',
+    description: 'Share boards or collections with a sub.',
   },
   {
     id: 'gl-player-v2',
     label: 'Guided Learning: calmer player',
     icon: MousePointerClick,
-    description:
-      'Slower, smoother zooms with the text appearing once the picture settles, a playback speed choice for learners, and step timing based on how much there is to read. Walkthroughs assigned while someone has this keep it for their students. Admin-only until this is saved and opened up.',
+    description: 'Calmer Guided Learning playback.',
   },
   {
     id: 'tab-away-timer',
     label: 'Tab-away timer',
     icon: Timer,
-    description:
-      'When a student leaves a quiz or video activity, the warning screen shows how long they have been away. Teachers can have the quiz submit itself when a student stays away too long, give one student more time, and click a warning count to see every time a student left and for how long. Admin-only until this is saved and opened up.',
+    description: 'Shows how long a student was away.',
   },
   {
     id: 'gl-live-tours',
     label: 'Guided Learning live tours',
     icon: Footprints,
-    description:
-      'Lets teachers start a Guided Learning walkthrough on their own board: the tour highlights each button in the real app and waits while they click it, adding any widgets it needs first. Admin-only until this is saved and opened up.',
+    description: "Walkthroughs on the teacher's own board.",
   },
   {
     id: 'gl-studio',
     label: 'Guided Learning Studio editor',
     icon: Clapperboard,
-    description:
-      'Opens Guided Learning sets in the new full-screen Studio: slides down the side, a step timeline under the picture, drawing tools right on the slide, and narration per step. Everyone else keeps the classic editor, and the Studio has a link back to it. Admin-only until this is saved and opened up.',
+    description: 'Full-screen Guided Learning editor.',
   },
   {
     id: 'per-period-access',
     label: 'Start and pause each class period',
     icon: CalendarClock,
-    description:
-      'When a quiz goes to more than one class period, teachers choose between an in-class assessment, where each period stays closed until they start it, and an assignment that opens on a schedule. The monitor gets one start/pause chip per period, bell times can fill the window from the building schedule, and a teacher can let one student in early. Students in a closed period see the quiz locked, with no questions. Admin-only until this is saved and opened up.',
+    description: 'Open and pause each class period.',
   },
   {
     id: 'quiz-results-print',
     label: 'Quiz results printing',
     icon: Printer,
-    description:
-      'A Print button on quiz results prints a copy for every student in one go, each starting on its own page, to hand back. Teachers pick what each copy shows: the questions, right and wrong marks, the correct answers, the score, learning targets, written-answer feedback, and passages and pictures. Admin-only until this is saved and opened up.',
+    description: 'Print a results copy per student.',
   },
   {
     id: 'plc-home-v2',
     label: 'PLC Home dashboard',
     icon: LayoutDashboard,
-    description:
-      'Replaces the PLC Home page with tiles: team results by learning target, the next meeting, your action items and recent activity, and docs. Each teacher can spotlight, reorder, add and remove tiles, and leads can set a regular meeting schedule. Adds "Assign from my library" to Assessments. Admin-only until this is saved and opened up.',
+    description: 'Tile-based PLC Home.',
   },
   {
     id: 'plc-norming-flags',
     label: 'PLC norming flags',
     icon: Flag,
-    description:
-      "Adds a small flag under each written or spoken answer in the grader of a quiz shared with a PLC. A teacher picks High, Medium, Low or Review, and a copy of the answer without the student's name appears in a Norming section on that PLC assessment page, for the team to bring to a meeting. Spoken answers are shared as recordings, so teammates may recognize a voice. Leads can rename the levels in PLC settings. Admin-only until this is saved and opened up.",
+    description: 'Flag answers for PLC norming.',
   },
   {
     id: 'quiz-choose-all',
     label: 'Choose-all-that-apply quiz questions',
     icon: ListChecks,
-    description:
-      'Adds a "Choose All That Apply" question type to the quiz editor and AI drafting, where students tick every correct option. Teachers can turn on partial credit, which takes points away for each wrong option ticked, so ticking everything earns nothing. Admin-only until this is saved and opened up.',
+    description: 'Choose-all-that-apply questions.',
   },
   {
     id: 'quiz-fib-alternates',
     label: 'Other accepted answers for fill in the blank',
     icon: TextCursorInput,
-    description:
-      'Adds an "Also Accept" list under the correct answer of fill-in-the-blank quiz questions, so answers like "colour" and "color" both count. The extra answers are shown to students wherever the correct answer is revealed. Admin-only until this is saved and opened up.',
+    description: 'Alternate accepted answers.',
   },
   {
     id: 'modal-fullscreen',
     label: 'Full screen for large pop-ups',
     icon: Maximize2,
-    description:
-      'Adds a "View full screen" button to large pop-ups such as the quiz editor, the free-response grader and other editors, so they fill the whole screen on small Chromebooks. Esc returns to the normal size. Admin-only until this is saved and opened up.',
+    description: 'Full-screen button on large pop-ups.',
   },
   {
     id: 'quiz-results-tools',
     label: 'Quiz results teacher tools',
     icon: UserSearch,
-    description:
-      'Adds tools to quiz results. In question results, each student name opens that student\'s answers, and "Select these students" picks exactly that group. The student list shows each written answer\'s teacher comment and rubric levels. Printing leads with a choice between a full report and missed questions only. With students selected, teachers can export their results as a spreadsheet file, or reopen the quiz so they can change their answers and submit again while the assignment is still open. Admin-only until this is saved and opened up.',
+    description: 'Extra quiz results tools.',
   },
   {
     id: 'quiz-grader-v2',
     label: 'Tidier free-response grader',
     icon: PanelLeftClose,
-    description:
-      "In the quiz free-response grader, teachers can collapse the student list to a thin strip that still shows how many are graded (and hides names while grading). The student's name no longer repeats above the answer, and tab-switch warnings move into the student list. On a question whose rubric has one strand, every highlight is tagged to that strand automatically. Admin-only until this is saved and opened up.",
+    description: 'Collapsible student list in the grader.',
   },
   {
     id: 'gl-callout-editing',
     label: 'Guided Learning callout editing',
     icon: MousePointerClick,
-    description:
-      'In the Guided Learning Studio, clicking a tooltip or text box on the slide selects it. Teachers can drag its sides to make it wider or narrower, drag a corner to make the whole box and its text bigger or smaller, pick a dark, light or blue style, and switch it between a tooltip and a text box from a small toolbar. Only matters for teachers who also have the Studio editor. Admin-only until this is saved and opened up.',
+    description: 'Resize and restyle Studio callouts.',
   },
   {
     id: 'settings-drawer',
     label: 'Widget Settings Drawer (alpha)',
     icon: PanelRight,
-    description:
-      'Redesigned widget settings UI (a side drawer replacing the flip-to-back panel). Alpha: admin-only until verified across all widget types.',
+    description: 'Side-drawer widget settings.',
   },
 ];
 
@@ -367,35 +338,26 @@ const GLOBAL_FEATURES: {
 const ASSIGNMENT_WIDGETS: {
   key: AssignmentWidgetKey;
   label: string;
-  description: string;
   Icon: React.ElementType;
 }[] = [
   {
     key: 'quiz',
     label: 'Quiz',
-    description:
-      'Submissions: live monitor + response tracking. View only: students see the quiz as a read-through with no answer collection.',
     Icon: ListChecks,
   },
   {
     key: 'videoActivity',
     label: 'Video Activity',
-    description:
-      'Submissions: responses and completion are tracked. View only: each Share link plays the video with the questions visible but unanswerable.',
     Icon: PlayCircle,
   },
   {
     key: 'miniApp',
     label: 'Mini Apps',
-    description:
-      'Submissions: students can submit answers from the app. View only: each Share link is just a viewable URL.',
     Icon: Boxes,
   },
   {
     key: 'guidedLearning',
     label: 'Guided Learning',
-    description:
-      'Submissions: responses and scores are collected. View only: students walk through the lesson with no grading or roster tracking.',
     Icon: BookOpen,
   },
 ];
@@ -1037,7 +999,7 @@ export const GlobalPermissionsManager: React.FC = () => {
             </div>
 
             <div className="space-y-2">
-              {ASSIGNMENT_WIDGETS.map(({ key, label, description, Icon }) => {
+              {ASSIGNMENT_WIDGETS.map(({ key, label, Icon }) => {
                 const currentMode: AssignmentMode =
                   config[key] === 'view-only' ? 'view-only' : 'submissions';
 
@@ -1048,13 +1010,8 @@ export const GlobalPermissionsManager: React.FC = () => {
                   >
                     <div className="flex items-start gap-3 min-w-0">
                       <Icon className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
-                      <div className="min-w-0">
-                        <div className="font-bold text-sm text-slate-800">
-                          {label}
-                        </div>
-                        <div className="text-xs text-slate-500 leading-snug">
-                          {description}
-                        </div>
+                      <div className="min-w-0 font-bold text-sm text-slate-800">
+                        {label}
                       </div>
                     </div>
                     <div className="flex bg-white border border-slate-200 rounded-lg p-0.5 shrink-0 self-start sm:self-auto">
@@ -1209,21 +1166,12 @@ export const GlobalPermissionsManager: React.FC = () => {
           {filteredFeatures.map((feature) => {
             const permission = getPermission(feature.id);
             const isSaving = saving.has(feature.id);
-            // True when there's no persisted permission doc yet — the
-            // controls below are showing the synthetic default from
-            // `getPermission`. If an admin saves now, the defaults
-            // (including `enabled` and `accessLevel`) are what land in
-            // Firestore — for features that default to disabled, that
-            // means saving with no other changes leaves the feature
-            // off. Surface a banner so the admin understands.
+            // No permission doc yet, so the controls show defaults.
             const isSyntheticDefault = !permissions.has(feature.id);
-            const syntheticDefaultNotice = isSyntheticDefault ? (
-              <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 text-xs text-amber-800">
-                <strong>No saved settings.</strong> The values below are
-                defaults; they&apos;ll be persisted to Firestore when you click
-                Save. For features that default to disabled, toggle{' '}
-                <em>Enabled</em> on before saving.
-              </div>
+            const notSavedBadge = isSyntheticDefault ? (
+              <span className="shrink-0 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-xxs font-bold text-amber-800">
+                Not saved
+              </span>
             ) : null;
 
             if (effectiveViewMode === 'list') {
@@ -1232,7 +1180,6 @@ export const GlobalPermissionsManager: React.FC = () => {
                   key={feature.id}
                   className="bg-white border-2 border-slate-200 rounded-xl hover:border-brand-blue-light transition-colors overflow-hidden"
                 >
-                  {syntheticDefaultNotice}
                   <div className="flex items-center gap-4 p-3">
                     {/* Identity Section */}
                     <div className="flex items-center gap-3 w-56 xl:w-72 shrink-0">
@@ -1240,9 +1187,12 @@ export const GlobalPermissionsManager: React.FC = () => {
                         <feature.icon className="w-5 h-5" />
                       </div>
                       <div className="flex-1 min-w-0 text-left">
-                        <h4 className="font-bold text-slate-800 text-sm truncate">
-                          {feature.label}
-                        </h4>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <h4 className="font-bold text-slate-800 text-sm truncate">
+                            {feature.label}
+                          </h4>
+                          {notSavedBadge}
+                        </div>
                         <p className="text-xxs text-slate-500 truncate">
                           {feature.description}
                         </p>
@@ -1473,22 +1423,17 @@ export const GlobalPermissionsManager: React.FC = () => {
                 key={feature.id}
                 className="bg-white border-2 border-slate-200 rounded-2xl p-6 hover:border-brand-blue-light transition-all text-left"
               >
-                {isSyntheticDefault && (
-                  <div className="mb-4 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 leading-snug">
-                    <strong>No saved settings.</strong> The values below are
-                    defaults; they&apos;ll be persisted to Firestore when you
-                    click Save. For features that default to disabled, toggle{' '}
-                    <em>Enabled</em> on before saving.
-                  </div>
-                )}
                 <div className="flex items-center gap-4 mb-6">
                   <div className="bg-brand-blue-lighter p-3 rounded-xl text-brand-blue-primary">
                     <feature.icon className="w-6 h-6" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-800 text-lg">
-                      {feature.label}
-                    </h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-slate-800 text-lg">
+                        {feature.label}
+                      </h4>
+                      {notSavedBadge}
+                    </div>
                     <p className="text-xs text-slate-500 leading-relaxed">
                       {feature.description}
                     </p>

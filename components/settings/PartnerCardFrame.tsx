@@ -7,8 +7,6 @@ export type PartnerCardFrameProps = {
   /** Dock-facing partner name; titles the card and names the group. */
   name: string;
   present: boolean;
-  /** Explanation shown with the add button while the partner is off the board. */
-  missingHelp: string;
   addLabel: string;
   onAdd: () => void;
   id?: string;
@@ -23,7 +21,6 @@ export const PartnerCardFrame: React.FC<PartnerCardFrameProps> = ({
   partner,
   name,
   present,
-  missingHelp,
   addLabel,
   onAdd,
   id,
@@ -50,7 +47,6 @@ export const PartnerCardFrame: React.FC<PartnerCardFrameProps> = ({
         {children}
         {!present && (
           <div className="flex flex-col gap-2 pb-2">
-            <p className="text-xxs text-slate-600">{missingHelp}</p>
             <button
               type="button"
               onClick={onAdd}

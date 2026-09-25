@@ -73,7 +73,6 @@ export default defineSettings<MusicConfig>({
           label: 'syncWithTimeTool',
           section: 'connections',
           partner: 'time-tool',
-          missingHelp: 'addTimeToolHelp',
           control: {
             key: 'syncWithTimeTool',
             type: 'custom',

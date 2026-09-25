@@ -291,7 +291,6 @@
       "dockLeft": "Izquierda",
       "dockRight": "Derecha",
       "language": "Idioma de la Interfaz",
-      "languageDescription": "Elige el idioma de visualización preferido para todo el tablero.",
       "saveAllChanges": "Guardar todos los cambios"
     },
     "confirmClearBoard": "¿Estás seguro de que deseas cerrar TODAS las ventanas de widgets?"
@@ -501,20 +500,16 @@
       "description": "Elige qué secciones aparecen en el panel de esta Comunidad. Cualquier miembro puede actualizar estas opciones.",
       "saveFailed": "No se pudo guardar la configuración",
       "quizzes": {
-        "title": "Biblioteca de Cuestionarios",
-        "description": "Comparte cuestionarios con la Comunidad. Los miembros pueden sincronizar ediciones o copiar un cuestionario a su propia biblioteca."
+        "title": "Biblioteca de Cuestionarios"
       },
       "videoActivities": {
-        "title": "Actividades de Video",
-        "description": "Comparte actividades basadas en video y agrega datos de finalización con la Comunidad."
+        "title": "Actividades de Video"
       },
       "notes": {
-        "title": "Notas",
-        "description": "Un cuaderno compartido para la Comunidad."
+        "title": "Notas"
       },
       "sharedBoards": {
-        "title": "Tableros Compartidos",
-        "description": "Muestra tableros compartidos con esta Comunidad."
+        "title": "Tableros Compartidos"
       },
       "digest": {
         "heading": "Notificaciones",
@@ -745,7 +740,6 @@
       "alreadySharedToast": "\"{{title}}\" ya está compartida con esta Comunidad.",
       "shareFailed": "No se pudo compartir la rúbrica con esta Comunidad.",
       "sharePickerTitle": "Compartir una rúbrica con esta Comunidad",
-      "sharePickerPrompt": "Elige una rúbrica de tu biblioteca.",
       "sharePickerEmpty": "Aún no tienes rúbricas. Crea una a partir de una pregunta escrita en el editor de cuestionarios.",
       "pickerMeta": "{{criteria}} criterios · {{points}} pts",
       "unshareAction": "Dejar de compartir",
@@ -782,7 +776,6 @@
       "unshareConfirm": "¿Dejar de compartir \"{{title}}\" con esta Comunidad? Los cuestionarios de tus colegas que usan este banco dejarán de funcionar; las copias en sus bibliotecas se conservan.",
       "unshareFailed": "No se pudo dejar de compartir el banco.",
       "sharePickerTitle": "Compartir un banco de preguntas con esta Comunidad",
-      "sharePickerPrompt": "Elige un banco de tu biblioteca de cuestionarios.",
       "sharePickerEmpty": "Aún no tienes bancos de preguntas. Crea uno en la pestaña Bancos del widget de cuestionarios.",
       "unshareNotReady": "Tus bancos de preguntas aún se están cargando. Inténtalo de nuevo en un momento."
     },
@@ -1423,11 +1416,9 @@
       "alertSound": "Sonido de Alerta",
       "numberStyle": "Estilo de Números",
       "timerEndAction": "Acción al Finalizar",
-      "addExpectationsTip": "¡Añade un widget de \"Expectativas\" para activar cambios automáticos de nivel de voz!",
       "switchToVoiceLevel": "Cambiar a Nivel de Voz al terminar",
       "level": "Nivel",
       "autoSetTrafficLight": "Semáforo Automático",
-      "addTrafficLightTip": "¡Añade un widget de Semáforo para activar cambios automáticos de color!",
       "stop": "Parar",
       "slow": "Despacio",
       "go": "Ir",
@@ -1435,19 +1426,15 @@
       "confirmTime": "Confirmar tiempo",
       "closeKeypad": "Cerrar teclado",
       "autoPickRandomStudent": "Seleccionar alumno al azar automáticamente",
-      "addRandomizerTip": "Añade un widget de Aleatorizador para seleccionar automáticamente al siguiente alumno cuando termine el temporizador.",
       "autoPickNext": "Seleccionar el siguiente automáticamente",
       "triggerRandomizerWhenTimerEnds": "Activar aleatorizador al terminar el temporizador",
       "autoRotateStations": "Rotar estaciones automáticamente",
-      "addStationsTip": "Añade un widget de Estaciones para rotar automáticamente a los alumnos cuando termine este temporizador.",
       "rotateStationsClockwise": "Rotar estaciones en sentido horario",
       "rotateStationsOnEnd": "Mover a cada alumno una estación cuando termine el temporizador",
       "autoAdvanceNextUpQueue": "Avanzar cola automáticamente",
-      "addNextUpTip": "¡Añade un widget de «Siguiente» para avanzar automáticamente al siguiente alumno cuando termine el temporizador!",
       "autoAdvanceNext": "Avanzar automáticamente",
       "advanceQueueOnEnd": "Avanzar la cola al terminar el temporizador",
       "adjustStep": "Ajustar paso",
-      "adjustStepHint": "Toca para añadir o restar este tiempo. Mantén presionado para añadir más rápido.",
       "adjustStepUnit": "segundos",
       "addTime": "Añadir tiempo",
       "subtractTime": "Restar tiempo",
@@ -1832,7 +1819,7 @@
     },
     "mediaReview": {
       "title": "Contenido multimedia del alumno",
-      "blurb": "Eliminar una respuesta borra todas las tomas del Google Drive del profesor.",
+      "blurb": "Al eliminar se borran todas las grabaciones del Drive del docente.",
       "refresh": "Actualizar",
       "filterTeacher": "Profesor",
       "allTeachers": "Todos los profesores",
@@ -2781,7 +2768,7 @@
     "mediaTooLarge": "\"{{name}}\" es demasiado grande. Los archivos pueden tener hasta {{max}} MB.",
     "autoAdvance": "Avanzar después de (segundos)",
     "autoAdvanceAuto": "Auto",
-    "autoAdvanceHint": "Para el modo Guiado. Déjalo en blanco para dar tiempo de lectura; 0 espera a Siguiente.",
+    "autoAdvanceHint": "Solo en modo guiado. 0 espera a Siguiente.",
     "hideMarker": "Ocultar siempre el marcador",
     "hideMarkerHint": "Los estudiantes nunca ven el marcador. Útil en el modo Explorar cuando deben encontrar el lugar por sí mismos.",
     "questionType": "Tipo de pregunta",
@@ -2819,13 +2806,12 @@
     "mode_structured": "Estructurado",
     "mode_guided": "Guiado",
     "mode_explore": "Explorar",
-    "modeDesc_structured": "Los estudiantes avanzan paso a paso. Hacer clic en el punto resaltado o en Siguiente avanza.",
-    "modeDesc_guided": "El cursor muestra cada paso y avanza solo.",
-    "modeDesc_explore": "Los estudiantes hacen clic en cualquier paso, en cualquier orden.",
+    "modeDesc_structured": "Los estudiantes avanzan paso a paso.",
+    "modeDesc_guided": "Reproduce cada paso automáticamente.",
+    "modeDesc_explore": "Los estudiantes abren los pasos en cualquier orden.",
     "watchPace": "Ritmo guiado",
     "pace_standard": "Estándar",
     "pace_calm": "Tranquilo",
-    "paceDesc_standard": "Cada paso se muestra el tiempo suficiente para leerlo.",
     "paceDesc_calm": "Cada paso se muestra aproximadamente un tercio más.",
     "welcomeToggle": "Mostrar una pantalla de bienvenida",
     "welcomeHint": "Los estudiantes ven tu mensaje antes de empezar y el botón Empezar dice \"Comenzar\".",
@@ -2841,14 +2827,10 @@
     "pulse_off": "Desactivado",
     "pulseDesc_consistent": "Los marcadores laten suavemente todo el tiempo.",
     "pulseDesc_reminder": "Los marcadores se agitan brevemente cada pocos segundos.",
-    "pulseDesc_off": "Los marcadores permanecen quietos.",
     "transition": "Transición entre diapositivas",
     "transition_none": "Ninguna",
     "transition_slide": "Deslizar",
     "transition_fade": "Fundido",
-    "transitionDesc_none": "Las diapositivas cambian al instante.",
-    "transitionDesc_slide": "La siguiente diapositiva entra desde la derecha.",
-    "transitionDesc_fade": "Las diapositivas se funden entre sí.",
     "trimStart": "Inicio del recorte",
     "trimEnd": "Fin del recorte",
     "trimReset": "Restablecer",
@@ -3066,7 +3048,6 @@
     "profileAndSettings": "Perfil y ajustes",
     "profile": {
       "title": "Perfil",
-      "description": "Dónde y qué enseñas. Los grados y las áreas de contenido filtran los estándares y los objetivos de aprendizaje para que solo veas lo que te corresponde.",
       "gradesTaught": "Grados que enseñas",
       "resetGrades": "Restablecer al valor del edificio",
       "noGrades": "Se muestran todos los grados.",
@@ -3074,8 +3055,7 @@
     }
   },
   "quizHandRaise": {
-    "label": "Permitir que los estudiantes levanten la mano",
-    "help": "Los estudiantes verán un botón para levantar la mano durante el cuestionario."
+    "label": "Permitir que los estudiantes levanten la mano"
   },
   "quizAdmin": {
     "title": "Administración de cuestionarios",

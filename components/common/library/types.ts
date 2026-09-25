@@ -477,7 +477,7 @@ export interface AssignmentArchiveCardProps<TAssignment> {
 export interface AssignModeOption {
   id: string;
   label: string;
-  description: string;
+  description?: string;
   icon?: React.ComponentType<{
     size?: number;
     className?: string;

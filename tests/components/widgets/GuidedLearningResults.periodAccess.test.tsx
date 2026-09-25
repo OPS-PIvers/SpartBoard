@@ -142,6 +142,7 @@ describe('GuidedLearningResults — per-period access', () => {
   it('follows the session live', async () => {
     renderResults();
     await screen.findByRole('group', { name: 'Class periods' });
+    await waitFor(() => expect(onSnapshot).toHaveBeenCalled());
     const listener = (onSnapshot as unknown as ReturnType<typeof vi.fn>).mock
       .calls[0] as [string, (s: { data: () => unknown }) => void];
     expect(listener[0]).toBe('guided_learning_sessions/s1');

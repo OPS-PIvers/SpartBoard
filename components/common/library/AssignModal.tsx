@@ -225,9 +225,11 @@ const ModeCard: React.FC<ModeCardProps> = ({ mode, selected, onSelect }) => {
         <p className="font-black text-sm text-slate-800 leading-tight">
           {mode.label}
         </p>
-        <p className="text-xs text-slate-500 mt-0.5 leading-snug">
-          {mode.description}
-        </p>
+        {mode.description && (
+          <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+            {mode.description}
+          </p>
+        )}
       </div>
     </button>
   );

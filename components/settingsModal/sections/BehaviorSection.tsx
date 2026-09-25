@@ -25,10 +25,6 @@ export const BehaviorSection: React.FC = () => {
       <SettingsSectionHeader
         icon={<SlidersHorizontal className="w-4 h-4" />}
         title={t('sidebar.nav.preferences', { defaultValue: 'Behavior' })}
-        description={t('sidebar.settings.preferencesDescription', {
-          defaultValue:
-            'Customize how your boards behave. These settings apply to your account across all boards.',
-        })}
         scopeLabel={t('settings.scopeAllBoards', {
           defaultValue: 'All boards',
         })}

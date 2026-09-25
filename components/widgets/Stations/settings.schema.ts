@@ -40,7 +40,6 @@ export default defineSettings<StationsConfig>({
           label: 'randomizer',
           section: 'connections',
           partner: 'random',
-          missingHelp: 'addRandomizerTip',
           control: {
             key: 'stations',
             type: 'custom',

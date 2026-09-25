@@ -214,9 +214,10 @@ describe('Studio properties panel', () => {
       'aria-pressed',
       'true'
     );
-    expect(
-      within(pace).getByText('Each step stays up about a third longer.')
-    ).toBeInTheDocument();
+    expect(within(pace).getByRole('button', { name: 'Calm' })).toHaveAttribute(
+      'title',
+      'Each step stays up about a third longer.'
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Structured' }));
     expect(screen.queryByRole('group', { name: 'Guided pace' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Guided' }));
@@ -354,18 +355,11 @@ describe('Studio properties panel', () => {
             `mode_${v}`,
             `modeDesc_${v}`,
           ]),
-          ...['standard', 'calm'].flatMap((v) => [
-            `pace_${v}`,
-            `paceDesc_${v}`,
-          ]),
-          ...['consistent', 'reminder', 'off'].flatMap((v) => [
-            `pulse_${v}`,
-            `pulseDesc_${v}`,
-          ]),
-          ...['none', 'slide', 'fade'].flatMap((v) => [
-            `transition_${v}`,
-            `transitionDesc_${v}`,
-          ]),
+          ...['standard', 'calm'].map((v) => `pace_${v}`),
+          'paceDesc_calm',
+          ...['consistent', 'reminder', 'off'].map((v) => `pulse_${v}`),
+          ...['consistent', 'reminder'].map((v) => `pulseDesc_${v}`),
+          ...['none', 'slide', 'fade'].map((v) => `transition_${v}`),
           ...['image', 'video'].map((v) => `slideKind_${v}`),
           ...['above', 'below', 'left', 'right'].map((v) => `calloutSide_${v}`),
           ...['point', 'rect', 'ellipse', 'polygon'].map((v) => `shape_${v}`),

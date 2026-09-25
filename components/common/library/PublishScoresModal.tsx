@@ -242,9 +242,6 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
                     <h3 className="font-bold text-slate-900 text-sm">
                       {opt.title}
                     </h3>
-                    <p className="mt-1 text-xs text-slate-600 leading-relaxed">
-                      {opt.body}
-                    </p>
                   </div>
                 </div>
               </button>

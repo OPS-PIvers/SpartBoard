@@ -38,8 +38,8 @@ interface PlcSharePickerModalProps {
   title: string;
   /** Sub-header line, usually the PLC name. */
   subtitle: string;
-  /** Prompt above the item list. */
-  prompt: string;
+  /** Optional prompt above the item list. */
+  prompt?: string;
   /** Localized message when `items` is empty. */
   emptyMessage: string;
   /** Items in display order (caller sorts; modal doesn't re-sort). */
@@ -124,7 +124,7 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
       }
     >
       <div className="px-5 pb-5 pt-4 space-y-3">
-        <p className="text-xs text-slate-600">{prompt}</p>
+        {prompt && <p className="text-xs text-slate-600">{prompt}</p>}
 
         {items.length === 0 ? (
           <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center">

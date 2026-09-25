@@ -43,7 +43,6 @@ export default defineSettings<QRConfig>({
           key: 'showUrl',
           type: 'toggle',
           label: 'showUrl',
-          help: 'showUrlHelp',
         },
       ],
     },

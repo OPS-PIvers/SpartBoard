@@ -123,9 +123,7 @@ describe('notice-widget settings-drawer migrations', () => {
     it('Projects says so when the rollout switch is off', async () => {
       vi.mocked(useProjectsWidgetSettings).mockReturnValue({ enabled: false });
       render(<SchemaSettingsFallback widget={makeWidget('projects')} />);
-      expect(
-        await screen.findByText(/switched off for this district/)
-      ).toBeInTheDocument();
+      expect(await screen.findByRole('note')).toBeInTheDocument();
       expect(
         screen.queryByRole('button', { name: 'Go to library' })
       ).not.toBeInTheDocument();
@@ -157,7 +155,6 @@ describe('notice-widget settings-drawer migrations', () => {
       expect(
         screen.getByRole('group', { name: 'Group rows' })
       ).toBeInTheDocument();
-      expect(screen.getByText(/style the project board/)).toBeInTheDocument();
       expect(
         screen.queryByRole('radiogroup', { name: /text color/i })
       ).not.toBeInTheDocument();
@@ -166,9 +163,7 @@ describe('notice-widget settings-drawer migrations', () => {
     it('Activity Wall points at the widget face and keeps font, color and surface', async () => {
       const widget = makeWidget('activity-wall');
       const { unmount } = render(<SchemaSettingsFallback widget={widget} />);
-      expect(
-        await screen.findByText(/walls are managed from the widget face/i)
-      ).toBeInTheDocument();
+      expect(await screen.findByRole('note')).toBeInTheDocument();
       unmount();
 
       render(<SchemaAppearanceFallback widget={widget} />);
@@ -184,11 +179,7 @@ describe('notice-widget settings-drawer migrations', () => {
     it('Talking Tool keeps its admin notice and surface only', async () => {
       const widget = makeWidget('talking-tool');
       const { unmount } = render(<SchemaSettingsFallback widget={widget} />);
-      expect(
-        await screen.findByText(
-          /Your admin sets the talking stems and categories/
-        )
-      ).toBeInTheDocument();
+      expect(await screen.findByRole('note')).toBeInTheDocument();
       unmount();
 
       render(<SchemaAppearanceFallback widget={widget} />);

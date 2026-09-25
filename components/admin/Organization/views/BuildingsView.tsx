@@ -68,7 +68,6 @@ export const BuildingsView: React.FC<Props> = ({
     <div>
       <ViewHeader
         title="Buildings"
-        blurb="Schools and sites within your district. Buildings drive user assignments and grade-level filtering."
         actions={
           <>
             <Segmented

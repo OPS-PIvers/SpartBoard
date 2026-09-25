@@ -60,7 +60,7 @@ export const TestClassesView: React.FC<Props> = ({
     <div>
       <ViewHeader
         title="Test classes"
-        blurb="Admin-managed mock classes for PII-free student SSO testing. Listed students can sign in via /join without going through ClassLink, and teachers see these classes with a TEST badge in their sidebar."
+        blurb="Mock classes for testing student sign-in."
         actions={
           <Btn
             variant="primary"

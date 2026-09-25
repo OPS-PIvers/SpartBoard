@@ -22,17 +22,22 @@ interface ChoiceGroupProps<T extends string> {
   options: readonly ChoiceOption<T>[];
   onChange: (next: T) => void;
   testId?: string;
+  /** Also show the chosen option's description under the choices. */
+  showSelectedDesc?: boolean;
 }
 
-/** A small set of pressable choices; the chosen one carries a check and its description. */
+/** A small set of pressable choices; each option's description is its tooltip. */
 export function ChoiceGroup<T extends string>({
   legend,
   value,
   options,
   onChange,
   testId,
+  showSelectedDesc,
 }: ChoiceGroupProps<T>) {
-  const current = options.find((o) => o.value === value);
+  const current = showSelectedDesc
+    ? options.find((o) => o.value === value)
+    : undefined;
   return (
     <fieldset className="flex flex-col gap-1.5" data-testid={testId}>
       <legend className={`${fieldLabelClass} mb-1.5`}>{legend}</legend>
@@ -44,6 +49,7 @@ export function ChoiceGroup<T extends string>({
               key={opt.value}
               type="button"
               aria-pressed={on}
+              title={opt.desc}
               onClick={() => {
                 if (!on) onChange(opt.value);
               }}

@@ -60,7 +60,6 @@ export default defineSettings<TimeToolConfig>({
           type: 'number',
           key: 'adjustStepSeconds',
           label: 'adjustStepSeconds',
-          help: 'adjustStepHint',
           min: 5,
           max: 60,
           step: 5,
@@ -73,7 +72,6 @@ export default defineSettings<TimeToolConfig>({
           label: 'timerEndVoiceLevel',
           section: 'timerEndSection',
           partner: 'expectations',
-          missingHelp: 'addExpectationsTip',
           visibleWhen: isTimerMode,
           // schema-gap: segmentedNullable
           control: {
@@ -89,7 +87,6 @@ export default defineSettings<TimeToolConfig>({
           label: 'timerEndTrafficColor',
           section: 'timerEndSection',
           partner: 'traffic',
-          missingHelp: 'addTrafficLightTip',
           visibleWhen: isTimerMode,
           // schema-gap: segmentedNullable
           control: {
@@ -105,7 +102,6 @@ export default defineSettings<TimeToolConfig>({
           label: 'timerEndTriggerRandom',
           section: 'timerEndSection',
           partner: 'random',
-          missingHelp: 'addRandomizerTip',
           visibleWhen: isTimerMode,
           control: {
             type: 'toggle',
@@ -119,7 +115,6 @@ export default defineSettings<TimeToolConfig>({
           label: 'timerEndTriggerStationsRotate',
           section: 'timerEndSection',
           partner: 'stations',
-          missingHelp: 'addStationsTip',
           visibleWhen: isTimerMode,
           control: {
             type: 'toggle',
@@ -133,7 +128,6 @@ export default defineSettings<TimeToolConfig>({
           label: 'timerEndTriggerNextUp',
           section: 'timerEndSection',
           partner: 'nextUp',
-          missingHelp: 'addNextUpTip',
           visibleWhen: isTimerMode,
           control: {
             type: 'toggle',

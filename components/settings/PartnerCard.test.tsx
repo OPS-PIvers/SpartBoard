@@ -35,7 +35,7 @@ const boardWith = (...types: WidgetType[]) =>
 
 const renderCard = () =>
   render(
-    <PartnerCard partner="time-tool" missingHelp="Add a Timer to auto-start.">
+    <PartnerCard partner="time-tool">
       {(present) => (
         <button type="button" disabled={!present}>
           Inner control
@@ -58,15 +58,13 @@ describe('PartnerCard (legacy panels)', () => {
       screen.getByRole('group', { name: 'Class Timer' })
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Inner control' })).toBeEnabled();
-    expect(screen.queryByText('Add a Timer to auto-start.')).toBeNull();
   });
 
-  it('disables the control, explains, and adds the partner on tap while it is missing', () => {
+  it('disables the control and adds the partner on tap while it is missing', () => {
     renderCard();
     expect(
       screen.getByRole('button', { name: 'Inner control' })
     ).toBeDisabled();
-    expect(screen.getByText('Add a Timer to auto-start.')).toBeInTheDocument();
     fireEvent.click(
       screen.getByRole('button', { name: 'Add Class Timer widget' })
     );

@@ -291,7 +291,6 @@
       "dockLeft": "Left",
       "dockRight": "Right",
       "language": "Interface Language",
-      "languageDescription": "Choose your preferred display language for the entire board.",
       "saveAllChanges": "Save all changes"
     },
     "confirmClearBoard": "Are you sure you want to close ALL widget windows?"
@@ -501,20 +500,16 @@
       "description": "Choose which sections appear in this PLC's dashboard. Any PLC member can update these.",
       "saveFailed": "Failed to save settings",
       "quizzes": {
-        "title": "Quiz Library",
-        "description": "Share quizzes with the PLC. Members can sync edits or copy a quiz into their own library."
+        "title": "Quiz Library"
       },
       "videoActivities": {
-        "title": "Video Activities",
-        "description": "Share video-based activities and aggregate completion data with the PLC."
+        "title": "Video Activities"
       },
       "notes": {
-        "title": "Notes",
-        "description": "A shared notebook for the PLC."
+        "title": "Notes"
       },
       "sharedBoards": {
-        "title": "Shared Boards",
-        "description": "Surface dashboards shared with this PLC."
+        "title": "Shared Boards"
       },
       "digest": {
         "heading": "Notifications",
@@ -745,7 +740,6 @@
       "alreadySharedToast": "\"{{title}}\" is already shared with this PLC.",
       "shareFailed": "Failed to share rubric with this PLC.",
       "sharePickerTitle": "Share a rubric with this PLC",
-      "sharePickerPrompt": "Pick a rubric from your library.",
       "sharePickerEmpty": "You don’t have any rubrics yet. Build one from a written question in the quiz editor.",
       "pickerMeta": "{{criteria}} criteria · {{points}} pts",
       "unshareAction": "Unshare",
@@ -782,7 +776,6 @@
       "unshareConfirm": "Stop sharing \"{{title}}\" with this PLC? Teammates’ quizzes that draw from it will stop resolving; copies in their libraries keep working.",
       "unshareFailed": "Failed to stop sharing question bank.",
       "sharePickerTitle": "Share a question bank with this PLC",
-      "sharePickerPrompt": "Pick a bank from your quiz library.",
       "sharePickerEmpty": "You don’t have any question banks yet. Build one in the Quiz widget’s Banks tab.",
       "unshareNotReady": "Your question banks are still loading. Try again in a moment."
     },
@@ -1219,8 +1212,7 @@
       "syncWithTextWidget": "Sync with Text widget",
       "syncHelp": "Uses the first Text widget on the board.",
       "noTextWidget": "No Text Widget found. Add one to the board to start syncing.",
-      "showUrl": "Show URL",
-      "showUrlHelp": "Display the destination link beneath the QR code."
+      "showUrl": "Show URL"
     },
     "scoreboard": {
       "teams": "Teams",
@@ -1282,8 +1274,7 @@
       "buildingSchedule": "Building schedule",
       "syncBuildingSchedule": "Sync building schedule",
       "syncedAt": "Synced {{time}}",
-      "daysVisible": "Days to display",
-      "daysVisibleHelp": "Show events for the next 1–30 days."
+      "daysVisible": "Days to display"
     },
     "materials": {
       "title": "Title",
@@ -1360,19 +1351,14 @@
       "connections": "Connections",
       "calendarImport": "Calendar",
       "importToday": "Import today",
-      "addCalendarTip": "Add a Calendar widget to import today’s events into this schedule.",
       "noScheduleToImport": "Add a schedule before importing Calendar events.",
       "noCalendarOnBoard": "No Calendar widget found on the board.",
       "noCalendarEvents": "No events found for today in Calendar.",
       "importedCalendarEvents": "Imported {{count}} event(s) from Calendar.",
       "autoProgress": "Auto-complete items",
-      "autoProgressHelp": "Automatically check off items when their time passes.",
       "autoScroll": "Auto-scroll view",
-      "autoScrollHelp": "Keep the active event in view as the day progresses.",
       "expandActiveItem": "Expand current event",
-      "expandActiveItemHelp": "Show the current event’s full name across multiple lines.",
       "buildingSync": "Sync building schedule",
-      "buildingSyncHelp": "Automatically show district defaults for your building.",
       "deletedPrefix": "Deleted",
       "eventDeleted": "Event deleted",
       "undo": "Undo",
@@ -1389,10 +1375,7 @@
     "recessGear": {
       "connections": "Connections",
       "sourceWeatherWidget": "Source Weather widget",
-      "smartLinkingHelp": "Recess Gear uses the selected Weather widget for temperature and conditions.",
-      "addWeatherTip": "Add a Weather widget to choose a source for Recess Gear.",
       "useFeelsLike": "Use “Feels Like” temperature",
-      "useFeelsLikeHelp": "Use wind chill and heat index for gear calculations.",
       "autoSelect": "Auto-select (first available)",
       "weatherAt": "Weather at {{location}}",
       "classroom": "Classroom"
@@ -1421,8 +1404,7 @@
       "colorTheme": "Color theme"
     },
     "mathTools": {
-      "dpiCalibration": "Palette DPI calibration (px / inch)",
-      "dpiCalibrationHelp": "Spawned true-scale tools inherit this PPI. CSS defines 1 in = 96 px; change it only if your display renders differently. Grade-level filters remain in Admin Settings."
+      "dpiCalibration": "Palette DPI calibration (px / inch)"
     },
     "mathTool": {
       "toolType": "Tool type",
@@ -1448,7 +1430,6 @@
       "centimeters": "Centimeters",
       "both": "Both",
       "trueScaleCalibration": "True-scale calibration (px / inch)",
-      "trueScaleCalibrationHelp": "CSS defines 1 in = 96 px. Adjust this only when a measured object renders at a different physical size.",
       "rotation": "Rotation"
     },
     "nextUp": {
@@ -1490,10 +1471,7 @@
       "importError": "Failed to import the class into the queue.",
       "connections": "Connections",
       "autoStartTimer": "Auto-start Timer",
-      "autoStartTimerHelp": "Start the Timer when you tap NEXT.",
-      "addTimerHelp": "Add a Timer widget to start it automatically when you tap NEXT.",
       "displayCount": "Display count",
-      "displayCountHelp": "Choose how many students to show, from 1 to 10.",
       "visualStyle": "Visual style",
       "themeColor": "Theme color {{color}}"
     },
@@ -1514,7 +1492,6 @@
       "connections": "Connections",
       "syncWithTimeTool": "Sync with Time Tool",
       "syncSpotifyHelp": "Not available for Spotify.",
-      "addTimeToolHelp": "Add a Time Tool widget to play and pause music automatically.",
       "background": "Background",
       "textColor": "Text color",
       "spotifyChecking": "Checking Spotify connection…",
@@ -1533,15 +1510,15 @@
     },
     "car-rider-pro": {
       "centrallyManaged": "Centrally managed",
-      "managedHelp": "Your district administrator configures the login URL for all classrooms."
+      "managedHelp": "Set by your district admin."
     },
     "blending-board": {
       "centrallyManaged": "Centrally managed",
-      "managedHelp": "Your district administrator configures the embedded URL for all classrooms."
+      "managedHelp": "Set by your district admin."
     },
     "catalyst": {
       "centrallyManaged": "Admin managed",
-      "managedHelp": "Catalyst routines and categories are managed for all classrooms by your district administrator."
+      "managedHelp": "Set by your district admin."
     },
     "miniApp": {
       "apps": "Apps",
@@ -1549,7 +1526,7 @@
     },
     "first-5": {
       "automaticContent": "Automatic content",
-      "automaticHelp": "This widget shows today’s First 5 content for your selected building and updates each weekday at 6:00 AM.",
+      "automaticHelp": "Updates each weekday at 6 AM.",
       "currentUrl": "Current URL: {{url}}"
     },
     "custom-widget": {
@@ -1686,7 +1663,6 @@
       "practiceSetNamePlaceholder": "e.g. Biology Ch 4",
       "cards": "Cards",
       "memoryMode": "Memory mode",
-      "memoryModeHelp": "Turn the grid into a matching game using the terms and definitions.",
       "revealMode": "Reveal mode",
       "flip": "Flip",
       "fade": "Fade",
@@ -1822,28 +1798,21 @@
     },
     "video-activity": {
       "autoPlay": "Auto-play video",
-      "autoPlayHelp": "Video starts playing automatically when a student joins.",
       "requireCorrectAnswer": "Require correct answers",
-      "requireCorrectAnswerHelp": "Students must answer correctly to resume the video.",
-      "allowSkipping": "Allow skipping",
-      "allowSkippingHelp": "Students can skip questions without answering."
+      "allowSkipping": "Allow skipping"
     },
     "guided-learning": {
-      "goToLibrary": "Go to library",
-      "settingsHelp": "Use the main widget panel to create, edit, and assign guided learning sets. Settings are configured per-set inside the editor."
+      "goToLibrary": "Go to library"
     },
     "projects": {
       "library": "Project library",
-      "libraryHelp": "Build projects, set up groups and grade them from the main widget panel. Each project's steps and rubric live in its own editor.",
       "goToLibrary": "Go to library",
-      "rolloutOff": "Projects is switched off for this district. An admin turns it on under Admin Settings, Rollouts.",
-      "groupRows": "Group rows",
-      "groupRowsHelp": "These style the project board, the group rows you project."
+      "rolloutOff": "Projects is off for your district.",
+      "groupRows": "Group rows"
     },
     "activity-wall": {
       "walls": "Walls",
-      "wallsManaged": "Walls are managed from the widget face.",
-      "wallsHelp": "Use the Library button to pick, create, edit, duplicate, or delete a wall. Each wall carries its own layout, appearance, and posting rules."
+      "wallsHelp": "Edit walls from the Library button on the widget."
     },
     "talking-tool": {
       "globalContent": "Global content settings",
@@ -1851,7 +1820,7 @@
     },
     "stickers": {
       "stickerBook": "Sticker book",
-      "stickerBookHelp": "Upload, favorite, and reorder stickers on the widget itself."
+      "stickerBookHelp": "Manage stickers on the widget."
     },
     "countdown": {
       "title": "Event title",
@@ -1917,7 +1886,6 @@
       "randomizer": "Random",
       "connections": "Connections",
       "sendToRandom": "Send station names to Random",
-      "addRandomizerTip": "Add a Random widget to send your station names to it.",
       "addRandomizerFirst": "Add a Random widget to the board first.",
       "addStationFirst": "Add at least one station first.",
       "stationNumber": "Station {{number}}",
@@ -1940,7 +1908,6 @@
     },
     "soundboard": {
       "availableSounds": "Available sounds",
-      "availableSoundsHelp": "Choose which sounds appear as buttons on the board.",
       "soundButtons": "Sound buttons",
       "noSounds": "No sounds are configured for this building. Contact an administrator."
     },
@@ -1957,10 +1924,8 @@
     },
     "sound": {
       "syncExpectations": "Sync with Expectations",
-      "addExpectationsHelp": "Add an Expectations widget to adjust sensitivity from the selected voice level.",
       "sensitivity": "Sensitivity",
       "autoTrafficLight": "Control Traffic Light automatically",
-      "addTrafficHelp": "Add a Traffic Light widget to change its color automatically.",
       "trafficLightThreshold": "Trigger red light at",
       "thresholdQuiet": "Quiet",
       "thresholdLow": "Low",
@@ -1973,8 +1938,7 @@
       "visualPopcorn": "Popcorn"
     },
     "webcam": {
-      "autoSendToNotes": "Send OCR text to Notes automatically",
-      "autoSendToNotesHelp": "Convert captured text into a Notes widget immediately."
+      "autoSendToNotes": "Send OCR text to Notes automatically"
     },
     "drawing": {
       "colorPresets": "Color presets",
@@ -1985,8 +1949,7 @@
       "backgroundGrid": "Grid",
       "backgroundLines": "Lines",
       "backgroundDots": "Dots",
-      "shapeFill": "Fill shapes",
-      "shapeFillHelp": "Fill rectangles and ellipses with the current color."
+      "shapeFill": "Fill shapes"
     },
     "clock": {
       "format24": "24H Format",
@@ -2166,13 +2129,7 @@
       "soundGong": "Gong",
       "soundAlert": "Alert",
       "adjustStepSeconds": "Adjust Step (seconds)",
-      "adjustStepHint": "Tap to add or subtract this much time. Press and hold to add faster.",
       "timerEndSection": "When the timer ends",
-      "addExpectationsTip": "Add an Expectations widget to change the voice level automatically when the timer ends.",
-      "addTrafficLightTip": "Add a Traffic widget to change its color automatically when the timer ends.",
-      "addRandomizerTip": "Add a Random widget to pick the next student automatically when the timer ends.",
-      "addStationsTip": "Add a Stations widget to rotate students automatically when the timer ends.",
-      "addNextUpTip": "Add a Next Up widget to advance to the next student automatically when the timer ends.",
       "timerEndVoiceLevel": "Switch to Voice Level when finished",
       "none": "None",
       "level": "Lvl",
@@ -2242,11 +2199,8 @@
       "refreshWeather": "Refresh weather",
       "refreshCity": "Refresh city",
       "showFeelsLike": "Prioritize feels-like temperature",
-      "showFeelsLikeHelp": "Use the feels-like temperature for clothing recommendations.",
       "hideClothing": "Hide clothing recommendations",
-      "hideClothingHelp": "Hide the suggested clothing card from the widget.",
       "syncBackground": "Match the board background to weather",
-      "syncBackgroundHelp": "Update the dashboard background when conditions change.",
       "secondaryColor": "Secondary text color",
       "matchText": "Match text",
       "clothingCard": "Clothing card"
@@ -2274,9 +2228,7 @@
       "groups": "Groups",
       "jigsaw": "Jigsaw",
       "soundEffects": "Sound effects",
-      "soundEffectsHelp": "Play a ticking sound during the selection animation.",
       "autoStartTimer": "Start Timer automatically",
-      "addTimerHelp": "Add a Timer widget to start it automatically when a winner is picked.",
       "animationStyle": "Animation style",
       "styleStandard": "Standard",
       "styleWheel": "Wheel",
@@ -2578,11 +2530,9 @@
       "alertSound": "Alert Sound",
       "numberStyle": "Number Style",
       "timerEndAction": "Timer End Action",
-      "addExpectationsTip": "Add an \"Expectations\" widget to enable automatic voice level changes when the timer hits zero!",
       "switchToVoiceLevel": "Switch to Voice Level when finished",
       "level": "Lvl",
       "autoSetTrafficLight": "Auto-set Traffic Light",
-      "addTrafficLightTip": "Add a Traffic Light widget to enable automatic color changes!",
       "stop": "Stop",
       "slow": "Slow",
       "go": "Go",
@@ -2590,19 +2540,15 @@
       "confirmTime": "Confirm time",
       "closeKeypad": "Close keypad",
       "autoPickRandomStudent": "Auto-Pick Random Student",
-      "addRandomizerTip": "Add a Randomizer widget to auto-pick the next student when the timer ends.",
       "autoPickNext": "Auto-Pick Next",
       "triggerRandomizerWhenTimerEnds": "Trigger Randomizer when timer ends",
       "autoRotateStations": "Auto-rotate stations",
-      "addStationsTip": "Add a Stations widget to rotate students automatically when this timer ends.",
       "rotateStationsClockwise": "Rotate stations clockwise",
       "rotateStationsOnEnd": "Move every student one station when timer ends",
       "autoAdvanceNextUpQueue": "Auto-Advance NextUp Queue",
-      "addNextUpTip": "Add a NextUp widget to automatically advance to the next student when the timer ends!",
       "autoAdvanceNext": "Auto-Advance Next",
       "advanceQueueOnEnd": "Advance the queue when timer ends",
       "adjustStep": "Adjust Step",
-      "adjustStepHint": "Tap to add or subtract this much time. Press and hold to add faster.",
       "adjustStepUnit": "seconds",
       "addTime": "Add time",
       "subtractTime": "Subtract time",
@@ -2911,7 +2857,7 @@
     },
     "mediaReview": {
       "title": "Student media",
-      "blurb": "Deleting a response removes every take from the teacher's Google Drive.",
+      "blurb": "Deleting removes every take from the teacher's Drive.",
       "refresh": "Refresh",
       "filterTeacher": "Teacher",
       "allTeachers": "All teachers",
@@ -3929,7 +3875,7 @@
     "mediaTooLarge": "\"{{name}}\" is too large. Files can be up to {{max}} MB.",
     "autoAdvance": "Move on after (seconds)",
     "autoAdvanceAuto": "Auto",
-    "autoAdvanceHint": "For Guided mode. Leave blank to allow reading time; 0 waits for Next.",
+    "autoAdvanceHint": "Guided mode only. 0 waits for Next.",
     "hideMarker": "Always hide the marker",
     "hideMarkerHint": "Students never see the marker. Useful in Explore mode when they should find the spot themselves.",
     "questionType": "Question type",
@@ -3967,13 +3913,12 @@
     "mode_structured": "Structured",
     "mode_guided": "Guided",
     "mode_explore": "Explore",
-    "modeDesc_structured": "Students go step by step. Clicking the highlighted spot or Next moves on.",
-    "modeDesc_guided": "The cursor shows each step and moves on by itself.",
-    "modeDesc_explore": "Students click any step, in any order.",
+    "modeDesc_structured": "Students click through step by step.",
+    "modeDesc_guided": "Plays each step automatically.",
+    "modeDesc_explore": "Students click steps in any order.",
     "watchPace": "Guided pace",
     "pace_standard": "Standard",
     "pace_calm": "Calm",
-    "paceDesc_standard": "Each step stays up long enough to read.",
     "paceDesc_calm": "Each step stays up about a third longer.",
     "welcomeToggle": "Show a welcome screen",
     "welcomeHint": "Students see your message before they start, and the Start button reads \"Get started\".",
@@ -3989,14 +3934,10 @@
     "pulse_off": "Off",
     "pulseDesc_consistent": "Markers pulse gently the whole time.",
     "pulseDesc_reminder": "Markers shake briefly every few seconds.",
-    "pulseDesc_off": "Markers stay still.",
     "transition": "Slide transition",
     "transition_none": "None",
     "transition_slide": "Slide",
     "transition_fade": "Fade",
-    "transitionDesc_none": "Slides change instantly.",
-    "transitionDesc_slide": "The next slide slides in from the right.",
-    "transitionDesc_fade": "Slides cross-fade.",
     "trimStart": "Trim start",
     "trimEnd": "Trim end",
     "trimReset": "Reset",
@@ -4214,7 +4155,6 @@
     "profileAndSettings": "Profile & Settings",
     "profile": {
       "title": "Profile",
-      "description": "Where and what you teach. Grades and content areas filter standards and learning targets so you only see what applies to you.",
       "gradesTaught": "Grades taught",
       "resetGrades": "Reset to building default",
       "noGrades": "Showing all grades.",
@@ -4222,7 +4162,6 @@
     },
     "widgetDefaults": {
       "title": "Widget defaults",
-      "description": "The look new widgets start with. Save one from a widget’s Style tab. Clearing a default does not change widgets already on your boards.",
       "empty": "No widget defaults yet. Open a widget’s settings, go to Style, and choose Save as my default.",
       "clearAll": "Clear",
       "remove": "Remove {{setting}} from {{name}}",
@@ -4230,8 +4169,7 @@
     }
   },
   "quizHandRaise": {
-    "label": "Allow students to raise a hand",
-    "help": "Students get a Raise hand button while taking the quiz."
+    "label": "Allow students to raise a hand"
   },
   "quizAdmin": {
     "title": "Quiz Administration",

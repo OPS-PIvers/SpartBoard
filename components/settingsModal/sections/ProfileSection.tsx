@@ -77,10 +77,6 @@ export const ProfileSection: React.FC = () => {
       <SettingsSectionHeader
         icon={<UserCircle className="w-4 h-4" />}
         title={t('settings.profile.title', { defaultValue: 'Profile' })}
-        description={t('settings.profile.description', {
-          defaultValue:
-            'Where and what you teach. Grades and content areas filter standards and learning targets so you only see what applies to you.',
-        })}
         scopeLabel={t('settings.scopeAllBoards', {
           defaultValue: 'All boards',
         })}
