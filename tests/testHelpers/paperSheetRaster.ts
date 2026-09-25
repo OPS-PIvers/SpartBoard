@@ -4,6 +4,12 @@
  * browser canvas. Scale, offset, rotation and ink density are all dials.
  */
 
+import type { PaperPageMap } from '@/types';
+import {
+  mcItemsOf,
+  writtenItemsOf,
+  writtenRuleYsMm,
+} from '@/utils/paperPageMap';
 import {
   BUBBLE_DIAMETER_MM,
   BUBBLE_LETTER_GREY,
@@ -13,6 +19,7 @@ import {
   REGISTRATION_MARK_CENTERS_MM,
   REGISTRATION_MARK_SIZE_MM,
   STIMULUS_RECT_MM,
+  bubbleRectAtOriginMm,
   bubbleRectMm,
   markerCellRectMm,
   questionChoiceTextRectMm,
@@ -42,6 +49,17 @@ export interface SyntheticStimulus {
   tone: number;
 }
 
+/** Handwriting inside one written box, in millimetres relative to the box's top-left. */
+export interface SyntheticWriting {
+  questionId: string;
+  /** Word-like blocks; defaults to three words on the first line. */
+  strokes?: RectMm[];
+  /** 0..1 ink coverage inside each stroke; pencil is patchy. */
+  density?: number;
+  /** Grey of the lead or ink; pencil through a copier lands near 0x90-0xb0. */
+  tone?: number;
+}
+
 export interface SyntheticSheetOptions {
   marker: PaperMarkerPayload;
   questionCount: number;
@@ -52,6 +70,15 @@ export interface SyntheticSheetOptions {
   questionText?: boolean;
   /** Artwork stacked from the top of the stimulus band. */
   stimuli?: SyntheticStimulus[];
+  /**
+   * Paint the page from a v2 page map instead of arithmetic: bubbles at each MC
+   * item's origin, and each written box's rule lines as the sheet prints them.
+   * A mark's `row` is then the position in the page's MC items.
+   */
+  pageMap?: PaperPageMap;
+  writing?: SyntheticWriting[];
+  /** Grey the rule lines print at; defaults to the sheet's (BUBBLE_LETTER_GREY). */
+  ruleGrey?: number;
   marks?: SyntheticMark[];
   /** Pixels per millimetre; 200 dpi is about 7.87. */
   pxPerMm?: number;
@@ -162,16 +189,72 @@ export function paintSyntheticSheet(opts: SyntheticSheetOptions): RasterPage {
     if (cells[i]) fillRect(markerCellRectMm(i));
   }
 
-  const columns = opts.columnsPerPage ?? 2;
-  const rows = rowsOnPage(opts.marker.page, opts.questionCount, columns);
+  const columns = opts.pageMap?.grid ?? opts.columnsPerPage ?? 2;
   const radius = BUBBLE_DIAMETER_MM / 2;
   const letterTone = opts.letterGrey ?? BUBBLE_LETTER_GREY;
+  const mapRows = opts.pageMap
+    ? mcItemsOf(opts.pageMap).sort((a, b) => a.sheetRow - b.sheetRow)
+    : null;
+  const rows = mapRows
+    ? mapRows.length
+    : rowsOnPage(opts.marker.page, opts.questionCount, columns);
+  const bubbleAt = (row: number, choice: number): RectMm =>
+    mapRows
+      ? bubbleRectAtOriginMm(mapRows[row].originMm, choice, columns)
+      : bubbleRectMm(row, choice, columns);
   for (let row = 0; row < rows; row += 1) {
     for (let c = 0; c < opts.choiceCount; c += 1) {
-      const rect = bubbleRectMm(row, c, columns);
+      const rect = bubbleAt(row, c);
       fillDisc(rect, radius, 1, radius - 0.3);
       if (opts.printedLetters) {
         fillDisc(rect, radius - 0.4, 1, 0, letterTone);
+      }
+    }
+  }
+  if (opts.pageMap) {
+    const ruleTone = opts.ruleGrey ?? BUBBLE_LETTER_GREY;
+    for (const item of writtenItemsOf(opts.pageMap)) {
+      // Header: number and stem, printed black like any question text.
+      fillRect(
+        {
+          x: item.headerMm.x,
+          y: item.headerMm.y + 0.6,
+          w: Math.min(item.headerMm.w, 60),
+          h: 2.4,
+        },
+        0.55
+      );
+      // 1 mm pieces, so a skewed feed tilts the line instead of fattening its bounding box.
+      for (const y of writtenRuleYsMm(item)) {
+        for (let x = item.boxMm.x; x < item.boxMm.x + item.boxMm.w; x += 1) {
+          fillRect(
+            {
+              x,
+              y: y - 0.3,
+              w: Math.min(1, item.boxMm.x + item.boxMm.w - x),
+              h: 0.3,
+            },
+            1,
+            ruleTone
+          );
+        }
+      }
+      const writing = opts.writing?.find(
+        (w) => w.questionId === item.questionId
+      );
+      if (writing) {
+        const strokes = writing.strokes ?? [
+          { x: 4, y: 2.5, w: 14, h: 4.5 },
+          { x: 22, y: 2.5, w: 9, h: 4.5 },
+          { x: 35, y: 2.5, w: 18, h: 4.5 },
+        ];
+        for (const s of strokes) {
+          fillRect(
+            { x: item.boxMm.x + s.x, y: item.boxMm.y + s.y, w: s.w, h: s.h },
+            writing.density ?? 0.5,
+            writing.tone ?? 40
+          );
+        }
       }
     }
   }
@@ -193,11 +276,7 @@ export function paintSyntheticSheet(opts: SyntheticSheetOptions): RasterPage {
     }
   }
   for (const mark of opts.marks ?? []) {
-    fillDisc(
-      bubbleRectMm(mark.row, mark.choice, columns),
-      radius,
-      mark.density ?? 1
-    );
+    fillDisc(bubbleAt(mark.row, mark.choice), radius, mark.density ?? 1);
   }
 
   let stimulusTopMm = STIMULUS_RECT_MM.y;
