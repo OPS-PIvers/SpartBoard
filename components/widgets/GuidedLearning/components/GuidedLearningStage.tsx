@@ -53,6 +53,7 @@ import type {
   PxRect,
   StageGeometry,
 } from '../types/stage';
+import { SlideBackdrop } from './player/SlideBackdrop';
 
 /**
  * Clamp a video trim against the player's loaded metadata. The editor already
@@ -936,6 +937,13 @@ const StageBody: React.FC<
       tabIndex={0}
       onClick={onTargetClick ? handleStageClick : undefined}
     >
+      {currentImageUrl && (
+        <SlideBackdrop
+          url={currentImageUrl}
+          kind={slideKind}
+          video={mediaEl instanceof HTMLVideoElement ? mediaEl : null}
+        />
+      )}
       {/* Image with optional pan-zoom transform */}
       <div
         data-testid="gl-panzoom-layer"

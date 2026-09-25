@@ -294,8 +294,6 @@ export interface DevicePreset {
   id: 'board' | 'help' | 'chromebook' | 'projector' | 'custom';
   w: number;
   h: number;
-  /** Space reserved below the stage (the student app footer). */
-  footerPx: number;
 }
 export interface DeviceFrameContextValue {
   preset: DevicePreset;
@@ -457,7 +455,7 @@ Do:
 1. **Extract, don't copy.** Move `persistDraft`, `isDirty`, the `draftToken`/autosave wiring and the legacy-radius conversion at load (`GuidedLearningEditorModal.tsx:292-470`) into `useSetDraftPersistence`, and the header (editable title, `AutosaveIndicator`, close flush and confirm, AI generator button behind `gemini-functions`) into `EditorHeader`. The modal switches to both with no behaviour change. On a successful save **that closes the editor**, call `flushMediaDeletions` (P1-3).
 2. **Shell:** full-viewport portal at `Z_INDEX.modalContent`, fixed inset 0, with `EditorHeader`, a left column placeholder, the canvas in the centre, and a right column placeholder (P1-4b fills both). The Widget opens the Studio by default; the Studio header has an **"Open classic editor"** link that closes it and opens the modal on the same set.
 3. **Classic editor and v3 sets:** the modal keeps `region`, `calloutPin`, `cursor`, `narration`, `tour` and `tourSetup` untouched on save and shows a notice when any step has them: "This activity uses Studio features. Edit regions and callouts in the Studio." Add a round-trip test: load a v3 fixture in the modal, edit a title, save, and assert every v3 field is deep-equal.
-4. `devicePresets.ts` exports `DevicePreset[]`: `board` 720×520 (the widget default), `help` 1024×576 (the 16:9 Help viewer), `chromebook` 1366×657 with the student app's footer clearance in `footerPx`, `projector` 1920×1080, and `custom` (width/height inputs). The last choice is remembered in localStorage (try/catch).
+4. `devicePresets.ts` exports `DevicePreset[]`: `board` 720×520 (the widget default), `help` 1024×576 (the 16:9 Help viewer), `chromebook` 1366×657 (the frame draws the player's own top bar and footer since GL_STUDIO_GESTURES.md PR 4), `projector` 1920×1080, and `custom` (width/height inputs). The last choice is remembered in localStorage (try/catch).
 5. `DeviceFrame` renders its child at the preset's **true pixel size** with `containerType: size`, applies `transform: scale(k)` to fit, and provides `DeviceFrameContextValue`. No pointer maths may use `k` directly: use `StageGeometry.clientToImagePct`.
 6. `StudioCanvas` renders `GuidedLearningStage` inside the frame with `forceOverlay` for the selected step, so its callout, banner, popover, spotlight and zoom render exactly as in play, plus a selection outline.
 7. `useStudioShortcuts(keymap)`: **the single table of every Studio shortcut** (later items add rows rather than new listeners). It ignores events when focus is in an `input`, `textarea`, `select` or `[contenteditable]`, or while inline editing (P1-6) is active, and calls `stopPropagation` on handled keys so dashboard shortcuts never fire. This item registers undo (Ctrl/⌘+Z), redo (Ctrl/⌘+Shift+Z, Ctrl+Y), Delete (removes the selected step with an undo toast), and `[` / `]` (previous/next step).

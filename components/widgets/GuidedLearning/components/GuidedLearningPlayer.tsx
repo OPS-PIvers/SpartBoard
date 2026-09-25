@@ -11,7 +11,6 @@ import {
   Pause,
   ChevronLeft,
   ChevronRight,
-  X,
   Volume2,
   VolumeX,
 } from 'lucide-react';
@@ -48,7 +47,13 @@ import { useResumeOffer, writeResume } from './player/useResume';
 import { speechAvailable, useReadAloud } from './player/useReadAloud';
 import { spokenStepText } from '../utils/stepText';
 import type { PctPoint, PlaybackMode, StepEvent } from '../types/stage';
-import { PROJECTOR_TEXT_VARS } from '../utils/projectorTextVars';
+import { PlayerShell, PlayerTopBar } from './player/PlayerShell';
+import {
+  FOOTER_BUTTON_SIZE,
+  FOOTER_COMPACT_PX,
+  FOOTER_ICON_SIZE,
+  playerShowsFooter,
+} from './player/playerLayout';
 
 const nowMs = (): number => performance.now();
 
@@ -70,18 +75,6 @@ function answerKeysOf(
 
 /** Step keys in v2: arrows plus a presentation clicker's PageUp/PageDown. */
 const NAV_KEYS_V2 = ['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown'];
-
-/** Below this player width, v2 moves speed and read-aloud into an overflow menu. */
-export const FOOTER_COMPACT_PX = 520;
-
-const FOOTER_BUTTON_SIZE: React.CSSProperties = {
-  width: 'min(44px, 6cqmin)',
-  height: 'min(44px, 6cqmin)',
-};
-const FOOTER_ICON_SIZE: React.CSSProperties = {
-  width: 'min(24px, 3.5cqmin)',
-  height: 'min(24px, 3.5cqmin)',
-};
 
 /** Per-visit state of the current step; replaced whenever the step changes. */
 interface StepRun {
@@ -803,312 +796,218 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   };
 
   return (
-    <div
-      ref={rootRef}
-      data-testid="gl-player-root"
-      className="h-full flex flex-col bg-slate-900"
-      style={playerV2 ? PROJECTOR_TEXT_VARS : undefined}
-    >
-      {/* Controls bar */}
-      <div
-        className="flex items-center border-b border-white/10 flex-shrink-0 bg-slate-900/90 backdrop-blur-sm"
-        style={{
-          gap: 'min(8px, 2cqmin)',
-          padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-        }}
-      >
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="text-slate-300 hover:text-white transition-colors"
-            aria-label={t('glPlayer.closePlayer')}
-          >
-            <X
-              aria-hidden="true"
-              style={{
-                width: 'min(16px, 4cqmin)',
-                height: 'min(16px, 4cqmin)',
-              }}
-            />
-          </button>
-        )}
-        <span
-          className="text-white font-bold flex-1 truncate"
-          style={{ fontSize: 'min(14px, 4cqmin)' }}
-        >
-          {set.title}
-        </span>
-
-        {playerV2 && (
-          <span
-            data-testid="gl-mode-chip"
-            className="rounded-full bg-white/10 border border-white/15 text-slate-200 font-semibold whitespace-nowrap flex-shrink-0"
-            style={{
-              padding: 'min(3px, 0.8cqmin) min(10px, 2.4cqmin)',
-              fontSize: 'var(--gl-text-small, min(12px, 3.2cqmin))',
-            }}
-          >
-            {t(`glPlayer.modeChip.${mode}`)}
-          </span>
-        )}
-
-        {mode === 'explore' && (
-          <div
-            className="flex items-center flex-wrap"
-            style={{ gap: 'min(8px, 2cqmin)' }}
-          >
-            {!playerV2 && (
-              <span
-                className="text-slate-300 font-medium"
-                style={{ fontSize: 'min(11px, 3cqmin)' }}
-              >
-                {t('glPlayer.exploreHint')}
-              </span>
-            )}
-            {set.imageUrls.length > 1 && (
-              <div
-                className="flex items-center flex-wrap"
-                style={{ gap: 'min(6px, 1.5cqmin)' }}
-              >
-                {set.imageUrls.map((_, imageIndex) => (
-                  <button
-                    key={`image-${imageIndex}`}
-                    onClick={() => {
-                      setExploreImageIndex(imageIndex);
-                      setActiveStepId(null);
-                    }}
-                    className={`rounded border font-bold transition-colors ${
-                      imageIndex === currentImageIndex
-                        ? 'border-indigo-400 bg-indigo-500/20 text-indigo-200'
-                        : 'border-white/15 bg-white/5 text-slate-300 hover:bg-white/10'
-                    }`}
-                    style={{
-                      padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                      fontSize: 'min(10px, 2.6cqmin)',
-                    }}
-                    aria-label={t('glPlayer.showSlide', { n: imageIndex + 1 })}
-                  >
-                    {t('glPlayer.outline.slide', { n: imageIndex + 1 })}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Main canvas */}
-      <div
-        ref={containerRef}
-        className="flex-1 relative overflow-hidden bg-slate-950"
-      >
-        <GuidedLearningStage
-          set={set}
-          steps={steps}
-          imageIndex={currentImageIndex}
-          activeStepId={watchGlide ? null : activeStepId}
-          currentStepId={cameraStep?.id ?? null}
-          authorMode={mode}
-          answeredStepIds={answeredSteps}
-          teacherMode={teacherMode}
-          zoomScale={zoomScale}
-          onPinClick={(stepId) => {
-            const step = steps.find((st) => st.id === stepId);
-            if (step) handlePinClick(step);
+    <PlayerShell
+      rootRef={rootRef}
+      stageRef={containerRef}
+      playerV2={playerV2}
+      topBar={
+        <PlayerTopBar
+          title={set.title}
+          mode={mode}
+          playerV2={playerV2}
+          onClose={onClose}
+          imageCount={set.imageUrls.length}
+          currentImageIndex={currentImageIndex}
+          onSelectImage={(imageIndex) => {
+            setExploreImageIndex(imageIndex);
+            setActiveStepId(null);
           }}
-          onAnswer={handleAnswer}
-          onAdvance={handleStageAdvance}
-          onDismiss={dismissActive}
-          onMediaError={releaseMedia}
-          mediaPaused={isHeld}
-          onResetZoom={() => setZoomScale(1)}
-          motionSpeed={playerV2 ? speed : undefined}
-          cursor={cursorCue}
-          onTargetClick={
-            isTry && currentTargeted ? handleTargetClick : undefined
-          }
-          misclickCount={stepRun.misclicks}
-          accessibleOverlays={playerV2}
-          youtubeEndEvents={playerV2}
-          revealKeys={revealKeys}
-          touchTargets={playerV2}
-          slideLoading={playerV2}
-          priorAnswers={playerV2 && !teacherMode ? answerMap : undefined}
         />
-        {resumeOffer && (
-          <ResumePrompt
-            stepNumber={resumeOffer.idx + 1}
-            onResume={() => resumeAt(resumeOffer.idx)}
-            onStartOver={dismissResume}
-          />
-        )}
-        <div aria-live="polite" className="sr-only" data-testid="gl-live">
-          {liveText}
-        </div>
-        {isTry && (
-          <div
-            aria-live="polite"
-            className="sr-only"
-            data-testid="gl-miss-live"
-          >
-            {stepRun.misclicks > 0 && (
-              <span key={`${stepRun.seq}-${stepRun.misclicks}`}>
-                {t('glPlayer.miss')}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Bottom nav footer — structured and guided modes only; v2 follows Watch/Try */}
-      {mode !== 'explore' && steps.length > 0 && (
-        <div
-          data-gl-footer
-          className="flex items-center flex-shrink-0 border-t border-white/10 bg-slate-900/80 backdrop-blur-md"
-          style={{
-            gap: 'min(10px, 2.5cqmin)',
-            padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-          }}
-        >
-          <button
-            onClick={goPrev}
-            disabled={currentIdx === 0}
-            aria-label={t('glPlayer.prev')}
-            className={`${footerButtonClass} disabled:opacity-40`}
-            style={FOOTER_BUTTON_SIZE}
-          >
-            {playerV2 && <TouchHitBox round />}
-            <ChevronLeft style={FOOTER_ICON_SIZE} />
-          </button>
-          {footerKind === 'guided' && (
+      }
+      footer={
+        playerShowsFooter(mode, steps.length) ? (
+          <>
             <button
-              onClick={() => setPlaying((v) => !v)}
-              aria-label={playing ? t('glPlayer.pause') : t('glPlayer.play')}
-              className={footerButtonClass}
+              onClick={goPrev}
+              disabled={currentIdx === 0}
+              aria-label={t('glPlayer.prev')}
+              className={`${footerButtonClass} disabled:opacity-40`}
               style={FOOTER_BUTTON_SIZE}
             >
               {playerV2 && <TouchHitBox round />}
-              {playing ? (
-                <Pause style={FOOTER_ICON_SIZE} />
-              ) : (
-                <Play style={FOOTER_ICON_SIZE} />
-              )}
+              <ChevronLeft style={FOOTER_ICON_SIZE} />
             </button>
-          )}
-          {footerKind === 'guided' ? (
-            v2Playback ? (
-              <WatchScrubber
-                count={steps.length}
-                index={currentIdx}
-                progress={progress}
-                onSeek={jumpTo}
-              />
-            ) : (
+            {footerKind === 'guided' && (
+              <button
+                onClick={() => setPlaying((v) => !v)}
+                aria-label={playing ? t('glPlayer.pause') : t('glPlayer.play')}
+                className={footerButtonClass}
+                style={FOOTER_BUTTON_SIZE}
+              >
+                {playerV2 && <TouchHitBox round />}
+                {playing ? (
+                  <Pause style={FOOTER_ICON_SIZE} />
+                ) : (
+                  <Play style={FOOTER_ICON_SIZE} />
+                )}
+              </button>
+            )}
+            {footerKind === 'guided' ? (
+              v2Playback ? (
+                <WatchScrubber
+                  count={steps.length}
+                  index={currentIdx}
+                  progress={progress}
+                  onSeek={jumpTo}
+                />
+              ) : (
+                <div
+                  role="progressbar"
+                  aria-label={t('glPlayer.sessionProgress')}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(guidedProgress * 100)}
+                  className="flex-1 rounded-full bg-white/10 overflow-hidden"
+                  style={{ height: 'clamp(6px, 1.5cqmin, 10px)' }}
+                >
+                  <div
+                    className="h-full rounded-full bg-indigo-500 transition-all duration-100"
+                    style={{ width: `${guidedProgress * 100}%` }}
+                  />
+                </div>
+              )
+            ) : steps.length > 20 ? (
               <div
                 role="progressbar"
-                aria-label={t('glPlayer.sessionProgress')}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={Math.round(guidedProgress * 100)}
+                aria-label={t('glPlayer.stepProgress')}
+                aria-valuemin={1}
+                aria-valuemax={steps.length}
+                aria-valuenow={currentIdx + 1}
                 className="flex-1 rounded-full bg-white/10 overflow-hidden"
                 style={{ height: 'clamp(6px, 1.5cqmin, 10px)' }}
               >
                 <div
-                  className="h-full rounded-full bg-indigo-500 transition-all duration-100"
-                  style={{ width: `${guidedProgress * 100}%` }}
+                  className="h-full rounded-full bg-indigo-500 transition-all duration-200"
+                  style={{
+                    width: `${((currentIdx + 1) / steps.length) * 100}%`,
+                  }}
                 />
               </div>
-            )
-          ) : steps.length > 20 ? (
-            <div
-              role="progressbar"
-              aria-label={t('glPlayer.stepProgress')}
-              aria-valuemin={1}
-              aria-valuemax={steps.length}
-              aria-valuenow={currentIdx + 1}
-              className="flex-1 rounded-full bg-white/10 overflow-hidden"
-              style={{ height: 'clamp(6px, 1.5cqmin, 10px)' }}
-            >
+            ) : steps.length === 1 ? (
+              <div className="flex-1" />
+            ) : (
               <div
-                className="h-full rounded-full bg-indigo-500 transition-all duration-200"
-                style={{
-                  width: `${((currentIdx + 1) / steps.length) * 100}%`,
-                }}
-              />
-            </div>
-          ) : steps.length === 1 ? (
-            <div className="flex-1" />
-          ) : (
-            <div
-              className="flex-1 flex items-center justify-center flex-wrap"
-              style={{ gap: 'min(4px, 1cqmin)' }}
-            >
-              {steps.map((s, i) => (
-                <button
-                  key={s.id}
-                  onClick={() => jumpTo(i)}
-                  className={`${playerV2 ? 'relative ' : ''}rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 ${
-                    i === currentIdx
-                      ? 'bg-indigo-500'
-                      : 'bg-slate-600 hover:bg-slate-500'
-                  }`}
-                  style={{
-                    width:
+                className="flex-1 flex items-center justify-center flex-wrap"
+                style={{ gap: 'min(4px, 1cqmin)' }}
+              >
+                {steps.map((s, i) => (
+                  <button
+                    key={s.id}
+                    onClick={() => jumpTo(i)}
+                    className={`${playerV2 ? 'relative ' : ''}rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 ${
                       i === currentIdx
-                        ? 'clamp(20px, 5cqmin, 36px)'
-                        : 'clamp(8px, 2cqmin, 14px)',
-                    height: 'clamp(8px, 2cqmin, 14px)',
-                  }}
-                  aria-label={t('glPlayer.goToStep', { n: i + 1 })}
-                  aria-current={i === currentIdx ? 'step' : undefined}
-                >
-                  {playerV2 && (
-                    <TouchHitBox width="calc(100% + min(4px, 1cqmin))" />
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-          {compactFooter ? (
-            <FooterOverflow>
-              {readAloudAvailable && readAloudToggle}
-              <SpeedControl speed={speed} onChange={setSpeed} />
-            </FooterOverflow>
-          ) : (
-            <>
-              {readAloudAvailable && readAloudToggle}
-              {playerV2 && <SpeedControl speed={speed} onChange={setSpeed} />}
-            </>
-          )}
-          {v2Playback ? (
-            <StepOutline
-              steps={steps}
-              currentIdx={currentIdx}
-              doneIds={doneIds}
-              showSlides={set.imageUrls.length > 1}
-              canJump={(i) => !isTry || i <= currentIdx}
-              onJump={jumpTo}
-            />
-          ) : (
-            <span
-              className="text-slate-300 font-bold tabular-nums"
-              style={{ fontSize: 'min(12px, 3.2cqmin)' }}
+                        ? 'bg-indigo-500'
+                        : 'bg-slate-600 hover:bg-slate-500'
+                    }`}
+                    style={{
+                      width:
+                        i === currentIdx
+                          ? 'clamp(20px, 5cqmin, 36px)'
+                          : 'clamp(8px, 2cqmin, 14px)',
+                      height: 'clamp(8px, 2cqmin, 14px)',
+                    }}
+                    aria-label={t('glPlayer.goToStep', { n: i + 1 })}
+                    aria-current={i === currentIdx ? 'step' : undefined}
+                  >
+                    {playerV2 && (
+                      <TouchHitBox width="calc(100% + min(4px, 1cqmin))" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+            {compactFooter ? (
+              <FooterOverflow>
+                {readAloudAvailable && readAloudToggle}
+                <SpeedControl speed={speed} onChange={setSpeed} />
+              </FooterOverflow>
+            ) : (
+              <>
+                {readAloudAvailable && readAloudToggle}
+                {playerV2 && <SpeedControl speed={speed} onChange={setSpeed} />}
+              </>
+            )}
+            {v2Playback ? (
+              <StepOutline
+                steps={steps}
+                currentIdx={currentIdx}
+                doneIds={doneIds}
+                showSlides={set.imageUrls.length > 1}
+                canJump={(i) => !isTry || i <= currentIdx}
+                onJump={jumpTo}
+              />
+            ) : (
+              <span
+                className="text-slate-300 font-bold tabular-nums"
+                style={{ fontSize: 'min(12px, 3.2cqmin)' }}
+              >
+                {currentIdx + 1} / {steps.length}
+              </span>
+            )}
+            <button
+              onClick={goNext}
+              disabled={nextDisabled}
+              aria-label={t('glPlayer.next')}
+              className={`${footerButtonClass} disabled:opacity-40`}
+              style={FOOTER_BUTTON_SIZE}
             >
-              {currentIdx + 1} / {steps.length}
+              {playerV2 && <TouchHitBox round />}
+              <ChevronRight style={FOOTER_ICON_SIZE} />
+            </button>
+          </>
+        ) : undefined
+      }
+    >
+      <GuidedLearningStage
+        set={set}
+        steps={steps}
+        imageIndex={currentImageIndex}
+        activeStepId={watchGlide ? null : activeStepId}
+        currentStepId={cameraStep?.id ?? null}
+        authorMode={mode}
+        answeredStepIds={answeredSteps}
+        teacherMode={teacherMode}
+        zoomScale={zoomScale}
+        onPinClick={(stepId) => {
+          const step = steps.find((st) => st.id === stepId);
+          if (step) handlePinClick(step);
+        }}
+        onAnswer={handleAnswer}
+        onAdvance={handleStageAdvance}
+        onDismiss={dismissActive}
+        onMediaError={releaseMedia}
+        mediaPaused={isHeld}
+        onResetZoom={() => setZoomScale(1)}
+        motionSpeed={playerV2 ? speed : undefined}
+        cursor={cursorCue}
+        onTargetClick={isTry && currentTargeted ? handleTargetClick : undefined}
+        misclickCount={stepRun.misclicks}
+        accessibleOverlays={playerV2}
+        youtubeEndEvents={playerV2}
+        revealKeys={revealKeys}
+        touchTargets={playerV2}
+        slideLoading={playerV2}
+        priorAnswers={playerV2 && !teacherMode ? answerMap : undefined}
+      />
+      {resumeOffer && (
+        <ResumePrompt
+          stepNumber={resumeOffer.idx + 1}
+          onResume={() => resumeAt(resumeOffer.idx)}
+          onStartOver={dismissResume}
+        />
+      )}
+      <div aria-live="polite" className="sr-only" data-testid="gl-live">
+        {liveText}
+      </div>
+      {isTry && (
+        <div aria-live="polite" className="sr-only" data-testid="gl-miss-live">
+          {stepRun.misclicks > 0 && (
+            <span key={`${stepRun.seq}-${stepRun.misclicks}`}>
+              {t('glPlayer.miss')}
             </span>
           )}
-          <button
-            onClick={goNext}
-            disabled={nextDisabled}
-            aria-label={t('glPlayer.next')}
-            className={`${footerButtonClass} disabled:opacity-40`}
-            style={FOOTER_BUTTON_SIZE}
-          >
-            {playerV2 && <TouchHitBox round />}
-            <ChevronRight style={FOOTER_ICON_SIZE} />
-          </button>
         </div>
       )}
-    </div>
+    </PlayerShell>
   );
 };
