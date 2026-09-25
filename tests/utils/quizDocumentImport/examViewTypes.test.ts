@@ -195,6 +195,16 @@ describe('Matching (E6)', () => {
     expect(m?.allowPartialCredit).toBe(true);
   });
 
+  it('sums the items’ PTS for the Matching question', () => {
+    const lines = TEST.map((l) =>
+      l.text.trim() === '8. ANS: B PTS: 1'
+        ? row('', '8.', 'ANS:', 'B', 'PTS:', '3')
+        : l
+    );
+    const m = byLabel(parseDocument(lines).questions, '7–9');
+    expect(m?.points).toBe(5);
+  });
+
   it('carries distractors and partial credit into the saved quiz', () => {
     const quiz = extractedToQuizData({
       title: 't',
