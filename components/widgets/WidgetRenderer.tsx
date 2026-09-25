@@ -21,7 +21,9 @@ import { useAuth } from '@/context/useAuth';
 import {
   useDashboardCanvasSelector,
   useTourLayoutOverride,
+  useTourWidgetPatch,
   type TourLayoutOverride,
+  type TourWidgetPatch,
 } from '@/context/dashboardCanvasStore';
 import { computeWidgetPixelRect } from '@/utils/proportionalLayout';
 import { UI_CONSTANTS } from '@/config/layout';
@@ -109,6 +111,15 @@ const withTourLayout = (
   return { ...widget, ...layout, ...rect };
 };
 
+const withTourPatch = (
+  widget: WidgetData,
+  patch: TourWidgetPatch
+): WidgetData => ({
+  ...widget,
+  ...(patch.z === undefined ? {} : { z: patch.z }),
+  ...(patch.restored ? { minimized: false } : {}),
+});
+
 const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   widget: savedWidget,
   isStudentView = false,
@@ -130,10 +141,13 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   isActive = true,
 }) => {
   const tourLayout = useTourLayoutOverride(savedWidget.id);
-  const widget = useMemo(
-    () => (tourLayout ? withTourLayout(savedWidget, tourLayout) : savedWidget),
-    [savedWidget, tourLayout]
-  );
+  const tourPatch = useTourWidgetPatch(savedWidget.id);
+  const widget = useMemo(() => {
+    const placed = tourLayout
+      ? withTourLayout(savedWidget, tourLayout)
+      : savedWidget;
+    return tourPatch ? withTourPatch(placed, tourPatch) : placed;
+  }, [savedWidget, tourLayout, tourPatch]);
   const isSpotlighted = dashboardSettings?.spotlightWidgetId === widget.id;
   const windowSize = useWindowSize(!!widget.maximized);
   const {

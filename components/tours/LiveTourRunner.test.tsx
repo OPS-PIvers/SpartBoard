@@ -15,15 +15,26 @@ import { tourHealthOf } from './tourHealth';
 import { SAVED_TOUR_KEY } from './tourResume';
 import {
   clearTourLayoutOverrides,
+  clearTourWidgetPatches,
   getTourLayoutOverrides,
+  getTourWidgetPatches,
+  useTourWidgetPatch,
 } from '@/context/dashboardCanvasStore';
+import { TOUR_DOCK_EVENT, type TourDockRequest } from './tourPrerequisites';
 import { Z_INDEX } from '@/config/zIndex';
 
 const h = vi.hoisted(() => {
-  type Widget = { id: string; type: string; z?: number; transient?: boolean };
+  type Widget = {
+    id: string;
+    type: string;
+    z?: number;
+    transient?: boolean;
+    minimized?: boolean;
+  };
   const board = {
     id: 'board-1',
     widgets: [] as Widget[],
+    selectedWidgetId: null as string | null,
     readOnly: false,
     version: 0,
     listeners: new Set<() => void>(),
@@ -61,6 +72,10 @@ const h = vi.hoisted(() => {
       emit();
     }),
     addToast: vi.fn(),
+    setSelectedWidgetId: vi.fn((id: string | null) => {
+      board.selectedWidgetId = id;
+      emit();
+    }),
     createNewDashboard: vi.fn((_name: string) => {
       board.id = 'practice';
       board.widgets = [];
@@ -73,6 +88,7 @@ const h = vi.hoisted(() => {
     board.id = 'board-1';
     board.widgets = [];
     board.readOnly = false;
+    board.selectedWidgetId = null;
     n = 0;
     Object.values(actions).forEach((fn) => fn.mockClear());
   };
@@ -117,6 +133,7 @@ vi.mock('@/context/useDashboard', () => ({
     return {
       ...h.actions,
       isActiveBoardReadOnly: h.board.readOnly,
+      selectedWidgetId: h.board.selectedWidgetId,
       activeDashboard: { id: h.board.id, widgets: h.board.widgets },
     };
   },
@@ -1517,20 +1534,21 @@ describe('LiveTourRunner stacking, feedback, reload and access', () => {
     );
   });
 
-  it('focuses the callout on observe steps, not on click steps', async () => {
+  it('focuses the step heading on every step, click steps included', async () => {
     await launch(
       makeSet([
         { anchor: 'sidebar.boards', action: 'observe' },
         { anchor: 'dock.open-tools', action: 'click' },
       ])
     );
-    expect(document.activeElement).toBe(screen.getByTestId('tour-callout'));
+    expect(document.activeElement).toBe(screen.getByTestId('tour-step-title'));
     const next = screen.getByRole('button', { name: 'Next' });
     fireEvent.click(next);
     next.blur();
     await frames();
     expect(progress()).toBe('2 / 2');
-    expect(document.activeElement).not.toBe(screen.getByTestId('tour-callout'));
+    expect(document.activeElement).toBe(screen.getByTestId('tour-step-title'));
+    expect(document.activeElement).toHaveTextContent('Step 2');
   });
 });
 
@@ -1787,5 +1805,367 @@ describe('LiveTourRunner recorded layouts', () => {
     await frames();
     expect(getTourLayoutOverrides().size).toBe(0);
     expect(h.board.widgets.map((w) => w.id)).toEqual(['w1']);
+  });
+});
+
+describe('LiveTourRunner robustness', () => {
+  const layoutSet = (
+    steps: Binding[],
+    layouts: object[],
+    setupWidgets: WidgetType[] = []
+  ): GuidedLearningSet =>
+    ({
+      ...makeSet(steps, setupWidgets),
+      tourSetup: { widgets: setupWidgets, layouts },
+    }) as unknown as GuidedLearningSet;
+  const clockAt = (slot: number) => ({
+    slot,
+    type: 'clock',
+    xProp: 0.4,
+    yProp: 0.1,
+    wProp: 0.2,
+    hProp: 0.3,
+  });
+  const emit = () =>
+    act(() => {
+      h.board.version++;
+      h.board.listeners.forEach((l) => l());
+    });
+  const reduceMotion = () =>
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }))
+    );
+
+  // A board whose toolbar shows only while selected and whose minimized widgets are faded out.
+  const LiveWidget: React.FC<{ w: (typeof h.board.widgets)[number] }> = ({
+    w,
+  }) => {
+    const patch = useTourWidgetPatch(w.id);
+    const hidden = w.minimized && !patch?.restored;
+    return (
+      <div
+        {...tourAttr('widget.window', w.id, w.type)}
+        style={{ opacity: hidden ? 0 : 1 }}
+      >
+        {h.board.selectedWidgetId === w.id && (
+          <button {...tourAttr('widget.close', w.id, w.type)}>
+            Close {w.id}
+          </button>
+        )}
+      </div>
+    );
+  };
+  const LiveBoard: React.FC = () => {
+    useSyncExternalStore(
+      (l) => {
+        h.board.listeners.add(l);
+        return () => h.board.listeners.delete(l);
+      },
+      () => h.board.version
+    );
+    return (
+      <>
+        {h.board.widgets.map((w) => (
+          <LiveWidget key={w.id} w={w} />
+        ))}
+      </>
+    );
+  };
+  const LiveDock: React.FC = () => {
+    const [open, setOpen] = React.useState(false);
+    React.useEffect(() => {
+      const on = (e: Event) =>
+        setOpen((e as CustomEvent<TourDockRequest>).detail.expanded);
+      window.addEventListener(TOUR_DOCK_EVENT, on);
+      return () => window.removeEventListener(TOUR_DOCK_EVENT, on);
+    }, []);
+    return (
+      <div data-role="dock" data-dock-expanded={open ? 'true' : 'false'}>
+        <div style={{ opacity: open ? 1 : 0 }}>
+          <button {...tourTypeAttr('dock.item', 'dice')}>Dice</button>
+        </div>
+      </div>
+    );
+  };
+  const startOn = async (
+    set: GuidedLearningSet,
+    board: React.ReactNode,
+    beforeStart?: () => void
+  ) => {
+    h.loadTour.mockResolvedValue(set);
+    render(
+      <>
+        {board}
+        <LiveTourRunner />
+      </>
+    );
+    beforeStart?.();
+    act(() => requestStartTour({ setId: set.id }));
+    await frames();
+  };
+  const found = () => screen.queryByTestId('tour-spotlight-ring') !== null;
+  const dockState = () =>
+    document
+      .querySelector('[data-role="dock"]')
+      ?.getAttribute('data-dock-expanded');
+
+  afterEach(() => {
+    clearTourLayoutOverrides();
+    clearTourWidgetPatches();
+  });
+
+  it('opens a collapsed dock for a dock step and closes it again at the end', async () => {
+    await startOn(
+      makeSet([{ anchor: 'dock.item:dice', action: 'observe' }]),
+      <LiveDock />
+    );
+    await frames(500);
+    expect(dockState()).toBe('true');
+    expect(found()).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    await frames();
+    expect(dockState()).toBe('false');
+  });
+
+  it('selects the widget for a toolbar step and clears the selection at the end', async () => {
+    h.board.widgets = [{ id: 'mine', type: 'clock' }];
+    await startOn(
+      makeSet([{ anchor: 'widget.close:clock', action: 'observe' }]),
+      <LiveBoard />
+    );
+    await frames(500);
+    expect(h.actions.setSelectedWidgetId).toHaveBeenCalledWith('mine');
+    expect(found()).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    await frames();
+    expect(h.actions.setSelectedWidgetId).toHaveBeenLastCalledWith(null);
+  });
+
+  it('leaves a selection the teacher changed alone', async () => {
+    h.board.widgets = [
+      { id: 'mine', type: 'clock' },
+      { id: 'other', type: 'dice' },
+    ];
+    await startOn(
+      makeSet([{ anchor: 'widget.close:clock', action: 'observe' }]),
+      <LiveBoard />
+    );
+    await frames(500);
+    act(() => h.actions.setSelectedWidgetId('other'));
+    await frames();
+    h.actions.setSelectedWidgetId.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
+    await frames();
+    expect(h.actions.setSelectedWidgetId).not.toHaveBeenCalledWith(null);
+  });
+
+  it('shows a minimized widget for the step without saving it, and minimizes it again at the end', async () => {
+    h.board.widgets = [{ id: 'mine', type: 'clock', minimized: true }];
+    await startOn(
+      makeSet([{ anchor: 'widget.window:clock', action: 'observe' }]),
+      <LiveBoard />
+    );
+    await frames(500);
+    expect(getTourWidgetPatches().get('mine')?.restored).toBe(true);
+    expect(found()).toBe(true);
+    expect(h.board.widgets[0].minimized).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    await frames();
+    expect(getTourWidgetPatches().size).toBe(0);
+  });
+
+  it('scrolls an off-screen anchor into view before spotlighting it', async () => {
+    let x = 5000;
+    const scrolled = vi.fn(() => {
+      x = 10;
+      window.dispatchEvent(new Event('scroll'));
+    });
+    await startOn(
+      makeSet([{ anchor: 'library.item:dice', action: 'observe' }]),
+      <button {...tourTypeAttr('library.item', 'dice')}>Dice tile</button>,
+      () => {
+        const tile = screen.getByText('Dice tile');
+        Object.defineProperty(tile, 'getBoundingClientRect', {
+          value: () => new DOMRect(x, 10, 40, 40),
+        });
+        tile.scrollIntoView = scrolled;
+      }
+    );
+    await frames(800);
+    expect(scrolled).toHaveBeenCalledWith({
+      block: 'nearest',
+      inline: 'nearest',
+    });
+    expect(found()).toBe(true);
+  });
+
+  it('raises the step widget above the others for now', async () => {
+    h.board.widgets = [
+      { id: 'top', type: 'clock', z: 5 },
+      { id: 'mine', type: 'dice', z: 1 },
+    ];
+    await start(
+      makeSet([{ anchor: 'widget.settings-opener:dice', action: 'observe' }])
+    );
+    await frames();
+    expect(getTourWidgetPatches().get('mine')?.z).toBe(6);
+    expect(h.board.widgets.find((w) => w.id === 'mine')?.z).toBe(1);
+  });
+
+  it('ends the tour on a board switch, discarding only its own widgets and asking nothing', async () => {
+    await start(
+      layoutSet(
+        [{ anchor: 'sidebar.boards', action: 'observe' }],
+        [clockAt(0)],
+        ['clock']
+      )
+    );
+    expect(h.board.widgets.map((w) => w.id)).toEqual(['t1']);
+    h.board.id = 'board-2';
+    h.board.widgets = [
+      { id: 'teacher', type: 'clock' },
+      { id: 't1', type: 'clock', transient: true },
+    ];
+    emit();
+    await frames();
+    expect(screen.queryByTestId('tour-callout')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Keep the tour's widgets?")
+    ).not.toBeInTheDocument();
+    expect(h.actions.discardTourWidgets).toHaveBeenCalledWith(['t1']);
+    expect(h.actions.removeWidgets).not.toHaveBeenCalled();
+    expect(h.board.widgets.map((w) => w.id)).toEqual(['teacher']);
+  });
+
+  it('Esc on the keep-or-remove prompt keeps the widgets', async () => {
+    await start(
+      layoutSet(
+        [{ anchor: 'sidebar.boards', action: 'observe' }],
+        [clockAt(0)],
+        ['clock']
+      )
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
+    await frames();
+    const keep = screen.getByRole('button', { name: 'Keep them' });
+    expect(document.activeElement).toBe(keep);
+    fireEvent.keyDown(keep, { key: 'Escape' });
+    await frames();
+    expect(h.actions.commitTourWidgets).toHaveBeenCalledWith(['t1']);
+    expect(h.actions.discardTourWidgets).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('traps Tab inside the prompt', async () => {
+    await start(
+      layoutSet(
+        [{ anchor: 'sidebar.boards', action: 'observe' }],
+        [clockAt(0)],
+        ['clock']
+      )
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
+    await frames();
+    const remove = screen.getByRole('button', { name: 'Remove them' });
+    const keep = screen.getByRole('button', { name: 'Keep them' });
+    fireEvent.keyDown(keep, { key: 'Tab' });
+    expect(document.activeElement).toBe(remove);
+    fireEvent.keyDown(remove, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(keep);
+  });
+
+  it('Esc on the practice-board offer cancels without making a board', async () => {
+    h.board.readOnly = true;
+    await start(makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]));
+    const practice = screen.getByRole('button', {
+      name: 'Start on a practice board',
+    });
+    expect(document.activeElement).toBe(practice);
+    fireEvent.keyDown(practice, { key: 'Escape' });
+    await frames();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(h.actions.createNewDashboard).not.toHaveBeenCalled();
+  });
+
+  it('re-places the callout when the window resizes', async () => {
+    const set = withSteps(
+      makeSet([
+        { anchor: 'sidebar.boards', action: 'observe' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ]),
+      [{ tour: undefined }]
+    );
+    await start(set);
+    const callout = screen.getByTestId('tour-callout');
+    expect(callout.style.left).toBe(`${(window.innerWidth - 400) / 2}px`);
+    vi.stubGlobal('innerWidth', 700);
+    act(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+    await frames();
+    expect(callout.style.left).toBe(`${(700 - 400) / 2}px`);
+  });
+
+  it('keeps the callout off the dock and FABs', async () => {
+    await startOn(
+      makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]),
+      <>
+        <Fixture />
+        <div data-tour-obstacle="" data-testid="obstacle" />
+      </>,
+      () => {
+        Object.defineProperty(
+          screen.getByTestId('obstacle'),
+          'getBoundingClientRect',
+          { value: () => new DOMRect(0, 60, 1024, 300) }
+        );
+      }
+    );
+    await frames();
+    const callout = screen.getByTestId('tour-callout');
+    expect(callout.style.top).not.toBe('66px');
+    expect(callout.style.left).toBe('66px');
+  });
+
+  it('places the callout below the target with nothing in the way', async () => {
+    await start(makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]));
+    expect(screen.getByTestId('tour-callout').style.top).toBe('66px');
+  });
+
+  it('skips the autopilot glide under reduced motion but still clicks', async () => {
+    reduceMotion();
+    await start(
+      makeSet(
+        [
+          { anchor: 'sidebar.boards', action: 'click' },
+          { anchor: 'dock.item:dice', action: 'observe' },
+        ],
+        [],
+        'guided'
+      )
+    );
+    const clicks = vi.fn();
+    screen.getByText('Boards').addEventListener('click', clicks);
+    for (let i = 0; i < 80 && clicks.mock.calls.length === 0; i++) {
+      await frames(50);
+      expect(screen.queryByTestId('gl-cursor')).not.toBeInTheDocument();
+    }
+    expect(clicks).toHaveBeenCalled();
+  });
+
+  it('shows a still hint instead of the cursor glide under reduced motion', async () => {
+    reduceMotion();
+    await start(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));
+    await frames();
+    await frames(TRY_HINT_MS + 100);
+    expect(screen.queryByTestId('gl-cursor')).not.toBeInTheDocument();
+    expect(screen.getByTestId('tour-static-hint')).toHaveTextContent(
+      'Your turn: click the highlighted spot'
+    );
   });
 });

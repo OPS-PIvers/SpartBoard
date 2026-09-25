@@ -6,6 +6,8 @@ export interface TourAnchorScope {
   widgetIds?: readonly string[];
   /** Tour slot to widget id; a step with a bound slot matches only that widget. */
   slots?: Readonly<Record<number, string>>;
+  /** Extra check a match must pass, such as being clickable on screen. */
+  accept?: (el: Element) => boolean;
 }
 
 const quote = (value: string) => `"${value.replace(/["\\]/g, '\\$&')}"`;
@@ -68,7 +70,26 @@ export function isAnchorVisible(el: Element): boolean {
   return typeof el.checkVisibility === 'function' ? el.checkVisibility() : true;
 }
 
-const usable = (el: Element) => !ignored(el) && isAnchorVisible(el);
+/** Visible, not faded out or click-through, and at least partly on screen. */
+export function isAnchorUsable(el: Element): boolean {
+  if (!isAnchorVisible(el)) return false;
+  const view = el.ownerDocument.defaultView;
+  if (!view) return true;
+  if (view.getComputedStyle(el).pointerEvents === 'none') return false;
+  let opacity = 1;
+  for (let n: Element | null = el; n; n = n.parentElement) {
+    const o = parseFloat(view.getComputedStyle(n).opacity);
+    if (!Number.isNaN(o)) opacity *= o;
+    if (opacity <= 0.05) return false;
+  }
+  const r = el.getBoundingClientRect();
+  return (
+    r.x + r.width > 0 &&
+    r.y + r.height > 0 &&
+    r.x < view.innerWidth &&
+    r.y < view.innerHeight
+  );
+}
 
 const FALLBACK_CANDIDATES = '[role], button, a[href], input, select, textarea';
 
@@ -80,6 +101,8 @@ export function findTourAnchor(
 ): HTMLElement | null {
   const boundId =
     binding.slot === undefined ? undefined : scope.slots?.[binding.slot];
+  const usable = (el: Element) =>
+    !ignored(el) && isAnchorVisible(el) && (scope.accept?.(el) ?? true);
   const { id, widgetType } = parseTourAnchorRef(binding.anchor);
   const selector =
     `[data-tour=${quote(id)}]` +

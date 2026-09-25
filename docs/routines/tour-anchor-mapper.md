@@ -12,17 +12,13 @@ The routine is `trig_01CxtJ5NT4RpYTLhxWuHTs1n` (https://claude.ai/code/routines/
 
 ## Environment
 
-Set on the routine's cloud environment at claude.ai (Environment > Environment variables):
+Auth comes from an API credential on the routine's claude.ai environment, "Spartboard Live Tours". It injects `Authorization: Bearer <token>` on requests to the two `us-central1-*.cloudfunctions.net` hosts, so send requests without the header and never look for a token variable; there is none.
 
-| Variable                | Value                                                                       |
-| ----------------------- | --------------------------------------------------------------------------- |
-| `TOUR_ANCHOR_API_TOKEN` | the `TOUR_ANCHOR_API_TOKEN` secret; the same value is set in both projects  |
-
-The endpoints are fixed: `https://us-central1-spartboard.cloudfunctions.net/tourAnchorApi` (prod) and `https://us-central1-spartboard-dev.cloudfunctions.net/tourAnchorApi` (dev). Never print a token, commit it, or put it in a PR.
+The endpoints are fixed: `https://us-central1-spartboard.cloudfunctions.net/tourAnchorApi` (prod) and `https://us-central1-spartboard-dev.cloudfunctions.net/tourAnchorApi` (dev). A 401 means the credential is missing or stale: log it in the journal and stop, don't retry.
 
 ## Endpoint
 
-- `GET /` with `Authorization: Bearer <token>` returns `{ project, items }`: items with status `open`, and `pr-open` items untouched for 7 days (an abandoned PR), oldest first, at most 50.
+- `GET /` returns `{ project, items }`: items with status `open`, and `pr-open` items untouched for 7 days (an abandoned PR), oldest first, at most 50.
 - `POST /resolve` takes a JSON array, at most 100 entries:
   - `{ fingerprint, status: "pr-open", anchorId, prUrl }` once the PR is open;
   - `{ fingerprint, status: "needs-human", reason }` when you can't place it.
@@ -35,7 +31,7 @@ The endpoints are fixed: `https://us-central1-spartboard.cloudfunctions.net/tour
 3. **Place each item.** Use `nearestAnchor`, `ancestors` (innermost first: tag, `data-testid`, `aria-label`, role), `htmlExcerpt`, `widgetType`, `pathname`, `role` and `name` to find the rendering component. Grep for `data-testid`, `aria-label` and i18n strings from the excerpt, then confirm the tag chain.
    - Register an id in `TOUR_ANCHORS` in `config/tourAnchors.ts`, following the existing `area.thing` names (lowercase, dotted, dashed words). `suggestedId` is only a hint.
    - Tag the element with `{...tourAttr(id)}`. Use `perWidget: true` with `tourAttr(id, widget.id)` for one element per widget instance, and `perWidgetType: true` with `tourTypeAttr(id, type)` for one per widget type. Set `destructive: true` for deletes and closes, and `panel: true` when it only renders inside an open menu or panel.
-   - If `requires` exists on `TourAnchorDef` (PR 5 of the plan), set it when the element needs the dock expanded, the widget selected or restored, or scrolling into view.
+   - Set `requires` when the element only shows after some setup: `dock-expanded` (inside the expanded dock), `widget-selected` (the widget toolbar), `widget-restored` (hidden while the widget is minimized) or `in-view` (inside a scrolled list). `tests/tourAnchors.test.ts` checks the value.
    - Never tag an element inside `[data-pii]` or student content. Mark those `needs-human` with the reason.
    - Items you can't place with confidence (the element is gone, is generated per row, or is ambiguous) are `needs-human` with a one-line reason. Don't guess.
 4. **Verify, scoped.** Run `pnpm exec vitest related --run tests/tourAnchors.test.ts <touched files>`. Follow CLAUDE.md's verification limits: no `pnpm run validate`, full lint, full test or `tsc`. The pre-commit hook lints staged files.

@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, relative, resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { TOUR_ANCHORS } from '@/config/tourAnchors';
+import {
+  TOUR_ANCHOR_PREREQUISITES,
+  TOUR_ANCHORS,
+  type TourAnchorDef,
+} from '@/config/tourAnchors';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SCAN_ROOTS = ['components', 'context', 'App.tsx'];
@@ -79,6 +83,17 @@ describe('tour anchor registry', () => {
       expect(def.label.trim(), id).not.toBe('');
       const scopes = ['perWidget', 'perWidgetType'].filter((k) => k in def);
       expect(scopes.length, id).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('gives every prerequisite a known value, and widget ones a widget scope', () => {
+    for (const [id, def] of Object.entries(TOUR_ANCHORS)) {
+      const requires = (def as TourAnchorDef).requires;
+      if (requires === undefined) continue;
+      expect(TOUR_ANCHOR_PREREQUISITES, id).toContain(requires);
+      if (requires.startsWith('widget-')) {
+        expect('perWidget' in def || 'perWidgetType' in def, id).toBe(true);
+      }
     }
   });
 });

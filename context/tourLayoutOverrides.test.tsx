@@ -2,9 +2,13 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   clearTourLayoutOverrides,
+  clearTourWidgetPatches,
   getTourLayoutOverrides,
+  getTourWidgetPatches,
   setTourLayoutOverrides,
+  setTourWidgetPatches,
   useTourLayoutOverride,
+  useTourWidgetPatch,
 } from './dashboardCanvasStore';
 
 const place = (xProp: number) => ({
@@ -42,5 +46,29 @@ describe('tour layout overrides', () => {
     );
     expect(getTourLayoutOverrides().get('a')).toBe(a);
     expect(getTourLayoutOverrides().get('b')?.xProp).toBe(0.9);
+  });
+});
+
+describe('tour widget patches', () => {
+  afterEach(() => clearTourWidgetPatches());
+
+  it('raises or restores a widget until cleared, keeping unchanged entries', () => {
+    const { result } = renderHook(() => useTourWidgetPatch('w1'));
+    expect(result.current).toBeUndefined();
+    act(() => setTourWidgetPatches(new Map([['w1', { z: 9 }]])));
+    expect(result.current).toEqual({ z: 9 });
+    const kept = result.current;
+    act(() =>
+      setTourWidgetPatches(
+        new Map([
+          ['w1', { z: 9 }],
+          ['w2', { restored: true }],
+        ])
+      )
+    );
+    expect(result.current).toBe(kept);
+    expect(getTourWidgetPatches().get('w2')).toEqual({ restored: true });
+    act(() => clearTourWidgetPatches());
+    expect(result.current).toBeUndefined();
   });
 });
