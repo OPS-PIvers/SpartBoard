@@ -12,6 +12,7 @@ import {
   type QuizResultsPrintOptions,
   type ResultsPrintJob,
   type ResultsPrintStudent,
+  writtenSheetFill,
 } from '@/utils/quizStudentReportPrint';
 
 const q = (
@@ -333,6 +334,152 @@ describe('buildResultsPrintHtml — written answers', () => {
     );
     expect(html).toContain('Not yet graded');
     expect(html).toContain('so far');
+  });
+});
+
+describe('buildResultsPrintHtml — handwritten paper answers', () => {
+  const written = q('w', 'free-response', '', { points: 4 });
+  const crop = {
+    id: 'art-1',
+    kind: 'handwriting',
+    storagePath: 'x',
+    mimeType: 'image/webp',
+  };
+  const paperStudent = (
+    answer: { answer: string; paperTranscript: 'pending' | 'blank' | 'done' },
+    cropSrc?: string | null,
+    grade?: Record<string, unknown>
+  ) =>
+    student(
+      {
+        r: response({ w: answer.answer }, {
+          paperBatchId: 'b',
+          ...(grade
+            ? {
+                grading: {
+                  w: { pointsAwarded: 3, gradedAt: 1, gradedBy: 't', ...grade },
+                },
+              }
+            : {}),
+        } as Partial<QuizResponse>),
+        paperWritten: {
+          w: {
+            answer: { ...answer, artifacts: [crop] } as never,
+            ...(cropSrc === undefined ? {} : { cropSrc }),
+          },
+        },
+      },
+      [written]
+    );
+  const print = (
+    s: ResultsPrintStudent,
+    writtenMode?: 'handwriting' | 'typed' | 'both',
+    options = applyPreset('graded-copy')
+  ) =>
+    render(
+      buildResultsPrintHtml(
+        { ...job([s]), ...(writtenMode ? { writtenMode } : {}) },
+        options
+      )
+    );
+  const done = {
+    answer: '<p>Plants need light</p>',
+    paperTranscript: 'done' as const,
+  };
+
+  it('prints the handwriting only in Handwriting mode, the default', () => {
+    for (const mode of ['handwriting', undefined] as const) {
+      const html = print(
+        paperStudent(done, 'data:image/webp;base64,AAA'),
+        mode
+      );
+      const img = html.querySelector('img.hw');
+      expect(img?.getAttribute('src')).toBe('data:image/webp;base64,AAA');
+      expect(img?.getAttribute('alt')).toBe('Handwritten answer, question 1');
+      expect(html.textContent).not.toContain('Plants need light');
+    }
+  });
+
+  it('prints the transcript only in Typed mode', () => {
+    const html = print(
+      paperStudent(done, 'data:image/webp;base64,AAA'),
+      'typed'
+    );
+    expect(html.querySelector('img.hw')).toBeNull();
+    expect(html.querySelector('.written')?.textContent).toBe(
+      'Plants need light'
+    );
+  });
+
+  it('prints the handwriting above the transcript in Both mode', () => {
+    const html = print(
+      paperStudent(done, 'data:image/webp;base64,AAA'),
+      'both'
+    );
+    const img = html.querySelector('img.hw');
+    expect(img).not.toBeNull();
+    expect(img?.nextElementSibling?.className).toBe('written');
+  });
+
+  it('prints a visible placeholder when the crop failed to load', () => {
+    const html = print(paperStudent(done, null), 'handwriting');
+    expect(html.querySelector('img')).toBeNull();
+    expect(html.querySelector('.hw-missing')?.textContent).toBe(
+      'Handwriting unavailable'
+    );
+  });
+
+  it('says a transcript is still coming, and lists highlights under the handwriting', () => {
+    const pending = print(
+      paperStudent({ answer: '', paperTranscript: 'pending' }, 'data:x'),
+      'typed'
+    );
+    expect(pending.textContent).toContain('Transcribing');
+
+    const highlighted = print(
+      paperStudent(done, 'data:x', {
+        gradingSnapshot: '<p>Plants need light</p>',
+        annotations: [
+          {
+            id: 'a',
+            from: 1,
+            to: 7,
+            comment: 'Which plants?',
+            authorUid: 't',
+            createdAt: 1,
+          },
+        ],
+      }),
+      'handwriting'
+    );
+    expect(highlighted.querySelector('mark')).toBeNull();
+    expect(highlighted.querySelector('ol.notes li')?.textContent).toBe(
+      'Which plants?'
+    );
+  });
+
+  it('builds the reprint fill from points, comment and crop', () => {
+    const s = paperStudent(done, 'data:x', {
+      overallComment: ' Add a reason. ',
+    });
+    const reprint = { writtenTexts: { w: 'Why?' } };
+    expect(
+      writtenSheetFill(s, reprint, {
+        markAnswers: true,
+        showWrittenFeedback: true,
+      })
+    ).toEqual({
+      w: { crop: 'data:x', points: '3/4', comment: 'Add a reason.' },
+    });
+    expect(
+      writtenSheetFill(s, reprint, {
+        markAnswers: false,
+        showWrittenFeedback: false,
+      })
+    ).toEqual({ w: { crop: 'data:x' } });
+    expect(
+      writtenSheetFill(s, {}, { markAnswers: true, showWrittenFeedback: true })
+    ).toBeUndefined();
   });
 });
 

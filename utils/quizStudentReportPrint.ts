@@ -3,7 +3,12 @@ import {
   printHtmlDocument,
   type OpenWindow,
 } from './printHtmlDocument';
-import type { QuizResponseStatus, QuizStimulus } from '@/types';
+import type {
+  QuizResponseAnswer,
+  QuizResponseStatus,
+  QuizStimulus,
+  WrittenReturnMode,
+} from '@/types';
 import type { StudentOutcome } from './quizQuestionDrilldown';
 import {
   showsMissedKey,
@@ -11,10 +16,19 @@ import {
   type StudentQuestionLine,
 } from './quizStudentDrilldown';
 import { formatExportPoints } from './assignmentExportShared';
-import { buildFilledSheetHtml, SHEET_REPRINT_STYLES } from './paperSheetPrint';
+import {
+  buildFilledSheetHtml,
+  SHEET_REPRINT_STYLES,
+  type SheetWrittenFill,
+} from './paperSheetPrint';
 import { sheetFillFor, type SheetReprint } from './paperSheetReprint';
 import { stimulusMediaUrl } from './quizStimuli';
 import { annotatedSnapshotToHtml } from './writtenAnnotations';
+import {
+  DEFAULT_WRITTEN_RETURN_MODE,
+  isPaperWrittenAnswer,
+  paperWrittenView,
+} from './paperWritten';
 
 export interface StudentReportTarget {
   label: string;
@@ -170,6 +184,15 @@ export interface ResultsPrintStudent {
   lettered: boolean;
   /** Paper work whose batch still exists: the sheet can be redrawn (D21). */
   sheet?: SheetReprint;
+  /** Handwritten paper answers by question id (docs/plans/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md D41). */
+  paperWritten?: Readonly<Record<string, PaperWrittenPrint>>;
+}
+
+/** One handwritten paper answer as the print sees it. */
+export interface PaperWrittenPrint {
+  answer: Pick<QuizResponseAnswer, 'answer' | 'paperTranscript' | 'artifacts'>;
+  /** Image URL of the crop; null when it failed to load, absent while loading. */
+  cropSrc?: string | null;
 }
 
 export interface ResultsPrintJob {
@@ -178,6 +201,8 @@ export interface ResultsPrintJob {
   /** The teacher's period order; unknown periods sort after it. */
   periodOrder: readonly string[];
   students: readonly ResultsPrintStudent[];
+  /** How handwritten paper answers print; the handwriting when absent. */
+  writtenMode?: WrittenReturnMode;
 }
 
 const NO_PERIOD_LABEL = 'No class period';
@@ -321,9 +346,92 @@ function matchingAnswer(
 const numbered = (items: readonly string[]) =>
   items.map((item, i) => `${i + 1}. ${escapeHtml(item)}`).join('; ');
 
+const PLACEHOLDER_LABEL = {
+  transcribing: 'Transcribing',
+  blank: 'Blank',
+} as const;
+
+function handwritingHtml(line: StudentQuestionLine, cropSrc?: string | null) {
+  if (cropSrc) {
+    return `<img class="hw" src="${escapeHtml(cropSrc)}" alt="${escapeHtml(`Handwritten answer, question ${line.number}`)}">`;
+  }
+  return `<div class="hw-missing">${cropSrc === undefined ? 'Loading handwriting' : 'Handwriting unavailable'}</div>`;
+}
+
+function notesHtml(
+  notes: ReturnType<typeof annotatedSnapshotToHtml>['notes']
+): string {
+  if (notes.length === 0) return '';
+  return `<ol class="notes">${notes
+    .map(
+      ({ number, annotation }) =>
+        `<li value="${number}">${escapeHtml(annotation.comment ?? '')}${
+          annotation.rubricCriteria?.length
+            ? ` <span class="pts">(${escapeHtml(annotation.rubricCriteria.map((c) => c.name).join(', '))})</span>`
+            : ''
+        }</li>`
+    )
+    .join('')}</ol>`;
+}
+
+/** The typed answer, handwriting or both for one written line; unchanged for online work. */
+function writtenBody(
+  line: StudentQuestionLine,
+  annotations: NonNullable<StudentQuestionLine['writtenGrade']>['annotations'],
+  paper: PaperWrittenPrint | undefined,
+  mode: WrittenReturnMode
+): { body: string; notes: string } {
+  const typed = (): { body: string; notes: string } => {
+    if (!line.answerHtml) {
+      return {
+        body: '<div class="answer"><em>No answer</em></div>',
+        notes: '',
+      };
+    }
+    const rendered = annotatedSnapshotToHtml(
+      line.answerHtml,
+      annotations ?? []
+    );
+    return {
+      body: `<div class="written">${rendered.html}</div>`,
+      notes: notesHtml(rendered.notes),
+    };
+  };
+  if (line.recorded) {
+    return {
+      body: `<div class="answer">[${line.recorded} response]</div>`,
+      notes: '',
+    };
+  }
+  if (!paper || !isPaperWrittenAnswer(paper.answer)) return typed();
+
+  const view = paperWrittenView(paper.answer, null, mode);
+  const crop =
+    view.showCrop || view.cropUnavailable
+      ? handwritingHtml(line, view.showCrop ? paper.cropSrc : null)
+      : '';
+  if (view.placeholder) {
+    return {
+      body: `${crop}<div class="answer"><em>${PLACEHOLDER_LABEL[view.placeholder]}</em></div>`,
+      notes: '',
+    };
+  }
+  if (view.transcript === null) {
+    // Handwriting only: highlights still print, as numbered comments under it.
+    const rendered = line.answerHtml
+      ? annotatedSnapshotToHtml(line.answerHtml, annotations ?? [])
+      : null;
+    return { body: crop, notes: rendered ? notesHtml(rendered.notes) : '' };
+  }
+  const text = typed();
+  return { body: `${crop}${text.body}`, notes: text.notes };
+}
+
 function writtenAnswer(
   line: StudentQuestionLine,
-  options: QuizResultsPrintOptions
+  options: QuizResultsPrintOptions,
+  paper?: PaperWrittenPrint,
+  mode: WrittenReturnMode = DEFAULT_WRITTEN_RETURN_MODE
 ): string {
   const grade = line.writtenGrade;
   const feedback = options.showWrittenFeedback;
@@ -331,28 +439,7 @@ function writtenAnswer(
     feedback && grade?.annotationUnit !== 'ms'
       ? (grade?.annotations ?? [])
       : [];
-  let body: string;
-  let notes = '';
-  if (line.recorded) {
-    body = `<div class="answer">[${line.recorded} response]</div>`;
-  } else if (line.answerHtml) {
-    const rendered = annotatedSnapshotToHtml(line.answerHtml, annotations);
-    body = `<div class="written">${rendered.html}</div>`;
-    if (rendered.notes.length > 0) {
-      notes = `<ol class="notes">${rendered.notes
-        .map(
-          ({ number, annotation }) =>
-            `<li value="${number}">${escapeHtml(annotation.comment ?? '')}${
-              annotation.rubricCriteria?.length
-                ? ` <span class="pts">(${escapeHtml(annotation.rubricCriteria.map((c) => c.name).join(', '))})</span>`
-                : ''
-            }</li>`
-        )
-        .join('')}</ol>`;
-    }
-  } else {
-    body = '<div class="answer"><em>No answer</em></div>';
-  }
+  const { body, notes } = writtenBody(line, annotations, paper, mode);
   if (!feedback) return body;
   if (!grade) {
     return line.mark === 'noAnswer'
@@ -390,12 +477,20 @@ function writtenAnswer(
 function answerBlock(
   line: StudentQuestionLine,
   student: ResultsPrintStudent,
-  options: QuizResultsPrintOptions
+  options: QuizResultsPrintOptions,
+  writtenMode?: WrittenReturnMode
 ): string {
   const showKey = keyApplies(line, options.keyMode);
   const keyLine = (label: string, text: string) =>
     showKey ? `<div class="key">${label}: ${text}</div>` : '';
-  if (line.manual) return writtenAnswer(line, options);
+  if (line.manual) {
+    return writtenAnswer(
+      line,
+      options,
+      student.paperWritten?.[line.questionId],
+      writtenMode
+    );
+  }
   if (!options.includeQuestions) {
     return `<div class="answer">${line.answerText ? escapeHtml(line.answerText) : '<em>No answer</em>'}</div>${keyLine('Correct answer', escapeHtml(line.correctAnswerText ?? ''))}`;
   }
@@ -479,7 +574,7 @@ function studentReport(
       const text = options.includeQuestions
         ? `<div class="text">${escapeHtml(line.text)}</div>`
         : '';
-      return `${stim}<li data-unit><span class="qn">${line.number}.</span><div>${text}${answerBlock(line, student, options)}</div>${markCell(line, options)}</li>`;
+      return `${stim}<li data-unit><span class="qn">${line.number}.</span><div>${text}${answerBlock(line, student, options, job.writtenMode)}</div>${markCell(line, options)}</li>`;
     })
     .join('');
   const questions =
@@ -517,12 +612,43 @@ function separatorPage(
   return `<section class="block sep" data-print-block="separator"><p class="sep-period">${escapeHtml(period ?? NO_PERIOD_LABEL)}</p><p class="sep-title">${escapeHtml(job.quizTitle)}</p><p class="sep-count">${count} student${count === 1 ? '' : 's'}</p></section><div class="pad" aria-hidden="true"></div>`;
 }
 
+/** Crop, points and comment for each written box on a reprint (D42). */
+export function writtenSheetFill(
+  student: Pick<ResultsPrintStudent, 'drilldown' | 'paperWritten'>,
+  reprint: Pick<SheetReprint, 'writtenTexts'>,
+  options: Pick<QuizResultsPrintOptions, 'markAnswers' | 'showWrittenFeedback'>
+): Record<string, SheetWrittenFill> | undefined {
+  if (!reprint.writtenTexts) return undefined;
+  const lines = new Map(
+    student.drilldown.lines.map((line) => [line.questionId, line])
+  );
+  const out: Record<string, SheetWrittenFill> = {};
+  for (const questionId of Object.keys(reprint.writtenTexts)) {
+    const paper = student.paperWritten?.[questionId];
+    if (!paper) continue;
+    const line = lines.get(questionId);
+    const fill: SheetWrittenFill =
+      paper.cropSrc === undefined ? {} : { crop: paper.cropSrc };
+    if (options.markAnswers && line && line.mark !== 'excused') {
+      fill.points =
+        line.mark === 'ungraded'
+          ? 'Not graded'
+          : `${formatExportPoints(line.pointsEarned)}/${formatExportPoints(line.pointsMax)}`;
+    }
+    const comment = line?.writtenGrade?.overallComment?.trim();
+    if (options.showWrittenFeedback && comment) fill.comment = comment;
+    out[questionId] = fill;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 function sheetReprintHtml(
   job: ResultsPrintJob,
   student: ResultsPrintStudent,
   reprint: SheetReprint,
   options: QuizResultsPrintOptions
 ): string {
+  const written = writtenSheetFill(student, reprint, options);
   return buildFilledSheetHtml(
     {
       seat: reprint.seat,
@@ -549,6 +675,7 @@ function sheetReprintHtml(
       markAnswers: options.markAnswers,
       keyMode: options.keyMode,
       ...(options.showScore ? { score: formatScore(student) } : {}),
+      ...(written ? { written } : {}),
     })
   );
 }
@@ -639,6 +766,8 @@ export const RESULTS_PRINT_STYLES = `
   td { border-top: 1px solid #ccc; padding: 1.2mm 0; vertical-align: top; }
   td.pct { text-align: right; white-space: nowrap; padding-left: 3mm; }
   table.rubric { margin-top: 1mm; }
+  img.hw { display: block; max-width: 100%; max-height: 120mm; margin: 1mm 0; border: 1px solid #bbb; }
+  .hw-missing { margin: 1mm 0; padding: 3mm; border: 1px dashed #666; font-style: italic; color: #333; }
   .q-stim img { display: block; max-width: 100%; max-height: 110mm; margin: 0 auto; }
   .passage { white-space: pre-wrap; border: 1px solid #999; padding: 2mm; }
   .stim-label { font-style: italic; }
