@@ -364,6 +364,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Rich text PLC notes editor. Admin-only until Paul has run a PLC meeting on it in prod.
+  'plc-notes-rich-editor': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /**

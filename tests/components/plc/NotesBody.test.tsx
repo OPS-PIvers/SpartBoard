@@ -18,8 +18,14 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast: vi.fn() }),
 }));
 
+let richEditorAccess = false;
+
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { uid: 'me' } }),
+  useAuth: () => ({
+    user: { uid: 'me' },
+    canAccessFeature: (id: string) =>
+      id === 'plc-notes-rich-editor' && richEditorAccess,
+  }),
 }));
 
 vi.mock('@/context/usePlcContext', () => ({
@@ -132,6 +138,7 @@ beforeEach(() => {
   setBodyMock.mockClear();
   setActionItemsMock.mockClear();
   collabEnabled = false;
+  richEditorAccess = false;
   crdtStatus = 'ready';
   crdtContent = { title: '', body: '', actionItems: [] };
   notes = [noteAt('Hello', 1000, 1)];
@@ -291,5 +298,61 @@ describe('NotesBody with the collaborative editor enabled', () => {
 
     expect(setBodyMock).not.toHaveBeenCalled();
     expect(updateNoteMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('NotesBody with the rich text editor flag', () => {
+  beforeEach(() => {
+    richEditorAccess = true;
+    notes = [noteAt('## Agenda\n- **Tech** tips\nplain line', 1000, 1)];
+  });
+
+  const richBox = () => screen.getByRole('textbox', { name: 'Note' });
+
+  it('opens straight into formatted, editable text with no preview toggle', () => {
+    render(<NotesBody plc={plc} />);
+    const box = richBox();
+    expect(box.getAttribute('contenteditable')).toBe('true');
+    expect(box.querySelector('h2')?.textContent).toBe('Agenda');
+    expect(box.querySelector('li strong')?.textContent).toBe('Tech');
+    expect(screen.queryByLabelText('Preview formatted note')).toBeNull();
+    expect(screen.getByRole('toolbar', { name: 'Formatting' })).toBeTruthy();
+  });
+
+  it('saves edits back as Markdown', () => {
+    render(<NotesBody plc={plc} />);
+    const box = richBox();
+    const p = box.querySelector('p');
+    if (!p) throw new Error('missing paragraph');
+    p.textContent = 'edited line';
+    fireEvent.input(box);
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    expect(updateNoteMock).toHaveBeenCalledWith(
+      'n1',
+      { body: '## Agenda\n- **Tech** tips\nedited line' },
+      { expectedVersion: 1 }
+    );
+  });
+
+  it('does not write anything just from opening a note', () => {
+    render(<NotesBody plc={plc} />);
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    expect(updateNoteMock).not.toHaveBeenCalled();
+  });
+
+  it('routes rich edits into the CRDT when collaboration is on', () => {
+    collabEnabled = true;
+    crdtContent = { title: 'Shared note', body: 'Hello', actionItems: [] };
+    render(<NotesBody plc={plc} />);
+    const box = richBox();
+    const p = box.querySelector('p');
+    if (!p) throw new Error('missing paragraph');
+    p.textContent = 'Hello there';
+    fireEvent.input(box);
+    expect(setBodyMock).toHaveBeenCalledWith('Hello there');
   });
 });

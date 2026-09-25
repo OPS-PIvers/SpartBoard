@@ -48,6 +48,73 @@
   margin: 0.15em 0;
 }
 
+/* PLC notes rich editor: one block per Markdown line, so empty paragraphs keep their height */
+.plc-note-rich {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.plc-note-rich > * + * {
+  margin-top: 0.35em;
+}
+.plc-note-rich h1 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+.plc-note-rich h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+.plc-note-rich h3 {
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  color: #475569;
+}
+.plc-note-rich > :first-child {
+  margin-top: 0;
+}
+.plc-note-rich blockquote {
+  border-left: 2px solid #cbd5e1;
+  padding-left: 0.75rem;
+  font-style: italic;
+  color: #475569;
+}
+.plc-note-rich code {
+  padding: 0.1em 0.25em;
+  border-radius: 0.25rem;
+  background: #f1f5f9;
+  font-size: 0.85em;
+}
+.plc-note-rich ul > li[data-checked] {
+  list-style: none;
+  position: relative;
+}
+.plc-note-rich ul > li[data-checked]::before {
+  content: '';
+  position: absolute;
+  left: -1.4em;
+  top: 0.2em;
+  width: 1em;
+  height: 1em;
+  border: 1px solid #94a3b8;
+  border-radius: 0.2rem;
+  background: #fff;
+  cursor: pointer;
+}
+.plc-note-rich ul > li[data-checked='true']::before {
+  background: #2d3f89
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.5'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E")
+    center / 80% no-repeat;
+  border-color: #2d3f89;
+}
+.plc-note-rich ul > li[data-checked='true'] {
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
 /* Base body styles are handled by Tailwind's preflight and classes,
    but specific overrides can go here if needed */
 

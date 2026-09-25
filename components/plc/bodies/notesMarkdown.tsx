@@ -1,4 +1,13 @@
 import React from 'react';
+import {
+  BULLET_RE,
+  CHECK_RE,
+  HEADING_RE,
+  ORDERED_RE,
+  QUOTE_RE,
+  tokenizeInline,
+  type InlineToken,
+} from './notesMarkdownGrammar';
 
 /**
  * Minimal, dependency-free, XSS-safe markdown renderer for PLC notes
@@ -20,60 +29,23 @@ import React from 'react';
  *   **bold**  __bold__          → <strong>
  *   *italic*  _italic_          → <em>
  *   `code`                      → <code>
+ *   \*  \_  \#  (backslash)     → the literal character
  *
  * Unsupported syntax (images, raw HTML, links) is rendered as literal text —
  * there is no URL handling at all, so there is no anchor-injection surface.
  */
 
-type InlineToken =
-  | { type: 'text'; value: string }
-  | { type: 'bold'; value: string }
-  | { type: 'italic'; value: string }
-  | { type: 'code'; value: string };
-
-// Order matters: code first (so `**` inside backticks stays literal), then
-// bold (greedy `**`/`__`), then italic (`*`/`_`). Each alternative captures its
-// inner text in a single group.
-const INLINE_RE =
-  /(`[^`]+`)|(\*\*[^*]+\*\*)|(__[^_]+__)|(\*[^*]+\*)|(_[^_]+_)/g;
-
-function tokenizeInline(text: string): InlineToken[] {
-  const tokens: InlineToken[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  INLINE_RE.lastIndex = 0;
-  while ((match = INLINE_RE.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      tokens.push({ type: 'text', value: text.slice(lastIndex, match.index) });
-    }
-    const [, code, boldStar, boldUnder, italStar, italUnder] = match;
-    if (code) {
-      tokens.push({ type: 'code', value: code.slice(1, -1) });
-    } else if (boldStar) {
-      tokens.push({ type: 'bold', value: boldStar.slice(2, -2) });
-    } else if (boldUnder) {
-      tokens.push({ type: 'bold', value: boldUnder.slice(2, -2) });
-    } else if (italStar) {
-      tokens.push({ type: 'italic', value: italStar.slice(1, -1) });
-    } else if (italUnder) {
-      tokens.push({ type: 'italic', value: italUnder.slice(1, -1) });
-    }
-    lastIndex = INLINE_RE.lastIndex;
-  }
-  if (lastIndex < text.length) {
-    tokens.push({ type: 'text', value: text.slice(lastIndex) });
-  }
-  return tokens;
-}
-
-function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
-  return tokenizeInline(text).map((tok, i) => {
+function renderTokens(
+  tokens: InlineToken[],
+  keyPrefix: string
+): React.ReactNode[] {
+  return tokens.map((tok, i) => {
     const key = `${keyPrefix}-${i}`;
     switch (tok.type) {
       case 'bold':
-        return <strong key={key}>{tok.value}</strong>;
+        return <strong key={key}>{renderTokens(tok.children, key)}</strong>;
       case 'italic':
-        return <em key={key}>{tok.value}</em>;
+        return <em key={key}>{renderTokens(tok.children, key)}</em>;
       case 'code':
         return (
           <code
@@ -88,6 +60,10 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
         return <React.Fragment key={key}>{tok.value}</React.Fragment>;
     }
   });
+}
+
+function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
+  return renderTokens(tokenizeInline(text), keyPrefix);
 }
 
 interface BlockBullet {
@@ -118,12 +94,6 @@ type Block =
   | BlockHeading
   | BlockQuote
   | BlockParagraph;
-
-const HEADING_RE = /^(#{1,3})\s+(.*)$/;
-const BULLET_RE = /^[-*]\s+(.*)$/;
-const CHECK_RE = /^[-*]\s+\[([ xX])\]\s+(.*)$/;
-const ORDERED_RE = /^\d+\.\s+(.*)$/;
-const QUOTE_RE = /^>\s?(.*)$/;
 
 /** Parse the markdown body into a flat list of blocks. */
 function parseBlocks(body: string): Block[] {

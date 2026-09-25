@@ -78,7 +78,7 @@ export const toggleList = (
  * (`<ul>` / `<ol>` containers expose their `<li>` children as the
  * selectable units). Returns the blocks in document order.
  */
-const collectSelectedBlocks = (
+export const collectSelectedBlocks = (
   editor: HTMLElement,
   range: Range
 ): HTMLElement[] => {
@@ -256,7 +256,7 @@ const unwrapBlocksToParagraphs = (
 
 // ─── Selection persistence ──────────────────────────────────────────
 
-interface SavedOffsets {
+export interface SavedOffsets {
   start: number;
   end: number;
 }
@@ -267,7 +267,7 @@ interface SavedOffsets {
  * mutations (only block structure changes), so these offsets resolve
  * to the same caret positions after the mutation.
  */
-const saveSelectionOffsets = (
+export const saveSelectionOffsets = (
   editor: HTMLElement,
   range: Range
 ): SavedOffsets => ({
@@ -304,7 +304,7 @@ const textOffsetOf = (
  * nodes until we accumulate the target offset, then setting a range
  * at that position.
  */
-const restoreSelectionOffsets = (
+export const restoreSelectionOffsets = (
   editor: HTMLElement,
   offsets: SavedOffsets
 ): void => {
