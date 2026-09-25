@@ -3395,6 +3395,16 @@
         "notSelfPaced": "Spoken answers need self-paced mode."
       }
     },
+    "paperReview": {
+      "handwriting": "Your handwriting",
+      "cropAlt": "Your handwritten answer, question {{number}}",
+      "loading": "Loading handwriting",
+      "unavailable": "Handwriting unavailable",
+      "reload": "Try again",
+      "transcribing": "Transcribing",
+      "blank": "Blank",
+      "comments": "Teacher comments"
+    },
     "grading": {
       "title": "Grade Free Response",
       "close": "Close",
