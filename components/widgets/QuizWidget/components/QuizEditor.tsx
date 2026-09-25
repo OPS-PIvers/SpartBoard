@@ -813,11 +813,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         <h4 className="text-base font-bold text-slate-700 mb-1">
           {questions.length === 0 ? 'No questions yet' : 'Pick a question'}
         </h4>
-        <p className="text-sm max-w-xs">
-          {questions.length === 0
-            ? 'Add a question or draft with AI to start editing.'
-            : 'Click a question in the list to edit it here.'}
-        </p>
+        {questions.length === 0 && (
+          <p className="text-sm max-w-xs">
+            Add a question or draft with AI to start editing.
+          </p>
+        )}
       </div>
     );
   }

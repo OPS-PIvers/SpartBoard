@@ -111,7 +111,7 @@ describe('FreeResponseGrader — per-student rubric override (M17 C4)', () => {
     );
     expect(screen.getByText('Base rubric')).toBeInTheDocument();
     expect(screen.queryByText(/Alternate rubric/)).toBeNull();
-    expect(screen.queryByText(/Points only for this student/)).toBeNull();
+    expect(screen.queryByText(/Rubric overridden for this student/)).toBeNull();
   });
 
   it('applies the override rubric only to the matched student', () => {
@@ -160,7 +160,7 @@ describe('FreeResponseGrader — per-student rubric override (M17 C4)', () => {
     );
     expect(screen.queryByLabelText('Rubric scoring')).toBeNull();
     expect(
-      screen.getByText(/Points only for this student/)
+      screen.getByText(/Rubric overridden for this student/)
     ).toBeInTheDocument();
   });
 

@@ -2273,8 +2273,6 @@
       "modeLabelVideo": "video",
       "advisory": {
         "title": "Heads up",
-        "slots_one": "Records up to {{count}} slot per student.",
-        "slots_other": "Records up to {{count}} slots per student.",
         "deviceBlocked": "If a microphone is blocked, the question comes to you ungraded.",
         "shuffleNoOp": "Shuffle has no effect because every question shares one stimulus."
       }
@@ -2307,7 +2305,7 @@
       "comment": "Overall comment (optional)",
       "substituteNote": "Note (required)",
       "commentPlaceholder": "Feedback for this student…",
-      "excusedNote": "Excused — omitted from the gradebook.",
+      "excusedNote": "Dispensé. Exclu du carnet de notes.",
       "save": "Save grade",
       "saveAndNext": "Save & next",
       "prevStudent": "Previous student",
@@ -2403,12 +2401,12 @@
       "errors": {
         "noIdentifier": "Cannot save: this response is missing its identifier. Reload the quiz results and try again.",
         "chooseOutcome": "Choose Excuse, Blank, or Offline substitute before saving.",
-        "noteRequired": "An offline substitute needs a note — it is the only record of the answer.",
+        "noteRequired": "Ajoutez une note. C'est la seule trace de la réponse.",
         "numericScore": "Enter a numeric score.",
         "range": "Score must be between 0 and {{max}}.",
         "saveFailed": "Failed to save grade.",
         "undoFailed": "Failed to undo the excuse.",
-        "emptyAnnotations": "Impossible d'enregistrer des annotations sur une réponse vide — l'élève n'a pas répondu à cette question."
+        "emptyAnnotations": "Impossible d'enregistrer les annotations : l'élève n'a pas répondu à cette question."
       },
       "undoExcuse": "Undo excuse",
       "emptyQuestions": {
@@ -2424,7 +2422,7 @@
       "noTextAnswer": "L'élève n'a pas répondu à cette question.",
       "highlights": "Surlignages et commentaires ({{count}})",
       "highlightsEmpty": "Sélectionnez du texte pour le surligner.",
-      "highlightNoComment": "(pas encore de commentaire — cliquez pour ajouter)",
+      "highlightNoComment": "(Pas encore de commentaire. Cliquez pour ajouter.)",
       "rubricTags": {
         "label": "Critères de la grille",
         "add": "Marquer comme preuve pour {{name}}",
@@ -2437,7 +2435,7 @@
         "jumpToSuffix": " comme preuve pour {{name}}"
       },
       "rubricOverrideNote": "Grille alternative pour cet élève",
-      "pointsOverrideNote": "Points seulement pour cet élève — grille remplacée.",
+      "pointsOverrideNote": "Grille remplacée pour cet élève.",
       "tabSwitches_one": "{{count}} changement d'onglet",
       "tabSwitches_other": "{{count}} changements d'onglet",
       "tabSwitchesTitle_one": "{{count}} avertissement de changement d'onglet pendant l'évaluation",

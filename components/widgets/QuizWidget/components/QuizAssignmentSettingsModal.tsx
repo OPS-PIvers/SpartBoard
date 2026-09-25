@@ -288,9 +288,9 @@ export const QuizAssignmentSettingsModal: React.FC<
           </div>
           <p className="text-xxs text-slate-500">
             {assignment.plc
-              ? 'Completed, scored results pool with your team on the PLC page. No student names are shared.'
+              ? 'Scores pool on the PLC page without student names.'
               : canShareWithPlc
-                ? 'Pool this assignment’s scored results with a PLC you belong to.'
+                ? 'Pool scores with one of your PLCs.'
                 : 'Join a PLC to pool results with a team.'}
           </p>
         </div>

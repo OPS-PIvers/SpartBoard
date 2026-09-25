@@ -6,14 +6,9 @@
  */
 
 import type { QuizQuestion, QuizStimulus } from '@/types';
-import { countRecordingSlots } from '@/utils/quizRecordingModes';
 import { groupIntoStimulusUnits } from '@/utils/quizShuffle';
 
 export type QuizAdvisoryId =
-  /** Neutral storage figure — a fact, never a warning. */
-  | 'recording-slots'
-  /** A mic the device blocks lands the question on the teacher's desk. */
-  | 'device-blocked'
   /** Stimulus grouping collapses the question shuffle to a no-op. */
   | 'shuffle-noop'
   /** Text baked into an image is never translated (D10). */
@@ -51,18 +46,6 @@ export function buildQuizAuthoringAdvisory(
     translationAvailable = false,
   } = input;
   const lines: QuizAdvisoryLine[] = [];
-
-  const slots = countRecordingSlots(questions);
-  if (slots > 0) {
-    lines.push({
-      id: 'recording-slots',
-      text: t('quizMediaResponse.authoring.advisory.slots', { count: slots }),
-    });
-    lines.push({
-      id: 'device-blocked',
-      text: t('quizMediaResponse.authoring.advisory.deviceBlocked'),
-    });
-  }
 
   if (shuffleQuestionsEnabled && questions.length > 1) {
     const units = groupIntoStimulusUnits(questions);

@@ -333,7 +333,7 @@ describe('FreeResponseGrader capture-unavailable adjudication', () => {
     fireEvent.click(
       screen.getByRole('button', { name: /^Offline substitute/ })
     );
-    expect(screen.getByRole('alert').textContent).toMatch(/needs a note/i);
+    expect(screen.getByRole('alert').textContent).toMatch(/add a note/i);
     // Moving on with no note banks nothing.
     fireEvent.click(screen.getByRole('button', { name: /^Next ungraded/i }));
     expect(onSave).not.toHaveBeenCalled();

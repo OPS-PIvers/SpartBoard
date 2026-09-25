@@ -3376,8 +3376,6 @@
       "modeLabelVideo": "video",
       "advisory": {
         "title": "Heads up",
-        "slots_one": "Records up to {{count}} slot per student.",
-        "slots_other": "Records up to {{count}} slots per student.",
         "deviceBlocked": "If a microphone is blocked, the question comes to you ungraded.",
         "shuffleNoOp": "Shuffle has no effect because every question shares one stimulus."
       }
@@ -3410,7 +3408,7 @@
       "comment": "Overall comment (optional)",
       "substituteNote": "Note (required)",
       "commentPlaceholder": "Feedback for this student…",
-      "excusedNote": "Excused — omitted from the gradebook.",
+      "excusedNote": "Excused. Left out of the gradebook.",
       "save": "Save grade",
       "saveAndNext": "Save & next",
       "prevStudent": "Previous student",
@@ -3506,12 +3504,12 @@
       "errors": {
         "noIdentifier": "Cannot save: this response is missing its identifier. Reload the quiz results and try again.",
         "chooseOutcome": "Choose Excuse, Blank, or Offline substitute before saving.",
-        "noteRequired": "An offline substitute needs a note — it is the only record of the answer.",
+        "noteRequired": "Add a note. It's the only record of the answer.",
         "numericScore": "Enter a numeric score.",
         "range": "Score must be between 0 and {{max}}.",
         "saveFailed": "Failed to save grade.",
         "undoFailed": "Failed to undo the excuse.",
-        "emptyAnnotations": "Cannot save annotations on an empty response — the student didn't answer this question."
+        "emptyAnnotations": "Can't save annotations: the student didn't answer this question."
       },
       "undoExcuse": "Undo excuse",
       "emptyQuestions": {
@@ -3527,7 +3525,7 @@
       "noTextAnswer": "The student didn't answer this question.",
       "highlights": "Highlights & comments ({{count}})",
       "highlightsEmpty": "Select text to highlight it.",
-      "highlightNoComment": "(no comment yet — click to add)",
+      "highlightNoComment": "(No comment yet. Click to add.)",
       "rubricTags": {
         "label": "Rubric strands",
         "add": "Tag as evidence for {{name}}",
@@ -3540,7 +3538,7 @@
         "jumpToSuffix": " as evidence for {{name}}"
       },
       "rubricOverrideNote": "Alternate rubric for this student",
-      "pointsOverrideNote": "Points only for this student — rubric override.",
+      "pointsOverrideNote": "Rubric overridden for this student.",
       "tabSwitches_one": "{{count}} tab switch",
       "tabSwitches_other": "{{count}} tab switches",
       "tabSwitchesTitle_one": "{{count}} tab switch warning during the assessment",
