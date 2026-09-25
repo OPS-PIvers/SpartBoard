@@ -1973,9 +1973,16 @@ const ActiveQuiz: React.FC<{
   // Drafts don't count: a debounced autosave of a written-response in
   // progress must not flip `submitted` true and shouldn't trigger
   // `QuizCompleteCard`. Only explicit Submit writes `status: 'submitted'`.
+  // A cleared answer in a choose-N section is saved empty, and doesn't count.
+  const inChooseSection =
+    !!currentQuestion &&
+    !!sectionOfQuestion(session.sections, currentQuestion.id)?.chooseCount;
   const alreadyAnswered = isStudentPaced
     ? (myResponse?.answers ?? []).some(
-        (a) => a.questionId === currentQuestion?.id && isAnswerSubmitted(a)
+        (a) =>
+          a.questionId === currentQuestion?.id &&
+          isAnswerSubmitted(a) &&
+          (!inChooseSection || isSectionAnswered([a], a.questionId))
       )
     : sessionAnswered;
 

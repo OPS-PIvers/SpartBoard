@@ -227,6 +227,42 @@ describe('QuizStudentApp — sections', () => {
     expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument();
   });
 
+  it('keeps a cleared last question answerable instead of showing the quiz as complete', async () => {
+    const session = buildSession();
+    hookState.session = {
+      ...session,
+      totalQuestions: 1,
+      publicQuestions: [written('q19')],
+      sections: [
+        {
+          id: 's1',
+          title: 'Short Answer',
+          chooseCount: 1,
+          questionIds: ['q19', 'q20'],
+        },
+      ],
+    };
+    hookState.myResponse = {
+      ...buildResponse([]),
+      answers: [
+        {
+          questionId: 'q19',
+          answer: '',
+          answeredAt: Date.now(),
+          status: 'submitted',
+        },
+      ],
+    };
+    render(<QuizStudentApp />);
+
+    await screen.findByRole('dialog');
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    );
+    expect(screen.queryByText('Quiz complete!')).not.toBeInTheDocument();
+  });
+
   it('clears an answered question to free its place', async () => {
     hookState.session = buildSession();
     hookState.myResponse = buildResponse(['q17', 'q18']);
