@@ -14,6 +14,10 @@
 import React from 'react';
 import { Plus, X, Building2 } from 'lucide-react';
 import { useAdminBuildingsState } from '@/hooks/useAdminBuildings';
+import {
+  canonicalBuildingId,
+  canonicalizeBuildingIds,
+} from '@/config/buildings';
 
 interface Props {
   selectedIds: string[];
@@ -28,13 +32,20 @@ export const PermissionBuildingMultiSelect: React.FC<Props> = ({
   label,
 }) => {
   const { buildings, isLoading } = useAdminBuildingsState();
-  const selectedSet = new Set(selectedIds);
+  // useAdminBuildingsState() can hand back a legacy long-form id when an
+  // org's building doc predates the short-id migration, and stored
+  // `selectedIds` may themselves be legacy — canonicalize both sides so a
+  // legacy-keyed restriction still matches its (now-canonical) building
+  // instead of showing as unselected and orphaned.
+  const canonicalSelectedIds = canonicalizeBuildingIds(selectedIds);
+  const selectedSet = new Set(canonicalSelectedIds);
 
   const toggle = (id: string): void => {
-    if (selectedSet.has(id)) {
-      onChange(selectedIds.filter((b) => b !== id));
+    const canonicalId = canonicalBuildingId(id);
+    if (selectedSet.has(canonicalId)) {
+      onChange(canonicalSelectedIds.filter((b) => b !== canonicalId));
     } else {
-      onChange([...selectedIds, id]);
+      onChange([...canonicalSelectedIds, canonicalId]);
     }
   };
 
@@ -83,13 +94,15 @@ export const PermissionBuildingMultiSelect: React.FC<Props> = ({
             and the first snapshot cannot render valid selections as "Unknown"
             and prompt an anxious admin to delete them. */}
         {!isLoading &&
-          selectedIds
+          canonicalSelectedIds
             .filter((id) => !buildings.some((b) => b.id === id))
             .map((id) => (
               <button
                 key={id}
                 type="button"
-                onClick={() => onChange(selectedIds.filter((b) => b !== id))}
+                onClick={() =>
+                  onChange(canonicalSelectedIds.filter((b) => b !== id))
+                }
                 aria-label={`Remove unknown building ${id}`}
                 aria-pressed="true"
                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border border-dashed border-amber-400 bg-amber-50 text-amber-800 transition-colors hover:bg-amber-100"

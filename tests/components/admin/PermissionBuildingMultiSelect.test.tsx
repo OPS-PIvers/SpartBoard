@@ -92,6 +92,36 @@ describe('PermissionBuildingMultiSelect', () => {
     expect(onChange).toHaveBeenCalledWith(['elem']);
   });
 
+  it('treats a legacy building id as selected instead of an orphan', () => {
+    // 'orono-high-school' is a pre-migration alias for the canonical 'high'
+    // id (config/buildings.ts BUILDING_ID_ALIASES) — stored permission docs
+    // can still carry it.
+    render(
+      <PermissionBuildingMultiSelect
+        selectedIds={['orono-high-school']}
+        onChange={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByRole('button', { name: /remove high school/i })
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByText(/unknown building/i)).not.toBeInTheDocument();
+  });
+
+  it('writes the canonical id when toggling off a legacy-keyed selection', () => {
+    const onChange = vi.fn();
+    render(
+      <PermissionBuildingMultiSelect
+        selectedIds={['orono-high-school']}
+        onChange={onChange}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /remove high school/i })
+    );
+    expect(onChange).toHaveBeenCalledWith([]);
+  });
+
   it('suppresses orphan chips while buildings are loading', () => {
     vi.mocked(useAdminBuildingsState).mockReturnValueOnce({
       buildings: [],
