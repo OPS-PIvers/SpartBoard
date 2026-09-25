@@ -5,6 +5,10 @@ import {
   parseTourAnchorRef,
   type TourAnchorDef,
 } from '@/config/tourAnchors';
+import {
+  anchorFingerprint,
+  type UnmappedQueueEntry,
+} from '@/components/tours/anchorQueue';
 import type { RecordedStep, TourRecording } from './useTourCapture';
 
 type BoardWidget = Pick<WidgetData, 'id' | 'type'>;
@@ -51,13 +55,51 @@ interface BuildOptions {
   now?: number;
 }
 
-/** A v3 building set from a recording: one slide per frame, one tooltip step per click. */
-export function buildRecordedSet(
+/** Queue entries for the untagged steps, grouped by fingerprint, keyed by step id. */
+async function unmappedEntries(
+  steps: readonly RecordedStep[],
+  setId: string,
+  widgets: readonly BoardWidget[]
+): Promise<{ byStep: Map<string, string>; queue: UnmappedQueueEntry[] }> {
+  const typeOf = new Map(widgets.map((w) => [w.id, w.type]));
+  const byStep = new Map<string, string>();
+  const queue = new Map<string, UnmappedQueueEntry>();
+  for (const step of steps) {
+    if (!step.untagged || !step.context) continue;
+    const context = {
+      ...step.context,
+      widgetType:
+        step.context.widgetType ??
+        (step.widgetId ? typeOf.get(step.widgetId) : undefined) ??
+        null,
+    };
+    const fingerprint = await anchorFingerprint(context);
+    byStep.set(step.id, fingerprint);
+    const occurrence = { setId, stepId: step.id };
+    const entry = queue.get(fingerprint);
+    if (entry) entry.occurrences.push(occurrence);
+    else
+      queue.set(fingerprint, {
+        fingerprint,
+        context,
+        occurrences: [occurrence],
+      });
+  }
+  return { byStep, queue: [...queue.values()] };
+}
+
+/** A v3 building set from a recording (one slide per frame, one tooltip step per click), plus its unmapped-anchor queue entries. */
+export async function buildRecordedSet(
   recording: Pick<TourRecording, 'steps'>,
   opts: BuildOptions
-): GuidedLearningSet {
+): Promise<{ set: GuidedLearningSet; queue: UnmappedQueueEntry[] }> {
   const now = opts.now ?? Date.now();
-  return {
+  const { byStep, queue } = await unmappedEntries(
+    recording.steps,
+    opts.id,
+    opts.widgets
+  );
+  const set: GuidedLearningSet = {
     id: opts.id,
     schemaVersion: 3,
     title: opts.title,
@@ -75,7 +117,9 @@ export function buildRecordedSet(
       interactionType: 'tooltip',
       showOverlay: 'tooltip',
       region: s.region,
-      tour: s.tour,
+      tour: byStep.has(s.id)
+        ? { ...s.tour, unmapped: byStep.get(s.id) }
+        : s.tour,
     })),
     mode: 'structured',
     createdAt: now,
@@ -86,6 +130,7 @@ export function buildRecordedSet(
     },
     hasLiveTour: recording.steps.length > 0,
   };
+  return { set, queue };
 }
 
 /** Untagged recorded steps, for the "tag these in code" list. */

@@ -1136,6 +1136,15 @@ service cloud.firestore {
       }
     }
 
+    // Live-tour unmapped-anchor queue and its per-recording batch docs (Live Tours v2): admins only.
+    // The anchor-mapping routine's endpoint uses the Admin SDK and needs no rule.
+    match /tour_anchor_queue/{fingerprint} {
+      allow read, write: if isAdmin();
+    }
+    match /tour_anchor_batches/{batchId} {
+      allow read, write: if isAdmin();
+    }
+
     // Admin backgrounds - authenticated users can read based on access level, only admins can write
     match /admin_backgrounds/{backgroundId} {
       // Admins can read everything

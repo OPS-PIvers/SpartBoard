@@ -56,6 +56,8 @@ import {
   type GuidedLearningSaveGuard,
   isStaleRevision,
 } from '@/components/widgets/GuidedLearning/utils/saveConflict';
+import { removedOccurrences } from '@/components/tours/anchorQueue';
+import { removeQueueOccurrences } from '@/components/tours/anchorQueueStore';
 import {
   readShared,
   type SharedSource,
@@ -478,11 +480,13 @@ export const useGuidedLearning = (
         `${BUILDING_GL_COLLECTION}/${set.id}`,
         updatedSet
       );
-      await writeBuildingSet(
+      const previous = await writeBuildingSet(
         doc(db, BUILDING_GL_COLLECTION, set.id),
         updatedSet,
         guard
       );
+      const removed = removedOccurrences(previous, updatedSet);
+      if (removed.length > 0) void removeQueueOccurrences(removed);
     },
     [isAdmin]
   );
@@ -539,18 +543,20 @@ export const useGuidedLearning = (
   };
 };
 
-// Transactional revision check for a building set; unguarded callers write as before.
+// Transactional revision check for a building set, resolving to the replaced doc; unguarded callers write as before.
 const writeBuildingSet = async (
   ref: DocumentReference,
   set: GuidedLearningSet,
   guard: GuidedLearningSaveGuard | undefined
-): Promise<void> => {
+): Promise<GuidedLearningSet | undefined> => {
   if (!guard) {
     await setDoc(ref, set);
-    return;
+    return undefined;
   }
+  let previous: GuidedLearningSet | undefined;
   await runTransaction(db, async (tx) => {
     const stored = (await tx.get(ref)).data();
+    previous = stored as GuidedLearningSet | undefined;
     if (stored && isStaleRevision(stored, guard)) {
       const latest = normalizeGuidedLearningSet(stored as GuidedLearningSet);
       throw new GuidedLearningSaveConflictError(() =>
@@ -559,6 +565,7 @@ const writeBuildingSet = async (
     }
     tx.set(ref, set);
   });
+  return previous;
 };
 
 // Single shared-set read for surfaces that reference one set by id (Help center guides).

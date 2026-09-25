@@ -7173,6 +7173,8 @@ export interface GuidedLearningTourBinding {
   action: 'click' | 'observe';
   /** Guided autopilot demonstrates, then waits for the teacher; absent = the anchor's `destructive` default. */
   teacherMustClick?: boolean;
+  /** Unmapped-anchor queue fingerprint for an untagged recorded click; cleared on rebind. */
+  unmapped?: string;
 }
 
 /** Watch-mode pacing. 'calm' multiplies step durations by 1.3; absent = 'standard'. */

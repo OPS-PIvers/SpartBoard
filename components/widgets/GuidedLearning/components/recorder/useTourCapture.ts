@@ -3,7 +3,9 @@ import type { GuidedLearningTourBinding } from '@/types';
 import { accessibleName, roleOf } from '@/components/tours/resolveTourAnchor';
 import { canCaptureDisplay, grabFrame } from '../../utils/displayCapture';
 import { redactImage, type RedactRect } from '../../utils/redactImage';
+import type { UnmappedAnchorContext } from '@/components/tours/anchorQueue';
 import {
+  captureUnmappedContext,
   rectToImagePct,
   resolveRecordedAnchor,
   suggestAnchorId,
@@ -26,6 +28,8 @@ export interface RecordedStep extends RecordedPlacement {
   suggestedId?: string;
   /** The board widget the click landed in, from its `data-tour-widget` ancestor. */
   widgetId?: string;
+  /** Redacted structure of an untagged click, for the unmapped-anchor queue. */
+  context?: UnmappedAnchorContext;
 }
 
 export interface TourRecording {
@@ -256,6 +260,16 @@ export function useTourCapture({ chromeRef, matcher, onStep }: Options) {
     const video = videoRef.current;
     const resolved = resolveCaptureTarget(target);
     if (!video || !resolved) return null;
+    const fallback = scrubFallback(resolved.fallback, matcher);
+    const suggestedId = fallback ? resolved.suggestedId : undefined;
+    // Read before the app reacts to the click and the element changes.
+    const context = resolved.untagged
+      ? captureUnmappedContext(resolved.element, {
+          matcher,
+          fallback,
+          suggestedId,
+        })
+      : undefined;
     const rect = resolved.element.getBoundingClientRect();
     const viewport = { w: window.innerWidth, h: window.innerHeight };
     // Before and after the app reacts to the click, so a name that moves is covered in both places.
@@ -274,8 +288,6 @@ export function useTourCapture({ chromeRef, matcher, onStep }: Options) {
     const size = { w: video.videoWidth, h: video.videoHeight };
     const boxes = toFrameRedactions(rects, viewport, size);
     const frame = await redactImage(raw, boxes, { mode: 'blur' });
-    const fallback = scrubFallback(resolved.fallback, matcher);
-    const suggestedId = fallback ? resolved.suggestedId : undefined;
     const widgetId = widgetIdOf(resolved.element) ?? widgetIdOf(target);
     return {
       frame,
@@ -292,6 +304,7 @@ export function useTourCapture({ chromeRef, matcher, onStep }: Options) {
         untagged: resolved.untagged,
         ...(suggestedId ? { suggestedId } : {}),
         ...(widgetId ? { widgetId } : {}),
+        ...(context ? { context } : {}),
       },
     };
   };
