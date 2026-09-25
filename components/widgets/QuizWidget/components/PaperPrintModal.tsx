@@ -648,7 +648,10 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                     ? { directions: section.directions }
                     : {}),
                   ...(chooseLineFor(section, printedIds)
-                    ? { chooseLine: chooseLineFor(section, printedIds) ?? undefined }
+                    ? {
+                        chooseLine:
+                          chooseLineFor(section, printedIds) ?? undefined,
+                      }
                     : {}),
                 }
               : undefined;

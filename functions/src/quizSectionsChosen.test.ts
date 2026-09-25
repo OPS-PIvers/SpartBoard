@@ -31,6 +31,13 @@ describe('notChosenIds', () => {
     expect([...ids]).toEqual(['q2']);
   });
 
+  it('treats a tags-only answer as unanswered', () => {
+    const ids = notChosenIds(pickOne, [
+      { questionId: 'q3', answer: '<p><br></p>' },
+    ]);
+    expect([...ids]).toEqual(['q3']);
+  });
+
   it('keeps the first N when more were answered', () => {
     const ids = notChosenIds(pickOne, [
       { questionId: 'q3', answer: 'x' },
