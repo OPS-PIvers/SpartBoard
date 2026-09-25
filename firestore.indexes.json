@@ -809,6 +809,20 @@
           "queryScope": "COLLECTION_GROUP"
         }
       ]
+    },
+    {
+      "collectionGroup": "paperPrivate",
+      "fieldPath": "newerScan.scanId",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
     }
   ]
 }

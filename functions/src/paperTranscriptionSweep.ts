@@ -328,6 +328,18 @@ export async function runPaperCropSweep(
     scanJobs.set(key, found);
     return found;
   };
+  const newerScanQuestions = new Map<string, Set<string>>();
+  const loadNewerScanQuestions = async (scanId: string) => {
+    let found = newerScanQuestions.get(scanId);
+    if (found) return found;
+    const snap = await db
+      .collectionGroup(PAPER_PRIVATE_SUBCOLLECTION)
+      .where('newerScan.scanId', '==', scanId)
+      .get();
+    found = new Set(snap.docs.map((d) => d.id));
+    newerScanQuestions.set(scanId, found);
+    return found;
+  };
   const titles = new Map<string, string>();
   const quizTitle = async (sessionId: string) => {
     let title = titles.get(sessionId);
@@ -349,13 +361,15 @@ export async function runPaperCropSweep(
 
   async function sweepOneCrop(path: string, c: ParsedCropPath): Promise<void> {
     const jobs = await loadScanJobs(c.uid, c.scanId);
-    if (jobs.bySeat.size === 0) {
+    const target = jobs.bySeat.get(c.seat);
+    if (!target) {
+      // No job for this seat: only a kept answer's newer-scan crop is still wanted.
+      const kept = await loadNewerScanQuestions(c.scanId);
+      if (kept.has(c.questionId)) return;
       await deps.deleteCrop(path);
       summary.unimportedDeleted++;
       return;
     }
-    const target = jobs.bySeat.get(c.seat);
-    if (!target) return;
     const responseRef = db
       .collection('quiz_sessions')
       .doc(target.sessionId)

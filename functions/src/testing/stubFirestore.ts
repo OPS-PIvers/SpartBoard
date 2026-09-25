@@ -50,7 +50,13 @@ export class AlreadyExistsError extends Error {
 }
 
 function matches(data: StubData, w: StubQueryOpts['where'][number]): boolean {
-  const v = data[w.field];
+  const v = w.field
+    .split('.')
+    .reduce<unknown>(
+      (acc, key) =>
+        acc && typeof acc === 'object' ? (acc as StubData)[key] : undefined,
+      data
+    );
   switch (w.op) {
     case '==':
       return v === w.value;

@@ -249,6 +249,24 @@ describe('runPaperCropSweep', () => {
     expect(s.deleted).toEqual([crop('q1', 'scan1')]);
   });
 
+  it('removes a crop for a seat with no job unless a kept answer points at it', async () => {
+    const s = setup(
+      {
+        [`${JOBS}/scan1_3_1_0`]: job({ status: 'done' }),
+        'quiz_sessions/s1/responses/r2/paperPrivate/q1': {
+          scanId: 'scan0',
+          status: 'done',
+          newerScan: { scanId: 'scan1', page: 1, state: 'ink' },
+        },
+      },
+      [old(crop('q1', 'scan1', 5)), old(crop('q2', 'scan1', 5))]
+    );
+    expect(await runPaperCropSweep(s.deps)).toMatchObject({
+      unimportedDeleted: 1,
+    });
+    expect(s.deleted).toEqual([crop('q2', 'scan1', 5)]);
+  });
+
   it('keeps a crop awaiting Drive, warns once at 53 days and removes it at 60', async () => {
     const extra = (since: number) => ({
       [RESPONSE]: response({
