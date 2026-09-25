@@ -955,7 +955,8 @@ export function gradeResponseForPublish(
         q,
         a.answer,
         manualGrade,
-        fibAcceptedAnswers(localizedFibAnswers, q.id, servedLocale)
+        fibAcceptedAnswers(localizedFibAnswers, q.id, servedLocale),
+        a.paperTranscript
       )
     );
     if (result.state === 'awaiting-grade') awaitingGrade = true;
