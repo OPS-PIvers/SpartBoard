@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { ProjectGroup, ProjectStep } from '@/types';
-import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 import {
   approvalStepIdsFrom,
   classNamesForEntries,
   completedStepCount,
+  PROJECT_GROUP_COLORS,
   defaultGroupColor,
   groupsForClass,
   makeWorkLink,
@@ -115,12 +115,20 @@ describe('sortGroupsForBoard', () => {
 
 describe('defaultGroupColor', () => {
   it('deals palette colors by order and wraps around', () => {
-    expect(defaultGroupColor(0)).toBe(SCOREBOARD_COLORS[0]);
-    expect(defaultGroupColor(SCOREBOARD_COLORS.length)).toBe(
-      SCOREBOARD_COLORS[0]
+    expect(defaultGroupColor(0)).toBe(PROJECT_GROUP_COLORS[0]);
+    expect(defaultGroupColor(PROJECT_GROUP_COLORS.length)).toBe(
+      PROJECT_GROUP_COLORS[0]
     );
-    expect(nextGroupColor(SCOREBOARD_COLORS[0])).toBe(SCOREBOARD_COLORS[1]);
-    expect(nextGroupColor(undefined)).toBe(SCOREBOARD_COLORS[0]);
+    expect(nextGroupColor(PROJECT_GROUP_COLORS[0])).toBe(
+      PROJECT_GROUP_COLORS[1]
+    );
+    expect(nextGroupColor(undefined)).toBe(PROJECT_GROUP_COLORS[0]);
+  });
+
+  it('has no purple, violet, indigo, fuchsia or pink', () => {
+    for (const color of PROJECT_GROUP_COLORS) {
+      expect(color).not.toMatch(/purple|violet|indigo|fuchsia|pink/);
+    }
   });
 });
 

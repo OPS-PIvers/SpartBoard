@@ -15,15 +15,6 @@ vi.mock('@/context/useDashboard');
 vi.mock('@/hooks/useProjectLibrary');
 vi.mock('@/hooks/useProjectRun');
 vi.mock('@/hooks/useProjectsWidgetSettings');
-vi.mock('@/hooks/useWidgetBuildingId', () => ({
-  useWidgetBuildingId: () => 'high',
-}));
-vi.mock('@/hooks/useProjectsBuildingDefaults', () => ({
-  useProjectsBuildingDefaults: () => ({
-    buildingId: 'high',
-    defaultShowStatusToStudents: false,
-  }),
-}));
 
 // Stands in for a library card's "Set up groups" click.
 vi.mock('@/components/widgets/Projects/components/ProjectsManager', () => ({
@@ -137,13 +128,9 @@ describe('Projects — setting up groups', () => {
     });
   });
 
-  it('seeds a new run from the building default the admin set (D30)', async () => {
+  it('starts a new run for the project being set up', async () => {
     await openSetupAndCommit();
-    await waitFor(() =>
-      expect(ensureRun).toHaveBeenCalledWith(projectA, {
-        showStatusToStudents: false,
-      })
-    );
+    await waitFor(() => expect(ensureRun).toHaveBeenCalledWith(projectA));
   });
 
   it('opens the board on the project it just set up', async () => {

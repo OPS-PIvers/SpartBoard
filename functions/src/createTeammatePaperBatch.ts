@@ -27,11 +27,13 @@ import {
 import {
   analyzePaperQuiz,
   planPaperBatch,
+  planPaperPages,
   type PaperBatchDoc,
   type PaperBatchSelection,
   type PaperQuestion,
   type PaperSheetPlan,
 } from './paperBatchPlan';
+import { PAPER_HANDWRITTEN_FEATURE } from './paperWrittenTypes';
 import {
   GOOGLE_OAUTH_CLIENT_ID,
   GOOGLE_OAUTH_CLIENT_SECRET,
@@ -74,6 +76,8 @@ export interface CreateTeammatePaperBatchInput {
   plcQuizId: string;
   selections: TeammatePrintSelectionInput[];
   spareCount: number;
+  /** The caller's client can print handwritten boxes; honored only if the caller has the feature. */
+  written: boolean;
 }
 
 export interface WithdrawTeammatePaperBatchInput {
@@ -85,9 +89,12 @@ export interface WithdrawTeammatePaperBatchInput {
 
 /** One row of the test paper, lettered in the order this batch printed. */
 export interface TeammateTestPaperRow {
+  /** Printed number: the sheet row, or the quiz position on a layoutVersion 2 batch. */
   row: number;
   text: string;
   choices: string[];
+  /** A handwritten question; only on a layoutVersion 2 batch. */
+  written?: true;
 }
 
 /** Deferred library copy the owner's client materializes on next sign-in (D20). */
@@ -126,6 +133,12 @@ export interface TeammatePrintWriteDeps extends TeammatePrintDeps {
     content: string
   ) => Promise<string>;
   trashDriveFile: (accessToken: string, fileId: string) => Promise<void>;
+  /** `global_permissions` gate for the caller; absent means not granted. */
+  isFeatureGranted?: (
+    featureId: string,
+    email: string | null,
+    uid: string
+  ) => Promise<boolean>;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -173,6 +186,7 @@ export function parseCreateTeammatePaperBatchInput(
     plcQuizId: parseId(raw.plcQuizId, 'plcQuizId'),
     selections: selections.map(parseSelection),
     spareCount,
+    written: raw.written === true,
   };
 }
 
@@ -278,6 +292,14 @@ function toPaperQuestion(raw: unknown): PaperQuestion | null {
     incorrectAnswers: Array.isArray(raw.incorrectAnswers)
       ? raw.incorrectAnswers.filter((c): c is string => typeof c === 'string')
       : [],
+    ...(raw.recording ? { recording: true } : {}),
+    ...(typeof raw.maxWords === 'number' ? { maxWords: raw.maxWords } : {}),
+    ...(raw.paperBoxSize === 'S' ||
+    raw.paperBoxSize === 'M' ||
+    raw.paperBoxSize === 'L' ||
+    raw.paperBoxSize === 'full'
+      ? { paperBoxSize: raw.paperBoxSize }
+      : {}),
   };
 }
 
@@ -287,6 +309,9 @@ interface QuizContent {
   stimuli?: unknown[];
   /** Items the owner's answer sheet prints beside the bubbles (D14). */
   paperSheetStimuli?: unknown[];
+  /** Read for choose-N sections, which a handwritten print refuses. */
+  sections?: unknown[];
+  order?: unknown[];
   language?: string;
   /** `synced_quizzes/{groupId}.version`; absent on a copy read from Drive. */
   version?: number;
@@ -302,6 +327,8 @@ function toQuizContent(raw: Record<string, unknown>): QuizContent {
     ...(Array.isArray(raw.paperSheetStimuli)
       ? { paperSheetStimuli: raw.paperSheetStimuli }
       : {}),
+    ...(Array.isArray(raw.sections) ? { sections: raw.sections } : {}),
+    ...(Array.isArray(raw.order) ? { order: raw.order } : {}),
     ...(typeof raw.language === 'string' ? { language: raw.language } : {}),
     ...(typeof raw.version === 'number' ? { version: raw.version } : {}),
   };
@@ -349,6 +376,8 @@ async function createCopyForTarget(
     ...(content.paperSheetStimuli?.length
       ? { paperSheetStimuli: content.paperSheetStimuli }
       : {}),
+    ...(content.sections?.length ? { sections: content.sections } : {}),
+    ...(content.order?.length ? { order: content.order } : {}),
     ...(content.language ? { language: content.language } : {}),
     createdAt: now,
     updatedAt: now,
@@ -528,12 +557,46 @@ export async function handleCreateTeammatePaperBatch(
   const questions = content.questions
     .map(toPaperQuestion)
     .filter((q): q is PaperQuestion => q !== null);
-  const analysis = analyzePaperQuiz(questions);
-  if (analysis.rows.length === 0)
+  // Handwritten boxes need a client that can draw page maps and a caller the
+  // feature is on for; otherwise the stack prints exactly as it always has.
+  const writtenOn =
+    input.written &&
+    !!deps.isFeatureGranted &&
+    (await deps.isFeatureGranted(
+      PAPER_HANDWRITTEN_FEATURE,
+      actor.email ?? null,
+      actor.uid
+    ));
+  const analysis = analyzePaperQuiz(questions, {
+    written: writtenOn,
+    sections: content.sections,
+    order: content.order,
+  });
+  if (analysis.writtenRefusals.length > 0)
+    throw new HttpsError(
+      'failed-precondition',
+      `Written questions in an "answer any" section cannot print on paper: ${analysis.writtenRefusals.join('; ')}`
+    );
+  if (analysis.rows.length === 0 && analysis.written.length === 0)
     throw new HttpsError(
       'failed-precondition',
       'This quiz has no multiple-choice questions to bubble.'
     );
+  const columnsPerPage = content.paperSheetStimuli?.length ? 1 : 2;
+  let pageMaps: PaperBatchDoc['pageMaps'];
+  if (analysis.written.length > 0) {
+    const pages = planPaperPages({
+      entries: analysis.entries,
+      grid: columnsPerPage,
+      stems: true,
+    });
+    if (!pages.ok)
+      throw new HttpsError(
+        'failed-precondition',
+        `This test needs ${pages.pageCount} pages per student; the most a sheet can carry is 63.`
+      );
+    pageMaps = pages.pageMaps;
+  }
   const questionsById = new Map(questions.map((q) => [q.id, q]));
   const sheetQuestions = analysis.rows.flatMap((r) => {
     const q = questionsById.get(r.questionId);
@@ -591,9 +654,8 @@ export async function handleCreateTeammatePaperBatch(
       questions: sheetQuestions,
       // Sheet stimuli need the page's right half, so the stack drops to one
       // answer column — the same rule the owner's own print follows.
-      ...(content.paperSheetStimuli?.length
-        ? { columnsPerPage: 1 as const }
-        : {}),
+      ...(columnsPerPage === 1 ? { columnsPerPage: 1 as const } : {}),
+      ...(pageMaps ? { pageMaps } : {}),
       createdAt: now,
     });
   } catch (err) {
@@ -660,25 +722,34 @@ export async function handleCreateTeammatePaperBatch(
     targetName
   );
 
+  const choicesOf = (q: PaperQuestion): string[] =>
+    planned.batch.choiceOrder?.[q.id] ?? [
+      q.correctAnswer,
+      ...(q.incorrectAnswers ?? []),
+    ];
+  // A page-mapped test paper numbers every question by its quiz position (D11).
+  const testPaper: TeammateTestPaperRow[] = pageMaps
+    ? analysis.entries.flatMap((e): TeammateTestPaperRow[] => {
+        const q = questionsById.get(e.questionId);
+        if (!q) return [];
+        const row = Number(e.label);
+        return e.kind === 'written'
+          ? [{ row, text: q.text ?? '', choices: [], written: true }]
+          : [{ row, text: q.text ?? '', choices: choicesOf(q) }];
+      })
+    : analysis.rows.flatMap((r): TeammateTestPaperRow[] => {
+        const q = questionsById.get(r.questionId);
+        return q
+          ? [{ row: r.row, text: q.text ?? '', choices: choicesOf(q) }]
+          : [];
+      });
+
   return {
     batch,
     sheets: planned.sheets,
     quizTitle: content.title,
     printedForTeacherName: targetName,
-    testPaper: analysis.rows.flatMap((r) => {
-      const q = questionsById.get(r.questionId);
-      if (!q) return [];
-      return [
-        {
-          row: r.row,
-          text: q.text ?? '',
-          choices: planned.batch.choiceOrder?.[q.id] ?? [
-            q.correctAnswer,
-            ...(q.incorrectAnswers ?? []),
-          ],
-        },
-      ];
-    }),
+    testPaper,
     createdCopy,
     pendingCopy: deferCopy,
   };
@@ -835,6 +906,10 @@ export function buildLiveWriteDeps(): TeammatePrintWriteDeps {
       );
       return created.data.id;
     },
+    isFeatureGranted: async (featureId, email, uid) => {
+      const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+      return isGlobalFeatureGranted(admin.firestore(), featureId, email, uid);
+    },
     trashDriveFile: async (accessToken, fileId) => {
       await axios.patch(
         `${DRIVE_API}/files/${encodeURIComponent(fileId)}`,
@@ -865,6 +940,7 @@ export const createTeammatePaperBatchV1 = onCall(
             studentRole: request.auth.token.studentRole === true,
             anonymous:
               request.auth.token.firebase?.sign_in_provider === 'anonymous',
+            email: request.auth.token.email ?? null,
           }
         : null,
       request.data,

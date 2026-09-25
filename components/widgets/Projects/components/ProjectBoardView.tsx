@@ -3,8 +3,6 @@ import {
   AlertTriangle,
   ChevronLeft,
   ClipboardList,
-  Eye,
-  EyeOff,
   Flag,
   Loader2,
   SquarePen,
@@ -84,11 +82,10 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
     readOnly ? undefined : projectId,
     user?.uid
   );
-  const { setStepState, setPeerVisibility } = live;
+  const { setStepState } = live;
   const run = readOnly ? shared.run : live.run;
   const groups: BoardGroup[] = readOnly ? shared.groups : live.groups;
   const loading = readOnly ? shared.loading : live.loading;
-  const peersVisible = live.run?.showStatusToStudents === true;
   const liveRunId = readOnly ? null : (live.run?.id ?? null);
 
   // A set, not a scalar: two cells can be in flight at once and each owns its key.
@@ -297,7 +294,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
         }}
       >
         <table
-          className="w-full h-full table-fixed border-separate"
+          className="w-full h-full border-separate"
           style={{
             borderSpacing: 0,
             // Scroll only when cells would fall below a tappable minimum.
@@ -309,14 +306,11 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
           <caption className="sr-only">
             {`${run.title}: each group's progress through every step`}
           </caption>
-          <colgroup>
-            <col style={{ width: collapsed ? '32%' : dense ? '22%' : '28%' }} />
-          </colgroup>
           <thead>
             <tr>
               <th
                 scope="col"
-                className="sticky left-0 top-0 z-[3] text-left"
+                className="sticky left-0 top-0 z-[3] w-px text-left"
                 style={{ ...stickyStyle, padding: HEADER_PAD }}
               >
                 <span className="sr-only">Group</span>
@@ -324,10 +318,36 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
               {collapsed ? (
                 <th
                   scope="col"
-                  className="sticky top-0 z-[2]"
+                  className="sticky top-0 z-[2] align-bottom font-semibold text-slate-600"
                   style={{ ...stickyStyle, padding: HEADER_PAD }}
                 >
-                  <span className="sr-only">Progress</span>
+                  <span
+                    className="flex items-end"
+                    style={{ gap: 'min(8px, 1.8cqmin)' }}
+                  >
+                    <span
+                      className="flex flex-1 min-w-0"
+                      style={{ gap: 'min(2px, 0.5cqmin)' }}
+                    >
+                      {steps.map((step) => (
+                        <span
+                          key={step.id}
+                          title={step.title}
+                          className="flex-1 min-w-0 truncate text-center leading-tight"
+                          style={{ fontSize: 'min(11px, 3.2cqmin)' }}
+                        >
+                          {step.title}
+                        </span>
+                      ))}
+                    </span>
+                    <span
+                      aria-hidden
+                      className="invisible shrink-0 tabular-nums"
+                      style={{ fontSize: 'min(12px, 3.4cqmin)' }}
+                    >
+                      {steps.length}/{steps.length}
+                    </span>
+                  </span>
                 </th>
               ) : (
                 steps.map((step) => (
@@ -338,6 +358,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
                     className="sticky top-0 z-[2] align-bottom text-center font-semibold text-slate-600"
                     style={{
                       ...stickyStyle,
+                      width: `${100 / steps.length}%`,
                       padding: HEADER_PAD,
                       fontSize: dense
                         ? 'min(10px, 2.8cqmin)'
@@ -448,24 +469,43 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
           {/* Every control here writes the teacher's board or their run. */}
           {!readOnly && (
             <>
-              <button
-                type="button"
-                onClick={() => {
-                  setOpenCell(null);
-                  updateWidget(widget.id, {
-                    config: { ...config, boardCollapsed: !collapsed },
-                  });
-                }}
-                className="shrink-0 rounded-full bg-white/70 border border-slate-200 text-slate-600 font-semibold"
-                style={{
-                  padding: 'min(4px, 0.9cqmin) min(10px, 2.2cqmin)',
-                  fontSize: 'min(12px, 3.6cqmin)',
-                }}
-                aria-label={collapsed ? 'Show as grid' : 'Show as bars'}
-                title={collapsed ? 'Show every step' : 'One bar per group'}
+              <div
+                role="group"
+                aria-label="Board layout"
+                className="shrink-0 inline-flex rounded-full bg-white/70 border border-slate-200"
+                style={{ padding: 'min(2px, 0.5cqmin)' }}
               >
-                {collapsed ? 'Grid' : 'Bars'}
-              </button>
+                {(
+                  [
+                    { value: true, label: 'Bars' },
+                    { value: false, label: 'Grid' },
+                  ] as const
+                ).map((option) => (
+                  <button
+                    key={option.label}
+                    type="button"
+                    aria-pressed={collapsed === option.value}
+                    onClick={() => {
+                      if (collapsed === option.value) return;
+                      setOpenCell(null);
+                      updateWidget(widget.id, {
+                        config: { ...config, boardCollapsed: option.value },
+                      });
+                    }}
+                    className={`rounded-full font-semibold transition-colors ${
+                      collapsed === option.value
+                        ? 'bg-slate-700 text-white'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                    style={{
+                      padding: 'min(3px, 0.7cqmin) min(9px, 2cqmin)',
+                      fontSize: 'min(12px, 3.6cqmin)',
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
               <OverflowMenu
                 ariaLabel="Project actions"
                 items={[
@@ -474,19 +514,6 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
                     label: 'Manage groups',
                     icon: Users,
                     onClick: onManageGroups,
-                  },
-                  {
-                    id: 'peer-visibility',
-                    label: peersVisible
-                      ? 'Students see other groups: on'
-                      : 'Students see other groups: off',
-                    icon: peersVisible ? Eye : EyeOff,
-                    disabled: busyKeys.has('peer-visibility'),
-                    onClick: () =>
-                      void runAction(
-                        setPeerVisibility(!peersVisible),
-                        'peer-visibility'
-                      ),
                   },
                 ]}
               />

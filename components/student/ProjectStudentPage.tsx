@@ -6,7 +6,6 @@ import { useStudentProjectRun } from '@/hooks/useStudentProjectRun';
 import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
 import { useProjectUploads } from '@/hooks/useProjectUploads';
 import {
-  sortGroupsForBoard,
   stepStateOf,
   studentStateOptions,
 } from '@/components/widgets/Projects/projectSteps';
@@ -14,7 +13,6 @@ import { rubricMaxPoints } from '@/utils/rubricPoints';
 import { StudentPageShell } from './StudentPageShell';
 import { ProjectGroupWork } from './project/ProjectGroupWork';
 import { ProjectOwnGroupSteps } from './project/ProjectOwnGroupSteps';
-import { ProjectPeerGrid } from './project/ProjectPeerGrid';
 import { ProjectRubricSheet } from './project/ProjectRubricSheet';
 import { parseProjectRunId } from './project/projectRoute';
 
@@ -32,12 +30,11 @@ const Centered: React.FC<{
 
 /** `/project/:runId` — a group's own view of one project (§6, D30); rules enforce the limits. */
 export const ProjectStudentPage: React.FC = () => {
-  const { pseudonymUid, classIds, signOut } = useStudentAuth();
+  const { pseudonymUid, signOut } = useStudentAuth();
   const runId = useMemo(() => parseProjectRunId(window.location.pathname), []);
 
   const {
     run,
-    groups,
     myGroup,
     workLinks,
     grade,
@@ -46,7 +43,7 @@ export const ProjectStudentPage: React.FC = () => {
     setStepState,
     addWorkLink,
     removeWorkLink,
-  } = useStudentProjectRun(runId, pseudonymUid, classIds);
+  } = useStudentProjectRun(runId, pseudonymUid);
 
   const {
     uploads,
@@ -71,10 +68,6 @@ export const ProjectStudentPage: React.FC = () => {
 
   const steps: ProjectStep[] = run?.steps ?? [];
   const canEdit = Boolean(myGroup) && run?.acceptingUpdates === true;
-  const otherGroups = useMemo(
-    () => sortGroupsForBoard(groups.filter((g) => g.id !== myGroup?.id)),
-    [groups, myGroup?.id]
-  );
 
   const maxPoints = run?.rubric
     ? (run.rubricMaxPoints ?? rubricMaxPoints(run.rubric))
@@ -213,12 +206,6 @@ export const ProjectStudentPage: React.FC = () => {
             )}
           </section>
         )}
-
-        {run.showStatusToStudents &&
-          otherGroups.length > 0 &&
-          steps.length > 0 && (
-            <ProjectPeerGrid groups={otherGroups} steps={steps} />
-          )}
       </div>
     );
   };

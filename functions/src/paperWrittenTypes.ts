@@ -58,6 +58,8 @@ export interface PaperPrivateAnswer {
   charged: boolean;
   editedBy?: string;
   editedAt?: number;
+  /** A rescan whose box was not applied because this answer was graded or edited (D28). */
+  newerScan?: { scanId: string; page: number; state: 'ink' | 'blank' };
   updatedAt: number;
 }
 

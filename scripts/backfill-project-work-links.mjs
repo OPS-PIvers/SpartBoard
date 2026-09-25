@@ -3,7 +3,8 @@
  *
  * For every project run:
  *   - sets `createdAt` when missing (from `updatedAt`, else now);
- *   - sets each group's `peerVisible` from the run's `showStatusToStudents`;
+ *   - deletes the retired peer-visibility fields: the run's `showStatusToStudents`
+ *     and each group's `peerVisible` (students only ever see their own group);
  *   - moves a group's legacy `workLinks` into `groups/{id}/private/work`
  *     (merged with any links already there) and deletes the field.
  *
@@ -91,15 +92,19 @@ for (const run of runs.docs) {
     counts.createdAt++;
     await queue((b) => b.update(run.ref, { createdAt }));
   }
+  if (data.showStatusToStudents !== undefined) {
+    await queue((b) =>
+      b.update(run.ref, { showStatusToStudents: FieldValue.delete() })
+    );
+  }
 
-  const peerVisible = data.showStatusToStudents === true;
   const groups = await run.ref.collection('groups').get();
   for (const group of groups.docs) {
     counts.groups++;
     const g = group.data();
     const update = {};
-    if (g.peerVisible !== peerVisible) {
-      update.peerVisible = peerVisible;
+    if (g.peerVisible !== undefined) {
+      update.peerVisible = FieldValue.delete();
       counts.peerVisible++;
     }
     if (g.workLinks !== undefined) {
@@ -128,6 +133,6 @@ await flush();
 console.log(
   `${apply ? 'Applied' : 'Dry run'} on ${projectId}: ${counts.runs} runs ` +
     `(${counts.createdAt} missing createdAt), ${counts.groups} groups ` +
-    `(${counts.peerVisible} peerVisible fixes, ${counts.moved} with legacy workLinks).`
+    `(${counts.peerVisible} peerVisible cleared, ${counts.moved} with legacy workLinks).`
 );
 if (!apply) console.log('Re-run with --apply to write.');

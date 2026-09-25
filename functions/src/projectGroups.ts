@@ -261,8 +261,6 @@ export const commitProjectGroupsV1 = onCall(
     }
 
     const now = Date.now();
-    // D39 — groups carry the run's peer toggle so the read rule never get()s the run.
-    const peerVisible = runSnap.data()?.showStatusToStudents === true;
     const existing =
       groups.length > 0
         ? await db.getAll(
@@ -312,7 +310,6 @@ export const commitProjectGroupsV1 = onCall(
           memberUids,
           order: group.order,
           ...(group.color ? { color: group.color } : {}),
-          peerVisible,
           updatedAt: now,
         });
       } else {
@@ -324,7 +321,6 @@ export const commitProjectGroupsV1 = onCall(
           order: group.order,
           ...(group.color ? { color: group.color } : {}),
           stepStates,
-          peerVisible,
           updatedAt: now,
         });
       }

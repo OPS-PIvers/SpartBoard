@@ -1,7 +1,7 @@
 import type { ProjectGroup, ProjectGroupEvent, ProjectStep } from '@/types';
 import {
   STEP_STATE_LABELS,
-  defaultGroupColor,
+  resolveGroupColor,
   projectClassIdFor,
   stepStateOf,
 } from './projectSteps';
@@ -72,7 +72,7 @@ export function rosterForClass<T extends RosterLike>(
 
 /** D33 — stored color, else dealt by order. */
 export const groupColorOf = (group: Pick<ProjectGroup, 'color' | 'order'>) =>
-  group.color ?? defaultGroupColor(group.order);
+  resolveGroupColor(group.color, group.order);
 
 export const cellKey = (groupId: string, stepId: string): string =>
   `${groupId}:${stepId}`;
