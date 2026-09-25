@@ -4715,7 +4715,8 @@ export const PublishedScoreReview: React.FC<{
       isWrittenAnswerAwaitingGrade(
         q,
         a.answer ?? '',
-        myResponse.grading?.[a.questionId]
+        myResponse.grading?.[a.questionId],
+        a.paperTranscript
       )
     );
   });
