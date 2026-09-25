@@ -28,60 +28,12 @@ describe('buildQuizAuthoringAdvisory', () => {
     expect(lines).toEqual([]);
   });
 
-  it('states the slot count as a neutral fact', () => {
-    const lines = buildQuizAuthoringAdvisory(
-      {
-        questions: [
-          question({ recording: recording() }),
-          question(),
-          question({ recording: recording() }),
-        ],
-      },
-      t
-    );
-    const slots = lines.find((l) => l.id === 'recording-slots');
-    expect(slots?.text).toBe('Records up to 2 slots per student.');
-  });
-
-  it('singularises one slot', () => {
+  it('adds nothing for a spoken question on its own', () => {
     const lines = buildQuizAuthoringAdvisory(
       { questions: [question({ recording: recording() })] },
       t
     );
-    expect(lines.find((l) => l.id === 'recording-slots')?.text).toBe(
-      'Records up to 1 slot per student.'
-    );
-  });
-
-  it('never estimates bytes or suggests a take limit', () => {
-    const lines = buildQuizAuthoringAdvisory(
-      { questions: [question({ recording: recording() })] },
-      t
-    );
-    const all = lines.map((l) => l.text).join(' ');
-    expect(all).not.toMatch(/\b(MB|KB|GB|megabyte)\b/i);
-    expect(all).not.toMatch(/take limit|limit the takes|cap the takes/i);
-  });
-
-  it('uses the short device-blocked line', () => {
-    const lines = buildQuizAuthoringAdvisory(
-      { questions: [question({ recording: recording() })] },
-      t
-    );
-    const blocked = lines.find((l) => l.id === 'device-blocked');
-    expect(blocked?.text).toBe(
-      'If a microphone is blocked, the question comes to you ungraded.'
-    );
-  });
-
-  it('never says "skip" and never promises a text alternative', () => {
-    const lines = buildQuizAuthoringAdvisory(
-      { questions: [question({ recording: recording() })] },
-      t
-    );
-    const all = lines.map((l) => l.text).join(' ');
-    expect(all.toLowerCase()).not.toContain('skip');
-    expect(all).not.toMatch(/type (it|their answer)|written alternative/i);
+    expect(lines).toEqual([]);
   });
 
   it('omits the shuffle line when shuffle is off', () => {
@@ -121,16 +73,5 @@ describe('buildQuizAuthoringAdvisory', () => {
       t
     );
     expect(lines.find((l) => l.id === 'shuffle-noop')).toBeUndefined();
-  });
-
-  it('never emits a district video-gate line — no client signal exists', () => {
-    const lines = buildQuizAuthoringAdvisory(
-      { questions: [question({ recording: recording() })] },
-      t
-    );
-    expect(lines.map((l) => l.id)).toEqual([
-      'recording-slots',
-      'device-blocked',
-    ]);
   });
 });

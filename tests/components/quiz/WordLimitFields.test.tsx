@@ -77,7 +77,7 @@ describe('WordLimitFields', () => {
       />
     );
     expect(
-      screen.getByText(/students can't submit outside this range/i)
+      screen.getByTitle(/students can't submit outside this range/i)
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('switch', { name: 'Enforce limit' }));
     expect(onChange).toHaveBeenCalledWith({ enforceWordLimit: true });

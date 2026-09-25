@@ -129,7 +129,7 @@ export const SaveToBankModal: React.FC<SaveToBankModalProps> = ({
                 type="text"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="e.g. Unit 4 — Cells"
+                placeholder="e.g. Unit 4: Cells"
                 className={inputClass}
               />
             </div>

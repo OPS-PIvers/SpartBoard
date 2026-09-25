@@ -213,8 +213,8 @@ export const QuestionDetail: React.FC<QuestionDetailProps> = ({
           className="text-brand-gray-primary"
           style={{ fontSize: 'min(12px, 4cqmin)' }}
         >
-          {totalAnswered} response{totalAnswered === 1 ? '' : 's'} — graded in
-          results.
+          {totalAnswered} response{totalAnswered === 1 ? '' : 's'}. Grade them
+          in results.
         </p>
       )}
 

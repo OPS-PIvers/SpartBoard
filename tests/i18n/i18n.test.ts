@@ -27,7 +27,6 @@ describe('quizMediaResponse plurals', () => {
     'capture.takeLimitReachedBody',
     'capture.submitBlockedTitle',
     'capture.submitBlockedBody',
-    'authoring.advisory.slots',
   ];
 
   function bundle(lang: string): Record<string, unknown> {
