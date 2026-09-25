@@ -101,13 +101,12 @@ const REPORT_CHOICES: {
   {
     id: 'full-report',
     label: 'Full report',
-    detail:
-      'Every question, their answer marked, the correct answer, points and feedback.',
+    detail: 'Every question with answers and feedback',
   },
   {
     id: 'missed-only',
     label: 'Missed only',
-    detail: 'The score, then only the questions they missed or left blank.',
+    detail: 'Score and missed questions only',
   },
 ];
 

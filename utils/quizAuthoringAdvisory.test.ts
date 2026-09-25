@@ -63,14 +63,14 @@ describe('buildQuizAuthoringAdvisory', () => {
     expect(all).not.toMatch(/take limit|limit the takes|cap the takes/i);
   });
 
-  it('uses RR-07 wording verbatim for the device-blocked line', () => {
+  it('uses the short device-blocked line', () => {
     const lines = buildQuizAuthoringAdvisory(
       { questions: [question({ recording: recording() })] },
       t
     );
     const blocked = lines.find((l) => l.id === 'device-blocked');
     expect(blocked?.text).toBe(
-      "If a student's device blocks the microphone, the question comes to you ungraded — you choose whether it's excused, scored zero, or answered another way."
+      'If a microphone is blocked, the question comes to you ungraded.'
     );
   });
 

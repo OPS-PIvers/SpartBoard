@@ -117,7 +117,6 @@
     },
     "classes": {
       "title": "Mes Classes",
-      "description": "Gérez vos listes de classe ici. La classe active est utilisée pour les plans de classe, le sélecteur aléatoire, les sondages, etc.",
       "newClass": "Nouvelle classe",
       "importClassLink": "ClassLink",
       "myClasses": "Vos classes",
@@ -169,9 +168,8 @@
       "pinPlaceholder": "01",
       "addStudent": "+ Ajouter un élève",
       "removeStudent": "Retirer l'élève",
-      "bulkPasteTip": "Astuce : collez plusieurs noms à la fois pour les ajouter en masse.",
       "emptyRosterTitle": "Aucun élève pour l'instant",
-      "emptyRosterSubtitle": "Cliquez sur + Ajouter un élève ou collez une liste de noms dans une ligne.",
+      "emptyRosterSubtitle": "Collez une liste de noms pour en ajouter plusieurs à la fois.",
       "manageClasses": "Gérer les classes",
       "switchTo": "Passer à",
       "noClassSelected": "Aucune classe sélectionnée",
@@ -188,7 +186,6 @@
       "restrictionsFilter": "Rechercher des camarades…",
       "restrictionsEmptyRoster": "Ajoutez d'autres élèves pour définir des restrictions.",
       "restrictionsNoMatches": "Aucun résultat.",
-      "restrictionsFooter": "Les restrictions s'appliquent automatiquement aux deux élèves.",
       "editorTabsLabel": "Onglets de l'éditeur de classe",
       "studentsTab": "Élèves",
       "groupsTab": "Groupes ({{count}})",
@@ -209,13 +206,12 @@
       "bellPeriod": "Période de cours",
       "bellPeriodNone": "Non définie",
       "accommodationsTab": "Aménagements ({{count}})",
-      "accommodationsHelp": "Ils s'appliquent automatiquement chaque fois que tu assignes un travail à cet élève. Tu peux toujours les modifier pour chaque devoir.",
+      "accommodationsHelp": "Ils s'appliquent à chaque nouveau devoir.",
       "emptyAccommodationsTitle": "Pas encore d'élèves",
       "emptyAccommodationsSubtitle": "Ajoute d'abord des élèves, puis définis leurs aménagements permanents."
     },
     "plcs": {
       "title": "Mes Communautés",
-      "description": "Les Communautés d'Apprentissage Professionnel vous permettent, à vous et à vos collègues, de collaborer sur les mêmes activités et de voir les résultats combinés.",
       "newPlc": "Nouvelle Communauté",
       "newPlcTitle": "Nouvelle Communauté",
       "createNewPlc": "Créer une Communauté",
@@ -242,7 +238,7 @@
       "inviteLabel": "Inviter par e-mail",
       "invitePlaceholder": "collegue@ecole.fr",
       "sendInvite": "Inviter",
-      "inviteHelp": "Votre collègue verra l'invitation dans sa barre latérale de Communautés à sa prochaine connexion.",
+      "inviteHelp": "L'invitation apparaîtra dans sa barre latérale de Communautés.",
       "outstandingLabel": "Invitations en attente",
       "revokeInvite": "Révoquer l'invitation",
       "invites": "Invitations",
@@ -279,17 +275,15 @@
     "settings": {
       "googleDriveIntegration": "Intégration Google Drive",
       "remoteControl": "Contrôle à distance",
-      "googleDriveDescription": "Vos tableaux et ressources sont automatiquement sauvegardés dans votre dossier \"{{appName}}\" sur Drive.",
-      "connectedSynced": "Connecté et synchronisé",
+      "googleDriveDescription": "Vos tableaux sont sauvegardés dans votre dossier \"{{appName}}\" sur Drive.",
+      "connectedSynced": "Connecté",
       "disconnected": "Déconnecté",
       "connect": "Connecter",
       "disconnect": "Déconnecter",
       "myBuildings": "Mon/Mes bâtiment(s)",
-      "myBuildingsDescription": "Sélectionnez le ou les bâtiments dans lesquels vous travaillez. Les widgets comme Routines d'enseignement afficheront automatiquement du contenu pour votre niveau scolaire. Sélectionnez-en plusieurs si vous travaillez dans plusieurs bâtiments.",
-      "noBuildingSelected": "Aucun bâtiment sélectionné — les widgets afficheront tout le contenu disponible.",
+      "noBuildingSelected": "Affichage du contenu de tous les bâtiments.",
       "interfacePreferences": "Préférences d'interface",
       "disableCloseWarning": "Désactiver l'avertissement de fermeture",
-      "skipConfirmation": "Ignorer la confirmation lors de la fermeture des widgets.",
       "quickAccessWidgets": "Widgets d'accès rapide",
       "dockPosition": "Position du dock",
       "dockPositionDescription": "Choisissez où le dock apparaît à l'écran.",
@@ -1229,7 +1223,7 @@
     "screenshotFailed": "Échec de la capture d'écran",
     "takeScreenshot": "Prendre une capture d'écran",
     "takeScreenshotLongPress": "Capture d'écran (appui long)",
-    "screenshotGestureProTip": "Astuce : faites un appui long avec un doigt sur le widget pour prendre une capture plus rapidement !",
+    "screenshotGestureProTip": "Appuyez longuement sur un widget pour en faire une capture.",
     "annotate": "Annoter",
     "duplicate": "Dupliquer",
     "moreActions": "Plus d'actions",
@@ -1245,7 +1239,7 @@
     "pin": "Épingler la position",
     "unpin": "Désépingler la position",
     "pinnedIndicator": "Widget épinglé",
-    "pinnedTooltip": "Épinglé — ouvrez la barre d'outils du widget et cliquez sur l'épingle pour désépingler",
+    "pinnedTooltip": "Ce widget est épinglé. Désépinglez-le depuis la barre d'outils.",
     "snapLayout": "Ajuster la mise en page",
     "chooseLayout": "Choisir la mise en page",
     "snapTo": "Ajuster à",
@@ -1314,7 +1308,6 @@
     "noGoogleDrive": "Aucun Google Drive connecté. Téléchargement local...",
     "viewLiveSession": "Voir les informations de la session en direct",
     "liveSession": "Session en direct",
-    "provideCode": "Donnez ce code à vos élèves.",
     "noAppsSelected": "Restauration des valeurs par défaut…"
   },
   "languages": {
@@ -1368,7 +1361,7 @@
         "summary": "{{present}} présents · {{absent}} absents",
         "buttonLabel": "Marquer les élèves absents",
         "clearAll": "Tout effacer (tous présents)",
-        "footer": "Les absences s'appliquent à tous les widgets utilisant cette classe. Se réinitialisent automatiquement demain.",
+        "footer": "Les absences s'effacent demain.",
         "emptyRoster": "Cette classe n'a pas encore d'élèves.",
         "unnamedStudent": "Élève sans nom",
         "ariaLabel": "Ouvrir les présences — {{count}} marqués absents aujourd'hui"
@@ -1403,7 +1396,7 @@
     "onboarding": {
       "title": "Bien démarrer",
       "allDone": "Tout est prêt !",
-      "footer": "Vous êtes prêt — fermez ce widget à tout moment !",
+      "footer": "Vous pouvez fermer ce widget.",
       "tasks": {
         "addWidget": {
           "label": "Ajouter un widget depuis le Dock",
@@ -1423,8 +1416,7 @@
       }
     },
     "dashboard": {
-      "emptyBoardHint": "Faites glisser des outils depuis le Dock ci-dessous pour commencer",
-      "switchBoardsHint": "Utilisez les commandes de navigation en bas à gauche pour changer de tableau"
+      "emptyBoardHint": "Faites glisser des outils depuis le Dock ci-dessous pour commencer"
     },
     "stickers": {
       "collectionTitle": "Collection d'autocollants",
@@ -1660,9 +1652,9 @@
     "subtitle": "Partage de {{count}} tableau(x) de cette collection.",
     "mode": "Mode de partage",
     "copyMode": "Copier",
-    "copyModeHint": "Le destinataire importe une copie complète dans son compte.",
+    "copyModeHint": "Ils reçoivent leur propre copie à modifier.",
     "substituteMode": "Remplaçant (lecture seule)",
-    "substituteModeHint": "Un enseignant remplaçant voit la collection dans /subs pour la période choisie.",
+    "substituteModeHint": "Apparaît dans le portail des remplaçants pour la période choisie.",
     "expiresIn": "Expire dans",
     "building": "Bâtiment",
     "buildingRequired": "Sélectionnez un bâtiment avant de partager avec un remplaçant.",
@@ -1681,7 +1673,7 @@
     "notFound": "Collection partagée introuvable ou expirée",
     "empty": "La Collection partagée est vide",
     "invalidShareUrl": "Lien de partage invalide — identifiant de partage manquant.",
-    "substituteImportRejected": "Les partages remplaçants sont en lecture seule. Ouvrez ce lien dans /subs pour le consulter."
+    "substituteImportRejected": "Ce lien est destiné aux remplaçants. Ouvrez-le dans le portail des remplaçants."
   },
   "importSharedCollection": {
     "title": "Importer une Collection partagée",
@@ -1691,7 +1683,7 @@
     "boardCount": "{{count}} tableau(x)",
     "importing": "Importation en cours…",
     "import": "Importer la Collection",
-    "substituteOnly": "Ceci est un partage remplaçant (lecture seule). Ouvrez-le dans /subs."
+    "substituteOnly": "Ce lien est destiné aux remplaçants. Ouvrez-le dans le portail des remplaçants."
   },
   "subCollections": {
     "loading": "Chargement des Collections partagées…",
@@ -1982,13 +1974,13 @@
     "showMore": "Afficher {{count}} de plus",
     "showFewer": "Afficher moins",
     "noClassStudents": "Cochez une classe ci-dessus pour adapter des élèves individuels.",
-    "skipNotice": "Les élèves ignorés ne verront pas ce devoir. Les autres élèves de ces classes le reçoivent toujours.",
+    "skipNotice": "Les élèves ignorés ne verront pas ce devoir.",
     "sectionLabel": "Élèves individuels & aménagements",
     "chooseStudents": "Choisir des élèves",
     "editStudents": "Modifier les élèves",
     "selectedCount": "{{count}} sélectionné(s)",
     "revertToClass": "Attribuer à toute la classe",
-    "noStudentsYet": "Aucun élève choisi pour l'instant — toute la classe reste non ciblée.",
+    "noStudentsYet": "Aucun élève choisi.",
     "unknownStudent": "Élève inconnu",
     "remove": "Retirer",
     "removeStudent": "Retirer {{name}}",
@@ -2006,7 +1998,7 @@
     "skipStudentNamed": "Ignorer {{name}}",
     "summarySkipped": "{{count}} ignorés",
     "summaryModified": "{{count}} aménagés",
-    "noSignInCount": "{{count}} élèves de ces classes n'ont pas de connexion scolaire et ne peuvent pas être aménagés individuellement.",
+    "noSignInCount": "{{count}} élèves n'ont pas de connexion scolaire et ne peuvent pas être aménagés individuellement.",
     "noSignInStudents": "Aucun élève des classes cochées n'a de connexion scolaire : il n'y a donc personne à aménager individuellement.",
     "timingNotApplied": "Les sessions dirigées par l'enseignant n'ont pas de minuteur par élève : le temps supplémentaire de {{names}} ne s'appliquera pas. Les autres aménagements s'appliquent.",
     "clearModifications": "Effacer toutes les modifications",
@@ -2017,8 +2009,8 @@
     "periodModeLabel": "Ouverture des périodes",
     "periodModeAssessment": "Évaluation en classe",
     "periodModeAssignment": "Devoir",
-    "periodAssessmentHint": "Chaque période reste fermée jusqu’à ce que tu la lances depuis le suivi. Elle se ferme à la sonnerie de fin.",
-    "periodUnverified": "PIN uniquement, non vérifié : les élèves sans connexion scolaire ne peuvent pas rejoindre une évaluation en classe.",
+    "periodAssessmentHint": "S’ouvre quand tu la lances et se ferme à la sonnerie de fin.",
+    "periodUnverified": "Les élèves sans connexion scolaire ne peuvent pas rejoindre les évaluations en classe.",
     "periodCustomize": "Personnaliser par période",
     "periodTagPrompt": "Quelle période est {{name}} ?",
     "periodTagPick": "Choisis une période",
@@ -2116,7 +2108,6 @@
     "languageLabel": "Langue",
     "languageTagLabel": "Code de langue",
     "languageOther": "Autre…",
-    "languageHelp": "Définit la voix utilisée pour lire ce quiz à voix haute.",
     "readQuestion": "Lire la question",
     "readPrompt": "Lire la question à voix haute",
     "readChoice": "Lire le choix {{n}} à voix haute",
@@ -2155,7 +2146,7 @@
       "stale": "Obsolète",
       "regenerate_one": "Regénérer {{count}} question obsolète",
       "regenerate_other": "Regénérer {{count}} questions obsolètes",
-      "servedCount": "{{reviewed}} sur {{total}} proposées en {{language}}",
+      "servedCount": "{{reviewed}}/{{total}} vérifiées",
       "save": "Enregistrer la traduction",
       "english": "Anglais",
       "disabled": {
@@ -2172,11 +2163,11 @@
         },
         "noneReviewed": {
           "title": "Rien de vérifié pour l'instant",
-          "body": "Les élèves ne voient que les questions que vous marquez comme vérifiées. Demandez à un spécialiste des langues si vous ne lisez pas cette langue."
+          "body": "Les élèves ne voient que les questions que vous marquez comme vérifiées."
         },
         "pickQuestion": {
           "title": "Choisissez une question",
-          "body": "Sélectionnez une question à gauche pour voir l'anglais et la traduction côte à côte."
+          "body": "Choisissez une question à comparer."
         }
       },
       "error": {
@@ -2212,7 +2203,7 @@
       "sectionLabel": "Langue de la réponse",
       "backTranslating": "Traduction en cours…",
       "nativeLabel": "Réponse de l'élève",
-      "translatedRubricNote": "Cet élève a peut-être lu une grille traduite ; évaluez à partir de la grille anglaise affichée ici.",
+      "translatedRubricNote": "Évaluez à partir de la grille anglaise.",
       "saveFailed": "La traduction est affichée ci-dessous, mais elle n'a pas pu être enregistrée. Elle devra être relancée la prochaine fois.",
       "errors": {
         "failed": "Impossible de traduire cette réponse. Réessayez.",
@@ -2286,38 +2277,35 @@
       "formatTyped": "Typed",
       "formatSpoken": "Spoken",
       "prepLabel": "Thinking time",
-      "prepHint": "Seconds before the recorder arms. 0 starts them ready to record.",
+      "prepHint": "0 starts recording right away.",
       "limitLabel": "Recording limit",
-      "limitHint": "Hard stop for one take, up to {{max}} seconds.",
-      "limitClamped": "Capped at {{seconds}}s — {{mode}}'s limit.",
+      "limitHint": "Up to {{max}} seconds.",
+      "limitClamped": "Capped at {{seconds}}s for {{mode}}.",
       "limitClampedAction": "Set to {{seconds}}s",
       "secondsUnit": "Sec",
       "expiryLabel": "When thinking time runs out",
       "expiryAutoStart": "Start recording",
-      "expiryAutoStartHint": "The recorder starts on its own.",
       "expiryAutoAdvance": "Move on",
-      "expiryAutoAdvanceHint": "The quiz moves to the next question.",
       "expiryArmed": "Wait for them",
-      "expiryArmedHint": "The record button stays live until the student presses it.",
       "expiryUnanswered": "Mark unanswered",
-      "expiryUnansweredHint": "The slot closes and comes to you ungraded.",
+      "expiryUnansweredHint": "Comes to you ungraded.",
       "takeLimitLabel": "Takes allowed",
       "takeLimitUnlimited": "Unlimited",
       "takeLimitHint": "A take is a recording the student keeps, not one they discard.",
-      "timeLimitDisabledHint": "Disabled — recording questions use their own prep and recording timer instead of the speed bonus.",
+      "timeLimitDisabledHint": "Set by the recording timer.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
       "advisory": {
-        "title": "As authored",
+        "title": "Heads up",
         "slots_one": "Records up to {{count}} slot per student.",
         "slots_other": "Records up to {{count}} slots per student.",
-        "deviceBlocked": "If a student's device blocks the microphone, the question comes to you ungraded — you choose whether it's excused, scored zero, or answered another way.",
-        "shuffleNoOp": "Question shuffle has no effect here: shared stimuli group every question into one block."
+        "deviceBlocked": "If a microphone is blocked, the question comes to you ungraded.",
+        "shuffleNoOp": "Shuffle has no effect because every question shares one stimulus."
       }
     },
     "assign": {
       "advisory": {
-        "notSelfPaced": "Spoken answers are collected only in self-paced sessions; live sessions will show these questions as written."
+        "notSelfPaced": "Spoken answers need self-paced mode."
       }
     },
     "grading": {
@@ -2379,7 +2367,7 @@
         "count_one": "{{count}} take recorded",
         "count_other": "{{count}} takes recorded",
         "take": "Take {{n}}",
-        "pinNote": "Scoring always uses the last take. Picking an earlier one records which take your comments are about.",
+        "pinNote": "Scores use the last take.",
         "status": {
           "archiving": "Still saving",
           "archive-failed": "Not saved",
@@ -3031,7 +3019,7 @@
     "personal": {
       "title": "Mes objectifs d’apprentissage",
       "button": "Objectifs",
-      "description": "Objectifs visibles par vous seul. Étiquetez vos questions de quiz pour suivre la maîtrise dans vos propres évaluations.",
+      "description": "Vous seul voyez ces objectifs.",
       "sourceName": "Mes objectifs d’apprentissage"
     },
     "loading": "Chargement des objectifs…",
@@ -3080,11 +3068,9 @@
       "title": "Profil",
       "description": "Où et ce que vous enseignez. Les niveaux et les domaines filtrent les standards et les objectifs d'apprentissage pour ne montrer que ce qui vous concerne.",
       "gradesTaught": "Niveaux enseignés",
-      "gradesTaughtDescription": "Part de vos bâtiments. Désélectionnez les niveaux que vous n'enseignez pas pour restreindre les standards, les objectifs et les widgets par niveau.",
       "resetGrades": "Rétablir la valeur du bâtiment",
-      "noGrades": "Aucun niveau sélectionné — les standards et les widgets affichent tous les niveaux.",
-      "subjectsTaught": "Domaines enseignés",
-      "subjectsTaughtDescription": "Facultatif. Choisissez vos domaines pour ouvrir le sélecteur de standards directement dessus. Laissez vide pour voir tous les domaines."
+      "noGrades": "Affichage de tous les niveaux.",
+      "subjectsTaught": "Domaines enseignés (facultatif)"
     }
   },
   "quizHandRaise": {

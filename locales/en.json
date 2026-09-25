@@ -117,7 +117,6 @@
     },
     "classes": {
       "title": "My Classes",
-      "description": "Manage your class rosters here. The active class is used by seating charts, random picker, polls, and more.",
       "newClass": "New Class",
       "importClassLink": "ClassLink",
       "myClasses": "Your Classes",
@@ -169,9 +168,8 @@
       "pinPlaceholder": "01",
       "addStudent": "+ Add Student",
       "removeStudent": "Remove student",
-      "bulkPasteTip": "Tip: paste multiple names at once to add in bulk.",
       "emptyRosterTitle": "No students yet",
-      "emptyRosterSubtitle": "Click + Add Student or paste a list of names into a row.",
+      "emptyRosterSubtitle": "Paste a list of names to add several at once.",
       "manageClasses": "Manage Classes",
       "switchTo": "Switch To",
       "noClassSelected": "No Class Selected",
@@ -188,7 +186,6 @@
       "restrictionsFilter": "Search classmates…",
       "restrictionsEmptyRoster": "Add more students to set restrictions.",
       "restrictionsNoMatches": "No matches.",
-      "restrictionsFooter": "Restrictions apply to both students automatically.",
       "editorTabsLabel": "Roster editor tabs",
       "studentsTab": "Students",
       "groupsTab": "Groups ({{count}})",
@@ -209,13 +206,12 @@
       "bellPeriod": "Bell period",
       "bellPeriodNone": "Not set",
       "accommodationsTab": "Accommodations ({{count}})",
-      "accommodationsHelp": "These apply automatically each time you assign work to this student. You can still change them per assignment.",
+      "accommodationsHelp": "These apply to every new assignment.",
       "emptyAccommodationsTitle": "No students yet",
       "emptyAccommodationsSubtitle": "Add students first, then set their standing accommodations."
     },
     "plcs": {
       "title": "My PLCs",
-      "description": "Professional Learning Communities let you and your colleagues collaborate on the same assignments and see combined results.",
       "newPlc": "New PLC",
       "newPlcTitle": "New PLC",
       "createNewPlc": "Create New PLC",
@@ -242,7 +238,7 @@
       "inviteLabel": "Invite by Email",
       "invitePlaceholder": "colleague@school.edu",
       "sendInvite": "Invite",
-      "inviteHelp": "Your colleague will see the invitation in their PLC sidebar the next time they sign in.",
+      "inviteHelp": "They'll see the invite in their PLC sidebar.",
       "outstandingLabel": "Pending Invitations",
       "revokeInvite": "Revoke Invitation",
       "invites": "Invites",
@@ -279,17 +275,15 @@
     "settings": {
       "googleDriveIntegration": "Google Drive Integration",
       "remoteControl": "Remote Control",
-      "googleDriveDescription": "Your boards and assets are automatically backed up to your \"{{appName}}\" folder in Drive.",
-      "connectedSynced": "Connected & Synced",
+      "googleDriveDescription": "Your boards back up to your \"{{appName}}\" folder in Drive.",
+      "connectedSynced": "Connected",
       "disconnected": "Disconnected",
       "connect": "Connect",
       "disconnect": "Disconnect",
       "myBuildings": "My Building(s)",
-      "myBuildingsDescription": "Select the building(s) you work in. Widgets like Instructional Routines will automatically show content for your grade level. Select multiple if you work across buildings.",
-      "noBuildingSelected": "No building selected — widgets will show all available content.",
+      "noBuildingSelected": "Showing content for all buildings.",
       "interfacePreferences": "Interface Preferences",
       "disableCloseWarning": "Disable Close Warning",
-      "skipConfirmation": "Skip the confirmation prompt when closing widgets.",
       "quickAccessWidgets": "Quick Access Widgets",
       "dockPosition": "Dock Position",
       "dockPositionDescription": "Choose where the dock appears on your screen.",
@@ -1223,7 +1217,7 @@
       "destinationUrl": "Destination URL",
       "linkRepeater": "Link repeater",
       "syncWithTextWidget": "Sync with Text widget",
-      "syncHelp": "Automatically update the QR code from the first Text widget on the board.",
+      "syncHelp": "Uses the first Text widget on the board.",
       "noTextWidget": "No Text Widget found. Add one to the board to start syncing.",
       "showUrl": "Show URL",
       "showUrlHelp": "Display the destination link beneath the QR code."
@@ -1244,7 +1238,6 @@
       "scoresReset": "All scores reset to 0",
       "addRandomizerFirst": "Add a Randomizer widget first",
       "importGroups": "Import Groups",
-      "importTip": "Tip: Add a Randomizer widget and create groups to import them here.",
       "teamsCount": "Teams ({{count}})",
       "confirmReset": "Sure?",
       "yes": "Yes",
@@ -1323,7 +1316,6 @@
       "hideMaterial": "Hide {{label}}",
       "showMaterial": "Show {{label}}",
       "materialCap": "You can create up to {{count}} custom materials.",
-      "selectionTip": "Select materials here, then activate them from the widget face.",
       "deleteMaterialQuestion": "Delete “{{label}}”?",
       "deleteMaterialTitle": "Delete material",
       "delete": "Delete",
@@ -1407,13 +1399,11 @@
     },
     "pdf": {
       "currentDocument": "Current document",
-      "none": "None — library is shown",
-      "switchDocument": "Switch to another PDF",
-      "storageNote": "PDFs are stored in your cloud library and persist across sessions."
+      "none": "None",
+      "switchDocument": "Switch to another PDF"
     },
     "quiz": {
       "management": "Quiz management",
-      "managementHelp": "Import, edit, preview, and run live sessions from the Quiz widget. These shortcuts change the view shown there.",
       "widgetLabel": "Widget label",
       "widgetLabelPlaceholder": "Quiz",
       "assignmentArchive": "View assignment archive",
@@ -1523,8 +1513,7 @@
       "personalSpotify": "Personal Spotify",
       "connections": "Connections",
       "syncWithTimeTool": "Sync with Time Tool",
-      "syncHelp": "Music will automatically play and pause with your active Time Tool.",
-      "syncSpotifyHelp": "Auto-sync is only available for YouTube stations because Spotify does not expose the same browser controls.",
+      "syncSpotifyHelp": "Not available for Spotify.",
       "addTimeToolHelp": "Add a Time Tool widget to play and pause music automatically.",
       "background": "Background",
       "textColor": "Text color",
@@ -1605,23 +1594,21 @@
       "stopToChangeOptions": "Stop voting to change options",
       "selectClass": "Select a class in the Classes widget",
       "importNamedClass": "Import {{name}}",
-      "importTip": "Tip: Select a class in the Classes widget to import student names.",
-      "studentPrivacy": "Imported student names are visible to anyone holding the join code while voting is open.",
+      "studentPrivacy": "Anyone with the join code can see imported names.",
       "questionAdded": "Question added.",
       "aiPlaceholder": "e.g. Photosynthesis, Civil War, 3rd Grade Math...",
-      "aiHelp": "Adds one new question to the end of this poll.",
       "stopToEdit": "Stop voting to add, remove, or edit questions.",
       "editQuestion": "Edit question {{count}}",
       "editQuestionShowing": "Edit question {{count}} (showing on the board)",
+      "showingMarkerHelp": "The green dot marks the question on the board.",
       "questionNumber": "Question {{count}}",
       "addQuestion": "Add question",
       "questionLimit": "A poll can hold up to {{count}} questions",
-      "showingMarkerHelp": "The green dot marks the question showing on the board.",
       "questionPlaceholder": "Enter your question...",
       "removeOption": "Remove Option",
       "addOption": "Add Option",
       "actions": "Actions",
-      "liveVotingHelp": "Let students vote from their own devices. The board shows live results and a join code while voting is open.",
+      "liveVotingHelp": "Students vote from their own devices.",
       "votingOpen": "Voting open",
       "notStarted": "Not started",
       "copied": "Copied",
@@ -1768,8 +1755,6 @@
       "content": "Content",
       "contentPlaceholderText": "Enter a sentence...",
       "contentPlaceholderMath": "Enter an equation (e.g. 2x + 3 = 7)",
-      "contentHelpText": "Words are automatically converted to draggable blocks.",
-      "contentHelpMath": "Numbers and math operators are separated into blocks.",
       "mode": "Mode",
       "text": "Text",
       "math": "Math",
@@ -1784,7 +1769,7 @@
       "light": "Light",
       "dark": "Dark",
       "glass": "Glass",
-      "clickToAddPin": "Click on the image to add a new pin.",
+      "clickToAddPin": "Click the image to add a pin.",
       "baseImageAlt": "Hotspot base image",
       "uploadImage": "Upload image",
       "replaceImage": "Replace image",
@@ -1816,9 +1801,8 @@
     },
     "concept-web": {
       "canvasActions": "Canvas actions",
-      "defaultNodeWidth": "Default node width",
-      "defaultNodeHeight": "Default node height",
-      "dimensionsHelp": "These dimensions apply to new nodes. You can still resize nodes individually!",
+      "defaultNodeWidth": "New node width",
+      "defaultNodeHeight": "New node height",
       "previewLabel": "Node size preview",
       "previewText": "Idea...",
       "clearAll": "Clear all nodes and edges"
@@ -1826,13 +1810,13 @@
     "starter-pack": {
       "packName": "Pack name",
       "packNamePlaceholder": "e.g. Reading Time",
-      "description": "Captures all open widgets — their types, positions, and sizes — as a reusable starter pack. The background is not included.",
+      "description": "Saves the open widgets and their layout, but not the background.",
       "capturedWorkspace": "Captured workspace",
       "saving": "Saving…",
       "savePersonal": "Save to My Collection",
-      "savePersonalHint": "Private — only visible to you",
+      "savePersonalHint": "Only you",
       "saveGlobal": "Save globally",
-      "saveGlobalHint": "Building-wide — visible to all teachers",
+      "saveGlobalHint": "All teachers in your building",
       "savedPersonal": "Saved to your personal collection!",
       "savedGlobal": "Saved to building-wide starter packs!"
     },
@@ -1888,7 +1872,6 @@
     },
     "blooms-taxonomy": {
       "contentCategories": "Content categories",
-      "contentCategoriesHelp": "Choose which categories appear when you click a level.",
       "questionStems": "Question stems",
       "actionVerbs": "Action verbs",
       "activityTypes": "Activity types",
@@ -1924,7 +1907,6 @@
       "stationList": "Stations",
       "addStation": "Add station",
       "noStations": "No stations yet.",
-      "addStationHint": "Add a station to get started.",
       "classGroups": "Class groups",
       "noGroups": "Save a group for this class in My Classes to use it here.",
       "keepTogether": "Keep together when shuffling",
@@ -2102,8 +2084,8 @@
         "add": "Add {{name}} widget"
       },
       "defaults": {
-        "matches": "Matches your default for new {{name}} widgets.",
-        "differs": "Differs from your default for new {{name}} widgets.",
+        "matches": "Matches your default",
+        "differs": "Differs from your default",
         "save": "Save as my default",
         "reset": "Reset to my default"
       }
@@ -2153,8 +2135,7 @@
       }
     },
     "embed": {
-      "flaggedNotice": "This site is currently flagged as non-embeddable. A \"New Tab\" button will be shown to users instead.",
-      "htmlHelp": "You can paste a full single-file mini-app here. Scripts are allowed but run in a secure sandbox.",
+      "flaggedNotice": "This site can't be embedded, so it opens in a new tab.",
       "htmlLabel": "HTML / CSS / JS",
       "modeCodeOption": "Custom Code",
       "modeLabel": "Embed Type",
@@ -2167,15 +2148,13 @@
       "refresh5Min": "Every 5 Minutes",
       "refreshDisabled": "Disabled",
       "refreshIntervalLabel": "Auto-Refresh",
-      "urlHelp": "Pro-tip: Links from YouTube, Google Docs, Slides, and Sheets are automatically formatted.",
       "urlLabel": "Target URL",
       "verifyBlockedFallback": "Embedding is blocked by this site.",
-      "verifyBlockedFallbackNote": "Fallback mode will be used.",
+      "verifyBlockedFallbackNote": "It will open in a new tab.",
       "verifyBlockedTitle": "Embedding Blocked",
       "verifyButton": "Verify",
       "verifyErrorGeneric": "Could not verify link compatibility.",
-      "verifySuccess": "Compatible with embedding!",
-      "verifyTip": "Some websites prevent embedding for security. Use the Verify button above to check compatibility."
+      "verifySuccess": "Compatible with embedding!"
     },
     "time-tool": {
       "mode": "Mode",
@@ -2274,7 +2253,7 @@
     },
     "expectations": {
       "soundSync": "Sound meter sync",
-      "soundSyncHelp": "Adjust Sound Meter sensitivity from the selected voice level.",
+      "soundSyncHelp": "Match the Sound Meter to the voice level.",
       "autoAdjustSoundMeter": "Auto-adjust Sound Meter"
     },
     "random": {
@@ -2388,7 +2367,7 @@
     "screenshotFailed": "Failed to save screenshot",
     "takeScreenshot": "Take Screenshot",
     "takeScreenshotLongPress": "Take Screenshot (long press)",
-    "screenshotGestureProTip": "Pro-tip: Long-press on a widget to take a screenshot!",
+    "screenshotGestureProTip": "Long-press a widget to screenshot it.",
     "annotate": "Annotate",
     "duplicate": "Duplicate",
     "moreActions": "More actions",
@@ -2404,7 +2383,7 @@
     "pin": "Pin Position",
     "unpin": "Unpin Position",
     "pinnedIndicator": "Widget pinned",
-    "pinnedTooltip": "Pinned — open the widget toolbar and click the pin to unpin",
+    "pinnedTooltip": "This widget is pinned. Unpin it from the toolbar.",
     "snapLayout": "Snap Layout",
     "chooseLayout": "Choose Layout",
     "snapTo": "Snap to",
@@ -2473,7 +2452,6 @@
     "noGoogleDrive": "No Google Drive connected. Downloading locally...",
     "viewLiveSession": "View live session information",
     "liveSession": "Live Session",
-    "provideCode": "Provide this code to your students.",
     "noAppsSelected": "Restoring defaults…"
   },
   "languages": {
@@ -2562,7 +2540,7 @@
         "clearAll": "Clear all (everyone present)",
         "emptyRoster": "This class has no students yet.",
         "unnamedStudent": "Unnamed student",
-        "footer": "Absent marks apply to every widget using this class. Resets automatically tomorrow."
+        "footer": "Absent marks clear tomorrow."
       },
       "everyoneAbsentTitle": "Everyone is marked absent",
       "everyoneAbsentSubtitle": "Update attendance to bring students back into the pool.",
@@ -2709,7 +2687,7 @@
     "onboarding": {
       "title": "Getting Started",
       "allDone": "All done!",
-      "footer": "You're all set — close this widget anytime!",
+      "footer": "You can close this widget now.",
       "tasks": {
         "addWidget": {
           "label": "Add a widget from the Dock",
@@ -2729,8 +2707,7 @@
       }
     },
     "dashboard": {
-      "emptyBoardHint": "Drag tools from the Dock below to start",
-      "switchBoardsHint": "Use the board navigation controls in the bottom-left to switch boards"
+      "emptyBoardHint": "Drag tools from the Dock below to start"
     }
   },
   "boardBreadcrumb": {
@@ -2819,9 +2796,9 @@
     "subtitle": "Sharing {{count}} board(s) from this Collection.",
     "mode": "Share Mode",
     "copyMode": "Copy",
-    "copyModeHint": "Recipient imports a full copy into their account.",
+    "copyModeHint": "They get their own copy to edit.",
     "substituteMode": "Substitute (view-only)",
-    "substituteModeHint": "A sub teacher sees the Collection in /subs for the window you choose.",
+    "substituteModeHint": "Shows in the Substitute Portal for the time you set.",
     "expiresIn": "Expires in",
     "building": "Building",
     "buildingRequired": "Select a building before sharing with a sub.",
@@ -2840,7 +2817,7 @@
     "notFound": "Shared Collection not found or expired",
     "empty": "Shared Collection is empty",
     "invalidShareUrl": "Invalid share link — missing share id.",
-    "substituteImportRejected": "Substitute shares are view-only. Open this link in /subs to view."
+    "substituteImportRejected": "This link is for substitutes. Open it in the Substitute Portal."
   },
   "importSharedCollection": {
     "title": "Import shared Collection",
@@ -2850,7 +2827,7 @@
     "boardCount": "{{count}} board(s)",
     "importing": "Importing…",
     "import": "Import Collection",
-    "substituteOnly": "This is a substitute (view-only) share. Open it in /subs."
+    "substituteOnly": "This link is for substitutes. Open it in the Substitute Portal."
   },
   "subCollections": {
     "loading": "Loading shared Collections…",
@@ -3141,13 +3118,13 @@
     "showMore": "Show {{count}} more",
     "showFewer": "Show fewer",
     "noClassStudents": "Check a class above to modify individual students.",
-    "skipNotice": "Skipped students will not see this assignment. Everyone else in these classes still receives it.",
+    "skipNotice": "Skipped students won’t see this assignment.",
     "sectionLabel": "Individual students & overrides",
     "chooseStudents": "Choose students",
     "editStudents": "Edit students",
     "selectedCount": "{{count}} selected",
     "revertToClass": "Assign to whole class",
-    "noStudentsYet": "No students chosen yet — everyone in the class stays untargeted.",
+    "noStudentsYet": "No students chosen.",
     "unknownStudent": "Unknown student",
     "remove": "Remove",
     "removeStudent": "Remove {{name}}",
@@ -3165,7 +3142,7 @@
     "skipStudentNamed": "Skip {{name}}",
     "summarySkipped": "{{count}} skipped",
     "summaryModified": "{{count}} modified",
-    "noSignInCount": "{{count}} students in these classes have no school sign-in and cannot be individually modified.",
+    "noSignInCount": "{{count}} students have no school sign-in and can’t be changed individually.",
     "noSignInStudents": "No one in the checked classes has a school sign-in, so there is nobody to modify individually.",
     "timingNotApplied": "Teacher-paced sessions have no per-student timer, so extended time for {{names}} will not apply. Other accommodations still apply.",
     "clearModifications": "Clear all modifications",
@@ -3176,8 +3153,8 @@
     "periodModeLabel": "How periods open",
     "periodModeAssessment": "In-class assessment",
     "periodModeAssignment": "Assignment",
-    "periodAssessmentHint": "Every period stays closed until you start it from the monitor. It closes at the end bell.",
-    "periodUnverified": "PIN only, not verified: students without a school sign-in can’t join an in-class assessment.",
+    "periodAssessmentHint": "Opens when you start it and closes at the end bell.",
+    "periodUnverified": "Students without a school sign-in can’t join in-class assessments.",
     "periodCustomize": "Customize per period",
     "periodTagPrompt": "Which period is {{name}}?",
     "periodTagPick": "Pick a period",
@@ -3275,7 +3252,6 @@
     "languageLabel": "Language",
     "languageTagLabel": "Language tag",
     "languageOther": "Other…",
-    "languageHelp": "Picks the voice used when this quiz is read aloud.",
     "readQuestion": "Read question",
     "readPrompt": "Read question aloud",
     "readChoice": "Read choice {{n}} aloud",
@@ -3314,7 +3290,7 @@
       "stale": "Stale",
       "regenerate_one": "Regenerate {{count}} stale question",
       "regenerate_other": "Regenerate {{count}} stale questions",
-      "servedCount": "{{reviewed}} of {{total}} served in {{language}}",
+      "servedCount": "{{reviewed}}/{{total}} reviewed",
       "save": "Save translation",
       "english": "English",
       "disabled": {
@@ -3331,11 +3307,11 @@
         },
         "noneReviewed": {
           "title": "Nothing reviewed yet",
-          "body": "Students only ever see questions you mark reviewed. Ask an EL specialist to check them if you don't read this language."
+          "body": "Students only see questions you mark reviewed."
         },
         "pickQuestion": {
           "title": "Pick a question",
-          "body": "Choose a question on the left to see English and the translation side by side."
+          "body": "Pick a question to compare."
         }
       },
       "error": {
@@ -3371,7 +3347,7 @@
       "sectionLabel": "Response language",
       "backTranslating": "Translating…",
       "nativeLabel": "Student's response",
-      "translatedRubricNote": "This student may have read a translated rubric; grade against the English rubric shown here.",
+      "translatedRubricNote": "Grade against the English rubric.",
       "saveFailed": "Translation shown below, but it couldn't be saved. It will need to be re-run next time.",
       "errors": {
         "failed": "Couldn't translate this response. Try again.",
@@ -3445,38 +3421,35 @@
       "formatTyped": "Typed",
       "formatSpoken": "Spoken",
       "prepLabel": "Thinking time",
-      "prepHint": "Seconds before the recorder arms. 0 starts them ready to record.",
+      "prepHint": "0 starts recording right away.",
       "limitLabel": "Recording limit",
-      "limitHint": "Hard stop for one take, up to {{max}} seconds.",
-      "limitClamped": "Capped at {{seconds}}s — {{mode}}'s limit.",
+      "limitHint": "Up to {{max}} seconds.",
+      "limitClamped": "Capped at {{seconds}}s for {{mode}}.",
       "limitClampedAction": "Set to {{seconds}}s",
       "secondsUnit": "Sec",
       "expiryLabel": "When thinking time runs out",
       "expiryAutoStart": "Start recording",
-      "expiryAutoStartHint": "The recorder starts on its own.",
       "expiryAutoAdvance": "Move on",
-      "expiryAutoAdvanceHint": "The quiz moves to the next question.",
       "expiryArmed": "Wait for them",
-      "expiryArmedHint": "The record button stays live until the student presses it.",
       "expiryUnanswered": "Mark unanswered",
-      "expiryUnansweredHint": "The slot closes and comes to you ungraded.",
+      "expiryUnansweredHint": "Comes to you ungraded.",
       "takeLimitLabel": "Takes allowed",
       "takeLimitUnlimited": "Unlimited",
       "takeLimitHint": "A take is a recording the student keeps, not one they discard.",
-      "timeLimitDisabledHint": "Disabled — recording questions use their own prep and recording timer instead of the speed bonus.",
+      "timeLimitDisabledHint": "Set by the recording timer.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
       "advisory": {
-        "title": "As authored",
+        "title": "Heads up",
         "slots_one": "Records up to {{count}} slot per student.",
         "slots_other": "Records up to {{count}} slots per student.",
-        "deviceBlocked": "If a student's device blocks the microphone, the question comes to you ungraded — you choose whether it's excused, scored zero, or answered another way.",
-        "shuffleNoOp": "Question shuffle has no effect here: shared stimuli group every question into one block."
+        "deviceBlocked": "If a microphone is blocked, the question comes to you ungraded.",
+        "shuffleNoOp": "Shuffle has no effect because every question shares one stimulus."
       }
     },
     "assign": {
       "advisory": {
-        "notSelfPaced": "Spoken answers are collected only in self-paced sessions; live sessions will show these questions as written."
+        "notSelfPaced": "Spoken answers need self-paced mode."
       }
     },
     "grading": {
@@ -3538,7 +3511,7 @@
         "count_one": "{{count}} take recorded",
         "count_other": "{{count}} takes recorded",
         "take": "Take {{n}}",
-        "pinNote": "Scoring always uses the last take. Picking an earlier one records which take your comments are about.",
+        "pinNote": "Scores use the last take.",
         "status": {
           "archiving": "Still saving",
           "archive-failed": "Not saved",
@@ -4194,7 +4167,7 @@
     "personal": {
       "title": "My learning targets",
       "button": "Targets",
-      "description": "Targets only you can see. Tag quiz questions with them to track mastery across your own assessments.",
+      "description": "Only you can see these targets.",
       "sourceName": "My learning targets"
     },
     "loading": "Loading targets…",
@@ -4243,11 +4216,9 @@
       "title": "Profile",
       "description": "Where and what you teach. Grades and content areas filter standards and learning targets so you only see what applies to you.",
       "gradesTaught": "Grades taught",
-      "gradesTaughtDescription": "Starts from your building(s). Deselect grades you do not teach to narrow standards, learning targets and grade-specific widgets.",
       "resetGrades": "Reset to building default",
-      "noGrades": "No grades selected — standards and widgets show every grade.",
-      "subjectsTaught": "Content areas taught",
-      "subjectsTaughtDescription": "Optional. Pick the content areas you teach to open the standards picker on them. Leave empty to see every content area."
+      "noGrades": "Showing all grades.",
+      "subjectsTaught": "Content areas taught (optional)"
     },
     "widgetDefaults": {
       "title": "Widget defaults",
@@ -4445,16 +4416,15 @@
   "shareWithSub": {
     "title": "Share with a sub",
     "updateTitle": "Update what your sub sees",
-    "boardSummary": "Your sub sees this board exactly as you set it up.",
-    "collectionSummary": "Your sub clicks through {{boards}} boards, grouped the way you group them ({{sections}} groups).",
-    "updatingHint": "You already share this with a sub. Saving replaces what they see — same link, same end time unless you change it.",
+    "collectionSummary": "{{boards}} boards in {{sections}} groups.",
+    "updatingHint": "Saving updates what your sub sees. The link stays the same.",
     "building": "Building",
     "noBuildings": "No buildings available",
     "buildingRequired": "Pick the building your sub signs in at.",
     "endsAt": "Ends",
-    "endsAtHint": "Defaults to two days from now. Fourteen days is the most a sub share can run.",
+    "endsAtHint": "Up to 14 days.",
     "subs": "Who is covering",
-    "subsHint": "These subs get your class lists for as long as the share runs, and the access is withdrawn when it ends. Anyone else in the building still sees the boards, without student names.",
+    "subsHint": "Listed subs get your class lists until the share ends. Others in the building see the boards without names.",
     "noBoards": "There are no boards in this collection to share.",
     "expiryPast": "Pick an end time in the future.",
     "expiryTooFar": "A sub share can run for at most 14 days.",

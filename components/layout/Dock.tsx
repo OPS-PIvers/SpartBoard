@@ -1471,9 +1471,6 @@ export const Dock: React.FC = () => {
                         <div className="text-xxs text-slate-600 bg-white/50 px-2 py-1 rounded border border-white/30">
                           {getJoinUrl()}
                         </div>
-                        <div className="text-xxs text-slate-500 mt-2">
-                          {t('dock.provideCode')}
-                        </div>
                       </div>
                       <div className="p-2 border-t border-white/30">
                         <button

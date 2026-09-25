@@ -157,7 +157,7 @@ export const CoordinatePlaneTool: React.FC = () => {
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <span className="text-xxs text-slate-400">
-          Click the grid to plot points. Click a point to remove it.
+          Click to plot. Click a point to remove it.
         </span>
         {points.length > 0 && (
           <button

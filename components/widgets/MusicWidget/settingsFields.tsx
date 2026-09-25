@@ -241,13 +241,11 @@ export const MusicSyncField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
           size="sm"
         />
       </div>
-      <p className="text-xxs text-slate-600">
-        {ctx.t(
-          spotifySource
-            ? 'widgetSettings.music.syncSpotifyHelp'
-            : 'widgetSettings.music.syncHelp'
-        )}
-      </p>
+      {spotifySource && (
+        <p className="text-xxs text-slate-600">
+          {ctx.t('widgetSettings.music.syncSpotifyHelp')}
+        </p>
+      )}
     </div>
   );
 };

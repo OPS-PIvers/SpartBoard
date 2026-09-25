@@ -252,10 +252,8 @@ describe('ResponseFormatSection', () => {
         screen.getByLabelText(label).getAttribute('aria-describedby') ?? '';
       return document.getElementById(id)?.textContent ?? '';
     };
-    expect(hintFor('Thinking time')).toMatch(
-      /Seconds before the recorder arms/
-    );
-    expect(hintFor('Recording limit')).toMatch(/Hard stop for one take/);
+    expect(hintFor('Thinking time')).toMatch(/0 starts recording/);
+    expect(hintFor('Recording limit')).toMatch(/Up to \d+ seconds/);
   });
 
   it('marks the active take limit as pressed', () => {
@@ -281,7 +279,7 @@ describe('ResponseFormatSection', () => {
     const limit = screen.getByLabelText<HTMLInputElement>('Recording limit');
     expect(limit.value).toBe('300');
     expect(limit.readOnly).toBe(true);
-    expect(screen.getByText(/Capped at 300s — audio's limit/)).toBeTruthy();
+    expect(screen.getByText(/Capped at 300s for audio\./)).toBeTruthy();
     // Nothing was written until the teacher accepted the new ceiling.
     expect(onChange).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Set to 300s' }));

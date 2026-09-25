@@ -25,7 +25,7 @@ export const BankTargetFilter: React.FC<BankTargetFilterProps> = ({
   if (tags.length === 0) {
     return (
       <p className="text-xs text-slate-500">
-        No learning targets in this bank. The slot draws from every question.
+        No targets. Draws from all questions.
       </p>
     );
   }

@@ -404,8 +404,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
                     Individual scores (optional)
                   </p>
                   <p className="text-xs text-slate-500">
-                    A score here replaces the group&apos;s for that student.
-                    Leave it blank and they get the group score.
+                    Blank uses the group score.
                   </p>
                   {(group?.memberUids ?? []).map((uid) => {
                     const override = draft.overridesByUid[uid];

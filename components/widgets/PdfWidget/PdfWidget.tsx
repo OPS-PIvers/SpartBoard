@@ -372,7 +372,7 @@ export const PdfWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             fontSize: 'min(9px, 2.5cqmin)',
           }}
         >
-          Drag to reorder · Drag a PDF onto the board to add
+          Drag a PDF onto the board to add it.
         </div>
       }
     />

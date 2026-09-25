@@ -50,9 +50,9 @@ afterEach(cleanup);
 describe('Style tab defaults footer', () => {
   it('flags a widget that differs from my default and saves only appearance', () => {
     const { onSave } = renderStyleTab();
-    expect(
-      screen.getByText('Differs from your default for new Note widgets.')
-    ).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Differs from your default'
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Save as my default' }));
     expect(onSave).toHaveBeenCalledWith({ fontColor: '#ffffff' });
   });
@@ -73,9 +73,9 @@ describe('Style tab defaults footer', () => {
         onSave: vi.fn(),
       },
     });
-    expect(
-      screen.getByText('Matches your default for new Note widgets.')
-    ).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Matches your default'
+    );
     expect(
       screen.getByRole('button', { name: 'Save as my default' })
     ).toBeDisabled();

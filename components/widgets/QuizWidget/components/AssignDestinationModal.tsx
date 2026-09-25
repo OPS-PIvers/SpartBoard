@@ -45,7 +45,7 @@ export const AssignDestinationModal: React.FC<AssignDestinationModalProps> = ({
     {
       id: 'spartboard',
       title: 'SpartBoard Only',
-      body: 'Assign to your classes and share the join link from SpartBoard.',
+      body: 'Share a join link with your classes.',
       Icon: MonitorPlay,
     },
     ...(showClassroom
@@ -53,7 +53,7 @@ export const AssignDestinationModal: React.FC<AssignDestinationModalProps> = ({
           {
             id: 'classroom' as const,
             title: 'Google Classroom',
-            body: 'Create the assignment, then post it to a Google Classroom course with grade sync.',
+            body: 'Post to a Classroom course with grade sync.',
             Icon: GraduationCap,
           },
         ]
@@ -61,7 +61,7 @@ export const AssignDestinationModal: React.FC<AssignDestinationModalProps> = ({
     {
       id: 'schoology',
       title: 'Schoology',
-      body: 'Add it from inside Schoology — we’ll show you how.',
+      body: 'Add it from inside Schoology.',
       Icon: School,
     },
   ];
@@ -100,9 +100,6 @@ export const AssignDestinationModal: React.FC<AssignDestinationModalProps> = ({
       }
     >
       <div className="px-5 pb-5 pt-4 space-y-3">
-        <p className="text-xs text-slate-600">
-          Where do you want to assign this quiz?
-        </p>
         <div className="space-y-2">
           {options.map((opt) => {
             const Icon = opt.Icon;

@@ -145,10 +145,6 @@ export const ViewOnlyShareModal: React.FC<ViewOnlyShareModalProps> = ({
               {itemTitle}
             </p>
           </div>
-          <p className="text-slate-600 text-sm text-center">
-            Send this link to students. Anyone with the link can view — no
-            submissions are collected.
-          </p>
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 break-all text-xs text-slate-700 font-mono">
             {createdLink}
           </div>
@@ -202,8 +198,7 @@ export const ViewOnlyShareModal: React.FC<ViewOnlyShareModalProps> = ({
             </p>
           </div>
           <p className="text-slate-600 text-sm text-center">
-            Anyone with the link can view this. No submissions are collected —
-            view counts appear in the Shared archive.
+            Anyone with the link can view it but can&apos;t submit anything.
           </p>
           {error && (
             <p className="text-sm text-brand-red-primary text-center font-medium">

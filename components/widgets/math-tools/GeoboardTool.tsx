@@ -89,7 +89,8 @@ export const GeoboardTool: React.FC = () => {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="text-xxs text-slate-400">
-          Click pegs to stretch a band. Click the first peg again to close.
+          {bands.length === 0 &&
+            'Click pegs to stretch a band. Click the first peg again to close.'}
         </p>
         <button
           onClick={clearAll}

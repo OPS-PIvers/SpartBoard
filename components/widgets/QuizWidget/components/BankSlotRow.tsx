@@ -154,7 +154,7 @@ export const BankSlotDetail: React.FC<BankSlotDetailProps> = ({
       <div className="px-5 py-4 border-b border-slate-200 bg-white sticky top-0 z-10">
         <div className="text-xs uppercase tracking-wider text-slate-500 font-bold flex items-center gap-1.5">
           <Shuffle className="w-3.5 h-3.5 text-indigo-500" aria-hidden />
-          Random draw from a question bank
+          Random from bank
         </div>
         <h4 className="text-base font-bold text-slate-900 truncate mt-0.5">
           {slot.bankTitle}
@@ -164,8 +164,7 @@ export const BankSlotDetail: React.FC<BankSlotDetailProps> = ({
       <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
         {!source && (
           <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 font-semibold">
-            This bank is no longer available. Remove the slot or re-add it from
-            a bank you can still open.
+            This bank is no longer available.
           </div>
         )}
         {load.status === 'error' && (

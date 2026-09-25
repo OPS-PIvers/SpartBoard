@@ -271,7 +271,7 @@ describe('ShareWithSubModal — an existing share', () => {
   it('updates the live share rather than creating a second one', async () => {
     openModal([existing]);
 
-    expect(screen.getByText(/You already share this with a sub/)).toBeTruthy();
+    expect(screen.getByText(/Saving updates what your sub sees/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Update the share' }));
 

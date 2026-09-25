@@ -467,7 +467,6 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
         {styleDefaults && styleDefaultsState && (
           <StyleDefaultsFooter
             state={styleDefaultsState}
-            widgetName={toolLabel?.(widget.type) ?? title}
             onSave={() => styleDefaults.onSave(styleDefaultsState.toSave)}
             onReset={() => updateConfig(styleDefaultsState.resetPatch)}
             t={t}

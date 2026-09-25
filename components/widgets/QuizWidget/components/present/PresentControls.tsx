@@ -134,7 +134,7 @@ export const PresentControls: React.FC<PresentControlsProps> = ({
             className="font-sans text-brand-gray-primary"
             style={{ fontSize: 'min(10px, 3.5cqmin)' }}
           >
-            Pause message (shown on the board and on student devices)
+            Pause message
           </span>
           <input
             value={draft}

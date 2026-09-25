@@ -203,7 +203,7 @@ describe('ProjectGroupsManager', () => {
   it('holds moves until names load, but keeps unnamed members on save', async () => {
     pseudonyms.targetRefKeyByStudentUid = new Map();
     const { onSave } = renderManager();
-    expect(screen.getByText(/Loading student names/)).toBeInTheDocument();
+    expect(screen.getByText('Loading names…')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Name of Otters'), {
       target: { value: 'Sea Otters' },
     });

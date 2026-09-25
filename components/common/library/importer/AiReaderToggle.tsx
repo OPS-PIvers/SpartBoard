@@ -21,8 +21,5 @@ export const AiReaderToggle: React.FC<AiReaderToggleProps> = ({
       className="h-4 w-4 accent-brand-blue-primary"
     />
     Read with AI
-    <span className="font-normal text-slate-400">
-      (off reads the file&apos;s text, and scans it if needed)
-    </span>
   </label>
 );

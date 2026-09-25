@@ -90,7 +90,9 @@ describe('AssignPeriodAccessSection', () => {
       ['r1', 'r3'],
       context({ onTagRoster: tag })
     );
-    expect(screen.getByText(/PIN only, not verified/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/without a school sign-in can.t join/)
+    ).toBeInTheDocument();
     expect(screen.queryByText('P1 Algebra')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/Which period is P3 Local/), {
       target: { value: 'high|P3' },

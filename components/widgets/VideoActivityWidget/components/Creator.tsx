@@ -437,13 +437,6 @@ export const Creator: React.FC<CreatorProps> = ({
 
           {step === 'source' && (
             <div className="grid gap-3 animate-in fade-in zoom-in-95 duration-300">
-              <p
-                className="text-center text-slate-500 font-medium mb-2"
-                style={{ fontSize: 'min(12px, 3.5cqmin)' }}
-              >
-                How would you like to add questions to this video?
-              </p>
-
               {canUseAI && (
                 <button
                   onClick={() => setStep('ai')}
@@ -476,8 +469,7 @@ export const Creator: React.FC<CreatorProps> = ({
                         className="text-slate-500 leading-relaxed"
                         style={{ fontSize: 'min(12px, 3.5cqmin)' }}
                       >
-                        Generate questions automatically using Gemini&apos;s
-                        video understanding.
+                        AI writes questions from the video.
                       </p>
                     </div>
                   </div>
@@ -546,12 +538,6 @@ export const Creator: React.FC<CreatorProps> = ({
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-800">Manual Entry</h4>
-                    <p
-                      className="text-slate-500 leading-relaxed"
-                      style={{ fontSize: 'min(12px, 3.5cqmin)' }}
-                    >
-                      Start from scratch and add your own questions.
-                    </p>
                   </div>
                 </div>
               </button>
@@ -593,14 +579,6 @@ export const Creator: React.FC<CreatorProps> = ({
                     onChange={(e) => setQuestionCount(parseInt(e.target.value))}
                     className="w-full h-2 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                   />
-                </div>
-
-                <div
-                  className="text-indigo-600/70 italic leading-relaxed"
-                  style={{ fontSize: 'min(12px, 3.5cqmin)' }}
-                >
-                  Note: AI generation uses Gemini&apos;s video understanding to
-                  analyze the content and generate questions.
                 </div>
               </div>
 

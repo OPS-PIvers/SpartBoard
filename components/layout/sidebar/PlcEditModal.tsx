@@ -290,8 +290,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
             </form>
             <p className="text-xxs text-slate-400 mt-1.5 leading-relaxed">
               {t('sidebar.plcs.inviteHelp', {
-                defaultValue:
-                  'Your colleague will see the invitation in their PLC sidebar the next time they sign in.',
+                defaultValue: "They'll see the invite in their PLC sidebar.",
               })}
             </p>
           </div>

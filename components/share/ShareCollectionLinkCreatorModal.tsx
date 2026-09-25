@@ -292,8 +292,7 @@ export const ShareCollectionLinkCreatorModal: FC<
             {!offerSubstitute && (
               <p className="text-xs text-slate-500">
                 {t('shareCollection.copyModeHint', {
-                  defaultValue:
-                    'Recipient imports a full copy into their account.',
+                  defaultValue: 'They get their own copy to edit.',
                 })}
               </p>
             )}
@@ -317,8 +316,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                     </span>
                     <span className="block text-xs text-slate-500 mt-0.5">
                       {t('shareCollection.copyModeHint', {
-                        defaultValue:
-                          'Recipient imports a full copy into their account.',
+                        defaultValue: 'They get their own copy to edit.',
                       })}
                     </span>
                   </span>
@@ -341,7 +339,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                     <span className="block text-xs text-slate-500 mt-0.5">
                       {t('shareCollection.substituteModeHint', {
                         defaultValue:
-                          'A sub teacher sees the Collection in /subs for the window you choose.',
+                          'Shows in the Substitute Portal for the time you set.',
                       })}
                     </span>
                   </span>
@@ -409,7 +407,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                 <p className="text-[10px] text-slate-500 -mt-1 leading-relaxed">
                   {t('shareCollection.shareRostersHint', {
                     defaultValue:
-                      'Listed subs get read-only Google Drive access to your active roster until expiration. Auto-revoked then. Must be @orono.k12.mn.us.',
+                      'Listed subs get read-only Drive access to your rosters until the share ends. They need an @orono.k12.mn.us account.',
                   })}
                 </p>
 

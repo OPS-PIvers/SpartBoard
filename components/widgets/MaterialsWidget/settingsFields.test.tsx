@@ -51,7 +51,6 @@ const translate = (key: string, options?: Record<string, unknown>) => {
     addMaterial: 'Add',
     selectAll: 'Select all',
     deselectAll: 'Deselect all',
-    selectionTip: 'Selection tip',
     editMaterial: 'Edit {{label}}',
     deleteMaterial: 'Delete {{label}}',
     deleteMaterialQuestion: 'Delete “{{label}}”?',
