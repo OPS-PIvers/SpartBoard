@@ -23,9 +23,11 @@ import {
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { usePaperSheetStimulusImages } from '@/hooks/usePaperSheetStimulusImages';
-import type { Plc, PlcMember } from '@/types';
+import { useAuth } from '@/context/useAuth';
+import type { PaperPageMap, Plc, PlcMember } from '@/types';
 import { printPaperSheets } from '@/utils/paperSheetPrint';
-import { printPaperTest } from '@/utils/paperTestPrint';
+import { printPaperTest, type PaperTestQuestion } from '@/utils/paperTestPrint';
+import { PAPER_HANDWRITTEN_FEATURE } from '@/utils/paperWritten';
 import { logError } from '@/utils/logError';
 import {
   buildPrintSelections,
@@ -56,6 +58,24 @@ interface PlcTeammatePrintModalProps {
 const bannerClass =
   'flex items-start gap-2 rounded-xl border px-3 py-2 text-xs leading-relaxed';
 
+/** Stem per written question, matched to the test paper by its printed number. */
+function writtenTextsFor(
+  pageMaps: readonly PaperPageMap[],
+  testPaper: readonly PaperTestQuestion[]
+): Record<string, string> {
+  const byRow = new Map(
+    testPaper.filter((q) => q.written).map((q) => [String(q.row), q.text])
+  );
+  const texts: Record<string, string> = {};
+  for (const map of pageMaps) {
+    for (const item of map.items) {
+      const text = item.kind === 'written' ? byRow.get(item.label) : undefined;
+      if (text) texts[item.questionId] = text;
+    }
+  }
+  return texts;
+}
+
 const memberSort = (a: PlcMember, b: PlcMember): number =>
   (a.displayName || a.email).localeCompare(b.displayName || b.email);
 
@@ -70,6 +90,8 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
   printTest = printPaperTest,
 }) => {
   const { t } = useTranslation();
+  const { canAccessFeature } = useAuth();
+  const writtenOn = canAccessFeature(PAPER_HANDWRITTEN_FEATURE);
   const [targetUid, setTargetUid] = useState<string | null>(null);
   const [selectedRosterIds, setSelectedRosterIds] = useState<Set<string>>(
     new Set()
@@ -172,6 +194,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
           excludedStudentIds
         ),
         spareCount,
+        written: writtenOn,
       });
     } catch (err) {
       logError('PlcTeammatePrintModal.create', err, {
@@ -201,7 +224,15 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
         ...(result.batch.columnsPerPage
           ? { columnsPerPage: result.batch.columnsPerPage }
           : {}),
-        ...(result.batch.pageMaps ? { pageMaps: result.batch.pageMaps } : {}),
+        ...(result.batch.pageMaps
+          ? {
+              pageMaps: result.batch.pageMaps,
+              writtenTexts: writtenTextsFor(
+                result.batch.pageMaps,
+                result.testPaper
+              ),
+            }
+          : {}),
         // An image the owner never shared is left out rather than blocking the
         // print: the page keeps its layout and the banner says what is missing.
         ...(printableStimuli.length > 0
