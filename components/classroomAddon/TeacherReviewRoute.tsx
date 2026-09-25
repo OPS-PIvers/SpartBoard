@@ -70,6 +70,7 @@ import {
 } from '@/utils/paperWritten';
 import { usePaperPrivateAnswers } from '@/hooks/usePaperPrivateAnswers';
 import { requestAndExchangeAuthCode } from '@/utils/googleOAuthRefresh';
+import { WRITTEN_RETURN_OPTIONS } from '@/components/common/library/publishScoreLevels';
 import {
   buildQuizClassroomGradeEntries,
   formatGradePushToast,
@@ -120,12 +121,6 @@ const PUBLISH_OPTIONS: {
     value: 'score-responses-and-answers',
     label: 'Score + answers + correct answers',
   },
-];
-
-const WRITTEN_RETURN_OPTIONS: { value: WrittenReturnMode; label: string }[] = [
-  { value: 'handwriting', label: 'Handwriting' },
-  { value: 'typed', label: 'Typed' },
-  { value: 'both', label: 'Both' },
 ];
 
 export type TeacherReviewPlatform = 'classroom' | 'schoology';
@@ -467,14 +462,10 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
       const { responsesUpdated } = await publishAssignmentScores(
         sessionId,
         quizData,
-        publishVisibility
+        publishVisibility,
+        undefined,
+        hasPaperWritten ? writtenReturnMode : undefined
       );
-      // Written after publish so the publish write can't reset the teacher's pick (D37).
-      if (hasPaperWritten) {
-        await updateDoc(doc(db, QUIZ_SESSIONS_COLLECTION, sessionId), {
-          writtenReturnMode,
-        });
-      }
       setStatusMsg(
         `Published — ${responsesUpdated} student${
           responsesUpdated === 1 ? '' : 's'
@@ -868,7 +859,10 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
                       setPickedReturnMode(v as WrittenReturnMode)
                     }
                     placeholder="Written answers"
-                    options={WRITTEN_RETURN_OPTIONS}
+                    options={WRITTEN_RETURN_OPTIONS.map((o) => ({
+                      value: o.id,
+                      label: o.title,
+                    }))}
                   />
                 </div>
               )}

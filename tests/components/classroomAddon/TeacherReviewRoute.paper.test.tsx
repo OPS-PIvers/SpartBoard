@@ -59,7 +59,7 @@ vi.mock('@/hooks/useQuiz', () => ({
   }),
 }));
 
-const publishAssignmentScores = vi.fn(() =>
+const publishAssignmentScores = vi.fn((..._args: unknown[]) =>
   Promise.resolve({ responsesUpdated: 1, paperResponses: 1 })
 );
 let assignments: Record<string, unknown>[] = [];
@@ -178,7 +178,7 @@ describe('ClassroomAddonTeacherReview with paper written answers', () => {
     );
   });
 
-  it('copies the chosen return mode onto the session after publishing', async () => {
+  it('publishes with the chosen return mode', async () => {
     responses = [paperResponse];
     await renderRoute();
     await pickOption('Written answers', 'Both');
@@ -190,12 +190,15 @@ describe('ClassroomAddonTeacherReview with paper written answers', () => {
     fireEvent.click(publish);
 
     await waitFor(() =>
-      expect(updateDoc).toHaveBeenCalledWith(
-        { path: ['quiz_sessions', 'sess-1'] },
-        { writtenReturnMode: 'both' }
+      expect(publishAssignmentScores).toHaveBeenCalledWith(
+        'sess-1',
+        expect.objectContaining({ id: 'quiz-1' }),
+        'score-and-responses',
+        undefined,
+        'both'
       )
     );
-    expect(publishAssignmentScores).toHaveBeenCalledTimes(1);
+    expect(updateDoc).not.toHaveBeenCalled();
   });
 
   it('starts from the published mode and shows the picker from the assignment flag', async () => {
@@ -222,6 +225,6 @@ describe('ClassroomAddonTeacherReview with paper written answers', () => {
     await waitFor(() =>
       expect(publishAssignmentScores).toHaveBeenCalledTimes(1)
     );
-    expect(updateDoc).not.toHaveBeenCalled();
+    expect(publishAssignmentScores.mock.calls[0][4]).toBeUndefined();
   });
 });
