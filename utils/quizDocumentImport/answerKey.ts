@@ -648,6 +648,9 @@ export function applyKeyAnswer(
   }
 
   if (question.type === 'free-response') {
+    if (question.keepWritten) {
+      return note(question, `Key’s sample answer: ${answer}`);
+    }
     if (
       isLetter(answer) ||
       isList ||

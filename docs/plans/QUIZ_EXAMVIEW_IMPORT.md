@@ -40,6 +40,9 @@ Paul's Honors Bio Ecology test was run through the browser reader on dev-paul at
     - DOCX/RTF: the first segment of a line, or right after a `____` blank segment.
     - The first question sets the position.
   - It is the next number in sequence (+1), or a restart at 1 under a new section heading (R7).
+    - Built in PR 1: a forward skip of up to 5 still opens the question, with the note "The numbering skips from 4 to 6. Check that no question is missing." A skipped number in a typed test would otherwise merge two questions silently.
+    - Outside the profile, R7's restart at 1 without a heading still works, but only after the previous question's options. A `1.` in a stem that hasn't reached its options is a list.
+    - PDF position, as built: a number indented 12–120 points past the accepted numbers is a list in a stem. A number a whole column over (R4 two-column pages) still counts.
   - A number that fails any of these stays text.
   - `LABELLED` openers (`Question 3`, `Q3.`) keep only the sequence check.
 - **E2. Plain-space option rows (amends R5).** Two or more spaces before an option marker count as a column gap, but only when every marker found that way on the line forms a valid run for the current question:
@@ -61,10 +64,14 @@ Paul's Honors Bio Ecology test was run through the browser reader on dev-paul at
 
   The profile adds the rules below on top of the general parser. Other documents keep the general heuristics. The PR 1 part of the profile is detection plus E8.
 
+  PR 1 also reads an ExamView type heading with text after it as a section heading, whatever its length ("Short Answer-PICK TWO (2) QUESTIONS TO ANSWER-3 points each"). Without that, Q17–19 fall into the Graphing Problem section.
+
 - **E8. ANS text on written items isn't a key.** Under the ExamView profile, an item in a Short Answer, Problem, Essay or Other section stays free-response.
   - Its ANS text shows in review as "Key's sample answer: …" and is not saved as an answer.
   - A short ANS never changes the type.
   - Outside the profile, today's short-key → FIB rule stays.
+
+- **PDF learning-target wraps (found building PR 1).** An "I can" target that fills the question's opening line and wraps onto the next line keeps the wrapped words when that line sits closer than a paragraph gap (21 pt). Before this, the wrapped half led the stem on six of the PDF's questions.
 
 ### ExamView types and keys (PR 2)
 

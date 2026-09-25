@@ -15,10 +15,12 @@ describe('matchQuestionOpening', () => {
     expect(matchQuestionOpening('Question 1: What is 3 + 4?')).toEqual({
       number: 1,
       text: 'What is 3 + 4?',
+      labelled: true,
     });
     expect(matchQuestionOpening('Question 2 Name a planet.')).toEqual({
       number: 2,
       text: 'Name a planet.',
+      labelled: true,
     });
     expect(matchQuestionOpening('Q3. Solve for x.')?.number).toBe(3);
     expect(matchQuestionOpening('#4 Round to the nearest ten.')?.number).toBe(
@@ -30,6 +32,7 @@ describe('matchQuestionOpening', () => {
     expect(matchQuestionOpening('Question 5:')).toEqual({
       number: 5,
       text: '',
+      labelled: true,
     });
   });
 
@@ -40,5 +43,14 @@ describe('matchQuestionOpening', () => {
     ).toBeNull();
     expect(matchQuestionOpening('Quickly name three states.')).toBeNull();
     expect(matchQuestionOpening('The answer is 7 because…')).toBeNull();
+  });
+});
+
+describe('decimals (QUIZ_EXAMVIEW_IMPORT E1)', () => {
+  it('never reads a decimal or a number with a digit after its point', () => {
+    expect(matchQuestionOpening('357.4')).toBeNull();
+    expect(matchQuestionOpening('3.5')).toBeNull();
+    expect(matchQuestionOpening('1.5x + 2 = 8')).toBeNull();
+    expect(matchQuestionOpening('____ 2. A bird')?.number).toBe(2);
   });
 });
