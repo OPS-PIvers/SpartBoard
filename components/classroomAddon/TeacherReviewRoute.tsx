@@ -26,7 +26,13 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
-import { ClipboardList, GraduationCap, Send, Eye } from 'lucide-react';
+import {
+  ClipboardList,
+  FileScan,
+  GraduationCap,
+  Send,
+  Eye,
+} from 'lucide-react';
 import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
@@ -50,6 +56,21 @@ import {
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { FreeResponseGrader } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
 import { createDriveTakeUrlResolver } from '@/utils/quizMediaPlayback';
+import {
+  PAPER_CROP_CALLABLE,
+  PAPER_WRITTEN_CALLABLES,
+  createPaperCropResolver,
+  type GetPaperWrittenCropRequest,
+  type GetPaperWrittenCropResponse,
+  type PaperWrittenActions,
+} from '@/utils/paperCropFetch';
+import {
+  DEFAULT_WRITTEN_RETURN_MODE,
+  isPaperWrittenAnswer,
+} from '@/utils/paperWritten';
+import { usePaperPrivateAnswers } from '@/hooks/usePaperPrivateAnswers';
+import { requestAndExchangeAuthCode } from '@/utils/googleOAuthRefresh';
+import { WRITTEN_RETURN_OPTIONS } from '@/components/common/library/publishScoreLevels';
 import {
   buildQuizClassroomGradeEntries,
   formatGradePushToast,
@@ -77,6 +98,7 @@ import {
   isFreeResponseType,
   type QuizData,
   type QuizScoreVisibility,
+  type WrittenReturnMode,
 } from '@/types';
 import {
   AddonShell,
@@ -156,10 +178,14 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [resolvingSession, setResolvingSession] = useState(true);
   // Served-locale-scoped FIB answer keys; empty until the assignment doc loads.
+  const assignment = useMemo(
+    () =>
+      sessionId
+        ? (assignments ?? []).find((a) => a.id === sessionId)
+        : undefined,
+    [assignments, sessionId]
+  );
   const fibGrading = useMemo<FibGradingContext>(() => {
-    const assignment = sessionId
-      ? (assignments ?? []).find((a) => a.id === sessionId)
-      : undefined;
     return {
       answers: assignment?.localizedFibAnswers ?? null,
       overridesByStudentUid: assignment?.overridesByStudentUid ?? null,
@@ -167,7 +193,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
       servedLanguageByStudentUid:
         assignment?.servedLanguageByStudentUid ?? null,
     };
-  }, [assignments, sessionId]);
+  }, [assignment]);
 
   // A leftover studentRole custom-token session in the partitioned iframe has a
   // uid but is not the teacher — only a Google session may resolve the session.
@@ -314,6 +340,78 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     Exclude<QuizScoreVisibility, 'none'>
   >('score-and-responses');
 
+  const hasPaperWritten = useMemo(
+    () =>
+      assignment?.hasPaperWritten === true ||
+      responses.some((r) => r.answers?.some((a) => isPaperWrittenAnswer(a))),
+    [assignment?.hasPaperWritten, responses]
+  );
+  // Null follows the session's published mode until the teacher picks one.
+  const [pickedReturnMode, setPickedReturnMode] =
+    useState<WrittenReturnMode | null>(null);
+  const writtenReturnMode =
+    pickedReturnMode ??
+    session?.writtenReturnMode ??
+    DEFAULT_WRITTEN_RETURN_MODE;
+
+  const paperPrivate = usePaperPrivateAnswers(
+    sessionId ?? undefined,
+    responses,
+    showGrader
+  );
+  // Crops load from the teacher's own Drive whatever the spoken-answer gate says.
+  const resolvePaperCrop = useMemo(
+    () =>
+      createPaperCropResolver({
+        resolveDriveFile: createDriveTakeUrlResolver({
+          getToken: () => googleAccessToken,
+          refreshToken: refreshGoogleToken,
+        }),
+        callCrop: async (req) =>
+          (
+            await httpsCallable<
+              GetPaperWrittenCropRequest,
+              GetPaperWrittenCropResponse
+            >(
+              functions,
+              PAPER_CROP_CALLABLE
+            )(req)
+          ).data,
+      }),
+    [googleAccessToken, refreshGoogleToken]
+  );
+  const paperActions = useMemo<PaperWrittenActions>(() => {
+    const call =
+      <Req, Res>(name: string) =>
+      async (req: Req): Promise<Res> =>
+        (await httpsCallable<Req, Res>(functions, name)(req)).data;
+    return {
+      updateTranscript: call(PAPER_WRITTEN_CALLABLES.updateTranscript),
+      applyNewerScan: call(PAPER_WRITTEN_CALLABLES.applyNewerScan),
+      transcribeBlank: call(PAPER_WRITTEN_CALLABLES.transcribeBlank),
+      retry: call(PAPER_WRITTEN_CALLABLES.retry),
+    };
+  }, []);
+  const connectDrive = useCallback(async () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
+      | string
+      | undefined;
+    if (!clientId) {
+      setErrorMsg('Google Drive sign-in is not configured.');
+      return;
+    }
+    const outcome = await requestAndExchangeAuthCode(
+      clientId,
+      user?.email ?? loginHint
+    );
+    if (outcome.kind === 'success') {
+      setErrorMsg(null);
+      setStatusMsg('Google Drive connected.');
+    } else if (outcome.kind !== 'cancelled') {
+      setErrorMsg('Could not connect Google Drive.');
+    }
+  }, [user?.email, loginHint]);
+
   const saveWrittenGrade = useCallback<
     React.ComponentProps<typeof FreeResponseGrader>['onSaveGrade']
   >(
@@ -364,7 +462,9 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
       const { responsesUpdated } = await publishAssignmentScores(
         sessionId,
         quizData,
-        publishVisibility
+        publishVisibility,
+        undefined,
+        hasPaperWritten ? writtenReturnMode : undefined
       );
       setStatusMsg(
         `Published — ${responsesUpdated} student${
@@ -378,7 +478,14 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     } finally {
       setBusy(false);
     }
-  }, [sessionId, quizData, publishVisibility, publishAssignmentScores]);
+  }, [
+    sessionId,
+    quizData,
+    publishVisibility,
+    publishAssignmentScores,
+    hasPaperWritten,
+    writtenReturnMode,
+  ]);
 
   const pushGrades = useCallback(async () => {
     const attachment = session?.classroomAttachment;
@@ -634,6 +741,9 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
                   // answer as 0, so label it rather than let it read as final.
                   const awaitingGrade =
                     !!quizData && isResponseAwaitingGrade(r, questions);
+                  const paper = !!r.answers?.some((a) =>
+                    isPaperWrittenAnswer(a)
+                  );
                   return (
                     <li
                       key={key}
@@ -643,6 +753,12 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
                         {name}
                       </span>
                       <span className="flex shrink-0 items-center gap-2">
+                        {paper && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                            <FileScan aria-hidden className="h-3 w-3" />
+                            Paper
+                          </span>
+                        )}
                         <span className="font-semibold text-slate-900">
                           {quizData
                             ? `${Math.round(
@@ -727,6 +843,29 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
                   Publish scores
                 </AddonButton>
               </div>
+              {hasPaperWritten && (
+                <div className="mt-3">
+                  <label
+                    htmlFor="addon-written-return-mode"
+                    className="mb-1.5 block text-sm font-medium text-slate-700"
+                  >
+                    Written answers
+                  </label>
+                  <AddonSelect
+                    id="addon-written-return-mode"
+                    ariaLabel="Written answers"
+                    value={writtenReturnMode}
+                    onChange={(v) =>
+                      setPickedReturnMode(v as WrittenReturnMode)
+                    }
+                    placeholder="Written answers"
+                    options={WRITTEN_RETURN_OPTIONS.map((o) => ({
+                      value: o.id,
+                      label: o.title,
+                    }))}
+                  />
+                </div>
+              )}
             </div>
 
             {session?.ltiAttachment && (
@@ -774,6 +913,11 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
           displayNameByResponseKey={displayNameByResponseKey}
           teacherUid={user.uid}
           resolveTakeUrl={resolveTakeUrl}
+          sessionId={sessionId}
+          paperPrivate={paperPrivate}
+          resolvePaperCrop={resolvePaperCrop}
+          paperActions={paperActions}
+          onConnectDrive={() => void connectDrive()}
           onSaveGrade={saveWrittenGrade}
           onSaveBackTranslation={saveBackTranslation}
           graderMode={quizGraderMode}
