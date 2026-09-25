@@ -4472,7 +4472,8 @@
     "saveFailed": "Couldn't save the tour. Your recording is kept, so you can try again.",
     "rerecordPrompt": "Click what this step should show",
     "rerecordSaving": "Saving the new click...",
-    "rerecordFailed": "Couldn't upload the new click. Try again, or discard it to keep the step as it is."
+    "rerecordFailed": "Couldn't upload the new click. Try again, or discard it to keep the step as it is.",
+    "copyAll": "Copy all"
   },
   "tours": {
     "unavailable": "This tour isn't available right now.",
@@ -4740,6 +4741,29 @@
     "found": "Found",
     "notFound": "Not found",
     "openInStudio": "Open in Studio",
-    "openInStudioLabel": "Open in Studio: step {{number}} of {{title}}"
+    "openInStudioLabel": "Open in Studio: step {{number}} of {{title}}",
+    "unmapped": {
+      "title": "Unmapped anchors",
+      "empty": "No unmapped anchors.",
+      "loadFailed": "Couldn't load unmapped anchors.",
+      "copyAll": "Copy all",
+      "copied": "Copied",
+      "noName": "Unnamed element",
+      "pullRequest": "Pull request",
+      "rebind_one": "Rebind {{count}} step",
+      "rebind_other": "Rebind {{count}} steps",
+      "rebinding": "Rebinding...",
+      "rebindFailed": "Couldn't rebind. Try again.",
+      "needsType": "This button differs per widget, so set these steps in Studio.",
+      "openLabel": "Open in Studio: {{title}}",
+      "status": {
+        "open": "Open",
+        "prOpen": "PR open",
+        "waitingDeploy": "Waiting for deploy",
+        "mapped": "Mapped",
+        "rebound": "Rebound",
+        "needsHuman": "Needs a person"
+      }
+    }
   }
 }

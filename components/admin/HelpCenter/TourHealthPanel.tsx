@@ -25,6 +25,7 @@ import {
   type TourFieldStats,
   type TourHealthState,
 } from '@/components/tours/tourHealth';
+import { UnmappedAnchorsSection } from './UnmappedAnchorsSection';
 
 const GuidedLearningStudio = lazy(() =>
   import('@/components/widgets/GuidedLearning/components/studio/GuidedLearningStudio').then(
@@ -143,6 +144,14 @@ const TourHealthPanel: React.FC = () => {
     .map((tour) => ({ ...tour, steps: tourHealthOf(tour.runs) }))
     .filter((tour) => tour.steps.length > 0);
 
+  const titles = new Map(buildingSets.map((entry) => [entry.id, entry.title]));
+  const openStep = async (setId: string, stepId: string) => {
+    const set =
+      loaded?.tours.find((tour) => tour.draft.id === setId)?.draft ??
+      (await loadBuildingSet(setId).catch(() => null));
+    if (set) setStudio({ set: { ...set, isBuilding: true }, stepId });
+  };
+
   const checkLive = () =>
     setLive(
       checkAnchorsLive(tours.flatMap((tour) => tour.steps.map((h) => h.step)))
@@ -183,6 +192,15 @@ const TourHealthPanel: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {canRecord && (
+        <UnmappedAnchorsSection
+          titles={titles}
+          onOpenStep={(setId, stepId) => void openStep(setId, stepId)}
+          loadSet={loadBuildingSet}
+          saveSet={saveBuildingSet}
+        />
+      )}
 
       {tours.length === 0 && (
         <p className="text-sm text-slate-500">{t('tourHealth.empty')}</p>
