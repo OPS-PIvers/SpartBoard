@@ -3177,6 +3177,11 @@ describe('index barrel — deployed export set', () => {
     'extractQuizFromDocumentV1',
     'extractStimulusReadAloudTextV1',
     'getQuizArtifactPlaybackUrl',
+    // Handwritten paper answers: transcription worker, retry and sweeps
+    'transcribePaperWrittenPageV1',
+    'retryPaperTranscriptionV1',
+    'sweepPaperTranscriptionJobs',
+    'sweepPaperWrittenCrops',
     // Org-admin media review & compliance delete
     'listQuizMediaForOrgAdmin',
     'deleteQuizMediaForOrgAdmin',
