@@ -239,6 +239,7 @@ interface PaperBatch {
   charged: boolean;
   editedBy?: string;
   editedAt?: number;
+  newerScan?: { scanId: string; page: number; state: 'ink' | 'blank' }; // added in 2D: a kept answer's unapplied rescan
   updatedAt: number;
 }
 ```
