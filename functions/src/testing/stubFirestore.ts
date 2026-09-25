@@ -36,7 +36,7 @@ export interface StubDocRef {
   parent: StubCollectionRef;
   collection: (name: string) => StubCollectionRef;
   get: () => Promise<StubDocSnap>;
-  set: (data: StubData) => Promise<void>;
+  set: (data: StubData, opts?: { merge?: boolean }) => Promise<void>;
   update: (data: StubData) => Promise<void>;
   create: (data: StubData) => Promise<void>;
   delete: () => Promise<void>;
@@ -60,9 +60,26 @@ function matches(data: StubData, w: StubQueryOpts['where'][number]): boolean {
       return (
         typeof v === 'number' && typeof w.value === 'number' && v < w.value
       );
+    case '>':
+      return (
+        typeof v === 'number' && typeof w.value === 'number' && v > w.value
+      );
     default:
       throw new Error(`stub: unsupported operator ${w.op}`);
   }
+}
+
+const isPlainObject = (v: unknown): v is StubData =>
+  !!v && typeof v === 'object' && !Array.isArray(v);
+
+/** Firestore `{ merge: true }`: nested maps merge, everything else replaces. */
+function deepMerge(base: StubData, patch: StubData): StubData {
+  const out: StubData = { ...base };
+  for (const [k, v] of Object.entries(patch)) {
+    out[k] =
+      isPlainObject(v) && isPlainObject(out[k]) ? deepMerge(out[k], v) : v;
+  }
+  return out;
 }
 
 export function makeStubFirestore(seed: Record<string, StubData> = {}) {
@@ -160,9 +177,13 @@ export function makeStubFirestore(seed: Record<string, StubData> = {}) {
       collection: (name: string) =>
         makeCollection(`${path}/${name}`, makeDoc(path)),
       get: () => Promise.resolve(snapFor(path)),
-      set: (data) => {
+      set: (data, opts) => {
         hooks.beforeWrite?.('set', path);
-        store.set(path, { ...data });
+        const existing = store.get(path);
+        store.set(
+          path,
+          opts?.merge && existing ? deepMerge(existing, data) : { ...data }
+        );
         writes.push({ op: 'set', path, data });
         return Promise.resolve();
       },
@@ -207,7 +228,12 @@ export function makeStubFirestore(seed: Record<string, StubData> = {}) {
       fn: (tx: {
         get: (ref: StubDocRef) => Promise<StubDocSnap>;
         update: (ref: StubDocRef, data: StubData) => void;
-        set: (ref: StubDocRef, data: StubData) => void;
+        set: (
+          ref: StubDocRef,
+          data: StubData,
+          opts?: { merge?: boolean }
+        ) => void;
+        create: (ref: StubDocRef, data: StubData) => void;
         delete: (ref: StubDocRef) => void;
       }) => Promise<T>
     ): Promise<T> => {
@@ -217,8 +243,11 @@ export function makeStubFirestore(seed: Record<string, StubData> = {}) {
         update: (ref, data) => {
           pending.push(() => ref.update(data));
         },
-        set: (ref, data) => {
-          pending.push(() => ref.set(data));
+        set: (ref, data, opts) => {
+          pending.push(() => ref.set(data, opts));
+        },
+        create: (ref, data) => {
+          pending.push(() => ref.create(data));
         },
         delete: (ref) => {
           pending.push(() => ref.delete());
