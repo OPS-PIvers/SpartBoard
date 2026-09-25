@@ -4439,7 +4439,7 @@
     "endsAt": "Ends",
     "endsAtHint": "Up to 14 days.",
     "subs": "Who is covering",
-    "subsHint": "Listed subs see student names. Others in the building see the boards without names.",
+    "subsHint": "Listed subs get your class lists until the share ends. Others in the building see the boards without names.",
     "noBoards": "There are no boards in this collection to share.",
     "expiryPast": "Pick an end time in the future.",
     "expiryTooFar": "A sub share can run for at most 14 days.",

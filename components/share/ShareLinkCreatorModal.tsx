@@ -695,7 +695,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                 <p className="text-[10px] text-slate-500 mb-2 leading-relaxed">
                   {t('shareLinkCreatorModal.substitute.emailsHint', {
                     defaultValue:
-                      'Listed subs see student names until the share ends.',
+                      'Listed subs get read-only Drive access to your roster until the share ends. They need an @orono.k12.mn.us account.',
                   })}
                 </p>
 

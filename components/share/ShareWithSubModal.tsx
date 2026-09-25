@@ -461,7 +461,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
             <p className="text-[10px] text-slate-500 leading-relaxed">
               {t('shareWithSub.subsHint', {
                 defaultValue:
-                  'Listed subs see student names. Others in the building see the boards without names.',
+                  'Listed subs get your class lists until the share ends. Others in the building see the boards without names.',
               })}
             </p>
             {presetEmails.length > 0 && (

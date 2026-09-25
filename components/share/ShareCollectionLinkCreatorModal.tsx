@@ -407,7 +407,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                 <p className="text-[10px] text-slate-500 -mt-1 leading-relaxed">
                   {t('shareCollection.shareRostersHint', {
                     defaultValue:
-                      'Listed subs see student names until the share ends.',
+                      'Listed subs get read-only Drive access to your rosters until the share ends. They need an @orono.k12.mn.us account.',
                   })}
                 </p>
 
