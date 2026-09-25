@@ -447,6 +447,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     shareAssignment,
     publishAssignmentScores,
     unpublishAssignmentScores,
+    countPendingPaperTranscripts,
     publishResultsForStudents,
     hideResultsForStudents,
     clearResultsOverride,
@@ -505,6 +506,18 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Ephemeral modal state for the per-assignment "Publish Scores" picker.
   const [publishingAssignment, setPublishingAssignment] =
     useState<QuizAssignment | null>(null);
+  // Stable per target so the modal's pending-transcript read runs once.
+  const publishWrittenReturn = useMemo(
+    () =>
+      publishingAssignment?.hasPaperWritten
+        ? {
+            initialMode: publishingAssignment.writtenReturnMode,
+            loadPendingCount: () =>
+              countPendingPaperTranscripts(publishingAssignment.id),
+          }
+        : undefined,
+    [publishingAssignment, countPendingPaperTranscripts]
+  );
   // Ephemeral modal state for the "Assign to Google Classroom" flow (flag-gated).
   // The Assign-to-Google-Classroom modal target. A minimal shape (not a full
   // QuizAssignment) so it can be set from BOTH the archive-row kebab (mapping an
@@ -3073,8 +3086,9 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           initialProtection={
             appSettings?.lastResultsProtection ?? RESULTS_PROTECTION_DEFAULTS
           }
+          writtenReturn={publishWrittenReturn}
           onClose={() => setPublishingAssignment(null)}
-          onConfirm={async (visibility, protection) => {
+          onConfirm={async (visibility, protection, writtenReturnMode) => {
             // `'none'` routes to the dedicated `unpublishAssignmentScores`
             // (no Drive lookup, no grading). Other levels resolve the
             // canonical quiz from Drive so the score computation has
@@ -3136,7 +3150,8 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 target.id,
                 data,
                 visibility,
-                protection
+                protection,
+                writtenReturnMode
               );
               addToast(
                 result.responsesUpdated > 0

@@ -5839,6 +5839,8 @@ export interface QuizAssignment
   hasPaperResponses?: boolean;
   /** Set by import when any paper sheet carried a written answer box. */
   hasPaperWritten?: boolean;
+  /** D37 mode last chosen in Publish Scores; mirrored on the session and cleared on unpublish. */
+  writtenReturnMode?: WrittenReturnMode;
   createdAt: number;
   updatedAt: number;
   /**

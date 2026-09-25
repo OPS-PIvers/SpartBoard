@@ -22,6 +22,7 @@ import {
   getDocs,
   addDoc,
   query,
+  runTransaction,
   where,
   orderBy,
   serverTimestamp,
@@ -87,6 +88,7 @@ import type {
   ResultsProtection,
   SharedQuizAssignment,
   StudentOverride,
+  WrittenReturnMode,
 } from '@/types';
 import { sessionTotalQuestions } from '@/utils/quizBankDraw';
 import { notChosenQuestionIds, sessionSectionsFor } from '@/utils/quizSections';
@@ -472,7 +474,9 @@ export interface UseQuizAssignmentsResult {
     assignmentId: string,
     quizData: QuizData,
     visibility: Exclude<QuizScoreVisibility, 'none'>,
-    protection?: ResultsProtection
+    protection?: ResultsProtection,
+    /** Omit to leave the session's mode as it is (D37). */
+    writtenReturnMode?: WrittenReturnMode
   ) => Promise<{
     responsesUpdated: number;
     /** Responses imported from paper sheets, so the caller can link them (Q34). */
@@ -489,6 +493,8 @@ export interface UseQuizAssignmentsResult {
    * them.
    */
   unpublishAssignmentScores: (assignmentId: string) => Promise<void>;
+  /** Handwritten paper answers still awaiting a transcript (D39 publish warning). */
+  countPendingPaperTranscripts: (assignmentId: string) => Promise<number>;
   /**
    * Show results to chosen students only, grading their responses the same
    * way a class publish does. Never pushes grades anywhere. Responses that
@@ -1025,6 +1031,53 @@ async function commitResponsePatches(
     }
     await chunkBatch.commit();
   }
+}
+
+/** True when a response holds a handwritten paper answer the worker or an edit can rewrite. */
+export function hasPaperWrittenAnswer(data: QuizResponse): boolean {
+  return (
+    Array.isArray(data.answers) &&
+    data.answers.some((a) => a?.paperTranscript !== undefined)
+  );
+}
+
+/** Handwritten paper answers still waiting on a transcript across a set of responses. */
+export function countPendingPaperTranscripts(
+  responses: QuizResponse[]
+): number {
+  let pending = 0;
+  for (const r of responses) {
+    if (!Array.isArray(r.answers)) continue;
+    for (const a of r.answers)
+      if (a?.paperTranscript === 'pending') pending += 1;
+  }
+  return pending;
+}
+
+const PAPER_TRANSACTION_CONCURRENCY = 10;
+
+/** D39: re-reads and re-grades each paper row in a transaction so a transcript landing mid-publish survives. */
+async function commitPaperWrittenPatches(
+  refs: ReturnType<typeof doc>[],
+  buildPatch: (data: QuizResponse) => Record<string, unknown> | null
+): Promise<number> {
+  let written = 0;
+  for (let i = 0; i < refs.length; i += PAPER_TRANSACTION_CONCURRENCY) {
+    const results = await Promise.all(
+      refs.slice(i, i + PAPER_TRANSACTION_CONCURRENCY).map((ref) =>
+        runTransaction(db, async (tx) => {
+          const snap = await tx.get(ref);
+          if (!snap.exists()) return false;
+          const patch = buildPatch(snap.data() as QuizResponse);
+          if (!patch) return false;
+          tx.update(ref, patch);
+          return true;
+        })
+      )
+    );
+    written += results.filter(Boolean).length;
+  }
+  return written;
 }
 
 export const useQuizAssignments = (
@@ -2872,6 +2925,7 @@ export const useQuizAssignments = (
         // next publish silently inherit old watermark/tab-warning config
         // the teacher may have already disabled.
         protection: deleteField(),
+        writtenReturnMode: deleteField(),
         updatedAt: now,
       });
       batch.update(sessionRef, {
@@ -2885,6 +2939,7 @@ export const useQuizAssignments = (
         // must be cleared here too — otherwise watermark/tab-warning
         // would keep rendering against a no-longer-published result set.
         protection: deleteField(),
+        writtenReturnMode: deleteField(),
       });
       // The answer key also sits on each response since D4; clear it there too.
       const keyedRefs = (
@@ -2918,10 +2973,32 @@ export const useQuizAssignments = (
     [userId]
   );
 
+  const countPendingPaperTranscriptsFor = useCallback<
+    UseQuizAssignmentsResult['countPendingPaperTranscripts']
+  >(async (assignmentId) => {
+    const docs = await readAllDocsPaged(
+      collection(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        assignmentId,
+        RESPONSES_COLLECTION
+      )
+    );
+    return countPendingPaperTranscripts(
+      docs.map((d) => d.data() as QuizResponse)
+    );
+  }, []);
+
   const publishAssignmentScores = useCallback<
     UseQuizAssignmentsResult['publishAssignmentScores']
   >(
-    async (assignmentId, quizData, visibility, protection) => {
+    async (
+      assignmentId,
+      quizData,
+      visibility,
+      protection,
+      writtenReturnMode
+    ) => {
       if (!userId) throw new Error('Not authenticated');
       // Belt-and-suspenders against a future caller that bypasses the
       // type-level `Exclude<…, 'none'>`. The unpublish path lives in
@@ -2970,22 +3047,39 @@ export const useQuizAssignments = (
         )
       );
 
+      const buildPublishPatch = (data: QuizResponse) => {
+        const graded = gradeResponseForPublish(data, ctx);
+        return {
+          // `deleteField()` so a stale score can't linger once a slot awaits grading.
+          score: graded.score ?? deleteField(),
+          answers: graded.answers,
+          // The answer key lives on each response, never the session (D4).
+          revealedAnswers: answerKey ?? deleteField(),
+        };
+      };
       const updates: ResponsePatch[] = [];
+      const paperWrittenRefs: ReturnType<typeof doc>[] = [];
       let paperResponses = 0;
       for (const d of responseDocs) {
         const data = d.data() as QuizResponse;
         if (typeof data.paperBatchId === 'string') paperResponses += 1;
-        const graded = gradeResponseForPublish(data, ctx);
-        updates.push({
-          ref: d.ref,
-          // `deleteField()` so a stale score can't linger once a slot awaits grading.
-          patch: {
-            score: graded.score ?? deleteField(),
-            answers: graded.answers,
-            // The answer key lives on each response, never the session (D4).
-            revealedAnswers: answerKey ?? deleteField(),
-          },
-        });
+        if (hasPaperWrittenAnswer(data)) {
+          paperWrittenRefs.push(d.ref);
+          continue;
+        }
+        updates.push({ ref: d.ref, patch: buildPublishPatch(data) });
+      }
+      // Paper rows go first so the visibility flip never exposes a stale transcript.
+      if (paperWrittenRefs.length > 0) {
+        try {
+          await commitPaperWrittenPatches(paperWrittenRefs, buildPublishPatch);
+        } catch (err) {
+          logError('useQuizAssignments.publishAssignmentScores.paper', err, {
+            assignmentId,
+            count: paperWrittenRefs.length,
+          });
+          throw err;
+        }
       }
 
       // First batch carries the assignment + session writes so the
@@ -3002,10 +3096,12 @@ export const useQuizAssignments = (
       const protectionWrite:
         | ResultsProtection
         | ReturnType<typeof deleteField> = protection ?? deleteField();
+      const modeWrite = writtenReturnMode ? { writtenReturnMode } : {};
       firstBatch.update(assignmentRef, {
         scoreVisibility: visibility,
         scorePublishedAt: now,
         protection: protectionWrite,
+        ...modeWrite,
         updatedAt: now,
       });
       const sessionPatch: Record<string, unknown> = {
@@ -3022,6 +3118,7 @@ export const useQuizAssignments = (
         // settings have to live here for the student review screen to
         // honor them.
         protection: protectionWrite,
+        ...modeWrite,
       };
       // Clears a legacy key; a live-reveal map is moot once results are published.
       sessionPatch.revealedAnswers = deleteField();
@@ -3084,7 +3181,10 @@ export const useQuizAssignments = (
         );
       }
 
-      return { responsesUpdated: updates.length, paperResponses };
+      return {
+        responsesUpdated: updates.length + paperWrittenRefs.length,
+        paperResponses,
+      };
     },
     [userId]
   );
@@ -3129,7 +3229,22 @@ export const useQuizAssignments = (
           )
         )
       );
+      const buildStudentPatch = (data: QuizResponse) => {
+        const graded = gradeResponseForPublish(data, ctx);
+        return {
+          score: graded.score ?? deleteField(),
+          answers: graded.answers,
+          resultsOverride: {
+            mode: 'shown',
+            visibility,
+            publishedAt: now,
+            expiresAt,
+            ...(revealedAnswers ? { revealedAnswers } : {}),
+          },
+        };
+      };
       const patches: ResponsePatch[] = [];
+      const paperWrittenRefs: ReturnType<typeof doc>[] = [];
       let skipped = 0;
       for (const snap of snaps) {
         const data = snap.exists() ? (snap.data() as QuizResponse) : null;
@@ -3138,34 +3253,37 @@ export const useQuizAssignments = (
           skipped += 1;
           continue;
         }
-        const graded = gradeResponseForPublish(data, ctx);
-        patches.push({
-          ref: snap.ref,
-          patch: {
-            score: graded.score ?? deleteField(),
-            answers: graded.answers,
-            resultsOverride: {
-              mode: 'shown',
-              visibility,
-              publishedAt: now,
-              expiresAt,
-              ...(revealedAnswers ? { revealedAnswers } : {}),
-            },
-          },
-        });
+        if (hasPaperWrittenAnswer(data)) {
+          paperWrittenRefs.push(snap.ref);
+          continue;
+        }
+        patches.push({ ref: snap.ref, patch: buildStudentPatch(data) });
       }
-      if (patches.length === 0) return { responsesUpdated: 0, skipped };
+      if (patches.length === 0 && paperWrittenRefs.length === 0) {
+        return { responsesUpdated: 0, skipped };
+      }
+      let paperWritten = 0;
       try {
-        await commitResponsePatches(writeBatch(db), 0, patches);
+        if (paperWrittenRefs.length > 0) {
+          paperWritten = await commitPaperWrittenPatches(
+            paperWrittenRefs,
+            (data) =>
+              data.status === 'completed' ? buildStudentPatch(data) : null
+          );
+          skipped += paperWrittenRefs.length - paperWritten;
+        }
+        if (patches.length > 0) {
+          await commitResponsePatches(writeBatch(db), 0, patches);
+        }
       } catch (err) {
         logError('useQuizAssignments.publishResultsForStudents', err, {
           assignmentId,
           visibility,
-          count: patches.length,
+          count: patches.length + paperWrittenRefs.length,
         });
         throw err;
       }
-      return { responsesUpdated: patches.length, skipped };
+      return { responsesUpdated: patches.length + paperWritten, skipped };
     },
     [userId]
   );
@@ -3295,6 +3413,7 @@ export const useQuizAssignments = (
     syncAssignmentToLatest,
     publishAssignmentScores,
     unpublishAssignmentScores,
+    countPendingPaperTranscripts: countPendingPaperTranscriptsFor,
     publishResultsForStudents,
     hideResultsForStudents,
     clearResultsOverride,
