@@ -13,4 +13,5 @@ export const AI_FEATURE_LABELS: Record<string, string> = {
   'widget-explainer': 'Widget Explainer AI',
   tts: 'Quiz Read-Aloud',
   translation: 'Quiz Translation',
+  'paper-handwritten-responses': 'Handwritten Answers (pages)',
 };

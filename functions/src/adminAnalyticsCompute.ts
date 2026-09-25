@@ -458,6 +458,7 @@ export async function computeAnalyticsForOrg(
   //     dashboard-layout→dashboard-layout, instructional-routine→instructional-routine,
   //     widget-builder→widget-builder, widget-explainer→widget-explainer
   //   transcribeVideoWithGemini (aiGeneration.ts): video-activity-audio-transcription
+  //   paper handwriting worker (paperHandwritingQuota.ts): paper-handwritten-responses, in pages
   //
   // NOT included (by design):
   //   generateGuidedLearning — admin-only, writes no ai_usage counter at all
@@ -480,6 +481,7 @@ export async function computeAnalyticsForOrg(
     'widget-explainer',
     'tts',
     'translation',
+    'paper-handwritten-responses',
   ];
 
   const aiUsageStream = db

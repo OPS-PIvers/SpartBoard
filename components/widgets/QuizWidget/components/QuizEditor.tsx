@@ -58,6 +58,9 @@ import {
 import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
 import { WordLimitFields } from './WordLimitFields';
+import { PaperBoxSizeField } from './PaperBoxSizeField';
+import { usePaperAnswerSheetsSettings } from '@/hooks/usePaperAnswerSheetsSettings';
+import { PAPER_HANDWRITTEN_FEATURE } from '@/utils/paperWritten';
 import { AlternateAnswersEditor, MultiAnswerEditor } from './MultiAnswerEditor';
 import { ChoiceOptionsEditor } from './ChoiceOptionsEditor';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
@@ -800,6 +803,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   // editor is pixel-identical to today for everyone else.
   const mediaResponseAllowed = canAccessQuizMediaResponse();
   const choiceEditor = canAccessFeature('quiz-choice-editor');
+  const paperWrittenAllowed =
+    canAccessFeature(PAPER_HANDWRITTEN_FEATURE) &&
+    canAccessFeature('paper-answer-sheets');
+  const paperSheetsRollout = usePaperAnswerSheetsSettings(paperWrittenAllowed);
+  const paperBoxEnabled = paperWrittenAllowed && paperSheetsRollout.enabled;
   const [showRubricBuilder, setShowRubricBuilder] = useState(false);
   // Manual points held aside per question while a rubric owns its points.
   const manualPointsByQuestion = useRef<Map<string, number>>(new Map());
@@ -1223,6 +1231,12 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   question={q}
                   onChange={(updates) => updateQuestion(q.id, updates)}
                 />
+                {paperBoxEnabled && (
+                  <PaperBoxSizeField
+                    question={q}
+                    onChange={(updates) => updateQuestion(q.id, updates)}
+                  />
+                )}
               </>
             )}
             <div>

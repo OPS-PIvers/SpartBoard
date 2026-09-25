@@ -13,6 +13,9 @@ import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuil
 import {
   GEMINI_FEATURES,
   defaultDailyLimit,
+  DEFAULT_MODEL_TIER,
+  MODEL_TIER_FEATURES,
+  type AiModelTier,
 } from './useGlobalPermissionsEditor';
 
 const LEVELS: { level: AccessLevel; label: string; Icon: typeof Shield }[] = [
@@ -165,6 +168,42 @@ const DailyLimitEditor: React.FC<{
   );
 };
 
+const ModelTierEditor: React.FC<{
+  featureId: GlobalFeature;
+  permission: GlobalFeaturePermission;
+  onUpdate: (updates: Partial<GlobalFeaturePermission>) => void;
+}> = ({ featureId, permission, onUpdate }) => {
+  const tier =
+    (permission.config?.modelTier as AiModelTier | undefined) ??
+    DEFAULT_MODEL_TIER;
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      <label
+        htmlFor={`${featureId}-model-tier`}
+        className="text-xs font-bold text-slate-500 uppercase tracking-widest"
+      >
+        Model
+      </label>
+      <select
+        id={`${featureId}-model-tier`}
+        value={tier}
+        onChange={(e) =>
+          onUpdate({
+            config: {
+              ...permission.config,
+              modelTier: e.target.value as AiModelTier,
+            },
+          })
+        }
+        className="px-2 py-1 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+      >
+        <option value="standard">Standard</option>
+        <option value="advanced">Advanced</option>
+      </select>
+    </div>
+  );
+};
+
 interface AccessFeatureRowProps {
   featureId: GlobalFeature;
   permission: GlobalFeaturePermission;
@@ -292,6 +331,13 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
           )}
           {GEMINI_FEATURES.includes(featureId) && (
             <DailyLimitEditor
+              featureId={featureId}
+              permission={permission}
+              onUpdate={onUpdate}
+            />
+          )}
+          {MODEL_TIER_FEATURES.includes(featureId) && (
+            <ModelTierEditor
               featureId={featureId}
               permission={permission}
               onUpdate={onUpdate}
