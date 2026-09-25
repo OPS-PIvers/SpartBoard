@@ -59,10 +59,7 @@ export const OverviewView: React.FC<Props> = ({
 
   return (
     <div>
-      <ViewHeader
-        title={org.name}
-        blurb="Organization settings. Affects every user, building, and board in your district."
-      />
+      <ViewHeader title={org.name} />
 
       <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-5">
         <Card ruled className="pt-5 p-6">

@@ -78,7 +78,6 @@ export default defineSettings<MathToolConfig>({
           key: 'pixelsPerInch',
           type: 'number',
           label: 'trueScaleCalibration',
-          help: 'trueScaleCalibrationHelp',
           min: 60,
           max: 300,
           readValue: (ctx) => ctx.config.pixelsPerInch ?? CSS_PPI,

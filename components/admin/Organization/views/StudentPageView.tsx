@@ -33,7 +33,7 @@ export const StudentPageView: React.FC<Props> = ({
     <div>
       <ViewHeader
         title="Student page"
-        blurb="What students see when they sign in. Changes apply immediately to all student accounts in this organization."
+        blurb="What students see when they sign in."
       />
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-5">
         {/* Preview */}

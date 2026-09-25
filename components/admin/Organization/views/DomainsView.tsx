@@ -6,7 +6,6 @@ import {
   CheckCircle,
   GraduationCap,
   Users,
-  Info,
 } from 'lucide-react';
 import type {
   AuthMethod,
@@ -83,7 +82,7 @@ export const DomainsView: React.FC<Props> = ({ domains, onAdd, onRemove }) => {
     <div>
       <ViewHeader
         title="Sign-in domains"
-        blurb="Control which email domains can sign in to this organization, and how they authenticate. Firebase auth is scoped by org — domains listed here can log in; others cannot."
+        blurb="Only these domains can sign in."
         actions={
           <Btn
             variant="primary"
@@ -223,23 +222,6 @@ export const DomainsView: React.FC<Props> = ({ domains, onAdd, onRemove }) => {
                   );
                 })}
               </div>
-            </div>
-          </div>
-
-          <div className="mt-4 p-4 rounded-xl bg-brand-blue-lighter/50 border border-brand-blue-lighter text-sm text-slate-700 flex items-start gap-3">
-            <Info
-              size={16}
-              className="text-brand-blue-primary shrink-0 mt-0.5"
-              aria-hidden
-            />
-            <div>
-              <strong className="font-semibold text-slate-900">
-                How this connects to Firebase.
-              </strong>{' '}
-              When you add a domain, SpartBoard creates a Firebase Auth tenant
-              filter so only matching emails can sign in. Super admins can
-              assign new domains to any org — once verified, users signing in
-              with that email land in the correct organization automatically.
             </div>
           </div>
         </>

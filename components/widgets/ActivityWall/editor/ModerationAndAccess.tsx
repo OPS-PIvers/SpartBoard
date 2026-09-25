@@ -44,7 +44,6 @@ export const ModerationAndAccess: React.FC<ModerationAndAccessProps> = ({
     />
     <ToggleRow
       label="Show names"
-      hint="Display each student's name on their post."
       checked={showNames}
       onChange={(next) => onChange({ showNames: next })}
     />

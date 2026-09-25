@@ -79,7 +79,6 @@ describe('wave 12 settings-drawer widget migrations', () => {
       key: 'syncWithTimeTool',
       partner: 'time-tool',
       section: 'connections',
-      missingHelp: 'addTimeToolHelp',
     });
   });
 

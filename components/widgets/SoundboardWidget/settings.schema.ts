@@ -17,7 +17,6 @@ export default defineSettings<SoundboardConfig>({
           key: 'selectedSoundIds',
           type: 'custom',
           label: 'availableSounds',
-          help: 'availableSoundsHelp',
           searchTerms: ['soundButtons'],
           render: renderSoundPicker,
         },

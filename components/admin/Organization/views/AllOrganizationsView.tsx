@@ -51,7 +51,6 @@ export const AllOrganizationsView: React.FC<Props> = ({
     <div>
       <ViewHeader
         title="Organizations"
-        blurb="Create and manage districts on SpartBoard. Each organization has its own buildings, users, domains, and widget access."
         actions={
           <>
             <Btn

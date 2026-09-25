@@ -10,7 +10,6 @@ export default defineSettings<WebcamConfig>({
           key: 'autoSendToNotes',
           type: 'toggle',
           label: 'autoSendToNotes',
-          help: 'autoSendToNotesHelp',
         },
       ],
     },

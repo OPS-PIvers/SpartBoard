@@ -79,7 +79,6 @@ describe('wave 9 settings-drawer widget migrations', () => {
     expect(partnerFields[0]).toMatchObject({
       key: 'stations',
       partner: 'random',
-      missingHelp: 'addRandomizerTip',
     });
   });
 });

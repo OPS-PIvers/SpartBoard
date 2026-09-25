@@ -293,6 +293,7 @@ const ActivitySection: React.FC<{
           desc: t(`glStudio.modeDesc_${value}`),
         }))}
         onChange={setMode}
+        showSelectedDesc
       />
       {mode === 'guided' && (
         <ChoiceGroup
@@ -301,7 +302,7 @@ const ActivitySection: React.FC<{
           options={PACES.map((value) => ({
             value,
             label: t(`glStudio.pace_${value}`),
-            desc: t(`glStudio.paceDesc_${value}`),
+            desc: value === 'calm' ? t('glStudio.paceDesc_calm') : undefined,
           }))}
           onChange={(next) =>
             setWatchPace(next === 'standard' ? undefined : next)
@@ -411,7 +412,8 @@ const SlideSection: React.FC<{
           options={PULSES.map((value) => ({
             value,
             label: t(`glStudio.pulse_${value}`),
-            desc: t(`glStudio.pulseDesc_${value}`),
+            desc:
+              value === 'off' ? undefined : t(`glStudio.pulseDesc_${value}`),
           }))}
           onChange={setHotspotPulse}
           testId="gl-studio-pulse"
@@ -422,7 +424,6 @@ const SlideSection: React.FC<{
           options={TRANSITIONS.map((value) => ({
             value,
             label: t(`glStudio.transition_${value}`),
-            desc: t(`glStudio.transitionDesc_${value}`),
           }))}
           onChange={setImageTransition}
           testId="gl-studio-transition"

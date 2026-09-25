@@ -85,12 +85,6 @@ export const NoteConfigurationPanel: React.FC<NoteConfigurationPanelProps> = ({
       </div>
 
       <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-4">
-        <p className="text-xxs text-slate-500 leading-tight">
-          These defaults will pre-configure the Note widget when a teacher in{' '}
-          <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
-          it to their dashboard.
-        </p>
-
         {/* Default Background Color */}
         <div>
           <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block">

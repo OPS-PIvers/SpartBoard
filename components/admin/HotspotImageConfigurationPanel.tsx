@@ -73,13 +73,6 @@ export const HotspotImageConfigurationPanel: React.FC<
       </div>
 
       <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-4">
-        <p className="text-xxs text-slate-500 leading-tight">
-          These defaults will pre-populate the Hotspot Image widget when a
-          teacher in{' '}
-          <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
-          it to their dashboard.
-        </p>
-
         {/* Popover Theme Default */}
         <div>
           <label className="text-xxs font-bold text-slate-500 uppercase mb-2 block">

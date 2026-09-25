@@ -22,13 +22,12 @@ export const EngagementSettings: React.FC<EngagementSettingsProps> = ({
   <div className="space-y-2">
     <ToggleRow
       label="Allow likes"
-      hint="Viewers can give each post a heart."
       checked={allowLikes}
       onChange={(next) => onChange({ allowLikes: next })}
     />
     <ToggleRow
       label="Allow comments"
-      hint="Signed-in viewers can leave a comment on each post."
+      hint="Signed-in viewers only."
       checked={allowComments}
       onChange={(next) =>
         onChange(
@@ -40,7 +39,6 @@ export const EngagementSettings: React.FC<EngagementSettingsProps> = ({
     />
     <ToggleRow
       label="Allow comment replies"
-      hint="Viewers can reply to other people's comments."
       checked={allowComments && allowCommentResponses}
       disabled={!allowComments}
       onChange={(next) => onChange({ allowCommentResponses: next })}

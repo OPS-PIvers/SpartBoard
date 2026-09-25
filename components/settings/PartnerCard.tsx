@@ -8,8 +8,6 @@ import { PartnerCardFrame } from './PartnerCardFrame';
 
 export type PartnerCardProps = {
   partner: WidgetType;
-  /** Explanation shown with the add button while the partner is off the board. */
-  missingHelp: string;
   /** Receives whether the partner is on the board; render the control disabled when it is not. */
   children: (present: boolean) => React.ReactNode;
 };
@@ -17,7 +15,6 @@ export type PartnerCardProps = {
 // Legacy-panel twin of the `partnerWidget` schema field: same card, same gates, hooks instead of FieldCtx.
 export const PartnerCard: React.FC<PartnerCardProps> = ({
   partner,
-  missingHelp,
   children,
 }) => {
   const { t } = useTranslation();
@@ -33,7 +30,6 @@ export const PartnerCard: React.FC<PartnerCardProps> = ({
       partner={partner}
       name={name}
       present={present}
-      missingHelp={missingHelp}
       addLabel={t('widgetSettings.common.partner.add', { name })}
       onAdd={() => addWidget(partner)}
       id={id}

@@ -865,10 +865,6 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
         defaultValue: 'Share a video activity with this PLC',
       })}
       subtitle={plc.name}
-      prompt={t('plcDashboard.videoActivities.sharePicker.prompt', {
-        defaultValue:
-          'Pick a video activity from your personal library. Teammates will then be able to import it from this tab.',
-      })}
       emptyMessage={t('plcDashboard.videoActivities.sharePicker.empty', {
         defaultValue:
           'You have no video activities in your personal library yet.',

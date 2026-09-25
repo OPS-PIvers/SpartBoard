@@ -41,7 +41,6 @@ export default defineSettings<RevealGridConfig>({
           key: 'isMemoryMode',
           type: 'toggle',
           label: 'memoryMode',
-          help: 'memoryModeHelp',
           readValue: (ctx) => isMemoryMode(ctx),
         },
         {

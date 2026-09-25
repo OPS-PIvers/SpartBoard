@@ -405,9 +405,6 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
             defaultValue: 'Share a rubric with this PLC',
           })}
           subtitle={plc.name}
-          prompt={t('plcDashboard.rubricLibrary.sharePickerPrompt', {
-            defaultValue: 'Pick a rubric from your library.',
-          })}
           emptyMessage={t('plcDashboard.rubricLibrary.sharePickerEmpty', {
             defaultValue:
               'You don’t have any rubrics yet. Build one from a written question in the quiz editor.',

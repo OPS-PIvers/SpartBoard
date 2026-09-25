@@ -242,8 +242,8 @@ describe('Guided Learning Studio parity with the classic editor', () => {
       within(pulse).getByRole('button', { name: 'Reminder' })
     ).toHaveAttribute('aria-pressed', 'true');
     expect(
-      within(pulse).getByText('Markers shake briefly every few seconds.')
-    ).toBeInTheDocument();
+      within(pulse).getByRole('button', { name: 'Reminder' })
+    ).toHaveAttribute('title', 'Markers shake briefly every few seconds.');
     const saved = await closeAndGetSaved(onSave, onClose);
     expect(saved.hotspotPulse).toBe('reminder');
     expect(saved.imageTransition).toBe('fade');

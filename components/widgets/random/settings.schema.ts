@@ -113,14 +113,12 @@ export default defineSettings<RandomConfig>({
           key: 'soundEnabled',
           type: 'toggle',
           label: 'soundEffects',
-          help: 'soundEffectsHelp',
         },
         {
           key: 'autoStartTimer',
           type: 'partnerWidget',
           label: 'autoStartTimer',
           partner: 'time-tool',
-          missingHelp: 'addTimerHelp',
           visibleWhen: isMode('single'),
           control: {
             key: 'autoStartTimer',

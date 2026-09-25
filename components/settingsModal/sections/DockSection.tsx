@@ -50,9 +50,6 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
       <SettingsSectionHeader
         icon={<Minimize className="w-4 h-4 rotate-90" />}
         title={t('style.dock', { defaultValue: 'Dock' })}
-        description={t('style.dockDescription', {
-          defaultValue: 'Appearance and placement of the widget dock.',
-        })}
       />
 
       {/* Position — account-wide */}

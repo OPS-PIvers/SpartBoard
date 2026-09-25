@@ -25,7 +25,6 @@ const makeCtx = (
       ({
         'widgetSettings.pdf.none': 'None — library is shown',
         'widgetSettings.pdf.switchDocument': 'Switch to another PDF',
-        'widgetSettings.pdf.storageNote': 'Stored in the cloud library.',
       })[key] ?? key,
     surface: 'drawer',
     updateConfig,

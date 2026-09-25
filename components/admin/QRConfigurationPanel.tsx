@@ -61,12 +61,6 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
       </div>
 
       <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-5">
-        <p className="text-xxs text-slate-500 leading-tight">
-          These defaults will pre-configure the QR widget when a teacher in{' '}
-          <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
-          it to their dashboard.
-        </p>
-
         {/* Default URL */}
         <div className="space-y-2">
           <label className="text-xxs font-bold text-slate-700 uppercase flex items-center gap-1.5">

@@ -297,7 +297,6 @@
       "dockLeft": "Gauche",
       "dockRight": "Droite",
       "language": "Langue de l'interface",
-      "languageDescription": "Choisissez votre langue d'affichage préférée pour l'ensemble du tableau.",
       "saveAllChanges": "Enregistrer toutes les modifications"
     },
     "confirmClearBoard": "Êtes-vous sûr de vouloir fermer TOUTES les fenêtres de widgets ?"
@@ -508,20 +507,16 @@
       "description": "Choisissez les sections qui apparaissent dans le tableau de cette Communauté. Tout membre peut mettre à jour ces paramètres.",
       "saveFailed": "Impossible d'enregistrer les paramètres",
       "quizzes": {
-        "title": "Bibliothèque de quiz",
-        "description": "Partagez des quiz avec la Communauté. Les membres peuvent synchroniser les modifications ou copier un quiz dans leur propre bibliothèque."
+        "title": "Bibliothèque de quiz"
       },
       "videoActivities": {
-        "title": "Activités vidéo",
-        "description": "Partagez des activités basées sur la vidéo et agrégez les données de complétion avec la Communauté."
+        "title": "Activités vidéo"
       },
       "notes": {
-        "title": "Notes",
-        "description": "Un carnet de notes partagé pour la Communauté."
+        "title": "Notes"
       },
       "sharedBoards": {
-        "title": "Tableaux partagés",
-        "description": "Affiche les tableaux partagés avec cette Communauté."
+        "title": "Tableaux partagés"
       },
       "digest": {
         "heading": "Notifications",
@@ -752,7 +747,6 @@
       "alreadySharedToast": "« {{title}} » est déjà partagée avec cette Communauté.",
       "shareFailed": "Impossible de partager la grille avec cette Communauté.",
       "sharePickerTitle": "Partager une grille d'évaluation avec cette Communauté",
-      "sharePickerPrompt": "Choisissez une grille dans votre bibliothèque.",
       "sharePickerEmpty": "Vous n'avez pas encore de grille d'évaluation. Créez-en une à partir d'une question rédigée dans l'éditeur de quiz.",
       "pickerMeta": "{{criteria}} critères · {{points}} pts",
       "unshareAction": "Ne plus partager",
@@ -789,7 +783,6 @@
       "unshareConfirm": "Arrêter de partager « {{title}} » avec cette CAP ? Les quiz de vos collègues qui en tirent des questions cesseront de fonctionner ; les copies dans leurs bibliothèques restent utilisables.",
       "unshareFailed": "Impossible d’arrêter le partage de la banque.",
       "sharePickerTitle": "Partager une banque de questions avec cette CAP",
-      "sharePickerPrompt": "Choisissez une banque de votre bibliothèque de quiz.",
       "sharePickerEmpty": "Vous n’avez pas encore de banque de questions. Créez-en une dans l’onglet Banques du widget Quiz.",
       "unshareNotReady": "Vos banques de questions sont encore en cours de chargement. Réessayez dans un instant."
     },
@@ -1550,11 +1543,9 @@
       "alertSound": "Son d'alerte",
       "numberStyle": "Style des chiffres",
       "timerEndAction": "Action à la fin du minuteur",
-      "addExpectationsTip": "Ajoutez un widget « Attentes » pour activer les changements automatiques de niveau sonore à la fin du minuteur !",
       "switchToVoiceLevel": "Passer au niveau sonore à la fin",
       "level": "Niv.",
       "autoSetTrafficLight": "Feu tricolore automatique",
-      "addTrafficLightTip": "Ajoutez un widget Feu tricolore pour activer les changements de couleur automatiques !",
       "stop": "Arrêt",
       "slow": "Lent",
       "go": "Aller",
@@ -1562,19 +1553,15 @@
       "confirmTime": "Confirmer le temps",
       "closeKeypad": "Fermer le clavier",
       "autoPickRandomStudent": "Sélectionner un élève au hasard",
-      "addRandomizerTip": "Ajoutez un widget Randomiseur pour sélectionner automatiquement l'élève suivant à la fin du minuteur.",
       "autoPickNext": "Sélectionner le suivant automatiquement",
       "triggerRandomizerWhenTimerEnds": "Déclencher le Randomiseur à la fin du minuteur",
       "autoRotateStations": "Rotation automatique des stations",
-      "addStationsTip": "Ajoutez un widget Stations pour effectuer une rotation automatique des élèves à la fin du minuteur.",
       "rotateStationsClockwise": "Faire tourner les stations dans le sens horaire",
       "rotateStationsOnEnd": "Déplacer chaque élève d'une station à la fin du minuteur",
       "autoAdvanceNextUpQueue": "Avancer automatiquement la file d'attente",
-      "addNextUpTip": "Ajoutez un widget « Suivant » pour passer automatiquement à l'élève suivant à la fin du minuteur !",
       "autoAdvanceNext": "Avancer automatiquement",
       "advanceQueueOnEnd": "Avancer la file à la fin du minuteur",
       "adjustStep": "Régler le pas",
-      "adjustStepHint": "Appuyez pour ajouter ou soustraire ce temps. Maintenez pour aller plus vite.",
       "adjustStepUnit": "secondes",
       "addTime": "Ajouter du temps",
       "subtractTime": "Soustraire du temps",
@@ -1850,7 +1837,7 @@
     },
     "mediaReview": {
       "title": "Contenus multimédias des élèves",
-      "blurb": "Consultez et supprimez définitivement les réponses enregistrées des élèves pour tous les enseignants de votre organisation. La suppression d'une réponse retire toutes les prises de cette question du Google Drive de l'enseignant.",
+      "blurb": "La suppression retire chaque enregistrement du Drive de l'enseignant.",
       "refresh": "Actualiser",
       "filterTeacher": "Enseignant",
       "allTeachers": "Tous les enseignants",
@@ -2805,7 +2792,7 @@
     "mediaTooLarge": "« {{name}} » est trop volumineux. Les fichiers peuvent faire jusqu’à {{max}} Mo.",
     "autoAdvance": "Passer à la suite après (secondes)",
     "autoAdvanceAuto": "Auto",
-    "autoAdvanceHint": "Pour le mode Guidé. Laissez vide pour laisser le temps de lire ; 0 attend Suivant.",
+    "autoAdvanceHint": "Mode guidé uniquement. 0 attend Suivant.",
     "hideMarker": "Toujours masquer le repère",
     "hideMarkerHint": "Les élèves ne voient jamais le repère. Utile en mode Explorer quand ils doivent trouver l’endroit eux-mêmes.",
     "questionType": "Type de question",
@@ -2843,13 +2830,12 @@
     "mode_structured": "Structuré",
     "mode_guided": "Guidé",
     "mode_explore": "Explorer",
-    "modeDesc_structured": "Les élèves avancent étape par étape. Cliquer sur la zone en surbrillance ou sur Suivant fait avancer.",
-    "modeDesc_guided": "Le curseur montre chaque étape et avance tout seul.",
-    "modeDesc_explore": "Les élèves cliquent sur n’importe quelle étape, dans n’importe quel ordre.",
+    "modeDesc_structured": "Les élèves avancent étape par étape.",
+    "modeDesc_guided": "Lit chaque étape automatiquement.",
+    "modeDesc_explore": "Les élèves ouvrent les étapes dans n'importe quel ordre.",
     "watchPace": "Rythme guidé",
     "pace_standard": "Standard",
     "pace_calm": "Calme",
-    "paceDesc_standard": "Chaque étape reste affichée assez longtemps pour être lue.",
     "paceDesc_calm": "Chaque étape reste affichée environ un tiers plus longtemps.",
     "welcomeToggle": "Afficher un écran d’accueil",
     "welcomeHint": "Les élèves voient votre message avant de commencer, et le bouton Commencer devient « C’est parti ».",
@@ -2865,14 +2851,10 @@
     "pulse_off": "Désactivée",
     "pulseDesc_consistent": "Les repères pulsent doucement en permanence.",
     "pulseDesc_reminder": "Les repères bougent brièvement toutes les quelques secondes.",
-    "pulseDesc_off": "Les repères restent immobiles.",
     "transition": "Transition entre diapositives",
     "transition_none": "Aucune",
     "transition_slide": "Glissement",
     "transition_fade": "Fondu",
-    "transitionDesc_none": "Les diapositives changent instantanément.",
-    "transitionDesc_slide": "La diapositive suivante arrive par la droite.",
-    "transitionDesc_fade": "Les diapositives se fondent l’une dans l’autre.",
     "trimStart": "Début de la découpe",
     "trimEnd": "Fin de la découpe",
     "trimReset": "Réinitialiser",
@@ -3090,7 +3072,6 @@
     "profileAndSettings": "Profil et paramètres",
     "profile": {
       "title": "Profil",
-      "description": "Où et ce que vous enseignez. Les niveaux et les domaines filtrent les standards et les objectifs d'apprentissage pour ne montrer que ce qui vous concerne.",
       "gradesTaught": "Niveaux enseignés",
       "gradesTaughtDescription": "Part de vos bâtiments. Désélectionnez les niveaux que vous n'enseignez pas pour restreindre les standards, les objectifs et les widgets par niveau.",
       "resetGrades": "Rétablir la valeur du bâtiment",
@@ -3100,8 +3081,7 @@
     }
   },
   "quizHandRaise": {
-    "label": "Autoriser les élèves à lever la main",
-    "help": "Les élèves disposent d’un bouton pour lever la main pendant le quiz."
+    "label": "Autoriser les élèves à lever la main"
   },
   "quizAdmin": {
     "title": "Administration des quiz",

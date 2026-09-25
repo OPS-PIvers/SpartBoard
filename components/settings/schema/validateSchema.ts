@@ -93,11 +93,6 @@ export function validateSchema<C = Record<string, unknown>>(
     const fields = (group.fields as ReadonlyArray<Field>).flatMap(
       (field): Field[] => {
         if (field.type !== 'partnerWidget') return [field];
-        if (!resolves(catalog, type, field.missingHelp)) {
-          errors.push(
-            `${type}: missingHelp "${field.missingHelp}" resolves to neither widgetSettings.${type}.${field.missingHelp} nor widgetSettings.common.${field.missingHelp}`
-          );
-        }
         if (field.control.key !== field.key) {
           errors.push(
             `${type}: partner card "${field.key}" wraps a control keyed "${field.control.key}"; keys must match`

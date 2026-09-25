@@ -127,7 +127,7 @@ export const RolesView: React.FC<Props> = ({
     <div>
       <ViewHeader
         title="Roles & permissions"
-        blurb="Define what each role can do. Click editable cells to cycle through Full, Own-building, and No access."
+        blurb="Click a cell to change access."
         actions={
           <>
             <Btn

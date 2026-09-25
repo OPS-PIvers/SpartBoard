@@ -291,7 +291,6 @@ export const UsersView: React.FC<Props> = ({
     <div>
       <ViewHeader
         title="Users"
-        blurb="Invite, assign, and deactivate people across your district."
         actions={
           canManageUsers ? (
             <>

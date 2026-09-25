@@ -115,12 +115,6 @@ export const PollConfigurationPanel: React.FC<PollConfigurationPanelProps> = ({
       </div>
 
       <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-4">
-        <p className="text-xxs text-slate-500 leading-tight">
-          These defaults will pre-populate the Poll widget when a teacher in{' '}
-          <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> adds
-          it to their dashboard.
-        </p>
-
         {/* Default Question */}
         <div>
           <label className="text-xxs font-bold text-slate-500 uppercase block mb-1">

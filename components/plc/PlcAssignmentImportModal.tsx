@@ -1,27 +1,10 @@
-/**
- * PlcAssignmentImportModal — picker shown when a teacher clicks "Add to
- * my board" on a row in the PLC Assignments → Library sub-tab. Lets them
- * choose:
- *
- *  - Sync — imports the template's settings AND joins the canonical
- *    synced quiz group, so future edits any teammate makes to the source
- *    quiz appear on this teacher's library card with a Sync available
- *    pill. Recommended for PLC work where members want to keep their
- *    copies in lockstep.
- *
- *  - Make a copy — frozen one-time snapshot of the current settings.
- *    Future edits by other PLC members won't appear; the teacher's own
- *    edits stay private.
- *
- * Mirrors `PlcQuizImportModal.tsx` exactly (same Modal primitive, same
- * two ModeOption buttons) so the UX stays consistent across PLC entry
- * points.
- */
+// Sync-or-copy picker for adding a PLC assignment template to your board.
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { ClipboardList, Cloud, Copy, X } from 'lucide-react';
+import { ClipboardList, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { PlcImportModeOptions } from './PlcImportModeOptions';
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 
 interface PlcAssignmentImportModalProps {
@@ -32,49 +15,6 @@ interface PlcAssignmentImportModalProps {
   onPick: (mode: SharedAssignmentImportMode) => void;
   onClose: () => void;
 }
-
-interface ModeOptionProps {
-  mode: SharedAssignmentImportMode;
-  title: string;
-  body: string;
-  Icon: React.ComponentType<{ className?: string }>;
-  recommended?: boolean;
-  recommendedLabel: string;
-  onPick: (mode: SharedAssignmentImportMode) => void;
-}
-
-const ModeOption: React.FC<ModeOptionProps> = ({
-  mode,
-  title,
-  body,
-  Icon,
-  recommended,
-  recommendedLabel,
-  onPick,
-}) => (
-  <button
-    type="button"
-    onClick={() => onPick(mode)}
-    className="w-full text-left rounded-xl border border-slate-200 bg-white px-4 py-4 transition-all hover:border-brand-blue-primary hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
-  >
-    <div className="flex items-start gap-3">
-      <div className="shrink-0 w-10 h-10 rounded-lg bg-brand-blue-lighter/40 text-brand-blue-primary flex items-center justify-center">
-        <Icon className="w-5 h-5" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
-          {recommended && (
-            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-              {recommendedLabel}
-            </span>
-          )}
-        </div>
-        <p className="mt-1 text-xs text-slate-600 leading-relaxed">{body}</p>
-      </div>
-    </div>
-  </button>
-);
 
 export const PlcAssignmentImportModal: React.FC<
   PlcAssignmentImportModalProps
@@ -128,40 +68,10 @@ export const PlcAssignmentImportModal: React.FC<
       <div className="px-5 pb-5 pt-4 space-y-3">
         <p className="text-xs text-slate-600">
           {t('plcDashboard.assignmentImportModal.prompt', {
-            defaultValue:
-              'How should this assignment be imported onto your board? The new assignment lands paused so you can pick rosters before going live.',
+            defaultValue: 'The assignment arrives paused.',
           })}
         </p>
-        <ModeOption
-          mode="sync"
-          title={t('plcDashboard.assignmentImportModal.syncTitle', {
-            defaultValue: 'Synced',
-          })}
-          body={t('plcDashboard.assignmentImportModal.syncBody', {
-            defaultValue:
-              'Stay connected to the PLC version of the source quiz. Edits any teammate publishes show up on your library card with a Sync available pill.',
-          })}
-          Icon={Cloud}
-          recommended
-          recommendedLabel={t(
-            'plcDashboard.assignmentImportModal.recommendedLabel',
-            { defaultValue: 'Recommended for PLCs' }
-          )}
-          onPick={onPick}
-        />
-        <ModeOption
-          mode="copy"
-          title={t('plcDashboard.assignmentImportModal.copyTitle', {
-            defaultValue: 'Make a copy',
-          })}
-          body={t('plcDashboard.assignmentImportModal.copyBody', {
-            defaultValue:
-              'Take a frozen snapshot of the current settings. Future edits by other PLC members will not appear in your copy, and your edits stay private.',
-          })}
-          Icon={Copy}
-          recommendedLabel=""
-          onPick={onPick}
-        />
+        <PlcImportModeOptions onPick={onPick} />
       </div>
     </Modal>
   );

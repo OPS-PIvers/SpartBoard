@@ -277,6 +277,7 @@ export const FeatureConfigurationPanel: React.FC<
                           },
                         })
                       }
+                      title="Each teacher fetches weather directly. Uses more API calls."
                       className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
                         config.fetchingStrategy === 'client' ||
                         !config.fetchingStrategy
@@ -295,6 +296,7 @@ export const FeatureConfigurationPanel: React.FC<
                           },
                         })
                       }
+                      title="Fetched once for all teachers. Saves API calls."
                       className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
                         config.fetchingStrategy === 'admin_proxy'
                           ? 'bg-brand-blue-primary text-white shadow-sm'
@@ -304,13 +306,6 @@ export const FeatureConfigurationPanel: React.FC<
                       Admin Proxy
                     </button>
                   </div>
-                  <p className="text-xxs text-slate-400 mt-1">
-                    <strong>Client:</strong> Each user fetches data directly
-                    (higher API usage).
-                    <br />
-                    <strong>Admin Proxy:</strong> Admin fetches data, users sync
-                    from database (saves API calls).
-                  </p>
                 </div>
 
                 {config.fetchingStrategy === 'admin_proxy' && (

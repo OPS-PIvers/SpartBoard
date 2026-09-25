@@ -121,11 +121,8 @@ describe('wave 13 settings-drawer widget migrations', () => {
   it('shows the admin-managed notice for Catalyst on the legacy panel', async () => {
     render(<SchemaSettingsFallback widget={widgetOf('catalyst')} />);
     expect(
-      await screen.findByText(
-        'Catalyst routines and categories are managed for all classrooms by your district administrator.'
-      )
+      await screen.findByRole('note', { name: 'Admin managed' })
     ).toBeInTheDocument();
-    expect(screen.getByText('Admin managed')).toBeInTheDocument();
   });
 
   it('shows the Mini App hint on the legacy panel', async () => {

@@ -32,8 +32,6 @@ interface FeatureRow {
   icon: typeof BookOpen;
   titleKey: string;
   titleDefault: string;
-  descriptionKey: string;
-  descriptionDefault: string;
 }
 
 const FEATURE_ROWS: readonly FeatureRow[] = [
@@ -42,43 +40,30 @@ const FEATURE_ROWS: readonly FeatureRow[] = [
     icon: BookOpen,
     titleKey: 'plcDashboard.settings.quizzes.title',
     titleDefault: 'Quiz Library',
-    descriptionKey: 'plcDashboard.settings.quizzes.description',
-    descriptionDefault:
-      'Share quizzes with the PLC. Members can sync edits or copy a quiz into their own library.',
   },
   {
     key: 'videoActivities',
     icon: Film,
     titleKey: 'plcDashboard.settings.videoActivities.title',
     titleDefault: 'Video Activities',
-    descriptionKey: 'plcDashboard.settings.videoActivities.description',
-    descriptionDefault:
-      'Share video-based activities and aggregate completion data with the PLC.',
   },
   {
     key: 'notes',
     icon: StickyNote,
     titleKey: 'plcDashboard.settings.notes.title',
     titleDefault: 'Notes',
-    descriptionKey: 'plcDashboard.settings.notes.description',
-    descriptionDefault: 'A shared notebook for the PLC.',
   },
   {
     key: 'sharedBoards',
     icon: SquareSquare,
     titleKey: 'plcDashboard.settings.sharedBoards.title',
     titleDefault: 'Shared Boards',
-    descriptionKey: 'plcDashboard.settings.sharedBoards.description',
-    descriptionDefault: 'Surface dashboards shared with the PLC.',
   },
   {
     key: 'printForTeammates',
     icon: Printer,
     titleKey: 'plcDashboard.settings.printForTeammates.title',
     titleDefault: 'Print response sheets for a teammate',
-    descriptionKey: 'plcDashboard.settings.printForTeammates.description',
-    descriptionDefault:
-      'Let a member print paper response sheets for a colleague who is out. The colleague still scans and grades their own stack, and sees who printed it. Turn this off for the whole PLC.',
   },
 ] as const;
 
@@ -191,7 +176,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
               key={row.key}
               onClick={() => void handleToggle(row.key)}
               disabled={anyBusy}
-              className={`flex items-start gap-3 p-3 bg-white border rounded-xl text-left transition-colors ${
+              className={`flex items-center gap-3 p-3 bg-white border rounded-xl text-left transition-colors ${
                 enabled
                   ? 'border-brand-blue-light/60 hover:border-brand-blue-primary'
                   : 'border-slate-200 hover:border-slate-300'
@@ -209,11 +194,6 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-bold text-slate-800">
                   {t(row.titleKey, { defaultValue: row.titleDefault })}
-                </div>
-                <div className="text-xxs text-slate-500 leading-relaxed mt-0.5">
-                  {t(row.descriptionKey, {
-                    defaultValue: row.descriptionDefault,
-                  })}
                 </div>
               </div>
               <div

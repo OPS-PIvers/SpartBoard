@@ -26,10 +26,6 @@ export const LanguageSection: React.FC = () => {
       <SettingsSectionHeader
         icon={<Globe className="w-4 h-4" />}
         title={t('sidebar.settings.language', { defaultValue: 'Language' })}
-        description={t('sidebar.settings.languageDescription', {
-          defaultValue:
-            'Choose your preferred display language for the entire board.',
-        })}
         scopeLabel={t('settings.scopeAllBoards', {
           defaultValue: 'All boards',
         })}

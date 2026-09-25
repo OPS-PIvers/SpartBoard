@@ -3,19 +3,14 @@ import React from 'react';
 interface SettingsSectionHeaderProps {
   icon: React.ReactNode;
   title: string;
-  description?: string;
   /** Optional scope chip (e.g. "This board" / "All boards"), already localized. */
   scopeLabel?: string;
 }
 
-// Shared header for every Settings section so the rail's detail pane reads
-// consistently: icon tile + title, an optional scope chip on the right that
-// tells teachers whether a change follows them across boards, and an optional
-// one-line description.
+// Shared Settings section header: icon tile, title and an optional scope chip.
 export const SettingsSectionHeader: React.FC<SettingsSectionHeaderProps> = ({
   icon,
   title,
-  description,
   scopeLabel,
 }) => (
   <div className="mb-5">
@@ -30,10 +25,5 @@ export const SettingsSectionHeader: React.FC<SettingsSectionHeaderProps> = ({
         </span>
       )}
     </div>
-    {description && (
-      <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-        {description}
-      </p>
-    )}
   </div>
 );

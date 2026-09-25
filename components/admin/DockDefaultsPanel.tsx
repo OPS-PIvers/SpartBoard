@@ -35,15 +35,9 @@ export const DockDefaultsPanel: React.FC<DockDefaultsPanelProps> = ({
     <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-4 mb-6">
       <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
         <Layout className="w-4 h-4 text-brand-blue-primary" />
-        <div>
-          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest">
-            Dock Defaults
-          </h4>
-          <p className="text-xxs text-slate-500 mt-0.5">
-            Select which buildings should have this widget on the dock by
-            default for new users.
-          </p>
-        </div>
+        <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest">
+          Dock Defaults
+        </h4>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

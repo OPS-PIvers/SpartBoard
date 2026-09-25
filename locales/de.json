@@ -297,7 +297,6 @@
       "dockLeft": "Links",
       "dockRight": "Rechts",
       "language": "Oberflächensprache",
-      "languageDescription": "Wähle deine bevorzugte Anzeigesprache für die gesamte Tafel.",
       "saveAllChanges": "Alle Änderungen speichern"
     },
     "confirmClearBoard": "Bist du sicher, dass du ALLE Widget-Fenster schließen möchtest?"
@@ -508,20 +507,16 @@
       "description": "Wähle, welche Bereiche im Dashboard dieser PLG angezeigt werden. Jedes PLG-Mitglied kann diese Einstellungen ändern.",
       "saveFailed": "Einstellungen konnten nicht gespeichert werden",
       "quizzes": {
-        "title": "Quiz-Bibliothek",
-        "description": "Teile Quizze mit der PLG. Mitglieder können Bearbeitungen synchronisieren oder ein Quiz in ihre eigene Bibliothek kopieren."
+        "title": "Quiz-Bibliothek"
       },
       "videoActivities": {
-        "title": "Videoaktivitäten",
-        "description": "Teile videobasierte Aktivitäten und aggregiere Abschlussdaten mit der PLG."
+        "title": "Videoaktivitäten"
       },
       "notes": {
-        "title": "Notizen",
-        "description": "Ein geteiltes Notizbuch für die PLG."
+        "title": "Notizen"
       },
       "sharedBoards": {
-        "title": "Geteilte Tafeln",
-        "description": "Zeigt Tafeln, die mit dieser PLG geteilt wurden."
+        "title": "Geteilte Tafeln"
       },
       "digest": {
         "heading": "Benachrichtigungen",
@@ -752,7 +747,6 @@
       "alreadySharedToast": "„{{title}}“ ist bereits mit dieser PLG geteilt.",
       "shareFailed": "Bewertungsraster konnte nicht mit dieser PLG geteilt werden.",
       "sharePickerTitle": "Ein Bewertungsraster mit dieser PLG teilen",
-      "sharePickerPrompt": "Wähle ein Bewertungsraster aus deiner Bibliothek.",
       "sharePickerEmpty": "Du hast noch keine Bewertungsraster. Erstelle eines aus einer offenen Frage im Quiz-Editor.",
       "pickerMeta": "{{criteria}} Kriterien · {{points}} Pkt.",
       "unshareAction": "Freigabe aufheben",
@@ -789,7 +783,6 @@
       "unshareConfirm": "„{{title}}“ nicht mehr mit dieser PLG teilen? Quizze von Kolleg:innen, die daraus ziehen, funktionieren dann nicht mehr; Kopien in ihren Bibliotheken bleiben erhalten.",
       "unshareFailed": "Teilen des Fragenpools konnte nicht beendet werden.",
       "sharePickerTitle": "Fragenpool mit dieser PLG teilen",
-      "sharePickerPrompt": "Wähle einen Pool aus deiner Quiz-Bibliothek.",
       "sharePickerEmpty": "Du hast noch keine Fragenpools. Erstelle einen im Tab „Pools“ des Quiz-Widgets.",
       "unshareNotReady": "Deine Fragenpools werden noch geladen. Versuche es gleich noch einmal."
     },
@@ -1550,11 +1543,9 @@
       "alertSound": "Benachrichtigungston",
       "numberStyle": "Zahlenstil",
       "timerEndAction": "Aktion bei Timer-Ende",
-      "addExpectationsTip": "Füge ein \"Erwartungen\"-Widget hinzu, um automatische Lautstärke-Änderungen beim Timer-Ende zu aktivieren!",
       "switchToVoiceLevel": "Beim Beenden zu Lautstärkestufe wechseln",
       "level": "Stufe",
       "autoSetTrafficLight": "Ampel automatisch setzen",
-      "addTrafficLightTip": "Füge ein Ampel-Widget hinzu, um automatische Farbwechsel zu aktivieren!",
       "stop": "Stopp",
       "slow": "Langsam",
       "go": "Los",
@@ -1562,19 +1553,15 @@
       "confirmTime": "Zeit bestätigen",
       "closeKeypad": "Tastatur schließen",
       "autoPickRandomStudent": "Automatisch zufälligen Schüler auswählen",
-      "addRandomizerTip": "Füge ein Zufallsgenerator-Widget hinzu, um beim Timer-Ende automatisch den nächsten Schüler auszuwählen.",
       "autoPickNext": "Nächsten automatisch auswählen",
       "triggerRandomizerWhenTimerEnds": "Zufallsgenerator beim Timer-Ende auslösen",
       "autoRotateStations": "Stationen automatisch rotieren",
-      "addStationsTip": "Füge ein Stationen-Widget hinzu, um Schüler automatisch zu rotieren, wenn dieser Timer endet.",
       "rotateStationsClockwise": "Stationen im Uhrzeigersinn rotieren",
       "rotateStationsOnEnd": "Jeden Schüler eine Station weiterrücken, wenn der Timer endet",
       "autoAdvanceNextUpQueue": "Nächste-Warteschlange automatisch vorrücken",
-      "addNextUpTip": "Füge ein \"Nächster\"-Widget hinzu, um beim Timer-Ende automatisch zum nächsten Schüler zu wechseln!",
       "autoAdvanceNext": "Automatisch weiter",
       "advanceQueueOnEnd": "Warteschlange beim Timer-Ende vorrücken",
       "adjustStep": "Schrittweite anpassen",
-      "adjustStepHint": "Tippen, um diese Zeit hinzuzufügen oder abzuziehen. Gedrückt halten für schnelleres Hinzufügen.",
       "adjustStepUnit": "Sekunden",
       "addTime": "Zeit hinzufügen",
       "subtractTime": "Zeit abziehen",
@@ -1850,7 +1837,7 @@
     },
     "mediaReview": {
       "title": "Schülermedien",
-      "blurb": "Überprüfe und lösche aufgezeichnete Schülerantworten dauerhaft für alle Lehrkräfte deiner Organisation. Das Löschen einer Antwort entfernt jede Aufnahme dieser Frage aus dem Google Drive der Lehrkraft.",
+      "blurb": "Beim Löschen werden alle Aufnahmen aus dem Drive der Lehrkraft entfernt.",
       "refresh": "Aktualisieren",
       "filterTeacher": "Lehrkraft",
       "allTeachers": "Alle Lehrkräfte",
@@ -2805,7 +2792,7 @@
     "mediaTooLarge": "„{{name}}“ ist zu groß. Dateien dürfen bis zu {{max}} MB groß sein.",
     "autoAdvance": "Weiter nach (Sekunden)",
     "autoAdvanceAuto": "Auto",
-    "autoAdvanceHint": "Für den geführten Modus. Leer lassen für Lesezeit; 0 wartet auf Weiter.",
+    "autoAdvanceHint": "Nur im geführten Modus. 0 wartet auf Weiter.",
     "hideMarker": "Markierung immer ausblenden",
     "hideMarkerHint": "Die Lernenden sehen die Markierung nie. Nützlich im Modus Erkunden, wenn sie die Stelle selbst finden sollen.",
     "questionType": "Fragetyp",
@@ -2843,13 +2830,12 @@
     "mode_structured": "Strukturiert",
     "mode_guided": "Geführt",
     "mode_explore": "Erkunden",
-    "modeDesc_structured": "Die Lernenden gehen Schritt für Schritt vor. Ein Klick auf die markierte Stelle oder auf Weiter geht weiter.",
-    "modeDesc_guided": "Der Cursor zeigt jeden Schritt und geht von selbst weiter.",
-    "modeDesc_explore": "Die Lernenden klicken beliebige Schritte in beliebiger Reihenfolge an.",
+    "modeDesc_structured": "Schüler klicken sich Schritt für Schritt durch.",
+    "modeDesc_guided": "Spielt jeden Schritt automatisch ab.",
+    "modeDesc_explore": "Schüler klicken Schritte in beliebiger Reihenfolge an.",
     "watchPace": "Tempo im geführten Modus",
     "pace_standard": "Standard",
     "pace_calm": "Ruhig",
-    "paceDesc_standard": "Jeder Schritt bleibt lange genug zum Lesen stehen.",
     "paceDesc_calm": "Jeder Schritt bleibt etwa ein Drittel länger stehen.",
     "welcomeToggle": "Begrüßungsbildschirm anzeigen",
     "welcomeHint": "Die Lernenden sehen Ihre Nachricht vor dem Start, und die Start-Schaltfläche heißt „Los geht’s“.",
@@ -2865,14 +2851,10 @@
     "pulse_off": "Aus",
     "pulseDesc_consistent": "Markierungen pulsieren die ganze Zeit sanft.",
     "pulseDesc_reminder": "Markierungen wackeln alle paar Sekunden kurz.",
-    "pulseDesc_off": "Markierungen bleiben still.",
     "transition": "Folienübergang",
     "transition_none": "Keiner",
     "transition_slide": "Schieben",
     "transition_fade": "Überblenden",
-    "transitionDesc_none": "Folien wechseln sofort.",
-    "transitionDesc_slide": "Die nächste Folie gleitet von rechts herein.",
-    "transitionDesc_fade": "Folien werden überblendet.",
     "trimStart": "Anfang des Zuschnitts",
     "trimEnd": "Ende des Zuschnitts",
     "trimReset": "Zurücksetzen",
@@ -3090,7 +3072,6 @@
     "profileAndSettings": "Profil & Einstellungen",
     "profile": {
       "title": "Profil",
-      "description": "Wo und was Sie unterrichten. Klassenstufen und Fachbereiche filtern Standards und Lernziele, damit Sie nur sehen, was für Sie gilt.",
       "gradesTaught": "Unterrichtete Klassenstufen",
       "gradesTaughtDescription": "Beginnt mit Ihren Gebäuden. Wählen Sie Klassenstufen ab, die Sie nicht unterrichten, um Standards, Lernziele und stufenspezifische Widgets einzugrenzen.",
       "resetGrades": "Auf Gebäudestandard zurücksetzen",
@@ -3100,8 +3081,7 @@
     }
   },
   "quizHandRaise": {
-    "label": "Schülern erlauben, sich zu melden",
-    "help": "Schüler erhalten während des Quiz eine Schaltfläche zum Melden."
+    "label": "Schülern erlauben, sich zu melden"
   },
   "quizAdmin": {
     "title": "Quiz-Verwaltung",

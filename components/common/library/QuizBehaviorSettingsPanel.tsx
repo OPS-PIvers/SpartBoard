@@ -14,7 +14,6 @@
 
 import React, { useContext } from 'react';
 import { useTranslation } from 'react-i18next';
-import { User, Zap, Clock } from 'lucide-react';
 import type { QuizBehaviorSettings, QuizSessionMode } from '@/types';
 import {
   DEFAULT_QUIZ_HAND_RAISE_MODE,
@@ -26,6 +25,7 @@ import { AssignmentSettingsToggleGroup } from './AssignmentSettingsToggleGroup';
 import { CollapsibleSection } from './CollapsibleSection';
 import { ToggleRow } from './AssignmentSettingsToggleGroup';
 import type { AssignModeOption } from './types';
+import { SESSION_MODES } from './sessionModes';
 
 export interface QuizBehaviorSettingsPanelProps {
   value: QuizBehaviorSettings;
@@ -41,27 +41,6 @@ export interface QuizBehaviorSettingsPanelProps {
   handRaiseMode?: QuizHandRaiseMode;
 }
 
-const MODES_BASE: Omit<AssignModeOption, 'disabled'>[] = [
-  {
-    id: 'teacher',
-    label: 'Teacher-paced',
-    description: 'You control when to move to the next question.',
-    icon: User,
-  },
-  {
-    id: 'auto',
-    label: 'Auto-progress',
-    description: 'Moves automatically once everyone has answered.',
-    icon: Zap,
-  },
-  {
-    id: 'student',
-    label: 'Self-paced',
-    description: 'Students move through questions at their own speed.',
-    icon: Clock,
-  },
-];
-
 export const QuizBehaviorSettingsPanel: React.FC<
   QuizBehaviorSettingsPanelProps
 > = ({
@@ -75,7 +54,7 @@ export const QuizBehaviorSettingsPanel: React.FC<
   // Read via context so a provider-less host hides the row instead of throwing.
   const tabAwayTimerOn =
     useContext(AuthContext)?.canAccessFeature?.('tab-away-timer') === true;
-  const modes: AssignModeOption[] = MODES_BASE.map((m) => ({
+  const modes: AssignModeOption[] = SESSION_MODES.map((m) => ({
     ...m,
     disabled: modeLocked,
   }));
@@ -124,9 +103,11 @@ export const QuizBehaviorSettingsPanel: React.FC<
                   <p className="font-black text-sm text-slate-800 leading-tight">
                     {mode.label}
                   </p>
-                  <p className="text-xs text-slate-500 mt-0.5 leading-snug">
-                    {mode.description}
-                  </p>
+                  {mode.description && (
+                    <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                      {mode.description}
+                    </p>
+                  )}
                 </div>
               </button>
             );
@@ -207,10 +188,6 @@ export const QuizBehaviorSettingsPanel: React.FC<
                     },
                   })
                 }
-                hint={t(
-                  'quizHandRaise.help',
-                  'Students get a Raise hand button while taking the quiz.'
-                )}
               />
             )}
             {readAloudAvailable && (
@@ -258,7 +235,6 @@ export const QuizBehaviorSettingsPanel: React.FC<
                     },
                   })
                 }
-                hint="Multiplier for consecutive correct answers"
               />
               <ToggleRow
                 compact
@@ -275,7 +251,6 @@ export const QuizBehaviorSettingsPanel: React.FC<
                     },
                   })
                 }
-                hint="Show top 3 leaderboard after each question"
               />
               <ToggleRow
                 compact
@@ -290,7 +265,6 @@ export const QuizBehaviorSettingsPanel: React.FC<
                     },
                   })
                 }
-                hint="Chimes, ticks, and fanfares during the quiz"
               />
             </CollapsibleSection>
           </>

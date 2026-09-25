@@ -92,13 +92,11 @@ describe('wave 10 settings-drawer widget migrations', () => {
       key: 'schedules',
       partner: 'calendar',
       section: 'connections',
-      missingHelp: 'addCalendarTip',
     });
     expect(recessGearPartner?.field).toMatchObject({
       key: 'linkedWeatherWidgetId',
       partner: 'weather',
       section: 'connections',
-      missingHelp: 'addWeatherTip',
     });
   });
 });
