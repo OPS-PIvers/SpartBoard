@@ -149,7 +149,7 @@ describe('paperWrittenView', () => {
 
   it('treats a crop without a transcript state as pending', () => {
     const view = paperWrittenView(
-      { questionId: 'q1', answer: '', answeredAt: 1, artifacts: [crop] },
+      { answer: '', artifacts: [crop] },
       null,
       'both'
     );
