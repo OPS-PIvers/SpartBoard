@@ -83,6 +83,8 @@ export interface CreateTeammatePaperBatchRequest {
   plcQuizId: string;
   selections: TeammatePrintSelection[];
   spareCount: number;
+  /** Print free-response questions as handwritten boxes; the server also checks the caller's feature. */
+  written?: boolean;
 }
 
 export interface CreateTeammatePaperBatchResult {

@@ -540,6 +540,9 @@ function sheetReprintHtml(
       ...(reprint.questionTexts
         ? { questionTexts: reprint.questionTexts }
         : {}),
+      ...(reprint.pageMaps
+        ? { pageMaps: reprint.pageMaps, writtenTexts: reprint.writtenTexts }
+        : {}),
     },
     reprint.pageCount,
     sheetFillFor(reprint, {

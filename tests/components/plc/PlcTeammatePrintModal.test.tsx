@@ -13,6 +13,11 @@ import type { PaperPrintJob } from '@/utils/paperSheetPrint';
 import { driveImageUrl } from '@/utils/quizStimuli';
 import type { TeammatePrintContext } from '@/hooks/usePlcTeammatePrintContext';
 
+/** Features the signed-in teacher has; empty means handwritten boxes are off. */
+const features = new Set<string>();
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: (id: string) => features.has(id) }),
+}));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     i18n: { language: 'en' },
@@ -185,6 +190,7 @@ beforeEach(() => {
     }
   );
   requested.mockClear();
+  features.clear();
   print.mockReset();
   printTest.mockReset();
   createBatch.mockReset();
@@ -387,6 +393,7 @@ describe('PlcTeammatePrintModal — printing', () => {
       plcQuizId: 'plc-quiz-1',
       selections: [{ rosterId: 'r1', studentIds: ['s2'] }],
       spareCount: 2,
+      written: false,
     });
     const sent = createBatch.mock.calls[0][0] as Record<string, unknown>;
     expect(sent).not.toHaveProperty('seats');
@@ -404,6 +411,48 @@ describe('PlcTeammatePrintModal — printing', () => {
         printedForTeacherName: 'Bob Teacher',
       })
     );
+  });
+
+  it('asks for handwritten boxes and prints the page maps with their stems', async () => {
+    features.add('paper-handwritten-responses');
+    const pageMaps = [
+      {
+        page: 1,
+        grid: 2 as const,
+        items: [
+          {
+            kind: 'mc' as const,
+            questionId: 'q1',
+            sheetRow: 0,
+            label: '1',
+            originMm: { x: 24, y: 58 },
+          },
+          {
+            kind: 'written' as const,
+            questionId: 'q2',
+            label: '2',
+            headerMm: { x: 24, y: 66, w: 154, h: 13 },
+            boxMm: { x: 38, y: 79, w: 140, h: 48 },
+            lines: 6,
+          },
+        ],
+      },
+    ];
+    createBatch.mockResolvedValue({
+      ...PRINTED,
+      batch: { ...PRINTED.batch, layoutVersion: 2, pageMaps },
+      testPaper: [
+        { row: 1, text: 'Q1', choices: ['a', 'b'] },
+        { row: 2, text: 'Explain Q2', choices: [], written: true },
+      ],
+    });
+    await printBobsPeriod1();
+    expect(createBatch.mock.calls[0][0]).toMatchObject({ written: true });
+    await waitFor(() => expect(print).toHaveBeenCalled());
+    expect(print.mock.calls[0][0]).toMatchObject({
+      pageMaps,
+      writtenTexts: { q2: 'Explain Q2' },
+    });
   });
 
   it('offers the matching test paper once the sheets are out', async () => {
