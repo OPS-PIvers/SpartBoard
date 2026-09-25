@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { isDeprecatedGeminiModelId } from '@/utils/geminiModelDeprecation';
-import { KNOWN_GEMINI_MODELS } from '@/components/admin/GlobalPermissionsManager';
+import { KNOWN_GEMINI_MODELS } from '@/config/geminiModels';
 
 // Mirrors functions/src/normalizeModelName.test.ts — divergence means the admin panel contradicts the server.
 describe('isDeprecatedGeminiModelId', () => {

@@ -80,6 +80,7 @@ import {
 import { logError } from '@/utils/logError';
 import {
   FEATURE_DEFAULTS,
+  isAdminPreviewFeature,
   getWidgetDefaultAccessLevel,
   WIDGET_DEFAULT_MIN_TIER,
 } from '@/config/featureDefaults';
@@ -3006,14 +3007,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       );
 
       // Per-feature default from the single FEATURE_DEFAULTS table.
-      // `missingDocPublic: true` (the historical baseline) returns true
-      // when no doc exists; `false` keeps the feature off until an
-      // admin explicitly persists settings — used for features that
-      // depend on external config (OAuth, API keys) the code can't
-      // verify on its own.
+      // `missingDocPublic: false` keeps it off until saved, except preview flags admins get first.
       if (!permission) {
         const def = FEATURE_DEFAULTS[featureId];
-        if (!def.missingDocPublic) return false;
+        if (!def.missingDocPublic)
+          return isAdmin === true && isAdminPreviewFeature(featureId);
         // Admins bypass the tier floor (same as the accessLevel bypass in
         // resolvePermissionAccess). For everyone else, apply the in-code
         // default tier floor (docs/wide-distro-plan.md Phase 3): a

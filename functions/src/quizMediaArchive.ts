@@ -24,6 +24,7 @@ import * as os from 'os';
 import * as path from 'path';
 import ffmpegStatic from 'ffmpeg-static';
 import ffmpeg from 'fluent-ffmpeg';
+import { adminPassesMissingDoc } from './featureMissingDoc';
 import {
   ALLOWED_ORIGINS,
   normalizeEmailDomain,
@@ -571,7 +572,7 @@ export async function isQuizMediaResponseGranted(
   );
 }
 
-/** Same fail-closed gate for any `global_permissions/{featureId}` record. */
+/** Same gate for any `global_permissions/{featureId}` record; missing docs pass only admins on preview flags. */
 export async function isGlobalFeatureGranted(
   db: Firestore,
   featureId: string,
@@ -579,14 +580,13 @@ export async function isGlobalFeatureGranted(
   teacherUid: string
 ): Promise<boolean> {
   const snap = await db.collection('global_permissions').doc(featureId).get();
-  if (!snap.exists) return false;
+  const email = (teacherEmail ?? '').toLowerCase();
+  const isAdmin = async (): Promise<boolean> =>
+    !!email && (await db.collection('admins').doc(email).get()).exists;
+  if (!snap.exists) return adminPassesMissingDoc(featureId) && isAdmin();
   const data = snap.data() ?? {};
   if (data.enabled !== true) return false;
-  const email = (teacherEmail ?? '').toLowerCase();
-  if (email) {
-    const adminSnap = await db.collection('admins').doc(email).get();
-    if (adminSnap.exists) return true;
-  }
+  if (await isAdmin()) return true;
   if (data.accessLevel === 'beta') {
     if (!email) return false;
     const betaUsers = Array.isArray(data.betaUsers) ? data.betaUsers : [];

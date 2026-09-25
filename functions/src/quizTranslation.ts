@@ -27,6 +27,7 @@ import {
 import { parseGeminiJson } from './parseGeminiJson';
 import { normalizeModelName } from './shared';
 import { LANGUAGE_TAG_RE } from './languageTag';
+import { adminPassesMissingDoc } from './featureMissingDoc';
 import {
   hashQuestionForTranslation,
   type HashableQuestion,
@@ -369,13 +370,7 @@ async function deriveTeacherTier(
   return member?.exists ? 'org' : 'free';
 }
 
-/**
- * Server-side gate for `global_permissions/quiz-translation`, resolved exactly
- * as `AuthContext.resolvePermissionAccess`/`canAccessFeature` resolve it
- * client-side (`missingDocPublic: false` for this feature — see
- * `config/featureDefaults.ts` — so an absent doc denies everyone, admins
- * included).
- */
+/** Server twin of `canAccessFeature('quiz-translation')`: an absent doc passes admins only. */
 export async function assertQuizTranslationFeature(
   db: Firestore,
   email: string | undefined,
@@ -397,7 +392,11 @@ export async function assertQuizTranslationFeature(
   } catch {
     raw = undefined;
   }
-  if (raw === undefined) deny();
+  if (raw === undefined) {
+    const callerIsAdmin = await isSpartBoardAdmin(db, email).catch(() => false);
+    if (adminPassesMissingDoc('quiz-translation') && callerIsAdmin) return;
+    deny();
+  }
   // `deny()` always throws, so `raw` is defined below; assert to avoid TS
   // narrowing limits on a `let` reassigned inside try/catch.
   const data = raw as Record<string, unknown>;

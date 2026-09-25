@@ -21,6 +21,7 @@ import {
   Copy,
   Check,
   ShieldAlert,
+  Palette,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { isSuperAdminActor } from '@/utils/superAdmin';
@@ -53,6 +54,7 @@ import { UsersView } from './views/UsersView';
 import { StudentPageView } from './views/StudentPageView';
 import { TestClassesView } from './views/TestClassesView';
 import { MediaReviewSection } from './views/MediaReviewView';
+import { AppSettingsView } from './views/AppSettingsView';
 import {
   Btn,
   Confirm,
@@ -71,7 +73,8 @@ type SectionId =
   | 'users'
   | 'student'
   | 'testClasses'
-  | 'mediaReview';
+  | 'mediaReview'
+  | 'app';
 
 interface SectionDef {
   id: SectionId;
@@ -141,6 +144,13 @@ const SECTIONS: SectionDef[] = [
     label: 'Student media',
     sublabel: 'Review & delete recorded responses.',
     icon: ShieldAlert,
+    domainAdminOnly: true,
+  },
+  {
+    id: 'app',
+    label: 'App-wide',
+    sublabel: 'Logo, assignment modes, admin edits.',
+    icon: Palette,
     domainAdminOnly: true,
   },
 ];
@@ -699,6 +709,7 @@ export const OrganizationPanel: React.FC = () => {
     testClasses: testClassesLoading,
     // The media console owns its own callable-backed loading state.
     mediaReview: isMembershipHydrating,
+    app: false,
   };
 
   return (
@@ -930,6 +941,7 @@ export const OrganizationPanel: React.FC = () => {
                 ) : (
                   <PanelEmpty message="Student page config has not been seeded yet." />
                 ))}
+              {effectiveSection === 'app' && <AppSettingsView />}
               {effectiveSection === 'mediaReview' && (
                 <MediaReviewSection orgId={activeOrgId} />
               )}
