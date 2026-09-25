@@ -907,8 +907,7 @@ const MaSubForm: React.FC<MaSubFormProps> = ({ question, onUpdate }) => {
         </div>
         {hasPipeInOption && (
           <p className="text-xxs text-amber-600 font-medium pl-9">
-            Option text contains a pipe (<code>|</code>) character, which is
-            reserved as the wire format separator. Replace it before saving.
+            Remove the <code>|</code> character from this option before saving.
           </p>
         )}
       </div>

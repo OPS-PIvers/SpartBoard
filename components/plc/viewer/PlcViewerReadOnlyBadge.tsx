@@ -35,7 +35,7 @@ export const PlcViewerReadOnlyBadge: React.FC<PlcViewerReadOnlyBadgeProps> = ({
 }) => {
   const { t } = useTranslation();
   const label = t('plcDashboard.viewer.badge', {
-    defaultValue: 'Viewer — read only',
+    defaultValue: 'View only',
   });
   const tooltip =
     note ??

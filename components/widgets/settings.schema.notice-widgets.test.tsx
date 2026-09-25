@@ -186,7 +186,7 @@ describe('notice-widget settings-drawer migrations', () => {
       const { unmount } = render(<SchemaSettingsFallback widget={widget} />);
       expect(
         await screen.findByText(
-          /configured by an admin via Feature Permissions/
+          /Your admin sets the talking stems and categories/
         )
       ).toBeInTheDocument();
       unmount();

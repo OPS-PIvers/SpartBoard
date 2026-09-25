@@ -894,7 +894,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
           <p className="text-sm text-slate-500 max-w-md leading-relaxed mb-4">
             {t('plcDashboard.videoActivities.emptySubtitle', {
               defaultValue:
-                'Open the Video Activity widget in your dashboard, click the kebab on any activity, and choose "Share with PLC" to add it here.',
+                'Choose "Share with PLC" from an activity\'s menu in the Video Activity widget.',
             })}
           </p>
           {canEdit ? (
