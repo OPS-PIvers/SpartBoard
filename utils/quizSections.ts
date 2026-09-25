@@ -136,12 +136,24 @@ export function notChosenQuestionIds(
   response: {
     answers?: readonly SectionAnswer[];
     servedQuestionIds?: readonly string[];
+    status?: string;
   },
   sections: readonly QuizSessionSection[] | undefined
 ): string[] {
   if (!sections?.some((s) => s.chooseCount)) return [];
   const answers = response.answers ?? [];
   return sections.flatMap((section) => {
+    // Mid-quiz, a section short of N is still open; only a finished one is topped up.
+    const count = effectiveChooseCount(section, response.servedQuestionIds);
+    if (
+      response.status !== 'completed' &&
+      count !== undefined &&
+      servedSectionQuestionIds(section, response.servedQuestionIds).filter(
+        (id) => isSectionAnswered(answers, id)
+      ).length < count
+    ) {
+      return [];
+    }
     const chosen = new Set(
       chosenQuestionIds(section, answers, response.servedQuestionIds)
     );
@@ -155,6 +167,7 @@ export function notChosenQuestionIds(
 export function withNotChosen<
   R extends {
     answers?: readonly SectionAnswer[];
+    status?: string;
     servedQuestionIds?: readonly string[];
     _notChosen?: string[];
   },
