@@ -248,6 +248,12 @@ export const GLOBAL_FEATURES: {
     description: 'Mark the correct option in one list.',
   },
   {
+    id: 'quiz-sections',
+    label: 'Quiz sections',
+    icon: ListChecks,
+    description: 'Section headings, and "answer any N of these".',
+  },
+  {
     id: 'quiz-fib-alternates',
     label: 'Other accepted answers for fill in the blank',
     icon: TextCursorInput,

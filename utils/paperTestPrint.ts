@@ -20,6 +20,8 @@ export interface PaperTestQuestion {
   text: string;
   /** Option text in printed letter order. */
   choices: readonly string[];
+  /** A section heading printed above this question, the first of its section (E15). */
+  section?: { title: string; directions?: string; chooseLine?: string };
 }
 
 export interface PaperTestJob {
@@ -40,6 +42,9 @@ const STYLES = `
   ol.q { list-style: none; padding: 0; margin: 0; }
   ol.q > li { break-inside: avoid; margin-bottom: 5mm; display: grid; grid-template-columns: 10mm 1fr; }
   .num { font-weight: bold; }
+  ol.q > li.section { display: block; margin: 6mm 0 3mm; break-after: avoid; }
+  .section h2 { font-size: 12pt; margin: 0 0 1mm; }
+  .section p { margin: 0 0 1mm; white-space: pre-wrap; }
   .text { white-space: pre-wrap; }
   ol.c { list-style: none; padding: 0; margin: 1.5mm 0 0; }
   ol.c > li { display: grid; grid-template-columns: 8mm 1fr; margin-top: 0.8mm; }
@@ -55,7 +60,12 @@ function questionHtml(q: PaperTestQuestion): string {
             `<li><span class="letter">${CHOICE_LETTERS[i]}.</span><span class="text">${escapeHtml(c)}</span></li>`
         )
         .join('')}</ol>`;
-  return `<li><span class="num">${q.row}.</span><div><div class="text">${escapeHtml(q.text)}</div>${choices}</div></li>`;
+  const section = q.section
+    ? `<li class="section"><h2>${escapeHtml(q.section.title)}</h2>${
+        q.section.directions ? `<p>${escapeHtml(q.section.directions)}</p>` : ''
+      }${q.section.chooseLine ? `<p><strong>${escapeHtml(q.section.chooseLine)}</strong></p>` : ''}</li>`
+    : '';
+  return `${section}<li><span class="num">${q.row}.</span><div><div class="text">${escapeHtml(q.text)}</div>${choices}</div></li>`;
 }
 
 /** The document `printPaperTest` would write. Exported for tests. */
