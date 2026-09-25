@@ -27,6 +27,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import {
+  AlertTriangle,
   ClipboardList,
   FileScan,
   GraduationCap,
@@ -36,7 +37,10 @@ import {
 import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
-import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import {
+  useQuizAssignments,
+  countPendingPaperTranscripts,
+} from '@/hooks/useQuizAssignments';
 import type { FibGradingContext } from '@/utils/quizFibAnswers';
 import {
   useQuizSessionTeacher,
@@ -346,6 +350,9 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
       responses.some((r) => r.answers?.some((a) => isPaperWrittenAnswer(a))),
     [assignment?.hasPaperWritten, responses]
   );
+  const pendingTranscripts = hasPaperWritten
+    ? countPendingPaperTranscripts(responses)
+    : 0;
   // Null follows the session's published mode until the teacher picks one.
   const [pickedReturnMode, setPickedReturnMode] =
     useState<WrittenReturnMode | null>(null);
@@ -864,6 +871,17 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
                       label: o.title,
                     }))}
                   />
+                  {pendingTranscripts > 0 && (
+                    <p
+                      role="status"
+                      className="mt-1.5 flex items-start gap-1.5 text-xs text-amber-800"
+                    >
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      {pendingTranscripts === 1
+                        ? '1 answer still transcribing. It publishes as awaiting grade.'
+                        : `${pendingTranscripts} answers still transcribing. They publish as awaiting grade.`}
+                    </p>
+                  )}
                 </div>
               )}
             </div>

@@ -5,7 +5,10 @@ vi.mock('firebase-admin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: Object.assign(vi.fn(), {
-    FieldValue: { serverTimestamp: () => 'SERVER_TS' },
+    FieldValue: {
+      serverTimestamp: () => 'SERVER_TS',
+      delete: () => 'DELETE_FIELD',
+    },
   }),
 }));
 
@@ -49,7 +52,13 @@ function makeDb(docs: Record<string, Doc>) {
         throw new Error(`already exists: ${s.path}`);
     }
     for (const s of staged) {
-      docs[s.path] = s.merge ? { ...docs[s.path], ...s.data } : s.data;
+      docs[s.path] = s.merge
+        ? Object.fromEntries(
+            Object.entries({ ...docs[s.path], ...s.data }).filter(
+              ([, v]) => v !== 'DELETE_FIELD'
+            )
+          )
+        : s.data;
     }
     committed.push(staged.map((s) => s.path));
   };
@@ -967,6 +976,9 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
         { questionId: 'q9', answer: '<p>typed</p>', answeredAt: 1 },
       ],
       grading: { q9: { pointsAwarded: 3, gradedBy: UID, gradedAt: 2 } },
+      unlocked: true,
+      servedQuestionIds: ['q1'],
+      resultsLockedOut: true,
     };
     const { docs: after } = await call(docs, [
       sheet(2, {
@@ -980,6 +992,9 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
     });
     expect(doc.joinedAt).toBe(100);
     expect(doc.paperBatchId).toBe(BATCH);
+    expect(doc).not.toHaveProperty('unlocked');
+    expect(doc).not.toHaveProperty('servedQuestionIds');
+    expect(doc).not.toHaveProperty('resultsLockedOut');
     expect(doc.answers).toEqual([
       { questionId: 'q9', answer: '<p>typed</p>', answeredAt: 1 },
       { questionId: 'q1', answer: 'C', answeredAt: NOW, status: 'submitted' },

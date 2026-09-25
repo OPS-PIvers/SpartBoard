@@ -146,6 +146,7 @@ function setup(
     db: stub.db as unknown as Firestore,
     now: () => NOW,
     isAdmin: () => Promise.resolve(false),
+    featureGranted: () => Promise.resolve(true),
     transcribe,
     archive,
     cropExists: () => Promise.resolve(true),
@@ -284,6 +285,15 @@ describe('runPaperTranscriptionJob', () => {
       'superseded'
     );
     expect(answerOf(s, 'q1')).toMatchObject({ answer: '' });
+    expect(s.has(USAGE)).toBe(false);
+  });
+
+  it('never transcribes for a teacher without the feature', async () => {
+    const s = setup({}, { featureGranted: () => Promise.resolve(false) });
+    expect(await runPaperTranscriptionJob('t1', 'scan1_3_1_0', s.deps)).toBe(
+      'failed'
+    );
+    expect(s.transcribe).not.toHaveBeenCalled();
     expect(s.has(USAGE)).toBe(false);
   });
 

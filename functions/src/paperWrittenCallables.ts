@@ -329,7 +329,12 @@ export async function handleGetPaperWrittenCrop(
       await privateRefOf(responseRef, target.questionId).get()
     ).data();
     const newer = isRec(priv?.newerScan) ? priv.newerScan : null;
-    if (!newer || typeof newer.scanId !== 'string' || !newer.scanId) {
+    if (
+      !newer ||
+      typeof newer.scanId !== 'string' ||
+      !newer.scanId ||
+      newer.scanId.includes('/')
+    ) {
       return { status: 'not-available', reason: 'no-crop' };
     }
     const path = paperCropStoragePath(
@@ -343,6 +348,25 @@ export async function handleGetPaperWrittenCrop(
 
   const artifact = handwritingArtifactOf(answer);
   if (!artifact) return { status: 'not-available', reason: 'no-crop' };
+  if (!isTeacher) {
+    // Students can edit their answers, so rebuild the path from server-written fields.
+    const priv = (
+      await privateRefOf(responseRef, target.questionId).get()
+    ).data();
+    if (
+      typeof priv?.scanId !== 'string' ||
+      typeof response.paperSeat !== 'number' ||
+      artifact.storagePath !==
+        paperCropStoragePath(
+          teacherUid,
+          priv.scanId,
+          response.paperSeat,
+          target.questionId
+        )
+    ) {
+      return { status: 'not-available', reason: 'no-crop' };
+    }
+  }
   return cropForArtifact(deps, teacherUid, response, artifact);
 }
 

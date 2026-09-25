@@ -130,4 +130,18 @@ describe('createCropUploader', () => {
     expect(up.status('a')).toBe('done');
     expect(up.status('b')).toBe('failed');
   });
+
+  it('treats a denied retry after a network failure as already uploaded', async () => {
+    const denied = Object.assign(new Error('denied'), {
+      code: 'storage/unauthorized',
+    });
+    const upload = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('network'))
+      .mockRejectedValueOnce(denied);
+    const up = createCropUploader(upload, () => undefined);
+    up.enqueue({ key: 'a', path: 'a', blob: blob() });
+    await up.whenIdle();
+    expect(up.status('a')).toBe('done');
+  });
 });

@@ -348,6 +348,34 @@ describe('getPaperWrittenCropV1', () => {
     ).resolves.toMatchObject({ status: 'ready' });
   });
 
+  it("refuses a student's answer pointed at a classmate's crop", async () => {
+    const store = seed();
+    const res = store[RESPONSE] as { answers: StubData[] };
+    store[RESPONSE] = {
+      ...store[RESPONSE],
+      answers: res.answers.map((a) =>
+        a.questionId === 'q1'
+          ? {
+              ...a,
+              artifacts: [
+                {
+                  id: 'hw_scan1_q1',
+                  kind: 'handwriting',
+                  storagePath: 'paper_written_crops/t1/scan1/4/q1.webp',
+                },
+              ],
+            }
+          : a
+      ),
+    };
+    const { deps } = makeDeps(store, {
+      'paper_written_crops/t1/scan1/4/q1.webp': { bytes: 'other' },
+    });
+    await expect(
+      handleGetPaperWrittenCrop(deps, STUDENT, target)
+    ).resolves.toEqual({ status: 'not-available', reason: 'no-crop' });
+  });
+
   it('denies another student', async () => {
     const { deps } = makeDeps(seed(), objects);
     await expectCode(

@@ -565,6 +565,23 @@ interface SeatOutcome {
 
 type AnswerEntry = Record<string, unknown> & { questionId?: unknown };
 
+// A replaced device attempt's own state must not follow the answers onto a paper response.
+const DEVICE_ATTEMPT_FIELDS = [
+  'unlocked',
+  'unlockedAt',
+  'autoSubmitted',
+  'tabSwitchWarnings',
+  'tabExits',
+  'resultsTabWarnings',
+  'resultsLockedOut',
+  'resultsLockedOutAt',
+  'servedQuestionIds',
+  'handRaisedAt',
+  'stimulusPlays',
+  'stimulusErrors',
+  'preSyncVersion',
+] as const;
+
 // D28: MC answers always replace; a written answer replaces only when ungraded and unedited.
 async function importSeat(
   tx: admin.firestore.Transaction,
@@ -713,6 +730,14 @@ async function importSeat(
       paperBatchId: ctx.batchId,
       paperSeat: sheet.seat,
       lastWriteAt: admin.firestore.FieldValue.serverTimestamp(),
+      ...(existing && existing.paperBatchId !== ctx.batchId
+        ? Object.fromEntries(
+            DEVICE_ATTEMPT_FIELDS.map((f) => [
+              f,
+              admin.firestore.FieldValue.delete(),
+            ])
+          )
+        : {}),
     },
     { merge: true }
   );
