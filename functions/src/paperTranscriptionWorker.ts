@@ -13,6 +13,7 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import {
   archiveQuizArtifactCore,
   buildDefaultArchiveDeps,
+  isGlobalFeatureGranted,
   QUIZ_MEDIA_ARCHIVE_SECRETS,
   type ArchiveArtifactRequest,
   type ArchiveResult,
@@ -30,6 +31,7 @@ import {
   type PaperTranscribeDeps,
 } from './paperTranscribe';
 import {
+  PAPER_HANDWRITTEN_FEATURE,
   PAPER_PRIVATE_SUBCOLLECTION,
   PAPER_TRANSCRIPTION_JOBS,
   PAPER_WRITTEN_CROP_PREFIX,
@@ -60,6 +62,8 @@ export interface WorkerDeps {
   now: () => number;
   /** Admin status from a verified email only. */
   isAdmin: (uid: string) => Promise<boolean>;
+  /** Whether the teacher holds the handwritten-answers feature flag. */
+  featureGranted: (uid: string) => Promise<boolean>;
   transcribe: (
     boxes: PaperTranscribeBox[],
     tier: PaperModelTier
@@ -427,6 +431,19 @@ export async function runPaperTranscriptionJob(
     return status;
   }
 
+  if (!(await deps.featureGranted(uid))) {
+    await settleWithoutTranscript(
+      db,
+      jobRef,
+      job,
+      'failed',
+      deps.now(),
+      'Handwritten answers are not enabled for this teacher.'
+    );
+    await archiveBlanks();
+    return 'failed';
+  }
+
   const quota = await readPaperHandwritingQuota(db, {
     uid,
     isAdmin: await deps.isAdmin(uid),
@@ -774,6 +791,19 @@ export function buildDefaultWorkerDeps(): WorkerDeps {
     db: admin.firestore(),
     now: () => Date.now(),
     isAdmin: isVerifiedAdmin,
+    featureGranted: async (uid) => {
+      try {
+        const user = await admin.auth().getUser(uid);
+        return await isGlobalFeatureGranted(
+          admin.firestore(),
+          PAPER_HANDWRITTEN_FEATURE,
+          user.emailVerified ? (user.email ?? null) : null,
+          uid
+        );
+      } catch {
+        return false;
+      }
+    },
     transcribe: (boxes, tier) =>
       transcribePaperPage(boxes, tier, transcribeDeps),
     archive: (input) =>

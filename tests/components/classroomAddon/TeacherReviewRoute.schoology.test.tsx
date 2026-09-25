@@ -66,6 +66,7 @@ vi.mock('@/hooks/useQuiz', () => ({
 }));
 vi.mock('@/hooks/useQuizAssignments', () => ({
   useQuizAssignments: () => ({ publishAssignmentScores: vi.fn() }),
+  countPendingPaperTranscripts: () => 0,
 }));
 vi.mock('@/hooks/useQuizSession', async (importOriginal) => {
   const actual =

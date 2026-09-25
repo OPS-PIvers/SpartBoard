@@ -232,7 +232,10 @@ export function createCropUploader(
         await upload(job.path, job.blob);
         return 'done' as const;
       } catch (err) {
-        if (job.mayExist && deniedAsExisting(err)) return 'done' as const;
+        const denied = deniedAsExisting(err);
+        if (job.mayExist && denied) return 'done' as const;
+        // A failed upload may still have landed, so a later denial means it exists.
+        if (!denied) job.mayExist = true;
       }
     }
     return 'failed' as const;

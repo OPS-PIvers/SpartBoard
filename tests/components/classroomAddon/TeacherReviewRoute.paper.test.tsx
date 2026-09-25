@@ -63,7 +63,10 @@ const publishAssignmentScores = vi.fn((..._args: unknown[]) =>
   Promise.resolve({ responsesUpdated: 1, paperResponses: 1 })
 );
 let assignments: Record<string, unknown>[] = [];
-vi.mock('@/hooks/useQuizAssignments', () => ({
+vi.mock('@/hooks/useQuizAssignments', async (importOriginal) => ({
+  countPendingPaperTranscripts: (
+    await importOriginal<typeof import('@/hooks/useQuizAssignments')>()
+  ).countPendingPaperTranscripts,
   useQuizAssignments: () => ({ assignments, publishAssignmentScores }),
 }));
 
@@ -199,6 +202,27 @@ describe('ClassroomAddonTeacherReview with paper written answers', () => {
       )
     );
     expect(updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('warns when transcripts are still pending', async () => {
+    responses = [
+      {
+        ...paperResponse,
+        answers: [
+          {
+            ...paperResponse.answers[0],
+            answer: '',
+            paperTranscript: 'pending',
+          },
+        ],
+      },
+    ];
+    await renderRoute();
+    expect(
+      screen.getByText(
+        '1 answer still transcribing. It publishes as awaiting grade.'
+      )
+    ).toBeTruthy();
   });
 
   it('starts from the published mode and shows the picker from the assignment flag', async () => {
