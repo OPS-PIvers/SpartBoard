@@ -40,6 +40,9 @@ Paul's Honors Bio Ecology test was run through the browser reader on dev-paul at
     - DOCX/RTF: the first segment of a line, or right after a `____` blank segment.
     - The first question sets the position.
   - It is the next number in sequence (+1), or a restart at 1 under a new section heading (R7).
+    - Built in PR 1: a forward skip of up to 5 still opens the question, with the note "The numbering skips from 4 to 6. Check that no question is missing." A skipped number in a typed test would otherwise merge two questions silently.
+    - Outside the profile, R7's restart at 1 without a heading still works, but only after the previous question's options. A `1.` in a stem that hasn't reached its options is a list.
+    - PDF position, as built: a number indented 12–120 points past the accepted numbers is a list in a stem. A number a whole column over (R4 two-column pages) still counts.
   - A number that fails any of these stays text.
   - `LABELLED` openers (`Question 3`, `Q3.`) keep only the sequence check.
 - **E2. Plain-space option rows (amends R5).** Two or more spaces before an option marker count as a column gap, but only when every marker found that way on the line forms a valid run for the current question:
@@ -61,10 +64,14 @@ Paul's Honors Bio Ecology test was run through the browser reader on dev-paul at
 
   The profile adds the rules below on top of the general parser. Other documents keep the general heuristics. The PR 1 part of the profile is detection plus E8.
 
+  PR 1 also reads an ExamView type heading with text after it as a section heading, whatever its length ("Short Answer-PICK TWO (2) QUESTIONS TO ANSWER-3 points each"). Without that, Q17–19 fall into the Graphing Problem section.
+
 - **E8. ANS text on written items isn't a key.** Under the ExamView profile, an item in a Short Answer, Problem, Essay or Other section stays free-response.
   - Its ANS text shows in review as "Key's sample answer: …" and is not saved as an answer.
   - A short ANS never changes the type.
   - Outside the profile, today's short-key → FIB rule stays.
+
+- **PDF learning-target wraps (found building PR 1).** An "I can" target that fills the question's opening line and wraps onto the next line keeps the wrapped words when that line sits closer than a paragraph gap (21 pt). Before this, the wrapped half led the stem on six of the PDF's questions.
 
 ### ExamView types and keys (PR 2)
 
@@ -106,6 +113,14 @@ Paul's Honors Bio Ecology test was run through the browser reader on dev-paul at
   - ANS printed inline under each question (ExamView's "with answers" printout)
   - a key-only file holding just the Answer Section.
 
+- **As built in PR 2.**
+  - One step, `utils/quizDocumentImport/examView.ts`, runs for the plain reader, the AI reader (E17) and a separate key file. Types are set before any key is applied. Matching sets combine, false Modified True/False items split, and heading points apply after each key merge; that step is safe to run twice.
+  - Matching pairs store the numbered item on the left and the lettered term on the right (`item:term`), so unused terms become `matchingDistractors`. A colon in an item becomes `꞉` so the stored pair still splits.
+  - Part B of a false Modified True/False item reads "If false, write the word or phrase that makes it true: <statement>". The item's points split evenly between the two parts.
+  - A key and a test that each print every number once match by number even when their headings differ (the key's `OTHER` against the test's "Graphing Problem").
+  - Key standards are chips in review with an Add button and an "Add N standards" header button, not tags applied without asking. A code that two catalog sets share counts as unmatched.
+  - When the AI reader keys a written item from its sample answer, the item goes back to free-response and the sample becomes the review note.
+
 ### RTF pictures (PR 3)
 
 - **E11.** `rtfReader.ts` reads `\pict` groups:
@@ -128,6 +143,12 @@ This PR takes the section core of `QUIZ_STRUCTURED_ASSESSMENTS.md` D9. Structure
     - A section shows an intro screen with its title and directions. With a count set, it also shows "Answer any N of these M questions."
     - Each question shows a "Section title" breadcrumb that reopens the directions.
   - Editor: "Add section" inserts a section row in the question list. The row has a title, directions and "Students answer [all | N] of these M questions". Dragging a question across the row moves it between sections.
+- **As built (PR 4a).** PR 4 ships as three stacked PRs: 4a model and player, 4b scoring and results, 4c editor and paper.
+  - A session freezes `sections` as `{ id, title, directions?, chooseCount?, questionIds }` at assignment, with bank pool ids included, so the player and scoring never read the quiz's `order`.
+  - "Chosen" is derived from the answers, never stored: a question counts once it holds a non-empty answer, and more than N keeps the first N in section order. The response doc and `firestore.rules` are unchanged.
+  - The intro is a dialog shown the first time a student reaches a section. It works the same in every session mode. The breadcrumb reopens it.
+  - "Clear my answer" (self-paced) writes an empty answer to free a place. Question shuffle stays inside each section.
+  - Not yet: a substitute's launch (`subLaunchAssignment`) rebuilds the session on the server and doesn't carry `sections`, so a sub-run quiz behaves as one run of questions.
 - **E13. Answering.**
   - Once a student has answered N questions in a section, the section's other questions show "You've answered N of N. Clear one to answer this instead." and can't be answered. Clearing an answer frees a slot.
   - Submit is allowed once N are answered.
@@ -137,9 +158,24 @@ This PR takes the section core of `QUIZ_STRUCTURED_ASSESSMENTS.md` D9. Structure
   - Unchosen questions show "Not chosen" in results, the drill-down, exports and print, and they never enter the grading queue.
   - Item analysis and PLC percent-correct use students who chose the question as the denominator.
   - Score is computed when results are read, as today (`gradeAnswer`), so no stored scores change.
+- **As built (PR 4b).**
+  - A student's counted questions in a choose-N section are the answered ones, first N in section order. When fewer than N were answered, unanswered ones in section order fill the rest, and those count as "No answer".
+  - A student's max is the sum of their counted questions' points. That equals E14's "N highest" whenever a section's points are equal. The static max frozen into an LMS line item uses the N highest.
+  - The teacher's response listener stamps a derived `_notChosen` on each response, the way it already stamps `_responseKey`; it is never written. Scoring, the student and question drill-downs, the grading queue, item analysis, exports and print read it. Publishing reads the session's `sections` itself.
+  - The PLC aggregate (`functions/src/plcAssessmentMath.ts`) applies the same rule from `session.sections` through `functions/src/quizSectionsChosen.ts`.
+  - Not yet: a PLC-synced quiz copy (`synced_quizzes`) carries no `sections`, since its rule is a `hasOnly` list. That comes with the editor in 4c.
 - **E15. Paper.**
   - The printed test and the response sheet show "Answer any N of M" under the section heading.
   - A paper import with more than N answered in a section gets a teacher flag. The first N in item order count until the teacher changes it.
+- **As built (PR 4c).**
+  - The flag `quiz-sections` gates the Add menu's "Section" item.
+  - A section row edits its title, its directions and "Students answer [all | N] of these M questions" in place. Dragging a question past a row moves it between sections.
+  - Removing a row keeps its questions.
+  - The editor saves `order` whenever a section or a bank slot exists, and saves only the section records a row still points at.
+  - The printed test shows each section's heading, directions and "Answer any N of these M questions." above its first printed question.
+  - The paper import notes a sheet that bubbled more than N in a section ("…only 2 count, so the first 2 in order are scored").
+  - Not built: a line on the answer sheet itself. Its bubble grid is fixed in millimetres for the scanner, so the count prints on the test paper only.
+  - Not built: carrying sections into a PLC-synced copy (`synced_quizzes` is a `hasOnly` rule), or into a substitute's launch.
 - **Compatibility.** Every field is optional. The player, scoring, results and PLC handling of sections are unflagged and must reach `main` before or with any way to create a section (structured plan, "Rules and compatibility notes"). Old clients ignore the unknown `order` kind. No `firestore.rules` change is expected; the cap is enforced by the player. Verify that in the PR.
 
 ### Importer creates sections (PR 5)
@@ -151,6 +187,13 @@ This PR takes the section core of `QUIZ_STRUCTURED_ASSESSMENTS.md` D9. Structure
   - When the source numbers straight through (ExamView 1–19), the numbering-restart setting (D11) is turned off for the quiz, so the student sees the printed numbers.
   - Without the flag, sections stay import-internal (`ref` only, as today), and a choose-N heading adds a review note: "Students choose 2 of these 3; turn on sections to enforce it."
   - This delivers D26's "headings become sections" line. D26's `Section N | Title` and `Directions:` detectors reuse it.
+- **As built (PR 5).**
+  - The reader stays flag-free. It records each heading's directions paragraph on the question's `ref`. `extractedToQuizData(…, { sections })` builds the section records and `order`, and the adapter passes `canAccessFeature('quiz-sections')`.
+  - Directions come from the heading line itself (`PICK TWO (2) QUESTIONS TO ANSWER`) and from the paragraph under it, joined by a line break.
+  - A count only sets `chooseCount` when it is below the section's item count. "Select one answer" and "Choose the best answer" set nothing.
+  - The review table shows each section's heading above its first row. Unticking every row of a section drops that section, and ticking a row back returns it to its own section.
+  - Honors Bio's RTF and PDF each import as Multiple Choice (15, with ExamView's stock directions), Graphing Problem (1) and Short Answer (answer any 2 of 3). The corpus records each section's count.
+  - The numbering-restart setting (D11) isn't built yet, so nothing is turned off. Quiz numbers already run 1–N straight through, as ExamView prints them.
 
 ### Tests and corpus
 

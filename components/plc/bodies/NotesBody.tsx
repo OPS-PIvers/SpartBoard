@@ -34,6 +34,7 @@ import { usePlcSoftDelete } from '@/hooks/usePlcTrash';
 import { logError } from '@/utils/logError';
 import { getPlcMembers } from '@/utils/plc';
 import { NotesMarkdown } from './notesMarkdown';
+import { PlcNoteRichEditor } from './PlcNoteRichEditor';
 import { buildMeetingNoteTemplate } from './notesTemplate';
 import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnlyBadge';
 import { NoteActionItems } from '@/components/plc/notes/NoteActionItems';
@@ -95,7 +96,8 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
+  const richEditorFlag = canAccessFeature('plc-notes-rich-editor');
   const currentUid = user?.uid ?? '';
   // Viewers can read notes but can't create / edit / delete (Decision 3.2).
   // Rules hard-deny viewer writes; this gates the UI to match.
@@ -221,6 +223,8 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
   // on the legacy read-only path — they have nothing to publish.
   const collabSettings = usePlcNoteCollabSettings();
   const collab = collabSettings.enabled && canEdit && !!selectedId;
+  // Its whole-body re-serialize would overwrite teammates' concurrent edits.
+  const richEditor = richEditorFlag && !collab;
 
   const titleFieldRef = useRef<HTMLInputElement>(null);
   const bodyFieldRef = useRef<HTMLTextAreaElement>(null);
@@ -548,6 +552,16 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
     : draftActionItems;
   const editorReadOnly = !canEdit || (collab && !collabReady);
 
+  const handleBodyChange = (next: string) => {
+    if (editorReadOnly || !selectedNote) return;
+    if (collab) {
+      crdt.setBody(next);
+      return;
+    }
+    setDraftBody(next);
+    scheduleSave(selectedNote.id, { body: next }, syncedSnapshot?.version);
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4 h-full min-h-[400px]">
       {/* Notes list */}
@@ -628,7 +642,7 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
                       </div>
                       <div className="text-xxs text-slate-500 truncate mt-0.5">
                         {note.body
-                          ? note.body.replace(/[#*_`>-]/g, '').slice(0, 60)
+                          ? note.body.replace(/[#*_`>\\-]/g, '').slice(0, 60)
                           : t('plcDashboard.notes.empty', {
                               defaultValue: 'Empty note',
                             })}
@@ -681,37 +695,39 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
                 })}
                 className="flex-1 min-w-0 bg-transparent border-0 focus:ring-0 focus:outline-none text-base font-bold text-slate-900 placeholder:text-slate-300"
               />
-              <button
-                type="button"
-                onClick={() =>
-                  setBodyMode((m) => (m === 'edit' ? 'preview' : 'edit'))
-                }
-                className="p-2 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/40 rounded-lg transition-colors shrink-0"
-                aria-label={
-                  bodyMode === 'edit'
-                    ? t('plcDashboard.notes.previewMarkdown', {
-                        defaultValue: 'Preview formatted note',
-                      })
-                    : t('plcDashboard.notes.editMarkdown', {
-                        defaultValue: 'Edit note',
-                      })
-                }
-                title={
-                  bodyMode === 'edit'
-                    ? t('plcDashboard.notes.previewMarkdown', {
-                        defaultValue: 'Preview formatted note',
-                      })
-                    : t('plcDashboard.notes.editMarkdown', {
-                        defaultValue: 'Edit note',
-                      })
-                }
-              >
-                {bodyMode === 'edit' ? (
-                  <Eye className="w-4 h-4" />
-                ) : (
-                  <Pencil className="w-4 h-4" />
-                )}
-              </button>
+              {!richEditor && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setBodyMode((m) => (m === 'edit' ? 'preview' : 'edit'))
+                  }
+                  className="p-2 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/40 rounded-lg transition-colors shrink-0"
+                  aria-label={
+                    bodyMode === 'edit'
+                      ? t('plcDashboard.notes.previewMarkdown', {
+                          defaultValue: 'Preview formatted note',
+                        })
+                      : t('plcDashboard.notes.editMarkdown', {
+                          defaultValue: 'Edit note',
+                        })
+                  }
+                  title={
+                    bodyMode === 'edit'
+                      ? t('plcDashboard.notes.previewMarkdown', {
+                          defaultValue: 'Preview formatted note',
+                        })
+                      : t('plcDashboard.notes.editMarkdown', {
+                          defaultValue: 'Edit note',
+                        })
+                  }
+                >
+                  {bodyMode === 'edit' ? (
+                    <Eye className="w-4 h-4" />
+                  ) : (
+                    <Pencil className="w-4 h-4" />
+                  )}
+                </button>
+              )}
               {canEdit && (
                 <button
                   type="button"
@@ -728,24 +744,20 @@ export const NotesBody: React.FC<NotesBodyProps> = ({ plc, selectNoteId }) => {
                 </button>
               )}
             </div>
-            {bodyMode === 'edit' ? (
+            {richEditor ? (
+              <PlcNoteRichEditor
+                key={selectedNote.id}
+                value={editorBody}
+                onChange={handleBodyChange}
+                readOnly={editorReadOnly}
+                showToolbar={canEdit}
+              />
+            ) : bodyMode === 'edit' ? (
               <textarea
                 ref={bodyFieldRef}
                 value={editorBody}
                 readOnly={editorReadOnly}
-                onChange={(e) => {
-                  if (editorReadOnly) return;
-                  if (collab) {
-                    crdt.setBody(e.target.value);
-                    return;
-                  }
-                  setDraftBody(e.target.value);
-                  scheduleSave(
-                    selectedNote.id,
-                    { body: e.target.value },
-                    syncedSnapshot?.version
-                  );
-                }}
+                onChange={(e) => handleBodyChange(e.target.value)}
                 placeholder={t('plcDashboard.notes.bodyPlaceholder', {
                   defaultValue: 'Write your notes… (markdown supported)',
                 })}

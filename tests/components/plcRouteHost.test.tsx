@@ -193,6 +193,7 @@ function parsed(over: Partial<ParsedPlcPath> = {}): ParsedPlcPath {
     section: 'home',
     meetingId: null,
     assessmentId: null,
+    docId: null,
     ...over,
   };
 }

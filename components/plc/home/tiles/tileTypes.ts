@@ -61,6 +61,8 @@ export interface PlcHomeTileContext {
   /** Captured once per Home mount. */
   now: number;
   onNavigate: (id: PlcSectionId) => void;
+  /** Opens a shared doc in the Notes & Docs embed. */
+  onOpenDoc: (docId: string) => void;
   /** Activity cursor frozen at Home mount. */
   lastSeenAt: number | null;
   signals: PlcHomeSignals;

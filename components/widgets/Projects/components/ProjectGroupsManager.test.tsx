@@ -50,7 +50,6 @@ const group = (
   memberUids,
   order,
   stepStates: {},
-  needsSupport: false,
   workLinks: [],
   updatedAt: 1,
 });
@@ -104,6 +103,23 @@ describe('ProjectGroupsManager', () => {
     expect(
       within(pool).getByText(/Dee O has no district sign-in/)
     ).toBeInTheDocument();
+  });
+
+  it('picks a group color from the palette (D33)', async () => {
+    const { onSave } = renderManager();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Change the color of Otters' })
+    );
+    const palette = screen.getByRole('group', { name: 'Colors for Otters' });
+    fireEvent.click(within(palette).getByRole('button', { name: 'rose' }));
+    expect(
+      screen.queryByRole('group', { name: 'Colors for Otters' })
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const [, entries] = onSave.mock.calls[0];
+    expect(entries.find((e) => e.id === 'g1')?.color).toBe('bg-rose-500');
   });
 
   it('moves a student by tapping them and then a group', async () => {

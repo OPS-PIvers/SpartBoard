@@ -114,8 +114,6 @@ export interface DevicePreset {
   id: 'board' | 'help' | 'chromebook' | 'projector' | 'custom';
   w: number;
   h: number;
-  /** Space reserved below the stage (the student app footer). */
-  footerPx: number;
 }
 export interface DeviceFrameContextValue {
   preset: DevicePreset;

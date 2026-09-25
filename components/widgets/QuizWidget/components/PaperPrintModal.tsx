@@ -65,6 +65,11 @@ import {
 } from '@/utils/paperSheetPlan';
 import { printPaperSheets } from '@/utils/paperSheetPrint';
 import { printPaperTest } from '@/utils/paperTestPrint';
+import {
+  chooseLineFor,
+  sectionOfQuestion,
+  sessionSectionsFor,
+} from '@/utils/quizSections';
 
 const MAX_SPARES = 20;
 const DEFAULT_STUB_QUESTIONS = 25;
@@ -620,6 +625,10 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const handlePrintTest = () => {
     if (!printedBatch) return;
     try {
+      const sections = sessionSectionsFor(quiz);
+      // Paper prints only MC rows, so the choose line counts only those.
+      const printedIds = analysis.rows.map((r) => r.questionId);
+      const headed = new Set<string>();
       printTest({
         quizTitle: quiz.title,
         questions: analysis.rows.flatMap((r) => {
@@ -629,7 +638,32 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             q.correctAnswer,
             ...(q.incorrectAnswers ?? []),
           ];
-          return [{ row: r.row, text: q.text, choices }];
+          // The first printed question of a section carries its heading (E15).
+          const section = sectionOfQuestion(sections, q.id);
+          const heading =
+            section && !headed.has(section.id)
+              ? {
+                  title: section.title,
+                  ...(section.directions
+                    ? { directions: section.directions }
+                    : {}),
+                  ...(chooseLineFor(section, printedIds)
+                    ? {
+                        chooseLine:
+                          chooseLineFor(section, printedIds) ?? undefined,
+                      }
+                    : {}),
+                }
+              : undefined;
+          if (section) headed.add(section.id);
+          return [
+            {
+              row: r.row,
+              text: q.text,
+              choices,
+              ...(heading ? { section: heading } : {}),
+            },
+          ];
         }),
       });
     } catch (err) {

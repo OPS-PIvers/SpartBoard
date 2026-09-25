@@ -334,6 +334,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Quiz sections with "answer any N of M" in the editor. Admin-only until Paul has tried it.
+  'quiz-sections': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Alternate accepted answers on fill-in-the-blank quiz questions. Admin-only until Paul has tried it.
   'quiz-fib-alternates': {
     defaultAccessLevel: 'admin',
@@ -360,6 +366,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
   },
   // Studio callout handles, toolbar and styling. Admin-only until Paul has edited sets with it in prod.
   'gl-callout-editing': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Rich text PLC notes editor. Admin-only until Paul has run a PLC meeting on it in prod.
+  'plc-notes-rich-editor': {
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -399,6 +411,8 @@ export const WIDGET_DEFAULT_ACCESS_LEVEL: Partial<
   Record<WidgetType, AccessLevel>
 > = {
   flashcards: 'admin',
+  // D46 — off the teacher dock until an admin opens it.
+  projects: 'admin',
 };
 
 export const getWidgetDefaultAccessLevel = (

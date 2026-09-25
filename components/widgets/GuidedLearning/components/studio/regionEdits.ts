@@ -1,4 +1,5 @@
 import type {
+  GuidedLearningCalloutBox,
   GuidedLearningCalloutTone,
   GuidedLearningRegion,
   GuidedLearningStep,
@@ -10,6 +11,7 @@ import {
   polygonBBox,
 } from '../../utils/regionGeometry';
 import {
+  clampCalloutBox,
   clampCalloutScale,
   clampCalloutWidthPct,
   isCalloutTone,
@@ -276,9 +278,25 @@ export function setCorner(
   };
 }
 
+/** Back to automatic position: drops a pin and an explicit box. */
 export function clearCalloutPin(step: GuidedLearningStep): GuidedLearningStep {
   const next = { ...step };
   delete next.calloutPin;
+  delete next.calloutBox;
+  return next;
+}
+
+/** Sets an explicit box, dropping every field the box supersedes (G13). */
+export function withCalloutBox(
+  step: GuidedLearningStep,
+  box: GuidedLearningCalloutBox
+): GuidedLearningStep {
+  const next = { ...step, calloutBox: clampCalloutBox(box) };
+  delete next.calloutPin;
+  delete next.calloutWidthPct;
+  delete next.calloutScale;
+  delete next.tooltipPosition;
+  delete next.tooltipOffset;
   return next;
 }
 
@@ -328,6 +346,7 @@ export function clearCalloutSize(step: GuidedLearningStep): GuidedLearningStep {
   const next = { ...step };
   delete next.calloutWidthPct;
   delete next.calloutScale;
+  delete next.calloutBox;
   return next;
 }
 

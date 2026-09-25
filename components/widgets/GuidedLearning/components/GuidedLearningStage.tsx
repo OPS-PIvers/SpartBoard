@@ -35,6 +35,7 @@ import { isGuidedLearningSetV2 } from '../utils/setMigration';
 import { buildStageGeometry } from '../utils/stageGeometry';
 import { pointInRegion, regionRect } from '../utils/regionGeometry';
 import { placeBanner } from '../utils/calloutPlacement';
+import { calloutBoxOf, calloutBoxRectPx } from '../utils/calloutStyle';
 import {
   CALLOUT_IN_MS,
   SLIDE_MS,
@@ -52,6 +53,7 @@ import type {
   PxRect,
   StageGeometry,
 } from '../types/stage';
+import { SlideBackdrop } from './player/SlideBackdrop';
 
 /**
  * Clamp a video trim against the player's loaded metadata. The editor already
@@ -129,9 +131,11 @@ export interface GuidedLearningStageRuntimeProps {
   mediaPaused?: boolean;
   /** Player v2: the step's audio or video failed to load or play. */
   onMediaError?: () => void;
+  /** Studio: outline a callout box whose text does not fit at the floor size. */
+  showCalloutFit?: boolean;
 }
 
-export const GuidedLearningStage: React.FC<
+const StageBody: React.FC<
   GuidedLearningStageProps & GuidedLearningStageRuntimeProps
 > = ({
   set,
@@ -163,6 +167,7 @@ export const GuidedLearningStage: React.FC<
   slideLoading = false,
   mediaPaused = false,
   onMediaError,
+  showCalloutFit = false,
 }) => {
   const { t } = useTranslation();
   // Hotspot pulse style — 'consistent' (default) preserves the legacy ping
@@ -555,6 +560,15 @@ export const GuidedLearningStage: React.FC<
     activeStep?.calloutPin && geometry
       ? geometry.imagePctToContainerPx(activeStep.calloutPin)
       : undefined;
+  const explicitBox = activeStep ? calloutBoxOf(activeStep) : undefined;
+  const calloutBoxPx =
+    explicitBox && geometry
+      ? calloutBoxRectPx(
+          explicitBox,
+          geometry.imagePctToContainerPx,
+          containerSize
+        )
+      : undefined;
   // What a callout must keep clear: the region, else the lit circle, else the pin.
   const calloutTarget = (spotlightPx?: number): PxRect | undefined => {
     if (!activeStep || !geometry) return undefined;
@@ -712,6 +726,8 @@ export const GuidedLearningStage: React.FC<
             containerWidth={containerSize.w}
             containerHeight={containerSize.h}
             editor={calloutEditor}
+            box={calloutBoxPx}
+            showFit={showCalloutFit}
           />
         </div>
       </div>
@@ -811,6 +827,8 @@ export const GuidedLearningStage: React.FC<
           pinned={pinnedCallout}
           showAnchor={!activeRegion}
           editor={calloutEditor}
+          box={calloutBoxPx}
+          showFit={showCalloutFit}
         />
       ) : null;
     }
@@ -833,6 +851,8 @@ export const GuidedLearningStage: React.FC<
               pinned={pinnedCallout}
               showAnchor={!activeRegion}
               editor={calloutEditor}
+              box={calloutBoxPx}
+              showFit={showCalloutFit}
             />
           );
         }
@@ -917,6 +937,9 @@ export const GuidedLearningStage: React.FC<
       tabIndex={0}
       onClick={onTargetClick ? handleStageClick : undefined}
     >
+      {currentImageUrl && (
+        <SlideBackdrop url={currentImageUrl} media={mediaEl} />
+      )}
       {/* Image with optional pan-zoom transform */}
       <div
         data-testid="gl-panzoom-layer"
@@ -934,6 +957,20 @@ export const GuidedLearningStage: React.FC<
             fresh load even when the URL is unchanged. Video slides swap
             in a muted looping <video> (keyed by URL so the element
             reloads when the slide changes). */}
+        {/* Opaque backing so transparent slides don't show the blurred backdrop. */}
+        {currentImageUrl && imgOffset && (
+          <div
+            aria-hidden="true"
+            data-testid="gl-slide-backing"
+            className="absolute bg-slate-950 pointer-events-none"
+            style={{
+              left: `${imgOffset.left}%`,
+              top: `${imgOffset.top}%`,
+              width: `${imgOffset.scaleX * 100}%`,
+              height: `${imgOffset.scaleY * 100}%`,
+            }}
+          />
+        )}
         {currentImageUrl && slideKind === 'video' && (
           <video
             key={currentImageUrl}
@@ -943,6 +980,7 @@ export const GuidedLearningStage: React.FC<
             loop
             autoPlay
             playsInline
+            draggable={false}
             className="absolute inset-0 w-full h-full object-contain pointer-events-none"
             onError={slideLoading ? () => markSlide('error') : undefined}
             onLoadedMetadata={(e) => {
@@ -1345,3 +1383,16 @@ export const GuidedLearningStage: React.FC<
     </div>
   );
 };
+
+type StageAllProps = GuidedLearningStageProps & GuidedLearningStageRuntimeProps;
+// An explicit compare keeps React off its simple-memo path, which leaves useEffectEvent stale.
+const sameStageProps = (a: StageAllProps, b: StageAllProps) => {
+  const keys = Object.keys(a) as (keyof StageAllProps)[];
+  return (
+    keys.length === Object.keys(b).length &&
+    keys.every((k) => Object.is(a[k], b[k]))
+  );
+};
+
+/** Memoised so a Studio render that leaves the stage props alone skips the stage. */
+export const GuidedLearningStage = React.memo(StageBody, sameStageProps);

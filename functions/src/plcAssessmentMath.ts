@@ -1,6 +1,8 @@
 // Pure math for the PLC pooled-assessment aggregate (docs/plans/PLC_ASSESSMENT_DATA.md §5.3).
 // Local mirrors of the root `types.ts` shapes; functions cannot import across the repo root.
 
+import { notChosenIds, type ChooseSection } from './quizSectionsChosen';
+
 export const AGGREGATE_SCHEMA_VERSION = 7;
 
 /** Lower bounds of the pooled score bands; mirrors `SCORE_DISTRIBUTION_BANDS` in utils/scoreColor.ts. */
@@ -104,6 +106,8 @@ export interface SessionInput {
   localizedFibAnswers?: Record<string, Record<string, string[]>>;
   /** Assignment-doc per-student overrides; only the served `language` is used here. */
   overridesByStudentUid?: Record<string, { language?: string }>;
+  /** The session's sections; a choose-N section leaves unchosen questions out. */
+  sections?: ChooseSection[];
 }
 
 /** Accepted FIB answers for the locale the TEACHER served, never a client-asserted one. */
@@ -843,14 +847,20 @@ export function computeAssessmentAggregate(
         r.servedQuestionIds && r.servedQuestionIds.length > 0
           ? r.servedQuestionIds
           : publicQuestionIds(session.publicQuestions);
-      const servedSet = new Set(servedIds);
+      const answers = Array.isArray(r.answers) ? r.answers : [];
+      // Questions left out of a choose-N section are neither served nor scored.
+      const notChosen = notChosenIds(
+        session.sections,
+        answers,
+        r.servedQuestionIds
+      );
+      const servedSet = new Set(servedIds.filter((id) => !notChosen.has(id)));
       for (const sessionQid of servedSet) {
         const groupQid = alignment.map.get(sessionQid);
         const q = groupQid ? acc.get(groupQid) : undefined;
         if (q) q.served++;
       }
 
-      const answers = Array.isArray(r.answers) ? r.answers : [];
       const representative = selectRepresentativeAnswers(answers);
 
       // Grade locally from the answer key so unpublished sessions still score;
@@ -896,6 +906,7 @@ export function computeAssessmentAggregate(
       }
 
       for (const [sessionQid, a] of representative) {
+        if (notChosen.has(sessionQid)) continue;
         const groupQid = alignment.map.get(sessionQid);
         const q = groupQid ? acc.get(groupQid) : undefined;
         const question = groupQid ? questionById.get(groupQid) : undefined;

@@ -13,6 +13,11 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useProjectRun } from '@/hooks/useProjectRun';
 import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
+import { useProjectGroupWork } from '@/hooks/useProjectGroupWork';
+import { useProjectUploads } from '@/hooks/useProjectUploads';
+import { useProjectGroupEvents } from '@/hooks/useProjectGroupEvents';
+import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
+import { NO_STUDENT_SIGN_IN_WARNING } from './projectSteps';
 import { ProjectsWidget } from './Widget';
 import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
@@ -20,8 +25,12 @@ vi.mock('@/context/useDashboard');
 vi.mock('@/context/useAuth');
 vi.mock('@/hooks/useProjectRun');
 vi.mock('@/hooks/useProjectsWidgetSettings');
-vi.mock('@/components/common/ActiveClassChip', () => ({
-  ActiveClassChip: () => <div data-testid="active-class-chip" />,
+vi.mock('@/hooks/useProjectGroupWork');
+vi.mock('@/hooks/useProjectUploads');
+vi.mock('@/hooks/useProjectGroupEvents');
+vi.mock('@/hooks/useAssignmentPseudonyms', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/useAssignmentPseudonyms')>()),
+  useAssignmentPseudonymsMulti: vi.fn(),
 }));
 // The manager owns its own Firestore listeners; routing is what's under test.
 vi.mock('./components/ProjectsManager', () => ({
@@ -29,8 +38,17 @@ vi.mock('./components/ProjectsManager', () => ({
 }));
 
 const setStepState = vi.fn().mockResolvedValue(undefined);
-const setNeedsSupport = vi.fn().mockResolvedValue(undefined);
+const setPeerVisibility = vi.fn().mockResolvedValue(undefined);
 const updateWidget = vi.fn();
+
+const link = {
+  id: 'l1',
+  url: 'https://docs.example.com/poster',
+  label: 'Poster doc',
+  stepId: 'step-1',
+  addedByUid: 'uid-1',
+  addedAt: 1,
+};
 
 const run: ProjectRun = {
   id: 'teacher-1_project-1',
@@ -55,8 +73,6 @@ const group = (overrides: Partial<ProjectGroup> = {}): ProjectGroup => ({
   memberUids: [],
   order: 0,
   stepStates: { 'step-1': 'done', 'step-2': 'notStarted' },
-  needsSupport: false,
-  workLinks: [],
   updatedAt: 1,
   ...overrides,
 });
@@ -70,7 +86,7 @@ const widget = (config: Partial<ProjectsConfig> = {}): WidgetData => ({
   h: 360,
   z: 1,
   flipped: false,
-  config: { projectId: 'project-1', showStatus: true, ...config },
+  config: { projectId: 'project-1', ...config },
 });
 
 const mockRun = (overrides: Record<string, unknown> = {}) =>
@@ -80,10 +96,8 @@ const mockRun = (overrides: Record<string, unknown> = {}) =>
     loading: false,
     error: null,
     setStepState,
-    setNeedsSupport,
+    setPeerVisibility,
     ensureRun: vi.fn(),
-    addWorkLink: vi.fn(),
-    removeWorkLink: vi.fn(),
     updateRun: vi.fn(),
     importGroups: vi.fn(),
     ...overrides,
@@ -96,7 +110,12 @@ describe('ProjectsWidget', () => {
       updateWidget,
       addToast: vi.fn(),
       rosters: [
-        { id: 'roster-1', name: 'Period 1', classlinkClassId: 'class-a' },
+        {
+          id: 'roster-1',
+          name: 'Period 1',
+          classlinkClassId: 'class-a',
+          students: [],
+        },
       ],
       activeRosterId: 'roster-1',
       activeDashboard: { globalStyle: { fontFamily: 'sans' } },
@@ -108,6 +127,27 @@ describe('ProjectsWidget', () => {
       useProjectsWidgetSettings as unknown as ReturnType<typeof vi.fn>
     ).mockReturnValue({ enabled: true });
     mockRun();
+    (
+      useProjectGroupWork as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({ workLinks: [], legacySeed: undefined, loading: false });
+    (useProjectUploads as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      uploads: [],
+      loading: false,
+      error: null,
+      uploadFile: vi.fn(),
+      removeUpload: vi.fn(),
+    });
+    (
+      useProjectGroupEvents as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({ events: [], loading: false });
+    (
+      useAssignmentPseudonymsMulti as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({
+      byStudentUid: new Map(),
+      byAssignmentPseudonym: new Map(),
+      targetRefKeyByStudentUid: new Map(),
+      targetRefKeyByAssignmentPseudonym: new Map(),
+    });
   });
 
   it('says so when the rollout switch is off', () => {
@@ -180,21 +220,27 @@ describe('ProjectsWidget', () => {
     }
   });
 
-  it('marks a group needing help with a chip, never an edge border', () => {
-    mockRun({ groups: [group({ needsSupport: true })] });
+  it('has no help flag on the board (D38)', () => {
     render(<ProjectsWidget widget={widget()} />);
-    const row = screen
-      .getByRole('rowheader', { name: /Group 1/ })
-      .closest('tr');
-    expect(row).not.toBeNull();
-    expect(row?.className).not.toMatch(/border-l/);
-    expect(row?.getAttribute('style') ?? '').not.toMatch(/border-left/i);
+    expect(screen.getByRole('rowheader', { name: /Group 1/ })).toBeTruthy();
     expect(
-      screen.getByRole('button', { name: 'Clear the help flag for Group 1' })
-    ).toBeInTheDocument();
+      screen.queryByRole('button', { name: /help flag/i })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('Help')).not.toBeInTheDocument();
   });
 
-  it('shows only the groups in the active class', () => {
+  it('toggles whether students see other groups from the actions menu', async () => {
+    render(<ProjectsWidget widget={widget()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Project actions' }));
+    fireEvent.click(
+      await screen.findByRole('menuitem', {
+        name: /Students see other groups: on/,
+      })
+    );
+    await waitFor(() => expect(setPeerVisibility).toHaveBeenCalledWith(false));
+  });
+
+  it('shows only the groups in the board class', () => {
     mockRun({
       groups: [
         group(),
@@ -206,43 +252,45 @@ describe('ProjectsWidget', () => {
     expect(screen.queryByText('Group 2')).not.toBeInTheDocument();
   });
 
-  it('floats a group asking for help to the top', () => {
+  it('keeps the groups in the teacher’s order', () => {
     mockRun({
-      groups: [
-        group(),
-        group({ id: 'g2', name: 'Group 2', order: 1, needsSupport: true }),
-      ],
+      groups: [group({ id: 'g2', name: 'Group 2', order: 1 }), group()],
     });
     render(<ProjectsWidget widget={widget()} />);
     const names = screen.getAllByText(/^Group \d$/).map((el) => el.textContent);
-    expect(names[0]).toBe('Group 2');
+    expect(names).toEqual(['Group 1', 'Group 2']);
   });
 
-  it('lets the teacher cycle a step and clear a help flag', async () => {
-    mockRun({ groups: [group({ needsSupport: true })] });
+  it('sets the exact state from the status popover in one write (D34)', async () => {
     render(<ProjectsWidget widget={widget()} />);
 
+    const cell = screen.getByRole('button', {
+      name: 'Group 1, Draft, Not started',
+    });
+    expect(cell).toHaveAttribute('aria-haspopup', 'menu');
+    fireEvent.click(cell);
+    expect(
+      await screen.findByRole('menu', { name: 'Group 1: Draft' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('menuitemradio', { name: 'Not started' })
+    ).toHaveAttribute('aria-checked', 'true');
     fireEvent.click(
-      screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
+      screen.getByRole('menuitemradio', { name: 'Ready for review' })
     );
     await waitFor(() =>
       expect(setStepState).toHaveBeenCalledWith(
         'g1',
         'step-2',
-        'inProgress',
+        'readyForReview',
         'teacher'
       )
     );
-
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Clear the help flag for Group 1' })
-    );
-    await waitFor(() =>
-      expect(setNeedsSupport).toHaveBeenCalledWith('g1', false, 'teacher')
-    );
+    expect(setStepState).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
-  it('cycles an approval step through done for the teacher', async () => {
+  it('offers Done on an approval step and writes nothing for the current state', async () => {
     mockRun({
       groups: [group({ stepStates: { 'step-2': 'readyForReview' } })],
     });
@@ -250,6 +298,15 @@ describe('ProjectsWidget', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'Group 1, Draft, Ready for review' })
     );
+    fireEvent.click(
+      await screen.findByRole('menuitemradio', { name: 'Ready for review' })
+    );
+    expect(setStepState).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Group 1, Draft, Ready for review' })
+    );
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Done' }));
     await waitFor(() =>
       expect(setStepState).toHaveBeenCalledWith(
         'g1',
@@ -260,7 +317,17 @@ describe('ProjectsWidget', () => {
     );
   });
 
-  it('locks only the segment being written, not the whole board', async () => {
+  it('closes the status popover on Escape', async () => {
+    render(<ProjectsWidget widget={widget()} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
+    );
+    const menu = await screen.findByRole('menu');
+    fireEvent.keyDown(menu, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('locks only the cell being written, not the whole board', async () => {
     let release: () => void = () => undefined;
     setStepState.mockImplementationOnce(
       () => new Promise<void>((resolve) => (release = () => resolve()))
@@ -270,20 +337,21 @@ describe('ProjectsWidget', () => {
     });
     render(<ProjectsWidget widget={widget()} />);
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
-    );
+    const pick = async (name: string, state: string) => {
+      fireEvent.click(screen.getByRole('button', { name }));
+      fireEvent.click(
+        await screen.findByRole('menuitemradio', { name: state })
+      );
+    };
+
+    await pick('Group 1, Draft, Not started', 'Working');
     await waitFor(() =>
       expect(
         screen.getByRole('button', { name: 'Group 1, Draft, Not started' })
       ).toBeDisabled()
     );
-    // The other group stays live: a swallowed click is the bug being fixed.
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Group 2, Draft, Not started' })
-    );
+    await pick('Group 2, Draft, Not started', 'Working');
     await waitFor(() => expect(setStepState).toHaveBeenCalledTimes(2));
-    // Group 2's write settling must not unlock Group 1, whose write is still open.
     await waitFor(() =>
       expect(
         screen.getByRole('button', { name: 'Group 2, Draft, Not started' })
@@ -300,41 +368,64 @@ describe('ProjectsWidget', () => {
     );
   });
 
-  it('swaps the bar for counts when status is hidden', () => {
-    render(<ProjectsWidget widget={widget({ showStatus: false })} />);
-    expect(screen.getByText('1 of 2 done')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Show status' }));
+  it('collapses to one bar per group and remembers it on the board (D37)', () => {
+    render(<ProjectsWidget widget={widget({ boardCollapsed: true })} />);
+    expect(screen.getByText('1/2')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Group 1, Research, Done' })
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Show as grid' }));
     expect(updateWidget).toHaveBeenCalledWith('projects-1', {
-      config: expect.objectContaining({ showStatus: true }) as object,
+      config: expect.objectContaining({ boardCollapsed: false }) as object,
     });
   });
 
-  it('falls back to counts past the comfortable ceiling', () => {
+  it('writes boardCollapsed when collapsing the grid', () => {
+    render(<ProjectsWidget widget={widget()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Show as bars' }));
+    expect(updateWidget).toHaveBeenCalledWith('projects-1', {
+      config: expect.objectContaining({ boardCollapsed: true }) as object,
+    });
+  });
+
+  it('reads the legacy hidden-status toggle as collapsed', () => {
+    render(<ProjectsWidget widget={widget({ showStatus: false })} />);
+    expect(screen.getByText('1/2')).toBeInTheDocument();
+  });
+
+  it('draws the grid at any group count (D31)', () => {
     mockRun({
-      groups: Array.from({ length: 9 }, (_, i) =>
+      groups: Array.from({ length: 12 }, (_, i) =>
         group({ id: `g${i}`, name: `Group ${i}`, order: i })
       ),
     });
     render(<ProjectsWidget widget={widget()} />);
-    expect(screen.getByText('Showing counts.')).toBeInTheDocument();
-    expect(screen.getAllByText('1 of 2 done')).toHaveLength(9);
+    expect(screen.queryByText('Showing counts.')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('rowheader')).toHaveLength(12);
+    expect(
+      screen.getByRole('button', { name: 'Group 11, Draft, Not started' })
+    ).toBeInTheDocument();
   });
 
-  it('tracks a hand-built roster under its local class id (D6)', () => {
+  it('tracks a hand-built roster under its local class id and warns (D6, D45)', () => {
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       updateWidget,
       addToast: vi.fn(),
-      rosters: [{ id: 'roster-2', name: 'Club' }],
-      activeRosterId: 'roster-2',
+      rosters: [{ id: 'roster-2', name: 'Club', students: [] }],
+      activeRosterId: null,
       activeDashboard: { globalStyle: { fontFamily: 'sans' } },
     });
-    mockRun({ groups: [group({ classId: 'local:roster-2' })] });
+    mockRun({
+      run: { ...run, classIds: ['local:roster-2'] },
+      groups: [group({ classId: 'local:roster-2' })],
+    });
     render(<ProjectsWidget widget={widget()} />);
     expect(screen.getByText('Group 1')).toBeInTheDocument();
-    expect(screen.queryByText('Pick a class')).not.toBeInTheDocument();
+    expect(screen.getByText('Club')).toBeInTheDocument();
+    expect(screen.getByText(NO_STUDENT_SIGN_IN_WARNING)).toBeInTheDocument();
   });
 
-  it('asks for a class when none is active', () => {
+  it('auto-selects the only class without reading the active class (D32)', () => {
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       updateWidget,
       addToast: vi.fn(),
@@ -343,7 +434,131 @@ describe('ProjectsWidget', () => {
       activeDashboard: { globalStyle: { fontFamily: 'sans' } },
     });
     render(<ProjectsWidget widget={widget()} />);
-    expect(screen.getByText('Pick a class')).toBeInTheDocument();
+    expect(screen.getByText('Group 1')).toBeInTheDocument();
+    expect(screen.getByText('Class 1')).toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(NO_STUDENT_SIGN_IN_WARNING)
+    ).not.toBeInTheDocument();
+  });
+
+  it('switches classes from the board picker', () => {
+    mockRun({
+      run: {
+        ...run,
+        classIds: ['class-a', 'class-b'],
+        classNames: { 'class-a': 'Period 1', 'class-b': 'Period 2' },
+      },
+      groups: [
+        group(),
+        group({ id: 'g2', name: 'Group 2', classId: 'class-b' }),
+      ],
+    });
+    render(<ProjectsWidget widget={widget({ boardClassId: 'class-b' })} />);
+    expect(screen.getByText('Group 2')).toBeInTheDocument();
+    expect(screen.queryByText('Group 1')).not.toBeInTheDocument();
+    const picker = screen.getByRole('combobox', { name: 'Class' });
+    expect(picker).toHaveValue('class-b');
+    fireEvent.change(picker, { target: { value: 'class-a' } });
+    expect(updateWidget).toHaveBeenCalledWith('projects-1', {
+      config: expect.objectContaining({ boardClassId: 'class-a' }) as object,
+    });
+  });
+
+  it('falls back to the first class when the saved one left the run', () => {
+    render(<ProjectsWidget widget={widget({ boardClassId: 'gone' })} />);
+    expect(screen.getByText('Group 1')).toBeInTheDocument();
+  });
+
+  it('counts steps waiting for review and opens the first (D36)', async () => {
+    mockRun({
+      groups: [
+        group({ stepStates: { 'step-1': 'readyForReview' } }),
+        group({
+          id: 'g2',
+          name: 'Group 2',
+          order: 1,
+          stepStates: { 'step-2': 'readyForReview' },
+        }),
+      ],
+    });
+    render(<ProjectsWidget widget={widget()} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: '2 waiting for review' })
+    );
+    expect(
+      await screen.findByRole('menu', { name: 'Group 1: Research' })
+    ).toBeInTheDocument();
+  });
+
+  it('dots a cell whose step has work tagged to it', () => {
+    (
+      useProjectGroupWork as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({
+      workLinks: [link],
+      legacySeed: undefined,
+      loading: false,
+    });
+    render(<ProjectsWidget widget={widget()} />);
+    expect(
+      screen.getByRole('button', {
+        name: 'Group 1, Research, Done, work attached',
+      })
+    ).toBeInTheDocument();
+  });
+
+  it('expands a group to show members, work and recent events (D35)', async () => {
+    (
+      useProjectGroupWork as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({
+      workLinks: [link],
+      legacySeed: undefined,
+      loading: false,
+    });
+    (
+      useAssignmentPseudonymsMulti as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({
+      byStudentUid: new Map([
+        ['uid-1', { givenName: 'Ada', familyName: 'Lovelace' }],
+      ]),
+      byAssignmentPseudonym: new Map(),
+      targetRefKeyByStudentUid: new Map(),
+      targetRefKeyByAssignmentPseudonym: new Map(),
+    });
+    (
+      useProjectGroupEvents as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({
+      events: [
+        {
+          id: 'e1',
+          at: Date.now(),
+          actorUid: 'teacher-1',
+          actorRole: 'teacher',
+          kind: 'stepState',
+          stepId: 'step-1',
+          to: 'done',
+        },
+      ],
+      loading: false,
+    });
+    mockRun({ groups: [group({ memberUids: ['uid-1'] })] });
+    render(<ProjectsWidget widget={widget()} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Group 1', expanded: false })
+    );
+    expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Poster doc' })).toHaveAttribute(
+      'href',
+      'https://docs.example.com/poster'
+    );
+    expect(
+      screen.getByText("Teacher set 'Research' to Done")
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Group 1', expanded: true })
+    );
+    expect(screen.queryByText('Ada Lovelace')).not.toBeInTheDocument();
   });
 
   describe('inside a sub share', () => {
@@ -380,7 +595,6 @@ describe('ProjectsWidget', () => {
           classId: 'class-a',
           order: 0,
           stepStates: { 'step-1': 'done', 'step-2': 'notStarted' },
-          needsSupport: true,
         },
       ],
     };
@@ -415,22 +629,18 @@ describe('ProjectsWidget', () => {
       expect(
         screen.queryByRole('button', { name: 'Group 1, Research, Done' })
       ).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole('button', { name: /Clear the help flag/ })
-      ).not.toBeInTheDocument();
-      expect(screen.getByText('Help')).toBeInTheDocument();
     });
 
     // Each of these writes the teacher's board or their run, which a
     // substitute cannot do, and the library behind it is not theirs to see.
-    it('hides the library, the status toggle and the project actions', async () => {
+    it('hides the library, the collapse toggle and the project actions', async () => {
       renderShared();
       await screen.findByText('Ecosystem poster');
       expect(
         screen.queryByRole('button', { name: 'Back to the project library' })
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByRole('button', { name: 'Hide status' })
+        screen.queryByRole('button', { name: 'Show as bars' })
       ).not.toBeInTheDocument();
       expect(
         screen.queryByRole('button', { name: 'Project actions' })

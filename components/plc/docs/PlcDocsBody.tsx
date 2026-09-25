@@ -30,6 +30,8 @@ import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnl
 
 interface PlcDocsBodyProps {
   plc: Plc;
+  /** Selects this doc once it loads. */
+  requestedDocId?: string | null;
 }
 
 /** Returns true if the URL is a Google Docs/Drive link. Parses the hostname
@@ -50,7 +52,10 @@ function isGoogleUrl(url: string): boolean {
   }
 }
 
-export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({ plc }) => {
+export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({
+  plc,
+  requestedDocId = null,
+}) => {
   const { t } = useTranslation();
   const { addToast } = useDashboard();
   // Viewers can read/select docs + view the embed, but can't add/rename/remove
@@ -66,17 +71,24 @@ export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({ plc }) => {
 
   // Track which doc is selected; auto-select the first when the list loads.
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [appliedRequestId, setAppliedRequestId] = useState<string | null>(null);
 
   // Adjust-state-during-render pattern: keep selectedId consistent with
   // the live docs list without effects.
   const docIds = docs.map((d) => d.id);
-  const selectedStillExists =
-    selectedId !== null && docIds.includes(selectedId);
-
-  if (!selectedStillExists && docIds.length > 0 && selectedId !== docIds[0]) {
-    setSelectedId(docIds[0]);
-  } else if (docIds.length === 0 && selectedId !== null) {
-    setSelectedId(null);
+  if (
+    requestedDocId !== null &&
+    requestedDocId !== appliedRequestId &&
+    docIds.includes(requestedDocId)
+  ) {
+    setAppliedRequestId(requestedDocId);
+    setSelectedId(requestedDocId);
+  } else if (selectedId === null || !docIds.includes(selectedId)) {
+    if (docIds.length > 0 && selectedId !== docIds[0]) {
+      setSelectedId(docIds[0]);
+    } else if (docIds.length === 0 && selectedId !== null) {
+      setSelectedId(null);
+    }
   }
 
   const selectedDoc = docs.find((d) => d.id === selectedId) ?? null;

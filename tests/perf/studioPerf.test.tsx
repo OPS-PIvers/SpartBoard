@@ -60,7 +60,9 @@ vi.mock(
       await importOriginal<
         typeof import('@/components/widgets/GuidedLearning/components/GuidedLearningStage')
       >();
-    const Counted: typeof real.GuidedLearningStage = (props) => (
+    const Counted = (
+      props: React.ComponentProps<typeof real.GuidedLearningStage>
+    ) => (
       <Profiler
         id="gl-stage"
         onRender={() => {

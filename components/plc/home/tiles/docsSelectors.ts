@@ -5,9 +5,9 @@ import type { PlcDoc, PlcMember, PlcNote } from '@/types';
 export interface RecentDocItem {
   id: string;
   kind: 'doc' | 'note';
+  /** The doc or note's own id. */
+  sourceId: string;
   title: string;
-  /** Docs open their URL; notes open the Notes & Docs section. */
-  url: string | null;
   author: string;
   at: number;
 }
@@ -28,8 +28,8 @@ export function selectRecentDocs(
     items.push({
       id: `doc:${d.id}`,
       kind: 'doc',
+      sourceId: d.id,
       title: d.title,
-      url: d.url,
       author: d.createdByName
         ? d.createdByName
         : (names.get(d.createdBy) ?? ''),
@@ -41,8 +41,8 @@ export function selectRecentDocs(
     items.push({
       id: `note:${n.id}`,
       kind: 'note',
+      sourceId: n.id,
       title: n.title,
-      url: null,
       author: names.get(n.lastEditedBy) ?? '',
       at: n.lastEditedAt,
     });

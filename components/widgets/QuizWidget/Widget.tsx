@@ -92,6 +92,7 @@ import type { FibGradingContext } from '@/utils/quizFibAnswers';
 import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import { hasValidMaxPoints } from '@/utils/runClassroomGradePush';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
+import { sessionSectionsFor } from '@/utils/quizSections';
 import { runPublishGradePush } from '@/utils/publishGradePush';
 import {
   RESULTS_PROTECTION_DEFAULTS,
@@ -1414,6 +1415,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       // tile is offered on the quiz import only.
       canImportDocuments,
       canSuggestTargets: canAccessFeature('quiz-import-suggested-targets'),
+      canUseSections: canAccessFeature('quiz-sections'),
       pickDocument,
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
       canUseChooseAll: canAccessFeature('quiz-choose-all'),
@@ -2043,6 +2045,9 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 questions: assignQuestions,
                 ...(assignStimuli ? { stimuli: assignStimuli } : {}),
                 ...(data.language ? { language: data.language } : {}),
+                ...(data.sections?.length
+                  ? { order: data.order, sections: data.sections }
+                  : {}),
               },
               {
                 sessionMode: mode,
@@ -3179,7 +3184,10 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 sessionId: target.id,
                 classroomFinalAttachments,
                 classroomToken,
-                schoologyMaxPoints: quizMaxPoints(data.questions),
+                schoologyMaxPoints: quizMaxPoints(
+                  data.questions,
+                  sessionSectionsFor(data)
+                ),
                 buildClassroomGrades: (responses) => {
                   // All attachments share the assignment's maxPoints.
                   const mp = classroomFinalAttachments[0]?.maxPoints;
@@ -3196,7 +3204,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   buildQuizClassroomGradeEntries(
                     responses,
                     data.questions,
-                    quizMaxPoints(data.questions),
+                    quizMaxPoints(data.questions, sessionSectionsFor(data)),
                     publishFibGrading
                   ),
               });

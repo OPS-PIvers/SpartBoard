@@ -84,6 +84,7 @@ import {
 } from '@/utils/periodAccess';
 import { isInvalidWordRange } from '@/utils/wordLimit';
 import { getServerNow } from '@/utils/serverTime';
+import { withNotChosen } from '@/utils/quizSections';
 export type { QuizSessionOptions } from '@/types';
 
 export const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
@@ -1092,7 +1093,7 @@ export const useQuizSessionTeacher = (
   const [rawSession, setSession] = useState<QuizSession | null>(null);
   const [content, setContent] = useState<QuizSessionContent | null>(null);
   const [contentLoaded, setContentLoaded] = useState(false);
-  const [responses, setResponses] = useState<QuizResponse[]>([]);
+  const [rawResponses, setResponses] = useState<QuizResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(!!sessionId);
   const advancingRef = useRef(false);
 
@@ -1132,6 +1133,12 @@ export const useQuizSessionTeacher = (
   const session = useMemo(
     () => mergeQuizSessionContent(rawSession, content),
     [rawSession, content]
+  );
+  // Choose-N sections leave questions out of a student's total (E14); stamped here once for every view.
+  const sessionSections = session?.sections;
+  const responses = useMemo(
+    () => withNotChosen(rawResponses, sessionSections),
+    [rawResponses, sessionSections]
   );
 
   useEffect(() => {

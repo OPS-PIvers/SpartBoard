@@ -59,8 +59,54 @@ export const INLINE_TEST_BANK_ANSWER = /^\s*ANS\s*:\s*(.*)$/i;
 const TEST_BANK_FIELD =
   /(?:PTS|DIF|REF|OBJ|TOP|KEY|MSC|NAT|STA|LOC|BLM|NOT|RTN|FEEDBACK)\s*:/;
 
+/** Every bookkeeping field and its value, `OBJ: 1.2 Describe…` (E10). */
+const TEST_BANK_FIELDS =
+  /\b(PTS|DIF|REF|OBJ|TOP|KEY|MSC|NAT|STA|LOC|BLM|NOT|RTN|FEEDBACK)\s*:\s*/g;
+
+/** A test bank's fields by name; a repeated field keeps its first value. */
+export function testBankFields(text: string): Map<string, string> {
+  const fields = new Map<string, string>();
+  const marks = [...text.matchAll(TEST_BANK_FIELDS)];
+  marks.forEach((m, i) => {
+    const start = (m.index ?? 0) + m[0].length;
+    const end = marks[i + 1]?.index ?? text.length;
+    const value = tidy(text.slice(start, end));
+    if (value && !fields.has(m[1])) fields.set(m[1], value);
+  });
+  return fields;
+}
+
+/** A key item's `OBJ`, `TOP`, `NAT` and `STA` (E10). */
+export function metadataOf(
+  text: string
+): Pick<KeyItem, 'objective' | 'topic' | 'standards'> {
+  const fields = testBankFields(text);
+  const standards = [fields.get('NAT'), fields.get('STA')]
+    .flatMap((v) => (v ? v.split(/\s*[|,;]\s*/) : []))
+    .map((v) => v.trim())
+    .filter(Boolean);
+  const objective = fields.get('OBJ');
+  const topic = fields.get('TOP');
+  return {
+    ...(objective ? { objective } : {}),
+    ...(topic ? { topic } : {}),
+    ...(standards.length > 0 ? { standards: [...new Set(standards)] } : {}),
+  };
+}
+
 /** A test bank's `PTS: 2`. */
 const TEST_BANK_POINTS = /\bPTS\s*:\s*(\d{1,2}(?:\.\d+)?)/;
+
+/** The points and metadata printed with an inline `ANS:` (E10). */
+export function keyItemFields(
+  text: string
+): Pick<KeyItem, 'points' | 'objective' | 'topic' | 'standards'> {
+  const points = TEST_BANK_POINTS.exec(text);
+  return {
+    ...(points ? { points: Number(points[1]) } : {}),
+    ...metadataOf(text),
+  };
+}
 
 /** A line that is nothing but test-bank bookkeeping. */
 export const TEST_BANK_FIELD_LINE = new RegExp(
@@ -268,7 +314,12 @@ function findTestBankKey(
 
   const answerByNumber = new Map<number, string>();
   const raws: RawKeyItem[] = [];
-  let open: { number: number; parts: string[]; points?: number } | null = null;
+  let open: {
+    number: number;
+    parts: string[];
+    points?: number;
+    fields: string[];
+  } | null = null;
   const close = () => {
     if (open) {
       const answer = normalizeAnswer(open.parts.join(' '), multi);
@@ -280,6 +331,7 @@ function findTestBankKey(
           item: open.number,
           answer,
           ...(open.points !== undefined ? { points: open.points } : {}),
+          ...metadataOf(open.fields.join(' ')),
         });
       }
     }
@@ -294,7 +346,11 @@ function findTestBankKey(
     if (entry) {
       close();
       const answer = answerBeforeFields(entry[2]);
-      open = { number: Number(entry[1]), parts: answer ? [answer] : [] };
+      open = {
+        number: Number(entry[1]),
+        parts: answer ? [answer] : [],
+        fields: [entry[2]],
+      };
       if (points) open.points = Number(points[1]);
       // A blank `ANS:` means the written answer is on the lines below.
       collecting = !answer && !TEST_BANK_FIELD.test(entry[2]);
@@ -303,6 +359,7 @@ function findTestBankKey(
     if (open && points && open.points === undefined) {
       open.points = Number(points[1]);
     }
+    if (open && TEST_BANK_FIELD.test(text)) open.fields.push(text);
     if (!open || !collecting) continue;
     if (
       !text.trim() ||
@@ -603,6 +660,17 @@ export function applyKeyAnswer(
     return applyLetterList(question, answer, source);
   }
 
+  if (question.examView === 'modifiedTf') {
+    return applyModifiedTrueFalse(question, answer);
+  }
+
+  if (
+    (question.examView === 'completion' || question.examView === 'numeric') &&
+    question.type === 'FIB'
+  ) {
+    return { ...question, correctAnswer: answer };
+  }
+
   if (question.type === 'MC' && !multi && LETTER_LIST.test(answer)) {
     return note(
       question,
@@ -648,6 +716,9 @@ export function applyKeyAnswer(
   }
 
   if (question.type === 'free-response') {
+    if (question.examView === 'written') {
+      return note(question, `Key’s sample answer: ${answer}`);
+    }
     if (
       isLetter(answer) ||
       isList ||
@@ -673,6 +744,38 @@ export function applyKeyAnswer(
     question,
     `The key gives ${said} for this question, but it isn’t multiple choice, so it was left as read.`
   );
+}
+
+/** `T`, or `F, producers`: the answer, and the word that makes a false statement true (E7). */
+const MODIFIED_TRUE_FALSE = /^(true|false|t|f)\b\s*[,;:.\-–—]?\s*(.*)$/i;
+
+function applyModifiedTrueFalse(
+  question: ExtractedQuestion,
+  answer: string
+): ExtractedQuestion {
+  const m = MODIFIED_TRUE_FALSE.exec(answer.trim());
+  if (!m) {
+    return note(
+      question,
+      `The answer key says “${answer}”, which isn’t True or False.`
+    );
+  }
+  const isTrue = TRUE_ANSWER.test(m[1]);
+  const option = question.options.find((o) =>
+    (isTrue ? TRUE_ANSWER : FALSE_ANSWER).test(o.text.trim())
+  );
+  const keyed = { ...question, correctAnswer: option?.text ?? '' };
+  const correction = tidy(m[2]);
+  if (isTrue || !correction) {
+    const { correction: _dropped, ...rest } = keyed;
+    return isTrue
+      ? rest
+      : note(
+          rest,
+          'The answer key says False but doesn’t give the word that makes it true.'
+        );
+  }
+  return { ...keyed, correction };
 }
 
 /** Answer texts as the letters the test printed, where they have one. */

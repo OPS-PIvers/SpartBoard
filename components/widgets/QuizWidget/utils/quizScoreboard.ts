@@ -81,7 +81,8 @@ export function getEarnedPoints(
 
   for (const ans of sortedAnswers) {
     const q = qMap.get(ans.questionId);
-    if (!q) continue;
+    // A question left out of a choose-N section earns nothing (E14).
+    if (!q || r._notChosen?.includes(q.id)) continue;
 
     // Written types (`short`/`essay`) get their points from the response's
     // top-level `grading` map. Without this thread-through, scoreboard
@@ -160,7 +161,7 @@ export function getMaxAnsweredPoints(
   let total = 0;
   for (const a of representative.values()) {
     const q = qMap.get(a.questionId);
-    if (q) total += q.points ?? 1;
+    if (q && !r._notChosen?.includes(q.id)) total += q.points ?? 1;
   }
   return total;
 }
@@ -299,7 +300,7 @@ export function isResponseAwaitingGrade(
   const representative = selectRepresentativeAnswers(r.answers ?? []);
   for (const ans of representative.values()) {
     const q = qMap.get(ans.questionId);
-    if (!q) continue;
+    if (!q || r._notChosen?.includes(q.id)) continue;
     const manualGrade = isFreeResponseType(q.type)
       ? readSlotGrade(r.grading, q.id)
       : undefined;

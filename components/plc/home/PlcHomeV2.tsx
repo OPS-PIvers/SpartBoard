@@ -46,6 +46,7 @@ import type {
 interface PlcHomeV2Props {
   plc: Plc;
   onNavigate: (id: PlcSectionId) => void;
+  onOpenDoc: (docId: string) => void;
 }
 
 const QUIET_SIGNALS: PlcHomeSignals = {
@@ -54,7 +55,11 @@ const QUIET_SIGNALS: PlcHomeSignals = {
   newResults: false,
 };
 
-export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({ plc, onNavigate }) => {
+export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({
+  plc,
+  onNavigate,
+  onOpenDoc,
+}) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addToast } = useDashboard();
@@ -234,6 +239,7 @@ export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({ plc, onNavigate }) => {
     uid,
     now,
     onNavigate,
+    onOpenDoc,
     lastSeenAt: frozenCursor,
     signals,
   };

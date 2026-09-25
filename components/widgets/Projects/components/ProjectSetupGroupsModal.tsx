@@ -16,7 +16,12 @@ import type {
   ProjectsPendingImport,
 } from '@/types';
 import { Modal } from '@/components/common/Modal';
-import { projectClassIdFor } from '../projectSteps';
+import {
+  NO_STUDENT_SIGN_IN_WARNING,
+  defaultGroupColor,
+  projectClassIdFor,
+  rosterHasStudentSignIn,
+} from '../projectSteps';
 
 /** Matches `commitProjectGroupsV1`'s MAX_GROUPS. */
 const MAX_GROUPS = 32;
@@ -91,6 +96,8 @@ export const ProjectSetupGroupsModal: React.FC<
         // D11 — carrying the Group Maker's own names across is opt-in.
         name: carryNames ? group.name : `Group ${groupsInClass + index + 1}`,
         order: index,
+        // D33 — the Group Maker's color comes along; otherwise one is dealt by order.
+        color: group.color ?? defaultGroupColor(groupsInClass + index),
         sourcedIds: students
           .map((s) => s.classLinkSourcedId)
           .filter((id): id is string => Boolean(id)),
@@ -123,6 +130,7 @@ export const ProjectSetupGroupsModal: React.FC<
           name: group.name,
           classId,
           order: groupsInClass + group.order,
+          color: group.color,
           classLinkSourcedIds: group.sourcedIds,
           ...(group.testEmails.length > 0
             ? { testEmails: group.testEmails }
@@ -133,6 +141,7 @@ export const ProjectSetupGroupsModal: React.FC<
           name: `Group ${groupsInClass + index + 1}`,
           classId,
           order: groupsInClass + index,
+          color: defaultGroupColor(groupsInClass + index),
           classLinkSourcedIds: [],
         }));
 
@@ -198,7 +207,9 @@ export const ProjectSetupGroupsModal: React.FC<
             {rosters.length === 0 && <option value="">No classes yet</option>}
             {rosters.map((r) => (
               <option key={r.id} value={r.id}>
-                {r.name}
+                {rosterHasStudentSignIn(r)
+                  ? r.name
+                  : `${r.name}, no student sign-in`}
               </option>
             ))}
           </select>
@@ -211,10 +222,12 @@ export const ProjectSetupGroupsModal: React.FC<
           )}
         </div>
 
-        {roster && !roster.classlinkClassId && !roster.testClassId && (
-          <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            {roster.name} has no student sign-in. You can still track groups
-            yourself.
+        {roster && !rosterHasStudentSignIn(roster) && (
+          <p
+            role="note"
+            className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800"
+          >
+            {NO_STUDENT_SIGN_IN_WARNING}
           </p>
         )}
 

@@ -12,6 +12,7 @@ import {
   AlertCircle,
   ChevronDown,
   GripVertical,
+  Heading,
   KeyRound,
   Library,
   Mic,
@@ -33,6 +34,8 @@ import {
 } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { BankSlotDetail, BankSlotRow } from './BankSlotRow';
+import { SectionRow } from './SectionRow';
+import { sectionQuestionCounts } from '@/utils/quizSections';
 import { findSlotSource, slotEligibleFromSource } from './bankSlotHelpers';
 import { BankPickerModal } from './BankPickerModal';
 import { SaveToBankModal } from './SaveToBankModal';
@@ -84,6 +87,8 @@ interface PaneProps {
   inheritedTargets?: QuestionTargetTag[];
   /** Opens "Add answer key"; shown beside the needs-answer count when set (R31). */
   onAddAnswerKey?: () => void;
+  /** Off in the bank editor, which doesn't save sections. */
+  allowSections?: boolean;
 }
 
 const QUESTION_TYPES: {
@@ -160,6 +165,7 @@ const quizContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.titlePlaceholder === next.titlePlaceholder &&
   prev.inheritedTargets === next.inheritedTargets &&
   prev.onAddAnswerKey === next.onAddAnswerKey &&
+  prev.allowSections === next.allowSections &&
   prev.state.error === next.state.error;
 
 export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
@@ -174,9 +180,11 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
   titlePlaceholder,
   inheritedTargets,
   onAddAnswerKey,
+  allowSections = true,
 }: PaneProps) {
-  const { canAccessQuizMediaResponse } = useAuth();
+  const { canAccessQuizMediaResponse, canAccessFeature } = useAuth();
   const mediaResponseAllowed = canAccessQuizMediaResponse();
+  const sectionsEnabled = allowSections && canAccessFeature('quiz-sections');
   const {
     title,
     setTitle,
@@ -184,6 +192,10 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
     stimuli,
     order,
     bankSlots,
+    sections,
+    addSection,
+    updateSection,
+    removeSection,
     selectedId,
     setSelectedId,
     addQuestion,
@@ -215,6 +227,18 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
   const slotsById = useMemo(
     () => new Map(bankSlots.map((s) => [s.id, s])),
     [bankSlots]
+  );
+  const sectionsById = useMemo(
+    () => new Map(sections.map((s) => [s.id, s])),
+    [sections]
+  );
+  const sectionCounts = useMemo(
+    () =>
+      sectionQuestionCounts(
+        order,
+        new Map(bankSlots.map((s) => [s.id, s.count ?? 0]))
+      ),
+    [order, bankSlots]
   );
   // Question numbers skip slot rows so "Question 3" matches the detail pane.
   const questionNumberById = useMemo(() => {
@@ -378,7 +402,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                 Draft with AI
               </button>
             )}
-            {bankApi ? (
+            {bankApi || sectionsEnabled ? (
               <div ref={addMenuRef} className="relative flex items-stretch">
                 <button
                   type="button"
@@ -415,26 +439,42 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                       <Plus className="w-3.5 h-3.5" />
                       Blank question
                     </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      disabled={!banksAvailable}
-                      onClick={() => {
-                        setAddMenuOpen(false);
-                        setBankPickerOpen(true);
-                      }}
-                      className="w-full flex items-start gap-2 px-3 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
-                    >
-                      <Shuffle className="w-3.5 h-3.5 mt-px shrink-0" />
-                      <span>
-                        From question bank…
-                        {!banksAvailable && (
-                          <span className="block font-normal text-slate-500">
-                            Create a bank in the Banks tab first
-                          </span>
-                        )}
-                      </span>
-                    </button>
+                    {sectionsEnabled && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setAddMenuOpen(false);
+                          addSection();
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                      >
+                        <Heading className="w-3.5 h-3.5" />
+                        Section
+                      </button>
+                    )}
+                    {bankApi && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        disabled={!banksAvailable}
+                        onClick={() => {
+                          setAddMenuOpen(false);
+                          setBankPickerOpen(true);
+                        }}
+                        className="w-full flex items-start gap-2 px-3 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-white"
+                      >
+                        <Shuffle className="w-3.5 h-3.5 mt-px shrink-0" />
+                        <span>
+                          From question bank…
+                          {!banksAvailable && (
+                            <span className="block font-normal text-slate-500">
+                              Create a bank in the Banks tab first
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -460,6 +500,20 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
             getId={getEntryId}
             onReorder={reorderEntries}
             renderItem={(entry, handle) => {
+              if (entry.kind === 'section') {
+                const section = sectionsById.get(entry.id);
+                if (!section) return null;
+                return (
+                  <SectionRow
+                    section={section}
+                    questionCount={sectionCounts.get(section.id) ?? 0}
+                    onUpdate={updateSection}
+                    onRemove={removeSection}
+                    dragHandleAttributes={handle.attributes}
+                    dragHandleListeners={handle.listeners}
+                  />
+                );
+              }
               if (entry.kind === 'slot') {
                 const slot = slotsById.get(entry.id);
                 if (!slot) return null;

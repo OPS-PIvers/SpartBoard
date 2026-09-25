@@ -24,6 +24,7 @@ import type { QuizData, QuizQuestion } from '@/types';
 import { generateQuiz, type GeneratedQuestion } from '@/utils/ai';
 import {
   extractedToQuizData,
+  unenforcedChooseNotes,
   reviewExtrasFor,
   readByLabel,
   rowWarnings,
@@ -89,6 +90,8 @@ export interface QuizImportAdapterDeps {
   canImportDocuments?: boolean;
   /** Offer the test's learning-target lines as targets in review (R20, R22). */
   canSuggestTargets?: boolean;
+  /** Turn printed section headings into quiz sections (QUIZ_EXAMVIEW_IMPORT E16). */
+  canUseSections?: boolean;
   /**
    * Uploads a read document's pictures to the teacher's Drive and links them
    * to the questions that use them (D13). Called at save, not at read, so a
@@ -447,10 +450,18 @@ export function createQuizImportAdapter(
         );
         deps.onDocumentImages?.(extracted.images);
         return {
-          data: extractedToQuizData(extracted),
+          data: extractedToQuizData(extracted, {
+            sections: deps.canUseSections === true,
+          }),
           // Row notes ride the wizard's own warnings list, numbered so they
           // line up with the review rows (D10).
-          warnings: [...extracted.warnings, ...rowWarnings(extracted)],
+          warnings: [
+            ...extracted.warnings,
+            ...rowWarnings(extracted),
+            ...(deps.canUseSections
+              ? []
+              : unenforcedChooseNotes(extracted.questions)),
+          ],
           ...(extracted.readBy ? { note: readByLabel(extracted.readBy) } : {}),
         };
       }
@@ -483,7 +494,10 @@ export function createQuizImportAdapter(
               images: deps.documentImages?.() ?? [],
               keySummary: reviewExtrasFor(data)?.keySummary,
               ...(deps.canSuggestTargets
-                ? { suggestedTargets: reviewExtrasFor(data)?.suggestedTargets }
+                ? {
+                    suggestedTargets: reviewExtrasFor(data)?.suggestedTargets,
+                    standardCodes: reviewExtrasFor(data)?.standardCodes,
+                  }
                 : {}),
             }),
         }

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { PxRect } from '../types/stage';
 import {
   arrowBetween,
+  boxCoversTarget,
+  connectorFor,
   leaderCurve,
   placeBanner,
   placeCallout,
@@ -258,5 +260,47 @@ describe('placeCallout obstacles', () => {
     });
     const rect = { x: p.left, y: p.top, w: p.width, h: box.h };
     expect(rectOverlapArea(rect, target)).toBe(0);
+  });
+});
+
+describe('connectorFor', () => {
+  const target: PxRect = { x: 380, y: 280, w: 40, h: 40 };
+  const onEdge = (p: { x: number; y: number }, b: PxRect) =>
+    (p.x === b.x || p.x === b.x + b.w || p.y === b.y || p.y === b.y + b.h) &&
+    p.x >= b.x &&
+    p.x <= b.x + b.w &&
+    p.y >= b.y &&
+    p.y <= b.y + b.h;
+  const sides: [string, PxRect, { x: number; y: number }][] = [
+    ['above', { x: 300, y: 100, w: 200, h: 80 }, { x: 0, y: 1 }],
+    ['below', { x: 300, y: 400, w: 200, h: 80 }, { x: 0, y: -1 }],
+    ['left', { x: 50, y: 260, w: 200, h: 80 }, { x: 1, y: 0 }],
+    ['right', { x: 550, y: 260, w: 200, h: 80 }, { x: -1, y: 0 }],
+  ];
+
+  it.each(sides)(
+    'starts on the box edge facing a target when the box is %s it',
+    (_, box, normal) => {
+      const a = connectorFor(box, target);
+      if (!a) throw new Error('expected a connector');
+      expect(onEdge(a.from, box)).toBe(true);
+      expect(a.normal).toEqual(normal);
+      expect(a.to.x).toBeGreaterThanOrEqual(target.x);
+      expect(a.to.x).toBeLessThanOrEqual(target.x + target.w);
+      expect(a.to.y).toBeGreaterThanOrEqual(target.y);
+      expect(a.to.y).toBeLessThanOrEqual(target.y + target.h);
+    }
+  );
+
+  it('is null when the box covers the target centre', () => {
+    const box = { x: 350, y: 250, w: 200, h: 80 };
+    expect(boxCoversTarget(box, target)).toBe(true);
+    expect(connectorFor(box, target)).toBeNull();
+  });
+
+  it('still draws when the box overlaps the target but not its centre', () => {
+    const box = { x: 405, y: 250, w: 200, h: 80 };
+    expect(boxCoversTarget(box, target)).toBe(false);
+    expect(connectorFor(box, target)).not.toBeNull();
   });
 });

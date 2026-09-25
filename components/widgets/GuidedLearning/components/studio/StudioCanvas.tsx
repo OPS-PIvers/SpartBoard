@@ -268,7 +268,21 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
         className="h-full w-full"
         style={{ transform: viewTransform(view), transformOrigin: '0 0' }}
       >
-        <DeviceFrame preset={preset}>
+        <DeviceFrame
+          preset={preset}
+          chrome={{
+            title,
+            mode,
+            playerV2,
+            steps: steps as unknown as GuidedLearningPublicStep[],
+            stepIndex: Math.max(
+              0,
+              steps.findIndex((s) => s.id === shownStepId)
+            ),
+            imageCount: imageUrls.length,
+            imageIndex: currentImageIndex,
+          }}
+        >
           <div
             className="contents"
             style={playerV2 ? PROJECTOR_TEXT_VARS : undefined}
@@ -287,6 +301,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
               renderCalloutEditor={renderCalloutEditor}
               renderEditLayer={renderEditLayer}
               onGeometry={onGeometry}
+              showCalloutFit
               onPinClick={setSelectedStepId}
               onAdvance={noop}
               onDismiss={noop}

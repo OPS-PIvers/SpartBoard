@@ -1,4 +1,4 @@
-import React, { Profiler, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   act,
   cleanup,
@@ -19,6 +19,9 @@ import { StudioCanvas } from './StudioCanvas';
 import { useCanvasTools } from './useCanvasTools';
 import { useStudioShortcuts } from './useStudioShortcuts';
 import { presetById } from './devicePresets';
+import { calloutArrowPaths } from '../interactions/CalloutArrow';
+import { connectorFor } from '../../utils/calloutPlacement';
+import type { GuidedLearningStageProps as StageProps } from '../../types/stage';
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'test-user' }, isAdmin: true }),
@@ -34,14 +37,18 @@ vi.mock('@/hooks/useStorage', () => ({
 }));
 
 const stageRenders = vi.hoisted(() => ({ count: 0 }));
+// Counts the stage body itself, not the edit layer rendered inside it.
 vi.mock('../GuidedLearningStage', async (importOriginal) => {
   const real = await importOriginal<typeof import('../GuidedLearningStage')>();
-  const Counted: typeof real.GuidedLearningStage = (props) => (
-    <Profiler id="gl-stage" onRender={() => stageRenders.count++}>
-      <real.GuidedLearningStage {...props} />
-    </Profiler>
-  );
-  return { ...real, GuidedLearningStage: Counted };
+  const memo = real.GuidedLearningStage as unknown as {
+    type: (props: StageProps) => React.ReactNode;
+    compare: (a: StageProps, b: StageProps) => boolean;
+  };
+  const Counted = (props: StageProps) => {
+    stageRenders.count++;
+    return memo.type(props);
+  };
+  return { ...real, GuidedLearningStage: React.memo(Counted, memo.compare) };
 });
 
 const BOARD = presetById('board');
@@ -205,7 +212,12 @@ describe('Studio callout editing (gl-callout-editing)', () => {
     });
     fireEvent.pointerUp(layer(), { pointerId: 1, clientX: 620, clientY: 420 });
   };
-  const dragHandle = (id: string, from: Pt, to: Pt) => {
+  const dragHandle = (
+    id: string,
+    from: Pt,
+    to: Pt,
+    init: Record<string, unknown> = {}
+  ) => {
     const el = screen.getByTestId(`gl-callout-handle-${id}`);
     fireEvent.pointerDown(el, {
       button: 0,
@@ -218,6 +230,7 @@ describe('Studio callout editing (gl-callout-editing)', () => {
       clientX: to[0],
       clientY: to[1],
       ctrlKey: true,
+      ...init,
     });
     frames.step();
     fireEvent.pointerUp(layer(), {
@@ -225,9 +238,9 @@ describe('Studio callout editing (gl-callout-editing)', () => {
       clientX: to[0],
       clientY: to[1],
       ctrlKey: true,
+      ...init,
     });
   };
-  const sized = (id: string) => stepById(id);
 
   it('outlines the callout on hover with a move cursor', () => {
     click([18, 18]);
@@ -244,18 +257,58 @@ describe('Studio callout editing (gl-callout-editing)', () => {
     expect(layer()).toHaveClass('cursor-move');
   });
 
-  it('selects the callout with a click, showing side and corner handles and the anchor dot', () => {
+  it('selects the callout with a click, showing eight handles and the anchor dot', () => {
     selectCallout();
     expect(screen.getByTestId('gl-callout-selection')).toBeInTheDocument();
-    for (const h of ['nw', 'ne', 'e', 'se', 'sw', 'w']) {
+    for (const h of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']) {
       expect(screen.getByTestId(`gl-callout-handle-${h}`)).toBeInTheDocument();
     }
-    // Height fits the content, so there is no top or bottom handle.
-    expect(screen.queryByTestId('gl-callout-handle-n')).toBeNull();
     expect(screen.getByTestId('gl-callout-anchor-dot')).toBeInTheDocument();
     // The region's own handles step aside while its callout is selected.
     expect(document.querySelector('[data-gl-handle]')).toBeNull();
-    expect(stepById('rect-1').calloutPin).toBeUndefined();
+    expect(stepById('rect-1').calloutBox).toBeUndefined();
+  });
+
+  it('moves the frame, handles and card together during a callout drag', () => {
+    selectCallout();
+    fireEvent.pointerDown(layer(), {
+      button: 0,
+      pointerId: 1,
+      clientX: 620,
+      clientY: 420,
+    });
+    fireEvent.pointerMove(layer(), {
+      pointerId: 1,
+      clientX: 600,
+      clientY: 380,
+      ctrlKey: true,
+    });
+    frames.step();
+    const card = document.querySelector<HTMLElement>(
+      '[data-gl-callout="rect-1"]'
+    );
+    expect(card?.style.translate).toBe('-20px -40px');
+    const frame = screen.getByTestId('gl-callout-selection');
+    expect(parseFloat(frame.style.left)).toBeCloseTo(580);
+    expect(parseFloat(frame.style.top)).toBeCloseTo(360);
+    const handle = screen.getByTestId('gl-callout-handle-nw');
+    expect(
+      parseFloat(handle.style.left) + parseFloat(handle.style.width) / 2
+    ).toBeCloseTo(580);
+    expect(stepById('rect-1').calloutBox).toBeUndefined();
+    fireEvent.pointerUp(layer(), {
+      pointerId: 1,
+      clientX: 600,
+      clientY: 380,
+      ctrlKey: true,
+    });
+    expect(card?.style.translate).toBe('');
+    expect(stepById('rect-1').calloutBox).toEqual({
+      xPct: expect.closeTo(580 / 7.2) as number,
+      yPct: expect.closeTo(360 / 5.2) as number,
+      wPct: expect.closeTo(100 / 7.2) as number,
+      hPct: expect.closeTo(60 / 5.2) as number,
+    });
   });
 
   it('returns to region selection on Escape or a click on the region', () => {
@@ -276,45 +329,223 @@ describe('Studio callout editing (gl-callout-editing)', () => {
     expect(screen.queryByTestId('gl-callout-selection')).toBeNull();
   });
 
-  it('sets the width from a side handle as one undo step', () => {
-    selectCallout();
-    dragHandle('e', [700, 430], [740, 430]);
-    // Auto-placed, so it grows about its centre: 2 × 90px of 720px.
-    expect(sized('rect-1').calloutWidthPct).toBeCloseTo(25);
-    expect(stepById('rect-1').calloutPin).toBeUndefined();
-    act(() => editor().undo());
-    expect(sized('rect-1').calloutWidthPct).toBeUndefined();
-  });
-
-  it('scales the card from a corner handle', () => {
-    selectCallout();
-    dragHandle('se', [700, 460], [750, 490]);
-    expect(sized('rect-1').calloutScale).toBeCloseTo(1.5);
-    expect(sized('rect-1').calloutWidthPct).toBeUndefined();
-  });
-
-  it('keeps a pinned callout’s far edge in place when a side handle moves', () => {
-    selectCallout();
-    const pinned = {
-      ...stepById('rect-1'),
-      calloutPin: { xPct: 90, yPct: 83 },
+  // The stored box in container px (1% = 7.2px × 5.2px).
+  const pxBox = (id: string) => {
+    const b = stepById(id).calloutBox;
+    if (!b) throw new Error('no box');
+    return {
+      x: b.xPct * 7.2,
+      y: b.yPct * 5.2,
+      w: b.wPct * 7.2,
+      h: b.hPct * 5.2,
     };
-    act(() => editor().updateStep(pinned));
+  };
+  const expectBox = (
+    id: string,
+    r: { x: number; y: number; w: number; h: number }
+  ) => {
+    const b = pxBox(id);
+    expect(b.x).toBeCloseTo(r.x);
+    expect(b.y).toBeCloseTo(r.y);
+    expect(b.w).toBeCloseTo(r.w);
+    expect(b.h).toBeCloseTo(r.h);
+  };
+
+  it('resizes from a side handle as one undo step, keeping the far edge', () => {
+    selectCallout();
+    dragHandle('e', [700, 430], [710, 430]);
+    expectBox('rect-1', { x: 600, y: 400, w: 110, h: 60 });
+    act(() => editor().undo());
+    expect(stepById('rect-1').calloutBox).toBeUndefined();
+  });
+
+  it('resizes the height from the top handle', () => {
+    selectCallout();
+    dragHandle('n', [650, 400], [650, 380]);
+    expectBox('rect-1', { x: 600, y: 380, w: 100, h: 80 });
+  });
+
+  it('keeps the aspect with Shift and resizes about the centre with Alt', () => {
+    selectCallout();
+    dragHandle('se', [700, 460], [710, 470], { shiftKey: true });
+    // The larger of 1.1× and 1.17× wins.
+    expectBox('rect-1', { x: 600, y: 400, w: (100 * 70) / 60, h: 70 });
+    act(() => editor().undo());
+    selectCallout();
+    dragHandle('e', [700, 430], [720, 430], { altKey: true });
+    expectBox('rect-1', { x: 580, y: 400, w: 140, h: 60 });
+  });
+
+  it('snaps a handle to another callout box unless Ctrl is held', () => {
+    act(() =>
+      editor().updateStep({
+        ...stepById('rect-2'),
+        calloutBox: { xPct: 90, yPct: 10, wPct: 5, hPct: 5 },
+      })
+    );
+    selectCallout();
+    // rect-2's box ends at 684px, 2px from the pointer.
+    dragHandle('e', [700, 430], [686, 430], { ctrlKey: false });
+    expect(pxBox('rect-1').w).toBeCloseTo(84);
+    act(() => editor().undo());
+    selectCallout();
+    dragHandle('e', [700, 430], [686, 430]);
+    expect(pxBox('rect-1').w).toBeCloseTo(86);
+  });
+
+  it('turns a pinned, sized callout into a box that keeps its place on screen', () => {
+    selectCallout();
+    act(() =>
+      editor().updateStep({
+        ...stepById('rect-1'),
+        calloutPin: { xPct: 90, yPct: 83 },
+        calloutWidthPct: 14,
+        calloutScale: 1.25,
+        tooltipPosition: 'left',
+      })
+    );
     dragHandle('w', [600, 430], [560, 430]);
-    expect(sized('rect-1').calloutWidthPct).toBeCloseTo((140 / 720) * 100, 1);
-    expect(stepById('rect-1').calloutPin?.xPct).toBeCloseTo(630 / 7.2, 1);
+    expectBox('rect-1', { x: 560, y: 400, w: 140, h: 60 });
+    const step = stepById('rect-1');
+    for (const key of [
+      'calloutPin',
+      'calloutWidthPct',
+      'calloutScale',
+      'tooltipPosition',
+      'tooltipOffset',
+    ] as const) {
+      expect(step[key]).toBeUndefined();
+    }
+  });
+
+  it('re-routes the connector from the box being dragged', () => {
+    selectCallout();
+    const line = () =>
+      document.querySelector(
+        '[data-gl-connector="rect-1"] [data-gl-connector-line]'
+      );
+    const before = line()?.getAttribute('d');
+    expect(before).toBeTruthy();
+    fireEvent.pointerDown(layer(), {
+      button: 0,
+      pointerId: 1,
+      clientX: 620,
+      clientY: 420,
+    });
+    fireEvent.pointerMove(layer(), {
+      pointerId: 1,
+      clientX: 420,
+      clientY: 420,
+      ctrlKey: true,
+    });
+    frames.step();
+    // rect-1's region is 108,78 144×104; the box is now at 400,400.
+    const arrow = connectorFor(
+      { x: 400, y: 400, w: 100, h: 60 },
+      { x: 108, y: 78, w: 144, h: 104 }
+    );
+    const paths =
+      arrow && calloutArrowPaths(arrow.from, arrow.to, arrow.normal);
+    const nums = (d: string | null | undefined) =>
+      (d ?? '')
+        .split(/[^\d.-]+/)
+        .filter(Boolean)
+        .map(Number);
+    const want = nums(paths?.d);
+    const got = nums(line()?.getAttribute('d'));
+    expect(got).toHaveLength(want.length);
+    got.forEach((n, i) => expect(n).toBeCloseTo(want[i]));
+    expect(before).not.toBe(line()?.getAttribute('d'));
+    fireEvent.pointerUp(layer(), {
+      pointerId: 1,
+      clientX: 420,
+      clientY: 420,
+      ctrlKey: true,
+    });
+  });
+
+  it('keeps a boxed callout still while its hotspot moves', () => {
+    act(() =>
+      editor().updateStep({
+        ...stepById('pin-1'),
+        calloutBox: {
+          xPct: 100 / 7.2,
+          yPct: 300 / 5.2,
+          wPct: 100 / 7.2,
+          hPct: 60 / 5.2,
+        },
+      })
+    );
+    click([80, 20]);
+    const card = document.querySelector<HTMLElement>(
+      '[data-gl-callout="pin-1"]'
+    );
+    const dot = document.querySelector<HTMLElement>('[data-gl-anchor="pin-1"]');
+    const line = () =>
+      document.querySelector(
+        '[data-gl-connector="pin-1"] [data-gl-connector-line]'
+      );
+    const before = line()?.getAttribute('d');
+    down([80, 20]);
+    moveTo([70, 25], { ctrlKey: true });
+    frames.step();
+    expect(card?.style.translate ?? '').toBe('');
+    const [dx, dy] = (dot?.style.translate ?? '').split(' ').map(parseFloat);
+    expect(dx).toBeCloseTo(-72);
+    expect(dy).toBeCloseTo(26);
+    expect(line()?.getAttribute('d')).not.toBe(before);
+    up([70, 25], { ctrlKey: true });
+    expect(dot?.style.translate ?? '').toBe('');
+    expect(stepById('pin-1').calloutBox?.xPct).toBeCloseTo(100 / 7.2);
+    expect(stepById('pin-1').xPct).toBeCloseTo(70);
+  });
+
+  it('keeps the grab offset on a handle and ignores a jittery tap', () => {
+    selectCallout();
+    // Grabbed 6px outside the east edge: the edge moves with the pointer, not to it.
+    dragHandle('e', [706, 430], [716, 430]);
+    expectBox('rect-1', { x: 600, y: 400, w: 110, h: 60 });
+    act(() => editor().undo());
+    selectCallout();
+    dragHandle('e', [700, 430], [702, 431]);
+    expect(stepById('rect-1').calloutBox).toBeUndefined();
+  });
+
+  it('stops arrow-key nudges at the stage edge', () => {
+    act(() =>
+      editor().updateStep({
+        ...stepById('rect-1'),
+        calloutBox: {
+          xPct: 600 / 7.2,
+          yPct: 400 / 5.2,
+          wPct: 100 / 7.2,
+          hPct: 60 / 5.2,
+        },
+      })
+    );
+    selectCallout();
+    canvas()?.dispatchEvent(new Event('focus'));
+    for (let i = 0; i < 20; i++) {
+      fireEvent.keyDown(canvas() as Element, { key: 'ArrowRight' });
+    }
+    // 620px is the last x that keeps a 100px box on a 720px stage.
+    expect(pxBox('rect-1').x).toBeCloseTo(620);
+    fireEvent.keyDown(canvas() as Element, { key: 'ArrowLeft' });
+    expect(pxBox('rect-1').x).toBeLessThan(620);
   });
 
   it('sizes with Alt+arrows', () => {
     selectCallout();
     canvas()?.dispatchEvent(new Event('focus'));
     fireEvent.keyDown(canvas() as Element, { key: 'ArrowRight', altKey: true });
-    // Measured 100px of 720px rounds to 14%, plus 2 points.
-    expect(sized('rect-1').calloutWidthPct).toBe(16);
+    // The measured 100×60px box, one point wider.
+    expect(pxBox('rect-1').w).toBeCloseTo(107.2);
+    expect(pxBox('rect-1').h).toBeCloseTo(60);
     fireEvent.keyDown(canvas() as Element, { key: 'ArrowUp', altKey: true });
-    expect(sized('rect-1').calloutScale).toBeCloseTo(1.05);
-    fireEvent.keyDown(canvas() as Element, { key: 'ArrowDown', altKey: true });
-    expect(sized('rect-1').calloutScale).toBeUndefined();
+    // Larger keeps the shape.
+    const { w, h } = pxBox('rect-1');
+    expect(w).toBeCloseTo(114.4);
+    expect(h).toBeCloseTo((60 * 114.4) / 107.2);
   });
 
   it('opens inline editing when a character is typed, keeping the character', () => {

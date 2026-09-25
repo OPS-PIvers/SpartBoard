@@ -274,6 +274,16 @@ export function computeStudentDrilldown(
       if (html) base.answerHtml = html;
     }
 
+    if (response._notChosen?.includes(q.id)) {
+      lines.push({
+        ...base,
+        mark: 'notChosen',
+        pointsEarned: 0,
+        pointsMax: 0,
+        answerText: '',
+      });
+      return;
+    }
     if (isQuestionExcused(q, response)) {
       lines.push({
         ...base,

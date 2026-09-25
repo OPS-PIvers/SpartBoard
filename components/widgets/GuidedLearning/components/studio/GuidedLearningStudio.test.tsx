@@ -193,8 +193,10 @@ describe('GuidedLearningStudio', () => {
     });
     expect(frame().style.width).toBe('1366px');
     expect(frame().style.height).toBe('657px');
-    // The student app's footer strip is reserved below the stage.
-    expect(screen.getByTestId('gl-device-stage').style.height).toBe('589px');
+    // The stage sits inside the player's own top bar and footer.
+    expect(screen.getByTestId('gl-device-shell')).toContainElement(
+      document.querySelector('[data-gl-stage]') as HTMLElement
+    );
     cleanup();
     renderStudio();
     expect(frame()).toHaveAttribute('data-preset', 'chromebook');

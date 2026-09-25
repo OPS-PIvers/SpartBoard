@@ -9,6 +9,7 @@ import type {
   Plc,
   PlcAssessmentAggregate,
   PlcCommonAssessment,
+  PlcDoc,
   PlcMeeting,
 } from '@/types';
 import { zonedTimeToEpoch } from '@/utils/plcHomeTime';
@@ -46,6 +47,7 @@ let mockMeetings: PlcMeeting[] = [];
 let mockLayout: PlcHomeLayout = EMPTY_PLC_HOME_LAYOUT;
 let mockAggregates: PlcAssessmentAggregate[] = [];
 let mockAssessments: PlcCommonAssessment[] = [];
+let mockDocs: PlcDoc[] = [];
 const saveHomeLayout = vi.fn(() => Promise.resolve());
 const saveHomeSeenCounts = vi.fn(() => Promise.resolve());
 vi.mock('@/utils/plcHomeLayoutWrites', () => ({
@@ -66,7 +68,7 @@ vi.mock('@/context/usePlcContext', () => ({
   usePlcAssessmentsData: () => slice(mockAssessments),
   usePlcHomeLayout: () => slice(mockLayout),
   usePlcNotesData: () => slice([]),
-  usePlcDocsData: () => slice([]),
+  usePlcDocsData: () => slice(mockDocs),
   usePlcMembers: () => [
     {
       uid: 'uid-a',
@@ -143,12 +145,13 @@ describe('PlcHomeV2', () => {
     mockLayout = EMPTY_PLC_HOME_LAYOUT;
     mockAggregates = [];
     mockAssessments = [];
+    mockDocs = [];
     saveHomeLayout.mockClear();
     saveHomeSeenCounts.mockClear();
   });
 
   it('renders the header and the four starter tiles with no hero', () => {
-    render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} />);
+    render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} onOpenDoc={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Grade 7 Math' })).toBeTruthy();
     for (const name of [
       'Results',
@@ -164,7 +167,7 @@ describe('PlcHomeV2', () => {
 
   it('marks online members in the avatar cluster and opens Members', () => {
     const onNavigate = vi.fn();
-    render(<PlcHomeV2 plc={plc} onNavigate={onNavigate} />);
+    render(<PlcHomeV2 plc={plc} onNavigate={onNavigate} onOpenDoc={vi.fn()} />);
     expect(screen.getByTitle('Bo Kim, online in Assessments')).toBeTruthy();
     fireEvent.click(
       screen.getByRole('button', { name: '2 members, 1 online. Open Members' })
@@ -174,22 +177,44 @@ describe('PlcHomeV2', () => {
 
   it('makes the Meeting tile the hero while a meeting is in progress', () => {
     mockMeetings = [meeting('in-progress')];
-    render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} />);
+    render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} onOpenDoc={vi.fn()} />);
     const hero = document.querySelector('[data-hero="true"]');
     expect(hero?.getAttribute('aria-label')).toBe('Meeting');
     expect(screen.getByText('Meeting in progress')).toBeTruthy();
     expect(screen.getByRole('button', { name: /Resume Meeting/ })).toBeTruthy();
   });
 
+  it('opens a shared doc in Notes & Docs instead of a new tab', () => {
+    mockDocs = [
+      {
+        id: 'doc-1',
+        title: 'PLC Notes Doc',
+        url: 'https://docs.google.com/document/d/abc/edit',
+        createdBy: 'uid-a',
+        createdByName: 'Ana Lee',
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+    ];
+    const onOpenDoc = vi.fn();
+    render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} onOpenDoc={onOpenDoc} />);
+    const row = screen.getByRole('button', { name: /PLC Notes Doc/ });
+    expect(row.closest('a')).toBeNull();
+    fireEvent.click(row);
+    expect(onOpenDoc).toHaveBeenCalledWith('doc-1');
+  });
+
   it('deep-links from a tile into its section', () => {
     const onNavigate = vi.fn();
-    render(<PlcHomeV2 plc={plc} onNavigate={onNavigate} />);
+    render(<PlcHomeV2 plc={plc} onNavigate={onNavigate} onOpenDoc={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Open Assessments' }));
     expect(onNavigate).toHaveBeenCalledWith('assessments');
   });
 
   it('persists a spotlight and renders the saved spotlight as the hero', () => {
-    const { unmount } = render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} />);
+    const { unmount } = render(
+      <PlcHomeV2 plc={plc} onNavigate={vi.fn()} onOpenDoc={vi.fn()} />
+    );
     fireEvent.click(
       screen.getByRole('button', { name: 'Spotlight Docs and notes' })
     );
@@ -209,7 +234,7 @@ describe('PlcHomeV2', () => {
       heroTileId: 't2',
       seenCounts: {},
     };
-    render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} />);
+    render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} onOpenDoc={vi.fn()} />);
     const hero = document.querySelector('[data-hero="true"]');
     expect(hero?.getAttribute('aria-label')).toBe('Docs and notes');
     expect(screen.queryByRole('region', { name: 'Meeting' })).toBeNull();
@@ -224,7 +249,7 @@ describe('PlcHomeV2', () => {
   });
 
   it('removes a tile in Customize and saves the new order on Done', () => {
-    render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} />);
+    render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} onOpenDoc={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Customize' }));
     fireEvent.click(screen.getByRole('button', { name: 'Remove Meeting' }));
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
@@ -240,7 +265,7 @@ describe('PlcHomeV2', () => {
 
   it('offers removed tiles back from Add tile', () => {
     mockLayout = { ...EMPTY_PLC_HOME_LAYOUT, exists: true, tiles: [] };
-    render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} />);
+    render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} onOpenDoc={vi.fn()} />);
     fireEvent.click(
       screen.getByRole('button', { name: 'Customize to add tiles' })
     );
@@ -262,7 +287,7 @@ describe('PlcHomeV2', () => {
       ...plc,
       features: { showPerTeacher: true },
     } as unknown as Plc;
-    render(<PlcHomeV2 plc={legacy} onNavigate={vi.fn()} />);
+    render(<PlcHomeV2 plc={legacy} onNavigate={vi.fn()} onOpenDoc={vi.fn()} />);
     fireEvent.click(
       screen.getByRole('button', { name: 'Customize to add tiles' })
     );
@@ -307,7 +332,7 @@ describe('PlcHomeV2', () => {
       heroTileId: null,
       seenCounts: { a1: 12 },
     };
-    render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} />);
+    render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} onOpenDoc={vi.fn()} />);
     const hero = document.querySelector('[data-hero="true"]');
     expect(hero?.getAttribute('aria-label')).toBe('Results');
     expect(saveHomeSeenCounts).toHaveBeenCalledWith(
@@ -344,7 +369,9 @@ describe('PlcHomeV2 meeting cadence', () => {
   });
 
   it('makes Meeting the hero on meeting day and shows the next occurrence', () => {
-    render(<PlcHomeV2 plc={cadencePlc} onNavigate={vi.fn()} />);
+    render(
+      <PlcHomeV2 plc={cadencePlc} onNavigate={vi.fn()} onOpenDoc={vi.fn()} />
+    );
     const hero = document.querySelector('[data-hero="true"]');
     expect(hero?.getAttribute('aria-label')).toBe('Meeting');
     expect(screen.getByText(/Next: .*Sep 24.* · today/)).toBeInTheDocument();
@@ -354,12 +381,16 @@ describe('PlcHomeV2 meeting cadence', () => {
     mockMeetings = [
       { ...meeting('completed'), heldAt: zonedTimeToEpoch(2026, 9, 24, 8) },
     ];
-    render(<PlcHomeV2 plc={cadencePlc} onNavigate={vi.fn()} />);
+    render(
+      <PlcHomeV2 plc={cadencePlc} onNavigate={vi.fn()} onOpenDoc={vi.fn()} />
+    );
     expect(document.querySelector('[data-hero="true"]')).toBeNull();
   });
 
   it('lets the lead skip just the next meeting', () => {
-    render(<PlcHomeV2 plc={cadencePlc} onNavigate={vi.fn()} />);
+    render(
+      <PlcHomeV2 plc={cadencePlc} onNavigate={vi.fn()} onOpenDoc={vi.fn()} />
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
     expect(updatePlcMeetingCadence).toHaveBeenCalledWith(
       'plc-1',
@@ -371,7 +402,9 @@ describe('PlcHomeV2 meeting cadence', () => {
 
   it('hides Move and Skip from members', () => {
     const memberView = { ...cadencePlc, leadUid: 'uid-b' } as Plc;
-    render(<PlcHomeV2 plc={memberView} onNavigate={vi.fn()} />);
+    render(
+      <PlcHomeV2 plc={memberView} onNavigate={vi.fn()} onOpenDoc={vi.fn()} />
+    );
     expect(screen.queryByRole('button', { name: 'Skip' })).toBeNull();
   });
 });

@@ -71,6 +71,7 @@ vi.mock('@/context/useDialog', () => ({
 const createMeeting = vi.fn((_input: unknown) => Promise.resolve('meeting-1'));
 const updateMeeting = vi.fn(() => Promise.resolve());
 const saveMeeting = vi.fn(() => Promise.resolve(['todo-1']));
+const deleteMeeting = vi.fn((_id: string) => Promise.resolve());
 
 let mockAggregatesSlice: {
   data: PlcAssessmentAggregate[];
@@ -96,6 +97,7 @@ vi.mock('@/context/usePlcContext', () => ({
     createMeeting,
     updateMeeting,
     saveMeeting,
+    deleteMeeting,
   }),
 }));
 
@@ -236,6 +238,22 @@ function setDefaults(): void {
 
 const noop = (): void => undefined;
 
+function makeMeeting(overrides: Partial<PlcMeeting>): PlcMeeting {
+  return {
+    id: 'meeting-x',
+    heldAt: 1_000,
+    facilitatorUid: 'uid-alice',
+    attendeeUids: [],
+    assessmentIds: ['sync-1'],
+    decisions: [],
+    actionItems: [],
+    status: 'in-progress',
+    createdBy: 'uid-alice',
+    updatedAt: 1_000,
+    ...overrides,
+  };
+}
+
 /** Click the Pick-step toggle for the first assessment card (via its meta line). */
 function pickFirstAssessment(): void {
   const button = screen.getByText(/team avg ·/i).closest('button');
@@ -361,6 +379,43 @@ describe('PlcMeetingMode — live guided flow', () => {
       'meeting-1',
       expect.objectContaining({ assessmentIds: ['sync-1'] })
     );
+  });
+
+  it('resumes the in-progress meeting instead of creating a new one', async () => {
+    mockMeetings = [
+      makeMeeting({ id: 'old-draft', heldAt: 1_000, status: 'in-progress' }),
+      makeMeeting({
+        id: 'bob-draft',
+        heldAt: 1_500,
+        status: 'in-progress',
+        createdBy: 'uid-bob',
+      }),
+      makeMeeting({
+        id: 'live-1',
+        heldAt: 2_000,
+        status: 'in-progress',
+        decisions: [{ id: 'd1', text: 'Reteach question 2' }],
+      }),
+      makeMeeting({ id: 'done-1', heldAt: 500, status: 'completed' }),
+    ];
+    render(<PlcMeetingMode plc={fakePlc} meetingId={null} onNavigate={noop} />);
+    expect(screen.getByText('What did we decide?')).toBeInTheDocument();
+    expect(screen.getByText('Reteach question 2')).toBeInTheDocument();
+    expect(screen.getByText('Past meetings (1)')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // → act
+    await screen.findByText('Who’s doing what?');
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // → save
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Save meeting' })
+    );
+    await waitFor(() => expect(saveMeeting).toHaveBeenCalledTimes(1));
+    expect(createMeeting).not.toHaveBeenCalled();
+    expect(saveMeeting).toHaveBeenCalledWith(
+      'live-1',
+      expect.objectContaining({ assessmentIds: ['sync-1'] })
+    );
+    expect(deleteMeeting).toHaveBeenCalledTimes(1);
+    expect(deleteMeeting).toHaveBeenCalledWith('old-draft');
   });
 
   it('shows an empty state when there is no assessment data', () => {

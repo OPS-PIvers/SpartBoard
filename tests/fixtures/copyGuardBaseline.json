@@ -77,7 +77,6 @@
     "components/subs/SubsAuthGate.tsx::accounts. Signing you out — try again with your district acc",
     "components/videoActivity/VideoActivityStudentApp.tsx::— no further warnings.",
     "components/widgets/Catalyst/CatalystWidget.tsx::.catalyst-sets-grid { display: grid; gap: min(12px, 2.5cqmin",
-    "components/widgets/Projects/components/ProjectBoardView.tsx::— each group&apos;s progress through every step",
     "components/widgets/Projects/components/ProjectEditorModal.tsx::Optional — the groups read this on their project page.",
     "components/widgets/Projects/components/ProjectSetupGroupsModal.tsx::A Group Maker set is waiting for a different class — pick th",
     "components/widgets/Projects/components/ProjectsManager.tsx::from the Group Maker are waiting — pick the project they bel",

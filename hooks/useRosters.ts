@@ -26,6 +26,7 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency';
 import { assignPins } from '@/utils/rosterPins';
+import { collapseTestSuffix } from '@/utils/testClassSuffix';
 
 /**
  * Phase 3 — rebuild the per-roster pin_index sidecar after a roster save.
@@ -511,7 +512,8 @@ const validateRosterMeta = (
 
   const meta: ClassRosterMeta = {
     id,
-    name: d.name,
+    // D48 — display-only repair of names the old test-class import doubled.
+    name: collapseTestSuffix(d.name),
     driveFileId: typeof d.driveFileId === 'string' ? d.driveFileId : null,
     studentCount: typeof d.studentCount === 'number' ? d.studentCount : 0,
     createdAt: typeof d.createdAt === 'number' ? d.createdAt : Date.now(),

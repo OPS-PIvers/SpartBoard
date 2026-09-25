@@ -1,14 +1,14 @@
 import type {
   ProjectGroup,
+  ProjectGroupImportEntry,
   ProjectStep,
   ProjectStepState,
   ProjectWorkLink,
 } from '@/types';
+import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 
-/** D26 — the board face degrades to counts past 8 groups; 32 is the hard ceiling. */
+/** The hard ceiling on steps; the board draws every one (D31). */
 export const MAX_STEPS = 32;
-export const COMFORTABLE_GROUPS = 8;
-export const COMFORTABLE_STEPS = 8;
 
 export const STEP_STATE_ORDER: ProjectStepState[] = [
   'notStarted',
@@ -59,7 +59,7 @@ export const stepStateOf = (
   stepId: string
 ): ProjectStepState => group.stepStates?.[stepId] ?? 'notStarted';
 
-/** D1 — position comes from step states, so a help flag never costs a place. */
+/** D1 — position comes from step states. */
 export function completedStepCount(
   group: Pick<ProjectGroup, 'stepStates'>,
   steps: ProjectStep[]
@@ -74,12 +74,11 @@ export function studentStateOptions(step: ProjectStep): ProjectStepState[] {
     : STEP_STATE_ORDER;
 }
 
-/** D25 — help-flagged groups sort to the top; the rest keep their own order. */
+/** Groups keep the order the teacher gave them (D38 removed the help flag that jumped the queue). */
 export function sortGroupsForBoard<
-  T extends Pick<ProjectGroup, 'needsSupport' | 'order' | 'name'>,
+  T extends Pick<ProjectGroup, 'order' | 'name'>,
 >(groups: T[]): T[] {
   return [...groups].sort((a, b) => {
-    if (a.needsSupport !== b.needsSupport) return a.needsSupport ? -1 : 1;
     if (a.order !== b.order) return a.order - b.order;
     return a.name.localeCompare(b.name);
   });
@@ -100,7 +99,7 @@ export function projectClassIdFor(
   return testClass.length > 0 ? testClass : `local:${roster.id}`;
 }
 
-/** D14 — the board renders only the groups in the active roster's class. */
+/** D32 — the board renders only the groups in its picked class. */
 export function groupsForClass<T extends Pick<ProjectGroup, 'classId'>>(
   groups: T[],
   classId: string | null | undefined
@@ -142,4 +141,62 @@ export function makeWorkLink(
   if (label) link.label = label;
   if (options.stepId) link.stepId = options.stepId;
   return link;
+}
+
+/** D33 — a group's default color, dealt from the Scoreboard palette by order. */
+export const defaultGroupColor = (index: number): string =>
+  SCOREBOARD_COLORS[
+    ((index % SCOREBOARD_COLORS.length) + SCOREBOARD_COLORS.length) %
+      SCOREBOARD_COLORS.length
+  ];
+
+/** The palette color after `color`, for the Manage groups swatch. */
+export const nextGroupColor = (color: string | undefined): string =>
+  defaultGroupColor(SCOREBOARD_COLORS.findIndex((c) => c === color) + 1);
+
+/** D43 — display names for the classes an import touches, from the teacher's rosters. */
+export function classNamesForEntries(
+  entries: Pick<ProjectGroupImportEntry, 'classId'>[],
+  rosters: {
+    id: string;
+    name: string;
+    classlinkClassId?: string;
+    testClassId?: string;
+  }[]
+): Record<string, string> {
+  const wanted = new Set(entries.map((e) => e.classId));
+  const names: Record<string, string> = {};
+  for (const roster of rosters) {
+    const classId = projectClassIdFor(roster);
+    const name = roster.name?.trim();
+    if (classId && name && wanted.has(classId)) names[classId] = name;
+  }
+  return names;
+}
+
+/** D45 — shown wherever a class is picked whose students cannot open the project. */
+export const NO_STUDENT_SIGN_IN_WARNING =
+  "Students can't open this project because this roster isn't linked to ClassLink. You can still track progress yourself.";
+
+/** D45 — false when no student on the roster could ever open the project. */
+export function rosterHasStudentSignIn(
+  roster:
+    | {
+        id: string;
+        classlinkClassId?: string;
+        testClassId?: string;
+        students: { classLinkSourcedId?: string; email?: string }[];
+      }
+    | undefined
+): boolean {
+  if (!roster) return false;
+  const classId = projectClassIdFor(roster);
+  if (!classId || classId.startsWith('local:')) return false;
+  const testClass = !roster.classlinkClassId?.trim();
+  // An empty roster has nobody to warn about yet.
+  if (roster.students.length === 0) return true;
+  return roster.students.some(
+    (s) =>
+      Boolean(s.classLinkSourcedId) || (testClass && Boolean(s.email?.trim()))
+  );
 }

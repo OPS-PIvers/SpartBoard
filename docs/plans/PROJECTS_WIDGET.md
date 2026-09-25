@@ -1,9 +1,8 @@
 # Projects Widget — Implementation Plan
 
-Status: design locked 2026-09-18. No code written.
-Unblocked: the roster-groups foundation landed on `dev-paul` in
-[#3119](https://github.com/OPS-PIvers/SpartBoard/pull/3119). `RandomGroup.studentIds?` exists and
-`groupMaker.ts` populates it with `Student.id` in class mode, which is the handle D7/D8 need.
+Status: v1 shipped to `dev-paul` in #3127, #3139 and #3170 (follow-ups #3200, #3204, #3374, #3383,
+#3387, #3416). §10 (2026-09-25) redesigns the board face and closes rollout gaps; where §10 and an
+earlier section disagree, §10 wins.
 
 ## 1. Problem statement
 
@@ -399,3 +398,98 @@ decision above still stands. Where this section and §3 disagree, this section w
 
 Everything in §8, plus: per-class run lifecycle (R2), sharing projects to a PLC, and extracting a
 shared grader queue shell (A6).
+
+---
+
+## 10. Revision — visual board, class picker, rollout gaps (2026-09-25)
+
+Paul's first real use: a class with 9 groups rendered "0 of 8 done" in plain text down the widget
+(D26's counts fallback), and "Open board" stopped at a "Pick a class" screen with no way to pick a
+class, because D14 tied the board to the global starred roster, which is per-device and never set
+automatically. The point of the widget is a **visual** system. This revision reverses D14, D26,
+D27, D4/D29 and the §6 row layout; everything else stands.
+
+### 10.1 Board face (PR A)
+
+- **D31. Always a grid.** One row per group, one column per step, at any count. D26's counts
+  fallback is removed. The group column is sticky; as density rises cells shrink to color-only
+  chips (no labels), and the grid scrolls only when the widget is genuinely too small.
+- **D32. The board has its own class picker.** It lists only the run's classes (names from
+  `run.classNames`, D40), auto-selects when the run has one class, and stores the choice in the
+  widget config (`boardClassId`, per board — not an appearance key). The global `activeRosterId`
+  is no longer read by Projects. **Reverses D14.**
+- **D33. Groups have a color.** `ProjectGroup.color` is stored, auto-assigned from
+  `SCOREBOARD_COLORS` by order, editable in Manage groups, and carried from Group Maker colors on
+  import. The row wears it (name chip + left edge); the student page uses the same color.
+- **D34. Tapping a cell opens a status popover** with all four states — one tap to any state, one
+  write, attributed to the teacher in the event log. Replaces click-to-cycle.
+- **D35. Tapping a group name expands the row inline**: member names, the group's work links and
+  uploads, and its recent events (D24's log finally surfaces). Collapses on a second tap or on
+  leaving the board. Teacher-initiated, so no projector guard.
+- **D36. Attention markers.** `readyForReview` cells get a strong outline and the header shows
+  "N waiting for review"; tapping it opens the first one's popover. A dot marks a cell whose step
+  has a work link or upload tagged to it.
+- **D37. "Hide status" collapses the grid to segmented bars** — one segment per step, colored by
+  state, row color on the name. Remembered per widget (`boardCollapsed`). **Replaces D27.**
+
+### 10.2 Data, rules and rollout (PR B)
+
+- **D38. `needsSupport` is removed** — the student "Ask for help" button, the board's Help pill,
+  the field, its rule key and its event kind. **Reverses D4 and D29.** `readyForReview` and asking
+  in person cover it.
+- **D39. Peer visibility is a per-run toggle, enforced by rules.** "Students see other groups" lives
+  in the board's ⋯ menu, seeded from the building default (`defaultShowStatusToStudents`). The run
+  keeps `showStatusToStudents`; each group doc carries a denormalized `peerVisible` the teacher
+  writes alongside it, so the rule never `get()`s the run (A3 stands). A student may read a group
+  when they are a member, or when the group is in their class **and** `peerVisible == true`. The
+  student client queries its own group (`memberUids array-contains uid`) and, only when the run
+  allows it, peers (`classId in … && peerVisible == true`). Peers see step status only.
+  **Narrows D30.**
+- **D40. Work links leave the group doc** for `groups/{groupId}/private/work` (`{ workLinks }`),
+  readable and writable only by the run teacher and the group's members, like `uploads`. Clients
+  read the new doc and fall back to the legacy `workLinks` field; `scripts/backfill-project-work-links.mjs`
+  moves existing links and a later release drops the field and its rule key.
+- **D41. An approved step is locked for students.** On an approval step the student rule rejects a
+  move out of `done` as well as into it, and the student UI disables the cell.
+- **D42. Closing a run moves it to Completed.** `useStudentAssignments` read `acceptingResponses`
+  while runs write `acceptingUpdates`; it now reads `acceptingUpdates`. Runs gain `createdAt`
+  (written on create, backfilled by the same script). Fulfils D17.
+- **D43. The run stores `classNames: Record<classId, string>`**, written whenever groups are
+  committed, so the class picker works with no rosters loaded (sub shares). Subs may view the grid
+  and change step status; grading stays teacher-only.
+- **D44. A class leaves the run with its last group.** `commitProjectGroupsV1` recomputes
+  `classIds` from the groups that remain instead of only ever adding.
+- **D45. Hand-built rosters: warn and allow.** Setup and the class picker say which classes can't be
+  joined by students and why; the teacher can still run a teacher-only tracker (D6).
+- **D46. Rollout.** Projects gets `WIDGET_DEFAULT_ACCESS_LEVEL` `admin`, so it no longer shows in
+  every teacher's dock as "Projects is off". `admin_settings/projects_widget` stays the org kill
+  switch. The unread `studentAccessEnabled` building setting is deleted. No new flag: the
+  redesign ships behind both existing gates.
+
+### 10.3 Student page (PR C)
+
+- **D47. Same visual language.** The student's own group is a colored row of step cells in the
+  board's colors and icons; other groups appear as read-only rows only when D39 allows. Replaces
+  the separate progress-bar style.
+- **D48. ClassLink import stops doubling " (test)".** The suffix is appended only when absent, and
+  existing doubled names are repaired when the roster list loads.
+
+### 10.4 Also in scope
+
+Tests for `ProjectStudentPage` (approval lock, peer toggle); Live Tour anchors for the grid, class
+picker and status popover; a help article. The changelog entry waits until Projects opens to Public.
+
+**Follow-up, separate plan:** audit every widget that still depends on the global starred class and
+give each its own picker or retire the star.
+
+### 10.5 Delivery — 3 stacked PRs into `dev-paul`
+
+B lands first because A and C read its fields.
+
+1. **PR B — data, rules, rollout:** D38–D46, the backfill script, rules tests.
+2. **PR A — board face:** D31–D37 on top of B.
+3. **PR C — student page:** D47–D48 and the student page tests, on top of B (independent of A).
+
+Rules are near the compiled-size cap: D38/D40 remove keys, and new clauses use the shorthands.
+Projects is off in prod, so no already-open client depends on the old group-read shape; the
+backfill still runs after the `main` release.

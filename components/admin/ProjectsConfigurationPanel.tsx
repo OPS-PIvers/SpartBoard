@@ -50,22 +50,6 @@ export const ProjectsConfigurationPanel: React.FC<
         <label className="flex items-start justify-between gap-4 px-4 py-3">
           <span className="min-w-0">
             <span className="block text-sm font-semibold text-slate-900">
-              Students can open their group&apos;s project
-            </span>
-            <span className="mt-0.5 block text-xs text-slate-600">
-              Needs ClassLink rosters.
-            </span>
-          </span>
-          <Toggle
-            checked={current.studentAccessEnabled ?? true}
-            onChange={(next) => update({ studentAccessEnabled: next })}
-            label="Students can open their group's project"
-          />
-        </label>
-
-        <label className="flex items-start justify-between gap-4 px-4 py-3">
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold text-slate-900">
               New projects show every group&apos;s progress to students
             </span>
           </span>

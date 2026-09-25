@@ -14,10 +14,19 @@ import {
   TEST_BANK_FIELD_LINE,
   answerBeforeFields,
   applyKeyAnswer,
+  keyItemFields,
   entriesOnLine,
   findAnswerKey,
   isHeading,
 } from './answerKey';
+import {
+  EXAMVIEW_TYPE_HEADING,
+  MATCHING_DIRECTIONS,
+  applyExamViewAfterKey,
+  applyExamViewTypes,
+  examViewKindOf,
+  isExamView,
+} from './examView';
 import { keyedQuestionIndexes, mergeAnswerKey } from './mergeKey';
 import {
   SELECT_ALL_WORDING,
@@ -28,6 +37,7 @@ import {
   type ExtractedOption,
   type ExtractedQuestion,
   type ExtractedText,
+  type KeyItem,
   type KeySummary,
   type QuestionRef,
   type ReaderOptions,
@@ -101,27 +111,85 @@ const romanValue = (s: string): number => {
 /** Lines a column split produced, so out-of-order letters there are expected. */
 const columnLines = new WeakSet<DocLine>();
 
+/** Two or more spaces before an option marker: a column gap typed with the space bar (E2). */
+const SPACED_OPTION = /(?<!\s)\s{2,}(?=(?:\([A-Fa-f]\)|[A-Fa-f][.)])(?:\s|$))/;
+const OPTION_MARKER = /^\s*(?:\(([A-Fa-f])\)|([A-Fa-f])[.)])(?:\s|$)/;
+
+/** `____`, an answer blank printed in a column of its own. */
+const isBlankGroup = (group: readonly DocSegment[] | undefined): boolean =>
+  group !== undefined &&
+  group.length > 0 &&
+  group.every((s) => /^_{2,}$/.test(s.text.trim()));
+
+/** Letters that step evenly upward, `a b c` or a grid row's `a d`. */
+function isOptionRun(letters: readonly string[]): boolean {
+  if (letters.length < 2) return false;
+  const sameCase = letters.every(
+    (l) => (l === l.toUpperCase()) === (letters[0] === letters[0].toUpperCase())
+  );
+  const codes = letters.map((l) => l.toUpperCase().charCodeAt(0));
+  const step = codes[1] - codes[0];
+  return (
+    sameCase && step > 0 && codes.every((c, i) => c === codes[0] + i * step)
+  );
+}
+
+/** Split `a. one    b. two` at its space-bar gaps when the markers form a run (E2). */
+function splitSpacedOptions(line: DocLine): DocLine {
+  const pieces: DocSegment[] = [];
+  let split = false;
+  for (const segment of lineSegments(line)) {
+    const parts = segment.text.split(SPACED_OPTION);
+    if (parts.length > 1) split = true;
+    parts.forEach((text, i) => {
+      // Only the first piece keeps the segment's position.
+      pieces.push(
+        i === 0
+          ? { ...segment, text }
+          : { text, ...(segment.emphasized ? { emphasized: true } : {}) }
+      );
+    });
+  }
+  if (!split) return line;
+  const filled = pieces.filter((p) => p.text.trim());
+  if (!OPTION_MARKER.test(filled[0]?.text ?? '')) return line;
+  const letters = filled
+    .map((p) => OPTION_MARKER.exec(p.text))
+    .filter((m): m is RegExpExecArray => m !== null)
+    .map((m) => m[1] ?? m[2]);
+  return isOptionRun(letters) ? { ...line, segments: pieces } : line;
+}
+
 /**
  * A column gap that opens an option or a question starts a line of its own
  * (R5), so a table row `A. Rome | B. Paris` reads as two options. A marker
- * inside one segment never splits.
+ * inside one segment splits only at a run of spaces (E2).
  */
 export function splitAtColumnMarkers(lines: readonly DocLine[]): DocLine[] {
   const out: DocLine[] = [];
-  for (const line of lines) {
+  for (const original of lines) {
+    const line = splitSpacedOptions(original);
     const filled = (line.segments ?? []).filter((s) => s.text.trim());
     if (filled.length < 2) {
       out.push(line);
       continue;
     }
+    // Word and RTF print the number first on its line or after a `____` blank (E1).
+    const positioned = filled.some((s) => s.x !== undefined);
+    // Only an ExamView row, led by a `____` blank, holds its number to the blank.
+    const blankFirst = /^_{2,}$/.test(filled[0].text.trim());
     const groups: DocSegment[][] = [];
     for (const segment of lineSegments(line)) {
       const text = segment.text.trim();
       if (!text) continue;
-      const opens = isOptionText(text) || matchQuestionOpening(text) !== null;
       const last = groups[groups.length - 1];
-      if (last && !opens) last.push(segment);
-      else groups.push([segment]);
+      const question =
+        matchQuestionOpening(text) !== null &&
+        (positioned || !last || !blankFirst || isBlankGroup(last));
+      const opens = isOptionText(text) || question;
+      if (last && (!opens || (question && isBlankGroup(last)))) {
+        last.push(segment);
+      } else groups.push([segment]);
     }
     if (groups.length < 2) {
       columnLines.add(line);
@@ -171,9 +239,20 @@ interface Section {
   /** The number the heading printed, when it printed one. */
   printed?: number;
   ungraded: boolean;
+  /** The paragraph between the heading and its first question (E16). */
+  directions?: string;
   questionCount: number;
   /** The last item number opened here. */
   lastItem: number;
+  /** ExamView's matching term list the next items answer from (E6). */
+  matching?: MatchingGroup;
+}
+
+interface MatchingGroup {
+  id: string;
+  terms: ExtractedOption[];
+  directions?: string;
+  items: number;
 }
 
 interface Draft {
@@ -189,12 +268,65 @@ interface Draft {
   imageIds: string[];
   /** A test bank's `ANS:` line printed under the question. */
   inlineAnswer?: string;
+  /** The bookkeeping printed with an inline `ANS:`, and whether written answer lines follow. */
+  inlineFields?: string[];
+  inlineCollecting?: boolean;
+  matching?: MatchingGroup;
   target?: SuggestedTarget;
   sharedTextId?: string;
   /** "Read paragraph 8." copied into this stem from a shared lead-in. */
   instruction?: string;
+  /** The instruction is the section's directions, which a real section takes back (E16). */
+  instructionFromDirections?: boolean;
   /** Every line read into this question, for rebuilding a sorting table. */
   rawLines: DocLine[];
+  /** `I.`–`VIII.` statements in the stem, and where in `textParts` they sat (E3). */
+  statements?: { at: number; items: { n: number; text: string }[] };
+  /** The printed number before this one, when the numbering skipped (E1). */
+  skippedFrom?: number;
+  /** The PDF line holding a target that filled the opening line, while it may still wrap. */
+  targetLine?: DocLine;
+}
+
+/** `I.` … `VIII.` opening a statement in a stem (E3). */
+const ROMAN_STATEMENT = /^\s*\(?(VIII|VII|VI|IV|V|III|II|I)[.)](?:\s+|$)(.*)$/;
+/** Two or more spaces before the next statement's numeral. */
+const SPACED_ROMAN =
+  /(?<!\s)\s{2,}(?=\(?(?:VIII|VII|VI|IV|V|III|II|I)[.)](?:\s|$))/;
+
+/** A line's statements, split at column gaps and space runs; null when it opens none. */
+function romanStatements(line: DocLine): { n: number; text: string }[] | null {
+  const pieces = lineSegments(line)
+    .flatMap((s) => s.text.split(SPACED_ROMAN))
+    .map((t) => t.trim())
+    .filter(Boolean);
+  if (!ROMAN_STATEMENT.test(pieces[0] ?? '')) return null;
+  const items: { n: number; text: string }[] = [];
+  for (const piece of pieces) {
+    const m = ROMAN_STATEMENT.exec(piece);
+    if (m) items.push({ n: romanValue(m[1]), text: tidy(m[2]) });
+    else
+      items[items.length - 1].text = tidy(
+        `${items[items.length - 1].text} ${piece}`
+      );
+  }
+  return items;
+}
+
+const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+
+/** The stem as printed, with an I–VIII list sorted onto lines of its own (E3). */
+function stemText(draft: Draft): string {
+  const statements = draft.statements;
+  if (!statements) return tidy(draft.textParts.join(' '));
+  const sorted = [...statements.items].sort((a, b) => a.n - b.n);
+  const contiguous = sorted.every((s, i) => s.n === i + 1);
+  const list = (contiguous ? sorted : statements.items).map(
+    (s) => `${ROMAN_NUMERALS[s.n - 1] ?? s.n}. ${s.text}`
+  );
+  const before = tidy(draft.textParts.slice(0, statements.at).join(' '));
+  const after = tidy(draft.textParts.slice(statements.at).join(' '));
+  return [before, ...list, after].filter(Boolean).join('\n');
 }
 
 /** One paragraph of instructions or a passage waiting for the questions it covers. */
@@ -271,11 +403,20 @@ function finish(
   label: string,
   /** The document's key has an entry for this item, so markings don't decide. */
   keyed: boolean,
-  multi: boolean
+  multi: boolean,
+  examView = false
 ): ExtractedQuestion {
   const warnings: string[] = [];
   const stem = tidy(draft.textParts.join(' '));
-  let text = draft.instruction ? tidy(`${draft.instruction} ${stem}`) : stem;
+  const printed = stemText(draft);
+  let text = draft.instruction
+    ? `${tidy(draft.instruction)} ${printed}`
+    : printed;
+  if (draft.skippedFrom !== undefined) {
+    warnings.push(
+      `The numbering skips from ${draft.skippedFrom} to ${draft.item}. Check that no question is missing.`
+    );
+  }
   const type = typeFor(draft, stem, multi);
   const { options: sortedOptions, outOfPlace } = orderedOptions(draft);
   if (outOfPlace && draft.options.length > 1) {
@@ -343,6 +484,9 @@ function finish(
   const ref: QuestionRef = {
     section: draft.section.ordinal,
     ...(draft.section.name ? { sectionName: draft.section.name } : {}),
+    ...(draft.section.directions
+      ? { sectionDirections: draft.section.directions }
+      : {}),
     ...(draft.section.printed ? { sectionNumber: draft.section.printed } : {}),
     item: draft.item,
     ...(draft.part ? { part: draft.part } : {}),
@@ -360,15 +504,26 @@ function finish(
     warnings,
     ...(draft.target ? { suggestedTarget: draft.target } : {}),
     ...(draft.sharedTextId ? { sharedTextId: draft.sharedTextId } : {}),
+    ...(draft.instruction && draft.instructionFromDirections
+      ? { directionsLeadIn: tidy(draft.instruction) }
+      : {}),
     ...(draft.section.ungraded
       ? {
           suggestUntick:
             'This looks like a self-reflection item rather than a graded question.',
         }
       : {}),
+    ...(draft.matching
+      ? {
+          matchingGroup: draft.matching.id,
+          ...(draft.matching.directions
+            ? { matchingDirections: draft.matching.directions }
+            : {}),
+        }
+      : {}),
   };
-  // The key at the back is merged afterwards and wins over this.
-  return draft.inlineAnswer && type !== 'Ordering'
+  // The key at the back is merged afterwards and wins over this; ExamView's goes in as a key.
+  return draft.inlineAnswer && type !== 'Ordering' && !examView
     ? applyKeyAnswer(question, draft.inlineAnswer, 'document', multi)
     : question;
 }
@@ -378,7 +533,13 @@ function noteMissingChoices(
   question: ExtractedQuestion,
   sorting: boolean
 ): ExtractedQuestion {
-  if (question.type !== 'free-response' || sorting) return question;
+  if (
+    question.type !== 'free-response' ||
+    sorting ||
+    question.examView === 'written'
+  ) {
+    return question;
+  }
   return {
     ...question,
     warnings: [
@@ -388,12 +549,44 @@ function noteMissingChoices(
   };
 }
 
+/** Question numbers on a PDF page line up within this many points (E1). */
+const NUMBER_X_TOLERANCE = 12;
+/** A target's wrapped line sits closer than this under it; a new paragraph sits further. */
+const TARGET_WRAP_GAP = 21;
+/** A number indented this far past the others is a list inside a stem. */
+const NUMBER_INDENT_MAX = 120;
+
+/** Left edge of a PDF line's number, skipping a `____` blank; undefined off a PDF. */
+function numberPosition(line: DocLine): number | undefined {
+  const segment = lineSegments(line).find(
+    (s) => s.text.trim() && !/^_{2,}$/.test(s.text.trim())
+  );
+  return segment?.x;
+}
+
+/** A number indented past the accepted ones, but not a whole column over, isn't a question (E1). */
+function atNumberPosition(
+  accepted: readonly number[],
+  x: number | undefined
+): boolean {
+  if (x === undefined || accepted.length === 0) return true;
+  if (accepted.some((a) => Math.abs(x - a) <= NUMBER_X_TOLERANCE)) return true;
+  return !accepted.some(
+    (a) => x - a > NUMBER_X_TOLERANCE && x - a < NUMBER_INDENT_MAX
+  );
+}
+
 /** Does this line name a new section? The caller has ruled out Part A/B. */
 function sectionHeading(
-  text: string
+  text: string,
+  examView = false
 ): { name: string; printed?: number; ungraded: boolean } | null {
   const trimmed = tidy(text);
   if (!trimmed || trimmed.endsWith('?')) return null;
+  // "Short Answer-PICK TWO (2) QUESTIONS…" is ExamView's heading with its directions.
+  if (examView && EXAMVIEW_TYPE_HEADING.test(trimmed)) {
+    return { name: trimmed, ungraded: false };
+  }
   const numbered = NUMBERED_SECTION.exec(trimmed);
   if (numbered) {
     const raw = numbered[2];
@@ -447,6 +640,14 @@ function splitTargetFromStem(
   };
 }
 
+/** The next PDF line sits a line's height under the target, not a paragraph gap below it. */
+function isTargetWrap(previous: DocLine, line: DocLine): boolean {
+  if (line.page !== previous.page) return false;
+  if (line.y === undefined || previous.y === undefined) return false;
+  const gap = previous.y - line.y;
+  return gap > 0 && gap < TARGET_WRAP_GAP;
+}
+
 /** A continuation after a question's last option that is plainly its wrap (R8). */
 function isWrapOf(option: DocLine, previous: DocLine, line: DocLine): boolean {
   // Word and RTF wrap inside one paragraph, so a new one is never a wrap.
@@ -477,6 +678,9 @@ export function parseDocument(
 } {
   const multi = options.multiAnswer === true;
   const lines = splitAtColumnMarkers(documentLines);
+  const examView = isExamView(lines);
+  /** Where accepted question numbers sit on a PDF page (E1). */
+  const numberXs: number[] = [];
   const { keyLineIndexes, items: keyItems } = findAnswerKey(lines, options);
 
   const drafts: Draft[] = [];
@@ -564,8 +768,21 @@ export function parseDocument(
     }
   };
 
-  const openQuestion = (item: number, text: string, line: DocLine): void => {
+  const openQuestion = (item: number, text: string, line: DocLine): Draft => {
+    // Text between a heading and its first question is the section's directions (E16).
+    const directions =
+      preamble &&
+      preamble.section === section &&
+      section.questionCount === 0 &&
+      section.name &&
+      !preamble.range
+        ? tidy(preamble.lines.join(' '))
+        : undefined;
+    const textCount = texts.length;
     settlePreamble();
+    if (directions && texts.length === textCount) {
+      section.directions = directions;
+    }
     if (section.ordinal === 0) {
       sections.push(section);
       section.ordinal = sections.length;
@@ -599,12 +816,29 @@ export function parseDocument(
       ...(target ? { target } : {}),
       ...(covered && cover?.textId ? { sharedTextId: cover.textId } : {}),
       ...(covered && cover?.instruction
-        ? { instruction: cover.instruction }
+        ? {
+            instruction: cover.instruction,
+            ...(section.directions && section.questionCount === 1
+              ? { instructionFromDirections: true }
+              : {}),
+          }
         : {}),
       rawLines: [],
+      ...(inlineTarget && !inlineTarget.rest && line.y !== undefined
+        ? { targetLine: line }
+        : {}),
     };
+    const group = section.matching;
+    if (group) {
+      group.items += 1;
+      current.matching = group;
+      current.options = [...group.terms]
+        .sort((a, b) => a.letter.localeCompare(b.letter))
+        .map((t) => ({ ...t, marked: false, line, wraps: [] }));
+    }
     lastOption = null;
     drafts.push(current);
+    return current;
   };
 
   lines.forEach((line, index) => {
@@ -676,36 +910,91 @@ export function parseDocument(
     const inline = INLINE_TEST_BANK_ANSWER.exec(text);
     if (inline) {
       const answer = answerBeforeFields(inline[1]);
-      if (open && answer) open.inlineAnswer = answer;
+      if (open) {
+        if (answer) open.inlineAnswer = answer;
+        open.inlineFields = [inline[1]];
+        // A blank `ANS:` means the written answer is on the lines below.
+        open.inlineCollecting =
+          !answer && !TEST_BANK_FIELD_LINE.test(inline[1].trim());
+      }
       lastOption = null;
       return;
     }
-    if (TEST_BANK_FIELD_LINE.test(text)) return;
+    if (TEST_BANK_FIELD_LINE.test(text)) {
+      if (open?.inlineFields) {
+        open.inlineFields.push(text);
+        open.inlineCollecting = false;
+      }
+      return;
+    }
+    if (open?.inlineCollecting && !matchQuestionOpening(text)) {
+      open.inlineAnswer = tidy(`${open.inlineAnswer ?? ''} ${text}`);
+      return;
+    }
 
     // A heading can't interrupt a sentence that is still running.
     const midSentence =
       open &&
       open.options.length === 0 &&
-      !/[.?!:)]\s*$/.test(open.textParts.join(' ').trim());
-    const heading = midSentence ? null : sectionHeading(text);
+      !/(?:[.?!:)]|_{3,})\s*$/.test(open.textParts.join(' ').trim());
+    const heading = midSentence ? null : sectionHeading(text, examView);
     if (heading) {
       startSection(heading);
       return;
     }
 
+    // ExamView prints a matching set's lettered terms once, above its items (E6).
+    if (examView && examViewKindOf(section.name) === 'matching') {
+      if (MATCHING_DIRECTIONS.test(text)) {
+        endQuestion();
+        section.matching = {
+          id: `m${drafts.length + 1}`,
+          terms: [],
+          directions: tidy(text),
+          items: 0,
+        };
+        return;
+      }
+      const term = matchOption(line);
+      if (term && (!open || open.matching)) {
+        let group = section.matching;
+        if (!group || group.items > 0) {
+          group = { id: `m${drafts.length + 1}`, terms: [], items: 0 };
+          section.matching = group;
+        }
+        endQuestion();
+        group.terms.push({ letter: term.letter, text: term.text });
+        return;
+      }
+    }
+
     const opening = matchQuestionOpening(text);
-    if (opening) {
+    const numberX =
+      opening && !opening.labelled ? numberPosition(line) : undefined;
+    if (opening && atNumberPosition(numberXs, numberX)) {
+      const n = opening.number;
+      // ExamView numbers straight through, so only a heading restarts it.
+      // A `1.` inside a stem that hasn't reached its options is a list, not a restart.
       const restart =
-        opening.number === 1 &&
+        !examView &&
+        n === 1 &&
         section.questionCount >= 2 &&
-        section.lastItem > 1;
-      if (restart) startSection();
-      if (
-        opening.number > section.lastItem ||
-        section.questionCount === 0 ||
-        restart
-      ) {
-        openQuestion(opening.number, opening.text, line);
+        section.lastItem > 1 &&
+        (!open ||
+          open.options.length > 0 ||
+          drafts.every((d) => d.section !== section || d.options.length === 0));
+      const skip = n - section.lastItem;
+      const first = section.questionCount === 0;
+      if (restart || first || skip >= 1) {
+        if (restart) startSection();
+        const opened = openQuestion(n, opening.text, line);
+        if (!restart && !first && skip > 1) opened.skippedFrom = n - skip;
+        if (
+          numberX !== undefined &&
+          !numberXs.some((x) => Math.abs(x - numberX) <= NUMBER_X_TOLERANCE)
+        ) {
+          numberXs.push(numberX);
+        }
         return;
       }
     }
@@ -728,6 +1017,33 @@ export function parseDocument(
       return;
     }
     open.rawLines.push(line);
+
+    // A PDF target that wrapped onto the next line, before the stem starts.
+    const targetLine = open.targetLine;
+    open.targetLine = undefined;
+    if (
+      targetLine &&
+      open.target &&
+      !open.textParts.join('').trim() &&
+      !/[.!?]$/.test(open.target.label) &&
+      isTargetWrap(targetLine, line)
+    ) {
+      target = { ...open.target, label: tidy(`${open.target.label} ${text}`) };
+      open.target = target;
+      open.targetLine = line;
+      return;
+    }
+
+    // An I–VIII statement list inside the stem, before any option (E3).
+    if (open.options.length === 0 && !lastOption) {
+      const statements = romanStatements(line);
+      if (statements) {
+        open.statements ??= { at: open.textParts.length, items: [] };
+        open.statements.items.push(...statements);
+        open.imageIds.push(...(line.imageIds ?? []));
+        return;
+      }
+    }
 
     const option = matchOption(line);
     if (option) {
@@ -820,20 +1136,48 @@ export function parseDocument(
   };
 
   const unkeyed = drafts.map((d, i) =>
-    finish(d, i + 1, labelOf(d), false, multi)
+    finish(d, i + 1, labelOf(d), false, multi, examView)
   );
   const keyed = keyedQuestionIndexes(unkeyed, keyItems);
   const finished = unkeyed.map((q, i) =>
-    keyed.has(i) ? finish(drafts[i], i + 1, labelOf(drafts[i]), true, multi) : q
+    keyed.has(i)
+      ? finish(drafts[i], i + 1, labelOf(drafts[i]), true, multi, examView)
+      : q
   );
-  const merged = mergeAnswerKey(
-    { title: '', questions: finished, images: [], warnings: [] },
-    keyItems,
+  const refKey = (r: { section: number; item: number; part?: string }) =>
+    `${r.section}:${r.item}${r.part ?? ''}`;
+  const sorting = new Set(
+    drafts
+      .filter((d) => SORTING.test(tidy(d.textParts.join(' '))))
+      .map((d) =>
+        refKey({ section: d.section.ordinal, item: d.item, part: d.part })
+      )
+  );
+  // ExamView's answers printed under each question go in like a key, once the types are set.
+  const inlineItems: KeyItem[] = examView
+    ? drafts.flatMap((d) =>
+        d.inlineAnswer || d.inlineFields
+          ? [
+              {
+                item: d.item,
+                ...(d.part ? { part: d.part } : {}),
+                answer: d.inlineAnswer ?? '',
+                ...keyItemFields((d.inlineFields ?? []).join(' ')),
+              },
+            ]
+          : []
+      )
+    : [];
+  const typed = examView ? applyExamViewTypes(finished) : finished;
+  const inlineKeyed = mergeAnswerKey(
+    { title: '', questions: typed, images: [], warnings: [] },
+    inlineItems,
     'document',
     options
   );
-  const questions = merged.questions.map((q, i) =>
-    noteMissingChoices(q, SORTING.test(tidy(drafts[i].textParts.join(' '))))
+  const merged = mergeAnswerKey(inlineKeyed, keyItems, 'document', options);
+  const questions = applyExamViewAfterKey(merged.questions).map((q) =>
+    noteMissingChoices(q, Boolean(q.ref && sorting.has(refKey(q.ref))))
   );
   const used = new Set(questions.map((q) => q.sharedTextId).filter(Boolean));
   return {

@@ -71,6 +71,8 @@ export interface QuestionRef {
   sectionName?: string;
   /** The number the heading printed, e.g. 2 for "Section 2". */
   sectionNumber?: number;
+  /** The paragraph printed between the heading and its first question (E16). */
+  sectionDirections?: string;
   /** The item number as printed within its section. */
   item: number;
   /** 'A' / 'B' for a Part A / Part B item. */
@@ -99,6 +101,11 @@ export interface KeyItem {
   rubric?: boolean;
   /** The key says the item isn't scored. */
   notScored?: boolean;
+  /** A test bank's `OBJ:` and `TOP:` fields (E10). */
+  objective?: string;
+  topic?: string;
+  /** A test bank's `NAT:` and `STA:` codes (E10). */
+  standards?: string[];
 }
 
 /** A learning target the test printed ("ELT 1.1 - I can …"), offered in review (R9, R20). */
@@ -128,6 +135,8 @@ export interface ExtractedQuestion {
   suggestUntick?: string;
   /** A shared lead-in or passage, by `ExtractedText.id` (R25). */
   sharedTextId?: string;
+  /** The section's directions as copied to the front of `text`, which a real section takes back (E16). */
+  directionsLeadIn?: string;
   text: string;
   type: QuizQuestionType;
   /** Empty for anything that isn't multiple choice. */
@@ -138,7 +147,31 @@ export interface ExtractedQuestion {
   imageIds: string[];
   /** Row notes for the review table; never fatal. */
   warnings: string[];
+  /** The ExamView section kind that decides how a key applies (QUIZ_EXAMVIEW_IMPORT E5). */
+  examView?: ExamViewKind;
+  /** ExamView matching items that share one term list (E6). */
+  matchingGroup?: string;
+  /** The matching group's directions line (E6). */
+  matchingDirections?: string;
+  /** Matching only: terms no item uses (E6). */
+  matchingDistractors?: string[];
+  /** Matching only: score each pair (E6). */
+  allowPartialCredit?: boolean;
+  /** Standard codes a test bank key lists for this item (E10). */
+  standardCodes?: string[];
+  /** Modified True/False: the key's word that makes a false statement true (E7). */
+  correction?: string;
 }
+
+/** What an ExamView section heading says its items are (E5). */
+export type ExamViewKind =
+  | 'mc'
+  | 'tf'
+  | 'modifiedTf'
+  | 'completion'
+  | 'numeric'
+  | 'matching'
+  | 'written';
 
 /** What a key merge did, for the review banner (R13, R19). */
 export interface KeySummary {

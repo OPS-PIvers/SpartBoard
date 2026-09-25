@@ -69,12 +69,15 @@ import type {
   QuizAssignmentSyncLinkage,
   QuizData,
   QuizMetadataSyncLinkage,
+  QuizOrderEntry,
   QuizPublicQuestion,
   QuizQuestion,
   QuizResponse,
   QuizResponseAnswer,
   QuizScoreVisibility,
+  QuizSection,
   QuizSession,
+  QuizSessionSection,
   QuestionTranslation,
   QuizTranslation,
   QuizSessionBankSlot,
@@ -86,6 +89,7 @@ import type {
   StudentOverride,
 } from '@/types';
 import { sessionTotalQuestions } from '@/utils/quizBankDraw';
+import { notChosenQuestionIds, sessionSectionsFor } from '@/utils/quizSections';
 import {
   QUIZ_CONTENT_COLLECTION,
   QUIZ_CONTENT_DOC,
@@ -237,6 +241,9 @@ export interface AssignmentQuizRef {
   stimuli?: QuizStimulus[];
   /** Read-aloud language snapshotted onto the session doc. */
   language?: string;
+  /** The quiz's `order` and section records, frozen onto the session as `sections`. */
+  order?: QuizOrderEntry[];
+  sections?: QuizSection[];
 }
 
 export interface UseQuizAssignmentsResult {
@@ -807,6 +814,17 @@ export interface ResponseGradingContext {
   overridesByStudentUid: Record<string, StudentOverride>;
   servedLanguageByStudentUid: Record<string, string>;
   localizedFibAnswers: Record<string, Record<string, string[]>>;
+  /** The session's sections; a choose-N section leaves unchosen questions out (E14). */
+  sections?: QuizSessionSection[];
+}
+
+/** The session's frozen sections, for publishing; absent on a quiz without them. */
+async function readSessionSections(
+  assignmentId: string
+): Promise<QuizSessionSection[] | undefined> {
+  const snap = await getDoc(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId));
+  const sections = (snap.data() as QuizSession | undefined)?.sections;
+  return sections?.length ? sections : undefined;
 }
 
 export function buildResponseGradingContext(
@@ -865,10 +883,29 @@ export function gradeResponseForPublish(
       : undefined;
   const subsetIds =
     snapshotIds ?? overridesByStudentUid[data.studentUid]?.questionIds;
-  const servedIds =
+  const baseServed =
     Array.isArray(subsetIds) && subsetIds.length > 0
       ? new Set(subsetIds)
       : null;
+  // A question left out of a choose-N section is off this student's total (E14).
+  const notChosen = new Set(
+    notChosenQuestionIds(
+      {
+        answers,
+        servedQuestionIds: baseServed ? [...baseServed] : undefined,
+        status: data.status,
+      },
+      ctx.sections
+    )
+  );
+  const servedIds =
+    notChosen.size > 0
+      ? new Set(
+          [...(baseServed ?? questionsById.keys())].filter(
+            (id) => !notChosen.has(id)
+          )
+        )
+      : baseServed;
   // Teacher-side truth only: never the client-asserted `response.locale`.
   const servedLocale =
     overridesByStudentUid[data.studentUid]?.language ??
@@ -1314,6 +1351,14 @@ export const useQuizAssignments = (
       const sessionHasRecording = sessionPublicQuestions.some(
         (q) => !!q.recording
       );
+      const sessionSections = sessionSectionsFor(
+        {
+          questions: sessionQuestions,
+          order: quiz.order,
+          sections: quiz.sections,
+        },
+        bankSlots ?? []
+      );
 
       const session: QuizSession = {
         id: assignmentId,
@@ -1335,6 +1380,7 @@ export const useQuizAssignments = (
           : sessionQuestions.length,
         publicQuestions: sessionPublicQuestions,
         ...(hasBankSlots ? { bankSlots } : {}),
+        ...(sessionSections.length > 0 ? { sections: sessionSections } : {}),
         // Opts this session into server-side `unresponded` completeness writes;
         // sessions from older clients omit it and keep pre-feature finalize behaviour.
         completenessModel: 1,
@@ -2897,8 +2943,14 @@ export const useQuizAssignments = (
       );
       const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId);
 
-      const assignmentSnap = await getDoc(assignmentRef);
-      const ctx = buildResponseGradingContext(quizData, assignmentSnap.data());
+      const [assignmentSnap, sections] = await Promise.all([
+        getDoc(assignmentRef),
+        readSessionSections(assignmentId),
+      ]);
+      const ctx: ResponseGradingContext = {
+        ...buildResponseGradingContext(quizData, assignmentSnap.data()),
+        sections,
+      };
       const answerKey =
         visibility === 'score-responses-and-answers'
           ? buildRevealedAnswers(quizData)
@@ -3049,10 +3101,16 @@ export const useQuizAssignments = (
       const keys = Array.from(new Set(responseKeys));
       if (keys.length === 0) return { responsesUpdated: 0, skipped: 0 };
       const now = Date.now();
-      const assignmentSnap = await getDoc(
-        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
-      );
-      const ctx = buildResponseGradingContext(quizData, assignmentSnap.data());
+      const [assignmentSnap, sections] = await Promise.all([
+        getDoc(
+          doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
+        ),
+        readSessionSections(assignmentId),
+      ]);
+      const ctx: ResponseGradingContext = {
+        ...buildResponseGradingContext(quizData, assignmentSnap.data()),
+        sections,
+      };
       const revealedAnswers =
         visibility === 'score-responses-and-answers'
           ? buildRevealedAnswers(quizData)

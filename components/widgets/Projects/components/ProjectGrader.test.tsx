@@ -49,7 +49,6 @@ const group: ProjectGroup = {
   memberUids: ['student-1'],
   order: 0,
   stepStates: {},
-  needsSupport: false,
   workLinks: [],
   updatedAt: 1,
 };

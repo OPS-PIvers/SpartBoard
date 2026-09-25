@@ -7,11 +7,14 @@ import {
   collection,
   deleteField,
   doc,
+  setDoc,
   updateDoc,
+  writeBatch,
   type Firestore,
 } from 'firebase/firestore';
 import type {
   ProjectDefinition,
+  ProjectGroup,
   ProjectGroupEvent,
   ProjectRun,
   ProjectStepState,
@@ -29,6 +32,10 @@ export const runIdFor = (teacherUid: string, projectId: string): string =>
 
 const groupRef = (db: Firestore, runId: string, groupId: string) =>
   doc(db, RUNS_COLLECTION, runId, 'groups', groupId);
+
+/** D40 — the group's work links, readable by its members and the run teacher only. */
+export const groupWorkRef = (db: Firestore, runId: string, groupId: string) =>
+  doc(db, RUNS_COLLECTION, runId, 'groups', groupId, 'private', 'work');
 
 /** D24 — a failed log entry must never roll back the change it describes. */
 export async function logProjectEvent(
@@ -74,35 +81,23 @@ export async function writeStepState(
   });
 }
 
-export async function writeNeedsSupport(
-  db: Firestore,
-  runId: string,
-  groupId: string,
-  needsSupport: boolean,
-  actor: { uid: string | undefined; role: 'student' | 'teacher' }
-): Promise<void> {
-  await updateDoc(groupRef(db, runId, groupId), {
-    needsSupport,
-    updatedAt: Date.now(),
-  });
-  await logProjectEvent(db, runId, groupId, actor.uid, {
-    actorRole: actor.role,
-    kind: 'needsSupport',
-    detail: needsSupport ? 'raised' : 'cleared',
-  });
-}
-
+/** D40 — adds to `private/work`; `legacySeed` carries the old group-doc links across on the first write. */
 export async function writeWorkLink(
   db: Firestore,
   runId: string,
   groupId: string,
   link: ProjectWorkLink,
-  actor: { uid: string | undefined; role: 'student' | 'teacher' }
+  actor: { uid: string | undefined; role: 'student' | 'teacher' },
+  legacySeed?: ProjectWorkLink[]
 ): Promise<void> {
-  await updateDoc(groupRef(db, runId, groupId), {
-    workLinks: arrayUnion(link),
-    updatedAt: Date.now(),
-  });
+  await setDoc(
+    groupWorkRef(db, runId, groupId),
+    {
+      workLinks: arrayUnion(...(legacySeed ?? []), link),
+      updatedAt: Date.now(),
+    },
+    { merge: true }
+  );
   await logProjectEvent(db, runId, groupId, actor.uid, {
     actorRole: actor.role,
     kind: 'workLink',
@@ -111,16 +106,44 @@ export async function writeWorkLink(
   });
 }
 
+/** Removes a link from `private/work`; `legacySeed` as in `writeWorkLink`. */
 export async function removeWorkLinkWrite(
   db: Firestore,
   runId: string,
   groupId: string,
-  link: ProjectWorkLink
+  link: ProjectWorkLink,
+  legacySeed?: ProjectWorkLink[]
 ): Promise<void> {
-  await updateDoc(groupRef(db, runId, groupId), {
-    workLinks: arrayRemove(link),
-    updatedAt: Date.now(),
+  await setDoc(
+    groupWorkRef(db, runId, groupId),
+    {
+      workLinks: legacySeed
+        ? legacySeed.filter((l) => l.id !== link.id)
+        : arrayRemove(link),
+      updatedAt: Date.now(),
+    },
+    { merge: true }
+  );
+}
+
+/** D39 — writes the run flag and every group's `peerVisible` (what the rule reads) in one batch. */
+export async function setPeerVisibility(
+  db: Firestore,
+  runId: string,
+  groups: Pick<ProjectGroup, 'id'>[],
+  value: boolean
+): Promise<void> {
+  const now = Date.now();
+  const batch = writeBatch(db);
+  batch.update(doc(db, RUNS_COLLECTION, runId), {
+    showStatusToStudents: value,
+    updatedAt: now,
   });
+  // 32 groups max per run, well inside a batch's 500 writes.
+  for (const group of groups) {
+    batch.update(groupRef(db, runId, group.id), { peerVisible: value });
+  }
+  await batch.commit();
 }
 
 /** Opening and closing a run is the whole In Progress ↔ Archive lifecycle (R2). */

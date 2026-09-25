@@ -63,6 +63,7 @@ import {
   questionsPerPage,
 } from '@/utils/paperSheetLayout';
 import { readPaperPage } from '@/utils/paperSheetReader';
+import { overAnsweredSections, sessionSectionsFor } from '@/utils/quizSections';
 
 const IMPORT_CHUNK = 200;
 /** Debounce for parking the review on the batch doc (plan Q26). */
@@ -170,6 +171,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     [batches, batchId]
   );
   const rowIds = useMemo(() => sheetRowQuestionIds(quiz), [quiz]);
+  const quizSections = useMemo(() => sessionSectionsFor(quiz), [quiz]);
   const resumable =
     batch?.pendingReview &&
     !discarded.has(batch.id) &&
@@ -709,9 +711,19 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
   const renderSheet = (sheet: AssembledSheet) => {
     if (!batch) return null;
     const doubtful = sheet.answers.filter((a) => a.doubt);
+    // More than N bubbled in a choose-N section: the first N in order count (E15).
+    const overAnswered = overAnsweredSections(
+      quizSections,
+      new Set(
+        sheet.answers.flatMap((a) =>
+          a.choice !== null && rowIds[a.question] ? [rowIds[a.question]] : []
+        )
+      )
+    );
     const needsAttention =
       doubtful.length > 0 ||
       sheet.flags.length > 0 ||
+      overAnswered.length > 0 ||
       (sheet.kind === 'spare' && !sheet.isBlank);
     if (!needsAttention) return null;
     return (
@@ -762,6 +774,11 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             questions import blank.
           </p>
         )}
+        {overAnswered.map(({ section, answered }) => (
+          <p key={section.id} className="mt-2 text-xs text-amber-800">
+            {`${section.title}: ${answered} answered but only ${section.chooseCount} count, so the first ${section.chooseCount} in order are scored.`}
+          </p>
+        ))}
         {sheet.flags.includes('duplicate-conflict') && (
           <p className="mt-2 text-xs text-amber-800">
             This sheet was scanned twice with different answers, so the later

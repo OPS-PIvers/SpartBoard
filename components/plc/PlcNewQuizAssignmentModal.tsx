@@ -283,6 +283,9 @@ export const PlcNewQuizAssignmentModal: React.FC<
           questions: data.questions,
           ...(data.stimuli ? { stimuli: data.stimuli } : {}),
           ...(data.language ? { language: data.language } : {}),
+          ...(data.sections?.length
+            ? { order: data.order, sections: data.sections }
+            : {}),
         },
         {
           sessionMode: behavior.sessionMode,

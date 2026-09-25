@@ -16,11 +16,11 @@ afterEach(() => {
 
 describe('device presets', () => {
   it('matches the real surfaces in true pixels', () => {
-    expect(DEVICE_PRESETS.map((p) => [p.id, p.w, p.h, p.footerPx])).toEqual([
-      ['board', 720, 520, 0],
-      ['help', 1024, 576, 0],
-      ['chromebook', 1366, 657, 68],
-      ['projector', 1920, 1080, 0],
+    expect(DEVICE_PRESETS.map((p) => [p.id, p.w, p.h])).toEqual([
+      ['board', 720, 520],
+      ['help', 1024, 576],
+      ['chromebook', 1366, 657],
+      ['projector', 1920, 1080],
     ]);
   });
 

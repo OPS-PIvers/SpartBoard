@@ -1,13 +1,10 @@
 import type { DevicePreset } from '../../types/stage';
 
-/** The student app's nav footer clearance (GuidedLearningStudentApp NAV_FOOTER_CLEARANCE_PX). */
-export const STUDENT_FOOTER_PX = 68;
-
 export const DEVICE_PRESETS: readonly DevicePreset[] = [
-  { id: 'board', w: 720, h: 520, footerPx: 0 },
-  { id: 'help', w: 1024, h: 576, footerPx: 0 },
-  { id: 'chromebook', w: 1366, h: 657, footerPx: STUDENT_FOOTER_PX },
-  { id: 'projector', w: 1920, h: 1080, footerPx: 0 },
+  { id: 'board', w: 720, h: 520 },
+  { id: 'help', w: 1024, h: 576 },
+  { id: 'chromebook', w: 1366, h: 657 },
+  { id: 'projector', w: 1920, h: 1080 },
 ];
 
 export const DEFAULT_CUSTOM_SIZE = { w: 1280, h: 720 };
@@ -27,7 +24,6 @@ export function customPreset(w: number, h: number): DevicePreset {
     id: 'custom',
     w: clampCustomSize(w),
     h: clampCustomSize(h),
-    footerPx: 0,
   };
 }
 

@@ -38,6 +38,7 @@ export const MARK_LABEL: Record<StudentOutcome, string> = {
   ungraded: 'Ungraded',
   noAnswer: 'No answer',
   excused: 'Excused',
+  notChosen: 'Not chosen',
 };
 
 const BAND_LABEL: Record<string, string> = {
@@ -210,6 +211,7 @@ const RESULT_GLYPH: Record<StudentOutcome, string> = {
   ungraded: 'Not yet graded',
   noAnswer: '— No answer',
   excused: 'Excused',
+  notChosen: 'Not chosen',
 };
 
 const STIMULUS_KIND: Record<QuizStimulus['type'], string> = {

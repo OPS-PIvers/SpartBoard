@@ -95,6 +95,23 @@ export function arrowBetween(
   return { from, to, normal: edgeNormal(from, box, to) };
 }
 
+/** True when the target's centre lies inside the box, so no connector is drawn. */
+export function boxCoversTarget(box: PxRect, target: PxRect): boolean {
+  const cx = target.x + target.w / 2;
+  const cy = target.y + target.h / 2;
+  return (
+    cx >= box.x && cx <= box.x + box.w && cy >= box.y && cy <= box.y + box.h
+  );
+}
+
+/** Connector from the real box rect to its target; null when the box covers the target. */
+export function connectorFor(
+  box: PxRect,
+  target: PxRect
+): CalloutArrowGeometry | null {
+  return boxCoversTarget(box, target) ? null : arrowBetween(box, target);
+}
+
 export interface LeaderCurve {
   c1: Point;
   c2: Point;

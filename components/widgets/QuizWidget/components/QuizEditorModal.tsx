@@ -302,6 +302,8 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     order,
     originalBankSlots,
     originalOrder,
+    sections,
+    originalSections,
   } = editorState;
 
   // ─── Behavior settings state ─────────────────────────────────────────────
@@ -351,6 +353,10 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
         bankSlotsEqual(bankSlots, originalBankSlots)
       ) ||
       !(order === originalOrder || orderEqual(order, originalOrder)) ||
+      !(
+        sections === originalSections ||
+        JSON.stringify(sections) === JSON.stringify(originalSections)
+      ) ||
       bankTargetsDirty ||
       translations.hasUnsavedChanges ||
       !quizBehaviorSettingsEqual(behavior, originalBehavior),
@@ -369,6 +375,8 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       originalBankSlots,
       order,
       originalOrder,
+      sections,
+      originalSections,
       behavior,
       originalBehavior,
     ]
@@ -390,6 +398,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       stimuli,
       bankSlots,
       order,
+      sections,
       behavior,
       bankTargetsDirty,
       translations.hasUnsavedChanges,
@@ -401,6 +410,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       stimuli,
       bankSlots,
       order,
+      sections,
       behavior,
       bankTargetsDirty,
       translations.hasUnsavedChanges,
@@ -424,12 +434,17 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       // Belt-and-braces pointer cleanup: deleteStimulus already strips ids
       // live, but a save must never persist a dangling pointer.
       const cleanQuestions = sanitizeStimulusPointers(questions, stimuli);
-      // `order` only carries information when a slot sits between questions.
+      // `order` only carries information when a slot or a section sits between questions.
       const cleanOrder = quizOrder({
         questions: cleanQuestions,
         bankSlots,
         order,
+        sections,
       });
+      const placedSections = new Set(
+        cleanOrder.filter((e) => e.kind === 'section').map((e) => e.id)
+      );
+      const cleanSections = sections.filter((s) => placedSections.has(s.id));
       await onSave(
         {
           ...quiz,
@@ -437,9 +452,13 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
           questions: cleanQuestions,
           ...(stimuli.length > 0 ? { stimuli } : { stimuli: undefined }),
           ...(language ? { language } : { language: undefined }),
-          ...(bankSlots.length > 0
-            ? { bankSlots, order: cleanOrder }
-            : { bankSlots: undefined, order: undefined }),
+          ...(bankSlots.length > 0 ? { bankSlots } : { bankSlots: undefined }),
+          ...(bankSlots.length > 0 || cleanSections.length > 0
+            ? { order: cleanOrder }
+            : { order: undefined }),
+          ...(cleanSections.length > 0
+            ? { sections: cleanSections }
+            : { sections: undefined }),
           updatedAt: Date.now(),
         },
         isBank ? DEFAULT_QUIZ_BEHAVIOR : behavior
@@ -458,6 +477,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     stimuli,
     bankSlots,
     order,
+    sections,
     title,
     language,
     behavior,
@@ -622,6 +642,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               titleSlot={bankTargetsStrip}
               titlePlaceholder={isBank ? 'Bank title' : undefined}
               inheritedTargets={isBank ? bankTargets : undefined}
+              allowSections={!isBank}
               onAddAnswerKey={
                 answerKeyFill && !isBank ? openKeyFill : undefined
               }

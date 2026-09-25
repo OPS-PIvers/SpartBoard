@@ -15,6 +15,7 @@ import type {
   QuizData,
   QuizQuestion,
   QuizQuestionType,
+  QuizSection,
 } from '@/types';
 import type { ExtractedImage } from '@/utils/quizDocumentImport';
 import { questionNeedsKey } from '@/utils/quizNeedsKey';
@@ -24,6 +25,7 @@ import {
 } from '@/utils/quizMultiAnswer';
 import { withTargetTag } from '@/utils/quizDocumentImport/suggestedTargets';
 import { reviewExtrasFor } from '@/utils/quizDocumentImport/toQuizData';
+import { sectionsForQuestions } from '@/utils/quizSections';
 import {
   spillMessage,
   spillWarnings,
@@ -36,6 +38,7 @@ import {
   WithSuggestedTargets,
   type SuggestedTargetsSlots,
 } from './QuizImportSuggestedTargets';
+import { WithKeyStandards } from './QuizImportKeyStandards';
 
 interface Props {
   data: QuizData;
@@ -48,6 +51,8 @@ interface Props {
   images?: readonly ExtractedImage[];
   /** Target lines the reader found, by question id; pass only when the suggested-targets flag is on. */
   suggestedTargets?: ReadonlyMap<string, SuggestedTarget>;
+  /** Standard codes a test bank key listed, by question id; same flag as `suggestedTargets`. */
+  standardCodes?: ReadonlyMap<string, readonly string[]>;
   /** How the answer key matched the questions (R19). */
   keySummary?: KeySummaryCounts;
 }
@@ -78,8 +83,18 @@ const SpillNote: React.FC<{ warning?: SpillWarning }> = ({ warning }) =>
   ) : null;
 
 const ReviewTable: React.FC<
-  Omit<Props, 'suggestedTargets'> & { targetSlots?: SuggestedTargetsSlots }
-> = ({ data, onChange, images = [], targetSlots, keySummary }) => {
+  Omit<Props, 'suggestedTargets' | 'standardCodes'> & {
+    targetSlots?: SuggestedTargetsSlots;
+    standardSlots?: SuggestedTargetsSlots;
+  }
+> = ({
+  data,
+  onChange,
+  images = [],
+  targetSlots,
+  standardSlots,
+  keySummary,
+}) => {
   // The full set read from the document. Unticking removes a question from
   // what gets created, so the master list has to outlive that or a row could
   // never be ticked back on. The preview step mounts once per read.
@@ -118,13 +133,37 @@ const ReviewTable: React.FC<
   const pictureLabel = (id: string): string =>
     `Picture ${images.findIndex((img) => img.id === id) + 1}`;
 
+  /** The heading row shown above each imported section's first question (E16). */
+  const sectionAbove = new Map<string, QuizSection>();
+  if (extras?.order && extras.sections) {
+    const records = new Map(extras.sections.map((s) => [s.id, s]));
+    let pending: QuizSection | undefined;
+    for (const entry of extras.order) {
+      if (entry.kind === 'section') pending = records.get(entry.id);
+      else if (pending) {
+        sectionAbove.set(entry.id, pending);
+        pending = undefined;
+      }
+    }
+  }
+
   const emit = (
     nextExcluded: ReadonlySet<string>,
     questions = allQuestions
   ) => {
+    const kept = questions.filter((q) => !nextExcluded.has(q.id));
+    // Sections are cut from the full order each time, so a re-ticked row lands back in its section.
+    const placed = extras?.sections
+      ? sectionsForQuestions({
+          questions: kept,
+          order: extras.order,
+          sections: extras.sections,
+        })
+      : null;
     onChange({
       ...data,
-      questions: questions.filter((q) => !nextExcluded.has(q.id)),
+      questions: kept,
+      ...(placed ? { order: placed.order, sections: placed.sections } : {}),
     });
   };
 
@@ -163,10 +202,22 @@ const ReviewTable: React.FC<
       stimulusIds: (prev.stimulusIds ?? []).filter((id) => id !== imageId),
     }));
 
-  const applyTargets = (tags: ReadonlyMap<string, QuestionTargetTag>): void => {
+  const applyTargets = (
+    tags: ReadonlyMap<string, QuestionTargetTag | readonly QuestionTargetTag[]>
+  ): void => {
     const next = allQuestions.map((q) => {
-      const tag = tags.get(q.id);
-      return tag ? { ...q, targets: withTargetTag(q.targets, tag) } : q;
+      const given = tags.get(q.id);
+      if (!given) return q;
+      const list: readonly QuestionTargetTag[] = Array.isArray(given)
+        ? given
+        : [given as QuestionTargetTag];
+      return {
+        ...q,
+        targets: list.reduce<QuestionTargetTag[] | undefined>(
+          (acc, tag) => withTargetTag(acc, tag),
+          q.targets
+        ),
+      };
     });
     setAllQuestions(next);
     emit(excluded, next);
@@ -244,6 +295,7 @@ const ReviewTable: React.FC<
       )}
 
       {targetSlots?.header(allQuestions, applyTargets)}
+      {standardSlots?.header(allQuestions, applyTargets)}
 
       <ul className="max-h-[22rem] space-y-2 overflow-y-auto">
         {allQuestions.map((q, index) => {
@@ -260,129 +312,188 @@ const ReviewTable: React.FC<
           const unlinked = images
             .map((img) => img.id)
             .filter((id) => !linked.includes(id));
+          const section = sectionAbove.get(q.id);
           return (
-            <li
-              key={q.id}
-              className={`rounded-xl border p-2.5 transition-colors ${
-                included
-                  ? 'border-slate-200 bg-white'
-                  : 'border-slate-200 bg-slate-50 opacity-60'
-              }`}
-            >
-              <div className="flex items-start gap-2">
-                <input
-                  type="checkbox"
-                  checked={included}
-                  onChange={(e) => toggle(q.id, e.target.checked)}
-                  className="mt-1 shrink-0 accent-brand-blue-primary"
-                  aria-label={`Create question ${index + 1}`}
-                />
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <div className="flex flex-wrap items-baseline gap-2">
-                    <span className="font-mono text-xs font-bold text-slate-400">
-                      {index + 1}
-                    </span>
-                    {q.sourceLabel && (
-                      <span className="font-mono text-xxs text-slate-400">
-                        printed {q.sourceLabel}
-                      </span>
-                    )}
-                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-slate-600">
-                      {TYPE_LABEL[q.type]}
-                    </span>
-                    {questionNeedsKey(q) && (
-                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-amber-800">
-                        Needs answer
-                      </span>
-                    )}
-                    {rowSpills.length > 0 && (
-                      <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-amber-800">
-                        <AlertCircle className="h-3 w-3" aria-hidden />
-                        Check text
-                      </span>
-                    )}
-                  </div>
-
-                  {extras?.untick.has(q.id) && !included && (
-                    <p className="text-xs text-slate-500">
-                      {extras.untick.get(q.id)} Tick it to include it.
-                    </p>
-                  )}
-
-                  {(q.stimulusIds ?? [])
-                    .filter((id) => passages.has(id))
-                    .map((id) => {
-                      const alsoOn = sharedWith(id, q.id);
-                      return (
-                        <p key={id} className="text-xs text-slate-500">
-                          Uses {passages.get(id)}
-                          {alsoOn.length > 0
-                            ? `, shared with ${alsoOn.join(', ')}`
-                            : ''}
-                        </p>
-                      );
-                    })}
-
-                  <textarea
-                    value={q.text}
-                    onChange={(e) =>
-                      updateQuestion(q.id, (prev) => ({
-                        ...prev,
-                        text: e.target.value,
-                      }))
-                    }
-                    rows={2}
-                    aria-label={`Question ${index + 1} text`}
-                    className="w-full resize-y rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none"
+            <React.Fragment key={q.id}>
+              {section && (
+                <li className="px-1 pt-1 text-xs font-bold text-slate-600">
+                  {section.title}
+                  {section.chooseCount
+                    ? ` · Students answer ${section.chooseCount} of these`
+                    : ''}
+                </li>
+              )}
+              <li
+                className={`rounded-xl border p-2.5 transition-colors ${
+                  included
+                    ? 'border-slate-200 bg-white'
+                    : 'border-slate-200 bg-slate-50 opacity-60'
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={included}
+                    onChange={(e) => toggle(q.id, e.target.checked)}
+                    className="mt-1 shrink-0 accent-brand-blue-primary"
+                    aria-label={`Create question ${index + 1}`}
                   />
-                  {stemSpill && <SpillNote warning={stemSpill} />}
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="font-mono text-xs font-bold text-slate-400">
+                        {index + 1}
+                      </span>
+                      {q.sourceLabel && (
+                        <span className="font-mono text-xxs text-slate-400">
+                          printed {q.sourceLabel}
+                        </span>
+                      )}
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-slate-600">
+                        {TYPE_LABEL[q.type]}
+                      </span>
+                      {questionNeedsKey(q) && (
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-amber-800">
+                          Needs answer
+                        </span>
+                      )}
+                      {rowSpills.length > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-amber-800">
+                          <AlertCircle className="h-3 w-3" aria-hidden />
+                          Check text
+                        </span>
+                      )}
+                    </div>
 
-                  {targetSlots?.row(q, index + 1, (tag) =>
-                    applyTargets(new Map([[q.id, tag]]))
-                  )}
+                    {extras?.untick.has(q.id) && !included && (
+                      <p className="text-xs text-slate-500">
+                        {extras.untick.get(q.id)} Tick it to include it.
+                      </p>
+                    )}
 
-                  {choices.length > 0 && q.type === 'MA' && (
-                    <fieldset className="space-y-1">
-                      <legend className="text-xxs font-bold uppercase tracking-wider text-slate-500">
-                        Correct answers
-                      </legend>
-                      {choices.map((choice, choiceIndex) => {
-                        const right = multiAnswerCorrectOptions(
-                          q.correctAnswer
-                        );
+                    {(q.stimulusIds ?? [])
+                      .filter((id) => passages.has(id))
+                      .map((id) => {
+                        const alsoOn = sharedWith(id, q.id);
                         return (
+                          <p key={id} className="text-xs text-slate-500">
+                            Uses {passages.get(id)}
+                            {alsoOn.length > 0
+                              ? `, shared with ${alsoOn.join(', ')}`
+                              : ''}
+                          </p>
+                        );
+                      })}
+
+                    <textarea
+                      value={q.text}
+                      onChange={(e) =>
+                        updateQuestion(q.id, (prev) => ({
+                          ...prev,
+                          text: e.target.value,
+                        }))
+                      }
+                      rows={2}
+                      aria-label={`Question ${index + 1} text`}
+                      className="w-full resize-y rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none"
+                    />
+                    {stemSpill && <SpillNote warning={stemSpill} />}
+
+                    {targetSlots?.row(q, index + 1, (tag) =>
+                      applyTargets(new Map([[q.id, tag]]))
+                    )}
+                    {standardSlots?.row(q, index + 1, (tag) =>
+                      applyTargets(new Map([[q.id, tag]]))
+                    )}
+
+                    {choices.length > 0 && q.type === 'MA' && (
+                      <fieldset className="space-y-1">
+                        <legend className="text-xxs font-bold uppercase tracking-wider text-slate-500">
+                          Correct answers
+                        </legend>
+                        {choices.map((choice, choiceIndex) => {
+                          const right = multiAnswerCorrectOptions(
+                            q.correctAnswer
+                          );
+                          return (
+                            <label
+                              key={`${q.id}-${choiceIndex}`}
+                              className="flex items-center gap-2 text-sm text-slate-700"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={right.includes(choice)}
+                                onChange={(e) =>
+                                  updateQuestion(q.id, (prev) => {
+                                    const all =
+                                      choiceOrder.get(q.id) ?? choicesOf(prev);
+                                    const picked = new Set(
+                                      multiAnswerCorrectOptions(
+                                        prev.correctAnswer
+                                      )
+                                    );
+                                    if (e.target.checked) picked.add(choice);
+                                    else picked.delete(choice);
+                                    return {
+                                      ...prev,
+                                      correctAnswer: all
+                                        .filter((c) => picked.has(c))
+                                        .join('|'),
+                                      incorrectAnswers: all.filter(
+                                        (c) => !picked.has(c)
+                                      ),
+                                      needsKey: picked.size === 0,
+                                    };
+                                  })
+                                }
+                                className="shrink-0 accent-brand-blue-primary"
+                                aria-label={`Question ${index + 1}, correct answer: ${choice}`}
+                              />
+                              <span
+                                className={`min-w-0 flex-1 ${choiceSpill(choiceIndex) ? 'break-words' : 'truncate'}`}
+                              >
+                                {choice}
+                              </span>
+                              {choiceSpill(choiceIndex) && (
+                                <SpillNote warning={choiceSpill(choiceIndex)} />
+                              )}
+                            </label>
+                          );
+                        })}
+                      </fieldset>
+                    )}
+
+                    {choices.length > 0 && q.type !== 'MA' && (
+                      <fieldset className="space-y-1">
+                        <legend className="text-xxs font-bold uppercase tracking-wider text-slate-500">
+                          Correct answer
+                        </legend>
+                        {choices.map((choice, choiceIndex) => (
                           <label
                             key={`${q.id}-${choiceIndex}`}
                             className="flex items-center gap-2 text-sm text-slate-700"
                           >
                             <input
-                              type="checkbox"
-                              checked={right.includes(choice)}
-                              onChange={(e) =>
+                              type="radio"
+                              name={`answer-${q.id}`}
+                              checked={q.correctAnswer === choice}
+                              onChange={() =>
                                 updateQuestion(q.id, (prev) => {
                                   const all =
                                     choiceOrder.get(q.id) ?? choicesOf(prev);
-                                  const picked = new Set(
-                                    multiAnswerCorrectOptions(
-                                      prev.correctAnswer
-                                    )
-                                  );
-                                  if (e.target.checked) picked.add(choice);
-                                  else picked.delete(choice);
                                   return {
                                     ...prev,
-                                    correctAnswer: all
-                                      .filter((c) => picked.has(c))
-                                      .join('|'),
+                                    correctAnswer: choice,
                                     incorrectAnswers: all.filter(
-                                      (c) => !picked.has(c)
+                                      (c) => c !== choice
                                     ),
-                                    needsKey: picked.size === 0,
+                                    // Answering it here clears the flag, so the
+                                    // quiz can be assigned without a second pass.
+                                    needsKey: false,
                                   };
                                 })
                               }
                               className="shrink-0 accent-brand-blue-primary"
-                              aria-label={`Question ${index + 1}, correct answer: ${choice}`}
+                              aria-label={`Question ${index + 1}, answer: ${choice}`}
                             />
                             <span
                               className={`min-w-0 flex-1 ${choiceSpill(choiceIndex) ? 'break-words' : 'truncate'}`}
@@ -393,119 +504,73 @@ const ReviewTable: React.FC<
                               <SpillNote warning={choiceSpill(choiceIndex)} />
                             )}
                           </label>
-                        );
-                      })}
-                    </fieldset>
-                  )}
+                        ))}
+                      </fieldset>
+                    )}
 
-                  {choices.length > 0 && q.type !== 'MA' && (
-                    <fieldset className="space-y-1">
-                      <legend className="text-xxs font-bold uppercase tracking-wider text-slate-500">
-                        Correct answer
-                      </legend>
-                      {choices.map((choice, choiceIndex) => (
-                        <label
-                          key={`${q.id}-${choiceIndex}`}
-                          className="flex items-center gap-2 text-sm text-slate-700"
-                        >
-                          <input
-                            type="radio"
-                            name={`answer-${q.id}`}
-                            checked={q.correctAnswer === choice}
-                            onChange={() =>
-                              updateQuestion(q.id, (prev) => {
-                                const all =
-                                  choiceOrder.get(q.id) ?? choicesOf(prev);
-                                return {
-                                  ...prev,
-                                  correctAnswer: choice,
-                                  incorrectAnswers: all.filter(
-                                    (c) => c !== choice
-                                  ),
-                                  // Answering it here clears the flag, so the
-                                  // quiz can be assigned without a second pass.
-                                  needsKey: false,
-                                };
-                              })
-                            }
-                            className="shrink-0 accent-brand-blue-primary"
-                            aria-label={`Question ${index + 1}, answer: ${choice}`}
-                          />
-                          <span
-                            className={`min-w-0 flex-1 ${choiceSpill(choiceIndex) ? 'break-words' : 'truncate'}`}
-                          >
-                            {choice}
-                          </span>
-                          {choiceSpill(choiceIndex) && (
-                            <SpillNote warning={choiceSpill(choiceIndex)} />
-                          )}
-                        </label>
-                      ))}
-                    </fieldset>
-                  )}
-
-                  {images.length > 0 && (
-                    <div className="space-y-1">
-                      <p className="text-xxs font-bold uppercase tracking-wider text-slate-500">
-                        Pictures
-                      </p>
-                      <div className="flex flex-wrap items-start gap-2">
-                        {linked.map((imageId) => {
-                          const alsoOn = sharedWith(imageId, q.id);
-                          return (
-                            <div key={imageId} className="w-24">
-                              <div className="relative">
-                                <img
-                                  src={previews.get(imageId)}
-                                  alt={`${pictureLabel(imageId)} on question ${index + 1}`}
-                                  className="h-16 w-24 rounded-lg border border-slate-200 object-contain"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => unlinkPicture(q.id, imageId)}
-                                  aria-label={`Remove ${pictureLabel(imageId)} from question ${index + 1}`}
-                                  className="absolute -right-1.5 -top-1.5 rounded-full border border-slate-300 bg-white p-0.5 text-slate-600 hover:bg-slate-100"
-                                >
-                                  <X className="h-3 w-3" aria-hidden />
-                                </button>
+                    {images.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-xxs font-bold uppercase tracking-wider text-slate-500">
+                          Pictures
+                        </p>
+                        <div className="flex flex-wrap items-start gap-2">
+                          {linked.map((imageId) => {
+                            const alsoOn = sharedWith(imageId, q.id);
+                            return (
+                              <div key={imageId} className="w-24">
+                                <div className="relative">
+                                  <img
+                                    src={previews.get(imageId)}
+                                    alt={`${pictureLabel(imageId)} on question ${index + 1}`}
+                                    className="h-16 w-24 rounded-lg border border-slate-200 object-contain"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => unlinkPicture(q.id, imageId)}
+                                    aria-label={`Remove ${pictureLabel(imageId)} from question ${index + 1}`}
+                                    className="absolute -right-1.5 -top-1.5 rounded-full border border-slate-300 bg-white p-0.5 text-slate-600 hover:bg-slate-100"
+                                  >
+                                    <X className="h-3 w-3" aria-hidden />
+                                  </button>
+                                </div>
+                                <p className="mt-0.5 truncate text-xxs text-slate-500">
+                                  {alsoOn.length > 0
+                                    ? `Also on ${alsoOn.join(', ')}`
+                                    : pictureLabel(imageId)}
+                                </p>
                               </div>
-                              <p className="mt-0.5 truncate text-xxs text-slate-500">
-                                {alsoOn.length > 0
-                                  ? `Also on ${alsoOn.join(', ')}`
-                                  : pictureLabel(imageId)}
-                              </p>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
 
-                        {unlinked.length > 0 && (
-                          <label className="text-xs text-slate-600">
-                            <span className="sr-only">
-                              Add a picture to question {index + 1}
-                            </span>
-                            <select
-                              value=""
-                              onChange={(e) => {
-                                if (e.target.value)
-                                  linkPicture(q.id, e.target.value);
-                              }}
-                              className="h-16 rounded-lg border border-slate-200 px-2 text-xs text-slate-600 focus:border-brand-blue-primary focus:outline-none"
-                            >
-                              <option value="">Add a picture…</option>
-                              {unlinked.map((imageId) => (
-                                <option key={imageId} value={imageId}>
-                                  {pictureLabel(imageId)}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        )}
+                          {unlinked.length > 0 && (
+                            <label className="text-xs text-slate-600">
+                              <span className="sr-only">
+                                Add a picture to question {index + 1}
+                              </span>
+                              <select
+                                value=""
+                                onChange={(e) => {
+                                  if (e.target.value)
+                                    linkPicture(q.id, e.target.value);
+                                }}
+                                className="h-16 rounded-lg border border-slate-200 px-2 text-xs text-slate-600 focus:border-brand-blue-primary focus:outline-none"
+                              >
+                                <option value="">Add a picture…</option>
+                                {unlinked.map((imageId) => (
+                                  <option key={imageId} value={imageId}>
+                                    {pictureLabel(imageId)}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-            </li>
+              </li>
+            </React.Fragment>
           );
         })}
       </ul>
@@ -515,12 +580,28 @@ const ReviewTable: React.FC<
 
 export const QuizDocumentReview: React.FC<Props> = ({
   suggestedTargets,
+  standardCodes,
   ...props
-}) =>
-  suggestedTargets && suggestedTargets.size > 0 ? (
+}) => {
+  const withStandards = (targetSlots?: SuggestedTargetsSlots) =>
+    standardCodes && standardCodes.size > 0 ? (
+      <WithKeyStandards codes={standardCodes}>
+        {(standardSlots) => (
+          <ReviewTable
+            {...props}
+            targetSlots={targetSlots}
+            standardSlots={standardSlots}
+          />
+        )}
+      </WithKeyStandards>
+    ) : (
+      <ReviewTable {...props} targetSlots={targetSlots} />
+    );
+  return suggestedTargets && suggestedTargets.size > 0 ? (
     <WithSuggestedTargets suggestions={suggestedTargets}>
-      {(slots) => <ReviewTable {...props} targetSlots={slots} />}
+      {(slots) => withStandards(slots)}
     </WithSuggestedTargets>
   ) : (
-    <ReviewTable {...props} />
+    withStandards()
   );
+};
