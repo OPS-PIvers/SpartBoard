@@ -76,6 +76,7 @@ vi.mock('./secrets', () => {
 import {
   archiveQuizArtifactCore,
   isQuizMediaResponseGranted,
+  isGlobalFeatureGranted,
   isLostArchiveError,
   buildArchiveFileName,
   computeHasStuckArchive,
@@ -1252,5 +1253,48 @@ describe('transcodeBufferToM4a packaging guard', () => {
     } finally {
       ffmpegState.path = '/usr/bin/ffmpeg';
     }
+  });
+});
+
+describe('isGlobalFeatureGranted with no saved doc', () => {
+  const db = (adminEmails: string[]) =>
+    ({
+      collection: (name: string) => ({
+        doc: (id: string) => ({
+          get: () =>
+            Promise.resolve({
+              exists: name === 'admins' && adminEmails.includes(id),
+              data: () => undefined,
+            }),
+        }),
+      }),
+    }) as unknown as Parameters<typeof isGlobalFeatureGranted>[0];
+
+  it('passes an admin on a preview flag', async () => {
+    await expect(
+      isGlobalFeatureGranted(
+        db(['boss@x.org']),
+        'quiz-read-aloud',
+        'Boss@X.org',
+        'u'
+      )
+    ).resolves.toBe(true);
+  });
+
+  it('denies a teacher on a preview flag', async () => {
+    await expect(
+      isGlobalFeatureGranted(db([]), 'quiz-read-aloud', 'teacher@x.org', 'u')
+    ).resolves.toBe(false);
+  });
+
+  it('denies an admin on a fail-closed feature', async () => {
+    await expect(
+      isGlobalFeatureGranted(
+        db(['boss@x.org']),
+        'quiz-media-response',
+        'boss@x.org',
+        'u'
+      )
+    ).resolves.toBe(false);
   });
 });

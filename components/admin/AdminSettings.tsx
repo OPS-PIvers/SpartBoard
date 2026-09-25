@@ -37,6 +37,7 @@ import { PlcResourcesManager } from './PlcResourcesManager/PlcResourcesManager';
 import { HelpCenterManager } from './HelpCenter/HelpCenterManager';
 import { StandardsPanel } from './StandardsPanel';
 import { SubjectsPanel } from './SubjectsPanel';
+import { AccessSearchProvider } from './access/AccessSearchProvider';
 
 interface AdminSettingsProps {
   onClose: () => void;
@@ -365,26 +366,28 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
             </div>
 
             {/* Tab panels (desktop always; mobile when a panel is selected) */}
-            <div
-              className={`${!showMobileMenu ? 'block' : 'hidden md:block'} p-4 md:p-6 h-full`}
-            >
-              {TABS.map((tab) => {
-                const TabComponent = tab.component;
-                return (
-                  activeTab === tab.id && (
-                    <div
-                      key={tab.id}
-                      id={`panel-${tab.id}`}
-                      role="tabpanel"
-                      aria-label={tab.label}
-                      className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
-                    >
-                      <TabComponent />
-                    </div>
-                  )
-                );
-              })}
-            </div>
+            <AccessSearchProvider goToTab={setActiveTab}>
+              <div
+                className={`${!showMobileMenu ? 'block' : 'hidden md:block'} p-4 md:p-6 h-full`}
+              >
+                {TABS.map((tab) => {
+                  const TabComponent = tab.component;
+                  return (
+                    activeTab === tab.id && (
+                      <div
+                        key={tab.id}
+                        id={`panel-${tab.id}`}
+                        role="tabpanel"
+                        aria-label={tab.label}
+                        className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
+                      >
+                        <TabComponent />
+                      </div>
+                    )
+                  );
+                })}
+              </div>
+            </AccessSearchProvider>
           </div>
         </div>
       </div>

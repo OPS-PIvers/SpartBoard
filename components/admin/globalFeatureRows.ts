@@ -1,0 +1,292 @@
+// Rows on Global Settings; plan PR 2 folds these into FEATURE_DEFAULTS.
+import type React from 'react';
+import {
+  BarChart,
+  CalendarClock,
+  Cast,
+  Clapperboard,
+  ClipboardCheck,
+  Download,
+  Eye,
+  FileText,
+  FileUp,
+  Flag,
+  Footprints,
+  Languages,
+  LayoutDashboard,
+  Library,
+  Link2,
+  ListChecks,
+  Maximize2,
+  Mic,
+  MousePointerClick,
+  Music2,
+  PanelLeftClose,
+  PanelRight,
+  Printer,
+  Send,
+  Share2,
+  StickyNote,
+  Target,
+  TextCursorInput,
+  Timer,
+  UserCheck,
+  UserSearch,
+  UsersRound,
+  Volume2,
+  Wand2,
+  Zap,
+} from 'lucide-react';
+import type { GlobalFeature } from '@/types';
+
+export const GLOBAL_FEATURES: {
+  id: GlobalFeature;
+  label: string;
+  icon: React.ElementType;
+  description: string;
+}[] = [
+  {
+    id: 'gemini-functions',
+    label: 'Gemini AI Functions',
+    icon: Zap,
+    description: 'Mini-app and poll generation.',
+  },
+  {
+    id: 'live-session',
+    label: 'Live Sessions',
+    icon: Cast,
+    description: 'Host live sessions.',
+  },
+  {
+    id: 'dashboard-sharing',
+    label: 'Board Sharing',
+    icon: Share2,
+    description: 'Share a board by link.',
+  },
+  {
+    id: 'dashboard-import',
+    label: 'Board Importing',
+    icon: Download,
+    description: 'Import a shared board.',
+  },
+  {
+    id: 'smart-paste',
+    label: 'Smart Paste',
+    icon: ClipboardCheck,
+    description: 'Paste to create widgets.',
+  },
+  {
+    id: 'smart-poll',
+    label: 'Smart Polls',
+    icon: BarChart,
+    description: 'AI writes poll questions.',
+  },
+  {
+    id: 'embed-mini-app',
+    label: 'Embed: Generate Mini App',
+    icon: Wand2,
+    description: 'Turns an embed into a mini app.',
+  },
+  {
+    id: 'video-activity-audio-transcription',
+    label: 'Video Activity Audio Transcription',
+    icon: Wand2,
+    description: 'Quizzes from videos without captions.',
+  },
+  {
+    id: 'ai-file-context',
+    label: 'AI File Context (Drive)',
+    icon: FileUp,
+    description: 'Attach Drive files to AI prompts.',
+  },
+  {
+    id: 'share-link-tracking',
+    label: 'Share-link View Tracking',
+    icon: Eye,
+    description: 'Shows view counts on share cards.',
+  },
+  {
+    id: 'google-classroom',
+    label: 'Google Classroom integration',
+    icon: Send,
+    description: 'Assign to Google Classroom and sync grades.',
+  },
+  {
+    id: 'personal-spotify',
+    label: 'Personal Spotify',
+    icon: Music2,
+    description: 'Personal Spotify in the Music widget.',
+  },
+  {
+    id: 'anonymous-join',
+    label: 'Anonymous join links (no sign-in)',
+    icon: Link2,
+    description: 'No-sign-in join links for activities.',
+  },
+  {
+    id: 'quiz-media-response',
+    label: 'Spoken quiz responses (audio)',
+    icon: Mic,
+    description: "Spoken-answer questions, saved to the teacher's Drive.",
+  },
+  {
+    id: 'quiz-read-aloud',
+    label: 'Quiz read-aloud (text-to-speech)',
+    icon: Volume2,
+    description: 'Reads quiz questions aloud to signed-in students.',
+  },
+  {
+    id: 'quiz-translation',
+    label: 'Quiz translation (multilingual learners)',
+    icon: Languages,
+    description: 'AI quiz translations for multilingual learners.',
+  },
+  {
+    id: 'question-bank-ai',
+    label: 'Question bank AI drafting',
+    icon: Library,
+    description:
+      'Draft question-bank items with AI. Needs Gemini AI Functions.',
+  },
+  {
+    id: 'quiz-document-ai-reader',
+    label: 'AI reader for quiz document import',
+    icon: FileText,
+    description: 'Reads imported tests with AI. Needs quiz document import.',
+  },
+  {
+    id: 'quiz-import-suggested-targets',
+    label: 'Suggested learning targets on quiz import',
+    icon: Target,
+    description: 'Suggests learning targets found in imported tests.',
+  },
+  {
+    id: 'paper-answer-sheets',
+    label: 'Paper answer sheets (Scantron replacement)',
+    icon: Printer,
+    description:
+      'Print bubble sheets and import scans. Also needs its Rollouts switch.',
+  },
+  {
+    id: 'roster-groups',
+    label: 'Class groups in widgets',
+    icon: UsersRound,
+    description:
+      'Target a class group from a widget. Also needs its Rollouts switch.',
+  },
+  {
+    id: 'quiz-document-import',
+    label: 'Build a quiz from a test document',
+    icon: FileText,
+    description:
+      'Build a quiz from an uploaded test. Also needs its Rollouts switch.',
+  },
+  {
+    id: 'sub-share-collections',
+    label: 'Share a board or a collection with a sub',
+    icon: UserCheck,
+    description: 'Share boards or collections with a sub.',
+  },
+  {
+    id: 'gl-player-v2',
+    label: 'Guided Learning: calmer player',
+    icon: MousePointerClick,
+    description: 'Calmer Guided Learning playback.',
+  },
+  {
+    id: 'tab-away-timer',
+    label: 'Tab-away timer',
+    icon: Timer,
+    description: 'Shows how long a student was away.',
+  },
+  {
+    id: 'gl-live-tours',
+    label: 'Guided Learning live tours',
+    icon: Footprints,
+    description: "Walkthroughs on the teacher's own board.",
+  },
+  {
+    id: 'gl-studio',
+    label: 'Guided Learning Studio editor',
+    icon: Clapperboard,
+    description: 'Full-screen Guided Learning editor.',
+  },
+  {
+    id: 'per-period-access',
+    label: 'Start and pause each class period',
+    icon: CalendarClock,
+    description: 'Open and pause each class period.',
+  },
+  {
+    id: 'quiz-results-print',
+    label: 'Quiz results printing',
+    icon: Printer,
+    description: 'Print a results copy per student.',
+  },
+  {
+    id: 'plc-home-v2',
+    label: 'PLC Home dashboard',
+    icon: LayoutDashboard,
+    description: 'Tile-based PLC Home.',
+  },
+  {
+    id: 'plc-norming-flags',
+    label: 'PLC norming flags',
+    icon: Flag,
+    description: 'Flag answers for PLC norming.',
+  },
+  {
+    id: 'quiz-choose-all',
+    label: 'Choose-all-that-apply quiz questions',
+    icon: ListChecks,
+    description: 'Choose-all-that-apply questions.',
+  },
+  {
+    id: 'quiz-choice-editor',
+    label: 'One-list multiple choice editor',
+    icon: ListChecks,
+    description: 'Mark the correct option in one list.',
+  },
+  {
+    id: 'quiz-fib-alternates',
+    label: 'Other accepted answers for fill in the blank',
+    icon: TextCursorInput,
+    description: 'Alternate accepted answers.',
+  },
+  {
+    id: 'modal-fullscreen',
+    label: 'Full screen for large pop-ups',
+    icon: Maximize2,
+    description: 'Full-screen button on large pop-ups.',
+  },
+  {
+    id: 'quiz-results-tools',
+    label: 'Quiz results teacher tools',
+    icon: UserSearch,
+    description: 'Extra quiz results tools.',
+  },
+  {
+    id: 'quiz-grader-v2',
+    label: 'Tidier free-response grader',
+    icon: PanelLeftClose,
+    description: 'Collapsible student list in the grader.',
+  },
+  {
+    id: 'gl-callout-editing',
+    label: 'Guided Learning callout editing',
+    icon: MousePointerClick,
+    description: 'Resize and restyle Studio callouts.',
+  },
+  {
+    id: 'plc-notes-rich-editor',
+    label: 'PLC notes rich text editor',
+    icon: StickyNote,
+    description: 'Formatting toolbar in PLC notes.',
+  },
+  {
+    id: 'settings-drawer',
+    label: 'Widget Settings Drawer (alpha)',
+    icon: PanelRight,
+    description: 'Side-drawer widget settings.',
+  },
+];

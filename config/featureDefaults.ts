@@ -67,6 +67,8 @@ export interface FeatureDefault {
    * affects an admin's own access.
    */
   defaultMinTier?: UserTier;
+  /** Deny admins too while no doc exists: setup or privacy must be confirmed first. */
+  failClosedForAdmins?: boolean;
 }
 
 /**
@@ -170,6 +172,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultAccessLevel: 'public',
     defaultEnabled: false,
     missingDocPublic: false,
+    failClosedForAdmins: true,
   },
   // Google-API-backed (assign quizzes/video activities to Google Classroom +
   // push grades). Default-public keeps the historical missing-doc convention
@@ -203,6 +206,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultAccessLevel: 'admin',
     defaultEnabled: false,
     missingDocPublic: false,
+    failClosedForAdmins: true,
   },
   // Alpha rollout of the redesigned widget settings UI (wave 1b). Default-off
   // and admin-only until the drawer is verified across all widget types.
@@ -370,6 +374,23 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+};
+
+/** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */
+export const LEGACY_TOOL_FEATURES: Record<InternalToolType, GlobalFeature> = {
+  record: 'screen-recording',
+  magic: 'magic-layout',
+  remote: 'remote-control',
+};
+
+/** Preview flags that admins get before any doc is saved (plan D7). */
+export const isAdminPreviewFeature = (featureId: GlobalFeature): boolean => {
+  const def = FEATURE_DEFAULTS[featureId];
+  return (
+    def.defaultAccessLevel === 'admin' &&
+    !def.missingDocPublic &&
+    !def.failClosedForAdmins
+  );
 };
 
 /**

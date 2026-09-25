@@ -21,51 +21,17 @@ import {
   Users,
   Globe,
   Save,
-  Plus,
-  Trash2,
-  Zap,
-  Cast,
-  Share2,
-  Download,
-  Wand2,
   ClipboardCheck,
-  BarChart,
-  Smartphone,
   LayoutGrid,
   List,
   Filter,
   ChevronDown,
-  FileUp,
   BookOpen,
   Boxes,
   Send,
   Eye,
   ListChecks,
-  TextCursorInput,
-  Maximize2,
-  UserSearch,
-  PanelLeftClose,
   PlayCircle,
-  Music2,
-  Link2,
-  Mic,
-  Library,
-  PanelRight,
-  UserCheck,
-  MousePointerClick,
-  Printer,
-  Volume2,
-  Languages,
-  Timer,
-  UsersRound,
-  FileText,
-  Footprints,
-  Clapperboard,
-  CalendarClock,
-  LayoutDashboard,
-  Flag,
-  Target,
-  StickyNote,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -76,271 +42,15 @@ import { Toast } from '@/components/common/Toast';
 import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuildingMultiSelect';
 import { MinTierSelect } from '@/components/admin/MinTierSelect';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
+import { BetaUsersPanel } from '@/components/admin/BetaUsersPanel';
+import { GLOBAL_FEATURES } from '@/components/admin/globalFeatureRows';
+import { useAccessSearch } from '@/components/admin/access/accessSearchContext';
+import {
+  AccessSearchEmpty,
+  AdminSearchField,
+} from '@/components/admin/access/AdminSearchField';
+import { matchesSearch } from '@/components/admin/access/accessSearch';
 import { isDeprecatedGeminiModelId } from '@/utils/geminiModelDeprecation';
-
-const GLOBAL_FEATURES: {
-  id: GlobalFeature;
-  label: string;
-  icon: React.ElementType;
-  description: string;
-}[] = [
-  {
-    id: 'gemini-functions',
-    label: 'Gemini AI Functions',
-    icon: Zap,
-    description: 'Mini-app and poll generation.',
-  },
-  {
-    id: 'live-session',
-    label: 'Live Sessions',
-    icon: Cast,
-    description: 'Host live sessions.',
-  },
-  {
-    id: 'remote-control',
-    label: 'Remote Control',
-    icon: Smartphone,
-    description: 'Control a board from a phone.',
-  },
-  {
-    id: 'dashboard-sharing',
-    label: 'Board Sharing',
-    icon: Share2,
-    description: 'Share a board by link.',
-  },
-  {
-    id: 'dashboard-import',
-    label: 'Board Importing',
-    icon: Download,
-    description: 'Import a shared board.',
-  },
-  {
-    id: 'magic-layout',
-    label: 'Magic Layout',
-    icon: Wand2,
-    description: 'AI arranges the widgets on a board.',
-  },
-  {
-    id: 'smart-paste',
-    label: 'Smart Paste',
-    icon: ClipboardCheck,
-    description: 'Paste to create widgets.',
-  },
-  {
-    id: 'smart-poll',
-    label: 'Smart Polls',
-    icon: BarChart,
-    description: 'AI writes poll questions.',
-  },
-  {
-    id: 'embed-mini-app',
-    label: 'Embed: Generate Mini App',
-    icon: Wand2,
-    description: 'Turns an embed into a mini app.',
-  },
-  {
-    id: 'video-activity-audio-transcription',
-    label: 'Video Activity Audio Transcription',
-    icon: Wand2,
-    description: 'Quizzes from videos without captions.',
-  },
-  {
-    id: 'ai-file-context',
-    label: 'AI File Context (Drive)',
-    icon: FileUp,
-    description: 'Attach Drive files to AI prompts.',
-  },
-  {
-    id: 'share-link-tracking',
-    label: 'Share-link View Tracking',
-    icon: Eye,
-    description: 'Shows view counts on share cards.',
-  },
-  {
-    id: 'google-classroom',
-    label: 'Google Classroom integration',
-    icon: Send,
-    description: 'Assign to Google Classroom and sync grades.',
-  },
-  {
-    id: 'personal-spotify',
-    label: 'Personal Spotify',
-    icon: Music2,
-    description: 'Personal Spotify in the Music widget.',
-  },
-  {
-    id: 'anonymous-join',
-    label: 'Anonymous join links (no sign-in)',
-    icon: Link2,
-    description: 'No-sign-in join links for activities.',
-  },
-  {
-    id: 'quiz-media-response',
-    label: 'Spoken quiz responses (audio)',
-    icon: Mic,
-    description: "Spoken-answer questions, saved to the teacher's Drive.",
-  },
-  {
-    id: 'quiz-read-aloud',
-    label: 'Quiz read-aloud (text-to-speech)',
-    icon: Volume2,
-    description: 'Reads quiz questions aloud to signed-in students.',
-  },
-  {
-    id: 'quiz-translation',
-    label: 'Quiz translation (multilingual learners)',
-    icon: Languages,
-    description: 'AI quiz translations for multilingual learners.',
-  },
-  {
-    id: 'question-bank-ai',
-    label: 'Question bank AI drafting',
-    icon: Library,
-    description:
-      'Draft question-bank items with AI. Needs Gemini AI Functions.',
-  },
-  {
-    id: 'quiz-document-ai-reader',
-    label: 'AI reader for quiz document import',
-    icon: FileText,
-    description: 'Reads imported tests with AI. Needs quiz document import.',
-  },
-  {
-    id: 'quiz-import-suggested-targets',
-    label: 'Suggested learning targets on quiz import',
-    icon: Target,
-    description: 'Suggests learning targets found in imported tests.',
-  },
-  {
-    id: 'paper-answer-sheets',
-    label: 'Paper answer sheets (Scantron replacement)',
-    icon: Printer,
-    description:
-      'Print bubble sheets and import scans. Also needs its Rollouts switch.',
-  },
-  {
-    id: 'roster-groups',
-    label: 'Class groups in widgets',
-    icon: UsersRound,
-    description:
-      'Target a class group from a widget. Also needs its Rollouts switch.',
-  },
-  {
-    id: 'quiz-document-import',
-    label: 'Build a quiz from a test document',
-    icon: FileText,
-    description:
-      'Build a quiz from an uploaded test. Also needs its Rollouts switch.',
-  },
-  {
-    id: 'sub-share-collections',
-    label: 'Share a board or a collection with a sub',
-    icon: UserCheck,
-    description: 'Share boards or collections with a sub.',
-  },
-  {
-    id: 'gl-player-v2',
-    label: 'Guided Learning: calmer player',
-    icon: MousePointerClick,
-    description: 'Calmer Guided Learning playback.',
-  },
-  {
-    id: 'tab-away-timer',
-    label: 'Tab-away timer',
-    icon: Timer,
-    description: 'Shows how long a student was away.',
-  },
-  {
-    id: 'gl-live-tours',
-    label: 'Guided Learning live tours',
-    icon: Footprints,
-    description: "Walkthroughs on the teacher's own board.",
-  },
-  {
-    id: 'gl-studio',
-    label: 'Guided Learning Studio editor',
-    icon: Clapperboard,
-    description: 'Full-screen Guided Learning editor.',
-  },
-  {
-    id: 'per-period-access',
-    label: 'Start and pause each class period',
-    icon: CalendarClock,
-    description: 'Open and pause each class period.',
-  },
-  {
-    id: 'quiz-results-print',
-    label: 'Quiz results printing',
-    icon: Printer,
-    description: 'Print a results copy per student.',
-  },
-  {
-    id: 'plc-home-v2',
-    label: 'PLC Home dashboard',
-    icon: LayoutDashboard,
-    description: 'Tile-based PLC Home.',
-  },
-  {
-    id: 'plc-norming-flags',
-    label: 'PLC norming flags',
-    icon: Flag,
-    description: 'Flag answers for PLC norming.',
-  },
-  {
-    id: 'quiz-choose-all',
-    label: 'Choose-all-that-apply quiz questions',
-    icon: ListChecks,
-    description: 'Choose-all-that-apply questions.',
-  },
-  {
-    id: 'quiz-choice-editor',
-    label: 'One-list multiple choice editor',
-    icon: ListChecks,
-    description: 'Mark the correct option in one list.',
-  },
-  {
-    id: 'quiz-fib-alternates',
-    label: 'Other accepted answers for fill in the blank',
-    icon: TextCursorInput,
-    description: 'Alternate accepted answers.',
-  },
-  {
-    id: 'modal-fullscreen',
-    label: 'Full screen for large pop-ups',
-    icon: Maximize2,
-    description: 'Full-screen button on large pop-ups.',
-  },
-  {
-    id: 'quiz-results-tools',
-    label: 'Quiz results teacher tools',
-    icon: UserSearch,
-    description: 'Extra quiz results tools.',
-  },
-  {
-    id: 'quiz-grader-v2',
-    label: 'Tidier free-response grader',
-    icon: PanelLeftClose,
-    description: 'Collapsible student list in the grader.',
-  },
-  {
-    id: 'gl-callout-editing',
-    label: 'Guided Learning callout editing',
-    icon: MousePointerClick,
-    description: 'Resize and restyle Studio callouts.',
-  },
-  {
-    id: 'plc-notes-rich-editor',
-    label: 'PLC notes rich text editor',
-    icon: StickyNote,
-    description: 'Formatting toolbar in PLC notes.',
-  },
-  {
-    id: 'settings-drawer',
-    label: 'Widget Settings Drawer (alpha)',
-    icon: PanelRight,
-    description: 'Side-drawer widget settings.',
-  },
-];
 
 /**
  * Widgets surfaced in the Assignment Modes admin section. All four widgets
@@ -607,6 +317,8 @@ export const GlobalPermissionsManager: React.FC = () => {
   const [unsavedChanges, setUnsavedChanges] = useState<Set<string>>(new Set());
 
   const { user, appSettings, updateAppSettings } = useAuth();
+  const { query } = useAccessSearch();
+  const isSearching = query.trim() !== '';
   const { uploadAdminLogo, deleteAdminLogo, uploading } = useStorage();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -798,32 +510,6 @@ export const GlobalPermissionsManager: React.FC = () => {
     }
   };
 
-  const addBetaUser = (featureId: GlobalFeature, email: string) => {
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail) return;
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
-      showMessage('error', 'Please enter a valid email address.');
-      return;
-    }
-
-    const permission = getPermission(featureId);
-    // Case-insensitive: catches a legacy mixed-case entry pre-dating normalization.
-    if (!permission.betaUsers.some((e) => e.toLowerCase() === trimmedEmail)) {
-      updatePermission(featureId, {
-        betaUsers: [...permission.betaUsers, trimmedEmail],
-      });
-    }
-  };
-
-  const removeBetaUser = (featureId: GlobalFeature, email: string) => {
-    const permission = getPermission(featureId);
-    updatePermission(featureId, {
-      betaUsers: permission.betaUsers.filter((e) => e !== email),
-    });
-  };
-
   const getAccessLevelIcon = (level: AccessLevel) => {
     switch (level) {
       case 'admin':
@@ -866,9 +552,13 @@ export const GlobalPermissionsManager: React.FC = () => {
         perm.accessLevel !== filterAvailability
       )
         return false;
-      return true;
+      return matchesSearch(query, [
+        feature.label,
+        feature.description,
+        feature.id,
+      ]);
     });
-  }, [permissions, filterEnabled, filterAvailability]);
+  }, [permissions, filterEnabled, filterAvailability, query]);
 
   const btnClass = (active: boolean) =>
     `px-2.5 py-1 rounded-md text-xs font-semibold border transition-all ${
@@ -925,162 +615,172 @@ export const GlobalPermissionsManager: React.FC = () => {
         />
       )}
 
+      <AdminSearchField tab="global" placeholder="Search global settings" />
+
       {/* Global Branding */}
-      <div className="bg-white border-2 border-slate-200 rounded-2xl p-6 mb-6 hover:border-brand-blue-light transition-all text-left">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="bg-brand-blue-lighter p-3 rounded-xl text-brand-blue-primary">
-            <Shield className="w-6 h-6" />
+      {!isSearching && (
+        <div className="bg-white border-2 border-slate-200 rounded-2xl p-6 mb-6 hover:border-brand-blue-light transition-all text-left">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="bg-brand-blue-lighter p-3 rounded-xl text-brand-blue-primary">
+              <Shield className="w-6 h-6" />
+            </div>
+            <h4 className="font-bold text-slate-800 text-lg">Custom Logo</h4>
           </div>
-          <h4 className="font-bold text-slate-800 text-lg">Custom Logo</h4>
-        </div>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
-          <div className="w-16 h-16 bg-slate-200 rounded-xl flex items-center justify-center overflow-hidden shrink-0 border border-slate-300">
-            {appSettings?.logoUrl ? (
-              <img
-                src={appSettings.logoUrl}
-                alt="Custom Logo"
-                className="w-full h-full object-contain"
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="w-16 h-16 bg-slate-200 rounded-xl flex items-center justify-center overflow-hidden shrink-0 border border-slate-300">
+              {appSettings?.logoUrl ? (
+                <img
+                  src={appSettings.logoUrl}
+                  alt="Custom Logo"
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <LayoutGrid className="w-8 h-8 text-slate-400" />
+              )}
+            </div>
+
+            <div className="flex-1 flex items-center gap-3">
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={(e) => void handleLogoUpload(e)}
               />
-            ) : (
-              <LayoutGrid className="w-8 h-8 text-slate-400" />
-            )}
-          </div>
-
-          <div className="flex-1 flex items-center gap-3">
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              ref={fileInputRef}
-              onChange={(e) => void handleLogoUpload(e)}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="px-4 py-2 bg-brand-blue-primary text-white text-sm font-bold rounded-lg shadow-sm hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
-            >
-              {uploading ? 'Uploading...' : 'Upload Logo'}
-            </button>
-
-            {appSettings?.logoUrl && (
               <button
-                onClick={() => void handleRemoveLogo()}
+                onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="px-4 py-2 bg-white text-red-600 text-sm font-bold border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-brand-blue-primary text-white text-sm font-bold rounded-lg shadow-sm hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
               >
-                Remove Logo
+                {uploading ? 'Uploading...' : 'Upload Logo'}
               </button>
-            )}
+
+              {appSettings?.logoUrl && (
+                <button
+                  onClick={() => void handleRemoveLogo()}
+                  disabled={uploading}
+                  className="px-4 py-2 bg-white text-red-600 text-sm font-bold border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                >
+                  Remove Logo
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Assignment Modes */}
-      {(() => {
-        const assignmentPermission = getPermission('assignment-modes');
-        // `permission.config` is an admin-writable Firestore blob and could
-        // be any shape (a stale string, an array, etc.). Run it through the
-        // trust-boundary parser so the toggle UI never spreads a non-object
-        // into the saved config.
-        const config = parseAssignmentModesConfig(assignmentPermission.config);
-        const isSavingAssignment = saving.has('assignment-modes');
-        const hasUnsaved = unsavedChanges.has('assignment-modes');
+      {!isSearching &&
+        (() => {
+          const assignmentPermission = getPermission('assignment-modes');
+          // `permission.config` is an admin-writable Firestore blob and could
+          // be any shape (a stale string, an array, etc.). Run it through the
+          // trust-boundary parser so the toggle UI never spreads a non-object
+          // into the saved config.
+          const config = parseAssignmentModesConfig(
+            assignmentPermission.config
+          );
+          const isSavingAssignment = saving.has('assignment-modes');
+          const hasUnsaved = unsavedChanges.has('assignment-modes');
 
-        const setMode = (widget: AssignmentWidgetKey, mode: AssignmentMode) => {
-          updatePermission('assignment-modes', {
-            accessLevel: 'public',
-            enabled: true,
-            config: { ...config, [widget]: mode },
-          });
-        };
+          const setMode = (
+            widget: AssignmentWidgetKey,
+            mode: AssignmentMode
+          ) => {
+            updatePermission('assignment-modes', {
+              accessLevel: 'public',
+              enabled: true,
+              config: { ...config, [widget]: mode },
+            });
+          };
 
-        return (
-          <div className="bg-white border-2 border-slate-200 rounded-2xl p-6 mb-6 hover:border-brand-blue-light transition-all text-left">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="bg-brand-blue-lighter p-3 rounded-xl text-brand-blue-primary">
-                <ClipboardCheck className="w-6 h-6" />
+          return (
+            <div className="bg-white border-2 border-slate-200 rounded-2xl p-6 mb-6 hover:border-brand-blue-light transition-all text-left">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="bg-brand-blue-lighter p-3 rounded-xl text-brand-blue-primary">
+                  <ClipboardCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-800 text-lg">
+                    Assignment Modes
+                  </h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Applies to new assignments only.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 className="font-bold text-slate-800 text-lg">
-                  Assignment Modes
-                </h4>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Applies to new assignments only.
-                </p>
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              {ASSIGNMENT_WIDGETS.map(({ key, label, Icon }) => {
-                const currentMode: AssignmentMode =
-                  config[key] === 'view-only' ? 'view-only' : 'submissions';
+              <div className="space-y-2">
+                {ASSIGNMENT_WIDGETS.map(({ key, label, Icon }) => {
+                  const currentMode: AssignmentMode =
+                    config[key] === 'view-only' ? 'view-only' : 'submissions';
 
-                return (
-                  <div
-                    key={key}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100"
-                  >
-                    <div className="flex items-start gap-3 min-w-0">
-                      <Icon className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
-                      <div className="min-w-0 font-bold text-sm text-slate-800">
-                        {label}
+                  return (
+                    <div
+                      key={key}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100"
+                    >
+                      <div className="flex items-start gap-3 min-w-0">
+                        <Icon className="w-5 h-5 text-slate-500 shrink-0 mt-0.5" />
+                        <div className="min-w-0 font-bold text-sm text-slate-800">
+                          {label}
+                        </div>
+                      </div>
+                      <div className="flex bg-white border border-slate-200 rounded-lg p-0.5 shrink-0 self-start sm:self-auto">
+                        <button
+                          type="button"
+                          onClick={() => setMode(key, 'submissions')}
+                          className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            currentMode === 'submissions'
+                              ? 'bg-brand-blue-primary text-white shadow-sm'
+                              : 'text-slate-600 hover:text-slate-800'
+                          }`}
+                          aria-pressed={currentMode === 'submissions'}
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          Submissions
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMode(key, 'view-only')}
+                          className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            currentMode === 'view-only'
+                              ? 'bg-brand-blue-primary text-white shadow-sm'
+                              : 'text-slate-600 hover:text-slate-800'
+                          }`}
+                          aria-pressed={currentMode === 'view-only'}
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          View only
+                        </button>
                       </div>
                     </div>
-                    <div className="flex bg-white border border-slate-200 rounded-lg p-0.5 shrink-0 self-start sm:self-auto">
-                      <button
-                        type="button"
-                        onClick={() => setMode(key, 'submissions')}
-                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
-                          currentMode === 'submissions'
-                            ? 'bg-brand-blue-primary text-white shadow-sm'
-                            : 'text-slate-600 hover:text-slate-800'
-                        }`}
-                        aria-pressed={currentMode === 'submissions'}
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                        Submissions
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setMode(key, 'view-only')}
-                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
-                          currentMode === 'view-only'
-                            ? 'bg-brand-blue-primary text-white shadow-sm'
-                            : 'text-slate-600 hover:text-slate-800'
-                        }`}
-                        aria-pressed={currentMode === 'view-only'}
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        View only
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
 
-            <button
-              onClick={() => savePermission('assignment-modes')}
-              disabled={isSavingAssignment || !hasUnsaved}
-              className={`mt-4 w-full py-3 rounded-xl transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-md disabled:opacity-50 ${
-                hasUnsaved
-                  ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                  : 'bg-brand-blue-primary hover:bg-brand-blue-dark text-white'
-              }`}
-            >
-              {isSavingAssignment ? (
-                'Saving...'
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  {hasUnsaved ? 'Save Changes' : 'Settings Up-to-Date'}
-                </>
-              )}
-            </button>
-          </div>
-        );
-      })()}
+              <button
+                onClick={() => savePermission('assignment-modes')}
+                disabled={isSavingAssignment || !hasUnsaved}
+                className={`mt-4 w-full py-3 rounded-xl transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-md disabled:opacity-50 ${
+                  hasUnsaved
+                    ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                    : 'bg-brand-blue-primary hover:bg-brand-blue-dark text-white'
+                }`}
+              >
+                {isSavingAssignment ? (
+                  'Saving...'
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    {hasUnsaved ? 'Save Changes' : 'Settings Up-to-Date'}
+                  </>
+                )}
+              </button>
+            </div>
+          );
+        })()}
 
       {/* Filters */}
       <div className="bg-slate-50 border border-slate-200 rounded-xl mb-2">
@@ -1162,12 +862,10 @@ export const GlobalPermissionsManager: React.FC = () => {
 
       <>
         {filteredFeatures.length === 0 && (
-          <div className="py-12 text-center text-slate-400">
-            <Filter className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="font-medium">
-              No features match the current filters.
-            </p>
-          </div>
+          <AccessSearchEmpty
+            tab="global"
+            fallback="No features match the current filters."
+          />
         )}
         <div
           className={
@@ -1362,58 +1060,16 @@ export const GlobalPermissionsManager: React.FC = () => {
                     />
                   </div>
 
-                  {/* Beta Users Panel */}
                   {permission.accessLevel === 'beta' && (
-                    <div className="border-t border-slate-100 bg-slate-50 p-4 text-left">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 block">
-                        Beta Testers
-                      </label>
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        {permission.betaUsers.map((email) => (
-                          <div
-                            key={email}
-                            className="flex items-center gap-2 px-3 py-1 bg-white border border-blue-100 rounded-full group shadow-sm"
-                          >
-                            <span className="text-xs font-medium text-slate-700">
-                              {email}
-                            </span>
-                            <button
-                              onClick={() => removeBetaUser(feature.id, email)}
-                              className="text-red-500 hover:text-red-700 p-0.5 rounded-full transition-colors"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="flex gap-2 max-w-md">
-                        <input
-                          type="email"
-                          placeholder="user@example.com"
-                          className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary bg-white shadow-sm"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              addBetaUser(
-                                feature.id,
-                                (e.target as HTMLInputElement).value
-                              );
-                              (e.target as HTMLInputElement).value = '';
-                            }
-                          }}
-                        />
-                        <button
-                          onClick={(e) => {
-                            const input = e.currentTarget
-                              .previousElementSibling as HTMLInputElement;
-                            addBetaUser(feature.id, input.value);
-                            input.value = '';
-                          }}
-                          className="p-1.5 bg-brand-blue-primary text-white rounded-lg hover:bg-brand-blue-dark transition-colors shadow-sm"
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
-                      </div>
+                    <div className="border-t border-slate-100 bg-slate-50">
+                      <BetaUsersPanel
+                        betaUsers={permission.betaUsers}
+                        onChange={(betaUsers) =>
+                          updatePermission(feature.id, { betaUsers })
+                        }
+                        showMessage={showMessage}
+                        variant="expanded"
+                      />
                     </div>
                   )}
 
@@ -1499,58 +1155,15 @@ export const GlobalPermissionsManager: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Beta Users */}
                 {permission.accessLevel === 'beta' && (
-                  <div className="mb-6 animate-in slide-in-from-top-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 block">
-                      Beta Testers
-                    </label>
-                    <div className="space-y-2 mb-3">
-                      {permission.betaUsers.map((email) => (
-                        <div
-                          key={email}
-                          className="flex items-center justify-between p-2.5 bg-blue-50 border border-blue-100 rounded-lg group"
-                        >
-                          <span className="text-xs font-medium text-slate-700">
-                            {email}
-                          </span>
-                          <button
-                            onClick={() => removeBetaUser(feature.id, email)}
-                            className="text-red-500 hover:bg-red-100 p-1.5 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="flex gap-2">
-                      <input
-                        type="email"
-                        placeholder="user@example.com"
-                        className="flex-1 px-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            addBetaUser(
-                              feature.id,
-                              (e.target as HTMLInputElement).value
-                            );
-                            (e.target as HTMLInputElement).value = '';
-                          }
-                        }}
-                      />
-                      <button
-                        onClick={(e) => {
-                          const input = e.currentTarget
-                            .previousElementSibling as HTMLInputElement;
-                          addBetaUser(feature.id, input.value);
-                          input.value = '';
-                        }}
-                        className="p-2.5 bg-brand-blue-primary text-white rounded-xl hover:bg-brand-blue-dark transition-colors shadow-md"
-                      >
-                        <Plus className="w-5 h-5" />
-                      </button>
-                    </div>
+                  <div className="mb-6">
+                    <BetaUsersPanel
+                      betaUsers={permission.betaUsers}
+                      onChange={(betaUsers) =>
+                        updatePermission(feature.id, { betaUsers })
+                      }
+                      showMessage={showMessage}
+                    />
                   </div>
                 )}
 

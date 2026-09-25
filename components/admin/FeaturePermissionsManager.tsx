@@ -40,6 +40,12 @@ import { BloomsTaxonomyConfigurationModal } from '@/components/admin/BloomsTaxon
 import { QuizConfigurationModal } from '@/components/admin/QuizConfigurationModal';
 import { StickerGlobalConfig } from '@/types';
 import { useDialog } from '@/context/useDialog';
+import { useAccessSearch } from '@/components/admin/access/accessSearchContext';
+import {
+  AccessSearchEmpty,
+  AdminSearchField,
+} from '@/components/admin/access/AdminSearchField';
+import { matchesSearch } from '@/components/admin/access/accessSearch';
 
 export const FeaturePermissionsManager: React.FC = () => {
   const { showConfirm } = useDialog();
@@ -76,6 +82,7 @@ export const FeaturePermissionsManager: React.FC = () => {
     'all' | AccessLevel
   >('all');
   const [filterBuilding, setFilterBuilding] = useState<string>('all');
+  const { query } = useAccessSearch();
 
   const showMessage = useCallback((type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -321,7 +328,12 @@ export const FeaturePermissionsManager: React.FC = () => {
             return false;
         }
       }
-      return true;
+      return matchesSearch(query, [
+        tool.label,
+        perm.displayName,
+        tool.type,
+        ...(tool.keywords ?? []),
+      ]);
     });
   }, [
     permissions,
@@ -329,6 +341,7 @@ export const FeaturePermissionsManager: React.FC = () => {
     filterAvailability,
     filterBuilding,
     buildings,
+    query,
   ]);
 
   const btnClass = (active: boolean) =>
@@ -408,6 +421,8 @@ export const FeaturePermissionsManager: React.FC = () => {
           onClose={() => setMessage(null)}
         />
       )}
+
+      <AdminSearchField tab="features" placeholder="Search widgets" />
 
       {/* Filters */}
       <div className="bg-slate-50 border border-slate-200 rounded-xl mb-2">
@@ -491,10 +506,10 @@ export const FeaturePermissionsManager: React.FC = () => {
       {/* Widget Permission Cards */}
       <>
         {filteredTools.length === 0 && (
-          <div className="py-12 text-center text-slate-400">
-            <Filter className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="font-medium">No widgets match the current filters.</p>
-          </div>
+          <AccessSearchEmpty
+            tab="features"
+            fallback="No widgets match the current filters."
+          />
         )}
         <div
           className={

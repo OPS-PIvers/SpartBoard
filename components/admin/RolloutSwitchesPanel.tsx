@@ -4,87 +4,13 @@ import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { FlaskConical, Loader2 } from 'lucide-react';
 import { db } from '@/config/firebase';
 import { Toggle } from '@/components/common/Toggle';
+import { ROLLOUT_SWITCHES, type RolloutSwitch } from '@/config/rolloutSwitches';
+import { useAccessSearch } from '@/components/admin/access/accessSearchContext';
 import {
-  PAPER_ANSWER_SHEETS_SETTINGS_DOC,
-  normalizePaperAnswerSheetsSettings,
-} from '@/config/paperAnswerSheets';
-import {
-  PLC_NOTE_COLLAB_SETTINGS_DOC,
-  normalizePlcNoteCollabSettings,
-} from '@/config/plcNoteCollab';
-import {
-  PLC_DELEGATED_PRINTING_SETTINGS_DOC,
-  normalizePlcDelegatedPrintingSettings,
-} from '@/config/plcDelegatedPrinting';
-import {
-  ROSTER_GROUPS_INTEGRATION_SETTINGS_DOC,
-  normalizeRosterGroupsIntegrationSettings,
-} from '@/config/rosterGroupsIntegration';
-import {
-  PROJECTS_WIDGET_SETTINGS_DOC,
-  normalizeProjectsWidgetSettings,
-} from '@/config/projectsWidget';
-import {
-  QUIZ_DOCUMENT_IMPORT_SETTINGS_DOC,
-  normalizeQuizDocumentImportSettings,
-} from '@/config/quizDocumentImport';
-import {
-  SUB_LAUNCH_AS_TEACHER_SETTINGS_DOC,
-  normalizeSubLaunchAsTeacherSettings,
-} from '@/config/subLaunchAsTeacher';
-
-interface RolloutSwitch {
-  docId: string;
-  title: string;
-  description: string;
-  normalize: (raw: unknown) => { enabled: boolean };
-}
-
-/** One row per switch; a new `config/*Settings.ts` normalizer belongs here too. */
-const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
-  {
-    docId: PLC_NOTE_COLLAB_SETTINGS_DOC,
-    title: 'PLC collaborative notes',
-    description: 'Live co-editing of PLC notes.',
-    normalize: normalizePlcNoteCollabSettings,
-  },
-  {
-    docId: PAPER_ANSWER_SHEETS_SETTINGS_DOC,
-    title: 'Paper answer sheets',
-    description: 'Print bubble sheets and import scans.',
-    normalize: normalizePaperAnswerSheetsSettings,
-  },
-  {
-    docId: PLC_DELEGATED_PRINTING_SETTINGS_DOC,
-    title: 'Print response sheets for a PLC teammate',
-    description: "Print a teammate's sheets. Needs paper answer sheets.",
-    normalize: normalizePlcDelegatedPrintingSettings,
-  },
-  {
-    docId: ROSTER_GROUPS_INTEGRATION_SETTINGS_DOC,
-    title: 'Class groups in widgets',
-    description: 'Target a class group from a widget.',
-    normalize: normalizeRosterGroupsIntegrationSettings,
-  },
-  {
-    docId: PROJECTS_WIDGET_SETTINGS_DOC,
-    title: 'Projects widget',
-    description: 'Group project tracker. Student view needs ClassLink rosters.',
-    normalize: normalizeProjectsWidgetSettings,
-  },
-  {
-    docId: QUIZ_DOCUMENT_IMPORT_SETTINGS_DOC,
-    title: 'Build a quiz from a test document',
-    description: 'Build a quiz from an uploaded test.',
-    normalize: normalizeQuizDocumentImportSettings,
-  },
-  {
-    docId: SUB_LAUNCH_AS_TEACHER_SETTINGS_DOC,
-    title: 'Substitutes can start an activity',
-    description: 'Subs can start activities. Results go to the teacher.',
-    normalize: normalizeSubLaunchAsTeacherSettings,
-  },
-];
+  AccessSearchEmpty,
+  AdminSearchField,
+} from '@/components/admin/access/AdminSearchField';
+import { matchesSearch } from '@/components/admin/access/accessSearch';
 
 const RolloutRow: React.FC<{ sw: RolloutSwitch }> = ({ sw }) => {
   const [enabled, setEnabled] = useState<boolean | null>(null);
@@ -140,23 +66,34 @@ const RolloutRow: React.FC<{ sw: RolloutSwitch }> = ({ sw }) => {
   );
 };
 
-export const RolloutSwitchesPanel: React.FC = () => (
-  <div className="p-6 max-w-3xl">
-    <div className="flex items-center gap-3 mb-6">
-      <div className="w-10 h-10 rounded-lg bg-brand-blue-lighter/40 text-brand-blue-primary flex items-center justify-center">
-        <FlaskConical className="w-5 h-5" />
+export const RolloutSwitchesPanel: React.FC = () => {
+  const { query } = useAccessSearch();
+  const visible = ROLLOUT_SWITCHES.filter((sw) =>
+    matchesSearch(query, [sw.title, sw.description, sw.docId])
+  );
+  return (
+    <div className="p-6 max-w-3xl">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-lg bg-brand-blue-lighter/40 text-brand-blue-primary flex items-center justify-center">
+          <FlaskConical className="w-5 h-5" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">Rollouts</h2>
+          <p className="text-xs text-slate-600">
+            Each switch applies to every teacher.
+          </p>
+        </div>
       </div>
-      <div>
-        <h2 className="text-lg font-bold text-slate-900">Rollouts</h2>
-        <p className="text-xs text-slate-600">
-          Each switch applies to every teacher.
-        </p>
-      </div>
+      <AdminSearchField tab="rollouts" placeholder="Search rollouts" />
+      {visible.length === 0 ? (
+        <AccessSearchEmpty tab="rollouts" fallback="No rollout switches." />
+      ) : (
+        <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
+          {visible.map((sw) => (
+            <RolloutRow key={sw.docId} sw={sw} />
+          ))}
+        </ul>
+      )}
     </div>
-    <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
-      {ROLLOUT_SWITCHES.map((sw) => (
-        <RolloutRow key={sw.docId} sw={sw} />
-      ))}
-    </ul>
-  </div>
-);
+  );
+};

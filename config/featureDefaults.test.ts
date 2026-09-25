@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+import type { GlobalFeature } from '@/types';
 import {
   FEATURE_DEFAULTS,
   getWidgetDefaultAccessLevel,
+  isAdminPreviewFeature,
 } from './featureDefaults';
 
 describe('FEATURE_DEFAULTS', () => {
@@ -57,5 +61,29 @@ describe('widget access defaults', () => {
 
   it('preserves the historical public default for other widgets', () => {
     expect(getWidgetDefaultAccessLevel('clock')).toBe('public');
+  });
+});
+
+describe('isAdminPreviewFeature', () => {
+  it('passes admins on preview flags but not on fail-closed ones', () => {
+    expect(isAdminPreviewFeature('quiz-read-aloud')).toBe(true);
+    expect(isAdminPreviewFeature('quiz-media-response')).toBe(false);
+    expect(isAdminPreviewFeature('personal-spotify')).toBe(false);
+    expect(isAdminPreviewFeature('live-session')).toBe(false);
+  });
+
+  it('matches the functions mirror in functions/src/featureMissingDoc.ts', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../functions/src/featureMissingDoc.ts'),
+      'utf8'
+    );
+    const block = /ADMIN_PREVIEW_FEATURES[^=]*=\s*\[([^\]]*)\]/.exec(source);
+    const mirrored = [...(block?.[1] ?? '').matchAll(/'([a-z0-9-]+)'/g)].map(
+      (m) => m[1]
+    );
+    const expected = (Object.keys(FEATURE_DEFAULTS) as GlobalFeature[]).filter(
+      isAdminPreviewFeature
+    );
+    expect([...mirrored].sort()).toEqual([...expected].sort());
   });
 });

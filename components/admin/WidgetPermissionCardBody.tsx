@@ -198,11 +198,8 @@ export const WidgetPermissionCardBody: React.FC<
           <div className="border-t border-slate-100 bg-slate-50">
             {/* Beta Users Panel */}
             <BetaUsersPanel
-              tool={tool}
-              permission={permission}
-              updatePermission={(_widgetType, updates) =>
-                updatePermission(updates)
-              }
+              betaUsers={permission.betaUsers}
+              onChange={(betaUsers) => updatePermission({ betaUsers })}
               showMessage={showMessage}
               variant="expanded"
             />
@@ -333,9 +330,8 @@ export const WidgetPermissionCardBody: React.FC<
       {/* Beta Users (only show if access level is beta) */}
       {permission.accessLevel === 'beta' && (
         <BetaUsersPanel
-          tool={tool}
-          permission={permission}
-          updatePermission={(_widgetType, updates) => updatePermission(updates)}
+          betaUsers={permission.betaUsers}
+          onChange={(betaUsers) => updatePermission({ betaUsers })}
           showMessage={showMessage}
           variant="card"
         />

@@ -8,6 +8,7 @@ import {
 } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { GlobalPermissionsManager } from './GlobalPermissionsManager';
+import { AccessSearchProvider } from './access/AccessSearchProvider';
 
 // Minimal lucide-react stub — avoids loading the full ~25,000-line bundle.
 vi.mock('lucide-react', () => {
@@ -93,5 +94,30 @@ describe('GlobalPermissionsManager', () => {
 
     // Still exactly one chip for this user — no duplicate was added.
     expect(screen.getAllByText(/teacher@school\.org/i)).toHaveLength(1);
+  });
+
+  it('filters rows by search and links to the tab that matches', async () => {
+    const goToTab = vi.fn();
+    render(
+      <AccessSearchProvider goToTab={goToTab}>
+        <GlobalPermissionsManager />
+      </AccessSearchProvider>
+    );
+    await waitFor(() => {
+      expect(screen.getByText('Live Sessions')).toBeInTheDocument();
+    });
+
+    const search = screen.getByTestId('access-search-global');
+    fireEvent.change(search, { target: { value: 'read aloud' } });
+    expect(screen.queryByText('Live Sessions')).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Quiz read-aloud (text-to-speech)')
+    ).toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: 'stickers' } });
+    fireEvent.click(
+      screen.getByRole('button', { name: /Found on Feature Permissions/ })
+    );
+    expect(goToTab).toHaveBeenCalledWith('features');
   });
 });
