@@ -215,7 +215,7 @@ describe('AudioResponseCapture — failed upload', () => {
     const onRetryUpload = vi.fn().mockResolvedValue(undefined);
     renderCapture({ onRetryUpload });
 
-    expect(screen.getByText(/Nothing is retrying on its own/i)).toBeTruthy();
+    expect(screen.getByText(/didn't send\. Choose Try again/i)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Try again/i }));
     expect(onRetryUpload).toHaveBeenCalledTimes(1);
   });
@@ -223,9 +223,7 @@ describe('AudioResponseCapture — failed upload', () => {
   it('tells the truth and offers no retry when the bytes are gone', () => {
     renderCapture();
 
-    expect(
-      screen.getByText(/can no longer be sent from this device/i)
-    ).toBeTruthy();
+    expect(screen.getByText(/can't be sent from this device/i)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Try again/i })).toBeNull();
     expect(screen.queryByText(/We are still trying/i)).toBeNull();
   });
