@@ -238,6 +238,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Suggested learning targets in the test-import review. Admin-only until Paul has imported with it.
+  'quiz-import-suggested-targets': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Print/scan paper answer sheets. Admin-only until opened up; the Rollouts
   // switch (admin_settings/paper_answer_sheets) must also be on.
   'paper-answer-sheets': {
@@ -310,6 +316,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // PLC norming flags: anonymized answer copies on the PLC page. Admin-only until Paul has tried it.
+  'plc-norming-flags': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Choose-all-that-apply quiz questions. Admin-only until Paul has run one with a class.
   'quiz-choose-all': {
     defaultAccessLevel: 'admin',
@@ -318,6 +330,30 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
   },
   // Alternate accepted answers on fill-in-the-blank quiz questions. Admin-only until Paul has tried it.
   'quiz-fib-alternates': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Full-screen toggle on large pop-ups. Admin-only until Paul has tried it on a Chromebook.
+  'modal-fullscreen': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Quiz results teacher tools. Admin-only until Paul has used them on a real class.
+  'quiz-results-tools': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Free-response grader layout pass from the teacher feedback session. Admin-only until Paul has graded with it.
+  'quiz-grader-v2': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Studio callout handles, toolbar and styling. Admin-only until Paul has edited sets with it in prod.
+  'gl-callout-editing': {
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

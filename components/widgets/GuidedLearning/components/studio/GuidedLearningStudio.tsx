@@ -42,6 +42,14 @@ import {
   requestStartTour,
 } from '@/components/tours/tourState';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
+import {
+  decrementOpenModalCount,
+  incrementOpenModalCount,
+} from '@/components/common/modalStore';
+import {
+  acquireBodyScrollLock,
+  releaseBodyScrollLock,
+} from '@/components/common/bodyScrollLock';
 import { EditorHeader } from '../EditorHeader';
 import { GuidedLearningAIGenerator } from '../GuidedLearningAIGenerator';
 import {
@@ -527,12 +535,15 @@ const StudioSession: React.FC<
     setCurrentImageIndex(shown.imageIndex);
   }, [steps, setSelectedStepId, setCurrentImageIndex]);
 
-  const tools = useCanvasTools(editorState, preset);
-  const { rows: canvasRows, deleteFocusedVertex } = tools;
+  const calloutEditing =
+    canAccessFeature('gl-studio') && canAccessFeature('gl-callout-editing');
+  const tools = useCanvasTools(editorState, preset, { calloutEditing });
+  const { rows: canvasRows, typeRows, deleteFocusedVertex } = tools;
 
   const selectedIndex = steps.findIndex((s) => s.id === selectedStepId);
   const editKeymap = useMemo<StudioShortcut[]>(
     () => [
+      ...typeRows,
       { id: 'play', key: ' ', shift: true, run: startPlay },
       // Shift+/ on most layouts, a plain key on some.
       { id: 'help', key: '?', shift: true, run: () => setShortcutsOpen(true) },
@@ -595,6 +606,7 @@ const StudioSession: React.FC<
       deleteSelected,
       deleteFocusedVertex,
       canvasRows,
+      typeRows,
       selectStepAt,
       selectedIndex,
       steps.length,
@@ -644,6 +656,16 @@ const StudioSession: React.FC<
     if (hasFiles) return;
     if (pasteSteps() > 0) e.preventDefault();
   });
+  // Empty deps: counts as an open modal for its whole lifetime (peeking included) so the widget toolbar and dashboard Escape stand down.
+  useEffect(() => {
+    acquireBodyScrollLock();
+    incrementOpenModalCount();
+    return () => {
+      decrementOpenModalCount();
+      releaseBodyScrollLock();
+    };
+  }, []);
+
   const pasteListening = shortcutsEnabled && !playing;
   useEffect(() => {
     if (!pasteListening) return;
@@ -1001,6 +1023,8 @@ const StudioSession: React.FC<
                 tools={tools}
                 setId={set.id}
                 preset={preset}
+                playerV2={canAccessFeature('gl-player-v2')}
+                onDeleteStep={deleteStepWithUndo}
               />
             )}
             {canvasDrop.active && (
@@ -1037,6 +1061,7 @@ const StudioSession: React.FC<
             state={editorState}
             onDeleteStep={deleteStepWithUndo}
             canvasRef={canvasRef}
+            calloutEditing={calloutEditing}
             liveTours={liveTours}
             tourSet={
               liveTours && !readOnly

@@ -47,7 +47,7 @@ const BAND_LABEL: Record<string, string> = {
 };
 
 const STYLES = `
-  @page { size: letter; margin: 16mm 18mm; }
+  @page { size: letter; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; font-size: 10.5pt; }
   h1 { font-size: 15pt; margin: 0 0 1mm; }
@@ -119,6 +119,7 @@ export function printStudentReport(
       title: `${job.quizTitle} — ${job.studentName}`,
       styles: STYLES,
       body: buildStudentReportHtml(job),
+      marginMm: { vertical: 16, horizontal: 18 },
     },
     openWindow
   );
@@ -141,7 +142,17 @@ export interface QuizResultsPrintOptions {
   includeStimuli: boolean;
   duplexPadding: boolean;
   layout: ResultsPrintLayout;
+  /** 'missed' prints only incorrect, partial and unanswered questions; absent means all. */
+  questionScope?: ResultsQuestionScope;
 }
+
+export type ResultsQuestionScope = 'all' | 'missed';
+
+const MISSED_MARKS: ReadonlySet<StudentOutcome> = new Set([
+  'incorrect',
+  'partial',
+  'noAnswer',
+]);
 
 export interface ResultsPrintStudent {
   key: string;
@@ -448,7 +459,11 @@ function studentReport(
 ): string {
   const stimuliById = new Map(job.stimuli.map((s) => [s.id, s]));
   const printed = new Set<string>();
-  const rows = student.drilldown.lines
+  const missedOnly = options.questionScope === 'missed';
+  const lines = missedOnly
+    ? student.drilldown.lines.filter((line) => MISSED_MARKS.has(line.mark))
+    : student.drilldown.lines;
+  const rows = lines
     .map((line) => {
       let stim = '';
       if (options.includeStimuli) {
@@ -466,9 +481,13 @@ function studentReport(
     })
     .join('');
   const questions =
-    student.drilldown.lines.length > 0
-      ? `<ol class="q">${rows}</ol>`
-      : '<p class="sub" data-unit>No questions were served to this student yet.</p>';
+    lines.length > 0
+      ? `${missedOnly ? '<h2 class="scope" data-unit>Questions to review</h2>' : ''}<ol class="q">${rows}</ol>`
+      : `<p class="sub" data-unit>${
+          missedOnly && student.drilldown.lines.length > 0
+            ? 'No missed questions.'
+            : 'No questions were served to this student yet.'
+        }</p>`;
 
   const targets =
     options.showTargets && student.targets.length > 0
@@ -516,6 +535,9 @@ function sheetReprintHtml(
       questionCount: reprint.questionCount,
       choiceCount: reprint.choiceCount,
       columnsPerPage: reprint.columnsPerPage,
+      ...(reprint.questionTexts
+        ? { questionTexts: reprint.questionTexts }
+        : {}),
     },
     reprint.pageCount,
     sheetFillFor(reprint, {

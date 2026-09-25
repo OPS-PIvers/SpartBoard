@@ -921,3 +921,49 @@ describe('FreeResponseGrader close', () => {
     }
   });
 });
+
+describe('FreeResponseGrader PLC norming flag', () => {
+  it('renders the norming flag under a playable spoken answer with its slot', async () => {
+    const renderNormingFlag = vi.fn<
+      NonNullable<FreeResponseGraderProps['renderNormingFlag']>
+    >(() => <span>norming-flag</span>);
+    render(
+      <FreeResponseGrader
+        quiz={quiz}
+        responses={[recorded('ada', 1)]}
+        displayNameByResponseKey={names}
+        teacherUid="teacher-1"
+        resolveTakeUrl={() => Promise.resolve('blob:take')}
+        onSaveGrade={() => Promise.resolve()}
+        renderNormingFlag={renderNormingFlag}
+        onClose={() => undefined}
+      />
+    );
+    expect(await screen.findByText('norming-flag')).toBeTruthy();
+    expect(renderNormingFlag).toHaveBeenCalledWith(
+      expect.objectContaining({
+        responseKey: 'ada',
+        slot: 'primary',
+        isAudio: true,
+      })
+    );
+  });
+
+  it('shows no flag for an unavailable recording', async () => {
+    const renderNormingFlag = vi.fn(() => <span>norming-flag</span>);
+    render(
+      <FreeResponseGrader
+        quiz={quiz}
+        responses={[unavailable('ada')]}
+        displayNameByResponseKey={names}
+        teacherUid="teacher-1"
+        resolveTakeUrl={() => Promise.resolve('blob:take')}
+        onSaveGrade={() => Promise.resolve()}
+        renderNormingFlag={renderNormingFlag}
+        onClose={() => undefined}
+      />
+    );
+    expect(await screen.findByText('Question 1 of 2')).toBeTruthy();
+    expect(screen.queryByText('norming-flag')).toBeNull();
+  });
+});

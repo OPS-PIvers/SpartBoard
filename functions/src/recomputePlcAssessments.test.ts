@@ -25,6 +25,7 @@ import {
   runRecomputePlcAssessments,
   teacherNamesFromPlc,
 } from './recomputePlcAssessments';
+import { AGGREGATE_SCHEMA_VERSION } from './plcAssessmentMath';
 import { makeStubFirestore, type StubData } from './testing/stubFirestore';
 
 type Db = Parameters<typeof runRecomputePlcAssessments>[0];
@@ -238,7 +239,7 @@ describe('recomputeOnePlcAssessment', () => {
     const agg = stub.get('plcs/plc-1/aggregates/grp-1');
     expect(agg).toMatchObject({
       assessmentId: 'grp-1',
-      schemaVersion: 4,
+      schemaVersion: AGGREGATE_SCHEMA_VERSION,
       title: 'Unit 4 CFA',
       kind: 'quiz',
       teacherCount: 2,
@@ -413,7 +414,9 @@ describe('runRecomputePlcAssessments', () => {
     });
     const counts = await runRecomputePlcAssessments(stub.db as unknown as Db);
     expect(counts).toEqual({ scanned: 1, recomputed: 1, failed: 0 });
-    expect(stub.get('plcs/plc-1/aggregates/grp-1')?.schemaVersion).toBe(4);
+    expect(stub.get('plcs/plc-1/aggregates/grp-1')?.schemaVersion).toBe(
+      AGGREGATE_SCHEMA_VERSION
+    );
     expect(stub.has('plcs/plc-1/aggregates/_migration')).toBe(true);
   });
 

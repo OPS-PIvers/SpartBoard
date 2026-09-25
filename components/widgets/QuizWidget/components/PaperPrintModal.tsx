@@ -6,30 +6,25 @@
  * the paper exists. See docs/plans/QUIZ_PAPER_ANSWER_SHEETS.md §6.
  */
 
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
-  CloudDownload,
   FileText,
-  FileUp,
-  Loader2,
   Printer,
   Share2,
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { AiReaderToggle } from '@/components/common/library/importer/AiReaderToggle';
+import {
+  TestAndKeyUploader,
+  type TestAndKeySelection,
+} from '@/components/common/library/importer/TestAndKeyUploader';
+import type { ReadUploadedTest } from '@/utils/quizDocumentImport/readTestAndKey';
 import { Toggle } from '@/components/common/Toggle';
-import { useFileDrop } from '@/hooks/useFileDrop';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { usePaperSheetImageSharing } from '@/hooks/usePaperSheetImageSharing';
@@ -46,11 +41,11 @@ import {
   MAX_CHOICE_COUNT,
   MIN_CHOICE_COUNT,
   pageCountForQuestions,
+  paperGridOf,
 } from '@/utils/paperSheetLayout';
 import {
   readByLabel,
   type ExtractedQuestion,
-  type ExtractedQuiz,
 } from '@/utils/quizDocumentImport';
 import {
   MAX_PDF_PAGES_LISTED,
@@ -120,11 +115,7 @@ interface PaperPrintModalProps {
    * test carries its real questions from the start instead of placeholders.
    * Absent when the document-import feature is off, which hides the upload.
    */
-  readDocument?: (
-    file: Blob,
-    fileName: string,
-    useAi?: boolean
-  ) => Promise<ExtractedQuiz>;
+  readDocument?: ReadUploadedTest;
   /** The teacher has AI access, so the reader can be switched off for a read. */
   canUseAi?: boolean;
   /** Drive picker for that document; absent hides the Drive button. */
@@ -179,10 +170,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   } | null>(null);
   const [readingDoc, setReadingDoc] = useState(false);
   const [useAi, setUseAi] = useState(false);
-  const [pickingDoc, setPickingDoc] = useState(false);
-  const questionsFileRef = useRef<HTMLInputElement>(null);
   const [spareCount, setSpareCount] = useState(2);
   const [includeKeySheet, setIncludeKeySheet] = useState(isStub);
+  const [includeQuestionText, setIncludeQuestionText] = useState(false);
   const [printing, setPrinting] = useState(false);
   /** Set once an authored quiz's sheets printed; the test paper comes next. */
   const [printedBatch, setPrintedBatch] = useState<PaperBatch | null>(null);
@@ -213,6 +203,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   // Anything in the band takes the page's right half, so the answers drop to
   // one column and the test spreads over twice as many pages (D1).
   const columnsPerPage = sheetStimuli.length > 0 ? 1 : 2;
+  // Question text takes the band stimuli would print in, so the two never combine.
+  const questionTextLayout =
+    includeQuestionText && !isStub && sheetStimuli.length === 0;
   const sheetImages = usePaperSheetStimulusImages(sheetStimuli);
   const sharing = usePaperSheetImageSharing(sheetStimuli, inPlcGroup);
   /** Set once the teacher has answered the sharing ask, either way. */
@@ -347,7 +340,10 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     0
   );
   const sheetCount = studentSheetCount + spareCount + (includeKeySheet ? 1 : 0);
-  const pagesPerSheet = pageCountForQuestions(questionCount, columnsPerPage);
+  const pagesPerSheet = pageCountForQuestions(
+    questionCount,
+    questionTextLayout ? 'questions' : columnsPerPage
+  );
   const canPrint =
     sheetCount > 0 &&
     questionCount > 0 &&
@@ -384,15 +380,14 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
    * (D17). The numbers printed on the paper are the rows, so the count
    * follows the highest number read rather than how many were found.
    */
-  const readQuestionsFrom = async (file: Blob, fileName: string) => {
-    if (!readDocument) return;
+  const readQuestionsFrom = async ({ test, key }: TestAndKeySelection) => {
+    if (!readDocument || !test) return;
     setReadingDoc(true);
     try {
-      const extracted = await readDocument(
-        file,
-        fileName,
-        canUseAi ? useAi : undefined
-      );
+      const extracted = await readDocument(test, {
+        ...(canUseAi ? { useAi } : {}),
+        key,
+      });
       const questions = extracted.questions.filter((q) => q.text.trim());
       if (questions.length === 0) {
         onError(
@@ -410,7 +405,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         setStubTitle(extracted.title.trim());
       }
       setReadDoc({
-        fileName,
+        fileName: key ? `${test.fileName} + ${key.fileName}` : test.fileName,
         questions,
         note: readByLabel(extracted.readBy),
         // Row notes are numbered by the reader, so they name their own row.
@@ -429,26 +424,6 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       setReadingDoc(false);
     }
   };
-
-  const pickQuestionsFromDrive = async () => {
-    if (!pickDocument) return;
-    setPickingDoc(true);
-    try {
-      const picked = await pickDocument();
-      if (picked) await readQuestionsFrom(picked.file, picked.fileName);
-    } catch (err) {
-      onError(
-        err instanceof Error ? err.message : 'Could not open the Drive file.'
-      );
-    } finally {
-      setPickingDoc(false);
-    }
-  };
-
-  const questionsDrop = useFileDrop(
-    (file) => void readQuestionsFrom(file, file.name),
-    readingDoc || pickingDoc
-  );
 
   /** What the read paper gives each stub row, by the number printed on it. */
   const documentFills = (): Record<number, QuestionFill> => {
@@ -526,6 +501,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           ? { choiceOrder: readChoiceOrder }
           : {}),
         ...(columnsPerPage === 1 ? { columnsPerPage: 1 as const } : {}),
+        ...(questionTextLayout ? { sheetLayout: 'questions' as const } : {}),
         createdAt: now,
       });
       if (onCreateQuiz) await onCreateQuiz(printedQuiz);
@@ -541,8 +517,19 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         quizTitle: printedQuiz.title,
         questionCount: batch.questionCount,
         choiceCount: batch.choiceCount,
-        ...(batch.columnsPerPage
-          ? { columnsPerPage: batch.columnsPerPage }
+        ...(batch.columnsPerPage || batch.sheetLayout
+          ? { columnsPerPage: paperGridOf(batch) }
+          : {}),
+        ...(batch.sheetLayout === 'questions'
+          ? {
+              questionTexts: sheetQuestions.map((q) => ({
+                text: q.text,
+                choices: batch.choiceOrder?.[q.id] ?? [],
+              })),
+            }
+          : {}),
+        ...(!isStub && analysis.rows.some((r) => r.sourceLabel)
+          ? { rowLabels: analysis.rows.map((r) => r.sourceLabel) }
           : {}),
         ...(sheetStimuli.length > 0
           ? {
@@ -791,9 +778,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 Response sheets sent to print
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                Now print the test paper. Its choices are lettered to match
-                these sheets, so hand out this copy rather than one written by
-                hand — the import reads each bubble through that order.
+                {printedBatch.sheetLayout === 'questions'
+                  ? 'The questions are printed on the sheets. Print the test paper too if any question was too long to fit beside its bubbles.'
+                  : 'Now print the test paper. Its choices are lettered to match these sheets, so hand out this copy rather than one written by hand — the import reads each bubble through that order.'}
               </p>
             </div>
           </div>
@@ -966,65 +953,22 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 )}
               </div>
             ) : (
-              // The zone is a disabled button while a read runs, and a
-              // disabled control receives no drag events, so the wrapper
-              // carries them.
-              <div className="space-y-2" {...questionsDrop.dropProps}>
-                <input
-                  ref={questionsFileRef}
-                  type="file"
-                  accept=".pdf,.docx"
-                  aria-label="Test paper file"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = '';
-                    if (file) void readQuestionsFrom(file, file.name);
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => questionsFileRef.current?.click()}
-                  disabled={readingDoc || pickingDoc}
-                  className={`flex w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-5 text-sm font-semibold transition-colors disabled:opacity-50 ${
-                    questionsDrop.dragging
-                      ? 'border-brand-blue-primary bg-brand-blue-lighter/30 text-brand-blue-primary'
-                      : 'border-slate-300 text-slate-600 hover:border-brand-blue-primary hover:text-brand-blue-primary'
-                  }`}
+              <div className="space-y-2">
+                <TestAndKeyUploader
+                  pickFromDrive={pickDocument}
+                  submitLabel="Read the test"
+                  busy={readingDoc}
+                  busyLabel="Reading the test…"
+                  onSubmit={(selection) => void readQuestionsFrom(selection)}
                 >
-                  {readingDoc ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <FileUp className="h-5 w-5" />
+                  {canUseAi && (
+                    <AiReaderToggle
+                      checked={useAi}
+                      onChange={setUseAi}
+                      disabled={readingDoc}
+                    />
                   )}
-                  {readingDoc
-                    ? 'Reading the test…'
-                    : questionsDrop.dragging
-                      ? 'Drop the test here'
-                      : 'Drop the test here, or choose a PDF or Word file'}
-                </button>
-                {pickDocument && (
-                  <button
-                    type="button"
-                    onClick={() => void pickQuestionsFromDrive()}
-                    disabled={readingDoc || pickingDoc}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:border-brand-blue-primary hover:text-brand-blue-primary disabled:opacity-50"
-                  >
-                    {pickingDoc ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <CloudDownload className="h-4 w-4" />
-                    )}
-                    Pick the test from Google Drive
-                  </button>
-                )}
-                {canUseAi && (
-                  <AiReaderToggle
-                    checked={useAi}
-                    onChange={setUseAi}
-                    disabled={readingDoc || pickingDoc}
-                  />
-                )}
+                </TestAndKeyUploader>
                 <p className="text-xs text-slate-500">
                   The questions and answer choices come from your file. Students
                   still answer on the bubble sheet.
@@ -1230,6 +1174,26 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
           onPickFromDrive={pickSheetImage}
           busy={stimulusBusy}
         />
+
+        {!isStub && (
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm text-slate-700">Include question text</p>
+              <p className="text-xs text-slate-500">
+                {sheetStimuli.length > 0
+                  ? 'Not available while the sheet has images or templates on it.'
+                  : 'Prints each question with its choices listed underneath, each beside its own bubble. Fits 5 questions per page.'}
+              </p>
+            </div>
+            <Toggle
+              checked={questionTextLayout}
+              onChange={setIncludeQuestionText}
+              disabled={sheetStimuli.length > 0}
+              label="Include question text"
+              size="sm"
+            />
+          </div>
+        )}
 
         <div className="flex items-start justify-between gap-3">
           <div>

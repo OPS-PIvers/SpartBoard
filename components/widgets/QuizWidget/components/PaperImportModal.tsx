@@ -57,7 +57,11 @@ import {
   toPendingReview,
 } from '@/utils/paperReviewState';
 import { rasterizeScan, type RasterizedPage } from '@/utils/paperScanRaster';
-import { CHOICE_LETTERS, questionsPerPage } from '@/utils/paperSheetLayout';
+import {
+  CHOICE_LETTERS,
+  paperGridOf,
+  questionsPerPage,
+} from '@/utils/paperSheetLayout';
 import { readPaperPage } from '@/utils/paperSheetReader';
 
 const IMPORT_CHUNK = 200;
@@ -241,11 +245,11 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         const read = readPage(page.page, {
           questionCount: batch.questionCount,
           choiceCount: batch.choiceCount,
-          columnsPerPage: batch.columnsPerPage,
+          columnsPerPage: paperGridOf(batch),
         });
         if (read.status === 'ok') {
           const first =
-            (read.marker.page - 1) * questionsPerPage(batch.columnsPerPage);
+            (read.marker.page - 1) * questionsPerPage(paperGridOf(batch));
           for (const row of read.rows) {
             if (row.doubt) {
               nextCrops.set(

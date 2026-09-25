@@ -11,6 +11,7 @@ import {
   type PdfDocumentLike,
   type PdfTextItem,
 } from '@/utils/quizDocumentImport/pdfReader';
+import { bandOf, columnBands } from '@/utils/quizDocumentImport/pdfLayout';
 import { parseQuestionLines } from '@/utils/quizDocumentImport/parseQuestions';
 
 /** A fragment at (x, y); pdf.js puts those at transform[4] and [5]. */
@@ -156,5 +157,222 @@ describe('readPdf', () => {
       })
     ).rejects.toThrow('broken page');
     expect(destroy).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* ─── Layout (docs/plans/QUIZ_IMPORT_RELIABILITY.md R2–R4) ────────────────── */
+
+/** A 12pt fragment with a realistic advance width (6pt a character). */
+const text12 = (str: string, x: number, y: number): PdfTextItem => ({
+  str,
+  transform: [12, 0, 0, 12, x, y],
+  width: str.length * 6,
+});
+
+const LETTER_PAGE = 792;
+
+const pdfWithHeight = (pages: PdfTextItem[][]): PdfDocumentLike => ({
+  numPages: pages.length,
+  getPage: (n) =>
+    Promise.resolve({
+      height: LETTER_PAGE,
+      getTextContent: () => Promise.resolve({ items: pages[n - 1] }),
+    }),
+});
+
+describe('readPdf — column gaps (R2)', () => {
+  it('splits an ExamView option grid into segments at the gap', async () => {
+    const { lines } = await readPdf(blob, {
+      loadPdf: () =>
+        Promise.resolve(
+          pdfWithHeight([
+            [
+              text12('1. Which is largest?', 72, 700),
+              text12('a. 357.4', 108, 680),
+              text12('d. 35,740', 320, 680),
+            ],
+          ])
+        ),
+    });
+    expect(lines[1].segments?.map((s) => s.text)).toEqual([
+      'a. 357.4',
+      'd. 35,740',
+    ]);
+    expect(lines[1].segments?.[1].x).toBe(320);
+    expect(lines[1].text).toBe('a. 357.4 d. 35,740');
+  });
+
+  it('keeps ordinary word spacing inside one segment', () => {
+    expect(
+      groupItemsIntoLines([
+        text12('Which planet', 72, 700),
+        text12('is closest?', 72 + 12 * 6 + 3, 700),
+      ])
+    ).toEqual(['Which planetis closest?']);
+  });
+});
+
+describe('readPdf — running headers and footers (R4)', () => {
+  const page = (n: number, body: string): PdfTextItem[] => [
+    text12('Chapter Test', 72, 760),
+    text12(body, 72, 500),
+    text12(`© 2025 Publisher ${n} | Module 1`, 72, 30),
+  ];
+
+  it('drops a footer that recurs on three pages', async () => {
+    const { lines } = await readPdf(blob, {
+      loadPdf: () =>
+        Promise.resolve(
+          pdfWithHeight([
+            page(1, '1. First question here?'),
+            page(2, '2. Second question here?'),
+            page(3, '3. Third question here?'),
+          ])
+        ),
+    });
+    expect(lines.map((l) => l.text)).toEqual([
+      '1. First question here?',
+      '2. Second question here?',
+      '3. Third question here?',
+    ]);
+  });
+
+  it('on two pages drops only a line with a page number or copyright', async () => {
+    const { lines } = await readPdf(blob, {
+      loadPdf: () =>
+        Promise.resolve(
+          pdfWithHeight([
+            page(1, '1. First question here?'),
+            page(2, '2. Second question here?'),
+          ])
+        ),
+    });
+    expect(lines.map((l) => l.text)).toEqual([
+      'Chapter Test',
+      '1. First question here?',
+      'Chapter Test',
+      '2. Second question here?',
+    ]);
+  });
+
+  it('keeps a line that recurs mid-page', async () => {
+    const { lines } = await readPdf(blob, {
+      loadPdf: () =>
+        Promise.resolve(
+          pdfWithHeight(
+            [1, 2, 3].map((n) => [
+              text12(`${n}. Question number ${n} here?`, 72, 600),
+              text12('Show your work.', 72, 400),
+            ])
+          )
+        ),
+    });
+    expect(lines.filter((l) => l.text === 'Show your work.')).toHaveLength(3);
+  });
+});
+
+describe('readPdf — two-column pages (R4)', () => {
+  it('reads the left column, then the right', async () => {
+    const left = [1, 2, 3].flatMap((n, i) => [
+      text12(`${n}. Left question ${n}?`, 40, 700 - i * 200),
+      text12('A. Yes', 50, 680 - i * 200),
+    ]);
+    const right = [4, 5, 6].flatMap((n, i) => [
+      text12(`${n}. Right question ${n}?`, 320, 700 - i * 200),
+      text12('A. No', 330, 680 - i * 200),
+    ]);
+    const { lines } = await readPdf(blob, {
+      loadPdf: () =>
+        Promise.resolve(
+          pdfWithHeight([[text12('Chapter Quiz', 200, 750), ...left, ...right]])
+        ),
+    });
+    expect(lines.map((l) => l.text)).toEqual([
+      'Chapter Quiz',
+      '1. Left question 1?',
+      'A. Yes',
+      '2. Left question 2?',
+      'A. Yes',
+      '3. Left question 3?',
+      'A. Yes',
+      '4. Right question 4?',
+      'A. No',
+      '5. Right question 5?',
+      'A. No',
+      '6. Right question 6?',
+      'A. No',
+    ]);
+  });
+
+  it('leaves a short option grid in reading order', async () => {
+    const items = [1, 2, 3].flatMap((n, i) => [
+      text12(`${n}. Question ${n}?`, 72, 700 - i * 100),
+      text12('a. 1', 108, 680 - i * 100),
+      text12('c. 3', 302, 680 - i * 100),
+      text12('b. 2', 108, 665 - i * 100),
+      text12('d. 4', 302, 665 - i * 100),
+    ]);
+    const { lines } = await readPdf(blob, {
+      loadPdf: () => Promise.resolve(pdfWithHeight([items])),
+    });
+    expect(lines.slice(0, 3).map((l) => l.text)).toEqual([
+      '1. Question 1?',
+      'a. 1 c. 3',
+      'b. 2 d. 4',
+    ]);
+  });
+});
+
+describe('readPdf — OCR word boxes (R3)', () => {
+  it('builds the same segments from recorded Tesseract words', async () => {
+    const word = (text: string, x0: number, y1: number) => ({
+      text,
+      bbox: { x0, y0: y1 - 33, x1: x0 + text.length * 17, y1 },
+    });
+    const line = (words: ReturnType<typeof word>[]) => ({
+      words,
+      bbox: {
+        x0: words[0].bbox.x0,
+        y0: words[0].bbox.y0,
+        x1: words[words.length - 1].bbox.x1,
+        y1: words[0].bbox.y1,
+      },
+    });
+    const recognizePage = vi.fn().mockResolvedValue({
+      height: 2200,
+      scale: 200 / 72,
+      lines: [
+        line([
+          word('1.', 200, 300),
+          word('Which', 250, 300),
+          word('is', 360, 300),
+        ]),
+        line([word('a.', 300, 360), word('357.4', 345, 360)]),
+        // Tesseract often reports the second column as its own line.
+        line([word('d.', 890, 361), word('35,740', 935, 361)]),
+      ],
+    });
+    const { lines, usedOcr } = await readPdf(blob, {
+      loadPdf: () => Promise.resolve(pdfOf([[]])),
+      recognizePage,
+    });
+    expect(usedOcr).toBe(true);
+    expect(lines.map((l) => l.text)).toEqual([
+      '1. Which is',
+      'a. 357.4 d. 35,740',
+    ]);
+    expect(lines[1].segments?.map((s) => s.text)).toEqual([
+      'a. 357.4',
+      'd. 35,740',
+    ]);
+  });
+});
+
+describe('columnBands', () => {
+  it('clusters left edges into bands and places an edge in its band', () => {
+    const bands = columnBands([72, 74, 300, 302, 460, 71]);
+    expect(bands).toEqual([71, 300, 460]);
+    expect(bandOf(bands, 303)).toBe(1);
+    expect(bandOf(bands, 40)).toBe(0);
   });
 });

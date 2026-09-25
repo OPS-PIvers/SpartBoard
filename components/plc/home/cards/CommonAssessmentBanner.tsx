@@ -15,8 +15,8 @@
  *   usePlcMeetings        → in-progress meeting to resume (standalone hook —
  *                           the meetings listener is NOT gated to home)
  *
- * FERPA-safe: the progress count is derived from `aggregate.perTeacher`
- * (teacher rollups only), never from raw contributions / student rows.
+ * FERPA-safe: the progress count is derived from `aggregate.contributorUids`
+ * (teacher uids only), never from raw contributions / student rows.
  *
  * Light-surface modal chrome (Home page) — normal Tailwind sizing, no cqmin.
  */

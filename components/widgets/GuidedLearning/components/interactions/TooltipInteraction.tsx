@@ -1,7 +1,17 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { GuidedLearningPublicStep } from '@/types';
 import type { PxRect, Side } from '../../types/stage';
-import { placeCallout, type Point } from '../../utils/calloutPlacement';
+import {
+  CALLOUT_PADDING,
+  placeCallout,
+  type Point,
+} from '../../utils/calloutPlacement';
+import {
+  CALLOUT_TONE_STYLES,
+  calloutScaleOf,
+  calloutToneOf,
+  calloutWidthPctOf,
+} from '../../utils/calloutStyle';
 import { pinSizePx } from '../../utils/regionGeometry';
 import { renderStepText } from '../../utils/richText';
 import { CalloutArrow } from './CalloutArrow';
@@ -59,7 +69,16 @@ export const TooltipInteraction: React.FC<Props> = ({
 
   const x = (step.xPct / 100) * containerWidth;
   const y = (step.yPct / 100) * containerHeight;
-  const cardW = measured.w || Math.min(340, containerWidth * 0.5);
+  const widthPct = calloutWidthPctOf(step);
+  const fitWidth = Math.max(0, containerWidth - 2 * CALLOUT_PADDING);
+  const authoredWidth =
+    widthPct !== undefined && containerWidth > 0
+      ? Math.min((widthPct / 100) * containerWidth, fitWidth)
+      : undefined;
+  const cardW =
+    measured.w > 0
+      ? measured.w
+      : (authoredWidth ?? Math.min(340, containerWidth * 0.5));
   const cardH = measured.h || Math.max(76, containerHeight * 0.16);
   const pin = pinSizePx({ w: containerWidth, h: containerHeight });
   const keepOut: PxRect = target ?? {
@@ -81,9 +100,24 @@ export const TooltipInteraction: React.FC<Props> = ({
   // eslint-disable-next-line react-hooks/refs
   squeezedRef.current = squeezed;
 
+  const tone = CALLOUT_TONE_STYLES[calloutToneOf(step)];
+  const cardWidth = squeezed
+    ? placement.width
+    : (authoredWidth ?? 'max-content');
+  const cardMaxWidth =
+    squeezed || authoredWidth !== undefined
+      ? cardWidth
+      : 'calc(var(--gl-callout-max-w, min(340px, 50cqw)) * var(--gl-callout-scale, 1))';
+
   return (
     <div className="absolute inset-0 pointer-events-none z-20">
-      <CalloutArrow from={placement.arrow.from} to={placement.arrow.to} />
+      <CalloutArrow
+        from={placement.arrow.from}
+        to={placement.arrow.to}
+        normal={placement.arrow.normal}
+        color={tone.line}
+        halo={tone.halo}
+      />
       {/* Anchor dot on the pin — ringed so it reads on light screenshots too. */}
       {showAnchor && (
         <span
@@ -108,31 +142,37 @@ export const TooltipInteraction: React.FC<Props> = ({
           placement.side === 'left'
             ? 'items-end text-right'
             : 'items-start text-left'
-        } bg-slate-900/90 backdrop-blur-xl text-white rounded-2xl leading-relaxed shadow-2xl border border-white/20 ring-1 ring-black/40 animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none`}
-        style={{
-          left: placement.left,
-          top: placement.top,
-          maxWidth: squeezed
-            ? placement.width
-            : 'var(--gl-callout-max-w, min(340px, 50cqw))',
-          width: squeezed ? placement.width : 'max-content',
-          padding: 'min(12px, 2.8cqmin) min(16px, 3.6cqmin)',
-          fontSize: 'var(--gl-text-body, min(16px, 4cqmin))',
-        }}
+        } ${tone.tooltipCard} rounded-2xl leading-relaxed shadow-2xl animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none`}
+        style={
+          {
+            '--gl-callout-scale': calloutScaleOf(step),
+            left: placement.left,
+            top: placement.top,
+            maxWidth: cardMaxWidth,
+            width: cardWidth,
+            padding:
+              'calc(min(12px, 2.8cqmin) * var(--gl-callout-scale)) calc(min(16px, 3.6cqmin) * var(--gl-callout-scale))',
+            fontSize:
+              'calc(var(--gl-text-body, min(16px, 4cqmin)) * var(--gl-callout-scale))',
+          } as React.CSSProperties
+        }
       >
         {editor ?? (
           <>
             {step.label && (
               <div
-                className="font-bold text-white mb-1 tracking-tight"
+                className={`font-bold ${tone.title} mb-1 tracking-tight`}
                 style={{
-                  fontSize: 'var(--gl-text-title, min(18px, 4.2cqmin))',
+                  fontSize:
+                    'calc(var(--gl-text-title, min(18px, 4.2cqmin)) * var(--gl-callout-scale))',
                 }}
               >
                 {renderStepText(step.label)}
               </div>
             )}
-            <div className="text-slate-100">{renderStepText(step.text)}</div>
+            <div className={`${tone.body} whitespace-pre-wrap`}>
+              {renderStepText(step.text)}
+            </div>
           </>
         )}
       </div>

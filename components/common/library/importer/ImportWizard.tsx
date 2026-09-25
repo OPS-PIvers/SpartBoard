@@ -16,13 +16,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AiReaderToggle } from './AiReaderToggle';
 import {
+  TestAndKeyUploader,
+  type TestAndKeySelection,
+} from './TestAndKeyUploader';
+import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
   Copy,
   ExternalLink,
   FileSpreadsheet,
-  FileText,
   FileUp,
   Info,
   Loader2,
@@ -126,14 +129,6 @@ export function ImportWizard<TData>({
   const [creatingTemplate, setCreatingTemplate] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const documentInputRef = useRef<HTMLInputElement>(null);
-  const keyFileInputRef = useRef<HTMLInputElement>(null);
-  // Held until the test document is picked, since the key only means anything
-  // read alongside it (D8).
-  const [keyFile, setKeyFile] = useState<{
-    file: Blob;
-    fileName: string;
-  } | null>(null);
   // Off by default; kept across opens so a teacher needn't re-tick it.
   const [aiReaderOff, setAiReaderOff] = useState(true);
 
@@ -150,7 +145,6 @@ export function ImportWizard<TData>({
       setSheetUrl('');
       setPasteText('');
       setParsed(null);
-      setKeyFile(null);
       setWarnings([]);
       setNote('');
       setTitle(defaultTitle ?? '');
@@ -252,60 +246,16 @@ export function ImportWizard<TData>({
     }
   };
 
-  const importDocument = async (file: File): Promise<void> => {
-    await runParse({
+  const readTestAndKey = ({ test, key }: TestAndKeySelection): void => {
+    if (!test) return;
+    void runParse({
       kind: 'document',
-      file,
-      fileName: file.name,
-      ...(keyFile ? { keyFile } : {}),
+      file: test.file,
+      fileName: test.fileName,
+      ...(test.pages ? { pages: test.pages } : {}),
+      ...(key && supportsKeyFile ? { keyFile: key } : {}),
       ...(supportsAiReader && aiReaderOff ? { useAi: false } : {}),
     });
-  };
-
-  const handleDocumentPicked = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ): Promise<void> => {
-    const file = e.target.files?.[0];
-    if (documentInputRef.current) documentInputRef.current.value = '';
-    if (file) await importDocument(file);
-  };
-
-  const handleKeyFilePicked = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ): void => {
-    const file = e.target.files?.[0];
-    if (keyFileInputRef.current) keyFileInputRef.current.value = '';
-    if (file) setKeyFile({ file, fileName: file.name });
-  };
-
-  const handlePickDocument = async (): Promise<void> => {
-    if (!adapter.pickDocument) return;
-    const session = sessionRef.current;
-    setParseError(null);
-    setPicking(true);
-    try {
-      const picked = await adapter.pickDocument();
-      if (session !== sessionRef.current) return;
-      // Null = the teacher dismissed the Picker; stay put with no error.
-      if (picked) {
-        await runParse({
-          kind: 'document',
-          file: picked.file,
-          fileName: picked.fileName,
-          ...(keyFile ? { keyFile } : {}),
-          ...(supportsAiReader && aiReaderOff ? { useAi: false } : {}),
-        });
-      }
-    } catch (err) {
-      if (session !== sessionRef.current) return;
-      setParseError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to open the Google Drive picker.'
-      );
-    } finally {
-      if (session === sessionRef.current) setPicking(false);
-    }
   };
 
   const importFile = async (file: File): Promise<void> => {
@@ -321,7 +271,6 @@ export function ImportWizard<TData>({
         kind: 'document',
         file,
         fileName: file.name,
-        ...(keyFile ? { keyFile } : {}),
         ...(supportsAiReader && aiReaderOff ? { useAi: false } : {}),
       });
       return;
@@ -347,10 +296,6 @@ export function ImportWizard<TData>({
   };
 
   const uploadDrop = useFileDrop((file) => void importFile(file), loading);
-  const documentDrop = useFileDrop(
-    (file) => void importDocument(file),
-    loading || picking
-  );
 
   const handleCreateTemplate = async (): Promise<void> => {
     if (!adapter.templateHelper) return;
@@ -708,106 +653,28 @@ export function ImportWizard<TData>({
           <p className="text-xs font-black uppercase tracking-widest text-slate-500">
             Or build one from a test you already have
           </p>
-          <div
-            className="grid gap-2 sm:grid-cols-2"
-            {...documentDrop.dropProps}
+          <TestAndKeyUploader
+            zones={supportsKeyFile ? 'both' : 'test'}
+            allowCartridge
+            pickFromDrive={adapter.pickDocument}
+            submitLabel="Read the test"
+            busy={loading}
+            busyLabel="Reading your document…"
+            onSubmit={readTestAndKey}
           >
-            {adapter.pickDocument && (
-              <button
-                type="button"
-                onClick={() => void handlePickDocument()}
-                disabled={loading || picking}
-                className="w-full py-4 px-3 bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/60 disabled:opacity-40 border-2 border-brand-blue-primary/30 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group active:scale-95"
-                aria-label="Choose a test document from Google Drive"
-              >
-                {picking ? (
-                  <Loader2 className="w-6 h-6 text-brand-blue-primary animate-spin" />
-                ) : (
-                  <FileText className="w-6 h-6 text-brand-blue-primary group-hover:scale-110 transition-transform" />
-                )}
-                <span className="font-bold text-brand-blue-primary text-sm text-center">
-                  Choose a test from Drive
-                </span>
-                <p className="text-[11px] text-brand-blue-primary/60 font-bold text-center">
-                  Google Doc, Word file, PDF, .rtf or LMS export
-                </p>
-              </button>
+            {supportsAiReader && (
+              <AiReaderToggle
+                checked={!aiReaderOff}
+                onChange={(on) => setAiReaderOff(!on)}
+                disabled={loading}
+              />
             )}
-            <button
-              type="button"
-              onClick={() => documentInputRef.current?.click()}
-              disabled={loading || picking}
-              className={`w-full py-4 px-3 disabled:opacity-40 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-1 transition-all group active:scale-95 ${
-                documentDrop.dragging
-                  ? 'bg-brand-blue-lighter/70 border-brand-blue-primary'
-                  : 'bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/60 border-brand-blue-primary/30'
-              }`}
-            >
-              <FileUp className="w-6 h-6 text-brand-blue-primary group-hover:scale-110 transition-transform" />
-              <span className="font-bold text-brand-blue-primary text-sm text-center">
-                {documentDrop.dragging
-                  ? 'Drop the test here'
-                  : 'Drop or upload a test document'}
-              </span>
-              <p className="text-[11px] text-brand-blue-primary/60 font-bold text-center">
-                .pdf, .docx, .rtf or .imscc
-              </p>
-            </button>
-          </div>
-          {supportsKeyFile &&
-            (keyFile ? (
-              <div className="flex items-center justify-between gap-2 px-3 py-2 bg-brand-blue-lighter/20 border-2 border-brand-blue-primary/20 rounded-xl">
-                <span className="text-xs font-bold text-brand-blue-primary truncate">
-                  Answer key: {keyFile.fileName}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setKeyFile(null)}
-                  className="text-xs font-black uppercase tracking-wide text-slate-500 hover:text-brand-red-primary shrink-0"
-                >
-                  Remove
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => keyFileInputRef.current?.click()}
-                disabled={loading || picking}
-                className="w-full px-3 py-2 border-2 border-dashed border-slate-300 hover:border-brand-blue-primary/40 disabled:opacity-40 rounded-xl text-xs font-bold text-slate-500 hover:text-brand-blue-primary transition-colors"
-              >
-                Add a separate answer key (optional)
-              </button>
-            ))}
-          {supportsAiReader && (
-            <AiReaderToggle
-              checked={!aiReaderOff}
-              onChange={(on) => setAiReaderOff(!on)}
-              disabled={loading || picking}
-            />
-          )}
+          </TestAndKeyUploader>
           <p className="text-[11px] text-slate-500 font-medium">
             We&apos;ll read the questions and answer choices, and the answer key
             if the file has one. You can check everything before the quiz is
             created.
           </p>
-          <input
-            type="file"
-            ref={documentInputRef}
-            accept=".pdf,.docx,.rtf,.imscc"
-            onChange={(e) => void handleDocumentPicked(e)}
-            className="hidden"
-            aria-label="Upload a test document"
-          />
-          {supportsKeyFile && (
-            <input
-              type="file"
-              ref={keyFileInputRef}
-              accept=".pdf,.docx,.rtf"
-              onChange={handleKeyFilePicked}
-              className="hidden"
-              aria-label="Upload a separate answer key"
-            />
-          )}
         </div>
       )}
 

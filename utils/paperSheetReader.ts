@@ -19,7 +19,7 @@ import {
   markerCellRectMm,
   questionRowRectMm,
   questionsPerPage,
-  type PaperColumns,
+  type PaperGrid,
   type PointMm,
   type RectMm,
 } from './paperSheetLayout';
@@ -459,7 +459,7 @@ export interface ReadPageOptions {
    * batch rather than the quiz, because a teacher can add or remove sheet
    * stimuli after a stack is already on desks (D2).
    */
-  columnsPerPage?: PaperColumns;
+  columnsPerPage?: PaperGrid;
 }
 
 /** Classify one row's fills into an answer, a blank, or a doubt. */
@@ -485,7 +485,7 @@ export function classifyRow(fills: readonly number[]): {
 export function rowsOnPage(
   page: number,
   questionCount: number,
-  columns: PaperColumns = DEFAULT_COLUMNS_PER_PAGE
+  columns: PaperGrid = DEFAULT_COLUMNS_PER_PAGE
 ): number {
   const perPage = questionsPerPage(columns);
   const first = (page - 1) * perPage;

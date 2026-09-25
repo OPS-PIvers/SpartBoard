@@ -15,6 +15,9 @@ import { getResponseDocKey } from '@/hooks/useQuizSession';
 import { ShowResultsDialog } from './ShowResultsDialog';
 import type { StudentResultsActions } from './studentResultsSelection';
 
+const FOLLOW_CLASS_TIP =
+  "Remove this student's override so they see what the class sees.";
+
 const SHORT_LEVEL: Record<Exclude<QuizScoreVisibility, 'none'>, string> = {
   'score-only': 'score',
   'score-and-responses': 'responses',
@@ -148,6 +151,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
       items.push({
         id: 'clear',
         label: 'Follow class setting',
+        title: FOLLOW_CLASS_TIP,
         icon: Users,
         loading: busy === 'clear',
         onClick: () => void run('clear'),
@@ -242,6 +246,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           type="button"
           onClick={() => void run('clear')}
           disabled={busy !== null}
+          title={FOLLOW_CLASS_TIP}
           className={buttonCls}
           style={buttonStyle}
         >

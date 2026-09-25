@@ -56,6 +56,16 @@ describe('analyzePaperQuiz', () => {
     expect(result.exclusions).toEqual([]);
   });
 
+  it('carries the printed number onto its row, and adds nothing when unset', () => {
+    const result = analyzePaperQuiz(
+      quiz({
+        questions: [mc({ id: 'a' }), mc({ id: 'b', sourceLabel: '2·3' })],
+      })
+    );
+    expect(result.rows[0]).not.toHaveProperty('sourceLabel');
+    expect(result.rows[1].sourceLabel).toBe('2·3');
+  });
+
   it('treats a two-choice question as the True/False case', () => {
     const result = analyzePaperQuiz(
       quiz({
@@ -179,6 +189,19 @@ describe('planPaperBatch', () => {
       3: { rosterId: 'r2', studentId: 's3' },
     });
     expect(batch.rosterIds).toEqual(['r1', 'r2']);
+  });
+
+  it('records the question-text layout and sizes pages for it', () => {
+    const { batch } = planPaperBatch({
+      ...base,
+      selections: twoClasses,
+      sheetLayout: 'questions',
+    });
+    expect(batch.sheetLayout).toBe('questions');
+    expect(batch.pagesPerSheet).toBe(4);
+    expect(
+      planPaperBatch({ ...base, selections: twoClasses }).batch
+    ).not.toHaveProperty('sheetLayout');
   });
 
   it('keeps the same PIN in two classes apart', () => {
@@ -343,6 +366,12 @@ describe('paperChoiceOrder', () => {
       createdAt: 0,
     });
     expect(batch.choiceOrder?.q1).toEqual(['Red', 'Green', 'Blue']);
+  });
+
+  it('keeps placeholder letters in A-B-C order so each bubble means its own letter', () => {
+    expect(
+      paperChoiceOrder('batch-1', question('q1', 'C', ['A', 'B', 'D']))
+    ).toEqual(['A', 'B', 'C', 'D']);
   });
 });
 

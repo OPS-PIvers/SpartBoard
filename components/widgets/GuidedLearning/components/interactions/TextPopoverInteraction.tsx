@@ -9,6 +9,12 @@ import {
   type Point,
 } from '../../utils/calloutPlacement';
 import { renderStepText } from '../../utils/richText';
+import {
+  CALLOUT_TONE_STYLES,
+  calloutScaleOf,
+  calloutToneOf,
+  calloutWidthPctOf,
+} from '../../utils/calloutStyle';
 
 interface Props {
   step: GuidedLearningPublicStep;
@@ -72,6 +78,18 @@ export const TextPopoverInteraction: React.FC<Props> = ({
         }
       : placePopover(box, target as PxRect, container);
 
+  const tone = CALLOUT_TONE_STYLES[calloutToneOf(step)];
+  const widthPct = calloutWidthPctOf(step);
+  const authoredWidth =
+    widthPct === undefined
+      ? undefined
+      : container.w > 0
+        ? Math.min(
+            (widthPct / 100) * container.w,
+            container.w - 2 * CALLOUT_PADDING
+          )
+        : `${widthPct}cqw`;
+
   return (
     <div
       className={
@@ -84,20 +102,30 @@ export const TextPopoverInteraction: React.FC<Props> = ({
       <div
         ref={cardRef}
         data-gl-callout={step.id}
-        className={`bg-slate-800/95 backdrop-blur-sm border border-white/20 rounded-2xl shadow-2xl ${
+        className={`${tone.popoverCard} rounded-2xl shadow-2xl ${
           placed ? 'absolute' : 'relative w-full'
         }`}
-        style={{
-          maxWidth: 'var(--gl-popover-max-w, min(380px, 90cqw))',
-          padding: 'min(20px, 5cqmin)',
-          ...(placed
-            ? { left: placed.left, top: placed.top, width: box.w }
-            : {}),
-        }}
+        style={
+          {
+            '--gl-callout-scale': calloutScaleOf(step),
+            maxWidth:
+              authoredWidth ??
+              'calc(var(--gl-popover-max-w, min(380px, 90cqw)) * var(--gl-callout-scale))',
+            padding: 'calc(min(20px, 5cqmin) * var(--gl-callout-scale))',
+            ...(authoredWidth !== undefined ? { width: authoredWidth } : {}),
+            ...(placed
+              ? {
+                  left: placed.left,
+                  top: placed.top,
+                  width: authoredWidth ?? box.w,
+                }
+              : {}),
+          } as React.CSSProperties
+        }
       >
         <button
           onClick={onClose}
-          className="absolute text-slate-300 hover:text-white transition-colors"
+          className={`absolute ${tone.closeButton} transition-colors`}
           style={{
             top: 'min(12px, 3cqmin)',
             right: 'min(12px, 3cqmin)',
@@ -115,17 +143,21 @@ export const TextPopoverInteraction: React.FC<Props> = ({
           <>
             {step.label && (
               <h3
-                className="text-white font-bold mb-2 pr-6 leading-tight"
+                className={`${tone.title} font-bold mb-2 pr-6 leading-tight`}
                 style={{
-                  fontSize: 'var(--gl-text-title, min(16px, 4.5cqmin))',
+                  fontSize:
+                    'calc(var(--gl-text-title, min(16px, 4.5cqmin)) * var(--gl-callout-scale))',
                 }}
               >
                 {renderStepText(step.label)}
               </h3>
             )}
             <p
-              className="text-slate-200 leading-relaxed whitespace-pre-wrap"
-              style={{ fontSize: 'var(--gl-text-body, min(14px, 3.5cqmin))' }}
+              className={`${tone.body} leading-relaxed whitespace-pre-wrap`}
+              style={{
+                fontSize:
+                  'calc(var(--gl-text-body, min(14px, 3.5cqmin)) * var(--gl-callout-scale))',
+              }}
             >
               {renderStepText(step.text ?? '')}
             </p>

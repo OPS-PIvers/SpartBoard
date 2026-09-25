@@ -82,6 +82,10 @@ export interface AiFigureBox {
 
 export interface AiExtractedQuestion {
   number: number;
+  /** The section heading as printed, e.g. "Section 2"; absent when none. */
+  section?: string;
+  /** The question's number as printed, e.g. "3" or "5A"; absent when unknown. */
+  label?: string;
   text: string;
   type: QuestionType;
   options: AiExtractedOption[];
@@ -190,6 +194,8 @@ export function buildDocumentResponseSchema(multiAnswer = false): Schema {
           ],
           properties: {
             number: { type: Type.INTEGER },
+            section: { type: Type.STRING },
+            label: { type: Type.STRING },
             text: { type: Type.STRING },
             type: { type: Type.STRING, enum: types },
             options: {
@@ -233,6 +239,10 @@ export const EXTRACT_PROMPT = [
   '',
   'For each numbered question, return its number as printed, its full text,',
   'its answer choices exactly as written, and its type.',
+  'Give each question its printed number and section heading exactly as',
+  'printed: label is the number as printed (for example "3" or "5A"), and',
+  'section is the heading it sits under (for example "Section 2"), or empty',
+  'when the test has no sections.',
   '',
   'correctAnswer must be the exact text of the choice the document marks as',
   'correct — from an answer key, an answer table, a bolded or highlighted or',
@@ -418,8 +428,12 @@ export function normalizeAiQuiz(
       ? (q.number as number)
       : questions.length + 1;
 
+    const section = asString(q.section).trim();
+    const label = asString(q.label).trim();
     questions.push({
       number,
+      ...(section ? { section } : {}),
+      ...(label ? { label } : {}),
       text,
       type,
       options,

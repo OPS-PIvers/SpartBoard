@@ -42,6 +42,9 @@ import {
   Eye,
   ListChecks,
   TextCursorInput,
+  Maximize2,
+  UserSearch,
+  PanelLeftClose,
   PlayCircle,
   Music2,
   Link2,
@@ -60,6 +63,8 @@ import {
   Clapperboard,
   CalendarClock,
   LayoutDashboard,
+  Flag,
+  Target,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -212,6 +217,13 @@ const GLOBAL_FEATURES: {
       'Reads an imported test document with AI (Gemini) instead of the plain text-and-scan reader, which handles unusual layouts better and counts against the teacher\u2019s daily AI limit. Teachers who have it see a \u201CRead with AI\u201D checkbox, off by default, on each import. Only takes effect when Build a quiz from a test document and Gemini Functions are also enabled. Fail-closed: nobody gets it until this is saved and enabled.',
   },
   {
+    id: 'quiz-import-suggested-targets',
+    label: 'Suggested learning targets on quiz import',
+    icon: Target,
+    description:
+      'When an imported test prints learning targets beside its questions (for example \u201CELT 1.1 \u2013 I can explain\u2026\u201D), the review screen offers each one as a suggested target. A suggestion that matches one of the teacher\u2019s targets or a PLC target by code or wording tags the question with it; otherwise the teacher can create it in their own list or a PLC they can edit. \u201CAdd all\u201D covers every question in one step. Only takes effect when Build a quiz from a test document is also enabled. Admin-only until this is saved and opened up.',
+  },
+  {
     id: 'paper-answer-sheets',
     label: 'Paper answer sheets (Scantron replacement)',
     icon: Printer,
@@ -289,6 +301,13 @@ const GLOBAL_FEATURES: {
       'Replaces the PLC Home page with tiles: team results by learning target, the next meeting, your action items and recent activity, and docs. Each teacher can spotlight, reorder, add and remove tiles, and leads can set a regular meeting schedule. Adds "Assign from my library" to Assessments. Admin-only until this is saved and opened up.',
   },
   {
+    id: 'plc-norming-flags',
+    label: 'PLC norming flags',
+    icon: Flag,
+    description:
+      "Adds a small flag under each written or spoken answer in the grader of a quiz shared with a PLC. A teacher picks High, Medium, Low or Review, and a copy of the answer without the student's name appears in a Norming section on that PLC assessment page, for the team to bring to a meeting. Spoken answers are shared as recordings, so teammates may recognize a voice. Leads can rename the levels in PLC settings. Admin-only until this is saved and opened up.",
+  },
+  {
     id: 'quiz-choose-all',
     label: 'Choose-all-that-apply quiz questions',
     icon: ListChecks,
@@ -301,6 +320,34 @@ const GLOBAL_FEATURES: {
     icon: TextCursorInput,
     description:
       'Adds an "Also Accept" list under the correct answer of fill-in-the-blank quiz questions, so answers like "colour" and "color" both count. The extra answers are shown to students wherever the correct answer is revealed. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'modal-fullscreen',
+    label: 'Full screen for large pop-ups',
+    icon: Maximize2,
+    description:
+      'Adds a "View full screen" button to large pop-ups such as the quiz editor, the free-response grader and other editors, so they fill the whole screen on small Chromebooks. Esc returns to the normal size. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'quiz-results-tools',
+    label: 'Quiz results teacher tools',
+    icon: UserSearch,
+    description:
+      'Adds tools to quiz results. In question results, each student name opens that student\'s answers, and "Select these students" picks exactly that group. The student list shows each written answer\'s teacher comment and rubric levels. Printing leads with a choice between a full report and missed questions only. With students selected, teachers can export their results as a spreadsheet file, or reopen the quiz so they can change their answers and submit again while the assignment is still open. Admin-only until this is saved and opened up.',
+  },
+  {
+    id: 'quiz-grader-v2',
+    label: 'Tidier free-response grader',
+    icon: PanelLeftClose,
+    description:
+      "In the quiz free-response grader, teachers can collapse the student list to a thin strip that still shows how many are graded (and hides names while grading). The student's name no longer repeats above the answer, and tab-switch warnings move into the student list. On a question whose rubric has one strand, every highlight is tagged to that strand automatically. Admin-only until this is saved and opened up.",
+  },
+  {
+    id: 'gl-callout-editing',
+    label: 'Guided Learning callout editing',
+    icon: MousePointerClick,
+    description:
+      'In the Guided Learning Studio, clicking a tooltip or text box on the slide selects it. Teachers can drag its sides to make it wider or narrower, drag a corner to make the whole box and its text bigger or smaller, pick a dark, light or blue style, and switch it between a tooltip and a text box from a small toolbar. Only matters for teachers who also have the Studio editor. Admin-only until this is saved and opened up.',
   },
   {
     id: 'settings-drawer',

@@ -17,6 +17,7 @@ import type { QuestionGradeFn } from '@/utils/quizQuestionStats';
 import {
   applyPreset,
   loadResultsPrintChoice,
+  REPORT_CHOICE_PRESETS,
   RESULTS_PRINT_PRESETS,
   saveResultsPrintChoice,
   type ResultsPrintPresetId,
@@ -59,6 +60,8 @@ export interface ResultsPrintModalProps {
   sessionLive: boolean;
   /** Paper answer sheets are on for this teacher, so reprints are offered (D26). */
   sheetsAvailable?: boolean;
+  /** Leads with a Full report / Missed only choice, other settings folded away. */
+  reportChoice?: boolean;
   teacherUid: string | null;
   onClose: () => void;
   onError: (message: string) => void;
@@ -72,7 +75,7 @@ const hasRealName = (response: QuizResponse, name: string) =>
 
 type BooleanOption = Exclude<
   keyof QuizResultsPrintOptions,
-  'keyMode' | 'layout'
+  'keyMode' | 'layout' | 'questionScope'
 >;
 
 const TOGGLES: { key: BooleanOption; label: string }[] = [
@@ -88,6 +91,24 @@ const TOGGLES: { key: BooleanOption; label: string }[] = [
   },
   { key: 'includeStimuli', label: 'Passages and pictures' },
   { key: 'duplexPadding', label: 'Keep double-sided copies aligned' },
+];
+
+const REPORT_CHOICES: {
+  id: ResultsPrintPresetId;
+  label: string;
+  detail: string;
+}[] = [
+  {
+    id: 'full-report',
+    label: 'Full report',
+    detail:
+      'Every question, their answer marked, the correct answer, points and feedback.',
+  },
+  {
+    id: 'missed-only',
+    label: 'Missed only',
+    detail: 'The score, then only the questions they missed or left blank.',
+  },
 ];
 
 const LAYOUTS: { id: ResultsPrintLayout; label: string }[] = [
@@ -116,12 +137,19 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   periodOrder,
   sessionLive,
   sheetsAvailable = false,
+  reportChoice = false,
   teacherUid,
   onClose,
   onError,
 }) => {
   const [choice, setChoice] = useState<SavedResultsPrintChoice>(() => {
-    const saved = loadResultsPrintChoice();
+    const saved = loadResultsPrintChoice(
+      reportChoice ? 'full-report' : undefined
+    );
+    // Without the report choice, a saved missed-only scope would have no visible control.
+    if (!reportChoice && saved.options.questionScope === 'missed') {
+      return { preset: 'student-copy', options: applyPreset('student-copy') };
+    }
     // Without paper sheets the picker offers Report only (D26).
     return !sheetsAvailable && saved.options.layout !== 'report'
       ? { preset: 'student-copy', options: applyPreset('student-copy') }
@@ -299,7 +327,102 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   };
 
   const presets = RESULTS_PRINT_PRESETS.filter(
-    (p) => sheetsAvailable || p.id !== 'bubble-sheet'
+    (p) =>
+      (sheetsAvailable || p.id !== 'bubble-sheet') &&
+      !REPORT_CHOICE_PRESETS.includes(p.id)
+  );
+
+  const presetChips = (
+    <div
+      className="mt-2 flex flex-wrap gap-1.5"
+      role="radiogroup"
+      aria-label="Preset"
+    >
+      {presets.map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          role="radio"
+          aria-checked={choice.preset === p.id}
+          onClick={() => pickPreset(p.id)}
+          className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+            choice.preset === p.id
+              ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-dark'
+              : 'border-slate-200 bg-white text-slate-600 hover:border-brand-blue-light'
+          }`}
+        >
+          {p.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  const toggleControls = (
+    <div className="space-y-2">
+      {TOGGLES.map((t) => (
+        <div key={t.key} className="flex items-center justify-between gap-3">
+          <span className="text-sm text-slate-700">{t.label}</span>
+          <Toggle
+            checked={options[t.key]}
+            onChange={(v) => setOption(t.key, v)}
+            label={t.label}
+            size="sm"
+          />
+        </div>
+      ))}
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm text-slate-700">Show the key</span>
+        <div
+          className="flex overflow-hidden rounded-lg border border-slate-200"
+          role="radiogroup"
+          aria-label="Show the key"
+        >
+          {KEY_MODES.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              role="radio"
+              aria-checked={options.keyMode === m.id}
+              onClick={() => setOption('keyMode', m.id)}
+              className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
+                options.keyMode === m.id
+                  ? 'bg-brand-blue-primary text-white'
+                  : 'bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {sheetsAvailable && (
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm text-slate-700">Layout</span>
+          <div
+            className="flex overflow-hidden rounded-lg border border-slate-200"
+            role="radiogroup"
+            aria-label="Layout"
+          >
+            {LAYOUTS.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                role="radio"
+                aria-checked={options.layout === m.id}
+                onClick={() => setOption('layout', m.id)}
+                className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
+                  options.layout === m.id
+                    ? 'bg-brand-blue-primary text-white'
+                    : 'bg-white text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 
   return (
@@ -364,102 +487,72 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
     >
       <div className="grid gap-4 px-5 pb-5 pt-4 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
         <div className="space-y-4">
-          <fieldset>
-            <legend className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              What to print
-            </legend>
-            <div
-              className="mt-2 flex flex-wrap gap-1.5"
-              role="radiogroup"
-              aria-label="Preset"
-            >
-              {presets.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={choice.preset === p.id}
-                  onClick={() => pickPreset(p.id)}
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                    choice.preset === p.id
-                      ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-dark'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-brand-blue-light'
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
-          <div className="space-y-2">
-            {TOGGLES.map((t) => (
-              <div
-                key={t.key}
-                className="flex items-center justify-between gap-3"
-              >
-                <span className="text-sm text-slate-700">{t.label}</span>
-                <Toggle
-                  checked={options[t.key]}
-                  onChange={(v) => setOption(t.key, v)}
-                  label={t.label}
-                  size="sm"
-                />
-              </div>
-            ))}
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-slate-700">Show the key</span>
-              <div
-                className="flex overflow-hidden rounded-lg border border-slate-200"
-                role="radiogroup"
-                aria-label="Show the key"
-              >
-                {KEY_MODES.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={options.keyMode === m.id}
-                    onClick={() => setOption('keyMode', m.id)}
-                    className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
-                      options.keyMode === m.id
-                        ? 'bg-brand-blue-primary text-white'
-                        : 'bg-white text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {sheetsAvailable && (
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm text-slate-700">Layout</span>
+          {reportChoice ? (
+            <>
+              <fieldset>
+                <legend className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Report
+                </legend>
                 <div
-                  className="flex overflow-hidden rounded-lg border border-slate-200"
+                  className="mt-2 grid grid-cols-2 gap-2"
                   role="radiogroup"
-                  aria-label="Layout"
+                  aria-label="Report"
                 >
-                  {LAYOUTS.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={options.layout === m.id}
-                      onClick={() => setOption('layout', m.id)}
-                      className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
-                        options.layout === m.id
-                          ? 'bg-brand-blue-primary text-white'
-                          : 'bg-white text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
+                  {REPORT_CHOICES.map((c) => {
+                    const on = choice.preset === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        onClick={() => pickPreset(c.id)}
+                        className={`rounded-lg border p-2.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary ${
+                          on
+                            ? 'border-brand-blue-primary bg-brand-blue-lighter/60'
+                            : 'border-slate-200 bg-white hover:border-brand-blue-light'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+                          <span
+                            aria-hidden
+                            className={`h-3 w-3 shrink-0 rounded-full border ${
+                              on
+                                ? 'border-brand-blue-primary bg-brand-blue-primary'
+                                : 'border-slate-400'
+                            }`}
+                          />
+                          {c.label}
+                        </span>
+                        <span className="mt-1 block text-xs text-slate-600">
+                          {c.detail}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
-            )}
-          </div>
+              </fieldset>
+              <details className="group">
+                <summary className="cursor-pointer text-xs font-semibold text-brand-blue-primary hover:underline">
+                  More print options
+                </summary>
+                <div className="mt-2 space-y-4">
+                  {presetChips}
+                  {toggleControls}
+                </div>
+              </details>
+            </>
+          ) : (
+            <>
+              <fieldset>
+                <legend className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  What to print
+                </legend>
+                {presetChips}
+              </fieldset>
+              {toggleControls}
+            </>
+          )}
 
           {(ungraded > 0 ||
             warnKey ||

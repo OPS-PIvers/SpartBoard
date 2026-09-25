@@ -17,6 +17,7 @@ import type {
 } from '@/components/common/library/types';
 import type { GuidedLearningSet, GuidedLearningStep } from '@/types';
 import { parseGuidedLearningJson } from '../utils/glTransfer';
+import { isValidCalloutStyle } from '../utils/calloutStyle';
 
 export interface GuidedLearningImportAdapterDeps {
   /** Persist a parsed set to the widget's library (rehosts media first). */
@@ -160,6 +161,11 @@ export function validateGuidedLearningImport(
   if (!badCoords && data.steps.some((s) => !isValidStepGeometry(s))) {
     errors.push(
       'A step has a highlighted area or pinned callout outside the image. Fix it in the file and import again.'
+    );
+  }
+  if (data.steps.some((s) => !isValidCalloutStyle(s))) {
+    errors.push(
+      'A step has a callout width (10 to 95), text size (0.75 to 2) or colour (dark, light or accent) out of range. Fix it in the file and import again.'
     );
   }
   if (data.steps.some((s) => !VALID_INTERACTION_TYPES.has(s.interactionType))) {

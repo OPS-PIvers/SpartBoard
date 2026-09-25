@@ -9,7 +9,6 @@ import {
   StickyNote,
   SquareSquare,
   Trash2,
-  Users2,
 } from 'lucide-react';
 import {
   DEFAULT_PLC_FEATURE_SETTINGS,
@@ -22,6 +21,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { PlcTrashBody } from '@/components/plc/settings/PlcTrashBody';
 import { PlcMeetingCadenceSection } from '@/components/plc/settings/PlcMeetingCadenceSection';
+import { PlcNormingLevelsSection } from '@/components/plc/norming/PlcNormingLevelsSection';
 
 interface PlcSettingsTabProps {
   plc: Plc;
@@ -70,15 +70,6 @@ const FEATURE_ROWS: readonly FeatureRow[] = [
     titleDefault: 'Shared Boards',
     descriptionKey: 'plcDashboard.settings.sharedBoards.description',
     descriptionDefault: 'Surface dashboards shared with the PLC.',
-  },
-  {
-    key: 'showPerTeacher',
-    icon: Users2,
-    titleKey: 'plcDashboard.settings.showPerTeacher.title',
-    titleDefault: 'Per-teacher breakdown',
-    descriptionKey: 'plcDashboard.settings.showPerTeacher.description',
-    descriptionDefault:
-      'Show each teacher’s average on pooled assessment results. Off by default so the team looks at the combined data first.',
   },
   {
     key: 'printForTeammates',
@@ -245,6 +236,10 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
 
       {canAccessFeature('plc-home-v2') && (
         <PlcMeetingCadenceSection plc={plc} />
+      )}
+
+      {canAccessFeature('plc-norming-flags') && (
+        <PlcNormingLevelsSection plc={plc} />
       )}
 
       {/* Notifications — opt-in weekly email digest (Decision 2.3). Any

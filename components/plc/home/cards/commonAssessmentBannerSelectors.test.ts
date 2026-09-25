@@ -37,19 +37,9 @@ function aggregate(
     studentCount: 0,
     teamAveragePercent: 0,
     perQuestion: [],
-    perTeacher: [],
+    contributorUids: [],
     ranAt: 5000,
     ...over,
-  };
-}
-
-function teacherRow(uid: string) {
-  return {
-    teacherUid: uid,
-    teacherName: `Teacher ${uid}`,
-    classCount: 1,
-    averagePercent: 80,
-    studentCount: 20,
   };
 }
 
@@ -199,11 +189,11 @@ describe('buildCommonAssessmentBanner', () => {
     ).toBeNull();
   });
 
-  it('derives ranCount from the aggregate perTeacher rows (anonymized)', () => {
+  it('derives ranCount from the aggregate contributor uids (anonymized)', () => {
     const model = buildCommonAssessmentBanner({
       assessments: [assessment({ id: 'a1', status: 'active' })],
       aggregatesById: new Map([
-        ['a1', aggregate({ perTeacher: [teacherRow('t1'), teacherRow('t2')] })],
+        ['a1', aggregate({ contributorUids: ['t1', 't2'] })],
       ]),
       meetings: [],
       memberCount: 4,
@@ -216,9 +206,7 @@ describe('buildCommonAssessmentBanner', () => {
   it('uses member count as the expected denominator, falling back to ranCount', () => {
     const model = buildCommonAssessmentBanner({
       assessments: [assessment({ id: 'a1', status: 'active' })],
-      aggregatesById: new Map([
-        ['a1', aggregate({ perTeacher: [teacherRow('t1')] })],
-      ]),
+      aggregatesById: new Map([['a1', aggregate({ contributorUids: ['t1'] })]]),
       meetings: [],
       memberCount: 0, // provider not hydrated
     });
@@ -241,9 +229,7 @@ describe('buildCommonAssessmentBanner', () => {
   it('surfaces an in-progress meeting to resume and flips phase to reviewing', () => {
     const model = buildCommonAssessmentBanner({
       assessments: [assessment({ id: 'a1', status: 'active' })],
-      aggregatesById: new Map([
-        ['a1', aggregate({ perTeacher: [teacherRow('t1')] })],
-      ]),
+      aggregatesById: new Map([['a1', aggregate({ contributorUids: ['t1'] })]]),
       meetings: [meeting({ id: 'live', status: 'in-progress' })],
       memberCount: 4,
     });

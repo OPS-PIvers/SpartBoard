@@ -530,10 +530,6 @@
         "title": "Weekly email digest",
         "optInDescription": "Send every member one weekly email summarizing what happened in the PLC. Off by default; any member can change this.",
         "saveFailed": "Failed to update digest setting"
-      },
-      "showPerTeacher": {
-        "title": "Per-teacher breakdown",
-        "description": "Show each teacher’s average on pooled assessment results. Off by default so the team looks at the combined data first."
       }
     },
     "overview": {
@@ -881,12 +877,9 @@
       "untitledAssessment": "Untitled assessment",
       "untitledQuestion": "Untitled question",
       "common": "Common",
-      "you": "(you)",
       "teamAverage": "Team average",
       "teacherStudentCount": "{{teachers}} teachers · {{students}} students",
-      "classCount": "{{count}} cls",
       "weakestQuestions": "Weakest questions",
-      "byClass": "By teacher / class",
       "whoRanIt": "Who has run it",
       "ranOf": "({{ran}} of {{total}})",
       "hasRun": "has run it",
@@ -1214,20 +1207,23 @@
       "teachersOf": "{{count}} of {{total}}",
       "lastComputed": "Last updated",
       "neverComputed": "Not yet",
-      "questionsHeading": "Questions, most missed first",
+      "questionsHeading": "Questions",
       "noQuestions": "No results yet. Once a teacher runs this assessment and publishes scores, the pooled questions appear here.",
-      "incorrectPercent": "{{percent}}% incorrect",
+      "correctPercent": "{{percent}}% correct",
+      "averagePointsPercent": "{{percent}}% of points",
       "notScored": "Not scored",
       "gradedOfAnswered": "{{served}} served · {{graded}} graded · {{answered}} answered",
       "choiceDistribution": "Answer distribution",
       "choiceCount": "{{count}} · {{percent}}%",
-      "perTeacherHeading": "By teacher",
-      "teacher": "Teacher",
-      "classes": "Classes",
-      "studentsColumn": "Students",
-      "average": "Average",
-      "unknownTeacher": "Teacher",
-      "nonMemberTeacher": "Not a PLC member"
+      "sortQuestions": "Sort questions",
+      "sortQuizOrder": "Quiz order",
+      "sortMostMissed": "Most missed",
+      "summaryHeading": "How the team did",
+      "scoreDistribution": "Score distribution",
+      "bandCount": "{{count}} students · {{percent}}%",
+      "scoredStudents": "{{count}} students scored",
+      "distributionPending": "The chart appears after the next results refresh, within a few minutes.",
+      "distributionEmpty": "The chart fills in once teachers publish scores."
     },
     "learningTargets": {
       "heading": "Learning targets",
@@ -1567,6 +1563,14 @@
       "centrallyManaged": "Centrally managed",
       "managedHelp": "Your district administrator configures the embedded URL for all classrooms."
     },
+    "catalyst": {
+      "centrallyManaged": "Admin managed",
+      "managedHelp": "Catalyst routines and categories are managed for all classrooms by your district administrator."
+    },
+    "miniApp": {
+      "apps": "Apps",
+      "manageHelp": "Manage apps in the main view."
+    },
     "first-5": {
       "automaticContent": "Automatic content",
       "automaticHelp": "This widget shows today’s First 5 content for your selected building and updates each weekday at 6:00 AM.",
@@ -1856,6 +1860,27 @@
     "guided-learning": {
       "goToLibrary": "Go to library",
       "settingsHelp": "Use the main widget panel to create, edit, and assign guided learning sets. Settings are configured per-set inside the editor."
+    },
+    "projects": {
+      "library": "Project library",
+      "libraryHelp": "Build projects, set up groups and grade them from the main widget panel. Each project's steps and rubric live in its own editor.",
+      "goToLibrary": "Go to library",
+      "rolloutOff": "Projects is switched off for this district. An admin turns it on under Admin Settings, Rollouts.",
+      "groupRows": "Group rows",
+      "groupRowsHelp": "These style the project board, the group rows you project."
+    },
+    "activity-wall": {
+      "walls": "Walls",
+      "wallsManaged": "Walls are managed from the widget face.",
+      "wallsHelp": "Use the Library button to pick, create, edit, duplicate, or delete a wall. Each wall carries its own layout, appearance, and posting rules."
+    },
+    "talking-tool": {
+      "globalContent": "Global content settings",
+      "globalContentHelp": "Talking stems and categories are configured by an admin via Feature Permissions."
+    },
+    "stickers": {
+      "stickerBook": "Sticker book",
+      "stickerBookHelp": "Upload, favorite, and reorder stickers on the widget itself."
     },
     "countdown": {
       "title": "Event title",
@@ -3632,7 +3657,11 @@
       "tabSwitches_other": "{{count}} tab switches",
       "tabSwitchesTitle_one": "{{count}} tab switch warning during the assessment",
       "tabSwitchesTitle_other": "{{count}} tab switch warnings during the assessment",
-      "noAnswersOnQuestion": "No answers on this question yet."
+      "noAnswersOnQuestion": "No answers on this question yet.",
+      "collapseList": "Hide student list",
+      "expandList": "Show student list",
+      "gradedCount": "{{graded}}/{{total}} graded",
+      "gradedCountLabel": "{{graded}} of {{total}} graded"
     },
     "results": {
       "gradeButton": "Grade Free Response"
@@ -3831,6 +3860,9 @@
     "cornerRadius": "Corner radius",
     "calloutPosition": "Callout position",
     "calloutPinned": "Placed by you",
+    "calloutToneDark": "Dark",
+    "calloutToneLight": "Light",
+    "calloutToneAccent": "Accent",
     "calloutAuto": "Automatic",
     "inlineLabel": "Callout title",
     "inlineLabelPlaceholder": "Title (optional)",
@@ -4083,7 +4115,20 @@
       "needs-open-widget": "Not found. Open or add the widget this button belongs to.",
       "needs-panel": "Not found. Open the menu or panel it's in, then try again.",
       "not-found": "Not found on the board."
-    }
+    },
+    "calloutToolbar": "Callout tools",
+    "calloutEditText": "Edit text",
+    "calloutResetPosition": "Reset position",
+    "calloutResetSize": "Reset size",
+    "calloutToPopover": "Change to text box",
+    "calloutToTooltip": "Change to tooltip",
+    "calloutColour": "Colour",
+    "calloutDeleteStep": "Delete step",
+    "calloutWidthPct": "Width {{pct}}%",
+    "calloutWidthAuto": "Auto width",
+    "calloutScaleX": "{{scale}}×",
+    "resetCalloutAll": "Reset all",
+    "calloutSizeHint": "Click the callout to resize it with its handles, or pick a colour."
   },
   "helpCenter": {
     "title": "Help",

@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
-import { Copy, Eye, EyeOff, Loader2, Printer, Users, X } from 'lucide-react';
+import {
+  Copy,
+  Download,
+  Eye,
+  EyeOff,
+  Loader2,
+  Printer,
+  RotateCcw,
+  Users,
+  X,
+} from 'lucide-react';
 import type { QuizResponse, QuizScoreVisibility, Toast } from '@/types';
 import { getResponseDocKey } from '@/hooks/useQuizSession';
 import { logError } from '@/utils/logError';
@@ -19,6 +29,12 @@ interface StudentResultsBulkBarProps {
   addToast: (message: string, type?: Toast['type']) => void;
   /** Opens the results print with these students ticked; absent hides the action. */
   onPrint?: (responseKeys: string[]) => void;
+  /** Downloads these students' results; absent hides the action. */
+  onExport?: (responseKeys: string[]) => void;
+  /** Reopens the quiz for these students; resolves true once done. */
+  onReopen?: (responseKeys: string[]) => Promise<boolean>;
+  /** Why Reopen is unavailable right now, shown on the disabled button. */
+  reopenBlockedReason?: string | null;
 }
 
 const plural = (n: number) => `${n} student${n === 1 ? '' : 's'}`;
@@ -31,9 +47,12 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
   resolveName,
   addToast,
   onPrint,
+  onExport,
+  onReopen,
+  reopenBlockedReason = null,
 }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [busy, setBusy] = useState<'hide' | 'clear' | null>(null);
+  const [busy, setBusy] = useState<'hide' | 'clear' | 'reopen' | null>(null);
   const selected = responses.filter((r) =>
     selection.selectedResponseKeys.has(getResponseDocKey(r))
   );
@@ -88,6 +107,16 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
     } catch (err) {
       logError('StudentResultsBulkBar.publish', err);
       addToast('Could not show results. Try again.', 'error');
+    }
+  };
+
+  const reopen = async () => {
+    if (!onReopen) return;
+    setBusy('reopen');
+    try {
+      if (await onReopen(completedKeys)) selection.clearSelection();
+    } finally {
+      setBusy(null);
     }
   };
 
@@ -160,6 +189,7 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
         type="button"
         onClick={() => void run('clear')}
         disabled={busy !== null}
+        title="Remove these students' overrides so they see what the class sees."
         className={buttonCls}
         style={buttonStyle}
       >
@@ -188,6 +218,43 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
         >
           <Printer style={iconStyle} />
           Print selected
+        </button>
+      )}
+      {onExport && (
+        <button
+          type="button"
+          onClick={() => onExport(keys)}
+          className={buttonCls}
+          style={buttonStyle}
+        >
+          <Download style={iconStyle} />
+          Export
+        </button>
+      )}
+      {onReopen && (
+        <button
+          type="button"
+          onClick={() => void reopen()}
+          disabled={
+            busy !== null ||
+            reopenBlockedReason !== null ||
+            completedKeys.length === 0
+          }
+          title={
+            reopenBlockedReason ??
+            (completedKeys.length === 0
+              ? 'None of the selected students have submitted'
+              : 'Let these students change their answers and submit again')
+          }
+          className={buttonCls}
+          style={buttonStyle}
+        >
+          {busy === 'reopen' ? (
+            <Loader2 className="animate-spin" style={iconStyle} />
+          ) : (
+            <RotateCcw style={iconStyle} />
+          )}
+          Reopen
         </button>
       )}
       <button

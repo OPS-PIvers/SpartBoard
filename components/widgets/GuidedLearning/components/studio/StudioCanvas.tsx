@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { GuidedLearningPublicStep } from '@/types';
 import { GuidedLearningStage } from '../GuidedLearningStage';
+import { PROJECTOR_TEXT_VARS } from '../../utils/projectorTextVars';
 import { DeviceFrame } from './DeviceFrame';
 import { draftSetForStage } from './draftSet';
 import { StudioEditLayer, type DrawShape } from './StudioEditLayer';
@@ -31,6 +32,10 @@ interface StudioCanvasProps {
   tools: CanvasTools;
   setId: string;
   preset: DevicePreset;
+  /** Apply the v2 player's text sizes, matching how sessions will play. */
+  playerV2?: boolean;
+  /** Deletes a step with the Studio's undo toast (callout toolbar). */
+  onDeleteStep?: (id: string) => void;
 }
 
 const TOOL_ICONS: Record<DrawShape, typeof Square> = {
@@ -45,6 +50,8 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   tools,
   setId,
   preset,
+  playerV2 = false,
+  onDeleteStep,
 }) => {
   const { t } = useTranslation();
   const {
@@ -75,6 +82,8 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     setPolygonDraft,
     closePolygon,
     setCalloutFocused,
+    calloutSelected,
+    calloutEditing,
     editingStepId,
     setEditingStepId,
     linkPending,
@@ -161,6 +170,9 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           onCalloutFocus={setCalloutFocused}
           onEditCallout={setEditingStepId}
           editing={editingStepId !== null}
+          calloutEditing={calloutEditing}
+          calloutSelected={calloutSelected}
+          onDeleteStep={onDeleteStep}
           beginGesture={beginGesture}
           endGesture={endGesture}
         />
@@ -183,6 +195,9 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       updateStep,
       addStepAt,
       setCalloutFocused,
+      calloutSelected,
+      calloutEditing,
+      onDeleteStep,
       setEditingStepId,
       editingStepId,
       beginGesture,
@@ -199,10 +214,11 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           onChange={updateStep}
           onDone={() => setEditingStepId(null)}
           holdOpen={linkPending}
+          editKeys={calloutEditing}
         />
       ) : null;
     },
-    [steps, updateStep, setEditingStepId, linkPending]
+    [steps, updateStep, setEditingStepId, linkPending, calloutEditing]
   );
 
   const applyBlur = async () => {
@@ -253,24 +269,29 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
         style={{ transform: viewTransform(view), transformOrigin: '0 0' }}
       >
         <DeviceFrame preset={preset}>
-          <GuidedLearningStage
-            set={set}
-            steps={steps as unknown as GuidedLearningPublicStep[]}
-            imageIndex={currentImageIndex}
-            activeStepId={shownStepId}
-            authorMode="explore"
-            answeredStepIds={NO_ANSWERS}
-            teacherMode
-            zoomScale={zoomScale}
-            forceOverlay
-            editingStepId={editingStepId}
-            renderCalloutEditor={renderCalloutEditor}
-            renderEditLayer={renderEditLayer}
-            onGeometry={onGeometry}
-            onPinClick={setSelectedStepId}
-            onAdvance={noop}
-            onDismiss={noop}
-          />
+          <div
+            className="contents"
+            style={playerV2 ? PROJECTOR_TEXT_VARS : undefined}
+          >
+            <GuidedLearningStage
+              set={set}
+              steps={steps as unknown as GuidedLearningPublicStep[]}
+              imageIndex={currentImageIndex}
+              activeStepId={shownStepId}
+              authorMode="explore"
+              answeredStepIds={NO_ANSWERS}
+              teacherMode
+              zoomScale={zoomScale}
+              forceOverlay
+              editingStepId={editingStepId}
+              renderCalloutEditor={renderCalloutEditor}
+              renderEditLayer={renderEditLayer}
+              onGeometry={onGeometry}
+              onPinClick={setSelectedStepId}
+              onAdvance={noop}
+              onDismiss={noop}
+            />
+          </div>
         </DeviceFrame>
       </div>
 

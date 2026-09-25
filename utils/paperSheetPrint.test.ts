@@ -109,6 +109,28 @@ describe('buildPaperSheetsHtml', () => {
     expect(letters).toEqual([...'ABCD', ...'ABCD', ...'ABCD']);
   });
 
+  it("prints the test's own number beside the bubble number, inside the number cell", () => {
+    const plain = buildPaperSheetsHtml(job({ questionCount: 12 }));
+    const labels = Array.from<string | undefined>({ length: 12 });
+    labels[11] = '2·3';
+    const html = buildPaperSheetsHtml(
+      job({ questionCount: 12, rowLabels: labels })
+    );
+    expect(html).toMatch(
+      /<div class="num labelled"[^>]*><span>12<\/span><span class="num-src">\(2·3\)<\/span><\/div>/
+    );
+    expect(html.match(/class="num labelled"/g)).toHaveLength(1);
+    const bubbles = (h: string) =>
+      [...h.matchAll(/<div class="bub"[^>]*>/g)].map((m) => m[0]);
+    expect(bubbles(html)).toEqual(bubbles(plain));
+  });
+
+  it('prints nothing extra beside the numbers of an unlabeled quiz', () => {
+    const html = buildPaperSheetsHtml(job({ questionCount: 12 }));
+    expect(html).not.toContain('num-src');
+    expect(html).not.toContain('num labelled');
+  });
+
   it('stops at the choice count rather than always printing A-E', () => {
     const html = buildPaperSheetsHtml(
       job({ questionCount: 1, choiceCount: 3 })
@@ -182,6 +204,34 @@ describe('buildPaperSheetsHtml', () => {
     expect(Math.max(...lefts)).toBeLessThan(
       Math.min(COLUMN_X_MM[1], STIMULUS_RECT_MM.x)
     );
+  });
+
+  it('prints each question with every choice beside its own bubble on the question-text grid', () => {
+    const questionTexts = Array.from({ length: 10 }, (_, i) => ({
+      text: `Question <${i + 1}>`,
+      choices:
+        i === 1 ? ['B', 'A', 'C', 'D'] : ['Paris', 'Lyon', 'Nice', 'Lille'],
+    }));
+    const html = buildPaperSheetsHtml(
+      job({ columnsPerPage: 'questions', questionTexts })
+    );
+    const rendered = pages(html);
+    expect(rendered).toHaveLength(2);
+    expect(rendered[0].match(/class="qt-stem"/g)).toHaveLength(5);
+    expect(rendered[1].match(/class="qt-stem"/g)).toHaveLength(5);
+    expect(rendered[0]).toContain('Question &lt;1&gt;');
+    expect(rendered[0]).toContain('>Paris</div>');
+    expect(rendered[0]).not.toContain('class="legend"');
+    // Placeholder letters say nothing to a student, so question 2 prints its stem and bubbles only.
+    expect(rendered[0].match(/class="qt-choice"/g)).toHaveLength(4 * 4);
+    expect(rendered[1]).toContain('Question &lt;6&gt;');
+  });
+
+  it('prints no question text on the ordinary grids', () => {
+    const html = buildPaperSheetsHtml(
+      job({ questionTexts: [{ text: 'Hidden', choices: ['x', 'y'] }] })
+    );
+    expect(html).not.toContain('qt-');
   });
 
   it('prints two columns byte for byte as before when the job says nothing', () => {

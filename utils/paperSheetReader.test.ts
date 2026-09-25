@@ -393,6 +393,45 @@ describe('rowsOnPage', () => {
   });
 });
 
+describe('readPaperPage on a question-text sheet', () => {
+  const TALL = {
+    questionCount: 12,
+    choiceCount: 5,
+    columnsPerPage: 'questions' as const,
+  };
+  const marks = [
+    { row: 0, choice: 4 },
+    { row: 3, choice: 1 },
+    { row: 4, choice: 2 },
+  ];
+
+  it('reads five questions a page, with the question text printed around the bubbles', () => {
+    const read = ok(
+      readPaperPage(
+        paintSyntheticSheet({
+          marker,
+          questionCount: TALL.questionCount,
+          choiceCount: TALL.choiceCount,
+          columnsPerPage: 'questions',
+          questionText: true,
+          printedLetters: true,
+          marks,
+          skewDeg: 0.6,
+          noise: 0.002,
+        }),
+        TALL
+      )
+    );
+    expect(read.rows).toHaveLength(5);
+    expect(read.rows.map((r) => r.choice)).toEqual([4, null, null, 1, 2]);
+    expect(read.rows.some((r) => r.doubt)).toBe(false);
+  });
+
+  it('carries the rest of the test onto page two', () => {
+    expect(rowsOnPage(2, TALL.questionCount, 'questions')).toBe(5);
+  });
+});
+
 describe('readPaperPage on a single-column sheet', () => {
   const NARROW = {
     questionCount: 40,

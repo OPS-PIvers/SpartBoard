@@ -1,7 +1,7 @@
 /**
  * PlcAssessmentDetail renders the pooled view from a fixture aggregate:
- * worst-first question order, "Not scored yet" when nothing is published,
- * the per-teacher table gated by `showPerTeacher`, and the alignment note.
+ * quiz-order questions with a most-missed toggle, % correct bars, the score chart, "Not scored yet" when nothing is published,
+ * no per-teacher breakdown, and the alignment note.
  */
 
 import React from 'react';
@@ -75,6 +75,33 @@ vi.mock('@/hooks/useLearningTargets', () => ({
     loading: false,
     save: vi.fn(),
   }),
+}));
+
+let mockNormingAccess = false;
+const addToast = vi.fn();
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({
+    user: { uid: 'uid-alice' },
+    canAccessFeature: (id: string) =>
+      id === 'plc-norming-flags' && mockNormingAccess,
+  }),
+}));
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({ addToast }),
+}));
+vi.mock('@/components/plc/norming/PlcNormingSection', () => ({
+  PlcNormingSection: (p: {
+    assessmentId: string;
+    currentUid?: string;
+    labels?: { high?: string };
+  }) => (
+    <div
+      data-testid="norming-section"
+      data-assessment-id={p.assessmentId}
+      data-uid={p.currentUid}
+      data-high={p.labels?.high}
+    />
+  ),
 }));
 
 import { PlcAssessmentDetail } from '@/components/plc/assessments/PlcAssessmentDetail';
@@ -200,22 +227,7 @@ function makeAggregate(
         lowSample: false,
       },
     ],
-    perTeacher: [
-      {
-        teacherUid: 'uid-alice',
-        teacherName: 'Alice',
-        classCount: 2,
-        averagePercent: 78,
-        studentCount: 22,
-      },
-      {
-        teacherUid: 'uid-bob',
-        teacherName: 'Bob',
-        classCount: 1,
-        averagePercent: 64,
-        studentCount: 18,
-      },
-    ],
+    contributorUids: ['uid-alice', 'uid-bob'],
     ranAt: 5_000_000,
     ...overrides,
   };
@@ -247,42 +259,28 @@ function setDefaults() {
     enabled: true,
   };
   spaNavigate.mockReset();
+  mockNormingAccess = false;
 }
 
 describe('PlcAssessmentDetail', () => {
   beforeEach(setDefaults);
 
-  it('widens the teacher total for a linked non-member and labels the row', () => {
+  it('widens the teacher total for a linked non-member', () => {
     mockAggregatesSlice = {
       ...mockAggregatesSlice,
       data: [
         makeAggregate({
           teacherCount: 3,
-          perTeacher: [
-            ...makeAggregate().perTeacher,
-            {
-              teacherUid: 'uid-outsider',
-              teacherName: '',
-              classCount: 1,
-              averagePercent: 50,
-              studentCount: 20,
-            },
-          ],
+          contributorUids: ['uid-alice', 'uid-bob', 'uid-outsider'],
         }),
       ],
     };
-    render(
-      <PlcAssessmentDetail
-        plc={makePlc({ features: { showPerTeacher: true } as Plc['features'] })}
-        assessmentId="a1"
-      />
-    );
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
 
     expect(screen.getByText('3 of 4')).toBeInTheDocument();
-    expect(screen.getByText('Not a PLC member')).toBeInTheDocument();
   });
 
-  it('renders the header stats and the questions worst-first', () => {
+  it('renders the header stats and the questions in quiz order', () => {
     render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
 
     expect(screen.getByText('Unit 4 CFA')).toBeInTheDocument();
@@ -292,17 +290,110 @@ describe('PlcAssessmentDetail', () => {
 
     const rows = screen.getAllByTestId('question-row');
     expect(rows.map((r) => r.textContent)).toEqual([
-      expect.stringContaining('Hard question'),
       expect.stringContaining('Easy question'),
+      expect.stringContaining('Hard question'),
       expect.stringContaining('Essay question'),
     ]);
-    expect(within(rows[0]).getByText('59% incorrect')).toBeInTheDocument();
+    expect(within(rows[0]).getByText('92% correct')).toBeInTheDocument();
+    expect(within(rows[1]).getByText('41% correct')).toBeInTheDocument();
     expect(within(rows[2]).getByText('Not scored')).toBeInTheDocument();
+    expect(screen.queryByText(/incorrect/)).toBeNull();
+  });
+
+  it('draws the bar as % correct: long green when high, short red when low', () => {
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
+    const [easy, hard] = screen.getAllByTestId('question-row');
+    const easyBar = easy.querySelector('[style]') as HTMLElement;
+    const hardBar = hard.querySelector('[style]') as HTMLElement;
+    expect(easyBar.style.width).toBe('92%');
+    expect(easyBar.className).toContain('bg-emerald-500');
+    expect(hardBar.style.width).toBe('41%');
+    expect(hardBar.className).toContain('bg-brand-red-primary');
+  });
+
+  it('re-sorts to most missed first and back, keeping quiz numbers', () => {
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
+    const quizOrder = screen.getByRole('button', { name: 'Quiz order' });
+    const mostMissed = screen.getByRole('button', { name: 'Most missed' });
+    expect(quizOrder).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(mostMissed);
+    expect(mostMissed).toHaveAttribute('aria-pressed', 'true');
+    const rows = screen.getAllByTestId('question-row');
+    expect(rows.map((r) => r.textContent)).toEqual([
+      expect.stringContaining('2.Hard question'),
+      expect.stringContaining('1.Easy question'),
+      expect.stringContaining('3.Essay question'),
+    ]);
+
+    fireEvent.click(quizOrder);
+    expect(screen.getAllByTestId('question-row')[0].textContent).toContain(
+      'Easy question'
+    );
+  });
+
+  it('charts the pooled score bands next to the team average', () => {
+    mockAggregatesSlice.data = [
+      makeAggregate({
+        scoreDistribution: [
+          { min: 90, max: 100, count: 10 },
+          { min: 80, max: 89, count: 10 },
+          { min: 60, max: 79, count: 12 },
+          { min: 0, max: 59, count: 8 },
+        ],
+      }),
+    ];
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
+    const bands = within(
+      screen.getByTestId('score-distribution')
+    ).getAllByTestId('score-band');
+    expect(bands.map((b) => b.textContent)).toEqual([
+      '90–100%10 students · 25%',
+      '80–89%10 students · 25%',
+      '60–79%12 students · 30%',
+      '0–59%8 students · 20%',
+    ]);
+  });
+
+  it('explains a missing chart until the aggregate is recomputed', () => {
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
+    expect(screen.queryByTestId('score-distribution')).toBeNull();
+    expect(screen.getByTestId('results-summary')).toHaveTextContent(
+      'The chart appears after the next results refresh'
+    );
+  });
+
+  it('shows a rubric question as the average percent of points', () => {
+    const base = makeAggregate();
+    mockAggregatesSlice = {
+      ...mockAggregatesSlice,
+      data: [
+        makeAggregate({
+          perQuestion: [
+            {
+              ...base.perQuestion[2],
+              scoring: 'points',
+              correctPercent: 75,
+              incorrectPercent: 25,
+              graded: 38,
+              pointsEarned: 142.5,
+              pointsPossible: 190,
+            },
+          ],
+        }),
+      ],
+    };
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
+
+    const row = screen.getByTestId('question-row');
+    expect(within(row).getByText('75% of points')).toBeInTheDocument();
+    expect(within(row).queryByText(/incorrect/)).not.toBeInTheDocument();
+    expect(row).toHaveTextContent('38 graded');
   });
 
   it('toggles the choice distribution for MC questions', () => {
     render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
-    const easy = screen.getAllByTestId('question-row')[1];
+    const easy = screen.getAllByTestId('question-row')[0];
     expect(screen.queryByTestId('choice-distribution')).toBeNull();
     fireEvent.click(within(easy).getByRole('button'));
     const panel = screen.getByTestId('choice-distribution');
@@ -340,23 +431,11 @@ describe('PlcAssessmentDetail', () => {
     expect(screen.queryByText('72%')).toBeNull();
   });
 
-  it('hides the per-teacher table unless showPerTeacher is on', () => {
-    const { rerender } = render(
-      <PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />
-    );
+  it('never shows a per-teacher breakdown', () => {
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
     expect(screen.queryByTestId('per-teacher-table')).toBeNull();
     expect(screen.queryByText('Alice')).toBeNull();
-
-    rerender(
-      <PlcAssessmentDetail
-        plc={makePlc({ features: { showPerTeacher: true } as Plc['features'] })}
-        assessmentId="a1"
-      />
-    );
-    const table = screen.getByTestId('per-teacher-table');
-    expect(within(table).getByText('Alice')).toBeInTheDocument();
-    expect(within(table).getByText('78%')).toBeInTheDocument();
-    expect(within(table).getByText('Bob')).toBeInTheDocument();
+    expect(screen.queryByText('By teacher')).toBeNull();
   });
 
   it('surfaces the alignment warning as a note', () => {
@@ -387,5 +466,31 @@ describe('PlcAssessmentDetail', () => {
       <PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />
     );
     expect(container.textContent).not.toContain('studentDisplayName');
+  });
+
+  it('hides the norming section without the flag', () => {
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
+    expect(screen.queryByTestId('norming-section')).toBeNull();
+  });
+
+  it('mounts the norming section behind the flag with the PLC labels', () => {
+    mockNormingAccess = true;
+    render(
+      <PlcAssessmentDetail
+        plc={{ ...makePlc(), normingLevelLabels: { high: 'Exemplar' } }}
+        assessmentId="a1"
+      />
+    );
+    const section = screen.getByTestId('norming-section');
+    expect(section).toHaveAttribute('data-assessment-id', 'a1');
+    expect(section).toHaveAttribute('data-uid', 'uid-alice');
+    expect(section).toHaveAttribute('data-high', 'Exemplar');
+  });
+
+  it('skips the norming section for a video activity', () => {
+    mockNormingAccess = true;
+    mockAssessmentsSlice.data = [{ ...assessment, kind: 'video-activity' }];
+    render(<PlcAssessmentDetail plc={makePlc()} assessmentId="a1" />);
+    expect(screen.queryByTestId('norming-section')).toBeNull();
   });
 });

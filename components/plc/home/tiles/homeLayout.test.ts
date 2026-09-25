@@ -82,7 +82,8 @@ describe('parsePlcHomeLayout', () => {
         { id: 'a', kind: 'results' },
         { id: 'a', kind: 'docs' },
         { id: 'b', kind: 'mystery' },
-        { id: 'c', kind: 'perTeacher', options: { assessmentId: 'x1' } },
+        { id: 'c', kind: 'participation', options: { assessmentId: 'x1' } },
+        { id: 'd', kind: 'perTeacher' },
       ],
       heroTileId: 'c',
       seenCounts: { x1: 4, bad: 'nope' },
@@ -92,7 +93,7 @@ describe('parsePlcHomeLayout', () => {
       exists: true,
       tiles: [
         { id: 'a', kind: 'results' },
-        { id: 'c', kind: 'perTeacher', options: { assessmentId: 'x1' } },
+        { id: 'c', kind: 'participation', options: { assessmentId: 'x1' } },
       ],
       heroTileId: 'c',
       seenCounts: { x1: 4 },

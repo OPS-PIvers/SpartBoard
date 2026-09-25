@@ -153,8 +153,8 @@ describe('applyAnswerKey', () => {
       new Map([[1, 'B']])
     );
     expect(result.questions[0].correctAnswer).toBe('Second');
-    expect(result.questions[0].warnings[0]).toContain(
-      'answered this differently'
+    expect(result.questions[0].warnings[0]).toBe(
+      'Test file said A, key file said B — using B.'
     );
   });
 

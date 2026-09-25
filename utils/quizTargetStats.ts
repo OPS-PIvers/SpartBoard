@@ -308,7 +308,7 @@ export function computeTargetStats(
   return { targets, standards, byStudent };
 }
 
-function quoteCsvCell(value: string): string {
+export function quoteCsvCell(value: string): string {
   const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
   return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }

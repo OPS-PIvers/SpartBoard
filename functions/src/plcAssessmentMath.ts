@@ -1,7 +1,30 @@
 // Pure math for the PLC pooled-assessment aggregate (docs/plans/PLC_ASSESSMENT_DATA.md §5.3).
 // Local mirrors of the root `types.ts` shapes; functions cannot import across the repo root.
 
-export const AGGREGATE_SCHEMA_VERSION = 4;
+export const AGGREGATE_SCHEMA_VERSION = 7;
+
+/** Lower bounds of the pooled score bands; mirrors `SCORE_DISTRIBUTION_BANDS` in utils/scoreColor.ts. */
+export const SCORE_BAND_MINS = [90, 80, 60, 0] as const;
+
+export interface AggregateScoreBand {
+  min: number;
+  max: number;
+  count: number;
+}
+
+/** Pooled per-band student counts; never per-student rows. */
+export function bucketScores(scores: number[]): AggregateScoreBand[] {
+  const bands = SCORE_BAND_MINS.map((min, i) => ({
+    min,
+    max: i === 0 ? 100 : SCORE_BAND_MINS[i - 1] - 1,
+    count: 0,
+  }));
+  for (const score of scores) {
+    const band = bands.find((b) => score >= b.min) ?? bands[bands.length - 1];
+    band.count++;
+  }
+  return bands;
+}
 
 export type LearningTargetKind = 'standard' | 'plc' | 'personal';
 
@@ -112,15 +135,22 @@ export interface AggregateChoiceRow {
   isCorrect: boolean;
 }
 
+/** `points`: partial credit is possible, so `correctPercent` is the average % of points. */
+export type QuestionScoring = 'points' | 'binary';
+
 export interface AggregatePerQuestion {
   questionId: string;
   text: string;
+  scoring: QuestionScoring;
   correctPercent: number;
   points: number;
   incorrectPercent: number | null;
   answered: number;
   graded: number;
   correct: number;
+  /** Summed over graded answers; the ratio is the average % of points. */
+  pointsEarned: number;
+  pointsPossible: number;
   servedCount: number;
   choiceDistribution: AggregateChoiceRow[];
 }
@@ -155,6 +185,8 @@ export interface AggregatePayload {
   teamAveragePercent: number;
   /** Completed responses that carried a numeric score. */
   scoredStudentCount: number;
+  /** Scored students pooled into percent bands (schema 6+). */
+  scoreDistribution: AggregateScoreBand[];
   sessionCount: number;
   /** Every linked session, including ones with no completed responses. */
   linkedSessionCount: number;
@@ -166,6 +198,9 @@ export interface AggregatePayload {
   perQuestion: AggregatePerQuestion[];
   perTarget: AggregateTargetRow[];
   perStandard: AggregateTargetRow[];
+  /** Uids of teachers whose sessions contributed, sorted; no scores. */
+  contributorUids: string[];
+  /** Still written for older clients; current clients read `contributorUids`. */
   perTeacher: AggregatePerTeacher[];
 }
 
@@ -659,6 +694,19 @@ export function gradeGroupAnswer(
   };
 }
 
+/** Written answers and partial-credit MA/Matching/Ordering report points; the rest stay right/wrong. */
+export function questionScoring(question: GroupQuestion): QuestionScoring {
+  if (question.type === 'free-response') return 'points';
+  if (
+    (question.type === 'MA' ||
+      question.type === 'Matching' ||
+      question.type === 'Ordering') &&
+    question.allowPartialCredit
+  )
+    return 'points';
+  return 'binary';
+}
+
 /** Per option: how many students picked it, from their `|`-joined answers. */
 function multiAnswerDistribution(
   gq: GroupQuestion,
@@ -687,6 +735,10 @@ function pct(numerator: number, denominator: number): number {
   return Math.round((numerator / denominator) * 100);
 }
 
+function roundPoints(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
 function classKey(r: CompletedResponse, sessionId: string): string {
   return (
     (typeof r.classPeriod === 'string' && r.classPeriod.length > 0
@@ -704,6 +756,10 @@ interface QuestionAcc {
   answered: number;
   graded: number;
   correct: number;
+  /** Full credit counts 1, partial credit its fraction of the question's points. */
+  credit: number;
+  pointsEarned: number;
+  pointsPossible: number;
   choiceCounts: Map<string, number>;
   /** Labels seen with a published `isCorrect: true`, for sessions without a key. */
   correctLabels: Set<string>;
@@ -729,6 +785,9 @@ export function computeAssessmentAggregate(
       answered: 0,
       graded: 0,
       correct: 0,
+      credit: 0,
+      pointsEarned: 0,
+      pointsPossible: 0,
       choiceCounts: new Map(),
       correctLabels: new Set(),
     });
@@ -740,6 +799,7 @@ export function computeAssessmentAggregate(
   let studentCount = 0;
   let scoreSum = 0;
   let scoreCount = 0;
+  const scores: number[] = [];
   let anyPositional = false;
   let anyMismatch = false;
 
@@ -798,7 +858,7 @@ export function computeAssessmentAggregate(
       let earned = 0;
       let max = 0;
       let gradable = true;
-      const verdicts = new Map<string, boolean>();
+      const scoredGrades = new Map<string, LocalGrade>();
       for (const sessionQid of servedSet) {
         const groupQid = alignment.map.get(sessionQid);
         const question = groupQid ? questionById.get(groupQid) : undefined;
@@ -821,8 +881,7 @@ export function computeAssessmentAggregate(
           earned += grade.pointsEarned;
           max += grade.pointsMax;
         }
-        if (grade.state === 'scored' && a)
-          verdicts.set(sessionQid, grade.isCorrect);
+        if (grade.state === 'scored' && a) scoredGrades.set(sessionQid, grade);
       }
       const published = asFiniteNumber(r.score);
       const score =
@@ -831,6 +890,7 @@ export function computeAssessmentAggregate(
       if (score !== null) {
         scoreSum += score;
         scoreCount++;
+        scores.push(score);
         teacher.scoreSum += score;
         teacher.scoreCount++;
       }
@@ -838,16 +898,34 @@ export function computeAssessmentAggregate(
       for (const [sessionQid, a] of representative) {
         const groupQid = alignment.map.get(sessionQid);
         const q = groupQid ? acc.get(groupQid) : undefined;
-        if (!q) continue;
+        const question = groupQid ? questionById.get(groupQid) : undefined;
+        if (!q || !question) continue;
         q.answered++;
+        const local = scoredGrades.get(sessionQid);
         // A published flag is authoritative; otherwise use the local verdict.
         const isCorrect =
-          typeof a.isCorrect === 'boolean'
-            ? a.isCorrect
-            : verdicts.get(sessionQid);
+          typeof a.isCorrect === 'boolean' ? a.isCorrect : local?.isCorrect;
         if (typeof isCorrect === 'boolean') {
           q.graded++;
           if (isCorrect) q.correct++;
+          // Points questions prefer the local partial credit over the published flag.
+          const usePoints =
+            questionScoring(question) === 'points' &&
+            local !== undefined &&
+            local.pointsMax > 0;
+          const earned = usePoints
+            ? local.pointsEarned
+            : isCorrect
+              ? question.points
+              : 0;
+          const possible = usePoints ? local.pointsMax : question.points;
+          q.pointsEarned += earned;
+          q.pointsPossible += possible;
+          q.credit += usePoints
+            ? Math.min(1, Math.max(0, earned / possible))
+            : isCorrect
+              ? 1
+              : 0;
         }
         const label = asString(a.answer);
         q.choiceCounts.set(label, (q.choiceCounts.get(label) ?? 0) + 1);
@@ -871,17 +949,21 @@ export function computeAssessmentAggregate(
         : gq.type === 'MA'
           ? multiAnswerDistribution(gq, q.choiceCounts, q.correctLabels)
           : [];
+    const correctPercent = q.graded > 0 ? pct(q.credit, q.graded) : 0;
     return {
       questionId: gq.id,
       text: gq.text,
+      scoring: questionScoring(gq),
       points: gq.points,
       answered: q.answered,
       graded: q.graded,
       correct: q.correct,
+      pointsEarned: roundPoints(q.pointsEarned),
+      pointsPossible: roundPoints(q.pointsPossible),
       servedCount: q.served,
-      correctPercent: q.graded > 0 ? pct(q.correct, q.graded) : 0,
-      incorrectPercent:
-        q.graded > 0 ? pct(q.graded - q.correct, q.graded) : null,
+      correctPercent,
+      // Kept as the complement so older clients still render a sensible row.
+      incorrectPercent: q.graded > 0 ? 100 - correctPercent : null,
       choiceDistribution,
     };
   });
@@ -943,8 +1025,8 @@ export function computeAssessmentAggregate(
           (sum, id) => sum + (acc.get(id)?.graded ?? 0),
           0
         );
-        const correct = ids.reduce(
-          (sum, id) => sum + (acc.get(id)?.correct ?? 0),
+        const credit = ids.reduce(
+          (sum, id) => sum + (acc.get(id)?.credit ?? 0),
           0
         );
         return {
@@ -954,7 +1036,7 @@ export function computeAssessmentAggregate(
           label: target.label,
           questionIds: ids,
           attempted,
-          correctPercent: attempted > 0 ? pct(correct, attempted) : 0,
+          correctPercent: attempted > 0 ? pct(credit, attempted) : 0,
           lowSample: attempted < 5,
         };
       })
@@ -990,6 +1072,7 @@ export function computeAssessmentAggregate(
     studentCount,
     teamAveragePercent: scoreCount > 0 ? Math.round(scoreSum / scoreCount) : 0,
     scoredStudentCount: scoreCount,
+    scoreDistribution: bucketScores(scores),
     sessionCount: sessionIds.length,
     linkedSessionCount,
     publishedSessionCount,
@@ -998,6 +1081,7 @@ export function computeAssessmentAggregate(
     perQuestion,
     perTarget,
     perStandard,
+    contributorUids: perTeacher.map((t) => t.teacherUid),
     perTeacher,
   };
   if (anyMismatch) payload.alignmentWarning = ALIGNMENT_WARNING;

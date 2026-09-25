@@ -54,7 +54,7 @@ function aggregate(
     studentCount: 40,
     teamAveragePercent: 70,
     perQuestion: [],
-    perTeacher: [],
+    contributorUids: [],
     // ranAt deliberately scrambled: it must never order anything.
     ranAt: assessmentId === 'a1' ? 9e12 : 1,
     ...parts,

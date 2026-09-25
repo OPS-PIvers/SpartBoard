@@ -150,6 +150,18 @@ function useLearningTargetDoc(path: string[] | null): UseLearningTargetsResult {
   return { list: current, loading: active && state.key !== key, save };
 }
 
+/** One-off write for callers that already read the list through `useLearningTargetSources`. */
+export async function saveLearningTargetList(
+  owner: { kind: 'personal'; uid: string } | { kind: 'plc'; plcId: string },
+  list: LearningTargetList
+): Promise<void> {
+  const ref =
+    owner.kind === 'personal'
+      ? doc(db, USERS_COLLECTION, owner.uid, 'userProfile', 'learningTargets')
+      : doc(db, PLCS_COLLECTION, owner.plcId, 'meta', 'learningTargets');
+  await setDoc(ref, serializeList(list));
+}
+
 export function usePersonalLearningTargets(): UseLearningTargetsResult {
   const { user } = useAuth();
   const path = useMemo(

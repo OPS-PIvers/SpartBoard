@@ -273,6 +273,32 @@ export interface PlcMember {
   status: 'active' | 'removed';
 }
 
+export type PlcNormingLevel = 'high' | 'medium' | 'low' | 'review';
+
+export type PlcNormingLevelLabels = Partial<
+  Record<Exclude<PlcNormingLevel, 'review'>, string>
+>;
+
+/** Anonymized copy of a flagged answer, written only by `setPlcNormingFlagV1`. */
+export interface PlcNormingCopy {
+  id: string;
+  assessmentId: string;
+  questionId: string;
+  questionIndex: number;
+  questionText: string;
+  level: PlcNormingLevel;
+  kind: 'text' | 'audio';
+  answerText?: string;
+  truncated?: boolean;
+  audioPath?: string;
+  mimeType?: string;
+  durationMs?: number;
+  flaggedByUid: string;
+  flaggedByName: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface Plc {
   id: string;
   name: string;
@@ -341,6 +367,8 @@ export interface Plc {
   digestOptIn?: boolean;
   /** PLC Home v2 recurring meeting schedule; leads and co-leads edit it. */
   meetingCadence?: PlcMeetingCadence;
+  /** Lead-set names for the High/Medium/Low norming levels; Review is fixed. */
+  normingLevelLabels?: PlcNormingLevelLabels;
   createdAt: number;
   updatedAt: number;
 }
@@ -383,8 +411,6 @@ export interface PlcFeatureSettings {
   todos?: boolean;
   /** PLC Shared Boards tab (Phase 6). */
   sharedBoards: boolean;
-  /** Per-teacher rows on pooled assessment results (plan D3); off by default. */
-  showPerTeacher: boolean;
   /**
    * Let a member print paper answer sheets for a teammate who is out
    * (PLC_DELEGATED_PAPER_PRINTING.md D8). On by default. Any member can flip
@@ -399,7 +425,6 @@ export const DEFAULT_PLC_FEATURE_SETTINGS: PlcFeatureSettings = {
   videoActivities: true,
   notes: true,
   sharedBoards: true,
-  showPerTeacher: false,
   printForTeammates: true,
 };
 
@@ -988,6 +1013,13 @@ export interface PlcCommonAssessment {
 }
 
 /** One answer-choice row of a pooled MC distribution. Labels are option text, never student text. */
+/** One pooled score band of a PLC aggregate: a count, never student rows. */
+export interface PlcAggregateScoreBand {
+  min: number;
+  max: number;
+  count: number;
+}
+
 export interface PlcAggregateChoiceRow {
   label: string;
   count: number;
@@ -1015,8 +1047,8 @@ export interface PlcAggregateTargetRow {
  * but never write). `schemaVersion` 1 docs came from the retired contribution
  * pipeline and lack the optional fields below.
  *
- * Crucially, `perTeacher` rows carry `studentCount` but **no student names and
- * no per-student rows** — the FERPA boundary is enforced here and in rules.
+ * Team aggregate only: no student names, no per-student rows and no per-teacher
+ * scores — the FERPA boundary is enforced here and in rules.
  */
 export interface PlcAssessmentAggregate {
   /** Matches the `PlcCommonAssessment.id` this aggregate rolls up (== doc id). */
@@ -1034,6 +1066,8 @@ export interface PlcAssessmentAggregate {
   teamAveragePercent: number;
   /** Completed responses that carried a numeric score (schema 2+). */
   scoredStudentCount?: number;
+  /** Scored students pooled into percent bands; counts only (schema 6+). */
+  scoreDistribution?: PlcAggregateScoreBand[];
   /** Linked sessions with at least one completed response (schema 2+). */
   sessionCount?: number;
   /** Every linked session, including ones with no completed responses (schema 2+). */
@@ -1050,6 +1084,8 @@ export interface PlcAssessmentAggregate {
     questionId: string;
     /** Question prompt snapshot, for rendering without a content join. */
     text: string;
+    /** `points`: `correctPercent` is the average % of points, not a right/wrong split (schema 5+). */
+    scoring?: 'points' | 'binary';
     /** Percent correct (0-100) across all teachers' students. */
     correctPercent: number;
     /** Point value of the question. */
@@ -1061,6 +1097,9 @@ export interface PlcAssessmentAggregate {
     /** Answers carrying a published `isCorrect` flag (schema 2+). */
     graded?: number;
     correct?: number;
+    /** Points summed over graded answers (schema 5+). */
+    pointsEarned?: number;
+    pointsPossible?: number;
     /** Completed attempts in which this question was served (schema 3+). */
     servedCount?: number;
     /** MC only; empty for other types (schema 2+). */
@@ -1070,21 +1109,8 @@ export interface PlcAssessmentAggregate {
   perTarget?: PlcAggregateTargetRow[];
   /** Standards directly tagged or inherited from child targets (schema 3+). */
   perStandard?: PlcAggregateTargetRow[];
-  /**
-   * Per-teacher rollup — **anonymized**: a count of that teacher's students,
-   * NEVER student names and NEVER per-student rows.
-   */
-  perTeacher: Array<{
-    teacherUid: string;
-    /** Display-name snapshot of the teacher (teacher identity, not student). */
-    teacherName: string;
-    /** Number of that teacher's classes/sections that ran the assessment. */
-    classCount: number;
-    /** That teacher's average score (0-100) across their students. */
-    averagePercent: number;
-    /** Count of that teacher's students. No names, no per-student rows. */
-    studentCount: number;
-  }>;
+  /** Uids of teachers who contributed results; the PLC page shows no per-teacher scores. */
+  contributorUids: string[];
   /** serverTimestamp resolved to ms on read; when the function last recomputed. */
   ranAt: number;
 }
@@ -2365,7 +2391,7 @@ export interface TalkingToolCategory {
 /**
  * Per-building surface-color defaults for the Talking Tool widget. Only
  * `cardColor`/`cardOpacity` are exposed — `fontFamily`/`fontColor` are
- * currently dead controls at the user level (see TalkingToolAppearanceSettings)
+ * never read by the face (see TalkingTool/settings.schema.ts styleKeys)
  * so seeding them would replicate the ConceptWeb/GraphicOrganizer anti-pattern.
  */
 export interface BuildingTalkingToolDefaults {
@@ -3360,8 +3386,8 @@ export interface SmartNotebookConfig {
   activeNotebookId: string | null;
   storageLimitMb?: number;
   /**
-   * Appearance fields, surfaced via the shared `TypographySettings` /
-   * `SurfaceColorSettings` primitives in `SmartNotebookAppearanceSettings`.
+   * Appearance fields, surfaced as `styleKeys` in
+   * `components/widgets/SmartNotebook/settings.schema.ts`.
    * These are user-level only and are intentionally NOT admin-configurable
    * per building: the widget renders imported SMART pages as image/SVG and
    * has no themed text/surface chrome to apply them to, so there is no
@@ -3518,6 +3544,8 @@ export interface QuizQuestion {
   needsKey?: boolean;
   /** Point value for this question. Defaults to 1 if not set. */
   points?: number;
+  /** The number the imported test printed (`2·3`, `5A`), set only when it differs from the question's position; display only. */
+  sourceLabel?: string;
   /**
    * Matching only. Extra incorrect definitions added to the student's
    * word bank to increase difficulty (e.g., 3 terms but 6 definitions).
@@ -4974,6 +5002,9 @@ export interface PaperSeatAssignment {
 /** Answer columns a printed sheet carries; one column frees its right half. */
 export type PaperColumns = 1 | 2;
 
+/** Row geometry a page is printed in: 1 or 2 answer columns, or tall rows carrying each question's text. */
+export type PaperGrid = PaperColumns | 'questions';
+
 export interface PaperBatch {
   id: string;
   /** Quiz these sheets were printed for. Deleted with the quiz. */
@@ -5004,6 +5035,8 @@ export interface PaperBatch {
    * desks (docs/plans/QUIZ_PAPER_SHEET_STIMULI.md D2).
    */
   columnsPerPage?: PaperColumns;
+  /** Set when each row printed with its question text beside the bubbles; overrides `columnsPerPage`. */
+  sheetLayout?: 'questions';
   createdAt: number;
   /** A review the teacher left unfinished, resumable from any device (plan Q26). */
   pendingReview?: PaperPendingReview;
@@ -7082,6 +7115,12 @@ export interface GuidedLearningStep {
   region?: GuidedLearningRegion;
   /** Absent = auto placement. Present = callout box centre pinned in image-%. */
   calloutPin?: GuidedLearningCalloutPin;
+  /** Callout width, % of stage width (10-95). Absent = auto width. */
+  calloutWidthPct?: number;
+  /** Callout text and padding scale, 0.75-2. Absent = 1. */
+  calloutScale?: number;
+  /** Callout colour preset. Absent = 'dark'. */
+  calloutTone?: GuidedLearningCalloutTone;
   /** Watch-mode demonstration override; absent = cursor goes to region centre. */
   cursor?: GuidedLearningStepCursor;
   /** Narration track: generated TTS or the author's recorded voice. */
@@ -7107,6 +7146,9 @@ export interface GuidedLearningCalloutPin {
   xPct: number;
   yPct: number;
 }
+
+/** Callout colour presets; stored as an enum, never a free colour. */
+export type GuidedLearningCalloutTone = 'dark' | 'light' | 'accent';
 
 export interface GuidedLearningStepCursor {
   hide?: boolean;
@@ -7311,6 +7353,9 @@ export interface GuidedLearningPublicStep {
   autoAdvanceDuration?: number;
   region?: GuidedLearningRegion;
   calloutPin?: GuidedLearningCalloutPin;
+  calloutWidthPct?: number;
+  calloutScale?: number;
+  calloutTone?: GuidedLearningCalloutTone;
   cursor?: GuidedLearningStepCursor;
   narration?: GuidedLearningPublicNarration;
 }
@@ -8680,6 +8725,8 @@ export type GlobalFeature =
   | 'quiz-document-import'
   /** The AI reader for that import; AND-ed with `quiz-document-import` and `gemini-functions`. */
   | 'quiz-document-ai-reader'
+  /** Learning targets read off an imported test, offered as chips in its review. */
+  | 'quiz-import-suggested-targets'
   /** Handing a board or a collection to a substitute, and managing live shares. */
   | 'sub-share-collections'
   /** Guided Learning player v2: calm motion, learner speed, Watch/Try; stamped on sessions. */
@@ -8696,10 +8743,20 @@ export type GlobalFeature =
   | 'quiz-results-print'
   /** PLC Home v2: tile dashboard with a spotlight, meeting cadence and assign-from-library. */
   | 'plc-home-v2'
+  /** Flag free-response answers so an anonymized copy appears on the PLC page for norming. */
+  | 'plc-norming-flags'
   /** Choose-all-that-apply quiz questions in the quiz editor and AI drafting. */
   | 'quiz-choose-all'
   /** "Also accept" alternate answers on fill-in-the-blank quiz questions. */
-  | 'quiz-fib-alternates';
+  | 'quiz-fib-alternates'
+  /** "View full screen" toggle on large pop-ups (editors, graders). */
+  | 'modal-fullscreen'
+  /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
+  | 'quiz-results-tools'
+  /** Free-response grader: collapsible student list, no repeated name, one-strand auto-tagging. */
+  | 'quiz-grader-v2'
+  /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas; AND-ed with `gl-studio`. */
+  | 'gl-callout-editing';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

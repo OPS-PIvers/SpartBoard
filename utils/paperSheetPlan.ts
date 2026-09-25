@@ -45,6 +45,16 @@ const isTrueFalse = (choices: readonly string[]): boolean =>
     .sort()
     .join('|') === 'false|true';
 
+/** True when the options are only the bare letters a paper stub writes, in any order. */
+export const isPlaceholderLetterChoices = (
+  choices: readonly string[]
+): boolean =>
+  choices.length > 0 &&
+  choices
+    .map((c) => c.trim())
+    .sort()
+    .join('|') === CHOICE_LETTERS.slice(0, choices.length).join('|');
+
 /**
  * The lettered order a question's options print in on the test paper.
  *
@@ -65,6 +75,10 @@ export function paperChoiceOrder(
       a.trim().toLowerCase() === 'true' ? -1 : 1
     );
   }
+  // Shuffled letters would print "A. C" and bubble A would mean option C.
+  if (isPlaceholderLetterChoices(choices)) {
+    return [...choices].sort((a, b) => a.trim().localeCompare(b.trim()));
+  }
   const rand = seededRandom(`${batchId}:${question.id}`);
   for (let i = choices.length - 1; i > 0; i -= 1) {
     const j = Math.floor(rand() * (i + 1));
@@ -80,6 +94,8 @@ export interface PaperQuestionPlan {
   questionId: string;
   /** Choices this question actually has; may be fewer than the sheet prints. */
   choiceCount: number;
+  /** The imported test's own number for this question, printed small beside `row`. */
+  sourceLabel?: string;
 }
 
 export type PaperExclusionReason = 'question-type' | 'bank-slot';
@@ -139,6 +155,7 @@ export function analyzePaperQuiz(quiz: QuizData): PaperQuizAnalysis {
       row: rows.length + 1,
       questionId: question.id,
       choiceCount: questionChoiceCount(question),
+      ...(question.sourceLabel ? { sourceLabel: question.sourceLabel } : {}),
     });
   }
 
@@ -204,6 +221,8 @@ export interface PaperBatchInput {
   choiceOrder?: Readonly<Record<string, readonly string[]>>;
   /** Answer columns each page prints; absent = 2 (D1). */
   columnsPerPage?: PaperColumns;
+  /** Print each row's question text beside its bubbles; overrides `columnsPerPage`. */
+  sheetLayout?: 'questions';
   createdAt: number;
 }
 
@@ -298,7 +317,11 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
     spareSeats,
     ...(keySheetSeat !== undefined ? { keySheetSeat } : {}),
     ...(Object.keys(choiceOrder).length > 0 ? { choiceOrder } : {}),
-    pagesPerSheet: pageCountForQuestions(input.questionCount, columnsPerPage),
+    pagesPerSheet: pageCountForQuestions(
+      input.questionCount,
+      input.sheetLayout ?? columnsPerPage
+    ),
+    ...(input.sheetLayout ? { sheetLayout: input.sheetLayout } : {}),
     // Written only when it is not the default, so a batch printed without sheet
     // stimuli is the same document it was before this field existed.
     ...(columnsPerPage === DEFAULT_COLUMNS_PER_PAGE ? {} : { columnsPerPage }),

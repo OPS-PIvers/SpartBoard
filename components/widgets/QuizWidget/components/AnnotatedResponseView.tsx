@@ -60,6 +60,8 @@ const COLORS: { id: Color; label: string; swatch: string }[] = [
   { id: 'blue', label: 'Blue highlight', swatch: 'bg-sky-300' },
 ];
 
+const preventEdit = (e: React.SyntheticEvent) => e.preventDefault();
+
 // Module-level monotonic counter so back-to-back highlight actions
 // inside the same millisecond can't collide on `id`. `useId()` makes
 // the prefix unique across React component instances, but two
@@ -93,6 +95,8 @@ interface EditProps extends BaseProps {
    * resolution). Strand-tagging chips only render when it has criteria.
    */
   rubric?: Rubric;
+  /** With a one-strand rubric, every new highlight is tagged to that strand. */
+  autoTagSingleStrand?: boolean;
 }
 
 interface ReadProps extends BaseProps {
@@ -435,7 +439,12 @@ const EditView: React.FC<EditProps> = ({
   activeId,
   onActiveIdChange,
   rubric,
+  autoTagSingleStrand = false,
 }) => {
+  const singleStrandTags =
+    autoTagSingleStrand && rubric?.criteria.length === 1
+      ? toggleStrandTag(undefined, rubric.criteria[0].id, rubric)
+      : undefined;
   const articleRef = useRef<HTMLElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const reactId = useId();
@@ -781,6 +790,13 @@ const EditView: React.FC<EditProps> = ({
       <article
         ref={articleRef}
         className="rich-text-content rounded-xl border border-slate-200 bg-white p-6 text-base leading-relaxed text-slate-800 max-w-none min-w-0 break-words cursor-text select-text"
+        // The response is evidence: selectable for highlighting, never editable.
+        contentEditable={false}
+        onBeforeInput={preventEdit}
+        onPaste={preventEdit}
+        onCut={preventEdit}
+        onDrop={preventEdit}
+        onDragStart={preventEdit}
         onMouseUp={handleMouseUp}
         onClick={handleArticleClick}
       >
@@ -810,12 +826,17 @@ const EditView: React.FC<EditProps> = ({
           }
           onColorChange={(c) =>
             popover.kind === 'pending'
-              ? commitPending({ color: c })
+              ? commitPending({ color: c, criteria: singleStrandTags })
               : updateActiveAnnotation({ highlightColor: c })
           }
           rubric={rubric}
+          pendingStrandTags={singleStrandTags}
           onToggleStrand={(criterionId) => {
             if (!rubric) return;
+            if (popover.kind === 'pending' && singleStrandTags) {
+              commitPending({ color: 'yellow', criteria: singleStrandTags });
+              return;
+            }
             if (popover.kind === 'pending') {
               // D4: tagging from pending mode commits the highlight the
               // same way a color click does, in the default yellow.
@@ -890,6 +911,8 @@ const AnchoredAnnotationEditor: React.FC<{
   onColorChange: (c: Color) => void;
   /** Effective rubric; the strand chip row is hidden without one. */
   rubric?: Rubric;
+  /** Tags a pending highlight will get on commit, shown pre-selected. */
+  pendingStrandTags?: RubricStrandTag[];
   /** Strand chip click. In pending mode this commits in yellow. */
   onToggleStrand: (criterionId: string) => void;
   /** Edit-mode only. Not rendered in pending mode. */
@@ -905,6 +928,7 @@ const AnchoredAnnotationEditor: React.FC<{
   onCommentChange,
   onColorChange,
   rubric,
+  pendingStrandTags,
   onToggleStrand,
   onDelete,
   onClose,
@@ -929,7 +953,11 @@ const AnchoredAnnotationEditor: React.FC<{
       onClick={(e) => e.stopPropagation()}
       onMouseUp={(e) => e.stopPropagation()}
     >
-      <span id={labelId} className="sr-only">
+      {/* Visible so typing here never reads as editing the response. */}
+      <span
+        id={labelId}
+        className="text-xxs font-bold uppercase tracking-wider text-violet-700"
+      >
         {isPending ? 'Choose highlight color' : 'Edit annotation'}
       </span>
       <div className="flex items-center justify-between">
@@ -974,7 +1002,7 @@ const AnchoredAnnotationEditor: React.FC<{
       </div>
       <RubricStrandChips
         rubric={rubric}
-        value={isPending ? undefined : annotation.rubricCriteria}
+        value={isPending ? pendingStrandTags : annotation.rubricCriteria}
         onToggle={onToggleStrand}
       />
       <textarea
@@ -998,12 +1026,13 @@ const AnchoredAnnotationEditor: React.FC<{
           }
         }}
         rows={3}
+        aria-label="Comment on this highlight"
         placeholder={
           isPending
             ? 'Margin comment (optional) — pick a color to commit'
             : 'Margin comment (optional)'
         }
-        className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-400 resize-none"
+        className="w-full px-2 py-1.5 bg-violet-50/60 border border-violet-200 rounded text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-400 resize-none"
       />
     </div>
   );

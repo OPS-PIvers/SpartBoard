@@ -79,4 +79,14 @@ describe('results print presets', () => {
     localStorage.setItem('spartboard.quizResults.printOptions', '{bad');
     expect(loadResultsPrintChoice().preset).toBe('student-copy');
   });
+
+  it('starts on a given preset when nothing is saved and keeps a saved missed-only scope', () => {
+    localStorage.clear();
+    expect(loadResultsPrintChoice('full-report').preset).toBe('full-report');
+    saveResultsPrintChoice({
+      preset: 'missed-only',
+      options: applyPreset('missed-only'),
+    });
+    expect(loadResultsPrintChoice().options.questionScope).toBe('missed');
+  });
 });

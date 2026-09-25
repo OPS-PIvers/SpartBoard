@@ -530,10 +530,6 @@
         "title": "Résumé hebdomadaire par e-mail",
         "optInDescription": "Envoie à chaque membre un e-mail hebdomadaire résumant ce qui s'est passé dans la Communauté. Désactivé par défaut ; tout membre peut le modifier.",
         "saveFailed": "Échec de la mise à jour du paramètre de résumé"
-      },
-      "showPerTeacher": {
-        "title": "Détail par enseignant(e)",
-        "description": "Affiche la moyenne de chaque enseignant(e) dans les résultats regroupés. Désactivé par défaut pour que l’équipe regarde d’abord les données combinées."
       }
     },
     "overview": {
@@ -881,12 +877,9 @@
       "untitledAssessment": "Évaluation sans titre",
       "untitledQuestion": "Question sans titre",
       "common": "Commune",
-      "you": "(vous)",
       "teamAverage": "Moyenne de l’équipe",
       "teacherStudentCount": "{{teachers}} enseignants · {{students}} élèves",
-      "classCount": "{{count}} cl.",
       "weakestQuestions": "Questions les plus faibles",
-      "byClass": "Par enseignant / classe",
       "whoRanIt": "Qui l’a fait passer",
       "ranOf": "({{ran}} sur {{total}})",
       "hasRun": "l’a fait passer",
@@ -1214,20 +1207,23 @@
       "teachersOf": "{{count}} sur {{total}}",
       "lastComputed": "Dernière mise à jour",
       "neverComputed": "Pas encore",
-      "questionsHeading": "Questions, les plus ratées d’abord",
+      "questionsHeading": "Questions",
       "noQuestions": "Pas encore de résultats. Dès qu’un(e) enseignant(e) fait passer cette évaluation et publie les notes, les questions regroupées apparaissent ici.",
-      "incorrectPercent": "{{percent}} % d’erreurs",
+      "correctPercent": "{{percent}} % de réussite",
+      "averagePointsPercent": "{{percent}} % des points",
       "notScored": "Non notée",
       "gradedOfAnswered": "{{served}} présentées · {{graded}} notées · {{answered}} répondues",
       "choiceDistribution": "Répartition des réponses",
       "choiceCount": "{{count}} · {{percent}} %",
-      "perTeacherHeading": "Par enseignant(e)",
-      "teacher": "Enseignant(e)",
-      "classes": "Classes",
-      "studentsColumn": "Élèves",
-      "average": "Moyenne",
-      "unknownTeacher": "Enseignant(e)",
-      "nonMemberTeacher": "Non membre de la CAP"
+      "sortQuestions": "Trier les questions",
+      "sortQuizOrder": "Ordre du quiz",
+      "sortMostMissed": "Les plus ratées",
+      "summaryHeading": "Résultats de l’équipe",
+      "scoreDistribution": "Répartition des scores",
+      "bandCount": "{{count}} élèves · {{percent}} %",
+      "scoredStudents": "{{count}} élèves notés",
+      "distributionPending": "Le graphique apparaît après la prochaine actualisation des résultats, d’ici quelques minutes.",
+      "distributionEmpty": "Le graphique se remplit quand les enseignants publient les scores."
     },
     "learningTargets": {
       "heading": "Objectifs d’apprentissage",
@@ -2700,6 +2696,9 @@
     "cornerRadius": "Rayon des coins",
     "calloutPosition": "Position de la bulle",
     "calloutPinned": "Placée par vous",
+    "calloutToneDark": "Sombre",
+    "calloutToneLight": "Clair",
+    "calloutToneAccent": "Accent",
     "calloutAuto": "Automatique",
     "inlineLabel": "Titre de la bulle",
     "inlineLabelPlaceholder": "Titre (facultatif)",
@@ -2952,7 +2951,20 @@
       "needs-open-widget": "Introuvable. Ouvrez ou ajoutez le widget auquel appartient ce bouton.",
       "needs-panel": "Introuvable. Ouvrez le menu ou le panneau où il se trouve, puis réessayez.",
       "not-found": "Introuvable sur le tableau."
-    }
+    },
+    "calloutToolbar": "Outils de la bulle",
+    "calloutEditText": "Modifier le texte",
+    "calloutResetPosition": "Réinitialiser la position",
+    "calloutResetSize": "Réinitialiser la taille",
+    "calloutToPopover": "Changer en zone de texte",
+    "calloutToTooltip": "Changer en info-bulle",
+    "calloutColour": "Couleur",
+    "calloutDeleteStep": "Supprimer l’étape",
+    "calloutWidthPct": "Largeur {{pct}} %",
+    "calloutWidthAuto": "Largeur automatique",
+    "calloutScaleX": "{{scale}}×",
+    "resetCalloutAll": "Tout réinitialiser",
+    "calloutSizeHint": "Cliquez sur la bulle pour la redimensionner avec ses poignées ou choisir une couleur."
   },
   "helpCenter": {
     "title": "Aide",

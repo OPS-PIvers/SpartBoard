@@ -9,7 +9,7 @@
  * letting their contents fall into the text.
  */
 
-import type { DocLine } from './types';
+import type { DocLine, DocSegment } from './types';
 
 /** Groups whose contents are never document text. */
 const IGNORED_DESTINATIONS = new Set([
@@ -105,20 +105,13 @@ const LITERALS: Record<string, string> = {
   ldblquote: '“',
   rdblquote: '”',
   bullet: '•',
-  tab: '\t',
 };
 
-/** Control words that end the current line. */
-const BREAKS = new Set([
-  'par',
-  'line',
-  'cell',
-  'row',
-  'sect',
-  'page',
-  'nestcell',
-  'nestrow',
-]);
+/** Control words that end a paragraph; inside a table cell they only add a space. */
+const PARAGRAPH_BREAKS = new Set(['par', 'line', 'sect', 'page']);
+
+/** Column gaps: a new segment on the same line (R2). */
+const SEGMENT_BREAKS = new Set(['tab', 'cell', 'nestcell']);
 
 interface State {
   bold: boolean;
@@ -134,17 +127,23 @@ const isAlpha = (c: string): boolean =>
 const isDigit = (c: string): boolean => c >= '0' && c <= '9';
 const isOff = (param: number | null): boolean => param === 0;
 
-/** The text of an RTF file, one `DocLine` per paragraph. */
+/** The text of an RTF file, one `DocLine` per paragraph or table row. */
 export function parseRtf(rtf: string): DocLine[] {
   const lines: DocLine[] = [];
-  let text = '';
-  let emphasized = false;
+  let segments: DocSegment[] = [{ text: '' }];
+  /** Set by `\intbl`, cleared by `\pard` and `\row`. */
+  let inTable = false;
 
   const endLine = (): void => {
+    const text = segments.map((s) => s.text).join(' ');
+    const emphasized = segments.some((s) => s.emphasized);
     if (text.trim())
-      lines.push({ text, ...(emphasized ? { emphasized: true } : {}) });
-    text = '';
-    emphasized = false;
+      lines.push({
+        text,
+        ...(segments.length > 1 ? { segments } : {}),
+        ...(emphasized ? { emphasized: true } : {}),
+      });
+    segments = [{ text: '' }];
   };
 
   let state: State = {
@@ -164,12 +163,13 @@ export function parseRtf(rtf: string): DocLine[] {
 
   const append = (chunk: string): void => {
     if (state.ignore || skipDepth > 0 || !chunk) return;
-    text += chunk;
+    const current = segments[segments.length - 1];
+    current.text += chunk;
     if (
       /[A-Za-z0-9]/.test(chunk) &&
       (state.bold || state.underline || state.highlighted)
     ) {
-      emphasized = true;
+      current.emphasized = true;
     }
   };
 
@@ -301,8 +301,29 @@ export function parseRtf(rtf: string): DocLine[] {
         if (param !== null && param >= 0) state = { ...state, uc: param };
         continue;
       }
-      if (BREAKS.has(word)) {
+      if (word === 'intbl') {
+        inTable = true;
+        continue;
+      }
+      if (word === 'pard') {
+        inTable = false;
+        continue;
+      }
+      if (word === 'row') {
+        inTable = false;
+        // Every cell ends in `\cell`, so the row's last segment is always empty.
+        const last = segments[segments.length - 1];
+        if (segments.length > 1 && !last.text.trim()) segments.pop();
         endLine();
+        continue;
+      }
+      if (SEGMENT_BREAKS.has(word)) {
+        if (!state.ignore) segments.push({ text: '' });
+        continue;
+      }
+      if (PARAGRAPH_BREAKS.has(word)) {
+        if (inTable) append(' ');
+        else endLine();
         continue;
       }
       if (word in LITERALS) {

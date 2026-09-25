@@ -54,6 +54,7 @@ describe('aiQuizToExtracted', () => {
     expect(quiz.questions).toEqual([
       {
         number: 1,
+        ref: { section: 1, item: 1 },
         text: 'What is the capital of France?',
         type: 'MC',
         options: [
@@ -214,6 +215,35 @@ describe('graftDocxImages', () => {
       images
     );
     expect(quiz.images).toEqual([]);
+  });
+
+  it('matches by printed number when one AI question has no readable number', () => {
+    const q = (n: number, label?: string) => ({
+      number: n,
+      ...(label ? { label } : {}),
+      text: `Q${n}`,
+      type: 'MC' as const,
+      options: [],
+      correctAnswer: '',
+      warnings: [],
+    });
+    const docx = (item: number, imageIds: string[]): ExtractedQuestion => ({
+      number: item,
+      ref: { section: 1, item },
+      text: '',
+      type: 'MC',
+      options: [],
+      correctAnswer: '',
+      imageIds,
+      warnings: [],
+    });
+    // The AI skipped question 2 and gave question 1 no usable number.
+    const quiz = graftDocxImages(
+      aiQuizToExtracted(aiQuiz({ questions: [q(0), q(3, '3.')] }), 'T'),
+      [docx(1, []), docx(2, ['img-1']), docx(3, ['img-2'])],
+      images
+    );
+    expect(quiz.questions.map((x) => x.imageIds)).toEqual([[], ['img-2']]);
   });
 });
 

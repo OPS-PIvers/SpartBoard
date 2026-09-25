@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
+  AGGREGATE_SCHEMA_VERSION,
   ALIGNMENT_WARNING,
+  bucketScores,
   alignSessionQuestions,
   computeAssessmentAggregate,
   gradeGroupAnswer,
@@ -232,7 +234,13 @@ describe('computeAssessmentAggregate', () => {
       ]),
     ]);
 
-    expect(agg.schemaVersion).toBe(4);
+    expect(agg.schemaVersion).toBe(AGGREGATE_SCHEMA_VERSION);
+    expect(agg.scoreDistribution).toEqual([
+      { min: 90, max: 100, count: 1 },
+      { min: 80, max: 89, count: 0 },
+      { min: 60, max: 79, count: 0 },
+      { min: 0, max: 59, count: 2 },
+    ]);
     expect(agg.title).toBe('Unit 4 CFA');
     expect(agg.kind).toBe('quiz');
     expect(agg.teacherCount).toBe(2);
@@ -240,6 +248,7 @@ describe('computeAssessmentAggregate', () => {
     expect(agg.teamAveragePercent).toBe(50);
     expect(agg.sessionCount).toBe(2);
     expect(agg.computedFromSessionIds).toEqual(['s-a', 's-b']);
+    expect(agg.contributorUids).toEqual(['teacherA', 'teacherB']);
     expect(agg.alignment).toBe('byId');
     expect(agg.alignmentWarning).toBeUndefined();
 
@@ -549,6 +558,226 @@ describe('computeAssessmentAggregate', () => {
     expect(agg.perQuestion).toHaveLength(3);
     expect(agg.perQuestion[0].incorrectPercent).toBeNull();
     expect(agg.perTeacher).toEqual([]);
+    expect(agg.contributorUids).toEqual([]);
+  });
+
+  describe('point-scored questions', () => {
+    const rubricTarget = {
+      id: 'target-rubric',
+      kind: 'plc' as const,
+      ownerId: 'plc-1',
+      label: 'Explain with evidence',
+    };
+    const rubricQuestions: GroupQuestion[] = [
+      {
+        id: 'q1',
+        text: 'Capital of MN?',
+        type: 'MC',
+        points: 1,
+        choices: ['Duluth', 'St. Paul'],
+        correctAnswer: 'St. Paul',
+        allowPartialCredit: false,
+        rubricCriterionIds: [],
+        targets: [],
+      },
+      {
+        id: 'q3',
+        text: 'Explain.',
+        type: 'free-response',
+        points: 4,
+        choices: [],
+        correctAnswer: null,
+        allowPartialCredit: false,
+        rubricCriterionIds: ['c1', 'c2'],
+        targets: [rubricTarget],
+      },
+    ];
+    const rubricPublic = [
+      { id: 'q1', type: 'MC', text: 'Capital of MN?' },
+      { id: 'q3', type: 'free-response', text: 'Explain.' },
+    ];
+    const threeOfFour = {
+      q3: { pointsAwarded: 3, scoredCriterionIds: ['c1', 'c2'] },
+    };
+
+    it('reports a rubric question as the average percent of points', () => {
+      const agg = compute(
+        [
+          session(
+            's-a',
+            'teacherA',
+            Array.from({ length: 4 }, () =>
+              response(
+                [
+                  answer('q1', 'St. Paul', { isCorrect: true }),
+                  answer('q3', 'Because reasons', { isCorrect: false }),
+                ],
+                { manualGrades: threeOfFour }
+              )
+            ),
+            rubricPublic
+          ),
+        ],
+        rubricQuestions
+      );
+      expect(agg.perQuestion[1]).toMatchObject({
+        scoring: 'points',
+        answered: 4,
+        graded: 4,
+        correct: 0,
+        pointsEarned: 12,
+        pointsPossible: 16,
+        correctPercent: 75,
+        incorrectPercent: 25,
+      });
+      expect(agg.perQuestion[0]).toMatchObject({
+        scoring: 'binary',
+        correctPercent: 100,
+        pointsEarned: 4,
+        pointsPossible: 4,
+      });
+      expect(agg.perTarget).toEqual([
+        expect.objectContaining({
+          targetId: 'target-rubric',
+          attempted: 4,
+          correctPercent: 75,
+        }),
+      ]);
+    });
+
+    it('averages mixed rubric scores and excludes ungraded answers', () => {
+      const agg = compute(
+        [
+          session(
+            's-a',
+            'teacherA',
+            [
+              response([answer('q3', 'Full marks')], {
+                manualGrades: {
+                  q3: { pointsAwarded: 4, scoredCriterionIds: ['c1', 'c2'] },
+                },
+              }),
+              response([answer('q3', 'Half marks')], {
+                manualGrades: {
+                  q3: { pointsAwarded: 2, scoredCriterionIds: ['c1', 'c2'] },
+                },
+              }),
+              response([answer('q3', 'Not graded yet')]),
+              response([answer('q3', 'Half a rubric')], {
+                manualGrades: {
+                  q3: { pointsAwarded: 1, scoredCriterionIds: ['c1'] },
+                },
+              }),
+            ],
+            rubricPublic
+          ),
+        ],
+        rubricQuestions
+      );
+      expect(agg.perQuestion[1]).toMatchObject({
+        answered: 4,
+        graded: 2,
+        correct: 1,
+        pointsEarned: 6,
+        pointsPossible: 8,
+        correctPercent: 75,
+      });
+    });
+
+    it('falls back to the published flag when no manual grade is stored', () => {
+      const agg = compute(
+        [
+          session(
+            's-a',
+            'teacherA',
+            [
+              response([answer('q3', 'A', { isCorrect: true })]),
+              response([answer('q3', 'B', { isCorrect: false })]),
+            ],
+            rubricPublic
+          ),
+        ],
+        rubricQuestions
+      );
+      expect(agg.perQuestion[1]).toMatchObject({
+        graded: 2,
+        pointsEarned: 4,
+        pointsPossible: 8,
+        correctPercent: 50,
+      });
+    });
+
+    it('scores partial-credit matching by points and strict matching as binary', () => {
+      const matching = (allowPartialCredit: boolean): GroupQuestion => ({
+        id: 'm1',
+        text: 'Match.',
+        type: 'Matching',
+        points: 3,
+        choices: [],
+        correctAnswer: 'a:1|b:2|c:3',
+        allowPartialCredit,
+        rubricCriterionIds: [],
+        targets: [],
+      });
+      const run = (partial: boolean) =>
+        compute(
+          [
+            session(
+              's-a',
+              'teacherA',
+              [response([answer('m1', 'a:1|b:2|c:1')])],
+              [{ id: 'm1', type: 'Matching', text: 'Match.' }]
+            ),
+          ],
+          [matching(partial)]
+        ).perQuestion[0];
+      expect(run(true)).toMatchObject({
+        scoring: 'points',
+        correct: 0,
+        pointsEarned: 2,
+        correctPercent: 67,
+      });
+      expect(run(false)).toMatchObject({
+        scoring: 'binary',
+        correct: 0,
+        pointsEarned: 0,
+        correctPercent: 0,
+      });
+    });
+
+    it('scores partial-credit choose-all by points', () => {
+      const ma: GroupQuestion = {
+        id: 'ma1',
+        text: 'Pick all primes.',
+        type: 'MA',
+        points: 2,
+        choices: ['2', '3', '5', '4'],
+        correctAnswer: '2|3|5',
+        allowPartialCredit: true,
+        rubricCriterionIds: [],
+        targets: [],
+      };
+      const row = compute(
+        [
+          session(
+            's-a',
+            'teacherA',
+            [
+              response([answer('ma1', '2|3')]),
+              response([answer('ma1', '2|3|5')]),
+            ],
+            [{ id: 'ma1', type: 'MA', text: 'Pick all primes.' }]
+          ),
+        ],
+        [ma]
+      ).perQuestion[0];
+      expect(row).toMatchObject({
+        scoring: 'points',
+        graded: 2,
+        correct: 1,
+        correctPercent: 83,
+      });
+    });
   });
 });
 
@@ -883,5 +1112,20 @@ describe('localized FIB grading', () => {
     const q = payload.perQuestion.find((r) => r.questionId === 'q2');
     expect(q?.graded).toBe(2);
     expect(q?.correct).toBe(1);
+  });
+});
+
+describe('bucketScores', () => {
+  it('pools scores into the shared percent bands, including fractional edges', () => {
+    expect(bucketScores([100, 90, 89.5, 80, 79, 60, 59, 0])).toEqual([
+      { min: 90, max: 100, count: 2 },
+      { min: 80, max: 89, count: 2 },
+      { min: 60, max: 79, count: 2 },
+      { min: 0, max: 59, count: 2 },
+    ]);
+  });
+
+  it('returns zeroed bands when nothing is scored', () => {
+    expect(bucketScores([]).map((b) => b.count)).toEqual([0, 0, 0, 0]);
   });
 });

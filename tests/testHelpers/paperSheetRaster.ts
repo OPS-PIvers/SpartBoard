@@ -15,7 +15,9 @@ import {
   STIMULUS_RECT_MM,
   bubbleRectMm,
   markerCellRectMm,
-  type PaperColumns,
+  questionChoiceTextRectMm,
+  questionStemRectMm,
+  type PaperGrid,
   type RectMm,
 } from '@/utils/paperSheetLayout';
 import {
@@ -45,7 +47,9 @@ export interface SyntheticSheetOptions {
   questionCount: number;
   choiceCount: number;
   /** Answer columns the sheet was printed with; defaults to two. */
-  columnsPerPage?: PaperColumns;
+  columnsPerPage?: PaperGrid;
+  /** Paint solid text-like lines in every row's question-text box (`'questions'` grid). */
+  questionText?: boolean;
   /** Artwork stacked from the top of the stimulus band. */
   stimuli?: SyntheticStimulus[];
   marks?: SyntheticMark[];
@@ -168,6 +172,23 @@ export function paintSyntheticSheet(opts: SyntheticSheetOptions): RasterPage {
       fillDisc(rect, radius, 1, radius - 0.3);
       if (opts.printedLetters) {
         fillDisc(rect, radius - 0.4, 1, 0, letterTone);
+      }
+    }
+  }
+  if (opts.questionText && columns === 'questions') {
+    // Lines of glyph ink: three for the stem, one beside every bubble.
+    const inkLines = (box: RectMm, lines: number) => {
+      for (let l = 0; l < lines; l += 1) {
+        fillRect(
+          { x: box.x, y: box.y + l * 3.6 + 0.6, w: box.w, h: 2.4 },
+          0.55
+        );
+      }
+    };
+    for (let row = 0; row < rows; row += 1) {
+      inkLines(questionStemRectMm(row), 3);
+      for (let c = 0; c < opts.choiceCount; c += 1) {
+        inkLines(questionChoiceTextRectMm(row, c), 1);
       }
     }
   }

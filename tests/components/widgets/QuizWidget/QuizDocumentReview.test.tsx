@@ -10,6 +10,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { QuizDocumentReview } from '@/components/widgets/QuizWidget/components/QuizDocumentReview';
 import type { QuizData, QuizQuestion } from '@/types';
 import type { ExtractedImage } from '@/utils/quizDocumentImport';
+import { extractedToQuizData } from '@/utils/quizDocumentImport/toQuizData';
 
 function question(over: Partial<QuizQuestion> = {}): QuizQuestion {
   return {
@@ -151,6 +152,12 @@ describe('QuizDocumentReview', () => {
     expect(screen.queryByText('Needs answer')).toBeNull();
   });
 
+  it('shows the number the test printed beside the position', () => {
+    setup(quiz([question(), question({ id: 'q2', sourceLabel: '2·3' })]));
+    expect(screen.getByText('printed 2·3')).toBeTruthy();
+    expect(screen.getAllByText(/^printed /)).toHaveLength(1);
+  });
+
   it('keeps the quiz title the read produced', () => {
     const { latest } = setup(quiz([question(), question({ id: 'q2' })]));
     fireEvent.click(screen.getByLabelText('Create question 2'));
@@ -232,5 +239,126 @@ describe('QuizDocumentReview pictures', () => {
       picture('img-1'),
     ]);
     expect(screen.queryByAltText(/on question 1/)).toBeNull();
+  });
+});
+
+describe('QuizDocumentReview spill warnings and filter (R18, R19)', () => {
+  it('marks a choice that swallowed another one, in words', () => {
+    setup(
+      quiz([
+        question({
+          correctAnswer: '',
+          needsKey: true,
+          incorrectAnswers: ['357.4 d. 35,740', '3,574', '35.74'],
+        }),
+      ])
+    );
+    expect(screen.getByText('Check text')).toBeTruthy();
+    expect(
+      screen.getByText('This choice may contain another choice')
+    ).toBeTruthy();
+  });
+
+  it('filters to flagged rows', () => {
+    setup(
+      quiz([
+        question({ id: 'clean', text: 'Clean question' }),
+        question({
+          id: 'spill',
+          text: 'Spilled question',
+          incorrectAnswers: ['Green 1. B 2. C', 'Red'],
+        }),
+      ])
+    );
+    expect(screen.getByText('Clean question')).toBeTruthy();
+    fireEvent.click(screen.getByLabelText(/Show only flagged rows \(1\)/));
+    expect(screen.queryByDisplayValue('Clean question')).toBeNull();
+    expect(screen.getByDisplayValue('Spilled question')).toBeTruthy();
+  });
+
+  it('offers no filter when nothing is flagged', () => {
+    setup(quiz([question()]));
+    expect(screen.queryByText(/Show only flagged rows/)).toBeNull();
+  });
+});
+
+describe('QuizDocumentReview — rows from the reliable reader (R9, R25)', () => {
+  it('shows a survey item unticked and lets the teacher tick it back on', () => {
+    const data = extractedToQuizData({
+      title: 'Test',
+      images: [],
+      warnings: [],
+      questions: [
+        {
+          number: 1,
+          text: 'Graded?',
+          type: 'MC',
+          options: [
+            { letter: 'A', text: 'x' },
+            { letter: 'B', text: 'y' },
+          ],
+          correctAnswer: 'x',
+          imageIds: [],
+          warnings: [],
+        },
+        {
+          number: 2,
+          text: 'How confident are you?',
+          type: 'free-response',
+          options: [],
+          correctAnswer: '',
+          imageIds: [],
+          warnings: [],
+          suggestUntick: 'This looks like a self-reflection item.',
+        },
+      ],
+    });
+    const { latest } = setup(data);
+    const box = screen.getByLabelText('Create question 2');
+    expect(box).not.toBeChecked();
+    expect(
+      screen.getByText(/This looks like a self-reflection item/)
+    ).toBeInTheDocument();
+    fireEvent.click(box);
+    expect(latest().questions.map((q) => q.text)).toEqual([
+      'Graded?',
+      'How confident are you?',
+    ]);
+  });
+
+  it('names the shared passage a row uses and where else it is used', () => {
+    const data: QuizData = {
+      ...quiz([
+        question({ id: 'a', stimulusIds: ['p1'] }),
+        question({ id: 'b', stimulusIds: ['p1'] }),
+      ]),
+      stimuli: [
+        { id: 'p1', type: 'text', url: '', text: 'Story', label: 'Passage 1' },
+      ],
+    };
+    setup(data);
+    expect(
+      screen.getByText('Uses Passage 1, shared with 2')
+    ).toBeInTheDocument();
+  });
+});
+
+describe('QuizDocumentReview answer-key banner (R19)', () => {
+  it('shows how the key matched above the rows', () => {
+    render(
+      <QuizDocumentReview
+        data={quiz([question()])}
+        onChange={vi.fn()}
+        keySummary={{
+          entries: 3,
+          matched: 1,
+          unmatchedLabels: ['2', '3'],
+          conflicts: 1,
+        }}
+      />
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Answer key: 1 of 1 question matched · key lists 3 entries (2–3 matched no question) · 1 conflict'
+    );
   });
 });

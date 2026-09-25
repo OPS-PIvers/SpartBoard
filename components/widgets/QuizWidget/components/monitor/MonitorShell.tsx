@@ -307,11 +307,11 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
 
   const handleEnd = async () => {
     const ok = await showConfirm(
-      'Make this assignment inactive? The student link stops working, but all responses are preserved in the archive.',
+      'End this assignment? The student link stops working, but all responses are preserved in the archive.',
       {
-        title: 'Make Inactive',
+        title: 'End Assignment',
         variant: 'warning',
-        confirmLabel: 'Make Inactive',
+        confirmLabel: 'End',
       }
     );
     if (!ok) return;

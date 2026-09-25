@@ -15,6 +15,7 @@ import type {
 } from '@/utils/quizStudentReportPrint';
 
 let flagOn = true;
+let toolsOn = false;
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
     activeDashboard: { widgets: [] },
@@ -41,7 +42,9 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1' },
     orgId: null,
     isExternalUser: false,
-    canAccessFeature: (id: string) => flagOn && id === 'quiz-results-print',
+    canAccessFeature: (id: string) =>
+      (flagOn && id === 'quiz-results-print') ||
+      (toolsOn && id === 'quiz-results-tools'),
     updateAccountPreferences: vi.fn().mockResolvedValue(undefined),
   }),
 }));
@@ -183,6 +186,7 @@ const ticked = () =>
 describe('QuizResults — results print', () => {
   beforeEach(() => {
     flagOn = true;
+    toolsOn = false;
     printQuizResults.mockReset();
     printStudentReport.mockReset();
     localStorage.clear();
@@ -282,6 +286,41 @@ describe('QuizResults — results print', () => {
       'Rome',
       'Paris',
     ]);
+  });
+
+  it('leads with Full report or Missed only when the results tools are on', () => {
+    flagOn = false;
+    toolsOn = true;
+    renderResults();
+    fireEvent.click(screen.getByRole('button', { name: 'Print results' }));
+    const report = within(dialog()).getByRole('radiogroup', { name: 'Report' });
+    expect(
+      within(report).getByRole('radio', { name: /Full report/ })
+    ).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(within(report).getByRole('radio', { name: /Missed only/ }));
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Print' }));
+    expect(printQuizResults.mock.calls[0][1]).toMatchObject({
+      questionScope: 'missed',
+      keyMode: 'all',
+      showWrittenFeedback: true,
+    });
+  });
+
+  it('drops a saved missed-only scope when the results tools are off', () => {
+    localStorage.setItem(
+      'spartboard.quizResults.printOptions',
+      JSON.stringify({
+        preset: 'missed-only',
+        options: { keyMode: 'all', questionScope: 'missed' },
+      })
+    );
+    renderResults();
+    fireEvent.click(screen.getByRole('button', { name: 'Print results' }));
+    expect(
+      within(dialog()).queryByRole('radiogroup', { name: 'Report' })
+    ).toBeNull();
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Print' }));
+    expect(printQuizResults.mock.calls[0][1].questionScope).toBeUndefined();
   });
 
   it('remembers the last preset on this browser', () => {

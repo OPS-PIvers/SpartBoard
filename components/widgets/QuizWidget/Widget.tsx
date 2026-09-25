@@ -52,7 +52,7 @@ import {
   driveStimulusUploader,
   type ExtractedImage,
 } from '@/utils/quizDocumentImport';
-import { readTestDocument } from '@/utils/quizDocumentImport/readTestDocument';
+import { readTestAndKey } from '@/utils/quizDocumentImport/readTestAndKey';
 import {
   callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
@@ -116,6 +116,7 @@ import { QuizLiveMonitor } from './components/QuizLiveMonitor';
 import { PaperPrintModal } from './components/PaperPrintModal';
 import { PaperImportModal } from './components/PaperImportModal';
 import { PaperQuestionTextModal } from './components/PaperQuestionTextModal';
+import { AnswerKeyFillModal } from './components/AnswerKeyFill';
 import { httpsCallable } from 'firebase/functions';
 import type {
   ImportPaperResponsesResult,
@@ -564,6 +565,10 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     batches: PaperBatch[];
   } | null>(null);
   const [paperOcr, setPaperOcr] = useState<{
+    quiz: QuizData;
+    meta: QuizMetadata;
+  } | null>(null);
+  const [answerKeyFill, setAnswerKeyFill] = useState<{
     quiz: QuizData;
     meta: QuizMetadata;
   } | null>(null);
@@ -1408,6 +1413,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       // A question bank has no review table of its own, so the test-document
       // tile is offered on the quiz import only.
       canImportDocuments,
+      canSuggestTargets: canAccessFeature('quiz-import-suggested-targets'),
       pickDocument,
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
       canUseChooseAll: canAccessFeature('quiz-choose-all'),
@@ -1469,6 +1475,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         session={liveSession}
         onDeleteResponse={removeStudent}
         onUnlockResultsForStudent={unlockResultsForStudent}
+        onReopenStudent={unlockStudentAttempt}
         onPlcSheetUrlReplaced={async (newUrl) => {
           // After QuizResults regenerates a stale PLC sheet (404
           // recovery), replace the URL on this widget's config so future
@@ -1620,7 +1627,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           await advanceQuestion();
         }}
         onEnd={async () => {
-          // "End" now means Make Inactive at the assignment level so the URL
+          // "End" now deactivates at the assignment level so the URL
           // dies but responses are preserved. Confirmation happens inside
           // QuizLiveMonitor.
           const assignmentId = config.activeAssignmentId;
@@ -1740,6 +1747,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   meta.id
                 );
                 setPaperImport({ quiz: data, meta, batches });
+              }
+            : undefined
+        }
+        onAddAnswerKey={
+          canImportDocuments
+            ? async (meta) => {
+                const data = await loadQuiz(meta);
+                if (data) setAnswerKeyFill({ quiz: data, meta });
               }
             : undefined
         }
@@ -2879,6 +2894,14 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               }
             : undefined
         }
+        {...(canImportDocuments
+          ? {
+              answerKeyFill: {
+                onPickFromDrive: pickScanFromDrive,
+                onError: (message: string) => addToast(message, 'error'),
+              },
+            }
+          : {})}
         onClose={() => {
           setEditingQuiz(null);
           setEditingMeta(null);
@@ -3421,12 +3444,13 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             ? {
                 // The same readers the import wizard uses, so a new paper
                 // test can start from the teacher's own test paper (D17).
-                readDocument: (file: Blob, fileName: string, useAi?: boolean) =>
-                  readTestDocument(file, fileName, {
+                readDocument: (test, { useAi, key } = {}) =>
+                  readTestAndKey(test, {
                     ...(canUseAiReader
                       ? { aiExtract: extractQuizFromDocument }
                       : {}),
                     ...(useAi === false ? { useAi } : {}),
+                    key,
                   }),
                 canUseAi: canUseAiReader,
                 pickDocument,
@@ -3530,6 +3554,30 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           onError={(message) => addToast(message, 'error')}
         />
       )}
+      {answerKeyFill && (
+        <AnswerKeyFillModal
+          quiz={answerKeyFill.quiz}
+          onApply={async (result) => {
+            await saveQuiz(
+              {
+                ...answerKeyFill.quiz,
+                questions: result.questions,
+                updatedAt: Date.now(),
+              },
+              answerKeyFill.meta.driveFileId
+            );
+            addToast(
+              result.filled.length === 1
+                ? '1 answer filled in.'
+                : `${result.filled.length} answers filled in.`,
+              'success'
+            );
+          }}
+          onPickFromDrive={pickScanFromDrive}
+          onClose={() => setAnswerKeyFill(null)}
+          onError={(message) => addToast(message, 'error')}
+        />
+      )}
       {paperOcr && (
         <PaperQuestionTextModal
           quiz={paperOcr.quiz}
@@ -3542,12 +3590,13 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             ? {
                 // The same readers the import wizard uses, so a stub fills
                 // with choices and a key rather than stem text alone (D17).
-                readDocument: (file: Blob, fileName: string, useAi?: boolean) =>
-                  readTestDocument(file, fileName, {
+                readDocument: (test, { useAi, key } = {}) =>
+                  readTestAndKey(test, {
                     ...(canUseAiReader
                       ? { aiExtract: extractQuizFromDocument }
                       : {}),
                     ...(useAi === false ? { useAi } : {}),
+                    key,
                   }),
                 canUseAi: canUseAiReader,
               }

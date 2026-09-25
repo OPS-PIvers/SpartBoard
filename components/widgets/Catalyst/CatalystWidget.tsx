@@ -8,7 +8,6 @@ import { Zap, ImageOff, ChevronLeft } from 'lucide-react';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { playCleanUpUnlocked } from '@/components/widgets/StarterPack/audioUtils';
 import confetti from 'canvas-confetti';
-import { CatalystSettings } from './CatalystSettings';
 
 export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -297,6 +296,3 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
     />
   );
 };
-
-// Re-export CatalystSettings so WidgetRegistry can load it via lazyNamed
-export { CatalystSettings };

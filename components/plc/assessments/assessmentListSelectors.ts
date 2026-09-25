@@ -85,7 +85,7 @@ export function teacherPoolSize(
   aggregate: PlcAssessmentAggregate | null | undefined
 ): number {
   const pool = new Set(memberUids);
-  for (const row of aggregate?.perTeacher ?? []) pool.add(row.teacherUid);
+  for (const uid of aggregate?.contributorUids ?? []) pool.add(uid);
   return pool.size;
 }
 
@@ -291,20 +291,34 @@ export function formatShortDate(ms: number, locale: string): string {
 
 type PerQuestion = PlcAssessmentAggregate['perQuestion'][number];
 
-/** Worst-first; unscored questions (null incorrectPercent) sink to the bottom. */
-export function sortWorstFirst(perQuestion: PerQuestion[]): PerQuestion[] {
-  return perQuestion
+export type PlcQuestionSort = 'order' | 'missed';
+
+export interface OrderedQuestion {
+  question: PerQuestion;
+  /** Zero-based position in the quiz, kept when sorted by most missed. */
+  index: number;
+}
+
+/** Whether a question has graded answers to report a percent for. */
+export function isQuestionScored(question: PerQuestion): boolean {
+  return typeof question.incorrectPercent === 'number';
+}
+
+/** Quiz order, or lowest % correct first like the teacher view; unscored sink, low-sample rows drop. */
+export function sortQuestions(
+  perQuestion: PerQuestion[],
+  sort: PlcQuestionSort
+): OrderedQuestion[] {
+  const rows = perQuestion
+    .map((question, index) => ({ question, index }))
     .filter(
-      (question) =>
+      ({ question }) =>
         question.servedCount === undefined || question.servedCount >= 5
-    )
-    .sort((a, b) => {
-      const ai = a.incorrectPercent ?? null;
-      const bi = b.incorrectPercent ?? null;
-      if (ai === null && bi === null)
-        return a.questionId.localeCompare(b.questionId);
-      if (ai === null) return 1;
-      if (bi === null) return -1;
-      return bi - ai || a.questionId.localeCompare(b.questionId);
-    });
+    );
+  if (sort === 'order') return rows;
+  const pctOf = (q: PerQuestion) =>
+    isQuestionScored(q) ? q.correctPercent : Number.POSITIVE_INFINITY;
+  return rows.sort(
+    (a, b) => pctOf(a.question) - pctOf(b.question) || a.index - b.index
+  );
 }

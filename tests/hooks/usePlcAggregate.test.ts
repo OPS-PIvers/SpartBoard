@@ -98,8 +98,25 @@ describe('parsePlcAggregate — tolerant parsing', () => {
     expect(parsed?.studentCount).toBe(40);
     expect(parsed?.teamAveragePercent).toBe(78);
     expect(parsed?.perQuestion).toHaveLength(2);
-    expect(parsed?.perTeacher[0]?.teacherUid).toBe('tA');
+    expect(parsed?.contributorUids).toEqual(['tA']);
     expect(parsed?.ranAt).toBe(1718764800000);
+  });
+
+  it('parses schema 5 score bands and drops a malformed set', () => {
+    const bands = [
+      { min: 90, max: 100, count: 3 },
+      { min: 0, max: 59, count: 1 },
+    ];
+    expect(
+      parsePlcAggregate('a', validAggregateData({ scoreDistribution: bands }))
+        ?.scoreDistribution
+    ).toEqual(bands);
+    const bad = parsePlcAggregate(
+      'a',
+      validAggregateData({ scoreDistribution: [{ min: 90, count: 'x' }] })
+    );
+    expect(bad).not.toBeNull();
+    expect(bad?.scoreDistribution).toBeUndefined();
   });
 
   it('prefers the doc id over a (conflicting) stored assessmentId', () => {
@@ -123,14 +140,21 @@ describe('parsePlcAggregate — tolerant parsing', () => {
     expect(parsed?.ranAt).toBe(0);
   });
 
-  it('never emits student names (anonymized perTeacher rows)', () => {
+  it('never surfaces per-teacher scores or names from a legacy doc', () => {
     const parsed = parsePlcAggregate('a', validAggregateData());
     const serialized = JSON.stringify(parsed);
     expect(serialized).not.toContain('studentDisplayName');
-    for (const row of parsed?.perTeacher ?? []) {
-      expect(row).not.toHaveProperty('studentDisplayName');
-      expect(row).toHaveProperty('studentCount');
-    }
+    expect(parsed).not.toHaveProperty('perTeacher');
+    expect(serialized).not.toContain('Teacher A');
+    expect(serialized).not.toContain('82');
+  });
+
+  it('prefers contributorUids and accepts a doc without perTeacher', () => {
+    const data: Record<string, unknown> = validAggregateData({
+      contributorUids: ['tB', 'tC'],
+    });
+    delete data.perTeacher;
+    expect(parsePlcAggregate('a', data)?.contributorUids).toEqual(['tB', 'tC']);
   });
 
   it('parses schema 3 served counts and target rollups', () => {
@@ -169,6 +193,39 @@ describe('parsePlcAggregate — tolerant parsing', () => {
     expect(parsed?.perStandard?.[0]?.targetId).toBe('std-1');
     expect(parsed?.linkedSessionCount).toBe(2);
   });
+
+  it('parses schema 5 point scoring and drops an unknown scoring value', () => {
+    const parsed = parsePlcAggregate(
+      'a',
+      validAggregateData({
+        schemaVersion: 5,
+        perQuestion: [
+          {
+            questionId: 'q1',
+            text: 'Q1',
+            scoring: 'points',
+            correctPercent: 75,
+            points: 4,
+            pointsEarned: 12,
+            pointsPossible: 16,
+          },
+          {
+            questionId: 'q2',
+            text: 'Q2',
+            scoring: 'odd',
+            correctPercent: 50,
+            points: 1,
+          },
+        ],
+      })
+    );
+    expect(parsed?.perQuestion[0]).toMatchObject({
+      scoring: 'points',
+      pointsEarned: 12,
+      pointsPossible: 16,
+    });
+    expect(parsed?.perQuestion[1]?.scoring).toBeUndefined();
+  });
 });
 
 describe('parsePlcAggregate — rejection of malformed docs', () => {
@@ -195,21 +252,14 @@ describe('parsePlcAggregate — rejection of malformed docs', () => {
       )
     ).toBeNull();
   });
-  it('rejects the WHOLE doc when a perTeacher entry is malformed', () => {
+  it('rejects the WHOLE doc when a contributor uid is malformed', () => {
+    expect(
+      parsePlcAggregate('a', validAggregateData({ contributorUids: ['t', 3] }))
+    ).toBeNull();
     expect(
       parsePlcAggregate(
         'a',
-        validAggregateData({
-          perTeacher: [
-            {
-              teacherUid: 'tA',
-              teacherName: 'A',
-              classCount: 1,
-              averagePercent: 50,
-              // studentCount missing → reject
-            },
-          ],
-        })
+        validAggregateData({ perTeacher: [{ name: 'A' }] })
       )
     ).toBeNull();
   });

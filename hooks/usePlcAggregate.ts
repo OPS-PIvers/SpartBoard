@@ -31,6 +31,7 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import type {
   PlcAggregateChoiceRow,
+  PlcAggregateScoreBand,
   PlcAggregateTargetRow,
   PlcAssessmentAggregate,
 } from '@/types';
@@ -77,12 +78,17 @@ function parsePerQuestion(
   return {
     questionId: rec.questionId,
     text: rec.text,
+    ...(rec.scoring === 'points' || rec.scoring === 'binary'
+      ? { scoring: rec.scoring }
+      : {}),
     correctPercent: rec.correctPercent,
     points: rec.points,
     ...optionalNumber('incorrectPercent', rec.incorrectPercent),
     ...optionalNumber('answered', rec.answered),
     ...optionalNumber('graded', rec.graded),
     ...optionalNumber('correct', rec.correct),
+    ...optionalNumber('pointsEarned', rec.pointsEarned),
+    ...optionalNumber('pointsPossible', rec.pointsPossible),
     ...optionalNumber('servedCount', rec.servedCount),
     ...(choiceDistribution ? { choiceDistribution } : {}),
   };
@@ -96,6 +102,28 @@ function optionalNumber<K extends string>(
   return typeof value === 'number' && Number.isFinite(value)
     ? ({ [key]: value } as Record<K, number>)
     : {};
+}
+
+/** Schema 6 score bands; omitted when absent or any band is malformed. */
+function parseScoreDistribution(
+  raw: unknown
+): Pick<PlcAssessmentAggregate, 'scoreDistribution'> {
+  if (!Array.isArray(raw)) return {};
+  const bands: PlcAggregateScoreBand[] = [];
+  for (const b of raw) {
+    if (!b || typeof b !== 'object') return {};
+    const rec = b as Record<string, unknown>;
+    if (
+      typeof rec.min !== 'number' ||
+      typeof rec.max !== 'number' ||
+      typeof rec.count !== 'number' ||
+      !Number.isFinite(rec.count)
+    ) {
+      return {};
+    }
+    bands.push({ min: rec.min, max: rec.max, count: rec.count });
+  }
+  return { scoreDistribution: bands };
 }
 
 /** Tolerant parse of the schema 2 `choiceDistribution` rows; malformed rows are skipped. */
@@ -118,32 +146,24 @@ function parseChoiceDistribution(
   return rows;
 }
 
-/**
- * Parse one nested `perTeacher` entry, or `null` if malformed. Anonymized by
- * contract: carries `studentCount` but never student names or per-student rows
- * (the function never emits them). A single bad entry rejects the whole doc.
- */
-function parsePerTeacher(
-  t: unknown
-): PlcAssessmentAggregate['perTeacher'][number] | null {
-  if (!t || typeof t !== 'object') return null;
-  const rec = t as Record<string, unknown>;
-  if (
-    typeof rec.teacherUid !== 'string' ||
-    typeof rec.teacherName !== 'string' ||
-    typeof rec.classCount !== 'number' ||
-    typeof rec.averagePercent !== 'number' ||
-    typeof rec.studentCount !== 'number'
-  ) {
-    return null;
+/** Contributor uids, or `null` if malformed; legacy docs derive them from `perTeacher` (drop with its write). */
+function parseContributorUids(data: Record<string, unknown>): string[] | null {
+  if (Array.isArray(data.contributorUids)) {
+    return data.contributorUids.every((uid) => typeof uid === 'string')
+      ? data.contributorUids
+      : null;
   }
-  return {
-    teacherUid: rec.teacherUid,
-    teacherName: rec.teacherName,
-    classCount: rec.classCount,
-    averagePercent: rec.averagePercent,
-    studentCount: rec.studentCount,
-  };
+  if (!Array.isArray(data.perTeacher)) return [];
+  const uids: string[] = [];
+  for (const row of data.perTeacher as unknown[]) {
+    const uid =
+      row && typeof row === 'object'
+        ? (row as Record<string, unknown>).teacherUid
+        : undefined;
+    if (typeof uid !== 'string') return null;
+    uids.push(uid);
+  }
+  return uids;
 }
 
 function parseTargetRows(raw: unknown): PlcAggregateTargetRow[] | null {
@@ -201,8 +221,7 @@ export function parsePlcAggregate(
     typeof data.teacherCount !== 'number' ||
     typeof data.studentCount !== 'number' ||
     typeof data.teamAveragePercent !== 'number' ||
-    !Array.isArray(data.perQuestion) ||
-    !Array.isArray(data.perTeacher)
+    !Array.isArray(data.perQuestion)
   ) {
     return null;
   }
@@ -212,12 +231,8 @@ export function parsePlcAggregate(
     if (!parsed) return null;
     perQuestion.push(parsed);
   }
-  const perTeacher: PlcAssessmentAggregate['perTeacher'] = [];
-  for (const raw of data.perTeacher as unknown[]) {
-    const parsed = parsePerTeacher(raw);
-    if (!parsed) return null;
-    perTeacher.push(parsed);
-  }
+  const contributorUids = parseContributorUids(data);
+  if (!contributorUids) return null;
   const perTarget =
     data.perTarget === undefined ? undefined : parseTargetRows(data.perTarget);
   if (perTarget === null) return null;
@@ -235,7 +250,7 @@ export function parsePlcAggregate(
     studentCount: data.studentCount,
     teamAveragePercent: data.teamAveragePercent,
     perQuestion,
-    perTeacher,
+    contributorUids,
     ...(perTarget ? { perTarget } : {}),
     ...(perStandard ? { perStandard } : {}),
     ranAt: tsToMillis(data.ranAt),
@@ -248,6 +263,7 @@ export function parsePlcAggregate(
       : {}),
     ...optionalNumber('sessionCount', data.sessionCount),
     ...optionalNumber('scoredStudentCount', data.scoredStudentCount),
+    ...parseScoreDistribution(data.scoreDistribution),
     ...optionalNumber('linkedSessionCount', data.linkedSessionCount),
     ...optionalNumber('publishedSessionCount', data.publishedSessionCount),
     ...(Array.isArray(data.computedFromSessionIds)

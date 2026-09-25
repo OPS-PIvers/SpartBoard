@@ -11,6 +11,7 @@ import {
   GL_SET_SCHEMA_VERSION,
   SlideMeasurement,
   convertLegacySpotlightRadii,
+  requiredSchemaVersion,
   stepUsesSpotlight,
 } from '../utils/setMigration';
 import { calculateImageFootprint, toImageOffset } from '../utils/imageUtils';
@@ -85,6 +86,9 @@ function studioFieldsEqual(a: GuidedLearningStep, b: GuidedLearningStep) {
 export const STUDIO_STEP_FIELDS = [
   'region',
   'calloutPin',
+  'calloutWidthPct',
+  'calloutScale',
+  'calloutTone',
   'cursor',
   'narration',
   'tour',
@@ -454,9 +458,11 @@ export function useSetDraftPersistence({
     // only stamps v2 when in-editor semantics are v2 (or no step reads a
     // radius); otherwise the set stays legacy — matching the preview.
     const steps = editorState.steps;
+    const required = requiredSchemaVersion({ steps });
+    // Unconverted legacy radii keep the legacy stamp even with callout styling, or spotlights resize.
     const schemaVersion =
       editorState.spotlightRadiiV2 || !steps.some(stepUsesSpotlight)
-        ? GL_SET_SCHEMA_VERSION
+        ? required
         : set.schemaVersion;
     // Editor-owned optional fields are dropped here and re-added below only when set.
     const {
