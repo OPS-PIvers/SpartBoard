@@ -136,17 +136,21 @@ export function quizHasBankSlots(quiz: Pick<QuizData, 'bankSlots'>): boolean {
  * slots missing from it go last.
  */
 export function quizOrder(
-  quiz: Pick<QuizData, 'questions' | 'bankSlots' | 'order'>
+  quiz: Pick<QuizData, 'questions' | 'bankSlots' | 'order'> &
+    Partial<Pick<QuizData, 'sections'>>
 ): QuizOrderEntry[] {
   const questionIds = new Set(quiz.questions.map((q) => q.id));
   const slotIds = new Set(randomBankSlots(quiz).map((s) => s.id));
+  const sectionIds = new Set((quiz.sections ?? []).map((s) => s.id));
   const seen = new Set<string>();
   const out: QuizOrderEntry[] = [];
   for (const entry of quiz.order ?? []) {
     const known =
       entry.kind === 'question'
         ? questionIds.has(entry.id)
-        : slotIds.has(entry.id);
+        : entry.kind === 'section'
+          ? sectionIds.has(entry.id)
+          : slotIds.has(entry.id);
     const key = `${entry.kind}:${entry.id}`;
     if (!known || seen.has(key)) continue;
     seen.add(key);

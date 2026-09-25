@@ -3783,8 +3783,23 @@ export interface QuizBankSlot {
 
 /** Position of fixed questions and slots in the quiz editor list. */
 export interface QuizOrderEntry {
-  kind: 'question' | 'slot';
+  /** A `section` entry owns the question and slot entries after it, up to the next section. */
+  kind: 'question' | 'slot' | 'section';
   id: string;
+}
+
+/** A heading that groups the questions after it (QUIZ_EXAMVIEW_IMPORT.md E12). */
+export interface QuizSection {
+  id: string;
+  title: string;
+  directions?: string;
+  /** Students answer any this many of the section's questions; absent = all. */
+  chooseCount?: number;
+}
+
+/** A section frozen onto a session, with the question ids it owns (bank pool ids included). */
+export interface QuizSessionSection extends QuizSection {
+  questionIds: string[];
 }
 
 /** Frozen slot on a session; the student draws `count` ids from `poolQuestionIds`. */
@@ -3913,6 +3928,8 @@ export interface QuizData {
   bankSlots?: QuizBankSlot[];
   /** Interleaving of questions and slots; absent = questions in order, slots last. */
   order?: QuizOrderEntry[];
+  /** Section records the `order` entries of kind `section` point at. */
+  sections?: QuizSection[];
   createdAt: number;
   updatedAt: number;
 }
@@ -4320,6 +4337,8 @@ export interface QuizSession
    * `totalQuestions` counts fixed + Σ count. Absent on quizzes without banks.
    */
   bankSlots?: QuizSessionBankSlot[];
+  /** Sections frozen at assignment; absent = one run of questions. */
+  sections?: QuizSessionSection[];
 
   /**
    * True once at least one Schoology LTI student has launched this session and
