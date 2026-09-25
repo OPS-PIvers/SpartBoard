@@ -56,6 +56,8 @@ export interface DelegatedPrintCaller {
   uid: string;
   studentRole: boolean;
   anonymous: boolean;
+  /** For `global_permissions` gates; absent where no gate is checked. */
+  email?: string | null;
 }
 
 export interface GetTeammatePrintContextInput {
@@ -88,6 +90,9 @@ export interface TeammatePrintQuiz {
   stimuli?: unknown[];
   /** Items the owner's answer sheet prints beside the bubbles. */
   paperSheetStimuli?: unknown[];
+  /** Carried so the picker can refuse written questions in a choose-N section. */
+  sections?: unknown[];
+  order?: unknown[];
   language?: string;
 }
 
@@ -353,6 +358,8 @@ function quizFromContent(
     ...(Array.isArray(raw.paperSheetStimuli)
       ? { paperSheetStimuli: raw.paperSheetStimuli }
       : {}),
+    ...(Array.isArray(raw.sections) ? { sections: raw.sections } : {}),
+    ...(Array.isArray(raw.order) ? { order: raw.order } : {}),
     ...(typeof raw.language === 'string' ? { language: raw.language } : {}),
   };
 }
