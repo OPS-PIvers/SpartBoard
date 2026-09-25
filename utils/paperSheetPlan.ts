@@ -8,7 +8,9 @@
 import type {
   ClassRoster,
   PaperBatch,
+  PaperBoxSize,
   PaperColumns,
+  PaperPageMap,
   PaperSeatAssignment,
   QuizData,
   QuizQuestion,
@@ -22,6 +24,9 @@ import {
   pageCountForQuestions,
 } from './paperSheetLayout';
 import { MAX_SEAT } from './paperSheetMarker';
+import type { PaperSheetEntry } from './paperPageMap';
+import { defaultPaperBoxSize } from './paperWritten';
+import { effectiveChooseCount, sessionSectionsFor } from './quizSections';
 
 /** Small deterministic PRNG so a batch always shuffles the same way. */
 function seededRandom(seed: string): () => number {
@@ -98,7 +103,11 @@ export interface PaperQuestionPlan {
   sourceLabel?: string;
 }
 
-export type PaperExclusionReason = 'question-type' | 'bank-slot';
+export type PaperExclusionReason =
+  | 'question-type'
+  | 'bank-slot'
+  | 'recording'
+  | 'choose-section';
 
 /** A question the teacher authored that cannot be answered on paper (plan Q5). */
 export interface PaperExclusion {
@@ -113,6 +122,31 @@ export interface PaperQuizAnalysis {
   sheetChoiceCount: number;
   /** Rows printing more bubbles than their question has, named at print time. */
   shortRows: number[];
+  /** Free-response questions printed as handwritten boxes; empty unless `written` is on. */
+  written: PaperWrittenPlan[];
+  /** Written questions inside a choose-N section; printing is refused while any remain (D3). */
+  writtenRefusals: PaperExclusion[];
+  /** MC rows and written boxes in test order, numbered by quiz position (D11). */
+  entries: PaperSheetEntry[];
+}
+
+export interface PaperWrittenPlan {
+  questionId: string;
+  /** Printed number: the question's position in the quiz. */
+  label: string;
+  size: PaperBoxSize;
+}
+
+export interface AnalyzePaperQuizOptions {
+  /** Print free-response questions as handwritten boxes (`paper-handwritten-responses`). */
+  written?: boolean;
+}
+
+/** Nothing to print from the quiz itself, so the teacher builds a stub. */
+export function isPaperStubAnalysis(
+  analysis: Pick<PaperQuizAnalysis, 'rows' | 'written'>
+): boolean {
+  return analysis.rows.length === 0 && analysis.written.length === 0;
 }
 
 const clampChoices = (n: number): number =>
@@ -137,19 +171,51 @@ const TYPE_LABELS: Record<string, string> = {
  * Bank slots are excluded alongside the non-MC types: a slot draws a different
  * question per student, so one shared answer key could not grade the stack.
  */
-export function analyzePaperQuiz(quiz: QuizData): PaperQuizAnalysis {
+export function analyzePaperQuiz(
+  quiz: QuizData,
+  options: AnalyzePaperQuizOptions = {}
+): PaperQuizAnalysis {
   const rows: PaperQuestionPlan[] = [];
   const exclusions: PaperExclusion[] = [];
+  const written: PaperWrittenPlan[] = [];
+  const writtenRefusals: PaperExclusion[] = [];
+  const entries: PaperSheetEntry[] = [];
+  const questions = quiz.questions ?? [];
+  const chooseSectionIds = new Set(
+    options.written
+      ? sessionSectionsFor({ ...quiz, questions })
+          .filter((s) => effectiveChooseCount(s) !== undefined)
+          .flatMap((s) => s.questionIds)
+      : []
+  );
+  const describe = (question: QuizQuestion): string =>
+    `${TYPE_LABELS[question.type] ?? question.type}: ${
+      question.text || 'Untitled question'
+    }`;
 
-  for (const question of quiz.questions ?? []) {
+  questions.forEach((question, index) => {
+    const label = String(index + 1);
+    if (options.written && question.type === 'free-response') {
+      if (question.recording) {
+        exclusions.push({ reason: 'recording', label: describe(question) });
+        return;
+      }
+      if (chooseSectionIds.has(question.id)) {
+        writtenRefusals.push({
+          reason: 'choose-section',
+          label: `${label}. ${question.text || 'Untitled question'}`,
+        });
+        return;
+      }
+      const size =
+        question.paperBoxSize ?? defaultPaperBoxSize(question.maxWords);
+      written.push({ questionId: question.id, label, size });
+      entries.push({ kind: 'written', questionId: question.id, label, size });
+      return;
+    }
     if (question.type !== 'MC') {
-      exclusions.push({
-        reason: 'question-type',
-        label: `${TYPE_LABELS[question.type] ?? question.type}: ${
-          question.text || 'Untitled question'
-        }`,
-      });
-      continue;
+      exclusions.push({ reason: 'question-type', label: describe(question) });
+      return;
     }
     rows.push({
       row: rows.length + 1,
@@ -157,7 +223,8 @@ export function analyzePaperQuiz(quiz: QuizData): PaperQuizAnalysis {
       choiceCount: questionChoiceCount(question),
       ...(question.sourceLabel ? { sourceLabel: question.sourceLabel } : {}),
     });
-  }
+    entries.push({ kind: 'mc', questionId: question.id, label });
+  });
 
   for (const slot of quiz.bankSlots ?? []) {
     const drawn =
@@ -181,6 +248,9 @@ export function analyzePaperQuiz(quiz: QuizData): PaperQuizAnalysis {
     shortRows: rows
       .filter((r) => r.choiceCount < sheetChoiceCount)
       .map((r) => r.row),
+    written,
+    writtenRefusals,
+    entries,
   };
 }
 
@@ -223,6 +293,8 @@ export interface PaperBatchInput {
   columnsPerPage?: PaperColumns;
   /** Print each row's question text beside its bubbles; overrides `columnsPerPage`. */
   sheetLayout?: 'questions';
+  /** From `planPaperPages`; stamps the batch layoutVersion 2 so every reader uses the maps. */
+  pageMaps?: PaperPageMap[];
   createdAt: number;
 }
 
@@ -317,10 +389,15 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
     spareSeats,
     ...(keySheetSeat !== undefined ? { keySheetSeat } : {}),
     ...(Object.keys(choiceOrder).length > 0 ? { choiceOrder } : {}),
-    pagesPerSheet: pageCountForQuestions(
-      input.questionCount,
-      input.sheetLayout ?? columnsPerPage
-    ),
+    pagesPerSheet: input.pageMaps
+      ? input.pageMaps.length
+      : pageCountForQuestions(
+          input.questionCount,
+          input.sheetLayout ?? columnsPerPage
+        ),
+    ...(input.pageMaps
+      ? { layoutVersion: 2 as const, pageMaps: input.pageMaps }
+      : {}),
     ...(input.sheetLayout ? { sheetLayout: input.sheetLayout } : {}),
     // Written only when it is not the default, so a batch printed without sheet
     // stimuli is the same document it was before this field existed.

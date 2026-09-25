@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { ClassRoster, QuizData, QuizQuestion, Student } from '@/types';
 import { MAX_SEAT } from './paperSheetMarker';
+import { planPaperPages } from './paperPageMap';
 import {
   analyzePaperQuiz,
   buildPaperStubQuiz,
+  isPaperStubAnalysis,
   planPaperBatch,
   paperChoiceOrder,
 } from './paperSheetPlan';
@@ -41,6 +43,162 @@ const roster = (id: string, name: string): ClassRoster => ({
   studentCount: 0,
   createdAt: 0,
   students: [],
+});
+
+const fr = (over: Partial<QuizQuestion> = {}): QuizQuestion => ({
+  id: 'w1',
+  timeLimit: 0,
+  text: 'Explain why.',
+  type: 'free-response',
+  correctAnswer: '',
+  incorrectAnswers: [],
+  ...over,
+});
+
+describe('analyzePaperQuiz written list', () => {
+  const mixed = quiz({
+    questions: [
+      mc({ id: 'a' }),
+      fr({ id: 'w', paperBoxSize: 'L' }),
+      mc({ id: 'b' }),
+      fr({ id: 'x', maxWords: 25 }),
+      fr({ id: 'y' }),
+    ],
+  });
+
+  it('leaves free response excluded when written boxes are off', () => {
+    const result = analyzePaperQuiz(mixed);
+    expect(result.written).toEqual([]);
+    expect(result.exclusions.map((e) => e.reason)).toEqual([
+      'question-type',
+      'question-type',
+      'question-type',
+    ]);
+    expect(result.entries.map((e) => e.kind)).toEqual(['mc', 'mc']);
+  });
+
+  it('lists free response as written boxes, numbered by quiz position, never as rows', () => {
+    const result = analyzePaperQuiz(mixed, { written: true });
+    expect(result.rows.map((r) => [r.row, r.questionId])).toEqual([
+      [1, 'a'],
+      [2, 'b'],
+    ]);
+    expect(result.written).toEqual([
+      { questionId: 'w', label: '2', size: 'L' },
+      { questionId: 'x', label: '4', size: 'S' },
+      { questionId: 'y', label: '5', size: 'M' },
+    ]);
+    expect(result.exclusions).toEqual([]);
+    expect(result.entries.map((e) => [e.kind, e.label])).toEqual([
+      ['mc', '1'],
+      ['written', '2'],
+      ['mc', '3'],
+      ['written', '4'],
+      ['written', '5'],
+    ]);
+  });
+
+  it('excludes free response that requires a recording', () => {
+    const result = analyzePaperQuiz(
+      quiz({
+        questions: [
+          fr({
+            id: 'r',
+            recording: {
+              prepSeconds: 0,
+              limitSeconds: 60,
+              prepExpiry: 'armed',
+              takeLimit: null,
+            },
+          }),
+        ],
+      }),
+      { written: true }
+    );
+    expect(result.written).toEqual([]);
+    expect(result.exclusions.map((e) => e.reason)).toEqual(['recording']);
+  });
+
+  it('refuses written questions inside a choose-N section', () => {
+    const result = analyzePaperQuiz(
+      quiz({
+        questions: [mc({ id: 'a' }), fr({ id: 'w' }), fr({ id: 'v' })],
+        sections: [{ id: 's', title: 'Part B', chooseCount: 1 }],
+        order: [
+          { kind: 'question', id: 'a' },
+          { kind: 'section', id: 's' },
+          { kind: 'question', id: 'w' },
+          { kind: 'question', id: 'v' },
+        ],
+      }),
+      { written: true }
+    );
+    expect(result.written).toEqual([]);
+    expect(result.writtenRefusals.map((e) => [e.reason, e.label])).toEqual([
+      ['choose-section', '2. Explain why.'],
+      ['choose-section', '3. Explain why.'],
+    ]);
+  });
+
+  it('keeps written questions in a section students answer in full', () => {
+    const result = analyzePaperQuiz(
+      quiz({
+        questions: [fr({ id: 'w' })],
+        sections: [{ id: 's', title: 'Part B' }],
+        order: [
+          { kind: 'section', id: 's' },
+          { kind: 'question', id: 'w' },
+        ],
+      }),
+      { written: true }
+    );
+    expect(result.writtenRefusals).toEqual([]);
+    expect(result.written).toHaveLength(1);
+  });
+
+  it('does not treat a written-only quiz as a stub', () => {
+    const only = quiz({ questions: [fr()] });
+    expect(isPaperStubAnalysis(analyzePaperQuiz(only))).toBe(true);
+    expect(isPaperStubAnalysis(analyzePaperQuiz(only, { written: true }))).toBe(
+      false
+    );
+  });
+
+  it('stamps layoutVersion 2 and the page count when a batch carries page maps', () => {
+    const analysis = analyzePaperQuiz(mixed, { written: true });
+    const planned = planPaperPages({
+      entries: analysis.entries,
+      grid: 2,
+      stems: true,
+    });
+    if (!planned.ok) throw new Error('refused');
+    const { batch } = planPaperBatch({
+      batchId: 'b',
+      quizId: 'quiz-1',
+      selections: [],
+      questionCount: analysis.rows.length,
+      choiceCount: analysis.sheetChoiceCount,
+      spareCount: 1,
+      includeKeySheet: false,
+      pageMaps: planned.pageMaps,
+      createdAt: 0,
+    });
+    expect(batch.layoutVersion).toBe(2);
+    expect(batch.pageMaps).toBe(planned.pageMaps);
+    expect(batch.pagesPerSheet).toBe(planned.pageMaps.length);
+    const { batch: plain } = planPaperBatch({
+      batchId: 'b',
+      quizId: 'quiz-1',
+      selections: [],
+      questionCount: 2,
+      choiceCount: 3,
+      spareCount: 1,
+      includeKeySheet: false,
+      createdAt: 0,
+    });
+    expect(plain).not.toHaveProperty('layoutVersion');
+    expect(plain).not.toHaveProperty('pageMaps');
+  });
 });
 
 describe('analyzePaperQuiz', () => {
