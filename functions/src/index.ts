@@ -65,6 +65,12 @@ export {
   sweepPaperTranscriptionJobs,
   sweepPaperWrittenCrops,
 } from './paperTranscriptionSweep';
+export {
+  getPaperWrittenCropV1,
+  updatePaperTranscriptV1,
+  applyPaperNewerScanV1,
+  transcribePaperBlankV1,
+} from './paperWrittenCallables';
 
 // ── Quiz read-aloud (Cloud Text-to-Speech; docs/plans/QUIZ_READ_ALOUD.md) ──
 export { prepareQuizReadAloudV1, synthesizeQuizAudioV1 } from './quizReadAloud';
