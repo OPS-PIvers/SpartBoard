@@ -525,9 +525,6 @@ export const MaterialsCatalogField: React.FC<{
               {translate(ctx, 'materialCap', { count: MAX_TEACHER_MATERIALS })}
             </p>
           )}
-          <p className="text-xxs italic leading-tight text-slate-400">
-            {translate(ctx, 'selectionTip')}
-          </p>
         </>
       )}
     </div>

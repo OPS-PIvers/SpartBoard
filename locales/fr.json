@@ -1408,7 +1408,7 @@
     "onboarding": {
       "title": "Bien démarrer",
       "allDone": "Tout est prêt !",
-      "footer": "Vous êtes prêt — fermez ce widget à tout moment !",
+      "footer": "Vous pouvez fermer ce widget.",
       "tasks": {
         "addWidget": {
           "label": "Ajouter un widget depuis le Dock",

@@ -35,9 +35,6 @@ export const PdfCurrentDocumentField: React.FC<{
           {ctx.t('widgetSettings.pdf.switchDocument')}
         </button>
       )}
-      <p className="text-xs font-bold text-slate-400">
-        {ctx.t('widgetSettings.pdf.storageNote')}
-      </p>
     </div>
   );
 };

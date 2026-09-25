@@ -47,9 +47,7 @@ const EmbedContentControlImpl: React.FC<Props> = ({
   const html = (config.html as EmbedConfig['html']) ?? '';
 
   const urlInputId = `${id}-url`;
-  const urlHelpId = `${id}-url-help`;
   const htmlInputId = `${id}-html`;
-  const htmlHelpId = `${id}-html-help`;
 
   return (
     <div
@@ -109,13 +107,9 @@ const EmbedContentControlImpl: React.FC<Props> = ({
               type="text"
               value={url}
               placeholder="https://example.com..."
-              aria-describedby={urlHelpId}
               onChange={(e) => updateConfig({ url: e.target.value })}
               className="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <p id={urlHelpId} className="text-xxs text-slate-600">
-              {label('urlHelp')}
-            </p>
           </div>
           <EmbedVerifyControl
             config={config}
@@ -142,13 +136,9 @@ const EmbedContentControlImpl: React.FC<Props> = ({
             }
             rows={8}
             spellCheck={false}
-            aria-describedby={htmlHelpId}
             onChange={(e) => updateConfig({ html: e.target.value })}
             className={`${TEXTAREA_BASE_CLASS} ${TEXTAREA_CODE_CLASS}`}
           />
-          <p id={htmlHelpId} className="text-xxs text-slate-600">
-            {label('htmlHelp')}
-          </p>
         </div>
       )}
     </div>

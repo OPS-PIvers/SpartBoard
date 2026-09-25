@@ -478,8 +478,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         {/* Add-at-playhead button */}
         <div className="flex items-center justify-between gap-3">
           <p className="text-xxs text-slate-500">
-            Click the timeline to seek. Click a green marker to select it, or
-            drag the marker to retime its question.
+            Drag a marker to move its question.
           </p>
           <button
             type="button"

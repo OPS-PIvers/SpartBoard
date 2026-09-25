@@ -1229,7 +1229,7 @@
       "destinationUrl": "Destination URL",
       "linkRepeater": "Link repeater",
       "syncWithTextWidget": "Sync with Text widget",
-      "syncHelp": "Automatically update the QR code from the first Text widget on the board.",
+      "syncHelp": "Uses the first Text widget on the board.",
       "noTextWidget": "No Text Widget found. Add one to the board to start syncing.",
       "showUrl": "Show URL",
       "showUrlHelp": "Display the destination link beneath the QR code."
@@ -1250,7 +1250,6 @@
       "scoresReset": "All scores reset to 0",
       "addRandomizerFirst": "Add a Randomizer widget first",
       "importGroups": "Import Groups",
-      "importTip": "Tip: Add a Randomizer widget and create groups to import them here.",
       "teamsCount": "Teams ({{count}})",
       "confirmReset": "Sure?",
       "yes": "Yes",
@@ -1329,7 +1328,6 @@
       "hideMaterial": "Hide {{label}}",
       "showMaterial": "Show {{label}}",
       "materialCap": "You can create up to {{count}} custom materials.",
-      "selectionTip": "Select materials here, then activate them from the widget face.",
       "deleteMaterialQuestion": "Delete “{{label}}”?",
       "deleteMaterialTitle": "Delete material",
       "delete": "Delete",
@@ -1413,9 +1411,8 @@
     },
     "pdf": {
       "currentDocument": "Current document",
-      "none": "None — library is shown",
-      "switchDocument": "Switch to another PDF",
-      "storageNote": "PDFs are stored in your cloud library and persist across sessions."
+      "none": "None",
+      "switchDocument": "Switch to another PDF"
     },
     "quiz": {
       "management": "Quiz management",
@@ -1529,8 +1526,7 @@
       "personalSpotify": "Personal Spotify",
       "connections": "Connections",
       "syncWithTimeTool": "Sync with Time Tool",
-      "syncHelp": "Music will automatically play and pause with your active Time Tool.",
-      "syncSpotifyHelp": "Auto-sync is only available for YouTube stations because Spotify does not expose the same browser controls.",
+      "syncSpotifyHelp": "Not available for Spotify.",
       "addTimeToolHelp": "Add a Time Tool widget to play and pause music automatically.",
       "background": "Background",
       "textColor": "Text color",
@@ -1611,23 +1607,20 @@
       "stopToChangeOptions": "Stop voting to change options",
       "selectClass": "Select a class in the Classes widget",
       "importNamedClass": "Import {{name}}",
-      "importTip": "Tip: Select a class in the Classes widget to import student names.",
-      "studentPrivacy": "Imported student names are visible to anyone holding the join code while voting is open.",
+      "studentPrivacy": "Anyone with the join code can see imported names.",
       "questionAdded": "Question added.",
       "aiPlaceholder": "e.g. Photosynthesis, Civil War, 3rd Grade Math...",
-      "aiHelp": "Adds one new question to the end of this poll.",
       "stopToEdit": "Stop voting to add, remove, or edit questions.",
       "editQuestion": "Edit question {{count}}",
       "editQuestionShowing": "Edit question {{count}} (showing on the board)",
       "questionNumber": "Question {{count}}",
       "addQuestion": "Add question",
       "questionLimit": "A poll can hold up to {{count}} questions",
-      "showingMarkerHelp": "The green dot marks the question showing on the board.",
       "questionPlaceholder": "Enter your question...",
       "removeOption": "Remove Option",
       "addOption": "Add Option",
       "actions": "Actions",
-      "liveVotingHelp": "Let students vote from their own devices. The board shows live results and a join code while voting is open.",
+      "liveVotingHelp": "Students vote from their own devices.",
       "votingOpen": "Voting open",
       "notStarted": "Not started",
       "copied": "Copied",
@@ -1774,8 +1767,6 @@
       "content": "Content",
       "contentPlaceholderText": "Enter a sentence...",
       "contentPlaceholderMath": "Enter an equation (e.g. 2x + 3 = 7)",
-      "contentHelpText": "Words are automatically converted to draggable blocks.",
-      "contentHelpMath": "Numbers and math operators are separated into blocks.",
       "mode": "Mode",
       "text": "Text",
       "math": "Math",
@@ -1790,7 +1781,7 @@
       "light": "Light",
       "dark": "Dark",
       "glass": "Glass",
-      "clickToAddPin": "Click on the image to add a new pin.",
+      "clickToAddPin": "Click the image to add a pin.",
       "baseImageAlt": "Hotspot base image",
       "uploadImage": "Upload image",
       "replaceImage": "Replace image",
@@ -1822,9 +1813,8 @@
     },
     "concept-web": {
       "canvasActions": "Canvas actions",
-      "defaultNodeWidth": "Default node width",
-      "defaultNodeHeight": "Default node height",
-      "dimensionsHelp": "These dimensions apply to new nodes. You can still resize nodes individually!",
+      "defaultNodeWidth": "New node width",
+      "defaultNodeHeight": "New node height",
       "previewLabel": "Node size preview",
       "previewText": "Idea...",
       "clearAll": "Clear all nodes and edges"
@@ -1832,13 +1822,13 @@
     "starter-pack": {
       "packName": "Pack name",
       "packNamePlaceholder": "e.g. Reading Time",
-      "description": "Captures all open widgets — their types, positions, and sizes — as a reusable starter pack. The background is not included.",
+      "description": "Saves the open widgets and their layout, but not the background.",
       "capturedWorkspace": "Captured workspace",
       "saving": "Saving…",
       "savePersonal": "Save to My Collection",
-      "savePersonalHint": "Private — only visible to you",
+      "savePersonalHint": "Only you",
       "saveGlobal": "Save globally",
-      "saveGlobalHint": "Building-wide — visible to all teachers",
+      "saveGlobalHint": "All teachers in your building",
       "savedPersonal": "Saved to your personal collection!",
       "savedGlobal": "Saved to building-wide starter packs!"
     },
@@ -1894,7 +1884,6 @@
     },
     "blooms-taxonomy": {
       "contentCategories": "Content categories",
-      "contentCategoriesHelp": "Choose which categories appear when you click a level.",
       "questionStems": "Question stems",
       "actionVerbs": "Action verbs",
       "activityTypes": "Activity types",
@@ -1930,7 +1919,6 @@
       "stationList": "Stations",
       "addStation": "Add station",
       "noStations": "No stations yet.",
-      "addStationHint": "Add a station to get started.",
       "classGroups": "Class groups",
       "noGroups": "Save a group for this class in My Classes to use it here.",
       "keepTogether": "Keep together when shuffling",
@@ -2159,8 +2147,7 @@
       }
     },
     "embed": {
-      "flaggedNotice": "This site is currently flagged as non-embeddable. A \"New Tab\" button will be shown to users instead.",
-      "htmlHelp": "You can paste a full single-file mini-app here. Scripts are allowed but run in a secure sandbox.",
+      "flaggedNotice": "This site can't be embedded, so it opens in a new tab.",
       "htmlLabel": "HTML / CSS / JS",
       "modeCodeOption": "Custom Code",
       "modeLabel": "Embed Type",
@@ -2173,15 +2160,13 @@
       "refresh5Min": "Every 5 Minutes",
       "refreshDisabled": "Disabled",
       "refreshIntervalLabel": "Auto-Refresh",
-      "urlHelp": "Pro-tip: Links from YouTube, Google Docs, Slides, and Sheets are automatically formatted.",
       "urlLabel": "Target URL",
       "verifyBlockedFallback": "Embedding is blocked by this site.",
-      "verifyBlockedFallbackNote": "Fallback mode will be used.",
+      "verifyBlockedFallbackNote": "It will open in a new tab.",
       "verifyBlockedTitle": "Embedding Blocked",
       "verifyButton": "Verify",
       "verifyErrorGeneric": "Could not verify link compatibility.",
-      "verifySuccess": "Compatible with embedding!",
-      "verifyTip": "Some websites prevent embedding for security. Use the Verify button above to check compatibility."
+      "verifySuccess": "Compatible with embedding!"
     },
     "time-tool": {
       "mode": "Mode",
@@ -2280,7 +2265,7 @@
     },
     "expectations": {
       "soundSync": "Sound meter sync",
-      "soundSyncHelp": "Adjust Sound Meter sensitivity from the selected voice level.",
+      "soundSyncHelp": "Match the Sound Meter to the voice level.",
       "autoAdjustSoundMeter": "Auto-adjust Sound Meter"
     },
     "random": {
@@ -2718,7 +2703,7 @@
     "onboarding": {
       "title": "Getting Started",
       "allDone": "All done!",
-      "footer": "You're all set — close this widget anytime!",
+      "footer": "You can close this widget now.",
       "tasks": {
         "addWidget": {
           "label": "Add a widget from the Dock",

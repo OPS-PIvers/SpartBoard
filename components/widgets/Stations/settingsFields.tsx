@@ -274,9 +274,6 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
             <p className="text-sm font-bold text-slate-500">
               {translate(ctx, 'noStations')}
             </p>
-            <p className="mt-1 text-xs text-slate-400">
-              {translate(ctx, 'addStationHint')}
-            </p>
           </div>
         ) : (
           <div className="space-y-2">
