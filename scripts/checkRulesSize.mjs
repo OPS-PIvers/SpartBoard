@@ -28,7 +28,10 @@
  * `validate` and ahead of `test:rules`.
  */
 
-import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stripRulesComments } from './stripRulesComments.mjs';
 
@@ -44,17 +47,47 @@ const WARN_RATIO = 0.9;
  * behind a 409, so the deploy log reads like a harmless race while nothing
  * ships.
  *
- * Compiled size cannot be measured without releasing, so this is an empirical
- * proxy measured on 2026-09-21, when it stopped every deploy for ten hours:
- * 182349 stripped bytes released (3dd8514a); 182493 was refused (56d0070b).
- * Anything at or above the smaller number is assumed to be over.
+ * The Firestore emulator jar carries Firebase's own rules compiler, and
+ * scripts/rulesAst/RulesAst.java measures its AST with source positions
+ * removed. That number matches the 2026-09-21 outage: 249350 released
+ * (081f914), 249568 was refused (56d0070), and every other commit that month
+ * sorts the same way. Comments and whitespace add nothing to it; expression
+ * nodes and identifier lengths are what count.
  */
-const COMPILED_CLIFF_BYTES = 182349;
-const COMPILED_WARN_RATIO = 0.98;
+const COMPILED_CLIFF = 249350;
+const COMPILED_WARN_RATIO = 0.96;
 
 const RULES_PATH = fileURLToPath(
   new URL('../firestore.rules', import.meta.url)
 );
+
+function findEmulatorJar() {
+  const fromEnv = process.env.FIRESTORE_EMULATOR_JAR;
+  if (fromEnv) return existsSync(fromEnv) ? fromEnv : null;
+  const dir = path.join(homedir(), '.cache', 'firebase', 'emulators');
+  if (!existsSync(dir)) return null;
+  const jars = readdirSync(dir)
+    .filter((f) => /^cloud-firestore-emulator-v[\d.]+\.jar$/.test(f))
+    .sort((x, y) => x.localeCompare(y, undefined, { numeric: true }));
+  return jars.length ? path.join(dir, jars[jars.length - 1]) : null;
+}
+
+function measureCompiled() {
+  const jar = findEmulatorJar();
+  if (!jar) return null;
+  const tool = fileURLToPath(new URL('./rulesAst/RulesAst.java', import.meta.url));
+  try {
+    const out = execFileSync('java', ['-cp', jar, tool, 'size', RULES_PATH], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return Number(out.trim().split('\n').pop());
+  } catch (err) {
+    if (err.code === 'ENOENT') return null;
+    console.error(`\nfirestore.rules failed to compile:\n${err.stderr ?? err}\n`);
+    process.exit(1);
+  }
+}
 
 const source = readFileSync(RULES_PATH, 'utf8');
 const sourceBytes = Buffer.byteLength(source, 'utf8');
@@ -80,27 +113,42 @@ if (bytes > MAX_BYTES) {
   process.exit(1);
 }
 
-if (bytes >= COMPILED_CLIFF_BYTES) {
+const compiled = measureCompiled();
+
+if (compiled === null) {
+  const why =
+    'compiled rules size not measured: needs `java` (JDK 21) and the ' +
+    'Firestore emulator jar (`pnpm exec firebase setup:emulators:firestore`).';
+  if (process.env.CI) {
+    console.error(`\n${why}\n`);
+    process.exit(1);
+  }
+  console.warn(`warning: ${why}`);
+} else if (compiled > COMPILED_CLIFF) {
   console.error(
-    `\nfirestore.rules is ${bytes} bytes stripped, at or past the ` +
-      `${COMPILED_CLIFF_BYTES}-byte mark where Firestore stops accepting the ` +
+    `\nfirestore.rules compiles to ${compiled} bytes, past the ` +
+      `${COMPILED_CLIFF}-byte mark where Firestore stops accepting the ` +
       `compiled ruleset.\n\n` +
       `The rules will compile and upload fine and then be refused at release ` +
       `with "400 Request contains an invalid argument", which firebase-tools ` +
       `reports as a 409. test:rules will still pass — the emulator does not ` +
       `enforce this.\n\n` +
-      `Compiled size tracks the number of expressions, not bytes, so condensing ` +
-      `comments will not help here: remove dead rules or factor repeated ` +
-      `conditions into functions (see the optString/optMap helpers).\n`
+      `Compiled size counts expression nodes, not bytes, so comments do not ` +
+      `matter: use the incoming()/existing()/unchanged()/isStr() shorthands ` +
+      `(node scripts/rulesAst/applyShorthands.mjs) or factor repeated ` +
+      `conditions into functions.\n`
   );
   process.exit(1);
-}
-
-if (bytes > COMPILED_CLIFF_BYTES * COMPILED_WARN_RATIO) {
+} else if (compiled > COMPILED_CLIFF * COMPILED_WARN_RATIO) {
   console.warn(
-    `warning: firestore.rules is ${bytes} bytes stripped, within ` +
-      `${COMPILED_CLIFF_BYTES - bytes} bytes of the compiled-ruleset limit that ` +
+    `warning: firestore.rules compiles to ${compiled} bytes, within ` +
+      `${COMPILED_CLIFF - compiled} bytes of the compiled-ruleset limit that ` +
       `blocks releases. Factor conditions into functions before adding rules.`
+  );
+} else {
+  console.log(
+    `firestore.rules compiles to ${compiled} bytes ` +
+      `(${COMPILED_CLIFF - compiled} under the ${COMPILED_CLIFF}-byte release limit)`
   );
 }
 
