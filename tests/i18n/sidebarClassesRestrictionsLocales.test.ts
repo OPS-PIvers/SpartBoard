@@ -20,7 +20,6 @@
  *   - sidebar.classes.restrictionsFilter     (RestrictionsPicker.tsx)
  *   - sidebar.classes.restrictionsEmptyRoster (RestrictionsPicker.tsx)
  *   - sidebar.classes.restrictionsNoMatches  (RestrictionsPicker.tsx)
- *   - sidebar.classes.restrictionsFooter     (RestrictionsPicker.tsx)
  *
  * This test loads each locale JSON directly (not via i18next) so it catches
  * key-presence issues before the i18next runtime silently swallows them with
@@ -45,7 +44,6 @@ const REQUIRED_RESTRICTIONS_KEYS = [
   'restrictionsFilter',
   'restrictionsEmptyRoster',
   'restrictionsNoMatches',
-  'restrictionsFooter',
 ] as const;
 
 type LocaleFile = typeof en;

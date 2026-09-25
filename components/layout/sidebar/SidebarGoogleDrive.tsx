@@ -81,7 +81,7 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
             <p className="text-xs text-slate-500 mt-2 leading-relaxed">
               {t('sidebar.settings.googleDriveDescription', {
                 appName: APP_NAME,
-                defaultValue: `Your boards and assets are automatically backed up to your "${APP_NAME}" folder in Drive.`,
+                defaultValue: `Your boards back up to your "${APP_NAME}" folder in Drive.`,
               })}
             </p>
           </div>
@@ -103,12 +103,7 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
                   <div>
                     <p className="text-xs font-bold text-emerald-800 uppercase tracking-wide">
                       {t('sidebar.settings.connectedSynced', {
-                        defaultValue: 'Connected & Synced',
-                      })}
-                    </p>
-                    <p className="text-xxs text-emerald-600 mt-0.5">
-                      {t('sidebar.settings.filesSyncAuto', {
-                        defaultValue: 'Files sync automatically',
+                        defaultValue: 'Connected',
                       })}
                     </p>
                   </div>
@@ -122,11 +117,6 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
                     <p className="text-xs font-bold text-amber-800 uppercase tracking-wide">
                       {t('sidebar.settings.disconnected', {
                         defaultValue: 'Not Connected',
-                      })}
-                    </p>
-                    <p className="text-xxs text-amber-600 mt-0.5">
-                      {t('sidebar.settings.connectForBackup', {
-                        defaultValue: 'Connect to enable cloud backup',
                       })}
                     </p>
                   </div>
@@ -168,50 +158,6 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
                   })}
                 </button>
               )}
-            </div>
-          </div>
-
-          {/* Info Section */}
-          <div className="space-y-3">
-            <h3 className="text-xxs font-bold text-slate-400 uppercase tracking-widest px-1">
-              {t('sidebar.settings.howItWorks', {
-                defaultValue: 'How it works',
-              })}
-            </h3>
-            <div className="space-y-2.5">
-              {[
-                {
-                  step: '1',
-                  text: t('sidebar.settings.driveStep1', {
-                    defaultValue:
-                      'Boards are saved as JSON files in your Drive',
-                  }),
-                },
-                {
-                  step: '2',
-                  text: t('sidebar.settings.driveStep2', {
-                    defaultValue:
-                      'Uploaded images and assets sync automatically',
-                  }),
-                },
-                {
-                  step: '3',
-                  text: t('sidebar.settings.driveStep3', {
-                    defaultValue: 'Access your boards from any device',
-                  }),
-                },
-              ].map((item) => (
-                <div key={item.step} className="flex items-start gap-3 px-1">
-                  <div className="w-5 h-5 rounded-full bg-brand-blue-lighter flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-xxxs font-black text-brand-blue-primary">
-                      {item.step}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    {item.text}
-                  </p>
-                </div>
-              ))}
             </div>
           </div>
         </div>

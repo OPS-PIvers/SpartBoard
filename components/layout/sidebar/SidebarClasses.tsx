@@ -458,12 +458,6 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                   {t('sidebar.classes.title', { defaultValue: 'My Classes' })}
                 </h2>
               </div>
-              <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-                {t('sidebar.classes.description', {
-                  defaultValue:
-                    'Manage your class rosters here. The active class is used by seating charts, random picker, polls, and more.',
-                })}
-              </p>
             </div>
 
             {/* Top CTAs */}
@@ -812,8 +806,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
           <div className="pb-2">
             <p className="text-sm text-slate-500 mb-4 leading-relaxed">
               {t('sidebar.classes.linkGoogleClassroom.description', {
-                defaultValue:
-                  'Choose the Google Classroom course to link with "{{name}}". Students launching from that course will be matched to this roster.',
+                defaultValue: 'Link a Classroom course to "{{name}}".',
                 name: linkingRoster.name,
               })}
             </p>

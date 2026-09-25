@@ -117,7 +117,6 @@
     },
     "classes": {
       "title": "Mis Clases",
-      "description": "Administra tus listas de clase aquí. La clase activa se usa en los planos de asientos, selección aleatoria, encuestas y más.",
       "newClass": "Nueva Clase",
       "importClassLink": "ClassLink",
       "myClasses": "Tus Clases",
@@ -169,9 +168,8 @@
       "pinPlaceholder": "01",
       "addStudent": "+ Agregar estudiante",
       "removeStudent": "Quitar estudiante",
-      "bulkPasteTip": "Consejo: pega varios nombres a la vez para añadirlos en bloque.",
       "emptyRosterTitle": "Aún no hay estudiantes",
-      "emptyRosterSubtitle": "Haz clic en + Agregar estudiante o pega una lista de nombres en una fila.",
+      "emptyRosterSubtitle": "Pega una lista de nombres para añadir varios a la vez.",
       "manageClasses": "Gestionar clases",
       "switchTo": "Cambiar a",
       "noClassSelected": "Sin clase seleccionada",
@@ -188,7 +186,6 @@
       "restrictionsFilter": "Buscar compañeros…",
       "restrictionsEmptyRoster": "Agrega más estudiantes para establecer restricciones.",
       "restrictionsNoMatches": "Sin coincidencias.",
-      "restrictionsFooter": "Las restricciones se aplican a ambos estudiantes automáticamente.",
       "editorTabsLabel": "Pestañas del editor de clase",
       "studentsTab": "Estudiantes",
       "groupsTab": "Grupos ({{count}})",
@@ -209,13 +206,12 @@
       "bellPeriod": "Período de clase",
       "bellPeriodNone": "Sin asignar",
       "accommodationsTab": "Adaptaciones ({{count}})",
-      "accommodationsHelp": "Se aplican automáticamente cada vez que asignes trabajo a este estudiante. Aún puedes cambiarlas para cada tarea.",
+      "accommodationsHelp": "Se aplican a cada nueva tarea.",
       "emptyAccommodationsTitle": "Todavía no hay estudiantes",
       "emptyAccommodationsSubtitle": "Agrega estudiantes primero y luego define sus adaptaciones permanentes."
     },
     "plcs": {
       "title": "Mis Comunidades",
-      "description": "Las Comunidades de Aprendizaje Profesional te permiten a ti y a tus colegas colaborar en las mismas tareas y ver resultados combinados.",
       "newPlc": "Nueva Comunidad",
       "newPlcTitle": "Nueva Comunidad",
       "createNewPlc": "Crear Nueva Comunidad",
@@ -242,7 +238,7 @@
       "inviteLabel": "Invitar por Correo",
       "invitePlaceholder": "colega@escuela.edu",
       "sendInvite": "Invitar",
-      "inviteHelp": "Tu colega verá la invitación en su barra lateral de Comunidades la próxima vez que inicie sesión.",
+      "inviteHelp": "Verán la invitación en su barra lateral de Comunidades.",
       "outstandingLabel": "Invitaciones Pendientes",
       "revokeInvite": "Revocar Invitación",
       "invites": "Invitaciones",
@@ -279,17 +275,15 @@
     "settings": {
       "googleDriveIntegration": "Integración Google Drive",
       "remoteControl": "Control Remoto",
-      "googleDriveDescription": "Tus tableros y recursos se guardan automáticamente en tu carpeta \"{{appName}}\" en Drive.",
-      "connectedSynced": "Conectado y Sincronizado",
+      "googleDriveDescription": "Tus tableros se guardan en tu carpeta \"{{appName}}\" en Drive.",
+      "connectedSynced": "Conectado",
       "disconnected": "Desconectado",
       "connect": "Conectar",
       "disconnect": "Desconectar",
       "myBuildings": "Mi(s) Edificio(s)",
-      "myBuildingsDescription": "Selecciona el o los edificios donde trabajas. Los widgets como Rutinas de Instrucción mostrarán automáticamente contenido para tu nivel de grado. Selecciona varios si trabajas en distintos edificios.",
-      "noBuildingSelected": "Sin edificio seleccionado — los widgets mostrarán todo el contenido disponible.",
+      "noBuildingSelected": "Se muestra contenido de todos los edificios.",
       "interfacePreferences": "Preferencias de Interfaz",
       "disableCloseWarning": "Desactivar Aviso de Cierre",
-      "skipConfirmation": "Omitir la confirmación al cerrar widgets.",
       "quickAccessWidgets": "Widgets de Acceso Rápido",
       "quickAccessDescription": "Selecciona hasta 2 widgets para que aparezcan cuando el dock esté minimizado.",
       "dockPosition": "Posición del Dock",
@@ -1241,7 +1235,7 @@
     "screenshotFailed": "Error al guardar la captura",
     "takeScreenshot": "Tomar Captura",
     "takeScreenshotLongPress": "Tomar captura (mantener presionado)",
-    "screenshotGestureProTip": "Consejo: ¡Mantén presionado un widget para tomar una captura de pantalla!",
+    "screenshotGestureProTip": "Mantén presionado un widget para hacer una captura.",
     "annotate": "Anotar",
     "duplicate": "Duplicar",
     "moreActions": "Más acciones",
@@ -1257,7 +1251,7 @@
     "pin": "Fijar posición",
     "unpin": "Soltar posición",
     "pinnedIndicator": "Widget fijado",
-    "pinnedTooltip": "Fijado: abre la barra de herramientas del widget y haz clic en el alfiler para soltar",
+    "pinnedTooltip": "Este widget está fijado. Suéltalo desde la barra de herramientas.",
     "snapLayout": "Ajustar Diseño",
     "chooseLayout": "Elegir Diseño",
     "snapTo": "Ajustar a",
@@ -1326,7 +1320,6 @@
     "noGoogleDrive": "Sin Google Drive conectado. Descargando localmente...",
     "viewLiveSession": "Ver información de la sesión en vivo",
     "liveSession": "Sesión en vivo",
-    "provideCode": "Proporciona este código a tus alumnos.",
     "noAppsSelected": "Restaurando valores predeterminados…"
   },
   "languages": {
@@ -1380,7 +1373,7 @@
         "summary": "{{present}} presentes · {{absent}} ausentes",
         "buttonLabel": "Marcar estudiantes ausentes",
         "clearAll": "Limpiar todo (todos presentes)",
-        "footer": "Las ausencias se aplican a todos los widgets que usan esta clase. Se restablecen automáticamente mañana.",
+        "footer": "Las ausencias se borran mañana.",
         "emptyRoster": "Esta clase aún no tiene estudiantes.",
         "unnamedStudent": "Estudiante sin nombre",
         "ariaLabel": "Abrir asistencia — {{count}} marcados ausentes hoy"
@@ -1575,8 +1568,7 @@
       }
     },
     "dashboard": {
-      "emptyBoardHint": "Arrastra herramientas desde el Dock para empezar",
-      "switchBoardsHint": "Usa los controles de navegación en la parte inferior izquierda para cambiar de tablero"
+      "emptyBoardHint": "Arrastra herramientas desde el Dock para empezar"
     },
     "seatingChart": {
       "emptyStateAssignTitle": "Aula vacía",
@@ -1676,9 +1668,9 @@
     "subtitle": "Compartiendo {{count}} tablero(s) de esta colección.",
     "mode": "Modo de compartición",
     "copyMode": "Copiar",
-    "copyModeHint": "El destinatario importa una copia completa a su cuenta.",
+    "copyModeHint": "Reciben su propia copia para editar.",
     "substituteMode": "Sustituto (solo lectura)",
-    "substituteModeHint": "Un profesor sustituto ve la colección en /subs durante el período que elijas.",
+    "substituteModeHint": "Aparece en el Portal de sustitutos durante el tiempo que elijas.",
     "expiresIn": "Expira en",
     "building": "Edificio",
     "buildingRequired": "Selecciona un edificio antes de compartir con un sustituto.",
@@ -1697,7 +1689,7 @@
     "notFound": "Colección compartida no encontrada o expirada",
     "empty": "La Colección compartida está vacía",
     "invalidShareUrl": "Enlace de compartición inválido — falta el ID de recurso compartido.",
-    "substituteImportRejected": "Los recursos compartidos para sustitutos son de solo lectura. Abre este enlace en /subs para verlo."
+    "substituteImportRejected": "Este enlace es para sustitutos. Ábrelo en el Portal de sustitutos."
   },
   "importSharedCollection": {
     "title": "Importar Colección compartida",
@@ -1707,7 +1699,7 @@
     "boardCount": "{{count}} tablero(s)",
     "importing": "Importando…",
     "import": "Importar Colección",
-    "substituteOnly": "Este es un recurso compartido para sustitutos (solo lectura). Ábrelo en /subs."
+    "substituteOnly": "Este enlace es para sustitutos. Ábrelo en el Portal de sustitutos."
   },
   "subCollections": {
     "loading": "Cargando Colecciones compartidas…",
@@ -2001,13 +1993,13 @@
     "showMore": "Mostrar {{count}} más",
     "showFewer": "Mostrar menos",
     "noClassStudents": "Marca una clase arriba para adaptar a estudiantes concretos.",
-    "skipNotice": "Los estudiantes omitidos no verán esta asignación. El resto de estas clases la sigue recibiendo.",
+    "skipNotice": "Los estudiantes omitidos no verán esta asignación.",
     "sectionLabel": "Estudiantes individuales y adaptaciones",
     "chooseStudents": "Elegir estudiantes",
     "editStudents": "Editar estudiantes",
     "selectedCount": "{{count}} seleccionados",
     "revertToClass": "Asignar a toda la clase",
-    "noStudentsYet": "Aún no se han elegido estudiantes — toda la clase permanece sin segmentar.",
+    "noStudentsYet": "No se han elegido estudiantes.",
     "unknownStudent": "Estudiante desconocido",
     "remove": "Quitar",
     "removeStudent": "Quitar a {{name}}",
@@ -2025,7 +2017,7 @@
     "skipStudentNamed": "Omitir a {{name}}",
     "summarySkipped": "{{count}} omitidos",
     "summaryModified": "{{count}} adaptados",
-    "noSignInCount": "{{count}} estudiantes de estas clases no tienen inicio de sesión escolar y no se pueden adaptar de forma individual.",
+    "noSignInCount": "{{count}} estudiantes no tienen inicio de sesión escolar y no se pueden adaptar de forma individual.",
     "noSignInStudents": "Nadie en las clases seleccionadas tiene inicio de sesión escolar, así que no hay a quién adaptar de forma individual.",
     "timingNotApplied": "Las sesiones dirigidas por el profesor no tienen temporizador por estudiante, así que el tiempo extra de {{names}} no se aplicará. Las demás adaptaciones sí se aplican.",
     "clearModifications": "Borrar todas las modificaciones",
@@ -2036,8 +2028,8 @@
     "periodModeLabel": "Cómo se abren los períodos",
     "periodModeAssessment": "Evaluación en clase",
     "periodModeAssignment": "Tarea",
-    "periodAssessmentHint": "Cada período permanece cerrado hasta que lo inicies desde el monitor. Se cierra con el timbre final.",
-    "periodUnverified": "Solo PIN, sin verificar: los estudiantes sin inicio de sesión escolar no pueden unirse a una evaluación en clase.",
+    "periodAssessmentHint": "Se abre cuando lo inicias y se cierra con el timbre final.",
+    "periodUnverified": "Los estudiantes sin inicio de sesión escolar no pueden unirse a evaluaciones en clase.",
     "periodCustomize": "Personalizar por período",
     "periodTagPrompt": "¿Qué período es {{name}}?",
     "periodTagPick": "Elige un período",
@@ -3095,11 +3087,9 @@
       "title": "Perfil",
       "description": "Dónde y qué enseñas. Los grados y las áreas de contenido filtran los estándares y los objetivos de aprendizaje para que solo veas lo que te corresponde.",
       "gradesTaught": "Grados que enseñas",
-      "gradesTaughtDescription": "Parte de tus edificios. Desmarca los grados que no enseñas para acotar estándares, objetivos de aprendizaje y widgets por grado.",
       "resetGrades": "Restablecer al valor del edificio",
-      "noGrades": "Sin grados seleccionados — los estándares y widgets muestran todos los grados.",
-      "subjectsTaught": "Áreas de contenido que enseñas",
-      "subjectsTaughtDescription": "Opcional. Elige las áreas de contenido que enseñas para abrir el selector de estándares en ellas. Déjalo vacío para ver todas las áreas."
+      "noGrades": "Se muestran todos los grados.",
+      "subjectsTaught": "Áreas de contenido que enseñas (opcional)"
     }
   },
   "quizHandRaise": {

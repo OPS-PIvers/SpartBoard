@@ -170,8 +170,7 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
         )}
         <p className="text-xs text-slate-400 italic shrink-0 text-center">
           {t('widgets.random.absent.footer', {
-            defaultValue:
-              'Absent marks apply to every widget using this class. Resets automatically tomorrow.',
+            defaultValue: 'Absent marks clear tomorrow.',
           })}
         </p>
       </div>

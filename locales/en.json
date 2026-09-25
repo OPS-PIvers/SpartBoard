@@ -117,7 +117,6 @@
     },
     "classes": {
       "title": "My Classes",
-      "description": "Manage your class rosters here. The active class is used by seating charts, random picker, polls, and more.",
       "newClass": "New Class",
       "importClassLink": "ClassLink",
       "myClasses": "Your Classes",
@@ -169,9 +168,8 @@
       "pinPlaceholder": "01",
       "addStudent": "+ Add Student",
       "removeStudent": "Remove student",
-      "bulkPasteTip": "Tip: paste multiple names at once to add in bulk.",
       "emptyRosterTitle": "No students yet",
-      "emptyRosterSubtitle": "Click + Add Student or paste a list of names into a row.",
+      "emptyRosterSubtitle": "Paste a list of names to add several at once.",
       "manageClasses": "Manage Classes",
       "switchTo": "Switch To",
       "noClassSelected": "No Class Selected",
@@ -188,7 +186,6 @@
       "restrictionsFilter": "Search classmates…",
       "restrictionsEmptyRoster": "Add more students to set restrictions.",
       "restrictionsNoMatches": "No matches.",
-      "restrictionsFooter": "Restrictions apply to both students automatically.",
       "editorTabsLabel": "Roster editor tabs",
       "studentsTab": "Students",
       "groupsTab": "Groups ({{count}})",
@@ -209,13 +206,12 @@
       "bellPeriod": "Bell period",
       "bellPeriodNone": "Not set",
       "accommodationsTab": "Accommodations ({{count}})",
-      "accommodationsHelp": "These apply automatically each time you assign work to this student. You can still change them per assignment.",
+      "accommodationsHelp": "These apply to every new assignment.",
       "emptyAccommodationsTitle": "No students yet",
       "emptyAccommodationsSubtitle": "Add students first, then set their standing accommodations."
     },
     "plcs": {
       "title": "My PLCs",
-      "description": "Professional Learning Communities let you and your colleagues collaborate on the same assignments and see combined results.",
       "newPlc": "New PLC",
       "newPlcTitle": "New PLC",
       "createNewPlc": "Create New PLC",
@@ -242,7 +238,7 @@
       "inviteLabel": "Invite by Email",
       "invitePlaceholder": "colleague@school.edu",
       "sendInvite": "Invite",
-      "inviteHelp": "Your colleague will see the invitation in their PLC sidebar the next time they sign in.",
+      "inviteHelp": "They'll see the invite in their PLC sidebar.",
       "outstandingLabel": "Pending Invitations",
       "revokeInvite": "Revoke Invitation",
       "invites": "Invites",
@@ -279,17 +275,15 @@
     "settings": {
       "googleDriveIntegration": "Google Drive Integration",
       "remoteControl": "Remote Control",
-      "googleDriveDescription": "Your boards and assets are automatically backed up to your \"{{appName}}\" folder in Drive.",
-      "connectedSynced": "Connected & Synced",
+      "googleDriveDescription": "Your boards back up to your \"{{appName}}\" folder in Drive.",
+      "connectedSynced": "Connected",
       "disconnected": "Disconnected",
       "connect": "Connect",
       "disconnect": "Disconnect",
       "myBuildings": "My Building(s)",
-      "myBuildingsDescription": "Select the building(s) you work in. Widgets like Instructional Routines will automatically show content for your grade level. Select multiple if you work across buildings.",
-      "noBuildingSelected": "No building selected — widgets will show all available content.",
+      "noBuildingSelected": "Showing content for all buildings.",
       "interfacePreferences": "Interface Preferences",
       "disableCloseWarning": "Disable Close Warning",
-      "skipConfirmation": "Skip the confirmation prompt when closing widgets.",
       "quickAccessWidgets": "Quick Access Widgets",
       "quickAccessDescription": "Select up to 2 widgets to appear when the dock is minimized.",
       "dockPosition": "Dock Position",
@@ -2114,8 +2108,8 @@
         "add": "Add {{name}} widget"
       },
       "defaults": {
-        "matches": "Matches your default for new {{name}} widgets.",
-        "differs": "Differs from your default for new {{name}} widgets.",
+        "matches": "Matches your default",
+        "differs": "Differs from your default",
         "save": "Save as my default",
         "reset": "Reset to my default"
       }
@@ -2400,7 +2394,7 @@
     "screenshotFailed": "Failed to save screenshot",
     "takeScreenshot": "Take Screenshot",
     "takeScreenshotLongPress": "Take Screenshot (long press)",
-    "screenshotGestureProTip": "Pro-tip: Long-press on a widget to take a screenshot!",
+    "screenshotGestureProTip": "Long-press a widget to screenshot it.",
     "annotate": "Annotate",
     "duplicate": "Duplicate",
     "moreActions": "More actions",
@@ -2416,7 +2410,7 @@
     "pin": "Pin Position",
     "unpin": "Unpin Position",
     "pinnedIndicator": "Widget pinned",
-    "pinnedTooltip": "Pinned — open the widget toolbar and click the pin to unpin",
+    "pinnedTooltip": "This widget is pinned. Unpin it from the toolbar.",
     "snapLayout": "Snap Layout",
     "chooseLayout": "Choose Layout",
     "snapTo": "Snap to",
@@ -2485,7 +2479,6 @@
     "noGoogleDrive": "No Google Drive connected. Downloading locally...",
     "viewLiveSession": "View live session information",
     "liveSession": "Live Session",
-    "provideCode": "Provide this code to your students.",
     "noAppsSelected": "Restoring defaults…"
   },
   "languages": {
@@ -2574,7 +2567,7 @@
         "clearAll": "Clear all (everyone present)",
         "emptyRoster": "This class has no students yet.",
         "unnamedStudent": "Unnamed student",
-        "footer": "Absent marks apply to every widget using this class. Resets automatically tomorrow."
+        "footer": "Absent marks clear tomorrow."
       },
       "everyoneAbsentTitle": "Everyone is marked absent",
       "everyoneAbsentSubtitle": "Update attendance to bring students back into the pool.",
@@ -2745,8 +2738,7 @@
       }
     },
     "dashboard": {
-      "emptyBoardHint": "Drag tools from the Dock below to start",
-      "switchBoardsHint": "Use the board navigation controls in the bottom-left to switch boards"
+      "emptyBoardHint": "Drag tools from the Dock below to start"
     }
   },
   "boardBreadcrumb": {
@@ -2835,9 +2827,9 @@
     "subtitle": "Sharing {{count}} board(s) from this Collection.",
     "mode": "Share Mode",
     "copyMode": "Copy",
-    "copyModeHint": "Recipient imports a full copy into their account.",
+    "copyModeHint": "They get their own copy to edit.",
     "substituteMode": "Substitute (view-only)",
-    "substituteModeHint": "A sub teacher sees the Collection in /subs for the window you choose.",
+    "substituteModeHint": "Shows in the Substitute Portal for the time you set.",
     "expiresIn": "Expires in",
     "building": "Building",
     "buildingRequired": "Select a building before sharing with a sub.",
@@ -2856,7 +2848,7 @@
     "notFound": "Shared Collection not found or expired",
     "empty": "Shared Collection is empty",
     "invalidShareUrl": "Invalid share link — missing share id.",
-    "substituteImportRejected": "Substitute shares are view-only. Open this link in /subs to view."
+    "substituteImportRejected": "This link is for substitutes. Open it in the Substitute Portal."
   },
   "importSharedCollection": {
     "title": "Import shared Collection",
@@ -2866,7 +2858,7 @@
     "boardCount": "{{count}} board(s)",
     "importing": "Importing…",
     "import": "Import Collection",
-    "substituteOnly": "This is a substitute (view-only) share. Open it in /subs."
+    "substituteOnly": "This link is for substitutes. Open it in the Substitute Portal."
   },
   "subCollections": {
     "loading": "Loading shared Collections…",
@@ -3160,13 +3152,13 @@
     "showMore": "Show {{count}} more",
     "showFewer": "Show fewer",
     "noClassStudents": "Check a class above to modify individual students.",
-    "skipNotice": "Skipped students will not see this assignment. Everyone else in these classes still receives it.",
+    "skipNotice": "Skipped students won’t see this assignment.",
     "sectionLabel": "Individual students & overrides",
     "chooseStudents": "Choose students",
     "editStudents": "Edit students",
     "selectedCount": "{{count}} selected",
     "revertToClass": "Assign to whole class",
-    "noStudentsYet": "No students chosen yet — everyone in the class stays untargeted.",
+    "noStudentsYet": "No students chosen.",
     "unknownStudent": "Unknown student",
     "remove": "Remove",
     "removeStudent": "Remove {{name}}",
@@ -3184,7 +3176,7 @@
     "skipStudentNamed": "Skip {{name}}",
     "summarySkipped": "{{count}} skipped",
     "summaryModified": "{{count}} modified",
-    "noSignInCount": "{{count}} students in these classes have no school sign-in and cannot be individually modified.",
+    "noSignInCount": "{{count}} students have no school sign-in and can’t be changed individually.",
     "noSignInStudents": "No one in the checked classes has a school sign-in, so there is nobody to modify individually.",
     "timingNotApplied": "Teacher-paced sessions have no per-student timer, so extended time for {{names}} will not apply. Other accommodations still apply.",
     "clearModifications": "Clear all modifications",
@@ -3195,8 +3187,8 @@
     "periodModeLabel": "How periods open",
     "periodModeAssessment": "In-class assessment",
     "periodModeAssignment": "Assignment",
-    "periodAssessmentHint": "Every period stays closed until you start it from the monitor. It closes at the end bell.",
-    "periodUnverified": "PIN only, not verified: students without a school sign-in can’t join an in-class assessment.",
+    "periodAssessmentHint": "Opens when you start it and closes at the end bell.",
+    "periodUnverified": "Students without a school sign-in can’t join in-class assessments.",
     "periodCustomize": "Customize per period",
     "periodTagPrompt": "Which period is {{name}}?",
     "periodTagPick": "Pick a period",
@@ -4258,11 +4250,9 @@
       "title": "Profile",
       "description": "Where and what you teach. Grades and content areas filter standards and learning targets so you only see what applies to you.",
       "gradesTaught": "Grades taught",
-      "gradesTaughtDescription": "Starts from your building(s). Deselect grades you do not teach to narrow standards, learning targets and grade-specific widgets.",
       "resetGrades": "Reset to building default",
-      "noGrades": "No grades selected — standards and widgets show every grade.",
-      "subjectsTaught": "Content areas taught",
-      "subjectsTaughtDescription": "Optional. Pick the content areas you teach to open the standards picker on them. Leave empty to see every content area."
+      "noGrades": "Showing all grades.",
+      "subjectsTaught": "Content areas taught (optional)"
     },
     "widgetDefaults": {
       "title": "Widget defaults",
@@ -4463,16 +4453,15 @@
   "shareWithSub": {
     "title": "Share with a sub",
     "updateTitle": "Update what your sub sees",
-    "boardSummary": "Your sub sees this board exactly as you set it up.",
-    "collectionSummary": "Your sub clicks through {{boards}} boards, grouped the way you group them ({{sections}} groups).",
-    "updatingHint": "You already share this with a sub. Saving replaces what they see — same link, same end time unless you change it.",
+    "collectionSummary": "{{boards}} boards in {{sections}} groups.",
+    "updatingHint": "Saving updates what your sub sees. The link stays the same.",
     "building": "Building",
     "noBuildings": "No buildings available",
     "buildingRequired": "Pick the building your sub signs in at.",
     "endsAt": "Ends",
-    "endsAtHint": "Defaults to two days from now. Fourteen days is the most a sub share can run.",
+    "endsAtHint": "Up to 14 days.",
     "subs": "Who is covering",
-    "subsHint": "These subs get your class lists for as long as the share runs, and the access is withdrawn when it ends. Anyone else in the building still sees the boards, without student names.",
+    "subsHint": "Listed subs see student names. Others in the building see the boards without names.",
     "noBoards": "There are no boards in this collection to share.",
     "expiryPast": "Pick an end time in the future.",
     "expiryTooFar": "A sub share can run for at most 14 days.",

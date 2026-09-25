@@ -531,9 +531,6 @@ export function ImportWizard<TData>({
           <span className="font-black text-brand-blue-dark text-xs uppercase tracking-widest">
             Draft with AI
           </span>
-          <p className="text-[11px] text-slate-500 font-bold">
-            Describe it and we&apos;ll draft it.
-          </p>
         </button>
       )}
 
@@ -557,9 +554,6 @@ export function ImportWizard<TData>({
             <span className="font-bold text-brand-blue-primary text-sm">
               Choose Google Sheet from Drive
             </span>
-            <p className="text-[11px] text-brand-blue-primary/60 font-bold">
-              Pick a Sheet — we&apos;ll read it directly.
-            </p>
           </button>
         ) : (
           // Fallback paste-URL path (requires the broad `spreadsheets` scope) —
@@ -596,8 +590,7 @@ export function ImportWizard<TData>({
             {sheetUrl.trim() !== '' &&
               !GOOGLE_SHEET_URL_PATTERN.test(sheetUrl) && (
                 <p className="text-[11px] text-amber-600 font-bold">
-                  Hint: this doesn&apos;t look like a Google Sheets URL. Make
-                  sure it&apos;s shared for viewing.
+                  This doesn&apos;t look like a Google Sheets URL.
                 </p>
               )}
           </div>
@@ -671,9 +664,7 @@ export function ImportWizard<TData>({
             )}
           </TestAndKeyUploader>
           <p className="text-[11px] text-slate-500 font-medium">
-            We&apos;ll read the questions and answer choices, and the answer key
-            if the file has one. You can check everything before the quiz is
-            created.
+            You can review everything before it&apos;s created.
           </p>
         </div>
       )}

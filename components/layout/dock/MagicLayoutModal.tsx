@@ -70,9 +70,6 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-800">
               Layout Generator
             </h3>
-            <p className="text-xs text-slate-500">
-              Describe your lesson, and AI will set it up.
-            </p>
           </div>
         </div>
 
