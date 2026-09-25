@@ -125,15 +125,17 @@ export function handwritingArtifact(
   return (answer.artifacts ?? []).find((a) => a.kind === 'handwriting') ?? null;
 }
 
-export type PaperWrittenPlaceholder = 'transcribing' | 'blank' | 'unavailable';
+export type PaperWrittenPlaceholder = 'transcribing' | 'blank';
 
 export interface PaperWrittenView {
   /** Render the handwriting crop. */
   showCrop: boolean;
   crop: ResponseArtifact | null;
+  /** The mode asks for handwriting but no crop exists. */
+  cropUnavailable: boolean;
   /** Sanitized HTML to render as the typed answer; null renders none. */
   transcript: string | null;
-  /** Shown in place of whichever part cannot render yet. */
+  /** Shown in the typed-answer slot while no transcript can render. */
   placeholder: PaperWrittenPlaceholder | null;
 }
 
@@ -148,6 +150,7 @@ export function paperWrittenView(
     return {
       showCrop: false,
       crop: null,
+      cropUnavailable: false,
       transcript: answer.answer,
       placeholder: null,
     };
@@ -165,12 +168,10 @@ export function paperWrittenView(
     else if (state === 'blank') placeholder = 'blank';
     else transcript = answer.answer;
   }
-  if (wantsCrop && !crop && placeholder === null) {
-    placeholder = 'unavailable';
-  }
   return {
     showCrop: wantsCrop && crop !== null,
     crop: wantsCrop ? crop : null,
+    cropUnavailable: wantsCrop && crop === null,
     transcript,
     placeholder,
   };

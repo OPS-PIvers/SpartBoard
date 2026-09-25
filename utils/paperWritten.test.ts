@@ -107,6 +107,7 @@ describe('paperWrittenView', () => {
     expect(view).toEqual({
       showCrop: false,
       crop: null,
+      cropUnavailable: false,
       transcript: '<p>hi</p>',
       placeholder: null,
     });
@@ -163,6 +164,18 @@ describe('paperWrittenView', () => {
       'handwriting'
     );
     expect(view.showCrop).toBe(false);
-    expect(view.placeholder).toBe('unavailable');
+    expect(view.cropUnavailable).toBe(true);
+    expect(view.placeholder).toBeNull();
+  });
+
+  it('keeps the transcript when only the crop is missing', () => {
+    const view = paperWrittenView(
+      answer('done', '<p>x</p>', false),
+      null,
+      'both'
+    );
+    expect(view.transcript).toBe('<p>x</p>');
+    expect(view.placeholder).toBeNull();
+    expect(view.cropUnavailable).toBe(true);
   });
 });
