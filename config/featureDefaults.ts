@@ -328,6 +328,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // One-list multiple choice editor, choose-all as a setting on it. Admin-only until Paul has tried it.
+  'quiz-choice-editor': {
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Alternate accepted answers on fill-in-the-blank quiz questions. Admin-only until Paul has tried it.
   'quiz-fib-alternates': {
     defaultAccessLevel: 'admin',

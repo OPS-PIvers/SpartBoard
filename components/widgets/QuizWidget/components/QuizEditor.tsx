@@ -56,6 +56,7 @@ import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
 import { WordLimitFields } from './WordLimitFields';
 import { AlternateAnswersEditor, MultiAnswerEditor } from './MultiAnswerEditor';
+import { ChoiceOptionsEditor } from './ChoiceOptionsEditor';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
@@ -744,6 +745,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   // Fail-closed: no permission record means the controls never mount, so the
   // editor is pixel-identical to today for everyone else.
   const mediaResponseAllowed = canAccessQuizMediaResponse();
+  const choiceEditor = canAccessFeature('quiz-choice-editor');
   const [showRubricBuilder, setShowRubricBuilder] = useState(false);
   // Manual points held aside per question while a rubric owns its points.
   const manualPointsByQuestion = useRef<Map<string, number>>(new Map());
@@ -902,10 +904,13 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           <div>
             <label className={labelClass}>Type</label>
             <select
-              value={q.type}
+              value={choiceEditor && q.type === 'MA' ? 'MC' : q.type}
               aria-label="Type"
               onChange={(e) => {
                 const nextType = e.target.value as QuizQuestionType;
+                // With the one-list editor, MA is Multiple Choice with a setting on.
+                if (choiceEditor && nextType === 'MC' && q.type === 'MA')
+                  return;
                 const isWritten = isFreeResponseType(nextType);
                 // A rubric only applies to written types, and its Detach button
                 // only renders there — so drop it here, restoring the stashed
@@ -922,6 +927,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   incorrectAnswers:
                     nextType === 'MC' || nextType === 'MA' ? ['', ''] : [],
                   alternateAnswers: undefined,
+                  optionOrder: undefined,
                   correctAnswer: '',
                   matchingDistractors: undefined,
                   // Reset written-specific fields when switching off written types
@@ -945,8 +951,8 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               {QUESTION_TYPES.filter(
                 (t) =>
                   t.value !== 'MA' ||
-                  q.type === 'MA' ||
-                  canAccessFeature('quiz-choose-all')
+                  (!choiceEditor &&
+                    (q.type === 'MA' || canAccessFeature('quiz-choose-all')))
               ).map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
@@ -1063,7 +1069,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
 
         {(q.type === 'Matching' ||
           q.type === 'Ordering' ||
-          q.type === 'MA') && (
+          (q.type === 'MA' && !choiceEditor)) && (
           <div className="flex items-start gap-2">
             <label
               className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg cursor-pointer select-none shrink-0"
@@ -1093,7 +1099,25 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         )}
 
         {/* Type-specific answer editor */}
-        {q.type === 'Matching' ? (
+        {choiceEditor && (q.type === 'MC' || q.type === 'MA') ? (
+          <div className="space-y-1">
+            <ChoiceOptionsEditor
+              key={q.id}
+              question={q}
+              allowMulti={canAccessFeature('quiz-choose-all')}
+              onChange={(updates) => updateQuestion(q.id, updates)}
+            />
+            {questionNeedsKey(q) && (
+              <p
+                role="status"
+                className="flex items-center gap-1 text-xxs font-bold text-amber-700"
+              >
+                <AlertCircle className="w-3 h-3" aria-hidden />
+                No answer imported. Add one before assigning.
+              </p>
+            )}
+          </div>
+        ) : q.type === 'Matching' ? (
           <MatchingAnswerEditor
             correctAnswer={q.correctAnswer}
             matchingDistractors={
@@ -1215,7 +1239,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           </div>
         )}
 
-        {q.type === 'MC' && (
+        {q.type === 'MC' && !choiceEditor && (
           <div className="space-y-2">
             <label className="block font-bold text-slate-600 mb-1 text-xs uppercase tracking-wider">
               Distractors (Incorrect Options)
