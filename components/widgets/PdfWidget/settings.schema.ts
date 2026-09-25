@@ -17,7 +17,7 @@ export default defineSettings<PdfConfig>({
           key: 'activePdfId',
           type: 'custom',
           label: 'currentDocument',
-          searchTerms: ['switchDocument', 'storageNote'],
+          searchTerms: ['switchDocument'],
           render: renderCurrentDocument,
         },
       ],

@@ -52,7 +52,6 @@ export const BloomsCategoriesField: React.FC<{ ctx: CustomRenderCtx }> = ({
       aria-describedby={ctx.describedBy}
       className="flex flex-col gap-2"
     >
-      <p className="text-xxs text-slate-600">{t('contentCategoriesHelp')}</p>
       {displayCategories.map((category) => (
         <label
           key={category}
