@@ -12,14 +12,13 @@ The routine is `trig_01CxtJ5NT4RpYTLhxWuHTs1n` (https://claude.ai/code/routines/
 
 ## Environment
 
-| Variable                    | Value                                                                |
-| --------------------------- | -------------------------------------------------------------------- |
-| `TOUR_ANCHOR_API_URL_PROD`  | `https://us-central1-spartboard.cloudfunctions.net/tourAnchorApi`     |
-| `TOUR_ANCHOR_API_URL_DEV`   | `https://us-central1-spartboard-dev.cloudfunctions.net/tourAnchorApi` |
-| `TOUR_ANCHOR_API_TOKEN_PROD` | the `TOUR_ANCHOR_API_TOKEN` secret in `spartboard`                  |
-| `TOUR_ANCHOR_API_TOKEN_DEV` | the `TOUR_ANCHOR_API_TOKEN` secret in `spartboard-dev`               |
+Set on the routine's cloud environment at claude.ai (Environment > Environment variables):
 
-Paul sets the token values. Never print a token, commit it, or put it in a PR.
+| Variable                | Value                                                                       |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `TOUR_ANCHOR_API_TOKEN` | the `TOUR_ANCHOR_API_TOKEN` secret; the same value is set in both projects  |
+
+The endpoints are fixed: `https://us-central1-spartboard.cloudfunctions.net/tourAnchorApi` (prod) and `https://us-central1-spartboard-dev.cloudfunctions.net/tourAnchorApi` (dev). Never print a token, commit it, or put it in a PR.
 
 ## Endpoint
 
