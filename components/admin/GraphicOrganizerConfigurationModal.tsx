@@ -363,7 +363,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
 
             {!editingTemplateId && (
               <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
-                <h3 className="text-lg font-bold text-slate-800 mb-1">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">
                   Appearance Defaults
                 </h3>
                 <p className="text-sm text-slate-500 mb-4">

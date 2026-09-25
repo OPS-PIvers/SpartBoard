@@ -53,9 +53,7 @@ export const ProjectsConfigurationPanel: React.FC<
               Students can open their group&apos;s project
             </span>
             <span className="mt-0.5 block text-xs text-slate-600">
-              Needs ClassLink-sourced rosters. Off leaves teachers a tracker
-              they move themselves, which is all a hand-built roster can
-              support.
+              Needs ClassLink rosters.
             </span>
           </span>
           <Toggle
@@ -69,10 +67,6 @@ export const ProjectsConfigurationPanel: React.FC<
           <span className="min-w-0">
             <span className="block text-sm font-semibold text-slate-900">
               New projects show every group&apos;s progress to students
-            </span>
-            <span className="mt-0.5 block text-xs text-slate-600">
-              The starting value for a new project. Teachers can change it per
-              project.
             </span>
           </span>
           <Toggle

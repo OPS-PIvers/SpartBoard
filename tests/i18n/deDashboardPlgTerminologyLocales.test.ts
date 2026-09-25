@@ -60,8 +60,7 @@ const AFFECTED_KEYS: Array<{ path: string; expectedDe: string }> = [
   { path: 'plcDashboard.resources.managerTitle', expectedDe: 'PLG-Ressourcen' },
   {
     path: 'plcDashboard.resources.managerSubtitle',
-    expectedDe:
-      'Kuratierte Ressourcen (Dokumente, Quizze, Tafeln) an bestimmte oder alle PLGs senden.',
+    expectedDe: 'Ressourcen an PLGs senden.',
   },
   {
     path: 'plcDashboard.resources.descriptionLabel',

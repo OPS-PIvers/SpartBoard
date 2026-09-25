@@ -242,11 +242,7 @@ export const LinksPanel: React.FC = () => {
         <div className="inline-flex p-3 rounded-2xl bg-slate-100 text-slate-400 mb-3">
           <Link2 className="w-6 h-6" />
         </div>
-        <h3 className="font-bold text-slate-800 mb-1">No short links yet</h3>
-        <p className="text-sm text-slate-500 max-w-md mx-auto">
-          Create short links from the Link Shortener tab. Once teachers start
-          clicking them, usage analytics will appear here.
-        </p>
+        <h3 className="font-bold text-slate-800">No short links yet</h3>
       </div>
     );
   }

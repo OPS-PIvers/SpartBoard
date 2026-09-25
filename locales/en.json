@@ -1072,7 +1072,7 @@
     },
     "resources": {
       "managerTitle": "PLC Resources",
-      "managerSubtitle": "Push curated resources (docs, quizzes, boards) to specific or all PLCs.",
+      "managerSubtitle": "Send resources to PLCs.",
       "addResource": "Add Resource",
       "editFormLabel": "Edit resource",
       "createFormLabel": "Create resource",
@@ -2896,7 +2896,7 @@
       "saveChanges": "Save Changes",
       "discardChanges": "Discard Changes",
       "confirmDiscardChanges": "You have unsaved changes. Close without saving?",
-      "description": "Stickers uploaded here appear in the Global Collection section of every user's Sticker Book widget.",
+      "description": "Shown to every teacher.",
       "dropImages": "Drop images here or click to browse",
       "supportedFiles": "PNG, JPG, GIF, WebP, SVG · Multiple files supported",
       "collectionTitle": "Sticker Collection",
@@ -2916,7 +2916,6 @@
       "recovery": {
         "title": "PLC Recovery",
         "subtitle": "Reassign the lead or dissolve an abandoned PLC in your organization.",
-        "explainer": "Only PLCs in your organization are recoverable. Use this when a PLC's lead has left and can't transfer leadership.",
         "empty": "No recoverable PLCs in your organization.",
         "leadLabel": "Lead",
         "membersLabel_one": "{{count}} member",
@@ -2935,7 +2934,7 @@
         "cancel": "Cancel",
         "confirm": "Confirm",
         "members": "Members",
-        "membersDescription": "Add a teacher from your organization, change a role, or remove a member. The teacher is not notified.",
+        "membersDescription": "Teachers aren't notified.",
         "noOtherMembers": "No members besides the lead.",
         "roleLabel": "Role",
         "remove": "Remove",
@@ -2952,7 +2951,7 @@
     },
     "mediaReview": {
       "title": "Student media",
-      "blurb": "Review and permanently delete recorded student responses across every teacher in your organization. Deleting a response removes every take of that question from the teacher's Google Drive.",
+      "blurb": "Deleting a response removes every take from the teacher's Google Drive.",
       "refresh": "Refresh",
       "filterTeacher": "Teacher",
       "allTeachers": "All teachers",
@@ -4298,13 +4297,10 @@
     "saveFailed": "Failed to save quiz configuration.",
     "handRaise": {
       "heading": "Raise hand",
-      "help": "Controls whether students see a Raise hand button while taking a quiz in this building.",
       "teacherChoice": "Teacher's choice",
-      "teacherChoiceHint": "Each teacher decides per quiz. Off unless they turn it on.",
+      "teacherChoiceHint": "Off unless the teacher turns it on.",
       "forceOn": "Always on",
-      "forceOnHint": "Raise hand is available in every quiz and teachers cannot turn it off.",
-      "forceOff": "Always off",
-      "forceOffHint": "Raise hand is hidden from students in every quiz."
+      "forceOff": "Always off"
     },
     "noBuildings": "No buildings configured",
     "noBuildingsHint": "Add a building under Organization before setting a raise-hand default.",
@@ -4831,7 +4827,7 @@
   },
   "tourHealth": {
     "loading": "Loading tours...",
-    "intro": "Checks the published version of each tour, the one teachers run, against the anchor registry and real runs. Check live looks for each anchor on the board behind this window as it is now.",
+    "intro": "Checks published tours against the anchor registry.",
     "recordTour": "Record a tour",
     "checkLive": "Check live",
     "empty": "No Guided Learning set has live-tour steps yet.",

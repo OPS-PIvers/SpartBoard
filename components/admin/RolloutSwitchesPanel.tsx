@@ -156,8 +156,7 @@ export const RolloutSwitchesPanel: React.FC = () => (
       <div>
         <h2 className="text-lg font-bold text-slate-900">Rollouts</h2>
         <p className="text-xs text-slate-600">
-          Features that ship switched off until you turn them on here. Each
-          applies to every teacher at once and takes effect without a reload.
+          Each switch applies to every teacher.
         </p>
       </div>
     </div>

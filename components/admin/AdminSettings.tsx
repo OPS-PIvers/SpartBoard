@@ -379,14 +379,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                       aria-label={tab.label}
                       className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
                     >
-                      {tab.id === 'features' && (
-                        <div className="mb-4">
-                          <p className="text-slate-600 text-sm">
-                            Control individual widget availability and access
-                            levels.
-                          </p>
-                        </div>
-                      )}
                       <TabComponent />
                     </div>
                   )

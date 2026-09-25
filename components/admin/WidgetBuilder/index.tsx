@@ -348,24 +348,20 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
           {state.step === 'mode' && (
             <div className="flex items-center justify-center h-full p-12">
               <div className="w-full max-w-3xl">
-                <h2 className="text-2xl font-bold text-white text-center mb-2">
+                <h2 className="text-2xl font-bold text-white text-center mb-10">
                   How do you want to build this widget?
                 </h2>
-                <p className="text-slate-400 text-center text-sm mb-10">
-                  Choose the builder mode that fits your skill level and widget
-                  complexity.
-                </p>
                 <div className="flex gap-6">
                   <ModeCard
                     icon={<Puzzle />}
                     title="Block Builder"
-                    description="Drag blocks onto a grid. Perfect for interactive quizzes, games, and activities. No code needed."
+                    description="Drag blocks onto a grid. No code."
                     onClick={() => handleSelectMode('block')}
                   />
                   <ModeCard
                     icon={<Code2 />}
                     title="Code Editor"
-                    description="Write HTML/CSS/JS with AI assistance. Full control over widget design and behavior."
+                    description="HTML, CSS and JS with AI help."
                     onClick={() => handleSelectMode('code')}
                   />
                 </div>
@@ -380,10 +376,6 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
                 <div className="border-b border-slate-700 px-4 py-3 bg-slate-800/70">
                   <p className="text-sm font-semibold text-white">
                     Guided Block Builder
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Build your widget one step at a time. This flow is made for
-                    non-coders.
                   </p>
                   <div className="mt-3 grid grid-cols-4 gap-2">
                     {[
@@ -448,18 +440,8 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
                           Step 1: Set your layout
                         </h4>
                         <p className="text-slate-400 text-xs">
-                          Start simple: choose the number of rows and columns,
-                          then merge cells to create larger areas.
+                          Shift+click cells to merge.
                         </p>
-                        <ul className="text-xs text-slate-500 list-disc list-inside space-y-1">
-                          <li>Click + / - in the grid toolbar to resize.</li>
-                          <li>
-                            Shift+click cells, then Merge for big regions.
-                          </li>
-                          <li>
-                            Click a cell to prepare it for adding content.
-                          </li>
-                        </ul>
                       </div>
                     )}
 
@@ -469,8 +451,7 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
                           Step 2: Choose what goes in each area
                         </h4>
                         <p className="text-slate-400 text-xs">
-                          Pick a cell first, then click a block below to place
-                          it.
+                          Pick a cell, then a block.
                         </p>
                         <BlockPalette
                           onSelectBlock={(blockType) => {

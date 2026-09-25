@@ -92,9 +92,6 @@ export const ActivityWallConfigurationPanel: React.FC<
           >
             Default Layout
           </label>
-          <p className="text-xxs text-slate-500 mb-2">
-            The layout new walls start on.
-          </p>
           <select
             id="aw-default-layout"
             value={currentBuildingConfig.defaultLayout ?? 'wall'}
@@ -219,9 +216,6 @@ export const ActivityWallConfigurationPanel: React.FC<
           >
             Default Participant Identification
           </label>
-          <p className="text-xxs text-slate-500 mb-2">
-            How students are identified when submitting.
-          </p>
           <select
             id="aw-default-identification-mode"
             value={

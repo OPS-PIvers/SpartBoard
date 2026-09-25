@@ -1072,7 +1072,7 @@
     },
     "resources": {
       "managerTitle": "Ressources de la CAP",
-      "managerSubtitle": "Envoyez des ressources sélectionnées (documents, quiz, tableaux) à des CAP spécifiques ou à toutes.",
+      "managerSubtitle": "Envoyez des ressources aux CAP.",
       "addResource": "Ajouter une ressource",
       "editFormLabel": "Modifier la ressource",
       "createFormLabel": "Créer une ressource",
@@ -1801,7 +1801,7 @@
       "saveChanges": "Enregistrer les modifications",
       "discardChanges": "Annuler les modifications",
       "confirmDiscardChanges": "Vous avez des modifications non enregistrées. Fermer sans enregistrer ?",
-      "description": "Les autocollants téléversés ici apparaissent dans la section « Collection globale » du widget Livre d'autocollants de chaque utilisateur.",
+      "description": "Visible par tous les enseignants.",
       "dropImages": "Déposez des images ici ou cliquez pour parcourir",
       "supportedFiles": "PNG, JPG, GIF, WebP, SVG · Plusieurs fichiers pris en charge",
       "collectionTitle": "Collection d'autocollants",
@@ -1821,7 +1821,6 @@
       "recovery": {
         "title": "Récupération de CAP",
         "subtitle": "Réattribuer le responsable ou dissoudre une CAP abandonnée dans votre organisation.",
-        "explainer": "Seules les CAP de votre organisation peuvent être récupérées. Utilisez cette option lorsque le responsable d'une CAP est parti sans pouvoir transférer la direction.",
         "empty": "Aucune CAP récupérable dans votre organisation.",
         "leadLabel": "Responsable",
         "membersLabel_one": "{{count}} membre",
@@ -1840,7 +1839,7 @@
         "cancel": "Annuler",
         "confirm": "Confirmer",
         "members": "Membres",
-        "membersDescription": "Ajoutez un(e) enseignant(e) de votre organisation, changez un rôle ou retirez un membre. La personne n’est pas notifiée.",
+        "membersDescription": "Les enseignants ne sont pas avertis.",
         "noOtherMembers": "Aucun membre en dehors du responsable.",
         "roleLabel": "Rôle",
         "remove": "Retirer",
@@ -1857,7 +1856,7 @@
     },
     "mediaReview": {
       "title": "Contenus multimédias des élèves",
-      "blurb": "Consultez et supprimez définitivement les réponses enregistrées des élèves pour tous les enseignants de votre organisation. La suppression d'une réponse retire toutes les prises de cette question du Google Drive de l'enseignant.",
+      "blurb": "La suppression d'une réponse retire toutes les prises du Google Drive de l'enseignant.",
       "refresh": "Actualiser",
       "filterTeacher": "Enseignant",
       "allTeachers": "Tous les enseignants",
@@ -3126,13 +3125,10 @@
     "saveFailed": "Échec de l’enregistrement de la configuration du quiz.",
     "handRaise": {
       "heading": "Lever la main",
-      "help": "Détermine si les élèves de cet établissement voient un bouton pour lever la main pendant un quiz.",
       "teacherChoice": "Choix de l’enseignant",
-      "teacherChoiceHint": "Chaque enseignant décide pour chaque quiz. Désactivé par défaut.",
+      "teacherChoiceHint": "Désactivé tant que l'enseignant ne l'active pas.",
       "forceOn": "Toujours activé",
-      "forceOnHint": "Lever la main est disponible dans tous les quiz et les enseignants ne peuvent pas le désactiver.",
-      "forceOff": "Toujours désactivé",
-      "forceOffHint": "Lever la main est masqué pour les élèves dans tous les quiz."
+      "forceOff": "Toujours désactivé"
     },
     "noBuildings": "Aucun bâtiment configuré",
     "noBuildingsHint": "Ajoutez un bâtiment dans Organisation avant de définir une valeur par défaut pour lever la main.",
@@ -3641,7 +3637,7 @@
   },
   "tourHealth": {
     "loading": "Chargement des visites...",
-    "intro": "Vérifie la version publiée de chaque visite, celle que lancent les enseignants, par rapport au registre des ancres et aux passages réels. « Vérifier en direct » cherche chaque ancre sur le tableau derrière cette fenêtre, tel qu'il est maintenant.",
+    "intro": "Vérifie les visites publiées par rapport au registre des ancres.",
     "recordTour": "Enregistrer une visite",
     "checkLive": "Vérifier en direct",
     "empty": "Aucun ensemble Guided Learning n'a encore d'étapes de visite en direct.",

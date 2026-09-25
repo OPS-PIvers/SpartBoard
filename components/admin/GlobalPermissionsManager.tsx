@@ -611,10 +611,6 @@ const GeminiModelConfigSection: React.FC<{
           standardError
         )}
       </div>
-      <p className="text-xxs text-purple-500 mt-2 leading-tight">
-        Override the AI models used by Cloud Functions. Leave as
-        &quot;Default&quot; to use the built-in model for each tier.
-      </p>
     </div>
   );
 };
@@ -960,13 +956,7 @@ export const GlobalPermissionsManager: React.FC = () => {
           <div className="bg-brand-blue-lighter p-3 rounded-xl text-brand-blue-primary">
             <Shield className="w-6 h-6" />
           </div>
-          <div>
-            <h4 className="font-bold text-slate-800 text-lg">Custom Logo</h4>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Upload a custom logo to replace the default SpartBoard logo in the
-              sidebar header.
-            </p>
-          </div>
+          <h4 className="font-bold text-slate-800 text-lg">Custom Logo</h4>
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
@@ -1041,10 +1031,7 @@ export const GlobalPermissionsManager: React.FC = () => {
                   Assignment Modes
                 </h4>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Choose whether each student-facing widget collects submissions
-                  or only generates view-only share links. Mode is locked at
-                  assignment creation, so flipping a toggle only affects new
-                  assignments.
+                  Applies to new assignments only.
                 </p>
               </div>
             </div>
@@ -1675,9 +1662,7 @@ export const GlobalPermissionsManager: React.FC = () => {
                       </span>
                     </div>
                     <p className="text-xxs text-purple-500 mt-2 leading-tight">
-                      Administrators have unlimited usage. Standard users will
-                      see a &quot;limit reached&quot; message after this many
-                      generations.
+                      Admins are unlimited.
                     </p>
                   </div>
                 )}

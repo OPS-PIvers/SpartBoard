@@ -56,8 +56,7 @@ export const PresetSubEmailsManager: React.FC = () => {
             Substitute presets
           </h2>
           <p className="text-xs text-slate-600">
-            Per-building sub email shortcuts. Teachers see these as one-click
-            chips when creating a Substitute (View-Only) share.
+            Shown as quick picks when sharing with a sub.
           </p>
         </div>
       </div>

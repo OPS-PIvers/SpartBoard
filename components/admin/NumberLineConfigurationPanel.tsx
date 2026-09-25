@@ -290,14 +290,9 @@ export const NumberLineConfigurationPanel: React.FC<
         </div>
 
         <div className="flex items-center justify-between pt-2">
-          <div>
-            <span className="block text-sm font-medium text-slate-700">
-              Show Arrows on Ends
-            </span>
-            <span className="text-xs text-slate-500">
-              Indicates the line continues in both directions
-            </span>
-          </div>
+          <span className="block text-sm font-medium text-slate-700">
+            Show Arrows on Ends
+          </span>
           <Toggle
             checked={currentBuildingConfig.showArrows}
             onChange={(checked) =>
@@ -313,8 +308,8 @@ export const NumberLineConfigurationPanel: React.FC<
               Default Markers
             </h4>
             <p className="text-xs text-slate-500">
-              Benchmark values labelled on new number lines (e.g. curriculum
-              targets). Teachers can still edit or remove them.
+              Benchmarks labelled on new number lines, such as curriculum
+              targets.
             </p>
           </div>
 
@@ -414,8 +409,7 @@ export const NumberLineConfigurationPanel: React.FC<
               Default Jumps
             </h4>
             <p className="text-xs text-slate-500">
-              Skip-counting arcs shown on new number lines (e.g. counting by
-              5s). Teachers can still edit or remove them.
+              Skip-counting arcs on new number lines, such as counting by 5s.
             </p>
           </div>
 

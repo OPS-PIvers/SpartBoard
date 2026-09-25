@@ -224,8 +224,7 @@ const SpecialDaysCard: React.FC<SpecialDaysCardProps> = ({
           <CalendarDays className="w-3.5 h-3.5" /> Special days
         </h5>
         <p className="text-xxs text-slate-500 leading-tight">
-          On these dates the chosen schedule runs instead of the weekday one,
-          and per-period assignment windows follow its bell times.
+          Overrides the weekday schedule on these dates.
         </p>
       </div>
       {entries.map(([date, scheduleId]) => (
@@ -506,13 +505,15 @@ export const ScheduleConfigurationPanel: React.FC<
                 <Plus className="w-3 h-3" /> Add Schedule
               </button>
             </div>
-            <p className="text-xxs text-slate-500 mb-4 leading-tight">
-              Users in{' '}
-              <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b>{' '}
-              will be able to copy these default schedules to their dashboard.
-            </p>
-
             <div className="space-y-3">
+              <p className="text-xxs text-slate-500 mb-4 leading-tight">
+                Users in{' '}
+                <b>
+                  {BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}
+                </b>{' '}
+                will be able to copy these default schedules to their dashboard.
+              </p>
+
               {schedules.map((s) => (
                 <div
                   key={s.id}
@@ -682,13 +683,13 @@ export const ScheduleConfigurationPanel: React.FC<
             <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2 mb-1">
               <LayoutGrid className="w-3.5 h-3.5" /> Appearance &amp; Behaviour
             </h5>
-            <p className="text-xxs text-slate-500 leading-tight">
-              These defaults pre-populate the Schedule widget when a teacher in{' '}
-              <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b>{' '}
-              adds it to their dashboard. Teachers can still override them
-              per-instance from the widget&apos;s Appearance and Options tabs.
-            </p>
           </div>
+          <p className="text-xxs text-slate-500 leading-tight">
+            These defaults pre-populate the Schedule widget when a teacher in{' '}
+            <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b>{' '}
+            adds it to their dashboard. Teachers can still override them
+            per-instance from the widget&apos;s Appearance and Options tabs.
+          </p>
 
           {/* Default Font Family */}
           <div>

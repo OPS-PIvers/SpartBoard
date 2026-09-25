@@ -76,9 +76,7 @@ export const First5ConfigurationPanel: React.FC<
           )}
         </div>
         <p className="text-xxs text-slate-400 mt-1">
-          The day number shown on edtomorrow.com/today/ for today. This number
-          auto-increments by 1 each weekday. Adjust it here if the website skips
-          a day.
+          Counts up each weekday. Fix it here if the site skips a day.
         </p>
       </div>
 
@@ -100,10 +98,6 @@ export const First5ConfigurationPanel: React.FC<
             {todaysDayNumber ?? '???'}
             [j/p/s]
           </code>
-        </p>
-        <p className="text-xxs text-amber-600 mt-1">
-          The age letter (j/p/s) is determined by each teacher&apos;s selected
-          building: K-2→j, 3-5→p, 6-12→s
         </p>
       </div>
     </div>

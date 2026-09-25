@@ -1331,10 +1331,8 @@ const BulkImportModal: React.FC<{
     >
       <div className="space-y-4">
         <p className="text-sm text-slate-600">
-          Upload a CSV with columns <code>name</code>, <code>email</code>,{' '}
-          <code>role</code>, <code>building</code>. Roles and buildings are
-          matched case-insensitively against this organization&apos;s list.
-          Invite links are copied to your clipboard — no email is sent.
+          Columns <code>name</code>, <code>email</code>, <code>role</code>,{' '}
+          <code>building</code>. Invite links are copied, not emailed.
         </p>
 
         <input

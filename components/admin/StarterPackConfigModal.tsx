@@ -178,7 +178,7 @@ export const AdminStarterPackConfig = () => {
                 setFormData({ ...formData, description: e.target.value })
               }
               className="w-full mt-1 px-3 py-2 border rounded-lg focus:outline-none focus:border-brand-blue-primary"
-              placeholder="Brief description of the pack's purpose"
+              placeholder="Description"
             />
           </div>
           <div className="col-span-2">

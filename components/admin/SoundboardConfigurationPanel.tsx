@@ -376,11 +376,6 @@ export const SoundboardConfigurationPanel: React.FC<
             Standard Sound Library
           </h3>
         </div>
-        <p className="text-xxs text-slate-400 mb-4">
-          Assign pre-made sounds by grade band. Use “All” to enable the sound
-          for every building.
-        </p>
-
         <div className="space-y-3">
           {SOUND_LIBRARY.map((libSound) => {
             const isPlaying = playingId === libSound.id;
@@ -446,10 +441,6 @@ export const SoundboardConfigurationPanel: React.FC<
             Add Custom URL
           </Button>
         </div>
-        <p className="text-xxs text-slate-500 leading-tight mb-4">
-          Add each custom sound once, then assign it to grade bands below.
-        </p>
-
         {sharedCustomSounds.length === 0 ? (
           <div className="text-center py-8 text-sm text-slate-400 italic border-2 border-dashed border-slate-200 rounded-xl bg-white/50">
             No custom sounds added yet.
@@ -555,9 +546,7 @@ export const SoundboardConfigurationPanel: React.FC<
 
                       {validation.isGoogleDriveUrl && (
                         <p className="mt-1 text-xxs text-slate-500">
-                          Google Drive file will be streamed via the Drive API.
-                          Users must be signed in with Google to play this
-                          sound.
+                          Teachers must be signed in to Google to play it.
                         </p>
                       )}
                       {showUrlError && (

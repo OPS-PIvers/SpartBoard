@@ -82,8 +82,7 @@ export const PlcAdminMembersEditor: React.FC<PlcAdminMembersEditorProps> = ({
     >
       <p className="text-xs text-slate-600">
         {t('admin.plc.recovery.membersDescription', {
-          defaultValue:
-            'Add a teacher from your organization, change a role, or remove a member. The teacher is not notified.',
+          defaultValue: "Teachers aren't notified.",
         })}
       </p>
 

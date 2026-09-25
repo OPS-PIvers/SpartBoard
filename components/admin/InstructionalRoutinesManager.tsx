@@ -41,12 +41,7 @@ export const InstructionalRoutinesManager: React.FC<
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50 custom-scrollbar">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-            <div>
-              <p className="text-sm text-slate-500 font-medium">
-                Manage global templates available to all teachers.
-              </p>
-            </div>
+          <div className="flex justify-end mb-6">
             <button
               onClick={() =>
                 setEditingRoutine({

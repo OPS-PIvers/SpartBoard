@@ -116,14 +116,9 @@ export const RandomConfigurationPanel: React.FC<
           padding="sm"
           className="flex items-center justify-between shadow-none"
         >
-          <div>
-            <span className="text-xxs font-bold text-slate-700 block">
-              Sound Effects
-            </span>
-            <span className="text-xxs text-slate-400">
-              Play audio during the random selection animation
-            </span>
-          </div>
+          <span className="text-xxs font-bold text-slate-700 block">
+            Sound Effects
+          </span>
           <Toggle
             label="Sound Effects"
             checked={currentBuildingConfig.soundEnabled ?? true}

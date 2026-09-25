@@ -1072,7 +1072,7 @@
     },
     "resources": {
       "managerTitle": "Recursos de la Comunidad",
-      "managerSubtitle": "Envía recursos curados (documentos, cuestionarios, tableros) a Comunidades específicas o a todas.",
+      "managerSubtitle": "Envía recursos a las Comunidades.",
       "addResource": "Agregar recurso",
       "editFormLabel": "Editar recurso",
       "createFormLabel": "Crear recurso",
@@ -1801,7 +1801,7 @@
       "saveChanges": "Guardar cambios",
       "discardChanges": "Descartar cambios",
       "confirmDiscardChanges": "Tienes cambios sin guardar. ¿Cerrar sin guardar?",
-      "description": "Las pegatinas subidas aquí aparecen en la sección «Colección global» del widget Libro de pegatinas de cada usuario.",
+      "description": "Visible para todos los docentes.",
       "dropImages": "Suelta imágenes aquí o haz clic para explorar",
       "supportedFiles": "PNG, JPG, GIF, WebP, SVG · Se admiten varios archivos",
       "collectionTitle": "Colección de pegatinas",
@@ -1821,7 +1821,6 @@
       "recovery": {
         "title": "Recuperación de Comunidades",
         "subtitle": "Reasigna el líder o disuelve una Comunidad abandonada en tu organización.",
-        "explainer": "Solo se pueden recuperar las Comunidades de tu organización. Úsalo cuando el líder de una Comunidad se haya marchado y no pueda transferir el liderazgo.",
         "empty": "No hay Comunidades recuperables en tu organización.",
         "leadLabel": "Líder",
         "membersLabel_one": "{{count}} miembro",
@@ -1840,7 +1839,7 @@
         "cancel": "Cancelar",
         "confirm": "Confirmar",
         "members": "Miembros",
-        "membersDescription": "Agrega un docente de tu organización, cambia un rol o elimina un miembro. El docente no recibe notificación.",
+        "membersDescription": "No se notifica a los docentes.",
         "noOtherMembers": "No hay miembros aparte del líder.",
         "roleLabel": "Rol",
         "remove": "Quitar",
@@ -1857,7 +1856,7 @@
     },
     "mediaReview": {
       "title": "Contenido multimedia del alumno",
-      "blurb": "Revisa y elimina permanentemente las respuestas grabadas de los alumnos en todos los profesores de tu organización. Eliminar una respuesta borra todas las tomas de esa pregunta del Google Drive del profesor.",
+      "blurb": "Eliminar una respuesta borra todas las tomas del Google Drive del profesor.",
       "refresh": "Actualizar",
       "filterTeacher": "Profesor",
       "allTeachers": "Todos los profesores",
@@ -3126,13 +3125,10 @@
     "saveFailed": "No se pudo guardar la configuración del cuestionario.",
     "handRaise": {
       "heading": "Levantar la mano",
-      "help": "Controla si los estudiantes de esta escuela ven un botón para levantar la mano durante un cuestionario.",
       "teacherChoice": "Decisión del docente",
-      "teacherChoiceHint": "Cada docente decide en cada cuestionario. Desactivado salvo que lo active.",
+      "teacherChoiceHint": "Desactivado hasta que el docente lo active.",
       "forceOn": "Siempre activado",
-      "forceOnHint": "Levantar la mano está disponible en todos los cuestionarios y los docentes no pueden desactivarlo.",
-      "forceOff": "Siempre desactivado",
-      "forceOffHint": "Levantar la mano está oculto para los estudiantes en todos los cuestionarios."
+      "forceOff": "Siempre desactivado"
     },
     "noBuildings": "No hay edificios configurados",
     "noBuildingsHint": "Agregue un edificio en Organización antes de establecer un valor predeterminado para levantar la mano.",
@@ -3641,7 +3637,7 @@
   },
   "tourHealth": {
     "loading": "Cargando recorridos...",
-    "intro": "Comprueba la versión publicada de cada recorrido, la que usan los docentes, con el registro de anclas y los recorridos reales. «Comprobar en vivo» busca cada ancla en la pizarra detrás de esta ventana tal como está ahora.",
+    "intro": "Compara los recorridos publicados con el registro de anclajes.",
     "recordTour": "Grabar un recorrido",
     "checkLive": "Comprobar en vivo",
     "empty": "Ningún conjunto de Guided Learning tiene pasos de recorrido en vivo todavía.",

@@ -345,11 +345,6 @@ export const BuilderGrid: React.FC<BuilderGridProps> = ({
           );
         })}
       </div>
-
-      <p className="text-xs text-slate-500">
-        Click a cell to select it. Shift+click multiple cells, then &quot;Merge
-        Selected&quot;.
-      </p>
     </div>
   );
 };

@@ -173,8 +173,7 @@ export const PlcResourcesManager: React.FC = () => {
           </h3>
           <p className="text-sm text-slate-500 mt-0.5">
             {t('plcDashboard.resources.managerSubtitle', {
-              defaultValue:
-                'Push curated resources (docs, quizzes, boards) to specific or all PLCs.',
+              defaultValue: 'Send resources to PLCs.',
             })}
           </p>
         </div>

@@ -677,9 +677,6 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                           <CalendarDays className="w-4 h-4 text-teal-500" />{' '}
                           Block Date Ranges
                         </h4>
-                        <p className="text-xxs text-slate-400 font-bold mt-1 uppercase">
-                          Configure explicit windows for each block
-                        </p>
                       </div>
                       <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
                         {Array.from(

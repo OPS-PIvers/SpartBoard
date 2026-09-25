@@ -141,28 +141,20 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
 
   if (!isOpen) return null;
 
-  const MODE_COPY: Record<QuizHandRaiseMode, { label: string; hint: string }> =
+  const MODE_COPY: Record<QuizHandRaiseMode, { label: string; hint?: string }> =
     {
       'teacher-choice': {
         label: t('quizAdmin.handRaise.teacherChoice', "Teacher's choice"),
         hint: t(
           'quizAdmin.handRaise.teacherChoiceHint',
-          'Each teacher decides per quiz. Off unless they turn it on.'
+          'Off unless the teacher turns it on.'
         ),
       },
       'force-on': {
         label: t('quizAdmin.handRaise.forceOn', 'Always on'),
-        hint: t(
-          'quizAdmin.handRaise.forceOnHint',
-          'Raise hand is available in every quiz and teachers cannot turn it off.'
-        ),
       },
       'force-off': {
         label: t('quizAdmin.handRaise.forceOff', 'Always off'),
-        hint: t(
-          'quizAdmin.handRaise.forceOffHint',
-          'Raise hand is hidden from students in every quiz.'
-        ),
       },
     };
 
@@ -308,12 +300,6 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
                   <Hand className="w-4 h-4 text-brand-blue-primary" />
                   {t('quizAdmin.handRaise.heading', 'Raise hand')}
                 </h4>
-                <p className="text-xs text-slate-500">
-                  {t(
-                    'quizAdmin.handRaise.help',
-                    'Controls whether students see a Raise hand button while taking a quiz in this building.'
-                  )}
-                </p>
                 <div className="space-y-2">
                   {QUIZ_HAND_RAISE_MODES.map((mode) => (
                     <label
@@ -332,9 +318,11 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
                         <span className="block text-sm font-semibold text-slate-700">
                           {MODE_COPY[mode].label}
                         </span>
-                        <span className="block text-xs text-slate-500">
-                          {MODE_COPY[mode].hint}
-                        </span>
+                        {MODE_COPY[mode].hint && (
+                          <span className="block text-xs text-slate-500">
+                            {MODE_COPY[mode].hint}
+                          </span>
+                        )}
                       </span>
                     </label>
                   ))}
