@@ -127,10 +127,15 @@ describe('parseRtfDocument pictures', () => {
   });
 
   it('gets a \\bin picture’s bytes back from the Windows-1252 decode', () => {
-    const bytes = Uint8Array.from([0x80, 0x81, 0x92, 0x9f, 0xff, 0x00]);
+    // WHATWG maps 0x81, 0x8D, 0x8F, 0x90 and 0x9D to U+0081 etc., never U+FFFD.
+    const bytes = Uint8Array.from([
+      0x80, 0x81, 0x8d, 0x8f, 0x90, 0x92, 0x9d, 0x9f, 0xff, 0x00,
+    ]);
+    const decoded = new TextDecoder('windows-1252').decode(bytes);
+    expect(decoded).not.toContain('�');
     const rtf =
-      `${HEADER}\\pard x{\\pict\\pngblip\\bin6 ` +
-      new TextDecoder('windows-1252').decode(bytes) +
+      `${HEADER}\\pard x{\\pict\\pngblip\\bin${bytes.length} ` +
+      decoded +
       `}\\par}`;
     const { pictures } = parseRtfDocument(rtf);
     expect(Array.from(pictures[0].bytes)).toEqual(Array.from(bytes));
