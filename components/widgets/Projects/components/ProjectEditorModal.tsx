@@ -319,7 +319,8 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
             className={`${inputClass} font-mono`}
           />
           <p className="text-xs text-slate-500">
-            Replaces the list. Matching steps keep their progress.
+            Replaces the list below. A line that matches a step you already have
+            keeps that step&apos;s settings and its groups&apos; progress.
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -460,7 +461,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
           onChange={(e) =>
             patchStep(selectedStep.id, { description: e.target.value })
           }
-          placeholder="Optional"
+          placeholder="Optional — the groups read this on their project page."
           className={inputClass}
         />
       </div>
@@ -481,7 +482,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
           className={inputClass}
         />
         <p className="mt-1 text-xs text-slate-500">
-          It doesn&apos;t lock the step.
+          The group sees this date, and the step stays open after it.
         </p>
       </div>
 
@@ -491,7 +492,8 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
             Needs your approval
           </span>
           <span className="block text-xs text-slate-500">
-            Only you can mark it done.
+            Groups stop at &ldquo;ready for review&rdquo; and only you can mark
+            this step done.
           </span>
         </span>
         <Toggle

@@ -285,7 +285,6 @@
       "interfacePreferences": "Interface Preferences",
       "disableCloseWarning": "Disable Close Warning",
       "quickAccessWidgets": "Quick Access Widgets",
-      "quickAccessDescription": "Select up to 2 widgets to appear when the dock is minimized.",
       "dockPosition": "Dock Position",
       "dockPositionDescription": "Choose where the dock appears on your screen.",
       "dockBottom": "Bottom",
@@ -320,7 +319,7 @@
       "commonAssessment": {
         "loading": "Loading your common assessment…",
         "emptyTitle": "No common assessment yet",
-        "emptySubtitle": "Designate one in Shared Data, then review the pooled results together.",
+        "emptySubtitle": "Designate one in Assessments, then review the pooled results together.",
         "reviewData": "Review shared data",
         "ranIt": "{{ran}} of {{total}} ran it",
         "startMeeting": "Start Meeting",
@@ -598,8 +597,6 @@
           "title": "Quiz library",
           "teaser": "Share quizzes with your PLC.",
           "heading": "Quiz Library",
-          "empty": "No shared quizzes",
-          "emptySubtitle": "Share a quiz from the kebab on its library card.",
           "questionCount_one": "{{count}} q",
           "questionCount_other": "{{count}} q",
           "bySharer": "shared by {{name}}",
@@ -943,7 +940,7 @@
         "reviewed": "Assessments reviewed",
         "decisions": "Decisions",
         "actions": "Action items → to-dos",
-        "attendees": "Attendees (from presence)",
+        "attendees": "Attendees",
         "whoAttended": "Who’s here now",
         "noAttendees": "No one else is active right now — you’ll be recorded as the facilitator.",
         "viewerNote": "Viewers can follow along but can’t save the meeting record.",
@@ -1054,7 +1051,7 @@
       "groupBoards": "Boards"
     },
     "viewer": {
-      "badge": "Viewer — read only",
+      "badge": "View only",
       "badgeTooltip": "You have viewer access to this PLC. You can read everything, but creating, editing, and deleting are turned off.",
       "readOnly": "Read only",
       "assessmentsNote": "Viewers can browse shared assessments but can’t share, edit, or assign them.",
@@ -1419,8 +1416,7 @@
       "widgetLabel": "Widget label",
       "widgetLabelPlaceholder": "Quiz",
       "assignmentArchive": "View assignment archive",
-      "managerView": "Reset to manager view",
-      "currentView": "Current widget view: {{view}}"
+      "managerView": "Reset to manager view"
     },
     "breathing": {
       "pattern": "Pattern",
@@ -1860,7 +1856,7 @@
     },
     "talking-tool": {
       "globalContent": "Global content settings",
-      "globalContentHelp": "Talking stems and categories are configured by an admin via Feature Permissions."
+      "globalContentHelp": "Your admin sets the talking stems and categories."
     },
     "stickers": {
       "stickerBook": "Sticker book",
@@ -2637,11 +2633,8 @@
       "geoNotSupported": "Geolocation not supported",
       "locationDenied": "Location access denied",
       "prioritizeFeelsLike": "Prioritize Feels Like",
-      "prioritizeDescription": "Swap prominence between actual and feels-like temperature.",
       "hideClothing": "Hide Clothing Suggestions",
-      "hideClothingDescription": "Remove the clothing and message container from the widget.",
       "syncBackground": "Sync Background",
-      "syncBackgroundDescription": "Automatically change dashboard background to match weather.",
       "manual": "Manual",
       "automatic": "Automatic",
       "temperature": "Temperature",
@@ -2650,7 +2643,6 @@
       "managedByAdmin": "Weather is managed by your administrator.",
       "schoolStation": "School Station",
       "stationReady": "Station Feed Ready",
-      "stationConnectedTo": "Connected to <b>{{name}} ({{id}})</b> weather station.",
       "refreshStation": "Refresh Station Data",
       "serviceNotConfiguredAdmin": "Weather service is not configured. Please contact your administrator to set up the API key.",
       "cityZip": "City / Zip",

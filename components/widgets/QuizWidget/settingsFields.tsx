@@ -1,14 +1,12 @@
 import React from 'react';
 import { Archive } from 'lucide-react';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
-import type { QuizConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 
 export const QuizManagementField: React.FC<{ ctx: CustomRenderCtx }> = ({
   ctx,
 }) => {
   const { updateWidget } = useDashboard();
-  const config = ctx.config as unknown as QuizConfig;
 
   return (
     <div
@@ -59,11 +57,6 @@ export const QuizManagementField: React.FC<{ ctx: CustomRenderCtx }> = ({
       >
         {ctx.t('widgetSettings.quiz.managerView')}
       </button>
-      {config.view !== 'manager' && (
-        <p className="text-xxs font-semibold text-slate-500">
-          {ctx.t('widgetSettings.quiz.currentView', { view: config.view })}
-        </p>
-      )}
     </div>
   );
 };

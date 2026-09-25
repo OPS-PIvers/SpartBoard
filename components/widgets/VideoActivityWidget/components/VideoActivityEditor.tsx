@@ -307,6 +307,9 @@ const QuestionNavigator: React.FC<QuestionNavigatorProps> = ({
         <span className="text-xxs font-bold uppercase tracking-wider text-slate-500">
           Questions ({questions.length})
         </span>
+        <span className="text-xxs text-slate-400">
+          Drag to reorder · click to edit
+        </span>
       </div>
       <div className="max-h-[7.5rem] overflow-y-auto custom-scrollbar -mx-1 px-1">
         <SortableList
@@ -625,7 +628,7 @@ export const VideoActivityAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
       open={showAiPrompt}
       onClose={() => setShowAiPrompt(false)}
       title="Draft with AI"
-      description="Adds questions to the end of the list."
+      description="Gemini will watch the video and append questions to the current list."
       generating={aiGenerating}
       canGenerate={!!youtubeUrl.trim() && aiTotalCount > 0}
       onGenerate={() => void runAiGenerate()}
@@ -781,7 +784,8 @@ const FibSubForm: React.FC<FibSubFormProps> = ({
           className={`${inputClass} resize-none`}
         />
         <p className="text-xxs text-slate-500 mt-1">
-          Case and spacing don&apos;t matter.
+          Whitespace + case are ignored. Add variants for spellings, synonyms,
+          or alternate phrasings.
         </p>
       </div>
     </div>
@@ -903,7 +907,7 @@ const MaSubForm: React.FC<MaSubFormProps> = ({ question, onUpdate }) => {
         </div>
         {hasPipeInOption && (
           <p className="text-xxs text-amber-600 font-medium pl-9">
-            Options can&apos;t contain the <code>|</code> character.
+            Remove the <code>|</code> character from this option before saving.
           </p>
         )}
       </div>

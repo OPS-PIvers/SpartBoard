@@ -545,10 +545,12 @@ const StimulusCard: React.FC<{
                 placeholder="Paste or type the passage students will read."
                 className="w-full px-2.5 py-2 border-2 border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary/50"
               />
-              <p className="text-xs text-slate-500 mt-1">
-                Read-aloud speaks this passage as written, so there is nothing
-                to review.
-              </p>
+              {readAloudAvailable && (
+                <p className="text-xs text-slate-500 mt-1">
+                  Read-aloud speaks this passage as written, so there is nothing
+                  to review.
+                </p>
+              )}
             </div>
           ) : (
             <p className="text-xs text-slate-500 break-all">

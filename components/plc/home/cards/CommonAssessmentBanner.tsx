@@ -154,7 +154,7 @@ export const CommonAssessmentBanner: React.FC<CommonAssessmentBannerProps> = ({
             <p className="text-xs text-slate-500 mt-0.5">
               {t('plcDashboard.home.commonAssessment.emptySubtitle', {
                 defaultValue:
-                  'Designate one in Shared Data, then review the pooled results together.',
+                  'Designate one in Assessments, then review the pooled results together.',
               })}
             </p>
           </div>
