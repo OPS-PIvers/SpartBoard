@@ -476,16 +476,17 @@ export const MaterialsConfigurationPanel: React.FC<
       </div>
 
       <Card rounded="xl" shadow="none" className="bg-slate-50 space-y-4">
+        <p className="text-xxs text-slate-500 leading-tight">
+          These materials will be available to teachers in{' '}
+          <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b> when
+          they add a Materials widget. Built-in materials always remain
+          available here; custom materials can be assigned per building.
+        </p>
+
         <div className="flex items-center justify-between">
           <label className="text-xxs font-bold text-slate-500 uppercase block">
             Available Materials ({selectedItems.size}/{materialsCatalog.length}{' '}
             selected)
-            <p className="text-xxs text-slate-500 leading-tight">
-              These materials will be available to teachers in{' '}
-              <b>{BUILDINGS.find((b) => b.id === selectedBuildingId)?.name}</b>{' '}
-              when they add a Materials widget. Built-in materials always remain
-              available here; custom materials can be assigned per building.
-            </p>
           </label>
           <button
             type="button"

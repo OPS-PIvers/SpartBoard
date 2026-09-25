@@ -719,11 +719,11 @@ export const CalendarConfigurationModal: React.FC<
                       <Palette className="w-4 h-4 text-rose-500" /> Widget
                       Appearance Defaults
                     </h4>
+                    <p className="text-xxs text-slate-500 font-medium mt-1 uppercase tracking-wider">
+                      Pre-populates new Calendar widgets in this building —
+                      teachers can still override per-instance
+                    </p>
                   </div>
-                  <p className="text-xxs text-slate-500 font-medium mt-1 uppercase tracking-wider">
-                    Pre-populates new Calendar widgets in this building —
-                    teachers can still override per-instance
-                  </p>
 
                   <div>
                     <label
