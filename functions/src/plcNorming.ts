@@ -234,7 +234,11 @@ export function extractNormingContent(
           : null,
     };
   }
-  if (take.paperTranscript === 'pending' && !str(take.answer).trim()) {
+  if (
+    slot === 'primary' &&
+    take.paperTranscript === 'pending' &&
+    !str(take.answer).trim()
+  ) {
     throw notAvailable('This answer is still being transcribed.');
   }
   const textArtifact = artifacts.find((a) => a?.kind === 'text' && inSlot(a));
