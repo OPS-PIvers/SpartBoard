@@ -173,6 +173,62 @@ describe('useAnchorElement', () => {
     expect(result.current.status).toBe('found');
   });
 
+  it('keeps searching while the anchor sits in a faded-out ancestor', async () => {
+    const dock = document.createElement('div');
+    dock.style.opacity = '0';
+    document.body.appendChild(dock);
+    addAnchor(dock);
+    const { result } = renderHook(() => useAnchorElement(binding, scope));
+    await advance(ANCHOR_SEARCH_THROTTLE_MS * 2);
+    expect(result.current.status).toBe('searching');
+    act(() => {
+      dock.style.opacity = '1';
+    });
+    await advance(ANCHOR_SEARCH_THROTTLE_MS + 20);
+    expect(result.current.status).toBe('found');
+  });
+
+  it('ignores a click-through anchor', async () => {
+    const el = addAnchor();
+    el.style.pointerEvents = 'none';
+    const { result } = renderHook(() => useAnchorElement(binding, scope));
+    await advance(ANCHOR_SEARCH_MS + 10);
+    expect(result.current.status).toBe('missing');
+    act(() => {
+      el.style.pointerEvents = 'auto';
+    });
+    await advance(ANCHOR_SEARCH_THROTTLE_MS + 20);
+    expect(result.current.status).toBe('found');
+  });
+
+  it('treats an off-screen anchor as searching until it scrolls into view', async () => {
+    const el = addAnchor();
+    el.dataset.x = String(window.innerWidth + 200);
+    const { result } = renderHook(() => useAnchorElement(binding, scope));
+    await advance(ANCHOR_SEARCH_THROTTLE_MS * 2);
+    expect(result.current.status).toBe('searching');
+    el.dataset.x = '10';
+    act(() => {
+      window.dispatchEvent(new Event('scroll'));
+    });
+    await advance(ANCHOR_SEARCH_THROTTLE_MS + 20);
+    expect(result.current.status).toBe('found');
+  });
+
+  it('loses an anchor that fades out while found', async () => {
+    const panel = document.createElement('div');
+    document.body.appendChild(panel);
+    addAnchor(panel);
+    const { result } = renderHook(() => useAnchorElement(binding, scope));
+    await advance(100);
+    expect(result.current.status).toBe('found');
+    act(() => {
+      panel.style.opacity = '0';
+    });
+    await advance(50);
+    expect(result.current.status).toBe('searching');
+  });
+
   it('goes straight to the fallback when the anchor is empty', async () => {
     const fallbackOnly = {
       anchor: '',

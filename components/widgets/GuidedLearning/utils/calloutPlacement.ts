@@ -21,6 +21,8 @@ export interface PlaceCalloutInput {
   offset?: number;
   /** Narrowest width auto placement may shrink to before accepting overlap. */
   minWidth?: number;
+  /** Other UI auto placement keeps clear of when it can, such as the dock. */
+  obstacles?: readonly PxRect[];
 }
 
 export interface CalloutPlacement {
@@ -189,6 +191,7 @@ export function placeCallout(input: PlaceCalloutInput): CalloutPlacement {
     padding = CALLOUT_PADDING,
     offset = CALLOUT_OFFSET,
     minWidth = CALLOUT_MIN_WIDTH,
+    obstacles = [],
   } = input;
 
   if (pinned) {
@@ -234,8 +237,15 @@ export function placeCallout(input: PlaceCalloutInput): CalloutPlacement {
     }
   }
 
-  const fitting = candidates.find(
+  const blocked = (r: PxRect) =>
+    obstacles.reduce((sum, o) => sum + rectOverlapArea(r, o), 0);
+  const clearOfTarget = candidates.filter(
     (c) => c.fits && rectOverlapArea(c.rect, target) === 0
+  );
+  // Clear of the target first, then the one covering the least surrounding UI.
+  const fitting = clearOfTarget.reduce<Candidate | undefined>(
+    (acc, c) => (!acc || blocked(c.rect) < blocked(acc.rect) ? c : acc),
+    undefined
   );
   let best: Candidate;
   if (fitting) {

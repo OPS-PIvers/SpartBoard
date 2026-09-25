@@ -4485,6 +4485,7 @@
   "tours": {
     "unavailable": "This tour isn't available right now.",
     "practiceBoardName": "Tour practice",
+    "widgetsLeftBehind": "The tour ended. Its widgets are still on your other board.",
     "readOnlyTitle": "This board is view-only",
     "readOnlyBody": "The tour needs to add widgets and click around. Start it on a new practice board instead?",
     "cancel": "Cancel",

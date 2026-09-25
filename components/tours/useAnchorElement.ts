@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { GuidedLearningTourBinding } from '@/types';
 import {
   findTourAnchor,
-  isAnchorVisible,
+  isAnchorUsable,
   type TourAnchorScope,
 } from './resolveTourAnchor';
 
@@ -136,7 +136,8 @@ export function useAnchorElement(
       raf = 0;
       const el = element;
       if (cancelled || !el) return;
-      if (!el.isConnected || !isAnchorVisible(el)) {
+      // Faded, click-through or off-screen reads as searching, not found.
+      if (!el.isConnected || !isAnchorUsable(el)) {
         lose();
         return;
       }
@@ -167,7 +168,11 @@ export function useAnchorElement(
       searchTimer = undefined;
       if (cancelled || element) return;
       lastSearch = Date.now();
-      const found = findTourAnchor(target, { widgetIds, slots });
+      const found = findTourAnchor(target, {
+        widgetIds,
+        slots,
+        accept: isAnchorUsable,
+      });
       if (found) track(found);
     };
 
@@ -219,7 +224,10 @@ export function useAnchorElement(
       attributeFilter: WATCHED_ATTRS,
     });
 
-    const onViewport = () => schedule();
+    const onViewport = () => {
+      if (element) schedule();
+      else requestSearch();
+    };
     const onMotionStart = (e: Event) => {
       if (!element) return;
       if (e.target instanceof Node && e.target.contains(element)) {

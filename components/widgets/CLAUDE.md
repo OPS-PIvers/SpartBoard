@@ -122,6 +122,7 @@ Widgets using sound share one lazily-created `AudioContext` singleton from `util
 - Update widget state via `updateWidget(id, { config: {...} })`; it debounces and syncs to Firestore. `saveCurrentDashboard()` is only for rare manual saves.
 - Widget z-index starts at 1; never set it manually — use `bringToFront(id)`. Dimensions are px, not percentages.
 - The `flipped` state is managed by `DraggableWindow`, not individual widgets.
+- A live-tour anchor (`tourAttr`) that only shows after setup declares it with `requires` in `config/tourAnchors.ts` (`widget-selected`, `widget-restored`, `in-view`, `dock-expanded`).
 
 ## Widget Appearance Standard (Visual System)
 

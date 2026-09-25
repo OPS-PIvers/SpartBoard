@@ -312,6 +312,35 @@ describe('DashboardContext tour layer', () => {
     expect(savedWidgetIds().at(-1)).toContain(id);
   });
 
+  it('Keep saves a tour widget on its own board after a switch to a view-only one', async () => {
+    const stateRef = setup();
+    const viewOnly: Dashboard = {
+      ...makeDashboard([makeWidget('v1')]),
+      id: 'dash-2',
+      name: 'Shared',
+      linkedShareRole: 'viewer',
+    };
+    await settle(stateRef, [makeDashboard([makeWidget('w1')]), viewOnly]);
+    let id = '';
+    act(() => {
+      id = stateRef.current?.addTourWidget?.('clock', LAYOUT) ?? '';
+    });
+    act(() => stateRef.current?.loadDashboard('dash-2'));
+    expect(stateRef.current?.activeDashboard?.id).toBe('dash-2');
+    firestoreMock.saveDashboards.mockClear();
+    act(() => stateRef.current?.commitTourWidgets?.([id]));
+    const owner = stateRef.current?.dashboards.find((d) => d.id === 'dash-1');
+    expect(owner?.widgets.find((w) => w.id === id)?.transient).toBeUndefined();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    const saved = firestoreMock.saveDashboards.mock.calls.at(-1)?.[0] as
+      | Dashboard[]
+      | undefined;
+    expect(saved?.map((d) => d.id)).toEqual(['dash-1']);
+    expect(saved?.[0].widgets.map((w) => w.id)).toContain(id);
+  });
+
   it('discards a tour widget without an undo entry or a save', async () => {
     const stateRef = setup();
     await settle(stateRef, [makeDashboard([makeWidget('w1')])]);

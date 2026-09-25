@@ -3354,6 +3354,7 @@
   "tours": {
     "unavailable": "Diese Tour ist gerade nicht verfügbar.",
     "practiceBoardName": "Tour-Übung",
+    "widgetsLeftBehind": "Die Tour ist beendet. Ihre Widgets sind noch auf deiner anderen Tafel.",
     "readOnlyTitle": "Diese Tafel ist schreibgeschützt",
     "readOnlyBody": "Die Tour muss Widgets hinzufügen und Schaltflächen anklicken. Stattdessen auf einer neuen Übungstafel starten?",
     "cancel": "Abbrechen",

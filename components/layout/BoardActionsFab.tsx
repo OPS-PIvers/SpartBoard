@@ -116,6 +116,7 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({ onOpenHelp }) => {
     <div
       ref={containerRef}
       data-screenshot="exclude"
+      data-tour-obstacle=""
       // inert (not aria-disabled on a div) so the faded FAB is unreachable by
       // keyboard too while the pen owns the pointer.
       inert={inkingOwnsPointer}

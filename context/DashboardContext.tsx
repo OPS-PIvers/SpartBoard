@@ -139,6 +139,7 @@ import {
   createDashboardCanvasStore,
   DashboardActionsContext,
   DashboardCanvasStoreContext,
+  releaseTourRestore,
   type DashboardActions,
 } from './dashboardCanvasStore';
 import { ToolVisibilityContext } from './ToolVisibilityContextValue';
@@ -5775,30 +5776,38 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [activeId, insertWidget]
   );
 
-  // Keep: the tour widgets become ordinary widgets and save with the board.
+  // Keep: the tour widgets become ordinary widgets and save with the board that owns them.
   const commitTourWidgets = useCallback(
     (ids: readonly string[]) => {
-      if (ids.length === 0 || isActiveBoardReadOnlyRef.current) return;
+      if (ids.length === 0) return;
       const idSet = new Set(ids);
-      recordHistory();
+      const owns = (d: Dashboard) =>
+        !(d.linkedShareRole === 'viewer' && !d.linkedShareEnded) &&
+        d.widgets.some((w) => w.transient && idSet.has(w.id));
+      const keep = (d: Dashboard): Dashboard => ({
+        ...d,
+        widgets: d.widgets.map((w) => {
+          if (!w.transient || !idSet.has(w.id)) return w;
+          const { transient: _transient, ...kept } = w;
+          return kept;
+        }),
+      });
+      const owners = dashboardsRef.current.filter(owns);
+      if (owners.length === 0) return;
+      const currentId = activeIdRef.current;
+      if (owners.some((d) => d.id === currentId)) recordHistory();
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
-      setDashboards((prev) =>
-        prev.map((d) =>
-          d.widgets.some((w) => w.transient && idSet.has(w.id))
-            ? {
-                ...d,
-                widgets: d.widgets.map((w) => {
-                  if (!w.transient || !idSet.has(w.id)) return w;
-                  const { transient: _transient, ...kept } = w;
-                  return kept;
-                }),
-              }
-            : d
-        )
-      );
+      setDashboards((prev) => prev.map((d) => (owns(d) ? keep(d) : d)));
+      // The active board rides autosave; other boards are written directly.
+      const others = owners.filter((d) => d.id !== currentId).map(keep);
+      if (others.length > 0) {
+        saveDashboards(others).catch((err: unknown) =>
+          console.error('Failed to save kept tour widgets:', err)
+        );
+      }
     },
-    [recordHistory]
+    [recordHistory, saveDashboards]
   );
 
   // Every board, so a board switch mid-tour cannot strand a tour widget.
@@ -6151,6 +6160,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     ) => {
       if (!activeIdRef.current) return;
       if (isActiveBoardReadOnlyRef.current) return;
+      if (updates.minimized === true) releaseTourRestore(id);
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
       if (opts?.immediate) pendingImmediateWrite.current = true;

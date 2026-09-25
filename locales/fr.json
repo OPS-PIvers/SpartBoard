@@ -3354,6 +3354,7 @@
   "tours": {
     "unavailable": "Cette visite n'est pas disponible pour le moment.",
     "practiceBoardName": "Entraînement à la visite",
+    "widgetsLeftBehind": "La visite est terminée. Ses widgets sont toujours sur votre autre tableau.",
     "readOnlyTitle": "Ce tableau est en lecture seule",
     "readOnlyBody": "La visite doit ajouter des widgets et cliquer sur des boutons. La lancer plutôt sur un nouveau tableau d'entraînement ?",
     "cancel": "Annuler",
