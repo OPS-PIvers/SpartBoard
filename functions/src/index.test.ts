@@ -3182,6 +3182,10 @@ describe('index barrel — deployed export set', () => {
     'retryPaperTranscriptionV1',
     'sweepPaperTranscriptionJobs',
     'sweepPaperWrittenCrops',
+    'getPaperWrittenCropV1',
+    'updatePaperTranscriptV1',
+    'applyPaperNewerScanV1',
+    'transcribePaperBlankV1',
     // Org-admin media review & compliance delete
     'listQuizMediaForOrgAdmin',
     'deleteQuizMediaForOrgAdmin',

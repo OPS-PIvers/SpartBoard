@@ -3564,6 +3564,16 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               contentType: blob.type || 'image/webp',
             });
           }}
+          loadRemoteCrop={async (storagePath) => {
+            const call = httpsCallable<
+              { storagePath: string },
+              { status: string; mimeType?: string; data?: string }
+            >(functions, 'getPaperWrittenCropV1');
+            const res = await call({ storagePath });
+            return res.data.status === 'ready' && res.data.data
+              ? `data:${res.data.mimeType ?? 'image/webp'};base64,${res.data.data}`
+              : null;
+          }}
           checkQuota={() =>
             readPaperImportQuota(firestoreDocData, {
               uid: user.uid,
