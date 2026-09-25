@@ -206,6 +206,23 @@ describe('rebindQueueItem', () => {
     expect(h.updates).toEqual([]);
   });
 
+  it('prunes stale places instead of marking rebound when no step is left', async () => {
+    const gone = {
+      ...stored,
+      steps: stored.steps.filter((s) => s.id !== 'a'),
+    } as GuidedLearningSet;
+    const save = vi.fn(() => Promise.resolve());
+    const count = await rebindQueueItem(item('sidebar.boards'), {
+      load: () => Promise.resolve(gone),
+      save,
+    });
+    expect(count).toBe(0);
+    expect(save).not.toHaveBeenCalled();
+    expect(h.updates).toHaveLength(1);
+    expect(h.updates[0].data).not.toHaveProperty('status');
+    expect(h.updates[0].data.occurrences).toMatchObject({ op: 'remove' });
+  });
+
   it('leaves the item unmarked when a save conflicts', async () => {
     await expect(
       rebindQueueItem(item('sidebar.boards'), {

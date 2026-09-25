@@ -543,15 +543,22 @@ export const useGuidedLearning = (
   };
 };
 
-// Transactional revision check for a building set, resolving to the replaced doc; unguarded callers write as before.
+// Transactional revision check for a building set, resolving to the replaced doc.
 const writeBuildingSet = async (
   ref: DocumentReference,
   set: GuidedLearningSet,
   guard: GuidedLearningSaveGuard | undefined
 ): Promise<GuidedLearningSet | undefined> => {
   if (!guard) {
+    // Best-effort read so unguarded saves (Help Center picker) still prune deleted steps from the anchor queue.
+    let stored: GuidedLearningSet | undefined;
+    try {
+      stored = (await getDoc(ref)).data() as GuidedLearningSet | undefined;
+    } catch {
+      stored = undefined;
+    }
     await setDoc(ref, set);
-    return undefined;
+    return stored;
   }
   let previous: GuidedLearningSet | undefined;
   await runTransaction(db, async (tx) => {

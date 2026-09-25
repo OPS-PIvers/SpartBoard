@@ -93,7 +93,7 @@ export interface RebindDeps {
   ) => Promise<void>;
 }
 
-/** Writes the mapped anchor into every affected building-set step, then marks the item rebound. */
+/** Writes the mapped anchor into every affected building-set step, then marks the item rebound; 0 means nothing was left to rebind. */
 export async function rebindQueueItem(
   item: TourAnchorQueueItem,
   { load, save }: RebindDeps
@@ -118,6 +118,13 @@ export async function rebindQueueItem(
       { expectedUpdatedAt: set.updatedAt }
     );
     count += next.count;
+  }
+  // Every step was deleted or rebound elsewhere: prune the stale places instead of claiming a rebind.
+  if (count === 0) {
+    await removeQueueOccurrences(
+      item.occurrences.map((o) => ({ ...o, fingerprint: item.fingerprint }))
+    );
+    return 0;
   }
   if (isConfigured) {
     await updateDoc(queueRef(item.fingerprint), {
