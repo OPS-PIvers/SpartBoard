@@ -3,8 +3,8 @@
  * and the paper stub's OCR agree on what counts as "question 3".
  */
 
-/** `1.` / `12)` / `3 .` — a bare number carries its own punctuation; `____ 1.` is a test bank's answer blank. */
-const NUMBERED = /^\s*(?:_{2,}\s*)?(\d{1,3})\s*[.)]\s*(.*)$/;
+/** `1.` / `12)` / `3 .` — a bare number carries its own punctuation; `____ 1.` is a test bank's answer blank; `357.4` is a decimal. */
+const NUMBERED = /^\s*(?:_{2,}\s*)?(\d{1,3})\s*[.)](?!\d)\s*(.*)$/;
 /**
  * `Question 1:` / `Q3.` / `#4` — the label already says it is a question, so
  * the punctuation after the number is optional. Singular only: "Questions 1-5
@@ -17,11 +17,15 @@ export interface QuestionOpening {
   number: number;
   /** Whatever followed the number on the same line; '' when nothing did. */
   text: string;
+  /** Opened by a label (`Question 3`, `Q3.`) rather than a bare number. */
+  labelled?: boolean;
 }
 
 /** The question a line opens, or null when the line opens none. */
 export function matchQuestionOpening(line: string): QuestionOpening | null {
-  const m = NUMBERED.exec(line) ?? LABELLED.exec(line);
-  if (!m) return null;
-  return { number: Number(m[1]), text: m[2] };
+  const numbered = NUMBERED.exec(line);
+  if (numbered) return { number: Number(numbered[1]), text: numbered[2] };
+  const labelled = LABELLED.exec(line);
+  if (!labelled) return null;
+  return { number: Number(labelled[1]), text: labelled[2], labelled: true };
 }

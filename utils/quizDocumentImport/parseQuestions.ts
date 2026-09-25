@@ -18,6 +18,7 @@ import {
   findAnswerKey,
   isHeading,
 } from './answerKey';
+import { EXAMVIEW_TYPE_HEADING, WRITTEN_SECTION, isExamView } from './examView';
 import { keyedQuestionIndexes, mergeAnswerKey } from './mergeKey';
 import {
   SELECT_ALL_WORDING,
@@ -101,27 +102,83 @@ const romanValue = (s: string): number => {
 /** Lines a column split produced, so out-of-order letters there are expected. */
 const columnLines = new WeakSet<DocLine>();
 
+/** Two or more spaces before an option marker: a column gap typed with the space bar (E2). */
+const SPACED_OPTION = /\s{2,}(?=(?:\([A-Fa-f]\)|[A-Fa-f][.)])(?:\s|$))/;
+const OPTION_MARKER = /^\s*(?:\(([A-Fa-f])\)|([A-Fa-f])[.)])(?:\s|$)/;
+
+/** `____`, an answer blank printed in a column of its own. */
+const isBlankGroup = (group: readonly DocSegment[] | undefined): boolean =>
+  group !== undefined &&
+  group.length > 0 &&
+  group.every((s) => /^_{2,}$/.test(s.text.trim()));
+
+/** Letters that step evenly upward, `a b c` or a grid row's `a d`. */
+function isOptionRun(letters: readonly string[]): boolean {
+  if (letters.length < 2) return false;
+  const sameCase = letters.every(
+    (l) => (l === l.toUpperCase()) === (letters[0] === letters[0].toUpperCase())
+  );
+  const codes = letters.map((l) => l.toUpperCase().charCodeAt(0));
+  const step = codes[1] - codes[0];
+  return (
+    sameCase && step > 0 && codes.every((c, i) => c === codes[0] + i * step)
+  );
+}
+
+/** Split `a. one    b. two` at its space-bar gaps when the markers form a run (E2). */
+function splitSpacedOptions(line: DocLine): DocLine {
+  const pieces: DocSegment[] = [];
+  let split = false;
+  for (const segment of lineSegments(line)) {
+    const parts = segment.text.split(SPACED_OPTION);
+    if (parts.length > 1) split = true;
+    parts.forEach((text, i) => {
+      // Only the first piece keeps the segment's position.
+      pieces.push(
+        i === 0
+          ? { ...segment, text }
+          : { text, ...(segment.emphasized ? { emphasized: true } : {}) }
+      );
+    });
+  }
+  if (!split) return line;
+  const filled = pieces.filter((p) => p.text.trim());
+  if (!OPTION_MARKER.test(filled[0]?.text ?? '')) return line;
+  const letters = filled
+    .map((p) => OPTION_MARKER.exec(p.text))
+    .filter((m): m is RegExpExecArray => m !== null)
+    .map((m) => m[1] ?? m[2]);
+  return isOptionRun(letters) ? { ...line, segments: pieces } : line;
+}
+
 /**
  * A column gap that opens an option or a question starts a line of its own
  * (R5), so a table row `A. Rome | B. Paris` reads as two options. A marker
- * inside one segment never splits.
+ * inside one segment splits only at a run of spaces (E2).
  */
 export function splitAtColumnMarkers(lines: readonly DocLine[]): DocLine[] {
   const out: DocLine[] = [];
-  for (const line of lines) {
+  for (const original of lines) {
+    const line = splitSpacedOptions(original);
     const filled = (line.segments ?? []).filter((s) => s.text.trim());
     if (filled.length < 2) {
       out.push(line);
       continue;
     }
+    // Word and RTF print the number first on its line or after a `____` blank (E1).
+    const positioned = filled.some((s) => s.x !== undefined);
     const groups: DocSegment[][] = [];
     for (const segment of lineSegments(line)) {
       const text = segment.text.trim();
       if (!text) continue;
-      const opens = isOptionText(text) || matchQuestionOpening(text) !== null;
       const last = groups[groups.length - 1];
-      if (last && !opens) last.push(segment);
-      else groups.push([segment]);
+      const question =
+        matchQuestionOpening(text) !== null &&
+        (positioned || !last || isBlankGroup(last));
+      const opens = isOptionText(text) || question;
+      if (last && (!opens || (question && isBlankGroup(last)))) {
+        last.push(segment);
+      } else groups.push([segment]);
     }
     if (groups.length < 2) {
       columnLines.add(line);
@@ -195,6 +252,52 @@ interface Draft {
   instruction?: string;
   /** Every line read into this question, for rebuilding a sorting table. */
   rawLines: DocLine[];
+  /** `I.`–`VIII.` statements in the stem, and where in `textParts` they sat (E3). */
+  statements?: { at: number; items: { n: number; text: string }[] };
+  /** The printed number before this one, when the numbering skipped (E1). */
+  skippedFrom?: number;
+  /** The PDF line holding a target that filled the opening line, while it may still wrap. */
+  targetLine?: DocLine;
+}
+
+/** `I.` … `VIII.` opening a statement in a stem (E3). */
+const ROMAN_STATEMENT = /^\s*\(?(VIII|VII|VI|IV|V|III|II|I)[.)](?:\s+|$)(.*)$/;
+/** Two or more spaces before the next statement's numeral. */
+const SPACED_ROMAN = /\s{2,}(?=\(?(?:VIII|VII|VI|IV|V|III|II|I)[.)](?:\s|$))/;
+
+/** A line's statements, split at column gaps and space runs; null when it opens none. */
+function romanStatements(line: DocLine): { n: number; text: string }[] | null {
+  const pieces = lineSegments(line)
+    .flatMap((s) => s.text.split(SPACED_ROMAN))
+    .map((t) => t.trim())
+    .filter(Boolean);
+  if (!ROMAN_STATEMENT.test(pieces[0] ?? '')) return null;
+  const items: { n: number; text: string }[] = [];
+  for (const piece of pieces) {
+    const m = ROMAN_STATEMENT.exec(piece);
+    if (m) items.push({ n: romanValue(m[1]), text: tidy(m[2]) });
+    else
+      items[items.length - 1].text = tidy(
+        `${items[items.length - 1].text} ${piece}`
+      );
+  }
+  return items;
+}
+
+const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+
+/** The stem as printed, with an I–VIII list sorted onto lines of its own (E3). */
+function stemText(draft: Draft): string {
+  const statements = draft.statements;
+  if (!statements) return tidy(draft.textParts.join(' '));
+  const sorted = [...statements.items].sort((a, b) => a.n - b.n);
+  const contiguous = sorted.every((s, i) => s.n === i + 1);
+  const list = (contiguous ? sorted : statements.items).map(
+    (s) => `${ROMAN_NUMERALS[s.n - 1] ?? s.n}. ${s.text}`
+  );
+  const before = tidy(draft.textParts.slice(0, statements.at).join(' '));
+  const after = tidy(draft.textParts.slice(statements.at).join(' '));
+  return [before, ...list, after].filter(Boolean).join('\n');
 }
 
 /** One paragraph of instructions or a passage waiting for the questions it covers. */
@@ -271,11 +374,20 @@ function finish(
   label: string,
   /** The document's key has an entry for this item, so markings don't decide. */
   keyed: boolean,
-  multi: boolean
+  multi: boolean,
+  examView = false
 ): ExtractedQuestion {
   const warnings: string[] = [];
   const stem = tidy(draft.textParts.join(' '));
-  let text = draft.instruction ? tidy(`${draft.instruction} ${stem}`) : stem;
+  const printed = stemText(draft);
+  let text = draft.instruction
+    ? `${tidy(draft.instruction)} ${printed}`
+    : printed;
+  if (draft.skippedFrom !== undefined) {
+    warnings.push(
+      `The numbering skips from ${draft.skippedFrom} to ${draft.item}. Check that no question is missing.`
+    );
+  }
   const type = typeFor(draft, stem, multi);
   const { options: sortedOptions, outOfPlace } = orderedOptions(draft);
   if (outOfPlace && draft.options.length > 1) {
@@ -366,6 +478,11 @@ function finish(
             'This looks like a self-reflection item rather than a graded question.',
         }
       : {}),
+    ...(examView &&
+    type === 'free-response' &&
+    WRITTEN_SECTION.test(draft.section.name ?? '')
+      ? { keepWritten: true }
+      : {}),
   };
   // The key at the back is merged afterwards and wins over this.
   return draft.inlineAnswer && type !== 'Ordering'
@@ -378,7 +495,9 @@ function noteMissingChoices(
   question: ExtractedQuestion,
   sorting: boolean
 ): ExtractedQuestion {
-  if (question.type !== 'free-response' || sorting) return question;
+  if (question.type !== 'free-response' || sorting || question.keepWritten) {
+    return question;
+  }
   return {
     ...question,
     warnings: [
@@ -388,12 +507,46 @@ function noteMissingChoices(
   };
 }
 
+/** A forward jump in printed numbers this big still opens a question, with a note (E1). */
+const MAX_SKIP = 5;
+/** Question numbers on a PDF page line up within this many points (E1). */
+const NUMBER_X_TOLERANCE = 12;
+/** A target's wrapped line sits closer than this under it; a new paragraph sits further. */
+const TARGET_WRAP_GAP = 21;
+/** A number indented this far past the others is a list inside a stem. */
+const NUMBER_INDENT_MAX = 120;
+
+/** Left edge of a PDF line's number, skipping a `____` blank; undefined off a PDF. */
+function numberPosition(line: DocLine): number | undefined {
+  const segment = lineSegments(line).find(
+    (s) => s.text.trim() && !/^_{2,}$/.test(s.text.trim())
+  );
+  return segment?.x;
+}
+
+/** A number indented past the accepted ones, but not a whole column over, isn't a question (E1). */
+function atNumberPosition(
+  accepted: readonly number[],
+  x: number | undefined
+): boolean {
+  if (x === undefined || accepted.length === 0) return true;
+  if (accepted.some((a) => Math.abs(x - a) <= NUMBER_X_TOLERANCE)) return true;
+  return !accepted.some(
+    (a) => x - a > NUMBER_X_TOLERANCE && x - a < NUMBER_INDENT_MAX
+  );
+}
+
 /** Does this line name a new section? The caller has ruled out Part A/B. */
 function sectionHeading(
-  text: string
+  text: string,
+  examView = false
 ): { name: string; printed?: number; ungraded: boolean } | null {
   const trimmed = tidy(text);
   if (!trimmed || trimmed.endsWith('?')) return null;
+  // "Short Answer-PICK TWO (2) QUESTIONS…" is ExamView's heading with its directions.
+  if (examView && EXAMVIEW_TYPE_HEADING.test(trimmed)) {
+    return { name: trimmed, ungraded: false };
+  }
   const numbered = NUMBERED_SECTION.exec(trimmed);
   if (numbered) {
     const raw = numbered[2];
@@ -447,6 +600,14 @@ function splitTargetFromStem(
   };
 }
 
+/** The next PDF line sits a line's height under the target, not a paragraph gap below it. */
+function isTargetWrap(previous: DocLine, line: DocLine): boolean {
+  if (line.page !== previous.page) return false;
+  if (line.y === undefined || previous.y === undefined) return false;
+  const gap = previous.y - line.y;
+  return gap > 0 && gap < TARGET_WRAP_GAP;
+}
+
 /** A continuation after a question's last option that is plainly its wrap (R8). */
 function isWrapOf(option: DocLine, previous: DocLine, line: DocLine): boolean {
   // Word and RTF wrap inside one paragraph, so a new one is never a wrap.
@@ -477,6 +638,9 @@ export function parseDocument(
 } {
   const multi = options.multiAnswer === true;
   const lines = splitAtColumnMarkers(documentLines);
+  const examView = isExamView(lines);
+  /** Where accepted question numbers sit on a PDF page (E1). */
+  const numberXs: number[] = [];
   const { keyLineIndexes, items: keyItems } = findAnswerKey(lines, options);
 
   const drafts: Draft[] = [];
@@ -564,7 +728,7 @@ export function parseDocument(
     }
   };
 
-  const openQuestion = (item: number, text: string, line: DocLine): void => {
+  const openQuestion = (item: number, text: string, line: DocLine): Draft => {
     settlePreamble();
     if (section.ordinal === 0) {
       sections.push(section);
@@ -602,9 +766,13 @@ export function parseDocument(
         ? { instruction: cover.instruction }
         : {}),
       rawLines: [],
+      ...(inlineTarget && !inlineTarget.rest && line.y !== undefined
+        ? { targetLine: line }
+        : {}),
     };
     lastOption = null;
     drafts.push(current);
+    return current;
   };
 
   lines.forEach((line, index) => {
@@ -687,25 +855,37 @@ export function parseDocument(
       open &&
       open.options.length === 0 &&
       !/[.?!:)]\s*$/.test(open.textParts.join(' ').trim());
-    const heading = midSentence ? null : sectionHeading(text);
+    const heading = midSentence ? null : sectionHeading(text, examView);
     if (heading) {
       startSection(heading);
       return;
     }
 
     const opening = matchQuestionOpening(text);
-    if (opening) {
+    const numberX =
+      opening && !opening.labelled ? numberPosition(line) : undefined;
+    if (opening && atNumberPosition(numberXs, numberX)) {
+      const n = opening.number;
+      // ExamView numbers straight through, so only a heading restarts it.
+      // A `1.` inside a stem that hasn't reached its options is a list, not a restart.
       const restart =
-        opening.number === 1 &&
+        !examView &&
+        n === 1 &&
         section.questionCount >= 2 &&
-        section.lastItem > 1;
-      if (restart) startSection();
-      if (
-        opening.number > section.lastItem ||
-        section.questionCount === 0 ||
-        restart
-      ) {
-        openQuestion(opening.number, opening.text, line);
+        section.lastItem > 1 &&
+        (!open || open.options.length > 0);
+      const skip = n - section.lastItem;
+      const first = section.questionCount === 0;
+      if (restart || first || (skip >= 1 && skip <= MAX_SKIP)) {
+        if (restart) startSection();
+        const opened = openQuestion(n, opening.text, line);
+        if (!restart && !first && skip > 1) opened.skippedFrom = n - skip;
+        if (
+          numberX !== undefined &&
+          !numberXs.some((x) => Math.abs(x - numberX) <= NUMBER_X_TOLERANCE)
+        ) {
+          numberXs.push(numberX);
+        }
         return;
       }
     }
@@ -728,6 +908,33 @@ export function parseDocument(
       return;
     }
     open.rawLines.push(line);
+
+    // A PDF target that wrapped onto the next line, before the stem starts.
+    const targetLine = open.targetLine;
+    open.targetLine = undefined;
+    if (
+      targetLine &&
+      open.target &&
+      !open.textParts.join('').trim() &&
+      !/[.!?]$/.test(open.target.label) &&
+      isTargetWrap(targetLine, line)
+    ) {
+      target = { ...open.target, label: tidy(`${open.target.label} ${text}`) };
+      open.target = target;
+      open.targetLine = line;
+      return;
+    }
+
+    // An I–VIII statement list inside the stem, before any option (E3).
+    if (open.options.length === 0 && !lastOption) {
+      const statements = romanStatements(line);
+      if (statements) {
+        open.statements ??= { at: open.textParts.length, items: [] };
+        open.statements.items.push(...statements);
+        open.imageIds.push(...(line.imageIds ?? []));
+        return;
+      }
+    }
 
     const option = matchOption(line);
     if (option) {
@@ -820,11 +1027,13 @@ export function parseDocument(
   };
 
   const unkeyed = drafts.map((d, i) =>
-    finish(d, i + 1, labelOf(d), false, multi)
+    finish(d, i + 1, labelOf(d), false, multi, examView)
   );
   const keyed = keyedQuestionIndexes(unkeyed, keyItems);
   const finished = unkeyed.map((q, i) =>
-    keyed.has(i) ? finish(drafts[i], i + 1, labelOf(drafts[i]), true, multi) : q
+    keyed.has(i)
+      ? finish(drafts[i], i + 1, labelOf(drafts[i]), true, multi, examView)
+      : q
   );
   const merged = mergeAnswerKey(
     { title: '', questions: finished, images: [], warnings: [] },

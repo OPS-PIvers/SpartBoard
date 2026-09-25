@@ -138,6 +138,8 @@ export interface ExtractedQuestion {
   imageIds: string[];
   /** Row notes for the review table; never fatal. */
   warnings: string[];
+  /** A written item whose key text is only a sample answer (ExamView E8). */
+  keepWritten?: boolean;
 }
 
 /** What a key merge did, for the review banner (R13, R19). */

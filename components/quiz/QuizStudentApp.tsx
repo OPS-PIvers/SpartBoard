@@ -3242,7 +3242,7 @@ const ActiveQuiz: React.FC<{
               className={`mb-8 flex items-start gap-3 rounded-2xl transition-colors ${highlightClass({ kind: 'question' }, readAloud.highlightedPart)}`}
             >
               <h2
-                className={`flex-1 text-xl font-bold leading-snug break-words ${headingText}`}
+                className={`flex-1 text-xl font-bold leading-snug break-words whitespace-pre-line ${headingText}`}
               >
                 {displayQuestion.text}
               </h2>
@@ -3256,7 +3256,7 @@ const ActiveQuiz: React.FC<{
             </div>
           ) : (
             <h2
-              className={`text-xl font-bold mb-8 leading-snug break-words ${headingText}`}
+              className={`text-xl font-bold mb-8 leading-snug break-words whitespace-pre-line ${headingText}`}
             >
               {displayQuestion.text}
             </h2>
@@ -4225,7 +4225,7 @@ const ReviewPhase: React.FC<{
           Question {session.currentQuestionIndex + 1} of{' '}
           {totalQuestions ?? session.totalQuestions}
         </p>
-        <h2 className="text-lg font-bold text-white mb-6 leading-snug max-w-md">
+        <h2 className="text-lg font-bold text-white mb-6 leading-snug max-w-md whitespace-pre-line">
           {currentQuestion.text}
         </h2>
 
@@ -4850,7 +4850,7 @@ export const PublishedScoreReview: React.FC<{
                             {idx + 1}
                           </span>
                           <p
-                            className={`flex-1 min-w-0 break-words text-sm font-semibold ${qTextCls}`}
+                            className={`flex-1 min-w-0 break-words whitespace-pre-line text-sm font-semibold ${qTextCls}`}
                           >
                             {recapQuestion.text}
                           </p>
