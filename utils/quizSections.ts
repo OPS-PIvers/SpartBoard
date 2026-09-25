@@ -186,7 +186,8 @@ export function withNotChosen<
   responses: readonly R[],
   sections: readonly QuizSessionSection[] | undefined
 ): R[] {
-  if (!sections?.some((s) => s.chooseCount)) return [...responses];
+  // Same array when nothing is stamped, so reference-equality consumers stay stable.
+  if (!sections?.some((s) => s.chooseCount)) return responses as R[];
   return responses.map((r) => {
     const ids = notChosenQuestionIds(r, sections);
     return ids.length > 0 ? { ...r, _notChosen: ids } : r;
