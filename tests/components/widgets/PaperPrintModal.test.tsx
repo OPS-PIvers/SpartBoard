@@ -288,7 +288,7 @@ describe('PaperPrintModal', () => {
     setup({ quiz: quiz({ questions: [mc('q1', 1), mc('q2', 4)] }) });
     expect(screen.getByText('5 (A–E)')).toBeInTheDocument();
     expect(
-      screen.getByText(/Question 1 has fewer choices/)
+      screen.getByText(/Question 1 has fewer than 5 choices/)
     ).toBeInTheDocument();
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
