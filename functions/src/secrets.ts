@@ -25,3 +25,8 @@ export const GOOGLE_OAUTH_CLIENT_SECRET = defineSecret(
 export const GOOGLE_OAUTH_REFRESH_TOKEN_KEY = defineSecret(
   'GOOGLE_OAUTH_REFRESH_TOKEN_KEY'
 );
+// Live Tours v2: the anchor-mapper routine's bearer for tourAnchorApi, and the routine's own API-trigger token.
+export const TOUR_ANCHOR_API_TOKEN = defineSecret('TOUR_ANCHOR_API_TOKEN');
+export const CLAUDE_TOUR_ROUTINE_TRIGGER_TOKEN = defineSecret(
+  'CLAUDE_TOUR_ROUTINE_TRIGGER_TOKEN'
+);
