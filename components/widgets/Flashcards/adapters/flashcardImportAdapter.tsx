@@ -26,13 +26,21 @@ export function createFlashcardImportAdapter(
     parse: async (source) => {
       if (source.kind === 'csv') {
         const parsed = parseFlashcardText(source.text);
-        return { data: { cards: parsed.cards }, warnings: parsed.warnings };
+        return {
+          data: { cards: parsed.cards },
+          warnings: parsed.warnings,
+          note: parsed.note,
+        };
       }
       if (source.kind === 'sheet') {
         const parsed = parseFlashcardSheetRows(
           await deps.loadSheet(source.url)
         );
-        return { data: { cards: parsed.cards }, warnings: parsed.warnings };
+        return {
+          data: { cards: parsed.cards },
+          warnings: parsed.warnings,
+          note: parsed.note,
+        };
       }
       throw new Error('Flashcards import accepts CSV files or Google Sheets.');
     },

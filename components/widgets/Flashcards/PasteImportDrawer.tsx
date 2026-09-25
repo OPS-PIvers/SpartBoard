@@ -193,6 +193,15 @@ export const PasteImportDrawer: React.FC<PasteImportDrawerProps> = ({
           </div>
         )}
 
+        {preview.result?.note && (
+          <p
+            className="font-medium text-slate-500"
+            style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+          >
+            {preview.result.note}
+          </p>
+        )}
+
         {preview.result?.warnings.map((warning) => (
           <p
             key={warning}
