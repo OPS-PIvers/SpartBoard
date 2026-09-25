@@ -56,7 +56,8 @@
         "free-response",
         "free-response",
         "free-response"
-      ]
+      ],
+      "chooseCounts": [null, null, 2]
     },
     "ba1391212f9b0a58554dbf97409546daa489010761bec46b9a9ef35e6e6b9010": {
       "kind": "test",
@@ -87,7 +88,8 @@
         "free-response",
         "free-response",
         "free-response"
-      ]
+      ],
+      "chooseCounts": [null, null, 2]
     },
     "ecd14c780af7a67c7757f26029ceece77b13c01c32070e88745ca33e7f5388c0": {
       "kind": "test",

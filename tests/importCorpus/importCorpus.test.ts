@@ -10,6 +10,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import {
   documentKind,
+  importSections,
   readAnswerKeyFile,
   readQuizDocument,
 } from '@/utils/quizDocumentImport';
@@ -34,6 +35,8 @@ interface TestCounts {
   flagged: number;
   /** Question types in order, so a shape change (Part A/B, Ordering) shows. */
   types: string[];
+  /** Each imported section's "answer any N", when a heading set one (E16). */
+  chooseCounts?: (number | null)[];
 }
 
 interface KeyCounts {
@@ -67,6 +70,9 @@ async function countsFor(name: string, bytes: Buffer): Promise<Counts> {
     fileName: name,
     ...(pdf ? { pdf } : {}),
   });
+  const chooseCounts = importSections(quiz.questions).map(
+    (s) => s.chooseCount ?? null
+  );
   const sections = new Set(
     quiz.questions.map(
       (q) => (q as { ref?: { section?: number } }).ref?.section ?? 'none'
@@ -80,6 +86,7 @@ async function countsFor(name: string, bytes: Buffer): Promise<Counts> {
     sections: sections.size,
     flagged: quiz.questions.filter((q) => q.warnings.length > 0).length,
     types: quiz.questions.map((q) => q.type),
+    ...(chooseCounts.some((n) => n !== null) ? { chooseCounts } : {}),
   };
 }
 

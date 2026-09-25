@@ -27,6 +27,7 @@ vi.mock('@/utils/quizDocumentImport', () => ({
     title: extracted.title,
   }),
   rowWarnings: () => ['Question 2: two answers were marked'],
+  unenforcedChooseNotes: () => [],
 }));
 const EXTRACTED_IMAGES = [
   {

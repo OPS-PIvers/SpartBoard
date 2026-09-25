@@ -239,6 +239,8 @@ interface Section {
   /** The number the heading printed, when it printed one. */
   printed?: number;
   ungraded: boolean;
+  /** The paragraph between the heading and its first question (E16). */
+  directions?: string;
   questionCount: number;
   /** The last item number opened here. */
   lastItem: number;
@@ -274,6 +276,8 @@ interface Draft {
   sharedTextId?: string;
   /** "Read paragraph 8." copied into this stem from a shared lead-in. */
   instruction?: string;
+  /** The instruction is the section's directions, which a real section takes back (E16). */
+  instructionFromDirections?: boolean;
   /** Every line read into this question, for rebuilding a sorting table. */
   rawLines: DocLine[];
   /** `I.`–`VIII.` statements in the stem, and where in `textParts` they sat (E3). */
@@ -480,6 +484,9 @@ function finish(
   const ref: QuestionRef = {
     section: draft.section.ordinal,
     ...(draft.section.name ? { sectionName: draft.section.name } : {}),
+    ...(draft.section.directions
+      ? { sectionDirections: draft.section.directions }
+      : {}),
     ...(draft.section.printed ? { sectionNumber: draft.section.printed } : {}),
     item: draft.item,
     ...(draft.part ? { part: draft.part } : {}),
@@ -497,6 +504,9 @@ function finish(
     warnings,
     ...(draft.target ? { suggestedTarget: draft.target } : {}),
     ...(draft.sharedTextId ? { sharedTextId: draft.sharedTextId } : {}),
+    ...(draft.instruction && draft.instructionFromDirections
+      ? { directionsLeadIn: tidy(draft.instruction) }
+      : {}),
     ...(draft.section.ungraded
       ? {
           suggestUntick:
@@ -759,7 +769,20 @@ export function parseDocument(
   };
 
   const openQuestion = (item: number, text: string, line: DocLine): Draft => {
+    // Text between a heading and its first question is the section's directions (E16).
+    const directions =
+      preamble &&
+      preamble.section === section &&
+      section.questionCount === 0 &&
+      section.name &&
+      !preamble.range
+        ? tidy(preamble.lines.join(' '))
+        : undefined;
+    const textCount = texts.length;
     settlePreamble();
+    if (directions && texts.length === textCount) {
+      section.directions = directions;
+    }
     if (section.ordinal === 0) {
       sections.push(section);
       section.ordinal = sections.length;
@@ -793,7 +816,12 @@ export function parseDocument(
       ...(target ? { target } : {}),
       ...(covered && cover?.textId ? { sharedTextId: cover.textId } : {}),
       ...(covered && cover?.instruction
-        ? { instruction: cover.instruction }
+        ? {
+            instruction: cover.instruction,
+            ...(section.directions && section.questionCount === 1
+              ? { instructionFromDirections: true }
+              : {}),
+          }
         : {}),
       rawLines: [],
       ...(inlineTarget && !inlineTarget.rest && line.y !== undefined
