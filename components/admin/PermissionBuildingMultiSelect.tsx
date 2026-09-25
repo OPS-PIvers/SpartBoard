@@ -32,11 +32,7 @@ export const PermissionBuildingMultiSelect: React.FC<Props> = ({
   label,
 }) => {
   const { buildings, isLoading } = useAdminBuildingsState();
-  // useAdminBuildingsState() can hand back a legacy long-form id when an
-  // org's building doc predates the short-id migration, and stored
-  // `selectedIds` may themselves be legacy — canonicalize both sides so a
-  // legacy-keyed restriction still matches its (now-canonical) building
-  // instead of showing as unselected and orphaned.
+  // selectedIds may hold a legacy long-form id that would never match a canonical building id.
   const canonicalSelectedIds = canonicalizeBuildingIds(selectedIds);
   const selectedSet = new Set(canonicalSelectedIds);
 
