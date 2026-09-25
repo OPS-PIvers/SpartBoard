@@ -5249,6 +5249,23 @@ export interface PaperPendingReview {
   spareAssignments: Record<number, PaperSeatAssignment>;
   /** Learning targets tagged during review, per question id (plan Q27). */
   targets: Record<string, QuestionTargetTag[]>;
+  /** Handwritten boxes read from a `layoutVersion: 2` scan; their crops sit in Storage under `scanId`. */
+  written?: PaperPendingWritten;
+}
+
+export interface PaperPendingWrittenBox {
+  seat: number;
+  questionId: string;
+  page: number;
+  state: 'ink' | 'blank';
+  uploaded: boolean;
+  /** The crop's upload type; absent when the crop could not be made. */
+  mimeType?: 'image/webp' | 'image/png';
+}
+
+export interface PaperPendingWritten {
+  scanId: string;
+  boxes: PaperPendingWrittenBox[];
 }
 
 /**

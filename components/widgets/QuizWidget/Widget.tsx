@@ -82,7 +82,8 @@ import { PublishScoresModal } from '@/components/common/library/PublishScoresMod
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
 import { doc, writeBatch } from 'firebase/firestore';
-import { functions, db } from '@/config/firebase';
+import { functions, db, storage } from '@/config/firebase';
+import { ref as storageRef, uploadBytes } from 'firebase/storage';
 import {
   CLASSROOM_ASSIGN_ENABLED,
   CLASSROOM_ASSIGN_ADMIN_ONLY,
@@ -115,7 +116,15 @@ import {
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { QuizLiveMonitor } from './components/QuizLiveMonitor';
 import { PaperPrintModal } from './components/PaperPrintModal';
-import { PaperImportModal } from './components/PaperImportModal';
+import {
+  PaperImportModal,
+  type PaperImportRequestExtra,
+  type PaperImportWrittenResult,
+} from './components/PaperImportModal';
+import {
+  firestoreDocData,
+  readPaperImportQuota,
+} from '@/utils/paperImportQuota';
 import { PaperQuestionTextModal } from './components/PaperQuestionTextModal';
 import { AnswerKeyFillModal } from './components/AnswerKeyFill';
 import { httpsCallable } from 'firebase/functions';
@@ -3502,6 +3511,7 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       {paperImport && user?.uid && (
         <PaperImportModal
           quiz={paperImport.quiz}
+          uid={user.uid}
           batches={paperImport.batches}
           rosters={rosters}
           assignments={assignments.filter(
@@ -3537,18 +3547,30 @@ const TeacherQuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
             return id;
           }}
-          onImport={async (batchId, assignmentId, sheets) => {
+          onImport={async (batchId, assignmentId, sheets, extra) => {
             const call = httpsCallable<
               {
                 batchId: string;
                 assignmentId: string;
                 sheets: ImportPaperSheetPayload[];
-              },
-              ImportPaperResponsesResult
+              } & PaperImportRequestExtra,
+              ImportPaperResponsesResult & PaperImportWrittenResult
             >(functions, 'importPaperResponsesV1');
-            const res = await call({ batchId, assignmentId, sheets });
+            const res = await call({ batchId, assignmentId, sheets, ...extra });
             return res.data;
           }}
+          onUploadCrop={async (path, blob) => {
+            await uploadBytes(storageRef(storage, path), blob, {
+              contentType: blob.type || 'image/webp',
+            });
+          }}
+          checkQuota={() =>
+            readPaperImportQuota(firestoreDocData, {
+              uid: user.uid,
+              isAdmin: isAdmin === true,
+              nowMs: Date.now(),
+            })
+          }
           onSaveQuiz={async (data) => {
             await saveQuiz(data, paperImport.meta.driveFileId);
           }}
