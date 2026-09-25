@@ -101,7 +101,8 @@ export function getEarnedPoints(
         q,
         ans.answer,
         manualGrade,
-        fibAnswersForResponse(fibGrading, r, q.id)
+        fibAnswersForResponse(fibGrading, r, q.id),
+        ans.paperTranscript
       )
     );
 
@@ -307,7 +308,7 @@ export function isResponseAwaitingGrade(
     const grade = applyMediaSlots(
       q,
       r,
-      gradeAnswer(q, ans.answer, manualGrade)
+      gradeAnswer(q, ans.answer, manualGrade, undefined, ans.paperTranscript)
     );
     if (grade.state === 'awaiting-grade') {
       return true;

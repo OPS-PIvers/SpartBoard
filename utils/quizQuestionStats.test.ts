@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { QuizQuestion, QuizResponse } from '@/types';
 import {
   computeQuestionStats,
+  gradeQuestionForResponse,
   type QuestionStat,
 } from '@/utils/quizQuestionStats';
 
@@ -232,5 +233,35 @@ describe('computeQuestionStats', () => {
     expect(stats.size).toBe(1);
     expect(statFor(stats, 'q1').answered).toBe(0);
     expect(statFor(stats, 'q1').averagePct).toBeNull();
+  });
+});
+
+describe('gradeQuestionForResponse — paper transcripts', () => {
+  const essay: QuizQuestion = {
+    id: 'e1',
+    text: 'Explain',
+    timeLimit: 0,
+    type: 'free-response',
+    correctAnswer: '',
+    incorrectAnswers: [],
+    points: 5,
+  };
+  const withTranscript = (paperTranscript: 'pending' | 'blank') =>
+    ({
+      pin: '01',
+      status: 'completed',
+      answers: [{ questionId: 'e1', answer: '', paperTranscript }],
+    }) as unknown as QuizResponse;
+
+  it('reads a pending transcript off the response as awaiting grade', () => {
+    expect(
+      gradeQuestionForResponse(essay, '', withTranscript('pending')).state
+    ).toBe('awaiting-grade');
+  });
+
+  it('keeps a blank transcript as a 0', () => {
+    expect(
+      gradeQuestionForResponse(essay, '', withTranscript('blank')).state
+    ).toBe('not-attempted');
   });
 });

@@ -55,6 +55,7 @@ const response = (
     answer: string;
     answeredAt?: number;
     takeIndex?: number;
+    paperTranscript?: 'pending' | 'done' | 'blank';
   }[],
   grading?: QuizResponse['grading']
 ): QuizResponse =>
@@ -337,5 +338,36 @@ describe('isResponseAwaitingGrade — media slots', () => {
     const r = response([{ questionId: 'q1', answer: 'A' }]);
     expect(isResponseAwaitingGrade(r, qs)).toBe(false);
     expect(getEarnedPoints(r, qs)).toBe(1);
+  });
+});
+
+describe('paper written answers', () => {
+  const qs = [mc('q1'), essay('e1')];
+  const paper = (paperTranscript: 'pending' | 'done' | 'blank') =>
+    response([
+      { questionId: 'q1', answer: 'A' },
+      { questionId: 'e1', answer: '', paperTranscript },
+    ]);
+
+  it('a pending transcript is awaiting grade and held back from the gradebook', () => {
+    const r = paper('pending');
+    expect(isResponseAwaitingGrade(r, qs)).toBe(true);
+    expect(selectPushableResponses([r], qs)).toEqual([]);
+  });
+
+  it('a blank transcript scores 0 and is pushable', () => {
+    const r = paper('blank');
+    expect(isResponseAwaitingGrade(r, qs)).toBe(false);
+    expect(selectPushableResponses([r], qs)).toEqual([r]);
+    expect(getEarnedPoints(r, qs)).toBe(1);
+  });
+
+  it('a graded pending transcript keeps the teacher grade', () => {
+    const r = response(
+      [{ questionId: 'e1', answer: '', paperTranscript: 'pending' }],
+      { e1: { pointsAwarded: 4, gradedBy: 't', gradedAt: 1 } }
+    );
+    expect(isResponseAwaitingGrade(r, [essay('e1')])).toBe(false);
+    expect(getEarnedPoints(r, [essay('e1')])).toBe(4);
   });
 });

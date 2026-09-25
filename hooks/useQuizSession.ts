@@ -639,10 +639,22 @@ export function hasSubmittedContent(studentAnswer: string): boolean {
 export function isWrittenAnswerAwaitingGrade(
   question: Pick<QuizQuestion, 'rubricSnapshot'> | undefined,
   studentAnswer: string,
-  grade: import('@/types').WrittenAnswerGrade | undefined
+  grade: import('@/types').WrittenAnswerGrade | undefined,
+  paperTranscript?: import('@/types').PaperTranscriptState
 ): boolean {
-  if (!grade) return hasSubmittedContent(studentAnswer);
+  // A paper transcript still in flight is owed a grade even though its text is empty.
+  if (!grade)
+    return paperTranscript === 'pending' || hasSubmittedContent(studentAnswer);
   return question ? isPartialRubricGrade(question, grade) : false;
+}
+
+/** The `paperTranscript` state of a response's answer to one question, if any. */
+export function paperTranscriptFor(
+  response: { answers?: readonly QuizResponseAnswer[] } | undefined,
+  questionId: string
+): import('@/types').PaperTranscriptState | undefined {
+  return response?.answers?.find((a) => a.questionId === questionId)
+    ?.paperTranscript;
 }
 
 export function gradeAnswer(
@@ -658,7 +670,9 @@ export function gradeAnswer(
    * FIB only: translated accepted answers for this question, snapshotted on the
    * assignment doc. Normalized the same way the English comparison is.
    */
-  acceptedAnswers?: readonly string[]
+  acceptedAnswers?: readonly string[],
+  /** Paper written answers only: the answer's public `paperTranscript` state. */
+  paperTranscript?: import('@/types').PaperTranscriptState
 ): GradeResult {
   const max = question.points ?? 1;
   const partial = question.allowPartialCredit === true;
@@ -673,7 +687,8 @@ export function gradeAnswer(
     const awaiting = isWrittenAnswerAwaitingGrade(
       question,
       studentAnswer,
-      manualGrade
+      manualGrade,
+      paperTranscript
     );
     if (!manualGrade) {
       return {
