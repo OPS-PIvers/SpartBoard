@@ -48,6 +48,12 @@ Reference example: Grade 4, Module 1, Reading Comprehension Assessment 1, which 
   - `announcements` already carries `targetBuildings[]` and `targetUsers[]`.
   - `dashboard_templates.targetBuildings` exists but the UI never checks it.
 - **Paper answer sheets** are MC-only; every other type is left off the sheet (`utils/paperSheetPlan.ts`).
+- **Choice editor (#3446, 2026-09-25).**
+  - Multiple choice and choose-all now share one option list in `ChoiceOptionsEditor.tsx`. Each option has a correct-answer marker beside it, and a **Multiple correct answers** setting switches the question between `MC` and `MA`.
+  - It is behind the admin-only `quiz-choice-editor` flag.
+  - The saved shape is unchanged: `MA` is still a question type with `correctAnswer`/`incorrectAnswers`.
+  - A new editor-only `optionOrder` keeps the typed order; students still get a shuffle.
+  - Limits come from `utils/quizChoiceRows.ts` (`MAX_SINGLE_OPTIONS`, `MAX_MULTI_PER_LIST`).
 
 ## Decisions
 
@@ -104,6 +110,11 @@ Reference example: Grade 4, Module 1, Reading Comprehension Assessment 1, which 
   A new optional `creditMode` field; when it's absent, `allowPartialCredit` keeps its current meaning, so existing quizzes score the same.
 
 - **D18.** MA gets an optional **Choose exactly N** limit (`selectCount`). The player stops the student selecting more than N, and the prompt shows the count.
+  - The control lives in `ChoiceOptionsEditor` (#3446) under **Multiple correct answers**. It shows only while that setting is on, and defaults N to the number of options marked correct.
+  - The per-question credit mode (D17) for MA sits beside it.
+  - The old editor gets neither control, so PR 3's MA authoring also requires `quiz-choice-editor`. PR 3's flag is useless for MA until Paul has that flag on, and that flag should open to Public before or with PR 3's.
+  - The player and scoring honor `selectCount` whatever editor wrote it.
+  - The importer (D26) writes `optionOrder` so imported options stay in the printed a–d order in the editor. Teachers who want students to see the printed order turn shuffle off in the session options.
 
 ### Categorize (PR 4)
 
