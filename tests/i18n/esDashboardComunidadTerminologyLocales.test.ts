@@ -73,8 +73,7 @@ const AFFECTED_KEYS: Array<{ path: string; expectedEs: string }> = [
   },
   {
     path: 'plcDashboard.resources.managerSubtitle',
-    expectedEs:
-      'Envía recursos curados (documentos, cuestionarios, tableros) a Comunidades específicas o a todas.',
+    expectedEs: 'Envía recursos a las Comunidades.',
   },
   {
     path: 'plcDashboard.resources.descriptionLabel',

@@ -354,8 +354,7 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
                   Available To
                 </SettingsLabel>
                 <p className="text-xs text-slate-500 mb-2">
-                  Select which buildings can use this app. Leave all unchecked
-                  to make it available to everyone.
+                  None selected means everyone.
                 </p>
                 <div
                   role="group"
@@ -409,11 +408,6 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
                   spellCheck={false}
                   placeholder="Paste your HTML, CSS, and JS here…"
                 />
-                <p className="text-xxs text-slate-400 mt-1">
-                  Apps run in a sandboxed iframe (null origin). Scripts run
-                  freely inside the app, but it cannot access the parent
-                  page&apos;s storage, DOM, or auth tokens.
-                </p>
               </div>
             </div>
 
@@ -445,10 +439,7 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
 
         {/* Footer (list view only) */}
         {view === 'list' && (
-          <div className="shrink-0 border-t border-slate-100 px-5 py-3 flex items-center justify-between">
-            <p className="text-xxs text-slate-400">
-              Apps are available to teachers via the Mini Apps widget.
-            </p>
+          <div className="shrink-0 border-t border-slate-100 px-5 py-3 flex items-center justify-end">
             <button
               onClick={() => openEditor()}
               className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md shadow-violet-200 transition-all"

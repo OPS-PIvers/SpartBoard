@@ -66,14 +66,9 @@ export const NextUpConfigurationPanel: React.FC<
           <div className="p-2 bg-brand-blue-primary rounded-lg shadow-blue-100 shadow-lg">
             <ListOrdered className="w-5 h-5 text-white" />
           </div>
-          <div>
-            <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">
-              Next Up Defaults
-            </h3>
-            <p className="text-xxs text-slate-500 font-medium">
-              Default settings for new widgets in this building
-            </p>
-          </div>
+          <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">
+            Next Up Defaults
+          </h3>
         </div>
 
         {/* Display Count */}
@@ -97,10 +92,6 @@ export const NextUpConfigurationPanel: React.FC<
             }
             className="w-full accent-brand-blue-primary cursor-pointer"
           />
-          <p className="text-xxs text-slate-400 font-medium italic leading-relaxed">
-            Sets how many upcoming students are shown on the teacher board by
-            default.
-          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-slate-200/60">

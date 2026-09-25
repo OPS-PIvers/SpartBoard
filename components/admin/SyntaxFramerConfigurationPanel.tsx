@@ -101,12 +101,6 @@ export const SyntaxFramerConfigurationPanel: React.FC<
               Math
             </button>
           </div>
-          <p className="text-xs text-slate-500 mt-2">
-            <strong>Text:</strong> Words are separated by spaces.
-            <br />
-            <strong>Math:</strong> Numbers and operators are separated
-            automatically.
-          </p>
         </div>
 
         <div>

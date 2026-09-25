@@ -1069,7 +1069,7 @@
     },
     "resources": {
       "managerTitle": "PLG-Ressourcen",
-      "managerSubtitle": "Kuratierte Ressourcen (Dokumente, Quizze, Tafeln) an bestimmte oder alle PLGs senden.",
+      "managerSubtitle": "Ressourcen an PLGs senden.",
       "addResource": "Ressource hinzufügen",
       "editFormLabel": "Ressource bearbeiten",
       "createFormLabel": "Ressource erstellen",
@@ -1794,7 +1794,7 @@
       "saveChanges": "Änderungen speichern",
       "discardChanges": "Änderungen verwerfen",
       "confirmDiscardChanges": "Du hast ungespeicherte Änderungen. Ohne Speichern schließen?",
-      "description": "Hier hochgeladene Sticker erscheinen im Abschnitt Globale Sammlung des Stickerbuch-Widgets jedes Benutzers.",
+      "description": "Wird allen Lehrkräften angezeigt.",
       "dropImages": "Bilder hier ablegen oder zum Durchsuchen klicken",
       "supportedFiles": "PNG, JPG, GIF, WebP, SVG · Mehrere Dateien unterstützt",
       "collectionTitle": "Sticker-Sammlung",
@@ -1814,7 +1814,6 @@
       "recovery": {
         "title": "PLG-Wiederherstellung",
         "subtitle": "Leitung neu zuweisen oder eine verlassene PLG in deiner Organisation auflösen.",
-        "explainer": "Nur PLGs in deiner Organisation können wiederhergestellt werden. Verwende dies, wenn die Leitung einer PLG ausgeschieden ist und die Leitung nicht übertragen kann.",
         "empty": "Keine wiederherstellbaren PLGs in deiner Organisation.",
         "leadLabel": "Leitung",
         "membersLabel_one": "{{count}} Mitglied",
@@ -1833,7 +1832,7 @@
         "cancel": "Abbrechen",
         "confirm": "Bestätigen",
         "members": "Mitglieder",
-        "membersDescription": "Lehrkraft aus Ihrer Organisation hinzufügen, Rolle ändern oder Mitglied entfernen. Die Lehrkraft wird nicht benachrichtigt.",
+        "membersDescription": "Lehrkräfte werden nicht benachrichtigt.",
         "noOtherMembers": "Keine Mitglieder außer der Leitung.",
         "roleLabel": "Rolle",
         "remove": "Entfernen",
@@ -1850,7 +1849,7 @@
     },
     "mediaReview": {
       "title": "Schülermedien",
-      "blurb": "Überprüfe und lösche aufgezeichnete Schülerantworten dauerhaft für alle Lehrkräfte deiner Organisation. Das Löschen einer Antwort entfernt jede Aufnahme dieser Frage aus dem Google Drive der Lehrkraft.",
+      "blurb": "Das Löschen einer Antwort entfernt jede Aufnahme aus dem Google Drive der Lehrkraft.",
       "refresh": "Aktualisieren",
       "filterTeacher": "Lehrkraft",
       "allTeachers": "Alle Lehrkräfte",
@@ -3119,13 +3118,10 @@
     "saveFailed": "Quiz-Konfiguration konnte nicht gespeichert werden.",
     "handRaise": {
       "heading": "Melden",
-      "help": "Legt fest, ob Schüler in dieser Schule während eines Quiz eine Schaltfläche zum Melden sehen.",
       "teacherChoice": "Entscheidung der Lehrkraft",
-      "teacherChoiceHint": "Jede Lehrkraft entscheidet pro Quiz. Standardmäßig aus.",
+      "teacherChoiceHint": "Aus, bis die Lehrkraft es einschaltet.",
       "forceOn": "Immer an",
-      "forceOnHint": "Melden ist in jedem Quiz verfügbar und Lehrkräfte können es nicht deaktivieren.",
-      "forceOff": "Immer aus",
-      "forceOffHint": "Melden ist in jedem Quiz für Schüler ausgeblendet."
+      "forceOff": "Immer aus"
     },
     "noBuildings": "Keine Gebäude konfiguriert",
     "noBuildingsHint": "Fügen Sie unter Organisation ein Gebäude hinzu, bevor Sie eine Standardeinstellung für das Handheben festlegen.",
@@ -3634,7 +3630,7 @@
   },
   "tourHealth": {
     "loading": "Touren werden geladen...",
-    "intro": "Prüft die veröffentlichte Version jeder Tour, also die, die Lehrkräfte ausführen, anhand der Anker-Liste und echter Durchläufe. „Live prüfen“ sucht jeden Anker auf der Tafel hinter diesem Fenster, so wie sie gerade ist.",
+    "intro": "Prüft veröffentlichte Touren anhand des Anker-Verzeichnisses.",
     "recordTour": "Tour aufnehmen",
     "checkLive": "Live prüfen",
     "empty": "Noch kein Guided-Learning-Set hat Live-Tour-Schritte.",

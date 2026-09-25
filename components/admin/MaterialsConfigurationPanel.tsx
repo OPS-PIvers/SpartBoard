@@ -213,8 +213,7 @@ export const MaterialsConfigurationPanel: React.FC<
               Let teachers create their own materials
             </span>
             <span className="text-xxs text-slate-500 leading-tight block">
-              Turning this off hides the add button in widget settings.
-              Materials teachers already created keep working.
+              Existing materials keep working.
             </span>
           </span>
         </label>
@@ -223,13 +222,9 @@ export const MaterialsConfigurationPanel: React.FC<
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
+            <label className="text-xxs font-bold text-slate-500 uppercase block">
               Custom Materials Library
             </label>
-            <p className="text-xxs text-slate-400 leading-tight">
-              Create reusable materials here, then assign them to one or more
-              buildings below.
-            </p>
           </div>
           {editingId && (
             <Button variant="ghost" size="sm" onClick={resetDraft}>

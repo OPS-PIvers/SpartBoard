@@ -121,8 +121,7 @@ export const SoundConfigurationPanel: React.FC<
             Default Sensitivity ({sensitivity.toFixed(1)}x)
           </label>
           <p className="text-xxs text-slate-400 mb-2 leading-tight">
-            Calibrate to match the acoustic environment of each building&apos;s
-            issued devices. Higher = more sensitive to quieter sounds.
+            Higher picks up quieter sounds.
           </p>
           <input
             type="range"

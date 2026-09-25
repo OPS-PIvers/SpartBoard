@@ -202,12 +202,7 @@ export const WorkSymbolsConfigurationModal: React.FC<
             <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
               <ImageIcon className="w-5 h-5 text-violet-600" />
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Work Symbols</h2>
-              <p className="text-xs text-slate-500">
-                Upload images and assign them to buildings
-              </p>
-            </div>
+            <h2 className="text-lg font-bold text-slate-900">Work Symbols</h2>
           </div>
           <button
             onClick={handleClose}

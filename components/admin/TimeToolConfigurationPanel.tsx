@@ -455,10 +455,6 @@ export const TimeToolConfigurationPanel: React.FC<
           >
             Timer-End Traffic Light Color
           </SettingsLabel>
-          <p className="text-xxs text-slate-400 mb-2 leading-tight">
-            Automatically sets the traffic light widget to this color when the
-            timer reaches zero.
-          </p>
           <div
             className="flex gap-1.5"
             role="radiogroup"
@@ -497,6 +493,8 @@ export const TimeToolConfigurationPanel: React.FC<
         </div>
       </Card>
 
+      <SettingsLabel>When the timer ends</SettingsLabel>
+
       <div className="flex items-center justify-between border-b pb-4">
         <div>
           <p
@@ -504,9 +502,6 @@ export const TimeToolConfigurationPanel: React.FC<
             className="font-medium text-slate-800"
           >
             Auto-Pick Random Student
-          </p>
-          <p className="text-sm text-slate-500">
-            Pick a random student when the timer ends.
           </p>
         </div>
         <div className="flex items-center">
@@ -529,9 +524,6 @@ export const TimeToolConfigurationPanel: React.FC<
           >
             Auto-Advance Next Up Queue
           </p>
-          <p className="text-sm text-slate-500">
-            Advance to the next student in the queue when the timer ends.
-          </p>
         </div>
         <div className="flex items-center">
           <input
@@ -552,9 +544,6 @@ export const TimeToolConfigurationPanel: React.FC<
             className="font-medium text-slate-800"
           >
             Auto-Rotate Stations
-          </p>
-          <p className="text-sm text-slate-500">
-            Rotate the first Stations widget when the timer ends.
           </p>
         </div>
         <div className="flex items-center">

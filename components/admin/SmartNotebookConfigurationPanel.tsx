@@ -65,14 +65,9 @@ export const SmartNotebookConfigurationPanel: React.FC<Props> = ({
               />
             </svg>
           </div>
-          <div>
-            <h3 className="font-bold text-slate-800 text-sm tracking-wide">
-              SMART NOTEBOOK DEFAULTS
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Configure notebook storage limits and dock defaults per building.
-            </p>
-          </div>
+          <h3 className="font-bold text-slate-800 text-sm tracking-wide">
+            SMART NOTEBOOK DEFAULTS
+          </h3>
         </div>
 
         {/* Building Selector */}
@@ -104,10 +99,7 @@ export const SmartNotebookConfigurationPanel: React.FC<Props> = ({
                   <label className="text-sm font-bold text-slate-700 block mb-1">
                     File Upload Size Limit (MB)
                   </label>
-                  <p className="text-xs text-slate-500">
-                    Maximum allowed file size for imported notebooks. Set to 0
-                    to disable limit.
-                  </p>
+                  <p className="text-xs text-slate-500">0 = no limit.</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <input

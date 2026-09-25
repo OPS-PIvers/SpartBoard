@@ -22,12 +22,12 @@ const PLAN_META: Record<
 > = {
   basic: {
     label: 'Basic Pack',
-    blurb: 'Core classroom widgets — clock, schedule, announcements.',
+    blurb: 'Clock, schedule, announcements.',
     widgets: 8,
   },
   expanded: {
     label: 'Expanded Pack',
-    blurb: 'Basic + interactive tools (polls, drawing, seating, number line).',
+    blurb: 'Adds polls, drawing, seating, number line.',
     widgets: 22,
   },
   full: {
@@ -73,10 +73,7 @@ export const OverviewView: React.FC<Props> = ({
           {!canEditOrg && (
             <div className="mb-4 flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
               <Lock size={14} className="mt-0.5 shrink-0 text-slate-500" />
-              <span>
-                Org-level settings are read-only for building admins. Contact a
-                domain admin to make changes.
-              </span>
+              <span>Read-only. Ask a domain admin.</span>
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -113,10 +110,7 @@ export const OverviewView: React.FC<Props> = ({
               />
             </Field>
             <div className="md:col-span-2">
-              <Field
-                label="Primary admin"
-                hint="Billing contact and top-level owner of this org"
-              >
+              <Field label="Primary admin">
                 <Input
                   value={org.primaryAdminEmail}
                   onChange={(e) =>
@@ -157,8 +151,7 @@ export const OverviewView: React.FC<Props> = ({
           </div>
           {!isSuperAdmin && (
             <p className="text-xs text-slate-500 mt-4 leading-relaxed border-t border-slate-100 pt-4">
-              AI access is managed by SpartBoard. Contact your customer success
-              manager or{' '}
+              Contact{' '}
               <a
                 href="mailto:support@spartboard.app"
                 className="text-brand-blue-primary font-semibold hover:underline"
@@ -185,14 +178,14 @@ export const OverviewView: React.FC<Props> = ({
             </div>
           </div>
           <p className="text-xs text-slate-500 mb-5">
-            Your plan is set by SpartBoard. Contact{' '}
+            Contact{' '}
             <a
               href="mailto:support@spartboard.app"
               className="text-brand-blue-primary font-semibold hover:underline"
             >
               support@spartboard.app
             </a>{' '}
-            to upgrade or change packs.
+            to change.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {(['basic', 'expanded', 'full'] as Plan[]).map((plan) => {

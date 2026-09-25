@@ -43,9 +43,7 @@ export const LinkedLibrarySets: React.FC<LinkedLibrarySetsProps> = ({
     >
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm text-slate-700">
-          These Guided Learning activities are linked from Help and also appear
-          in every teacher&apos;s Guided Learning library. Move the ones meant
-          only for Help out of the library.
+          These also appear in teachers&apos; libraries.
         </p>
         {inLibrary.length > 1 && (
           <button

@@ -241,14 +241,9 @@ export const VideoActivityConfigurationModal: React.FC<
                   <div className="p-2 bg-indigo-50 rounded-xl">
                     <Sparkles className="w-5 h-5 text-indigo-600" />
                   </div>
-                  <div>
-                    <h3 className="font-bold text-slate-800">
-                      AI Question Generation
-                    </h3>
-                    <p className="text-sm text-slate-500 font-medium">
-                      Control availability of Gemini-powered activity creation
-                    </p>
-                  </div>
+                  <h3 className="font-bold text-slate-800">
+                    AI Question Generation
+                  </h3>
                 </div>
 
                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
@@ -257,9 +252,7 @@ export const VideoActivityConfigurationModal: React.FC<
                       Enable AI Mode
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                      Allows teachers to generate questions automatically using
-                      the Gemini API. This option will be hidden from non-admins
-                      if disabled.
+                      Off hides it from teachers.
                     </p>
                   </div>
                   <Toggle
@@ -282,19 +275,6 @@ export const VideoActivityConfigurationModal: React.FC<
             </div>
           ) : (
             <div className="max-w-4xl mx-auto space-y-4">
-              <div className="bg-brand-blue-light/20 border border-brand-blue-primary/20 rounded-xl p-4 flex gap-3 mb-6">
-                <Library className="w-5 h-5 text-brand-blue-primary shrink-0 mt-0.5" />
-                <div className="text-sm text-brand-blue-dark leading-relaxed">
-                  <p className="font-bold mb-1">How the Global Library Works</p>
-                  <p className="opacity-90">
-                    Activities in this library are available to all teachers in
-                    the assigned buildings. To add an activity here, a teacher
-                    or admin must create it in the Video Activity widget and
-                    share it to the global library.
-                  </p>
-                </div>
-              </div>
-
               {loading ? (
                 <div className="py-12 text-center text-slate-500">
                   <div className="animate-spin w-8 h-8 border-4 border-brand-blue-primary border-t-transparent rounded-full mx-auto mb-4" />
@@ -307,7 +287,8 @@ export const VideoActivityConfigurationModal: React.FC<
                     No global video activities found
                   </p>
                   <p className="text-sm text-slate-400">
-                    Activities shared to the global library will appear here.
+                    Share an activity from the Video Activity widget to add it
+                    here. Teachers in its assigned buildings can use it.
                   </p>
                 </div>
               ) : (

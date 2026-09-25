@@ -571,8 +571,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
                   Available To
                 </SettingsLabel>
                 <p className="text-xs text-slate-500 mb-2">
-                  Select which buildings can see this PDF. Leave all unchecked
-                  to make it available to everyone.
+                  None selected means everyone.
                 </p>
                 <div
                   role="group"
@@ -645,10 +644,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
 
         {/* Footer (list view only) */}
         {view === 'list' && (
-          <div className="shrink-0 border-t border-slate-100 px-5 py-3 flex items-center justify-between">
-            <p className="text-xxs text-slate-400">
-              PDFs are available to teachers via the PDF widget library.
-            </p>
+          <div className="shrink-0 border-t border-slate-100 px-5 py-3 flex items-center justify-end">
             <button
               onClick={() => openEditor()}
               className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md shadow-red-200 transition-all"

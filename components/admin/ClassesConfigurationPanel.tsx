@@ -57,12 +57,8 @@ export const ClassesConfigurationPanel: React.FC<
           </h4>
           <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
             <div>
-              <span className="text-sm font-bold text-slate-700 block mb-1">
+              <span className="text-sm font-bold text-slate-700 block">
                 Enable ClassLink Sync
-              </span>
-              <span className="text-xs text-slate-500 block">
-                Allow teachers in this building to import their class rosters
-                directly from ClassLink.
               </span>
             </div>
             <Toggle

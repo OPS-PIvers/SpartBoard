@@ -59,7 +59,6 @@ const REQUIRED_ADMIN_STICKER_KEYS = [
 const REQUIRED_ADMIN_PLC_RECOVERY_KEYS = [
   'title',
   'subtitle',
-  'explainer',
   'empty',
   'leadLabel',
   'membersLabel_one',
@@ -165,7 +164,7 @@ describe.each([
 
 /**
  * DE and ES left the literal English acronym "PLC" untranslated across every
- * string in `admin.plc.recovery` (title/subtitle/explainer/empty/dissolve/
+ * string in `admin.plc.recovery` (title/subtitle/empty/dissolve/
  * confirmDissolve), while FR correctly used its established term ("CAP") for
  * the same namespace. Two prior PRs (#2162, #2214) explicitly left DE/ES
  * alone here on the theory that `admin.plc.recovery` "intentionally keeps

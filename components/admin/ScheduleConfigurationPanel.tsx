@@ -224,8 +224,7 @@ const SpecialDaysCard: React.FC<SpecialDaysCardProps> = ({
           <CalendarDays className="w-3.5 h-3.5" /> Special days
         </h5>
         <p className="text-xxs text-slate-500 leading-tight">
-          On these dates the chosen schedule runs instead of the weekday one,
-          and per-period assignment windows follow its bell times.
+          Overrides the weekday schedule on these dates.
         </p>
       </div>
       {entries.map(([date, scheduleId]) => (

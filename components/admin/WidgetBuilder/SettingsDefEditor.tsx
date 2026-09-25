@@ -83,11 +83,6 @@ export const SettingsDefEditor: React.FC<SettingsDefEditorProps> = ({
         </button>
       </div>
 
-      <p className="text-xs text-slate-500">
-        Define settings that admins can configure per-instance of this widget.
-        These appear in the widget&apos;s settings panel.
-      </p>
-
       {/* Add form */}
       {isAdding && (
         <div className="bg-slate-900 border border-blue-700 rounded-lg p-3 space-y-3">
