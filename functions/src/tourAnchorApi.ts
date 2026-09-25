@@ -16,7 +16,7 @@ export const API_ITEM_CAP = 50;
 export const STALE_PR_MS = 7 * DAY_MS;
 export const MAX_RESOLUTIONS = 100;
 const MAX_REASON = 500;
-const PR_URL_RE = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+$/;
+const PR_URL_RE = /^https:\/\/github\.com\/OPS-PIvers\/SpartBoard\/pull\/\d+$/;
 
 /** Constant-time bearer check; hashing both sides makes the buffers equal length. */
 export function isAuthorized(

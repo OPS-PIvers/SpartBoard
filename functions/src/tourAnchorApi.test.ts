@@ -249,6 +249,10 @@ describe('parseResolutions', () => {
     ['status rebound', [{ ...pr, status: 'rebound' }]],
     ['bad anchor id', [{ ...pr, anchorId: 'Drop Table' }]],
     ['non-github pr url', [{ ...pr, prUrl: 'https://evil.test/pull/1' }]],
+    [
+      'another repo',
+      [{ ...pr, prUrl: 'https://github.com/someone/else/pull/1' }],
+    ],
     ['pr-open without a url', [{ ...pr, prUrl: undefined }]],
     [
       'needs-human without a reason',
