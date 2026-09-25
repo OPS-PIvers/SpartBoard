@@ -1,6 +1,6 @@
 # Always-visible copy cleanup
 
-Status: audit done 2026-09-25. Implementation waits for Paul's go-ahead on the phases and the four decisions at the end.
+Status: audit done 2026-09-25. Paul approved the phases and took the recommended option on all four decisions the same day, so implementation can start with Phase 1.
 
 Paul asked for a full audit of the helper text, hints, tips, subtitles and notices that sit permanently on screen, because earlier Claude models wrote long sentences to say simple, objective things. This doc is the plan. The per-area findings, with every string, its location and a proposed replacement, are in [`copy-audit/`](copy-audit/).
 
@@ -120,9 +120,11 @@ These came up during the sweep. They are listed here and not scheduled into the 
 - **Colour-only status.** The Google Drive dot in the sidebar nav (`layout/sidebar/Sidebar.tsx:671`) has no text or label, and the class-row dot (`SidebarClasses.tsx:689`), the Poll settings green dot and the Video Activity timeline marker are the same. The `ShareStatusBanner.tsx:144` dot relies on a hover title. The PLC Settings section switches show no On/Off word and lack `role="switch"`.
 - **Static help styled as an alert.** Two surfaces use a solid brand-blue box with an alert icon, at `QuizEditor.tsx:1078` and `StimulusManagerPanel.tsx:259`.
 
-## Decisions for Paul
+## Decisions
 
-1. **Default for hints under toggles.** Delete every one except those the audit marked KEEP (recommended), or rewrite each one shorter.
-2. **Where needed-but-rare detail goes.** A tooltip or info popover for the few MOVE items only (recommended), or a Help Center article per surface.
-3. **Global Settings descriptions.** One short line each (recommended), or a short line with a "details" disclosure that keeps today's text.
-4. **Translations.** Update de, es and fr in the same PR (recommended), or change English only and let the other locales catch up later.
+Paul chose these on 2026-09-25, and every phase follows them.
+
+1. **Hints under toggles are deleted.** The only ones left are those the findings files mark KEEP. Nobody rewrites a hint shorter as a way to keep it.
+2. **Detail that is needed but rarely goes in a tooltip or info popover** on the control it describes, and only for items marked MOVE. No Help Center articles are written for this work.
+3. **Each Global Settings description is one short line.** There is no "details" disclosure, and the longer text stays in the plan docs and PRs where it already lives.
+4. **German, Spanish and French change in the same PR as English.** Deleted keys go from all four files, and shortened strings are translated in the same change.
