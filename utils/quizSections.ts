@@ -282,6 +282,29 @@ export function isLockedByChooseCount(
   return answered >= count;
 }
 
+/** Sections where a paper sheet answered more than N; the first N in order count (E15). */
+export function overAnsweredSections(
+  sections: readonly QuizSessionSection[] | undefined,
+  answeredIds: ReadonlySet<string>
+): { section: QuizSessionSection; answered: number }[] {
+  return (sections ?? []).flatMap((section) => {
+    const count = effectiveChooseCount(section);
+    if (count === undefined) return [];
+    const answered = section.questionIds.filter((id) =>
+      answeredIds.has(id)
+    ).length;
+    return answered > count ? [{ section, answered }] : [];
+  });
+}
+
+/** "Answer any 2 of these 3 questions.", or null for a section students answer in full. */
+export function chooseLineFor(section: QuizSessionSection): string | null {
+  const count = effectiveChooseCount(section);
+  return count === undefined
+    ? null
+    : `Answer any ${count} of these ${section.questionIds.length} questions.`;
+}
+
 /** Shuffles questions inside each section and leaves sectionless runs to shuffle among themselves. */
 export function shuffleWithinSections<T extends { id: string }>(
   questions: readonly T[],
@@ -297,4 +320,23 @@ export function shuffleWithinSections<T extends { id: string }>(
     else groups.push({ key, items: [q] });
   }
   return groups.flatMap((g, i) => shuffle(g.items, `${g.key}:${i}`));
+}
+
+/** Questions each section row owns in `order`: fixed questions plus each bank slot's draw count. */
+export function sectionQuestionCounts(
+  order: readonly { kind: string; id: string }[],
+  slotCounts: ReadonlyMap<string, number>
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  let current: string | null = null;
+  for (const entry of order) {
+    if (entry.kind === 'section') {
+      current = entry.id;
+      counts.set(current, 0);
+    } else if (current) {
+      const add = entry.kind === 'slot' ? (slotCounts.get(entry.id) ?? 0) : 1;
+      counts.set(current, (counts.get(current) ?? 0) + add);
+    }
+  }
+  return counts;
 }

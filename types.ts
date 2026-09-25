@@ -8829,6 +8829,8 @@ export type GlobalFeature =
   | 'quiz-choose-all'
   /** Quiz multiple choice editor as one option list with a correct-answer marker per option. */
   | 'quiz-choice-editor'
+  /** Section headings in the quiz editor, with "students answer any N of these M". */
+  | 'quiz-sections'
   /** "Also accept" alternate answers on fill-in-the-blank quiz questions. */
   | 'quiz-fib-alternates'
   /** "View full screen" toggle on large pop-ups (editors, graders). */
