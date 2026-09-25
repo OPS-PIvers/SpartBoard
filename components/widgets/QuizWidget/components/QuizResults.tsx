@@ -2334,6 +2334,9 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           sheetsAvailable={paperSheetsEnabled}
           reportChoice={resultsTools}
           teacherUid={user?.uid ?? null}
+          sessionId={session?.id}
+          writtenReturnMode={session?.writtenReturnMode}
+          resolvePaperCrop={resolvePaperCrop}
           onClose={() => setPrintSelection(undefined)}
           onError={(message) => addToast(message, 'error')}
         />

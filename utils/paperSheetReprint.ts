@@ -9,7 +9,11 @@ import {
 } from './paperSheetLayout';
 import { mcItemsOf } from './paperPageMap';
 import { analyzePaperQuiz } from './paperSheetPlan';
-import type { PaperSheetQuestionText, SheetFill } from './paperSheetPrint';
+import type {
+  PaperSheetQuestionText,
+  SheetFill,
+  SheetWrittenFill,
+} from './paperSheetPrint';
 
 /** A paper response mapped back onto the sheet it was bubbled on. */
 export interface SheetReprint {
@@ -134,6 +138,8 @@ export interface SheetReprintMarks {
   markAnswers: boolean;
   keyMode: 'off' | 'missed' | 'all';
   score?: string;
+  /** Crop, points and comment per written question id (D42). */
+  written?: Readonly<Record<string, SheetWrittenFill>>;
 }
 
 /** The marks D23 draws: solid pick, margin ✓/✗ or "?", a ringed key per the key mode. */
@@ -156,5 +162,6 @@ export function sheetFillFor(
       return f !== null && right(i) ? 'correct' : 'incorrect';
     }),
     ...(options.score ? { score: options.score } : {}),
+    ...(options.written ? { written: options.written } : {}),
   };
 }
