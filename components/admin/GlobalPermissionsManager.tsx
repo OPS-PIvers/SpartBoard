@@ -65,6 +65,7 @@ import {
   LayoutDashboard,
   Flag,
   Target,
+  StickyNote,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
@@ -326,6 +327,12 @@ const GLOBAL_FEATURES: {
     label: 'Guided Learning callout editing',
     icon: MousePointerClick,
     description: 'Resize and restyle Studio callouts.',
+  },
+  {
+    id: 'plc-notes-rich-editor',
+    label: 'PLC notes rich text editor',
+    icon: StickyNote,
+    description: 'Formatting toolbar in PLC notes.',
   },
   {
     id: 'settings-drawer',

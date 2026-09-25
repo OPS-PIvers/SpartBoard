@@ -8788,7 +8788,9 @@ export type GlobalFeature =
   /** Free-response grader: collapsible student list, no repeated name, one-strand auto-tagging. */
   | 'quiz-grader-v2'
   /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas; AND-ed with `gl-studio`. */
-  | 'gl-callout-editing';
+  | 'gl-callout-editing'
+  /** PLC notes as an always-editable rich text editor with a formatting toolbar (still stored as Markdown). */
+  | 'plc-notes-rich-editor';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
