@@ -59,13 +59,7 @@ export const SubShareVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     );
   }
   if (status === 'loading') {
-    return (
-      <ScaledEmptyState
-        icon={Film}
-        title="Loading the video activity"
-        subtitle="Reading the copy your teacher shared."
-      />
-    );
+    return <ScaledEmptyState icon={Film} title="Loading the video activity" />;
   }
   return (
     <ScaledEmptyState

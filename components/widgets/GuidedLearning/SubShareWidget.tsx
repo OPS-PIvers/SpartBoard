@@ -139,11 +139,7 @@ export const SubShareGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   }
   if (building.loading) {
     return (
-      <ScaledEmptyState
-        icon={Compass}
-        title="Loading the guided activity"
-        subtitle="Reading the copy your teacher shared."
-      />
+      <ScaledEmptyState icon={Compass} title="Loading the guided activity" />
     );
   }
   if (status === 'denied') {
@@ -151,17 +147,13 @@ export const SubShareGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       <ScaledEmptyState
         icon={Lock}
         title="Not shared with you"
-        subtitle="This guided activity is only for the substitutes your teacher named on the share."
+        subtitle="Shared with other substitutes only."
       />
     );
   }
   if (status === 'loading') {
     return (
-      <ScaledEmptyState
-        icon={Compass}
-        title="Loading the guided activity"
-        subtitle="Reading the copy your teacher shared."
-      />
+      <ScaledEmptyState icon={Compass} title="Loading the guided activity" />
     );
   }
   return (

@@ -120,7 +120,8 @@ export const SubCollectionsList: FC<SubCollectionsListProps> = ({
     return (
       <p className="text-sm text-rose-300/80 italic">
         {t('subCollections.loadError', {
-          defaultValue: "Couldn't load shared Collections — refresh to retry.",
+          defaultValue:
+            "Couldn't load shared Collections. Refresh to try again.",
         })}
       </p>
     );

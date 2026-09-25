@@ -139,7 +139,7 @@ describe('QuizAssignmentImportSetupModal', () => {
         onClose={vi.fn()}
       />
     );
-    expect(screen.getByText(/don't have any classes yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/No classes yet/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Save$/ })).toBeDisabled();
   });
 

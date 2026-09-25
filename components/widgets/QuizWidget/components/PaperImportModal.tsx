@@ -484,8 +484,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     <div className="space-y-4 px-5 pb-5 pt-4">
       {batches.length === 0 ? (
         <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-          No response sheets have been printed for this quiz yet. Print a batch
-          first — the scan is matched to it by the marker on every page.
+          Print response sheets before importing a scan.
         </p>
       ) : (
         <>
@@ -746,7 +745,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
               }}
               className={fieldClass}
             >
-              <option value="">Not assigned — skip this sheet</option>
+              <option value="">Not assigned (skip this sheet)</option>
               {rosters.map((r) =>
                 r.students.map((s) => (
                   <option key={`${r.id}/${s.id}`} value={`${r.id}/${s.id}`}>

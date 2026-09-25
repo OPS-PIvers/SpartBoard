@@ -1090,7 +1090,7 @@ const QuizJoinFlow: React.FC<{
               Sign in to join
             </h1>
             <p className="text-slate-400 text-sm text-center mb-6">
-              Use your school Google account so your quiz is saved to you.
+              Use your school Google account.
             </p>
 
             <button
@@ -3004,13 +3004,11 @@ const ActiveQuiz: React.FC<{
             Attempt Unlocked
           </h2>
           <p className="text-emerald-100 text-lg max-w-md mb-2">
-            Your teacher reopened your attempt. Your previous answers are still
-            here — pick up where you left off.
+            Your answers are still here.
           </p>
           <p className="text-amber-200 text-sm max-w-md mb-8">
-            ⚠ The next time you leave this tab or open the quiz in another
-            window, your work will be submitted automatically. No further
-            warnings.
+            ⚠ Leave this tab or open the quiz in another window and your quiz
+            submits right away.
           </p>
           <button
             onClick={() => setShowResumeModal(false)}
@@ -3030,10 +3028,7 @@ const ActiveQuiz: React.FC<{
           className={`sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b text-xs ${unlockedBannerCls}`}
         >
           <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>
-            This assignment&apos;s window closed — your answered questions were
-            submitted automatically.
-          </span>
+          <span>This assignment closed. Your answers were submitted.</span>
         </div>
       )}
 
@@ -3048,9 +3043,8 @@ const ActiveQuiz: React.FC<{
         >
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span className="flex-1">
-            We couldn&apos;t submit automatically — check your connection and
-            try again. If the window has been closed for a while, ask your
-            teacher to grant an extension.
+            Couldn&apos;t submit. Check your connection and try again, or ask
+            your teacher for an extension.
           </span>
           <button
             type="button"
@@ -3072,8 +3066,7 @@ const ActiveQuiz: React.FC<{
           <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
           <span>
             Your teacher unlocked your attempt.{' '}
-            <strong>Leaving this tab once more will submit your quiz</strong> —
-            no further warnings.
+            <strong>Leaving this tab once more will submit your quiz.</strong>
           </span>
         </div>
       )}
@@ -4721,17 +4714,7 @@ export const PublishedScoreReview: React.FC<{
                   {correctCount} of {autoGradedCount} fully correct
                 </p>
               )}
-              {awaitingGrade && (
-                <p
-                  className={`mt-2 text-sm font-semibold ${
-                    light ? 'text-amber-700' : 'text-amber-300'
-                  }`}
-                >
-                  Provisional — your written response is still being graded, so
-                  this score will change.
-                </p>
-              )}
-              {recordingAwaitingGrade && (
+              {(awaitingGrade || recordingAwaitingGrade) && (
                 <p
                   className={`mt-2 text-sm font-semibold ${
                     light ? 'text-amber-700' : 'text-amber-300'
@@ -5246,7 +5229,7 @@ export const WrittenAnswerReview: React.FC<{
               light ? 'text-slate-500' : 'text-slate-300'
             }`}
           >
-            Showing your latest response — not yet graded by your teacher.
+            Not yet graded
           </p>
         ) : (
           <p
@@ -5400,7 +5383,7 @@ const QuizSubmittedWaitScreen: React.FC<{
 
       <div className="flex items-center gap-2 text-slate-500 text-sm">
         <Loader2 className="w-4 h-4 animate-spin" />
-        Waiting for teacher to end the quiz and show final results…
+        Waiting for final results…
       </div>
 
       {/*

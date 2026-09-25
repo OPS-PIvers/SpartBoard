@@ -713,7 +713,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
                     padding: 'min(32px, 7cqmin) 0',
                   }}
                 >
-                  No responses yet. Share the assignment link with students.
+                  No responses yet.
                 </div>
               )}
             </>

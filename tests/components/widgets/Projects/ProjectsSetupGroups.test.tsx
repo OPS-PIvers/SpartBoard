@@ -199,7 +199,7 @@ describe('Projects — setting up groups', () => {
     expect(message).toContain('11 groups');
     // "0 students" reads as a failed import; it is a working teacher-only tracker.
     expect(message).not.toContain('0 students');
-    expect(message).toContain('tracker you move yourself');
+    expect(message).toContain('you track them yourself');
     expect(tone).toBe('info');
   });
 });

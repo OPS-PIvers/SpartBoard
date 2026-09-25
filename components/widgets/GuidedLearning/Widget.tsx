@@ -1488,15 +1488,14 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                       className="font-bold text-slate-700"
                       style={{ fontSize: 'min(14px, 5cqmin)' }}
                     >
-                      View-only share — no responses collected
+                      View-only share
                     </p>
                     <p
                       className="text-slate-500 max-w-md"
                       style={{ fontSize: 'min(12px, 4cqmin)' }}
                     >
-                      Students opened this share as a view-only link, so there
-                      are no submissions to display. URL open counts appear in
-                      the Shared archive.
+                      No responses are collected. Open counts are in the Shared
+                      archive.
                     </p>
                     <button
                       type="button"

@@ -11,8 +11,9 @@
     },
     "disabled": {
       "title": "Fernsteuerung ist deaktiviert",
-      "hint": "Aktiviere die Fernsteuerung wieder auf der Tafel, um Widgets von diesem Gerät aus zu steuern."
-    }
+      "hint": "Aktiviere die Fernsteuerung auf der Tafel."
+    },
+    "emptyBoard": "Füge deiner Tafel Widgets hinzu, um sie hier zu steuern."
   },
   "common": {
     "cancel": "Abbrechen",
@@ -244,7 +245,6 @@
       "invites": "Einladungen",
       "invitesTitle": "Ausstehende PLG-Einladungen",
       "noInvitesTitle": "Keine ausstehenden Einladungen",
-      "noInvitesSubtitle": "Hier erscheinen Einladungen, sobald eine Kollegin / ein Kollege dich in ihre/seine PLG einlädt.",
       "inviteFrom": "Eingeladen von {{name}}",
       "accept": "Annehmen",
       "decline": "Ablehnen",
@@ -317,7 +317,7 @@
       "commonAssessment": {
         "loading": "Gemeinsame Bewertung wird geladen…",
         "emptyTitle": "Noch keine gemeinsame Bewertung",
-        "emptySubtitle": "Legen Sie eine in „Bewertungen“ fest und prüfen Sie dann die gebündelten Ergebnisse gemeinsam.",
+        "emptySubtitle": "Lege eine unter Bewertungen fest.",
         "reviewData": "Geteilte Daten ansehen",
         "ranIt": "{{ran}} von {{total}} haben sie durchgeführt",
         "startMeeting": "Besprechung starten",
@@ -333,7 +333,6 @@
       "actionItems": {
         "heading": "Ihre Aufgaben",
         "empty": "Sie sind auf dem neuesten Stand",
-        "emptySubtitle": "Ihnen zugewiesene Aufgaben erscheinen hier.",
         "loadError": "Ihre Aufgaben konnten nicht geladen werden",
         "toggleFailed": "Diese Aufgabe konnte nicht aktualisiert werden.",
         "markDone": "Als erledigt markieren",
@@ -429,8 +428,7 @@
       "assignFailed": "Klassenauswahl konnte nicht gespeichert werden.",
       "driveRequired": "Verbinde Google Drive in deinem Konto, um PLG-Aufgaben zu übernehmen.",
       "driveDisconnected": "Verbinde Google Drive, um PLG-Aufgaben zu deiner Tafel hinzuzufügen.",
-      "emptyTitle": "Noch keine Aufgabenvorlagen",
-      "emptySubtitle": "Aktiviere „Mit PLG teilen“ bei einer Quiz-Aufgabe – sie erscheint dann hier, damit Teammitglieder sie auf ihre eigene Tafel übernehmen können."
+      "emptyTitle": "Noch keine Aufgabenvorlagen"
     },
     "assignmentsInProgress": {
       "heading": "Live im Team",
@@ -438,8 +436,7 @@
       "count_other": "{{count}} laufen",
       "statusActive": "Aktiv",
       "statusPaused": "Pausiert",
-      "emptyTitle": "Keine laufenden Aufgaben",
-      "emptySubtitle": "Wenn du oder ein Teammitglied eine PLG-Aufgabe startet, erscheint sie hier. Pausiere oder stoppe sie von deiner Tafel, und die Zeile aktualisiert sich in Echtzeit."
+      "emptyTitle": "Keine laufenden Aufgaben"
     },
     "meta": {
       "members_one": "{{count}} Mitglied",
@@ -493,7 +490,7 @@
       "openSheet": "Tabelle öffnen",
       "unsafeSheet": "Kein Link",
       "emptyTitle": "Noch keine abgeschlossenen Aufgaben",
-      "emptySubtitle": "Wenn eine PLG-Aufgabe von einer Tafel eines Teammitglieds gestoppt wird, erscheint sie hier mit einem Link zur geteilten Ergebnistabelle."
+      "emptySubtitle": "Beendete Aufgaben erscheinen hier."
     },
     "settings": {
       "heading": "Dashboard-Bereiche",
@@ -578,7 +575,6 @@
         "sharedSheet": {
           "heading": "Geteilte Tabelle",
           "connectedHint": "Aggregierte PLG-Ergebnisse landen in dieser Google-Tabelle. Alle Mitglieder können sie öffnen.",
-          "unsetHint": "Noch keine geteilte Tabelle – sie wird automatisch erstellt, wenn das erste PLG-Quiz durchgeführt wird.",
           "open": "Tabelle öffnen",
           "notReady": "Noch nicht erstellt"
         },
@@ -616,7 +612,6 @@
       "untitled": "Ohne Titel",
       "empty": "Leere Notiz",
       "emptyTitle": "Noch keine Notizen",
-      "emptySubtitle": "Erstelle die erste, um loszulegen.",
       "titlePlaceholder": "Notiztitel",
       "bodyPlaceholder": "Deine Notizen… (Markdown unterstützt)",
       "deleteNote": "Notiz löschen",
@@ -630,7 +625,7 @@
       "pickOrCreate": "Wähle eine Notiz zum Bearbeiten oder erstelle eine neue.",
       "pickToRead": "Wähle eine Notiz zum Lesen.",
       "conflictTitle": "Diese Notiz hat sich geändert",
-      "conflictMessage": "Ein Teammitglied hat diese Notiz bearbeitet, während du geschrieben hast. Lade neu, um die Änderungen zu sehen — dein ungespeicherter Text bleibt unten erhalten.",
+      "conflictMessage": "Ein Teammitglied hat diese Notiz bearbeitet, während du geschrieben hast. Lade neu, um die Änderungen zu sehen. Dein ungespeicherter Text bleibt unten erhalten.",
       "conflictReload": "Notiz neu laden",
       "meeting": {
         "label": "Meeting-Notizen",
@@ -725,7 +720,7 @@
       "loading": "Bewertungsraster werden geladen…",
       "loadError": "Geteilte Bewertungsraster konnten nicht geladen werden. Bitte versuche es erneut.",
       "empty": "Noch keine geteilten Bewertungsraster",
-      "emptyHint": "Teile ein Bewertungsraster aus deiner Bibliothek, damit dein Team schriftliche Antworten einheitlich bewertet.",
+      "emptyHint": "Teile eine aus deiner Bibliothek.",
       "bySharer": "geteilt von {{name}}",
       "unknownSharer": "einem Teammitglied",
       "criterionCount_one": "{{count}} Kriterium",
@@ -755,7 +750,7 @@
       "loading": "Fragenpools werden geladen…",
       "loadError": "Geteilte Fragenpools konnten nicht geladen werden. Bitte erneut versuchen.",
       "empty": "Noch keine geteilten Fragenpools",
-      "emptyHint": "Teile einen Pool aus deiner Quiz-Bibliothek, damit Kolleg:innen getaggte Fragen in ihre eigenen Quizze ziehen können.",
+      "emptyHint": "Teile eine aus deiner Quiz-Bibliothek.",
       "shareCta": "Pool teilen",
       "driveDisconnected": "Verbinde Google Drive, um einen Fragenpool zu teilen.",
       "driveDisconnectedCopy": "Verbinde Google Drive, um einen Fragenpool zu kopieren.",
@@ -896,7 +891,7 @@
       "review": {
         "heading": "Was sagen die Daten?",
         "subtitle": "Klicke auf eine Frage, um eine Entscheidung festzuhalten.",
-        "none": "Keine Bewertungen ausgewählt — gehe zurück zu Wählen."
+        "none": "Keine Bewertungen ausgewählt. Geh zurück zu Auswählen."
       },
       "decide": {
         "heading": "Was haben wir entschieden?",
@@ -1008,13 +1003,13 @@
       "restoreAriaLabel": "Version {{version}} wiederherstellen",
       "restored": "Version {{version}} von „{{title}}“ wiederhergestellt. Teammitglieder synchronisieren beim nächsten Aktualisieren.",
       "restoreFailed": "Diese Version konnte nicht wiederhergestellt werden. Bitte erneut versuchen.",
-      "conflict": "Eine andere Lehrkraft hat gerade eine Aktualisierung veröffentlicht. Wir haben den Versionsverlauf neu geladen – sieh ihn dir an und versuche die Wiederherstellung erneut."
+      "conflict": "Eine andere Lehrkraft hat gerade ein Update veröffentlicht. Prüfe den neu geladenen Verlauf und versuche die Wiederherstellung erneut."
     },
     "sync": {
       "autoPulled": "„{{title}}“ auf die neueste Version deiner Kollegin/deines Kollegen aktualisiert.",
       "autoPullFailed": "Die neueste Version von „{{title}}“ konnte nicht abgerufen werden. Wir versuchen es bei der nächsten Aktualisierung erneut.",
       "conflictTitle": "Synchronisierte Kopie geändert",
-      "conflictBody": "Eine Kollegin/ein Kollege hat eine neue Version von „{{title}}“ veröffentlicht, während du nicht gespeicherte Änderungen hast. Deine Änderungen behalten oder ihre Version abrufen (deine nicht gespeicherten Änderungen werden verworfen)?",
+      "conflictBody": "Ein Teammitglied hat „{{title}}“ während deiner Bearbeitung aktualisiert. Wenn du dessen Version übernimmst, gehen deine ungespeicherten Änderungen verloren.",
       "keepMine": "Deine behalten",
       "pullTheirs": "Ihre abrufen",
       "keptMine": "Deine Änderungen an „{{title}}“ wurden behalten. Du kannst sie veröffentlichen, um sie mit deinem Team zu teilen.",
@@ -1096,7 +1091,7 @@
       "useSuccess": "„{{title}}“ wurde zu dieser PLG hinzugefügt.",
       "useFailed": "Diese Ressource konnte nicht hinzugefügt werden.",
       "emptyTitle": "Noch keine Ressourcen",
-      "emptySubtitle": "Dein Admin wird hier kuratierte Quizze, Dokumente und Tafeln bereitstellen.",
+      "emptySubtitle": "Dein Admin hat noch keine hinzugefügt.",
       "inboxTitle": "Ressourcen",
       "inboxSubtitle": "Von deinem Admin.",
       "kind": {
@@ -1153,7 +1148,7 @@
       "loading": "Bewertungen werden geladen…",
       "loadError": "Bewertungen konnten nicht geladen werden.",
       "emptyTitle": "Noch keine Bewertungen",
-      "emptySubtitle": "Teile ein Quiz mit dieser PLG und weise es dann zu, um die Ergebnisse des Teams hier zu bündeln.",
+      "emptySubtitle": "Teile ein Quiz, um zu beginnen.",
       "noMatches": "Keine Bewertungen passen zu diesem Filter.",
       "noArchived": "Keine archivierten Quiz.",
       "folders": {
@@ -1184,7 +1179,7 @@
       "lastComputed": "Zuletzt aktualisiert",
       "neverComputed": "Noch nicht",
       "questionsHeading": "Fragen",
-      "noQuestions": "Noch keine Ergebnisse. Sobald eine Lehrkraft diese Bewertung durchführt und Punkte veröffentlicht, erscheinen die gebündelten Fragen hier.",
+      "noQuestions": "Noch keine Ergebnisse.",
       "correctPercent": "{{percent}} % richtig",
       "averagePointsPercent": "{{percent}} % der Punkte",
       "notScored": "Nicht bewertet",
@@ -1329,7 +1324,6 @@
       "launchHomeGroup": "Heimgruppen starten",
       "launchHomeGroupHint": "Zu Heimgruppen zurückkehren",
       "everyoneAbsentTitle": "Alle als abwesend markiert",
-      "everyoneAbsentSubtitle": "Anwesenheit aktualisieren, um Schüler/innen wieder hinzuzufügen.",
       "updateAttendance": "Anwesenheit aktualisieren",
       "stepperDecrease": "{{name}} verringern",
       "stepperIncrease": "{{name}} erhöhen",
@@ -1579,7 +1573,7 @@
     "rootLabel": "Alle Tafeln (keine Sammlung)",
     "subCollections": "Unter-Sammlungen",
     "boards": "Tafeln",
-    "empty": "Diese Sammlung ist leer – ziehe Tafeln hierher oder erstelle eine neue.",
+    "empty": "Diese Sammlung ist leer. Ziehe Tafeln hierher oder erstelle eine.",
     "selectedCount": "{{count}} ausgewählt",
     "clearSelection": "Auswahl aufheben",
     "pin": "Anheften",
@@ -1674,7 +1668,7 @@
   },
   "subCollections": {
     "loading": "Geteilte Sammlungen werden geladen…",
-    "loadError": "Geteilte Sammlungen konnten nicht geladen werden – Seite neu laden, um es erneut zu versuchen.",
+    "loadError": "Geteilte Sammlungen konnten nicht geladen werden. Lade die Seite neu.",
     "heading": "Sammlungen",
     "boardCount": "{{count}} Tafel(n)",
     "boardPlaceholder": "Tafel …{{id}}",
@@ -1687,7 +1681,7 @@
   "templatePicker": {
     "title": "Aus Vorlage erstellen",
     "loading": "Vorlagen werden geladen…",
-    "loadError": "Vorlagen konnten nicht geladen werden – Seite neu laden, um es erneut zu versuchen.",
+    "loadError": "Vorlagen konnten nicht geladen werden. Lade die Seite neu.",
     "empty": "Noch keine Vorlagen verfügbar.",
     "kindBoard": "Tafel",
     "kindCollection": "Sammlung · {{count}} Tafel(n)"
@@ -1705,7 +1699,7 @@
     "yours": "Deine",
     "uploads": "Meine Uploads",
     "searchPlaceholder": "Hintergründe suchen…",
-    "emptyFavorites": "Noch keine Favoriten — bewege den Mauszeiger über einen Hintergrund und tippe auf ★",
+    "emptyFavorites": "Noch keine Favoriten. Fahre über einen Hintergrund und tippe auf ★",
     "emptyRecent": "Noch keine aktuellen Hintergründe.",
     "emptyFiltered": "Keine Hintergründe entsprechen deinen Filtern.",
     "uploading": "Hochladen…",
@@ -1875,7 +1869,7 @@
     "backToBoard": "Zurück zu meiner Tafel",
     "hubTitle": "Meine PLGs",
     "hubEmptyTitle": "Noch keine PLGs",
-    "hubEmptySubtitle": "Erstellen Sie eine PLG in der Seitenleiste und laden Sie Ihre Kollegen ein.",
+    "hubEmptySubtitle": "Erstelle eine über die Seitenleiste.",
     "leadBadge": "Leitung",
     "memberCount": "{{count}} Mitglied",
     "memberCount_other": "{{count}} Mitglieder"
@@ -1887,9 +1881,8 @@
     "requestToJoin": "Beitritt anfragen",
     "requestHint": "Bitten Sie ein Mitglied, {{email}} einzuladen.",
     "emptyTitle": "Keine weiteren PLGs vorhanden",
-    "emptySubtitle": "Derzeit gibt es keine weiteren PLGs in Ihrem Gebäude.",
     "noOrgTitle": "Gebäudeverzeichnis nicht verfügbar",
-    "noOrgSubtitle": "Ihr Konto ist noch keiner Schule zugeordnet, daher können wir keine PLGs in der Nähe anzeigen."
+    "noOrgSubtitle": "Dein Konto hat noch keine Schule."
   },
   "assignStudentPicker": {
     "title": "Schüler auswählen",
@@ -1899,13 +1892,10 @@
     "searchPlaceholder": "Schüler suchen…",
     "selectAll": "Alle auswählen",
     "noRosters": "Keine Klassenlisten verfügbar.",
-    "noMatches": "Keine Schüler gefunden.",
     "noMatchesTitle": "Keine Treffer",
     "clearSearch": "Suche zurücksetzen",
-    "selectRoster": "Wähle eine Klassenliste, um Schüler zu sehen.",
     "selectRosterTitle": "Klassenliste auswählen",
     "emptyRosterTitle": "Keine Schüler",
-    "emptyRosterSubtitle": "Diese Klassenliste hat noch keine Schüler.",
     "loadErrorTitle": "Schüler konnten nicht geladen werden",
     "loadErrorSubtitle": "Öffne die Klassenliste erneut, um es noch einmal zu versuchen.",
     "chooseAnotherRoster": "Andere Klasse wählen",
@@ -1990,7 +1980,7 @@
     "timingNotApplied": "Lehrergesteuerte Sitzungen haben keinen Timer pro Schüler/in, daher gilt die verlängerte Zeit für {{names}} nicht. Andere Anpassungen gelten weiterhin.",
     "clearModifications": "Alle Anpassungen löschen",
     "noLinkedClass": "Diese Aufgabe ist mit keiner Klasse verknüpft, die du hier anpassen kannst.",
-    "timingNotAppliedConfirm": "Lehrergesteuerte Sitzungen haben keinen Timer pro Schüler/in, daher gilt die verlängerte Zeit für {{names}} nicht. Andere Anpassungen gelten weiterhin. Klicke erneut auf Zuweisen, um fortzufahren.",
+    "timingNotAppliedConfirm": "Die verlängerte Zeit für {{names}} gilt nicht im lehrergesteuerten Modus. Klicke erneut auf Zuweisen, um fortzufahren.",
     "pacingBlocked": "Einzelne Schüleranpassungen erfordern den selbstgesteuerten Modus. Stelle die Sitzungseinstellungen unten auf Selbstgesteuert um oder nutze „Alle Anpassungen löschen“ unter „Anpassungen bearbeiten oder hinzufügen“.",
     "periodsLabel": "Unterrichtsstunden",
     "periodModeLabel": "Wie Stunden geöffnet werden",
@@ -2153,8 +2143,7 @@
           "body": "Lernende sehen nur Fragen, die du als geprüft markierst."
         },
         "pickQuestion": {
-          "title": "Frage auswählen",
-          "body": "Wähle eine Frage zum Vergleichen."
+          "title": "Frage auswählen"
         }
       },
       "error": {
@@ -2221,18 +2210,18 @@
       "takeOf": "Take {{n}} of {{total}}",
       "limitHint": "up to {{seconds}} seconds",
       "prepLabel": "Thinking time",
-      "prepBody": "Plan what you want to say. You can start recording as soon as you are ready.",
+      "prepBody": "Plane deine Antwort.",
       "requestingMic": "Asking to use your microphone…",
       "recordingLabel": "Recording",
       "recordingHint": "Recording stops on its own at {{seconds}} seconds.",
-      "wrapUp": "Wrap it up — recording stops at {{seconds}} seconds.",
+      "wrapUp": "Komm zum Schluss. Die Aufnahme stoppt bei {{seconds}} Sekunden.",
       "reviewLabel": "Listen back",
-      "reviewBody": "Nothing has been sent yet. Keep this take, or discard it and record again.",
+      "reviewBody": "Noch nicht gesendet.",
       "playbackPosition": "Playback position",
       "playbackValueText": "{{elapsed}} of {{total}}",
       "windowClosedTitle": "Recording time is over",
-      "windowClosedBody": "The time to record an answer to this question has passed, so there is nothing left to record here. Your teacher will see this question without a recording. Move on when you are ready.",
-      "armedBody": "When you press record you will have {{seconds}} seconds.",
+      "windowClosedBody": "Deine Lehrkraft sieht diese Frage ohne Aufnahme. Mach weiter, wenn du bereit bist.",
+      "armedBody": "Du hast {{seconds}} Sekunden.",
       "record": "Record",
       "recordAgain": "Record again",
       "stop": "Stop recording",
@@ -2251,13 +2240,13 @@
       "submitBlockedBody_one": "The question stays incomplete and the assignment cannot be submitted. Go back and record an answer, then turn it in.",
       "submitBlockedBody_other": "The questions stay incomplete and the assignment cannot be submitted. Go back and record an answer for each one, then turn it in.",
       "submitBlockedJump": "Go to question {{number}}",
-      "notSubmittedPending": "Not yet submitted — your recording is still being sent.",
-      "notSubmittedFailed": "Not yet submitted — sending your recording did not finish. Nothing is retrying on its own; choose Try again.",
-      "notSubmittedFailedFinal": "Not yet submitted — sending your recording did not finish, and it can no longer be sent from this device. Record again to send a new take."
+      "notSubmittedPending": "Noch nicht abgegeben. Deine Aufnahme wird noch gesendet.",
+      "notSubmittedFailed": "Deine Aufnahme wurde nicht gesendet. Wähle Erneut versuchen.",
+      "notSubmittedFailedFinal": "Deine Aufnahme wurde nicht gesendet und kann von diesem Gerät nicht gesendet werden. Nimm erneut auf, um eine neue Aufnahme zu senden."
     },
     "unavailable": {
       "title": "Your microphone did not work",
-      "body": "We could not use a microphone on this device, so there is no recording to send. This question goes to your teacher ungraded, and they will decide what to do about it. Move on to the next question."
+      "body": "Diese Frage geht unbewertet an deine Lehrkraft. Mach mit der nächsten Frage weiter."
     },
     "authoring": {
       "formatLabel": "Format",
@@ -2391,15 +2380,15 @@
         "unplayable": {
           "archiving": {
             "title": "Still saving",
-            "body": "This take is still being saved to your Google Drive. It becomes playable as soon as that finishes — usually within a few minutes."
+            "body": "Wird noch in deinem Google Drive gespeichert. Die Wiedergabe ist danach möglich, meist innerhalb weniger Minuten."
           },
           "archive-failed": {
             "title": "Not saved",
-            "body": "Saving this take to your Google Drive did not finish. It retries automatically every hour; nothing is lost in the meantime."
+            "body": "Das Speichern in deinem Google Drive wurde nicht abgeschlossen. Es wird stündlich wiederholt, und nichts geht verloren."
           },
           "lost": {
             "title": "Lost",
-            "body": "Saving this take to your Google Drive failed too many times, so it is no longer being retried and the recording cannot be recovered. The student's other takes and any grade already given still stand."
+            "body": "Diese Aufnahme konnte nicht gespeichert werden und ist verloren. Die anderen Aufnahmen des Schülers und bereits vergebene Noten bleiben bestehen."
           },
           "deleted": {
             "title": "Deleted",
@@ -2470,7 +2459,7 @@
       "tooLarge": "This recording is too large to play here. Ask your teacher to play it for you.",
       "error": "Your recording did not load.",
       "retry": "Try again",
-      "provisionalScore": "Provisional — your teacher hasn’t graded your recorded answer yet, so this score will change.",
+      "provisionalScore": "Vorläufig. Diese Punktzahl kann sich nach der Bewertung ändern.",
       "lost": "Your recording could not be saved and can no longer be recovered. Your teacher can see that you recorded an answer.",
       "commentsHint": "Tap a comment to jump to that moment.",
       "scorePending": "Your score is being prepared. Check back soon."
@@ -2493,7 +2482,7 @@
   },
   "glStudio": {
     "conflictTitle": "Anderswo bearbeitet",
-    "conflictBody": "Dieses Set wurde seit dem Öffnen in einem anderen Tab oder auf einem anderen Gerät gespeichert, daher ist das automatische Speichern pausiert. Laden Sie diese Version neu oder überschreiben Sie sie mit Ihrer.",
+    "conflictBody": "Automatisches Speichern ist pausiert.",
     "conflictReload": "Neu laden",
     "conflictOverwrite": "Überschreiben",
     "reloadFailed": "Die neueste Version konnte nicht geladen werden. Versuchen Sie es erneut.",
@@ -2565,7 +2554,7 @@
     "noStepsYet": "Noch keine Schritte. Wähle „Schritt hinzufügen“ und klicke dann auf die Folie.",
     "goToSlideN": "Zu Folie {{n}}",
     "moveStepsTitle": "Die Schritte mitverschieben?",
-    "moveStepsBody": "Schüler sehen die Schritte in Abspielreihenfolge. Verschiebe die Schritte dieser Folie an ihre neue Stelle in dieser Reihenfolge oder lass die Reihenfolge, wie sie ist.",
+    "moveStepsBody": "Schüler sehen die Schritte in Abspielreihenfolge.",
     "moveStepsYes": "Schritte mitverschieben",
     "moveStepsNo": "Reihenfolge beibehalten",
     "stepN": "Schritt {{n}}",
@@ -2599,7 +2588,7 @@
     "tourTeacherMustClickHint": "Geführte Touren zeigen den Klick und warten dann, bis die Lehrkraft ihn ausführt.",
     "tourSetupTitle": "Widgets, die diese Tour hinzufügt",
     "tourSetupHint": "Werden beim Start der Tour zur Tafel der Lehrkraft hinzugefügt und am Ende zum Entfernen angeboten.",
-    "tourSetupNone": "Keine. Die Tour läuft auf der Tafel, wie sie ist.",
+    "tourSetupNone": "Keine",
     "tourSetupAdd": "Widget hinzufügen",
     "tourSetupRemove": "{{widget}} entfernen",
     "tourGroup_dock": "Dock",
@@ -2677,7 +2666,7 @@
     "blurApplying": "Wird angewendet…",
     "blurRemove": "Bereich {{n}} entfernen",
     "blurConfirmTitle": "Diese Folie unkenntlich machen?",
-    "blurConfirm": "Das unveränderte Original wird gelöscht, wenn Sie den Editor schließen. Bis dahin holt Rückgängig es zurück. Falls Sie dieses Set früher kopiert haben, verwendet die Kopie noch das Original und verliert diese Folie.",
+    "blurConfirm": "Das unverschwommene Original wird gelöscht, wenn du den Editor schließt. Bis dahin stellt Rückgängig es wieder her. Früher erstellte Kopien dieses Sets verlieren diese Folie.",
     "blurFailed": "Diese Folie konnte nicht unkenntlich gemacht werden. Prüfen Sie Ihre Verbindung und die Google-Drive-Anmeldung und versuchen Sie es erneut.",
     "narration": "Vertonung",
     "narrationNone": "Noch keine Vertonung.",
@@ -2710,7 +2699,7 @@
     "narrationAllFailed_one": "Nach {{count}} Schritt angehalten, weil die Vertonung nicht erzeugt werden konnte. Versuchen Sie es erneut.",
     "narrationAllFailed_other": "Nach {{count}} Schritten angehalten, weil die Vertonung nicht erzeugt werden konnte. Versuchen Sie es erneut.",
     "hubTitle": "Mit einer Folie beginnen",
-    "hubSubtitle": "Jeder Schritt liegt auf einem Screenshot, GIF oder Video. Füge eins hinzu oder ziehe Dateien irgendwo hier hinein.",
+    "hubSubtitle": "Füge einen Screenshot, ein GIF oder Video hinzu oder lege Dateien hier ab.",
     "hubUpload": "Hochladen oder ablegen",
     "hubUploadDesc": "Bilder, GIFs oder Videos von deinem Computer",
     "hubPaste": "Einfügen",
@@ -2844,7 +2833,7 @@
     "canvasKeysHint": "Drücke die Eingabetaste, um einen Schritt in der Mitte hinzuzufügen, und verschiebe ihn mit den Pfeiltasten. Tab wechselt zwischen den Schritten dieser Folie. Drücke ? für alle Tastenkürzel.",
     "shortcutsOpen": "Tastenkürzel (?)",
     "moreActions": "Weitere Aktionen",
-    "smallScreenNote": "Das Studio funktioniert am besten auf einem größeren Bildschirm. Sie können hier trotzdem weiter bearbeiten.",
+    "smallScreenNote": "Funktioniert am besten auf einem größeren Bildschirm.",
     "dismissSmallScreenNote": "Ausblenden",
     "showSlides": "Folien einblenden",
     "hideSlides": "Folien ausblenden",
@@ -2894,7 +2883,7 @@
     "tourAnchorId": "ID:",
     "tourAnchorWidgetType": "Widget:",
     "tourSuggestedId": "Vorgeschlagene ID",
-    "tourCopyFailed": "Kopieren nicht möglich. Die ID ist markiert, drücke Strg+C (Cmd+C auf dem Mac), um sie zu kopieren.",
+    "tourCopyFailed": "Kopieren fehlgeschlagen. Die ID ist markiert, drücke also Strg+C oder ⌘C.",
     "tourFind": {
       "button": "Auf der Tafel finden",
       "found": "Auf der Tafel gefunden.",
@@ -3005,7 +2994,7 @@
       "sourceName": "Meine Lernziele"
     },
     "loading": "Ziele werden geladen…",
-    "empty": "Noch keine Lernziele. Füge eines hinzu, füge eine Liste ein oder importiere eine CSV-Datei.",
+    "empty": "Noch keine Lernziele.",
     "columns": {
       "code": "Code",
       "label": "Ziel",
@@ -3228,7 +3217,7 @@
       "allCorrect": "Alle Antworten waren richtig.",
       "periodClosedBody": "Lass diesen Tab geöffnet. Das Set erscheint hier, sobald deine Lehrkraft deine Klasse freigibt.",
       "periodPausedTitle": "Für deine Klasse pausiert",
-      "periodPausedBody": "Deine Lehrkraft hat dies für deine Klasse pausiert. Dein Fortschritt bleibt auf dieser Seite erhalten. Lass diesen Tab geöffnet, um dort weiterzumachen, wo du aufgehört hast.",
+      "periodPausedBody": "Dein Fortschritt bleibt auf dieser Seite. Lass diesen Tab offen.",
       "notInPeriod": "Du bist in keiner Klasse, der dieses Set zugewiesen wurde. Frage deine Lehrkraft.",
       "seatError": "Du konntest deiner Klasse nicht beitreten. Lade die Seite neu, um es noch einmal zu versuchen."
     }
@@ -3331,7 +3320,7 @@
     "reviewDiscard": "Aufnahme verwerfen",
     "reviewDiscardConfirm": "Diese Aufnahme verwerfen? Ihre Bilder werden gelöscht und können nicht wiederhergestellt werden.",
     "untaggedTitle": "Noch nicht im Code markiert",
-    "untaggedBody": "Die Tour findet diesen Schritt über seinen Namen. Markiere ihn im Code mit dieser ID, damit er auch nach einer Namensänderung funktioniert.",
+    "untaggedBody": "Nach Namen gefunden. Markiere diese ID im Code, damit Umbenennungen sie nicht brechen.",
     "untaggedNoId": "Keine vorgeschlagene ID",
     "copyId": "ID kopieren",
     "copied": "Kopiert",
@@ -3395,7 +3384,7 @@
     "notNow": "Nicht jetzt",
     "startTour": "Tour starten",
     "resumeTitle": "Tour fortsetzen?",
-    "resumeBody": "Die Seite wurde mitten in einer Tour neu geladen. Beim aktuellen Schritt weitermachen?",
+    "resumeBody": "Die Tour dort fortsetzen, wo du aufgehört hast?",
     "resumeTour": "Tour fortsetzen",
     "removeAddedWidgets": "Hinzugefügte Widgets entfernen",
     "endTour": "Tour beenden"
@@ -3565,7 +3554,7 @@
     },
     "pausedOverlay": {
       "title": "Für deine Klasse pausiert",
-      "body": "Deine Lehrkraft hat die Aktivität für deine Klasse pausiert. Deine Antworten bleiben auf dieser Seite. Lass diesen Tab geöffnet, um dort weiterzumachen, wo du aufgehört hast."
+      "body": "Lass diesen Tab offen, damit deine Antworten erhalten bleiben."
     }
   },
   "glResults": {
@@ -3574,7 +3563,7 @@
     "backToLibrary": "Zurück zur Bibliothek"
   },
   "glData": {
-    "setTooLarge": "Dieses Set ist zu groß zum Speichern – teile es auf oder entferne Folien.",
+    "setTooLarge": "Dieses Set ist zu groß zum Speichern. Teile es auf oder entferne Folien.",
     "deleteSetTitle": "„{{title}}“ löschen?",
     "deleteWithOpenAssignments_one": "Schüler in {{count}} offenen Aufgabe verlieren den Zugriff.",
     "deleteWithOpenAssignments_other": "Schüler in {{count}} offenen Aufgaben verlieren den Zugriff.",

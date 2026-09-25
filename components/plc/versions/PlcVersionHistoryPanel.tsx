@@ -160,7 +160,7 @@ export const PlcVersionHistoryPanel: React.FC<PlcVersionHistoryPanelProps> = ({
           addToast(
             t('plcDashboard.versions.conflict', {
               defaultValue:
-                'Another teacher just published an update. We reloaded the version history — review it and try the restore again.',
+                'Another teacher just published an update. Review the reloaded history and try the restore again.',
             }),
             'warning'
           );

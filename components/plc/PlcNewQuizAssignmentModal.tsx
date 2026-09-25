@@ -382,17 +382,14 @@ export const PlcNewQuizAssignmentModal: React.FC<
         prompt={
           isDriveConnected
             ? t('plcDashboard.newAssignment.quiz.pickPrompt', {
-                defaultValue:
-                  'Pick a quiz from your personal library. The assignment will be created paused so you can review it before going live.',
+                defaultValue: 'It starts paused.',
               })
             : t('plcDashboard.newAssignment.quiz.pickPromptNoDrive', {
-                defaultValue:
-                  'Connect Google Drive in your account to assign quizzes from your personal library.',
+                defaultValue: 'Connect Google Drive to pick a quiz.',
               })
         }
         emptyMessage={t('plcDashboard.newAssignment.quiz.pickEmpty', {
-          defaultValue:
-            "You don't have any quizzes in your personal library yet. Create one in the Quiz widget first.",
+          defaultValue: 'No quizzes yet. Make one in the Quiz widget.',
         })}
         items={pickerItems}
         onPick={handlePick}

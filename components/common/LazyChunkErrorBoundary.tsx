@@ -79,7 +79,6 @@ export class LazyChunkErrorBoundary extends React.Component<
         <ScaledEmptyState
           icon={RotateCw}
           title="Updating…"
-          subtitle="Loading the latest version."
           iconClassName="text-slate-400 animate-spin"
         />
       );
@@ -89,7 +88,6 @@ export class LazyChunkErrorBoundary extends React.Component<
       <ScaledEmptyState
         icon={AlertTriangle}
         title="Widget failed to load"
-        subtitle="Tap Retry to reload this widget."
         iconClassName="text-amber-400"
         action={
           <button

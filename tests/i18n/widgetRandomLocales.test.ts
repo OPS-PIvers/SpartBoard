@@ -57,7 +57,6 @@ const REQUIRED_RANDOM_TOP_KEYS = [
   'launchHomeGroup',
   'launchHomeGroupHint',
   'everyoneAbsentTitle',
-  'everyoneAbsentSubtitle',
   'updateAttendance',
   'stepperDecrease',
   'stepperIncrease',

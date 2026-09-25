@@ -25,13 +25,7 @@ export const PersonalSpotifyPlayer: React.FC<Props> = ({ widget }) => {
     return (
       <WidgetLayout
         padding="p-0"
-        content={
-          <ScaledEmptyState
-            icon={Music2}
-            title="Loading Spotify…"
-            subtitle="Checking your connection."
-          />
-        }
+        content={<ScaledEmptyState icon={Music2} title="Loading Spotify…" />}
       />
     );
   }
@@ -44,7 +38,7 @@ export const PersonalSpotifyPlayer: React.FC<Props> = ({ widget }) => {
           <ScaledEmptyState
             icon={Music2}
             title="Connect Spotify"
-            subtitle="Flip this widget and connect your Spotify account."
+            subtitle="Flip to connect your account."
           />
         }
       />

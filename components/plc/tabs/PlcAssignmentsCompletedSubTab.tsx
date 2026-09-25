@@ -60,8 +60,7 @@ export const PlcAssignmentsCompletedSubTab: React.FC<
         </h3>
         <p className="text-sm text-slate-500 max-w-md leading-relaxed">
           {t('plcDashboard.completedAssignments.emptySubtitle', {
-            defaultValue:
-              "When a PLC-mode assignment is stopped from any teammate's board, it lands here with a link to the shared results sheet.",
+            defaultValue: 'Stopped assignments show here.',
           })}
         </p>
       </div>

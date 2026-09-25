@@ -469,13 +469,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   };
 
   if (!user) {
-    return (
-      <ScaledEmptyState
-        icon={LogIn}
-        title="Sign in required"
-        subtitle="Sign in to build and save flashcard sets."
-      />
-    );
+    return <ScaledEmptyState icon={LogIn} title="Sign in required" />;
   }
 
   // In a share the fall-through below would be the substitute's own library.

@@ -466,7 +466,7 @@ const PlcMeetingLiveFlow: React.FC<{
               {selectedCards.length === 0 ? (
                 <p className="text-sm text-slate-500">
                   {t('plcDashboard.meeting.review.none', {
-                    defaultValue: 'No assessments selected — go back to Pick.',
+                    defaultValue: 'No assessments selected. Go back to Pick.',
                   })}
                 </p>
               ) : (

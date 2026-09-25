@@ -121,8 +121,7 @@ export const PlcSharedBoardsBody: React.FC<PlcSharedBoardsBodyProps> = ({
         </h3>
         <p className="text-sm text-slate-500 max-w-md leading-relaxed">
           {t('plcDashboard.sharedBoards.emptySubtitle', {
-            defaultValue:
-              'When you or a teammate shares a dashboard with this PLC, it shows up here. Use the Share button on a dashboard and pick this PLC as the audience.',
+            defaultValue: 'Share a board to this PLC from its Share menu.',
           })}
         </p>
       </div>
@@ -199,8 +198,7 @@ export const PlcSharedBoardsBody: React.FC<PlcSharedBoardsBodyProps> = ({
                 href={`/share/${encodeURIComponent(board.id)}`}
                 className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-lighter hover:bg-brand-blue-light/30 text-brand-blue-primary rounded-lg text-xxs font-bold uppercase tracking-wider transition-colors"
                 title={t('plcDashboard.sharedBoards.openShareTooltip', {
-                  defaultValue:
-                    "Open this share — you'll get the standard sync / view-only / copy picker.",
+                  defaultValue: 'Open this share',
                 })}
               >
                 <ExternalLink className="w-3 h-3" aria-hidden="true" />

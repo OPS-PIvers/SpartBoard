@@ -159,7 +159,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
   const handleCreate = async () => {
     if (creating) return;
     if (!entry || !sessionId || !teacherUid) {
-      setError('Pick a wall first — there is nothing to share yet.');
+      setError('Pick a wall first.');
       return;
     }
 

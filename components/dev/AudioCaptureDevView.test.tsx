@@ -16,11 +16,11 @@ beforeEach(() => {
 const EXPECTED: Record<string, RegExp> = {
   notice: /Before you record/i,
   prep: /Thinking time/i,
-  armed: /When you press record/i,
+  armed: /When you press record|have \d+ seconds/i,
   recording: /Recording stops on its own/i,
   review: /Listen back/i,
   committing: /Listen back/i,
-  'archive-failed': /Not yet submitted/i,
+  'archive-failed': /Not yet submitted|didn.t send/i,
   'take-limit': /No takes left/i,
   'window-closed': /Recording time is over/i,
   'mic-unavailable': /microphone did not work/i,

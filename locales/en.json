@@ -11,8 +11,9 @@
     },
     "disabled": {
       "title": "Remote control is off",
-      "hint": "Turn Remote Control back on from the board to control widgets from this device."
-    }
+      "hint": "Turn Remote Control on from the board."
+    },
+    "emptyBoard": "Add widgets to your board to control them here."
   },
   "common": {
     "cancel": "Cancel",
@@ -244,7 +245,6 @@
       "invites": "Invites",
       "invitesTitle": "Pending PLC Invitations",
       "noInvitesTitle": "No pending invitations",
-      "noInvitesSubtitle": "You’ll see invitations here when a colleague invites you to their PLC.",
       "inviteFrom": "Invited by {{name}}",
       "accept": "Accept",
       "decline": "Decline",
@@ -317,7 +317,7 @@
       "commonAssessment": {
         "loading": "Loading your common assessment…",
         "emptyTitle": "No common assessment yet",
-        "emptySubtitle": "Designate one in Assessments, then review the pooled results together.",
+        "emptySubtitle": "Set one in Assessments.",
         "reviewData": "Review shared data",
         "ranIt": "{{ran}} of {{total}} ran it",
         "startMeeting": "Start Meeting",
@@ -333,7 +333,6 @@
       "actionItems": {
         "heading": "Your action items",
         "empty": "You're all caught up",
-        "emptySubtitle": "Action items assigned to you will appear here.",
         "loadError": "Couldn't load your action items",
         "toggleFailed": "Couldn't update that action item.",
         "markDone": "Mark done",
@@ -429,8 +428,7 @@
       "assignFailed": "Failed to save class selection.",
       "driveRequired": "Connect Google Drive in your account to pick up PLC assignments.",
       "driveDisconnected": "Connect Google Drive to pick up PLC assignments onto your board.",
-      "emptyTitle": "No assignment templates yet",
-      "emptySubtitle": "Toggle \"Share with PLC\" on any quiz assignment you create — it'll show up here so teammates can pick it up onto their own boards."
+      "emptyTitle": "No assignment templates yet"
     },
     "assignmentsInProgress": {
       "heading": "Live Across the Team",
@@ -438,8 +436,7 @@
       "count_other": "{{count}} running",
       "statusActive": "Active",
       "statusPaused": "Paused",
-      "emptyTitle": "No assignments in progress",
-      "emptySubtitle": "When you or a teammate starts a PLC-mode assignment, it shows up here. Pause or stop it from your board and the row updates live."
+      "emptyTitle": "No assignments in progress"
     },
     "meta": {
       "members_one": "{{count}} Member",
@@ -493,7 +490,7 @@
       "openSheet": "Open Sheet",
       "unsafeSheet": "No link",
       "emptyTitle": "No completed assignments yet",
-      "emptySubtitle": "When a PLC-mode assignment is stopped from any teammate's board, it lands here with a link to the shared results sheet."
+      "emptySubtitle": "Stopped assignments show here."
     },
     "settings": {
       "heading": "Dashboard Sections",
@@ -578,7 +575,6 @@
         "sharedSheet": {
           "heading": "Shared sheet",
           "connectedHint": "Aggregated PLC results land in this Google Sheet. All members can open it.",
-          "unsetHint": "No shared sheet yet — it will be created automatically when the first PLC quiz is run.",
           "open": "Open sheet",
           "notReady": "Not yet created"
         },
@@ -616,7 +612,6 @@
       "untitled": "Untitled",
       "empty": "Empty note",
       "emptyTitle": "No notes yet",
-      "emptySubtitle": "Create the first one to get started.",
       "titlePlaceholder": "Note title",
       "bodyPlaceholder": "Write your notes… (markdown supported)",
       "deleteNote": "Delete note",
@@ -630,7 +625,7 @@
       "pickOrCreate": "Select a note to edit, or create a new one.",
       "pickToRead": "Select a note to read.",
       "conflictTitle": "This note changed",
-      "conflictMessage": "A teammate edited this note while you were writing. Reload to see their changes — your unsaved text is kept below.",
+      "conflictMessage": "A teammate edited this note while you were writing. Reload to see their changes. Your unsaved text is kept below.",
       "conflictReload": "Reload note",
       "meeting": {
         "label": "Meeting notes",
@@ -725,7 +720,7 @@
       "loading": "Loading rubrics…",
       "loadError": "Couldn't load shared rubrics. Please try again.",
       "empty": "No shared rubrics yet",
-      "emptyHint": "Share a rubric from your library so your team can score written responses the same way.",
+      "emptyHint": "Share one from your library.",
       "bySharer": "shared by {{name}}",
       "unknownSharer": "a teammate",
       "criterionCount_one": "{{count}} criterion",
@@ -755,7 +750,7 @@
       "loading": "Loading question banks…",
       "loadError": "Couldn't load shared question banks. Please try again.",
       "empty": "No shared question banks yet",
-      "emptyHint": "Share a bank from your quiz library so teammates can draw tagged questions into their own quizzes.",
+      "emptyHint": "Share one from your quiz library.",
       "shareCta": "Share a bank",
       "driveDisconnected": "Connect Google Drive to share a question bank.",
       "driveDisconnectedCopy": "Connect Google Drive to copy a question bank.",
@@ -896,7 +891,7 @@
       "review": {
         "heading": "What does the data say?",
         "subtitle": "Click a question to log a decision.",
-        "none": "No assessments selected — go back to Pick."
+        "none": "No assessments selected. Go back to Pick."
       },
       "decide": {
         "heading": "What did we decide?",
@@ -1008,13 +1003,13 @@
       "restoreAriaLabel": "Restore version {{version}}",
       "restored": "Restored version {{version}} of \"{{title}}\". Teammates sync on next refresh.",
       "restoreFailed": "Couldn’t restore that version. Try again.",
-      "conflict": "Another teacher just published an update. We reloaded the version history — review it and try the restore again."
+      "conflict": "Another teacher just published an update. Review the reloaded history and try the restore again."
     },
     "sync": {
       "autoPulled": "\"{{title}}\" updated to your teammate’s latest version.",
       "autoPullFailed": "Couldn’t pull the latest version of \"{{title}}\". We’ll retry on the next update.",
       "conflictTitle": "Synced copy changed",
-      "conflictBody": "A teammate published a new version of \"{{title}}\" while you have unsaved edits. Keep your edits, or pull their version (your unsaved edits will be discarded)?",
+      "conflictBody": "A teammate updated \"{{title}}\" while you were editing. Pulling theirs discards your unsaved edits.",
       "keepMine": "Keep yours",
       "pullTheirs": "Pull theirs",
       "keptMine": "Kept your edits to \"{{title}}\". You can publish them to share with your team.",
@@ -1096,7 +1091,7 @@
       "useSuccess": "\"{{title}}\" added to this PLC.",
       "useFailed": "Failed to add this resource.",
       "emptyTitle": "No Resources Yet",
-      "emptySubtitle": "Your admin will push curated quizzes, docs, and boards here.",
+      "emptySubtitle": "Your admin hasn’t added any yet.",
       "inboxTitle": "Resources",
       "inboxSubtitle": "From your admin.",
       "kind": {
@@ -1153,7 +1148,7 @@
       "loading": "Loading assessments…",
       "loadError": "Couldn’t load assessments.",
       "emptyTitle": "No assessments yet",
-      "emptySubtitle": "Share a quiz with this PLC, then assign it to pool the team’s results here.",
+      "emptySubtitle": "Share a quiz to get started.",
       "noMatches": "No assessments match this filter.",
       "noArchived": "No archived quizzes.",
       "folders": {
@@ -1184,7 +1179,7 @@
       "lastComputed": "Last updated",
       "neverComputed": "Not yet",
       "questionsHeading": "Questions",
-      "noQuestions": "No results yet. Once a teacher runs this assessment and publishes scores, the pooled questions appear here.",
+      "noQuestions": "No results yet.",
       "correctPercent": "{{percent}}% correct",
       "averagePointsPercent": "{{percent}}% of points",
       "notScored": "Not scored",
@@ -2495,7 +2490,6 @@
         "footer": "Absent marks clear tomorrow."
       },
       "everyoneAbsentTitle": "Everyone is marked absent",
-      "everyoneAbsentSubtitle": "Update attendance to bring students back into the pool.",
       "updateAttendance": "Update attendance",
       "restrictionsUnsatisfied": "Couldn't satisfy all restrictions — try again or adjust group size.",
       "lockedGroupOverridesKeepApart": "Kept a locked group together even though it holds students set to stay apart."
@@ -2682,7 +2676,7 @@
     "rootLabel": "All Boards",
     "subCollections": "Collections",
     "boards": "Boards",
-    "empty": "This Collection is empty — drag Boards here or create one.",
+    "empty": "This Collection is empty. Drag Boards here or create one.",
     "selectedCount": "{{count}} selected",
     "clearSelection": "Clear selection",
     "pin": "Pin",
@@ -2777,7 +2771,7 @@
   },
   "subCollections": {
     "loading": "Loading shared Collections…",
-    "loadError": "Couldn't load shared Collections — refresh to retry.",
+    "loadError": "Couldn't load shared Collections. Refresh to try again.",
     "heading": "Collections",
     "boardCount": "{{count}} board(s)",
     "boardPlaceholder": "Board …{{id}}",
@@ -2790,7 +2784,7 @@
   "templatePicker": {
     "title": "Create from Template",
     "loading": "Loading templates…",
-    "loadError": "Couldn't load templates — refresh to retry.",
+    "loadError": "Couldn't load templates. Refresh to try again.",
     "empty": "No templates available yet.",
     "kindBoard": "Board",
     "kindCollection": "Collection · {{count}} board(s)"
@@ -2919,7 +2913,7 @@
     "yours": "Yours",
     "uploads": "My Uploads",
     "searchPlaceholder": "Search backgrounds…",
-    "emptyFavorites": "No favorites yet — hover a background and tap ★",
+    "emptyFavorites": "No favorites yet. Hover a background and tap ★",
     "emptyRecent": "No recent backgrounds yet.",
     "emptyFiltered": "No backgrounds match your filters.",
     "uploading": "Uploading…",
@@ -2978,7 +2972,7 @@
     "backToBoard": "Back to my board",
     "hubTitle": "My PLCs",
     "hubEmptyTitle": "No PLCs yet",
-    "hubEmptySubtitle": "Create a PLC from the sidebar and invite your colleagues.",
+    "hubEmptySubtitle": "Create one from the sidebar.",
     "leadBadge": "Lead",
     "memberCount": "{{count}} Member",
     "memberCount_other": "{{count}} Members"
@@ -2990,9 +2984,8 @@
     "requestToJoin": "Ask to join",
     "requestHint": "Ask a member to invite {{email}}.",
     "emptyTitle": "No other PLCs to show",
-    "emptySubtitle": "There aren't any other PLCs in your building right now.",
     "noOrgTitle": "Building directory unavailable",
-    "noOrgSubtitle": "Your account isn't linked to a school yet, so we can't list nearby PLCs."
+    "noOrgSubtitle": "Your account has no school yet."
   },
   "assignStudentPicker": {
     "title": "Choose students",
@@ -3002,13 +2995,10 @@
     "searchPlaceholder": "Search students…",
     "selectAll": "Select all",
     "noRosters": "No rosters available.",
-    "noMatches": "No students match your search.",
     "noMatchesTitle": "No matches",
     "clearSearch": "Clear search",
-    "selectRoster": "Select a roster to see its students.",
     "selectRosterTitle": "Select a roster",
     "emptyRosterTitle": "No students",
-    "emptyRosterSubtitle": "This roster has no students yet.",
     "loadErrorTitle": "Couldn't load students",
     "loadErrorSubtitle": "Reopen the roster to try again.",
     "chooseAnotherRoster": "Choose another class",
@@ -3093,7 +3083,7 @@
     "timingNotApplied": "Teacher-paced sessions have no per-student timer, so extended time for {{names}} will not apply. Other accommodations still apply.",
     "clearModifications": "Clear all modifications",
     "noLinkedClass": "This assignment is not linked to a class you can modify here.",
-    "timingNotAppliedConfirm": "Teacher-paced sessions have no per-student timer, so extended time for {{names}} will not apply. Other accommodations still apply. Click Assign again to continue.",
+    "timingNotAppliedConfirm": "Extended time for {{names}} won't apply in teacher-paced mode. Click Assign again to continue.",
     "pacingBlocked": "Individual student modifications require Self-paced mode. Switch Session Settings below to Self-paced, or use 'Clear all modifications' under Edit or add modifications.",
     "periodsLabel": "Class periods",
     "periodModeLabel": "How periods open",
@@ -3256,8 +3246,7 @@
           "body": "Students only see questions you mark reviewed."
         },
         "pickQuestion": {
-          "title": "Pick a question",
-          "body": "Pick a question to compare."
+          "title": "Pick a question"
         }
       },
       "error": {
@@ -3324,18 +3313,18 @@
       "takeOf": "Take {{n}} of {{total}}",
       "limitHint": "up to {{seconds}} seconds",
       "prepLabel": "Thinking time",
-      "prepBody": "Plan what you want to say. You can start recording as soon as you are ready.",
+      "prepBody": "Plan your answer.",
       "requestingMic": "Asking to use your microphone…",
       "recordingLabel": "Recording",
       "recordingHint": "Recording stops on its own at {{seconds}} seconds.",
-      "wrapUp": "Wrap it up — recording stops at {{seconds}} seconds.",
+      "wrapUp": "Wrap it up. Recording stops at {{seconds}} seconds.",
       "reviewLabel": "Listen back",
-      "reviewBody": "Nothing has been sent yet. Keep this take, or discard it and record again.",
+      "reviewBody": "Not sent yet.",
       "playbackPosition": "Playback position",
       "playbackValueText": "{{elapsed}} of {{total}}",
       "windowClosedTitle": "Recording time is over",
-      "windowClosedBody": "The time to record an answer to this question has passed, so there is nothing left to record here. Your teacher will see this question without a recording. Move on when you are ready.",
-      "armedBody": "When you press record you will have {{seconds}} seconds.",
+      "windowClosedBody": "Your teacher will see this question without a recording. Move on when you're ready.",
+      "armedBody": "You'll have {{seconds}} seconds.",
       "record": "Record",
       "recordAgain": "Record again",
       "stop": "Stop recording",
@@ -3354,13 +3343,13 @@
       "submitBlockedBody_one": "The question stays incomplete and the assignment cannot be submitted. Go back and record an answer, then turn it in.",
       "submitBlockedBody_other": "The questions stay incomplete and the assignment cannot be submitted. Go back and record an answer for each one, then turn it in.",
       "submitBlockedJump": "Go to question {{number}}",
-      "notSubmittedPending": "Not yet submitted — your recording is still being sent.",
-      "notSubmittedFailed": "Not yet submitted — sending your recording did not finish. Nothing is retrying on its own; choose Try again.",
-      "notSubmittedFailedFinal": "Not yet submitted — sending your recording did not finish, and it can no longer be sent from this device. Record again to send a new take."
+      "notSubmittedPending": "Not submitted yet. Your recording is still sending.",
+      "notSubmittedFailed": "Your recording didn't send. Choose Try again.",
+      "notSubmittedFailedFinal": "Your recording didn't send and can't be sent from this device. Record again to send a new take."
     },
     "unavailable": {
       "title": "Your microphone did not work",
-      "body": "We could not use a microphone on this device, so there is no recording to send. This question goes to your teacher ungraded, and they will decide what to do about it. Move on to the next question."
+      "body": "This question goes to your teacher ungraded. Move on to the next question."
     },
     "authoring": {
       "formatLabel": "Format",
@@ -3494,15 +3483,15 @@
         "unplayable": {
           "archiving": {
             "title": "Still saving",
-            "body": "This take is still being saved to your Google Drive. It becomes playable as soon as that finishes — usually within a few minutes."
+            "body": "Still saving to your Google Drive. It plays once that finishes, usually within a few minutes."
           },
           "archive-failed": {
             "title": "Not saved",
-            "body": "Saving this take to your Google Drive did not finish. It retries automatically every hour; nothing is lost in the meantime."
+            "body": "Saving to your Google Drive didn't finish. It retries every hour, and nothing is lost."
           },
           "lost": {
             "title": "Lost",
-            "body": "Saving this take to your Google Drive failed too many times, so it is no longer being retried and the recording cannot be recovered. The student's other takes and any grade already given still stand."
+            "body": "This recording couldn't be saved and is lost. The student's other takes and any grade already given still stand."
           },
           "deleted": {
             "title": "Deleted",
@@ -3577,7 +3566,7 @@
       "tooLarge": "This recording is too large to play here. Ask your teacher to play it for you.",
       "error": "Your recording did not load.",
       "retry": "Try again",
-      "provisionalScore": "Provisional — your teacher hasn’t graded your recorded answer yet, so this score will change.",
+      "provisionalScore": "Provisional. This score may change after grading.",
       "lost": "Your recording could not be saved and can no longer be recovered. Your teacher can see that you recorded an answer.",
       "commentsHint": "Tap a comment to jump to that moment.",
       "scorePending": "Your score is being prepared. Check back soon."
@@ -3600,7 +3589,7 @@
   },
   "glStudio": {
     "conflictTitle": "Edited elsewhere",
-    "conflictBody": "This set was saved in another tab or on another device since you opened it, so autosave is paused. Reload to see that version, or overwrite it with yours.",
+    "conflictBody": "Autosave is paused.",
     "conflictReload": "Reload",
     "conflictOverwrite": "Overwrite",
     "reloadFailed": "Couldn't load the latest version. Try again.",
@@ -3672,7 +3661,7 @@
     "noStepsYet": "No steps yet. Choose Add step, then click the slide.",
     "goToSlideN": "Go to slide {{n}}",
     "moveStepsTitle": "Move its steps too?",
-    "moveStepsBody": "Students see steps in play order. Move this slide's steps to its new place in that order, or leave play order as it is.",
+    "moveStepsBody": "Students see steps in play order.",
     "moveStepsYes": "Move steps too",
     "moveStepsNo": "Keep play order",
     "stepN": "Step {{n}}",
@@ -3706,7 +3695,7 @@
     "tourTeacherMustClickHint": "Guided tours show the click, then wait for the teacher to do it.",
     "tourSetupTitle": "Widgets this tour adds",
     "tourSetupHint": "Added to the teacher's board when the tour starts, and offered for removal when it ends.",
-    "tourSetupNone": "None. The tour runs on the board as it is.",
+    "tourSetupNone": "None",
     "tourSetupAdd": "Add a widget",
     "tourSetupRemove": "Remove {{widget}}",
     "tourGroup_dock": "Dock",
@@ -3784,7 +3773,7 @@
     "blurApplying": "Applying…",
     "blurRemove": "Remove area {{n}}",
     "blurConfirmTitle": "Apply blur to this slide?",
-    "blurConfirm": "The unblurred original is deleted when you close the editor. Until then, Undo brings it back. If you copied this set earlier, the copy still uses the original and will lose this slide.",
+    "blurConfirm": "The unblurred original is deleted when you close the editor. Undo brings it back until then. Copies of this set made earlier will lose this slide.",
     "blurFailed": "This slide couldn't be blurred. Check your connection and Google Drive sign-in, then try again.",
     "narration": "Narration",
     "narrationNone": "No narration yet.",
@@ -3817,7 +3806,7 @@
     "narrationAllFailed_one": "Stopped after {{count}} step because narration couldn't be generated. Try again.",
     "narrationAllFailed_other": "Stopped after {{count}} steps because narration couldn't be generated. Try again.",
     "hubTitle": "Start with a slide",
-    "hubSubtitle": "Every step sits on a screenshot, GIF or video. Add one to begin, or drop files anywhere here.",
+    "hubSubtitle": "Add a screenshot, GIF or video, or drop files here.",
     "hubUpload": "Upload or drop",
     "hubUploadDesc": "Images, GIFs or videos from your computer",
     "hubPaste": "Paste",
@@ -3951,7 +3940,7 @@
     "canvasKeysHint": "Press Enter to add a step in the center, then use the arrow keys to move it. Tab moves between steps on this slide. Press ? for all shortcuts.",
     "shortcutsOpen": "Keyboard shortcuts (?)",
     "moreActions": "More actions",
-    "smallScreenNote": "The Studio works best on a larger screen. You can keep editing here.",
+    "smallScreenNote": "Works best on a larger screen.",
     "dismissSmallScreenNote": "Dismiss",
     "showSlides": "Show slides",
     "hideSlides": "Hide slides",
@@ -4001,7 +3990,7 @@
     "tourAnchorId": "Id:",
     "tourAnchorWidgetType": "Widget:",
     "tourSuggestedId": "Suggested id",
-    "tourCopyFailed": "Couldn't copy. The id is selected, so press Ctrl+C (Cmd+C on a Mac) to copy it.",
+    "tourCopyFailed": "Couldn't copy. The id is selected, so press Ctrl+C or ⌘C.",
     "tourFind": {
       "button": "Find on board",
       "found": "Found on the board.",
@@ -4112,7 +4101,7 @@
       "sourceName": "My learning targets"
     },
     "loading": "Loading targets…",
-    "empty": "No learning targets yet. Add one, paste a list, or import a CSV.",
+    "empty": "No learning targets yet.",
     "columns": {
       "code": "Code",
       "label": "Target",
@@ -4342,7 +4331,7 @@
       "allCorrect": "Every answer was correct.",
       "periodClosedBody": "Keep this tab open. The set appears here as soon as your teacher lets your class in.",
       "periodPausedTitle": "Paused for your class",
-      "periodPausedBody": "Your teacher paused this for your class. Your progress is kept on this page. Keep this tab open to pick up where you left off.",
+      "periodPausedBody": "Your progress stays on this page. Keep this tab open.",
       "notInPeriod": "You're not in a class this set was assigned to. Ask your teacher.",
       "seatError": "Couldn't join your class. Refresh the page to try again."
     }
@@ -4462,7 +4451,7 @@
     "reviewDiscard": "Discard recording",
     "reviewDiscardConfirm": "Discard this recording? Its frames are deleted and can't be recovered.",
     "untaggedTitle": "Not tagged in code yet",
-    "untaggedBody": "The tour will find this step by its name. Tag it in code with this id so it keeps working if the name changes.",
+    "untaggedBody": "Found by name. Tag this id in code so renames don't break it.",
     "untaggedNoId": "No suggested id",
     "copyId": "Copy id",
     "copied": "Copied",
@@ -4526,7 +4515,7 @@
     "notNow": "Not now",
     "startTour": "Start tour",
     "resumeTitle": "Pick up your tour?",
-    "resumeBody": "The page reloaded partway through a tour. Carry on from the step you were on?",
+    "resumeBody": "Resume the tour where you left off?",
     "resumeTour": "Resume tour",
     "removeAddedWidgets": "Remove added widgets",
     "endTour": "End tour"
@@ -4696,7 +4685,7 @@
     },
     "pausedOverlay": {
       "title": "Paused for your class",
-      "body": "Your teacher paused this for your class. Your answers are kept on this page. Keep this tab open to pick up where you left off."
+      "body": "Keep this tab open to keep your answers."
     }
   },
   "glResults": {
@@ -4705,7 +4694,7 @@
     "backToLibrary": "Back to library"
   },
   "glData": {
-    "setTooLarge": "This set is too large to save — split it or remove slides.",
+    "setTooLarge": "This set is too large to save. Split it or remove slides.",
     "deleteSetTitle": "Delete \"{{title}}\"?",
     "deleteWithOpenAssignments_one": "Students in {{count}} open assignment will lose it.",
     "deleteWithOpenAssignments_other": "Students in {{count}} open assignments will lose it.",

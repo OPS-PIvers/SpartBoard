@@ -350,8 +350,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
       ) : active.length === 0 ? (
         <p className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-xs text-slate-500">
           {t('learningTargets.empty', {
-            defaultValue:
-              'No learning targets yet. Add one, paste a list, or import a CSV.',
+            defaultValue: 'No learning targets yet.',
           })}
         </p>
       ) : (

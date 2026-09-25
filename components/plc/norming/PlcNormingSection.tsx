@@ -180,7 +180,7 @@ export const PlcNormingSection: React.FC<PlcNormingSectionProps> = ({
         <p className="text-xs text-slate-500">
           {t('plcNorming.section.empty', {
             defaultValue:
-              'Nothing flagged yet. In the grader, use the flag under an answer to share it here.',
+              'Nothing flagged yet. Flag an answer in the grader to share it here.',
           })}
         </p>
       ) : (

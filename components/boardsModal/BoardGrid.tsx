@@ -108,7 +108,7 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
         <div className="flex flex-col items-center justify-center h-full text-slate-400 text-sm">
           {t('boardsModal.empty', {
             defaultValue:
-              'This Collection is empty — drag Boards here or create one.',
+              'This Collection is empty. Drag Boards here or create one.',
           })}
         </div>
       ) : (

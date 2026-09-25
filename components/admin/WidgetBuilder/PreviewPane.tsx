@@ -44,7 +44,7 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-500 p-6 text-center">
           <Puzzle size={40} className="text-slate-600" />
           <p className="text-sm">
-            Block preview not available here — see the grid builder
+            Block preview isn&apos;t available here. Use the grid builder.
           </p>
         </div>
       )}

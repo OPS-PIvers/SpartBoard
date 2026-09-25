@@ -1718,9 +1718,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         });
 
     const emptySubtitle = everyoneAbsent
-      ? t('widgets.random.everyoneAbsentSubtitle', {
-          defaultValue: 'Tap below to update attendance.',
-        })
+      ? undefined
       : t('widgets.random.noNamesSubtitle', {
           defaultValue: 'Flip this widget to enter your student roster.',
         });

@@ -203,7 +203,7 @@ export const BackgroundsModal: React.FC<BackgroundsModalProps> = ({
       return (
         <div className="p-8 text-center text-sm text-slate-400">
           {t('backgrounds.emptyFavorites', {
-            defaultValue: 'No favorites yet — hover a background and tap ★',
+            defaultValue: 'No favorites yet. Hover a background and tap ★',
           })}
         </div>
       );

@@ -53,13 +53,7 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
     return (
       <WidgetLayout
         padding="p-0"
-        content={
-          <ScaledEmptyState
-            icon={Zap}
-            title="No Sets"
-            subtitle="Admins can add sets via the Catalyst settings (gear icon)."
-          />
-        }
+        content={<ScaledEmptyState icon={Zap} title="No Sets" />}
       />
     );
   }

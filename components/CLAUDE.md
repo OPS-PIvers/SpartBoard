@@ -8,6 +8,16 @@ Loaded when working under `components/`.
 - A global `prefers-reduced-motion` rule (Tailwind base-layer plugin in `tailwind.config.js`) disables decorative/looping animations. Urgency signals are color-based, not animation-based. Don't reintroduce always-on looping animations without a `motion-reduce:` guard.
 - Backgrounds can be a Tailwind class string OR a URL/data URI (handled in `components/layout/DashboardView.tsx`); custom backgrounds are set via inline style, not className.
 
+## On-screen copy
+
+Permanent helper text was cut across the app in September 2026 (`docs/plans/ALWAYS_VISIBLE_COPY.md`), so don't add it back.
+
+- A label and its control need no sentence under them. Add a hint only when it states a prerequisite ("Signed-in students only."), a number or limit the label lacks, or the consequence of a destructive action.
+- Detail that is needed but rarely goes in the control's `title` tooltip, not in a new permanent line.
+- Empty states get a title and at most one short sentence naming the next action.
+- No em dashes, "Tip:" or "Note:" boxes, marketing words, or mechanics (Firestore, JSON, CSS, sync internals, flag names) in UI text. Run `deslop --writing` on new strings.
+- `tests/copyGuard.test.ts` fails on new em dashes, Tip/Note prefixes and strings over 30 words. Shorten the string. Never add to `tests/fixtures/copyGuardBaseline.json`, which may only shrink.
+
 ## Design Context
 
 ### Users

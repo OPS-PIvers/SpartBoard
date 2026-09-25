@@ -628,7 +628,7 @@ export const VideoActivityAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
       open={showAiPrompt}
       onClose={() => setShowAiPrompt(false)}
       title="Draft with AI"
-      description="Gemini will watch the video and append questions to the current list."
+      description="Adds questions to the end of the list."
       generating={aiGenerating}
       canGenerate={!!youtubeUrl.trim() && aiTotalCount > 0}
       onGenerate={() => void runAiGenerate()}

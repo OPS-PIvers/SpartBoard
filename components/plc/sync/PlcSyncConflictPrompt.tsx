@@ -85,7 +85,7 @@ export const PlcSyncConflictPrompt: React.FC<PlcSyncConflictPromptProps> = ({
           {t('plcDashboard.sync.conflictBody', {
             title: conflict.title,
             defaultValue:
-              'A teammate published a new version of "{{title}}" while you have unsaved edits. Keep your edits, or pull their version (your unsaved edits will be discarded)?',
+              'A teammate updated "{{title}}" while you were editing. Pulling theirs discards your unsaved edits.',
           })}
         </p>
       </div>

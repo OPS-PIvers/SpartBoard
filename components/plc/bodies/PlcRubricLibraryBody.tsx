@@ -300,8 +300,7 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
           </p>
           <p className="mt-1 text-xs text-slate-500">
             {t('plcDashboard.rubricLibrary.emptyHint', {
-              defaultValue:
-                'Share a rubric from your library so your team can score written responses the same way.',
+              defaultValue: 'Share one from your library.',
             })}
           </p>
         </div>

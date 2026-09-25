@@ -350,7 +350,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           <ScaledEmptyState
             icon={Globe}
             title="No URL Provided"
-            subtitle="Flip this widget to add a link to a website, video, or document."
+            subtitle="Flip to add a link."
           />
         }
       />
@@ -365,7 +365,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           <ScaledEmptyState
             icon={Code}
             title="No Code Provided"
-            subtitle="Flip this widget and paste your HTML/CSS/JS code to run it here."
+            subtitle="Flip to add code."
           />
         }
       />

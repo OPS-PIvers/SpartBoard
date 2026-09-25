@@ -566,19 +566,19 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
               )}
               {lostSheets > 0 && (
                 <Banner>
-                  {`${plural(lostSheets)} took this on paper, but the sheet record is gone, so ${lostSheets === 1 ? 'that student gets' : 'they get'} the report.`}
+                  {`Sheet record missing for ${plural(lostSheets)}. ${lostSheets === 1 ? 'That student gets' : 'They get'} the report.`}
                 </Banner>
               )}
               {warnKey && (
                 <Banner>
                   {unfinished > 0
-                    ? `${plural(unfinished)} ${unfinished === 1 ? "hasn't" : "haven't"} finished — printed keys may circulate.`
-                    : 'This quiz is still open — printed keys may circulate.'}
+                    ? `${plural(unfinished)} ${unfinished === 1 ? "hasn't" : "haven't"} finished, so printed keys may circulate.`
+                    : 'This quiz is still open, so printed keys may circulate.'}
                 </Banner>
               )}
               {ungraded > 0 && (
                 <Banner>
-                  {`${plural(ungraded)} ${ungraded === 1 ? 'has' : 'have'} written answers not graded yet. They print as "Not yet graded" and the score reads "so far".`}
+                  {`${plural(ungraded)} ${ungraded === 1 ? 'has' : 'have'} ungraded written answers.`}
                 </Banner>
               )}
               {noName > 0 && (

@@ -126,8 +126,7 @@ export const FlashcardShareModal: React.FC<FlashcardShareModalProps> = ({
               <div>
                 <h4 className="font-black">Create a public study link</h4>
                 <p className="mt-1 text-sm leading-6">
-                  Anyone with the link can study without signing in. Progress
-                  stays on their device and is never sent to SpartBoard.
+                  No sign-in needed. Progress stays on their device.
                 </p>
               </div>
             </div>
@@ -211,8 +210,7 @@ export const FlashcardShareModal: React.FC<FlashcardShareModalProps> = ({
                   Turning this off makes the current link stop working.
                 </p>
                 <p className="mt-1 text-xs leading-5 text-slate-600">
-                  Sharing again creates a different link. Saving this set keeps
-                  the active link up to date automatically.
+                  Sharing again creates a different link.
                 </p>
               </div>
               <Button
