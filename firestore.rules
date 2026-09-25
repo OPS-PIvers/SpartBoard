@@ -5638,8 +5638,7 @@ service cloud.firestore {
                     && isList('approvalStepIds')
                     && isList('steps')
                     && incoming().steps.size() <= 32
-                    && isBool('acceptingUpdates')
-                    && isBool('showStatusToStudents');
+                    && isBool('acceptingUpdates');
       allow update: if pjTeacher()
                     && existing().teacherUid == authUid()
                     && unchanged('teacherUid')
@@ -5690,14 +5689,10 @@ service cloud.firestore {
                              && before.get(sid, '') != 'done')));
         }
 
-        // D39: a member always; a classmate only while the teacher's
-        // denormalized `peerVisible` is on. Both are provable from the two
-        // student query shapes (memberUids array-contains, classId in +
-        // peerVisible ==).
+        // A student reads only their own group, never a classmate's; the
+        // member branch is provable from the memberUids array-contains query.
         allow read: if request.auth != null
                     && (authUid() in existing().get('memberUids', [])
-                        || (studentRoleCanAccessClass(existing().get('classId', ''))
-                            && existing().get('peerVisible', false) == true)
                         || pjIsRunTeacher());
         allow update: if request.auth != null
                       && (pjIsRunTeacher()

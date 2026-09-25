@@ -328,33 +328,15 @@ describe('commitProjectGroupsV1 writes', () => {
     expect(h.docStore.get(`${RUN_PATH}/groups/g2`)).not.toHaveProperty('color');
   });
 
-  it('stamps peerVisible from the run on new and edited groups', async () => {
+  it('never stamps a peer-visibility field on a group', async () => {
     h.docStore.set(RUN_PATH, {
       ...h.docStore.get(RUN_PATH),
       showStatusToStudents: true,
     });
-    h.docStore.set(`${RUN_PATH}/groups/g1`, {
-      id: 'g1',
-      classId: 'class-a',
-      memberUids: [],
-      stepStates: {},
-      peerVisible: false,
-    });
-    await call({
-      runId: RUN_ID,
-      groups: [groupEntry(), groupEntry({ id: 'g2' })],
-    });
-    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).peerVisible).toBe(true);
-    expect(h.docStore.get(`${RUN_PATH}/groups/g2`).peerVisible).toBe(true);
-  });
-
-  it('writes peerVisible false when the run hides other groups', async () => {
-    h.docStore.set(RUN_PATH, {
-      ...h.docStore.get(RUN_PATH),
-      showStatusToStudents: false,
-    });
     await call({ runId: RUN_ID, groups: [groupEntry()] });
-    expect(h.docStore.get(`${RUN_PATH}/groups/g1`).peerVisible).toBe(false);
+    expect(h.docStore.get(`${RUN_PATH}/groups/g1`)).not.toHaveProperty(
+      'peerVisible'
+    );
   });
 
   it('merges class names onto the run for classes that have groups', async () => {

@@ -204,6 +204,14 @@ describe('project folders', () => {
 });
 
 describe('run document', () => {
+  it('lets the teacher create a run with no peer-visibility field', async () => {
+    const fresh: Record<string, unknown> = run();
+    delete fresh.showStatusToStudents;
+    await assertSucceeds(
+      setDoc(doc(asTeacher(TEACHER_UID), 'project_runs', RUN_ID), fresh)
+    );
+  });
+
   it('lets a student in a targeted class read it but never write it', async () => {
     await seed();
     await assertSucceeds(
@@ -244,7 +252,7 @@ describe('run document', () => {
 });
 
 describe('the student project page groups query', () => {
-  // D39 — the peer shape the student page issues while the run shows peers.
+  // The classmate shape older student pages sent; no student may run it now.
   const groupsIn = (db: ReturnType<typeof asStudent>, classIds: string[]) =>
     getDocs(
       query(
@@ -261,7 +269,7 @@ describe('the student project page groups query', () => {
       )
     );
 
-  it('lets a member list their own group by membership, peers hidden or not', async () => {
+  it('lets a member list their own group by membership', async () => {
     await seed({}, { peerVisible: false });
     await assertSucceeds(
       ownGroups(asStudent(MEMBER_UID, [CLASS_ID]), MEMBER_UID)
@@ -275,7 +283,7 @@ describe('the student project page groups query', () => {
     );
   });
 
-  it('refuses a classmate the classId listing without the peerVisible filter', async () => {
+  it('refuses a classmate the classId listing, with or without peerVisible', async () => {
     await seed();
     await assertFails(
       getDocs(
@@ -288,11 +296,14 @@ describe('the student project page groups query', () => {
         )
       )
     );
+    await assertFails(
+      groupsIn(asStudent(OUTSIDER_UID, [CLASS_ID]), [CLASS_ID])
+    );
   });
 
-  it('lets a student in the class list its groups by classId', async () => {
+  it('refuses the classmate listing even to a member of a group in it', async () => {
     await seed();
-    await assertSucceeds(
+    await assertFails(
       groupsIn(asStudent(MEMBER_UID, [OTHER_CLASS_ID, CLASS_ID]), [
         OTHER_CLASS_ID,
         CLASS_ID,
@@ -464,9 +475,9 @@ describe('group document', () => {
     await assertFails(getDoc(doc(asTeacher(OTHER_TEACHER_UID), GROUP_PATH)));
   });
 
-  it('denies a classmate who is not in the group any write', async () => {
+  it('denies a classmate who is not in the group any read or write', async () => {
     await seed();
-    await assertSucceeds(
+    await assertFails(
       getDoc(doc(asStudent(OUTSIDER_UID, [CLASS_ID]), GROUP_PATH))
     );
     await assertFails(
@@ -478,9 +489,9 @@ describe('group document', () => {
     );
   });
 
-  // D39 — peer reads are enforced, not just hidden by the client.
-  it('hides a group from a classmate while peerVisible is off', async () => {
-    await seed({ showStatusToStudents: false }, { peerVisible: false });
+  // Students see only their own group, whatever a legacy run or group says.
+  it('hides a group from a classmate even on a legacy run that showed peers', async () => {
+    await seed({ showStatusToStudents: true }, { peerVisible: true });
     await assertFails(
       getDoc(doc(asStudent(OUTSIDER_UID, [CLASS_ID]), GROUP_PATH))
     );
@@ -490,22 +501,10 @@ describe('group document', () => {
     await assertSucceeds(getDoc(doc(asTeacher(TEACHER_UID), GROUP_PATH)));
   });
 
-  it('never shows a group to a student outside its class, even with peers on', async () => {
+  it('never shows a group to a student outside its class', async () => {
     await seed();
     await assertFails(
       getDoc(doc(asStudent(OUTSIDER_UID, [OTHER_CLASS_ID]), GROUP_PATH))
-    );
-  });
-
-  it('lets the teacher flip peerVisible on a group', async () => {
-    await seed();
-    await assertSucceeds(
-      updateDoc(doc(asTeacher(TEACHER_UID), GROUP_PATH), { peerVisible: false })
-    );
-    await assertFails(
-      updateDoc(doc(asTeacher(OTHER_TEACHER_UID), GROUP_PATH), {
-        peerVisible: true,
-      })
     );
   });
 
@@ -606,7 +605,7 @@ describe('group work links', () => {
     await assertSucceeds(getDoc(doc(db, workPath)));
   });
 
-  it('keeps them from a classmate, even with peers visible', async () => {
+  it('keeps them from a classmate, even on a legacy peer-visible group', async () => {
     await seed();
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), workPath), work());
