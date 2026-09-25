@@ -10,6 +10,7 @@
  *   /plc/:plcId/meeting              → Meeting Mode     { plcId, section: 'meeting' }
  *   /plc/:plcId/meeting/:meetingId   → a meeting record { plcId, section: 'meeting', meetingId }
  *   /plc/:plcId/assessments/:assessmentId → pooled results { plcId, section: 'assessments', assessmentId }
+ *   /plc/:plcId/docs/:docId          → an embedded doc  { plcId, section: 'docs', docId }
  *
  * Section is validated against the router-accepted token set via
  * `isPlcRouteSection`, then normalised to a canonical `PlcSectionId` via
@@ -34,6 +35,8 @@ export interface ParsedPlcPath {
   meetingId: string | null;
   /** A pooled-results detail id, only present on `/plc/:id/assessments/:assessmentId`. */
   assessmentId: string | null;
+  /** An embedded Google Doc id, only present on `/plc/:id/docs/:docId`. */
+  docId: string | null;
 }
 
 /** True when `pathname` is any route this module owns (`/plc` or under it). */
@@ -55,6 +58,7 @@ export function parsePlcPath(pathname: string): ParsedPlcPath {
     section: 'home',
     meetingId: null,
     assessmentId: null,
+    docId: null,
   };
   if (!isPlcRoute(pathname)) return fallback;
 
@@ -90,7 +94,9 @@ export function parsePlcPath(pathname: string): ParsedPlcPath {
   const assessmentId =
     rawSection === 'assessments' && segments[2] ? segments[2] : null;
 
-  return { plcId, section, meetingId, assessmentId };
+  const docId = rawSection === 'docs' && segments[2] ? segments[2] : null;
+
+  return { plcId, section, meetingId, assessmentId, docId };
 }
 
 /**
@@ -146,4 +152,9 @@ export function buildPlcAssessmentPath(
   assessmentId: string
 ): string {
   return `${buildPlcPath(plcId, 'assessments')}/${encodeURIComponent(assessmentId)}`;
+}
+
+/** Build the embedded-doc path `/plc/:plcId/docs/:docId`. */
+export function buildPlcDocPath(plcId: string, docId: string): string {
+  return `${buildPlcPath(plcId, 'docs')}/${encodeURIComponent(docId)}`;
 }

@@ -5,7 +5,12 @@ import { ArrowLeft, ChevronRight, Users2, X } from 'lucide-react';
 import { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
-import { buildPlcPath, spaNavigate, spaReplace } from '@/utils/plcPath';
+import {
+  buildPlcDocPath,
+  buildPlcPath,
+  spaNavigate,
+  spaReplace,
+} from '@/utils/plcPath';
 import { PlcDashboardRail, type PlcRailItem } from './PlcDashboardRail';
 import { getVisiblePlcSections, type PlcSectionId } from './sections';
 import { PlcHome } from './home/PlcHome';
@@ -39,6 +44,8 @@ interface PlcDashboardProps {
   meetingId?: string | null;
   /** A pooled-results detail id, present only on `/plc/:id/assessments/:assessmentId`. */
   assessmentId?: string | null;
+  /** An embedded doc id, present only on `/plc/:id/docs/:docId`. */
+  docId?: string | null;
   /** Navigate out of the PLC (back to the prior history entry / the board). */
   onClose: () => void;
 }
@@ -54,6 +61,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
   activeSection: requestedSection,
   meetingId = null,
   assessmentId = null,
+  docId = null,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -119,11 +127,20 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
     }
   };
 
+  const handleOpenDoc = (id: string) => {
+    setShowMobileMenu(false);
+    spaNavigate(buildPlcDocPath(plc.id, id));
+  };
+
   const renderSection = (id: PlcSectionId): React.ReactNode => {
     switch (id) {
       case 'home':
         return canAccessFeature('plc-home-v2') ? (
-          <PlcHomeV2 plc={plc} onNavigate={handleNavigateSection} />
+          <PlcHomeV2
+            plc={plc}
+            onNavigate={handleNavigateSection}
+            onOpenDoc={handleOpenDoc}
+          />
         ) : (
           <PlcHome plc={plc} onNavigate={handleNavigateSection} />
         );
@@ -145,7 +162,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({
         // The Docs section now hosts the combined Notes & Docs surface: native
         // structured meeting notes (live default) with the Google-Doc embed one
         // tab away (Decisions 2.5, 6.5).
-        return <NotesDocsBody plc={plc} />;
+        return <NotesDocsBody plc={plc} docId={docId} />;
       case 'sharedBoards':
         return <PlcSharedBoardsBody plc={plc} />;
       case 'members':
